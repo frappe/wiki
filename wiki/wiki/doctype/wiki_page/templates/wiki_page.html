@@ -1,0 +1,18 @@
+{% extends "templates/doc.html" %}
+
+{%- block head_include %}
+{{ super() }}
+<link rel="stylesheet" href="/assets/wiki/css/wiki.css">
+{% endblock -%}
+
+{% block page_content %}
+{%- if frappe.form_dict.edit -%}
+{% include "wiki/doctype/wiki_page/templates/edit.html" %}
+{%- elif frappe.form_dict.revisions -%}
+{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
+{%- elif frappe.form_dict.compare -%}
+{% include "wiki/doctype/wiki_page/templates/compare.html" %}
+{%- else -%}
+{% include "wiki/doctype/wiki_page/templates/show.html" %}
+{%- endif -%}
+{% endblock %}

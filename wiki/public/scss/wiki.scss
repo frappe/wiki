@@ -1,0 +1,58 @@
+@import "frappe/public/scss/variables";
+
+textarea.wiki-content {
+	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
+		monospace;
+	font-size: $font-size-sm;
+}
+
+.doc-content .from-markdown {
+	min-height: 40rem;
+}
+
+.nav-tabs {
+	font-size: var(--font-size-sm);
+}
+
+.wiki-preview {
+	min-height: 600px;
+}
+
+.wiki-footer {
+	border-top: 1px solid $border-color;
+	margin-top: 2rem;
+}
+
+.wiki-diff .diff {
+	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
+		monospace;
+	font-size: $font-size-sm;
+	border: 1px solid $border-color;
+	border-radius: 0.5rem;
+	overflow: hidden;
+
+	div {
+		padding: 0.25rem 0.5rem;
+		background-color: $gray-50;
+		color: $gray-700;
+	}
+
+	.control {
+		color: $gray-500;
+		background-color: $gray-100;
+	}
+
+	.delete {
+		background-color: #fff5f5;
+		color: $gray-900;
+	}
+
+	.insert {
+		background-color: #f0fff4;
+		color: $gray-900;
+	}
+}
+
+.wiki-revision-meta {
+	font-size: $font-size-sm;
+}

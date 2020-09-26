@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "creation": "2020-09-26 16:02:57.409719",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "logo",
+  "home_route",
+  "sidebar"
+ ],
+ "fields": [
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "default": "wiki",
+   "description": "All your wiki pages will start with this route. For e.g If you have a wiki page `home`, then it's URL will be `/wiki/home`",
+   "fieldname": "home_route",
+   "fieldtype": "Data",
+   "label": "Home Route"
+  },
+  {
+   "fieldname": "sidebar",
+   "fieldtype": "Link",
+   "label": "Website Sidebar",
+   "options": "Website Sidebar"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2020-09-26 16:19:33.176027",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
