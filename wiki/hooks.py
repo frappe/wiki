@@ -5,7 +5,7 @@ from . import __version__ as app_version
 app_name = "wiki"
 app_title = "Wiki"
 app_publisher = "Frappe"
-app_description = "Simple Wiki APp"
+app_description = "Simple Wiki App"
 app_icon = "octicon octicon-file-directory"
 app_color = "grey"
 app_email = "developers@frappe.io"
