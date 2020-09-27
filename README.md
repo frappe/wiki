@@ -1,4 +1,5 @@
-# Wiki
+<img width="299" alt="logotype" src="https://user-images.githubusercontent.com/9355208/94364059-467be400-00e4-11eb-99b2-31b5d05376c9.png">
+
 
 Simple Wiki App built on the [Frappe Framework](https://frappeframework.com)
 
