@@ -1,30 +1,23 @@
 <div class="from-markdown">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="m-0">{{ title }}</h1>
-
 		<div>
 			{%- if can_edit -%}
 			<a href="/{{ path }}?edit=true" class="btn btn-primary-light btn-sm">Edit Page</a>
-			<a href="/new-wiki-page" class="btn btn-primary btn-sm">New Page</a>
+			<a href="/{{ path }}?new=true" class="btn btn-primary btn-sm">New Page</a>
 			{%- endif -%}
 		</div>
 	</div>
-	<p>{{ description }}</p>
 	{{ content }}
 </div>
 <div class="wiki-footer">
 	{%- if last_revision -%}
 	<div class="my-4 wiki-revision-meta">
 		{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
-	</div>
-	{%- endif -%}
-	<div class="font-size-sm">
-		{%- if number_of_revisions > 0 -%}
+		{%- if number_of_revisions > 0 %}
+		&middot;
 		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>
 		{%- endif -%}
-		{%- if can_edit %}
-		&middot;
-		<a href="/{{ path }}?edit=true">Edit this page</a>
-		{%- endif -%}
 	</div>
+	{%- endif -%}
 </div>

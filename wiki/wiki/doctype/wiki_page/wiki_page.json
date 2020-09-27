@@ -7,7 +7,6 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
-  "description",
   "column_break_2",
   "route",
   "published",
@@ -50,18 +49,13 @@
    "fieldtype": "Data",
    "label": "Title",
    "reqd": 1
-  },
-  {
-   "fieldname": "description",
-   "fieldtype": "Small Text",
-   "label": "Description"
   }
  ],
  "has_web_view": 1,
  "index_web_pages_for_search": 1,
  "is_published_field": "published",
  "links": [],
- "modified": "2020-09-26 22:32:54.501106",
+ "modified": "2020-09-27 16:33:08.323741",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

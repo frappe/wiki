@@ -2,12 +2,16 @@
 	<h1>{{ title }}</h1>
 </div>
 
-<form class="mt-8" action="/api/method/update-page" method="POST">
+<form class="mt-8" action="/api/method/new-page" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
-	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
 	<div class="form-group">
-		<label class="sr-only" for="title">Title</label>
-		<input id="title" class="form-control" type="text" name="title" value="{{ doc.title }}">
+		<label for="title">Title</label>
+		<input id="title" class="form-control" type="text" name="title" placeholder="Page Title">
+	</div>
+	<div class="form-group">
+		<label for="route">Route</label>
+		<input id="route" class="form-control" type="text" name="route" placeholder="{{ home_route }}/page-title"
+			data-home-route="{{ home_route }}">
 	</div>
 	<div class="form-group">
 		<label class="sr-only" for="content">Content</label>
@@ -23,23 +27,32 @@
 		</ul>
 		<div class="mt-4 tab-content">
 			<div class="tab-pane fade show active" id="write" role="tabpanel" aria-labelledby="write-tab">
-				<textarea id="content" class="form-control wiki-content" name="content" rows="30">{{ doc.content }}</textarea>
+				<textarea id="content" class="form-control wiki-content" name="content" rows="30"></textarea>
 			</div>
 			<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
 				<div class="from-markdown wiki-preview"></div>
 			</div>
 		</div>
 	</div>
-	<div class="form-group">
-		<label class="font-size-sm" for="edit_message">Edit Message</label>
-		<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message" placeholder="Write a small message here explaining this change">
-	</div>
-	<button type="submit" class="btn btn-primary">Save Page</button>
+	<button type="submit" class="btn btn-primary">Create Page</button>
 </form>
 
 {%- block script -%}
 <script>
 	frappe.ready(() => {
+		$('form').on('change', e => {
+			let $input = $(e.target);
+			if ($input.prop('name') === 'title' && $input.val()) {
+				let $route = $('form input[name=route]');
+				let placeholder = $route.prop('placeholder');
+				$route.prop('placeholder', 'Generating route...');
+				frappe.call('wiki.wiki.doctype.wiki_page.wiki_page.get_route', { title: $input.val() })
+					.then(r => {
+						$route.prop('placeholder', placeholder);
+						$route.val(r.message || '');
+					});
+			}
+		})
 		$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 			let activeTab = $(e.target);
 
