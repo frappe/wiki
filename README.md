@@ -22,19 +22,20 @@ $ bench --site sitename install-app wiki
 ## Screenshots
 
 ### 1. Rendered Page
-<img width="1552" alt="wiki-rendered" src="https://user-images.githubusercontent.com/9355208/94364155-eafe2600-00e4-11eb-8a13-7c9de6d177ba.png">
+<img width="1552" alt="wiki-rendered" src="https://user-images.githubusercontent.com/9355208/94365126-03be0a00-00ec-11eb-8ce1-15c9c155ae29.png">
 
 ### 2. New Page
-<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/9355208/94364152-e9ccf900-00e4-11eb-8d54-f684b6f8a6a7.png">
+<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/9355208/94365125-03257380-00ec-11eb-865d-fc8a469a43d7.png">
 
 ### 3. Edit Page
-<img width="1552" alt="wiki-edit" src="https://user-images.githubusercontent.com/9355208/94364150-e8033580-00e4-11eb-9273-aba3f305b545.png">
+<img width="1552" alt="wiki-edit" src="https://user-images.githubusercontent.com/9355208/94365124-01f44680-00ec-11eb-98c5-21a4895e6e82.png">
 
 ### 4. Revisions
-<img width="1552" alt="wiki-revisions" src="https://user-images.githubusercontent.com/9355208/94364149-e6d20880-00e4-11eb-8afe-deccf665b5a1.png">
+<img width="1552" alt="wiki-revisions" src="https://user-images.githubusercontent.com/9355208/94365123-00c31980-00ec-11eb-9bd0-ca63418b4dfc.png">
 
 ### 5. Compare changes
-<img width="1552" alt="wiki-compare" src="https://user-images.githubusercontent.com/9355208/94364144-dfaafa80-00e4-11eb-9ff0-5a9b2fd978c7.png">
+<img width="1552" alt="wiki-compare" src="https://user-images.githubusercontent.com/9355208/94365116-f012a380-00eb-11eb-8ff1-fe3d2edceb64.png">
+
 
 #### License
 
