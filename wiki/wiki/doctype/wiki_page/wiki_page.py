@@ -44,7 +44,9 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def get_context(self, context):
-		context.home_route = frappe.db.get_single_value("Wiki Settings", "home_route")
+		wiki_settings = frappe.get_single('Wiki Settings')
+		context.banner_image = wiki_settings.logo
+		context.home_route = wiki_settings.home_route
 		context.docs_search_scope = context.home_route
 		context.can_edit = frappe.session.user != "Guest"
 
