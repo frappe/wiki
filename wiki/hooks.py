@@ -46,7 +46,7 @@ app_license = "MIT"
 
 # website user home page (by Role)
 # role_home_page = {
-#	"Role": "home_page"
+# 	"Role": "home_page"
 # }
 
 # Generators
@@ -96,7 +96,7 @@ app_license = "MIT"
 # 		"on_update": "method",
 # 		"on_cancel": "method",
 # 		"on_trash": "method"
-#	}
+# 	}
 # }
 
 # Scheduled Tasks
@@ -131,6 +131,13 @@ app_license = "MIT"
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "wiki.event.get_events"
 # }
+
+# whitelisted_paths = {
+# 	"/update-page": ["Wiki Page", "update"],
+# 	"/new-page": ["Wiki Page", "new"],
+# 	"/get-route": "wiki.wiki.doctype.wiki_page.wiki_page.get_route",
+# }
+
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
@@ -142,4 +149,3 @@ app_license = "MIT"
 # exempt linked doctypes from being automatically cancelled
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
-

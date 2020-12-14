@@ -121,7 +121,7 @@ def preview(content):
 	return frappe.utils.md_to_html(content)
 
 
-@frappe.whitelist(methods=["POST"], alias="update-page")
+@frappe.whitelist(methods=["POST"])
 def update(wiki_page, title, content, edit_message):
 	wiki_page = frappe.get_doc("Wiki Page", wiki_page)
 	wiki_page.update_page(title, content, edit_message)
@@ -130,8 +130,8 @@ def update(wiki_page, title, content, edit_message):
 	frappe.response.type = "redirect"
 
 
-@frappe.whitelist(methods=["POST"], alias="new-page")
-def update(title, route, content):
+@frappe.whitelist(methods=["POST"])
+def new(title, route, content):
 	wiki_page = frappe.new_doc("Wiki Page")
 	wiki_page.title = title
 	wiki_page.route = route
@@ -143,7 +143,7 @@ def update(title, route, content):
 	frappe.response.type = "redirect"
 
 
-@frappe.whitelist(alias="get-route")
+@frappe.whitelist()
 def get_route(title):
 	import re
 

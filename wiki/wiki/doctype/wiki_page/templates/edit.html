@@ -2,7 +2,7 @@
 	<h1>{{ title }}</h1>
 </div>
 
-<form class="mt-8" action="/api/method/update-page" method="POST">
+<form class="mt-8" action="/api/method/wiki.wiki.doctype.wiki_page.wiki_page.update" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
 	<div class="form-group">

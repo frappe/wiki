@@ -2,7 +2,7 @@
 	<h1>{{ title }}</h1>
 </div>
 
-<form class="mt-8" action="/api/method/new-page" method="POST">
+<form class="mt-8" action="/api/method/wiki.wiki.doctype.wiki_page.wiki_page.new" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 	<div class="form-group">
 		<label for="title">Title</label>
@@ -48,8 +48,10 @@
 				$route.prop('placeholder', 'Generating route...');
 				frappe.call('wiki.wiki.doctype.wiki_page.wiki_page.get_route', { title: $input.val() })
 					.then(r => {
-						$route.prop('placeholder', placeholder);
-						$route.val(r.message || '');
+						if (r.message) {
+							$route.prop('placeholder', placeholder);
+							$route.val(r.message || '');
+						}
 					});
 			}
 		})
