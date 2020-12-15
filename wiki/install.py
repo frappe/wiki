@@ -24,7 +24,7 @@ def after_install():
 		{
 			"title": "Edit Sidebar",
 			"route": "/desk#Form/Website Sidebar/Wiki Sidebar",
-			"group": "Manage",
+			"group": "Manage Wiki",
 		},
 	)
 	sidebar.append(
