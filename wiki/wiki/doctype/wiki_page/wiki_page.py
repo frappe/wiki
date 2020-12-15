@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 import frappe
+from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
 
 
@@ -17,15 +18,8 @@ class WikiPage(WebsiteGenerator):
 		revision.insert()
 
 	def set_route(self):
-		if self.is_website_published() and not self.route:
-			self.route = self.make_route()
-
-		if self.route:
-			self.route = self.route.strip("/.")[:2000]
-
-		wiki_home_route = frappe.db.get_single_value("Wiki Settings", "home_route")
-		if not self.route.startswith(wiki_home_route):
-			self.route = wiki_home_route + "/" + self.route
+		if not self.route:
+			self.route = "wiki/" + cleanup_page_name(self.title)
 
 	def update_page(self, title, content, edit_message):
 		"""
@@ -44,11 +38,12 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def get_context(self, context):
-		wiki_settings = frappe.get_single('Wiki Settings')
+		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
-		context.home_route = wiki_settings.home_route
-		context.docs_search_scope = context.home_route
+		context.home_route = "wiki"
+		context.docs_search_scope = "wiki"
 		context.can_edit = frappe.session.user != "Guest"
+		context.no_cache = 1
 
 		if frappe.form_dict:
 			context.parents = [{"route": "/" + self.route, "label": self.title}]
@@ -131,33 +126,12 @@ def update(wiki_page, title, content, edit_message):
 
 
 @frappe.whitelist(methods=["POST"])
-def new(title, route, content):
+def new(title, content):
 	wiki_page = frappe.new_doc("Wiki Page")
 	wiki_page.title = title
-	wiki_page.route = route
 	wiki_page.content = content
 	wiki_page.published = True
 	wiki_page.insert()
 
 	frappe.response.location = "/" + wiki_page.route
 	frappe.response.type = "redirect"
-
-
-@frappe.whitelist()
-def get_route(title):
-	import re
-
-	# lowercase
-	route = title.lower()
-	# remove special characters
-	route = re.sub(r"[^0-9a-zA-Z]", " ", route)
-	# spaces to hyphens
-	route = "-".join(route.split())
-	# limit to 2000 chars
-	route = route.strip("/.")[:2000]
-
-	wiki_home_route = frappe.db.get_single_value("Wiki Settings", "home_route")
-	if not route.startswith(wiki_home_route + "/"):
-		route = wiki_home_route + "/" + route
-
-	return route

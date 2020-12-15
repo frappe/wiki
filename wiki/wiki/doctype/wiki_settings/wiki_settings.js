@@ -3,6 +3,6 @@
 
 frappe.ui.form.on("Wiki Settings", {
 	refresh: function (frm) {
-		frm.add_web_link(`/${frm.doc.home_route}`, __("See on website"));
+		frm.add_web_link("/wiki", __("See on website"));
 	},
 });

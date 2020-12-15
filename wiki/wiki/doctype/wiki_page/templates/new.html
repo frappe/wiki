@@ -9,11 +9,6 @@
 		<input id="title" class="form-control" type="text" name="title" placeholder="Page Title">
 	</div>
 	<div class="form-group">
-		<label for="route">Route</label>
-		<input id="route" class="form-control" type="text" name="route" placeholder="{{ home_route }}/page-title"
-			data-home-route="{{ home_route }}">
-	</div>
-	<div class="form-group">
 		<label class="sr-only" for="content">Content</label>
 		<ul class="nav nav-tabs" role="tablist">
 			<li class="nav-item" role="presentation">
@@ -40,21 +35,6 @@
 {%- block script -%}
 <script>
 	frappe.ready(() => {
-		$('form').on('change', e => {
-			let $input = $(e.target);
-			if ($input.prop('name') === 'title' && $input.val()) {
-				let $route = $('form input[name=route]');
-				let placeholder = $route.prop('placeholder');
-				$route.prop('placeholder', 'Generating route...');
-				frappe.call('wiki.wiki.doctype.wiki_page.wiki_page.get_route', { title: $input.val() })
-					.then(r => {
-						if (r.message) {
-							$route.prop('placeholder', placeholder);
-							$route.val(r.message || '');
-						}
-					});
-			}
-		})
 		$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 			let activeTab = $(e.target);
 

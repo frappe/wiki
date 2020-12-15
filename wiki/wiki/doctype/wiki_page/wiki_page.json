@@ -54,8 +54,14 @@
  "has_web_view": 1,
  "index_web_pages_for_search": 1,
  "is_published_field": "published",
- "links": [],
- "modified": "2020-09-27 16:33:08.323741",
+ "links": [
+  {
+   "group": "Linked Documents",
+   "link_doctype": "Wiki Page Revision",
+   "link_fieldname": "wiki_page"
+  }
+ ],
+ "modified": "2020-12-15 16:59:16.853119",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
