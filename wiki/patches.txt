@@ -1,0 +1,1 @@
+wiki.wiki.doctype.wiki_page.patches.set_allow_guest

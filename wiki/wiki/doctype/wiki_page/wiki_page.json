@@ -6,10 +6,12 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "content_section",
   "title",
   "column_break_2",
   "route",
   "published",
+  "allow_guest",
   "section_break_4",
   "content"
  ],
@@ -49,6 +51,17 @@
    "fieldtype": "Data",
    "label": "Title",
    "reqd": 1
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Title & Content"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_guest",
+   "fieldtype": "Check",
+   "label": "Allow Guest"
   }
  ],
  "has_web_view": 1,
@@ -61,7 +74,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2020-12-15 16:59:16.853119",
+ "modified": "2021-02-04 15:08:08.965522",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

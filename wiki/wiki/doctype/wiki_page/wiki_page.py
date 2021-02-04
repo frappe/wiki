@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 import frappe
+from frappe import _
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
 
@@ -37,7 +38,21 @@ class WikiPage(WebsiteGenerator):
 
 		self.save()
 
+	def verify_permission(self, permtype):
+		if permtype == "read" and self.allow_guest:
+			return True
+		permitted = frappe.has_permission(self.doctype, permtype, self)
+		if not permitted:
+			action = permtype
+			if action == "write":
+				action = "edit"
+			frappe.throw(
+				_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
+			)
+
 	def get_context(self, context):
+		self.verify_permission("read")
+
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
 		context.home_route = "wiki"
@@ -50,10 +65,12 @@ class WikiPage(WebsiteGenerator):
 			context.add_breadcrumbs = True
 
 		if frappe.form_dict.new:
+			self.verify_permission("create")
 			context.title = "New Wiki Page"
 			return
 
 		if frappe.form_dict.edit:
+			self.verify_permission("write")
 			context.title = "Editing " + self.title
 			return
 
