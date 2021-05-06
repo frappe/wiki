@@ -18,6 +18,12 @@ class WikiPage(WebsiteGenerator):
 		revision.message = "Create Wiki Page"
 		revision.insert()
 
+	def on_trash(self):
+		for name in frappe.get_all(
+			"Wiki Page Revision", {"wiki_page": self.name}, pluck="name"
+		):
+			frappe.delete_doc("Wiki Page Revision", name)
+
 	def set_route(self):
 		if not self.route:
 			self.route = "wiki/" + cleanup_page_name(self.title)
