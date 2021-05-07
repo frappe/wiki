@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "creation": "2021-05-07 01:55:10.733283",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "route"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Title",
+   "options": "Wiki Page",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "title.route",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Route"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2021-05-07 01:55:10.733283",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki Sidebar Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

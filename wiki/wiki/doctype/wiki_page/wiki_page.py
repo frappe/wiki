@@ -117,7 +117,7 @@ class WikiPage(WebsiteGenerator):
 			return
 
 		context.metatags = {"title": self.title}
-		context.sidebar_items = self.get_sidebar_items()
+		context.sidebar_items = self.get_sidebar_items(context)
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
@@ -126,9 +126,13 @@ class WikiPage(WebsiteGenerator):
 		context.content = html
 		context.page_toc_html = html.toc_html
 
-	def get_sidebar_items(self):
+	def get_sidebar_items(self, context):
 		sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
-		sidebar_items = frappe.get_doc("Website Sidebar", sidebar).get_items()
+		print(context)
+		sidebar = frappe.get_all(doctype="Wiki Sidebar Item",fields=["name", "parent"], filters=[["route", "=", context.route ]])
+		print("sidebar"*50)
+		print(sidebar)
+		sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
 		if frappe.session.user == "Guest":
 			sidebar_items = [
 				item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
