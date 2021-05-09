@@ -5,19 +5,44 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "app_name"
+  "app_name",
+  "docs_directory",
+  "assets_directory",
+  "assets_prepend",
+  "documentation_route"
  ],
  "fields": [
   {
    "fieldname": "app_name",
    "fieldtype": "Data",
    "label": "App Name"
+  },
+  {
+   "description": "start with slash",
+   "fieldname": "docs_directory",
+   "fieldtype": "Data",
+   "label": "Docs Directory"
+  },
+  {
+   "fieldname": "assets_directory",
+   "fieldtype": "Data",
+   "label": "Assets Directory"
+  },
+  {
+   "fieldname": "documentation_route",
+   "fieldtype": "Data",
+   "label": "New Documentation Route"
+  },
+  {
+   "fieldname": "assets_prepend",
+   "fieldtype": "Data",
+   "label": "Assets Prepend"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-05-07 04:51:15.783017",
+ "modified": "2021-05-09 06:46:21.047441",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Migrate To Wiki",
