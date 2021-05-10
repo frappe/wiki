@@ -24,6 +24,7 @@ class MigrateToWiki(Document):
 		self.migrate_wiki()
 
 	def create_first_path(self):
+		self.docs_change_dict = {}
 		wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 		wiki_sidebar_dict = {
 			"title": self.docs_directory,
@@ -32,10 +33,10 @@ class MigrateToWiki(Document):
 		wiki_sidebar.save()
 
 	def set_docs_tree_generator(self):
-		self.docs_tree_generator = os.walk(frappe.get_app_path(self.app_name) + '/' + self.docs_directory)
+		self.docs_tree_generator = os.walk(f'{frappe.get_app_path(self.app_name)}{os.sep}{self.docs_directory}')
 
 	def set_assets_tree_generator(self):
-		self.assets_tree_generator = os.walk(frappe.get_app_path(self.app_name) + '/' + self.assets_directory)
+		self.assets_tree_generator = os.walk(frappe.get_app_path(self.app_name) + os.sep + self.assets_directory)
 
 
 	def migrate_wiki(self):
@@ -52,7 +53,7 @@ class MigrateToWiki(Document):
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 
 			wiki_sidebar_dict = {
-				"title": root[root.find(self.docs_directory): ] + '/' + directory,
+				"title": root[root.find(self.docs_directory): ] + os.sep+ directory,
 				"parent_wiki_sidebar": root[root.find(self.docs_directory): ],
 			}
 
@@ -61,9 +62,10 @@ class MigrateToWiki(Document):
 
 
 	def migrate_file(self, root, file):
+		heading_index = -1
 		if not file.endswith('.md'):
 			return
-		with open(f'{root}/{file}') as f:
+		with open(f'{root}{os.sep}{file}') as f:
 			lines = f.readlines()
 		for index, line in enumerate(lines):
 			if line.startswith('# '):
@@ -71,20 +73,23 @@ class MigrateToWiki(Document):
 				break
 
 		parent= root[root.find(self.docs_directory): ]
-		route = f'{self.documentation_route}/{parent}/{file[:-3]}'
+		route = f'{self.documentation_route}{os.sep}{parent}{os.sep}{file[:-3]}'
 
-		title = lines[heading_index] if heading_index else route.split('/')[-1]
-		content = ''.join(lines[heading_index + 1 : ]) if heading_index else '-'
+		title = lines[heading_index][2:] if heading_index != -1 else route.split(os.sep)[-1]
+		content = ''.join(lines[heading_index + 1 : ]) if heading_index != -1 else ''.join(lines)
 
-		if self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
-			for asset in self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
-				content = content.replace(asset['orig_file_url'], asset['file_url'])
+		# if self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
+		# 	for asset in self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
+				# content = content.replace(asset['orig_file_url'], asset['file_url'])
+		print(self.docs_change_dict)
+		for prev, new in self.docs_change_dict.items():
+			content = content.replace(prev, new)
 
 		if file.endswith('index.md'):
-			with open(f'{root}/index.html') as f:
+			with open(f'{root}{os.sep}index.txt') as f:
 				lines = f.readlines()
 			content = content.replace('{index}',"<ul><li>" +  "<li>".join(lines) + "</ul>")
-			route = f'{self.documentation_route}/{parent}'
+			route = f'{self.documentation_route}{os.sep}{parent}'
 
 		wiki_page = frappe.new_doc("Wiki Page")
 		wiki_page_dict = {
@@ -115,8 +120,8 @@ class MigrateToWiki(Document):
 
 	def copy_assets(self):
 		shutil.copytree(
-			frappe.get_app_path(self.app_name) + '/' + self.assets_directory,
-			f"{os.getcwd()}/{frappe.local.site}/public/files/{self.app_name}/{self.documentation_route}"
+			frappe.get_app_path(self.app_name) + os.sep + self.assets_directory,
+			f"{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}{self.app_name}{os.sep}{self.documentation_route}"
 		)
 
 
@@ -131,10 +136,10 @@ class MigrateToWiki(Document):
 			"is_private": 0,
 			"is_folder": 1,
 		})
-		file_doc.save(ignore_permissions=True)
+		# file_doc.save(ignore_permissions=True)
 
-		folder = f'Home/{self.app_name}'
-		for directory in self.documentation_route.split('/'):
+		folder = f'Home{os.sep}{self.app_name}'
+		for directory in self.documentation_route.split(os.sep):
 			file_doc = frappe.new_doc('File')
 
 			file_doc.update({
@@ -145,18 +150,17 @@ class MigrateToWiki(Document):
 				"is_folder": 1,
 			})
 
-			file_doc.save(ignore_permissions=True)
+			# file_doc.save(ignore_permissions=True)
 
-			folder = f'{folder}/{directory}'
+			folder = f'{folder}{os.sep}{directory}'
 
 		for root, dirs, files in self.assets_tree_generator:
 
 			for directory in dirs:
-				print("sdmfn")
-				print(folder)
-				print(root)
-				fold = f'Home/{self.app_name}/{root[root.find(self.assets_directory)  + len(self.assets_directory) + 1:]}/{self.documentation_route}'
-				fold=fold.replace('//','/')
+				fold = f'{folder}{os.sep}{root[root.find(self.assets_directory)  + len(self.assets_directory) + 1:]}'
+				fold=fold.replace(f'{os.sep}{os.sep}',os.sep)
+				if fold.endswith(f'{os.sep}'):
+					fold = fold[:-1]
 				file_doc = frappe.new_doc('File')
 
 				file_doc.update({
@@ -167,36 +171,43 @@ class MigrateToWiki(Document):
 					"is_folder": 1,
 				})
 
-				file_doc.save(ignore_permissions=True)
+				# file_doc.save(ignore_permissions=True)
 
 
 
 			for file in files:
+				if file == "__init__.py":
+					continue
+
+				# shutil.copy(
+				# 	f'{root}{os.sep}{file}',
+				# 	f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
+				# )
+
+				fol = f'{folder}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory):] }'
+				fol=fol.replace(f'{os.sep}{os.sep}',os.sep)
+				if fol.endswith(os.sep):
+					fol = fol[:-1]
 				print('filesjfhjk')
-				print(file)
+				print(fol)
+				file_url = f'{os.sep}files{os.sep}{file}'
+				print(file_url)
 				file_doc = frappe.new_doc('File')
-				file_url  = f"/files/{self.app_name}/{root[root.find(self.assets_directory) + len(self.assets_directory):]}/{file}"
 				file_doc.update({
 					"doctype": "File",
-					"folder": f'Home/{self.app_name}/{self.documentation_route}/{root[root.find(self.assets_directory) + len(self.assets_directory):] }',
+					"folder": fol,
 					"file_name": file,
 					"is_private": 0,
 					"file_url": file_url
 				})
-				file_doc.save(ignore_permissions=True)
+				# file_doc.save(ignore_permissions=True)
 
-				ind = f'{root[root.find(self.assets_directory) + len(self.assets_directory) + 1:] }'
-				orig_file_url = f'{self.assets_prepend}/{root[root.find(self.assets_directory) + len(self.assets_directory) + 1:] }/{file}'
+				orig_file_url = f'{self.assets_prepend}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory) + 1:] }{os.sep}{file}'
 
-				mutation = {
-					"orig_file_url": orig_file_url,
-					"file_url": file_url
-				}
 
-				if self.docs_change_dict.get(ind):
-					self.docs_change_dict[ind]= [mutation]
-				else:
-					self.docs_change_dict.get(ind).append(mutation)
+				self.docs_change_dict[orig_file_url] = file_url
+				print("self.docs_change_dict")
 
+				print(self.docs_change_dict)
 
 
