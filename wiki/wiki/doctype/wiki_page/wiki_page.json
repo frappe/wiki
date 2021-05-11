@@ -17,6 +17,7 @@
  ],
  "fields": [
   {
+   "default": "No Content",
    "description": "It is recommended that you start your first heading with h2, as the title will be the h1.",
    "fieldname": "content",
    "fieldtype": "Code",
@@ -34,6 +35,9 @@
   {
    "fieldname": "route",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
    "label": "Route",
    "reqd": 1,
    "unique": 1
@@ -74,7 +78,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-02-04 15:08:08.965522",
+ "modified": "2021-05-11 23:42:26.546072",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

@@ -11,6 +11,9 @@ from frappe.website.website_generator import WebsiteGenerator
 
 
 class WikiPage(WebsiteGenerator):
+	def autoname(self):
+		self.name = self.route
+
 	def after_insert(self):
 		revision = frappe.new_doc("Wiki Page Revision")
 		revision.wiki_page = self.name

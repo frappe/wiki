@@ -15,6 +15,17 @@ class MigrateToWiki(Document):
 	# assets_prepend = {{docs_base_url}}/assets/img
 	# documentation_route = /
 
+	def validate(self):
+		self.app_name = self.clean_paths(self.app_name)
+		self.docs_directory = self.clean_paths(self.docs_directory)
+		self.assets_directory = self.clean_paths(self.assets_directory)
+		self.assets_prepend = self.clean_paths(self.assets_prepend)
+		self.documentation_route = self.clean_paths(self.documentation_route)
+
+	def clean_paths(self, path):
+		if not path: path = ''
+		return path.strip(' ').strip('/').replace('//', '/')
+
 	def on_update(self):
 		self.create_first_path()
 		self.set_docs_tree_generator()
@@ -27,8 +38,8 @@ class MigrateToWiki(Document):
 		self.docs_change_dict = {}
 		wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 		wiki_sidebar_dict = {
-			"route": self.docs_directory,
-			"title": self.docs_directory,
+			"route": self.documentation_route,
+			"title": 'Home',
 		}
 		wiki_sidebar.update(wiki_sidebar_dict)
 		wiki_sidebar.save()
@@ -44,64 +55,79 @@ class MigrateToWiki(Document):
 		for root, dirs, files in self.docs_tree_generator:
 			self.migrate_dir(root, dirs, files)
 			for file in files:
-				self.migrate_file(root, file)
-
-
+				self.migrate_file(root, file, files)
 
 	def migrate_dir(self, root, dirs, files):
 		for directory in dirs:
 			if directory == '__pycache__': continue
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
-
+			parent_wiki_sidebar = f'{self.documentation_route}{os.sep}{root[root.find(self.docs_directory) + len(self.docs_directory) + 1: ]}'.replace('//', '/').strip('/')
 			wiki_sidebar_dict = {
-				"route": root[root.find(self.docs_directory): ] + os.sep + directory,
+				"route": f'{parent_wiki_sidebar}{os.sep}{directory}'.replace('//', '/'),
 				"title": directory.capitalize(),
-				"parent_wiki_sidebar": root[root.find(self.docs_directory): ],
+				"parent_wiki_sidebar": parent_wiki_sidebar,
 			}
 
 			wiki_sidebar.update(wiki_sidebar_dict)
 			wiki_sidebar.save()
 
 
-	def migrate_file(self, root, file):
+	def migrate_file(self, root, file, files):
+
+		if file=="index.md"  and "contents.md" in files:
+			return
 		heading_index = -1
 		if not file.endswith('.md'):
 			return
 		with open(f'{root}{os.sep}{file}') as f:
 			lines = f.readlines()
 		for index, line in enumerate(lines):
-			if line.startswith('# '):
+			if line.startswith('#'):
 				heading_index = index
 				break
 
-		parent= root[root.find(self.docs_directory): ]
-		route = f'{self.documentation_route}{os.sep}{parent}{os.sep}{file[:-3]}'
+		parent= f'{self.documentation_route}{os.sep}{root[root.find(self.docs_directory) + len(self.docs_directory) + 1: ]}'.replace('//', '/').strip('/')
+		route = f'{parent}{os.sep}{file[:-3]}'
 
 		title = lines[heading_index][2:] if heading_index != -1 else route.split(os.sep)[-1]
 		content = ''.join(lines[heading_index + 1 : ]) if heading_index != -1 else ''.join(lines)
-
+		if 'shifted to landing page' in content:
+			return
 		# if self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
 		# 	for asset in self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
 				# content = content.replace(asset['orig_file_url'], asset['file_url'])
-		print(self.docs_change_dict)
-		for prev, new in self.docs_change_dict.items():
-			content = content.replace(prev, new)
 
-		if file.endswith('index.md') or file.endswith('contents.md'):
-			with open(f'{root}{os.sep}index.txt') as f:
-				lines = f.readlines()
-			content = content.replace('{index}',"<ul><li>" +  "<li>".join(lines) + "</ul>")
-			route = f'{self.documentation_route}{os.sep}{parent}'
+		if content:
+			for prev, new in self.docs_change_dict.items():
+				content = content.replace(prev, new)
+
+
+			if file.endswith('index.md') or file.endswith('contents.md'):
+
+				try:
+					with open(f'{root}{os.sep}index.txt') as f:
+						lines = f.readlines()
+					content = content.replace('{index}',"<ul><li>" +  "<li>".join(lines) + "</ul>")
+				except:
+					content = content.replace('{index}',"<ul><li>" +  "<li>".join(files) + "</ul>")
+
+				route = f'{parent}'.strip('/')
+
+
+		else:
+			content = f"<a href='{parent}'>{parent}</a>"
+
+		print(title)
+		print(route)
+		print(file)
 
 		wiki_page = frappe.new_doc("Wiki Page")
 		wiki_page_dict = {
 			"title": title,
-			"parent_wiki_sidebar": root,
 			'allow_guest': 1,
 			'published': 1,
 			'content': content,
 			'route': route,
-			'parenttype': 'Wiki Page'
 		}
 		wiki_page.update(wiki_page_dict)
 		wiki_page.save()
@@ -139,7 +165,10 @@ class MigrateToWiki(Document):
 			"is_private": 0,
 			"is_folder": 1,
 		})
-		# file_doc.save(ignore_permissions=True)
+		try:
+			file_doc.save(ignore_permissions=True)
+		except Exception as ex:
+			print(ex)
 
 		folder = f'Home{os.sep}{self.app_name}'
 		for directory in self.documentation_route.split(os.sep):
@@ -152,8 +181,10 @@ class MigrateToWiki(Document):
 				"is_private": 0,
 				"is_folder": 1,
 			})
-
-			# file_doc.save(ignore_permissions=True)
+			try:
+				file_doc.save(ignore_permissions=True)
+			except Exception as ex:
+				print(ex)
 
 			folder = f'{folder}{os.sep}{directory}'
 
@@ -174,27 +205,27 @@ class MigrateToWiki(Document):
 					"is_folder": 1,
 				})
 
-				# file_doc.save(ignore_permissions=True)
+				try:
+					file_doc.save(ignore_permissions=True)
+				except Exception as ex:
+					print(ex)
 
 
 
 			for file in files:
 				if file == "__init__.py":
 					continue
-
-				# shutil.copy(
-				# 	f'{root}{os.sep}{file}',
-				# 	f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
-				# )
+				print(f'{root}{os.sep}{file}')
+				shutil.copy(
+					f'{root}{os.sep}{file}',
+					f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
+				)
 
 				fol = f'{folder}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory):] }'
 				fol=fol.replace(f'{os.sep}{os.sep}',os.sep)
 				if fol.endswith(os.sep):
 					fol = fol[:-1]
-				print('filesjfhjk')
-				print(fol)
 				file_url = f'{os.sep}files{os.sep}{file}'
-				print(file_url)
 				file_doc = frappe.new_doc('File')
 				file_doc.update({
 					"doctype": "File",
@@ -203,15 +234,18 @@ class MigrateToWiki(Document):
 					"is_private": 0,
 					"file_url": file_url
 				})
-				# file_doc.save(ignore_permissions=True)
+				try:
+					file_doc.save(ignore_permissions=True)
+				except Exception as ex:
+					print(ex)
 
 				orig_file_url = f'{self.assets_prepend}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory) + 1:] }{os.sep}{file}'
 
 
 				self.docs_change_dict[orig_file_url] = file_url
 				self.docs_change_dict[orig_file_url.replace('{{docs_base_url}}', self.docs_base_url)] = file_url
-				print("self.docs_change_dict")
+		# print("self.docs_change_dict")
 
-				print(self.docs_change_dict)
+		# print(self.docs_change_dict)
 
 
