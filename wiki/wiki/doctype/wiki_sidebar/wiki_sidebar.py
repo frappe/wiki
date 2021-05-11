@@ -33,54 +33,69 @@ class WikiSidebar(NestedSet):
 		)
 
 		if not child_sidebars:
-			siblings = frappe.get_all(
-				"Wiki Sidebar",
-				filters={'parent_wiki_sidebar': self.parent_wiki_sidebar},
-				fields=["title" , "name"],
+			return frappe.get_doc("Wiki Sidebar", self.parent_wiki_sidebar).get_items()
+
+			# siblings = frappe.get_all(
+			# 	"Wiki Sidebar",
+			# 	filters={'parent_wiki_sidebar': self.parent_wiki_sidebar},
+			# 	fields=["title" , "name"],
+			# 	order_by="idx asc",
+			# )
+
+			# for child_sidebar in siblings:
+			# 	items = frappe.get_all(
+			# 		"Wiki Sidebar Item",
+			# 		filters={'parent': child_sidebar.name},
+			# 		fields=["title", "route", "parent"],
+			# 		order_by="idx asc",
+			# 	)
+
+
+
+			# 	for item in items:
+			# 		item.group=child_sidebar.title
+			# 		item.route =  '/' + item.route
+			# 		items_by_group.setdefault(child_sidebar.title, []).append(item)
+
+			# out = []
+			# for group, items in items_by_group.items():
+			# 	out.append({"group_title": group, "group_items": items})
+			# return out
+
+		child_sidebars = sorted(child_sidebars, key=lambda x: x.title)
+		for child_sidebar in child_sidebars:
+			items = frappe.get_all(
+				"Wiki Sidebar Item",
+				filters={'parent': child_sidebar.name},
+				fields=["title", "route", "parent"],
 				order_by="idx asc",
 			)
+			sidebars = []
+			for sidebar in frappe.get_all('Wiki Sidebar', filters={'parent_wiki_sidebar': child_sidebar.name}):
 
-			for child_sidebar in siblings:
-				items = frappe.get_all(
+				sidebars.extend(frappe.get_all(
 					"Wiki Sidebar Item",
-					filters={'parent': child_sidebar.name},
+					filters={'route': sidebar.name},
 					fields=["title", "route", "parent"],
 					order_by="idx asc",
-				)
+				))
 
-		
 
-				for item in items:
-					item.group=child_sidebar.title
-					item.route =  '/' + item.route
-					items_by_group.setdefault(child_sidebar.title, []).append(item)
+			for item in items:
+				item.group=child_sidebar.title
+				item.route =  '/' + item.route
+				items_by_group.setdefault(child_sidebar.title, []).append(item)
 
-			out = []
-			for group, items in items_by_group.items():
-				out.append({"group_title": group, "group_items": items})
-			return out
-
-		else:
-
-			for child_sidebar in child_sidebars:
-				items = frappe.get_all(
-					"Wiki Sidebar Item",
-					filters={'parent': child_sidebar.name},
-					fields=["title", "route", "parent"],
-					order_by="idx asc",
-				)
-
-				for item in items:
-					item.group=child_sidebar.title
-					item.route =  '/' + item.route
-					items_by_group.setdefault(child_sidebar.title, []).append(item)
+			for item in sidebars:
+				item.group=child_sidebar.title
+				item.route =  '/' + item.route
+				items_by_group.setdefault(child_sidebar.title, []).append(item)
 
 		out = []
 		# out += items_without_group
-		out.append({"group_title": self.title, "group_items": items_without_group})
+		out.append({"group_title": "Main", "group_items": items_without_group})
 
 		for group, items in items_by_group.items():
 			out.append({"group_title": group, "group_items": items})
-		
 
 		return out
