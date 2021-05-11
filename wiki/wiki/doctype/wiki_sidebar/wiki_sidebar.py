@@ -93,7 +93,7 @@ class WikiSidebar(NestedSet):
 
 		out = []
 		# out += items_without_group
-		out.append({"group_title": "Main", "group_items": items_without_group})
+		out.append({"group_title": "Title", "group_items": items_without_group})
 
 		for group, items in items_by_group.items():
 			out.append({"group_title": group, "group_items": items})
