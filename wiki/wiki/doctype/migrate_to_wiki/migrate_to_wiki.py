@@ -27,6 +27,7 @@ class MigrateToWiki(Document):
 		self.docs_change_dict = {}
 		wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 		wiki_sidebar_dict = {
+			"route": self.docs_directory,
 			"title": self.docs_directory,
 		}
 		wiki_sidebar.update(wiki_sidebar_dict)
@@ -53,7 +54,8 @@ class MigrateToWiki(Document):
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 
 			wiki_sidebar_dict = {
-				"title": root[root.find(self.docs_directory): ] + os.sep+ directory,
+				"route": root[root.find(self.docs_directory): ] + os.sep + directory,
+				"title": directory.capitalize(),
 				"parent_wiki_sidebar": root[root.find(self.docs_directory): ],
 			}
 
@@ -85,7 +87,7 @@ class MigrateToWiki(Document):
 		for prev, new in self.docs_change_dict.items():
 			content = content.replace(prev, new)
 
-		if file.endswith('index.md'):
+		if file.endswith('index.md') or file.endswith('contents.md'):
 			with open(f'{root}{os.sep}index.txt') as f:
 				lines = f.readlines()
 			content = content.replace('{index}',"<ul><li>" +  "<li>".join(lines) + "</ul>")
@@ -107,7 +109,8 @@ class MigrateToWiki(Document):
 
 		wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 		wiki_sidebar_item_dict = {
-			"title": title,
+			"wiki_page": wiki_page.name,
+			"title": wiki_page.title,
 			"parent": parent,
 			'parenttype': 'Wiki Sidebar',
 			'route': route,
@@ -206,6 +209,7 @@ class MigrateToWiki(Document):
 
 
 				self.docs_change_dict[orig_file_url] = file_url
+				self.docs_change_dict[orig_file_url.replace('{{docs_base_url}}', self.docs_base_url)] = file_url
 				print("self.docs_change_dict")
 
 				print(self.docs_change_dict)

@@ -25,7 +25,7 @@ class WikiSidebar(NestedSet):
 			child_sidebars = frappe.get_all(
 				"Wiki Sidebar",
 				filters={'parent_wiki_sidebar': self.name},
-				fields=["title" ],
+				fields=["title" , "name"],
 				order_by="idx asc",
 			)
 
@@ -34,7 +34,7 @@ class WikiSidebar(NestedSet):
 			for child_sidebar in child_sidebars:
 				items = frappe.get_all(
 					"Wiki Sidebar Item",
-					filters={'parent': child_sidebar.title},
+					filters={'parent': child_sidebar.name},
 					fields=["title", "route", "parent"],
 					order_by="idx asc",
 				)

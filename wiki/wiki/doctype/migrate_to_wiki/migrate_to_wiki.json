@@ -9,7 +9,8 @@
   "docs_directory",
   "assets_directory",
   "assets_prepend",
-  "documentation_route"
+  "documentation_route",
+  "docs_base_url"
  ],
  "fields": [
   {
@@ -34,15 +35,21 @@
    "label": "New Documentation Route"
   },
   {
+   "description": "with docs base url",
    "fieldname": "assets_prepend",
    "fieldtype": "Data",
    "label": "Assets Prepend"
+  },
+  {
+   "fieldname": "docs_base_url",
+   "fieldtype": "Data",
+   "label": "Docs Base Utl"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-05-09 06:46:21.047441",
+ "modified": "2021-05-11 15:11:58.407947",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Migrate To Wiki",

@@ -1,30 +1,23 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:title",
+ "autoname": "field:route",
  "creation": "2021-05-07 01:38:50.629713",
  "doctype": "DocType",
  "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "title",
+  "route",
   "sidebar_items",
   "lft",
   "rgt",
   "is_group",
   "old_parent",
-  "parent_wiki_sidebar"
+  "parent_wiki_sidebar",
+  "title"
  ],
  "fields": [
-  {
-   "fieldname": "title",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Title",
-   "reqd": 1,
-   "unique": 1
-  },
   {
    "fieldname": "sidebar_items",
    "fieldtype": "Table",
@@ -64,11 +57,24 @@
    "fieldtype": "Link",
    "label": "Parent Wiki Sidebar",
    "options": "Wiki Sidebar"
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Route",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
   }
  ],
  "is_tree": 1,
  "links": [],
- "modified": "2021-05-08 01:08:31.183562",
+ "modified": "2021-05-11 15:07:42.750126",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar",
