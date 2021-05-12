@@ -89,7 +89,7 @@ class MigrateToWiki(Document):
 		parent= f'{self.documentation_route}{os.sep}{root[root.find(self.docs_directory) + len(self.docs_directory) + 1: ]}'.replace('//', '/').strip('/')
 		route = f'{parent}{os.sep}{file[:-3]}'
 
-		title = lines[heading_index][2:] if heading_index != -1 else route.split(os.sep)[-1]
+		title = lines[heading_index].strip('#').strip(' ') if heading_index != -1 else route.split(os.sep)[-1]
 		content = ''.join(lines[heading_index + 1 : ]) if heading_index != -1 else ''.join(lines)
 		if 'shifted to landing page' in content:
 			return
