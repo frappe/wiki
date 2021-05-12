@@ -150,8 +150,12 @@ class WikiPage(WebsiteGenerator):
 
 
 @frappe.whitelist()
-def preview(content):
-	return frappe.utils.md_to_html(content)
+def preview(content, name):
+	from ghdiff import diff
+	old_content = frappe.db.get_value("Wiki Page", name, "content")
+	diff = diff(old_content, content, css=False)
+	html = frappe.utils.md_to_html(content)
+	return {'html': html, "diff": diff}
 
 
 @frappe.whitelist(methods=["POST"])
