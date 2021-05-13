@@ -1,0 +1,175 @@
+{
+ "actions": [],
+ "creation": "2021-05-13 10:08:45.648142",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "wiki_page",
+  "raised_by",
+  "approved_by",
+  "status",
+  "compare_changes_section",
+  "diff",
+  "compare",
+  "code",
+  "orignal_code",
+  "new_code",
+  "previews_section",
+  "orignal_preview",
+  "new_preview_section_section",
+  "new_preview",
+  "orignal_preview_store",
+  "new_preview_store",
+  "amended_from",
+  "message"
+ ],
+ "fields": [
+  {
+   "fieldname": "wiki_page",
+   "fieldtype": "Link",
+   "label": "Wiki Page",
+   "options": "Wiki Page"
+  },
+  {
+   "fieldname": "raised_by",
+   "fieldtype": "Link",
+   "label": "Raised By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "mandatory_depends_on": "eval:doc.status=='Approved';",
+   "options": "User"
+  },
+  {
+   "default": "Under Review",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Under Review\nChanges Requested\nRejected\nApproved"
+  },
+  {
+   "fieldname": "compare_changes_section",
+   "fieldtype": "Section Break",
+   "label": "Compare Changes"
+  },
+  {
+   "fieldname": "diff",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "Diff"
+  },
+  {
+   "fieldname": "compare",
+   "fieldtype": "HTML",
+   "label": "Compare",
+   "options": "<div class=\"mt-6\">\n\t<div class=\"wiki-diff\">\n\t</div>\n</div>"
+  },
+  {
+   "fieldname": "code",
+   "fieldtype": "Section Break",
+   "label": "Code"
+  },
+  {
+   "fieldname": "orignal_code",
+   "fieldtype": "Code",
+   "label": "Orignal Code"
+  },
+  {
+   "fieldname": "new_code",
+   "fieldtype": "Code",
+   "label": "New Code"
+  },
+  {
+   "fieldname": "previews_section",
+   "fieldtype": "Section Break",
+   "label": "Orignal Preview Section"
+  },
+  {
+   "fieldname": "orignal_preview",
+   "fieldtype": "HTML",
+   "label": "Orignal Preview",
+   "options": "<div id=\"orignal_preview\" style=\"height: 300px; overflow: auto;\"></div>"
+  },
+  {
+   "fieldname": "new_preview_section_section",
+   "fieldtype": "Section Break",
+   "label": "New Preview Section"
+  },
+  {
+   "fieldname": "new_preview",
+   "fieldtype": "HTML",
+   "label": "New Preview",
+   "options": "<div id=\"new_preview\" style=\"height: 300px; overflow: auto;\"></div>"
+  },
+  {
+   "fieldname": "orignal_preview_store",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "Orignal Preview Store"
+  },
+  {
+   "fieldname": "new_preview_store",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "New Preview Store"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Wiki Page Patch",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Data",
+   "label": "Message"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2021-05-13 12:02:11.042500",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki Page Patch",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "if_owner": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "track_seen": 1,
+ "track_views": 1
+}

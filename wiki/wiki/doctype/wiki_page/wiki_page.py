@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 import frappe
+import json
 from frappe import _
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
@@ -36,7 +37,7 @@ class WikiPage(WebsiteGenerator):
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
-
+		print(title, content, edit_message)
 		if content != self.content:
 			self.content = content
 			revision = frappe.new_doc("Wiki Page Revision")
@@ -177,3 +178,66 @@ def new(title, content):
 
 	frappe.response.location = "/" + wiki_page.route
 	frappe.response.type = "redirect"
+
+
+@frappe.whitelist()
+def update(
+	name, content, attachments="{}", message = ''
+):
+	patch = frappe.new_doc("Wiki Page Patch")
+
+
+	patch_dict = {
+		"wiki_page": name,
+		"status": "Processing",
+		"raised_by": frappe.session.user,
+		"pr_title": "docs: automated pull request",
+		"new_code": content,
+		"attachment_path_mapping": attachments,
+		"message": message
+	}
+
+	patch.update(patch_dict)
+
+	patch.save()
+
+	update_file_links(attachments, patch.name)
+
+
+	frappe.db.commit()
+
+
+	return True
+
+
+
+
+def update_file_links(attachments, name):
+
+	for attachment in json.loads(attachments):
+		file = frappe.get_doc("File", attachment.get("name"))
+		file.attached_to_doctype = "Patch"
+		file.attached_to_name = name
+		file.save()
+
+
+
+
+
+def get_source_generator(resolved_route, jenv):
+	path = resolved_route.controller.split(".")
+	path[-1] = "templates"
+	path.append(path[-2] + ".html")
+	path = "/".join(path)
+	return jenv.loader.get_source(jenv, path)[0]
+
+
+def get_source(resolved_route, jenv):
+	if resolved_route.page_or_generator == "Generator":
+		return get_source_generator(resolved_route, jenv)
+
+	elif resolved_route.page_or_generator == "Page":
+		return jenv.loader.get_source(jenv, resolved_route.template)[0]
+
+def get_path_without_slash(path):
+	return path[1:] if path.startswith('/') else path

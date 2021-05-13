@@ -167,7 +167,7 @@ class EditAsset {
           primary: 1,
           btn_size: "lg",
           reqd: 1,
-          click: () => this.raise_pr(),
+          click: () => this.raise_patch(),
         },
       ],
       body: $(".submit-section"),
@@ -175,13 +175,13 @@ class EditAsset {
     this.submit_section_field_group.make();
   }
 
-  raise_pr() {
-    if (this.route)
-      this.edited_files[this.route] = this.code_field_group.get_value("code");
+  raise_patch() {
     frappe.call({
-      method: "edit_docs.www.edit.update",
+      method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
       args: {
-        content: this.edited_files,
+        name: $('[name="wiki_page"]').val(),
+        message: $('[name="edit_message"]').val(),
+        content: this.code_field_group.get_value("code"),
         attachments: this.attachments,
       },
       callback: (r) => {
