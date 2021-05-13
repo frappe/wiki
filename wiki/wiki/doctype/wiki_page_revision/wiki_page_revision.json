@@ -18,7 +18,6 @@
   {
    "fieldname": "content",
    "fieldtype": "Code",
-   "in_list_view": 1,
    "label": "Content",
    "options": "Markdown",
    "reqd": 1
@@ -26,6 +25,7 @@
   {
    "fieldname": "wiki_page",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Wiki Page",
    "options": "Wiki Page",
    "reqd": 1
@@ -33,7 +33,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2020-09-26 18:57:03.558737",
+ "modified": "2021-05-13 12:31:37.988630",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",

@@ -5,6 +5,7 @@
 <form class="mt-8" action="/api/method/wiki.wiki.doctype.wiki_page.wiki_page.update" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 	<input class="d-none" type="text" name="wiki_page"  value="{{ doc.name }}">
+	<input class="d-none" type="text" name="wiki_page_patch"  value="{{ wiki_page_patch }}">
 	<div class="form-group">
 		<label class="sr-only" for="title">Title</label>
 		<input id="title" class="form-control" type="text" name="title" value="{{ doc.title }}">
@@ -37,7 +38,6 @@
 			<div class="tab-pane fade show active" id="write" role="tabpanel" aria-labelledby="write-tab">
 				<textarea id="content" class="form-control wiki-content" name="content" rows="30" hidden>{{ doc.content }}</textarea>
 			<div class="wiki-write"></div>
-				
 			</div>
 			<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
 				<div class="from-markdown wiki-preview"></div>
@@ -58,7 +58,7 @@
 	</div>
 	<div class="form-group">
 		<label class="font-size-sm" for="edit_message">Edit Message</label>
-		<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message" placeholder="Write a small message here explaining this change">
+		<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message" placeholder="Write a small message here explaining this change" >
 	</div>
 	<!-- <button type="submit" class="btn btn-primary">Save Page</button> -->
 	<div class="submit-section"></div>
@@ -83,7 +83,7 @@
 <script type="text/javascript" src="/assets/js/control.min.js"></script>
 <script type="text/javascript" src="/assets/js/dialog.min.js"></script>
 <script type="text/javascript" src="/assets/js/bootstrap-4-web.min.js"></script>
-<script src="editu.js"></script>
+<script src="/editu.js"></script>
 <script type="text/javascript" src="/assets/js/moment-bundle.min.js"></script>
 <script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
 <script>

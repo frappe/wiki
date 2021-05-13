@@ -6,6 +6,8 @@
  "engine": "InnoDB",
  "field_order": [
   "wiki_page",
+  "message",
+  "column_break_3",
   "raised_by",
   "approved_by",
   "status",
@@ -21,8 +23,7 @@
   "new_preview",
   "orignal_preview_store",
   "new_preview_store",
-  "amended_from",
-  "message"
+  "amended_from"
  ],
  "fields": [
   {
@@ -38,6 +39,7 @@
    "options": "User"
   },
   {
+   "depends_on": "eval:doc.status=='Approved';",
    "fieldname": "approved_by",
    "fieldtype": "Link",
    "label": "Approved By",
@@ -130,12 +132,16 @@
    "fieldname": "message",
    "fieldtype": "Data",
    "label": "Message"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-05-13 12:02:11.042500",
+ "modified": "2021-05-13 12:29:07.691097",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

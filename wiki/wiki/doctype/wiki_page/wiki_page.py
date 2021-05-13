@@ -65,8 +65,8 @@ class WikiPage(WebsiteGenerator):
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
-		context.home_route = "wiki"
-		context.docs_search_scope = "wiki"
+		context.home_route = "doc"
+		context.docs_search_scope = "docs"
 		context.can_edit = frappe.session.user != "Guest"
 		context.no_cache = 1
 
@@ -82,6 +82,12 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.edit:
 			self.verify_permission("write")
 			context.title = "Editing " + self.title
+			print("wiki_page_patch")
+			print(frappe.form_dict.wiki_page_patch)
+			if frappe.form_dict.wiki_page_patch:
+				print("sdjfh"*35)
+				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
+				self.content = frappe.db.get_value('Wiki Page Patch', context.wiki_page_patch, 'new_code')
 			return
 
 		if frappe.form_dict.revisions:
@@ -119,6 +125,7 @@ class WikiPage(WebsiteGenerator):
 
 			context.diff = diff(previous_revision_content, revision.content, css=False)
 			return
+
 
 		context.metatags = {"title": self.title}
 		context.sidebar_items = self.get_sidebar_items(context)
@@ -182,18 +189,24 @@ def new(title, content):
 
 @frappe.whitelist()
 def update(
-	name, content, attachments="{}", message = ''
+	name, content, attachments="{}", message = '', wiki_page_patch=None
 ):
-	patch = frappe.new_doc("Wiki Page Patch")
 
+	if wiki_page_patch:
+		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
+		patch.new_code = content
+		patch.status = "Under Review"
+		patch.message = message
+		patch.save()
+		return
+
+	patch = frappe.new_doc("Wiki Page Patch")
 
 	patch_dict = {
 		"wiki_page": name,
-		"status": "Processing",
+		"status": "Under Review",
 		"raised_by": frappe.session.user,
-		"pr_title": "docs: automated pull request",
 		"new_code": content,
-		"attachment_path_mapping": attachments,
 		"message": message
 	}
 

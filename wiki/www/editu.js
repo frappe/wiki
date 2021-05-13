@@ -180,6 +180,7 @@ class EditAsset {
       method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
       args: {
         name: $('[name="wiki_page"]').val(),
+        wiki_page_patch: $('[name="wiki_page_patch"]').val(),
         message: $('[name="edit_message"]').val(),
         content: this.code_field_group.get_value("code"),
         attachments: this.attachments,
