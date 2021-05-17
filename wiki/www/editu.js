@@ -18,34 +18,12 @@ class EditAsset {
     console.log('checko')
     this.edited_files = {};
     this.make_code_field_group();
-    // this.make_edit_field_group();
-    this.make_submit_section_field_group();
     this.render_preview();
     this.add_attachment_handler();
     this.set_listeners();
-    // // this.setup_search("#search-container", '{{ docs_search_scope or "" }}');
-
-    // $(".web-footer .container")
-    //   .removeClass("container")
-    //   .addClass("container-fluid doc-container");
-
-
-    // ClassicEditor.create(document.querySelector("#snippet-markdown"), {
-    //   plugins: [
-    //     Markdown,
-
-    //     Essentials,
-    //     Bold,
-    //     Italic,
-    //     // ...
-    //   ],
-    //   // ...
-    // });
-
   }
 
   render_preview() {
-    // frappe.ready(() => {
 
     $('a[data-toggle="tab"]').on("shown.bs.tab", (e) => {
       let activeTab = $(e.target);
@@ -76,14 +54,11 @@ class EditAsset {
             if (r.message) {
               $preview.html(r.message.html);
               $diff.html(r.message.diff)
-              // $preview.html(r.message.html);
-              // $diff.html(r.message.diff);
             }
           },
         });
       }
     });
-    // })
   }
 
   make_edit_field_group() {
@@ -95,21 +70,8 @@ class EditAsset {
           fieldname: "route_link",
           fieldtype: "Data",
           default: route || "",
-          // change: () => this.update_code(),
           hidden: 1,
         },
-        // {
-        //   label: __("Edit Code"),
-        //   fieldname: "code",
-        //   fieldtype: "Button",
-        //   click: () => this.update_code(),
-        // },
-        // {
-        //   label: __("Overwrite From Disk"),
-        //   fieldname: "code_from_disk",
-        //   fieldtype: "Button",
-        //   click: () => this.update_code(true),
-        // },
       ],
       body: $(".routedisp"),
     });
@@ -176,29 +138,60 @@ class EditAsset {
   }
 
   raise_patch() {
-    frappe.call({
-      method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
-      args: {
-        name: $('[name="wiki_page"]').val(),
-        wiki_page_patch: $('[name="wiki_page_patch"]').val(),
-        message: $('[name="edit_message"]').val(),
-        content: this.code_field_group.get_value("code"),
-        attachments: this.attachments,
-      },
-      callback: (r) => {
-        frappe.show_alert(
-          "A Change Request has been generated. You can track your requests here after a few mins",
-          5
-        );
-        window.location.href = "/contributions";
+
+    var me =this
+    const submit_dialog = frappe.ui.di
+
+
+
+    var dfs = [];
+        dfs.push({
+          fieldname: "edit_message",
+          fieldtype: "Text",
+        });
+    
+    let dialog = new frappe.ui.Dialog({
+      fields: dfs,
+      title: __("Please add a message explaining your change"),
+      primary_action: function () {
+        console.log(this.get_value("edit_message"))
+        frappe.call({
+          method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
+          args: {
+            name: $('[name="wiki_page"]').val(),
+            wiki_page_patch: $('[name="wiki_page_patch"]').val(),
+            message: this.get_value("edit_message"),
+            content: me.code_field_group.get_value("code"),
+            attachments: me.attachments,
+          },
+          callback: (r) => {
+            frappe.show_alert(
+              "A Change Request has been generated. You can track your requests here after a few mins",
+              5
+            );
+            window.location.href = "/contributions";
+          },
+        });
+
+        this.hide()
       },
     });
+    dialog.show();
+
+
+
+
+
+   
   }
 
   add_attachment_handler() {
     var me = this;
     $(".add-attachment").click(function () {
       me.new_attachment();
+    });
+    $(".submit").click(function () {
+      me.raise_patch();
     });
   }
 
@@ -372,6 +365,16 @@ class EditAsset {
     }
   }
 
+
+  set_comments() {
+    let comments= $('.patch-comments').data("comments");
+    console.log(typeof(comments));
+    console.log(comments);
+    console.log(JSON.parse(comments));
+
+  }
+
+}
 //   setup_search(target, search_scope) {
 //     if (typeof target === "string") {
 //       target = $(target);
@@ -527,7 +530,7 @@ class EditAsset {
 //       dropdownItems.blur();
 //     });
 //   }
-}
+// }
 
 // let ismdwn = 0
 // rpanrResize.addEventListener('mousedown', mD)

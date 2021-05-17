@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe
 
 
-def execute():
-	frappe.reload_doctype("Wiki Page")
+# def execute():
+	# frappe.reload_doctype("Wiki Page")
 	# set allow_guest to 1 for all records
-	frappe.db.set_value("Wiki Page", {"name": ("!=", ".")}, "allow_guest", 1)
+	# frappe.db.set_value("Wiki Page", {"name": ("!=", ".")}, "allow_guest", 1)

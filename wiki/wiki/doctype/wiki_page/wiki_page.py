@@ -9,6 +9,7 @@ import json
 from frappe import _
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
+from frappe.desk.form.load import get_comments
 
 
 class WikiPage(WebsiteGenerator):
@@ -88,6 +89,7 @@ class WikiPage(WebsiteGenerator):
 				print("sdjfh"*35)
 				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
 				self.content = frappe.db.get_value('Wiki Page Patch', context.wiki_page_patch, 'new_code')
+				context.comments = get_comments('Wiki Page Patch', frappe.form_dict.wiki_page_patch, 'Comment')
 			return
 
 		if frappe.form_dict.revisions:
@@ -191,7 +193,7 @@ def new(title, content):
 def update(
 	name, content, attachments="{}", message = '', wiki_page_patch=None
 ):
-
+	print(wiki_page_patch)
 	if wiki_page_patch:
 		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
 		patch.new_code = content
