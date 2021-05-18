@@ -7,7 +7,7 @@ import frappe
 from frappe.model.document import Document
 from ghdiff import diff
 from frappe import _
-	
+from frappe.desk.form.utils import add_comment
 class WikiPagePatch(Document):
 	def validate(self):
 		self.orignal_code = frappe.db.get_value("Wiki Page", self.wiki_page, "content")
@@ -20,3 +20,12 @@ class WikiPagePatch(Document):
 			frappe.throw(_('Please approve the Request before submitting'))
 		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page)
 		wiki_page.update_page(wiki_page.title, self.new_code, self.message)
+
+
+@frappe.whitelist()
+def add_comment_to_patch(reference_name, content):
+	email = frappe.session.user
+	name = frappe.db.get_value("User", frappe.session.user, ["first_name"], as_dict=True).get("first_name")
+	comment =  add_comment("Wiki Page Patch", reference_name, content, email, name)
+	comment.timepassed = frappe.utils.pretty_date(comment.creation)
+	return comment

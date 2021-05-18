@@ -1,3 +1,4 @@
 {
-	"wiki/css/wiki.css": ["public/scss/wiki.scss"]
+	"wiki/css/wiki.css": ["public/scss/wiki.scss"],
+	"wiki/js/wiki.min.js": ["www/editu.js"]
 }

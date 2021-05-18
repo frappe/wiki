@@ -1,4 +1,11 @@
+@import "frappe/public/scss/desk/css_variables";
 @import "frappe/public/scss/website/variables";
+@import "frappe/public/scss/website/index";
+@import "frappe/public/scss/common/awesomeplete";
+@import "frappe/public/scss/common/buttons";
+@import "frappe/public/scss/common/mixins";
+@import "frappe/public/scss/desk/timeline";
+@import "frappe/public/scss/desk/form";
 
 textarea.wiki-content {
 	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,

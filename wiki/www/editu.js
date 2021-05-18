@@ -8,12 +8,11 @@
 
 // import Markdown from './@ckeditor/ckeditor5-markdown-gfm/src/markdown.js';
 
+import  '../../../frappe/frappe/public/js/frappe/ui/keyboard.js'
 
 
 
-
-
-class EditAsset {
+window.EditAsset = class EditAsset {
   constructor(opts) {
     console.log('checko')
     this.edited_files = {};
@@ -21,6 +20,7 @@ class EditAsset {
     this.render_preview();
     this.add_attachment_handler();
     this.set_listeners();
+    this.create_comment_box()
   }
 
   render_preview() {
@@ -365,16 +365,83 @@ class EditAsset {
     }
   }
 
+  create_comment_box() {
+     this.comment_box = frappe.ui.form.make_control({
+      parent: $('.comment-box'),
+      df: {
+          fieldname: 'new_comment',
+          fieldtype: 'Comment'
+      },
+      enable_mentions: false,
+      render_input: true,
+      only_input: true,
+      on_submit: (comment) => {
 
-  set_comments() {
-    let comments= $('.patch-comments').data("comments");
-    console.log(typeof(comments));
-    console.log(comments);
-    console.log(JSON.parse(comments));
+				if (strip_html(comment).trim() != "") {
+          this.comment_box.disable();
 
+
+          frappe.call({
+            method: "wiki.wiki.doctype.wiki_page_patch.wiki_page_patch.add_comment_to_patch",
+            args: {
+              reference_name: $('[name="wiki_page_patch"]').val(),
+              content: comment,
+              comment_email: frappe.session.user,
+              comment_by: frappe.session.user_fullname
+            },
+            callback: (r) => {
+              comment = r.message
+              if (comment) {
+                console.log(comment)
+                this.comment_box.set_value('');
+
+                
+                const new_comment = $(`
+                  <div class="timeline-item">
+                    <div class="timeline-badge">
+                      <svg class="icon icon-md">
+                        <use href="#icon-small-message"></use>
+                      </svg>
+                    </div>
+                    <div class="timeline-content frappe-card">
+                      <div class="timeline-message-box">
+                        <span class="flex justify-between">
+                          <span class="text-color flex">
+                            <span>
+                              ${comment.owner}
+                              <span class="text-muted margin-left">
+                                <span class="frappe-timestamp "
+                                  data-timestamp="${comment.creation}"
+                                  title="${comment.creation}">${ comment.timepassed }</span>
+                              </span>
+                            </span>
+                          </span>
+                        </span>
+                        <div class="content">
+                          ${comment.content}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `)
+
+                $(".timeline-items").prepend(new_comment)
+
+              }
+            },
+            always: () => {
+              this.comment_box.enable();
+
+            }
+          });
+				}
+			}
+  })
   }
-
 }
+
+
+
 //   setup_search(target, search_scope) {
 //     if (typeof target === "string") {
 //       target = $(target);
@@ -557,4 +624,5 @@ class EditAsset {
 
 
 
-var edit  = new EditAsset();
+// var edit  = new EditAsset();
+

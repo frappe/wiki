@@ -13,8 +13,9 @@
 			<label class="sr-only" for="content">Content</label>
 			<ul class="nav nav-tabs" role="tablist">
 				<li class="nav-item" role="presentation">
-					<a class="nav-link active" id="write-tab" data-toggle="tab" href="#write" role="tab"
-						aria-controls="write" aria-selected="true">Write</a>
+					<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
+						aria-selected="true">Write</a>
 				</li>
 				<li class="nav-item" role="presentation">
 					<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
@@ -28,13 +29,18 @@
 					<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#attachment" role="tab"
 						aria-controls="attachment" aria-selected="false">Attachment</a>
 				</li>
+				{% if wiki_page_patch %}
+
 				<li class="nav-item" role="presentation">
-					<a class="nav-link" id="discussion-tab" data-toggle="tab" href="#discussion" role="tab"
-						aria-controls="discussion" aria-selected="false">Discussion</a>
+					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
+						aria-selected="false">Discussion</a>
 				</li>
+				{% endif %}
 			</ul>
 			<div class="mt-4 tab-content">
-				<div class="tab-pane fade show active" id="write" role="tabpanel" aria-labelledby="write-tab">
+				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
 					<textarea id="content" class="form-control wiki-content" name="content" rows="30"
 						hidden>{{ doc.content }}</textarea>
 					<div class="wiki-write"></div>
@@ -51,89 +57,43 @@
 					<span class='btn add-attachment'>Upload Attachment
 				</div>
 
+				{% if wiki_page_patch %}
 
-				<div class="tab-pane fade" id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
+				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
 
-					<div class="comment-section">
-						<div class="new-timeline">
-							<div class="timeline-items">
+					{% include "wiki/doctype/wiki_page/templates/comment.html" %}
 
-								{% for comment in comments %}
-								<div class="timeline-item">
-
-									<div class="timeline-content frappe-card">
-										<div class="timeline-message-box">
-
-											<span class="flex justify-between">
-												<span class="text-color flex">
-													<span>
-														{{comment.owner }}
-														<span class="text-muted margin-left">
-															<span class="frappe-timestamp "
-																data-timestamp="2021-05-17 23:18:49.550835"
-																title="17-05-2021 23:18:49">{{comment.creation}} </span>
-														</span>
-													</span>
-												</span>
-											</span>
-											<div class="content">
-												{{comment.content}}
-											</div>
-
-
-										</div>
-									</div>
-								</div>
-
-								{% endfor %}
-
-							</div>
-						</div>
-					</div>
 
 
 				</div>
+				{% endif %}
 			</div>
 
 		</div>
 
-		<!-- <label class="font-size-sm" for="edit_message">Edit Message</label>
-		<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message"
-			placeholder="Write a small message here explaining this change"> -->
-
 
 		</div>
-		<!-- <button type="submit" class="btn btn-primary">Save Page</button> -->
-
-		<!-- </div> -->
-		<!-- <div class="form-group"> -->
-		<!-- <label class="font-size-sm" for="edit_message">Edit Message</label>
-			<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message" placeholder="Write a small message here explaining this change"> -->
-		<!-- <button type="submit" class="btn btn-primary">Save Page</button> -->
-		<!-- </form> -->
 	</form>
 
-	<!-- {%- block script -%}
-{%- endblock -%} -->
 
 
 	{% block base_scripts %}
 	<!-- js should be loaded in body! -->
 	<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 	<script type="text/javascript" src="/assets/js/frappe-web.min.js"></script>
-	<script type="text/javascript" src="/assets/js/desk.min.js"></script>
-	<script type="text/javascript" src="/assets/css/desk.min.css"></script>
 	<script type="text/javascript" src="/assets/js/control.min.js"></script>
 	<script type="text/javascript" src="/assets/js/dialog.min.js"></script>
 	<script type="text/javascript" src="/assets/js/bootstrap-4-web.min.js"></script>
-	<script src="/editu.js"></script>
 	<script type="text/javascript" src="/assets/js/moment-bundle.min.js"></script>
 	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+	<script type="text/javascript" src="/assets/wiki/js/wiki.min.js"></script>
 	<script>
 		// console.log("comments")
 		// console.log({{ comments or ''}})
 		Vue.prototype.__ = window.__;
 		Vue.prototype.frappe = window.frappe;
+		var edit = new EditAsset();
 	</script>
 
 	<!-- <script>
