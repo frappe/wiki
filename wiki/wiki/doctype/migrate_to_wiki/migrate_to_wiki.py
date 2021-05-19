@@ -27,6 +27,8 @@ class MigrateToWiki(Document):
 		return path.strip(' ').strip('/').replace('//', '/')
 
 	def on_update(self):
+		if frappe.flags.in_install:
+			return 
 		self.create_first_path()
 		self.set_docs_tree_generator()
 		# self.copy_assets()
