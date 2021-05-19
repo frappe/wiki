@@ -2,8 +2,8 @@
 
 {%- block head_include %}
 {{ super() }}
-<link rel="stylesheet" href="/assets/wiki/css/wiki.css">
-
+<!-- <link rel="stylesheet" href="/assets/wiki/css/wiki.css"> -->
+{{ include_style('wiki.bundle.css') }}
 {% endblock -%}
 
 {% block page_content %}

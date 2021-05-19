@@ -8,7 +8,7 @@
 
 // import Markdown from './@ckeditor/ckeditor5-markdown-gfm/src/markdown.js';
 
-import  '../../../frappe/frappe/public/js/frappe/ui/keyboard.js'
+// import  '../../../frappe/frappe/public/js/frappe/ui/keyboard.js'
 
 
 
@@ -53,8 +53,10 @@ window.EditAsset = class EditAsset {
           },
           callback: (r) => {
             if (r.message) {
+              debugger
               $preview.html(r.message.html);
-              if ($('[name="new"]').val()){
+              console.log($('[name="new"]').val())
+              if (!$('[name="new"]').val()){
                 $diff.html(r.message.diff)
               }
             }
