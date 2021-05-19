@@ -237,7 +237,7 @@ def update_file_links(attachments, name):
 
 	for attachment in json.loads(attachments):
 		file = frappe.get_doc("File", attachment.get("name"))
-		file.attached_to_doctype = "Patch"
+		file.attached_to_doctype = "Wiki Page Patch"
 		file.attached_to_name = name
 		file.save()
 

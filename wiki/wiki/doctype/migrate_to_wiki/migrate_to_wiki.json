@@ -10,7 +10,8 @@
   "assets_directory",
   "assets_prepend",
   "documentation_route",
-  "docs_base_url"
+  "docs_base_url",
+  "create_new_assets"
  ],
  "fields": [
   {
@@ -44,12 +45,19 @@
    "fieldname": "docs_base_url",
    "fieldtype": "Data",
    "label": "Docs Base Utl"
+  },
+  {
+   "default": "0",
+   "description": "Create New Images if they exist on Disk",
+   "fieldname": "create_new_assets",
+   "fieldtype": "Check",
+   "label": "Create New Assets "
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-05-11 15:11:58.407947",
+ "modified": "2021-05-19 21:25:03.478275",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Migrate To Wiki",

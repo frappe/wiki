@@ -7,6 +7,8 @@ import frappe
 from frappe.model.document import Document
 import os
 import shutil
+from frappe.core.doctype.file.file import get_content_hash, get_file_name
+	
 # www/docs/user/manual/en/accounts/bank-reconciliation.md
 class MigrateToWiki(Document):
 	# app_name = erpnext_documentation
@@ -42,9 +44,13 @@ class MigrateToWiki(Document):
 		wiki_sidebar_dict = {
 			"route": self.documentation_route,
 			"title": 'Home',
+			'is_group': True
 		}
 		wiki_sidebar.update(wiki_sidebar_dict)
-		wiki_sidebar.save()
+		try:
+			wiki_sidebar.save()
+		except frappe.DuplicateEntryError :
+			return
 
 	def set_docs_tree_generator(self):
 		self.docs_tree_generator = os.walk(f'{frappe.get_app_path(self.app_name)}{os.sep}{self.docs_directory}')
@@ -102,7 +108,7 @@ class MigrateToWiki(Document):
 		if content:
 			for prev, new in self.docs_change_dict.items():
 				content = content.replace(prev, new)
-
+			content = content.replace(self.docs_directory.strip('w'), f'/{self.documentation_route}')
 
 			if file.endswith('index.md') or file.endswith('contents.md'):
 
@@ -214,16 +220,35 @@ class MigrateToWiki(Document):
 			for file in files:
 				if file == "__init__.py":
 					continue
-				shutil.copy(
-					f'{root}{os.sep}{file}',
-					f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
-				)
+				if os.path.exists(f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}{file}'):
+					if self.create_new_assets:
+						try:
+							with open(f'{root}{os.sep}{file}', "rb") as f:
+								content_hash = get_content_hash(f.read())
+						except IOError:
+							frappe.msgprint(frappe._("File {0} does not exist").format(f'{root}{os.sep}{file}'))
+							raise
+
+
+						new_file_name = get_file_name(file, content_hash[-6:])
+						shutil.copy(
+							f'{root}{os.sep}{file}',
+							f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}{new_file_name}'
+						)
+						file_url = f'{os.sep}files{os.sep}{new_file_name}'
+					else:
+						file_url = f'{os.sep}files{os.sep}{file}'
+				else:
+					shutil.copy(
+						f'{root}{os.sep}{file}',
+						f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
+					)
+					file_url = f'{os.sep}files{os.sep}{file}'
 
 				fol = f'{folder}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory):] }'
 				fol=fol.replace(f'{os.sep}{os.sep}',os.sep)
 				if fol.endswith(os.sep):
 					fol = fol[:-1]
-				file_url = f'{os.sep}files{os.sep}{file}'
 				file_doc = frappe.new_doc('File')
 				file_doc.update({
 					"doctype": "File",
