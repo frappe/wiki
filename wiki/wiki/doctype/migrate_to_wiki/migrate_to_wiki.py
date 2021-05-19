@@ -119,9 +119,6 @@ class MigrateToWiki(Document):
 		else:
 			content = f"<a href='{parent}'>{parent}</a>"
 
-		print(title)
-		print(route)
-		print(file)
 
 		wiki_page = frappe.new_doc("Wiki Page")
 		wiki_page_dict = {
@@ -217,7 +214,6 @@ class MigrateToWiki(Document):
 			for file in files:
 				if file == "__init__.py":
 					continue
-				print(f'{root}{os.sep}{file}')
 				shutil.copy(
 					f'{root}{os.sep}{file}',
 					f'{os.getcwd()}{os.sep}{frappe.local.site}{os.sep}public{os.sep}files{os.sep}'
@@ -246,8 +242,3 @@ class MigrateToWiki(Document):
 
 				self.docs_change_dict[orig_file_url] = file_url
 				self.docs_change_dict[orig_file_url.replace('{{docs_base_url}}', self.docs_base_url)] = file_url
-		# print("self.docs_change_dict")
-
-		# print(self.docs_change_dict)
-
-

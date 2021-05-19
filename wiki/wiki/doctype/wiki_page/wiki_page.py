@@ -38,7 +38,6 @@ class WikiPage(WebsiteGenerator):
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
-		print(title, content, edit_message)
 		if content != self.content:
 			self.content = content
 			revision = frappe.new_doc("Wiki Page Revision")
@@ -78,18 +77,21 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.new:
 			self.verify_permission("create")
 			context.title = "New Wiki Page"
+			self.title='New Wiki Page'
+			self.content = "New Wiki Page"
 			return
 
 		if frappe.form_dict.edit:
 			self.verify_permission("write")
 			context.title = "Editing " + self.title
-			print("wiki_page_patch")
-			print(frappe.form_dict.wiki_page_patch)
 			if frappe.form_dict.wiki_page_patch:
-				print("sdjfh"*35)
 				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
-				self.content = frappe.db.get_value('Wiki Page Patch', context.wiki_page_patch, 'new_code')
-				context.comments = get_comments('Wiki Page Patch', frappe.form_dict.wiki_page_patch, 'Comment')
+				self.content = frappe.db.get_value(
+					"Wiki Page Patch", context.wiki_page_patch, "new_code"
+				)
+				context.comments = get_comments(
+					"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
+				)
 			return
 
 		if frappe.form_dict.revisions:
@@ -128,7 +130,6 @@ class WikiPage(WebsiteGenerator):
 			context.diff = diff(previous_revision_content, revision.content, css=False)
 			return
 
-
 		context.metatags = {"title": self.title}
 		context.sidebar_items = self.get_sidebar_items(context)
 		context.last_revision = self.get_last_revision()
@@ -141,10 +142,11 @@ class WikiPage(WebsiteGenerator):
 
 	def get_sidebar_items(self, context):
 		sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
-		print(context)
-		sidebar = frappe.get_all(doctype="Wiki Sidebar Item",fields=["name", "parent"], filters=[["route", "=", context.route ]])
-		print("sidebar"*50)
-		print(sidebar)
+		sidebar = frappe.get_all(
+			doctype="Wiki Sidebar Item",
+			fields=["name", "parent"],
+			filters=[["route", "=", context.route]],
+		)
 		sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
 		if frappe.session.user == "Guest":
 			sidebar_items = [
@@ -160,12 +162,15 @@ class WikiPage(WebsiteGenerator):
 
 
 @frappe.whitelist()
-def preview(content, name):
+def preview(content, name, new):
+	html = frappe.utils.md_to_html(content)
+	if new:
+		return {"html": html}
 	from ghdiff import diff
+
 	old_content = frappe.db.get_value("Wiki Page", name, "content")
 	diff = diff(old_content, content, css=False)
-	html = frappe.utils.md_to_html(content)
-	return {'html': html, "diff": diff}
+	return {"html": html, "diff": diff}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -190,10 +195,10 @@ def new(title, content):
 
 
 @frappe.whitelist()
-def update(
-	name, content, attachments="{}", message = '', wiki_page_patch=None
-):
-	print(wiki_page_patch)
+def update(name, content, title, attachments="{}", message="", wiki_page_patch=None, new=None):
+	if new:
+		new = True
+
 	if wiki_page_patch:
 		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
 		patch.new_code = content
@@ -209,8 +214,13 @@ def update(
 		"status": "Under Review",
 		"raised_by": frappe.session.user,
 		"new_code": content,
-		"message": message
+		"message": message,
+		"new": new,
+		"new_title": title
 	}
+
+	print("new")
+	print(new)
 
 	patch.update(patch_dict)
 
@@ -218,13 +228,9 @@ def update(
 
 	update_file_links(attachments, patch.name)
 
-
 	frappe.db.commit()
 
-
 	return True
-
-
 
 
 def update_file_links(attachments, name):
@@ -234,9 +240,6 @@ def update_file_links(attachments, name):
 		file.attached_to_doctype = "Patch"
 		file.attached_to_name = name
 		file.save()
-
-
-
 
 
 def get_source_generator(resolved_route, jenv):
@@ -254,5 +257,6 @@ def get_source(resolved_route, jenv):
 	elif resolved_route.page_or_generator == "Page":
 		return jenv.loader.get_source(jenv, resolved_route.template)[0]
 
+
 def get_path_without_slash(path):
-	return path[1:] if path.startswith('/') else path
+	return path[1:] if path.startswith("/") else path

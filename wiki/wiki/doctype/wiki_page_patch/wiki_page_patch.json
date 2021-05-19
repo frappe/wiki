@@ -7,11 +7,13 @@
  "field_order": [
   "wiki_page",
   "message",
+  "new",
   "column_break_3",
   "raised_by",
   "approved_by",
   "status",
   "compare_changes_section",
+  "new_title",
   "diff",
   "compare",
   "code",
@@ -136,12 +138,24 @@
   {
    "fieldname": "column_break_3",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "new",
+   "fieldtype": "Check",
+   "label": "Is New"
+  },
+  {
+   "fieldname": "new_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "New Title"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-05-13 12:29:07.691097",
+ "modified": "2021-05-19 13:18:41.737910",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

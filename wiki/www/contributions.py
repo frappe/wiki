@@ -18,5 +18,4 @@ def get_context(context):
 		contribution.edit_link = route+'?' + "edit=true&wiki_page_patch=" + contribution.name
 		contribution.color = color_map[contribution.status]
 		context.contributions.extend([contribution])
-	print(contribution)
 	return context

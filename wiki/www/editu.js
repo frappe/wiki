@@ -49,11 +49,14 @@ window.EditAsset = class EditAsset {
             path: this.route,
             name: $('[name="wiki_page"]').val(),
             attachments: this.attachments,
+            new: $('[name="new"]').val(),
           },
           callback: (r) => {
             if (r.message) {
               $preview.html(r.message.html);
-              $diff.html(r.message.diff)
+              if ($('[name="new"]').val()){
+                $diff.html(r.message.diff)
+              }
             }
           },
         });
@@ -163,6 +166,9 @@ window.EditAsset = class EditAsset {
             message: this.get_value("edit_message"),
             content: me.code_field_group.get_value("code"),
             attachments: me.attachments,
+            new: $('[name="new"]').val(),
+            title: $('[name="title_of_page"]').val()
+
           },
           callback: (r) => {
             frappe.show_alert(
