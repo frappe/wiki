@@ -53,7 +53,6 @@ window.EditAsset = class EditAsset {
           },
           callback: (r) => {
             if (r.message) {
-              debugger
               $preview.html(r.message.html);
               console.log($('[name="new"]').val())
               if (!$('[name="new"]').val()){
