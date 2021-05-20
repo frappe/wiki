@@ -65,6 +65,21 @@ class WikiPage(WebsiteGenerator):
 		frappe.response.type = "redirect"
 		return
 
+	def set_crumbs(self, context):
+		context.add_breadcrumbs = True
+		if frappe.form_dict:
+			context.parents = [{"route": "/" + self.route, "label": self.title}]
+		else:
+			parents = []
+			splits = self.route.split('/')
+			for index, route in enumerate(splits, start=1):
+				full_route = '/'.join(splits[:index])
+				wiki_page = frappe.get_all('Wiki Page', filters=[['route','=',full_route]],fields=['title'])
+				if wiki_page:
+					parents.append({"route": "/" + full_route, "label": wiki_page[0].title})
+
+			context.parents = parents
+
 	def get_context(self, context):
 		self.verify_permission("read")
 
@@ -76,10 +91,8 @@ class WikiPage(WebsiteGenerator):
 		context.can_edit = can_edit
 		context.no_cache = 1
 
-		if frappe.form_dict:
-			context.parents = [{"route": "/" + self.route, "label": self.title}]
-			context.add_breadcrumbs = True
-
+		self.set_crumbs(context)
+		
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login()
