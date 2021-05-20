@@ -56,7 +56,6 @@ window.EditAsset = class EditAsset {
       fields: dfs,
       title: __("Please add a message explaining your change"),
       primary_action: function () {
-        console.log(this.get_value("edit_message"));
         frappe.call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
           args: {
@@ -211,7 +210,6 @@ window.EditAsset = class EditAsset {
     $diff.html("Loading diff...");
   }
   create_comment_box() {
-    debugger
     this.comment_box = frappe.ui.form.make_control({
       parent: $(".comment-box"),
       df: {
@@ -222,7 +220,6 @@ window.EditAsset = class EditAsset {
       render_input: true,
       only_input: true,
       on_submit: (comment) => {
-        debugger
         this.add_comment_to_patch(comment);
       },
     });
@@ -255,7 +252,6 @@ window.EditAsset = class EditAsset {
 
   display_new_comment(comment, comment_box) {
     if (comment) {
-      console.log(comment);
       comment_box.set_value("");
 
       const new_comment = this.get_comment_html(
