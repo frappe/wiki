@@ -1,85 +1,10 @@
-
-// import ClassicEditor from '@ckeditor/build-classic.js';
-
-// import Essentials from '@ckeditor/ckeditor5-essentials/src/essentials.js';
-// import Bold from './@ckeditor/ckeditor5-basic-styles/src/bold.js';
-// import Italic from './@ckeditor/ckeditor5-basic-styles/src/italic.js';
-// // ...
-
-// import Markdown from './@ckeditor/ckeditor5-markdown-gfm/src/markdown.js';
-
-// import  '../../../frappe/frappe/public/js/frappe/ui/keyboard.js'
-
-
-
 window.EditAsset = class EditAsset {
   constructor(opts) {
-    console.log('checko')
-    this.edited_files = {};
     this.make_code_field_group();
     this.render_preview();
     this.add_attachment_handler();
     this.set_listeners();
-    this.create_comment_box()
-  }
-
-  render_preview() {
-
-    $('a[data-toggle="tab"]').on("shown.bs.tab", (e) => {
-      let activeTab = $(e.target);
-
-      if (
-        activeTab.prop("id") === "preview-tab" ||
-        activeTab.prop("id") === "diff-tab"
-      ) {
-        let content = $("textarea#content").val();
-        let $preview = $(".wiki-preview");
-        let $diff = $(".wiki-diff");
-        if (!this.code_field_group.get_value("code")) {
-          $preview.html("<div>Please select a route</div>");
-          $diff.html("<div>Please select a route</div>");
-          return;
-        }
-        $preview.html("Loading preview...");
-        $diff.html("Loading diff...");
-        frappe.call({
-          method: "wiki.wiki.doctype.wiki_page.wiki_page.preview",
-          args: {
-            content: this.code_field_group.get_value("code"),
-            path: this.route,
-            name: $('[name="wiki_page"]').val(),
-            attachments: this.attachments,
-            new: $('[name="new"]').val(),
-          },
-          callback: (r) => {
-            if (r.message) {
-              $preview.html(r.message.html);
-              console.log($('[name="new"]').val())
-              if (!$('[name="new"]').val()){
-                $diff.html(r.message.diff)
-              }
-            }
-          },
-        });
-      }
-    });
-  }
-
-  make_edit_field_group() {
-    const route = $("#route").val();
-    this.edit_field_group = new frappe.ui.FieldGroup({
-      fields: [
-        {
-          label: __("Route Link"),
-          fieldname: "route_link",
-          fieldtype: "Data",
-          default: route || "",
-          hidden: 1,
-        },
-      ],
-      body: $(".routedisp"),
-    });
-    this.edit_field_group.make();
+    this.create_comment_box();
   }
 
   make_code_field_group() {
@@ -91,7 +16,7 @@ window.EditAsset = class EditAsset {
           fieldtype: "Code",
           columns: 4,
           reqd: 1,
-          default: $('#content').val(),
+          default: $("#content").val(),
           options: "Markdown",
         },
       ],
@@ -100,29 +25,6 @@ window.EditAsset = class EditAsset {
     this.code_field_group.make();
   }
 
-  update_code(from_disk = false) {
-    const route = this.edit_field_group.get_value("route_link");
-    if (this.route)
-      this.edited_files[this.route] = this.code_field_group.get_value("code");
-    if (route === this.route && !from_disk) return;
-    if (route in this.edited_files && !from_disk) {
-      this.route = route;
-      this.code_field_group
-        .get_field("code")
-        .set_value(this.edited_files[route]);
-      this.build_file_table();
-      return;
-    }
-    frappe.call({
-      method: "edit_docs.www.edit.get_code",
-      args: { route: route },
-      callback: (r) => {
-        this.route = route;
-        this.code_field_group.get_field("code").set_value(r.message);
-        this.build_file_table();
-      },
-    });
-  }
   make_submit_section_field_group() {
     this.submit_section_field_group = new frappe.ui.FieldGroup({
       fields: [
@@ -142,23 +44,18 @@ window.EditAsset = class EditAsset {
   }
 
   raise_patch() {
-
-    var me =this
-    const submit_dialog = frappe.ui.di
-
-
-
+    var me = this;
     var dfs = [];
-        dfs.push({
-          fieldname: "edit_message",
-          fieldtype: "Text",
-        });
-    
+    dfs.push({
+      fieldname: "edit_message",
+      fieldtype: "Text",
+    });
+
     let dialog = new frappe.ui.Dialog({
       fields: dfs,
       title: __("Please add a message explaining your change"),
       primary_action: function () {
-        console.log(this.get_value("edit_message"))
+        console.log(this.get_value("edit_message"));
         frappe.call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
           args: {
@@ -168,8 +65,7 @@ window.EditAsset = class EditAsset {
             content: me.code_field_group.get_value("code"),
             attachments: me.attachments,
             new: $('[name="new"]').val(),
-            title: $('[name="title_of_page"]').val()
-
+            title: $('[name="title_of_page"]').val(),
           },
           callback: (r) => {
             frappe.show_alert(
@@ -180,16 +76,10 @@ window.EditAsset = class EditAsset {
           },
         });
 
-        this.hide()
+        this.hide();
       },
     });
     dialog.show();
-
-
-
-
-
-   
   }
 
   add_attachment_handler() {
@@ -202,7 +92,7 @@ window.EditAsset = class EditAsset {
     });
   }
 
-  new_attachment(fieldname) {
+  new_attachment() {
     if (this.dialog) {
       // remove upload dialog
       this.dialog.$wrapper.remove();
@@ -223,25 +113,12 @@ window.EditAsset = class EditAsset {
     var wrapper = $(".wiki-attachment");
     wrapper.empty();
 
-    var table = $(
-      `<table class="table table-bordered attachment-table" style="cursor:pointer; margin:0px;">
-        <thead>
-        	<tr>
-            <th style="width: 30%">' ${__("File Name")}</th>
-            <th style="width: 50%">${__("Use this Url")} </th>
-            <th>${__("Actions")} </th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>`
-    ).appendTo(wrapper);
+    var table = $(this.get_attachment_table_header_html()).appendTo(wrapper);
 
     this.attachments.forEach((f) => {
       const row = $("<tr></tr>").appendTo(table.find("tbody"));
       $(`<td>${f.file_name}</td>`).appendTo(row);
-      $(`<td>${f.file_url}</td>`).appendTo(
-        row
-      );
+      $(`<td>${f.file_url}</td>`).appendTo(row);
       $(`<td>
           <a class="btn btn-default btn-xs center delete-button"  data-name = "${f.file_name}" >
 				    Delete
@@ -252,37 +129,21 @@ window.EditAsset = class EditAsset {
     // table.on("click", () => this.table_click_handler());
   }
 
+  get_attachment_table_header_html() {
+    return `<table class="table table-bordered attachment-table" style="cursor:pointer; margin:0px;">
+      <thead>
+        <tr>
+          <th style="width: 30%">' ${__("File Name")}</th>
+          <th style="width: 50%">${__("Use this Url")} </th>
+          <th>${__("Actions")} </th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>`;
+  }
+
   set_listeners() {
     var me = this;
-    $(` .wiki-attachment `).on("click", `.edit-button`, function () {
-      var dfs = [];
-      me.attachments.forEach((f) => {
-        if (f.file_name == $(this).attr("data-name")) {
-          dfs.push({
-            fieldname: f.file_name,
-            fieldtype: "Data",
-            label: f.file_name,
-          });
-        }
-      });
-      let dialog = new frappe.ui.Dialog({
-        fields: dfs,
-        title: __("Add path where this file should be saved."),
-        primary_action: function () {
-          var values = this.get_values();
-          if (values) {
-            this.hide();
-            me.attachments.forEach((f) => {
-              f.save_path = values[f.file_name];
-              me.save_paths[f.file_name] = values[f.file_name];
-            });
-            me.build_attachment_table();
-          }
-        },
-      });
-      dialog.show();
-      dialog.set_values(me.save_paths);
-    });
 
     $(` .wiki-attachment `).on("click", `.delete-button`, function () {
       frappe.confirm(
@@ -300,154 +161,142 @@ window.EditAsset = class EditAsset {
         }
       );
     });
+  }
 
-    $(` .wiki-files `).on("click", `.delete-button`, function () {
-      frappe.confirm(
-        `Are you sure you want to reset changes for this route "${$(this).attr(
-          "data-name"
-        )}"`,
-        () => {
-          // action to perform if Yes is selected
+  render_preview() {
+    $('a[data-toggle="tab"]').on("shown.bs.tab", (e) => {
+      let activeTab = $(e.target);
 
-          delete me.edited_files[$(this).attr("data-name")];
-          me.build_file_table();
+      if (
+        activeTab.prop("id") === "preview-tab" ||
+        activeTab.prop("id") === "diff-tab"
+      ) {
+        let $preview = $(".wiki-preview");
+        let $diff = $(".wiki-diff");
+        if (!this.code_field_group.get_value("code")) {
+          this.set_empty_message($preview, $diff);
+          return;
         }
-      );
-    });
-
-    $(` .wiki-files `).on("click", `.edit-button`, function () {
-      // action to perform if Yes is selected
-
-      me.edit_field_group
-        .get_field("route_link")
-        .set_value($(this).attr("data-name"))
-        .then(() => {
-          me.update_code();
-          $("#write-tab").addClass("active");
-          $("#files-tab").removeClass("active");
-          $("#write").addClass("show active");
-          $("#files").removeClass("show active");
+        this.set_loading_message($preview, $diff);
+        frappe.call({
+          method: "wiki.wiki.doctype.wiki_page.wiki_page.preview",
+          args: {
+            content: this.code_field_group.get_value("code"),
+            path: this.route,
+            name: $('[name="wiki_page"]').val(),
+            attachments: this.attachments,
+            new: $('[name="new"]').val(),
+          },
+          callback: (r) => {
+            if (r.message) {
+              $preview.html(r.message.html);
+              if (!$('[name="new"]').val()) {
+                $diff.html(r.message.diff);
+              }
+            }
+          },
         });
+      }
     });
   }
 
-  build_file_table() {
-    var wrapper = $(".wiki-files");
-    wrapper.empty();
-    var table = $(
-      '<table class="table table-bordered" style="cursor:pointer; margin:0px;"><thead>\
-	<tr><th>' +
-        __("Route") +
-        "</th><th>" +
-        __("Actions") +
-        "</th></tr>\
-	</thead><tbody></tbody></table>"
-    ).appendTo(wrapper);
-
-    for (var file in this.edited_files) {
-      const row = $("<tr></tr>").appendTo(table.find("tbody"));
-      $("<td>" + file + "</td>").appendTo(row);
-      $(`<td>
-      <a class="btn btn-default btn-xs center edit-button"  data-name = "${file}" >
-        Edit
-      </a>
-      &nbsp&nbsp
-      <a class="btn btn-default btn-xs center delete-button"  data-name = "${file}" >
-        Delete
-      </a>
-    </td>`).appendTo(row);
-    }
-    if (!(this.route in this.edited_files)) {
-      const row = $("<tr></tr>").appendTo(table.find("tbody"));
-      $("<td>" + this.route + "</td>").appendTo(row);
-      $(`<td>
-      <a class="btn btn-default btn-xs center edit-button"  data-name = "${this.route}" >
-        Edit
-      </a>
-      &nbsp&nbsp
-      <a class="btn btn-default btn-xs center delete-button"  data-name = "${this.route}" >
-        Delete
-      </a>
-    </td>`).appendTo(row);
-    }
+  set_empty_message($preview, $diff) {
+    $preview.html("<div>Please add some code</div>");
+    $diff.html("<div>Please add some code</div>");
   }
 
+  set_loading_message($preview, $diff) {
+    $preview.html("Loading preview...");
+    $diff.html("Loading diff...");
+  }
   create_comment_box() {
-     this.comment_box = frappe.ui.form.make_control({
-      parent: $('.comment-box'),
+    this.comment_box = frappe.ui.form.make_control({
+      parent: $(".comment-box"),
       df: {
-          fieldname: 'new_comment',
-          fieldtype: 'Comment'
+        fieldname: "new_comment",
+        fieldtype: "Comment",
       },
       enable_mentions: false,
       render_input: true,
       only_input: true,
       on_submit: (comment) => {
-
-				if (strip_html(comment).trim() != "") {
-          this.comment_box.disable();
-
-
-          frappe.call({
-            method: "wiki.wiki.doctype.wiki_page_patch.wiki_page_patch.add_comment_to_patch",
-            args: {
-              reference_name: $('[name="wiki_page_patch"]').val(),
-              content: comment,
-              comment_email: frappe.session.user,
-              comment_by: frappe.session.user_fullname
-            },
-            callback: (r) => {
-              comment = r.message
-              if (comment) {
-                console.log(comment)
-                this.comment_box.set_value('');
-
-                
-                const new_comment = $(`
-                  <div class="timeline-item">
-                    <div class="timeline-badge">
-                      <svg class="icon icon-md">
-                        <use href="#icon-small-message"></use>
-                      </svg>
-                    </div>
-                    <div class="timeline-content frappe-card">
-                      <div class="timeline-message-box">
-                        <span class="flex justify-between">
-                          <span class="text-color flex">
-                            <span>
-                              ${comment.owner}
-                              <span class="text-muted margin-left">
-                                <span class="frappe-timestamp "
-                                  data-timestamp="${comment.creation}"
-                                  title="${comment.creation}">${ comment.timepassed }</span>
-                              </span>
-                            </span>
-                          </span>
-                        </span>
-                        <div class="content">
-                          ${comment.content}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                `)
-
-                $(".timeline-items").prepend(new_comment)
-
-              }
-            },
-            always: () => {
-              this.comment_box.enable();
-
-            }
-          });
-				}
-			}
-  })
+        this.add_comment_to_patch;
+      },
+    });
   }
-}
 
+  add_comment_to_patch() {
+    if (strip_html(comment).trim() != "") {
+      this.comment_box.disable();
 
+      frappe.call({
+        method:
+          "wiki.wiki.doctype.wiki_page_patch.wiki_page_patch.add_comment_to_patch",
+        args: {
+          reference_name: $('[name="wiki_page_patch"]').val(),
+          content: comment,
+          comment_email: frappe.session.user,
+          comment_by: frappe.session.user_fullname,
+        },
+        callback: (r) => {
+          comment = r.message;
+
+          this.display_new_comment(comment, this.comment_box);
+        },
+        always: () => {
+          this.comment_box.enable();
+        },
+      });
+    }
+  }
+
+  display_new_comment(comment, comment_box) {
+    if (comment) {
+      console.log(comment);
+      comment_box.set_value("");
+
+      const new_comment = this.get_comment_html(
+        comment.owner,
+        comment.creation,
+        comment.timepassed,
+        comment.content
+      );
+
+      $(".timeline-items").prepend(new_comment);
+    }
+  }
+
+  get_comment_html(owner, creation, timepassed, content) {
+    return $(`
+      <div class="timeline-item">
+        <div class="timeline-badge">
+          <svg class="icon icon-md">
+            <use href="#icon-small-message"></use>
+          </svg>
+        </div>
+        <div class="timeline-content frappe-card">
+          <div class="timeline-message-box">
+            <span class="flex justify-between">
+              <span class="text-color flex">
+                <span>
+                  ${owner}
+                  <span class="text-muted margin-left">
+                    <span class="frappe-timestamp "
+                      data-timestamp="${creation}"
+                      title="${creation}">${timepassed}</span>
+                  </span>
+                </span>
+              </span>
+            </span>
+            <div class="content">
+              ${content}
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+};
 
 //   setup_search(target, search_scope) {
 //     if (typeof target === "string") {
@@ -628,8 +477,4 @@ window.EditAsset = class EditAsset {
 //   rpanrResize.removeEventListener('mousemove', mV)
 // }
 
-
-
-
 // var edit  = new EditAsset();
-

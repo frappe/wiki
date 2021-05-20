@@ -60,6 +60,11 @@ class WikiPage(WebsiteGenerator):
 				_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
 			)
 
+	def redirect_to_login(self):
+		frappe.response.location = "/" + "login"
+		frappe.response.type = "redirect"
+		return
+
 	def get_context(self, context):
 		self.verify_permission("read")
 
@@ -67,7 +72,8 @@ class WikiPage(WebsiteGenerator):
 		context.banner_image = wiki_settings.logo
 		context.home_route = "doc"
 		context.docs_search_scope = "docs"
-		context.can_edit = frappe.session.user != "Guest"
+		can_edit = frappe.session.user != "Guest"
+		context.can_edit = can_edit
 		context.no_cache = 1
 
 		if frappe.form_dict:
@@ -75,6 +81,8 @@ class WikiPage(WebsiteGenerator):
 			context.add_breadcrumbs = True
 
 		if frappe.form_dict.new:
+			if not can_edit:
+				self.redirect_to_login()
 			self.verify_permission("create")
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
@@ -82,6 +90,8 @@ class WikiPage(WebsiteGenerator):
 			return
 
 		if frappe.form_dict.edit:
+			if not can_edit:
+				self.redirect_to_login()
 			self.verify_permission("write")
 			context.title = "Editing " + self.title
 			if frappe.form_dict.wiki_page_patch:
@@ -218,9 +228,6 @@ def update(name, content, title, attachments="{}", message="", wiki_page_patch=N
 		"new": new,
 		"new_title": title
 	}
-
-	print("new")
-	print(new)
 
 	patch.update(patch_dict)
 

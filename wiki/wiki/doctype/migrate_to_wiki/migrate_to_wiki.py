@@ -101,9 +101,7 @@ class MigrateToWiki(Document):
 		content = ''.join(lines[heading_index + 1 : ]) if heading_index != -1 else ''.join(lines)
 		if 'shifted to landing page' in content:
 			return
-		# if self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
-		# 	for asset in self.docs_change_dict.get(root[root.find(self.docs_directory)+1: ]):
-				# content = content.replace(asset['orig_file_url'], asset['file_url'])
+
 
 		if content:
 			for prev, new in self.docs_change_dict.items():

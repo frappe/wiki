@@ -56,7 +56,7 @@
    "options": "Under Review\nChanges Requested\nRejected\nApproved"
   },
   {
-   "depends_on": "!doc.new",
+   "depends_on": "eval: !doc.new; ",
    "fieldname": "compare_changes_section",
    "fieldtype": "Section Break",
    "label": "Compare Changes"
@@ -79,7 +79,7 @@
    "label": "Code"
   },
   {
-   "depends_on": "!doc.new",
+   "depends_on": "eval: !doc.new; ",
    "fieldname": "orignal_code",
    "fieldtype": "Code",
    "label": "Orignal Code"
@@ -90,7 +90,7 @@
    "label": "New Code"
   },
   {
-   "depends_on": "!doc.new",
+   "depends_on": "eval: !doc.new; ",
    "fieldname": "previews_section",
    "fieldtype": "Section Break",
    "label": "Orignal Preview Section"
@@ -146,6 +146,7 @@
    "default": "0",
    "fieldname": "new",
    "fieldtype": "Check",
+   "in_list_view": 1,
    "label": "Is New"
   },
   {
@@ -158,7 +159,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-05-19 18:09:28.570093",
+ "modified": "2021-05-20 07:34:53.511766",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
