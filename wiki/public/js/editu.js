@@ -211,6 +211,7 @@ window.EditAsset = class EditAsset {
     $diff.html("Loading diff...");
   }
   create_comment_box() {
+    debugger
     this.comment_box = frappe.ui.form.make_control({
       parent: $(".comment-box"),
       df: {
@@ -221,12 +222,13 @@ window.EditAsset = class EditAsset {
       render_input: true,
       only_input: true,
       on_submit: (comment) => {
-        this.add_comment_to_patch;
+        debugger
+        this.add_comment_to_patch(comment);
       },
     });
   }
 
-  add_comment_to_patch() {
+  add_comment_to_patch(comment) {
     if (strip_html(comment).trim() != "") {
       this.comment_box.disable();
 
