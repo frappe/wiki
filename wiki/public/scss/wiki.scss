@@ -59,3 +59,21 @@ textarea.wiki-content {
 .wiki-revision-meta {
 	font-size: $font-size-sm;
 }
+
+
+.sidebar-group {
+	div {
+		cursor: pointer;
+
+		.h6 {
+			font-size: $font-size-sm;
+			margin-bottom: 0.75rem;
+			line-height: 1.5;
+		}
+
+		.drop-icon {
+			margin-right: 10px;
+		}
+	}
+}
+

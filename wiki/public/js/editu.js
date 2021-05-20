@@ -7,6 +7,7 @@ window.EditAsset = class EditAsset {
     this.create_comment_box();
   }
 
+
   make_code_field_group() {
     this.code_field_group = new frappe.ui.FieldGroup({
       fields: [
