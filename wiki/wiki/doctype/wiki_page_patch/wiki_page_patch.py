@@ -19,7 +19,7 @@ class WikiPagePatch(Document):
 			self.orignal_preview_store = frappe.utils.md_to_html(self.orignal_code)
 
 	def	update_old__page(self, wiki_page):
-		wiki_page.update_page(wiki_page.title, self.new_code, self.message)
+		wiki_page.update_page(wiki_page.title, self.new_code, self.message, self.raised_by)
 		return
 
 	def on_submit(self):

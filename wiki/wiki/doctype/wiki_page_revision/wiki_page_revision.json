@@ -7,7 +7,8 @@
  "field_order": [
   "message",
   "content",
-  "wiki_page"
+  "wiki_page",
+  "raised_by"
  ],
  "fields": [
   {
@@ -29,11 +30,17 @@
    "label": "Wiki Page",
    "options": "Wiki Page",
    "reqd": 1
-  }
+  },
+  {
+    "fieldname": "raised_by",
+    "fieldtype": "Link",
+    "label": "Raised By",
+    "options": "User"
+   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2021-05-17 11:56:08.260339",
+ "modified": "2021-05-17 11:56:08.260349",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",

@@ -7,7 +7,12 @@
 		<li class="wiki-revision">
 			<a class="wiki-revision-message" href="/{{ path }}?compare={{ revision.name }}">{{ revision.message }}</a>
 			<p class="wiki-revision-meta">
-				{{ revision.owner }} edited on {{ frappe.utils.format_datetime(revision.creation, 'medium') }}
+				{%- if revision.raised_by -%}
+					{{ revision.raised_by }} 
+				{%- else  -%} 
+					{{revision.owner }} 
+				{%- endif  -%} 
+				&nbspedited on {{ frappe.utils.format_datetime(revision.creation, 'medium') }}
 			</p>
 		</li>
 	</ul>

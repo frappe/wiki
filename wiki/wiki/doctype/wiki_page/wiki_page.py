@@ -33,7 +33,7 @@ class WikiPage(WebsiteGenerator):
 		if not self.route:
 			self.route = "wiki/" + cleanup_page_name(self.title)
 
-	def update_page(self, title, content, edit_message):
+	def update_page(self, title, content, edit_message, raised_by=None):
 		"""
 		Update Wiki Page and create a Wiki Page Revision
 		"""
@@ -44,6 +44,7 @@ class WikiPage(WebsiteGenerator):
 			revision.wiki_page = self.name
 			revision.content = content
 			revision.message = edit_message
+			revision.raised_by = raised_by
 			revision.insert()
 
 		self.save()
@@ -96,7 +97,6 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login()
-			self.verify_permission("create")
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
 			self.content = "New Wiki Page"
@@ -105,7 +105,6 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.edit:
 			if not can_edit:
 				self.redirect_to_login()
-			self.verify_permission("write")
 			context.title = "Editing " + self.title
 			if frappe.form_dict.wiki_page_patch:
 				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
@@ -122,7 +121,7 @@ class WikiPage(WebsiteGenerator):
 			revisions = frappe.db.get_all(
 				"Wiki Page Revision",
 				filters={"wiki_page": self.name},
-				fields=["message", "creation", "owner", "name"],
+				fields=["message", "creation", "owner", "name", "raised_by"],
 			)
 			context.revisions = revisions
 			return
