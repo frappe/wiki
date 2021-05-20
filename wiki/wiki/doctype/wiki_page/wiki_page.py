@@ -72,27 +72,27 @@ class WikiPage(WebsiteGenerator):
 		else:
 			parents = []
 			splits = self.route.split('/')
-			for index, route in enumerate(splits, start=1):
-				full_route = '/'.join(splits[:index])
-				wiki_page = frappe.get_all('Wiki Page', filters=[['route','=',full_route]],fields=['title'])
-				if wiki_page:
-					parents.append({"route": "/" + full_route, "label": wiki_page[0].title})
+			if splits:
+				for index, route in enumerate(splits[:-1], start=1):
+					full_route = '/'.join(splits[:index])
+					wiki_page = frappe.get_all('Wiki Page', filters=[['route','=',full_route]],fields=['title'])
+					if wiki_page:
+						parents.append({"route": "/" + full_route, "label": wiki_page[0].title})
 
-			context.parents = parents
+				context.parents = parents
 
 	def get_context(self, context):
 		self.verify_permission("read")
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
-		context.home_route = "doc"
 		context.docs_search_scope = "docs"
 		can_edit = frappe.session.user != "Guest"
 		context.can_edit = can_edit
 		context.no_cache = 1
 
 		self.set_crumbs(context)
-		
+
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login()
