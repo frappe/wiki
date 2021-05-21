@@ -61,10 +61,10 @@ class WikiPage(WebsiteGenerator):
 				_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
 			)
 
-	def redirect_to_login(self):
-		frappe.response.location = "/" + "login"
-		frappe.response.type = "redirect"
-		return
+	def redirect_to_login(self, action):
+		frappe.throw(
+			_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
+		)
 
 	def set_crumbs(self, context):
 		context.add_breadcrumbs = True
@@ -96,7 +96,7 @@ class WikiPage(WebsiteGenerator):
 
 		if frappe.form_dict.new:
 			if not can_edit:
-				self.redirect_to_login()
+				self.redirect_to_login("create")
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
 			self.content = "New Wiki Page"
@@ -104,7 +104,7 @@ class WikiPage(WebsiteGenerator):
 
 		if frappe.form_dict.edit:
 			if not can_edit:
-				self.redirect_to_login()
+				self.redirect_to_login("edit")
 			context.title = "Editing " + self.title
 			if frappe.form_dict.wiki_page_patch:
 				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
@@ -169,7 +169,9 @@ class WikiPage(WebsiteGenerator):
 			fields=["name", "parent"],
 			filters=[["route", "=", context.route]],
 		)
-		sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
+		sidebar_items = []
+		if sidebar:
+			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
 		if frappe.session.user == "Guest":
 			sidebar_items = [
 				item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
