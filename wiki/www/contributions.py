@@ -3,7 +3,7 @@ import frappe
 from frappe.core.page.background_jobs.background_jobs import get_info
 
 def get_context(context):
-
+	context.no_cache = 1
 	color_map = {
 		'Changes Requested': 'blue',
 		'Under Review': 'pink',
