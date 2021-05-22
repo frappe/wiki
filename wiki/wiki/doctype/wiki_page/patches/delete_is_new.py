@@ -6,6 +6,8 @@ import frappe
 
 
 def execute():
-	frappe.reload_doctype("Wiki Page")
-	# set allow_guest to 1 for all records
-	frappe.db.set_value("Wiki Page", {"name": ("!=", ".")}, "allow_guest", 1)
+	try:
+		frappe.db.sql('alter table `tabWiki Page Patch` drop column is_new;')
+		frappe.db.commit()
+	except:
+		pass

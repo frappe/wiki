@@ -7,45 +7,83 @@ window.EditAsset = class EditAsset {
     this.create_comment_box();
   }
 
-
   make_code_field_group() {
     this.code_field_group = new frappe.ui.FieldGroup({
       fields: [
         {
-          label: __("Edit Code"),
-          fieldname: "code",
+          fieldname: "type",
+          fieldtype: "Select",
+          columns: 4,
+          default: "Markdown",
+          options: "Markdown\nRich-Text",
+        },
+        {
+          label: __("Edit Code - HTML (Experimental)"),
+          fieldname: "code_html",
+          fieldtype: "Text Editor",
+          columns: 4,
+          reqd: 1,
+          depends_on: 'eval:doc.type=="Rich-Text"',
+          // default: $("#content").val(),
+        },
+        {
+          label: __("Edit Code - Markdown"),
+          fieldname: "code_md",
           fieldtype: "Code",
           columns: 4,
           reqd: 1,
-          default: $("#content").val(),
           options: "Markdown",
+          depends_on: 'eval:doc.type=="Markdown"',
         },
       ],
       body: $(".wiki-write").get(0),
     });
     this.code_field_group.make();
+    this.code_field_group.set_value(
+      "code_html",
+      $(".wiki-content-html").get(0).innerHTML
+    );
+    this.code_field_group.set_value(
+      "code_md",
+      $(".wiki-content-md").get(0).innerHTML
+    );
   }
 
-  make_submit_section_field_group() {
-    this.submit_section_field_group = new frappe.ui.FieldGroup({
-      fields: [
-        {
-          label: __("Submit"),
-          fieldname: "submit_button",
-          fieldtype: "Button",
-          primary: 1,
-          btn_size: "lg",
-          reqd: 1,
-          click: () => this.raise_patch(),
-        },
-      ],
-      body: $(".submit-section"),
+
+  get_markdown() {
+
+
+    var me = this;
+
+    if (me.code_field_group.get_value("type") == "Markdown") {
+      this.content = me.code_field_group.get_value("code_md");
+      this.raise_patch()
+    } else {
+
+    this.content = this.code_field_group.get_value("code_html");
+    
+    frappe.call({
+      method: "wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
+      args: {
+        content: this.content
+      },
+      callback: (r) => {
+        if (r.message) {
+         me.content = r.message
+         var turndownService = new TurndownService()
+          turndownService = turndownService.keep(['div class','iframe'])
+          me.content = turndownService.turndown(me.content)
+         me.raise_patch()
+        }
+      },
     });
-    this.submit_section_field_group.make();
   }
+  }
+
 
   raise_patch() {
     var me = this;
+    var dfs = [];
     var dfs = [];
     dfs.push({
       fieldname: "edit_message",
@@ -62,16 +100,15 @@ window.EditAsset = class EditAsset {
             name: $('[name="wiki_page"]').val(),
             wiki_page_patch: $('[name="wiki_page_patch"]').val(),
             message: this.get_value("edit_message"),
-            content: me.code_field_group.get_value("code"),
+            content: me.content,
+            type : me.code_field_group.get_value("type"),
             attachments: me.attachments,
             new: $('[name="new"]').val(),
             title: $('[name="title_of_page"]').val(),
           },
           callback: (r) => {
             frappe.show_alert(
-              "A Change Request has been generated. You can track your requests here after a few mins",
-              5
-            );
+              "A Change Request has been generated. You can track your requests here after a few mins");
             window.location.href = "/contributions";
           },
         });
@@ -88,7 +125,7 @@ window.EditAsset = class EditAsset {
       me.new_attachment();
     });
     $(".submit").click(function () {
-      me.raise_patch();
+      me.get_markdown();
     });
   }
 
@@ -173,15 +210,28 @@ window.EditAsset = class EditAsset {
       ) {
         let $preview = $(".wiki-preview");
         let $diff = $(".wiki-diff");
-        if (!this.code_field_group.get_value("code")) {
+        const type = this.code_field_group.get_value("type")
+       let content = ''
+        if (type == 'Markdown') {
+           content = this.code_field_group.get_value("code_md");
+        } else {
+          content = this.code_field_group.get_value("code_html");
+          var turndownService = new TurndownService()
+          turndownService = turndownService.keep(['div class','iframe'])
+          content = turndownService.turndown(content)
+        }
+        if (!content) {
           this.set_empty_message($preview, $diff);
           return;
         }
         this.set_loading_message($preview, $diff);
+
+
         frappe.call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.preview",
           args: {
-            content: this.code_field_group.get_value("code"),
+            content: content,
+            type : type,
             path: this.route,
             name: $('[name="wiki_page"]').val(),
             attachments: this.attachments,

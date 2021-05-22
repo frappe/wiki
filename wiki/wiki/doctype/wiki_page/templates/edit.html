@@ -45,8 +45,8 @@
 			<div class="mt-4 tab-content">
 				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
 					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
-					<textarea id="content" class="form-control wiki-content" name="content" rows="30"
-						hidden>{{ doc.content }}</textarea>
+					<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
+					<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
 					<div class="wiki-write"></div>
 				</div>
 				<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
@@ -89,12 +89,14 @@
 	{% block base_scripts %}
 	<!-- js should be loaded in body! -->
 	<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+	<script src="https://unpkg.com/turndown/dist/turndown.js"></script>
 	{{ include_script('frappe-web.bundle.js') }}
 	{{ include_script('controls.bundle.js') }}
 	{{ include_script('dialog.bundle.js') }}
 	{{ include_script('bootstrap-4-web.bundle.js') }}
 	<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
-	<script type="text/javascript" src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>	{{ include_script('desk.bundle.js') }}
+	<script type="text/javascript" src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>	
+	{{ include_script('desk.bundle.js') }}
 	{{ include_script('wiki.bundle.js') }}
 	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
 

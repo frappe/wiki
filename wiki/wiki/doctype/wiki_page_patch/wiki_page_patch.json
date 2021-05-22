@@ -147,7 +147,7 @@
    "fieldname": "new",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "Is New"
+   "label": "New"
   },
   {
    "fieldname": "new_title",
@@ -159,7 +159,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-05-20 07:34:53.511766",
+ "modified": "2021-05-20 07:34:53.511768",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

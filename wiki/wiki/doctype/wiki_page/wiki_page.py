@@ -6,11 +6,13 @@ from __future__ import unicode_literals
 
 import frappe
 import json
+import re
 from frappe import _
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
 from frappe.desk.form.load import get_comments
-
+from frappe.core.doctype.file.file import get_random_filename
+from six import PY2, StringIO, string_types, text_type
 
 class WikiPage(WebsiteGenerator):
 	def autoname(self):
@@ -114,6 +116,9 @@ class WikiPage(WebsiteGenerator):
 				context.comments = get_comments(
 					"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
 				)
+
+			context.content_md = self.content
+			context.content_html = frappe.utils.md_to_html(self.content)
 			return
 
 		if frappe.form_dict.revisions:
@@ -186,7 +191,10 @@ class WikiPage(WebsiteGenerator):
 
 
 @frappe.whitelist()
-def preview(content, name, new):
+def preview(content, name, new, type):
+	# print(content)
+	if type == "Rich-Text":
+		content = to_markdown(content)
 	html = frappe.utils.md_to_html(content)
 	if new:
 		return {"html": html}
@@ -199,6 +207,7 @@ def preview(content, name, new):
 
 @frappe.whitelist(methods=["POST"])
 def update(wiki_page, title, content, edit_message):
+	content = to_markdown(content)
 	wiki_page = frappe.get_doc("Wiki Page", wiki_page)
 	wiki_page.update_page(title, content, edit_message)
 
@@ -217,17 +226,62 @@ def new(title, content):
 	frappe.response.location = "/" + wiki_page.route
 	frappe.response.type = "redirect"
 
+@frappe.whitelist()
+def extract_images_from_html(content):
+	frappe.flags.has_dataurl = False
+
+	def _save_file(match):
+		data = match.group(1)
+		data = data.split("data:")[1]
+		headers, content = data.split(",")
+
+		if "filename=" in headers:
+			filename = headers.split("filename=")[-1]
+
+			# decode filename
+			if not isinstance(filename, text_type):
+				filename = text_type(filename, 'utf-8')
+		else:
+			mtype = headers.split(";")[0]
+			filename = get_random_filename(content_type=mtype)
+
+
+		_file = frappe.get_doc({
+			"doctype": "File",
+			"file_name": filename,
+			"content": content,
+			"decode": True
+		})
+		_file.save(ignore_permissions=True)
+		file_url = _file.file_url
+		if not frappe.flags.has_dataurl:
+			frappe.flags.has_dataurl = True
+
+		return '<img src="{file_url}"'.format(file_url=file_url)
+
+	if content and isinstance(content, string_types):
+		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
+	print(content)
+	return content
+
 
 @frappe.whitelist()
-def update(name, content, title, attachments="{}", message="", wiki_page_patch=None, new=None):
+def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False):
+	if type == "Rich-Text":
+		content = extract_images_from_html(content)
+		content = to_markdown(content)
+
 	if new:
 		new = True
 
 	if wiki_page_patch:
 		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
+		patch.new_title = title
 		patch.new_code = content
 		patch.status = "Under Review"
 		patch.message = message
+		patch.new= new
+		print(patch.is_new)
 		patch.save()
 		return
 
@@ -281,3 +335,17 @@ def get_source(resolved_route, jenv):
 
 def get_path_without_slash(path):
 	return path[1:] if path.startswith("/") else path
+
+
+def to_markdown(html):
+	from html2text import html2text
+	from six.moves import html_parser as HTMLParser
+
+	text = html
+	# try:
+	# 	text = html2text(html or '', bodywidth=0)
+
+	# except HTMLParser.HTMLParseError:
+	# 	pass
+
+	return text

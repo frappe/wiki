@@ -32,7 +32,7 @@ textarea.wiki-content {
 	font-size: $font-size-sm;
 	border: 1px solid $border-color;
 	border-radius: 0.5rem;
-	overflow: hidden;
+	overflow: auto;
 
 	div {
 		padding: 0.25rem 0.5rem;
