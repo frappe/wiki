@@ -89,7 +89,7 @@ class WikiPage(WebsiteGenerator):
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
-		context.docs_search_scope = "docs"
+		context.docs_search_scope = ""
 		can_edit = frappe.session.user != "Guest"
 		context.can_edit = can_edit
 		context.no_cache = 1
@@ -166,9 +166,26 @@ class WikiPage(WebsiteGenerator):
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
 		context.page_toc_html = html.toc_html
+		context.docs_search_scope = self.get_docs_search_scope(context)
+
+	def get_docs_search_scope(self, context):
+		sidebar_items = frappe.get_all(
+			doctype="Wiki Sidebar Item",
+			fields=["name", "parent"],
+			filters=[["route", "=", context.route]],
+		)
+		if sidebar_items:
+			parent = frappe.db.get_value("Wiki Sidebar", sidebar_items[0].parent, "parent_wiki_sidebar")
+			if not parent:
+				return sidebar_items[0].parent
+			current = parent
+			while parent:
+				current = parent
+				parent = frappe.db.get_value("Wiki Sidebar", parent, "parent_wiki_sidebar")
+		return current
+
 
 	def get_sidebar_items(self, context):
-		sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
 		sidebar = frappe.get_all(
 			doctype="Wiki Sidebar Item",
 			fields=["name", "parent"],
@@ -177,6 +194,11 @@ class WikiPage(WebsiteGenerator):
 		sidebar_items = []
 		if sidebar:
 			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
+		else:
+			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
+			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+			return sidebar_items
+
 		if frappe.session.user == "Guest":
 			sidebar_items = [
 				item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
@@ -192,7 +214,6 @@ class WikiPage(WebsiteGenerator):
 
 @frappe.whitelist()
 def preview(content, name, new, type):
-	# print(content)
 	if type == "Rich-Text":
 		content = to_markdown(content)
 	html = frappe.utils.md_to_html(content)
@@ -261,7 +282,6 @@ def extract_images_from_html(content):
 
 	if content and isinstance(content, string_types):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
-	print(content)
 	return content
 
 
@@ -281,7 +301,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.status = "Under Review"
 		patch.message = message
 		patch.new= new
-		print(patch.is_new)
 		patch.save()
 		return
 

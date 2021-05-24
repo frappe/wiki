@@ -22,7 +22,7 @@ window.EditAsset = class EditAsset {
           fieldname: "code_html",
           fieldtype: "Text Editor",
           columns: 4,
-          reqd: 1,
+          default: $(".wiki-content-html").get(0).innerHTML,
           depends_on: 'eval:doc.type=="Rich-Text"',
           // default: $("#content").val(),
         },
@@ -31,22 +31,14 @@ window.EditAsset = class EditAsset {
           fieldname: "code_md",
           fieldtype: "Code",
           columns: 4,
-          reqd: 1,
           options: "Markdown",
+          default: $(".wiki-content-md").get(0).innerHTML,
           depends_on: 'eval:doc.type=="Markdown"',
         },
       ],
       body: $(".wiki-write").get(0),
     });
     this.code_field_group.make();
-    this.code_field_group.set_value(
-      "code_html",
-      $(".wiki-content-html").get(0).innerHTML
-    );
-    this.code_field_group.set_value(
-      "code_md",
-      $(".wiki-content-md").get(0).innerHTML
-    );
   }
 
 
@@ -61,7 +53,7 @@ window.EditAsset = class EditAsset {
     } else {
 
     this.content = this.code_field_group.get_value("code_html");
-    
+
     frappe.call({
       method: "wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
       args: {
@@ -83,7 +75,6 @@ window.EditAsset = class EditAsset {
 
   raise_patch() {
     var me = this;
-    var dfs = [];
     var dfs = [];
     dfs.push({
       fieldname: "edit_message",
@@ -121,10 +112,10 @@ window.EditAsset = class EditAsset {
 
   add_attachment_handler() {
     var me = this;
-    $(".add-attachment").click(function () {
+    $(".add-attachment-wiki").click(function () {
       me.new_attachment();
     });
-    $(".submit").click(function () {
+    $(".submit-wiki-page").click(function () {
       me.get_markdown();
     });
   }
@@ -163,7 +154,6 @@ window.EditAsset = class EditAsset {
         </td>`).appendTo(row);
     });
 
-    // table.on("click", () => this.table_click_handler());
   }
 
   get_attachment_table_header_html() {
@@ -188,7 +178,6 @@ window.EditAsset = class EditAsset {
           "data-name"
         )}"`,
         () => {
-          // action to perform if Yes is selected
           me.attachments.forEach((f, index, object) => {
             if (f.file_name == $(this).attr("data-name")) {
               object.splice(index, 1);
