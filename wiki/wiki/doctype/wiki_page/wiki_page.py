@@ -174,6 +174,7 @@ class WikiPage(WebsiteGenerator):
 			fields=["name", "parent"],
 			filters=[["route", "=", context.route]],
 		)
+		current = '/'
 		if sidebar_items:
 			parent = frappe.db.get_value("Wiki Sidebar", sidebar_items[0].parent, "parent_wiki_sidebar")
 			if not parent:
