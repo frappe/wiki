@@ -19,6 +19,8 @@ class WikiSidebar(NestedSet):
 
 
 		if not self.child_sidebars:
+			if not self.parent_wiki_sidebar:
+				return []
 			return frappe.get_doc("Wiki Sidebar", self.parent_wiki_sidebar).get_items()
 
 

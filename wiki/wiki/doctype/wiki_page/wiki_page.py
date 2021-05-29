@@ -197,7 +197,6 @@ class WikiPage(WebsiteGenerator):
 		else:
 			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
 			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
-			return sidebar_items
 
 		if frappe.session.user == "Guest":
 			sidebar_items = [

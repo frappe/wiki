@@ -19,6 +19,10 @@
 		{%- endif -%}
 	</div>
 	{%- endif -%}
+
+	{%- if can_edit -%}
+	<a href="/contributions" class="btn btn-primary-light btn-sm">Contributions</a>
+	{%- endif -%}
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
@@ -31,6 +35,11 @@ $(event.delegateTarget).find('ul').toggleClass('hidden')
 
 	$('.sidebar-item a.active').closest('ul').removeClass('hidden')
 
+	$( `<div class="chicken"><select type="text" autocomplete="off" class="input-with-feedback form-control ellipsis"  placeholder="" data-switch="Item"><option value="Purchase">Purchase</option><option value="Material Transfer">Material Transfer</option><option value="Material Issue">Material Issue</option><option value="Manufacture">Manufacture</option><option value="Customer Provided">Customer Provided</option></select>
+	</div>` ).insertAfter($('#search-container'))
+	$( `<div class="chicken"><select type="text" autocomplete="off" class="input-with-feedback form-control ellipsis"  placeholder="" data-switch="Item"><option value="Purchase">Purchase</option><option value="Material Transfer">Material Transfer</option><option value="Material Issue">Material Issue</option><option value="Manufacture">Manufacture</option><option value="Customer Provided">Customer Provided</option></select>
+	</div>` ).insertAfter($('#search-container'))
+		
 </script>
 
 
