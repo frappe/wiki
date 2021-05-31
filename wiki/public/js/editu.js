@@ -13,24 +13,26 @@ window.EditAsset = class EditAsset {
         {
           fieldname: "type",
           fieldtype: "Select",
-          columns: 4,
           default: "Markdown",
           options: "Markdown\nRich-Text",
+        },
+        {
+          fieldtype: "Column Break",
+        },
+        {
+          fieldtype: "Section Break",
         },
         {
           label: __("Edit Code - HTML (Experimental)"),
           fieldname: "code_html",
           fieldtype: "Text Editor",
-          columns: 4,
           default: $(".wiki-content-html").get(0).innerHTML,
           depends_on: 'eval:doc.type=="Rich-Text"',
-          // default: $("#content").val(),
         },
         {
           label: __("Edit Code - Markdown"),
           fieldname: "code_md",
           fieldtype: "Code",
-          columns: 4,
           options: "Markdown",
           default: $(".wiki-content-md").get(0).innerHTML,
           depends_on: 'eval:doc.type=="Markdown"',
@@ -39,6 +41,8 @@ window.EditAsset = class EditAsset {
       body: $(".wiki-write").get(0),
     });
     this.code_field_group.make();
+    $('.wiki-write .form-section:last').removeClass('empty-section')
+
   }
 
 
