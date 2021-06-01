@@ -1,5 +1,5 @@
 {%- if frappe.form_dict.edit or frappe.form_dict.new -%}
-{% extends "templates/web.html" %}
+{% extends "frappe/templates/web.html" %}
 {%- else -%}
 {% extends "templates/doc.html" %}
 {%- block page_sidebar -%}
@@ -28,4 +28,9 @@
 {%- endif -%}
 {% endblock %}
 
+
+{%- block navbar -%}
+{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+
+{%- endblock -%}
 

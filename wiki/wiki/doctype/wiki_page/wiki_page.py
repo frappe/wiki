@@ -167,6 +167,21 @@ class WikiPage(WebsiteGenerator):
 		context.content = html
 		context.page_toc_html = html.toc_html
 		context.docs_search_scope = self.get_docs_search_scope(context)
+		context.top_bar_items  = [
+			{
+				'label': 'Github',
+				'url': 'https://www.github.com/frappe/erpnext',
+				'right': True
+			},
+			{
+				'label': 'Discuss',
+				'url': 'https://discuss.erpnext.com',
+				'right': True
+			}
+		]
+		context.navbar_search = True
+		context.show_sidebar = True
+		context.hide_login = True
 
 	def get_docs_search_scope(self, context):
 		sidebar_items = frappe.get_all(

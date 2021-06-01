@@ -77,3 +77,65 @@ textarea.wiki-content {
 	}
 }
 
+
+.navbar-nav {
+	height: 100%;
+
+}
+
+.nav-item {
+	margin-left: 24px;
+
+
+	#search-container {
+		width: 312px;
+		height: 100%;
+		padding-right: 0px;
+		padding-left: 0px;
+		.dropdown {
+			height: 100%;
+
+			input {
+				height: 100%;
+				background: #F4F5F6;
+				border-radius: 4px;
+			}
+		}
+
+	}
+
+	.nav-link {
+		font-family: Inter;
+		font-style: normal;
+		font-weight: normal;
+		font-size: 16px;
+		line-height: 150%;
+		/* identical to box height, or 24px */
+
+		letter-spacing: -0.011em;
+
+		/* Gray / 700 */
+
+		color: #4C5A67;
+		padding-left: 0rem !important;
+		padding-right: 0rem !important;
+	}
+
+}
+.navbar {
+	.container {
+		height: 36px
+	}
+}
+
+.doc-layout {
+	padding-top: 0rem;
+}
+
+
+.navbar-brand {
+	img {
+		max-height: 18px;
+	}
+}
+
