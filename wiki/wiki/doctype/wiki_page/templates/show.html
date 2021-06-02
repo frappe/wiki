@@ -1,4 +1,3 @@
-
 <div class="from-markdown">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="m-0">{{ title }}</h1>
@@ -28,14 +27,85 @@
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 
 <script>
-    $('.sidebar-group').on('click', 'div',(event) => {
-$(event.delegateTarget).find('ul').toggleClass('hidden')
+	$('.sidebar-group').on('click', 'div', (event) => {
+		$(event.delegateTarget).find('ul').toggleClass('hidden')
 	})
 	$('.sidebar-item a').closest('ul').addClass('hidden')
 
 	$('.sidebar-item a.active').closest('ul').removeClass('hidden')
 
+
+	$(`<li class="nav-item">
+		<div class="website-search doc-search" id="search-container"></div>
+	</li>`).insertAfter('.nav-item:first');
+	
+	let version_switcher = $('nav').find(".nav-item")
+	let current_location = window.location.href;
+	let version_pattern = 'en|es|de';
+	let match = current_location.match('en|es|de')
+
+	if (match) {
+		$(version_switcher[0]).find('a')[0].innerText = match[0]
+	}
+
+	$('.dropdown-item').click((event) => {
+		let target_location = current_location.replace(/en|es|de/, event.target.innerText)
+		$(event.target).attr('href', target_location)
+	});
+
+	/*$('.dropdown-item').click((event) => {
+		debugger
+		let tt = current_location.replace(/en|es|de/, event.target.innerText)
+		window.location.href =  tt
+		console.log('f')
+	});*/
+
+	/*$(`<li class="nav-item">
+		<select class="form-control ml-5" id="version-switcher">
+		  <option value="accounts">Accounts</option>
+		  <option value="assets">Assets</option>
+		  <option value="education">Education</option>
+		</select>
+	</li>`).prependTo('.navbar-nav:last');
+
+	let version_switcher = $('nav').find("#version-switcher")
+	let current_location = window.location.href;
+	let version_pattern = 'accounts|assets|education';
+	let match = current_location.match('accounts|assets|education')
+
+	if (match) {
+		version_switcher.val(match[0])
+	}
+	version_switcher.change(() => {
+
+		let value = version_switcher.val()
+		window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
+	});
+
+
+	$(`<li class="nav-item">
+		<select class="form-control ml-5" id="language-switcher">
+		  <option value="en">English</option>
+		  <option value="es">Spanish</option>
+		  <option value="de">German</option>
+		</select>
+	</li>`).prependTo('.navbar-nav:last');
+
+	let language_switcher = $('nav').find("#language-switcher")
+	current_location = window.location.href;
+	let language_pattern = 'en|es|de';
+	match = current_location.match('en|es|de')
+
+	if (match) {
+		language_switcher.val(match[0])
+	}
+	language_switcher.change(() => {
+
+		let value = language_switcher.val()
+		window.location.href = current_location.replace(/en|es|de/, `${value}`)
+
+
+
+	});*/
+
 </script>
-
-
-
