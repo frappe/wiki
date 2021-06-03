@@ -60,8 +60,29 @@ textarea.wiki-content {
 	font-size: $font-size-sm;
 }
 
-
 .sidebar-group {
+	border-bottom: 1px solid #EEF0F2;
+	margin: 0;
+	padding-top: 16px;
+	padding-bottom: 16px;
+	font-family: Inter;
+	font-style: normal;
+	font-weight: 500;
+	font-size: 16px;
+	line-height: 172%;
+	/* identical to box height, or 28px */
+
+	letter-spacing: -0.011em;
+
+}
+.sidebar-group {
+
+	.active {
+		border-radius: 4px;
+		color: #2490EF;
+    	background-color: #EBF5FF;
+	}
+
 	div {
 		cursor: pointer;
 
@@ -70,11 +91,33 @@ textarea.wiki-content {
 			margin-bottom: 0.75rem;
 			line-height: 1.5;
 		}
+	}
 
-		.drop-icon {
-			margin-right: 10px;
+	.sidebar-item {
+
+		font-family: Inter;
+		font-style: normal;
+		font-weight: normal;
+		font-size: 1px;
+		line-height: 150%;
+		/* identical to box height, or 24px */
+		
+		letter-spacing: -0.011em;
+		padding-top: 10px;
+		padding-bottom: 10px;
+
+		div {
+			display: flex;
+		}
+
+		a {
+			margin: 0;
 		}
 	}
+}
+
+.sidebar-column {
+	border-right: 1px solid #EEF0F2;
 }
 
 
@@ -82,6 +125,7 @@ textarea.wiki-content {
 	height: 100%;
 
 }
+
 
 .nav-item {
 	margin-left: 24px;

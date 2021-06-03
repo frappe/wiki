@@ -1,27 +1,37 @@
 {% macro render_sidebar_item(item) %}
 <li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}">
 	{%- if item.group_title -%}
-	<div>
-		<span class='h6'>{{ item.group_title }}</span>
-		<span class='pull-right drop-icon'>
+	<div class="collapsible">
+		<span class='drop-icon'>
 			<svg class="icon icon-xs"><use href="#icon-small-down"></use></svg>
 		</span>
+		<span class='h6'>{{ item.group_title }}</span>
+
 	</div>
 	{{ render_sidebar_items(item.group_items) }}
 
 	{%- else -%}
+	<div>
+	<div>
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="10" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
+				<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+			  </svg>
+	</div>
+	<div>
+		{% if item.type != 'input' %}
+		{%- set item_route = item.route[1:] if item.route[0] == '/' else item.route -%}
+		<a href="{{ item.route }}" class="{{ 'active' if pathname == item_route else '' }}"
+			{% if item.target %}target="{{ item.target }}" {% endif %}>
+			{{ _(item.title or item.label) }}
+		</a>
+		{% else %}
+		<form action='{{ item.route }}' class="mr-4">
+			<input name='q' class='form-control' type='text' style="outline: none"
+				placeholder="{{ _(item.title or item.label) }}">
+		</form>
 
-	{% if item.type != 'input' %}
-	{%- set item_route = item.route[1:] if item.route[0] == '/' else item.route -%}
-	<a href="{{ item.route }}" class="{{ 'active' if pathname == item_route else '' }}"
-		{% if item.target %}target="{{ item.target }}" {% endif %}>
-		{{ _(item.title or item.label) }}
-	</a>
-	{% else %}
-	<form action='{{ item.route }}' class="mr-4">
-		<input name='q' class='form-control' type='text' style="outline: none"
-			placeholder="{{ _(item.title or item.label) }}">
-	</form>
+	</div>
+
 	{% endif %}
 
 	{%- endif -%}
@@ -71,16 +81,17 @@
 			}
 			if (this.href.trim() == page_href) {
 				$(this).removeClass(non_active_class).addClass(active_class);
+				$($($($(this).context.parentElement).context.parentElement).context.parentElement).addClass(active_class);
 			} else {
-				$(this).removeClass(active_class).addClass(non_active_class);
+				$($($($(this).context.parentElement).context.parentElement).context.parentElement).removeClass(active_class).addClass(non_active_class);
 			}
 		});
 
 		// scroll the active sidebar item into view
-		let active_sidebar_item = $('.sidebar-item a.active');
-		if (active_sidebar_item.length > 0) {
-			active_sidebar_item.get(0)
-				.scrollIntoView({behavior: "auto", block: "center", inline: "nearest"});
-		}
+		//let active_sidebar_item = $('.sidebar-item a.active');
+		//if (active_sidebar_item.length > 0) {
+		//	active_sidebar_item.get(0)
+		//		.scrollIntoView({behavior: "auto", block: "center", inline: "nearest"});
+		//}
 	});
 </script>

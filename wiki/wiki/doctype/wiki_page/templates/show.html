@@ -1,33 +1,34 @@
 <div class="from-markdown">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="m-0">{{ title }}</h1>
-		<div>
-			<a href="/{{ path }}?edit=true" class="btn btn-primary-light btn-sm">Edit</a>
-			<a href="/{{ path }}?new=true" class="btn btn-primary btn-sm">New Page</a>
-		</div>
+		
 	</div>
 	{{ content }}
 </div>
 <div class="wiki-footer">
-	{%- if last_revision -%}
 	<div class="my-4 wiki-revision-meta">
+
+	{%- if last_revision -%}
 		{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
 		{%- if number_of_revisions > 0 %}
 		&middot;
-		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>
+		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;
 		{%- endif -%}
-	</div>
+	{%- endif -%}
+	{%- if can_edit -%}
+	<a href="/contributions" >My Contributions</a>&nbsp;
+	<a href="/{{ path }}?edit=true" >Edit</a>&nbsp;
+	<a href="/{{ path }}?new=true" >New Page</a>&nbsp;
 	{%- endif -%}
 
-	{%- if can_edit -%}
-	<a href="/contributions" class="btn btn-primary-light btn-sm">My Contributions</a>
-	{%- endif -%}
+</div>
+
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 
 <script>
-	$('.sidebar-group').on('click', 'div', (event) => {
+	$('.sidebar-group').on('click', '.collapsible', (event) => {
 		$(event.delegateTarget).find('ul').toggleClass('hidden')
 	})
 	$('.sidebar-item a').closest('ul').addClass('hidden')
