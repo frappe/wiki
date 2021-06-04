@@ -28,8 +28,9 @@
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 
 <script>
-	$('.sidebar-group').on('click', '.collapsible', (event) => {
+	$('.sidebar-group').on('click', '.collapsible', function (event) {
 		$(event.delegateTarget).find('ul').toggleClass('hidden')
+		event.stopPropagation()
 	})
 	$('.sidebar-item a').closest('ul').addClass('hidden')
 

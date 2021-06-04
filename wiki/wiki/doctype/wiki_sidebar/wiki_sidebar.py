@@ -18,7 +18,7 @@ class WikiSidebar(NestedSet):
 
 
 
-		if not self.child_sidebars:
+		if self.parent_wiki_sidebar:
 			if not self.parent_wiki_sidebar:
 				return []
 			return frappe.get_doc("Wiki Sidebar", self.parent_wiki_sidebar).get_items()
@@ -44,7 +44,7 @@ class WikiSidebar(NestedSet):
 					frappe.get_all(
 						"Wiki Sidebar Item",
 						filters={"route": sidebar.name},
-						fields=["title", "route", "parent"],
+						fields=["title", "route", "parent", "name"],
 						order_by="idx asc",
 					)
 				)
@@ -54,7 +54,18 @@ class WikiSidebar(NestedSet):
 				item.route = "/" + item.route
 				self.items_by_group.setdefault(child_sidebar.title, []).append(item)
 
+			import json
+
 			for item in sidebars:
+
+				items = frappe.get_all(
+					"Wiki Sidebar Item",
+					filters={"parent": item.route},
+					fields=["title", "route", "parent"],
+					order_by="idx asc",
+				)
+				item.group_title =	item.title
+				item.group_items =	items
 				item.group = child_sidebar.title
 				item.route = "/" + item.route
 				self.items_by_group.setdefault(child_sidebar.title, []).append(item)

@@ -201,6 +201,8 @@ class WikiPage(WebsiteGenerator):
 		context.show_sidebar = True
 		context.hide_login = True
 
+		# print(context.sidebar_items)
+
 	def get_docs_search_scope(self, context):
 		sidebar_items = frappe.get_all(
 			doctype="Wiki Sidebar Item",

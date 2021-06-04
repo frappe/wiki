@@ -69,7 +69,7 @@ textarea.wiki-content {
 	font-style: normal;
 	font-weight: 500;
 	font-size: 16px;
-	line-height: 172%;
+	line-height: 1.72;
 	/* identical to box height, or 28px */
 
 	letter-spacing: -0.011em;
@@ -99,7 +99,7 @@ textarea.wiki-content {
 		font-style: normal;
 		font-weight: normal;
 		font-size: 1px;
-		line-height: 150%;
+		line-height: 1.5;
 		/* identical to box height, or 24px */
 		
 		letter-spacing: -0.011em;
@@ -112,14 +112,23 @@ textarea.wiki-content {
 
 		a {
 			margin: 0;
+			padding-top: unset;
+			padding-bottom: unset;
 		}
 	}
 }
 
 .sidebar-column {
 	border-right: 1px solid #EEF0F2;
+
 }
 
+.doc-sidebar .web-sidebar {
+	margin-top: 8px;
+	margin-bottom: 8px;
+	padding-top: 0;
+	padding-bottom: 0;
+}
 
 .navbar-nav {
 	height: 100%;
@@ -172,6 +181,13 @@ textarea.wiki-content {
 
 }
 .navbar {
+
+
+    width: 100%;
+    position: fixed;
+    z-index: 1;
+
+
 	.container {
 		height: 36px
 	}
@@ -188,3 +204,16 @@ textarea.wiki-content {
 	}
 }
 
+
+.main-column {
+
+	width: 75%;
+
+	.page-content-wrapper {
+		padding-top: 1rem;
+	}
+}
+
+.wiki-flex {
+	flex-wrap: nowrap
+}
