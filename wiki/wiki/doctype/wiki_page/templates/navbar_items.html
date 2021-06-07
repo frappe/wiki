@@ -73,17 +73,7 @@
 	<div class="d-block d-sm-none">
 		<hr>
 		{% include "wiki/doctype/wiki_page/templates/web_sidebar.html" %}
-		<!-- {{sidebar_items | pprint}}
-		{% for item in sidebar_items -%}
-		<li class="nav-item">
-			{% if item.type != 'input' %}
-				<a href="{{ item.route }}" class="nav-link {{ 'text-dark' if pathname==item.route else 'text-muted'}}"
-					{% if item.target %}target="{{ item.target }}"{% endif %}>
-					{{ _(item.title or item.label) }}
-				</a>
-			{% endif %}
-		</li>
-		{%- endfor %} -->
+
 		<hr>
 	</div>
 	{% endif %}

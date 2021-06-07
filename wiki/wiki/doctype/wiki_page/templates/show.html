@@ -37,15 +37,15 @@
 
 	$(`<li class="nav-item">
 		<div class="website-search doc-search" id="search-container"></div>
-	</li>`).insertAfter('.nav-item:first');
-	
-	let version_switcher = $('nav').find(".nav-item")
+	</li>`).insertAfter('.nav-item:nth-child(2)');
+
+	let language_switcher = $('nav').find(".nav-item")
 	let current_location = window.location.href;
-	let version_pattern = 'en|es|de';
+	let language_pattern = 'en|es|de';
 	let match = current_location.match('en|es|de')
 
 	if (match) {
-		$(version_switcher[0]).find('a')[0].innerText = match[0]
+		$(language_switcher[0]).find('a')[0].innerText = match[0]
 	}
 
 	$('.dropdown-item').click((event) => {
@@ -53,19 +53,31 @@
 		$(event.target).attr('href', target_location)
 	});
 
+	let version_switcher = $('nav').find(".nav-item")
+	current_location = window.location.href;
+	let version_pattern = 'v12|v13';
+	match = current_location.match('v12|v13')
+
+	if (match) {
+		$(version_switcher[1]).find('a')[0].innerText = match[0]
+	}
+
+	$('.dropdown-item').click((event) => {
+		target_location = current_location.replace(/v12|v13/, event.target.innerText)
+		$(event.target).attr('href', target_location)
+	});
+
 	const observer = new IntersectionObserver(entries => {
 		entries.forEach(entry => {
 		  const id = entry.target.getAttribute('id');
 		  if (entry.intersectionRatio > 0) {
-			  console.log(entry)
-			  
 			document.querySelector(`li a[href="#${id}"]`).parentElement.classList.add('active');
 		  } else {
 			document.querySelector(`li a[href="#${id}"]`).parentElement.classList.remove('active');
 		  }
 		});
 	  });
-	
+
 	  // Track all sections that have an `id` applied
 	  document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
 		observer.observe(section);
