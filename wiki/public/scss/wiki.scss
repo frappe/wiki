@@ -63,8 +63,6 @@ textarea.wiki-content {
 .sidebar-group {
 	border-bottom: 1px solid #EEF0F2;
 	margin: 0;
-	padding-top: 16px;
-	padding-bottom: 16px;
 	font-family: Inter;
 	font-style: normal;
 	font-weight: 500;
@@ -74,8 +72,17 @@ textarea.wiki-content {
 
 	letter-spacing: -0.011em;
 
+	&:last-child {
+		border-bottom: none;
+	}
+
 }
 .sidebar-group {
+
+	.collapsible {
+		padding-top: 0.5rem;
+		padding-bottom: 0.5rem;
+	}
 
 	.active {
 		border-radius: 4px;
@@ -101,10 +108,9 @@ textarea.wiki-content {
 		font-size: 1px;
 		line-height: 1.5;
 		/* identical to box height, or 24px */
-		
+
 		letter-spacing: -0.011em;
-		padding-top: 10px;
-		padding-bottom: 10px;
+		padding: 8px 0;
 
 		div {
 			display: flex;
@@ -120,6 +126,7 @@ textarea.wiki-content {
 
 .sidebar-column {
 	border-right: 1px solid #EEF0F2;
+	flex: 1.25;
 
 }
 
@@ -193,6 +200,10 @@ textarea.wiki-content {
 	}
 }
 
+.navbar-light {
+	border-bottom: 0;;
+}
+
 .doc-layout {
 	padding-top: 0rem;
 }
@@ -207,7 +218,7 @@ textarea.wiki-content {
 
 .main-column {
 
-	width: 75%;
+	flex: 4;
 
 	.page-content-wrapper {
 		padding-top: 1rem;
@@ -216,4 +227,68 @@ textarea.wiki-content {
 
 .wiki-flex {
 	flex-wrap: nowrap
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    display: inline-block;
+    padding-right: 0.5rem;
+    color: #74808B;
+    content: ">";
+}
+
+.doc-content .from-markdown > :first-child {
+    margin-top: 0;
+}
+
+.doc-content {
+	font-family: Inter;
+
+	.from-markdown {
+		h2 {
+			margin-top: 2.5rem;
+		}
+	}
+}
+
+.page-toc {
+
+	flex: 1;
+
+	div {
+		padding-top: 2rem;
+		width: 100%;
+
+		ul {
+			padding-bottom: 0.75rem;
+		}
+
+		.h5 {
+			font-family: Inter;
+			font-style: normal;
+			font-weight: 500;
+			font-size: 0.75;
+			line-height: 1.35;
+			/* or 16px */
+
+
+			/* Gray / 900 */
+
+			color: #192734;
+		}
+
+
+	}
+
+	li {
+
+		padding-left: 4px;
+
+		.active {
+			border-radius: 4px;
+			color: #2490EF;
+			background-color: #EBF5FF;
+			border-left: 3px solid #2490EF;
+			border-radius: .1rem .375rem .375rem .1rem;
+		}
+	}
 }

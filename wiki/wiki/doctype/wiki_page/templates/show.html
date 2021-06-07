@@ -15,11 +15,9 @@
 		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;
 		{%- endif -%}
 	{%- endif -%}
-	{%- if can_edit -%}
 	<a href="/contributions" >My Contributions</a>&nbsp;
 	<a href="/{{ path }}?edit=true" >Edit</a>&nbsp;
 	<a href="/{{ path }}?new=true" >New Page</a>&nbsp;
-	{%- endif -%}
 
 </div>
 
@@ -54,6 +52,27 @@
 		let target_location = current_location.replace(/en|es|de/, event.target.innerText)
 		$(event.target).attr('href', target_location)
 	});
+
+	const observer = new IntersectionObserver(entries => {
+		entries.forEach(entry => {
+		  const id = entry.target.getAttribute('id');
+		  if (entry.intersectionRatio > 0) {
+			  console.log(entry)
+			  
+			document.querySelector(`li a[href="#${id}"]`).parentElement.classList.add('active');
+		  } else {
+			document.querySelector(`li a[href="#${id}"]`).parentElement.classList.remove('active');
+		  }
+		});
+	  });
+	
+	  // Track all sections that have an `id` applied
+	  document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
+		observer.observe(section);
+	  });
+
+
+
 
 	/*$('.dropdown-item').click((event) => {
 		debugger

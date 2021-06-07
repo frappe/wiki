@@ -58,7 +58,7 @@
 	{%- endfor %}
 </ul>
 {%- endif %}
-<ul class="ml-auto navbar-nav">
+<ul class="ml-auto navbar-nav navbar-light">
 	{% include "wiki/doctype/wiki_page/templates/navbar_search.html" %}
 	{%- for item in top_bar_items -%}
 		{% if not item.parent_label and item.right -%}
@@ -72,6 +72,8 @@
 	{% if top_bar_items and sidebar_items %}
 	<div class="d-block d-sm-none">
 		<hr>
+		{% include "wiki/doctype/wiki_page/templates/web_sidebar.html" %}
+		<!-- {{sidebar_items | pprint}}
 		{% for item in sidebar_items -%}
 		<li class="nav-item">
 			{% if item.type != 'input' %}
@@ -81,7 +83,7 @@
 				</a>
 			{% endif %}
 		</li>
-		{%- endfor %}
+		{%- endfor %} -->
 		<hr>
 	</div>
 	{% endif %}
