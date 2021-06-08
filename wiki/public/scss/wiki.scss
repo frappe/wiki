@@ -79,9 +79,18 @@ textarea.wiki-content {
 }
 .sidebar-group {
 
+	ul.list-unstyled {
+		padding-left: 0.65rem;
+		ul {
+			padding-left: 0.65rem;
+		}
+	}
+
 	.collapsible {
 		padding-top: 0.5rem;
 		padding-bottom: 0.5rem;
+		display: flex;
+		align-items: center;
 	}
 
 	.active {
@@ -95,7 +104,7 @@ textarea.wiki-content {
 
 		.h6 {
 			font-size: $font-size-sm;
-			margin-bottom: 0.75rem;
+			margin-bottom: 0;
 			line-height: 1.5;
 		}
 	}
@@ -111,17 +120,23 @@ textarea.wiki-content {
 		color: #74808B;
 		letter-spacing: -0.011em;
 		padding: 8px 0;
-
+		padding-left: 0.5rem;
 		div {
 			display: flex;
 		}
 
 		a {
 			margin: 0;
+			padding-left: 0;
 			padding-top: unset;
 			padding-bottom: unset;
 		}
 	}
+
+	.drop-icon, .drop-left {
+		display: inline-flex;
+	}
+
 }
 
 .sidebar-column {
@@ -301,8 +316,4 @@ textarea.wiki-content {
 
 .footer-link::after:last-child {
 
-}
-
-.drop-left {
-	font-size: 12px;
 }

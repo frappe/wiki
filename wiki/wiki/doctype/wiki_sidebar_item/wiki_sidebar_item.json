@@ -5,36 +5,38 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "wiki_page",
-  "route",
+  "type",
+  "item",
   "title"
  ],
  "fields": [
   {
-   "fetch_from": "wiki_page.title",
+   "fetch_from": "item.title",
    "fieldname": "title",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Title"
   },
   {
-   "fetch_from": "wiki_page.route",
-   "fieldname": "route",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Route"
-  },
-  {
-   "fieldname": "wiki_page",
+   "default": "Wiki Page",
+   "fieldname": "type",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Wiki Page",
-   "options": "Wiki Page",
+   "label": "Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "type",
    "reqd": 1
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2021-05-11 15:19:19.984310",
+ "modified": "2021-06-08 18:27:07.609561",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar Item",

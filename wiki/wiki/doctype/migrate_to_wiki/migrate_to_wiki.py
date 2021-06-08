@@ -80,6 +80,18 @@ class MigrateToWiki(Document):
 			wiki_sidebar.save()
 
 
+			wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
+			wiki_sidebar_item_dict = {
+				"type": "Wiki Sidebar",
+				"item": wiki_sidebar.name,
+				"parent": parent_wiki_sidebar,
+				'parenttype': 'Wiki Sidebar',
+				'parentfield': 'sidebar_items'
+			}
+			wiki_sidebar_item.update(wiki_sidebar_item_dict)
+			wiki_sidebar_item.save()
+
+
 	def migrate_file(self, root, file, files):
 
 		if file=="index.md"  and "contents.md" in files:
@@ -133,12 +145,16 @@ class MigrateToWiki(Document):
 			'route': route,
 		}
 		wiki_page.update(wiki_page_dict)
-		wiki_page.save()
+		try:
+			wiki_page.save()
+		except:
+			print(wiki_page.name)
+			print(wiki_page.title)
 
 
 		wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 		wiki_sidebar_item_dict = {
-			"wiki_page": wiki_page.name,
+			"item": wiki_page.name,
 			"title": wiki_page.title,
 			"parent": parent,
 			'parenttype': 'Wiki Sidebar',

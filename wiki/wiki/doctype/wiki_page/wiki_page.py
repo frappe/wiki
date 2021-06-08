@@ -158,7 +158,7 @@ class WikiPage(WebsiteGenerator):
 			return
 
 		context.metatags = {"title": self.title}
-		context.sidebar_items = self.get_sidebar_items(context)
+		context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
@@ -166,7 +166,6 @@ class WikiPage(WebsiteGenerator):
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
 		context.page_toc_html = html.toc_html
-		context.docs_search_scope = self.get_docs_search_scope(context)
 		# context.top_bar_items  = [
 		# 	{
 		# 		'label': 'Version',
@@ -222,42 +221,33 @@ class WikiPage(WebsiteGenerator):
 
 		# print(context.sidebar_items)
 
-	def get_docs_search_scope(self, context):
-		sidebar_items = frappe.get_all(
-			doctype="Wiki Sidebar Item",
-			fields=["name", "parent"],
-			filters=[["route", "=", context.route]],
-		)
-		current = '/'
-		if sidebar_items:
-			parent = frappe.db.get_value("Wiki Sidebar", sidebar_items[0].parent, "parent_wiki_sidebar")
-			if not parent:
-				return sidebar_items[0].parent
-			current = parent
-			while parent:
-				current = parent
-				parent = frappe.db.get_value("Wiki Sidebar", parent, "parent_wiki_sidebar")
-		return current
+
 
 
 	def get_sidebar_items(self, context):
 		sidebar = frappe.get_all(
 			doctype="Wiki Sidebar Item",
 			fields=["name", "parent"],
-			filters=[["route", "=", context.route]],
+			filters=[["item", "=", context.route]],
 		)
 		sidebar_items = []
+		topmost = '/'
 		if sidebar:
-			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
+			sidebar_items, topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
 		else:
 			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
-			sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+			if sidebar:
+				print(sidebar)
+				sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+				print(sidebar_items)
+			else:
+				sidebar_items = []
 
 		if frappe.session.user == "Guest":
 			sidebar_items = [
 				item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
 			]
-		return sidebar_items
+		return sidebar_items, topmost
 
 	def get_last_revision(self):
 		last_revision = frappe.db.get_value(

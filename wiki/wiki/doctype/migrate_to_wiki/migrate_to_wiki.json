@@ -6,12 +6,13 @@
  "engine": "InnoDB",
  "field_order": [
   "app_name",
-  "docs_directory",
   "assets_directory",
-  "assets_prepend",
+  "docs_directory",
+  "create_new_assets",
+  "column_break_5",
   "documentation_route",
   "docs_base_url",
-  "create_new_assets"
+  "assets_prepend"
  ],
  "fields": [
   {
@@ -20,7 +21,6 @@
    "label": "App Name"
   },
   {
-   "description": "start with slash",
    "fieldname": "docs_directory",
    "fieldtype": "Data",
    "label": "Docs Directory"
@@ -52,12 +52,16 @@
    "fieldname": "create_new_assets",
    "fieldtype": "Check",
    "label": "Create New Assets "
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-05-19 21:25:03.478275",
+ "modified": "2021-06-01 14:22:25.142960",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Migrate To Wiki",
