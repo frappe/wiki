@@ -68,7 +68,7 @@
 		$(version_switcher[1]).find('a')[0].innerText = match[0]
 	}
 
-	$('.dropdown-menu:nth-child(1)').find('.dropdown-item').click((event) => {
+	$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
 		current_location = window.location.href;
 		target_location = current_location.replace(/v12|v13/, event.target.innerText)
 		$(event.target).attr('href', target_location)
