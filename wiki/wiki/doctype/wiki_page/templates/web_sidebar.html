@@ -2,9 +2,10 @@
 <li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}">
 	{%- if item.group_title -%}
 	<div class="collapsible">
-		<span class='drop-icon'>
+		<span class='drop-icon hidden'>
 			<svg class="icon icon-xs"><use href="#icon-small-down"></use></svg>
 		</span>
+		<span class='drop-left'> > </span>
 		<span class='h6'>{{ item.group_title }}</span>
 
 	</div>

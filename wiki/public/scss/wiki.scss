@@ -282,13 +282,23 @@ textarea.wiki-content {
 	li {
 
 		padding-left: 4px;
-
-		.active {
-			border-radius: 4px;
-			color: #2490EF;
-			background-color: #EBF5FF;
-			border-left: 3px solid #2490EF;
-			border-radius: .1rem .375rem .375rem .1rem;
-		}
 	}
+
+	.active {
+		border-radius: 4px;
+		color: #2490EF;
+		background-color: #EBF5FF;
+		border-left: 3px solid #2490EF;
+		border-radius: .1rem .375rem .375rem .1rem;
+	}
+}
+
+
+.footer-link::after {
+    margin-left: 1rem;
+	content:"•";
+}
+
+.footer-link::after:last-child {
+
 }

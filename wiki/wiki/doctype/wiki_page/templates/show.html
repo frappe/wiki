@@ -33,10 +33,13 @@
 <script>
 	$('.sidebar-group').on('click', '.collapsible', function (event) {
 		$(event.delegateTarget).find('ul').toggleClass('hidden')
+		$(event.delegateTarget).find('.drop-icon').toggleClass('hidden')
+		$(event.delegateTarget).find('.drop-left').toggleClass('hidden')
 		event.stopPropagation()
 	})
 	$('.sidebar-item a').closest('ul').addClass('hidden')
-
+	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-icon').toggleClass('hidden')
+	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-left').toggleClass('hidden')
 	$('.sidebar-item a.active').closest('ul').removeClass('hidden')
 
 
