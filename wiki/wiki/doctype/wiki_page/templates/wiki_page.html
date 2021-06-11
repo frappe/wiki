@@ -1,12 +1,7 @@
-{%- if frappe.form_dict.edit or frappe.form_dict.new -%}
-{% extends "frappe/templates/web.html" %}
-{%- else -%}
 {% extends "wiki/doctype/wiki_page/templates/wiki_doc.html" %}
 {%- block page_sidebar -%}
 {% include "wiki/doctype/wiki_page/templates/web_sidebar.html" %}
 {%- endblock -%}
-{%- endif -%}
-
 
 {%- block head_include %}
 {{ super() }}

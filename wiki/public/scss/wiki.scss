@@ -148,8 +148,9 @@ textarea.wiki-content {
 .doc-sidebar .web-sidebar {
 	margin-top: 8px;
 	margin-bottom: 8px;
-	padding-top: 0;
+	padding-top: 1rem;
 	padding-bottom: 0;
+	margin-right: 1rem;
 }
 
 .navbar-nav {
@@ -244,12 +245,6 @@ textarea.wiki-content {
 	flex-wrap: nowrap
 }
 
-.breadcrumb-item + .breadcrumb-item::before {
-    display: inline-block;
-    padding-right: 0.5rem;
-    color: #74808B;
-    content: ">";
-}
 
 .doc-content .from-markdown > :first-child {
     margin-top: 0;
@@ -315,5 +310,18 @@ textarea.wiki-content {
 }
 
 .footer-link::after:last-child {
+	content:"";
+}
+
+
+.breadcrumb-item + .breadcrumb-item::before {
+	content: "";
+}
+
+@media (min-width: 1920px) {
+
+	.doc-container {
+		max-width: 1440px;
+	}
 
 }

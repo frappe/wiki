@@ -106,5 +106,160 @@
 	var edit = new EditAsset();
 </script>
 
+
+<script>
+	$('.sidebar-group').on('click', '.collapsible', function (event) {
+		$(event.delegateTarget).find('ul').toggleClass('hidden')
+		$(event.delegateTarget).find('.drop-icon').toggleClass('hidden')
+		$(event.delegateTarget).find('.drop-left').toggleClass('hidden')
+		event.stopPropagation()
+	})
+	$('.sidebar-item a').closest('ul').addClass('hidden')
+	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-icon').toggleClass('hidden')
+	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-left').toggleClass('hidden')
+	$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+
+
+	$(`<li class="nav-item">
+		<div class="website-search doc-search" id="search-container"></div>
+	</li>`).insertAfter('.nav-item:nth-child(2)');
+
+	let language_switcher = $('nav').find(".nav-item")
+	let current_location = window.location.href;
+	let language_pattern = 'en|es|de';
+	let match = current_location.match('en|es|de')
+
+	if (match) {
+		$(language_switcher[0]).find('a')[0].innerText = match[0]
+	}
+
+	$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
+		current_location = window.location.href;
+		let target_location = current_location.replace(/en|es|de/, event.target.innerText)
+		$(event.target).attr('href', target_location)
+	});
+
+	let version_switcher = $('nav').find(".nav-item")
+	current_location = window.location.href;
+	let version_pattern = 'v12|v13';
+	match = current_location.match('v12|v13')
+
+	if (match) {
+		$(version_switcher[1]).find('a')[0].innerText = match[0]
+	}
+
+	$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
+		current_location = window.location.href;
+		target_location = current_location.replace(/v12|v13/, event.target.innerText)
+		$(event.target).attr('href', target_location)
+	});
+
+	const observer = new IntersectionObserver(entries => {
+		entries.forEach(entry => {
+			const id = entry.target.getAttribute('id');
+			if (entry.intersectionRatio > 0) {
+				document.querySelector(`li a[href="#${id}"]`).parentElement.classList.add('active');
+			} else {
+				document.querySelector(`li a[href="#${id}"]`).parentElement.classList.remove('active');
+			}
+		});
+	});
+
+	// Track all sections that have an `id` applied
+	document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
+		observer.observe(section);
+	});
+
+
+
+	var current_index = -1
+
+$('.sidebar-column').find('a').each(function (index)  {
+
+    if ($(this).attr('class')) {
+        let dish = $(this).attr('class').split(/\s+/)[0];
+        if (dish === 'active') {
+            current_index = index
+
+        }
+    }
+})
+
+
+	if (current_index != 0) {
+		$('.btn.left')[0].href = $('.sidebar-column').find('a')[current_index-1].href;
+		$('.btn.left')[0].innerHTML = '←' + $('.sidebar-column').find('a')[current_index-1].innerHTML;
+	}
+
+	else {
+		$('.btn.left').hide();
+	}
+
+	if (current_index < $('.sidebar-column').find('a').length - 1 ) {
+		$('.btn.right')[0].href = $('.sidebar-column').find('a')[current_index+1].href ;
+		$('.btn.right')[0].innerHTML = $('.sidebar-column').find('a')[current_index+1].innerHTML + '→';
+	}
+
+	else {
+		$('.btn.right').hide();
+	}
+
+	/*$('.dropdown-item').click((event) => {
+		debugger
+		let tt = current_location.replace(/en|es|de/, event.target.innerText)
+		window.location.href =  tt
+		console.log('f')
+	});*/
+
+	/*$(`<li class="nav-item">
+		<select class="form-control ml-5" id="version-switcher">
+		  <option value="accounts">Accounts</option>
+		  <option value="assets">Assets</option>
+		  <option value="education">Education</option>
+		</select>
+	</li>`).prependTo('.navbar-nav:last');
+
+	let version_switcher = $('nav').find("#version-switcher")
+	let current_location = window.location.href;
+	let version_pattern = 'accounts|assets|education';
+	let match = current_location.match('accounts|assets|education')
+
+	if (match) {
+		version_switcher.val(match[0])
+	}
+	version_switcher.change(() => {
+
+		let value = version_switcher.val()
+		window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
+	});
+
+
+	$(`<li class="nav-item">
+		<select class="form-control ml-5" id="language-switcher">
+		  <option value="en">English</option>
+		  <option value="es">Spanish</option>
+		  <option value="de">German</option>
+		</select>
+	</li>`).prependTo('.navbar-nav:last');
+
+	let language_switcher = $('nav').find("#language-switcher")
+	current_location = window.location.href;
+	let language_pattern = 'en|es|de';
+	match = current_location.match('en|es|de')
+
+	if (match) {
+		language_switcher.val(match[0])
+	}
+	language_switcher.change(() => {
+
+		let value = language_switcher.val()
+		window.location.href = current_location.replace(/en|es|de/, `${value}`)
+
+
+
+	});*/
+
+</script>
+
 {% endblock %}
 
