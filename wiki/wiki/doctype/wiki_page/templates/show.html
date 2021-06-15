@@ -7,18 +7,19 @@
 </div>
 <div class="wiki-footer">
 	<div class="my-4 wiki-revision-meta">
+		<ul class="user-contributions">
 
 		{%- if last_revision -%}
 		{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
 		{%- if number_of_revisions > 0 %}
 		&middot;
-		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;
+		<li><a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
 		{%- endif -%}
 		{%- endif -%}
-		<a href="/contributions">My Contributions</a>&nbsp;
-		<a href="/{{ path }}?edit=true">Edit</a>&nbsp;
-		<a href="/{{ path }}?new=true">New Page</a>&nbsp;
-
+		<li><a href="/contributions">My Contributions</a>&nbsp;</li>
+		<li><a href="/{{ path }}?edit=true">Edit</a>&nbsp;</li>
+		<li><a href="/{{ path }}?new=true">New Page</a>&nbsp;</li>
+</ul>
 	</div>
 
 	<div> 

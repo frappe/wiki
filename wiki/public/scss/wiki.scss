@@ -58,6 +58,8 @@ textarea.wiki-content {
 
 .wiki-revision-meta {
 	font-size: $font-size-sm;
+	display: flex;
+    justify-content: space-between;
 }
 
 .sidebar-group {
@@ -119,8 +121,8 @@ textarea.wiki-content {
 		/* identical to box height, or 24px */
 		color: #74808B;
 		letter-spacing: -0.011em;
-		padding: 8px 0;
-		padding-left: 0.5rem;
+		padding: .375rem 0 .375rem .5rem;
+
 		div {
 			display: flex;
 		}
@@ -141,7 +143,8 @@ textarea.wiki-content {
 
 .sidebar-column {
 	border-right: 1px solid #EEF0F2;
-	flex: 1.25;
+	flex: 1.5;
+
 
 }
 
@@ -262,7 +265,7 @@ textarea.wiki-content {
 
 .page-toc {
 
-	flex: 1;
+	flex: 1.25;
 
 	div {
 		padding-top: 2rem;
@@ -301,6 +304,10 @@ textarea.wiki-content {
 		border-left: 3px solid #2490EF;
 		border-radius: .1rem .375rem .375rem .1rem;
 	}
+
+	a {
+		padding: 0.25rem;    
+	}
 }
 
 
@@ -324,4 +331,28 @@ textarea.wiki-content {
 		max-width: 1440px;
 	}
 
+}
+
+
+.doc-sidebar {
+    padding-right: 0.5rem;
+}
+
+
+.sidebar-group>ul {
+    margin-bottom: .5rem;
+}
+
+
+
+
+
+ul.user-contributions {
+    list-style-type: none;
+    display: flex;
+    padding-left: 0;
+}
+
+ul.user-contributions li {
+    margin: 0 4px;
 }
