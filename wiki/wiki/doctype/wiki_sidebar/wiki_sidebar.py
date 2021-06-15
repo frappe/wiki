@@ -13,14 +13,19 @@ class WikiSidebar(NestedSet):
 		out = self.get_sidebar_items()
 		for sidebar_item in self.sidebar_items:
 			if sidebar_item.type == 'Wiki Sidebar':
-				children = frappe.get_doc('Wiki Sidebar', sidebar_item.item).get_children()
-				out.append({"group_title": sidebar_item.title, "group_items": children})
+				sidebar = frappe.get_doc('Wiki Sidebar', sidebar_item.item)
+				children = sidebar.get_children()
+				out.append({
+					"group_title": sidebar_item.title, 
+					"group_items": children, 
+					"name": sidebar.name, 
+					"type": "Wiki Sidebar"
+				})
 		return out
 
 	def get_items(self):
 
 		def find_parent(me):
-			
 			parent = frappe.db.get_value('Wiki Sidebar Item', { 'item' : me, 'type':'Wiki Sidebar' } , 'parent')
 			if not parent:
 				return me
@@ -37,7 +42,7 @@ class WikiSidebar(NestedSet):
 		items = frappe.get_all(
 			"Wiki Sidebar Item",
 			filters={"parent": self.name, "type": 'Wiki Page'},
-			fields=["title", "item",],
+			fields=["title", "item", 'name', 'type'],
 			order_by="idx asc",
 		)
 

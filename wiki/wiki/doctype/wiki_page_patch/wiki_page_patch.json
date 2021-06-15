@@ -25,7 +25,13 @@
   "new_preview",
   "orignal_preview_store",
   "new_preview_store",
-  "amended_from"
+  "amended_from",
+  "sidebar_section",
+  "new_sidebar_store",
+  "old_sidebar_store",
+  "new_sidebar",
+  "column_break_25",
+  "old_sidebar"
  ],
  "fields": [
   {
@@ -154,12 +160,45 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "New Title"
+  },
+  {
+   "fieldname": "sidebar_section",
+   "fieldtype": "Section Break",
+   "label": "SIdebar"
+  },
+  {
+   "fieldname": "new_sidebar_store",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "New Sidebar Store"
+  },
+  {
+   "fieldname": "new_sidebar",
+   "fieldtype": "HTML",
+   "label": "New Sidebar",
+   "options": "<div id=\"new_sidebar\" style=\"height: 300px; overflow: auto;\"></div>"
+  },
+  {
+   "fieldname": "column_break_25",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "old_sidebar",
+   "fieldtype": "HTML",
+   "label": "Old Sidebar",
+   "options": "<div id=\"old_sidebar\" style=\"height: 300px; overflow: auto;\"></div>"
+  },
+  {
+   "fieldname": "old_sidebar_store",
+   "fieldtype": "Text",
+   "hidden": 1,
+   "label": "Old Sidebar Store"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-05-20 07:34:53.511768",
+ "modified": "2021-06-15 11:40:07.538883",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

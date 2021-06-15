@@ -119,6 +119,8 @@ class WikiPage(WebsiteGenerator):
 
 			context.content_md = self.content
 			context.content_html = frappe.utils.md_to_html(self.content)
+			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
+			print(context.sidebar_items)
 			return
 
 		if frappe.form_dict.revisions:
@@ -166,61 +168,8 @@ class WikiPage(WebsiteGenerator):
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
 		context.page_toc_html = html.toc_html
-		# context.top_bar_items  = [
-		# 	{
-		# 		'label': 'Version',
-		# 		'right': True,
-		# 		'child_items': [
-		# 			{
-		# 				'label': 'en',
-		# 				'parent_label':'Version'
-		# 			},
-		# 			{
-		# 				'label': 'es',
-		# 				'parent_label':'Version'
-		# 			},
-		# 			{
-		# 				'label': 'de',
-		# 				'parent_label':'Version'
-		# 			}
-		# 		]
-		# 	},
-		# 	{
-		# 		'label': 'Github',
-		# 		'url': 'https://www.github.com/frappe/erpnext',
-		# 		'right': True
-		# 	},
-		# 	{
-		# 		'label': 'Discuss',
-		# 		'url': 'https://discuss.erpnext.com',
-		# 		'right': True
-		# 	}
-		# ]
-
-		# context.footer_items = [
-		# 	{
-		# 		'label': 'ERPNext',
-		# 		'url': 'https://www.erpnext.com'
-		# 	},
-		# 	{
-		# 		'label': 'Frappe Framework',
-		# 		'url': 'https://frappeframework.com/docs'
-		# 	},
-		# 	{
-		# 		'label': 'Blog',
-		# 		'url': 'https://blog.erpnext.com'
-		# 	},
-		# 	{
-		# 		'label': 'Contact',
-		# 		'url': 'https://erpnext.com/contact-form'
-		# 	}
-		# ]
-		# context.navbar_search = True
 		context.show_sidebar = True
 		context.hide_login = True
-
-		# print(context.sidebar_items)
-
 
 
 
@@ -243,10 +192,10 @@ class WikiPage(WebsiteGenerator):
 			else:
 				sidebar_items = []
 
-		if frappe.session.user == "Guest":
-			sidebar_items = [
-				item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
-			]
+		# if frappe.session.user == "Guest":
+		# 	sidebar_items = [
+		# 		item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
+		# 	]
 		return sidebar_items, topmost
 
 	def get_last_revision(self):
@@ -330,7 +279,15 @@ def extract_images_from_html(content):
 
 
 @frappe.whitelist()
-def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False):
+def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False, new_sidebar = ''):
+	from ghdiff import diff
+	context = {'route': name}
+	context = frappe._dict(context)
+	wiki_page = frappe.get_doc('Wiki Page', name)
+	sidebar, _ = wiki_page.get_sidebar_items(context)
+	context.sidebar_items = sidebar
+	old_sidebar = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
+	print(old_sidebar)
 	if type == "Rich-Text":
 		content = extract_images_from_html(content)
 		content = to_markdown(content)
@@ -345,6 +302,9 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.status = "Under Review"
 		patch.message = message
 		patch.new= new
+		patch.new_sidebar = new_sidebar
+		patch.old_sidebar_store = old_sidebar
+		patch.new_sidebar_store = new_sidebar
 		patch.save()
 		return
 
@@ -357,7 +317,10 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		"new_code": content,
 		"message": message,
 		"new": new,
-		"new_title": title
+		"new_title": title,
+		'new_sidebar_store' : new_sidebar,
+		'old_sidebar_store' : old_sidebar,
+		'new_sidebar_store' : new_sidebar,
 	}
 
 	patch.update(patch_dict)

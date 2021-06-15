@@ -1,265 +1,229 @@
 <span class="h2">{{ title }}</span>
 <span class='btn btn-xs btn-primary submit-wiki-page pull-right'>Submit</div>
 
-<form class="mt-8" method="POST">
-	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
-	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
-	<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
-	<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
-	<div class="form-group">
-		<label class="sr-only" for="title_of_page">Title</label>
-		<input  class="form-control" type="text" name="title_of_page" value="{{ doc.title }}">
-	</div>
-	<div class="form-group">
-		<label class="sr-only" for="content">Content</label>
-		<ul class="nav nav-tabs" role="tablist">
-			<li class="nav-item" role="presentation">
-				<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
-					id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
-					aria-selected="true">Write</a>
-			</li>
-			<li class="nav-item" role="presentation">
-				<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
-					aria-controls="preview" aria-selected="false">Preview</a>
-			</li>
-			{%- if not frappe.form_dict.new -%}
+	<form class="mt-8" method="POST">
+		<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
+		<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
+		<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
+		<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
+		<div class="form-group">
+			<label class="sr-only" for="title_of_page">Title</label>
+			<input class="form-control" type="text" name="title_of_page" value="{{ doc.title }}">
+		</div>
+		<div class="form-group">
+			<label class="sr-only" for="content">Content</label>
+			<ul class="nav nav-tabs" role="tablist">
+				<li class="nav-item" role="presentation">
+					<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
+						aria-selected="true">Write</a>
+				</li>
+				<li class="nav-item" role="presentation">
+					<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
+						aria-controls="preview" aria-selected="false">Preview</a>
+				</li>
+				{%- if not frappe.form_dict.new -%}
 
-			<li class="nav-item" role="presentation">
-				<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
-					aria-selected="false">Compare</a>
-			</li>
-			{%- endif -%}
-			<li class="nav-item" role="presentation">
-				<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#attachment" role="tab"
-					aria-controls="attachment" aria-selected="false">Attachment</a>
-			</li>
-			{% if wiki_page_patch %}
+				<li class="nav-item" role="presentation">
+					<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
+						aria-selected="false">Compare</a>
+				</li>
+				{%- endif -%}
+				<li class="nav-item" role="presentation">
+					<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#attachment" role="tab"
+						aria-controls="attachment" aria-selected="false">Attachment</a>
+				</li>
+				{% if wiki_page_patch %}
 
-			<li class="nav-item" role="presentation">
-				<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
-					id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
-					aria-selected="false">Discussion</a>
-			</li>
-			{% endif %}
-		</ul>
-		<div class="mt-4 tab-content">
-			<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
-				endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
-				<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
-				<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
-				<div class="wiki-write"></div>
+				<li class="nav-item" role="presentation">
+					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
+						aria-selected="false">Discussion</a>
+				</li>
+				{% endif %}
+			</ul>
+			<div class="mt-4 tab-content">
+				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
+					<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
+					<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
+					<div class="wiki-write"></div>
+				</div>
+				<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
+					<div class="from-markdown wiki-preview"></div>
+				</div>
+
+				{%- if not frappe.form_dict.new -%}
+				<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
+					<div class="from-markdown wiki-diff"></div>
+				</div>
+				{%- endif -%}
+
+				<div class="tab-pane fade" id="attachment" role="tabpanel" aria-labelledby="attachment-tab">
+					<div class="wiki-attachment"></div>
+					<br>
+					<span class='btn add-attachment-wiki'>Upload Attachment</span>
+				</div>
+
+				{% if wiki_page_patch %}
+
+				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
+
+					{% include "wiki/doctype/wiki_page/templates/comment.html" %}
+
+
+
+				</div>
+				{% endif %}
 			</div>
-			<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
-				<div class="from-markdown wiki-preview"></div>
-			</div>
 
-			{%- if not frappe.form_dict.new -%}
-			<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
-				<div class="from-markdown wiki-diff"></div>
-			</div>
-			{%- endif -%}
-
-			<div class="tab-pane fade" id="attachment" role="tabpanel" aria-labelledby="attachment-tab">
-				<div class="wiki-attachment"></div>
-				<br>
-				<span class='btn add-attachment-wiki'>Upload Attachment</span>
-			</div>
-
-			{% if wiki_page_patch %}
-
-			<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
-				endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
-
-				{% include "wiki/doctype/wiki_page/templates/comment.html" %}
-
-
-
-			</div>
-			{% endif %}
 		</div>
 
-	</div>
 
-
-	</div>
-</form>
+		</div>
+	</form>
 
 
 
-{% block base_scripts %}
-<!-- js should be loaded in body! -->
-<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
-<script src="https://unpkg.com/turndown/dist/turndown.js"></script>
-{{ include_script('frappe-web.bundle.js') }}
-{{ include_script('controls.bundle.js') }}
-{{ include_script('dialog.bundle.js') }}
-{{ include_script('bootstrap-4-web.bundle.js') }}
-<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
-<script type="text/javascript" src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
-{{ include_script('desk.bundle.js') }}
-{{ include_script('wiki.bundle.js') }}
-<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+	{% block base_scripts %}
+	<!-- js should be loaded in body! -->
+	<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+	<script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+	{{ include_script('libs.bundle.js') }}
 
-<script>
-	Vue.prototype.__ = window.__;
-	Vue.prototype.frappe = window.frappe;
-	var edit = new EditAsset();
-</script>
+	{{ include_script('frappe-web.bundle.js') }}
+	{{ include_script('controls.bundle.js') }}
+	{{ include_script('dialog.bundle.js') }}
+	{{ include_script('bootstrap-4-web.bundle.js') }}
+	<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
+	<script type="text/javascript"
+		src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
+	{{ include_script('desk.bundle.js') }}
+	{{ include_script('wiki.bundle.js') }}
 
 
-<script>
-	$('.sidebar-group').on('click', '.collapsible', function (event) {
-		$(event.delegateTarget).find('ul').toggleClass('hidden')
-		$(event.delegateTarget).find('.drop-icon').toggleClass('hidden')
-		$(event.delegateTarget).find('.drop-left').toggleClass('hidden')
-		event.stopPropagation()
-	})
-	$('.sidebar-item a').closest('ul').addClass('hidden')
-	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-icon').toggleClass('hidden')
-	$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-left').toggleClass('hidden')
-	$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+
+	<script>
+		Vue.prototype.__ = window.__;
+		Vue.prototype.frappe = window.frappe;
+		var edit = new EditAsset();
+	</script>
 
 
-	$(`<li class="nav-item">
+	<script>
+		$('.sidebar-group').on('click', '.collapsible', function (event) {
+			$(event.delegateTarget).find('ul').toggleClass('hidden')
+			$(event.delegateTarget).find('.drop-icon').toggleClass('hidden')
+			$(event.delegateTarget).find('.drop-left').toggleClass('hidden')
+			event.stopPropagation()
+		})
+		$('.sidebar-item a').closest('ul').addClass('hidden')
+		$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-icon').toggleClass('hidden')
+		$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-left').toggleClass('hidden')
+		$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+
+
+		$(`<li class="nav-item">
 		<div class="website-search doc-search" id="search-container"></div>
 	</li>`).insertAfter('.nav-item:nth-child(2)');
 
-	let language_switcher = $('nav').find(".nav-item")
-	let current_location = window.location.href;
-	let language_pattern = 'en|es|de';
-	let match = current_location.match('en|es|de')
+		let language_switcher = $('nav').find(".nav-item")
+		let current_location = window.location.href;
+		let language_pattern = 'en|es|de';
+		let match = current_location.match('en|es|de')
 
-	if (match) {
-		$(language_switcher[0]).find('a')[0].innerText = match[0]
-	}
+		if (match) {
+			$(language_switcher[0]).find('a')[0].innerText = match[0]
+		}
 
-	$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
-		current_location = window.location.href;
-		let target_location = current_location.replace(/en|es|de/, event.target.innerText)
-		$(event.target).attr('href', target_location)
-	});
-
-	let version_switcher = $('nav').find(".nav-item")
-	current_location = window.location.href;
-	let version_pattern = 'v12|v13';
-	match = current_location.match('v12|v13')
-
-	if (match) {
-		$(version_switcher[1]).find('a')[0].innerText = match[0]
-	}
-
-	$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
-		current_location = window.location.href;
-		target_location = current_location.replace(/v12|v13/, event.target.innerText)
-		$(event.target).attr('href', target_location)
-	});
-
-	const observer = new IntersectionObserver(entries => {
-		entries.forEach(entry => {
-			const id = entry.target.getAttribute('id');
-			if (entry.intersectionRatio > 0) {
-				document.querySelector(`li a[href="#${id}"]`).parentElement.classList.add('active');
-			} else {
-				document.querySelector(`li a[href="#${id}"]`).parentElement.classList.remove('active');
-			}
+		$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
+			current_location = window.location.href;
+			let target_location = current_location.replace(/en|es|de/, event.target.innerText)
+			$(event.target).attr('href', target_location)
 		});
-	});
 
-	// Track all sections that have an `id` applied
-	document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
-		observer.observe(section);
-	});
+		let version_switcher = $('nav').find(".nav-item")
+		current_location = window.location.href;
+		let version_pattern = 'v12|v13';
+		match = current_location.match('v12|v13')
 
+		if (match) {
+			$(version_switcher[1]).find('a')[0].innerText = match[0]
+		}
 
+		$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
+			current_location = window.location.href;
+			target_location = current_location.replace(/v12|v13/, event.target.innerText)
+			$(event.target).attr('href', target_location)
+		});
 
-	var current_index = -1
-
-$('.sidebar-column').find('a').each(function (index)  {
-
-    if ($(this).attr('class')) {
-        let dish = $(this).attr('class').split(/\s+/)[0];
-        if (dish === 'active') {
-            current_index = index
-
-        }
-    }
-})
+	
 
 
-	if (current_index != 0) {
-		$('.btn.left')[0].href = $('.sidebar-column').find('a')[current_index-1].href;
-		$('.btn.left')[0].innerHTML = '←' + $('.sidebar-column').find('a')[current_index-1].innerHTML;
-	}
+		$('.web-sidebar ul').each( function() {
+			new Sortable(this, {  group: {
+    name: 'qux',
+    put: ['qux'], pull: ['qux']
+  },
+			});
+		});
+		/*$('.dropdown-item').click((event) => {
+			debugger
+			let tt = current_location.replace(/en|es|de/, event.target.innerText)
+			window.location.href =  tt
+			console.log('f')
+		});*/
 
-	else {
-		$('.btn.left').hide();
-	}
+		/*$(`<li class="nav-item">
+			<select class="form-control ml-5" id="version-switcher">
+			  <option value="accounts">Accounts</option>
+			  <option value="assets">Assets</option>
+			  <option value="education">Education</option>
+			</select>
+		</li>`).prependTo('.navbar-nav:last');
+	
+		let version_switcher = $('nav').find("#version-switcher")
+		let current_location = window.location.href;
+		let version_pattern = 'accounts|assets|education';
+		let match = current_location.match('accounts|assets|education')
+	
+		if (match) {
+			version_switcher.val(match[0])
+		}
+		version_switcher.change(() => {
+	
+			let value = version_switcher.val()
+			window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
+		});
+	
+	
+		$(`<li class="nav-item">
+			<select class="form-control ml-5" id="language-switcher">
+			  <option value="en">English</option>
+			  <option value="es">Spanish</option>
+			  <option value="de">German</option>
+			</select>
+		</li>`).prependTo('.navbar-nav:last');
+	
+		let language_switcher = $('nav').find("#language-switcher")
+		current_location = window.location.href;
+		let language_pattern = 'en|es|de';
+		match = current_location.match('en|es|de')
+	
+		if (match) {
+			language_switcher.val(match[0])
+		}
+		language_switcher.change(() => {
+	
+			let value = language_switcher.val()
+			window.location.href = current_location.replace(/en|es|de/, `${value}`)
+	
+	
+	
+		});*/
 
-	if (current_index < $('.sidebar-column').find('a').length - 1 ) {
-		$('.btn.right')[0].href = $('.sidebar-column').find('a')[current_index+1].href ;
-		$('.btn.right')[0].innerHTML = $('.sidebar-column').find('a')[current_index+1].innerHTML + '→';
-	}
+	</script>
 
-	else {
-		$('.btn.right').hide();
-	}
-
-	/*$('.dropdown-item').click((event) => {
-		debugger
-		let tt = current_location.replace(/en|es|de/, event.target.innerText)
-		window.location.href =  tt
-		console.log('f')
-	});*/
-
-	/*$(`<li class="nav-item">
-		<select class="form-control ml-5" id="version-switcher">
-		  <option value="accounts">Accounts</option>
-		  <option value="assets">Assets</option>
-		  <option value="education">Education</option>
-		</select>
-	</li>`).prependTo('.navbar-nav:last');
-
-	let version_switcher = $('nav').find("#version-switcher")
-	let current_location = window.location.href;
-	let version_pattern = 'accounts|assets|education';
-	let match = current_location.match('accounts|assets|education')
-
-	if (match) {
-		version_switcher.val(match[0])
-	}
-	version_switcher.change(() => {
-
-		let value = version_switcher.val()
-		window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
-	});
-
-
-	$(`<li class="nav-item">
-		<select class="form-control ml-5" id="language-switcher">
-		  <option value="en">English</option>
-		  <option value="es">Spanish</option>
-		  <option value="de">German</option>
-		</select>
-	</li>`).prependTo('.navbar-nav:last');
-
-	let language_switcher = $('nav').find("#language-switcher")
-	current_location = window.location.href;
-	let language_pattern = 'en|es|de';
-	match = current_location.match('en|es|de')
-
-	if (match) {
-		language_switcher.val(match[0])
-	}
-	language_switcher.change(() => {
-
-		let value = language_switcher.val()
-		window.location.href = current_location.replace(/en|es|de/, `${value}`)
-
-
-
-	});*/
-
-</script>
-
-{% endblock %}
-
+	{% endblock %}

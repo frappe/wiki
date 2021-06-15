@@ -78,6 +78,29 @@ window.EditAsset = class EditAsset {
 
 
   raise_patch() {
+
+    var side = {}
+    $('.doc-sidebar [data-type="Wiki Sidebar"]').each( 
+      function() {
+
+        let name = $(this).context.dataset.name
+        side[name] = []
+        let items = $(this).children('ul').children('li')
+        items.each(
+          function()  {
+            side[name].push({
+                name: $(this).context.dataset.name,
+                type: $(this).context.dataset.type,
+            } )
+             console.log($(this).context.dataset.name)
+          } )
+        }
+    )
+    console.log(side)
+
+
+
+
     var me = this;
     var dfs = [];
     dfs.push({
@@ -100,6 +123,7 @@ window.EditAsset = class EditAsset {
             attachments: me.attachments,
             new: $('[name="new"]').val(),
             title: $('[name="title_of_page"]').val(),
+            new_sidebar: $('.doc-sidebar').get(0).innerHTML,
           },
           callback: (r) => {
             frappe.show_alert(
