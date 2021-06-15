@@ -80,9 +80,8 @@ window.EditAsset = class EditAsset {
   raise_patch() {
 
     var side = {}
-    $('.doc-sidebar [data-type="Wiki Sidebar"]').each( 
+    $('.doc-sidebar [data-type="Wiki Sidebar"]').each(
       function() {
-
         let name = $(this).context.dataset.name
         side[name] = []
         let items = $(this).children('ul').children('li')
@@ -91,6 +90,8 @@ window.EditAsset = class EditAsset {
             side[name].push({
                 name: $(this).context.dataset.name,
                 type: $(this).context.dataset.type,
+                new: $(this).context.dataset.new,
+                title: $(this).context.dataset.title,
             } )
              console.log($(this).context.dataset.name)
           } )
@@ -124,6 +125,7 @@ window.EditAsset = class EditAsset {
             new: $('[name="new"]').val(),
             title: $('[name="title_of_page"]').val(),
             new_sidebar: $('.doc-sidebar').get(0).innerHTML,
+            new_sidebar_items : side
           },
           callback: (r) => {
             frappe.show_alert(

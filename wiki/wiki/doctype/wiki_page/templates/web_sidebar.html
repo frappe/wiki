@@ -30,10 +30,9 @@
 		</div>
 		<div>
 			{% if item.type != 'input' %}
-			{%- set item_route = item.item[1:] if item.item[0] == '/' else item.item -%}
 			<a href="{{ item.item }}" class="{{ 'active' if pathname == item_route else '' }}" {% if item.target
 				%}target="{{ item.target }}" {% endif %}>
-				{{ _(item.title or item.label) }}
+				{{ _(item.title or item.label or item.name) }}
 			</a>
 			{% else %}
 			<form action='{{ item.item }}' class="mr-4">

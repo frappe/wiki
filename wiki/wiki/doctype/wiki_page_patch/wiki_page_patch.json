@@ -31,7 +31,8 @@
   "old_sidebar_store",
   "new_sidebar",
   "column_break_25",
-  "old_sidebar"
+  "old_sidebar",
+  "new_sidebar_items"
  ],
  "fields": [
   {
@@ -193,12 +194,18 @@
    "fieldtype": "Text",
    "hidden": 1,
    "label": "Old Sidebar Store"
+  },
+  {
+   "fieldname": "new_sidebar_items",
+   "fieldtype": "Code",
+   "label": "New Sidebar Items",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-06-15 11:40:07.538883",
+ "modified": "2021-06-15 12:03:52.063225",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

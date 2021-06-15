@@ -113,16 +113,21 @@
 
 
 	<script>
-		$('.sidebar-group').on('click', '.collapsible', function (event) {
-			$(event.delegateTarget).find('ul').toggleClass('hidden')
-			$(event.delegateTarget).find('.drop-icon').toggleClass('hidden')
-			$(event.delegateTarget).find('.drop-left').toggleClass('hidden')
+
+		 var toggle_sidebar =  function(event) {
+			$(event.currentTarget).parent().find('ul').toggleClass('hidden')
+			$(event.currentTarget).find('.drop-icon').toggleClass('hidden')
+			$(event.currentTarget).find('.drop-left').toggleClass('hidden')
 			event.stopPropagation()
-		})
+		 }
+
+		$('.doc-sidebar').on('click', '.collapsible', toggle_sidebar)
 		$('.sidebar-item a').closest('ul').addClass('hidden')
-		$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-icon').toggleClass('hidden')
-		$('.sidebar-item a.active').closest('.sidebar-group').find('.drop-left').toggleClass('hidden')
 		$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+		
+		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+		
 
 
 		$(`<li class="nav-item">
@@ -161,69 +166,161 @@
 
 	
 
+		$('.collapsible').each( function() {
+			if ($(this).parent().find('ul').length == 0 ) {
+				$(this).parent().append($(`<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`))
+			}
+		} )
 
 		$('.web-sidebar ul').each( function() {
 			new Sortable(this, {  group: {
-    name: 'qux',
-    put: ['qux'], pull: ['qux']
-  },
+				name: 'qux',
+				put: ['qux'], pull: ['qux']
+				},
 			});
 		});
-		/*$('.dropdown-item').click((event) => {
-			debugger
-			let tt = current_location.replace(/en|es|de/, event.target.innerText)
-			window.location.href =  tt
-			console.log('f')
-		});*/
 
-		/*$(`<li class="nav-item">
-			<select class="form-control ml-5" id="version-switcher">
-			  <option value="accounts">Accounts</option>
-			  <option value="assets">Assets</option>
-			  <option value="education">Education</option>
-			</select>
-		</li>`).prependTo('.navbar-nav:last');
-	
-		let version_switcher = $('nav').find("#version-switcher")
-		let current_location = window.location.href;
-		let version_pattern = 'accounts|assets|education';
-		let match = current_location.match('accounts|assets|education')
-	
-		if (match) {
-			version_switcher.val(match[0])
-		}
-		version_switcher.change(() => {
-	
-			let value = version_switcher.val()
-			window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
+		frappe.boot = {{ boot }};
+
+
+		$(`<div class="text-muted add-sidebar-item">+ Add Item</div>`).appendTo($('.web-sidebar'))
+
+
+
+		$(".add-sidebar-item").click(function () {
+
+			var dfs = [
+				{
+					fieldname: "type",
+					label: "Add Type",
+					fieldtype: "Autocomplete",
+					options: ['Add Wiki Page', 'New Wiki Sidebar'],
+
+				},
+				{
+					fieldname: "wiki_page",
+					label: "Wiki Page",
+					fieldtype: "Link",
+					options: 'Wiki Page',
+					depends_on:"eval: doc.type=='Add Wiki Page'",
+					mandatory_depends_on:"eval: doc.type=='Add Wiki Page'",
+				},
+				{
+					fieldname: "route",
+					label: "Route",
+					fieldtype: "Data",
+					depends_on:"eval: doc.type=='New Wiki Sidebar'",
+					mandatory_depends_on:"eval: doc.type=='New Wiki Sidebar'",
+				},
+				{
+					fieldname: "title",
+					label: "Title",
+					fieldtype: "Data",
+					depends_on:"eval: doc.type=='New Wiki Sidebar'",
+					mandatory_depends_on:"eval: doc.type=='New Wiki Sidebar'",
+				}
+			];
+
+			var dialog = new frappe.ui.Dialog({
+				fields: dfs,
+				primary_action: function (fields) {
+					console.log(fields)
+					if (fields.type=='Add Wiki Page') {
+						frappe.call({
+							method: "frappe.client.get_value",
+							args: {
+							  doctype:'Wiki Page',
+							  fieldname: 'title',
+							  filters: fields.wiki_page
+							},
+							callback: function(r) {
+								let $new_page = $(`
+								<li class="sidebar-item bg-info" data-type="Wiki Page" data-name="${fields.wiki_page}" data-new=1 ><div>
+									<div style="align-items: center;">
+										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
+											<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+										</svg>
+									</div>
+									<div>
+										<a href="#" class="green" >
+											${r.message.title}
+										</a>
+									</div></div>
+									</li>
+								`)
+							
+								$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
+							}
+						  });
+					} else {
+						
+						let $new_page = $(`
+						<li class="sidebar-group" data-type="Wiki Sidebar" data-name="${fields.route}" data-new=1 data-name="${fields.title}" draggable="false">
+							<div class="collapsible">
+							<span class="drop-icon hidden">
+								<!-- <svg class="icon icon-xs">
+									<use href="#icon-small-down"></use>
+								</svg> -->
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
+									</svg>
+							</span>
+							<span class="drop-left">
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<path d="M10 16L14 12L10 8" stroke="#4C5A67" stroke-linecap="round" stroke-linejoin="round"></path>
+									</svg>
+							</span>
+							<span class="h6">${fields.title}</span>
+					
+							</div>
+							<ul class="list-unstyled hidden" style="min-height:20px;"> </ul
+						</li>
+						`)
+					
+						$new_page.appendTo($('.doc-sidebar .sidebar-items').children('.list-unstyled').not('.hidden'))
+
+						
+
+						$('.web-sidebar ul').each( function() {
+							new Sortable(this, {  group: {
+								name: 'qux',
+								put: ['qux'], pull: ['qux']
+								},
+							});
+						});
+
+					}
+					dialog.hide()
+					
+				}
+			});
+			dialog.show();
 		});
-	
-	
-		$(`<li class="nav-item">
-			<select class="form-control ml-5" id="language-switcher">
-			  <option value="en">English</option>
-			  <option value="es">Spanish</option>
-			  <option value="de">German</option>
-			</select>
-		</li>`).prependTo('.navbar-nav:last');
-	
-		let language_switcher = $('nav').find("#language-switcher")
-		current_location = window.location.href;
-		let language_pattern = 'en|es|de';
-		match = current_location.match('en|es|de')
-	
-		if (match) {
-			language_switcher.val(match[0])
-		}
-		language_switcher.change(() => {
-	
-			let value = language_switcher.val()
-			window.location.href = current_location.replace(/en|es|de/, `${value}`)
-	
-	
-	
-		});*/
 
 	</script>
+
+	{%- if  frappe.form_dict.new -%}
+
+		<script>
+			let $new_page = $(`
+				<li class="sidebar-item bg-info" data-type="Wiki Page" data-name="new" data-new=1><div>
+					<div style="align-items: center;">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
+							<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+						</svg>
+					</div>
+					<div>
+						<a href="#" class="green" >
+							New Wiki Page
+						</a>
+					</div></div>
+				</li>
+			`)
+			
+			$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
+
+
+		</script>
+	{%- endif -%}
 
 	{% endblock %}

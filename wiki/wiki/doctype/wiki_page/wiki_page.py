@@ -87,6 +87,29 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 
+
+		# TODO: Find better solution
+
+
+		try:
+			boot = frappe.sessions.get()
+		except Exception as e:
+			boot = frappe._dict(status='failed', error = str(e))
+			print(frappe.get_traceback())
+
+		boot_json = frappe.as_json(boot)
+
+		# remove script tags from boot
+		boot_json = re.sub(r"\<script[^<]*\</script\>", "", boot_json)
+
+		# TODO: Find better fix
+		boot_json = re.sub(r"</script\>", "", boot_json)
+
+		context.boot = boot_json
+
+
+
+
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
 		context.docs_search_scope = ""
@@ -99,6 +122,7 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login("create")
+			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
 			self.content = "New Wiki Page"
@@ -120,7 +144,6 @@ class WikiPage(WebsiteGenerator):
 			context.content_md = self.content
 			context.content_html = frappe.utils.md_to_html(self.content)
 			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
-			print(context.sidebar_items)
 			return
 
 		if frappe.form_dict.revisions:
@@ -161,6 +184,7 @@ class WikiPage(WebsiteGenerator):
 
 		context.metatags = {"title": self.title}
 		context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
+		print(json.dumps(context.sidebar_items))
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
@@ -279,7 +303,7 @@ def extract_images_from_html(content):
 
 
 @frappe.whitelist()
-def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False, new_sidebar = ''):
+def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False, new_sidebar = '', new_sidebar_items = ''):
 	from ghdiff import diff
 	context = {'route': name}
 	context = frappe._dict(context)
@@ -304,6 +328,7 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.new= new
 		patch.new_sidebar = new_sidebar
 		patch.old_sidebar_store = old_sidebar
+		patch.new_sidebar_items = new_sidebar_items
 		patch.new_sidebar_store = new_sidebar
 		patch.save()
 		return
@@ -321,6 +346,7 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		'new_sidebar_store' : new_sidebar,
 		'old_sidebar_store' : old_sidebar,
 		'new_sidebar_store' : new_sidebar,
+		'new_sidebar_items' : new_sidebar_items,
 	}
 
 	patch.update(patch_dict)
