@@ -32,11 +32,16 @@
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 
 <script>
-	setTimeout(set_active_sidebar, 1000)
-	set_search_bar()
-	set_togglers()
-	set_toc_highlighter()
-	setTimeout(set_nav_buttons, 1000)
+
+	$('document').ready(()=>{
+
+		set_active_sidebar()
+		set_search_bar()
+		set_togglers()
+		set_toc_highlighter()
+		set_nav_buttons()
+	});
+
 
 
 	var toggle_sidebar =  function(event) {

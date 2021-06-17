@@ -113,10 +113,19 @@
 
 
 	<script>
-		setTimeout(set_active_sidebar, 1000)
-		set_search_bar()
-		set_togglers()
-		var toggle_sidebar =  function(event) {
+		$('document').ready(()=>{
+
+			set_active_sidebar()
+			set_search_bar()
+			set_togglers()
+			set_empty_ul()
+			set_sortable()
+			set_up_boot()
+			set_add_item()
+		});
+
+
+		function toggle_sidebar(event) {
 			$(event.currentTarget).parent().find('ul').toggleClass('hidden')
 			$(event.currentTarget).find('.drop-icon').toggleClass('hidden')
 			$(event.currentTarget).find('.drop-left').toggleClass('hidden')
@@ -174,13 +183,15 @@
 		 }
 
 	
-
+		 function set_empty_ul(){
 		$('.collapsible').each( function() {
 			if ($(this).parent().find('ul').length == 0 ) {
 				$(this).parent().append($(`<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`))
 			}
 		} )
+	}
 
+	function set_sortable() {
 		$('.web-sidebar ul').each( function() {
 			new Sortable(this, {  group: {
 				name: 'qux',
@@ -188,9 +199,13 @@
 				},
 			});
 		});
+	}
 
+	function set_up_boot() {
 		frappe.boot = {{ boot }};
+	}
 
+	function set_add_item(){
 
 		$(`<div class="text-muted add-sidebar-item">+ Add Item</div>`).appendTo($('.web-sidebar'))
 
@@ -305,7 +320,7 @@
 			});
 			dialog.show();
 		});
-
+	}
 	</script>
 
 	{%- if  frappe.form_dict.new -%}
