@@ -80,6 +80,22 @@ window.EditAsset = class EditAsset {
   raise_patch() {
 
     var side = {}
+    
+    let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name
+    side[name] = []
+    let items = $($(".doc-sidebar .web-sidebar").get(0)).children('.sidebar-items').children('ul').not('.hidden').children('li')
+    items.each(
+      function()  {
+        side[name].push({
+            name: $(this).context.dataset.name,
+            type: $(this).context.dataset.type,
+            new: $(this).context.dataset.new,
+            title: $(this).context.dataset.title,
+        } )
+         console.log($(this).context.dataset.name)
+      } )
+
+
     $('.doc-sidebar [data-type="Wiki Sidebar"]').each(
       function() {
         let name = $(this).context.dataset.name

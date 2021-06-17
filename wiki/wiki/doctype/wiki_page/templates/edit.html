@@ -113,56 +113,65 @@
 
 
 	<script>
-
-		 var toggle_sidebar =  function(event) {
+		setTimeout(set_active_sidebar, 1000)
+		set_search_bar()
+		set_togglers()
+		var toggle_sidebar =  function(event) {
 			$(event.currentTarget).parent().find('ul').toggleClass('hidden')
 			$(event.currentTarget).find('.drop-icon').toggleClass('hidden')
 			$(event.currentTarget).find('.drop-left').toggleClass('hidden')
 			event.stopPropagation()
 		 }
-
-		$('.doc-sidebar').on('click', '.collapsible', toggle_sidebar)
-		$('.sidebar-item a').closest('ul').addClass('hidden')
-		$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+	
+		 function set_active_sidebar() {
+	
+			$('.doc-sidebar').on('click', '.collapsible', toggle_sidebar)
+			$('.sidebar-item a').closest('ul').addClass('hidden')
+			$('.sidebar-item a.active').closest('ul').removeClass('hidden')
+			$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+			$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+		 }
+	
+	
+	
+		 function set_search_bar() {
+			$(`<li class="nav-item">
+				<div class="website-search doc-search" id="search-container"></div>
+			</li>`).insertAfter('.nav-item:nth-child(2)');
+		 }
+	
+	
+		 function set_togglers() {
+			let language_switcher = $('nav').find(".nav-item")
+			let current_location = window.location.href;
+			let language_pattern = 'en|es|de';
+			let match = current_location.match('en|es|de')
 		
-		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
-		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+			if (match) {
+				$(language_switcher[0]).find('a')[0].innerText = match[0]
+			}
 		
-
-
-		$(`<li class="nav-item">
-		<div class="website-search doc-search" id="search-container"></div>
-	</li>`).insertAfter('.nav-item:nth-child(2)');
-
-		let language_switcher = $('nav').find(".nav-item")
-		let current_location = window.location.href;
-		let language_pattern = 'en|es|de';
-		let match = current_location.match('en|es|de')
-
-		if (match) {
-			$(language_switcher[0]).find('a')[0].innerText = match[0]
-		}
-
-		$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
+			$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
+				current_location = window.location.href;
+				let target_location = current_location.replace(/en|es|de/, event.target.innerText)
+				$(event.target).attr('href', target_location)
+			});
+		
+			let version_switcher = $('nav').find(".nav-item")
 			current_location = window.location.href;
-			let target_location = current_location.replace(/en|es|de/, event.target.innerText)
-			$(event.target).attr('href', target_location)
-		});
-
-		let version_switcher = $('nav').find(".nav-item")
-		current_location = window.location.href;
-		let version_pattern = 'v12|v13';
-		match = current_location.match('v12|v13')
-
-		if (match) {
-			$(version_switcher[1]).find('a')[0].innerText = match[0]
-		}
-
-		$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
-			current_location = window.location.href;
-			target_location = current_location.replace(/v12|v13/, event.target.innerText)
-			$(event.target).attr('href', target_location)
-		});
+			let version_pattern = 'v12|v13';
+			match = current_location.match('v12|v13')
+		
+			if (match) {
+				$(version_switcher[1]).find('a')[0].innerText = match[0]
+			}
+		
+			$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
+				current_location = window.location.href;
+				target_location = current_location.replace(/v12|v13/, event.target.innerText)
+				$(event.target).attr('href', target_location)
+			});
+		 }
 
 	
 
@@ -235,7 +244,7 @@
 							},
 							callback: function(r) {
 								let $new_page = $(`
-								<li class="sidebar-item bg-info" data-type="Wiki Page" data-name="${fields.wiki_page}" data-new=1 ><div>
+								<li class="sidebar-item" data-type="Wiki Page" data-name="${fields.wiki_page}" data-new=1 ><div>
 									<div style="align-items: center;">
 										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
 											<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
@@ -303,7 +312,7 @@
 
 		<script>
 			let $new_page = $(`
-				<li class="sidebar-item bg-info" data-type="Wiki Page" data-name="new" data-new=1><div>
+				<li class="sidebar-item" data-type="Wiki Page" data-name="new" data-new=1><div>
 					<div style="align-items: center;">
 						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
 							<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>

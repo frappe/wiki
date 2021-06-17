@@ -184,7 +184,6 @@ class WikiPage(WebsiteGenerator):
 
 		context.metatags = {"title": self.title}
 		context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
-		print(json.dumps(context.sidebar_items))
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
@@ -210,9 +209,9 @@ class WikiPage(WebsiteGenerator):
 		else:
 			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
 			if sidebar:
-				print(sidebar)
+				
 				sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
-				print(sidebar_items)
+				
 			else:
 				sidebar_items = []
 
@@ -311,7 +310,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 	sidebar, _ = wiki_page.get_sidebar_items(context)
 	context.sidebar_items = sidebar
 	old_sidebar = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
-	print(old_sidebar)
 	if type == "Rich-Text":
 		content = extract_images_from_html(content)
 		content = to_markdown(content)

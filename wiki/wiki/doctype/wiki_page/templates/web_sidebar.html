@@ -68,7 +68,7 @@
 {% endif %}
 {% endmacro %}
 
-<div class="web-sidebar">
+<div class="web-sidebar" data-name="{{docs_search_scope}}">
 	{% if sidebar_title %}
 	<li class="title">
 		{{ sidebar_title }}
@@ -81,8 +81,7 @@
 </div>
 
 <script>
-	frappe.ready(function () {
-		$('.sidebar-item a').each(function (index) {
+setTimeout( () => {	$('.sidebar-item a').each(function (index) {
 			const active_class = 'active'
 			const non_active_class = ''
 			let page_href = window.location.href;
@@ -90,19 +89,18 @@
 				page_href = page_href.slice(0, page_href.indexOf('#'));
 			}
 
-			if (this.href.trim() == page_href) {
+			if (page_href.includes(this.href.trim() ) ) {
 				$(this).removeClass(non_active_class).addClass(active_class);
 				$($($($(this).context.parentElement).context.parentElement).context.parentElement).addClass(active_class);
 			} else {
 				$($($($(this).context.parentElement).context.parentElement).context.parentElement).removeClass(active_class).addClass(non_active_class);
 			}
 		});
-
+	}, 500)
 		// scroll the active sidebar item into view
 		//let active_sidebar_item = $('.sidebar-item a.active');
 		//if (active_sidebar_item.length > 0) {
 		//	active_sidebar_item.get(0)
 		//		.scrollIntoView({behavior: "auto", block: "center", inline: "nearest"});
 		//}
-	});
 </script>

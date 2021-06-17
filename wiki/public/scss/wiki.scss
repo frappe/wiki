@@ -356,3 +356,42 @@ ul.user-contributions {
 ul.user-contributions li {
     margin: 0 4px;
 }
+
+/*
+====
+breadcrumbs
+====
+*/
+
+.breadcrumb-container .container {
+    margin-top: 1rem; /* spacing adjusment for breadcrumb */
+}
+
+ol.breadcrumb {
+    font-size: .75rem; /* font size change for breadcrumbs */
+} 
+
+
+/*
+====
+navbar
+====
+*/
+
+.navbar .navbar-light .navbar-expand-lg {
+    width: 100%;
+    position: fixed;
+    top: 0; /*ensure navbar stays affixes to the top*/
+    left: 0;
+    right: 0;
+}
+
+/*
+====
+main container
+====
+*/
+
+.container-fluid .doc-layout .doc-container {
+    margin-top: 80px; /* add margin top so that the left sidebar doesn't get cut when the content is short */
+}
