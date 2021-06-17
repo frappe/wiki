@@ -393,5 +393,5 @@ main container
 */
 
 .container-fluid .doc-layout .doc-container {
-    margin-top: 80px; /* add margin top so that the left sidebar doesn't get cut when the content is short */
+    margin-top: 80px !important; /* add margin top so that the left sidebar doesn't get cut when the content is short */
 }
