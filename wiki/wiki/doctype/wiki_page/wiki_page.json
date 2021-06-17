@@ -78,7 +78,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-06-08 18:57:26.076886",
+ "modified": "2021-06-17 23:34:18.423728",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
@@ -100,5 +100,6 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "title_field": "title",
- "track_changes": 1
+ "track_changes": 1,
+ "website_search_field": "content"
 }
