@@ -16,9 +16,7 @@
 		<li><a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
 		{%- endif -%}
 		{%- endif -%}
-		<li><a href="/contributions">My Contributions</a>&nbsp;</li>
 		<li><a href="/{{ path }}?edit=true">Edit</a>&nbsp;</li>
-		<li><a href="/{{ path }}?new=true">New Page</a>&nbsp;</li>
 </ul>
 	</div>
 
@@ -34,6 +32,29 @@
 <script>
 
 	$('document').ready(()=>{
+
+		$(`
+			<a class='text-muted new-wiki-page' href="/{{ path }}?new=true">+ New Page</a><br>
+			<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
+		`).appendTo($('.web-sidebar') )
+
+
+
+		$('.sidebar-item a').each(function (index) {
+			const active_class = 'active'
+			const non_active_class = ''
+			let page_href = window.location.href;
+			if (page_href.indexOf('#') !== -1) {
+				page_href = page_href.slice(0, page_href.indexOf('#'));
+			}
+
+			if (page_href.includes(this.href.trim() ) ) {
+				$(this).removeClass(non_active_class).addClass(active_class);
+				$($($($(this).context.parentElement).context.parentElement).context.parentElement).addClass(active_class);
+			} else {
+				$($($($(this).context.parentElement).context.parentElement).context.parentElement).removeClass(active_class).addClass(non_active_class);
+			}
+		});
 
 		set_active_sidebar()
 		set_search_bar()
@@ -52,12 +73,14 @@
 	 }
 
 	 function set_active_sidebar() {
+	
+		$('.doc-sidebar,.web-sidebar').on('click', '.collapsible', toggle_sidebar)
+		$('.sidebar-group').children('ul').addClass('hidden')
+		$('.sidebar-item.active').parents(' .web-sidebar .sidebar-group>ul').removeClass('hidden')
+		const sidebar_groups = $('.sidebar-item.active').parents('.web-sidebar .sidebar-group')
+		sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-left').addClass('hidden')})
+		sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-icon').removeClass('hidden')})
 
-		$('.doc-sidebar').on('click', '.collapsible', toggle_sidebar)
-		$('.sidebar-item a').closest('ul').addClass('hidden')
-		$('.sidebar-item a.active').closest('ul').removeClass('hidden')
-		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
-		$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
 	 }
 
 
@@ -74,27 +97,27 @@
 		let current_location = window.location.href;
 		let language_pattern = 'en|es|de';
 		let match = current_location.match('en|es|de')
-	
+
 		if (match) {
 			$(language_switcher[0]).find('a')[0].innerText = match[0]
 		}
-	
+
 		$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
 			debugger
 			current_location = window.location.href;
 			let target_location = current_location.replace(/en|es|de/, event.target.innerText)
 			$(event.target).attr('href', target_location)
 		});
-	
+
 		let version_switcher = $('nav').find(".nav-item")
 		current_location = window.location.href;
 		let version_pattern = 'v12|v13';
 		match = current_location.match('v12|v13')
-	
+
 		if (match) {
 			$(version_switcher[1]).find('a')[0].innerText = match[0]
 		}
-	
+
 		$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
 			current_location = window.location.href;
 			target_location = current_location.replace(/v12|v13/, event.target.innerText)
@@ -117,12 +140,12 @@
 				}
 			});
 		});
-	
+
 		// Track all sections that have an `id` applied
 		document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
 			observer.observe(section);
 		});
-	} 
+	}
 
 
 	function set_nav_buttons() {

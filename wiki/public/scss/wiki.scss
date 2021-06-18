@@ -138,18 +138,34 @@ textarea.wiki-content {
   }
 }
 
+.sidebar-item  div {
+      display: flex;
+
+
+}
 .sidebar-column {
   border-right: 1px solid #eef0f2;
   flex: 1.5;
 }
 
-.doc-sidebar .web-sidebar {
-  margin-top: 8px;
-  margin-bottom: 8px;
-  padding-top: 1rem;
-  padding-bottom: 0;
-  margin-right: 1rem;
+.doc-sidebar {
+
+    .web-sidebar {
+      margin-top: 8px;
+      margin-bottom: 8px;
+      padding-top: 1rem;
+      padding-bottom: 0;
+      margin-right: 1rem;
+  }
 }
+
+
+@media (min-width: 992px) {
+  .doc-sidebar {
+      margin-top: 3.9rem;
+  }
+}
+
 
 .navbar-nav {
   height: 100%;
@@ -205,8 +221,16 @@ textarea.wiki-content {
   }
 }
 
-.navbar-light {
+.navbar-light{
   border-bottom: 0;
+}
+
+.navbar.navbar-light.navbar-expand-lg {
+  border-bottom: 1px solid #eef0f2;
+}
+
+.navbar.navbar-light.navbar-expand-lg {
+  border-bottom: 1px solid #eef0f2;
 }
 
 .doc-layout {
@@ -318,6 +342,7 @@ ul.user-contributions {
   list-style-type: none;
   display: flex;
   padding-left: 0;
+  flex-wrap: wrap;
 }
 
 ul.user-contributions li {
@@ -335,8 +360,19 @@ breadcrumbs
 }
 
 ol.breadcrumb {
+
+
+
   font-size: 0.75rem; /* font size change for breadcrumbs */
+
+  li [itemprop="item"] {
+    align-self: center;
+  }
+
+
 }
+
+
 
 /*
 ====
@@ -352,12 +388,54 @@ navbar
   right: 0;
 }
 
-/*
-====
-main container
-====
-*/
 
-.container-fluid .doc-layout .doc-container {
-  margin-top: 80px !important; /* add margin top so that the left sidebar doesn't get cut when the content is short */
+
+@media (max-width: 767px) {
+  .navbar {
+      position: inherit;
+  }
+
+  .navbar-expand-lg .doc-container {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .web-sidebar {
+    padding-top:0
+  }
+
+  .web-sidebar>a {
+    display: none;
+  }
+
+  .page-content-wrapper {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+
+  .wiki-footer {
+    .btn.left, .btn.right {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  
+  }
+
+  .nav-item {
+    margin-left: 10px;
+  }
+
+  #dropdownMenuSearch {
+    margin-right: 20px;
+  }
+
+}
+
+
+.my-contributions, .new-wiki-page, .add-sidebar-item {
+  padding: .25rem .5rem;
+}
+
+.web-footer {
+  border-top: 1px solid #eef0f2;
 }

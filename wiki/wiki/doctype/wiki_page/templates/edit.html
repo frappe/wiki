@@ -115,6 +115,22 @@
 	<script>
 		$('document').ready(()=>{
 
+			$('.sidebar-item a').each(function (index) {
+				const active_class = 'active'
+				const non_active_class = ''
+				let page_href = window.location.href;
+				if (page_href.indexOf('#') !== -1) {
+					page_href = page_href.slice(0, page_href.indexOf('#'));
+				}
+	
+				if (page_href.includes(this.href.trim() ) ) {
+					$(this).removeClass(non_active_class).addClass(active_class);
+					$($($($(this).context.parentElement).context.parentElement).context.parentElement).addClass(active_class);
+				} else {
+					$($($($(this).context.parentElement).context.parentElement).context.parentElement).removeClass(active_class).addClass(non_active_class);
+				}
+			});
+
 			set_active_sidebar()
 			set_search_bar()
 			set_togglers()
@@ -134,11 +150,13 @@
 	
 		 function set_active_sidebar() {
 	
-			$('.doc-sidebar').on('click', '.collapsible', toggle_sidebar)
-			$('.sidebar-item a').closest('ul').addClass('hidden')
-			$('.sidebar-item a.active').closest('ul').removeClass('hidden')
-			$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
-			$('.sidebar-item a.active').closest('.sidebar-group').prev().find('.drop-icon').removeClass('hidden')
+			$('.doc-sidebar,.web-sidebar').on('click', '.collapsible', toggle_sidebar)
+			$('.sidebar-item').parent().find('ul').addClass('hidden')
+			$('.sidebar-item.active').parents(' .doc-sidebar .web-sidebar .sidebar-group>ul').removeClass('hidden')
+			const sidebar_groups = $('.sidebar-item.active').parents(' .doc-sidebar .web-sidebar .sidebar-group')
+			sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-left').addClass('hidden')})
+			sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-icon').removeClass('hidden')})
+	
 		 }
 	
 	
