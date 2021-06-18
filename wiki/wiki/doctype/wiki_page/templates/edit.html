@@ -150,13 +150,15 @@
 	
 		 function set_active_sidebar() {
 	
-			$('.doc-sidebar,.web-sidebar').on('click', '.collapsible', toggle_sidebar)
-			$('.sidebar-item').parent().find('ul').addClass('hidden')
-			$('.sidebar-item.active').parents(' .doc-sidebar .web-sidebar .sidebar-group>ul').removeClass('hidden')
-			const sidebar_groups = $('.sidebar-item.active').parents(' .doc-sidebar .web-sidebar .sidebar-group')
-			sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-left').addClass('hidden')})
-			sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-icon').removeClass('hidden')})
 	
+				$('.doc-sidebar,.web-sidebar').on('click', '.collapsible', toggle_sidebar)
+				$('.sidebar-group').children('ul').addClass('hidden')
+				$('.sidebar-item.active').parents(' .web-sidebar .sidebar-group>ul').removeClass('hidden')
+				const sidebar_groups = $('.sidebar-item.active').parents('.web-sidebar .sidebar-group')
+				sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-left').addClass('hidden')})
+				sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-icon').removeClass('hidden')})
+		
+
 		 }
 	
 	
@@ -165,6 +167,8 @@
 			$(`<li class="nav-item">
 				<div class="website-search doc-search" id="search-container"></div>
 			</li>`).insertAfter('.nav-item:nth-child(2)');
+			frappe.setup_search('#search-container', '{{ docs_search_scope or "" }}');
+
 		 }
 	
 	
