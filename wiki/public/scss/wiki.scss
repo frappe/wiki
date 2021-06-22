@@ -296,6 +296,7 @@ textarea.wiki-content {
 
   li {
     padding-left: 4px;
+    margin: 2px 0;;
   }
 
   .active {
@@ -322,6 +323,11 @@ textarea.wiki-content {
 
 .breadcrumb-item + .breadcrumb-item::before {
   content: "";
+  display: none;
+}
+
+.breadcrumb-item + .breadcrumb-item {
+  padding-left: 0;
 }
 
 @media (min-width: 1920px) {
@@ -438,4 +444,15 @@ navbar
 
 .web-footer {
   border-top: 1px solid #eef0f2;
+}
+
+.search-nav-item{
+
+  position: relative;
+
+  svg {
+    top: 10px;
+    right: 12px;
+    position: absolute
+  }
 }

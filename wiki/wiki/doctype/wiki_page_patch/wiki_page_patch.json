@@ -30,8 +30,6 @@
   "new_sidebar_store",
   "old_sidebar_store",
   "new_sidebar",
-  "column_break_25",
-  "old_sidebar",
   "new_sidebar_items"
  ],
  "fields": [
@@ -177,17 +175,7 @@
    "fieldname": "new_sidebar",
    "fieldtype": "HTML",
    "label": "New Sidebar",
-   "options": "<h2>New Sidebar</h2><div id=\"new_sidebar\" style=\"height: 300px; overflow: auto;\"></div>"
-  },
-  {
-   "fieldname": "column_break_25",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "old_sidebar",
-   "fieldtype": "HTML",
-   "label": "Old Sidebar",
-   "options": "<h2>Old Sidebar</h2><div id=\"old_sidebar\" style=\"height: 300px; overflow: auto;\"></div>"
+   "options": "<div style=\"height: 500px; overflow: auto; display: flex;\">\n    <div width=\"50%\">\n        <h2>New Sidebar</h2>\n        <div id=\"new_sidebar\">. \n\n        </div>\n    </div>\n\n    <div width=\"50%\">\n        <h2>Old Sidebar</h2>\n        <div id=\"old_sidebar\">. \n\n        </div>\n    </div>\n</div>"
   },
   {
    "fieldname": "old_sidebar_store",
@@ -206,7 +194,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-06-16 15:08:16.039029",
+ "modified": "2021-06-22 12:07:12.834259",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

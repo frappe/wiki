@@ -41,81 +41,72 @@ window.EditAsset = class EditAsset {
       body: $(".wiki-write").get(0),
     });
     this.code_field_group.make();
-    $('.wiki-write .form-section:last').removeClass('empty-section')
-
+    $(".wiki-write .form-section:last").removeClass("empty-section");
   }
 
-
   get_markdown() {
-
-
     var me = this;
 
     if (me.code_field_group.get_value("type") == "Markdown") {
       this.content = me.code_field_group.get_value("code_md");
-      this.raise_patch()
+      this.raise_patch();
     } else {
+      this.content = this.code_field_group.get_value("code_html");
 
-    this.content = this.code_field_group.get_value("code_html");
-
-    frappe.call({
-      method: "wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
-      args: {
-        content: this.content
-      },
-      callback: (r) => {
-        if (r.message) {
-         me.content = r.message
-         var turndownService = new TurndownService()
-          turndownService = turndownService.keep(['div class','iframe'])
-          me.content = turndownService.turndown(me.content)
-         me.raise_patch()
-        }
-      },
-    });
+      frappe.call({
+        method:
+          "wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
+        args: {
+          content: this.content,
+        },
+        callback: (r) => {
+          if (r.message) {
+            me.content = r.message;
+            var turndownService = new TurndownService();
+            turndownService = turndownService.keep(["div class", "iframe"]);
+            me.content = turndownService.turndown(me.content);
+            me.raise_patch();
+          }
+        },
+      });
+    }
   }
-  }
-
 
   raise_patch() {
+    var side = {};
 
-    var side = {}
-    
-    let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name
-    side[name] = []
-    let items = $($(".doc-sidebar .web-sidebar").get(0)).children('.sidebar-items').children('ul').not('.hidden').children('li')
-    items.each(
-      function()  {
+    let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name;
+    side[name] = [];
+    let items = $($(".doc-sidebar .web-sidebar").get(0))
+      .children(".sidebar-items")
+      .children("ul")
+      .not(".hidden")
+      .children("li");
+    items.each( (item) => {
+      if (!items[item].dataset.name) return
+      side[name].push({
+        name: items[item].dataset.name,
+        type: items[item].dataset.type,
+        new: items[item].dataset.new,
+        title: items[item].dataset.title,
+      })
+    });
+
+    $('.doc-sidebar [data-type="Wiki Sidebar"]').each(function () {
+      let name = $(this).get(0).dataset.name;
+      side[name] = [];
+      let items = $(this).children("ul").children("li");
+      items.each( (item)=> {
+        if (!items[item].dataset.name) return
         side[name].push({
-            name: $(this).context.dataset.name,
-            type: $(this).context.dataset.type,
-            new: $(this).context.dataset.new,
-            title: $(this).context.dataset.title,
-        } )
-         console.log($(this).context.dataset.name)
-      } )
-
-
-    $('.doc-sidebar [data-type="Wiki Sidebar"]').each(
-      function() {
-        let name = $(this).context.dataset.name
-        side[name] = []
-        let items = $(this).children('ul').children('li')
-        items.each(
-          function()  {
-            side[name].push({
-                name: $(this).context.dataset.name,
-                type: $(this).context.dataset.type,
-                new: $(this).context.dataset.new,
-                title: $(this).context.dataset.title,
-            } )
-             console.log($(this).context.dataset.name)
-          } )
-        }
-    )
-    console.log(side)
-
-
+          name: items[item].dataset.name,
+          type: items[item].dataset.type,
+          new: items[item].dataset.new,
+          title: items[item].dataset.title,
+        });
+      });
+    });
+    console.log(side);
 
 
     var me = this;
@@ -136,16 +127,17 @@ window.EditAsset = class EditAsset {
             wiki_page_patch: $('[name="wiki_page_patch"]').val(),
             message: this.get_value("edit_message"),
             content: me.content,
-            type : me.code_field_group.get_value("type"),
+            type: me.code_field_group.get_value("type"),
             attachments: me.attachments,
             new: $('[name="new"]').val(),
             title: $('[name="title_of_page"]').val(),
-            new_sidebar: $('.doc-sidebar').get(0).innerHTML,
-            new_sidebar_items : side
+            new_sidebar: $(".doc-sidebar").get(0).innerHTML,
+            new_sidebar_items: side,
           },
           callback: (r) => {
             frappe.show_alert(
-              "A Change Request has been generated. You can track your requests here after a few mins");
+              "A Change Request has been generated. You can track your requests here after a few mins"
+            );
             window.location.href = "/contributions";
           },
         });
@@ -199,7 +191,6 @@ window.EditAsset = class EditAsset {
 			    </a>
         </td>`).appendTo(row);
     });
-
   }
 
   get_attachment_table_header_html() {
@@ -245,15 +236,15 @@ window.EditAsset = class EditAsset {
       ) {
         let $preview = $(".wiki-preview");
         let $diff = $(".wiki-diff");
-        const type = this.code_field_group.get_value("type")
-       let content = ''
-        if (type == 'Markdown') {
-           content = this.code_field_group.get_value("code_md");
+        const type = this.code_field_group.get_value("type");
+        let content = "";
+        if (type == "Markdown") {
+          content = this.code_field_group.get_value("code_md");
         } else {
           content = this.code_field_group.get_value("code_html");
-          var turndownService = new TurndownService()
-          turndownService = turndownService.keep(['div class','iframe'])
-          content = turndownService.turndown(content)
+          var turndownService = new TurndownService();
+          turndownService = turndownService.keep(["div class", "iframe"]);
+          content = turndownService.turndown(content);
         }
         if (!content) {
           this.set_empty_message($preview, $diff);
@@ -261,12 +252,11 @@ window.EditAsset = class EditAsset {
         }
         this.set_loading_message($preview, $diff);
 
-
         frappe.call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.preview",
           args: {
             content: content,
-            type : type,
+            type: type,
             path: this.route,
             name: $('[name="wiki_page"]').val(),
             attachments: this.attachments,

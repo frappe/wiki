@@ -1,5 +1,5 @@
 {% macro render_sidebar_item(item) %}
-<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" data-type="{{item.type}}" data-name="{{item.name}}">
+<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.label or item.name}}">
 	{%- if item.group_title -%}
 	<div class="collapsible">
 		<span class='drop-icon hidden'>
@@ -32,7 +32,7 @@
 			{% if item.type != 'input' %}
 			<a href="{{ item.item }}" class="{{ 'active' if pathname == item_route else '' }}" {% if item.target
 				%}target="{{ item.target }}" {% endif %}>
-				{{ _(item.title or item.label or item.name) }}
+				{{ item.title or item.label or item.name }}
 			</a>
 			{% else %}
 			<form action='{{ item.item }}' class="mr-4">
@@ -59,10 +59,19 @@
 {% endmacro %}
 
 {% macro my_account() %}
-{% if frappe.user != 'Guest' %}
+{% if frappe.user != 'Guest' and frappe.show_my_account %}
 <ul class="list-unstyled">
 	<li class="sidebar-item">
 		<a href="/me">{{ _("My Account") }}</a>
+	</li>
+
+	<li class="sidebar-item">
+
+	<a class=' new-wiki-page' href="/{{ path }}?new=true">+ New Page</a>
+	</li>
+	<li class="sidebar-item">
+
+	<a class=' my-contributions' href="/contributions"> My Contributions</a>
 	</li>
 </ul>
 {% endif %}

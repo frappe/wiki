@@ -116,7 +116,7 @@ class WikiPage(WebsiteGenerator):
 		can_edit = frappe.session.user != "Guest"
 		context.can_edit = can_edit
 		context.no_cache = 1
-
+		context.show_my_account = False
 		self.set_crumbs(context)
 
 		if frappe.form_dict.new:
@@ -306,10 +306,10 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 	from ghdiff import diff
 	context = {'route': name}
 	context = frappe._dict(context)
-	wiki_page = frappe.get_doc('Wiki Page', name)
-	sidebar, _ = wiki_page.get_sidebar_items(context)
-	context.sidebar_items = sidebar
-	old_sidebar = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
+	# wiki_page = frappe.get_doc('Wiki Page', name)
+	# sidebar, _ = wiki_page.get_sidebar_items(context)
+	# context.sidebar_items = sidebar
+	# old_sidebar = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
 	if type == "Rich-Text":
 		content = extract_images_from_html(content)
 		content = to_markdown(content)
@@ -325,9 +325,9 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.message = message
 		patch.new= new
 		patch.new_sidebar = new_sidebar
-		patch.old_sidebar_store = old_sidebar
+		# patch.old_sidebar_store = old_sidebar
 		patch.new_sidebar_items = new_sidebar_items
-		patch.new_sidebar_store = new_sidebar
+		# patch.new_sidebar_store = new_sidebar
 		patch.save()
 		return
 
@@ -341,9 +341,9 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		"message": message,
 		"new": new,
 		"new_title": title,
-		'new_sidebar_store' : new_sidebar,
-		'old_sidebar_store' : old_sidebar,
-		'new_sidebar_store' : new_sidebar,
+		# 'new_sidebar_store' : new_sidebar,
+		# 'old_sidebar_store' : old_sidebar,
+		# 'new_sidebar_store' : new_sidebar,
 		'new_sidebar_items' : new_sidebar_items,
 	}
 
@@ -399,3 +399,10 @@ def to_markdown(html):
 	# 	pass
 
 	return text
+
+@frappe.whitelist()
+def get_sidebar_for_page(wiki_page):
+	context = frappe._dict({})
+	sidebar, _ = frappe.get_doc('Wiki Page', wiki_page).get_sidebar_items(context)
+	context.sidebar_items = sidebar
+	return frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)

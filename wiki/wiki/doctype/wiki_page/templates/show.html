@@ -33,10 +33,10 @@
 
 	$('document').ready(()=>{
 
-		$(`
-			<a class='text-muted new-wiki-page' href="/{{ path }}?new=true">+ New Page</a><br>
-			<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
-		`).appendTo($('.web-sidebar') )
+		//$(`
+		//	<a class='text-muted new-wiki-page' href="/{{ path }}?new=true">+ New Page</a><br>
+		//	<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
+		//`).appendTo($('.web-sidebar') )
 
 		$('.sidebar-item a').each(function (index) {
 			const active_class = 'active'
@@ -89,8 +89,26 @@
 
 
 	 function set_search_bar() {
-		$(`<li class="nav-item">
-			<div class="website-search doc-search" id="search-container"></div>
+		$(`<li class="nav-item search-nav-item">
+			<div class="website-search doc-search" id="search-container">
+			</div>
+			<svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<g filter="url(#filter0_d)">
+				<rect width="16" height="16" rx="2" fill="white"/>
+				<path fill-rule="evenodd" clip-rule="evenodd" d="M10.4549 4.24949C10.694 4.38756 10.776 4.69336 10.6379 4.93251L6.39448 12.2823C6.25641 12.5215 5.95061 12.6034 5.71147 12.4653C5.47232 12.3272 5.39038 12.0215 5.52845 11.7823L9.77187 4.43251C9.90994 4.19336 10.2157 4.11142 10.4549 4.24949Z" fill="#4C5A67"/>
+				<rect x="0.5" y="0.5" width="15" height="15" rx="1.5" stroke="#F2F2FD"/>
+				</g>
+				<defs>
+				<filter id="filter0_d" x="0" y="0" width="17" height="17" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+				<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+				<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
+				<feOffset dx="1" dy="1"/>
+				<feColorMatrix type="matrix" values="0 0 0 0 0.784314 0 0 0 0 0.811765 0 0 0 0 0.835294 0 0 0 1 0"/>
+				<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+				<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+				</filter>
+				</defs>
+			</svg>
 		</li>`).insertAfter('.nav-item:nth-child(2)');
 	 }
 
