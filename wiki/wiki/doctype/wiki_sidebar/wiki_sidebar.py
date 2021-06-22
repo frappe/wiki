@@ -4,10 +4,10 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils.nestedset import NestedSet
+from frappe.model.document import Document
 
 
-class WikiSidebar(NestedSet):
+class WikiSidebar(Document):
 
 	def get_children(self):
 		out = self.get_sidebar_items()

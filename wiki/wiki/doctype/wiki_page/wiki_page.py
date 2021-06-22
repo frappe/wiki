@@ -107,11 +107,9 @@ class WikiPage(WebsiteGenerator):
 
 		context.boot = boot_json
 
-
-
-
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
+		context.script = wiki_settings.javascript
 		context.docs_search_scope = ""
 		can_edit = frappe.session.user != "Guest"
 		context.can_edit = can_edit
@@ -193,7 +191,7 @@ class WikiPage(WebsiteGenerator):
 		context.page_toc_html = html.toc_html
 		context.show_sidebar = True
 		context.hide_login = True
-
+		
 
 
 	def get_sidebar_items(self, context):

@@ -7,7 +7,7 @@
  "field_order": [
   "logo",
   "sidebar",
-  "wiki_navigation"
+  "javascript"
  ],
  "fields": [
   {
@@ -20,12 +20,18 @@
    "fieldtype": "Link",
    "label": "Wiki Sidebar",
    "options": "Wiki Sidebar"
+  },
+  {
+   "fieldname": "javascript",
+   "fieldtype": "Code",
+   "label": "Javascript",
+   "options": "Javascript"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-05-20 19:19:22.559369",
+ "modified": "2021-06-22 15:30:18.457671",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

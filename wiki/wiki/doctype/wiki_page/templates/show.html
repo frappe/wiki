@@ -9,255 +9,33 @@
 	<div class="my-4 wiki-revision-meta">
 		<ul class="user-contributions">
 
-		{%- if last_revision -%}
-		{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
-		{%- if number_of_revisions > 0 %}
-		&middot;
-		<li><a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
-		{%- endif -%}
-		{%- endif -%}
-		<li><a href="/{{ path }}?edit=true">Edit</a>&nbsp;</li>
-</ul>
+			{%- if last_revision -%}
+			{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
+			{%- if number_of_revisions > 0 %}
+			&middot;
+			<li><a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
+			{%- endif -%}
+			{%- endif -%}
+			<li><a href="/{{ path }}?edit=true">Edit</a>&nbsp;</li>
+		</ul>
 	</div>
 
-	<div> 
-		<a href="/left" class = "btn left" >Left</a>
-		<a href="/right" class = "btn pull-right right">Right</a>
+	<div>
+		<a href="/left" class="btn left">Left</a>
+		<a href="/right" class="btn pull-right right">Right</a>
 	</div>
 
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+{{ include_script('wiki.bundle.js') }}
 
 <script>
 
-	$('document').ready(()=>{
-
-		//$(`
-		//	<a class='text-muted new-wiki-page' href="/{{ path }}?new=true">+ New Page</a><br>
-		//	<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
-		//`).appendTo($('.web-sidebar') )
-
-		$('.sidebar-item a').each(function (index) {
-			const active_class = 'active'
-			const non_active_class = ''
-			let page_href = window.location.href;
-			if (page_href.indexOf('#') !== -1) {
-				page_href = page_href.slice(0, page_href.indexOf('#'));
-			}
-			if (this.href.trim() == page_href) {
-				console.log($(this).parent().parent().parent())
-				$(this).addClass(active_class);
-				$(this).parent().parent().parent().removeClass(non_active_class).addClass(active_class);
-			} else {
-				$(this).parent().parent().parent().removeClass(active_class).addClass(non_active_class);
-			}
-		});
-		// scroll the active sidebar item into view
-		let active_sidebar_item = $('.sidebar-item a.active');
-		if (active_sidebar_item.length > 0) {
-			active_sidebar_item.get(0)
-				.scrollIntoView({behavior: "auto", block: "center", inline: "nearest"});
-		}
-		set_active_sidebar()
-		set_search_bar()
-		set_togglers()
-		set_toc_highlighter()
-		set_nav_buttons()
-	});
-
-
-
-	var toggle_sidebar =  function(event) {
-		$(event.currentTarget).parent().find('ul').toggleClass('hidden')
-		$(event.currentTarget).find('.drop-icon').toggleClass('hidden')
-		$(event.currentTarget).find('.drop-left').toggleClass('hidden')
-		event.stopPropagation()
-	 }
-
-	 function set_active_sidebar() {
-	
-		$('.doc-sidebar,.web-sidebar').on('click', '.collapsible', toggle_sidebar)
-		$('.sidebar-group').children('ul').addClass('hidden')
-		$('.sidebar-item.active').parents(' .web-sidebar .sidebar-group>ul').removeClass('hidden')
-		const sidebar_groups = $('.sidebar-item.active').parents('.web-sidebar .sidebar-group')
-		sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-left').addClass('hidden')})
-		sidebar_groups.each(function()  {$(this).children('.collapsible').find('.drop-icon').removeClass('hidden')})
-
-	 }
-
-
-
-	 function set_search_bar() {
-		$(`<li class="nav-item search-nav-item">
-			<div class="website-search doc-search" id="search-container">
-			</div>
-			<svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<g filter="url(#filter0_d)">
-				<rect width="16" height="16" rx="2" fill="white"/>
-				<path fill-rule="evenodd" clip-rule="evenodd" d="M10.4549 4.24949C10.694 4.38756 10.776 4.69336 10.6379 4.93251L6.39448 12.2823C6.25641 12.5215 5.95061 12.6034 5.71147 12.4653C5.47232 12.3272 5.39038 12.0215 5.52845 11.7823L9.77187 4.43251C9.90994 4.19336 10.2157 4.11142 10.4549 4.24949Z" fill="#4C5A67"/>
-				<rect x="0.5" y="0.5" width="15" height="15" rx="1.5" stroke="#F2F2FD"/>
-				</g>
-				<defs>
-				<filter id="filter0_d" x="0" y="0" width="17" height="17" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-				<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-				<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/>
-				<feOffset dx="1" dy="1"/>
-				<feColorMatrix type="matrix" values="0 0 0 0 0.784314 0 0 0 0 0.811765 0 0 0 0 0.835294 0 0 0 1 0"/>
-				<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
-				<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
-				</filter>
-				</defs>
-			</svg>
-		</li>`).insertAfter('.nav-item:nth-child(2)');
-	 }
-
-
-	 function set_togglers() {
-		let language_switcher = $('nav').find(".nav-item")
-		let current_location = window.location.href;
-		let language_pattern = 'en|es|de';
-		let match = current_location.match('en|es|de')
-
-		if (match) {
-			$(language_switcher[0]).find('a')[0].innerText = match[0]
-		}
-
-		$('.dropdown-menu:first').find('.dropdown-item').click((event) => {
-			debugger
-			current_location = window.location.href;
-			let target_location = current_location.replace(/en|es|de/, event.target.innerText)
-			$(event.target).attr('href', target_location)
-		});
-
-		let version_switcher = $('nav').find(".nav-item")
-		current_location = window.location.href;
-		let version_pattern = 'v12|v13';
-		match = current_location.match('v12|v13')
-
-		if (match) {
-			$(version_switcher[1]).find('a')[0].innerText = match[0]
-		}
-
-		$($('ul.dropdown-menu').get(1)).find('.dropdown-item').click((event) => {
-			current_location = window.location.href;
-			target_location = current_location.replace(/v12|v13/, event.target.innerText)
-			$(event.target).attr('href', target_location)
-		});
-	 }
-
-
-
-
-	function set_toc_highlighter() {
-
-		const observer = new IntersectionObserver(entries => {
-			entries.forEach(entry => {
-				const id = entry.target.getAttribute('id');
-				if (entry.intersectionRatio > 0) {
-					document.querySelector(`li a[href="#${id}"]`).parentElement.classList.add('active');
-				} else {
-					document.querySelector(`li a[href="#${id}"]`).parentElement.classList.remove('active');
-				}
-			});
-		});
-
-		// Track all sections that have an `id` applied
-		document.querySelectorAll('h2[id], h3[id]').forEach((section) => {
-			observer.observe(section);
-		});
-	}
-
-
-	function set_nav_buttons() {
-		var current_index = -1
-
-		$('.sidebar-column').find('a').each(function (index)  {
-
-			if ($(this).attr('class')) {
-				let dish = $(this).attr('class').split(/\s+/)[0];
-				if (dish === 'active') {
-					current_index = index
-
-				}
-			}
-		})
-
-			if (current_index != 0) {
-				$('.btn.left')[0].href = $('.sidebar-column').find('a')[current_index-1].href;
-				$('.btn.left')[0].innerHTML = '←' + $('.sidebar-column').find('a')[current_index-1].innerHTML;
-			}
-		
-			else {
-				$('.btn.left').hide();
-			}
-		
-			if (current_index < $('.sidebar-column').find('a').length - 1 ) {
-				$('.btn.right')[0].href = $('.sidebar-column').find('a')[current_index+1].href ;
-				$('.btn.right')[0].innerHTML = $('.sidebar-column').find('a')[current_index+1].innerHTML + '→';
-			}
-		
-			else {
-				$('.btn.right').hide();
-			}
-	}
-
-
-
-
-	/*$('.dropdown-item').click((event) => {
-		debugger
-		let tt = current_location.replace(/en|es|de/, event.target.innerText)
-		window.location.href =  tt
-		console.log('f')
-	});*/
-
-	/*$(`<li class="nav-item">
-		<select class="form-control ml-5" id="version-switcher">
-		  <option value="accounts">Accounts</option>
-		  <option value="assets">Assets</option>
-		  <option value="education">Education</option>
-		</select>
-	</li>`).prependTo('.navbar-nav:last');
-
-	let version_switcher = $('nav').find("#version-switcher")
-	let current_location = window.location.href;
-	let version_pattern = 'accounts|assets|education';
-	let match = current_location.match('accounts|assets|education')
-
-	if (match) {
-		version_switcher.val(match[0])
-	}
-	version_switcher.change(() => {
-
-		let value = version_switcher.val()
-		window.location.href = current_location.replace(/accounts|assets|de/, `${value}`)
-	});
-
-
-	$(`<li class="nav-item">
-		<select class="form-control ml-5" id="language-switcher">
-		  <option value="en">English</option>
-		  <option value="es">Spanish</option>
-		  <option value="de">German</option>
-		</select>
-	</li>`).prependTo('.navbar-nav:last');
-
-	let language_switcher = $('nav').find("#language-switcher")
-	current_location = window.location.href;
-	let language_pattern = 'en|es|de';
-	match = current_location.match('en|es|de')
-
-	if (match) {
-		language_switcher.val(match[0])
-	}
-	language_switcher.change(() => {
-
-		let value = language_switcher.val()
-		window.location.href = current_location.replace(/en|es|de/, `${value}`)
-
-
-
-	});*/
+	new ShowWiki();
 
 </script>
+
+{%- if script -%}
+<script>{{ script }}</script>
+{%- endif -%}
