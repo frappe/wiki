@@ -49,7 +49,7 @@ window.ShowWiki = class ShowWiki {
   }
 
   toggle_sidebar(event) {
-    $(event.currentTarget).parent().find("ul").toggleClass("hidden");
+    $(event.currentTarget).parent().children("ul").toggleClass("hidden");
     $(event.currentTarget).find(".drop-icon").toggleClass("hidden");
     $(event.currentTarget).find(".drop-left").toggleClass("hidden");
     event.stopPropagation();
