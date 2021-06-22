@@ -118,7 +118,7 @@ window.EditAsset = class EditAsset {
 
     let dialog = new frappe.ui.Dialog({
       fields: dfs,
-      title: __("Please add a message explaining your change"),
+      title: __("Comments"),
       primary_action: function () {
         frappe.call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.update",

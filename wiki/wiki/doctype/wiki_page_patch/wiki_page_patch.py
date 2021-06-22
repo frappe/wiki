@@ -18,6 +18,9 @@ class WikiPagePatch(Document):
 			self.orignal_code = frappe.db.get_value("Wiki Page", self.wiki_page, "content")
 			self.diff = diff(self.orignal_code, self.new_code)
 			self.orignal_preview_store = frappe.utils.md_to_html(self.orignal_code)
+	def after_insert(self):
+		add_comment_to_patch(self.name, self.message)
+		frappe.db.commit()
 
 	def	update_old__page(self, wiki_page):
 		wiki_page.update_page(wiki_page.title, self.new_code, self.message, self.raised_by)
