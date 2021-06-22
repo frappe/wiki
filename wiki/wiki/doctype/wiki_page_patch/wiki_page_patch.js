@@ -40,7 +40,7 @@ frappe.ui.form.on("Wiki Page Patch", {
 
     frappe
       .call("wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page", {
-        wiki_page: "docs/en/accounts/payment-terms-template",
+        wiki_page: frm.doc.wiki_page,
       })
       .then((result) => {
         $("#old_sidebar").empty().append(result.message);
