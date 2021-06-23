@@ -14,7 +14,6 @@ window.ShowWiki = class ShowWiki {
           page_href = page_href.slice(0, page_href.indexOf("#"));
         }
         if (this.href.trim() == page_href) {
-          console.log($(this).parent().parent().parent());
           $(this).addClass(active_class);
           $(this)
             .parent()

@@ -106,7 +106,6 @@ window.EditAsset = class EditAsset {
         });
       });
     });
-    console.log(side);
 
 
     var me = this;

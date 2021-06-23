@@ -25,15 +25,14 @@ class WikiSidebar(Document):
 
 	def get_items(self):
 
-		def find_parent(me):
-			parent = frappe.db.get_value('Wiki Sidebar Item', { 'item' : me, 'type':'Wiki Sidebar' } , 'parent')
-			if not parent:
-				return me
-			return find_parent(parent)
+		topmost = self.find_topmost(self.name)
 
-		topmost = find_parent(self.name)
+		sidebar_items = frappe.cache().hget('wiki_sidebar', topmost)
+		if not sidebar_items:
+			sidebar_items = frappe.get_doc('Wiki Sidebar', topmost).get_children()
+			frappe.cache().hset('wiki_sidebar', topmost, sidebar_items)
 
-		return frappe.get_doc('Wiki Sidebar', topmost).get_children(), topmost
+		return sidebar_items, topmost
 
 
 
@@ -52,3 +51,23 @@ class WikiSidebar(Document):
 
 		# return [{"group_title": "Topics", "group_items": items_without_group}] if items else []
 		return items_without_group if items else []
+
+
+	def validate(self):
+		self.clear_cache()
+
+	def on_trash(self):
+		self.clear_cache()
+
+	def on_update(self):
+		self.clear_cache()
+
+	def find_topmost(self,me):
+		parent = frappe.db.get_value('Wiki Sidebar Item', { 'item' : me, 'type':'Wiki Sidebar' } , 'parent')
+		if not parent:
+			return me
+		return self.find_topmost(parent)
+
+	def clear_cache(self):
+		topmost = self.find_topmost(self.name)
+		frappe.cache().hdel('wiki_sidebar', topmost)

@@ -46,6 +46,8 @@ class WikiPagePatch(Document):
 
 		self.update_sidebars()
 
+
+
 	def get_wiki_sidebar_parent(self, wiki_page):
 
 		wiki_sidebar_parent = frappe.get_all(
@@ -85,20 +87,20 @@ class WikiPagePatch(Document):
 
 	def update_sidebars(self):
 		sidebars = json.loads(self.new_sidebar_items)
-		print(sidebars)
 		self.create_new_child(sidebars)
-		
-		for sidebar, items in sidebars.items():
-			
-			for idx, item in enumerate(items):
-				frappe.db.set_value('Wiki Sidebar Item', item['name'], 'parent', sidebar)
-				frappe.db.set_value('Wiki Sidebar Item', item['name'], 'idx', idx)
+		sidebar_items = sidebars.items()
+		if sidebar_items:
+			for key in frappe.cache().hgetall('wiki_sidebar').keys():
+				frappe.cache().hdel('wiki_sidebar', key)
+
+			for sidebar, items in sidebar_items:
+				for idx, item in enumerate(items):
+					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'parent', sidebar)
+					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'idx', idx)
 
 	def create_new_child(self, sidebars):
 		for sidebar, items in sidebars.items():
 			for item in items:
-				# print("item")
-				# print(item)
 				if item['name'] == 'new':
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
