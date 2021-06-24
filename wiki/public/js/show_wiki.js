@@ -6,46 +6,61 @@ window.ShowWiki = class ShowWiki {
       //	<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
       //`).appendTo($('.web-sidebar') )
 
-      $(".sidebar-item a").each(function (index) {
-        const active_class = "active";
-        const non_active_class = "";
-        let page_href = window.location.href;
-        if (page_href.indexOf("#") !== -1) {
-          page_href = page_href.slice(0, page_href.indexOf("#"));
-        }
-        if (this.href.trim() == page_href) {
-          $(this).addClass(active_class);
-          $(this)
-            .parent()
-            .parent()
-            .parent()
-            .removeClass(non_active_class)
-            .addClass(active_class);
-        } else {
-          $(this).removeClass(active_class).addClass(non_active_class);
-          $(this)
-            .parent()
-            .parent()
-            .parent()
-            .removeClass(active_class)
-            .addClass(non_active_class);
-        }
+
+      frappe
+      .call("wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page", {
+        wiki_page: window.location.pathname.slice(1),
+      })
+      .then((result) => {
+        $(".doc-sidebar").empty().append(result.message);
+
+        this.activate_sidebars()
+        this.set_active_sidebar();
+        this.set_nav_buttons();
+      
       });
-      // scroll the active sidebar item into view
-      let active_sidebar_item = $(".sidebar-item a.active");
-      if (active_sidebar_item.length > 0) {
-        active_sidebar_item
-          .get(0)
-          .scrollIntoView({
-            behavior: "auto",
-            block: "center",
-            inline: "nearest",
-          });
-      }
-      this.set_active_sidebar();
       this.set_toc_highlighter();
-      this.set_nav_buttons();
+
     });
+  }
+
+  activate_sidebars() {
+    $(".sidebar-item a").each(function (index) {
+      const active_class = "active";
+      const non_active_class = "";
+      let page_href = window.location.href;
+      if (page_href.indexOf("#") !== -1) {
+        page_href = page_href.slice(0, page_href.indexOf("#"));
+      }
+      if (this.href.trim() == page_href) {
+        $(this).addClass(active_class);
+        $(this)
+          .parent()
+          .parent()
+          .parent()
+          .removeClass(non_active_class)
+          .addClass(active_class);
+      } else {
+        $(this).removeClass(active_class).addClass(non_active_class);
+        $(this)
+          .parent()
+          .parent()
+          .parent()
+          .removeClass(active_class)
+          .addClass(non_active_class);
+      }
+    });
+    // scroll the active sidebar item into view
+    let active_sidebar_item = $(".sidebar-item a.active");
+    if (active_sidebar_item.length > 0) {
+      active_sidebar_item
+        .get(0)
+        .scrollIntoView({
+          behavior: "auto",
+          block: "center",
+          inline: "nearest",
+        });
+    }
   }
 
   toggle_sidebar(event) {

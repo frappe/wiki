@@ -33,6 +33,7 @@ class WikiSidebar(Document):
 			sidebar_items = frappe.get_doc('Wiki Sidebar', topmost).get_children()
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
+			context.docs_search_scope = topmost
 			sidebar_html = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
 			frappe.cache().hset('wiki_sidebar', topmost, sidebar_html)
 

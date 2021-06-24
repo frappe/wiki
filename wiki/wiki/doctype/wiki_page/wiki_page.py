@@ -113,14 +113,13 @@ class WikiPage(WebsiteGenerator):
 		context.docs_search_scope = ""
 		can_edit = frappe.session.user != "Guest"
 		context.can_edit = can_edit
-		context.no_cache = 1
 		context.show_my_account = False
 		self.set_crumbs(context)
 
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login("create")
-			context.sidebar_html, context.docs_search_scope  = self.get_sidebar_items(context)
+			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
 			self.content = "New Wiki Page"
@@ -142,7 +141,7 @@ class WikiPage(WebsiteGenerator):
 			context.content_md = self.content
 			context.content_html = frappe.utils.md_to_html(self.content)
 			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
-			return
+			return context
 
 		if frappe.form_dict.revisions:
 			context.title = "Revisions: " + self.title
@@ -181,7 +180,7 @@ class WikiPage(WebsiteGenerator):
 			return
 
 		context.metatags = {"title": self.title}
-		context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
+		# context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
@@ -198,7 +197,7 @@ class WikiPage(WebsiteGenerator):
 		sidebar = frappe.get_all(
 			doctype="Wiki Sidebar Item",
 			fields=["name", "parent"],
-			filters=[["item", "=", context.route]],
+			filters=[["item", "=", self.route]],
 		)
 		sidebar_html = ''
 		topmost = '/'
@@ -208,7 +207,7 @@ class WikiPage(WebsiteGenerator):
 			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
 			if sidebar:
 
-				sidebar_html = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+				sidebar_html, topmost = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
 
 			else:
 				sidebar_html = ''

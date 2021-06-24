@@ -18,13 +18,13 @@
     <div class="table-area">
         <div class="list-jobs">
 
-            
+
 
             {% if contributions %}
             <table class="table table-borderless" style="table-layout: fixed;">
                 <thead>
                     <tr>
-                        <th >{{ _("Status") }}</th>
+                        <th>{{ _("Status") }}</th>
                         <th style="width: 55%">{{ _("Message") }}</th>
                         <th style="width: 25%">{{ _("Link") }}</th>
 
@@ -33,14 +33,16 @@
                 <tbody>
                     {% for j in contributions %}
                     <tr>
-                        
-					
-                    <td class="worker-name"><span class="indicator-pill no-margin {{j.color}}"></span><span class="ml-2">{{ j.status }}</span>
+
+
+                        <td class="worker-name"><span class="indicator-pill no-margin {{j.color}}"></span><span
+                                class="ml-2">{{ j.status }}</span>
                         </td>
-                        <td >
+                        <td>
                             {{ j.message }}
                         </td>
-                        <td > <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">Open Contribution</a> </td>
+                        <td> <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">Open Contribution</a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -51,11 +53,11 @@
                 <p class="text-muted">{{ _("No Contributions Made") }}</p>
             </div>
             {% endif %}
-           
+
         </div>
-        </div>
+    </div>
 </div>
-{% endblock %}  
+{% endblock %}
 
 
 {% block base_scripts %}
@@ -71,18 +73,18 @@
 
 {%- block footer -%}
 <div class="container">
-<div class="footer-info">
-	<div class="row">
-		<div class="footer-col-left col-sm-6 col-12">
+    <div class="footer-info">
+        <div class="row">
+            <div class="footer-col-left col-sm-6 col-12">
 
-		</div>
-		{# powered #}
-		<div class="footer-col-right col-sm-6 col-12 footer-powered">
-			{% block powered %}
-			{% include "templates/includes/footer/footer_powered.html" %}
-			{% endblock %}
-		</div>
-	</div>
-</div>
+            </div>
+            {# powered #}
+            <div class="footer-col-right col-sm-6 col-12 footer-powered">
+                {% block powered %}
+                {% include "templates/includes/footer/footer_powered.html" %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
 </div>
 {%- endblock -%}
