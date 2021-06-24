@@ -120,7 +120,7 @@ class WikiPage(WebsiteGenerator):
 		if frappe.form_dict.new:
 			if not can_edit:
 				self.redirect_to_login("create")
-			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
+			context.sidebar_html, context.docs_search_scope  = self.get_sidebar_items(context)
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
 			self.content = "New Wiki Page"
@@ -200,24 +200,21 @@ class WikiPage(WebsiteGenerator):
 			fields=["name", "parent"],
 			filters=[["item", "=", context.route]],
 		)
-		sidebar_items = []
+		sidebar_html = ''
 		topmost = '/'
 		if sidebar:
-			sidebar_items, topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
+			sidebar_html, topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
 		else:
 			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
 			if sidebar:
-				
-				sidebar_items = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
-				
-			else:
-				sidebar_items = []
 
-		# if frappe.session.user == "Guest":
-		# 	sidebar_items = [
-		# 		item for item in sidebar_items if item.get("group_title") != "Manage Wiki"
-		# 	]
-		return sidebar_items, topmost
+				sidebar_html = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+
+			else:
+				sidebar_html = ''
+
+
+		return sidebar_html, topmost
 
 	def get_last_revision(self):
 		last_revision = frappe.db.get_value(
@@ -304,10 +301,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 	from ghdiff import diff
 	context = {'route': name}
 	context = frappe._dict(context)
-	# wiki_page = frappe.get_doc('Wiki Page', name)
-	# sidebar, _ = wiki_page.get_sidebar_items(context)
-	# context.sidebar_items = sidebar
-	# old_sidebar = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
 	if type == "Rich-Text":
 		content = extract_images_from_html(content)
 		content = to_markdown(content)
@@ -402,5 +395,4 @@ def to_markdown(html):
 def get_sidebar_for_page(wiki_page):
 	context = frappe._dict({})
 	sidebar, _ = frappe.get_doc('Wiki Page', wiki_page).get_sidebar_items(context)
-	context.sidebar_items = sidebar
-	return frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
+	return sidebar

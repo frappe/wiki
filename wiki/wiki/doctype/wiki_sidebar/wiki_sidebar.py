@@ -27,12 +27,16 @@ class WikiSidebar(Document):
 
 		topmost = self.find_topmost(self.name)
 
-		sidebar_items = frappe.cache().hget('wiki_sidebar', topmost)
-		if not sidebar_items:
-			sidebar_items = frappe.get_doc('Wiki Sidebar', topmost).get_children()
-			frappe.cache().hset('wiki_sidebar', topmost, sidebar_items)
+		sidebar_html = frappe.cache().hget('wiki_sidebar', topmost)
 
-		return sidebar_items, topmost
+		if not sidebar_html:
+			sidebar_items = frappe.get_doc('Wiki Sidebar', topmost).get_children()
+			context = frappe._dict({})
+			context.sidebar_items = sidebar_items
+			sidebar_html = frappe.render_template('wiki/wiki/doctype/wiki_page/templates/web_sidebar.html', context)
+			frappe.cache().hset('wiki_sidebar', topmost, sidebar_html)
+
+		return sidebar_html, topmost
 
 
 

@@ -17,6 +17,7 @@ window.EditWiki = class EditWiki {
             .removeClass(non_active_class)
             .addClass(active_class);
         } else {
+          $(this).removeClass(active_class).addClass(non_active_class);
           $(this)
             .parent()
             .parent()
