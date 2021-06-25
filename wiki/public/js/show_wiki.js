@@ -57,7 +57,7 @@ window.ShowWiki = class ShowWiki {
         .parent().parent()
         .parent().parent()
         .get(0)
-        .scrollIntoView(true,{
+        .scrollIntoView(false,{
           behavior: "smooth",
           block: "nearest",
         });
