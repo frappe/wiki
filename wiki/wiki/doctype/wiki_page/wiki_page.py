@@ -390,7 +390,7 @@ def to_markdown(html):
 
 	return text
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_sidebar_for_page(wiki_page):
 	context = frappe._dict({})
 	sidebar, _ = frappe.get_doc('Wiki Page', wiki_page).get_sidebar_items(context)
