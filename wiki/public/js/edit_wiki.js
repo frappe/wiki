@@ -26,17 +26,18 @@ window.EditWiki = class EditWiki {
             .addClass(non_active_class);
         }
       });
-      // scroll the active sidebar item into view
-      let active_sidebar_item = $(".sidebar-item a.active");
-      if (active_sidebar_item.length > 0) {
-        active_sidebar_item
-          .get(0)
-          .scrollIntoView({
-            behavior: "auto",
-            block: "center",
-            inline: "nearest",
-          });
-      }
+    // scroll the active sidebar item into view
+    let active_sidebar_item = $(".sidebar-item a.active");
+    if (active_sidebar_item.length > 0) {
+      active_sidebar_item
+        .parent().parent()
+        .parent().parent()
+        .get(0)
+        .scrollIntoView(true,{
+          behavior: "smooth",
+          block: "nearest",
+        });
+    }
       this.set_active_sidebar();
       this.set_empty_ul();
       this.set_sortable();

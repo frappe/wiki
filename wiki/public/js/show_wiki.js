@@ -54,11 +54,12 @@ window.ShowWiki = class ShowWiki {
     let active_sidebar_item = $(".sidebar-item a.active");
     if (active_sidebar_item.length > 0) {
       active_sidebar_item
+        .parent().parent()
+        .parent().parent()
         .get(0)
-        .scrollIntoView({
-          behavior: "auto",
-          block: "center",
-          inline: "nearest",
+        .scrollIntoView(true,{
+          behavior: "smooth",
+          block: "nearest",
         });
     }
   }
