@@ -460,36 +460,12 @@ navbar
 }
 .sidebar-skeleton {
 	.skeleton-card {
-    box-shadow: 0 4px 10px 0 rgba(33, 33, 33, 0.15);
-		border-radius: var(--border-radius-lg);
-    height: 100px;
+    height: 40px;
     position: relative;
     overflow: hidden;
-
-	}
-
-
-  .skeleton-card::before {
-    content: '';
-    display: block;
-    position: absolute;
-    left: -150px;
-    top: 0;
-    height: 100%;
-    width: 150px;
-    background: linear-gradient(to right, transparent 0%, #E8E8E8 50%, transparent 100%);
-    animation: load 1s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
-
-
-    @keyframes load {
-      from {
-          left: -150px;
-      }
-      to   {
-          left: 100%;
-      }
-    }
+		border-radius: 50px;
+    margin: var(--margin-sm) auto;
+		background-color: var(--skeleton-bg);
 
   }
-
 }
