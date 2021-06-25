@@ -33,7 +33,7 @@ window.EditWiki = class EditWiki {
         .parent().parent()
         .parent().parent()
         .get(0)
-        .scrollIntoView(false,{
+        .scrollIntoView(true,{
           behavior: "smooth",
           block: "nearest",
         });
