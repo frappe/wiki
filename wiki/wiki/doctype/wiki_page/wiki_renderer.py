@@ -1,4 +1,5 @@
-from bs4.element import Doctype
+import re
+
 import frappe
 from frappe.website.utils import build_response
 from frappe.website.page_renderers.document_page import DocumentPage
@@ -6,6 +7,7 @@ from frappe.website.router import get_doctypes_with_web_view
 
 from wiki.wiki.doctype.wiki_page.wiki_page import 	get_sidebar_for_page
 
+reg = re.compile('<!--sidebar-->')
 class WikiPageRenderer(DocumentPage):
 
 	def search_in_doctypes_with_web_view(self):
@@ -35,4 +37,4 @@ class WikiPageRenderer(DocumentPage):
 		return build_response(self.path, html, self.http_status_code or 200, self.headers)
 
 	def add_sidebar(self, html):
-		return html.replace('<!--sidebar-->',get_sidebar_for_page(self.context.doc.name))
+		return reg.sub(get_sidebar_for_page(self.context.doc.name), html)
