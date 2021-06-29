@@ -37,4 +37,4 @@ class WikiPageRenderer(DocumentPage):
 		return build_response(self.path, html, self.http_status_code or 200, self.headers)
 
 	def add_sidebar(self, html):
-		return reg.sub(get_sidebar_for_page(self.context.doc.name), html)
+		return reg.sub(get_sidebar_for_page(self.path), html)
