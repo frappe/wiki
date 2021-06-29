@@ -11,6 +11,8 @@ app_color = "grey"
 app_email = "developers@frappe.io"
 app_license = "MIT"
 
+page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
+
 # Includes in <head>
 # ------------------
 

@@ -1,31 +1,50 @@
 window.EditWiki = class EditWiki {
   constructor(opts) {
     $("document").ready(() => {
-      $(".sidebar-item a").each(function (index) {
-        const active_class = "active";
-        const non_active_class = "";
-        let page_href = window.location.href;
-        if (page_href.indexOf("#") !== -1) {
-          page_href = page_href.slice(0, page_href.indexOf("#"));
-        }
-        if (page_href.includes(this.href.trim())) {
-          $(this).addClass(active_class);
-          $(this)
-            .parent()
-            .parent()
-            .parent()
-            .removeClass(non_active_class)
-            .addClass(active_class);
-        } else {
-          $(this).removeClass(active_class).addClass(non_active_class);
-          $(this)
-            .parent()
-            .parent()
-            .parent()
-            .removeClass(active_class)
-            .addClass(non_active_class);
-        }
+
+
+      frappe
+      .call("wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page", {
+        wiki_page: $('[name="wiki_page"]').val(),
+      })
+      .then((result) => {
+        $(".doc-sidebar").empty().append(result.message);
+        this.activate_sidebars()
+        this.set_active_sidebar();
+        this.set_empty_ul();
+        this.set_sortable();
+        this.set_add_item();
       });
+    });
+  }
+
+
+  activate_sidebars() {
+    $(".sidebar-item a").each(function (index) {
+      const active_class = "active";
+      const non_active_class = "";
+      let page_href = window.location.href;
+      if (page_href.indexOf("#") !== -1) {
+        page_href = page_href.slice(0, page_href.indexOf("#"));
+      }
+      if (this.href.trim() == page_href) {
+        $(this).addClass(active_class);
+        $(this)
+          .parent()
+          .parent()
+          .parent()
+          .removeClass(non_active_class)
+          .addClass(active_class);
+      } else {
+        $(this).removeClass(active_class).addClass(non_active_class);
+        $(this)
+          .parent()
+          .parent()
+          .parent()
+          .removeClass(active_class)
+          .addClass(non_active_class);
+      }
+    });
     // scroll the active sidebar item into view
     let active_sidebar_item = $(".sidebar-item a.active");
     if (active_sidebar_item.length > 0) {
@@ -38,11 +57,6 @@ window.EditWiki = class EditWiki {
           block: "nearest",
         });
     }
-      this.set_active_sidebar();
-      this.set_empty_ul();
-      this.set_sortable();
-      this.set_add_item();
-    });
   }
 
   toggle_sidebar(event) {

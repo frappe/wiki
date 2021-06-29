@@ -151,7 +151,7 @@ class WikiPage(WebsiteGenerator):
 				fields=["message", "creation", "owner", "name", "raised_by"],
 			)
 			context.revisions = revisions
-			return
+			return context
 
 		if frappe.form_dict.compare:
 			from ghdiff import diff
@@ -177,7 +177,7 @@ class WikiPage(WebsiteGenerator):
 				return
 
 			context.diff = diff(previous_revision_content, revision.content, css=False)
-			return
+			return context
 
 		context.metatags = {"title": self.title}
 		# context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)

@@ -12,7 +12,7 @@ window.ShowWiki = class ShowWiki {
         wiki_page: window.location.pathname.slice(1),
       })
       .then((result) => {
-        $(".doc-sidebar").empty().append(result.message);
+        // $(".doc-sidebar").empty().append(result.message);
 
         this.activate_sidebars()
         this.set_active_sidebar();
