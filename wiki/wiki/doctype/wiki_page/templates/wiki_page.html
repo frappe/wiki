@@ -5,19 +5,12 @@
 
 {%- block head_include %}
 {{ super() }}
-<!-- <link rel="stylesheet" href="/assets/wiki/css/wiki.css"> -->
 {{ include_style('wiki.bundle.css') }}
 {% endblock -%}
 
 {% block page_content %}
 {%- if frappe.form_dict.edit or frappe.form_dict.new -%}
 {% include "wiki/doctype/wiki_page/templates/edit.html" %}
-<!-- {%- elif frappe.form_dict.new -%}
-{% include "wiki/doctype/wiki_page/templates/new.html" %} -->
-{%- elif frappe.form_dict.revisions  -%}
-{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
-{%- elif frappe.form_dict.compare -%}
-{% include "wiki/doctype/wiki_page/templates/compare.html" %}
 {%- else -%}
 {% include "wiki/doctype/wiki_page/templates/show.html" %}
 {%- endif -%}

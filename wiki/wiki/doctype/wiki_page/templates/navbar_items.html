@@ -69,14 +69,12 @@
 		{% block navbar_right_extension %}{% endblock %}
 	{% endif %}
 
-	{% if top_bar_items and sidebar_items %}
 	<div class="d-block d-sm-none">
 		<hr>
-	{{ sidebar_items }}
+		<!--sidebar-->
 
 		<hr>
 	</div>
-	{% endif %}
 
 	{% include "templates/includes/navbar/navbar_login.html" %}
 

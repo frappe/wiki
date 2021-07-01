@@ -1,1 +1,29 @@
-{% extends "wiki/doctype/wiki_page/templates/wiki_page.html" %}
+{% extends "wiki/doctype/wiki_page/templates/wiki_doc.html" %}
+
+{%- block head_include %}
+{{ super() }}
+{{ include_style('wiki.bundle.css') }}
+{% endblock -%}
+
+{% block page_content %}
+    <div class="from-markdown">
+        <h1>{{ title }}</h1>
+        <h2>{{ revision.message }}</h2>
+        <p class="wiki-revision-meta">
+            {{ revision.owner }} edited on {{ frappe.utils.format_datetime(revision.creation, 'medium') }}
+        </p>
+    </div>
+    <div class="mt-6">
+        <div class="wiki-diff">
+            {{ diff or 'No changes to show' }}
+        </div>
+    </div>
+
+{% endblock %}
+
+
+{%- block navbar -%}
+{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+
+{%- endblock -%}
+

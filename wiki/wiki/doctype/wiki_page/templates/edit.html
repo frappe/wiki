@@ -10,45 +10,55 @@
 			<label class="sr-only" for="title_of_page">Title</label>
 			<input class="form-control" type="text" name="title_of_page" value="{{ doc.title }}">
 		</div>
+
 		<div class="form-group">
+
 			<label class="sr-only" for="content">Content</label>
+
 			<ul class="nav nav-tabs" role="tablist">
+
 				<li class="nav-item" role="presentation">
 					<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
 						id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
 						aria-selected="true">Write</a>
 				</li>
+
 				<li class="nav-item" role="presentation">
 					<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
 						aria-controls="preview" aria-selected="false">Preview</a>
 				</li>
-				{%- if not frappe.form_dict.new -%}
 
+				{%- if not frappe.form_dict.new -%}
 				<li class="nav-item" role="presentation">
 					<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
 						aria-selected="false">Compare</a>
 				</li>
 				{%- endif -%}
+
 				<li class="nav-item" role="presentation">
 					<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#attachment" role="tab"
 						aria-controls="attachment" aria-selected="false">Attachment</a>
 				</li>
-				{% if wiki_page_patch %}
 
+				{% if wiki_page_patch %}
 				<li class="nav-item" role="presentation">
 					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
 						id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
 						aria-selected="false">Discussion</a>
 				</li>
 				{% endif %}
+
 			</ul>
+
 			<div class="mt-4 tab-content">
+
 				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
 					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
 					<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
 					<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
 					<div class="wiki-write"></div>
 				</div>
+
 				<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
 					<div class="from-markdown wiki-preview"></div>
 				</div>
@@ -66,22 +76,18 @@
 				</div>
 
 				{% if wiki_page_patch %}
-
 				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
 					endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
 
 					{% include "wiki/doctype/wiki_page/templates/comment.html" %}
-
-
-
 				</div>
 				{% endif %}
+
 			</div>
 
 		</div>
 
 
-		</div>
 	</form>
 
 
@@ -114,38 +120,39 @@
 		new EditWiki();
 
 		var edit = new EditAsset();
-	frappe.boot = {{ boot }};
+		frappe.boot = {{ boot }};
 
 	</script>
 
 
 
-	{%- if  frappe.form_dict.new -%}
-	
-	<script>
-		let $new_page = $(`
-			<li class="sidebar-item" data-type="Wiki Page" data-name="new" data-new=1><div>
-				<div style="align-items: center;">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
-						<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-					</svg>
-				</div>
-				<div>
-					<a href="#" class="green" >
-						New Wiki Page
-					</a>
-				</div></div>
-			</li>
-		`)
-		
-		$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
-	
-	
-	</script>
+	{%- if frappe.form_dict.new -%}
 
-	{%- if script -%}
-	<script>{{ script }}</script>
-	{%- endif -%}
+		<script>
+			let $new_page = $(`
+				<li class="sidebar-item" data-type="Wiki Page" data-name="new" data-new=1><div>
+					<div style="align-items: center;">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
+							<path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+						</svg>
+					</div>
+					<div>
+						<a href="#" class="green" >
+							New Wiki Page
+						</a>
+					</div></div>
+				</li>
+			`)
+
+			$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
+
+
+		</script>
+
+		{%- if script -%}
+			<script>{ { script } }</script>
+		{%- endif -%}
+
 	{%- endif -%}
 
-	{% endblock %}
+{% endblock %}

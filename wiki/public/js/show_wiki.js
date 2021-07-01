@@ -1,26 +1,15 @@
 window.ShowWiki = class ShowWiki {
   constructor(opts) {
     $("document").ready(() => {
-      //$(`
-      //	<a class='text-muted new-wiki-page' href="/{{ path }}?new=true">+ New Page</a><br>
-      //	<a class='text-muted my-contributions' href="/contributions"> My Contributions</a>
-      //`).appendTo($('.web-sidebar') )
-
-
-      frappe
-      .call("wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page", {
-        wiki_page: window.location.pathname.slice(1),
-      })
-      .then((result) => {
-        // $(".doc-sidebar").empty().append(result.message);
-
-        this.activate_sidebars()
+      if (
+        window.location.pathname != "/revisions" &&
+        window.location.pathname != "/compare"
+      ) {
+        this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
-      
-      });
-      this.set_toc_highlighter();
-
+        this.set_toc_highlighter();
+      }
     });
   }
 
@@ -54,10 +43,12 @@ window.ShowWiki = class ShowWiki {
     let active_sidebar_item = $(".sidebar-item a.active");
     if (active_sidebar_item.length > 0) {
       active_sidebar_item
-        .parent().parent()
-        .parent().parent()
+        .parent()
+        .parent()
+        .parent()
+        .parent()
         .get(0)
-        .scrollIntoView(true,{
+        .scrollIntoView(true, {
           behavior: "smooth",
           block: "nearest",
         });
@@ -72,7 +63,11 @@ window.ShowWiki = class ShowWiki {
   }
 
   set_active_sidebar() {
-    $(".doc-sidebar,.web-sidebar").on("click", ".collapsible", this.toggle_sidebar);
+    $(".doc-sidebar,.web-sidebar").on(
+      "click",
+      ".collapsible",
+      this.toggle_sidebar
+    );
     $(".sidebar-group").children("ul").addClass("hidden");
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")

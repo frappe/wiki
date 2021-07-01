@@ -87,10 +87,6 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 
-
-		# TODO: Find better solution
-
-
 		try:
 			boot = frappe.sessions.get()
 		except Exception as e:
@@ -106,7 +102,6 @@ class WikiPage(WebsiteGenerator):
 		boot_json = re.sub(r"</script\>", "", boot_json)
 
 		context.boot = boot_json
-
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
 		context.script = wiki_settings.javascript
@@ -143,41 +138,6 @@ class WikiPage(WebsiteGenerator):
 			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 			return context
 
-		if frappe.form_dict.revisions:
-			context.title = "Revisions: " + self.title
-			revisions = frappe.db.get_all(
-				"Wiki Page Revision",
-				filters={"wiki_page": self.name},
-				fields=["message", "creation", "owner", "name", "raised_by"],
-			)
-			context.revisions = revisions
-			return context
-
-		if frappe.form_dict.compare:
-			from ghdiff import diff
-
-			revision = frappe.form_dict.compare
-			context.title = "Revision: " + revision
-			context.parents = [
-				{"route": "/" + self.route, "label": self.title},
-				{"route": "/" + self.route + "?revisions=true", "label": "Revisions"},
-			]
-
-			revision = frappe.get_doc("Wiki Page Revision", revision)
-
-			context.revision = revision
-			previous_revision_content = frappe.db.get_value(
-				"Wiki Page Revision",
-				filters={"creation": ("<", revision.creation), "wiki_page": self.name},
-				fieldname=["content"],
-				order_by="creation asc",
-			)
-
-			if not previous_revision_content:
-				return
-
-			context.diff = diff(previous_revision_content, revision.content, css=False)
-			return context
 
 		context.metatags = {"title": self.title}
 		# context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
@@ -190,7 +150,6 @@ class WikiPage(WebsiteGenerator):
 		context.page_toc_html = html.toc_html
 		context.show_sidebar = True
 		context.hide_login = True
-		
 
 
 	def get_sidebar_items(self, context):
