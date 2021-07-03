@@ -29,8 +29,7 @@
 		</div>
 		<div>
 			{% if item.type != 'input' %}
-			<a href="{{ item.item }}" class="{{ 'active' if pathname == item_route else '' }}" {% if item.target
-				%}target="{{ item.target }}" {% endif %}>
+			<a href="{{ item.item }}" {% if item.target %}target="{{ item.target }}" {% endif %}>
 				{{ item.title or item.label or item.name }}
 			</a>
 			{% else %}
