@@ -34,7 +34,7 @@ class WikiPageRenderer(DocumentPage):
 		html = self.get_html()
 		html = self.add_csrf_token(html)
 		html = self.add_sidebar(html)
-		return build_response(self.path, html, self.http_status_code or 200, self.headers, preload_assets=False)
+		return build_response(self.path, html, self.http_status_code or 200, self.headers)
 
 	def add_sidebar(self, html):
 		return reg.sub(get_sidebar_for_page(self.path), html)
