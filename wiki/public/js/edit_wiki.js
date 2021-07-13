@@ -171,9 +171,14 @@ window.EditWiki = class EditWiki {
                             </li>
                         `);
 
-                $new_page.insertAfter(
-                  $(".doc-sidebar").find("a.active").closest(".sidebar-item")
+
+
+                $new_page.appendTo(
+                  $(".doc-sidebar .sidebar-items")
+                    .children(".list-unstyled")
+                    .not(".hidden")
                 );
+
               },
             });
           } else {

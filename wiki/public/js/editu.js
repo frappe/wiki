@@ -226,7 +226,7 @@ window.EditAsset = class EditAsset {
   }
 
   render_preview() {
-    $('a[data-toggle="tab"]').on("shown.bs.tab", (e) => {
+    $('a[data-toggle="tab"]').on("click", (e) => {
       let activeTab = $(e.target);
 
       if (
