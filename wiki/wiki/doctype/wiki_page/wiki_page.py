@@ -24,6 +24,7 @@ class WikiPage(WebsiteGenerator):
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
 		revision.insert()
+		frappe.cache().hdel('website_page', self.name)
 
 	def on_trash(self):
 		for name in frappe.get_all(
