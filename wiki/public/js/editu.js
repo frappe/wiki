@@ -26,7 +26,7 @@ window.EditAsset = class EditAsset {
           label: __("Edit Code - HTML (Experimental)"),
           fieldname: "code_html",
           fieldtype: "Text Editor",
-          default: $(".wiki-content-html").get(0).innerHTML,
+          default: $(".wiki-content-html").html(),
           depends_on: 'eval:doc.type=="Rich-Text"',
         },
         {
@@ -34,7 +34,7 @@ window.EditAsset = class EditAsset {
           fieldname: "code_md",
           fieldtype: "Code",
           options: "Markdown",
-          default: $(".wiki-content-md").get(0).innerHTML,
+          default: $(".wiki-content-md").text(),
           depends_on: 'eval:doc.type=="Markdown"',
         },
       ],
