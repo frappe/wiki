@@ -176,7 +176,7 @@ window.EditWiki = class EditWiki {
                 $new_page.appendTo(
                   $(".doc-sidebar .sidebar-items")
                     .children(".list-unstyled")
-                    .not(".hidden")
+                    .not(".hidden").first()
                 );
 
               },
@@ -208,7 +208,7 @@ window.EditWiki = class EditWiki {
             $new_page.appendTo(
               $(".doc-sidebar .sidebar-items")
                 .children(".list-unstyled")
-                .not(".hidden")
+                .not(".hidden").first()
             );
 
             $(".web-sidebar ul").each(function () {
