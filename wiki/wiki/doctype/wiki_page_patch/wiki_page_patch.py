@@ -100,7 +100,7 @@ class WikiPagePatch(Document):
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
 						"type": item['type'],
-						"item": item.get('name'),
+						"item":wiki_sidebar.name if wiki_sidebar.get('name') == 'new_sidebar' else wiki_sidebar.get('name'),
 						"parent": sidebar,
 						'parenttype': 'Wiki Sidebar',
 						'parentfield': 'sidebar_items'
