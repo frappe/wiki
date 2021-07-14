@@ -22,9 +22,7 @@ class WikiPagePatch(Document):
 		add_comment_to_patch(self.name, self.message)
 		frappe.db.commit()
 
-	def	update_old__page(self, wiki_page):
-		wiki_page.update_page(wiki_page.title, self.new_code, self.message, self.raised_by)
-		return
+
 
 	def on_submit(self):
 
@@ -32,32 +30,11 @@ class WikiPagePatch(Document):
 			frappe.throw(_("Please approve the Request before submitting"))
 		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page)
 
-		if not self.new:
-			self.update_old__page(wiki_page)
-			self.update_sidebars()
-
-			return
-
-		wiki_sidebar_parent = self.get_wiki_sidebar_parent(wiki_page)
-
-		self.create_new_wiki_page(wiki_page)
-
-		# self.create_new_wiki_sidebar(wiki_sidebar_parent)
-
+		if self.new:
+			self.create_new_wiki_page(wiki_page)
+		else:
+			self.update_old_page(wiki_page)
 		self.update_sidebars()
-
-
-
-	def get_wiki_sidebar_parent(self, wiki_page):
-
-		wiki_sidebar_parent = frappe.get_all(
-			"Wiki Sidebar Item", filters=[["item", "=", wiki_page.name]], fields=["parent"]
-		)
-
-		if not wiki_sidebar_parent:
-			frappe.throw("Unable to decide Sidebar")
-
-		return wiki_sidebar_parent[0].get("parent")
 
 	def create_new_wiki_page(self, wiki_page):
 		self.new_wiki_page = frappe.new_doc("Wiki Page")
@@ -72,18 +49,9 @@ class WikiPagePatch(Document):
 		self.new_wiki_page.update(wiki_page_dict)
 		self.new_wiki_page.save()
 
-	def create_new_wiki_sidebar(self, wiki_sidebar_parent):
-		new_wiki_sidebar_item = frappe.new_doc("Wiki Sidebar Item")
-		new_wiki_sidebar_item_dict = {
-			"item": self.new_wiki_page.name,
-			"parent": wiki_sidebar_parent,
-			"parenttype": "Wiki Sidebar",
-			"route": self.new_wiki_page.route,
-			"parentfield": "sidebar_items",
-		}
-
-		new_wiki_sidebar_item.update(new_wiki_sidebar_item_dict)
-		new_wiki_sidebar_item.save()
+	def	update_old_page(self, wiki_page):
+		wiki_page.update_page(wiki_page.title, self.new_code, self.message, self.raised_by)
+		return
 
 	def update_sidebars(self):
 		sidebars = json.loads(self.new_sidebar_items)
@@ -92,16 +60,22 @@ class WikiPagePatch(Document):
 		if sidebar_items:
 			for key in frappe.cache().hgetall('wiki_sidebar').keys():
 				frappe.cache().hdel('wiki_sidebar', key)
-
+			i = 0
 			for sidebar, items in sidebar_items:
 				for idx, item in enumerate(items):
+					print(idx, item)
 					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'parent', sidebar)
 					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'idx', idx)
+				i =i+1
+				if i == 4:
+					frappe.db.commit()
+					exit(0)
 
 	def create_new_child(self, sidebars):
 		for sidebar, items in sidebars.items():
 			for item in items:
 				if item['name'] == 'new':
+					# new wiki page was created but not added to the sidebar
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
 						"type": item['type'],
@@ -113,9 +87,10 @@ class WikiPagePatch(Document):
 					wiki_sidebar_item.update(wiki_sidebar_item_dict)
 					wiki_sidebar_item.save()
 					item['name'] = wiki_sidebar_item.name
+
 				elif item.get('new'):
 					if  item['type'] == 'Wiki Sidebar':
-
+						# Create New Sidebar
 						wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 						wiki_sidebar_dict = {
 							"route": item.get('name'),
@@ -123,6 +98,8 @@ class WikiPagePatch(Document):
 						}
 						wiki_sidebar.update(wiki_sidebar_dict)
 						wiki_sidebar.save()
+
+					# add new sidebar or page to wiki sidebar
 
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
@@ -135,6 +112,7 @@ class WikiPagePatch(Document):
 					wiki_sidebar_item.update(wiki_sidebar_item_dict)
 					wiki_sidebar_item.save()
 					item['name'] = wiki_sidebar_item.name
+
 
 @frappe.whitelist()
 def add_comment_to_patch(reference_name, content):
