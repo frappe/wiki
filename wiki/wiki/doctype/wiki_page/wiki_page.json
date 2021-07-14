@@ -17,11 +17,12 @@
  ],
  "fields": [
   {
+   "allow_in_quick_entry": 1,
    "default": "No Content",
    "description": "It is recommended that you start your first heading with h2, as the title will be the h1.",
    "fieldname": "content",
    "fieldtype": "Code",
-   "in_list_view": 1,
+   "in_preview": 1,
    "label": "Content",
    "options": "Markdown",
    "reqd": 1
@@ -76,9 +77,14 @@
    "group": "Linked Documents",
    "link_doctype": "Wiki Page Revision",
    "link_fieldname": "wiki_page"
+  },
+  {
+   "group": "Linked Documents",
+   "link_doctype": "Wiki Page Patch",
+   "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-06-17 23:34:18.423728",
+ "modified": "2021-07-14 09:42:26.758297",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

@@ -9,71 +9,35 @@
  "engine": "InnoDB",
  "field_order": [
   "route",
-  "sidebar_items",
-  "lft",
-  "rgt",
-  "is_group",
-  "old_parent",
-  "parent_wiki_sidebar",
-  "title"
+  "title",
+  "sidebar_items"
  ],
  "fields": [
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "sidebar_items",
    "fieldtype": "Table",
    "label": "Sidebar Items",
    "options": "Wiki Sidebar Item"
   },
   {
-   "fieldname": "lft",
-   "fieldtype": "Int",
-   "hidden": 1,
-   "label": "Left",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "rgt",
-   "fieldtype": "Int",
-   "hidden": 1,
-   "label": "Right",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "is_group",
-   "fieldtype": "Check",
-   "label": "Is Group"
-  },
-  {
-   "fieldname": "old_parent",
-   "fieldtype": "Link",
-   "label": "Old Parent",
-   "options": "Wiki Sidebar"
-  },
-  {
-   "fieldname": "parent_wiki_sidebar",
-   "fieldtype": "Link",
-   "label": "Parent Wiki Sidebar",
-   "options": "Wiki Sidebar"
-  },
-  {
+   "allow_in_quick_entry": 1,
    "fieldname": "route",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Route",
+   "label": "Sidebar Name",
    "reqd": 1,
    "unique": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "title",
    "fieldtype": "Data",
    "label": "Title"
   }
  ],
  "links": [],
- "modified": "2021-06-08 18:24:15.627922",
+ "modified": "2021-07-14 09:46:23.477838",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar",
@@ -93,7 +57,6 @@
    "write": 1
   }
  ],
- "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "track_changes": 1
