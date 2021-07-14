@@ -44,9 +44,9 @@ frappe.ui.form.on("Wiki Page Patch", {
       })
       .then((result) => {
         $("#old_sidebar").empty().append(result.message);
-		$(".list-unstyled").removeClass("hidden");
-    $(".list-unstyled").removeClass("list-unstyled");
-    $(".web-sidebar").find("svg").remove();
+        $(".form-section .list-unstyled").removeClass("hidden");
+        $(".form-section .list-unstyled").removeClass("list-unstyled");
+        $(".form-section .web-sidebar").find("svg").remove();
       });
 
     
