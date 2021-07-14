@@ -92,11 +92,12 @@ window.EditAsset = class EditAsset {
 				type: items[item].dataset.type,
 				new: items[item].dataset.new,
 				title: items[item].dataset.title,
+				group_name: items[item].dataset.groupName,
 			})
 		});
 
 		$('.doc-sidebar [data-type="Wiki Sidebar"]').each(function () {
-			let name = $(this).get(0).dataset.name;
+			let name = $(this).get(0).dataset.groupName;
 			side[name] = [];
 			let items = $(this).children("ul").children("li");
 			items.each( (item)=> {
@@ -106,6 +107,7 @@ window.EditAsset = class EditAsset {
 					type: items[item].dataset.type,
 					new: items[item].dataset.new,
 					title: items[item].dataset.title,
+					group_name: items[item].dataset.groupName,
 				});
 			});
 		});

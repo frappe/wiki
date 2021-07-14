@@ -60,17 +60,14 @@ class WikiPagePatch(Document):
 		if sidebar_items:
 			for key in frappe.cache().hgetall('wiki_sidebar').keys():
 				frappe.cache().hdel('wiki_sidebar', key)
-			i = 0
+
 			for sidebar, items in sidebar_items:
 				for idx, item in enumerate(items):
-					print(idx, item)
+					if sidebar == 'docs/v13/user/manual/en':
+						print(idx, item)
 					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'parent', sidebar)
 					frappe.db.set_value('Wiki Sidebar Item', item['name'], 'idx', idx)
-				i =i+1
-				if i == 4:
-					frappe.db.commit()
-					exit(0)
-
+				
 	def create_new_child(self, sidebars):
 		for sidebar, items in sidebars.items():
 			for item in items:
@@ -93,12 +90,11 @@ class WikiPagePatch(Document):
 						# Create New Sidebar
 						wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 						wiki_sidebar_dict = {
-							"route": item.get('name'),
+							"route": item.get('group_name'),
 							"title": item.get('title'),
 						}
 						wiki_sidebar.update(wiki_sidebar_dict)
 						wiki_sidebar.save()
-
 					# add new sidebar or page to wiki sidebar
 
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')

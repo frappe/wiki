@@ -211,7 +211,7 @@ window.EditWiki = class EditWiki {
             });
           } else {
             let $new_page = $(`
-								<li class="sidebar-group" data-type="Wiki Sidebar" data-name="${fields.route}" 
+								<li class="sidebar-group" data-type="Wiki Sidebar" data-name="new-sidebar" data-group-name="${fields.route}" 
 								data-new=1 data-title="${fields.title}" draggable="false">
 										<div class="collapsible">
 										<span class="drop-icon hidden">

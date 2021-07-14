@@ -17,8 +17,9 @@ class WikiSidebar(Document):
 				children = sidebar.get_children()
 				out.append({
 					"group_title": sidebar_item.title, 
-					"group_items": children, 
-					"name": sidebar.name, 
+					"group_items": children,
+					"name": sidebar_item.name,
+					"group_name": sidebar.name,
 					"type": "Wiki Sidebar"
 				})
 		return out

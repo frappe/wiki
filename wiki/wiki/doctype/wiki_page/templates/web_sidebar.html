@@ -1,5 +1,10 @@
 {% macro render_sidebar_item(item) %}
-<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.label or item.name}}">
+<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" 
+		data-type="{{item.type}}" 
+		data-name="{{item.name}}" 
+		data-title="{{item.title or item.group_title or item.name}}"
+		data-group-name="{{item.group_name or 'sidebar-item'}}"
+	>
 	{%- if item.group_title -%}
 	<div class="collapsible">
 		<span class='drop-icon hidden'>

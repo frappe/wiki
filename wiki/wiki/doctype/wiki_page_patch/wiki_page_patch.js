@@ -23,13 +23,13 @@ frappe.ui.form.on("Wiki Page Patch", {
               sidebar_items[sidebar][item].title +
               "</li>" +
               "<ul class=" +
-              sidebar_items[sidebar][item].title +
+              sidebar_items[sidebar][item].group_name +
               "></ul>"
           );
         } else {
           $(target).append(
             "<li class=" +
-              sidebar_items[sidebar][item].title +
+              sidebar_items[sidebar][item].group_name +
               ">" +
               sidebar_items[sidebar][item].title +
               "</li>"
@@ -44,6 +44,7 @@ frappe.ui.form.on("Wiki Page Patch", {
       })
       .then((result) => {
         $("#old_sidebar").empty().append(result.message);
+        $("#old_sidebar .h6").removeClass("h6");
         $(".form-section .list-unstyled").removeClass("hidden");
         $(".form-section .list-unstyled").removeClass("list-unstyled");
         $(".form-section .web-sidebar").find("svg").remove();
