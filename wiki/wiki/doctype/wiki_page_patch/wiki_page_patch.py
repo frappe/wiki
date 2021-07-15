@@ -35,6 +35,8 @@ class WikiPagePatch(Document):
 		else:
 			self.update_old_page(wiki_page)
 		self.update_sidebars()
+		for key in frappe.cache().hgetall('wiki_sidebar').keys():
+			frappe.cache().hdel('wiki_sidebar', key)
 
 	def create_new_wiki_page(self, wiki_page):
 		self.new_wiki_page = frappe.new_doc("Wiki Page")
@@ -58,9 +60,6 @@ class WikiPagePatch(Document):
 		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
 		if sidebar_items:
-			for key in frappe.cache().hgetall('wiki_sidebar').keys():
-				frappe.cache().hdel('wiki_sidebar', key)
-
 			for sidebar, items in sidebar_items:
 				for idx, item in enumerate(items):
 					if sidebar == 'docs/v13/user/manual/en':
@@ -86,6 +85,7 @@ class WikiPagePatch(Document):
 					item['name'] = wiki_sidebar_item.name
 
 				elif item.get('new'):
+					sidebar_name = item.get('name')
 					if  item['type'] == 'Wiki Sidebar':
 						# Create New Sidebar
 						wiki_sidebar = frappe.new_doc("Wiki Sidebar")
@@ -95,12 +95,13 @@ class WikiPagePatch(Document):
 						}
 						wiki_sidebar.update(wiki_sidebar_dict)
 						wiki_sidebar.save()
-					# add new sidebar or page to wiki sidebar
+						sidebar_name = wiki_sidebar.name
 
+					# add new sidebar or page to wiki sidebar
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
 						"type": item['type'],
-						"item":wiki_sidebar.name if  item.get('name') == 'new_sidebar' else  item.get('name'),
+						"item":sidebar_name,
 						"parent": sidebar,
 						'parenttype': 'Wiki Sidebar',
 						'parentfield': 'sidebar_items'
