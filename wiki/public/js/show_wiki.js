@@ -84,25 +84,43 @@ window.ShowWiki = class ShowWiki {
 	}
 
 	set_toc_highlighter() {
-		const observer = new IntersectionObserver((entries) => {
-			entries.forEach((entry) => {
-				const id = entry.target.getAttribute("id");
-				if (entry.intersectionRatio > 0) {
-					document
-						.querySelector(`li a[href="#${id}"]`)
-						.parentElement.classList.add("active");
-				} else {
-					document
-						.querySelector(`li a[href="#${id}"]`)
-						.parentElement.classList.remove("active");
+		$(document).ready(function() {
+			$(window).scroll(function() {
+				$(".page-toc a").removeClass("active")
+				currentAnchor().addClass("active")
+			})
+		});
+		
+		function tocItem(anchor) {
+			return $("[href=\"" + anchor + "\"]")
+		}
+		
+		function heading(anchor) {
+			return $("[id=" + anchor.substr(1) + "]")
+		}
+		
+		var _anchors = null
+		function anchors() {
+			if (!_anchors) {
+				_anchors = $(".page-toc a").map(function() {
+					return $(this).attr("href")
+				})
+			}
+			return _anchors
+		}
+		
+		function currentAnchor() {
+			var winY = window.pageYOffset
+			var currAnchor = null
+			anchors().each(function() {
+				var y = heading(this).position().top
+				if (y > winY + 150) {
+					currAnchor = this
+					return
 				}
-			});
-		});
-
-		// Track all sections that have an `id` applied
-		document.querySelectorAll("h2[id], h3[id]").forEach((section) => {
-			observer.observe(section);
-		});
+			})
+			return tocItem(currAnchor)
+		}
 	}
 
 	set_nav_buttons() {
