@@ -159,7 +159,7 @@ window.EditWiki = class EditWiki {
         },
         {
           fieldname: "route",
-          label: "Route",
+          label: "Name",
           fieldtype: "Data",
           depends_on: "eval: doc.type=='New Wiki Sidebar'",
           mandatory_depends_on: "eval: doc.type=='New Wiki Sidebar'",
