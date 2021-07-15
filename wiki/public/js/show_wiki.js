@@ -114,7 +114,7 @@ window.ShowWiki = class ShowWiki {
 			var currAnchor = null
 			anchors().each(function() {
 				var y = heading(this).position().top
-				if (y > winY + 150) {
+				if (y < winY + window.innerHeight * 0.23 ) {
 					currAnchor = this
 					return
 				}
