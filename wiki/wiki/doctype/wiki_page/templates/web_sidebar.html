@@ -27,11 +27,6 @@
 
 	{%- else -%}
 	<div>
-		<div style="align-items: center;">
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<circle cx="8" cy="8" r="1.33333" fill="#74808B"/>
-			</svg>
-		</div>
 		<div>
 			{% if item.type != 'input' %}
 			<a href="{{ item.item }}" {% if item.target %}target="{{ item.target }}" {% endif %}>
@@ -70,7 +65,7 @@
 
 	<li class="sidebar-item">
 
-	<a class=' new-wiki-page' href="/edit?wiki_page={{ path }}&&new=true">New Page</a>
+	<a class=' new-wiki-page' href="/edit?wiki_page={{path}}&&new=true">New Page</a>
 	</li>
 	<li class="sidebar-item">
 

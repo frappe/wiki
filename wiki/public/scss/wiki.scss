@@ -74,6 +74,8 @@ textarea.wiki-content {
 
   letter-spacing: -0.011em;
 
+  padding-left: 0.25rem;
+
   &:last-child {
     border-bottom: none;
   }
@@ -118,7 +120,7 @@ textarea.wiki-content {
     /* identical to box height, or 24px */
     color: #74808b;
     letter-spacing: -0.011em;
-    padding: 0.375rem 0 0.375rem 0.5rem;
+    padding: 0.375rem 0 0.375rem 0.8rem;
 
     div {
       display: flex;
