@@ -1,15 +1,10 @@
-{% extends "templates/doc.html" %}
+{% extends "wiki/doctype/wiki_page/templates/wiki_page.html" %}
 
 {%- block head_include %}
 {{ super() }}
 <link rel="stylesheet" href="contributions.css">
 
 {% endblock -%}
-
-
-
-
-
 
 
 {% block page_content %}
@@ -88,3 +83,7 @@
     </div>
 </div>
 {%- endblock -%}
+
+
+{% block page_sidebar %}
+{% endblock %}

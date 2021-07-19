@@ -61,13 +61,17 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 
 <div class="container-fluid doc-layout doc-container">
 	<div class="row no-gutters wiki-flex" {{ container_attributes() }}>
-		<div class="sidebar-column">
-			<aside class="doc-sidebar">
-				{% block page_sidebar %}
-				{% include "templates/includes/web_sidebar.html" %}
-				{% endblock %}
-			</aside>
-		</div>
+		{%- if  not no_sidebar -%}
+
+			<div class="sidebar-column">
+				<aside class="doc-sidebar">
+					{% block page_sidebar %}
+					{% include "templates/includes/web_sidebar.html" %}
+					{% endblock %}
+				</aside>
+			</div>
+		{%- endif -%}
+
 		<div class="main-column doc-main">
 			<div class="page-content-wrapper">
 				{% block page_container %}

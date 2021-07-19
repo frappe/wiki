@@ -194,7 +194,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-06-22 12:07:12.834259",
+ "modified": "2021-07-19 20:00:04.563397",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
@@ -228,6 +228,7 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "title_field": "message",
  "track_changes": 1,
  "track_seen": 1,
  "track_views": 1

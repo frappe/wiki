@@ -5,7 +5,25 @@ window.EditAsset = class EditAsset {
 		this.add_attachment_handler();
 		this.set_listeners();
 		this.create_comment_box();
+		this.make_title_editable()
+	}
 
+	make_title_editable () {
+		const title_span = $('.edit-title>span')
+		const title_input = $('.edit-title>input')
+		title_span.dblclick(() => {
+			console.log("sdhjgf")
+			title_span.addClass('hide')
+			title_input.removeClass('hide')
+			title_input.val(title_span.text())
+			title_input.focus()
+		})
+		title_input.focusout(() => {
+			console.log("sdhjgf2")
+			title_span.removeClass('hide')
+			title_input.addClass('hide')
+			title_span.text( title_input.val())
+		})
 	}
 
 
@@ -17,7 +35,7 @@ window.EditAsset = class EditAsset {
 					fieldname: "type",
 					fieldtype: "Select",
 					default: "Markdown",
-					options: "Markdown\nRich-Text",
+					options: "Markdown\nRich-Text(Experimental)",
 				},
 				{
 					fieldtype: "Column Break",
@@ -26,14 +44,12 @@ window.EditAsset = class EditAsset {
 					fieldtype: "Section Break",
 				},
 				{
-					label: __("Edit Code - HTML (Experimental)"),
 					fieldname: "code_html",
 					fieldtype: "Text Editor",
 					default: $(".wiki-content-html").html(),
-					depends_on: 'eval:doc.type=="Rich-Text"',
+					depends_on: 'eval:doc.type=="Rich-Text(Experimental)"',
 				},
 				{
-					label: __("Edit Code - Markdown"),
 					fieldname: "code_md",
 					fieldtype: "Code",
 					options: "Markdown",

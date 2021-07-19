@@ -4,6 +4,7 @@ from frappe.core.page.background_jobs.background_jobs import get_info
 
 def get_context(context):
 	context.no_cache = 1
+	context.no_sidebar = 1
 	color_map = {
 		'Changes Requested': 'blue',
 		'Under Review': 'pink',

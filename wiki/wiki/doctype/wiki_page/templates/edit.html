@@ -1,19 +1,22 @@
-<span class="h2">{{ title }}</span>
-<span class='btn btn-xs btn-primary submit-wiki-page pull-right'>Submit</div>
+<div  class = 'edit-page-head' >
 
-	<form class="mt-8" method="POST">
+	<div class='edit-title'>
+		<span class="h4">{{ doc.title }}</span>
+
+		<input class="form-control hide" type="text" name="title_of_page" value="{{ doc.title }}">
+	</div>
+
+	<div class='btn btn-xs btn-primary submit-wiki-page'>  Submit Changes  </div>
+</div>
+	<form class="mt-8 edit-form" method="POST">
 		<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 		<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
 		<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
 		<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
-		<div class="form-group">
-			<label class="sr-only" for="title_of_page">Title</label>
-			<input class="form-control" type="text" name="title_of_page" value="{{ doc.title }}">
-		</div>
+
 
 		<div class="form-group">
 
-			<label class="sr-only" for="content">Content</label>
 
 			<ul class="nav nav-tabs" role="tablist">
 
@@ -128,8 +131,8 @@
 
 	{%- if frappe.form_dict.new -%}
 
-		<script>
-			let $new_page = $(`
+	<script>
+		let $new_page = $(`
 				<li class="sidebar-item" data-type="Wiki Page" data-name="new" data-new=1><div>
 					<div style="align-items: center;">
 						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dot" viewBox="0 0 16 16">
@@ -144,15 +147,15 @@
 				</li>
 			`)
 
-			$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
+		$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
 
 
-		</script>
+	</script>
 
-		{%- if script -%}
-			<script>{ { script } }</script>
-		{%- endif -%}
+	{%- if script -%}
+	<script>{ { script } }</script>
+	{%- endif -%}
 
 	{%- endif -%}
 
-{% endblock %}
+	{% endblock %}
