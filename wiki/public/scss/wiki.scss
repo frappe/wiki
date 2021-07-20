@@ -161,6 +161,7 @@ textarea.wiki-content {
       padding-top: 1rem;
       padding-bottom: 0;
       margin-right: -0.5rem;
+      margin-left: -0.8rem;
   }
 }
 
@@ -473,4 +474,11 @@ navbar
 		background-color: var(--skeleton-bg);
 
   }
+}
+
+.contributions-header {
+  margin: 3rem 0 1rem 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 16px;
 }

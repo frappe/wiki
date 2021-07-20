@@ -6,21 +6,8 @@
 	margin-bottom: 0px;
 	margin-top: 0px;
 }
-
-thead {
-	background-color: #F4F5F6;
-	border-radius: 4px;
-}
-
-thead > tr {
-	border-radius: 4px;
-}
-
-thead > tr > th:first-child {
-	border-radius: 4px 0 0 4px;
-}
-thead > tr > th:last-child {
-	border-radius: 0 4px 4px 0;
+thead td {
+    border-top: 0 !important;;
 }
 
 .worker-name {
@@ -57,4 +44,8 @@ thead > tr > th:last-child {
 	align-items: flex-end;
 	margin-top: 15px;
 	font-size: 14px;
+}
+
+body {
+	background-color: #F0F0F0;
 }
