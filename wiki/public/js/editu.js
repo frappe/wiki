@@ -12,14 +12,12 @@ window.EditAsset = class EditAsset {
 		const title_span = $('.edit-title>span')
 		const title_input = $('.edit-title>input')
 		title_span.dblclick(() => {
-			console.log("sdhjgf")
 			title_span.addClass('hide')
 			title_input.removeClass('hide')
 			title_input.val(title_span.text())
 			title_input.focus()
 		})
 		title_input.focusout(() => {
-			console.log("sdhjgf2")
 			title_span.removeClass('hide')
 			title_input.addClass('hide')
 			title_span.text( title_input.val())

@@ -156,11 +156,11 @@ textarea.wiki-content {
 .doc-sidebar {
 
     .web-sidebar {
-      margin-top: 8px;
+      margin-top: 10px;
       margin-bottom: 8px;
       padding-top: 1rem;
       padding-bottom: 0;
-      margin-right: 1rem;
+      margin-right: -0.5rem;
   }
 }
 
@@ -275,7 +275,7 @@ textarea.wiki-content {
 }
 
 .page-toc {
-  flex: 1.25;
+  flex: 1;
 
   div {
     padding-top: 2rem;
