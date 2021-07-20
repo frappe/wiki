@@ -39,6 +39,24 @@ window.EditAsset = class EditAsset {
 					fieldtype: "Column Break",
 				},
 				{
+					fieldname: "attachment_controls",
+					fieldtype: "HTML",
+					options: `
+						<div class='attachment-controls '>
+							<div class='show-attachments'>
+								<i class="octicon octicon-file-media"></i>
+								<span class='number'>0</span>&nbsp;attachments
+							</div>&nbsp;&nbsp;
+							<div class='add-attachment-wiki'>
+								<span class='btn btn-xs'>
+									<i class="octicon octicon-cloud-upload"></i>&nbsp;
+									Upload Attachment
+								</span>
+							</div>
+						</div>
+					`,
+				},
+				{
 					fieldtype: "Section Break",
 				},
 				{
@@ -59,6 +77,22 @@ window.EditAsset = class EditAsset {
 		});
 		this.code_field_group.make();
 		$(".wiki-write .form-section:last").removeClass("empty-section");
+		this.add_attachment_popover()
+	}
+
+	add_attachment_popover() {
+		let picker_wrapper = $('<div>skjdfjs</div>');
+
+		$(".show-attachments").popover({
+			trigger: 'click',
+			placement: 'bottom',
+
+			content: () => {
+				
+				return this.build_attachment_table()
+			},
+			html: true
+		});
 	}
 
 	get_markdown() {
@@ -188,38 +222,41 @@ window.EditAsset = class EditAsset {
 				if (!this.attachments) this.attachments = [];
 				if (!this.save_paths) this.save_paths = {};
 				this.attachments.push(file_doc);
-				this.build_attachment_table();
+				$('.wiki-attachment').empty().append(this.build_attachment_table());
+				$('.attachment-controls').find('.number').text(this.attachments.length)
 			},
 		});
 	}
 
 	build_attachment_table() {
-		var wrapper = $(".wiki-attachment");
+		var wrapper = $('<div class="wiki-attachment"></div>');;
 		wrapper.empty();
 
 		var table = $(this.get_attachment_table_header_html()).appendTo(wrapper);
+		if (!this.attachments || !this.attachments.length ) return 'No attachments uploaded'
 
 		this.attachments.forEach((f) => {
 			const row = $("<tr></tr>").appendTo(table.find("tbody"));
 			$(`<td>${f.file_name}</td>`).appendTo(row);
-			$(`<td>${f.file_url}</td>`).appendTo(row);
+			// $(`<td>${f.file_url}</td>`).appendTo(row);
 			$(`<td>
-					<a class="btn btn-default btn-xs center delete-button"  data-name = "${f.file_name}" >
-						Delete
-					</a>
-				</td>`).appendTo(row);
+			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="${f.file_url}" data-name = "${f.file_name}" >
+				Copy Link
+			</a>
+			</td>`).appendTo(row);
+			$(`<td>
+
+			<a class="btn btn-default btn-xs  center delete-button"  data-name = "${f.file_name}" >
+			<svg class="icon icon-sm"><use xlink:href="#icon-delete"></use></svg>
+
+			</a>
+			</td>`).appendTo(row);
 		});
+		return wrapper
 	}
 
 	get_attachment_table_header_html() {
-		return `<table class="table table-bordered attachment-table" style="cursor:pointer; margin:0px;">
-			<thead>
-				<tr>
-					<th style="width: 30%">' ${__("File Name")}</th>
-					<th style="width: 50%">${__("Use this Url")} </th>
-					<th>${__("Actions")} </th>
-				</tr>
-			</thead>
+		return `<table class="table  attachment-table" ">
 			<tbody></tbody>
 		</table>`;
 	}
@@ -227,7 +264,11 @@ window.EditAsset = class EditAsset {
 	set_listeners() {
 		var me = this;
 
-		$(` .wiki-attachment `).on("click", `.delete-button`, function () {
+		$(`body`).on("click", `.copy-link`, function () {
+			frappe.utils.copy_to_clipboard($(this).attr("data-link"))
+		});
+
+		$(`body`).on("click", `.delete-button`, function () {
 			frappe.confirm(
 				`Are you sure you want to delete the file "${$(this).attr(
 					"data-name"
@@ -237,8 +278,10 @@ window.EditAsset = class EditAsset {
 						if (f.file_name == $(this).attr("data-name")) {
 							object.splice(index, 1);
 						}
-						me.build_attachment_table();
 					});
+					$('.wiki-attachment').empty().append(me.build_attachment_table());
+					$('.attachment-controls').find('.number').text(me.attachments.length)
+
 				}
 			);
 		});

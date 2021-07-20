@@ -8,6 +8,7 @@
 @import "frappe/public/scss/desk/timeline";
 @import "frappe/public/scss/desk/form";
 @import "frappe/public/css/fonts/inter/inter";
+@import "frappe/public/css/octicons/octicons.css";
 
 textarea.wiki-content {
   font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
@@ -481,4 +482,34 @@ navbar
   font-size: 20px;
   font-weight: 700;
   line-height: 16px;
+}
+
+
+.attachment-controls {
+  max-height: 28px;
+  display: flex;
+  justify-content: flex-end;
+
+  .show-attachments {
+    padding: 4px 8px;
+    color: $primary
+  }
+}
+
+div[data-fieldname="type"] {
+
+  .form-group {
+    margin-bottom: 0;
+  }
+  .clearfix {
+    display: none;
+  }
+
+}
+
+.popover {
+  max-width: 400px;
+  td {
+    border-top:0;
+  }
 }

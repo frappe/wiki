@@ -38,11 +38,6 @@
 				</li>
 				{%- endif -%}
 
-				<li class="nav-item" role="presentation">
-					<a class="nav-link" id="attachment-tab" data-toggle="tab" href="#attachment" role="tab"
-						aria-controls="attachment" aria-selected="false">Attachment</a>
-				</li>
-
 				{% if wiki_page_patch %}
 				<li class="nav-item" role="presentation">
 					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
@@ -71,12 +66,6 @@
 					<div class="from-markdown wiki-diff"></div>
 				</div>
 				{%- endif -%}
-
-				<div class="tab-pane fade" id="attachment" role="tabpanel" aria-labelledby="attachment-tab">
-					<div class="wiki-attachment"></div>
-					<br>
-					<span class='btn add-attachment-wiki'>Upload Attachment</span>
-				</div>
 
 				{% if wiki_page_patch %}
 				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
