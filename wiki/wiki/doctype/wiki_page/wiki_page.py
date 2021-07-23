@@ -118,8 +118,19 @@ class WikiPage(WebsiteGenerator):
 			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 			context.title = "New Wiki Page"
 			self.title='New Wiki Page'
-			self.content = "New Wiki Page"
-			return
+			context.content_md = "New Wiki Page"
+			context.content_html = "New Wiki Page"
+			if frappe.form_dict.wiki_page_patch:
+				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
+				self.content = frappe.db.get_value(
+					"Wiki Page Patch", context.wiki_page_patch, "new_code"
+				)
+				context.comments = get_comments(
+					"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
+				)
+			context.content_md = self.content
+			context.content_html = frappe.utils.md_to_html(self.content)
+			return context
 
 		if frappe.form_dict.edit:
 			if not can_edit:
@@ -183,7 +194,7 @@ class WikiPage(WebsiteGenerator):
 
 
 @frappe.whitelist()
-def preview(content, name, new, type):
+def preview(content, name, new, type, diff_css=False):
 	if type == "Rich-Text":
 		content = to_markdown(content)
 	html = frappe.utils.md_to_html(content)
@@ -192,8 +203,8 @@ def preview(content, name, new, type):
 	from ghdiff import diff
 
 	old_content = frappe.db.get_value("Wiki Page", name, "content")
-	diff = diff(old_content, content, css=False)
-	return {"html": html, "diff": diff}
+	diff = diff(old_content, content, css=diff_css)
+	return {"html": html, "diff": diff, "orignal_preview": frappe.utils.md_to_html(old_content)}
 
 
 @frappe.whitelist(methods=["POST"])
