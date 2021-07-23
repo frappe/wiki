@@ -57,7 +57,6 @@
 {% endmacro %}
 
 {% macro my_account() %}
-{% if frappe.user != 'Guest' and frappe.show_my_account %}
 <ul class="list-unstyled">
 	<li class="sidebar-item">
 		<a href="/me">{{ _("My Account") }}</a>
@@ -72,7 +71,6 @@
 	<a class=' my-contributions' href="/contributions"> My Contributions</a>
 	</li>
 </ul>
-{% endif %}
 {% endmacro %}
 
 <div class="web-sidebar" data-name="{{docs_search_scope}}">

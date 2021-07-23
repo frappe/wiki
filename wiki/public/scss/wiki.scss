@@ -162,7 +162,11 @@ textarea.wiki-content {
       padding-top: 1rem;
       padding-bottom: 0;
       margin-right: -0.5rem;
-      margin-left: -0.8rem;
+
+      .sidebar-items>.list-unstyled:first-child {
+        margin-left: -0.8rem;
+    }
+
   }
 }
 
@@ -513,3 +517,5 @@ div[data-fieldname="type"] {
     border-top:0;
   }
 }
+
+
