@@ -64,7 +64,7 @@
 
 	<li class="sidebar-item">
 
-	<a class=' new-wiki-page' href="/edit?wiki_page={{path}}&&new=true">New Page</a>
+	<a class=' new-wiki-page' href="placeholder_link">New Page</a>
 	</li>
 	<li class="sidebar-item">
 
@@ -86,3 +86,10 @@
 </div>
 
 
+
+<script>
+	frappe.ready(()=> {
+		const edit_link = `/edit?wiki_page=${window.location.pathname.slice(1)}&&new=true`
+		$('.web-sidebar').find('.new-wiki-page').attr('href', edit_link)
+	})
+</script>

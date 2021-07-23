@@ -16,7 +16,7 @@ class WikiSidebar(Document):
 				sidebar = frappe.get_doc('Wiki Sidebar', sidebar_item.item)
 				children = sidebar.get_children()
 				out.append({
-					"group_title": sidebar_item.title, 
+					"group_title": sidebar_item.title,
 					"group_items": children,
 					"name": sidebar_item.name,
 					"group_name": sidebar.name,
@@ -29,8 +29,7 @@ class WikiSidebar(Document):
 		topmost = self.find_topmost(self.name)
 
 		sidebar_html = frappe.cache().hget('wiki_sidebar', topmost)
-
-		if not sidebar_html:
+		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
 			sidebar_items = frappe.get_doc('Wiki Sidebar', topmost).get_children()
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items

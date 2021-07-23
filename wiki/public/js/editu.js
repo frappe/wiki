@@ -78,6 +78,13 @@ window.EditAsset = class EditAsset {
 		this.code_field_group.make();
 		$(".wiki-write .form-section:last").removeClass("empty-section");
 		this.add_attachment_popover()
+		setTimeout(() => {
+			// expand_code_editor
+			const code_md = this.code_field_group.get_field('code_md')
+			code_md.expanded = !this.expanded;
+			code_md.refresh_height();
+			code_md.toggle_label();
+		}, 120)
 	}
 
 	add_attachment_popover() {
@@ -88,7 +95,6 @@ window.EditAsset = class EditAsset {
 			placement: 'bottom',
 
 			content: () => {
-				
 				return this.build_attachment_table()
 			},
 			html: true
