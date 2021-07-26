@@ -84,12 +84,12 @@ class WikiPage(WebsiteGenerator):
 				context.parents = parents
 
 	def get_context(self, context):
-		self.verify_permission("read")
-
-		self.set_crumbs(context)
-
+		self.verify_permission("read")		self.set_crumbs(context)
+		wiki_settings = frappe.get_single("Wiki Settings")
+		context.banner_image = wiki_settings.logo
+		context.script = wiki_settings.javascript
+		context.docs_search_scope = ""
 		context.metatags = {"title": self.title}
-		# context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision", {"wiki_page": self.name}
