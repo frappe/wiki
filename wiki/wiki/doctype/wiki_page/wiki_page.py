@@ -84,7 +84,8 @@ class WikiPage(WebsiteGenerator):
 				context.parents = parents
 
 	def get_context(self, context):
-		self.verify_permission("read")		self.set_crumbs(context)
+		self.verify_permission("read")
+		self.set_crumbs(context)
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
 		context.script = wiki_settings.javascript

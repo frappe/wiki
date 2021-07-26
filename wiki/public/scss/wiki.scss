@@ -42,13 +42,13 @@ textarea.wiki-content {
 
     div {
       padding: 0.25rem 0.5rem;
-      background-color: $gray-50;
-      color: $gray-700;
+      background-color: $light;
+      color: $body-color;
     }
 
     .control {
       color: $gray-500;
-      background-color: $gray-100;
+      background-color: $input-bg;
     }
 
     .delete {
@@ -74,7 +74,7 @@ textarea.wiki-content {
   font-family: Inter;
   font-style: normal;
   font-weight: 500;
-  font-size: 16px;
+  font-size: $font-size-base;
   line-height: 1.72;
   /* identical to box height, or 28px */
 
@@ -103,7 +103,7 @@ textarea.wiki-content {
 
   .active {
     border-radius: 4px;
-    color: #2490ef;
+    color: $primary;
     background-color: #ebf5ff;
   }
 
@@ -125,7 +125,7 @@ textarea.wiki-content {
     font-size: 1px;
     line-height: 1.5;
     /* identical to box height, or 24px */
-    color: #74808b;
+    color: $text-muted;
     letter-spacing: -0.011em;
     padding: 0.375rem 0 0.375rem 0.8rem;
 
@@ -207,15 +207,13 @@ textarea.wiki-content {
     font-family: Inter;
     font-style: normal;
     font-weight: normal;
-    font-size: 16px;
+    font-size: $font-size-base;
     line-height: 150%;
     /* identical to box height, or 24px */
 
     letter-spacing: -0.011em;
 
-    /* Gray / 700 */
-
-    color: #4c5a67;
+    color: $body-color;
     padding-left: 0rem !important;
     padding-right: 0rem !important;
   }
@@ -239,11 +237,11 @@ textarea.wiki-content {
 }
 
 .navbar.navbar-light.navbar-expand-lg {
-  border-bottom: 1px solid #eef0f2;
+  border-bottom: 1px solid $gray-200;
 }
 
 .navbar.navbar-light.navbar-expand-lg {
-  border-bottom: 1px solid #eef0f2;
+  border-bottom: 1px solid $gray-200;
 }
 
 .doc-layout {
@@ -297,13 +295,9 @@ textarea.wiki-content {
       font-family: Inter;
       font-style: normal;
       font-weight: 500;
-      font-size: 0.75;
+      font-size: $font-size-xs;
       line-height: 1.35;
-      /* or 16px */
-
-      /* Gray / 900 */
-
-      color: #192734;
+      color: $headings-color;
     }
   }
 
@@ -314,9 +308,9 @@ textarea.wiki-content {
 
   .active {
     border-radius: 4px;
-    color: #2490ef;
-    background-color: #ebf5ff;
-    border-left: 3px solid #2490ef;
+    color: $primary;
+    background-color: #ebf4ff;
+    border-left: 3px solid $primary;
     border-radius: 0.1rem 0.375rem 0.375rem 0.1rem;
   }
 
@@ -383,7 +377,7 @@ breadcrumbs
 }
 
 ol.breadcrumb {
-  font-size: 0.75rem; /* font size change for breadcrumbs */
+  font-size: $font-size-xs;
 
   li [itemprop="item"] {
     align-self: center;
@@ -477,7 +471,7 @@ navbar
 
 .contributions-header {
   margin: 3rem 0 1rem 0;
-  font-size: 20px;
+  font-size: $font-size-xl;
   font-weight: 700;
   line-height: 16px;
 }
