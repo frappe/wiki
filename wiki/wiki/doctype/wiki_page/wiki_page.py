@@ -15,8 +15,6 @@ from frappe.core.doctype.file.file import get_random_filename
 from six import PY2, StringIO, string_types, text_type
 
 class WikiPage(WebsiteGenerator):
-	def autoname(self):
-		self.name = self.route
 
 	def after_insert(self):
 		revision = frappe.new_doc("Wiki Page Revision")
@@ -88,68 +86,7 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 
-		try:
-			boot = frappe.sessions.get()
-		except Exception as e:
-			boot = frappe._dict(status='failed', error = str(e))
-			print(frappe.get_traceback())
-
-		boot_json = frappe.as_json(boot)
-
-		# remove script tags from boot
-		boot_json = re.sub(r"\<script[^<]*\</script\>", "", boot_json)
-
-		# TODO: Find better fix
-		boot_json = re.sub(r"</script\>", "", boot_json)
-
-		context.boot = boot_json
-		wiki_settings = frappe.get_single("Wiki Settings")
-		context.banner_image = wiki_settings.logo
-		context.script = wiki_settings.javascript
-		context.docs_search_scope = ""
-		can_edit = frappe.session.user != "Guest"
-		context.can_edit = can_edit
-		context.show_my_account = False
 		self.set_crumbs(context)
-
-		if frappe.form_dict.new:
-			if not can_edit:
-				self.redirect_to_login("create")
-			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
-			context.title = "New Wiki Page"
-			self.title='New Wiki Page'
-			context.content_md = "New Wiki Page"
-			context.content_html = "New Wiki Page"
-			if frappe.form_dict.wiki_page_patch:
-				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
-				self.content = frappe.db.get_value(
-					"Wiki Page Patch", context.wiki_page_patch, "new_code"
-				)
-				context.comments = get_comments(
-					"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
-				)
-			context.content_md = self.content
-			context.content_html = frappe.utils.md_to_html(self.content)
-			return context
-
-		if frappe.form_dict.edit:
-			if not can_edit:
-				self.redirect_to_login("edit")
-			context.title = "Editing " + self.title
-			if frappe.form_dict.wiki_page_patch:
-				context.wiki_page_patch = frappe.form_dict.wiki_page_patch
-				self.content = frappe.db.get_value(
-					"Wiki Page Patch", context.wiki_page_patch, "new_code"
-				)
-				context.comments = get_comments(
-					"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
-				)
-
-			context.content_md = self.content
-			context.content_html = frappe.utils.md_to_html(self.content)
-			context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
-			return context
-
 
 		context.metatags = {"title": self.title}
 		# context.sidebar_items, context.docs_search_scope  = self.get_sidebar_items(context)
