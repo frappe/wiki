@@ -175,7 +175,7 @@
    "fieldname": "new_sidebar",
    "fieldtype": "HTML",
    "label": "New Sidebar",
-   "options": "<div style=\"height: 500px; overflow: auto; display: flex;\">\n    <div width=\"50%\">\n        <h2>New Sidebar</h2>\n        <div id=\"new_sidebar\">. \n\n        </div>\n    </div>\n\n    <div width=\"50%\">\n        <h2>Old Sidebar</h2>\n        <div id=\"old_sidebar\">. \n\n        </div>\n    </div>\n</div>"
+   "options": "<div style=\"height: 500px; overflow: auto; display: flex;\">\n    <div width=\"50%\">\n        <h2>New Sidebar</h2>\n        <ul id=\"new_sidebar\">. \n\n        </ul>\n    </div>\n\n    <div width=\"50%\">\n        <h2>Old Sidebar</h2>\n        <div id=\"old_sidebar\">. \n\n        </div>\n    </div>\n</div>"
   },
   {
    "fieldname": "old_sidebar_store",
@@ -194,7 +194,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-07-20 21:44:02.677091",
+ "modified": "2021-07-26 22:24:56.250037",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
