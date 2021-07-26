@@ -149,10 +149,8 @@ textarea.wiki-content {
   }
 }
 
-.sidebar-item  div {
-      display: flex;
-
-
+.sidebar-item div {
+  display: flex;
 }
 .sidebar-column {
   border-right: 1px solid #eef0f2;
@@ -160,31 +158,27 @@ textarea.wiki-content {
 }
 
 .doc-sidebar {
+  .web-sidebar {
+    margin-top: 10px;
+    margin-bottom: 8px;
+    padding-top: 1rem;
+    padding-bottom: 0;
+    margin-right: -0.5rem;
 
-    .web-sidebar {
-      margin-top: 10px;
-      margin-bottom: 8px;
-      padding-top: 1rem;
-      padding-bottom: 0;
-      margin-right: -0.5rem;
-
-    .sidebar-items>.list-unstyled {
-        margin-left: -0.5rem;
+    .sidebar-items > .list-unstyled > .sidebar-item {
+      margin-left: -0.5rem;
     }
-      .sidebar-items>.list-unstyled:first-child {
-        margin-left: -0.8rem;
+    .sidebar-items > .list-unstyled > .sidebar-group {
+      margin-left: -0.8rem;
     }
-
   }
 }
-
 
 @media (min-width: 992px) {
   .doc-sidebar {
-      margin-top: 3.9rem;
+    margin-top: 3.9rem;
   }
 }
-
 
 .navbar-nav {
   height: 100%;
@@ -240,7 +234,7 @@ textarea.wiki-content {
   }
 }
 
-.navbar-light{
+.navbar-light {
   border-bottom: 0;
 }
 
@@ -315,7 +309,7 @@ textarea.wiki-content {
 
   li {
     padding-left: 4px;
-    margin: 2px 0;;
+    margin: 2px 0;
   }
 
   .active {
@@ -380,24 +374,21 @@ breadcrumbs
 ====
 */
 
-.breadcrumb-container .container {
-  margin-top: 1rem; /* spacing adjusment for breadcrumb */
+.doc-content .breadcrumb-container {
+  margin-top: 0rem; /* spacing adjusment for breadcrumb */
+}
+
+.page_content {
+  padding-top: 3rem;
 }
 
 ol.breadcrumb {
-
-
-
   font-size: 0.75rem; /* font size change for breadcrumbs */
 
   li [itemprop="item"] {
     align-self: center;
   }
-
-
 }
-
-
 
 /*
 ====
@@ -413,11 +404,9 @@ navbar
   right: 0;
 }
 
-
-
 @media (max-width: 767px) {
   .navbar {
-      position: inherit;
+    position: inherit;
   }
 
   .navbar-expand-lg .doc-container {
@@ -425,10 +414,10 @@ navbar
     padding-right: 0;
   }
   .web-sidebar {
-    padding-top:0
+    padding-top: 0;
   }
 
-  .web-sidebar>a {
+  .web-sidebar > a {
     display: none;
   }
 
@@ -437,13 +426,12 @@ navbar
     margin-top: 0 !important;
   }
 
-
   .wiki-footer {
-    .btn.left, .btn.right {
+    .btn.left,
+    .btn.right {
       width: 100%;
       margin-bottom: 10px;
     }
-  
   }
 
   .nav-item {
@@ -455,37 +443,35 @@ navbar
   // #dropdownMenuSearch {
   //   margin-right: 20px;
   // }
-
 }
 
-
-.my-contributions, .new-wiki-page, .add-sidebar-item {
-  padding: .25rem .5rem;
+.my-contributions,
+.new-wiki-page,
+.add-sidebar-item {
+  padding: 0.25rem 0.5rem;
 }
 
 .web-footer {
   border-top: 1px solid #eef0f2;
 }
 
-.search-nav-item{
-
+.search-nav-item {
   position: relative;
 
   svg {
     top: 10px;
     right: 12px;
-    position: absolute
+    position: absolute;
   }
 }
 .sidebar-skeleton {
-	.skeleton-card {
+  .skeleton-card {
     height: 40px;
     position: relative;
     overflow: hidden;
-		border-radius: 50px;
+    border-radius: 50px;
     margin: var(--margin-sm) auto;
-		background-color: var(--skeleton-bg);
-
+    background-color: var(--skeleton-bg);
   }
 }
 
@@ -496,7 +482,6 @@ navbar
   line-height: 16px;
 }
 
-
 .attachment-controls {
   cursor: pointer;
   max-height: 28px;
@@ -505,26 +490,22 @@ navbar
 
   .show-attachments {
     padding: 4px 8px;
-    color: $primary
+    color: $primary;
   }
 }
 
 div[data-fieldname="type"] {
-
   .form-group {
     margin-bottom: 0;
   }
   .clearfix {
     display: none;
   }
-
 }
 
 .popover {
   max-width: 400px;
   td {
-    border-top:0;
+    border-top: 0;
   }
 }
-
-
