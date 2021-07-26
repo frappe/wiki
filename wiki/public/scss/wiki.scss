@@ -29,36 +29,39 @@ textarea.wiki-content {
   margin-top: 2rem;
 }
 
-.wiki-diff .diff {
-  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
-    monospace;
-  font-size: $font-size-sm;
-  border: 1px solid $border-color;
-  border-radius: 0.5rem;
-  overflow: auto;
+.wiki-diff {
+  max-width: 700px;
 
-  div {
-    padding: 0.25rem 0.5rem;
-    background-color: $gray-50;
-    color: $gray-700;
-  }
+  .diff {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
+      monospace;
+    font-size: $font-size-sm;
+    border: 1px solid $border-color;
+    border-radius: 0.5rem;
+    overflow: auto;
 
-  .control {
-    color: $gray-500;
-    background-color: $gray-100;
-  }
+    div {
+      padding: 0.25rem 0.5rem;
+      background-color: $gray-50;
+      color: $gray-700;
+    }
 
-  .delete {
-    background-color: #fff5f5;
-    color: $gray-900;
-  }
+    .control {
+      color: $gray-500;
+      background-color: $gray-100;
+    }
 
-  .insert {
-    background-color: #f0fff4;
-    color: $gray-900;
+    .delete {
+      background-color: #fff5f5;
+      color: $gray-900;
+    }
+
+    .insert {
+      background-color: #f0fff4;
+      color: $gray-900;
+    }
   }
 }
-
 .wiki-revision-meta {
   font-size: $font-size-sm;
   display: flex;
@@ -106,7 +109,8 @@ textarea.wiki-content {
 
   div {
     cursor: pointer;
-
+    flex-basis: 100%;
+    flex-wrap: wrap;
     .h6 {
       font-size: $font-size-sm;
       margin-bottom: 0;
@@ -135,6 +139,7 @@ textarea.wiki-content {
       padding-top: unset;
       padding-bottom: unset;
       font-weight: normal;
+      width: 100%;
     }
   }
 
@@ -163,6 +168,9 @@ textarea.wiki-content {
       padding-bottom: 0;
       margin-right: -0.5rem;
 
+    .sidebar-items>.list-unstyled {
+        margin-left: -0.5rem;
+    }
       .sidebar-items>.list-unstyled:first-child {
         margin-left: -0.8rem;
     }
@@ -490,6 +498,7 @@ navbar
 
 
 .attachment-controls {
+  cursor: pointer;
   max-height: 28px;
   display: flex;
   justify-content: flex-end;
