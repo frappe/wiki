@@ -13,10 +13,10 @@
 			{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
 			{%- if number_of_revisions > 0 %}
 			&middot;
-			<li><a href="/revisions?wiki_page={{ path }}">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
+			<li><a href="/{{ path }}/revisions">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
 			{%- endif -%}
 			{%- endif -%}
-			<li><a href="/edit?wiki_page={{ path }}">Edit</a>&nbsp;</li>
+			<li><a href="/{{ path }}/edit">Edit</a>&nbsp;</li>
 		</ul>
 	</div>
 

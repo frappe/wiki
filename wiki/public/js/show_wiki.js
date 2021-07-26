@@ -14,39 +14,22 @@ window.ShowWiki = class ShowWiki {
 	}
 
 	activate_sidebars() {
-		$(".sidebar-item a").each(function (index) {
+		$(".sidebar-item").each(function (index) {
 			const active_class = "active";
 			const non_active_class = "";
-			let page_href = window.location.href;
+			let page_href = window.location.pathname;
 			if (page_href.indexOf("#") !== -1) {
 				page_href = page_href.slice(0, page_href.indexOf("#"));
 			}
-			if (this.href.trim() == page_href) {
+			if ($(this).data('route') == page_href) {console.log($(this));
 				$(this).addClass(active_class);
-				$(this)
-					.parent()
-					.parent()
-					.parent()
-					.removeClass(non_active_class)
-					.addClass(active_class);
-			} else {
-				$(this).removeClass(active_class).addClass(non_active_class);
-				$(this)
-					.parent()
-					.parent()
-					.parent()
-					.removeClass(active_class)
-					.addClass(non_active_class);
+				$(this).find('a').addClass(active_class);
 			}
 		});
 		// scroll the active sidebar item into view
-		let active_sidebar_item = $(".sidebar-item a.active");
+		let active_sidebar_item = $(".sidebar-item.active");
 		if (active_sidebar_item.length > 0) {
 			active_sidebar_item
-				.parent()
-				.parent()
-				.parent()
-				.parent()
 				.get(0)
 				.scrollIntoView(true, {
 					behavior: "smooth",
