@@ -67,7 +67,7 @@ website_route_rules = [
 # ------------
 
 # before_install = "wiki.install.before_install"
-# after_install = "wiki.install.after_install"
+after_install = "wiki.install.after_install"
 
 # Desk Notifications
 # ------------------
