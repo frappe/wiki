@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_guest_to_view": 1,
- "autoname": "field:route",
  "creation": "2020-09-26 15:53:44.849581",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -85,7 +84,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-07-26 18:27:11.486468",
+ "modified": "2021-07-27 18:44:43.276703",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

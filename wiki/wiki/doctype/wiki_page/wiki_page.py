@@ -16,6 +16,9 @@ from six import PY2, StringIO, string_types, text_type
 
 class WikiPage(WebsiteGenerator):
 
+	def autoname(self):
+		self.name = self.route
+
 	def after_insert(self):
 		revision = frappe.new_doc("Wiki Page Revision")
 		revision.wiki_page = self.name
@@ -301,6 +304,9 @@ def to_markdown(html):
 
 @frappe.whitelist(allow_guest=True)
 def get_sidebar_for_page(wiki_page):
+	sidebar = []
 	context = frappe._dict({})
-	sidebar, _ = frappe.get_doc('Wiki Page', wiki_page).get_sidebar_items(context)
+	matching_pages = frappe.get_all('Wiki Page', {'route': wiki_page})
+	if matching_pages:
+		sidebar, _ = frappe.get_doc('Wiki Page', matching_pages[0].get('name')).get_sidebar_items(context)
 	return sidebar
