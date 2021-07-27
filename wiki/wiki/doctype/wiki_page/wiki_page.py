@@ -281,6 +281,11 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 
 	update_file_links(attachments, patch.name)
 
+	if 'System Manager' in frappe.get_roles(frappe.session.user):
+		patch.approved_by = frappe.session.user
+		patch.status = 'Approved'
+		patch.submit()
+
 	frappe.db.commit()
 
 	return True
