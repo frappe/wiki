@@ -251,7 +251,7 @@ window.EditAsset = class EditAsset {
 			$(`<td>${f.file_name}</td>`).appendTo(row);
 			// $(`<td>${f.file_url}</td>`).appendTo(row);
 			$(`<td>
-			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="${f.file_url}" data-name = "${f.file_name}" >
+			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![](${f.file_url})" data-name = "${f.file_name}" >
 				Copy Link
 			</a>
 			</td>`).appendTo(row);
