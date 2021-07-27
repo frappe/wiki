@@ -32,7 +32,33 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Page Revision", {"wiki_page": self.name}, pluck="name"
 		):
 			frappe.delete_doc("Wiki Page Revision", name)
+		for name in frappe.get_all(
+				"Wiki Page Patch", {
+					"wiki_page": self.name,
+					'new': 0
+				}, pluck="name"
+			):
+			patch  = frappe.get_doc('Wiki Page Patch', name )
+			try:
+				patch.cancel()
+			except frappe.exceptions.DocstatusTransitionError:
+				pass
+			patch.delete()
 
+		for name in frappe.get_all(
+				"Wiki Page Patch", {
+					"wiki_page": self.name,
+					'new': 1
+				}, pluck="name"
+			):
+			frappe.db.set_value('Wiki Page Patch',name ,'wiki_page', '')
+
+		for name in frappe.get_all(
+				"Wiki Sidebar Item",
+				{"type": 'Wiki Page', "item": self.name},
+				pluck="name"
+			):
+			frappe.delete_doc("Wiki Sidebar Item", name)
 	def set_route(self):
 		if not self.route:
 			self.route = "wiki/" + cleanup_page_name(self.title)
