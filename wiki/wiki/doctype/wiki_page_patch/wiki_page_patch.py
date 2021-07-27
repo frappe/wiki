@@ -52,10 +52,12 @@ class WikiPagePatch(Document):
 		self.new_wiki_page.save()
 
 	def	update_old_page(self, wiki_page):
-		wiki_page.update_page(wiki_page.title, self.new_code, self.message, self.raised_by)
+		wiki_page.update_page(self.new_title, self.new_code, self.message, self.raised_by)
 		return
 
 	def update_sidebars(self):
+		if not self.new_sidebar_items:
+			self.new_sidebar_items = '{}'
 		sidebars = json.loads(self.new_sidebar_items)
 		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
