@@ -38,45 +38,29 @@ window.EditWiki = class EditWiki {
   }
 
   activate_sidebars() {
-    $(".sidebar-item a").each(function (index) {
-      const active_class = "active";
-      const non_active_class = "";
-      let page_href = window.location.search;
-      if (page_href.indexOf("#") !== -1) {
-        page_href = page_href.slice(0, page_href.indexOf("#"));
-      }
-      if (page_href.includes(this.href.trim())) {
-        $(this).addClass(active_class);
-        $(this)
-          .parent()
-          .parent()
-          .parent()
-          .removeClass(non_active_class)
-          .addClass(active_class);
-      } else {
-        $(this).removeClass(active_class).addClass(non_active_class);
-        $(this)
-          .parent()
-          .parent()
-          .parent()
-          .removeClass(active_class)
-          .addClass(non_active_class);
-      }
-    });
-    // scroll the active sidebar item into view
-    let active_sidebar_item = $(".sidebar-item a.active");
-    if (active_sidebar_item.length > 0) {
-      active_sidebar_item
-        .parent()
-        .parent()
-        .parent()
-        .parent()
-        .get(0)
-        .scrollIntoView(true, {
-          behavior: "smooth",
-          block: "nearest",
-        });
-    }
+    $(".sidebar-item").each(function (index) {
+			const active_class = "active";
+			const non_active_class = "";
+			let page_href = window.location.pathname;
+			if (page_href.indexOf("#") !== -1) {
+				page_href = page_href.slice(0, page_href.indexOf("#"));
+			}
+			if (page_href.includes($(this).data('route'))  ) {
+				$(this).addClass(active_class);
+				$(this).find('a').addClass(active_class);
+			}
+		});
+		// scroll the active sidebar item into view
+		let active_sidebar_item = $(".sidebar-item.active");
+		if (active_sidebar_item.length > 0) {
+			active_sidebar_item
+				.get(0)
+				.scrollIntoView(true, {
+					behavior: "smooth",
+					block: "nearest",
+				});
+		}
+    
   }
 
   toggle_sidebar(event) {

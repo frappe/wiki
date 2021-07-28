@@ -9,6 +9,7 @@
   "message",
   "new_title",
   "new",
+  "sidebar_edited",
   "column_break_3",
   "raised_by",
   "status",
@@ -161,6 +162,7 @@
    "label": "New Title"
   },
   {
+   "depends_on": "eval: doc.sidebar_edited;",
    "fieldname": "sidebar_section",
    "fieldtype": "Section Break",
    "label": "SIdebar"
@@ -189,12 +191,18 @@
    "hidden": 1,
    "label": "New Sidebar Items",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sidebar_edited",
+   "fieldtype": "Check",
+   "label": "Sidebar Edited"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-07-26 22:24:56.250037",
+ "modified": "2021-07-28 21:25:05.163797",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

@@ -11,7 +11,7 @@ window.EditAsset = class EditAsset {
 	make_title_editable () {
 		const title_span = $('.edit-title>span')
 		const title_input = $('.edit-title>input')
-		title_span.dblclick(() => {
+		title_span.click(() => {
 			title_span.addClass('hide')
 			title_input.removeClass('hide')
 			title_input.val(title_span.text())
@@ -169,9 +169,19 @@ window.EditAsset = class EditAsset {
 
 		var me = this;
 		var dfs = [];
+		const title_of_page = $('[name="title_of_page"]').val()
 		dfs.push({
 			fieldname: "edit_message",
 			fieldtype: "Text",
+			label: "message",
+			default: $('[name="new"]').val() ? `Add new page: ${title_of_page}`: `Edited ${title_of_page}`,
+			mandatory: 1
+		},
+		{
+			fieldname: "sidebar_edited",
+			fieldtype: "Check",
+			label: 'I Updated the sidebar',
+			default: $('[name="new"]').val()? 1: 0
 		});
 
 		let dialog = new frappe.ui.Dialog({
@@ -184,6 +194,7 @@ window.EditAsset = class EditAsset {
 						name: $('[name="wiki_page"]').val(),
 						wiki_page_patch: $('[name="wiki_page_patch"]').val(),
 						message: this.get_value("edit_message"),
+						sidebar_edited: this.get_value("sidebar_edited"),
 						content: me.content,
 						type: me.code_field_group.get_value("type"),
 						attachments: me.attachments,

@@ -21,7 +21,7 @@ window.ShowWiki = class ShowWiki {
 			if (page_href.indexOf("#") !== -1) {
 				page_href = page_href.slice(0, page_href.indexOf("#"));
 			}
-			if ($(this).data('route') == page_href) {console.log($(this));
+			if ($(this).data('route') == page_href) {
 				$(this).addClass(active_class);
 				$(this).find('a').addClass(active_class);
 			}
@@ -73,15 +73,15 @@ window.ShowWiki = class ShowWiki {
 				currentAnchor().addClass("active")
 			})
 		});
-		
+
 		function tocItem(anchor) {
 			return $("[href=\"" + anchor + "\"]")
 		}
-		
+
 		function heading(anchor) {
 			return $("[id=" + anchor.substr(1) + "]")
 		}
-		
+
 		var _anchors = null
 		function anchors() {
 			if (!_anchors) {
@@ -91,7 +91,7 @@ window.ShowWiki = class ShowWiki {
 			}
 			return _anchors
 		}
-		
+
 		function currentAnchor() {
 			var winY = window.pageYOffset
 			var currAnchor = null

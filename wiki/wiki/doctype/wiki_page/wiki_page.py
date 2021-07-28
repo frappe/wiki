@@ -234,7 +234,7 @@ def extract_images_from_html(content):
 
 
 @frappe.whitelist()
-def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False, new_sidebar = '', new_sidebar_items = ''):
+def update(name, content, title, type, attachments="{}", message="", wiki_page_patch=None, new=False, new_sidebar = '', new_sidebar_items = '', sidebar_edited=False):
 	from ghdiff import diff
 	context = {'route': name}
 	context = frappe._dict(context)
@@ -255,6 +255,7 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.new_sidebar = new_sidebar
 		# patch.old_sidebar_store = old_sidebar
 		patch.new_sidebar_items = new_sidebar_items
+		patch.sidebar_edited = sidebar_edited
 		# patch.new_sidebar_store = new_sidebar
 		patch.save()
 		return
@@ -269,6 +270,7 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		"message": message,
 		"new": new,
 		"new_title": title,
+		"sidebar_edited" : sidebar_edited,
 		# 'new_sidebar_store' : new_sidebar,
 		# 'old_sidebar_store' : old_sidebar,
 		# 'new_sidebar_store' : new_sidebar,
