@@ -12,7 +12,9 @@ def get_context(context):
 	}
 
 	context.contributions = []
-	contributions = frappe.get_list("Wiki Page Patch", ["message", "status", "name", "wiki_page", 'creation', 'new'])
+	contributions = frappe.get_list("Wiki Page Patch", 
+		["message", "status", "name", "wiki_page", 'creation', 'new'],
+		order_by='modified desc')
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
 		if contribution.new:
