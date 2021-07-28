@@ -173,7 +173,7 @@ window.EditAsset = class EditAsset {
 		dfs.push({
 			fieldname: "edit_message",
 			fieldtype: "Text",
-			label: "message",
+			label: "Message",
 			default: $('[name="new"]').val() ? `Add new page: ${title_of_page}`: `Edited ${title_of_page}`,
 			mandatory: 1
 		},
@@ -186,7 +186,7 @@ window.EditAsset = class EditAsset {
 
 		let dialog = new frappe.ui.Dialog({
 			fields: dfs,
-			title: __("Comments"),
+			title: __("Please describe your changes"),
 			primary_action: function () {
 				frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
