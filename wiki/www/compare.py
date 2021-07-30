@@ -14,7 +14,7 @@ def get_context(context):
 
 
 	context.doc = frappe.get_doc('Wiki Page', frappe.form_dict.wiki_page)
-	context.doc.set_crumbs(context)
+	context.doc.set_breadcrumbs(context)
 
 
 	from ghdiff import diff

@@ -31,8 +31,8 @@
 {{ include_script('wiki.bundle.js') }}
 
 <script>
-
-	new ShowWiki();
+	frappe.provide('wiki')
+	new wiki.RenderWiki();
 
 </script>
 

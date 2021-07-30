@@ -73,8 +73,8 @@ class WikiPagePatch(Document):
 	def create_new_child(self, sidebars):
 		for sidebar, items in sidebars.items():
 			for item in items:
-				if item['name'] == 'new':
-					# new wiki page was created but not added to the sidebar
+				if item['name'] == 'new-wiki-page':
+					# new wiki page was created(/new)
 					wiki_sidebar_item = frappe.new_doc('Wiki Sidebar Item')
 					wiki_sidebar_item_dict = {
 						"type": item['type'],
@@ -88,6 +88,7 @@ class WikiPagePatch(Document):
 					item['name'] = wiki_sidebar_item.name
 
 				elif item.get('new'):
+					# new item was added via the add item button
 					sidebar_name = item.get('name')
 					if  item['type'] == 'Wiki Sidebar':
 						# Create New Sidebar

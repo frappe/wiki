@@ -1,30 +1,15 @@
-window.EditAsset = class EditAsset {
-	constructor(opts) {
+frappe.provide('wiki')
+wiki.EditAsset = class EditAsset {
+	constructor() {
 		this.make_code_field_group();
+		this.add_attachment_popover();
+		this.set_code_editor_height();
 		this.render_preview();
 		this.add_attachment_handler();
 		this.set_listeners();
 		this.create_comment_box();
-		this.make_title_editable()
+		this.make_title_editable();
 	}
-
-	make_title_editable () {
-		const title_span = $('.edit-title>span')
-		const title_input = $('.edit-title>input')
-		title_span.click(() => {
-			title_span.addClass('hide')
-			title_input.removeClass('hide')
-			title_input.val(title_span.text())
-			title_input.focus()
-		})
-		title_input.focusout(() => {
-			title_span.removeClass('hide')
-			title_input.addClass('hide')
-			title_span.text( title_input.val())
-		})
-	}
-
-
 
 	make_code_field_group() {
 		this.code_field_group = new frappe.ui.FieldGroup({
@@ -41,20 +26,7 @@ window.EditAsset = class EditAsset {
 				{
 					fieldname: "attachment_controls",
 					fieldtype: "HTML",
-					options: `
-						<div class='attachment-controls '>
-							<div class='show-attachments'>
-								<i class="octicon octicon-file-media"></i>
-								<span class='number'>0</span>&nbsp;attachments
-							</div>&nbsp;&nbsp;
-							<div class='add-attachment-wiki'>
-								<span class='btn btn-xs'>
-									<i class="octicon octicon-cloud-upload"></i>&nbsp;
-									Upload Attachment
-								</span>
-							</div>
-						</div>
-					`,
+					options: this.get_attachment_controls_html(),
 				},
 				{
 					fieldtype: "Section Break",
@@ -77,56 +49,81 @@ window.EditAsset = class EditAsset {
 		});
 		this.code_field_group.make();
 		$(".wiki-write .form-section:last").removeClass("empty-section");
-		this.add_attachment_popover()
-		setTimeout(() => {
-			// expand_code_editor
-			const code_md = this.code_field_group.get_field('code_md')
-			code_md.expanded = !this.expanded;
-			code_md.refresh_height();
-			code_md.toggle_label();
-		}, 120)
+	}
+
+	get_attachment_controls_html() {
+		return `
+<div class='attachment-controls '>
+	<div class='show-attachments'>
+		<i class="octicon octicon-file-media"></i>
+		<span class='number'>0</span>&nbsp;attachments
+	</div>&nbsp;&nbsp;
+	<div class='add-attachment-wiki'>
+		<span class='btn btn-xs'>
+			<i class="octicon octicon-cloud-upload"></i>&nbsp;
+			Upload Attachment
+		</span>
+	</div>
+</div>
+`;
 	}
 
 	add_attachment_popover() {
-		let picker_wrapper = $('<div>skjdfjs</div>');
+		let picker_wrapper = $("<div>skjdfjs</div>");
 
 		$(".show-attachments").popover({
-			trigger: 'click',
-			placement: 'bottom',
+			trigger: "click",
+			placement: "bottom",
 
 			content: () => {
-				return this.build_attachment_table()
+				return this.build_attachment_table();
 			},
-			html: true
+			html: true,
 		});
 	}
 
-	get_markdown() {
-		var me = this;
+	build_attachment_table() {
+		var wrapper = $('<div class="wiki-attachment"></div>');
+		wrapper.empty();
 
-		if (me.code_field_group.get_value("type") == "Markdown") {
-			this.content = me.code_field_group.get_value("code_md");
-			this.raise_patch();
-		} else {
-			this.content = this.code_field_group.get_value("code_html");
+		var table = $(this.get_attachment_table_header_html()).appendTo(wrapper);
+		if (!this.attachments || !this.attachments.length)
+			return "No attachments uploaded";
 
-			frappe.call({
-				method:
-					"wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
-				args: {
-					content: this.content,
-				},
-				callback: (r) => {
-					if (r.message) {
-						me.content = r.message;
-						var turndownService = new TurndownService();
-						turndownService = turndownService.keep(["div class", "iframe"]);
-						me.content = turndownService.turndown(me.content);
-						me.raise_patch();
-					}
-				},
-			});
-		}
+		this.attachments.forEach((f) => {
+			const row = $("<tr></tr>").appendTo(table.find("tbody"));
+			$(`<td>${f.file_name}</td>`).appendTo(row);
+			// $(`<td>${f.file_url}</td>`).appendTo(row);
+			$(`<td>
+			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![](${f.file_url})" data-name = "${f.file_name}" >
+				Copy Link
+			</a>
+			</td>`).appendTo(row);
+			$(`<td>
+
+			<a class="btn btn-default btn-xs  center delete-button"  data-name = "${f.file_name}" >
+			<svg class="icon icon-sm"><use xlink:href="#icon-delete"></use></svg>
+
+			</a>
+			</td>`).appendTo(row);
+		});
+		return wrapper;
+	}
+
+	get_attachment_table_header_html() {
+		return `<table class="table  attachment-table" ">
+			<tbody></tbody>
+		</table>`;
+	}
+
+	set_code_editor_height() {
+		setTimeout(() => {
+			// expand_code_editor
+			const code_md = this.code_field_group.get_field("code_md");
+			code_md.expanded = !this.expanded;
+			code_md.refresh_height();
+			code_md.toggle_label();
+		}, 120);
 	}
 
 	raise_patch() {
@@ -139,23 +136,23 @@ window.EditAsset = class EditAsset {
 			.children("ul")
 			.not(".hidden")
 			.children("li");
-		items.each( (item) => {
-			if (!items[item].dataset.name) return
+		items.each((item) => {
+			if (!items[item].dataset.name) return;
 			side[name].push({
 				name: items[item].dataset.name,
 				type: items[item].dataset.type,
 				new: items[item].dataset.new,
 				title: items[item].dataset.title,
 				group_name: items[item].dataset.groupName,
-			})
+			});
 		});
 
 		$('.doc-sidebar [data-type="Wiki Sidebar"]').each(function () {
 			let name = $(this).get(0).dataset.groupName;
 			side[name] = [];
 			let items = $(this).children("ul").children("li");
-			items.each( (item)=> {
-				if (!items[item].dataset.name) return
+			items.each((item) => {
+				if (!items[item].dataset.name) return;
 				side[name].push({
 					name: items[item].dataset.name,
 					type: items[item].dataset.type,
@@ -166,23 +163,26 @@ window.EditAsset = class EditAsset {
 			});
 		});
 
-
 		var me = this;
 		var dfs = [];
-		const title_of_page = $('[name="title_of_page"]').val()
-		dfs.push({
-			fieldname: "edit_message",
-			fieldtype: "Text",
-			label: "Message",
-			default: $('[name="new"]').val() ? `Add new page: ${title_of_page}`: `Edited ${title_of_page}`,
-			mandatory: 1
-		},
-		{
-			fieldname: "sidebar_edited",
-			fieldtype: "Check",
-			label: 'I Updated the sidebar',
-			default: $('[name="new"]').val()? 1: 0
-		});
+		const title_of_page = $('[name="title_of_page"]').val();
+		dfs.push(
+			{
+				fieldname: "edit_message",
+				fieldtype: "Text",
+				label: "Message",
+				default: $('[name="new"]').val()
+					? `Add new page: ${title_of_page}`
+					: `Edited ${title_of_page}`,
+				mandatory: 1,
+			},
+			{
+				fieldname: "sidebar_edited",
+				fieldtype: "Check",
+				label: "I Updated the sidebar",
+				default: $('[name="new"]').val() ? 1 : 0,
+			}
+		);
 
 		let dialog = new frappe.ui.Dialog({
 			fields: dfs,
@@ -204,109 +204,21 @@ window.EditAsset = class EditAsset {
 						new_sidebar_items: side,
 					},
 					callback: () => {
-						frappe.msgprint(
-							{
-								message:"A Change Request has been created. You can track your requests on the contributions page",
-								indicator: "green",
-								title: "Change Request Created",
-							}
-						);
+						frappe.msgprint({
+							message:
+								"A Change Request has been created. You can track your requests on the contributions page",
+							indicator: "green",
+							title: "Change Request Created",
+						});
 						window.location.href = "/contributions";
 					},
 					freeze: true,
 				});
-				dialog.hide()
-				$('#freeze').addClass('show')
+				dialog.hide();
+				$("#freeze").addClass("show");
 			},
 		});
 		dialog.show();
-	}
-
-	add_attachment_handler() {
-		var me = this;
-		$(".add-attachment-wiki").click(function () {
-			me.new_attachment();
-		});
-		$(".submit-wiki-page").click(function () {
-			me.get_markdown();
-		});
-	}
-
-	new_attachment() {
-		if (this.dialog) {
-			// remove upload dialog
-			this.dialog.$wrapper.remove();
-		}
-
-		new frappe.ui.FileUploader({
-			folder: "Home/Attachments",
-			on_success: (file_doc) => {
-				if (!this.attachments) this.attachments = [];
-				if (!this.save_paths) this.save_paths = {};
-				this.attachments.push(file_doc);
-				$('.wiki-attachment').empty().append(this.build_attachment_table());
-				$('.attachment-controls').find('.number').text(this.attachments.length)
-			},
-		});
-	}
-
-	build_attachment_table() {
-		var wrapper = $('<div class="wiki-attachment"></div>');;
-		wrapper.empty();
-
-		var table = $(this.get_attachment_table_header_html()).appendTo(wrapper);
-		if (!this.attachments || !this.attachments.length ) return 'No attachments uploaded'
-
-		this.attachments.forEach((f) => {
-			const row = $("<tr></tr>").appendTo(table.find("tbody"));
-			$(`<td>${f.file_name}</td>`).appendTo(row);
-			// $(`<td>${f.file_url}</td>`).appendTo(row);
-			$(`<td>
-			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![](${f.file_url})" data-name = "${f.file_name}" >
-				Copy Link
-			</a>
-			</td>`).appendTo(row);
-			$(`<td>
-
-			<a class="btn btn-default btn-xs  center delete-button"  data-name = "${f.file_name}" >
-			<svg class="icon icon-sm"><use xlink:href="#icon-delete"></use></svg>
-
-			</a>
-			</td>`).appendTo(row);
-		});
-		return wrapper
-	}
-
-	get_attachment_table_header_html() {
-		return `<table class="table  attachment-table" ">
-			<tbody></tbody>
-		</table>`;
-	}
-
-	set_listeners() {
-		var me = this;
-
-		$(`body`).on("click", `.copy-link`, function () {
-			frappe.utils.copy_to_clipboard($(this).attr("data-link"))
-		});
-
-		$(`body`).on("click", `.delete-button`, function () {
-			frappe.confirm(
-				`Are you sure you want to delete the file "${$(this).attr(
-					"data-name"
-				)}"`,
-				() => {
-					me.attachments.forEach((f, index, object) => {
-						if (f.file_name == $(this).attr("data-name")) {
-							object.splice(index, 1);
-						}
-					});
-					$('.wiki-attachment').empty().append(me.build_attachment_table());
-					$('.attachment-controls').find('.number').text(me.attachments.length)
-
-				}
-			);
-		});
 	}
 
 	render_preview() {
@@ -367,6 +279,88 @@ window.EditAsset = class EditAsset {
 		$preview.html("Loading preview...");
 		$diff.html("Loading diff...");
 	}
+
+	add_attachment_handler() {
+		var me = this;
+		$(".add-attachment-wiki").click(function () {
+			me.new_attachment();
+		});
+		$(".submit-wiki-page").click(function () {
+			me.get_markdown();
+		});
+	}
+
+	new_attachment() {
+		if (this.dialog) {
+			// remove upload dialog
+			this.dialog.$wrapper.remove();
+		}
+
+		new frappe.ui.FileUploader({
+			folder: "Home/Attachments",
+			on_success: (file_doc) => {
+				if (!this.attachments) this.attachments = [];
+				if (!this.save_paths) this.save_paths = {};
+				this.attachments.push(file_doc);
+				$(".wiki-attachment").empty().append(this.build_attachment_table());
+				$(".attachment-controls").find(".number").text(this.attachments.length);
+			},
+		});
+	}
+
+	get_markdown() {
+		var me = this;
+
+		if (me.code_field_group.get_value("type") == "Markdown") {
+			this.content = me.code_field_group.get_value("code_md");
+			this.raise_patch();
+		} else {
+			this.content = this.code_field_group.get_value("code_html");
+
+			frappe.call({
+				method:
+					"wiki.wiki.doctype.wiki_page.wiki_page.extract_images_from_html",
+				args: {
+					content: this.content,
+				},
+				callback: (r) => {
+					if (r.message) {
+						me.content = r.message;
+						var turndownService = new TurndownService();
+						turndownService = turndownService.keep(["div class", "iframe"]);
+						me.content = turndownService.turndown(me.content);
+						me.raise_patch();
+					}
+				},
+			});
+		}
+	}
+
+	set_listeners() {
+		var me = this;
+
+		$(`body`).on("click", `.copy-link`, function () {
+			frappe.utils.copy_to_clipboard($(this).attr("data-link"));
+		});
+
+		$(`body`).on("click", `.delete-button`, function () {
+			frappe.confirm(
+				`Are you sure you want to delete the file "${$(this).attr(
+					"data-name"
+				)}"`,
+				() => {
+					me.attachments.forEach((f, index, object) => {
+						if (f.file_name == $(this).attr("data-name")) {
+							object.splice(index, 1);
+						}
+					});
+					$(".wiki-attachment").empty().append(me.build_attachment_table());
+					$(".attachment-controls").find(".number").text(me.attachments.length);
+				}
+			);
+		});
+	}
+
 	create_comment_box() {
 		this.comment_box = frappe.ui.form.make_control({
 			parent: $(".comment-box"),
@@ -452,5 +446,24 @@ window.EditAsset = class EditAsset {
 				</div>
 			</div>
 		`);
+	}
+
+	make_title_editable() {
+		const title_span = $(".edit-title>span");
+		const title_handle = $(".edit-title>i");
+		const title_input = $(".edit-title>input");
+		title_handle.click(() => {
+			title_span.addClass("hide");
+			title_handle.addClass("hide");
+			title_input.removeClass("hide");
+			title_input.val(title_span.text());
+			title_input.focus();
+		});
+		title_input.focusout(() => {
+			title_span.removeClass("hide");
+			title_handle.removeClass("hide");
+			title_input.addClass("hide");
+			title_span.text(title_input.val());
+		});
 	}
 };

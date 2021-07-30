@@ -34,7 +34,7 @@ def get_context(context):
 	can_edit = frappe.session.user != "Guest"
 	context.can_edit = can_edit
 	context.show_my_account = False
-	context.doc.set_crumbs(context)
+	context.doc.set_breadcrumbs(context)
 
 	if not can_edit:
 		context.doc.redirect_to_login("create")

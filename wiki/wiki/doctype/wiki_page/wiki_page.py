@@ -96,7 +96,7 @@ class WikiPage(WebsiteGenerator):
 			_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
 		)
 
-	def set_crumbs(self, context):
+	def set_breadcrumbs(self, context):
 		context.add_breadcrumbs = True
 		if frappe.form_dict:
 			context.parents = [{"route": "/" + self.route, "label": self.title}]
@@ -114,11 +114,11 @@ class WikiPage(WebsiteGenerator):
 
 	def get_context(self, context):
 		self.verify_permission("read")
-		self.set_crumbs(context)
+		self.set_breadcrumbs(context)
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.banner_image = wiki_settings.logo
 		context.script = wiki_settings.javascript
-		context.docs_search_scope = ""
+		context.docs_search_scope = self.get_docs_search_scope()
 		context.metatags = {"title": self.title}
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
@@ -130,6 +130,17 @@ class WikiPage(WebsiteGenerator):
 		context.show_sidebar = True
 		context.hide_login = True
 
+
+	def get_docs_search_scope(self):
+		sidebar = frappe.get_all(
+			doctype="Wiki Sidebar Item",
+			fields=["name", "parent"],
+			filters=[["item", "=", self.route]],
+		)
+		topmost= ''
+		if sidebar:
+			topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).find_topmost(sidebar[0].parent)
+		return topmost
 
 	def get_sidebar_items(self, context):
 		sidebar = frappe.get_all(
@@ -162,8 +173,6 @@ class WikiPage(WebsiteGenerator):
 
 @frappe.whitelist()
 def preview(content, name, new, type, diff_css=False):
-	if type == "Rich-Text":
-		content = to_markdown(content)
 	html = frappe.utils.md_to_html(content)
 	if new:
 		return {"html": html}
@@ -172,28 +181,6 @@ def preview(content, name, new, type, diff_css=False):
 	old_content = frappe.db.get_value("Wiki Page", name, "content")
 	diff = diff(old_content, content, css=diff_css)
 	return {"html": html, "diff": diff, "orignal_preview": frappe.utils.md_to_html(old_content)}
-
-
-@frappe.whitelist(methods=["POST"])
-def update(wiki_page, title, content, edit_message):
-	content = to_markdown(content)
-	wiki_page = frappe.get_doc("Wiki Page", wiki_page)
-	wiki_page.update_page(title, content, edit_message)
-
-	frappe.response.location = "/" + wiki_page.route
-	frappe.response.type = "redirect"
-
-
-@frappe.whitelist(methods=["POST"])
-def new(title, content):
-	wiki_page = frappe.new_doc("Wiki Page")
-	wiki_page.title = title
-	wiki_page.content = content
-	wiki_page.published = True
-	wiki_page.insert()
-
-	frappe.response.location = "/" + wiki_page.route
-	frappe.response.type = "redirect"
 
 @frappe.whitelist()
 def extract_images_from_html(content):
@@ -240,7 +227,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 	context = frappe._dict(context)
 	if type == "Rich-Text":
 		content = extract_images_from_html(content)
-		content = to_markdown(content)
 
 	if new:
 		new = True
@@ -253,10 +239,8 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		patch.message = message
 		patch.new= new
 		patch.new_sidebar = new_sidebar
-		# patch.old_sidebar_store = old_sidebar
 		patch.new_sidebar_items = new_sidebar_items
 		patch.sidebar_edited = sidebar_edited
-		# patch.new_sidebar_store = new_sidebar
 		patch.save()
 		return
 
@@ -271,9 +255,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 		"new": new,
 		"new_title": title,
 		"sidebar_edited" : sidebar_edited,
-		# 'new_sidebar_store' : new_sidebar,
-		# 'old_sidebar_store' : old_sidebar,
-		# 'new_sidebar_store' : new_sidebar,
 		'new_sidebar_items' : new_sidebar_items,
 	}
 
@@ -294,7 +275,6 @@ def update(name, content, title, type, attachments="{}", message="", wiki_page_p
 
 
 def update_file_links(attachments, name):
-
 	for attachment in json.loads(attachments):
 		file = frappe.get_doc("File", attachment.get("name"))
 		file.attached_to_doctype = "Wiki Page Patch"
@@ -321,19 +301,6 @@ def get_source(resolved_route, jenv):
 def get_path_without_slash(path):
 	return path[1:] if path.startswith("/") else path
 
-
-def to_markdown(html):
-	from html2text import html2text
-	from six.moves import html_parser as HTMLParser
-
-	text = html
-	# try:
-	# 	text = html2text(html or '', bodywidth=0)
-
-	# except HTMLParser.HTMLParseError:
-	# 	pass
-
-	return text
 
 @frappe.whitelist(allow_guest=True)
 def get_sidebar_for_page(wiki_page):
