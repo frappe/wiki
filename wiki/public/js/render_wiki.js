@@ -1,5 +1,4 @@
-frappe.provide('wiki')
-wiki.RenderWiki = class RenderWiki extends wiki.Wiki {
+window.RenderWiki = class RenderWiki extends Wiki {
 	constructor(opts) {
 		super();
 		$("document").ready(() => {

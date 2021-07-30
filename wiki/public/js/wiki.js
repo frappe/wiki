@@ -1,5 +1,4 @@
-frappe.provide('wiki')
-wiki.Wiki = class Wiki {
+window.Wiki = class Wiki {
 	activate_sidebars() {
 		$(".sidebar-item").each(function (index) {
 			const active_class = "active";

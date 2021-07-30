@@ -1,5 +1,4 @@
-frappe.provide('wiki')
-wiki.EditWiki = class EditWiki extends wiki.Wiki {
+window.EditWiki = class EditWiki extends Wiki {
 	constructor() {
 		super();
 		frappe.provide("frappe.ui.keys");
@@ -214,7 +213,7 @@ wiki.EditWiki = class EditWiki extends wiki.Wiki {
 
 	add_new_link() {
 		let $new_page = $(`
-			<li class="sidebar-item" data-type="Wiki Page" data-name="new" data-new=1 ><div>
+			<li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-new=1 ><div>
 					<div>
 							<a href="#" class="green">New Wiki Page</a>
 					</div></div>

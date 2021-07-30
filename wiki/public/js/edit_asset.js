@@ -1,5 +1,4 @@
-frappe.provide('wiki')
-wiki.EditAsset = class EditAsset {
+window.EditAsset = class EditAsset {
 	constructor() {
 		this.make_code_field_group();
 		this.add_attachment_popover();

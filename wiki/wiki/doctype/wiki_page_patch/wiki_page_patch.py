@@ -54,6 +54,9 @@ class WikiPagePatch(Document):
 
 	def	update_old_page(self, wiki_page):
 		wiki_page.update_page(self.new_title, self.new_code, self.message, self.raised_by)
+		updated_page = frappe.get_all('Wiki Sidebar Item', {'item': self.wiki_page, 'type': 'Wiki Page'}, pluck = 'name')
+		for page in updated_page:
+			frappe.db.set_value('Wiki Sidebar Item', page, 'title', self.new_title)
 		return
 
 	def update_sidebars(self):
@@ -85,7 +88,7 @@ class WikiPagePatch(Document):
 					}
 					wiki_sidebar_item.update(wiki_sidebar_item_dict)
 					wiki_sidebar_item.save()
-					item['name'] = wiki_sidebar_item.name
+					item['name'] = self.new_wiki_page.name
 
 				elif item.get('new'):
 					# new item was added via the add item button
@@ -113,7 +116,6 @@ class WikiPagePatch(Document):
 					wiki_sidebar_item.update(wiki_sidebar_item_dict)
 					wiki_sidebar_item.save()
 					item['name'] = wiki_sidebar_item.name
-
 
 @frappe.whitelist()
 def add_comment_to_patch(reference_name, content):

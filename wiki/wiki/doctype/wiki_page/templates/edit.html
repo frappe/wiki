@@ -107,12 +107,12 @@
 
 
 	<script>
-		frappe.provide('wiki')
+		
 		Vue.prototype.__ = window.__;
 		Vue.prototype.frappe = window.frappe;
-		new wiki.EditWiki();
+		new EditWiki();
 
-		var edit = new wiki.EditAsset();
+		var edit = new EditAsset();
 		frappe.boot = {{ boot }};
 
 	</script>
@@ -122,18 +122,6 @@
 	{%- if frappe.form_dict.new -%}
 
 	<script>
-		let $new_page = $(`
-			<li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-new=1><div>
-				<div>
-					<a href="#" class="green" >
-						New Wiki Page
-					</a>
-				</div></div>
-			</li>
-		`)
-
-		$new_page.insertAfter($('.doc-sidebar').find('a.active').closest('.sidebar-item'))
-
 
 	</script>
 
