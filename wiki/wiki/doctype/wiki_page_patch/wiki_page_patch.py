@@ -25,9 +25,12 @@ class WikiPagePatch(Document):
 
 
 	def on_submit(self):
+		if self.status == 'Rejected':
+			return
 
 		if self.status != "Approved":
-			frappe.throw(_("Please approve the Request before submitting"))
+			frappe.throw(_("Please approve/ reject the request before submitting"))
+
 		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page)
 
 		if self.new:
