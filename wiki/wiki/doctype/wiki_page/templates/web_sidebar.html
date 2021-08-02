@@ -1,0 +1,93 @@
+{% macro render_sidebar_item(item) %}
+<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" 
+		data-type="{{item.type}}" 
+		data-name="{{item.name}}" 
+		data-title="{{item.title or item.group_title or item.name}}"
+		data-group-name="{{item.group_name or 'sidebar-item'}}"
+		data-route="{{ item.item }}"
+	>
+	{%- if item.group_title -%}
+	<div class="collapsible">
+		<span class='drop-icon hidden'>
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+		</span>
+		<span class='drop-left'> 
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M10 16L14 12L10 8" stroke="#4C5A67" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+		</span>
+		<span class='h6'>{{ item.group_title }}</span>
+
+	</div>
+	{{ render_sidebar_items(item.group_items) }}
+
+	{%- else -%}
+	<div>
+		<div>
+			{% if item.type != 'input' %}
+			<a href="{{ item.item }}" {% if item.target %}target="{{ item.target }}" {% endif %}>
+				{{ item.title or item.label or item.name }}
+			</a>
+			{% else %}
+			<form action='{{ item.item }}' class="mr-4">
+				<input name='q' class='form-control' type='text' style="outline: none"
+					placeholder="{{ _(item.title or item.label) }}">
+			</form>
+
+		</div>
+
+		{% endif %}
+
+		{%- endif -%}
+</li>
+{% endmacro %}
+
+{% macro render_sidebar_items(items) %}
+{%- if items | len > 0 -%}
+<ul class="list-unstyled">
+	{% for item in items -%}
+	{{ render_sidebar_item(item) }}
+	{%- endfor %}
+</ul>
+{%- endif -%}
+{% endmacro %}
+
+{% macro my_account() %}
+<ul class="list-unstyled">
+	<li class="sidebar-item">
+		<a href="/me">{{ _("My Account") }}</a>
+	</li>
+
+	<li class="sidebar-item">
+
+	<a class=' new-wiki-page' href="placeholder_link">New Page</a>
+	</li>
+	<li class="sidebar-item">
+
+	<a class=' my-contributions' href="/contributions"> My Contributions</a>
+	</li>
+</ul>
+{% endmacro %}
+
+<div class="web-sidebar" data-name="{{docs_search_scope}}">
+	{% if sidebar_title %}
+	<li class="title">
+		{{ sidebar_title }}
+	</li>
+	{% endif %}
+	<div class="sidebar-items">
+		{{ render_sidebar_items(sidebar_items) }}
+		{{ my_account() }}
+	</div>
+</div>
+
+
+
+<script>
+	frappe.ready(()=> {
+		const edit_link = `/${window.location.pathname.slice(1)}/new`
+		$('.web-sidebar').find('.new-wiki-page').attr('href', edit_link)
+	})
+</script>

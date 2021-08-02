@@ -1,0 +1,84 @@
+{
+ "actions": [],
+ "creation": "2021-05-07 03:52:41.720362",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "app_name",
+  "assets_directory",
+  "docs_directory",
+  "create_new_assets",
+  "column_break_5",
+  "documentation_route",
+  "docs_base_url",
+  "assets_prepend"
+ ],
+ "fields": [
+  {
+   "fieldname": "app_name",
+   "fieldtype": "Data",
+   "label": "App Name"
+  },
+  {
+   "fieldname": "docs_directory",
+   "fieldtype": "Data",
+   "label": "Docs Directory"
+  },
+  {
+   "fieldname": "assets_directory",
+   "fieldtype": "Data",
+   "label": "Assets Directory"
+  },
+  {
+   "fieldname": "documentation_route",
+   "fieldtype": "Data",
+   "label": "New Documentation Route"
+  },
+  {
+   "description": "with docs base url",
+   "fieldname": "assets_prepend",
+   "fieldtype": "Data",
+   "label": "Assets Prepend"
+  },
+  {
+   "fieldname": "docs_base_url",
+   "fieldtype": "Data",
+   "label": "Docs Base Utl"
+  },
+  {
+   "default": "0",
+   "description": "Create New Images if they exist on Disk",
+   "fieldname": "create_new_assets",
+   "fieldtype": "Check",
+   "label": "Create New Assets "
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2021-06-01 14:22:25.142960",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Migrate To Wiki",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

@@ -1,60 +1,134 @@
-<div class="from-markdown">
-	<h1>{{ title }}</h1>
+<div  class = 'edit-page-head' >
+
+	<div class='edit-title'>
+		<span class="h4">{{ doc.title }}</span>
+		<i style="" class="octicon octicon-pencil text-muted"></i>
+		<input class="form-control hide" type="text" name="title_of_page" value="{{ doc.title }}">
+	</div>
+
+	<div class='btn btn-primary submit-wiki-page'>  Submit Changes  </div>
 </div>
+	<form class="mt-8 edit-form" method="POST">
+		<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
+		<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
+		<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
+		<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
 
-<form class="mt-8" action="/api/method/wiki.wiki.doctype.wiki_page.wiki_page.update" method="POST">
-	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
-	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
-	<div class="form-group">
-		<label class="sr-only" for="title">Title</label>
-		<input id="title" class="form-control" type="text" name="title" value="{{ doc.title }}">
-	</div>
-	<div class="form-group">
-		<label class="sr-only" for="content">Content</label>
-		<ul class="nav nav-tabs" role="tablist">
-			<li class="nav-item" role="presentation">
-				<a class="nav-link active" id="write-tab" data-toggle="tab" href="#write" role="tab"
-					aria-controls="write" aria-selected="true">Write</a>
-			</li>
-			<li class="nav-item" role="presentation">
-				<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
-					aria-controls="preview" aria-selected="false">Preview</a>
-			</li>
-		</ul>
-		<div class="mt-4 tab-content">
-			<div class="tab-pane fade show active" id="write" role="tabpanel" aria-labelledby="write-tab">
-				<textarea id="content" class="form-control wiki-content" name="content" rows="30">{{ doc.content }}</textarea>
+
+		<div class="form-group">
+
+
+			<ul class="nav nav-tabs" role="tablist">
+
+				<li class="nav-item" role="presentation">
+					<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
+						aria-selected="true">Write</a>
+				</li>
+
+				<li class="nav-item" role="presentation">
+					<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
+						aria-controls="preview" aria-selected="false">Preview</a>
+				</li>
+
+				{%- if not frappe.form_dict.new -%}
+				<li class="nav-item" role="presentation">
+					<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
+						aria-selected="false">Compare</a>
+				</li>
+				{%- endif -%}
+
+				{% if wiki_page_patch %}
+				<li class="nav-item" role="presentation">
+					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+						id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
+						aria-selected="false">Discussion</a>
+				</li>
+				{% endif %}
+
+			</ul>
+
+			<div class="mt-4 tab-content">
+
+				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
+					<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
+					<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
+					<div class="wiki-write"></div>
+				</div>
+
+				<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
+					<div class="from-markdown wiki-preview"></div>
+				</div>
+
+				{%- if not frappe.form_dict.new -%}
+				<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
+					<div class="from-markdown wiki-diff"></div>
+				</div>
+				{%- endif -%}
+
+				{% if wiki_page_patch %}
+				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+					endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
+
+					{% include "wiki/doctype/wiki_page/templates/comment.html" %}
+				</div>
+				{% endif %}
+
 			</div>
-			<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
-				<div class="from-markdown wiki-preview"></div>
-			</div>
+
 		</div>
-	</div>
-	<div class="form-group">
-		<label class="font-size-sm" for="edit_message">Edit Message</label>
-		<input id="edit_message" class="form-control form-control-sm" type="text" name="edit_message" placeholder="Write a small message here explaining this change">
-	</div>
-	<button type="submit" class="btn btn-primary">Save Page</button>
-</form>
 
-{%- block script -%}
-<script>
-	frappe.ready(() => {
-		$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-			let activeTab = $(e.target);
 
-			if (activeTab.prop('id') === 'preview-tab') {
-				let content = $('textarea#content').val();
-				let $preview = $('.wiki-preview');
-				$preview.html('Loading preview...');
-				frappe.call('wiki.wiki.doctype.wiki_page.wiki_page.preview', { content })
-					.then(r => {
-						if (r.message) {
-							$preview.html(r.message);
-						}
-					});
-			}
-		})
-	})
-</script>
-{%- endblock -%}
+	</form>
+
+
+
+	{% block base_scripts %}
+
+
+	<!-- js should be loaded in body! -->
+	<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+	<script src="https://unpkg.com/turndown@7.0.0/dist/turndown.js"></script>
+	{{ include_script('libs.bundle.js') }}
+
+	{{ include_script('frappe-web.bundle.js') }}
+	{{ include_script('controls.bundle.js') }}
+	{{ include_script('dialog.bundle.js') }}
+	{{ include_script('bootstrap-4-web.bundle.js') }}
+	<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
+	<script type="text/javascript"
+		src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
+	{{ include_script('desk.bundle.js') }}
+	{{ include_script('wiki.bundle.js') }}
+
+
+	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+
+
+	<script>
+		
+		Vue.prototype.__ = window.__;
+		Vue.prototype.frappe = window.frappe;
+		new EditWiki();
+
+		var edit = new EditAsset();
+		frappe.boot = {{ boot }};
+
+	</script>
+
+
+
+	{%- if frappe.form_dict.new -%}
+
+	<script>
+
+	</script>
+
+	{%- if script -%}
+	<script>{ { script } }</script>
+	{%- endif -%}
+
+	{%- endif -%}
+
+	{% endblock %}

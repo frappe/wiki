@@ -6,7 +6,8 @@
  "engine": "InnoDB",
  "field_order": [
   "logo",
-  "sidebar"
+  "sidebar",
+  "javascript"
  ],
  "fields": [
   {
@@ -17,14 +18,20 @@
   {
    "fieldname": "sidebar",
    "fieldtype": "Link",
-   "label": "Website Sidebar",
-   "options": "Website Sidebar"
+   "label": "Wiki Sidebar",
+   "options": "Wiki Sidebar"
+  },
+  {
+   "fieldname": "javascript",
+   "fieldtype": "Code",
+   "label": "Javascript",
+   "options": "Javascript"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2020-12-15 17:03:18.387177",
+ "modified": "2021-06-22 15:30:18.457671",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

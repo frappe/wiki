@@ -1,0 +1,50 @@
+<div class="comment-box"></div>
+
+<div class="comment-section">
+	<div class="new-timeline">
+
+		<div class="timeline-item activity-toggle">
+			<div class="timeline-dot"></div>
+			<div class="timeline-content flex align-center">
+				<h4>Activity</h4>
+			</div>
+		</div>
+		<div class="timeline-items">
+
+			{% for comment in comments %}
+			<div class="timeline-item">
+				<!-- <div class="timeline-dot"></div> -->
+				<div class="timeline-badge">
+					<svg class="icon icon-md">
+						<use href="#icon-small-message"></use>
+					</svg>
+				</div>
+				<div class="timeline-content frappe-card">
+					<div class="timeline-message-box">
+
+						<span class="flex justify-between">
+							<span class="text-color flex">
+								<span>
+									{{comment.owner }}
+									<span class="text-muted margin-left">
+										<span class="frappe-timestamp "
+											data-timestamp="{{comment.creation}}"
+											title="{{comment.creation}}">{{ frappe.utils.pretty_date(comment.creation) }} </span>
+									</span>
+								</span>
+							</span>
+						</span>
+						<div class="content">
+							{{comment.content}}
+						</div>
+
+
+					</div>
+				</div>
+			</div>
+
+			{% endfor %}
+
+		</div>
+	</div>
+</div>

@@ -1,0 +1,51 @@
+.list-jobs {
+	font-size: 14px;
+}
+
+.table {
+	margin-bottom: 0px;
+	margin-top: 0px;
+}
+thead td {
+    border-top: 0 !important;;
+}
+
+.worker-name {
+	display: flex;
+	align-items: center;
+}
+
+.job-name {
+	font-size: 13px;
+	font-family: "Courier New", Courier, monospace;
+	/* background-color: var(--control-bg); */
+	/* padding: var(--padding-xs) var(--padding-sm); */
+	/* border-radius: var(--border-radius-md); */
+}
+
+.background-job-row:hover {
+	background-color: #F9FAFA;
+}
+
+.no-background-jobs {
+	min-height: 320px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+}
+
+.no-background-jobs > img {
+	margin-bottom: var(15px);
+	max-height: 100px;
+}
+
+.footer {
+	align-items: flex-end;
+	margin-top: 15px;
+	font-size: 14px;
+}
+
+body {
+	background-color: #F0F0F0;
+}

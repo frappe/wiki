@@ -1,0 +1,105 @@
+@import "frappe/public/scss/website/variables";
+
+.edit-page-head {
+	margin-top: 0.5rem;
+	display: flex;
+	justify-content: space-between;
+	.edit-title {
+		width: 100%;
+		margin-right: 20px;
+	}
+}
+
+.nav-tabs {
+	padding-bottom: 0;
+
+	.nav-item {
+		margin: 0 2rem 0 0;
+
+		.nav-link {
+			padding: 0.5rem 0;
+			margin-right: 0;
+			font-weight: 500;
+		}
+	}
+}
+
+.edit-form {
+	margin-top: 1.25rem !important;
+}
+
+.form-column {
+	padding: 0;
+
+	.frappe-control .ql-editor {
+		background-color: white;
+	}
+}
+
+.form-control {
+	background-color: white;
+	border: solid rgb(244, 245, 246) 1px;
+}
+
+.form-control:focus {
+	background-color: white;
+	border: solid rgb(244, 245, 246) 1px;
+}
+
+.ace-editor-target {
+	background-color: white;
+}
+
+.ace-tm .ace_gutter {
+	background-color: white;
+	border-right: solid rgb(244, 245, 246) 1px;
+}
+
+.wiki-preview {
+	border: solid #f4f5f6 1px;
+	padding: 0.5rem;
+}
+
+// edit page
+
+.attachment-controls {
+	cursor: pointer;
+	max-height: 28px;
+	display: flex;
+	justify-content: flex-end;
+
+	.show-attachments {
+		padding: 4px 8px;
+		color: $primary;
+	}
+}
+
+div[data-fieldname="type"] {
+	.form-group {
+		margin-bottom: 0;
+	}
+	.clearfix {
+		display: none;
+	}
+}
+
+.popover {
+	max-width: 400px;
+	td {
+		border-top: 0;
+	}
+}
+
+.edit-title {
+	display: flex;
+	align-items: center;
+
+	span {
+		margin-bottom: 0;
+	}
+
+	i {
+		cursor: pointer;
+		padding: 0.5rem;
+	}
+}

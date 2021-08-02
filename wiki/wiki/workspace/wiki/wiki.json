@@ -27,10 +27,28 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Wiki Sidebar",
+   "link_to": "Wiki Sidebar",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,   
    "label": "Wiki Settings",
    "link_to": "Wiki Settings",
    "link_type": "DocType",
    "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Wiki Page Patch",
+   "link_to": "Wiki Page Patch",
+   "link_type": "DocType",
+   "onboard": 0,
    "type": "Link"
   },
   {

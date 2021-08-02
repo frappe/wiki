@@ -1,23 +1,40 @@
 <div class="from-markdown">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="m-0">{{ title }}</h1>
-		<div>
-			{%- if can_edit -%}
-			<a href="/{{ path }}?edit=true" class="btn btn-primary-light btn-sm">Edit</a>
-			<a href="/{{ path }}?new=true" class="btn btn-primary btn-sm">New Page</a>
-			{%- endif -%}
-		</div>
+
 	</div>
 	{{ content }}
 </div>
 <div class="wiki-footer">
-	{%- if last_revision -%}
 	<div class="my-4 wiki-revision-meta">
-		{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
-		{%- if number_of_revisions > 0 %}
-		&middot;
-		<a href="/{{ path }}?revisions=true">{{ number_of_revisions }} Revisions</a>
-		{%- endif -%}
+		<ul class="user-contributions">
+
+			{%- if last_revision -%}
+			{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
+			{%- if number_of_revisions > 0 %}
+			&middot;
+			<li><a href="/{{ path }}/revisions">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
+			{%- endif -%}
+			{%- endif -%}
+			<li><a href="/{{ path }}/edit">Edit</a>&nbsp;</li>
+		</ul>
 	</div>
-	{%- endif -%}
+
+	<div>
+		<a href="/left" class="btn left">Left</a>
+		<a href="/right" class="btn pull-right right">Right</a>
+	</div>
+
 </div>
+
+<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+{{ include_script('wiki.bundle.js') }}
+
+<script>
+	new RenderWiki();
+
+</script>
+
+{%- if script -%}
+<script>{{ script }}</script>
+{%- endif -%}

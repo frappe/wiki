@@ -1,0 +1,27 @@
+{%- if not no_breadcrumbs and parents -%}
+<div class="breadcrumb-container container">
+	<nav aria-label="breadcrumb">
+		<ol class="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+			{%- set parents = parents[-3:] %}
+			{% set count = (parents | length) + 1 %}
+			{% for parent in parents %}
+				<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem" class="breadcrumb-item">
+					<a itemprop="item" href="{{ url_prefix }}{{ parent.route | abs_url }}" itemprop="url">
+						<span itemprop="name">{{ parent.title or parent.label or parent.name or "" }}</span>
+						<meta itemprop="position" content="{{ loop.index }}" />
+					</a>
+					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M10 16L14 12L10 8" stroke="#4C5A67" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+				</li>
+			{% endfor %}
+			<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem" class="breadcrumb-item active" aria-current="page">
+				<span itemprop="item">
+					<span itemprop="name">{{ title }}</span>
+					<meta itemprop="position" content="{{ count }}"/>
+				</span>
+			</li>
+		</ol>
+	</nav>
+</div>
+{%- endif -%}
