@@ -2,10 +2,9 @@
 <br>
 
 <div align="center">
-<img width="225" alt="logotype" src="https://user-images.githubusercontent.com/28212972/128001084-508e446f-2814-4e1f-a5cb-09598f5a5bdc.png">
+<img width="150" alt="logotype" src="https://user-images.githubusercontent.com/28212972/128001084-508e446f-2814-4e1f-a5cb-09598f5a5bdc.png">
 </div>
 
-<br>
 <br>
 
 ---
