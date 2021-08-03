@@ -8,7 +8,7 @@ Simple Wiki App built on the [Frappe Framework](https://frappeframework.com). Po
 
 ```bash
 # get app
-$ bench get-app https://github.com/netchampfaris/wiki
+$ bench get-app https://github.com/frappe/wiki
 
 # install on site
 $ bench --site sitename install-app wiki
