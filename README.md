@@ -1,8 +1,18 @@
-<img width="299" alt="logotype" src="https://user-images.githubusercontent.com/9355208/94364059-467be400-00e4-11eb-99b2-31b5d05376c9.png">
+<div align="center">
+<img width="299" alt="logotype" src="https://user-images.githubusercontent.com/28212972/128001084-508e446f-2814-4e1f-a5cb-09598f5a5bdc.png">
+<!-- ![fwiki](https://user-images.githubusercontent.com/28212972/128001084-508e446f-2814-4e1f-a5cb-09598f5a5bdc.png) -->
 
+</div>
 
-Simple Wiki App built on the [Frappe Framework](https://frappeframework.com). Powers [docs.erpnext.com](http://docs.erpnext.com/)
+---
 
+<div align="center">
+ Wiki App built on the <a href= "https://frappeframework.com" >Frappe Framework</a> | <a href = "https://wiki-docs.frappe.cloud/use_on_frappe_cloud">Try on Frappe Cloud</a>
+</div>
+
+## Introduction
+
+Wiki is an Open Source WIki Management App built on the <a href= "https://frappeframework.com" >Frappe Framework</a>. It is well suited to serve dynamic text-heavy content like documentation and knowledge bases. It allows publishing small changes and even new pages on the fly with no deployments. It also maintains revision history and has a built-in approval mechanism to stay away from unwanted updates. It intelligently caches and has a very low load time even with lots of pages( Check [docs.erpnext.com](http://docs.erpnext.com/) ). Wiki provides a dynamic sidebar that can be edited via dragging and dropping and configuration. You can install Wiki on your self-hosted installation of Frappe via Bench or install it on [Frappe Cloud](https://frappecloud.com/). 
 
 ## Installation
 
