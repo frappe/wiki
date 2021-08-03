@@ -12,7 +12,7 @@
 
 ## Introduction
 
-Wiki is an Open Source WIki Management App built on the <a href= "https://frappeframework.com" >Frappe Framework</a>. It is well suited to serve dynamic text-heavy content like documentation and knowledge bases. It allows publishing small changes and even new pages on the fly with no deployments. It also maintains revision history and has a built-in approval mechanism to stay away from unwanted updates. It intelligently caches and has a very low load time even with lots of pages( Check [docs.erpnext.com](http://docs.erpnext.com/) ). Wiki provides a dynamic sidebar that can be edited via dragging and dropping and configuration. You can install Wiki on your self-hosted installation of Frappe via Bench or install it on [Frappe Cloud](https://frappecloud.com/). 
+Wiki is an Open Source WIki Management App built on the <a href= "https://frappeframework.com" >Frappe Framework</a>. It is well suited to serve dynamic text-heavy content like documentation and knowledge bases. It allows publishing small changes and even new pages on the fly with no deployments. It also maintains revision history and has a built-in approval mechanism to stay away from unwanted updates. It intelligently caches and has a very low load time even with lots of pages (Check [docs.erpnext.com](http://docs.erpnext.com/) ). Wiki provides a dynamic sidebar that can be edited via dragging and dropping and configuration. You can install Wiki on your self-hosted installation of Frappe via Bench or install it on [Frappe Cloud](https://frappecloud.com/). 
 
 ## Installation
 
