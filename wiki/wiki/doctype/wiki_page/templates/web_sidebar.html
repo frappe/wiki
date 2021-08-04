@@ -55,18 +55,15 @@
 {% endmacro %}
 
 {% macro my_account() %}
-<ul class="list-unstyled">
+<ul class="list-unstyled management">
 	<li class="sidebar-item">
-		<a href="/me">{{ _("My Account") }}</a>
-	</li>
-
-	<li class="sidebar-item">
-
-	<a class=' new-wiki-page' href="placeholder_link">New Page</a>
+		<a class='new-wiki-page text-muted' href="placeholder_link">{{ _("Add a new page") }}</a>
 	</li>
 	<li class="sidebar-item">
-
-	<a class=' my-contributions' href="/contributions"> My Contributions</a>
+		<a class=' my-contributions text-muted' href="/contributions"> {{ _("My contributions") }}</a>
+	</li>
+	<li class="sidebar-item">
+		<a class = "text-muted" href="/me">{{ _("My Account") }}</a>
 	</li>
 </ul>
 {% endmacro %}
