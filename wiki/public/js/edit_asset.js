@@ -40,6 +40,7 @@ window.EditAsset = class EditAsset {
 					fieldname: "code_md",
 					fieldtype: "Code",
 					options: "Markdown",
+					wrap: true,
 					default: $(".wiki-content-md").html().replaceAll('&gt;', '>'),
 					depends_on: 'eval:doc.type=="Markdown"',
 				},
