@@ -10,7 +10,7 @@ from wiki import __version__ as version
 setup(
 	name='wiki',
 	version=version,
-	description='Simple Wiki APp',
+	description='Simple Wiki App',
 	author='Frappe',
 	author_email='developers@frappe.io',
 	packages=find_packages(),
