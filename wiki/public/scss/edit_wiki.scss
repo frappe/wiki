@@ -7,6 +7,15 @@
 	.edit-title {
 		width: 100%;
 		margin-right: 20px;
+		align-items: flex-start;
+
+		i {
+			padding: 0.35rem 0.5rem 0.5rem 0.5rem;
+		}
+	}
+
+	.submit-wiki-page {
+		max-height: 2.2rem;
 	}
 }
 
@@ -69,7 +78,7 @@
 	justify-content: flex-end;
 
 	.show-attachments {
-		padding: 4px 8px;
+		padding: 8px;
 		color: $primary;
 	}
 }
@@ -102,4 +111,8 @@ div[data-fieldname="type"] {
 		cursor: pointer;
 		padding: 0.5rem;
 	}
+}
+
+.wiki-write select{
+	height: calc(1.5em + 0.75rem + 2px)
 }
