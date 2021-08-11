@@ -53,24 +53,42 @@ window.EditAsset = class EditAsset {
 
 	get_attachment_controls_html() {
 		return `
-<div class='attachment-controls '>
-	<div class='show-attachments'>
-		<i class="octicon octicon-file-media"></i>
-		<span class='number'>0</span>&nbsp;attachments
-	</div>&nbsp;&nbsp;
-	<div class='add-attachment-wiki'>
-		<span class='btn btn-xs'>
-			<i class="octicon octicon-cloud-upload"></i>&nbsp;
-			Upload Attachment
-		</span>
-	</div>
-</div>
-`;
+			<div class='attachment-controls '>
+				<div class='show-attachments'>
+					${this.get_show_uploads_svg()}
+						<span class='number'>0</span>&nbsp;attachments
+				</div>&nbsp;&nbsp;
+				<div class='add-attachment-wiki'>
+					<span class='btn'>
+					${this.get_upload_image_svg()}
+						Upload Attachment
+					</span>
+				</div>
+			</div>
+		`;
+	}
+
+	get_show_uploads_svg() {
+		return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<path d="M12.6004 6.68841L7.6414 11.5616C6.23259 12.946 3.8658 12.946 2.45699 11.5616C1.04819 10.1772
+			1.04819 7.85132 2.45699 6.4669L6.85247 2.14749C7.86681 1.15071 9.44467 1.15071 10.459 2.14749C11.4733
+			3.14428 11.4733 4.69483 10.459 5.69162L6.40165 9.62339C5.83813 10.1772 4.93649 10.1772 4.42932 9.62339C3.8658
+			9.06962 3.8658 8.18359 4.42932 7.68519L7.81045 4.36257" stroke="#2D95F0" stroke-miterlimit="10" stroke-linecap="round"/>
+		</svg>`
+	}
+
+	get_upload_image_svg() {
+		return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+			<path d="M8 14.5C11.5899 14.5 14.5 11.5899 14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899
+			 4.41015 14.5 8 14.5Z" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+			<path d="M8 4.75V11.1351" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+			<path d="M5.29102 7.45833L7.99935 4.75L10.7077 7.45833" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" 
+			stroke-linejoin="round"/>
+		</svg>`
+
 	}
 
 	add_attachment_popover() {
-		let picker_wrapper = $("<div>skjdfjs</div>");
-
 		$(".show-attachments").popover({
 			trigger: "click",
 			placement: "bottom",
