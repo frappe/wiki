@@ -47,6 +47,10 @@ textarea.wiki-content {
 		border-radius: 0.5rem;
 		overflow: auto;
 
+		display: flex;
+		flex-direction: column;
+		flex-wrap: wrap;
+
 		div {
 			padding: 0.25rem 0.5rem;
 			background-color: $light;
@@ -477,7 +481,7 @@ navbar
 // contributions page
 
 .contributions-header {
-	margin: 3rem 0 1rem 0;
+	margin: 4rem 0 1.5rem 0;
 	font-size: $font-size-xl;
 	font-weight: 700;
 	line-height: 16px;
