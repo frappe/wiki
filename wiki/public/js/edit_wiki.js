@@ -76,6 +76,7 @@ window.EditWiki = class EditWiki extends Wiki {
 			var dfs = me.get_add_new_item_dialog_fields();
 
 			var dialog = new frappe.ui.Dialog({
+				title: "Add Components to Sidebar",
 				fields: dfs,
 				primary_action: function (fields) {
 					if (fields.type == "Add Wiki Page") {

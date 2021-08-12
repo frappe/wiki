@@ -47,12 +47,12 @@
 
 .form-control {
 	background-color: white;
-	border: solid rgb(244, 245, 246) 1px;
+	border: solid $gray-300 1px;
 }
 
 .form-control:focus {
 	background-color: white;
-	border: solid rgb(244, 245, 246) 1px;
+	border: solid $gray-300 1px;
 }
 
 .ace-editor-target {
@@ -64,10 +64,6 @@
 	border-right: solid rgb(244, 245, 246) 1px;
 }
 
-.wiki-preview {
-	border: solid #f4f5f6 1px;
-	padding: 0.5rem;
-}
 
 // edit page
 
@@ -347,4 +343,32 @@ $font-sizes-mobile: (
 	.table-bordered thead td {
 		border-bottom-width: 1px;
 	}
+}
+
+
+
+.modal .modal-header {
+	border-bottom: unset;
+}
+
+.modal .modal-footer {
+	border-top: unset
+}
+
+
+// button
+.btn:hover {
+    color: #000;
+    background-color: #f9fafb;
+    border-color: #f9fafb;
+}
+
+.btn.btn-primary:hover {
+    color: #fff;
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.show-attachments:hover {
+    color: #0a58ca;
 }

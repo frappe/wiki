@@ -205,6 +205,7 @@ window.EditAsset = class EditAsset {
 		let dialog = new frappe.ui.Dialog({
 			fields: dfs,
 			title: __("Please describe your changes"),
+			primary_action_label: __("Submit Changes"),
 			primary_action: function () {
 				frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
