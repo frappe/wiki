@@ -197,7 +197,7 @@ window.EditAsset = class EditAsset {
 			{
 				fieldname: "sidebar_edited",
 				fieldtype: "Check",
-				label: "I Updated the sidebar",
+				label: "I updated the sidebar",
 				default: $('[name="new"]').val() ? 1 : 0,
 			}
 		);
