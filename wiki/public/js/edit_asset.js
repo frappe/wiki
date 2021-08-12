@@ -26,6 +26,7 @@ window.EditAsset = class EditAsset {
 					fieldname: "attachment_controls",
 					fieldtype: "HTML",
 					options: this.get_attachment_controls_html(),
+					depends_on: 'eval:doc.type=="Markdown"',
 				},
 				{
 					fieldtype: "Section Break",

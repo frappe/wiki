@@ -28,7 +28,7 @@ window.EditWiki = class EditWiki extends Wiki {
 			if (page_href.indexOf("#") !== -1) {
 				page_href = page_href.slice(0, page_href.indexOf("#"));
 			}
-			if (page_href.includes($(this).data("route"))) {
+			if (page_href.split('/').slice(0,-1).join('/')== $(this).data("route")) {
 				$(this).addClass(active_class);
 				$(this).find("a").addClass(active_class);
 			}
