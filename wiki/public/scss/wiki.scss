@@ -82,7 +82,6 @@ textarea.wiki-content {
 // sidebar
 
 .sidebar-group {
-	border-bottom: 1px solid #eef0f2;
 	margin: 0;
 	font-style: normal;
 	font-weight: 500;
@@ -94,9 +93,6 @@ textarea.wiki-content {
 
 	padding-left: 0.25rem;
 
-	&:last-child {
-		border-bottom: none;
-	}
 }
 .sidebar-group {
 	ul.list-unstyled {
@@ -174,8 +170,12 @@ textarea.wiki-content {
 	display: flex;
 }
 .sidebar-column {
-	border-right: 1px solid #eef0f2;
 	flex: 1.5;
+	width: 25%;
+}
+
+.sm-sidebar .web-sidebar {
+	padding-bottom: 2rem;
 }
 
 .doc-sidebar {
@@ -278,7 +278,7 @@ textarea.wiki-content {
 // main-content
 .main-column {
 	flex: 4;
-
+	width: 50%;
 	.page-content-wrapper {
 		padding-top: 1rem;
 	}
@@ -303,7 +303,7 @@ textarea.wiki-content {
 // toc
 .page-toc {
 	flex: 1;
-
+	width: 25%;
 	div {
 		padding-top: 2rem;
 		width: 100%;

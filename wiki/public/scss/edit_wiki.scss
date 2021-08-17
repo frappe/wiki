@@ -1,7 +1,7 @@
 @import "frappe/public/scss/website/variables";
 
 .edit-page-head {
-	margin-top: 0.5rem;
+	margin-top: 1rem;
 	display: flex;
 	justify-content: space-between;
 	.edit-title {
@@ -34,7 +34,7 @@
 }
 
 .edit-form {
-	margin-top: 1.25rem !important;
+	margin-top: 1rem !important;
 }
 
 .form-column {
@@ -371,4 +371,11 @@ $font-sizes-mobile: (
 
 .show-attachments:hover {
     color: #0a58ca;
+}
+
+
+@media (min-width: 992px) {
+	.doc-main .page-content-wrapper {
+		padding: 0 2rem 4rem 4rem;
+	}
 }

@@ -68,15 +68,12 @@
 	{% if not only_static %}
 		{% block navbar_right_extension %}{% endblock %}
 	{% endif %}
-
-	<div class="d-block d-sm-none">
-		<hr>
+	<div class="d-block d-sm-none sm-sidebar">
 		<!--sidebar-->
-
 		<hr>
 	</div>
-
 	{% include "templates/includes/navbar/navbar_login.html" %}
+
 
 </ul>
 {%- if call_to_action -%}
