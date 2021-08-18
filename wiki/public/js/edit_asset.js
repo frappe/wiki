@@ -2,6 +2,7 @@ window.EditAsset = class EditAsset {
 	constructor() {
 		this.make_code_field_group();
 		this.add_attachment_popover();
+		// remove this once the pr related to code editor max lines is merged
 		this.set_code_editor_height();
 		this.render_preview();
 		this.add_attachment_handler();
@@ -42,6 +43,7 @@ window.EditAsset = class EditAsset {
 					fieldtype: "Code",
 					options: "Markdown",
 					wrap: true,
+					maxLines: Infinity,
 					default: $(".wiki-content-md").html().replaceAll('&gt;', '>'),
 					depends_on: 'eval:doc.type=="Markdown"',
 				},
@@ -112,7 +114,6 @@ window.EditAsset = class EditAsset {
 		this.attachments.forEach((f) => {
 			const row = $("<tr></tr>").appendTo(table.find("tbody"));
 			$(`<td>${f.file_name}</td>`).appendTo(row);
-			// $(`<td>${f.file_url}</td>`).appendTo(row);
 			$(`<td>
 			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![](${f.file_url})" data-name = "${f.file_name}" >
 				Copy Link

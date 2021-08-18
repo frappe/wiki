@@ -1,3 +1,7 @@
+.frappe-card {
+	padding:0;
+}
+
 .list-jobs {
 	font-size: 14px;
 }
@@ -6,6 +10,10 @@
 	margin-bottom: 0px;
 	margin-top: 0px;
 	white-space: nowrap;
+
+	td {
+		padding: 14px 20px;
+	}
 }
 thead td {
     border-top: 0 !important;;
