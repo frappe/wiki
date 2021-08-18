@@ -1,132 +1,118 @@
-<div  class = 'edit-page-head' >
+<div class='edit-page-head'>
 
 	<div class='edit-title'>
-		<span class="h4" contenteditable="true">{{ doc.title }}</span>
+		<span class="h3" contenteditable="true">{{ doc.title }}</span>
 	</div>
 
-	<div class='btn btn-primary submit-wiki-page'>  Submit Changes  </div>
+	<div class='btn btn-primary submit-wiki-page'> Submit Changes </div>
 </div>
-	<form class="mt-8 edit-form" method="POST">
-		<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
-		<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
-		<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
-		<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
+<form class="mt-8 edit-form" method="POST">
+	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
+	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
+	<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
+	<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
 
+	<div class="form-group">
 
-		<div class="form-group">
+		<ul class="nav nav-tabs" role="tablist">
 
+			<li class="nav-item" role="presentation">
+				<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+					id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
+					aria-selected="true">Write</a>
+			</li>
 
-			<ul class="nav nav-tabs" role="tablist">
+			<li class="nav-item" role="presentation">
+				<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
+					aria-controls="preview" aria-selected="false">Preview</a>
+			</li>
 
-				<li class="nav-item" role="presentation">
-					<a {% if not wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
-						id="write-tab" data-toggle="tab" href="#write" role="tab" aria-controls="write"
-						aria-selected="true">Write</a>
-				</li>
+			{%- if not frappe.form_dict.new -%}
+			<li class="nav-item" role="presentation">
+				<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
+					aria-selected="false">Compare</a>
+			</li>
+			{%- endif -%}
 
-				<li class="nav-item" role="presentation">
-					<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
-						aria-controls="preview" aria-selected="false">Preview</a>
-				</li>
+			{% if wiki_page_patch %}
+			<li class="nav-item" role="presentation">
+				<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
+					id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
+					aria-selected="false">Discussion</a>
+			</li>
+			{% endif %}
 
-				{%- if not frappe.form_dict.new -%}
-				<li class="nav-item" role="presentation">
-					<a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff" role="tab" aria-controls="diff"
-						aria-selected="false">Compare</a>
-				</li>
-				{%- endif -%}
+		</ul>
 
-				{% if wiki_page_patch %}
-				<li class="nav-item" role="presentation">
-					<a {% if wiki_page_patch %} class="nav-link active" {% else %} class="nav-link" {% endif %}
-						id="discussion-tab" data-toggle="tab" href="#discussion" role="tab" aria-controls="discussion"
-						aria-selected="false">Discussion</a>
-				</li>
-				{% endif %}
+		<div class="mt-4 tab-content">
 
-			</ul>
-
-			<div class="mt-4 tab-content">
-
-				<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
-					endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
-					<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
-					<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
-					<div class="wiki-write"></div>
-				</div>
-
-				<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
-					<div class="from-markdown wiki-preview"></div>
-				</div>
-
-				{%- if not frappe.form_dict.new -%}
-				<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
-					<div class="from-markdown wiki-diff"></div>
-				</div>
-				{%- endif -%}
-
-				{% if wiki_page_patch %}
-				<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
-					endif %} id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
-
-					{% include "wiki/doctype/wiki_page/templates/comment.html" %}
-				</div>
-				{% endif %}
-
+			<div {% if not wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {%
+				endif %} id="write" role="tabpanel" aria-labelledby="write-tab">
+				<div class="form-control wiki-content-md" hidden>{{ content_md }}</div>
+				<div class="form-control wiki-content-html" hidden>{{ content_html }}</div>
+				<div class="wiki-write"></div>
 			</div>
+
+			<div class="tab-pane fade" id="preview" role="tabpanel" aria-labelledby="preview-tab">
+				<div class="from-markdown wiki-preview"></div>
+			</div>
+
+			{%- if not frappe.form_dict.new -%}
+			<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
+				<div class="from-markdown wiki-diff"></div>
+			</div>
+			{%- endif -%}
+
+			{% if wiki_page_patch %}
+			<div {% if wiki_page_patch %} class="tab-pane fade show active" {% else %} class="tab-pane fade" {% endif %}
+				id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
+
+				{% include "wiki/doctype/wiki_page/templates/comment.html" %}
+			</div>
+			{% endif %}
 
 		</div>
 
+	</div>
+</form>
 
-	</form>
+{% block base_scripts %}
 
+<!-- js should be loaded in body! -->
+<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+<script src="https://unpkg.com/turndown@7.0.0/dist/turndown.js"></script>
+{{ include_script('libs.bundle.js') }}
 
-
-	{% block base_scripts %}
-
-
-	<!-- js should be loaded in body! -->
-	<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
-	<script src="https://unpkg.com/turndown@7.0.0/dist/turndown.js"></script>
-	{{ include_script('libs.bundle.js') }}
-
-	{{ include_script('frappe-web.bundle.js') }}
-	{{ include_script('controls.bundle.js') }}
-	{{ include_script('dialog.bundle.js') }}
-	{{ include_script('bootstrap-4-web.bundle.js') }}
-	<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
-	<script type="text/javascript"
-		src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
-	{{ include_script('desk.bundle.js') }}
-	{{ include_script('wiki.bundle.js') }}
+{{ include_script('frappe-web.bundle.js') }}
+{{ include_script('controls.bundle.js') }}
+{{ include_script('dialog.bundle.js') }}
+{{ include_script('bootstrap-4-web.bundle.js') }}
+<script type="text/javascript" src="/assets/frappe/node_modules/moment/min/moment-with-locales.min.js"></script>
+<script type="text/javascript"
+	src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
+{{ include_script('desk.bundle.js') }}
+{{ include_script('wiki.bundle.js') }}
 
 
-	<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
+<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
 
+<script>
 
-	<script>
-		
-		Vue.prototype.__ = window.__;
-		Vue.prototype.frappe = window.frappe;
-		new EditWiki();
+	Vue.prototype.__ = window.__;
+	Vue.prototype.frappe = window.frappe;
+	new EditWiki();
 
-		var edit = new EditAsset();
-		frappe.boot = {{ boot }};
+	var edit = new EditAsset();
+	frappe.boot = {{ boot }};
 
-	</script>
+</script>
 
+{%- if frappe.form_dict.new -%}
 
+{%- if script -%}
+<script>{ { script } }</script>
+{%- endif -%}
 
-	{%- if frappe.form_dict.new -%}
+{%- endif -%}
 
-	<script>
-
-	</script>
-
-	{%- if script -%}
-	<script>{ { script } }</script>
-	{%- endif -%}
-
-	{%- endif -%}
-
-	{% endblock %}
+{% endblock %}
