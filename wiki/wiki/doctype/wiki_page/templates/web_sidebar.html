@@ -70,15 +70,5 @@
 	{% endif %}
 	<div class="sidebar-items">
 		{{ render_sidebar_items(sidebar_items) }}
-		{{ my_account() }}
 	</div>
 </div>
-
-
-
-<script>
-	frappe.ready(()=> {
-		const edit_link = `/${window.location.pathname.slice(1)}/new`
-		$('.web-sidebar').find('.new-wiki-page').attr('href', edit_link)
-	})
-</script>

@@ -10,17 +10,18 @@
 		<ul class="user-contributions">
 
 			{%- if last_revision -%}
-			{{ last_revision.owner }} edited on {{ frappe.utils.format_datetime(last_revision.creation, 'medium') }}
+			{{ last_revision.owner }} edited {{ frappe.utils.pretty_date(last_revision.creation) }}
 			{%- if number_of_revisions > 0 %}
 			&middot;
 			<li><a href="/{{ path }}/revisions">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
 			{%- endif -%}
 			{%- endif -%}
-			<li><a href="/{{ path }}/edit">Edit</a>&nbsp;</li>
+			<li><a href="/{{ path }}/edit">Edit Page</a>&nbsp;</li>
+			<li><a href="/{{ path }}/new">New Page</a>&nbsp;</li>
 		</ul>
 	</div>
 
-	<div>
+	<div class = "forward-back">
 		<a href="/left" class="btn left">Left</a>
 		<a href="/right" class="btn pull-right right">Right</a>
 	</div>

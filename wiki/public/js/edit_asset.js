@@ -44,6 +44,7 @@ window.EditAsset = class EditAsset {
 					options: "Markdown",
 					wrap: true,
 					max_lines: Infinity,
+					min_lines: 20,
 					default: $(".wiki-content-md").html().replaceAll('&gt;', '>'),
 					depends_on: 'eval:doc.type=="Markdown"',
 				},
