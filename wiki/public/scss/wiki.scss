@@ -168,8 +168,7 @@ textarea.wiki-content {
 	display: flex;
 }
 .sidebar-column {
-	flex: 1.5;
-	width: 25%;
+	min-width: clamp(240px, 20%, 320px);
 }
 
 .sm-sidebar .web-sidebar {
@@ -281,8 +280,7 @@ textarea.wiki-content {
 
 // main-content
 .main-column {
-	flex: 4;
-	width: 50%;
+	flex-grow: 100;
 	.page-content-wrapper {
 		margin-top: 0;
 		padding-top: 2rem;
@@ -308,8 +306,7 @@ textarea.wiki-content {
 
 // toc
 .page-toc {
-	flex: 1;
-	width: 25%;
+	min-width: clamp(192px, 20%, 240px);
 	div {
 		width: 100%;
 		margin-top: 0;
