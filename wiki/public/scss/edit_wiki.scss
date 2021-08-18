@@ -64,7 +64,6 @@
 	border-right: solid rgb(244, 245, 246) 1px;
 }
 
-
 // edit page
 
 .attachment-controls {
@@ -345,37 +344,33 @@ $font-sizes-mobile: (
 	}
 }
 
-
-
 .modal .modal-header {
 	border-bottom: unset;
 }
 
 .modal .modal-footer {
-	border-top: unset
+	border-top: unset;
 }
-
 
 // button
 .btn:hover {
-    color: #000;
-    background-color: #f9fafb;
-    border-color: #f9fafb;
+	color: #000;
+	background-color: #f9fafb;
+	border-color: #f9fafb;
 }
 
 .btn.btn-primary:hover {
-    color: #fff;
-    background-color: #0b5ed7;
-    border-color: #0a58ca;
+	color: #fff;
+	background-color: #0b5ed7;
+	border-color: #0a58ca;
 }
 
 .show-attachments:hover {
-    color: #0a58ca;
+	color: #0a58ca;
 }
-
 
 @media (min-width: 992px) {
 	.doc-main .page-content-wrapper {
-		padding: 0 2rem 4rem 4rem;
+		padding: 2rem;
 	}
 }

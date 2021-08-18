@@ -92,7 +92,6 @@ textarea.wiki-content {
 	letter-spacing: -0.011em;
 
 	padding-left: 0.25rem;
-
 }
 .sidebar-group {
 	ul.list-unstyled {
@@ -136,7 +135,7 @@ textarea.wiki-content {
 		letter-spacing: -0.011em;
 		padding: 0.375rem 0.8rem 0.375rem 0.8rem;
 		margin-right: 0.8rem;
-		 div {
+		div {
 			display: flex;
 		}
 
@@ -148,7 +147,6 @@ textarea.wiki-content {
 			font-weight: normal;
 			width: 100%;
 		}
-
 	}
 
 	.sidebar-item:hover {
@@ -179,13 +177,13 @@ textarea.wiki-content {
 }
 
 .doc-sidebar {
+	height: 90vh;
+	margin-bottom: 0;
 	.web-sidebar {
-		margin-top: 10px;
 		margin-bottom: 8px;
-		padding-top: 1rem;
-		padding-bottom: 2rem;
 		margin-right: -0.5rem;
-
+		padding-top: 0;
+		padding-bottom: 0;
 		.sidebar-items > .list-unstyled > .sidebar-item {
 			margin-left: -0.5rem;
 		}
@@ -193,11 +191,16 @@ textarea.wiki-content {
 			margin-left: -0.7rem;
 		}
 	}
+
+	.management {
+		margin-bottom: 0;
+	}
 }
 
 @media (min-width: 992px) {
 	.doc-sidebar {
-		margin-top: 3.9rem;
+		padding-top: 2rem;
+		padding-bottom: 2rem;
 	}
 }
 
@@ -245,8 +248,9 @@ textarea.wiki-content {
 }
 .navbar {
 	width: 100%;
-	position: fixed;
-	z-index: 1;
+	position: sticky;
+	top: 0;
+	z-index: 1020;
 
 	.container {
 		height: 36px;
@@ -280,7 +284,9 @@ textarea.wiki-content {
 	flex: 4;
 	width: 50%;
 	.page-content-wrapper {
-		padding-top: 1rem;
+		margin-top: 0;
+		padding-top: 2rem;
+		padding-bottom: 0;
 	}
 }
 
@@ -305,11 +311,14 @@ textarea.wiki-content {
 	flex: 1;
 	width: 25%;
 	div {
-		padding-top: 2rem;
 		width: 100%;
-
+		margin-top: 0;
+		margin-bottom: 0;
+		padding-top: 2rem;
+		padding-bottom: 2rem;
 		ul {
-			padding-bottom: 0.75rem;
+			padding-bottom: 0;
+			margin-bottom: 0;
 		}
 
 		.h5 {
@@ -395,10 +404,6 @@ breadcrumbs
 	padding: 0;
 }
 
-.page_content {
-	padding-top: 3rem;
-}
-
 ol.breadcrumb {
 	font-size: $font-size-xs;
 
@@ -465,8 +470,9 @@ navbar
 .my-contributions,
 .new-wiki-page,
 .add-sidebar-item {
-	padding: 0.25rem 0.5rem;
+	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
+	margin-top: 1rem;
 }
 
 .web-footer {
