@@ -26,6 +26,7 @@ window.EditAsset = class EditAsset {
 					fieldname: "attachment_controls",
 					fieldtype: "HTML",
 					options: this.get_attachment_controls_html(),
+					depends_on: 'eval:doc.type=="Markdown"',
 				},
 				{
 					fieldtype: "Section Break",
@@ -183,7 +184,7 @@ window.EditAsset = class EditAsset {
 
 		var me = this;
 		var dfs = [];
-		const title_of_page = $('[name="title_of_page"]').val();
+		const title_of_page = $('.edit-title span').text();
 		dfs.push(
 			{
 				fieldname: "edit_message",
@@ -205,6 +206,7 @@ window.EditAsset = class EditAsset {
 		let dialog = new frappe.ui.Dialog({
 			fields: dfs,
 			title: __("Please describe your changes"),
+			primary_action_label: __("Submit Changes"),
 			primary_action: function () {
 				frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
@@ -217,7 +219,7 @@ window.EditAsset = class EditAsset {
 						type: me.code_field_group.get_value("type"),
 						attachments: me.attachments,
 						new: $('[name="new"]').val(),
-						title: $('[name="title_of_page"]').val(),
+						title: $('.edit-title span').text(),
 						new_sidebar: $(".doc-sidebar").get(0).innerHTML,
 						new_sidebar_items: side,
 					},
@@ -279,7 +281,9 @@ window.EditAsset = class EditAsset {
 						if (r.message) {
 							$preview.html(r.message.html);
 							if (!$('[name="new"]').val()) {
-								$diff.html(r.message.diff);
+								const empty_diff = `<div class="text-muted center"> No Changes made</div>`
+								const diff_html = $(r.message.diff).find('.insert, .delete').length?r.message.diff:empty_diff
+								$diff.html(diff_html);
 							}
 						}
 					},

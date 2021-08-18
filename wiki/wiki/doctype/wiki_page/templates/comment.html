@@ -25,7 +25,11 @@
 						<span class="flex justify-between">
 							<span class="text-color flex">
 								<span>
-									{{comment.owner }}
+									{% if comment.owner != 'Administrator' %}
+										{{frappe.db.get_value("User", comment.owner, ["first_name"], as_dict=True).get("first_name")}} -
+									{% endif %}
+									{{ comment.owner }}
+									commented
 									<span class="text-muted margin-left">
 										<span class="frappe-timestamp "
 											data-timestamp="{{comment.creation}}"

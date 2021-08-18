@@ -4,19 +4,19 @@
 {{ super() }}
 {{ include_style('wiki.bundle.css') }}
 
-<link rel="stylesheet" href="contributions.css">
+{{ include_style('contributions.bundle.css') }}
 
 {% endblock -%}
 
 
 {% block page_content %}
-<div class = 'contributions-header'> Your Contributions </div>
+<div class = 'contributions-header'> My Contributions </div>
 
 <div class="frappe-card">
     <div class="table-area">
         <div class="list-jobs">
             {% if contributions %}
-            <table class="table" style="table-layout: fixed;">
+            <table class="table" >
                 <thead class="white">
                     <tr>
                         <td style="width: 20%">{{ _("Status") }}</th>

@@ -1,7 +1,7 @@
 @import "frappe/public/scss/website/variables";
 
 .edit-page-head {
-	margin-top: 0.5rem;
+	margin-top: 1rem;
 	display: flex;
 	justify-content: space-between;
 	.edit-title {
@@ -34,7 +34,7 @@
 }
 
 .edit-form {
-	margin-top: 1.25rem !important;
+	margin-top: 1rem !important;
 }
 
 .form-column {
@@ -47,12 +47,12 @@
 
 .form-control {
 	background-color: white;
-	border: solid rgb(244, 245, 246) 1px;
+	border: solid $gray-300 1px;
 }
 
 .form-control:focus {
 	background-color: white;
-	border: solid rgb(244, 245, 246) 1px;
+	border: solid $gray-300 1px;
 }
 
 .ace-editor-target {
@@ -62,11 +62,6 @@
 .ace-tm .ace_gutter {
 	background-color: white;
 	border-right: solid rgb(244, 245, 246) 1px;
-}
-
-.wiki-preview {
-	border: solid #f4f5f6 1px;
-	padding: 0.5rem;
 }
 
 // edit page
@@ -346,5 +341,36 @@ $font-sizes-mobile: (
 	.table-bordered thead th,
 	.table-bordered thead td {
 		border-bottom-width: 1px;
+	}
+}
+
+.modal .modal-header {
+	border-bottom: unset;
+}
+
+.modal .modal-footer {
+	border-top: unset;
+}
+
+// button
+.btn:hover {
+	color: #000;
+	background-color: #f9fafb;
+	border-color: #f9fafb;
+}
+
+.btn.btn-primary:hover {
+	color: #fff;
+	background-color: #0b5ed7;
+	border-color: #0a58ca;
+}
+
+.show-attachments:hover {
+	color: #0a58ca;
+}
+
+@media (min-width: 992px) {
+	.doc-main .page-content-wrapper {
+		padding: 2rem;
 	}
 }

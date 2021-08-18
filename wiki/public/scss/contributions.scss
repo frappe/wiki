@@ -5,6 +5,7 @@
 .table {
 	margin-bottom: 0px;
 	margin-top: 0px;
+	white-space: nowrap;
 }
 thead td {
     border-top: 0 !important;;
@@ -46,6 +47,7 @@ thead td {
 	font-size: 14px;
 }
 
-body {
-	background-color: #F0F0F0;
+.page-content-wrapper {
+	padding: 0!important;
+	margin: 0 0 1rem 0!important;
 }

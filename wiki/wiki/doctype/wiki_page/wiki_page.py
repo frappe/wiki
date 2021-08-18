@@ -129,7 +129,13 @@ class WikiPage(WebsiteGenerator):
 		context.page_toc_html = html.toc_html
 		context.show_sidebar = True
 		context.hide_login = True
-
+		context = context.update({
+				"post_login": [
+					{"label": _("My Account"), "url": "/me"},
+					{"label": _("Logout"), "url": "/?cmd=web_logout"},
+					{"label": _("My Contributions"), "url": "/contributions"}
+				]
+		})
 
 	def get_docs_search_scope(self):
 		sidebar = frappe.get_all(
@@ -180,6 +186,7 @@ def preview(content, name, new, type, diff_css=False):
 
 	old_content = frappe.db.get_value("Wiki Page", name, "content")
 	diff = diff(old_content, content, css=diff_css)
+	print(diff)
 	return {"html": html, "diff": diff, "orignal_preview": frappe.utils.md_to_html(old_content)}
 
 @frappe.whitelist()
