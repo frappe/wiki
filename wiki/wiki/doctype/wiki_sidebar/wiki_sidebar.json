@@ -37,7 +37,7 @@
   }
  ],
  "links": [],
- "modified": "2021-07-14 09:46:23.477838",
+ "modified": "2021-08-21 14:21:29.147688",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar",
@@ -53,6 +53,18 @@
    "read": 1,
    "report": 1,
    "role": "Website Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Wiki Approver",
    "share": 1,
    "write": 1
   }

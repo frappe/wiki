@@ -31,7 +31,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-06-22 15:30:18.457671",
+ "modified": "2021-08-21 14:22:20.351789",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
@@ -44,6 +44,16 @@
    "print": 1,
    "read": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Wiki Approver",
    "share": 1,
    "write": 1
   }
