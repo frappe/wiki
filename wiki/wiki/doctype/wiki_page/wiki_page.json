@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_guest_to_view": 1,
+ "allow_import": 1,
  "creation": "2020-09-26 15:53:44.849581",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -84,7 +85,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-07-27 18:44:43.276703",
+ "modified": "2021-08-21 13:44:59.227108",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
