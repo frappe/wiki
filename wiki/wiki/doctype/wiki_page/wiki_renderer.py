@@ -10,6 +10,9 @@ from wiki.wiki.doctype.wiki_page.wiki_page import 	get_sidebar_for_page
 reg = re.compile('<!--sidebar-->')
 class WikiPageRenderer(DocumentPage):
 
+	def can_render(self):
+		return self.search_in_doctypes_with_web_view()
+
 	def search_in_doctypes_with_web_view(self):
 		for doctype in get_doctypes_with_web_view():
 			if doctype != 'Wiki Page':
