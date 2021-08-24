@@ -17,6 +17,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 	set_toc_highlighter() {
 		$(document).ready(function () {
 			$(window).scroll(function () {
+				if (currentAnchor().not('.no-underline').hasClass("active")) return
 				$(".page-toc a").removeClass("active");
 				currentAnchor().addClass("active");
 			});
