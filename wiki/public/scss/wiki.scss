@@ -285,6 +285,7 @@ textarea.wiki-content {
 // main-content
 .main-column {
 	flex-grow: 100;
+	min-width: clamp(680px, 60%, 870px);
 	.page-content-wrapper {
 		margin-top: 0;
 		padding-top: 2rem;
