@@ -172,8 +172,7 @@ textarea.wiki-content {
 	display: flex;
 }
 .sidebar-column {
-	min-width: clamp(240px, 20%, 320px);
-	max-width: clamp(240px, 20%, 320px);
+	width: clamp(240px, 20%, 320px);
 }
 
 .sm-sidebar .web-sidebar {
@@ -286,8 +285,7 @@ textarea.wiki-content {
 // main-content
 .main-column {
 	flex-grow: 100;
-	min-width: clamp(680px, 60%, 870px);
-	max-width: clamp(680px, 60%, 870px);
+	width: clamp(240px, 60%, 870px);
 	text-align: left;
 	.page-content-wrapper {
 		margin-top: 0;
@@ -314,8 +312,7 @@ textarea.wiki-content {
 
 // toc
 .page-toc {
-	min-width: clamp(192px, 20%, 240px);
-	max-width: clamp(192px, 20%, 240px);
+	width: clamp(192px, 20%, 240px);
 	div {
 		width: 100%;
 		margin-top: 0;
