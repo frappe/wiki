@@ -351,16 +351,6 @@ textarea.wiki-content {
 	}
 }
 
-// footer
-.footer-link::after {
-	margin-left: 1rem;
-	content: "•";
-}
-
-.footer-link::after:last-child {
-	content: "";
-}
-
 .breadcrumb-item + .breadcrumb-item::before {
 	content: "";
 	display: none;
