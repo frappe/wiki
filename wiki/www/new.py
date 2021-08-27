@@ -2,20 +2,20 @@ import re
 import frappe
 from frappe.desk.form.load import get_comments
 
+
 def get_context(context):
 	context.no_cache = 1
 	frappe.form_dict.edit = True
-	frappe.form_dict.new = 'true'
-	context.doc = frappe.get_doc('Wiki Page', frappe.form_dict.wiki_page)
+	frappe.form_dict.new = "true"
+	context.doc = frappe.get_doc("Wiki Page", frappe.form_dict.wiki_page)
 	# context = context.doc.get_context(context)
-
 
 	context.doc.verify_permission("read")
 
 	try:
 		boot = frappe.sessions.get()
 	except Exception as e:
-		boot = frappe._dict(status='failed', error = str(e))
+		boot = frappe._dict(status="failed", error=str(e))
 		print(frappe.get_traceback())
 
 	boot_json = frappe.as_json(boot)
@@ -38,9 +38,11 @@ def get_context(context):
 
 	if not can_edit:
 		context.doc.redirect_to_login("create")
-	context.sidebar_items, context.docs_search_scope  = context.doc.get_sidebar_items(context)
+	context.sidebar_items, context.docs_search_scope = context.doc.get_sidebar_items(
+		context
+	)
 	context.title = "New Wiki Page"
-	context.doc.title='New Wiki Page'
+	context.doc.title = "New Wiki Page"
 	context.content_md = "New Wiki Page"
 	context.content_html = "New Wiki Page"
 	if frappe.form_dict.wiki_page_patch:
@@ -54,7 +56,3 @@ def get_context(context):
 		context.content_md = context.doc.content
 		context.content_html = frappe.utils.md_to_html(context.doc.content)
 	return context
-
-	
-
-

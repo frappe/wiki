@@ -1,5 +1,5 @@
-
 import frappe
+
 
 def get_context(context):
 
@@ -19,7 +19,7 @@ def get_context(context):
 	)
 	context.revisions = revisions
 	context.no_cache = 1
-	context.doc = frappe.get_doc('Wiki Page', frappe.form_dict.wiki_page)
+	context.doc = frappe.get_doc("Wiki Page", frappe.form_dict.wiki_page)
 	context.title = "Revisions: " + context.doc.title
 
 	context.doc.set_breadcrumbs(context)

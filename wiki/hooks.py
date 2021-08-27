@@ -14,9 +14,9 @@ app_license = "MIT"
 page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
 
 website_route_rules = [
-    {"from_route": "/<path:wiki_page>/edit", "to_route": "/edit"},
-    {"from_route": "/<path:wiki_page>/new", "to_route": "/new"},
-    {"from_route": "/<path:wiki_page>/revisions", "to_route": "/revisions"},
+	{"from_route": "/<path:wiki_page>/edit", "to_route": "/edit"},
+	{"from_route": "/<path:wiki_page>/new", "to_route": "/new"},
+	{"from_route": "/<path:wiki_page>/revisions", "to_route": "/revisions"},
 ]
 
 # Includes in <head>

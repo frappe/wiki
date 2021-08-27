@@ -5,17 +5,18 @@ from frappe.website.utils import build_response
 from frappe.website.page_renderers.document_page import DocumentPage
 from frappe.website.router import get_doctypes_with_web_view
 
-from wiki.wiki.doctype.wiki_page.wiki_page import 	get_sidebar_for_page
+from wiki.wiki.doctype.wiki_page.wiki_page import get_sidebar_for_page
 
-reg = re.compile('<!--sidebar-->')
+reg = re.compile("<!--sidebar-->")
+
+
 class WikiPageRenderer(DocumentPage):
-
 	def can_render(self):
 		return self.search_in_doctypes_with_web_view()
 
 	def search_in_doctypes_with_web_view(self):
 		for doctype in get_doctypes_with_web_view():
-			if doctype != 'Wiki Page':
+			if doctype != "Wiki Page":
 				continue
 			filters = dict(route=self.path)
 			meta = frappe.get_meta(doctype)
@@ -25,7 +26,7 @@ class WikiPageRenderer(DocumentPage):
 				filters[condition_field] = 1
 
 			try:
-				self.docname = frappe.db.get_value(doctype, filters, 'name')
+				self.docname = frappe.db.get_value(doctype, filters, "name")
 				if self.docname:
 					self.doctype = doctype
 					return True

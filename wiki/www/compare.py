@@ -1,5 +1,5 @@
-
 import frappe
+
 
 def get_context(context):
 	context.no_cache = 1
@@ -12,10 +12,8 @@ def get_context(context):
 	context.can_edit = can_edit
 	context.show_my_account = False
 
-
-	context.doc = frappe.get_doc('Wiki Page', frappe.form_dict.wiki_page)
+	context.doc = frappe.get_doc("Wiki Page", frappe.form_dict.wiki_page)
 	context.doc.set_breadcrumbs(context)
-
 
 	from ghdiff import diff
 
@@ -40,6 +38,5 @@ def get_context(context):
 		return
 
 	context.diff = diff(previous_revision_content, revision.content, css=False)
-
 
 	return context

@@ -18,9 +18,7 @@ def after_install():
 	sidebar = frappe.new_doc("Wiki Sidebar")
 	sidebar.title = "Wiki"
 	sidebar.route = "wiki"
-	sidebar.append(
-		"sidebar_items", {"item": page.name}
-	)
+	sidebar.append("sidebar_items", {"item": page.name})
 	sidebar.insert()
 
 	# set the sidebar in settings
