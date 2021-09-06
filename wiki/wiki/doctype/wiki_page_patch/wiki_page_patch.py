@@ -9,7 +9,7 @@ from frappe.model.document import Document
 from ghdiff import diff
 from frappe import _
 from frappe.desk.form.utils import add_comment
-
+from frappe.utils import cint
 
 class WikiPagePatch(Document):
 	def validate(self):
