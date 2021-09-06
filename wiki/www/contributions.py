@@ -1,7 +1,9 @@
 import frappe
+from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
 def get_context(context):
+	context.pilled_title = "My Contributions  " + get_open_contributions()
 	context.no_cache = 1
 	context.no_sidebar = 1
 	color_map = {
@@ -28,6 +30,20 @@ def get_context(context):
 		contribution.color = color_map[contribution.status]
 		contribution.creation = frappe.utils.pretty_date(contribution.creation)
 		context.contributions.extend([contribution])
+
+	context = context.update(
+		{
+			"post_login": [
+				{"label": _("My Account"), "url": "/me"},
+				{"label": _("Logout"), "url": "/?cmd=web_logout"},
+				{
+					"label": _("My Contributions ") + get_open_contributions(),
+					"url": "/contributions",
+				},
+			]
+		}
+	)
+
 	return context
 
 

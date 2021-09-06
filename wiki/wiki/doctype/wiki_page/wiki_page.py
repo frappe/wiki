@@ -129,7 +129,10 @@ class WikiPage(WebsiteGenerator):
 				"post_login": [
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
-					{"label": _("My Contributions"), "url": "/contributions"},
+					{
+						"label": _("My Contributions ") + get_open_contributions(),
+						"url": "/contributions",
+					},
 				]
 			}
 		)
@@ -173,6 +176,13 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Page Revision", filters={"wiki_page": self.name}
 		)
 		return frappe.get_doc("Wiki Page Revision", last_revision)
+
+
+def get_open_contributions():
+	count = len(
+		frappe.get_list("Wiki Page Patch", filters=[["status", "=", "Under Review"]],)
+	)
+	return f'<span class="badge badge-primary">{count}</span>'
 
 
 @frappe.whitelist()
@@ -336,8 +346,9 @@ def get_sidebar_for_page(wiki_page):
 def approve(wiki_page_patch):
 	if not frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
 		frappe.throw(
-				_("You are not permitted to approve, Please wait for a moderator to respond"), frappe.PermissionError
-			)
+			_("You are not permitted to approve, Please wait for a moderator to respond"),
+			frappe.PermissionError,
+		)
 
 	patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
 	patch.approved_by = frappe.session.user

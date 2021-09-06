@@ -1,6 +1,7 @@
 import re
 import frappe
 from frappe.desk.form.load import get_comments
+from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
 def get_context(context):
@@ -56,5 +57,18 @@ def get_context(context):
 	context.content_html = frappe.utils.md_to_html(context.doc.content)
 	context.sidebar_items, context.docs_search_scope = context.doc.get_sidebar_items(
 		context
+	)
+
+	context = context.update(
+		{
+			"post_login": [
+				{"label": _("My Account"), "url": "/me"},
+				{"label": _("Logout"), "url": "/?cmd=web_logout"},
+				{
+					"label": _("My Contributions ") + get_open_contributions(),
+					"url": "/contributions",
+				},
+			]
+		}
 	)
 	return context

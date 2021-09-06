@@ -11,6 +11,7 @@ from frappe import _
 from frappe.desk.form.utils import add_comment
 from frappe.utils import cint
 
+
 class WikiPagePatch(Document):
 	def validate(self):
 		self.new_preview_store = frappe.utils.md_to_html(self.new_code)
@@ -70,10 +71,9 @@ class WikiPagePatch(Document):
 		return
 
 	def update_sidebars(self):
-		print("inside"*250)
 		if not self.new_sidebar_items:
 			self.new_sidebar_items = "{}"
-		
+
 		sidebars = json.loads(self.new_sidebar_items)
 		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
