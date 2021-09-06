@@ -1,60 +1,58 @@
 .frappe-card {
-	padding:0;
+  padding: 0;
 }
 
 .list-jobs {
-	font-size: 14px;
+  font-size: 14px;
 }
 
 .table {
-	margin-bottom: 0px;
-	margin-top: 0px;
+  margin-bottom: 0px;
+  margin-top: 0px;
 
-	td {
-		padding: 14px 20px;
-	}
+  td {
+    padding: 14px 20px;
+  }
 }
 thead td {
-    border-top: 0 !important;;
+  border-top: 0 !important;
 }
 
 .worker-name {
-	display: flex;
-	align-items: center;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .job-name {
-	font-size: 13px;
-	font-family: "Courier New", Courier, monospace;
-	/* background-color: var(--control-bg); */
-	/* padding: var(--padding-xs) var(--padding-sm); */
-	/* border-radius: var(--border-radius-md); */
+  font-size: 13px;
+  font-family: "Courier New", Courier, monospace;
 }
 
 .background-job-row:hover {
-	background-color: #F9FAFA;
+  background-color: #f9fafa;
 }
 
 .no-background-jobs {
-	min-height: 320px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-direction: column;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 }
 
 .no-background-jobs > img {
-	margin-bottom: var(15px);
-	max-height: 100px;
+  margin-bottom: var(15px);
+  max-height: 100px;
 }
 
 .footer {
-	align-items: flex-end;
-	margin-top: 15px;
-	font-size: 14px;
+  align-items: flex-end;
+  margin-top: 15px;
+  font-size: 14px;
 }
 
 .page-content-wrapper {
-	padding: 0!important;
-	margin: 0 0 1rem 0!important;
+  padding: 0 !important;
+  margin: 0 0 1rem 0 !important;
 }
