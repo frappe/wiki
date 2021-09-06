@@ -10,6 +10,8 @@
 
 
 {% block page_content %}
+<input class="d-none" type="text" name="limit" value="2">
+
 <div class='contributions-header'> My Contributions </div>
 
 <div class="frappe-card">
@@ -48,13 +50,58 @@
 		</div>
 	</div>
 </div>
+{% if contributions %}
+<br>
+<div> <button class='btn pull-right get_contributions'>More</button></div>
+<br>
+<br>
+
+{% endif %}
+
 {% endblock %}
 
 {% block base_scripts %}
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 
-<script type="text/javascript" src="/assets/js/frappe-web.min.js"></script>
-<script type="text/javascript" src="/assets/js/bootstrap-4-web.min.js"></script>
+{{ include_script("frappe-web.bundle.js") }}
+{{ include_script('bootstrap-4-web.bundle.js') }}
+
+<script>
+	frappe.ready(
+		() => {
+			$('.get_contributions').click(() => {
+				frappe.call({
+					method: "wiki.www.contributions.get_contributions",
+					args: {
+						limit: parseInt($('[name="limit"]').val()) + 10,
+					},
+					callback: (response) => {
+
+						if (response.message) {
+							$('.list-jobs tbody').empty()
+							$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + 2)
+							for (contribution of response.message.contributions) {
+								$('.list-jobs tbody').append($(`	<tr>
+									<td class="worker-name"><span class="indicator-pill no-margin ${contribution.color}">&nbsp;&nbsp;
+										${contribution.status}</span></td>
+									<td>${contribution.message}</td>
+									<td>${contribution.creation}</td>
+									<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Contribution</a>
+									</td>
+								</tr>
+
+							`))
+							}
+						}
+
+					},
+					freeze: true,
+				})
+			});
+		}
+	)
+</script>
+
 
 {% endblock %}
 
