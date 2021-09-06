@@ -2,7 +2,7 @@ import re
 import frappe
 from frappe.desk.form.load import get_comments
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
-
+from frappe import _
 
 def get_context(context):
 	context.no_cache = 1

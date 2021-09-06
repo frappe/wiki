@@ -182,7 +182,7 @@ def get_open_contributions():
 	count = len(
 		frappe.get_list("Wiki Page Patch", filters=[["status", "=", "Under Review"]],)
 	)
-	return f'<span class="badge badge-primary">{count}</span>'
+	return f'<span class="count">{count}</span>'
 
 
 @frappe.whitelist()

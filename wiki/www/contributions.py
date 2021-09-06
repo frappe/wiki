@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
