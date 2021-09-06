@@ -43,7 +43,7 @@ class WikiPagePatch(Document):
 			self.update_sidebars()
 
 	def clear_sidebar_cache(self, wiki_page):
-		if self.sidebar_edited == "1" or self.new_title != wiki_page.title:
+		if cint(self.sidebar_edited) or self.new_title != wiki_page.title:
 			for key in frappe.cache().hgetall("wiki_sidebar").keys():
 				frappe.cache().hdel("wiki_sidebar", key)
 
