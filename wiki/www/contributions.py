@@ -16,6 +16,7 @@ def get_context(context):
 		"Wiki Page Patch",
 		["message", "status", "name", "wiki_page", "creation", "new"],
 		order_by="modified desc",
+		filters= [['status', '!=', 'Approved']]
 	)
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")

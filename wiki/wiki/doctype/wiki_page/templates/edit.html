@@ -4,12 +4,18 @@
 		<span class="h3" contenteditable="true">{{ doc.title }}</span>
 	</div>
 
+	{% if wiki_page_patch %}
+	<div class='btn btn-primary-light approve-wiki-page'> Approve </div>
+	{% endif %}
+
+
 	<div class='btn btn-primary submit-wiki-page'> Submit Changes </div>
 </div>
 <form class="mt-8 edit-form" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 	<input class="d-none" type="text" name="wiki_page" value="{{ doc.name }}">
 	<input class="d-none" type="text" name="wiki_page_patch" value="{{ wiki_page_patch or ''}}">
+	<input class="d-none" type="text" name="new_sidebar_items" value='{{ new_sidebar_items or ""}}'>
 	<input class="d-none" type="text" name="new" value="{{ frappe.form_dict.new or ''}}">
 
 	<div class="form-group">
@@ -59,8 +65,16 @@
 
 			{%- if not frappe.form_dict.new -%}
 			<div class="tab-pane fade" id="diff" role="tabpanel" aria-labelledby="preview-tab">
+				<h4>Edited Page</h3>
 				<div class="from-markdown wiki-diff"></div>
+				{%- if sidebar_edited -%}
+				<hr>
+				<h4>Edited Sidebar</h3>
+				<div class=" sidebar-diff"></div>
+				{%- endif -%}
+
 			</div>
+
 			{%- endif -%}
 
 			{% if wiki_page_patch %}

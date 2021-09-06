@@ -9,6 +9,7 @@ window.EditAsset = class EditAsset {
 		this.set_listeners();
 		this.create_comment_box();
 		this.make_title_editable();
+		this.render_sidebar_diff()
 	}
 
 	make_code_field_group() {
@@ -312,6 +313,10 @@ window.EditAsset = class EditAsset {
 		$(".submit-wiki-page").click(function () {
 			me.get_markdown();
 		});
+
+		$(".approve-wiki-page").click(function () {
+			me.approve_wiki_page();
+		});
 	}
 
 	new_attachment() {
@@ -489,5 +494,58 @@ window.EditAsset = class EditAsset {
 			title_input.addClass("hide");
 			title_span.text(title_input.val());
 		});
+	}
+
+	approve_wiki_page() {
+		frappe.call({
+			method: "wiki.wiki.doctype.wiki_page.wiki_page.approve",
+			args: {
+				wiki_page_patch: $('[name="wiki_page_patch"]').val(),
+			},
+			callback: () => {
+				frappe.msgprint({
+					message:
+						"The Change has been approved.",
+					indicator: "green",
+					title: "Approved",
+				});
+				window.location.href = '/' + $('[name="wiki_page"]').val();
+			},
+			freeze: true,
+		});
+
+	}
+
+	render_sidebar_diff() {
+		const lis = $(".sidebar-diff");
+		const sidebar_items = JSON.parse($('[name="new_sidebar_items"]').val());
+		lis.empty();
+		for (let sidebar in sidebar_items) {
+			for (let item in sidebar_items[sidebar]) {
+				let class_name = ("." + sidebar).replaceAll("/", "\\/");
+				let target = lis.find(class_name);
+				if (!target.length) {
+					target = $(".sidebar-diff");
+				}
+				if (sidebar_items[sidebar][item].type == "Wiki Sidebar") {
+					$(target).append(
+						"<li>" +
+							sidebar_items[sidebar][item].title +
+							"</li>" +
+							"<ul class=" +
+							sidebar_items[sidebar][item].group_name +
+							"></ul>"
+					);
+				} else {
+					$(target).append(
+						"<li class=" +
+							sidebar_items[sidebar][item].group_name +
+							">" +
+							sidebar_items[sidebar][item].title +
+							"</li>"
+					);
+				}
+			}
+		}
 	}
 };

@@ -184,7 +184,6 @@ def preview(content, name, new, type, diff_css=False):
 
 	old_content = frappe.db.get_value("Wiki Page", name, "content")
 	diff = diff(old_content, content, css=diff_css)
-	print(diff)
 	return {
 		"html": html,
 		"diff": diff,
@@ -331,3 +330,16 @@ def get_sidebar_for_page(wiki_page):
 			"Wiki Page", matching_pages[0].get("name")
 		).get_sidebar_items(context)
 	return sidebar
+
+
+@frappe.whitelist()
+def approve(wiki_page_patch):
+	if not frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
+		frappe.throw(
+				_("You are not permitted to approve, Please wait for a moderator to respond"), frappe.PermissionError
+			)
+
+	patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
+	patch.approved_by = frappe.session.user
+	patch.status = "Approved"
+	patch.submit()

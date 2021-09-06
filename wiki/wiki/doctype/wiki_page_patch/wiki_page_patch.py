@@ -39,7 +39,7 @@ class WikiPagePatch(Document):
 		else:
 			self.update_old_page(wiki_page)
 
-		if self.sidebar_edited == "1":
+		if cint(self.sidebar_edited):
 			self.update_sidebars()
 
 	def clear_sidebar_cache(self, wiki_page):
@@ -70,8 +70,10 @@ class WikiPagePatch(Document):
 		return
 
 	def update_sidebars(self):
+		print("inside"*250)
 		if not self.new_sidebar_items:
 			self.new_sidebar_items = "{}"
+		
 		sidebars = json.loads(self.new_sidebar_items)
 		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
