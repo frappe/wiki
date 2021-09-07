@@ -79,9 +79,7 @@ class WikiPagePatch(Document):
 		sidebar_items = sidebars.items()
 		if sidebar_items:
 			for sidebar, items in sidebar_items:
-				for idx, item in enumerate(items):
-					if sidebar == "docs/v13/user/manual/en":
-						print(idx, item)
+				for idx, item in enumerate(items, start=1):
 					frappe.db.set_value("Wiki Sidebar Item", item["name"], "parent", sidebar)
 					frappe.db.set_value("Wiki Sidebar Item", item["name"], "idx", idx)
 
