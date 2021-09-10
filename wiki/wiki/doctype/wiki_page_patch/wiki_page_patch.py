@@ -31,38 +31,38 @@ class WikiPagePatch(Document):
 		if self.status != "Approved":
 			frappe.throw(_("Please approve/ reject the request before submitting"))
 
-		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page)
+		self.wiki_page_doc = frappe.get_doc("Wiki Page", self.wiki_page)
 
-		self.clear_sidebar_cache(wiki_page)
+		self.clear_sidebar_cache()
 
 		if self.new:
-			self.create_new_wiki_page(wiki_page)
+			self.create_new_wiki_page()
 		else:
-			self.update_old_page(wiki_page)
+			self.update_old_page()
 
 		if cint(self.sidebar_edited):
 			self.update_sidebars()
 
-	def clear_sidebar_cache(self, wiki_page):
-		if cint(self.sidebar_edited) or self.new_title != wiki_page.title:
+	def clear_sidebar_cache(self):
+		if cint(self.sidebar_edited) or self.new_title != self.wiki_page_doc.title:
 			for key in frappe.cache().hgetall("wiki_sidebar").keys():
 				frappe.cache().hdel("wiki_sidebar", key)
 
-	def create_new_wiki_page(self, wiki_page):
+	def create_new_wiki_page(self):
 		self.new_wiki_page = frappe.new_doc("Wiki Page")
 
 		wiki_page_dict = {
 			"title": self.new_title,
 			"content": self.new_code,
-			"route": "/".join(wiki_page.route.split("/")[:-1] + [frappe.scrub(self.new_title)]),
+			"route": "/".join(self.wiki_page_doc.route.split("/")[:-1] + [frappe.scrub(self.new_title)]),
 			"published": 1,
 		}
 
 		self.new_wiki_page.update(wiki_page_dict)
 		self.new_wiki_page.save()
 
-	def update_old_page(self, wiki_page):
-		wiki_page.update_page(self.new_title, self.new_code, self.message, self.raised_by)
+	def update_old_page(self):
+		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
 		updated_page = frappe.get_all(
 			"Wiki Sidebar Item", {"item": self.wiki_page, "type": "Wiki Page"}, pluck="name"
 		)
