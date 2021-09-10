@@ -226,14 +226,19 @@ window.EditAsset = class EditAsset {
 						new_sidebar: $(".doc-sidebar").get(0).innerHTML,
 						new_sidebar_items: side,
 					},
-					callback: () => {
-						frappe.msgprint({
-							message:
-								"A Change Request has been created. You can track your requests on the contributions page",
-							indicator: "green",
-							title: "Change Request Created",
-						});
-						window.location.href = "/contributions";
+					callback: (r) => {
+						if (!r.message.approved) {
+							frappe.msgprint({
+								message:
+									"A Change Request has been created. You can track your requests on the contributions page",
+								indicator: "green",
+								title: "Change Request Created",
+								alert: 1
+							});
+						}
+
+						// route back to the main page
+						window.location.href = '/' + r.message.route;
 					},
 					freeze: true,
 				});
