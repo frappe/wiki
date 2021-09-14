@@ -292,15 +292,22 @@ def update(
 
 	update_file_links(attachments, patch.name)
 
+	out = frappe._dict()
+
 	if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
 		patch.approved_by = frappe.session.user
 		patch.status = "Approved"
 		patch.submit()
+		out.approved = True
 
 	frappe.db.commit()
 
-	return True
+	if hasattr(patch, 'new_wiki_page'):
+		out.route = patch.new_wiki_page.route
+	else:
+		out.route = patch.wiki_page_doc.route
 
+	return out
 
 def update_file_links(attachments, name):
 	for attachment in json.loads(attachments):
