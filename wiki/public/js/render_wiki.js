@@ -1,23 +1,31 @@
 window.RenderWiki = class RenderWiki extends Wiki {
-	constructor(opts) {
+  	constructor() {
 		super();
-		$("document").ready(() => {
-			if (
-				window.location.pathname != "/revisions" &&
-				window.location.pathname != "/compare"
-			) {
-				this.activate_sidebars();
-				this.set_active_sidebar();
-				this.set_nav_buttons();
-				this.set_toc_highlighter();
-			}
-		});
+		this.set_up_sidebar()
 	}
 
-	set_toc_highlighter() {
+	set_up_sidebar() {
+		$("document").ready(() => {
+			frappe.call({
+				method: "wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page",
+				args: {
+					wiki_page: 'home2'
+				},
+				callback: (result) => {
+					$(".doc-sidebar").empty().append(result.message);
+					this.activate_sidebars();
+					this.set_active_sidebar();
+					this.set_nav_buttons();
+					this.set_toc_highlighter();
+				}
+			})
+		})
+	}
+
+  	set_toc_highlighter() {
 		$(document).ready(function () {
 			$(window).scroll(function () {
-				if (currentAnchor().not('.no-underline').hasClass("active")) return
+				if (currentAnchor().not(".no-underline").hasClass("active")) return;
 				$(".page-toc a").removeClass("active");
 				currentAnchor().addClass("active");
 			});
@@ -34,9 +42,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
 		var _anchors = null;
 		function anchors() {
 			if (!_anchors) {
-				_anchors = $(".page-toc a").map(function () {
+					_anchors = $(".page-toc a").map(function () {
 					return $(this).attr("href");
-				});
+					});
 			}
 			return _anchors;
 		}
@@ -47,44 +55,44 @@ window.RenderWiki = class RenderWiki extends Wiki {
 			anchors().each(function () {
 				var y = heading(this).position().top;
 				if (y < winY + window.innerHeight * 0.23) {
-					currAnchor = this;
-					return;
+				currAnchor = this;
+				return;
 				}
 			});
 			return tocItem(currAnchor);
 		}
-	}
+  	}
 
-	set_nav_buttons() {
+  	set_nav_buttons() {
 		var current_index = -1;
 
 		$(".sidebar-column")
-			.find("a")
-			.each(function (index) {
-				if ($(this).attr("class")) {
-					let dish = $(this).attr("class").split(/\s+/)[0];
-					if (dish === "active") {
-						current_index = index;
-					}
-				}
-			});
+		.find("a")
+		.each(function (index) {
+			if ($(this).attr("class")) {
+			let dish = $(this).attr("class").split(/\s+/)[0];
+			if (dish === "active") {
+				current_index = index;
+			}
+			}
+		});
 
 		if (current_index != 0) {
-			$(".btn.left")[0].href =
-				$(".sidebar-column").find("a")[current_index - 1].href;
-			$(".btn.left")[0].innerHTML =
-				"←" + $(".sidebar-column").find("a")[current_index - 1].innerHTML;
+		$(".btn.left")[0].href =
+			$(".sidebar-column").find("a")[current_index - 1].href;
+		$(".btn.left")[0].innerHTML =
+			"←" + $(".sidebar-column").find("a")[current_index - 1].innerHTML;
 		} else {
-			$(".btn.left").hide();
+		$(".btn.left").hide();
 		}
 
 		if (current_index < $(".sidebar-column").find("a").length - 1) {
-			$(".btn.right")[0].href =
-				$(".sidebar-column").find("a")[current_index + 1].href;
-			$(".btn.right")[0].innerHTML =
-				$(".sidebar-column").find("a")[current_index + 1].innerHTML + "→";
+		$(".btn.right")[0].href =
+			$(".sidebar-column").find("a")[current_index + 1].href;
+		$(".btn.right")[0].innerHTML =
+			$(".sidebar-column").find("a")[current_index + 1].innerHTML + "→";
 		} else {
-			$(".btn.right").hide();
+		$(".btn.right").hide();
 		}
-	}
+  	}
 };

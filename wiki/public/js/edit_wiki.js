@@ -2,6 +2,10 @@ window.EditWiki = class EditWiki extends Wiki {
 	constructor() {
 		super();
 		frappe.provide("frappe.ui.keys");
+		this.set_up_sidebar()
+	}
+
+	set_up_sidebar() {
 		$("document").ready(() => {
 			frappe
 				.call("wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page", {
