@@ -202,7 +202,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-08-21 13:44:36.531313",
+ "modified": "2021-09-15 22:40:32.548785",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
@@ -253,6 +253,17 @@
    "set_user_permissions": 1,
    "share": 1,
    "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Guest",
+   "share": 1,
    "write": 1
   }
  ],
