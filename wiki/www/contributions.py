@@ -25,9 +25,9 @@ def get_context(context):
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
 		if contribution.new:
-			contribution.edit_link = f"/{route}/new?wiki_page_patch={contribution.name}"
+			contribution.edit_link = f"/new?wiki_page={route}&wiki_page_patch={contribution.name}&new=1"
 		else:
-			contribution.edit_link = f"/{route}/edit?wiki_page_patch={contribution.name}"
+			contribution.edit_link = f"/edit?wiki_page={route}&wiki_page_patch={contribution.name}"
 		contribution.color = color_map[contribution.status]
 		contribution.creation = frappe.utils.pretty_date(contribution.creation)
 		context.contributions.extend([contribution])
