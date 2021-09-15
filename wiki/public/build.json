@@ -1,4 +1,11 @@
 {
 	"wiki/css/wiki.css": ["public/scss/wiki.scss"],
-	"wiki/js/wiki.min.js": ["www/editu.js"]
+	"wiki/css/edit_wiki.css": ["public/scss/edit_wiki.scss"],
+	"wiki/css/contributions.css": ["public/scss/contributions.scss"],
+	"wiki/js/wiki.min.js": [
+		"public/js/wiki.js",
+		"public/js/edit_asset.js",
+		"public/js/edit_wiki.js",
+		"public/js/render_wiki.js"
+	]
 }
