@@ -305,7 +305,7 @@ def update(
 	if hasattr(patch, 'new_wiki_page'):
 		out.route = patch.new_wiki_page.route
 	else:
-		out.route = patch.wiki_page_doc.route
+		out.route = patch.wiki_page
 
 	return out
 
