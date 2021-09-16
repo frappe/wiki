@@ -4,7 +4,7 @@ from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
 def get_context(context):
-	context.pilled_title = "My Contributions  " + get_open_contributions()
+	context.pilled_title = "Contributions  " + get_open_contributions()
 	context.no_cache = 1
 	context.no_sidebar = 1
 	color_map = {
@@ -38,7 +38,7 @@ def get_context(context):
 				{"label": _("My Account"), "url": "/me"},
 				{"label": _("Logout"), "url": "/?cmd=web_logout"},
 				{
-					"label": _("My Contributions ") + get_open_contributions(),
+					"label": _("Contributions ") + get_open_contributions(),
 					"url": "/contributions",
 				},
 			]

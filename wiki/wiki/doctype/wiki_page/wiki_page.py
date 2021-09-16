@@ -130,7 +130,7 @@ class WikiPage(WebsiteGenerator):
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
 					{
-						"label": _("My Contributions ") + get_open_contributions(),
+						"label": _("Contributions ") + get_open_contributions(),
 						"url": "/contributions",
 					},
 				]
