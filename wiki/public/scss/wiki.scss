@@ -210,6 +210,10 @@ textarea.wiki-content {
 // navbar
 .navbar-nav {
 	height: 100%;
+	.dropdown-menu {
+	    position: sticky;
+	}
+	
 }
 
 .nav-item {
