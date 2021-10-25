@@ -18,8 +18,8 @@ window.EditAsset = class EditAsset {
 				{
 					fieldname: "type",
 					fieldtype: "Select",
-					default: "Rich-Text",
-					options: "Markdown\nRich-Text",
+					default: "Rich Text",
+					options: "Markdown\nRich Text",
 				},
 				{
 					fieldtype: "Column Break",
@@ -37,7 +37,7 @@ window.EditAsset = class EditAsset {
 					fieldname: "code_html",
 					fieldtype: "Text Editor",
 					default: $(".wiki-content-html").html(),
-					depends_on: 'eval:doc.type=="Rich-Text"',
+					depends_on: 'eval:doc.type=="Rich Text"',
 				},
 				{
 					fieldname: "code_md",
