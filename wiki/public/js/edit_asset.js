@@ -18,7 +18,7 @@ window.EditAsset = class EditAsset {
 				{
 					fieldname: "type",
 					fieldtype: "Select",
-					default: "Rich Text",
+					default: "Markdown",
 					options: "Markdown\nRich Text",
 				},
 				{
