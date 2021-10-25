@@ -253,7 +253,7 @@ def update(
 
 	context = {"route": name}
 	context = frappe._dict(context)
-	if type == "Rich-Text":
+	if type == "Rich Text":
 		content = extract_images_from_html(content)
 
 	if new:
