@@ -9,7 +9,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 			frappe.call({
 				method: "wiki.wiki.doctype.wiki_page.wiki_page.get_sidebar_for_page",
 				args: {
-					wiki_page: 'home2'
+					wiki_page: $('[name="wiki_page"]').val();
 				},
 				callback: (result) => {
 					$(".doc-sidebar").empty().append(result.message);
