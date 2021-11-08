@@ -8,7 +8,8 @@
   "message",
   "content",
   "wiki_page",
-  "raised_by"
+  "raised_by",
+  "raised_by_username"
  ],
  "fields": [
   {
@@ -36,11 +37,18 @@
    "fieldtype": "Link",
    "label": "Raised By",
    "options": "User"
+  },
+  {
+   "fetch_from": "raised_by.username",
+   "fieldname": "raised_by_username",
+   "fieldtype": "Data",
+   "label": "Raised By Username",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2021-08-21 14:22:44.158955",
+ "modified": "2021-11-08 19:23:41.207213",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",
