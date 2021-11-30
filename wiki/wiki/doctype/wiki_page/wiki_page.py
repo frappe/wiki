@@ -133,6 +133,10 @@ class WikiPage(WebsiteGenerator):
 						"label": _("My Contributions ") + get_open_contributions(),
 						"url": "/contributions",
 					},
+					{
+						"label": _("My Drafts ") + get_open_drafts(),
+						"url": "/drafts",
+					},
 				]
 			}
 		)
@@ -184,6 +188,11 @@ def get_open_contributions():
 	)
 	return f'<span class="count">{count}</span>'
 
+def get_open_drafts():
+	count = len(
+		frappe.get_list("Wiki Page Patch", filters=[["status", "=", "Draft"], ["owner", '=', frappe.session.user]],)
+	)
+	return f'<span class="count">{count}</span>'
 
 @frappe.whitelist()
 def preview(content, name, new, type, diff_css=False):
@@ -248,6 +257,7 @@ def update(
 	new_sidebar="",
 	new_sidebar_items="",
 	sidebar_edited=False,
+	draft=False
 ):
 	from ghdiff import diff
 
@@ -259,50 +269,55 @@ def update(
 	if new:
 		new = True
 
+	status = 'Draft' if draft else "Under Review"
 	if wiki_page_patch:
 		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
 		patch.new_title = title
 		patch.new_code = content
-		patch.status = "Under Review"
+		patch.status = status
 		patch.message = message
 		patch.new = new
 		patch.new_sidebar = new_sidebar
 		patch.new_sidebar_items = new_sidebar_items
 		patch.sidebar_edited = sidebar_edited
 		patch.save()
-		return
 
-	patch = frappe.new_doc("Wiki Page Patch")
+	else:
+		patch = frappe.new_doc("Wiki Page Patch")
 
-	patch_dict = {
-		"wiki_page": name,
-		"status": "Under Review",
-		"raised_by": frappe.session.user,
-		"new_code": content,
-		"message": message,
-		"new": new,
-		"new_title": title,
-		"sidebar_edited": sidebar_edited,
-		"new_sidebar_items": new_sidebar_items,
-	}
+		patch_dict = {
+			"wiki_page": name,
+			"status": status,
+			"raised_by": frappe.session.user,
+			"new_code": content,
+			"message": message,
+			"new": new,
+			"new_title": title,
+			"sidebar_edited": sidebar_edited,
+			"new_sidebar_items": new_sidebar_items,
+		}
 
-	patch.update(patch_dict)
+		patch.update(patch_dict)
 
-	patch.save()
+		patch.save()
 
-	update_file_links(attachments, patch.name)
+		update_file_links(attachments, patch.name)
+
 
 	out = frappe._dict()
 
-	if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
-		patch.approved_by = frappe.session.user
-		patch.status = "Approved"
-		patch.submit()
-		out.approved = True
+	# if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False) and not draft:
+	# 	patch.approved_by = frappe.session.user
+	# 	patch.status = "Approved"
+	# 	patch.submit()
+	# 	out.approved = True
 
 	frappe.db.commit()
-
-	if hasattr(patch, 'new_wiki_page'):
+	if draft:
+		out.route = 'drafts'
+	elif not frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
+		out.route = 'contributions'
+	elif hasattr(patch, 'new_wiki_page'):
 		out.route = patch.new_wiki_page.route
 	else:
 		out.route = patch.wiki_page_doc.route

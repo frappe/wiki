@@ -148,7 +148,7 @@ window.EditAsset = class EditAsset {
 		}, 120);
 	}
 
-	raise_patch() {
+	raise_patch(draft = false) {
 		var side = {};
 
 		let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name;
@@ -225,6 +225,7 @@ window.EditAsset = class EditAsset {
 						title: $('.edit-title span').text(),
 						new_sidebar: $(".doc-sidebar").get(0).innerHTML,
 						new_sidebar_items: side,
+						draft:draft ? draft : null
 					},
 					callback: (r) => {
 						if (!r.message.approved) {
@@ -319,8 +320,9 @@ window.EditAsset = class EditAsset {
 			me.get_markdown();
 		});
 
-		$(".approve-wiki-page").click(function () {
-			me.approve_wiki_page();
+		$(".draft-wiki-page").click(function () {
+			// setting draft as true
+			me.get_markdown(true);
 		});
 	}
 
@@ -342,12 +344,12 @@ window.EditAsset = class EditAsset {
 		});
 	}
 
-	get_markdown() {
+	get_markdown(draft = false) {
 		var me = this;
 
 		if (me.code_field_group.get_value("type") == "Markdown") {
 			this.content = me.code_field_group.get_value("code_md");
-			this.raise_patch();
+			this.raise_patch(draft);
 		} else {
 			this.content = this.code_field_group.get_value("code_html");
 
@@ -363,7 +365,7 @@ window.EditAsset = class EditAsset {
 						var turndownService = new TurndownService();
 						turndownService = turndownService.keep(["div class", "iframe"]);
 						me.content = turndownService.turndown(me.content);
-						me.raise_patch();
+						me.raise_patch(draft);
 					}
 				},
 			});

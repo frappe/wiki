@@ -5,12 +5,13 @@ from wiki.wiki.doctype.wiki_page.wiki_page import get_open_drafts
 
 
 def get_context(context):
-	context.pilled_title = "My Contributions  " + get_open_contributions()
+	context.pilled_title = "My Drafts  " + get_open_drafts()
 	context.no_cache = 1
 	context.no_sidebar = 1
 	color_map = {
 		"Changes Requested": "blue",
 		"Under Review": "orange",
+		"Draft": "orange",
 		"Rejected": "red",
 		"Approved": "green",
 	}
@@ -21,7 +22,7 @@ def get_context(context):
 		["message", "status", "name", "wiki_page", "creation", "new"],
 		order_by="modified desc",
 		limit=10,
-		filters=[["status", "!=", "Approved"]],
+		filters=[["status", "=", "Draft"]],
 	)
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
@@ -54,7 +55,7 @@ def get_context(context):
 
 
 @frappe.whitelist()
-def get_contributions(limit):
+def get_drafts(limit):
 	context = frappe._dict()
 	context.no_cache = 1
 	context.no_sidebar = 1
@@ -62,6 +63,7 @@ def get_contributions(limit):
 		"Changes Requested": "blue",
 		"Under Review": "orange",
 		"Rejected": "red",
+		"Draft": "orange",
 		"Approved": "green",
 	}
 
@@ -71,7 +73,7 @@ def get_contributions(limit):
 		["message", "status", "name", "wiki_page", "creation", "new"],
 		order_by="modified desc",
 		limit=limit,
-		filters=[["status", "!=", "Approved"]],
+		filters=[["status", "=", "Draft"]],
 	)
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
