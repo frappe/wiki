@@ -228,10 +228,19 @@ window.EditAsset = class EditAsset {
 						draft:draft ? draft : null
 					},
 					callback: (r) => {
-						if (!r.message.approved) {
+						if (!r.message.approved && r.message.route == 'contributions') {
 							frappe.msgprint({
 								message:
 									"A Change Request has been created. You can track your requests on the contributions page",
+								indicator: "green",
+								title: "Change Request Created",
+								alert: 1
+							});
+						}
+						else if (!r.message.approved && r.message.route == 'drafts') {
+							frappe.msgprint({
+								message:
+									"Draft Saved",
 								indicator: "green",
 								title: "Change Request Created",
 								alert: 1

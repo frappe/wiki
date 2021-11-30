@@ -306,11 +306,11 @@ def update(
 
 	out = frappe._dict()
 
-	# if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False) and not draft:
-	# 	patch.approved_by = frappe.session.user
-	# 	patch.status = "Approved"
-	# 	patch.submit()
-	# 	out.approved = True
+	if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False) and not draft:
+		patch.approved_by = frappe.session.user
+		patch.status = "Approved"
+		patch.submit()
+		out.approved = True
 
 	frappe.db.commit()
 	if draft:
