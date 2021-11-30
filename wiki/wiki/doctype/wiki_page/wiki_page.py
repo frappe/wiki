@@ -13,6 +13,7 @@ from frappe.website.website_generator import WebsiteGenerator
 from frappe.desk.form.load import get_comments
 from frappe.core.doctype.file.file import get_random_filename
 from six import PY2, StringIO, string_types, text_type
+from urllib.parse import urlencode
 
 
 class WikiPage(WebsiteGenerator):
@@ -80,14 +81,14 @@ class WikiPage(WebsiteGenerator):
 			action = permtype
 			if action == "write":
 				action = "edit"
-			frappe.throw(
-				_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
-			)
+			frappe.local.response['type'] = 'redirect'
+			frappe.local.response['location'] = '/login?' + urlencode({'redirect-to': frappe.request.url})
+			raise frappe.Redirect
 
 	def redirect_to_login(self, action):
-		frappe.throw(
-			_("Not Permitted to {0} Wiki Page").format(action), frappe.PermissionError
-		)
+		frappe.local.response['type'] = 'redirect'
+		frappe.local.response['location'] = '/login?' + urlencode({'redirect-to': frappe.request.url})
+		raise frappe.Redirect
 
 	def set_breadcrumbs(self, context):
 		context.add_breadcrumbs = True
