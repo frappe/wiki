@@ -10,6 +10,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				this.set_active_sidebar();
 				this.set_nav_buttons();
 				this.set_toc_highlighter();
+				this.scrolltotop()
 			}
 		});
 	}

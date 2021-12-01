@@ -48,4 +48,8 @@ window.Wiki = class Wiki {
 			$(this).children(".collapsible").find(".drop-icon").removeClass("hidden");
 		});
 	}
+
+	scrolltotop() {
+		$('html,body').animate({scrollTop:0},0);
+	}
 };

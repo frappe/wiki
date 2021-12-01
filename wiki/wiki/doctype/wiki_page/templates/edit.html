@@ -1,7 +1,13 @@
 <div class='edit-page-head'>
 
 	<div class='edit-title'>
-		<span class="h3" contenteditable="true">{{ doc.title }}</span>
+		<span class="h3" >{{ doc.title }}</span>
+		<i>
+			<svg class="icon icon-lg">
+				<use href="#icon-edit"></use>
+			</svg>
+ 		</i>
+		<input type="text" class="hide">
 	</div>
 
 
@@ -46,6 +52,11 @@
 			</li>
 			{% endif %}
 
+			<li class="nav-item" role="presentation">
+				<a class="nav-link" id="help-tab" data-toggle="tab" href="#help" role="tab"
+					aria-controls="help" aria-selected="false">Help</a>
+			</li>
+
 		</ul>
 
 		<div class="mt-4 tab-content">
@@ -82,6 +93,20 @@
 				{% include "wiki/doctype/wiki_page/templates/comment.html" %}
 			</div>
 			{% endif %}
+
+			<div class="tab-pane fade" id="help" role="tabpanel" aria-labelledby="help-tab">
+				<div class="wiki-help">
+					<ul>
+						<li> Items in the left sidebar can be reordered by dragging and dropping.</li>
+						<li> Choose the dropdown above the editor to try out the Rich Text Editor.</li>
+						<li>Choose the dropdown above the editor to try out the Rich Text Editor.</li>
+						<li>In the "markdown mode' images can be uploaded using the upload image button, and links can be copied using the attachments list.</li>
+						<li>Click on the draft changes button to save your work as a draft.</li>
+						<li>You can view your drafts and pending contributions by clicking on the appropriate links under profile in the top right corner.</li>
+						<li>If you create a new page, you will find an entry named New Wiki Page in the left sidebar, which can also be moved.</li>
+					</ul>
+				</div>
+			</div>
 
 		</div>
 

@@ -510,6 +510,9 @@ window.EditAsset = class EditAsset {
 			title_input.addClass("hide");
 			title_span.text(title_input.val());
 		});
+		title_input.on('keypress', (e) => {
+			$(".doc-sidebar .sidebar-items a.active").text(title_input.val())
+		});
 	}
 
 	approve_wiki_page() {

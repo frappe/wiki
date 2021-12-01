@@ -14,9 +14,7 @@ window.EditWiki = class EditWiki extends Wiki {
 					this.set_empty_ul();
 					this.set_sortable();
 					this.set_add_item();
-					if ($('[name="new"]').first().val()) {
-						this.add_new_link();
-					}
+					this.scrolltotop()
 				});
 		});
 	}
@@ -29,8 +27,19 @@ window.EditWiki = class EditWiki extends Wiki {
 				page_href = page_href.slice(0, page_href.indexOf("#"));
 			}
 			if (page_href.split('/').slice(0,-1).join('/')== $(this).data("route")) {
-				$(this).addClass(active_class);
-				$(this).find("a").addClass(active_class);
+
+				if ($('[name="new"]').first().val()) {
+					$(`
+					<li class="sidebar-item active" data-type="Wiki Page" data-name="new-wiki-page" data-new=1>
+						<div><div>
+							<a href="#"  class ='active'>New Wiki Page</a>
+						</div></div>
+					</li>
+				`).insertAfter($(this));
+				} else {
+					$(this).addClass(active_class);
+					$(this).find("a").addClass(active_class);
+				}
 			}
 		});
 		// scroll the active sidebar item into view
@@ -210,22 +219,5 @@ window.EditWiki = class EditWiki extends Wiki {
 					<ul class="list-unstyled hidden" style="min-height:20px;"> </ul>
 			</li>
 			`);
-	}
-
-	add_new_link() {
-		let $new_page = $(`
-			<li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-new=1 ><div>
-					<div>
-							<a href="#" class="green">New Wiki Page</a>
-					</div></div>
-					</li>
-		`);
-
-		$new_page.appendTo(
-			$(".doc-sidebar .sidebar-items")
-				.children(".list-unstyled")
-				.not(".hidden")
-				.first()
-		);
 	}
 };
