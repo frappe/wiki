@@ -7,6 +7,7 @@
  "field_order": [
   "logo",
   "sidebar",
+  "add_search_bar",
   "javascript"
  ],
  "fields": [
@@ -26,12 +27,18 @@
    "fieldtype": "Code",
    "label": "Javascript",
    "options": "Javascript"
+  },
+  {
+   "default": "1",
+   "fieldname": "add_search_bar",
+   "fieldtype": "Check",
+   "label": "Add Search Bar"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-08-21 14:22:20.351789",
+ "modified": "2021-12-01 22:43:13.548674",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

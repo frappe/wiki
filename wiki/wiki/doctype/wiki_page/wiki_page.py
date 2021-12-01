@@ -112,6 +112,7 @@ class WikiPage(WebsiteGenerator):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
 		wiki_settings = frappe.get_single("Wiki Settings")
+		context.navbar_search = wiki_settings.add_search_bar
 		context.banner_image = wiki_settings.logo
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = self.get_docs_search_scope()
