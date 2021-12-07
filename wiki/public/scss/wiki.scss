@@ -502,3 +502,12 @@ navbar
     padding: 0 var(--padding-xs);
     margin-right: var(--margin-xs);
 }
+
+img::after{
+	content: '';
+}
+
+img[alt]::after{
+	width: unset;
+	height: unset;
+}
