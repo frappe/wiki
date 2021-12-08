@@ -56,6 +56,8 @@ class WikiPagePatch(Document):
 			"content": self.new_code,
 			"route": "/".join(self.wiki_page_doc.route.split("/")[:-1] + [frappe.scrub(self.new_title)]),
 			"published": 1,
+			"allow_guest": self.wiki_page_doc.allow_guest
+
 		}
 
 		self.new_wiki_page.update(wiki_page_dict)
