@@ -382,7 +382,7 @@ def get_path_without_slash(path):
 def get_sidebar_for_page(wiki_page):
 	sidebar = []
 	context = frappe._dict({})
-	matching_pages = frappe.get_all("Wiki Page", {"route": wiki_page})
+	matching_pages = frappe.get_all("Wiki Page", {"name": wiki_page})
 	if matching_pages:
 		sidebar, _ = frappe.get_doc(
 			"Wiki Page", matching_pages[0].get("name")
