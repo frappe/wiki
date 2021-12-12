@@ -510,7 +510,7 @@ window.EditAsset = class EditAsset {
 			title_input.addClass("hide");
 			title_span.text(title_input.val());
 		});
-		title_input.on('keypress', (e) => {
+		title_input.on('change', (e) => {
 			$(".doc-sidebar .sidebar-items a.active").text(title_input.val())
 		});
 	}
