@@ -12,10 +12,8 @@ def get_context(context):
 	context.can_edit = can_edit
 	context.show_my_account = False
 
-	wiki_page_name = frappe.db.get_value("Wiki Page",
-		filters={'route':frappe.form_dict.wiki_page},
-		fieldname='name')
-	context.doc = frappe.get_doc("Wiki Page", wiki_page_name)
+	context.doc = frappe.get_doc("Wiki Page", frappe.form_dict.wiki_page)
+	context.doc.set_breadcrumbs(context)
 
 	from ghdiff import diff
 
