@@ -18,6 +18,28 @@ from urllib.parse import urlencode
 
 class WikiPage(WebsiteGenerator):
 
+	def before_save(self):
+
+		details = frappe.db.get_values('Wiki Page',
+			filters={'name':self.name },
+			fieldname=['route', 'title'])
+
+		if not details:
+			return
+
+		old_route, old_title = (details[0][0], details[0][1])
+
+		if old_route != self.route:
+			frappe.db.sql('Update `tabWiki Sidebar Item` set route = %s where item = %s and type = "Wiki Page"',
+			(self.route, self.name) )
+			self.clear_sidebar_cache()
+
+		if old_title != self.title:
+			frappe.db.sql('Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Page"',
+			(self.title, self.name) )
+			self.clear_sidebar_cache()
+
+
 	def after_insert(self):
 		revision = frappe.new_doc("Wiki Page Revision")
 		revision.wiki_page = self.name
@@ -25,6 +47,10 @@ class WikiPage(WebsiteGenerator):
 		revision.message = "Create Wiki Page"
 		revision.insert()
 		frappe.cache().hdel("website_page", self.name)
+
+	def clear_sidebar_cache(self):
+		for key in frappe.cache().hgetall("wiki_sidebar").keys():
+			frappe.cache().hdel("wiki_sidebar", key)
 
 	def on_trash(self):
 		for name in frappe.get_all(
