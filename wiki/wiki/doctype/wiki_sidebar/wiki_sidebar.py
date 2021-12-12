@@ -49,12 +49,12 @@ class WikiSidebar(Document):
 		items = frappe.get_all(
 			"Wiki Sidebar Item",
 			filters={"parent": self.name, "type": "Wiki Page"},
-			fields=["title", "item", "name", "type"],
+			fields=["title", "item", "name", "type", "route"],
 			order_by="idx asc",
 		)
 
 		for item in items:
-			item.item = "/" + item.item
+			item.item = "/" + str(item.route)
 			items_without_group.append(item)
 
 		# return [{"group_title": "Topics", "group_items": items_without_group}] if items else []

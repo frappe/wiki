@@ -17,8 +17,6 @@ from urllib.parse import urlencode
 
 
 class WikiPage(WebsiteGenerator):
-	def autoname(self):
-		self.name = self.route
 
 	def after_insert(self):
 		revision = frappe.new_doc("Wiki Page Revision")
@@ -160,7 +158,7 @@ class WikiPage(WebsiteGenerator):
 		sidebar = frappe.get_all(
 			doctype="Wiki Sidebar Item",
 			fields=["name", "parent"],
-			filters=[["item", "=", self.route]],
+			filters=[["item", "=", self.name]],
 		)
 		sidebar_html = ""
 		topmost = "/"

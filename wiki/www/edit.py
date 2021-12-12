@@ -8,7 +8,10 @@ from frappe import _
 def get_context(context):
 	context.no_cache = 1
 	frappe.form_dict.edit = True
-	context.doc = frappe.get_doc("Wiki Page", frappe.form_dict.wiki_page)
+	wiki_page_name = frappe.db.get_value("Wiki Page",
+		filters={'route':frappe.form_dict.wiki_page},
+		fieldname='name')
+	context.doc = frappe.get_doc("Wiki Page", wiki_page_name)
 
 	context.doc.verify_permission("read")
 
