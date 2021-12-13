@@ -182,6 +182,7 @@ textarea.wiki-content {
 .doc-sidebar {
 	height: 90vh;
 	margin-bottom: 0;
+	margin-top: 3.5rem;
 	.web-sidebar {
 		margin-bottom: 8px;
 		margin-right: -0.5rem;
@@ -255,7 +256,7 @@ textarea.wiki-content {
 }
 .navbar {
 	width: 100%;
-	position: sticky;
+	position: fixed;
 	top: 0;
 	z-index: 1020;
 
@@ -292,7 +293,7 @@ textarea.wiki-content {
 	width: clamp(240px, 60%, 870px);
 	text-align: left;
 	.page-content-wrapper {
-		margin-top: 0;
+		margin-top: 3.5rem;
 		padding-top: 2rem;
 		padding-bottom: 0;
 	}
