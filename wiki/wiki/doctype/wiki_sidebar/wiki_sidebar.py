@@ -8,6 +8,23 @@ from frappe.model.document import Document
 
 
 class WikiSidebar(Document):
+
+	def before_save(self):
+
+		details = frappe.db.get_values('Wiki Sidebar',
+			filters={'name':self.name },
+			fieldname=['title'], pluck='title')
+
+		if not details:
+			return
+
+		old_title = details[0]
+
+		if old_title != self.title:
+			frappe.db.sql('Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Sidebar"',
+			(self.title, self.name) )
+			self.clear_cache()
+
 	def get_children(self):
 		out = self.get_sidebar_items()
 		for sidebar_item in self.sidebar_items:
