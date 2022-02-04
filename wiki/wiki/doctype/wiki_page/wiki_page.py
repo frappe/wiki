@@ -221,7 +221,7 @@ class WikiPage(WebsiteGenerator):
 		cloned_wiki_page = frappe.copy_doc(self, ignore_no_copy=True)
 		cloned_wiki_page.route = cloned_wiki_page.route.replace(original, new)
 
-		cloned_wiki_page.ignore_mandatory = True
+		cloned_wiki_page.flags.ignore_mandatory = True
 		cloned_wiki_page.save()
 
 		items = frappe.get_all(
