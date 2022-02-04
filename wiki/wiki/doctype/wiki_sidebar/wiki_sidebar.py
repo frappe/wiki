@@ -97,3 +97,38 @@ class WikiSidebar(Document):
 	def clear_cache(self):
 		topmost = self.find_topmost(self.name)
 		frappe.cache().hdel("wiki_sidebar", topmost)
+
+	def clone(self, original, new):
+		items = frappe.get_all(
+			"Wiki Sidebar Item",
+			filters={"parent": self.name,},
+			fields=["title", "item", "name", "type", "route",
+				'modified', 'modified_by', 'creation', 'owner'],
+			order_by="idx asc",
+		)
+
+		cloned_wiki_sidebar = frappe.new_doc("Wiki Sidebar")
+		if original in self.route:
+			cloned_wiki_sidebar.route = self.route.replace(original, new)
+		else:
+			cloned_wiki_sidebar.route = self.route + f'/{new}'
+		cloned_wiki_sidebar.title = self.title
+
+
+		for item in items:
+			if item.type == 'Wiki Sidebar':
+				clone = frappe.get_doc('Wiki Sidebar', item.item).clone(original, new)
+				cloned_wiki_sidebar.append('sidebar_items', {
+					  	"type": 'Wiki Sidebar',
+  						"item": clone.name,
+				})
+			else:
+				clone = frappe.get_doc('Wiki Page', item.item).clone(original, new)
+				cloned_wiki_sidebar.append('sidebar_items', {
+					  	"type": 'Wiki Page',
+  						"item": clone.name,
+				})
+
+		cloned_wiki_sidebar.save()
+
+		return cloned_wiki_sidebar

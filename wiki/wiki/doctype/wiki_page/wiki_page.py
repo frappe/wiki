@@ -41,12 +41,17 @@ class WikiPage(WebsiteGenerator):
 
 
 	def after_insert(self):
+		frappe.cache().hdel("website_page", self.name)
+
+		# set via the clone method
+		if hasattr(frappe.local, 'in_clone') and frappe.local.in_clone:
+			return
+
 		revision = frappe.new_doc("Wiki Page Revision")
 		revision.wiki_page = self.name
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
 		revision.insert()
-		frappe.cache().hdel("website_page", self.name)
 
 	def clear_sidebar_cache(self):
 		for key in frappe.cache().hgetall("wiki_sidebar").keys():
@@ -206,6 +211,43 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Page Revision", filters={"wiki_page": self.name}
 		)
 		return frappe.get_doc("Wiki Page Revision", last_revision)
+
+
+	def clone(self, original, new):
+
+		# used in after_insert of Wiki Page to resist create of Wiki Page Revision
+		frappe.local.in_clone = True
+
+		cloned_wiki_page = frappe.copy_doc(self, ignore_no_copy=True)
+		cloned_wiki_page.route = cloned_wiki_page.route.replace(original, new)
+
+		cloned_wiki_page.save()
+
+		items = frappe.get_all(
+			"Wiki Page Revision",
+			filters={"wiki_page": self.name,},
+			fields=["name"],
+			pluck="name",
+			order_by="creation",
+		)
+
+		for item in items:
+			revision = frappe.get_doc("Wiki Page Revision", item)
+			new_revision = frappe.copy_doc(revision, ignore_no_copy=True)
+			new_revision.wiki_page = cloned_wiki_page.name
+			new_revision.save()
+			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'modified', revision.modified)
+			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'modified_by', revision.modified_by)
+			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'creation', revision.creation)
+			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'owner', revision.owner)
+			self.update_time_and_user('Wiki Page Revision', new_revision.name, revision)
+		self.update_time_and_user('Wiki Page', cloned_wiki_page.name, self)
+
+		return cloned_wiki_page
+
+	def update_time_and_user(self, dt, dn, new_doc):
+		for field in ("modified", "modified_by", "creation", "owner"):
+			frappe.db.set_value(dt, dn, field, new_doc.get(field))
 
 
 def get_open_contributions():
