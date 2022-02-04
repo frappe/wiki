@@ -221,6 +221,7 @@ class WikiPage(WebsiteGenerator):
 		cloned_wiki_page = frappe.copy_doc(self, ignore_no_copy=True)
 		cloned_wiki_page.route = cloned_wiki_page.route.replace(original, new)
 
+		cloned_wiki_page.ignore_mandatory = True
 		cloned_wiki_page.save()
 
 		items = frappe.get_all(
@@ -236,10 +237,6 @@ class WikiPage(WebsiteGenerator):
 			new_revision = frappe.copy_doc(revision, ignore_no_copy=True)
 			new_revision.wiki_page = cloned_wiki_page.name
 			new_revision.save()
-			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'modified', revision.modified)
-			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'modified_by', revision.modified_by)
-			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'creation', revision.creation)
-			frappe.db.set_value('Wiki Page Revision', new_revision.name, 'owner', revision.owner)
 			self.update_time_and_user('Wiki Page Revision', new_revision.name, revision)
 		self.update_time_and_user('Wiki Page', cloned_wiki_page.name, self)
 
