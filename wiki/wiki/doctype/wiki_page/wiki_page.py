@@ -48,7 +48,7 @@ class WikiPage(WebsiteGenerator):
 			return
 
 		revision = frappe.new_doc("Wiki Page Revision")
-		revision.wiki_page = self.name
+		revision.append('wiki_pages',  {'wiki_page': self.name})
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
 		revision.insert()
@@ -58,10 +58,16 @@ class WikiPage(WebsiteGenerator):
 			frappe.cache().hdel("wiki_sidebar", key)
 
 	def on_trash(self):
-		for name in frappe.get_all(
-			"Wiki Page Revision", {"wiki_page": self.name}, pluck="name"
-		):
-			frappe.delete_doc("Wiki Page Revision", name)
+
+		frappe.db.sql('DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s', self.name)
+
+		frappe.db.sql('''DELETE FROM `tabWiki Page Revision` WHERE name in
+			(
+				SELECT name FROM `tabWiki Page Revision`
+				EXCEPT
+				SELECT DISTINCT parent from `tabWiki Page Revision Item`
+			)''')
+
 		for name in frappe.get_all(
 			"Wiki Page Patch", {"wiki_page": self.name, "new": 0}, pluck="name"
 		):
@@ -94,7 +100,7 @@ class WikiPage(WebsiteGenerator):
 		if content != self.content:
 			self.content = content
 			revision = frappe.new_doc("Wiki Page Revision")
-			revision.wiki_page = self.name
+			revision.append('wiki_pages',  {'wiki_page': self.name})
 			revision.content = content
 			revision.message = edit_message
 			revision.raised_by = raised_by
@@ -148,7 +154,7 @@ class WikiPage(WebsiteGenerator):
 		context.metatags = {"title": self.title}
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
-			"Wiki Page Revision", {"wiki_page": self.name}
+			"Wiki Page Revision Item", {"wiki_page": self.name}
 		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
@@ -208,7 +214,7 @@ class WikiPage(WebsiteGenerator):
 
 	def get_last_revision(self):
 		last_revision = frappe.db.get_value(
-			"Wiki Page Revision", filters={"wiki_page": self.name}
+			"Wiki Page Revision Item", filters={"wiki_page": self.name}, fieldname='parent'
 		)
 		return frappe.get_doc("Wiki Page Revision", last_revision)
 
@@ -229,15 +235,14 @@ class WikiPage(WebsiteGenerator):
 			filters={"wiki_page": self.name,},
 			fields=["name"],
 			pluck="name",
-			order_by="creation",
+			order_by="`tabWiki Page Revision`.creation",
 		)
 
 		for item in items:
 			revision = frappe.get_doc("Wiki Page Revision", item)
-			new_revision = frappe.copy_doc(revision, ignore_no_copy=True)
-			new_revision.wiki_page = cloned_wiki_page.name
-			new_revision.save()
-			self.update_time_and_user('Wiki Page Revision', new_revision.name, revision)
+			revision.append('wiki_pages',  {'wiki_page': cloned_wiki_page.name})
+			revision.save()
+
 		self.update_time_and_user('Wiki Page', cloned_wiki_page.name, self)
 
 		return cloned_wiki_page

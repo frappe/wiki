@@ -17,7 +17,7 @@ def get_context(context):
 
 	revisions = frappe.db.get_all(
 		"Wiki Page Revision",
-		filters={"wiki_page": wiki_page_name},
+		filters=[['Wiki Page Revision Item', 'wiki_page','=', wiki_page_name]],
 		fields=["message", "creation", "owner", "name", "raised_by", "raised_by_username"],
 	)
 	context.revisions = revisions
