@@ -6,10 +6,12 @@
  "engine": "InnoDB",
  "field_order": [
   "message",
-  "content",
-  "wiki_page",
   "raised_by",
-  "raised_by_username"
+  "raised_by_username",
+  "column_break_4",
+  "content",
+  "section_break_6",
+  "wiki_pages"
  ],
  "fields": [
   {
@@ -21,16 +23,7 @@
    "fieldname": "content",
    "fieldtype": "Code",
    "label": "Content",
-   "options": "Markdown",
-   "reqd": 1
-  },
-  {
-   "fieldname": "wiki_page",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Wiki Page",
-   "options": "Wiki Page",
-   "reqd": 1
+   "options": "Markdown"
   },
   {
    "fieldname": "raised_by",
@@ -44,11 +37,25 @@
    "fieldtype": "Data",
    "label": "Raised By Username",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_6",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "wiki_pages",
+   "fieldtype": "Table",
+   "label": "Wiki Pages",
+   "options": "Wiki Page Revision Item"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2021-11-08 19:23:41.207213",
+ "modified": "2022-02-07 20:19:45.226793",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",
@@ -82,6 +89,7 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "message",
  "track_changes": 1
 }
