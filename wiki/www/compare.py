@@ -1,4 +1,5 @@
 import frappe
+from frappe.query_builder import DocType
 
 
 def get_context(context):
@@ -27,18 +28,25 @@ def get_context(context):
 	revision = frappe.get_doc("Wiki Page Revision", revision)
 
 	context.revision = revision
-	previous_revision_content = frappe.db.get_value(
-		"Wiki Page Revision",
-		filters=[
-			["creation", "<", revision.creation],
-			[ 'Wiki Page Revision Item', 'wiki_page','=', context.doc.name]],
-		fieldname=["content"],
-		order_by="creation asc",
-	)
 
-	if not previous_revision_content:
+	WikiPageRevision = DocType('Wiki Page Revision')
+	WikiPageRevisionItem = DocType('Wiki Page Revision Item')
+
+	previous_revisions = frappe.qb.from_(WikiPageRevision).join(WikiPageRevisionItem).on(
+		WikiPageRevision.name == WikiPageRevisionItem.parent
+	).where(
+		WikiPageRevisionItem.creation < revision.creation
+	).where(
+		WikiPageRevisionItem.wiki_page == context.doc.name
+	).select(
+		WikiPageRevision.content
+	).orderby(
+		WikiPageRevision.creation
+	).run()
+
+	if not previous_revisions or not previous_revisions[0]:
 		return
 
-	context.diff = diff(previous_revision_content, revision.content, css=False)
+	context.diff = diff(previous_revisions[0][0], revision.content, css=False)
 
 	return context
