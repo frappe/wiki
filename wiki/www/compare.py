@@ -29,7 +29,9 @@ def get_context(context):
 	context.revision = revision
 	previous_revision_content = frappe.db.get_value(
 		"Wiki Page Revision",
-		filters={"creation": ("<", revision.creation), "wiki_page": context.doc.name},
+		filters=[
+			["creation", "<", revision.creation],
+			[ 'Wiki Page Revision Item', 'wiki_page','=', context.doc.name]],
 		fieldname=["content"],
 		order_by="creation asc",
 	)
