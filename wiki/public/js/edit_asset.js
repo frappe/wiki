@@ -59,7 +59,7 @@ window.EditAsset = class EditAsset {
 	get_attachment_controls_html() {
 		return `
 			<div class='attachment-controls '>
-				<div class='show-attachments'>
+				<div class='show-attachments' tabindex="-1" data-trigger="focus">
 					${this.get_show_uploads_svg()}
 						<span class='number'>0</span>&nbsp;attachments
 				</div>&nbsp;&nbsp;
@@ -95,9 +95,7 @@ window.EditAsset = class EditAsset {
 
 	add_attachment_popover() {
 		$(".show-attachments").popover({
-			trigger: "click",
 			placement: "bottom",
-
 			content: () => {
 				return this.build_attachment_table();
 			},
