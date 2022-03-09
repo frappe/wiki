@@ -318,6 +318,11 @@ textarea.wiki-content {
 // toc
 .page-toc {
 	width: clamp(192px, 20%, 240px);
+	font-size: $font-size-xs;
+	h5 {
+		font-size: $font-size-xs;
+	}
+
 	div {
 		width: 100%;
 		margin-top: 0;
@@ -363,6 +368,7 @@ textarea.wiki-content {
 
 .breadcrumb-item + .breadcrumb-item {
 	padding-left: 0;
+	font-size: $font-size-xs;
 }
 
 @media (min-width: 1920px) {
