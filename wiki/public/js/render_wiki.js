@@ -70,7 +70,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				}
 			});
 
-		if (current_index != 0) {
+		if (current_index > 0) {
 			$(".btn.left")[0].href =
 				$(".sidebar-column").find("a")[current_index - 1].href;
 			$(".btn.left")[0].innerHTML =
@@ -79,7 +79,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 			$(".btn.left").hide();
 		}
 
-		if (current_index < $(".sidebar-column").find("a").length - 1) {
+		if (current_index >= 0 && current_index < $(".sidebar-column").find("a").length - 1) {
 			$(".btn.right")[0].href =
 				$(".sidebar-column").find("a")[current_index + 1].href;
 			$(".btn.right")[0].innerHTML =
