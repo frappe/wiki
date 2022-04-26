@@ -10,7 +10,7 @@
         <h1>{{ title }}</h1>
         <h2>{{ revision.message }}</h2>
         <p class="wiki-revision-meta">
-            {{ revision.owner }} edited on {{ frappe.utils.format_datetime(revision.creation, 'medium') }}
+            {{ revision.raised_by_username or revision.owner }} edited on {{ frappe.utils.format_datetime(revision.creation, 'medium') }}
         </p>
     </div>
     <div class="mt-6">

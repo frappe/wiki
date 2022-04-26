@@ -17,11 +17,7 @@
 			<a class="wiki-revision-message" href="/compare?wiki_page={{ doc.name }}&&compare={{ revision.name }}">{{
 				revision.message }}</a>
 			<p class="wiki-revision-meta">
-				{%- if revision.raised_by -%}
-				{{ revision.raised_by }}
-				{%- else -%}
-				{{revision.owner }}
-				{%- endif -%}
+				{{ revision.raised_by_username or revision.raised_by or revision.owner }}
 				&nbspedited {{ frappe.utils.pretty_date(revision.creation) }}
 			</p>
 		</li>

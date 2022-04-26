@@ -1,2 +1,3 @@
 wiki.wiki.doctype.wiki_page.patches.set_allow_guest
 wiki.wiki.doctype.wiki_page.patches.delete_is_new
+wiki.wiki.doctype.wiki_page_revision.patches.add_usernames

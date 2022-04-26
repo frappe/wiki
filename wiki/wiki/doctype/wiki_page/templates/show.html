@@ -10,7 +10,7 @@
 		<ul class="user-contributions">
 
 			{%- if last_revision -%}
-			{{ last_revision.owner }} edited {{ frappe.utils.pretty_date(last_revision.creation) }}
+			{{ last_revision.raised_by_username or last_revision.owner }} edited {{ frappe.utils.pretty_date(last_revision.creation) }}
 			{%- if number_of_revisions > 0 %}
 			&middot;
 			<li><a href="/revisions?wiki_page={{ path }}">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
