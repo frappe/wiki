@@ -87,7 +87,7 @@ window.EditAsset = class EditAsset {
 			<path d="M8 14.5C11.5899 14.5 14.5 11.5899 14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899
 			 4.41015 14.5 8 14.5Z" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 			<path d="M8 4.75V11.1351" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-			<path d="M5.29102 7.45833L7.99935 4.75L10.7077 7.45833" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round" 
+			<path d="M5.29102 7.45833L7.99935 4.75L10.7077 7.45833" stroke="#505A62" stroke-miterlimit="10" stroke-linecap="round"
 			stroke-linejoin="round"/>
 		</svg>`
 
@@ -111,11 +111,17 @@ window.EditAsset = class EditAsset {
 		if (!this.attachments || !this.attachments.length)
 			return "No attachments uploaded";
 
+        const caption = file_url => file_url
+            .split("/").pop()                     // filename
+            .split(".").slice(0, -1).join(".")    // filename without extension
+            .replaceAll("_", " ")
+            .replaceAll("-", " ");
+
 		this.attachments.forEach((f) => {
 			const row = $("<tr></tr>").appendTo(table.find("tbody"));
 			$(`<td>${f.file_name}</td>`).appendTo(row);
 			$(`<td>
-			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![](${f.file_url})" data-name = "${f.file_name}" >
+			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![${caption(f.file_url)}](${f.file_url})" data-name = "${f.file_name}" >
 				Copy Link
 			</a>
 			</td>`).appendTo(row);
