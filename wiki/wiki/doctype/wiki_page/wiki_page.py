@@ -182,7 +182,7 @@ class WikiPage(WebsiteGenerator):
 		sidebar = frappe.get_all(
 			doctype="Wiki Sidebar Item",
 			fields=["name", "parent"],
-			filters=[["item", "=", self.route]],
+			filters=[["item", "=", self.name]],
 		)
 		topmost = ""
 		if sidebar:
