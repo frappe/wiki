@@ -5,19 +5,19 @@
 <form class="mt-8" action="/api/method/wiki.wiki.doctype.wiki_page.wiki_page.new" method="POST">
 	<input class="d-none" type="text" name="csrf_token" value="{{ frappe.session.csrf_token }}">
 	<div class="form-group">
-		<label for="title">Title</label>
+		<label for="title">{{ _("Title") }}</label>
 		<input id="title" class="form-control" type="text" name="title" placeholder="Page Title">
 	</div>
 	<div class="form-group">
-		<label class="sr-only" for="content">Content</label>
+		<label class="sr-only" for="content">{{ _("Content") }}</label>
 		<ul class="nav nav-tabs" role="tablist">
 			<li class="nav-item" role="presentation">
 				<a class="nav-link active" id="write-tab" data-toggle="tab" href="#write" role="tab"
-					aria-controls="write" aria-selected="true">Write</a>
+					aria-controls="write" aria-selected="true">{{ _("Write") }}</a>
 			</li>
 			<li class="nav-item" role="presentation">
 				<a class="nav-link" id="preview-tab" data-toggle="tab" href="#preview" role="tab"
-					aria-controls="preview" aria-selected="false">Preview</a>
+					aria-controls="preview" aria-selected="false">{{ _("Preview") }}</a>
 			</li>
 		</ul>
 		<div class="mt-4 tab-content">
@@ -29,7 +29,7 @@
 			</div>
 		</div>
 	</div>
-	<button type="submit" class="btn btn-primary">Create Page</button>
+	<button type="submit" class="btn btn-primary">{{ _("Create Page") }}</button>
 </form>
 
 {%- block script -%}

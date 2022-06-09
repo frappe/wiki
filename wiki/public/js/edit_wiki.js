@@ -77,16 +77,13 @@ window.EditWiki = class EditWiki extends Wiki {
 	}
 
 	set_add_item() {
-		$(`<div class="text-muted add-sidebar-item small">+ Add Item</div>
-			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
-			$(".web-sidebar")
-		);
+		$(`<div class="text-muted add-sidebar-item small">${__('+ Add Item')}</div><div class="text-muted small mt-3"><i>${__('Drag items to re-order')}</i></div>`).appendTo($(".web-sidebar"));
 		var me = this;
 		$(".add-sidebar-item").click(function () {
 			var dfs = me.get_add_new_item_dialog_fields();
 
 			var dialog = new frappe.ui.Dialog({
-				title: "Add to sidebar",
+				title: __("Add to sidebar"),
 				fields: dfs,
 				primary_action: function (fields) {
 					if (fields.type == "Add Wiki Page") {
@@ -105,13 +102,13 @@ window.EditWiki = class EditWiki extends Wiki {
 		return [
 			{
 				fieldname: "type",
-				label: "Do you want to add a page or group?",
+				label: __("Do you want to add a page or group?"),
 				fieldtype: "Select",
 				options: ["Page", "Group"],
 			},
 			{
 				fieldname: "wiki_page",
-				label: "Wiki Page",
+				label: _("Wiki Page"),
 				fieldtype: "Link",
 				options: "Wiki Page",
 				depends_on: "eval: doc.type=='Page'",
@@ -119,14 +116,14 @@ window.EditWiki = class EditWiki extends Wiki {
 			},
 			{
 				fieldname: "route",
-				label: "Route",
+				label: _("Route"),
 				fieldtype: "Data",
 				depends_on: "eval: doc.type=='Group'",
 				mandatory_depends_on: "eval: doc.type=='Group'",
 			},
 			{
 				fieldname: "title",
-				label: "Title",
+				label: _("Title"),
 				fieldtype: "Data",
 				depends_on: "eval: doc.type=='Group'",
 				mandatory_depends_on: "eval: doc.type=='Group'",
