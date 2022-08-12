@@ -8,14 +8,6 @@ def get_context(context):
 	context.pilled_title = "My Drafts  " + get_open_drafts()
 	context.no_cache = 1
 	context.no_sidebar = 1
-	color_map = {
-		"Changes Requested": "blue",
-		"Under Review": "orange",
-		"Draft": "orange",
-		"Rejected": "red",
-		"Approved": "green",
-	}
-
 	context.contributions = []
 	contributions = frappe.get_list(
 		"Wiki Page Patch",
@@ -30,7 +22,7 @@ def get_context(context):
 			contribution.edit_link = f"/{route}/new-wiki?wiki_page_patch={contribution.name}"
 		else:
 			contribution.edit_link = f"/{route}/edit-wiki?wiki_page_patch={contribution.name}"
-		contribution.color = color_map[contribution.status]
+		contribution.color = "orange"
 		contribution.creation = frappe.utils.pretty_date(contribution.creation)
 		context.contributions.extend([contribution])
 
@@ -57,16 +49,6 @@ def get_context(context):
 @frappe.whitelist()
 def get_drafts(limit):
 	context = frappe._dict()
-	context.no_cache = 1
-	context.no_sidebar = 1
-	color_map = {
-		"Changes Requested": "blue",
-		"Under Review": "orange",
-		"Rejected": "red",
-		"Draft": "orange",
-		"Approved": "green",
-	}
-
 	context.contributions = []
 	contributions = frappe.get_list(
 		"Wiki Page Patch",
@@ -81,7 +63,7 @@ def get_drafts(limit):
 			contribution.edit_link = f"/{route}/new-wiki?wiki_page_patch={contribution.name}"
 		else:
 			contribution.edit_link = f"/{route}/edit-wiki?wiki_page_patch={contribution.name}"
-		contribution.color = color_map[contribution.status]
+		contribution.color = "orange"
 		contribution.creation = frappe.utils.pretty_date(contribution.creation)
 		context.contributions.extend([contribution])
 	return context

@@ -3,18 +3,18 @@ from frappe import _
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_drafts
 
+color_map = {
+	"Changes Requested": "blue",
+	"Under Review": "orange",
+	"Rejected": "red",
+	"Approved": "green",
+}
+
 
 def get_context(context):
 	context.pilled_title = "Contributions  " + get_open_contributions()
 	context.no_cache = 1
 	context.no_sidebar = 1
-	color_map = {
-		"Changes Requested": "blue",
-		"Under Review": "orange",
-		"Rejected": "red",
-		"Approved": "green",
-	}
-
 	context.contributions = []
 	contributions = frappe.get_list(
 		"Wiki Page Patch",
@@ -56,13 +56,6 @@ def get_context(context):
 @frappe.whitelist()
 def get_contributions(limit):
 	context = frappe._dict()
-	color_map = {
-		"Changes Requested": "blue",
-		"Under Review": "orange",
-		"Rejected": "red",
-		"Approved": "green",
-	}
-
 	context.contributions = []
 	contributions = frappe.get_list(
 		"Wiki Page Patch",
