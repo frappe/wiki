@@ -21,7 +21,7 @@ def get_context(context):
 		["message", "status", "name", "wiki_page", "creation", "new"],
 		order_by="modified desc",
 		limit=10,
-		filters=[["status", "!=", "Approved"]],
+		filters=[["status", "!=", "Draft"], ["owner", '=', frappe.session.user]],
 	)
 	for contribution in contributions:
 		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
@@ -56,8 +56,6 @@ def get_context(context):
 @frappe.whitelist()
 def get_contributions(limit):
 	context = frappe._dict()
-	context.no_cache = 1
-	context.no_sidebar = 1
 	color_map = {
 		"Changes Requested": "blue",
 		"Under Review": "orange",
