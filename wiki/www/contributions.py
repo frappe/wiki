@@ -35,7 +35,7 @@ def get_user_contributions(limit):
 
 
 def get_context(context):
-	context.pilled_title = "Contributions  " + get_open_contributions()
+	context.pilled_title = "My Contributions"
 	context.no_cache = 1
 	context.no_sidebar = 1
 	context.contributions = get_user_contributions(10)

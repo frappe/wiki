@@ -28,7 +28,7 @@ def get_user_drafts(limit):
 
 
 def get_context(context):
-	context.pilled_title = "My Drafts  " + get_open_drafts()
+	context.pilled_title = "My Drafts"
 	context.no_cache = 1
 	context.no_sidebar = 1
 	context.contributions = get_user_drafts(10)
