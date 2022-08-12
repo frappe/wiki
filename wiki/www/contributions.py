@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from frappe.utils.data import cint
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_drafts
 
@@ -11,28 +12,33 @@ color_map = {
 }
 
 
+def get_user_contributions(limit):
+	contributions = []
+	wiki_page_patches = frappe.get_list(
+		"Wiki Page Patch",
+		["message", "status", "name", "wiki_page", "creation", "new"],
+		order_by="modified desc",
+		limit=cint(limit),
+		filters=[["status", "!=", "Draft"], ["owner", '=', frappe.session.user]],
+	)
+	for wiki_page_patch in wiki_page_patches:
+		route = frappe.db.get_value("Wiki Page", wiki_page_patch.wiki_page, "route")
+		if wiki_page_patch.new:
+			wiki_page_patch.edit_link = f"/{route}/new-wiki?wiki_page_patch={wiki_page_patch.name}"
+		else:
+			wiki_page_patch.edit_link = f"/{route}/edit-wiki?wiki_page_patch={wiki_page_patch.name}"
+		wiki_page_patch.color = color_map[wiki_page_patch.status]
+		wiki_page_patch.creation = frappe.utils.pretty_date(wiki_page_patch.creation)
+		contributions.extend([wiki_page_patch])
+
+	return contributions
+
+
 def get_context(context):
 	context.pilled_title = "Contributions  " + get_open_contributions()
 	context.no_cache = 1
 	context.no_sidebar = 1
-	context.contributions = []
-	contributions = frappe.get_list(
-		"Wiki Page Patch",
-		["message", "status", "name", "wiki_page", "creation", "new"],
-		order_by="modified desc",
-		limit=10,
-		filters=[["status", "!=", "Draft"], ["owner", '=', frappe.session.user]],
-	)
-	for contribution in contributions:
-		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
-		if contribution.new:
-			contribution.edit_link = f"/{route}/new-wiki?wiki_page_patch={contribution.name}"
-		else:
-			contribution.edit_link = f"/{route}/edit-wiki?wiki_page_patch={contribution.name}"
-		contribution.color = color_map[contribution.status]
-		contribution.creation = frappe.utils.pretty_date(contribution.creation)
-		context.contributions.extend([contribution])
-
+	context.contributions = get_user_contributions(10)
 	context = context.update(
 		{
 			"post_login": [
@@ -56,21 +62,5 @@ def get_context(context):
 @frappe.whitelist()
 def get_contributions(limit):
 	context = frappe._dict()
-	context.contributions = []
-	contributions = frappe.get_list(
-		"Wiki Page Patch",
-		["message", "status", "name", "wiki_page", "creation", "new"],
-		order_by="modified desc",
-		limit=limit,
-		filters=[["status", "!=", "Draft"], ["owner", '=', frappe.session.user]],
-	)
-	for contribution in contributions:
-		route = frappe.db.get_value("Wiki Page", contribution.wiki_page, "route")
-		if contribution.new:
-			contribution.edit_link = f"/{route}/new-wiki?wiki_page_patch={contribution.name}"
-		else:
-			contribution.edit_link = f"/{route}/edit-wiki?wiki_page_patch={contribution.name}"
-		contribution.color = color_map[contribution.status]
-		contribution.creation = frappe.utils.pretty_date(contribution.creation)
-		context.contributions.extend([contribution])
+	context.contributions = get_user_contributions(limit)
 	return context
