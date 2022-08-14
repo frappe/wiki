@@ -45,10 +45,6 @@ def get_context(context):
 				{"label": _("My Account"), "url": "/me"},
 				{"label": _("Logout"), "url": "/?cmd=web_logout"},
 				{
-					"label": _("Contributions ") + get_open_contributions(),
-					"url": "/contributions",
-				},
-				{
 					"label": _("My Drafts ") + get_open_drafts(),
 					"url": "/drafts",
 				},

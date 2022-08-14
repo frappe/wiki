@@ -41,10 +41,6 @@ def get_context(context):
 					"label": _("My Contributions ") + get_open_contributions(),
 					"url": "/contributions",
 				},
-				{
-					"label": _("My Drafts ") + get_open_drafts(),
-					"url": "/drafts",
-				},
 			]
 		}
 	)
