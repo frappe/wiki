@@ -57,6 +57,4 @@ def get_context(context):
 
 @frappe.whitelist()
 def get_contributions(limit):
-	context = frappe._dict()
-	context.contributions = get_user_contributions(limit)
-	return context
+	return {"contributions": get_user_contributions(limit)}
