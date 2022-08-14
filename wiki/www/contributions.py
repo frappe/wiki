@@ -1,7 +1,6 @@
 import frappe
 from frappe import _
 from frappe.utils.data import cint
-from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_drafts
 
 color_map = {
