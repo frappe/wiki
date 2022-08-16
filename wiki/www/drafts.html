@@ -70,15 +70,16 @@
 	frappe.ready(
 		() => {
 			$('.get_contributions').click(() => {
+				let start = $(".list-jobs tbody tr").length;
 				frappe.call({
 					method: "wiki.www.drafts.get_drafts",
 					args: {
+						start: start,
 						limit: parseInt($('[name="limit"]').val()) + 10,
 					},
 					callback: (response) => {
 
 						if (response.message) {
-							$('.list-jobs tbody').empty()
 							$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + 10)
 							for (contribution of response.message.contributions) {
 								$('.list-jobs tbody').append($(`	<tr>
@@ -86,7 +87,7 @@
 										${contribution.status}</span></td>
 									<td>${contribution.message}</td>
 									<td>${contribution.creation}</td>
-									<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Contribution</a>
+									<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Draft</a>
 									</td>
 								</tr>
 

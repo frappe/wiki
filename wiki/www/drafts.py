@@ -8,7 +8,7 @@ def get_context(context):
 	context.pilled_title = "My Drafts"
 	context.no_cache = 1
 	context.no_sidebar = 1
-	context.contributions = get_user_drafts(10)
+	context.contributions = get_user_drafts(0, 10)
 	context = context.update(
 		{
 			"post_login": [
@@ -26,16 +26,17 @@ def get_context(context):
 
 
 @frappe.whitelist()
-def get_drafts(limit):
-	return {"contributions": get_user_drafts(limit)}
+def get_drafts(start, limit):
+	return {"contributions": get_user_drafts(start, limit)}
 
 
-def get_user_drafts(limit):
+def get_user_drafts(start, limit):
 	drafts = []
 	wiki_page_patches = frappe.get_list(
 		"Wiki Page Patch",
 		["message", "status", "name", "wiki_page", "creation", "new"],
 		order_by="modified desc",
+		start=cint(start),
 		limit=cint(limit),
 		filters=[["status", "=", "Draft"], ["owner", '=', frappe.session.user]],
 	)
