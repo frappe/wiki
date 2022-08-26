@@ -8,6 +8,7 @@ color_map = {
 	"Under Review": "orange",
 	"Rejected": "red",
 	"Approved": "green",
+	"Draft": "red"
 }
 
 
