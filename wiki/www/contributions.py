@@ -46,7 +46,7 @@ def get_user_contributions(start, limit):
 		order_by="modified desc",
 		start=cint(start),
 		limit=cint(limit),
-		filters=[["status", "!=", "Draft"], ["owner", '=', frappe.session.user]],
+		filters=[["status", "!=", "Draft"], ["raised_by", '=', frappe.session.user]],
 	)
 	for wiki_page_patch in wiki_page_patches:
 		route = frappe.db.get_value("Wiki Page", wiki_page_patch.wiki_page, "route")
