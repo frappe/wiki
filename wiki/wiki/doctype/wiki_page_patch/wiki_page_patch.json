@@ -69,7 +69,7 @@
   },
   {
    "fieldname": "diff",
-   "fieldtype": "Text",
+   "fieldtype": "Long Text",
    "hidden": 1,
    "label": "Diff"
   },
