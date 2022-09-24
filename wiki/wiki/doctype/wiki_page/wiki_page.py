@@ -151,7 +151,14 @@ class WikiPage(WebsiteGenerator):
 		context.banner_image = wiki_settings.logo
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = self.get_docs_search_scope()
-		context.metatags = {"title": self.title}
+		context.metatags = {
+			"title": self.title, 
+			"description": self.meta_description,
+			"keywords": self.meta_keywords,
+			"image": self.meta_image,
+			"og:image:width": "1200",
+			"og:image:height": "630",
+			}
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}

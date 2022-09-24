@@ -16,7 +16,11 @@
   "published",
   "allow_guest",
   "section_break_4",
-  "content"
+  "content",
+  "meta_tags_section",
+  "meta_description",
+  "meta_image",
+  "meta_keywords"
  ],
  "fields": [
   {
@@ -70,6 +74,28 @@
    "fieldname": "allow_guest",
    "fieldtype": "Check",
    "label": "Allow Guest"
+  },
+  {
+   "fieldname": "meta_tags_section",
+   "fieldtype": "Section Break",
+   "label": "Meta Tags"
+  },
+  {
+   "fieldname": "meta_description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "description": "Ideally should be 1200 x 630 pixels.",
+   "fieldname": "meta_image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "description": "Should be a comma separated list",
+   "fieldname": "meta_keywords",
+   "fieldtype": "Small Text",
+   "label": "Keywords"
   }
  ],
  "has_web_view": 1,
@@ -87,7 +113,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2021-12-12 16:50:44.703450",
+ "modified": "2022-09-24 15:09:35.710833",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
@@ -122,6 +148,7 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "title",
  "track_changes": 1,
  "website_search_field": "content"
