@@ -1,72 +1,65 @@
 {
- "cards_label": "",
- "category": "Administration",
  "charts": [],
- "creation": "2021-04-12 16:12:39.733838",
- "developer_mode_only": 0,
- "disable_user_customization": 0,
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Wiki</span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Pages\",\"col\":4}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Page Patches\",\"col\":4}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Sidebar\",\"col\":4}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Revisions\",\"col\":4}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Settings\",\"col\":4}}]",
+ "creation": "2022-09-25 16:45:20.547072",
  "docstatus": 0,
  "doctype": "Workspace",
- "extends_another_page": 0,
+ "for_user": "",
  "hide_custom": 0,
  "icon": "education",
  "idx": 0,
- "is_default": 0,
- "is_standard": 1,
  "label": "Wiki",
- "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Wiki Page",
-   "link_to": "Wiki Page",
-   "link_type": "DocType",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Wiki Sidebar",
-   "link_to": "Wiki Sidebar",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,   
-   "label": "Wiki Settings",
-   "link_to": "Wiki Settings",
-   "link_type": "DocType",
-   "onboard": 1,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Wiki Page Patch",
-   "link_to": "Wiki Page Patch",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Wiki Page Revision",
-   "link_to": "Wiki Page Revision",
-   "link_type": "DocType",
-   "onboard": 1,
-   "type": "Link"
-  }
- ],
- "modified": "2021-04-12 16:18:34.481189",
+ "links": [],
+ "modified": "2022-09-25 16:55:14.223945",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki",
  "owner": "Administrator",
- "pin_to_bottom": 1,
- "pin_to_top": 0,
- "shortcuts": []
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 31.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Sidebar",
+   "link_to": "Wiki Sidebar",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Settings",
+   "link_to": "Wiki Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "format": "{} Published",
+   "label": "Wiki Pages",
+   "link_to": "Wiki Page",
+   "stats_filter": "{\"published\":[\"=\",1]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Page Revisions",
+   "link_to": "Wiki Page Revision",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "format": "{} Under Review",
+   "label": "Page Patches",
+   "link_to": "Wiki Page Patch",
+   "stats_filter": "{\"status\":[\"=\",\"Under Review\"]}",
+   "type": "DocType"
+  }
+ ],
+ "title": "Wiki"
 }
