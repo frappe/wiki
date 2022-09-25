@@ -332,6 +332,8 @@ textarea.wiki-content {
 		ul {
 			padding-bottom: 0;
 			margin-bottom: 0;
+			overflow-y: scroll;
+			height: calc(100vh - 300px);
 		}
 
 		.h5 {
