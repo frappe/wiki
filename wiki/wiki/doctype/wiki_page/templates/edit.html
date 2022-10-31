@@ -127,19 +127,22 @@
 <script type="text/javascript"
 	src="/assets/frappe/node_modules/moment-timezone/builds/moment-timezone-with-data.min.js"></script>
 {{ include_script('desk.bundle.js') }}
+{{ include_script('file_uploader.bundle.js') }}
 {{ include_script('wiki.bundle.js') }}
-
-
-<script type="text/javascript" src="/assets/frappe/node_modules/vue/dist/vue.js"></script>
 
 <script>
 
-	Vue.prototype.__ = window.__;
-	Vue.prototype.frappe = window.frappe;
+	let frappe_version = "{{ frappe_version }}";
+	if (parseInt(frappe_version.split(".")[0]) <= 14 && !frappe_version.endsWith("-dev")) {
+		Vue.prototype.__ = window.__;
+		Vue.prototype.frappe = window.frappe;
+	}
+
+	frappe.boot = {{ boot }};
+
 	new EditWiki();
 
 	var edit = new EditAsset();
-	frappe.boot = {{ boot }};
 
 </script>
 

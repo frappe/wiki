@@ -30,6 +30,7 @@ def get_context(context):
 	boot_json = re.sub(r"</script\>", "", boot_json)
 
 	context.boot = boot_json
+	context.frappe_version = frappe.__version__
 	wiki_settings = frappe.get_single("Wiki Settings")
 	context.banner_image = wiki_settings.logo
 	context.script = wiki_settings.javascript
