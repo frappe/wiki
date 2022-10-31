@@ -58,14 +58,14 @@ window.EditAsset = class EditAsset {
 
 	get_attachment_controls_html() {
 		return `
-			<div class='attachment-controls '>
-				<div class='show-attachments' tabindex="-1" data-trigger="focus">
+			<div class="attachment-controls">
+				<div class="show-attachments" tabindex="-1" data-trigger="focus">
 					${this.get_show_uploads_svg()}
-						<span class='number'>0</span>&nbsp;attachments
-				</div>&nbsp;&nbsp;
-				<div class='add-attachment-wiki'>
-					<span class='btn'>
-					${this.get_upload_image_svg()}
+					<span class="number">0</span> attachments
+				</div>
+				<div class="add-attachment-wiki">
+					<span class="btn">
+						${this.get_upload_image_svg()}
 						Upload Attachment
 					</span>
 				</div>
@@ -541,7 +541,8 @@ window.EditAsset = class EditAsset {
 
 	render_sidebar_diff() {
 		const lis = $(".sidebar-diff");
-		const sidebar_items = JSON.parse($('[name="new_sidebar_items"]').val());
+		let $new_sidebar_items = $('[name="new_sidebar_items"]').val();
+		const sidebar_items = $new_sidebar_items && JSON.parse($new_sidebar_items);
 		lis.empty();
 		for (let sidebar in sidebar_items) {
 			for (let item in sidebar_items[sidebar]) {
