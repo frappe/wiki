@@ -77,7 +77,7 @@ window.EditWiki = class EditWiki extends Wiki {
 	}
 
 	set_add_item() {
-		$(`<div class="text-muted add-sidebar-item small">+ Add Item</div>
+		$(`<div class="text-muted add-sidebar-item small">+ Add Group</div>
 			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
 			$(".web-sidebar")
 		);
@@ -86,14 +86,10 @@ window.EditWiki = class EditWiki extends Wiki {
 			var dfs = me.get_add_new_item_dialog_fields();
 
 			var dialog = new frappe.ui.Dialog({
-				title: "Add to sidebar",
+				title: "Add Group to Sidebar",
 				fields: dfs,
 				primary_action: function (fields) {
-					if (fields.type == "Add Wiki Page") {
-						me.add_wiki_page(fields);
-					} else {
-						me.add_wiki_sidebar(fields);
-					}
+					me.add_wiki_sidebar(fields);
 					dialog.hide();
 				},
 			});
@@ -104,71 +100,18 @@ window.EditWiki = class EditWiki extends Wiki {
 	get_add_new_item_dialog_fields() {
 		return [
 			{
-				fieldname: "type",
-				label: "Do you want to add a page or group?",
-				fieldtype: "Select",
-				options: ["Page", "Group"],
-			},
-			{
-				fieldname: "wiki_page",
-				label: "Wiki Page",
-				fieldtype: "Link",
-				options: "Wiki Page",
-				depends_on: "eval: doc.type=='Page'",
-				mandatory_depends_on: "eval: doc.type=='Page'",
-			},
-			{
 				fieldname: "route",
 				label: "Route",
 				fieldtype: "Data",
-				depends_on: "eval: doc.type=='Group'",
-				mandatory_depends_on: "eval: doc.type=='Group'",
+				mandatory_depends_on: true,
 			},
 			{
 				fieldname: "title",
 				label: "Title",
 				fieldtype: "Data",
-				depends_on: "eval: doc.type=='Group'",
-				mandatory_depends_on: "eval: doc.type=='Group'",
+				mandatory_depends_on: true,
 			},
 		];
-	}
-
-	add_wiki_page(fields) {
-		var me = this;
-		frappe.call({
-			method: "frappe.client.get_value",
-			args: {
-				doctype: "Wiki Page",
-				fieldname: "title",
-				filters: fields.wiki_page,
-			},
-			callback: function (r) {
-				let $new_page = me.get_new_page_html(r, fields);
-
-				$new_page.appendTo(
-					$(".doc-sidebar .sidebar-items")
-						.children(".list-unstyled")
-						.not(".hidden")
-						.first()
-				);
-			},
-		});
-	}
-
-	get_new_page_html(r, fields) {
-		return $(`
-		<li class="sidebar-item" data-type="Wiki Page"
-			data-name="${fields.wiki_page}" data-new=1 >
-			<div>
-				<div>
-					<a href="#" class="green" >
-							${r.message.title}
-					</a>
-				</div>
-			</div>
-		</li>
-		`);
 	}
 
 	add_wiki_sidebar(fields) {
