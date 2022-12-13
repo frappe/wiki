@@ -1,28 +1,24 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 
-import frappe
 import json
 import re
+from urllib.parse import urlencode
+
+import frappe
 from frappe import _
+from frappe.core.doctype.file.file import get_random_filename
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
-from frappe.desk.form.load import get_comments
-from frappe.core.doctype.file.file import get_random_filename
-from six import PY2, StringIO, string_types, text_type
-from urllib.parse import urlencode
 
 
 class WikiPage(WebsiteGenerator):
-
 	def before_save(self):
 
-		details = frappe.db.get_values('Wiki Page',
-			filters={'name':self.name },
-			fieldname=['route', 'title'])
+		details = frappe.db.get_values(
+			"Wiki Page", filters={"name": self.name}, fieldname=["route", "title"]
+		)
 
 		if not details:
 			return
@@ -30,25 +26,28 @@ class WikiPage(WebsiteGenerator):
 		old_route, old_title = (details[0][0], details[0][1])
 
 		if old_route != self.route:
-			frappe.db.sql('Update `tabWiki Sidebar Item` set route = %s where item = %s and type = "Wiki Page"',
-			(self.route, self.name) )
+			frappe.db.sql(
+				'Update `tabWiki Sidebar Item` set route = %s where item = %s and type = "Wiki Page"',
+				(self.route, self.name),
+			)
 			self.clear_sidebar_cache()
 
 		if old_title != self.title:
-			frappe.db.sql('Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Page"',
-			(self.title, self.name) )
+			frappe.db.sql(
+				'Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Page"',
+				(self.title, self.name),
+			)
 			self.clear_sidebar_cache()
-
 
 	def after_insert(self):
 		frappe.cache().hdel("website_page", self.name)
 
 		# set via the clone method
-		if hasattr(frappe.local, 'in_clone') and frappe.local.in_clone:
+		if hasattr(frappe.local, "in_clone") and frappe.local.in_clone:
 			return
 
 		revision = frappe.new_doc("Wiki Page Revision")
-		revision.append('wiki_pages',  {'wiki_page': self.name})
+		revision.append("wiki_pages", {"wiki_page": self.name})
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
 		revision.insert()
@@ -59,18 +58,18 @@ class WikiPage(WebsiteGenerator):
 
 	def on_trash(self):
 
-		frappe.db.sql('DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s', self.name)
+		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
 
-		frappe.db.sql('''DELETE FROM `tabWiki Page Revision` WHERE name in
+		frappe.db.sql(
+			"""DELETE FROM `tabWiki Page Revision` WHERE name in
 			(
 				SELECT name FROM `tabWiki Page Revision`
 				EXCEPT
 				SELECT DISTINCT parent from `tabWiki Page Revision Item`
-			)''')
+			)"""
+		)
 
-		for name in frappe.get_all(
-			"Wiki Page Patch", {"wiki_page": self.name, "new": 0}, pluck="name"
-		):
+		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 0}, pluck="name"):
 			patch = frappe.get_doc("Wiki Page Patch", name)
 			try:
 				patch.cancel()
@@ -78,9 +77,7 @@ class WikiPage(WebsiteGenerator):
 				pass
 			patch.delete()
 
-		for name in frappe.get_all(
-			"Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"
-		):
+		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"):
 			frappe.db.set_value("Wiki Page Patch", name, "wiki_page", "")
 
 		for name in frappe.get_all(
@@ -100,7 +97,7 @@ class WikiPage(WebsiteGenerator):
 		if content != self.content:
 			self.content = content
 			revision = frappe.new_doc("Wiki Page Revision")
-			revision.append('wiki_pages',  {'wiki_page': self.name})
+			revision.append("wiki_pages", {"wiki_page": self.name})
 			revision.content = content
 			revision.message = edit_message
 			revision.raised_by = raised_by
@@ -116,13 +113,13 @@ class WikiPage(WebsiteGenerator):
 			action = permtype
 			if action == "write":
 				action = "edit"
-			frappe.local.response['type'] = 'redirect'
-			frappe.local.response['location'] = '/login?' + urlencode({'redirect-to': frappe.request.url})
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
 
 	def redirect_to_login(self, action):
-		frappe.local.response['type'] = 'redirect'
-		frappe.local.response['location'] = '/login?' + urlencode({'redirect-to': frappe.request.url})
+		frappe.local.response["type"] = "redirect"
+		frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 		raise frappe.Redirect
 
 	def set_breadcrumbs(self, context):
@@ -133,7 +130,7 @@ class WikiPage(WebsiteGenerator):
 			parents = []
 			splits = self.route.split("/")
 			if splits:
-				for index, route in enumerate(splits[:-1], start=1):
+				for index, _route in enumerate(splits[:-1], start=1):
 					full_route = "/".join(splits[:index])
 					wiki_page = frappe.get_all(
 						"Wiki Page", filters=[["route", "=", full_route]], fields=["title"]
@@ -152,13 +149,13 @@ class WikiPage(WebsiteGenerator):
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = self.get_docs_search_scope()
 		context.metatags = {
-			"title": self.title, 
+			"title": self.title,
 			"description": self.meta_description,
 			"keywords": self.meta_keywords,
 			"image": self.meta_image,
 			"og:image:width": "1200",
 			"og:image:height": "630",
-			}
+		}
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}
@@ -193,9 +190,7 @@ class WikiPage(WebsiteGenerator):
 		)
 		topmost = ""
 		if sidebar:
-			topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).find_topmost(
-				sidebar[0].parent
-			)
+			topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).find_topmost(sidebar[0].parent)
 		return topmost
 
 	def get_sidebar_items(self, context):
@@ -221,10 +216,9 @@ class WikiPage(WebsiteGenerator):
 
 	def get_last_revision(self):
 		last_revision = frappe.db.get_value(
-			"Wiki Page Revision Item", filters={"wiki_page": self.name}, fieldname='parent'
+			"Wiki Page Revision Item", filters={"wiki_page": self.name}, fieldname="parent"
 		)
 		return frappe.get_doc("Wiki Page Revision", last_revision)
-
 
 	def clone(self, original, new):
 
@@ -239,7 +233,9 @@ class WikiPage(WebsiteGenerator):
 
 		items = frappe.get_all(
 			"Wiki Page Revision",
-			filters={"wiki_page": self.name,},
+			filters={
+				"wiki_page": self.name,
+			},
 			fields=["name"],
 			pluck="name",
 			order_by="`tabWiki Page Revision`.creation",
@@ -247,10 +243,10 @@ class WikiPage(WebsiteGenerator):
 
 		for item in items:
 			revision = frappe.get_doc("Wiki Page Revision", item)
-			revision.append('wiki_pages',  {'wiki_page': cloned_wiki_page.name})
+			revision.append("wiki_pages", {"wiki_page": cloned_wiki_page.name})
 			revision.save()
 
-		self.update_time_and_user('Wiki Page', cloned_wiki_page.name, self)
+		self.update_time_and_user("Wiki Page", cloned_wiki_page.name, self)
 
 		return cloned_wiki_page
 
@@ -261,15 +257,23 @@ class WikiPage(WebsiteGenerator):
 
 def get_open_contributions():
 	count = len(
-		frappe.get_list("Wiki Page Patch", filters=[["status", "=", "Under Review"]],)
+		frappe.get_list(
+			"Wiki Page Patch",
+			filters=[["status", "=", "Under Review"]],
+		)
 	)
 	return f'<span class="count">{count}</span>'
 
+
 def get_open_drafts():
 	count = len(
-		frappe.get_list("Wiki Page Patch", filters=[["status", "=", "Draft"], ["owner", '=', frappe.session.user]],)
+		frappe.get_list(
+			"Wiki Page Patch",
+			filters=[["status", "=", "Draft"], ["owner", "=", frappe.session.user]],
+		)
 	)
 	return f'<span class="count">{count}</span>'
+
 
 @frappe.whitelist()
 def preview(content, name, new, type, diff_css=False):
@@ -300,8 +304,8 @@ def extract_images_from_html(content):
 			filename = headers.split("filename=")[-1]
 
 			# decode filename
-			if not isinstance(filename, text_type):
-				filename = text_type(filename, "utf-8")
+			if not isinstance(filename, str):
+				filename = str(filename, "utf-8")
 		else:
 			mtype = headers.split(";")[0]
 			filename = get_random_filename(content_type=mtype)
@@ -314,9 +318,9 @@ def extract_images_from_html(content):
 		if not frappe.flags.has_dataurl:
 			frappe.flags.has_dataurl = True
 
-		return '<img src="{file_url}"'.format(file_url=file_url)
+		return f'<img src="{file_url}"'
 
-	if content and isinstance(content, string_types):
+	if content and isinstance(content, str):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
 	return content
 
@@ -334,9 +338,8 @@ def update(
 	new_sidebar="",
 	new_sidebar_items="",
 	sidebar_edited=False,
-	draft=False
+	draft=False,
 ):
-	from ghdiff import diff
 
 	context = {"route": name}
 	context = frappe._dict(context)
@@ -346,7 +349,7 @@ def update(
 	if new:
 		new = True
 
-	status = 'Draft' if draft else "Under Review"
+	status = "Draft" if draft else "Under Review"
 	if wiki_page_patch:
 		patch = frappe.get_doc("Wiki Page Patch", wiki_page_patch)
 		patch.new_title = title
@@ -380,7 +383,6 @@ def update(
 
 		update_file_links(attachments, patch.name)
 
-
 	out = frappe._dict()
 
 	if frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False) and not draft:
@@ -391,15 +393,16 @@ def update(
 
 	frappe.db.commit()
 	if draft:
-		out.route = 'drafts'
+		out.route = "drafts"
 	elif not frappe.has_permission(doctype="Wiki Page Patch", ptype="submit", throw=False):
-		out.route = 'contributions'
-	elif hasattr(patch, 'new_wiki_page'):
+		out.route = "contributions"
+	elif hasattr(patch, "new_wiki_page"):
 		out.route = patch.new_wiki_page.route
 	else:
 		out.route = patch.wiki_page_doc.route
 
 	return out
+
 
 def update_file_links(attachments, name):
 	for attachment in json.loads(attachments):
@@ -435,9 +438,9 @@ def get_sidebar_for_page(wiki_page):
 	context = frappe._dict({})
 	matching_pages = frappe.get_all("Wiki Page", {"name": wiki_page})
 	if matching_pages:
-		sidebar, _ = frappe.get_doc(
-			"Wiki Page", matching_pages[0].get("name")
-		).get_sidebar_items(context)
+		sidebar, _ = frappe.get_doc("Wiki Page", matching_pages[0].get("name")).get_sidebar_items(
+			context
+		)
 	return sidebar
 
 

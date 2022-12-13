@@ -11,13 +11,13 @@ def get_context(context):
 	can_edit = frappe.session.user != "Guest"
 	context.can_edit = can_edit
 	context.show_my_account = False
-	wiki_page_name = frappe.db.get_value("Wiki Page",
-		filters={'route':frappe.form_dict.wiki_page},
-		fieldname='name')
+	wiki_page_name = frappe.db.get_value(
+		"Wiki Page", filters={"route": frappe.form_dict.wiki_page}, fieldname="name"
+	)
 
 	revisions = frappe.db.get_all(
 		"Wiki Page Revision",
-		filters=[['Wiki Page Revision Item', 'wiki_page','=', wiki_page_name]],
+		filters=[["Wiki Page Revision Item", "wiki_page", "=", wiki_page_name]],
 		fields=["message", "creation", "owner", "name", "raised_by", "raised_by_username"],
 	)
 	context.revisions = revisions

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe and Contributors
 # See license.txt
-from __future__ import unicode_literals
+
+import unittest
 
 import frappe
-import unittest
+
 from wiki.wiki.doctype.wiki_page.wiki_page import update
 
 
@@ -12,9 +12,7 @@ class TestWikiPage(unittest.TestCase):
 	def test_wiki_page_lifecycle(self):
 		if frappe.db.exists("Wiki Page", "wiki/page"):
 			frappe.delete_doc("Wiki Page", "wiki/page")
-		for name in frappe.db.get_all(
-			"Wiki Page Revision", {"wiki_page": "wiki/page"}, pluck="name"
-		):
+		for name in frappe.db.get_all("Wiki Page Revision", {"wiki_page": "wiki/page"}, pluck="name"):
 			frappe.delete_doc("Wiki Page Revision", name)
 		wiki_page = frappe.new_doc("Wiki Page")
 		wiki_page.route = "wiki/page"
@@ -53,7 +51,12 @@ class TestWikiPage(unittest.TestCase):
 		self.assertEqual(wiki_page.content, "New Content")
 
 		self.assertEqual(
-			len(frappe.db.get_all("Wiki Page Revision", filters={"wiki_page": wiki_page.name},)),
+			len(
+				frappe.db.get_all(
+					"Wiki Page Revision",
+					filters={"wiki_page": wiki_page.name},
+				)
+			),
 			2,
 		)
 

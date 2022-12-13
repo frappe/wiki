@@ -1,9 +1,9 @@
 import re
 
 import frappe
-from frappe.website.utils import build_response
 from frappe.website.page_renderers.document_page import DocumentPage
 from frappe.website.router import get_doctypes_with_web_view
+from frappe.website.utils import build_response
 
 from wiki.wiki.doctype.wiki_page.wiki_page import get_sidebar_for_page
 
