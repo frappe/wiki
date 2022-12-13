@@ -56,7 +56,7 @@ repos:
     rev: 5.0.4
     hooks:
       - id: flake8
-        args: [--ignore=W191]
+        args: ['--ignore=W191,E501']
         additional_dependencies: ['flake8-bugbear',]
 
 ci:
