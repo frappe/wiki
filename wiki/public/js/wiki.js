@@ -32,14 +32,14 @@ window.Wiki = class Wiki {
     $(".doc-sidebar,.web-sidebar").on(
       "click",
       ".collapsible",
-      this.toggle_sidebar
+      this.toggle_sidebar,
     );
     $(".sidebar-group").children("ul").addClass("hidden");
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
     const sidebar_groups = $(".sidebar-item.active").parents(
-      ".web-sidebar .sidebar-group"
+      ".web-sidebar .sidebar-group",
     );
     sidebar_groups.each(function () {
       $(this).children(".collapsible").find(".drop-left").addClass("hidden");

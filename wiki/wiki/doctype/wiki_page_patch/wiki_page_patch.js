@@ -41,7 +41,7 @@ frappe.ui.form.on("Wiki Page Patch", {
               "</li>" +
               "<ul class=" +
               sidebar_items[sidebar][item].group_name +
-              "></ul>"
+              "></ul>",
           );
         } else {
           $(target).append(
@@ -49,7 +49,7 @@ frappe.ui.form.on("Wiki Page Patch", {
               sidebar_items[sidebar][item].group_name +
               ">" +
               sidebar_items[sidebar][item].title +
-              "</li>"
+              "</li>",
           );
         }
       }

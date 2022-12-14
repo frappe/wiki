@@ -125,7 +125,7 @@ window.EditAsset = class EditAsset {
       $(`<td>${f.file_name}</td>`).appendTo(row);
       $(`<td>
 			<a class="btn btn-default btn-xs btn-primary-light text-nowrap copy-link" data-link="![${caption(
-        f.file_url
+        f.file_url,
       )}](${f.file_url})" data-name = "${f.file_name}" >
 				Copy Link
 			</a>
@@ -212,7 +212,7 @@ window.EditAsset = class EditAsset {
         fieldtype: "Check",
         label: "I updated the sidebar",
         default: $('[name="new"]').val() ? 1 : 0,
-      }
+      },
     );
 
     let dialog = new frappe.ui.Dialog({
@@ -401,7 +401,7 @@ window.EditAsset = class EditAsset {
     $(`body`).on("click", `.delete-button`, function () {
       frappe.confirm(
         `Are you sure you want to delete the file "${$(this).attr(
-          "data-name"
+          "data-name",
         )}"`,
         () => {
           me.attachments.forEach((f, index, object) => {
@@ -411,7 +411,7 @@ window.EditAsset = class EditAsset {
           });
           $(".wiki-attachment").empty().append(me.build_attachment_table());
           $(".attachment-controls").find(".number").text(me.attachments.length);
-        }
+        },
       );
     });
   }
@@ -465,7 +465,7 @@ window.EditAsset = class EditAsset {
         comment.owner,
         comment.creation,
         comment.timepassed,
-        comment.content
+        comment.content,
       );
 
       $(".timeline-items").prepend(new_comment);
@@ -562,7 +562,7 @@ window.EditAsset = class EditAsset {
               "</li>" +
               "<ul class=" +
               sidebar_items[sidebar][item].group_name +
-              "></ul>"
+              "></ul>",
           );
         } else {
           $(target).append(
@@ -570,7 +570,7 @@ window.EditAsset = class EditAsset {
               sidebar_items[sidebar][item].group_name +
               ">" +
               sidebar_items[sidebar][item].title +
-              "</li>"
+              "</li>",
           );
         }
       }

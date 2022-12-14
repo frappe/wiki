@@ -59,7 +59,9 @@ window.EditWiki = class EditWiki extends Wiki {
         $(this)
           .parent()
           .append(
-            $(`<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`)
+            $(
+              `<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`,
+            ),
           );
       }
     });
@@ -80,7 +82,7 @@ window.EditWiki = class EditWiki extends Wiki {
   set_add_item() {
     $(`<div class="text-muted add-sidebar-item small">+ Add Group</div>
 			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
-      $(".web-sidebar")
+      $(".web-sidebar"),
     );
     var me = this;
     $(".add-sidebar-item").click(function () {
@@ -122,7 +124,7 @@ window.EditWiki = class EditWiki extends Wiki {
       $(".doc-sidebar .sidebar-items")
         .children(".list-unstyled")
         .not(".hidden")
-        .first()
+        .first(),
     );
 
     $(".web-sidebar ul").each(function () {
