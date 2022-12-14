@@ -58,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v3
       - uses: pypa/gh-action-pip-audit@v1.0.2
         with:
-          inputs: ${GITHUB_WORKSPACE}/requirements.txt
+          inputs: requirements.txt
