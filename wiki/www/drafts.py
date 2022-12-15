@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils.data import cint
+
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
@@ -38,7 +39,7 @@ def get_user_drafts(start, limit):
 		order_by="modified desc",
 		start=cint(start),
 		limit=cint(limit),
-		filters=[["status", "=", "Draft"], ["owner", '=', frappe.session.user]],
+		filters=[["status", "=", "Draft"], ["owner", "=", frappe.session.user]],
 	)
 	for wiki_page_patch in wiki_page_patches:
 		route = frappe.db.get_value("Wiki Page", wiki_page_patch.wiki_page, "route")

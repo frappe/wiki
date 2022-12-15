@@ -29,20 +29,19 @@ def get_context(context):
 
 	context.revision = revision
 
-	WikiPageRevision = DocType('Wiki Page Revision')
-	WikiPageRevisionItem = DocType('Wiki Page Revision Item')
+	WikiPageRevision = DocType("Wiki Page Revision")
+	WikiPageRevisionItem = DocType("Wiki Page Revision Item")
 
-	previous_revisions = frappe.qb.from_(WikiPageRevision).join(WikiPageRevisionItem).on(
-		WikiPageRevision.name == WikiPageRevisionItem.parent
-	).where(
-		WikiPageRevisionItem.creation < revision.creation
-	).where(
-		WikiPageRevisionItem.wiki_page == context.doc.name
-	).select(
-		WikiPageRevision.content
-	).orderby(
-		WikiPageRevision.creation
-	).run()
+	previous_revisions = (
+		frappe.qb.from_(WikiPageRevision)
+		.join(WikiPageRevisionItem)
+		.on(WikiPageRevision.name == WikiPageRevisionItem.parent)
+		.where(WikiPageRevisionItem.creation < revision.creation)
+		.where(WikiPageRevisionItem.wiki_page == context.doc.name)
+		.select(WikiPageRevision.content)
+		.orderby(WikiPageRevision.creation)
+		.run()
+	)
 
 	if not previous_revisions or not previous_revisions[0]:
 		return

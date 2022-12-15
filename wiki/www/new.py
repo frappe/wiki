@@ -1,4 +1,5 @@
 import re
+
 import frappe
 from frappe.desk.form.load import get_comments
 
@@ -7,9 +8,9 @@ def get_context(context):
 	context.no_cache = 1
 	frappe.form_dict.edit = True
 	frappe.form_dict.new = "true"
-	wiki_page_name = frappe.db.get_value("Wiki Page",
-		filters={'route':frappe.form_dict.wiki_page},
-		fieldname='name')
+	wiki_page_name = frappe.db.get_value(
+		"Wiki Page", filters={"route": frappe.form_dict.wiki_page}, fieldname="name"
+	)
 	context.doc = frappe.get_doc("Wiki Page", wiki_page_name)
 	# context = context.doc.get_context(context)
 
@@ -41,21 +42,15 @@ def get_context(context):
 
 	if not can_edit:
 		context.doc.redirect_to_login("create")
-	context.sidebar_items, context.docs_search_scope = context.doc.get_sidebar_items(
-		context
-	)
+	context.sidebar_items, context.docs_search_scope = context.doc.get_sidebar_items(context)
 	context.title = "New Wiki Page"
 	context.doc.title = "New Wiki Page"
 	context.content_md = "New Wiki Page"
 	context.content_html = "New Wiki Page"
 	if frappe.form_dict.wiki_page_patch:
 		context.wiki_page_patch = frappe.form_dict.wiki_page_patch
-		context.doc.content = frappe.db.get_value(
-			"Wiki Page Patch", context.wiki_page_patch, "new_code"
-		)
-		context.comments = get_comments(
-			"Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment"
-		)
+		context.doc.content = frappe.db.get_value("Wiki Page Patch", context.wiki_page_patch, "new_code")
+		context.comments = get_comments("Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment")
 		context.content_md = context.doc.content
 		context.content_html = frappe.utils.md_to_html(context.doc.content)
 	return context

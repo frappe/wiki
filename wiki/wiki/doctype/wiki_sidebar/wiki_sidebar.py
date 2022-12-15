@@ -1,19 +1,17 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Frappe and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
+
 import frappe
 from frappe.model.document import Document
 
 
 class WikiSidebar(Document):
-
 	def before_save(self):
 
-		details = frappe.db.get_values('Wiki Sidebar',
-			filters={'name':self.name },
-			fieldname=['title'], pluck='title')
+		details = frappe.db.get_values(
+			"Wiki Sidebar", filters={"name": self.name}, fieldname=["title"], pluck="title"
+		)
 
 		if not details:
 			return
@@ -21,8 +19,10 @@ class WikiSidebar(Document):
 		old_title = details[0]
 
 		if old_title != self.title:
-			frappe.db.sql('Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Sidebar"',
-			(self.title, self.name) )
+			frappe.db.sql(
+				'Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Sidebar"',
+				(self.title, self.name),
+			)
 			self.clear_cache()
 
 	def get_children(self):
@@ -47,9 +47,7 @@ class WikiSidebar(Document):
 		topmost = self.find_topmost(self.name)
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
-		if (
-			not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode
-		):
+		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
 			sidebar_items = frappe.get_doc("Wiki Sidebar", topmost).get_children()
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
@@ -87,9 +85,7 @@ class WikiSidebar(Document):
 		self.clear_cache()
 
 	def find_topmost(self, me):
-		parent = frappe.db.get_value(
-			"Wiki Sidebar Item", {"item": me, "type": "Wiki Sidebar"}, "parent"
-		)
+		parent = frappe.db.get_value("Wiki Sidebar Item", {"item": me, "type": "Wiki Sidebar"}, "parent")
 		if not parent:
 			return me
 		return self.find_topmost(parent)
@@ -101,9 +97,20 @@ class WikiSidebar(Document):
 	def clone(self, original, new):
 		items = frappe.get_all(
 			"Wiki Sidebar Item",
-			filters={"parent": self.name,},
-			fields=["title", "item", "name", "type", "route",
-				'modified', 'modified_by', 'creation', 'owner'],
+			filters={
+				"parent": self.name,
+			},
+			fields=[
+				"title",
+				"item",
+				"name",
+				"type",
+				"route",
+				"modified",
+				"modified_by",
+				"creation",
+				"owner",
+			],
 			order_by="idx asc",
 		)
 
@@ -111,23 +118,28 @@ class WikiSidebar(Document):
 		if original in self.route:
 			cloned_wiki_sidebar.route = self.route.replace(original, new)
 		else:
-			cloned_wiki_sidebar.route = self.route + f'/{new}'
+			cloned_wiki_sidebar.route = self.route + f"/{new}"
 		cloned_wiki_sidebar.title = self.title
 
-
 		for item in items:
-			if item.type == 'Wiki Sidebar':
-				clone = frappe.get_doc('Wiki Sidebar', item.item).clone(original, new)
-				cloned_wiki_sidebar.append('sidebar_items', {
-					  	"type": 'Wiki Sidebar',
-  						"item": clone.name,
-				})
+			if item.type == "Wiki Sidebar":
+				clone = frappe.get_doc("Wiki Sidebar", item.item).clone(original, new)
+				cloned_wiki_sidebar.append(
+					"sidebar_items",
+					{
+						"type": "Wiki Sidebar",
+						"item": clone.name,
+					},
+				)
 			else:
-				clone = frappe.get_doc('Wiki Page', item.item).clone(original, new)
-				cloned_wiki_sidebar.append('sidebar_items', {
-					  	"type": 'Wiki Page',
-  						"item": clone.name,
-				})
+				clone = frappe.get_doc("Wiki Page", item.item).clone(original, new)
+				cloned_wiki_sidebar.append(
+					"sidebar_items",
+					{
+						"type": "Wiki Page",
+						"item": clone.name,
+					},
+				)
 
 		cloned_wiki_sidebar.save()
 
