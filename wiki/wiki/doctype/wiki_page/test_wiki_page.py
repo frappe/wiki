@@ -10,8 +10,9 @@ from wiki.wiki.doctype.wiki_page.wiki_page import update
 
 class TestWikiPage(unittest.TestCase):
 	def test_wiki_page_lifecycle(self):
-		if frappe.db.exists("Wiki Page", "wiki/page"):
-			frappe.delete_doc("Wiki Page", "wiki/page")
+		wiki_page_id = frappe.db.exists("Wiki Page", {"route": "wiki/page"})
+		if wiki_page_id:
+			frappe.delete_doc("Wiki Page", wiki_page_id)
 		for name in frappe.db.get_all("Wiki Page Revision", {"wiki_page": "wiki/page"}, pluck="name"):
 			frappe.delete_doc("Wiki Page Revision", name)
 		wiki_page = frappe.new_doc("Wiki Page")
@@ -19,7 +20,9 @@ class TestWikiPage(unittest.TestCase):
 		wiki_page.content = "Hello World"
 		wiki_page.title = "Hello World Title"
 		wiki_page.save()
-		self.assertEqual(frappe.db.get_value("Wiki Page", "wiki/page", "route"), "wiki/page")
+		self.assertEqual(
+			frappe.db.get_value("Wiki Page", {"route": "wiki/page"}, "name"), wiki_page.name
+		)
 
 		update(
 			name=wiki_page.name,
