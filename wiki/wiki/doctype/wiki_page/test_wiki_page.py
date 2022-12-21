@@ -29,7 +29,7 @@ class TestWikiPage(unittest.TestCase):
 		update(
 			name=self.wiki_page.name,
 			content="New Content",
-			title="Hello World Title",
+			title="New Title",
 			type="Markdown",
 			message="test",
 		)
@@ -41,7 +41,7 @@ class TestWikiPage(unittest.TestCase):
 		)
 
 		self.assertEqual(patches[0].message, "test")
-		self.assertEqual(patches[0].new_title, "Hello World Title")
+		self.assertEqual(patches[0].new_title, "New Title")
 		self.assertEqual(patches[0].new_code, "New Content")
 
 		patch = frappe.get_doc("Wiki Page Patch", patches[0].name)
@@ -52,7 +52,7 @@ class TestWikiPage(unittest.TestCase):
 
 		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page.name)
 
-		self.assertEqual(wiki_page.title, "Hello World Title")
+		self.assertEqual(wiki_page.title, "New Title")
 		self.assertEqual(wiki_page.content, "New Content")
 
 		self.assertEqual(
