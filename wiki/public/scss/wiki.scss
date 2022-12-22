@@ -452,6 +452,11 @@ navbar
 
 	.nav-item {
 		margin-left: 10px;
+
+		#search-container {
+			margin: 10px 0;
+			width: 100%;
+		}
 	}
 	.search-nav-item {
 		height: 2.2rem;
