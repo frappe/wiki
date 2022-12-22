@@ -309,6 +309,18 @@ textarea.wiki-content {
 	}
 }
 
+.feather-link {
+	visibility: hidden;
+}
+
+h2:hover .feather-link,
+h3:hover .feather-link,
+h4:hover .feather-link,
+h5:hover .feather-link,
+h6:hover .feather-link {
+	visibility: visible;	
+}
+
 // toc
 .page-toc {
 	width: clamp(192px, 20%, 240px);
