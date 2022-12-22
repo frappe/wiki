@@ -11,6 +11,9 @@
 
 <div align="center">
  Wiki App built on the <a href= "https://frappeframework.com" >Frappe Framework</a> | <a href = "https://wiki-docs.frappe.cloud/use_on_frappe_cloud">Try on Frappe Cloud</a>
+ 
+ \
+ [![CI](https://github.com/frappe/wiki/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/frappe/wiki/actions/workflows/ci.yml)
 </div>
 
 ## Introduction
