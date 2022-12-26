@@ -462,6 +462,11 @@ def approve(wiki_page_patch):
 
 @frappe.whitelist()
 def delete_wiki_page(wiki_page_route):
+	if not frappe.has_permission(doctype="Wiki Page", ptype="delete", throw=False):
+		frappe.throw(
+			_("You are not permitted to delete a Wiki Page"),
+			frappe.PermissionError,
+		)
 	wiki_page_name = frappe.get_value("Wiki Page", {"route": wiki_page_route[1:]})
 	if wiki_page_name:
 		frappe.delete_doc("Wiki Page", wiki_page_name)
