@@ -5,11 +5,11 @@ import unittest
 
 import frappe
 
-from wiki.wiki.doctype.wiki_page.wiki_page import update
+from wiki.wiki.doctype.wiki_page.wiki_page import delete_wiki_page, update
 
 
 class TestWikiPage(unittest.TestCase):
-	def test_wiki_page_lifecycle(self):
+	def setUp(self):
 		wiki_page_id = frappe.db.get_value("Wiki Page", {"route": "wiki/page"}, "name")
 		if wiki_page_id:
 			frappe.delete_doc("Wiki Page", wiki_page_id)
@@ -22,6 +22,12 @@ class TestWikiPage(unittest.TestCase):
 		self.wiki_page.title = "Hello World Title"
 
 		self.wiki_page.save()
+
+	def tearDown(self):
+		self.wiki_page.delete()
+
+	def test_wiki_page_lifecycle(self):
+
 		self.assertEqual(
 			frappe.db.get_value("Wiki Page", {"route": "wiki/page"}, "name"), self.wiki_page.name
 		)
@@ -65,4 +71,14 @@ class TestWikiPage(unittest.TestCase):
 			2,
 		)
 
-		self.wiki_page.delete()
+	def test_wiki_page_deletion(self):
+		delete_wiki_page(f"/{self.wiki_page.route}")
+		self.assertEqual(frappe.db.exists("Wiki Page", self.wiki_page.name), None)
+
+		patches = frappe.get_all("Wiki Page Patch", {"wiki_page": self.wiki_page.name}, pluck="name")
+		self.assertEqual(patches, [])
+
+		sidebar_items = frappe.get_all(
+			"Wiki Sidebar Item", {"type": "Wiki Page", "item": self.wiki_page.name}, pluck="name"
+		)
+		self.assertEqual(sidebar_items, [])
