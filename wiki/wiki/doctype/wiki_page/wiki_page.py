@@ -85,6 +85,8 @@ class WikiPage(WebsiteGenerator):
 		):
 			frappe.delete_doc("Wiki Sidebar Item", name)
 
+		self.clear_sidebar_cache()
+
 	def set_route(self):
 		if not self.route:
 			self.route = "wiki/" + cleanup_page_name(self.title)
@@ -456,3 +458,13 @@ def approve(wiki_page_patch):
 	patch.approved_by = frappe.session.user
 	patch.status = "Approved"
 	patch.submit()
+
+
+@frappe.whitelist()
+def delete_wiki_page(wiki_page_route):
+	wiki_page_name = frappe.get_value("Wiki Page", {"route": wiki_page_route[1:]})
+	if wiki_page_name:
+		frappe.delete_doc("Wiki Page", wiki_page_name)
+		return True
+
+	frappe.throw(_("The Wiki Page you are trying to delete doesn't exist"))

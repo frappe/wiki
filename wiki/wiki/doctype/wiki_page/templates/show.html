@@ -17,6 +17,7 @@
 			{%- endif -%}
 			{%- endif -%}
 			<li><a href="/{{ path }}/edit-wiki">Edit Page</a>&nbsp;</li>
+			<li><a href="javascript:;" onclick="handleDelete()">Delete Page</a>&nbsp;</li>
 			<li><a href="/{{ path }}/new-wiki">New Page</a>&nbsp;</li>
 		</ul>
 	</div>
@@ -33,7 +34,18 @@
 
 <script>
 	new RenderWiki();
-
+	function handleDelete() {
+		frappe.call({
+			method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+			args: {
+				wiki_page_route: new URL(window.location.href).pathname
+			},
+			callback: (r) => {
+				if (r.message)
+					window.location.assign("/home")
+			}
+		})
+	}
 </script>
 
 {%- if script -%}
