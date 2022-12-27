@@ -26,14 +26,15 @@
             const url = new URL(window.location.href);
             const wikiRevisionName = url.searchParams.get('compare')
             const wikiPageName = url.searchParams.get('wiki_page')
-
-            frappe.call({
-				method: "wiki.www.compare.restore_wiki_revision",
-                args: {
-                    wiki_revision_name: wikiRevisionName,
-                    wiki_page_name: wikiPageName
-                }
-            })
+            frappe.confirm(`Are you sure you want to revert the Wiki Page to ${wikiRevisionName}?`, () => {
+                frappe.call({
+                    method: "wiki.www.compare.restore_wiki_revision",
+                    args: {
+                        wiki_revision_name: wikiRevisionName,
+                        wiki_page_name: wikiPageName
+                    },
+                })
+            });
         })
     })
 </script>
