@@ -33,6 +33,10 @@
                         wiki_revision_name: wikiRevisionName,
                         wiki_page_name: wikiPageName
                     },
+                    callback: (r) => {
+                        if (r.message)
+                            window.location.assign(`/${r.message}`)
+				    }
                 })
             });
         })

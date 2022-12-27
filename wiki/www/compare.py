@@ -77,3 +77,5 @@ def restore_wiki_revision(wiki_revision_name, wiki_page_name):
 		new_sidebar_items=new_sidebar_items,
 		message=f"Revert to Wiki Revision {wiki_revision_name} ({wiki_revision_message})",
 	)
+
+	return frappe.get_value("Wiki Page", wiki_page_name, ["route"])
