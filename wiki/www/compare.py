@@ -46,10 +46,10 @@ def get_context(context):
 		.run()
 	)
 
-	if not previous_revisions or not previous_revisions[0]:
+	if not previous_revisions or not previous_revisions[-1]:
 		return
 
-	context.diff = diff(previous_revisions[0][0], revision.content, css=False)
+	context.diff = diff(previous_revisions[-1][0], revision.content, css=False)
 
 	return context
 
