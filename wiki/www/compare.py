@@ -25,7 +25,7 @@ def get_context(context):
 	context.title = "Revision: " + revision
 	context.parents = [
 		{"route": "/" + context.doc.route, "label": context.doc.title},
-		{"route": "/" + context.doc.route + "?revisions=true", "label": "Revisions"},
+		{"route": "/" + context.doc.route + "/revisions", "label": "Revisions"},
 	]
 
 	revision = frappe.get_doc("Wiki Page Revision", revision)
