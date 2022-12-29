@@ -67,7 +67,7 @@ def restore_wiki_revision(wiki_revision_name, wiki_page_name, wiki_revision_mess
 		"Wiki Page Patch", {"wiki_page": wiki_page_name}, ["new_title", "new_sidebar_items"]
 	)
 
-	update(
+	update_vals = update(
 		name=wiki_page_name,
 		content=wiki_revision_content,
 		title=wiki_patch_title,
@@ -76,4 +76,4 @@ def restore_wiki_revision(wiki_revision_name, wiki_page_name, wiki_revision_mess
 		message=wiki_revision_message,
 	)
 
-	return frappe.get_value("Wiki Page", wiki_page_name, ["route"])
+	return update_vals.route
