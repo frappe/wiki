@@ -96,7 +96,7 @@ class TestWikiPage(unittest.TestCase):
 
 		wiki_revision_name = frappe.get_value("Wiki Page Revision", {"message": "Create Wiki Page"})
 
-		restore_wiki_revision(wiki_revision_name, self.wiki_page.name)
+		restore_wiki_revision(wiki_revision_name, self.wiki_page.name, "Revert back to xx")
 
 		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page.name)
 

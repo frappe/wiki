@@ -20,25 +20,55 @@
         </div>
     </div>
 
+{% endblock %}
+
+{% block base_scripts %}
+
+<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+{{ include_script('frappe-web.bundle.js') }}
+{{ include_script('controls.bundle.js') }}
+{{ include_script('dialog.bundle.js') }}
+{{ include_script('bootstrap-4-web.bundle.js') }}
+
 <script>
+    frappe.boot = {{ boot }};
+
     frappe.ready(() => {
         $(".restore-wiki-revision").click(() => {
             const url = new URL(window.location.href);
             const wikiRevisionName = url.searchParams.get('compare')
             const wikiPageName = url.searchParams.get('wiki_page')
-            frappe.confirm(`Are you sure you want to revert the Wiki Page to ${wikiRevisionName}?`, () => {
-                frappe.call({
-                    method: "wiki.www.compare.restore_wiki_revision",
-                    args: {
-                        wiki_revision_name: wikiRevisionName,
-                        wiki_page_name: wikiPageName
-                    },
-                    callback: (r) => {
-                        if (r.message)
-                            window.location.assign(`/${r.message}`)
-				    }
-                })
+
+            const dialog = new frappe.ui.Dialog({
+                title: __("Please describe the revision"),
+                fields: [
+                    {
+                        fieldname: "edit_message",
+                        fieldtype: "Text",
+                        label: "Message",
+                        default: `Revert to Wiki Revision ${wikiRevisionName}`,
+                        mandatory: 1,
+                    }
+                ],
+                primary_action_label: __("Submit Changes"),
+                primary_action: (value) => {
+                    frappe.call({
+                        method: "wiki.www.compare.restore_wiki_revision",
+                        args: {
+                            wiki_revision_name: wikiRevisionName,
+                            wiki_page_name: wikiPageName,
+                            wiki_revision_message: value.edit_message,
+                        },
+                        callback: (r) => {
+                            if (r.message)
+                                window.location.assign(`/${r.message}`)
+                        },
+                        freeze: true,
+                    })
+                    dialog.hide();
+                }
             });
+            dialog.show();
         })
     })
 </script>
