@@ -261,7 +261,7 @@ def get_open_contributions():
 	count = len(
 		frappe.get_list(
 			"Wiki Page Patch",
-			filters=[["status", "=", "Under Review"]],
+			filters=[["status", "=", "Under Review"], ["raised_by", "=", frappe.session.user]],
 		)
 	)
 	return f'<span class="count">{count}</span>'
