@@ -158,6 +158,7 @@ class WikiPage(WebsiteGenerator):
 			"og:image:width": "1200",
 			"og:image:height": "630",
 		}
+		context.user = frappe.session.user
 		context.last_revision = self.get_last_revision()
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}

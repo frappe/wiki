@@ -33,21 +33,26 @@
 {{ include_script('wiki.bundle.js') }}
 
 <script>
+	var user = "{{ user }}"
+
 	new RenderWiki();
 	function handleDelete() {
-		frappe.confirm('Are you sure you want to delete the Wiki Page?',
-			() => {
-				frappe.call({
-				method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-				args: {
-					wiki_page_route: new URL(window.location.href).pathname
-				},
-				callback: (r) => {
-					if (r.message)
-						window.location.assign("/wiki")
-				}
+		if (user === "Guest")
+			window.location.assign("/login")
+		else	
+			frappe.confirm('Are you sure you want to delete the Wiki Page?',
+				() => {
+					frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+					args: {
+						wiki_page_route: new URL(window.location.href).pathname
+					},
+					callback: (r) => {
+						if (r.message)
+							window.location.assign("/wiki")
+					}
+				})
 			})
-		})
 	}
 </script>
 
