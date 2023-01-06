@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021, Frappe and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
-import frappe
+
 import json
-from frappe.model.document import Document
-from ghdiff import diff
+
+import frappe
 from frappe import _
 from frappe.desk.form.utils import add_comment
+from frappe.model.document import Document
 from frappe.utils import cint
+from ghdiff import diff
 
 
 class WikiPagePatch(Document):
@@ -56,8 +56,7 @@ class WikiPagePatch(Document):
 			"content": self.new_code,
 			"route": "/".join(self.wiki_page_doc.route.split("/")[:-1] + [frappe.scrub(self.new_title)]),
 			"published": 1,
-			"allow_guest": self.wiki_page_doc.allow_guest
-
+			"allow_guest": self.wiki_page_doc.allow_guest,
 		}
 
 		self.new_wiki_page.update(wiki_page_dict)
@@ -133,9 +132,9 @@ class WikiPagePatch(Document):
 @frappe.whitelist()
 def add_comment_to_patch(reference_name, content):
 	email = frappe.session.user
-	name = frappe.db.get_value(
-		"User", frappe.session.user, ["first_name"], as_dict=True
-	).get("first_name")
+	name = frappe.db.get_value("User", frappe.session.user, ["first_name"], as_dict=True).get(
+		"first_name"
+	)
 	comment = add_comment("Wiki Page Patch", reference_name, content, email, name)
 	comment.timepassed = frappe.utils.pretty_date(comment.creation)
 	return comment

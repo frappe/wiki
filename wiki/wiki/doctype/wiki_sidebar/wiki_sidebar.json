@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:route",
  "creation": "2021-05-07 01:38:50.629713",
@@ -37,10 +38,11 @@
   }
  ],
  "links": [],
- "modified": "2021-08-21 14:21:29.147688",
+ "modified": "2022-07-13 08:13:11.996764",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar",
+ "naming_rule": "By fieldname",
  "nsm_parent_field": "parent_wiki_sidebar",
  "owner": "Administrator",
  "permissions": [
@@ -71,5 +73,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

@@ -5,10 +5,10 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "message",
   "raised_by",
-  "raised_by_username",
+  "message",
   "column_break_4",
+  "raised_by_username",
   "content",
   "section_break_6",
   "wiki_pages"
@@ -16,7 +16,7 @@
  "fields": [
   {
    "fieldname": "message",
-   "fieldtype": "Data",
+   "fieldtype": "Text",
    "label": "Message"
   },
   {
@@ -55,7 +55,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2022-02-07 20:19:45.226793",
+ "modified": "2022-11-28 13:12:30.491116",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",
