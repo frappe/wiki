@@ -6,14 +6,14 @@
  "engine": "InnoDB",
  "field_order": [
   "wiki_page",
-  "message",
   "new_title",
-  "new",
-  "sidebar_edited",
+  "message",
   "column_break_3",
   "raised_by",
   "status",
   "approved_by",
+  "new",
+  "sidebar_edited",
   "compare_changes_section",
   "diff",
   "compare",
@@ -141,7 +141,7 @@
   },
   {
    "fieldname": "message",
-   "fieldtype": "Data",
+   "fieldtype": "Text",
    "label": "Message"
   },
   {
@@ -202,7 +202,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-11-30 13:31:31.838347",
+ "modified": "2023-01-06 20:20:06.315426",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
@@ -256,19 +256,13 @@
    "write": 1
   },
   {
-   "create": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
    "read": 1,
-   "report": 1,
-   "role": "Guest",
-   "share": 1,
-   "write": 1
+   "role": "Guest"
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "message",
  "track_changes": 1,
  "track_seen": 1,
