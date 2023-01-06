@@ -26,6 +26,17 @@
 	}
 }
 
+@include media-breakpoint-down(md) {
+	.edit-page-head {
+		flex-wrap: wrap;
+		justify-content: flex-start;
+		.edit-title {
+			flex: 100%;
+			margin-bottom: 20px;
+		}
+	}
+}
+
 .nav-tabs {
 	padding-bottom: 0;
 
