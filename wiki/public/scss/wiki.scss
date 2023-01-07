@@ -545,71 +545,61 @@ img[alt]::after{
 // make sm / xl sizes the same
 
 h1 {
-	font-size: 2rem;
+	font-size: 1.75rem;
 	line-height: 1.25;
-	letter-spacing: -0.025em;
+	letter-spacing: -0.02em;
 	margin-top: 3rem;
 	margin-bottom: 0.75rem;
 
 	@include media-breakpoint-up(sm) {
-		font-size: 2.5rem;
-		margin-top: 3.5rem;
-		margin-bottom: 1.25rem;
-	}
-	@include media-breakpoint-up(xl) {
-		font-size: 2.5rem;
+		font-size: 2rem;
 		margin-top: 3.5rem;
 		margin-bottom: 1.25rem;
 	}
 }
 
 h2 {
-	font-size: 1.4rem;
+	font-size: 1.5rem;
 	margin-top: 2rem;
 	margin-bottom: 0.5rem;
 
 	@include media-breakpoint-up(sm) {
-		font-size: 2rem;
-		margin-top: 4rem;
-		margin-bottom: 0.75rem;
-	}
-	@include media-breakpoint-up(xl) {
-		font-size: 2rem;
 		margin-top: 4rem;
 		margin-bottom: 0.75rem;
 	}
 }
 
 h3 {
-	font-size: 1.2rem;
+	font-size: 1.25rem;
 	margin-top: 2rem;
 	margin-bottom: 0.5rem;
 
 	@include media-breakpoint-up(sm) {
-		font-size: 1.4rem;
-		margin-top: 2.5rem;
-	}
-	@include media-breakpoint-up(xl) {
-		font-size: 1.4rem;
 		margin-top: 2.5rem;
 	}
 }
 
 h4 {
-	font-size: 1.1rem;
+	font-size: 1.125rem;
 	margin-top: 2rem;
 	margin-bottom: 0.5rem;
 
 	@include media-breakpoint-up(sm) {
-		font-size: 1.3rem;
 		margin-top: 2.5rem;
 	}
-	@include media-breakpoint-up(xl) {
-		font-size: 1.3rem;
-		margin-top: 2.5rem;
-	}
-
 	a {
 		color: $body-color;
 	}
+}
+
+h5 {
+	font-size: 0.875rem;
+}
+
+h6 {
+	font-size: 0.75rem;
+}
+
+p {
+	font-size: 1rem;
 }
