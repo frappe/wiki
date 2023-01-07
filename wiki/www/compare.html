@@ -31,7 +31,7 @@
 {{ include_script('bootstrap-4-web.bundle.js') }}
 
 <script>
-    frappe.boot = {{ boot }};
+    frappe.boot = "{{ boot }}";
 
     frappe.ready(() => {
         $(".restore-wiki-revision").click(() => {
