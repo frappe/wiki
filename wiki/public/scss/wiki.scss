@@ -185,7 +185,7 @@ textarea.wiki-content {
 	display: flex;
 }
 .sidebar-column {
-	width: clamp(240px, 20%, 320px);
+	flex: 2;
 }
 
 .sm-sidebar .web-sidebar {
@@ -296,8 +296,7 @@ textarea.wiki-content {
 
 // main-content
 .main-column {
-	flex-grow: 100;
-	width: clamp(240px, 60%, 870px);
+	flex: 8;
 	text-align: left;
 	.page-content-wrapper {
 		margin-top: 3.5rem;
@@ -336,8 +335,15 @@ h6:hover .feather-link {
 
 // toc
 .page-toc {
-	width: clamp(192px, 20%, 240px);
+	flex: 2;
 	font-size: $font-size-xs;
+	position: sticky;
+	top: 72px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: none;
+	height: 90vh;
+
 	h5 {
 		font-size: $font-size-xs;
 	}
