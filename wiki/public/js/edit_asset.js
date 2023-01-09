@@ -283,7 +283,11 @@ window.EditAsset = class EditAsset {
         } else {
           content = this.code_field_group.get_value("code_html");
           var turndownService = new TurndownService();
-          turndownService = turndownService.keep(["div class", "iframe"]);
+          turndownService = turndownService.keep([
+            "div class",
+            "iframe",
+            "table",
+          ]);
           content = turndownService.turndown(content);
         }
         if (!content) {
@@ -382,7 +386,11 @@ window.EditAsset = class EditAsset {
           if (r.message) {
             me.content = r.message;
             var turndownService = new TurndownService();
-            turndownService = turndownService.keep(["div class", "iframe"]);
+            turndownService = turndownService.keep([
+              "div class",
+              "iframe",
+              "table",
+            ]);
             me.content = turndownService.turndown(me.content);
             me.raise_patch(draft);
           }
