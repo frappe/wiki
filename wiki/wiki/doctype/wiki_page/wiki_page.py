@@ -96,6 +96,8 @@ class WikiPage(WebsiteGenerator):
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
+		self.route = cleanup_page_name(self.title)
+
 		if content != self.content:
 			self.content = content
 			revision = frappe.new_doc("Wiki Page Revision")
