@@ -81,6 +81,7 @@ window.EditWiki = class EditWiki extends Wiki {
 
   set_add_item() {
     $(`<div class="text-muted add-sidebar-item small">+ Add Group</div>
+      <div class="text-muted remove-sidebar-item small">- Remove Group</div>
 			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
       $(".web-sidebar"),
     );
@@ -93,6 +94,42 @@ window.EditWiki = class EditWiki extends Wiki {
         fields: dfs,
         primary_action: function (fields) {
           me.add_wiki_sidebar(fields);
+          dialog.hide();
+        },
+      });
+      dialog.show();
+    });
+
+    $(".remove-sidebar-item").click(function () {
+      let dialog = new frappe.ui.Dialog({
+        title: "Remove Group from Sidebar",
+        fields: [
+          {
+            fieldname: "name",
+            label: "Name",
+            fieldtype: "Link",
+            options: "Wiki Sidebar",
+          },
+        ],
+        primary_action: function (fields) {
+          if (fields.name === "wiki")
+            frappe.throw(__("You shouldn't delete the <b>wiki</b> Sidebar"));
+          else
+            frappe.confirm(
+              `Are you sure you want to delete the Wiki Sidebar Group ${fields.name}?`,
+              () => {
+                frappe.call({
+                  method:
+                    "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
+                  args: {
+                    sidebar_group_name: fields.name,
+                  },
+                  callback: (r) => {
+                    if (r.message) window.location.reload();
+                  },
+                });
+              },
+            );
           dialog.hide();
         },
       });

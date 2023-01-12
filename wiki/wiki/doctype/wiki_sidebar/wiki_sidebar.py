@@ -3,6 +3,7 @@
 
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -79,6 +80,8 @@ class WikiSidebar(Document):
 		self.clear_cache()
 
 	def on_trash(self):
+		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"title": self.name}, pluck="name")
+		frappe.delete_doc("Wiki Sidebar Item", sidebar_group_name)
 		self.clear_cache()
 
 	def on_update(self):
@@ -144,3 +147,15 @@ class WikiSidebar(Document):
 		cloned_wiki_sidebar.save()
 
 		return cloned_wiki_sidebar
+
+
+@frappe.whitelist()
+def delete_sidebar_group(sidebar_group_name):
+	if not frappe.has_permission(doctype="Wiki Sidebar", ptype="delete", throw=False):
+		frappe.throw(
+			_("You are not permitted to delete a Wiki Sidebar"),
+			frappe.PermissionError,
+		)
+
+	frappe.delete_doc("Wiki Sidebar", sidebar_group_name)
+	return True
