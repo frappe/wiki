@@ -47,6 +47,7 @@ def get_context(context):
 	context.title = "Editing " + context.doc.title
 	if frappe.form_dict.wiki_page_patch:
 		context.wiki_page_patch = frappe.form_dict.wiki_page_patch
+		context.message = frappe.db.get_value("Wiki Page Patch", context.wiki_page_patch, "message")
 		context.doc.content = frappe.db.get_value("Wiki Page Patch", context.wiki_page_patch, "new_code")
 		context.comments = get_comments("Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment")
 		context.sidebar_edited = frappe.db.get_value(

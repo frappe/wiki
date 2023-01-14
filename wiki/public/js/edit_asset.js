@@ -202,9 +202,12 @@ window.EditAsset = class EditAsset {
         fieldname: "edit_message",
         fieldtype: "Text",
         label: "Message",
-        default: $('[name="new"]').val()
-          ? `Add new page: ${title_of_page}`
-          : `Edited ${title_of_page}`,
+        default:
+          wikiPagePatchMessage != "{{ message }}"
+            ? wikiPagePatchMessage
+            : $('[name="new"]').val()
+            ? `Add new page: ${title_of_page}`
+            : `Edited ${title_of_page}`,
         mandatory: 1,
       },
       {

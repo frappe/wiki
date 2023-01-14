@@ -130,7 +130,7 @@
 {{ include_script('wiki.bundle.js') }}
 
 <script>
-
+	const wikiPagePatchMessage = "{{ message }}"
 	let frappe_version = "{{ frappe_version }}";
 	if (parseInt(frappe_version.split(".")[0]) <= 14 && !frappe_version.endsWith("-dev")) {
 		Vue.prototype.__ = window.__;
