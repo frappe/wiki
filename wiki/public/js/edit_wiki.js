@@ -100,15 +100,27 @@ window.EditWiki = class EditWiki extends Wiki {
       dialog.show();
     });
 
-    $(".remove-sidebar-item").click(function () {
+    $(".remove-sidebar-item").click(async function () {
+      const getAutoCompleteOptions = async () => {
+        return new Promise((resolve) => {
+          frappe.call({
+            method:
+              "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.get_sidebar_group_names",
+            callback: function (r) {
+              resolve(r.message);
+            },
+          });
+        });
+      };
+
       let dialog = new frappe.ui.Dialog({
         title: "Remove Group from Sidebar",
         fields: [
           {
             fieldname: "name",
             label: "Name",
-            fieldtype: "Link",
-            options: "Wiki Sidebar",
+            fieldtype: "Autocomplete",
+            options: await getAutoCompleteOptions(),
           },
         ],
         primary_action: function (fields) {
