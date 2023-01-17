@@ -90,8 +90,8 @@
 	margin: 5px 15px 0 0;
 }
 
-.trash-icon {
-	color: #cc3300;
+.trash-icon:hover {
+	color: var(--red-400);
 }
 
 .attachment-controls {
