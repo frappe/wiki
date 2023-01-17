@@ -159,15 +159,10 @@ class WikiSidebar(Document):
 
 
 @frappe.whitelist()
-def get_sidebar_group_names():
-	return frappe.db.get_list("Wiki Sidebar", filters=[["name", "!=", "wiki"]], pluck="name")
-
-
-@frappe.whitelist()
 def delete_sidebar_group(sidebar_group_name):
 	if not frappe.has_permission(doctype="Wiki Sidebar", ptype="delete", throw=False):
 		frappe.throw(
-			_("You are not permitted to delete a Wiki Sidebar"),
+			_("You are not permitted to delete a Wiki Sidebar Group"),
 			frappe.PermissionError,
 		)
 

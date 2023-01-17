@@ -15,7 +15,57 @@ window.EditWiki = class EditWiki extends Wiki {
           this.set_sortable();
           this.set_add_item();
           this.scrolltotop();
+          this.add_trash_icon();
         });
+    });
+  }
+
+  add_trash_icon() {
+    $(".sidebar-item > div, .sidebar-group > div").each(function (index) {
+      $(`<div class="text-muted remove-sidebar-item small">
+      <span class="trash-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </span>
+    </div>`).insertAfter($(this));
+    });
+
+    $(".remove-sidebar-item").click(function () {
+      const type = $(this).parent().data("type");
+      const route = $(this).parent().data("route");
+      const title = $(this).parent().data("title");
+
+      console.log(title);
+      if (type === "Wiki Page")
+        frappe.confirm(
+          `Are you sure you want to delete the Wiki Page ${title}?`,
+          () => {
+            frappe.call({
+              method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+              args: {
+                wiki_page_route: route,
+              },
+              callback: (r) => {
+                if (r.message) window.location.reload();
+              },
+            });
+          },
+        );
+      else if (type === "Wiki Sidebar")
+        frappe.confirm(
+          `Are you sure you want to delete the Wiki Sidebar Group ${title}?`,
+          () => {
+            frappe.call({
+              method:
+                "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
+              args: {
+                sidebar_group_name: title,
+              },
+              callback: (r) => {
+                if (r.message) window.location.reload();
+              },
+            });
+          },
+        );
     });
   }
 
@@ -81,7 +131,6 @@ window.EditWiki = class EditWiki extends Wiki {
 
   set_add_item() {
     $(`<div class="text-muted add-sidebar-item small">+ Add Group</div>
-      <div class="text-muted remove-sidebar-item small">- Remove Group</div>
 			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
       $(".web-sidebar"),
     );
@@ -94,54 +143,6 @@ window.EditWiki = class EditWiki extends Wiki {
         fields: dfs,
         primary_action: function (fields) {
           me.add_wiki_sidebar(fields);
-          dialog.hide();
-        },
-      });
-      dialog.show();
-    });
-
-    $(".remove-sidebar-item").click(async function () {
-      const getAutoCompleteOptions = async () => {
-        return new Promise((resolve) => {
-          frappe.call({
-            method:
-              "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.get_sidebar_group_names",
-            callback: function (r) {
-              resolve(r.message);
-            },
-          });
-        });
-      };
-
-      let dialog = new frappe.ui.Dialog({
-        title: "Remove Group from Sidebar",
-        fields: [
-          {
-            fieldname: "name",
-            label: "Name",
-            fieldtype: "Autocomplete",
-            options: await getAutoCompleteOptions(),
-          },
-        ],
-        primary_action: function (fields) {
-          if (fields.name === "wiki")
-            frappe.throw(__("You shouldn't delete the <b>wiki</b> Sidebar"));
-          else
-            frappe.confirm(
-              `Are you sure you want to delete the Wiki Sidebar Group ${fields.name}?`,
-              () => {
-                frappe.call({
-                  method:
-                    "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
-                  args: {
-                    sidebar_group_name: fields.name,
-                  },
-                  callback: (r) => {
-                    if (r.message) window.location.reload();
-                  },
-                });
-              },
-            );
           dialog.hide();
         },
       });

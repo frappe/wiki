@@ -121,7 +121,7 @@ textarea.wiki-content {
 	.collapsible {
 		padding-top: 0.5rem;
 		padding-bottom: 0.5rem;
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 	}
 
@@ -182,7 +182,7 @@ textarea.wiki-content {
 }
 
 .sidebar-item div {
-	display: flex;
+	display: inline-flex;
 }
 .sidebar-column {
 	flex: 2;
@@ -503,10 +503,6 @@ navbar
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
 	margin-top: 1rem;
-}
-
-.remove-sidebar-item {
-	cursor: pointer;	
 }
 
 .web-footer {
