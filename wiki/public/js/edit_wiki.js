@@ -34,7 +34,6 @@ window.EditWiki = class EditWiki extends Wiki {
       const route = $(this).parent().data("route");
       const title = $(this).parent().data("title");
 
-      console.log(title);
       if (type === "Wiki Page")
         frappe.confirm(
           `Are you sure you want to delete the Wiki Page ${title}?`,
