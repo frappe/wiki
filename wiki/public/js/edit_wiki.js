@@ -35,36 +35,49 @@ window.EditWiki = class EditWiki extends Wiki {
       const title = $(this).parent().data("title");
 
       if (type === "Wiki Page")
-        frappe.confirm(
-          `Are you sure you want to delete the Wiki Page ${title}?`,
-          () => {
-            frappe.call({
-              method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-              args: {
-                wiki_page_route: route,
-              },
-              callback: (r) => {
-                if (r.message) window.location.reload();
-              },
-            });
+        frappe.msgprint({
+          title: __("Delete Wiki Page"),
+          message: __(
+            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
+          ),
+          primary_action: {
+            label: "Yes",
+            action() {
+              frappe.call({
+                method:
+                  "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+                args: {
+                  wiki_page_route: route,
+                },
+                callback: (r) => {
+                  if (r.message) window.location.reload();
+                },
+              });
+            },
           },
-        );
+        });
       else if (type === "Wiki Sidebar")
-        frappe.confirm(
-          `Are you sure you want to delete the Wiki Sidebar Group ${title}?`,
-          () => {
-            frappe.call({
-              method:
-                "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
-              args: {
-                sidebar_group_name: title,
-              },
-              callback: (r) => {
-                if (r.message) window.location.reload();
-              },
-            });
+        frappe.msgprint({
+          title: __("Delete Wiki Sidebar Group"),
+          message: __(
+            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?`,
+          ),
+          primary_action: {
+            label: "Yes",
+            action() {
+              frappe.call({
+                method:
+                  "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
+                args: {
+                  sidebar_group_name: title,
+                },
+                callback: (r) => {
+                  if (r.message) window.location.reload();
+                },
+              });
+            },
           },
-        );
+        });
     });
   }
 
