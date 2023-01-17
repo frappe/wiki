@@ -181,6 +181,15 @@ textarea.wiki-content {
 	}
 }
 
+.sidebar-item.active {
+	background-color: var(--primary-light);
+	border-radius: 4px;
+
+	a {
+		margin: 0.15rem 0;
+	}
+}
+
 .sidebar-item div {
 	display: flex;
 }
