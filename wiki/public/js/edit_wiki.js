@@ -51,7 +51,15 @@ window.EditWiki = class EditWiki extends Wiki {
                   wiki_page_route: route,
                 },
                 callback: (r) => {
-                  if (r.message) window.location.reload();
+                  if (r.message) {
+                    const segments = window.location.pathname.split("/");
+                    segments.pop();
+                    const wikiInURL = segments.pop() || segments.pop();
+
+                    if (route.substring(1) === wikiInURL)
+                      window.location.assign("/wiki");
+                    else window.location.reload();
+                  }
                 },
               });
             },
