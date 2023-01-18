@@ -87,6 +87,16 @@
 
 // edit page
 
+.remove-sidebar-item {
+	float: right;
+	cursor: pointer;
+	margin: 5px 15px 0 0;
+}
+
+.trash-icon:hover {
+	color: var(--red-400);
+}
+
 .attachment-controls {
 	cursor: pointer;
 	max-height: 28px;

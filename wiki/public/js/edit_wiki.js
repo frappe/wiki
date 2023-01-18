@@ -15,6 +15,78 @@ window.EditWiki = class EditWiki extends Wiki {
           this.set_sortable();
           this.set_add_item();
           this.scrolltotop();
+          this.add_trash_icon();
+        });
+    });
+  }
+
+  add_trash_icon() {
+    $(".sidebar-item > div, .sidebar-group > div").each(function (index) {
+      $(`<div class="text-muted remove-sidebar-item small">
+      <span class="trash-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </span>
+    </div>`).insertAfter($(this));
+    });
+
+    $(".remove-sidebar-item").click(function () {
+      const type = $(this).parent().data("type");
+      const route = $(this).parent().data("route");
+      const title = $(this).parent().data("title");
+
+      if (type === "Wiki Page")
+        frappe.msgprint({
+          title: __("Delete Wiki Page"),
+          indicator: "red",
+          message: __(
+            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
+          ),
+          primary_action: {
+            label: "Yes",
+            action() {
+              frappe.call({
+                method:
+                  "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+                args: {
+                  wiki_page_route: route,
+                },
+                callback: (r) => {
+                  if (r.message) {
+                    const segments = window.location.pathname.split("/");
+                    segments.pop();
+                    const wikiInURL = segments.pop() || segments.pop();
+
+                    if (route.substring(1) === wikiInURL)
+                      window.location.assign("/wiki");
+                    else window.location.reload();
+                  }
+                },
+              });
+            },
+          },
+        });
+      else if (type === "Wiki Sidebar")
+        frappe.msgprint({
+          title: __("Delete Wiki Sidebar Group"),
+          indicator: "red",
+          message: __(
+            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?<br>This will also delete all the children under it.`,
+          ),
+          primary_action: {
+            label: "Yes",
+            action() {
+              frappe.call({
+                method:
+                  "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
+                args: {
+                  sidebar_group_name: title,
+                },
+                callback: (r) => {
+                  if (r.message) window.location.reload();
+                },
+              });
+            },
+          },
         });
     });
   }
