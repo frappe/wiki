@@ -37,6 +37,7 @@ window.EditWiki = class EditWiki extends Wiki {
       if (type === "Wiki Page")
         frappe.msgprint({
           title: __("Delete Wiki Page"),
+          indicator: "red",
           message: __(
             `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
           ),
@@ -59,6 +60,7 @@ window.EditWiki = class EditWiki extends Wiki {
       else if (type === "Wiki Sidebar")
         frappe.msgprint({
           title: __("Delete Wiki Sidebar Group"),
+          indicator: "red",
           message: __(
             `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?<br>This will also delete all the children under it.`,
           ),
