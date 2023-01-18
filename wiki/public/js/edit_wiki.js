@@ -60,7 +60,7 @@ window.EditWiki = class EditWiki extends Wiki {
         frappe.msgprint({
           title: __("Delete Wiki Sidebar Group"),
           message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?`,
+            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?<br>This will also delete all the children under it.`,
           ),
           primary_action: {
             label: "Yes",
