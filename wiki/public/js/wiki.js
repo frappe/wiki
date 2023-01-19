@@ -14,9 +14,9 @@ window.Wiki = class Wiki {
     // scroll the active sidebar item into view
     let active_sidebar_item = $(".sidebar-item.active");
     if (active_sidebar_item.length > 0) {
-      active_sidebar_item.get(1).scrollIntoView(true, {
+      active_sidebar_item.get(1).scrollIntoView({
         behavior: "smooth",
-        block: "nearest",
+        block: "center",
       });
     }
   }
