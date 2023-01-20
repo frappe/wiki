@@ -28,19 +28,19 @@ class WikiSidebar(Document):
 
 	def get_children(self):
 		out = self.get_sidebar_items()
-		for sidebar_item in self.sidebar_items:
+
+		for idx, sidebar_item in enumerate(self.sidebar_items):
 			if sidebar_item.type == "Wiki Sidebar":
 				sidebar = frappe.get_doc("Wiki Sidebar", sidebar_item.item)
 				children = sidebar.get_children()
-				out.append(
-					{
-						"group_title": sidebar_item.title,
-						"group_items": children,
-						"name": sidebar_item.name,
-						"group_name": sidebar.name,
-						"type": "Wiki Sidebar",
-					}
-				)
+				out[idx] = {
+					"group_title": sidebar_item.title,
+					"group_items": children,
+					"name": sidebar_item.name,
+					"group_name": sidebar.name,
+					"type": sidebar_item.type,
+				}
+
 		return out
 
 	def get_items(self):
@@ -64,7 +64,7 @@ class WikiSidebar(Document):
 		items_without_group = []
 		items = frappe.get_all(
 			"Wiki Sidebar Item",
-			filters={"parent": self.name, "type": "Wiki Page"},
+			filters={"parent": self.name},
 			fields=["title", "item", "name", "type", "route"],
 			order_by="idx asc",
 		)
@@ -74,7 +74,7 @@ class WikiSidebar(Document):
 			items_without_group.append(item)
 
 		# return [{"group_title": "Topics", "group_items": items_without_group}] if items else []
-		return items_without_group if items else []
+		return items_without_group
 
 	def validate(self):
 		self.clear_cache()
