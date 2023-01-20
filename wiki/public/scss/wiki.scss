@@ -107,10 +107,12 @@ textarea.wiki-content {
 	/* identical to box height, or 28px */
 
 	letter-spacing: -0.011em;
-
+	
 	padding-left: 0.25rem;
 }
 .sidebar-group {
+	// display: flex;
+
 	ul.list-unstyled {
 		padding-left: 0.65rem;
 		ul {
@@ -133,8 +135,6 @@ textarea.wiki-content {
 
 	div {
 		cursor: pointer;
-		flex-basis: 100%;
-		flex-wrap: wrap;
 		.h6 {
 			font-size: $font-size-sm;
 			margin-bottom: 0;
@@ -151,9 +151,9 @@ textarea.wiki-content {
 		color: $text-muted;
 		letter-spacing: -0.011em;
 		padding: 0.375rem 0 0.375rem 0.8rem;
-		div {
-			display: inline-flex;
-		}
+		// div {
+		// 	display: flex;
+		// }
 
 		a {
 			margin: 0;
@@ -189,9 +189,14 @@ textarea.wiki-content {
 	}
 }
 
-.sidebar-item div {
-	display: inline-flex;
+.sidebar-item {
+	display: flex;
+	
+	:first-child {
+		margin-right: auto;
+	}
 }
+
 .sidebar-column {
 	flex: 2;
 }
