@@ -123,6 +123,16 @@ window.EditWiki = class EditWiki extends Wiki {
         block: "nearest",
       });
     }
+
+    // avoid active sidebar item to be hidden under logo
+    let web_sidebar = $(".web-sidebar");
+    if (web_sidebar.length > 0) {
+      console.log(web_sidebar);
+      web_sidebar.get(0).scrollBy({
+        top: -100,
+        behavior: "smooth",
+      });
+    }
   }
 
   set_empty_ul() {

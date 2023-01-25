@@ -197,23 +197,29 @@ textarea.wiki-content {
 	}
 }
 
-.sidebar-column {
-	flex: 2;
-}
-
 .sm-sidebar .web-sidebar {
 	padding-bottom: 2rem;
 }
 
 .doc-sidebar {
-	height: 90vh;
+	height: 100vh;
 	margin-bottom: 0;
-	margin-top: 3.5rem;
+
 	.web-sidebar {
 		margin-bottom: 8px;
 		margin-right: -0.5rem;
-		padding-top: 0;
+		padding-top: 4.5rem;
 		padding-bottom: 0;
+		overflow-x: hidden;
+
+		.sidebar-items {
+			padding-top: 1rem;
+			width: 18rem;
+
+			.list-unstyled {
+				max-width: 16rem;
+			}
+		}
 	}
 
 	.management {
@@ -223,7 +229,7 @@ textarea.wiki-content {
 
 @media (min-width: 992px) {
 	.doc-sidebar {
-		padding-top: 2rem;
+		top: 0;
 		padding-bottom: 2rem;
 	}
 }
@@ -279,7 +285,20 @@ textarea.wiki-content {
 	position: fixed;
 	top: 0;
 	z-index: 1020;
+	background-color: transparent;
+	padding-top: 0;
 
+	.doc-container .navbar-collapse {
+		padding-top: 2rem;
+		margin-top: -1rem;
+		background-color: white;
+		margin-left: 2rem;
+		padding-bottom: 1rem;
+
+		@include media-breakpoint-down(md) {
+			margin-left: 0;
+		}
+	}
 	.container {
 		height: 36px;
 	}
@@ -289,21 +308,31 @@ textarea.wiki-content {
 	border-bottom: 0;
 }
 
-.navbar.navbar-light.navbar-expand-lg {
-	border-bottom: 1px solid $gray-200;
-}
-
-.navbar.navbar-light.navbar-expand-lg {
-	border-bottom: 1px solid $gray-200;
-}
-
 .doc-layout {
 	padding-top: 0rem;
 }
 
 .navbar-brand {
+	padding-bottom: 1rem;
 	img {
 		max-height: 18px;
+	}
+}
+
+.container-fluid.doc-layout.doc-container {
+	@include media-breakpoint-down(md) {
+		border-bottom: 1px solid $gray-200;
+	}
+}
+
+.navbar-brand-container {
+	border-bottom: 1px solid $gray-200;
+	width: 16rem;
+	background-color: white;
+	padding-top: 1.4rem;
+
+	@include media-breakpoint-down(md) {
+		border-bottom: 0;
 	}
 }
 
@@ -572,7 +601,7 @@ h1 {
 
 	@include media-breakpoint-up(sm) {
 		font-size: 2rem;
-		margin-top: 3.5rem;
+		margin-top: 1rem;
 		margin-bottom: 1.25rem;
 	}
 }
