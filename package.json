@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@4tw/cypress-drag-drop": "^2",
+    "@cypress/code-coverage": "^3",
+    "@testing-library/cypress": "^8",
+    "@testing-library/dom": "8.17.1",
+    "cypress": "^10",
+    "cypress-real-events": "^1.7.6"
+  }
+}

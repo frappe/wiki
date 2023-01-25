@@ -8,3 +8,4 @@ wiki/public/css
 wiki/public/dist
 dist/
 css-rtl/
+node_modules/*
