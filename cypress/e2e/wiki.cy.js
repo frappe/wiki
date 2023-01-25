@@ -1,6 +1,6 @@
 context("Wiki", () => {
   beforeEach(() => {
-    cy.login("Administrator", "admin");
+    cy.login();
   });
 
   it("creates a new wiki page", () => {
