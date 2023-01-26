@@ -11,7 +11,12 @@ context("Wiki", () => {
     cy.get(".submit-wiki-page").click();
     cy.get(".standard-actions .btn-modal-primary").click();
 
+    cy.intercept("/test_wiki_page").as("testWikiPage");
+    cy.wait("@testWikiPage");
+
     cy.get(".sidebar-item.active").should("contain", "Test Wiki Page");
+    cy.get(".from-markdown h1").should("contain", "Test Wiki Page");
+    cy.get(".from-markdown p").should("contain", "New Wiki Page");
   });
 
   it("edits a wiki page", () => {
@@ -22,7 +27,9 @@ context("Wiki", () => {
     cy.get(".control-input .ace_editor").type("Old Wiki Page");
     cy.get(".submit-wiki-page").click();
     cy.get(".standard-actions .btn-modal-primary").click();
-    cy.wait(200);
+
+    cy.intercept("/old-wiki-page").as("testWikiPage");
+    cy.wait("@testWikiPage");
 
     cy.get(".sidebar-item.active").should("contain", "Old Wiki Page");
     cy.get(".from-markdown h1").should("contain", "Old Wiki Page");
