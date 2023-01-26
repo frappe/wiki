@@ -79,7 +79,7 @@ window.EditWiki = class EditWiki extends Wiki {
                 method:
                   "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
                 args: {
-                  sidebar_group_name: title,
+                  sidebar_group_name: route.substring(1),
                 },
                 callback: (r) => {
                   if (r.message) window.location.reload();
