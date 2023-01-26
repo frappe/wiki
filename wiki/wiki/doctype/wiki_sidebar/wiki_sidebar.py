@@ -39,6 +39,7 @@ class WikiSidebar(Document):
 					"name": sidebar_item.name,
 					"group_name": sidebar.name,
 					"type": sidebar_item.type,
+					"item": f"/{sidebar.route}",
 				}
 
 		return out
@@ -80,7 +81,7 @@ class WikiSidebar(Document):
 		self.clear_cache()
 
 	def on_trash(self):
-		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"title": self.name}, pluck="name")
+		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"item": self.name}, pluck="name")
 		frappe.delete_doc("Wiki Sidebar Item", sidebar_group_name)
 
 		# delete children of the group
