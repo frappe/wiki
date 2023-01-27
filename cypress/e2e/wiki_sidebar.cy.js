@@ -1,10 +1,10 @@
 context("Wiki Sidebar", () => {
   beforeEach(() => {
     cy.login();
+    cy.visit("/wiki");
   });
 
   it("creates a new wiki sidebar group", () => {
-    cy.visit("/wiki");
     cy.contains("Edit Page").click();
     cy.get(".add-sidebar-item").click();
     cy.get(".modal-content input").first().clear().type("test-sidebar-route");
@@ -21,7 +21,6 @@ context("Wiki Sidebar", () => {
   });
 
   it("deletes a wiki sidebar group", () => {
-    cy.visit("/wiki");
     cy.contains("Edit Page").click();
     cy.get(
       ".sidebar-group[data-title='Test Wiki Sidebar'] .remove-sidebar-item",
