@@ -9,3 +9,6 @@ wiki/public/dist
 dist/
 css-rtl/
 node_modules/*
+.cypress-coverage
+cypress/screenshots
+cypress/videos
