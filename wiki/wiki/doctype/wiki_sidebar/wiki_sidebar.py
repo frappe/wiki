@@ -167,5 +167,7 @@ def delete_sidebar_group(sidebar_group_name):
 			frappe.PermissionError,
 		)
 
-	frappe.delete_doc("Wiki Sidebar", sidebar_group_name)
-	return True
+	if frappe.delete_doc("Wiki Sidebar", sidebar_group_name) is False:
+		frappe.throw(_("The Wiki Page you are trying to delete doesn't exist"))
+	else:
+		return True
