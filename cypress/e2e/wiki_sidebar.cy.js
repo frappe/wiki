@@ -28,8 +28,9 @@ context("Wiki Sidebar", () => {
     cy.get(".btn-sm.btn-primary").click();
 
     cy.intercept("/*").as("testWikiSidebar");
+    cy.visit("/wiki");
     cy.wait("@testWikiSidebar");
 
-    cy.get(".sidebar-group").should("not.contain", "Test Wiki Sidebar");
+    cy.get(".sidebar-items").should("not.contain", "Test Wiki Sidebar");
   });
 });
