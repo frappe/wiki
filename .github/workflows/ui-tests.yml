@@ -94,7 +94,7 @@ jobs:
         run: cd ~/frappe-bench && bench --site wiki.test run-ui-tests wiki --headless
         env:
           CYPRESS_BASE_URL: http://wiki.test:8000
-          CYPRESS_RECORD_KEY: 5d75d26e-5963-4a03-b1c9-02d1f6882454
+          CYPRESS_RECORD_KEY: 2e746aa8-d98b-4dac-8bc0-6e35ce9111d2
 
       - name: Stop server
         run: |
