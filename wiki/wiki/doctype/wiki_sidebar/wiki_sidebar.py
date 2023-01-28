@@ -81,6 +81,8 @@ class WikiSidebar(Document):
 		self.clear_cache()
 
 	def on_trash(self):
+		self.clear_cache()
+
 		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"item": self.name}, pluck="name")
 		frappe.delete_doc("Wiki Sidebar Item", sidebar_group_name)
 
@@ -91,8 +93,6 @@ class WikiSidebar(Document):
 				frappe.delete_doc("Wiki Page", wiki_page_name)
 			elif child_doc["type"] == "Wiki Sidebar":
 				frappe.delete_doc("Wiki Sidebar", child_doc["group_name"])
-
-		self.clear_cache()
 
 	def on_update(self):
 		self.clear_cache()

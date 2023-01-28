@@ -82,7 +82,10 @@ window.EditWiki = class EditWiki extends Wiki {
                   sidebar_group_name: route.substring(1),
                 },
                 callback: (r) => {
-                  if (r.message) window.location.reload();
+                  if (r.message) {
+                    $(`.sidebar-group[data-route='${route}']`).remove();
+                    this.hide();
+                  }
                 },
               });
             },
