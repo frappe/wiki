@@ -81,6 +81,8 @@ class WikiSidebar(Document):
 		self.clear_cache()
 
 	def on_trash(self):
+		self.clear_cache()
+
 		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"item": self.name}, pluck="name")
 		frappe.delete_doc("Wiki Sidebar Item", sidebar_group_name)
 
@@ -91,8 +93,6 @@ class WikiSidebar(Document):
 				frappe.delete_doc("Wiki Page", wiki_page_name)
 			elif child_doc["type"] == "Wiki Sidebar":
 				frappe.delete_doc("Wiki Sidebar", child_doc["group_name"])
-
-		self.clear_cache()
 
 	def on_update(self):
 		self.clear_cache()
@@ -167,5 +167,7 @@ def delete_sidebar_group(sidebar_group_name):
 			frappe.PermissionError,
 		)
 
-	frappe.delete_doc("Wiki Sidebar", sidebar_group_name)
-	return True
+	if frappe.delete_doc("Wiki Sidebar", sidebar_group_name) is False:
+		frappe.throw(_("The Wiki Page you are trying to delete doesn't exist"))
+	else:
+		return True
