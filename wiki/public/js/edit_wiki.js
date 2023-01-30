@@ -21,6 +21,8 @@ window.EditWiki = class EditWiki extends Wiki {
   }
 
   add_trash_icon() {
+    if (!window.location.pathname.endsWith("/edit-wiki")) return;
+
     $(".sidebar-item > div, .sidebar-group > div").each(function (index) {
       $(`<div class="text-muted remove-sidebar-item small">
       <span class="trash-icon">
