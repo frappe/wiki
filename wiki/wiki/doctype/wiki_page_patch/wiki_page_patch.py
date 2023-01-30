@@ -9,6 +9,7 @@ from frappe import _
 from frappe.desk.form.utils import add_comment
 from frappe.model.document import Document
 from frappe.utils import cint
+from frappe.website.utils import cleanup_page_name
 from ghdiff import diff
 
 
@@ -54,7 +55,9 @@ class WikiPagePatch(Document):
 		wiki_page_dict = {
 			"title": self.new_title,
 			"content": self.new_code,
-			"route": "/".join(self.wiki_page_doc.route.split("/")[:-1] + [frappe.scrub(self.new_title)]),
+			"route": "/".join(
+				self.wiki_page_doc.route.split("/")[:-1] + [cleanup_page_name(self.new_title)]
+			),
 			"published": 1,
 			"allow_guest": self.wiki_page_doc.allow_guest,
 		}

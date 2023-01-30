@@ -11,7 +11,7 @@ context("Wiki", () => {
     cy.get(".submit-wiki-page").click();
     cy.get(".standard-actions .btn-modal-primary").click();
 
-    cy.intercept("/test_wiki_page").as("testWikiPage");
+    cy.intercept("/test-wiki-page").as("testWikiPage");
     cy.wait("@testWikiPage");
 
     cy.get(".sidebar-item.active").should("contain", "Test Wiki Page");
@@ -20,7 +20,7 @@ context("Wiki", () => {
   });
 
   it("edits a wiki page", () => {
-    cy.visit("/test_wiki_page");
+    cy.visit("/test-wiki-page");
     cy.contains("Edit Page").click();
     cy.get(".icon.icon-lg").click();
     cy.get(".edit-title input").clear().type("Old Wiki Page");
