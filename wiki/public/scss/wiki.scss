@@ -35,8 +35,14 @@ textarea.wiki-content {
 	border-top: 1px solid $border-color;
 	margin-top: 2rem;
 
-	.forward-back {
-		height: 35px;
+	.btn.left {
+		float: left;
+		max-width: 40%;
+	}
+
+	.btn.right {
+		float: right;
+		max-width: 40%;
 	}
 }
 
@@ -340,6 +346,8 @@ textarea.wiki-content {
 .main-column {
 	flex: 8;
 	text-align: left;
+	padding-bottom: 2rem;
+
 	.page-content-wrapper {
 		margin-top: 3.5rem;
 		padding-top: 2rem;
