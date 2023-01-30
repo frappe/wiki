@@ -13,6 +13,7 @@
  Wiki App built on the <a href= "https://frappeframework.com" >Frappe Framework</a> | <a href = "https://wiki-docs.frappe.cloud/use_on_frappe_cloud">Try on Frappe Cloud</a>
  
  \
+ [![Wiki](https://img.shields.io/endpoint?url=https://cloud.cypress.io/badge/simple/w2jgcb/master&style=flat&logo=cypress)](https://cloud.cypress.io/projects/w2jgcb/runs)
  [![CI](https://github.com/frappe/wiki/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/frappe/wiki/actions/workflows/ci.yml)
 </div>
 
