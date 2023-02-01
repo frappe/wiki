@@ -48,7 +48,7 @@ repos:
                 frappe/public/js/lib/.*
             )$
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.11.2
+    rev: 5.12.0
     hooks:
       - id: isort
 
