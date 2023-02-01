@@ -774,3 +774,21 @@ h6 {
 p {
 	font-size: 1rem;
 }
+
+// dialog boxes
+
+.modal {
+	.modal-content {
+		background-color: var(--background-color);
+	}
+
+	.modal-body {
+		label {
+			color: var(--text-color);
+		}
+
+		input:focus, textarea:focus {
+			background-color: var(--searchbar-color);
+		}
+	}
+}
