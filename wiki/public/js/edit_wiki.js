@@ -8,6 +8,7 @@ window.EditWiki = class EditWiki extends Wiki {
           wiki_page: $('[name="wiki_page"]').val(),
         })
         .then((result) => {
+          this.set_darkmode_button();
           $(".doc-sidebar").empty().append(result.message);
           this.activate_sidebars();
           this.set_active_sidebar();

@@ -61,4 +61,23 @@ window.Wiki = class Wiki {
   scrolltotop() {
     $("html,body").animate({ scrollTop: 0 }, 0);
   }
+
+  set_darkmode_button() {
+    const darkMode = localStorage.getItem("darkMode");
+
+    if (darkMode === null || darkMode === "false") {
+      $(".sun-moon-container .feather-sun").removeClass("hide");
+    } else {
+      $(".sun-moon-container .feather-moon").removeClass("hide");
+    }
+
+    $(".sun-moon-container").on("click", function () {
+      $(".sun-moon-container .feather-sun").toggleClass("hide");
+      $(".sun-moon-container .feather-moon").toggleClass("hide");
+
+      $("body").toggleClass("dark");
+
+      localStorage.setItem("darkMode", $("body").hasClass("dark"));
+    });
+  }
 };

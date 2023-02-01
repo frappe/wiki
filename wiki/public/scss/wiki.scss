@@ -11,9 +11,46 @@
 @import "frappe/public/css/octicons/octicons.css";
 
 body {
+	--gray-800: #1C2126;
+	--gray-900: #161A1F;
+
+	// light mode vars
+	--background-color: white;
+	--sidebar-bg-color: white;
+	--sidebar-hover-color: var(--blue-50);
+	--toc-hover-text-color: var(--gray-900);
+	--btn-text-color: var(--gray-900);
+	--active-item-color: var(--primary-light);
+	--searchbar-color: #f4f5f6;
+	--border-color: var(--gray-200);
+	--code-bg-color: var(--light);
+	--code-text-color: var(--purple-600);
+
+// ------------------------------------------
+
 	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
 		"Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
 		sans-serif;
+
+	background-color: var(--background-color);
+	color: var(--text-color);
+}
+
+body.dark {
+	// dark mode vars
+	--background-color: var(--gray-800);
+	--text-color: var(--gray-50);
+	--sidebar-bg-color: var(--gray-900);
+	--sidebar-hover-color: var(--blue-900);
+	--toc-hover-text-color: var(--gray-500);
+	--btn-text-color: var(--blue-500);
+	--btn-color: var(--gray-700);
+	--active-item-color: var(--blue-100);
+	--searchbar-color: #242a30;
+	--border-color: var(--gray-700);
+	--code-bg-color: var(--purple-900);
+	--code-text-color: var(--purple-50);
+	--input-bg-color: #242A30;
 }
 
 // diff
@@ -32,8 +69,13 @@ textarea.wiki-content {
 }
 
 .wiki-footer {
-	border-top: 1px solid $border-color;
+	border-top: 1px solid var(--border-color);
 	margin-top: 2rem;
+
+	.btn {
+		color: var(--text-color);
+		border: 1px solid var(--border-color);
+	}
 
 	.btn.left {
 		float: left;
@@ -47,6 +89,8 @@ textarea.wiki-content {
 }
 
 .wiki-diff {
+	max-width: 700px;
+
 	.diff {
 		font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
 			monospace;
@@ -115,8 +159,7 @@ textarea.wiki-content {
 	letter-spacing: -0.011em;
 	
 	padding-left: 0.25rem;
-}
-.sidebar-group {
+
 	// display: flex;
 
 	ul.list-unstyled {
@@ -145,6 +188,7 @@ textarea.wiki-content {
 			font-size: $font-size-sm;
 			margin-bottom: 0;
 			line-height: 1.5;
+			color: var(--text-color);
 		}
 	}
 
@@ -169,10 +213,15 @@ textarea.wiki-content {
 			font-weight: normal;
 			width: 100%;
 		}
+		a:hover {
+			color: inherit;
+		}
 	}
 
-	.sidebar-item:hover {
-		background-color: #ebf4ff;
+	.sidebar-item:hover:not(.active) {
+		background-color: var(--sidebar-hover-color);
+		color: var(--text-color);
+		border-radius: 4px;
 	}
 
 	.drop-icon,
@@ -187,11 +236,13 @@ textarea.wiki-content {
 }
 
 .sidebar-item.active {
-	background-color: var(--primary-light);
+	background-color: var(--active-item-color);
 	border-radius: 4px;
 
 	a {
 		margin: 0.15rem 0;
+		background-color: transparent;
+		color: var(--blue-900);
 	}
 }
 
@@ -200,6 +251,14 @@ textarea.wiki-content {
 	
 	:first-child {
 		margin-right: auto;
+	}
+
+	.active:hover {
+		background-color: var(--active-item-color);
+	}
+
+	a:hover {
+		color: inherit;
 	}
 }
 
@@ -243,8 +302,16 @@ textarea.wiki-content {
 // navbar
 .navbar-nav {
 	height: 100%;
+	background-color: var(--background-color);
+	
 	.dropdown-menu {
 	    position: sticky;
+		background-color: var(--background-color);
+		border: 1px solid var(--border-color);
+		
+		.dropdown-item {
+			color: var(--text-color);
+		}
 	}
 	
 }
@@ -262,7 +329,7 @@ textarea.wiki-content {
 
 			input {
 				height: 100%;
-				background: #f4f5f6;
+				background: var(--searchbar-color);
 				border-radius: 4px;
 			}
 		}
@@ -297,7 +364,7 @@ textarea.wiki-content {
 	.doc-container .navbar-collapse {
 		padding-top: 2rem;
 		margin-top: -1rem;
-		background-color: white;
+		background-color: var(--background-color);
 		margin-left: 2rem;
 		padding-bottom: 1rem;
 
@@ -307,6 +374,16 @@ textarea.wiki-content {
 	}
 	.container {
 		height: 36px;
+	}
+
+	.sun-moon-container {
+		cursor: pointer;
+		margin: auto;
+		margin-left: 1rem;
+
+		@include media-breakpoint-down(md) {
+			margin-bottom: 1rem;
+		}
 	}
 }
 
@@ -320,6 +397,7 @@ textarea.wiki-content {
 
 .navbar-brand {
 	padding-bottom: 1rem;
+	color: var(--text-color) !important;
 	img {
 		max-height: 18px;
 	}
@@ -327,23 +405,25 @@ textarea.wiki-content {
 
 .container-fluid.doc-layout.doc-container {
 	@include media-breakpoint-down(md) {
-		border-bottom: 1px solid $gray-200;
+		border-bottom: 1px solid var(--border-color);
 	}
 }
 
 .navbar-brand-container {
-	border-bottom: 1px solid $gray-200;
+	border-bottom: 1px solid var(--border-color);
 	width: 16rem;
-	background-color: white;
+	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
 
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
+		width: calc(max-width - 27px);
 	}
 }
 
 // main-content
 .main-column {
+	background-color: var(--background-color);
 	flex: 8;
 	text-align: left;
 	padding-bottom: 2rem;
@@ -363,11 +443,22 @@ textarea.wiki-content {
 	margin-top: 0;
 }
 
+.from-markdown > blockquote {
+	border: 1px solid var(--border-color);
+	border-left: 3px solid #ffc107;
+}
+
 .doc-content {
 	.from-markdown {
 		h2 {
 			margin-top: 2.5rem;
 		}
+
+		code:not(.hljs) {
+			background-color: var(--code-bg-color);
+			color: var(--code-text-color);
+		}
+	
 	}
 }
 
@@ -385,6 +476,7 @@ h6:hover .feather-link {
 
 // toc
 .page-toc {
+	background-color: var(--background-color);
 	flex: 2;
 	font-size: $font-size-xs;
 	position: sticky;
@@ -426,13 +518,18 @@ h6:hover .feather-link {
 	.active {
 		border-radius: 4px;
 		color: $primary;
-		background-color: #ebf4ff;
+		background-color: var(--active-item-color);
 		border-left: 3px solid $primary;
 		border-radius: 0.1rem 0.375rem 0.375rem 0.1rem;
 	}
 
 	a {
 		padding: 0.25rem;
+		color: var(--text-color);
+
+	}
+	a:hover:not(.active) {
+		color: var(--toc-hover-text-color);
 	}
 }
 
@@ -453,6 +550,9 @@ h6:hover .feather-link {
 
 .doc-sidebar {
 	padding-right: 0.5rem;
+	margin-left: -15rem;
+	padding-left: 15rem;
+	background-color: var(--sidebar-bg-color);
 }
 
 .sidebar-group > ul {
@@ -500,6 +600,10 @@ navbar
 	top: 0; /*ensure navbar stays affixes to the top*/
 	left: 0;
 	right: 0;
+}
+
+.form-control:focus {
+	color: var(--text-color);
 }
 
 @media (max-width: 767px) {
@@ -556,7 +660,8 @@ navbar
 }
 
 .web-footer {
-	border-top: 1px solid #eef0f2;
+	border-top: 1px solid var(--border-color);
+	background-color: var(--background-color);
 }
 
 .search-nav-item {
@@ -599,6 +704,16 @@ img[alt]::after{
 
 // body
 // make sm / xl sizes the same
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+strong {
+	color: var(--text-color) !important;
+}
 
 h1 {
 	font-size: 1.75rem;

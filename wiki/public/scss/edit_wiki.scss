@@ -1,5 +1,9 @@
 @import "frappe/public/scss/website/variables";
 
+body {
+	--icon-stroke: var(--text-color);
+}
+
 .edit-page-head {
 	margin-top: 1rem;
 	display: flex;
@@ -8,6 +12,9 @@
 		width: 100%;
 		margin-right: 20px;
 		align-items: flex-start;
+		span {
+			color: var(--text-color);
+		}
 
 		i {
 			padding: 0.35rem 0.5rem 0.5rem 0.5rem;
@@ -39,6 +46,7 @@
 
 .nav-tabs {
 	padding-bottom: 0;
+	border-bottom: 1px solid var(--border-color);
 
 	.nav-item {
 		margin: 0 2rem 0 0;
@@ -62,13 +70,14 @@
 	padding: 0;
 
 	.frappe-control .ql-editor {
-		background-color: white;
+		background-color: var(--input-bg-color);
+		color: var(--text-color);
 	}
 }
 
 .form-control {
 	background-color: white;
-	border: solid $gray-300 1px;
+	border: 1px solid var(--border-color);
 }
 
 .form-control:focus {
@@ -77,7 +86,12 @@
 }
 
 .ace-editor-target {
-	background-color: white;
+	background-color: var(--input-bg-color);
+	border: 1px solid var(--border-color);
+
+	.ace_active-line {
+		background-color: var(--input-bg-color) !important;
+	}
 }
 
 .ace-tm .ace_gutter {
@@ -97,6 +111,11 @@
 	color: var(--red-400);
 }
 
+.input-with-feedback {
+	color: var(--text-color);
+	background-color: var(--input-bg-color);
+}
+
 .attachment-controls {
 	cursor: pointer;
 	max-height: 28px;
@@ -106,6 +125,17 @@
 	.show-attachments {
 		padding: 8px;
 		color: $primary;
+	}
+
+	.add-attachment-wiki {
+		.btn {
+			color: var(--text-color);
+		}
+
+		.btn:hover {
+			--icon-stroke: var(--btn-text-color);
+			color: var(--btn-text-color);
+		}
 	}
 }
 

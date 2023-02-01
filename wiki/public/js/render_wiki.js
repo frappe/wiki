@@ -2,6 +2,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
     $("document").ready(() => {
+      this.set_darkmode_button();
       if (
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
