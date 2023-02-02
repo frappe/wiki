@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "logo",
+  "dark_mode_logo",
   "sidebar",
   "add_search_bar",
   "javascript"
@@ -14,7 +15,7 @@
   {
    "fieldname": "logo",
    "fieldtype": "Attach Image",
-   "label": "Logo"
+   "label": "Light Mode Logo"
   },
   {
    "fieldname": "sidebar",
@@ -33,12 +34,17 @@
    "fieldname": "add_search_bar",
    "fieldtype": "Check",
    "label": "Add Search Bar"
+  },
+  {
+   "fieldname": "dark_mode_logo",
+   "fieldtype": "Attach Image",
+   "label": "Dark Mode Logo"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-12-01 22:43:13.548674",
+ "modified": "2023-02-02 11:13:23.062943",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
@@ -68,5 +74,6 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

@@ -61,4 +61,37 @@ window.Wiki = class Wiki {
   scrolltotop() {
     $("html,body").animate({ scrollTop: 0 }, 0);
   }
+
+  set_darkmode_button() {
+    function switchBanner() {
+      const altSrc = $(".navbar-brand img").data("alt-src");
+      const src = $(".navbar-brand img").attr("src");
+      if (
+        altSrc !== "{{ light_mode_logo }}" &&
+        altSrc !== "{{ dark_mode_logo }}"
+      ) {
+        $(".navbar-brand img").attr("src", altSrc);
+        $(".navbar-brand img").data("alt-src", src);
+      }
+    }
+    const darkMode = localStorage.getItem("darkMode");
+
+    if (darkMode === null || darkMode === "false") {
+      $(".sun-moon-container .feather-sun").removeClass("hide");
+    } else {
+      $(".sun-moon-container .feather-moon").removeClass("hide");
+      switchBanner();
+    }
+
+    $(".sun-moon-container").on("click", function () {
+      $(".sun-moon-container .feather-sun").toggleClass("hide");
+      $(".sun-moon-container .feather-moon").toggleClass("hide");
+
+      switchBanner();
+
+      $("body").toggleClass("dark");
+
+      localStorage.setItem("darkMode", $("body").hasClass("dark"));
+    });
+  }
 };

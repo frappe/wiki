@@ -1,11 +1,18 @@
+
+<script>
+	if (localStorage.getItem("darkMode") === "true") document.body.classList.add("dark");
+</script>
+
 <nav class="navbar navbar-light navbar-expand-lg ">
 	<div class="container-fluid doc-layout doc-container">
 		<div class="navbar-brand-container">
 			<a class="navbar-brand" href="{{ url_prefix }}{{ home_page or "/" }}">
 				{%- if brand_html -%}
 					{{ brand_html }}
-				{%- elif banner_image -%}
-					<img src='{{ banner_image }}'>
+				{%- elif light_mode_logo -%}
+					<img data-mode="light" data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
+				{%- elif dark_mode_logo -%}
+					<img data-mode="dark" data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
 				{%- else -%}
 					<span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
 				{%- endif -%}

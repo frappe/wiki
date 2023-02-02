@@ -149,7 +149,8 @@ class WikiPage(WebsiteGenerator):
 		self.set_breadcrumbs(context)
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.navbar_search = wiki_settings.add_search_bar
-		context.banner_image = wiki_settings.logo
+		context.light_mode_logo = wiki_settings.logo
+		context.dark_mode_logo = wiki_settings.dark_mode_logo
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = self.get_docs_search_scope()
 		context.metatags = {
