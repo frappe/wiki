@@ -34,7 +34,9 @@ def get_context(context):
 	context.boot = boot_json
 	context.frappe_version = frappe.__version__
 	wiki_settings = frappe.get_single("Wiki Settings")
-	context.banner_image = wiki_settings.logo
+	context.light_mode_logo = wiki_settings.logo
+	context.dark_mode_logo = wiki_settings.dark_mode_logo
+	context.add_dark_mode = wiki_settings.add_dark_mode
 	context.script = wiki_settings.javascript
 	context.docs_search_scope = ""
 	can_edit = frappe.session.user != "Guest"
