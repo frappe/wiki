@@ -474,6 +474,10 @@ h6:hover .feather-link {
 	visibility: visible;	
 }
 
+.btn.btn-secondary, .btn.btn-secondary:hover {
+	color: var(--background-color);
+}
+
 // toc
 .page-toc {
 	background-color: var(--background-color);
