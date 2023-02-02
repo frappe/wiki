@@ -21,6 +21,7 @@ body {
 	--toc-hover-text-color: var(--gray-900);
 	--btn-text-color: var(--gray-900);
 	--active-item-color: var(--primary-light);
+	--active-item-text-color: var(--primary);
 	--searchbar-color: #f4f5f6;
 	--border-color: var(--gray-200);
 	--code-bg-color: var(--light);
@@ -45,12 +46,18 @@ body.dark {
 	--toc-hover-text-color: var(--gray-500);
 	--btn-text-color: var(--blue-500);
 	--btn-color: var(--gray-700);
-	--active-item-color: var(--blue-100);
+	--active-item-color: var(--gray-700);
+	--active-item-text-color: var(--text-color);
 	--searchbar-color: #242a30;
 	--border-color: var(--gray-700);
 	--code-bg-color: var(--purple-900);
 	--code-text-color: var(--purple-50);
 	--input-bg-color: #242A30;
+
+	--bg-orange: var(--orange-600);
+	--text-on-orange: var(--orange-50);
+	--bg-green: var(--green-700);
+	--text-on-green: var(--green-50);
 }
 
 // diff
@@ -242,7 +249,7 @@ textarea.wiki-content {
 	a {
 		margin: 0.15rem 0;
 		background-color: transparent;
-		color: var(--blue-900);
+		color: var(--active-item-text-color);
 	}
 }
 

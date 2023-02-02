@@ -4,6 +4,11 @@ body {
 	--icon-stroke: var(--text-color);
 }
 
+body.dark .draft-wiki-page{
+	background: var(--gray-700);
+	color: var(--gray-50);
+}
+
 .edit-page-head {
 	margin-top: 1rem;
 	display: flex;
