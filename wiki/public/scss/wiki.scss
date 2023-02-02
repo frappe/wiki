@@ -603,12 +603,18 @@ navbar
 ====
 */
 
-.navbar .navbar-light .navbar-expand-lg {
-	width: 100%;
-	position: fixed;
-	top: 0; /*ensure navbar stays affixes to the top*/
-	left: 0;
-	right: 0;
+.navbar .navbar-light {
+	.navbar-expand-lg {
+		width: 100%;
+		position: fixed;
+		top: 0; /*ensure navbar stays affixes to the top*/
+		left: 0;
+		right: 0;
+	}
+
+	.nav-link {
+		color: var(--text-color);
+	}
 }
 
 .form-control:focus {
