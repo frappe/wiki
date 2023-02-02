@@ -13,8 +13,10 @@
 				<a class="navbar-brand" href="{{ url_prefix }}{{ home_page or "/" }}">
 					{%- if brand_html -%}
 					{{ brand_html }}
-					{%- elif banner_image -%}
-					<img src='{{ banner_image }}'>
+					{%- elif light_mode_logo -%}
+						<img data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
+					{%- elif dark_mode_logo -%}
+						<img data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
 					{%- else -%}
 					<span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
 					{%- endif -%}
