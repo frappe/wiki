@@ -18,6 +18,10 @@ thead td {
   border-top: 0 !important;
 }
 
+.table th, .table td {
+  margin-top: -1px;
+}
+
 .worker-name {
   display: flex;
   align-items: center;
