@@ -151,6 +151,7 @@ class WikiPage(WebsiteGenerator):
 		context.navbar_search = wiki_settings.add_search_bar
 		context.light_mode_logo = wiki_settings.logo
 		context.dark_mode_logo = wiki_settings.dark_mode_logo
+		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = self.get_docs_search_scope()
 		context.metatags = {

@@ -8,6 +8,7 @@
   "logo",
   "dark_mode_logo",
   "sidebar",
+  "add_dark_mode",
   "add_search_bar",
   "javascript"
  ],
@@ -39,12 +40,18 @@
    "fieldname": "dark_mode_logo",
    "fieldtype": "Attach Image",
    "label": "Dark Mode Logo"
+  },
+  {
+   "default": "0",
+   "fieldname": "add_dark_mode",
+   "fieldtype": "Check",
+   "label": "Add Dark Mode"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-02-02 11:13:23.062943",
+ "modified": "2023-02-02 18:02:15.429235",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
