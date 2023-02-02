@@ -423,6 +423,7 @@ textarea.wiki-content {
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
 		width: calc(max-width - 27px);
+		background-color: var(--background-color);
 	}
 }
 
