@@ -2,11 +2,18 @@
 
 body {
 	--icon-stroke: var(--text-color);
+
+	--editor-line-no-bg-color: var(--gray-100);
 }
 
-body.dark .draft-wiki-page{
-	background: var(--gray-700);
-	color: var(--gray-50);
+body.dark {
+	--editor-line-no-bg-color: var(--gray-800);
+	--control-bg-on-gray: var(--gray-700);
+
+	.draft-wiki-page{
+		background: var(--gray-700);
+		color: var(--gray-50);
+	}
 }
 
 .edit-page-head {
@@ -102,6 +109,11 @@ body.dark .draft-wiki-page{
 .ace-tm .ace_gutter {
 	background-color: white;
 	border-right: solid rgb(244, 245, 246) 1px;
+}
+
+.ace_editor .ace_gutter {
+	background: var(--editor-line-no-bg-color);
+	color: var(--text-color);
 }
 
 // edit page
