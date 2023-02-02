@@ -311,6 +311,11 @@ textarea.wiki-content {
 		
 		.dropdown-item {
 			color: var(--text-color);
+
+		}
+
+		.dropdown-item:hover {
+			color: var(--background-color);
 		}
 	}
 	
