@@ -39,9 +39,12 @@ window.EditWiki = class EditWiki extends Wiki {
     });
 
     $(".remove-sidebar-item").click(function () {
-      const type = $(this).parent().data("type");
-      const route = $(this).parent().data("route");
-      const title = $(this).parent().data("title");
+      if (!e) var e = window.event;
+      if (e.stopPropagation) e.stopPropagation();
+
+      const type = $(this).parent().parent().data("type");
+      const route = $(this).parent().parent().data("route");
+      const title = $(this).parent().parent().data("title");
 
       if (type === "Wiki Page")
         frappe.msgprint({
