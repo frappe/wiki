@@ -181,6 +181,11 @@ textarea.wiki-content {
 		padding-bottom: 0.5rem;
 		display: inline-flex;
 		align-items: center;
+		width: 100%;
+
+		.remove-sidebar-item {
+			margin-left: auto;
+		}
 	}
 
 	.active {
