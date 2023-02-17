@@ -42,9 +42,9 @@ window.EditWiki = class EditWiki extends Wiki {
       if (!e) var e = window.event;
       if (e.stopPropagation) e.stopPropagation();
 
-      const type = $(this).parent().parent().data("type");
-      const route = $(this).parent().parent().data("route");
-      const title = $(this).parent().parent().data("title");
+      const type = $(this).parents("li").data("type");
+      const route = $(this).parents("li").data("route");
+      const title = $(this).parents("li").data("title");
 
       if (type === "Wiki Page")
         frappe.msgprint({
