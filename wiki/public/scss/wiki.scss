@@ -323,11 +323,15 @@ textarea.wiki-content {
 		
 		.dropdown-item {
 			color: var(--text-color);
-
 		}
 
 		.dropdown-item:hover {
 			color: var(--background-color);
+			background-color: var(--sidebar-hover-color);
+
+			.h6 {
+				color: var(--background-color) !important;
+			}
 		}
 	}
 	
