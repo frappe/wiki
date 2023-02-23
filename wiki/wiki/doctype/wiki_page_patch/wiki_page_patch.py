@@ -84,8 +84,7 @@ class WikiPagePatch(Document):
 		if sidebar_items:
 			for sidebar, items in sidebar_items:
 				for idx, item in enumerate(items, start=1):
-					frappe.db.set_value("Wiki Sidebar Item", item["name"], "parent", sidebar)
-					frappe.db.set_value("Wiki Sidebar Item", item["name"], "idx", idx)
+					frappe.db.set_value("Wiki Sidebar Item", item["name"], {"parent": sidebar, "idx": idx})
 
 	def create_new_child(self, sidebars):
 		for sidebar, items in sidebars.items():
