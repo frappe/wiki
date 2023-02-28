@@ -167,10 +167,9 @@ class WikiPage(WebsiteGenerator):
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}
 		)
-		# TODO: generate toc directly from html without converting html to md and then back to generate toc
-		html = frappe.utils.md_to_html(frappe.utils.to_markdown(self.content))
+		html = self.content
 		context.content = html
-		context.page_toc_html = html.toc_html
+		context.page_toc_html = None
 		context.has_edit_permission = frappe.has_permission(
 			doctype="Wiki Page", ptype="write", throw=False
 		)
