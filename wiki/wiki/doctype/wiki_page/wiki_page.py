@@ -167,11 +167,16 @@ class WikiPage(WebsiteGenerator):
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}
 		)
-		html = frappe.utils.md_to_html(self.content)
+		# TODO: generate toc directly from html without converting html to md and then back to generate toc
+		html = frappe.utils.md_to_html(frappe.utils.to_markdown(self.content))
 		context.content = html
 		context.page_toc_html = html.toc_html
+		context.has_edit_permission = frappe.has_permission(
+			doctype="Wiki Page", ptype="edit", throw=False
+		)
 		context.show_sidebar = True
 		context.hide_login = True
+		context.name = self.name
 		context = context.update(
 			{
 				"post_login": [
@@ -282,20 +287,20 @@ def get_open_drafts():
 	return f'<span class="count">{count}</span>'
 
 
-@frappe.whitelist()
-def preview(content, name, new, type, diff_css=False):
-	html = frappe.utils.md_to_html(content)
-	if new:
-		return {"html": html}
-	from ghdiff import diff
+# @frappe.whitelist()
+# def preview(content, name, new, type, diff_css=False):
+# 	html = frappe.utils.md_to_html(content)
+# 	if new:
+# 		return {"html": html}
+# 	from ghdiff import diff
 
-	old_content = frappe.db.get_value("Wiki Page", name, "content")
-	diff = diff(old_content, content, css=diff_css)
-	return {
-		"html": html,
-		"diff": diff,
-		"orignal_preview": frappe.utils.md_to_html(old_content),
-	}
+# 	old_content = frappe.db.get_value("Wiki Page", name, "content")
+# 	diff = diff(old_content, content, css=diff_css)
+# 	return {
+# 		"html": html,
+# 		"diff": diff,
+# 		"orignal_preview": frappe.utils.md_to_html(old_content),
+# 	}
 
 
 @frappe.whitelist()
@@ -352,7 +357,7 @@ def update(
 	context = frappe._dict(context)
 	if type == "Rich Text":
 		content = extract_images_from_html(content)
-
+	print(name)
 	if new:
 		new = True
 

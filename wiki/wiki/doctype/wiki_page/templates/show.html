@@ -1,12 +1,22 @@
 <div class="from-markdown">
 	<div class="d-flex justify-content-between align-items-center">
-		<h1>{{ title }}</h1>
-
+		<h1 class="wiki-title">{{ title }}</h1>
+		{%- if has_edit_permission -%}
+			<i class="edit-wiki-btn">
+				<svg class="icon">
+					<use href="#icon-edit"></use>
+				</svg>
+			</i>
+		{%- endif -%}
 	</div>
-	{{ content }}
+	<div class="wiki-content">
+		{{ content }}
+	</div>
+	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 </div>
+<div class="wiki-editor hide"></div>
 <div class="wiki-footer">
-	<div class="my-4 wiki-revision-meta">
+	<!-- <div class="my-4 wiki-revision-meta">
 		<ul class="user-contributions">
 
 			{%- if last_revision -%}
@@ -20,7 +30,7 @@
 			<li><a href="javascript:;" onclick="handleDelete()">Delete Page</a>&nbsp;</li>
 			<li><a href="/{{ path }}/new-wiki">New Page</a>&nbsp;</li>
 		</ul>
-	</div>
+	</div> -->
 
 	<div class = "forward-back">
 		<a href="#" class="btn left">Left</a>
@@ -30,6 +40,9 @@
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+<!-- {{ include_script('libs.bundle.js') }} -->
+<!-- {{ include_script('frappe-web.bundle.js') }} -->
+<!-- {{ include_script('controls.bundle.js') }} -->
 {{ include_script('wiki.bundle.js') }}
 
 <script>

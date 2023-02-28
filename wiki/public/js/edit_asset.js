@@ -1,6 +1,6 @@
 window.EditAsset = class EditAsset {
   constructor() {
-    this.make_code_field_group();
+    // this.make_code_field_group();
     this.add_attachment_popover();
     // remove this once the pr related to code editor max lines is merged
     this.set_code_editor_height();

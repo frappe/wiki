@@ -80,6 +80,7 @@ textarea.wiki-content {
 	margin-top: 2rem;
 
 	.btn {
+		margin-top: 1rem;
 		color: var(--text-color);
 		border: 1px solid var(--border-color);
 	}
@@ -474,6 +475,10 @@ textarea.wiki-content {
 
 .doc-content {
 	.from-markdown {
+		.edit-wiki-button {
+			cursor: pointer;
+		}
+
 		h2 {
 			margin-top: 2.5rem;
 		}
@@ -500,6 +505,20 @@ h6:hover .feather-link {
 
 .btn.btn-secondary, .btn.btn-secondary:hover {
 	color: var(--background-color);
+}
+
+.edit-wiki-btn {
+	width: 2rem;
+	height: 2rem;
+
+	svg {
+		width: 2rem;
+	}
+}
+
+.edit-wiki-btn:hover {
+	background-color: var(--gray-200);
+	border-radius: 5px;
 }
 
 // toc
@@ -828,5 +847,25 @@ p {
 		input:focus, textarea:focus {
 			background-color: var(--searchbar-color);
 		}
+	}
+}
+
+// edit mode
+
+.ProseMirror:focus-visible {
+	outline: none;
+}
+
+.vertical-sep {
+	display: inline;
+	padding: 0.2rem 0;
+  	border-right: 1px solid $gray-200;
+}
+
+.wiki-edit-control-btn {
+	float: right;
+	
+	> * {
+		margin: 0.5rem 0.25rem;
 	}
 }
