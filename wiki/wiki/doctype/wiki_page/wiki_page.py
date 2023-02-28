@@ -167,9 +167,9 @@ class WikiPage(WebsiteGenerator):
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}
 		)
-		html = self.content
+		html = frappe.utils.md_to_html(self.content)
 		context.content = html
-		context.page_toc_html = None
+		context.page_toc_html = html.toc_html
 		context.has_edit_permission = frappe.has_permission(
 			doctype="Wiki Page", ptype="write", throw=False
 		)
