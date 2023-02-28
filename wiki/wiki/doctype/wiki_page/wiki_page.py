@@ -172,7 +172,7 @@ class WikiPage(WebsiteGenerator):
 		context.content = html
 		context.page_toc_html = html.toc_html
 		context.has_edit_permission = frappe.has_permission(
-			doctype="Wiki Page", ptype="edit", throw=False
+			doctype="Wiki Page", ptype="write", throw=False
 		)
 		context.show_sidebar = True
 		context.hide_login = True
