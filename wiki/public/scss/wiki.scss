@@ -16,7 +16,7 @@ body {
 
 	// light mode vars
 	--background-color: white;
-	--sidebar-bg-color: white;
+	--sidebar-bg-color: var(--gray-50);
 	--sidebar-hover-color: var(--blue-50);
 	--toc-hover-text-color: var(--gray-900);
 	--btn-text-color: var(--gray-900);
