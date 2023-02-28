@@ -479,6 +479,10 @@ textarea.wiki-content {
 			cursor: pointer;
 		}
 
+		p {
+			font-size: 1rem;
+		}
+
 		h2 {
 			margin-top: 2.5rem;
 		}
@@ -782,7 +786,7 @@ h1 {
 	@include media-breakpoint-up(sm) {
 		font-size: 2rem;
 		margin-top: 1rem;
-		margin-bottom: 1.25rem;
+		margin-bottom: 0;
 	}
 }
 

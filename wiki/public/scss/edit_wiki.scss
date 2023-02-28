@@ -302,13 +302,12 @@ $font-sizes-mobile: (
 	}
 
 	h1 {
-		font-size: map-get($font-sizes-mobile, "3xl");
+		font-size: map-get($font-sizes-desktop, "3xl");
 		line-height: 1.5;
 		letter-spacing: -0.021em;
-		font-weight: 700;
+		font-weight: 600;
 
 		@include media-breakpoint-up(md) {
-			font-size: map-get($font-sizes-desktop, "3xl");
 			letter-spacing: -0.024em;
 		}
 
@@ -425,6 +424,11 @@ $font-sizes-mobile: (
 }
 
 .wiki-editor {
+	margin-left: -1rem;
+
+	h1 {
+		margin-top: 0.75rem;
+	}
 	button:not(.btn-primary) {
 		all: unset;
 		cursor: pointer;
