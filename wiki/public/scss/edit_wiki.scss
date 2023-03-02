@@ -468,7 +468,14 @@ $font-sizes-mobile: (
 	.ProseMirror {
 		height: 75vh;
 		overflow-y: auto;
-		padding: 0 1rem;
+		padding-left: calc(1rem - 1px);
+		width: 64vw;
+		margin-top: -0.1px;
+
+		@include media-breakpoint-down(md) {
+			padding-right: 1rem;
+			width: 92vw;
+		}
 		
 		.is-empty::before {
 			content: attr(data-placeholder);
