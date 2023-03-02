@@ -450,6 +450,11 @@
   resolved "https://registry.yarnpkg.com/@tiptap/extension-bullet-list/-/extension-bullet-list-2.0.0-beta.218.tgz#be695a919df1354d3b212ec9d41a3997e13ff283"
   integrity sha512-pf4MMcM65tYLauogxfIsvmFf5pqV9hlTAsgsQhPw2L3ayceOr6JvmiGHBVlZifhNcIuSDY/3i2Ft/O4tKFncbQ==
 
+"@tiptap/extension-code-block-lowlight@^2.0.0-beta.220":
+  version "2.0.0-beta.220"
+  resolved "https://registry.yarnpkg.com/@tiptap/extension-code-block-lowlight/-/extension-code-block-lowlight-2.0.0-beta.220.tgz#9496a1989b5385872456f6910a43ac822b4896c1"
+  integrity sha512-xMwbl5O50yaIGYQF3yrBM7Ft0JYejkuEo161jRElYG+PYvUCvbf2wB5oLNtRknj00WOM01kPXH2xMTuk8fTOPg==
+
 "@tiptap/extension-code-block@^2.0.0-beta.218":
   version "2.0.0-beta.218"
   resolved "https://registry.yarnpkg.com/@tiptap/extension-code-block/-/extension-code-block-2.0.0-beta.218.tgz#859eebd43bf85d0f94693e174657f5eb71d34f68"
@@ -641,6 +646,13 @@
   resolved "https://registry.yarnpkg.com/@types/aria-query/-/aria-query-5.0.1.tgz#3286741fb8f1e1580ac28784add4c7a1d49bdfbc"
   integrity sha512-XTIieEY+gvJ39ChLcB4If5zHtPxt3Syj5rgZR+e1ctpmK8NjPf0zFqsz4JpLJT0xla9GFDKjy8Cpu331nrmE1Q==
 
+"@types/hast@^2.0.0":
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/@types/hast/-/hast-2.3.4.tgz#8aa5ef92c117d20d974a82bdfb6a648b08c0bafc"
+  integrity sha512-wLEm0QvaoawEDoTRwzTXp4b4jpwiJDvR5KMnFnVodm3scufTlBOWRD6N1OBf9TZMhjlNsSfcO5V+7AF4+Vy+9g==
+  dependencies:
+    "@types/unist" "*"
+
 "@types/node@*":
   version "18.14.1"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-18.14.1.tgz#90dad8476f1e42797c49d6f8b69aaf9f876fc69f"
@@ -675,6 +687,11 @@
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@types/throttle-debounce/-/throttle-debounce-2.1.0.tgz#1c3df624bfc4b62f992d3012b84c56d41eab3776"
   integrity sha512-5eQEtSCoESnh2FsiLTxE121IiE60hnMqcb435fShf4bpLRjEu1Eoekht23y6zXS9Ts3l+Szu3TARnTsA0GkOkQ==
+
+"@types/unist@*":
+  version "2.0.6"
+  resolved "https://registry.yarnpkg.com/@types/unist/-/unist-2.0.6.tgz#250a7b16c3b91f672a24552ec64678eeb1d3a08d"
+  integrity sha512-PBjIUxZHOuj0R15/xuwJYjFi+KZdNFrehocChv4g5hu6aFroHue8m0lBP0POdK2nKzbw0cgV1mws8+V/JAcEkQ==
 
 "@types/yauzl@^2.9.1":
   version "2.10.0"
@@ -1380,6 +1397,13 @@ fastq@^1.6.0:
   dependencies:
     reusify "^1.0.4"
 
+fault@^2.0.0:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/fault/-/fault-2.0.1.tgz#d47ca9f37ca26e4bd38374a7c500b5a384755b6c"
+  integrity sha512-WtySTkS4OKev5JtpHXnib4Gxiurzh5NCGvWrFaZ34m6JehfTUhKZvn9njTfw48t6JumVQOmrKqpmGcdwxnhqBQ==
+  dependencies:
+    format "^0.2.0"
+
 fd-slicer@~1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/fd-slicer/-/fd-slicer-1.1.0.tgz#25c7c89cb1f9077f8891bbe61d8f390eae256f1e"
@@ -1446,6 +1470,11 @@ form-data@~2.3.2:
     asynckit "^0.4.0"
     combined-stream "^1.0.6"
     mime-types "^2.1.12"
+
+format@^0.2.0:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/format/-/format-0.2.2.tgz#d6170107e9efdc4ed30c9dc39016df942b5cb58b"
+  integrity sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==
 
 fromentries@^1.2.0:
   version "1.3.2"
@@ -1625,6 +1654,11 @@ hasha@^5.0.0:
   dependencies:
     is-stream "^2.0.0"
     type-fest "^0.8.0"
+
+highlight.js@~11.7.0:
+  version "11.7.0"
+  resolved "https://registry.yarnpkg.com/highlight.js/-/highlight.js-11.7.0.tgz#3ff0165bc843f8c9bce1fd89e2fda9143d24b11e"
+  integrity sha512-1rRqesRFhMO/PRF+G86evnyJkCgaZFOI+Z6kdj15TA18funfoqJXvgPCLSf0SWq3SRfg1j3HlDs8o4s3EGq1oQ==
 
 html-escaper@^2.0.0:
   version "2.0.2"
@@ -2094,6 +2128,15 @@ log-update@^4.0.0:
     cli-cursor "^3.1.0"
     slice-ansi "^4.0.0"
     wrap-ansi "^6.2.0"
+
+lowlight@^2.8.1:
+  version "2.8.1"
+  resolved "https://registry.yarnpkg.com/lowlight/-/lowlight-2.8.1.tgz#5f54016ebd1b2f66b3d0b94d10ef6dd5df4f2e42"
+  integrity sha512-HCaGL61RKc1MYzEYn3rFoGkK0yslzCVDFJEanR19rc2L0mb8i58XM55jSRbzp9jcQrFzschPlwooC0vuNitk8Q==
+  dependencies:
+    "@types/hast" "^2.0.0"
+    fault "^2.0.0"
+    highlight.js "~11.7.0"
 
 lru-cache@^5.1.1:
   version "5.1.1"

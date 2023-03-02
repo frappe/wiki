@@ -169,6 +169,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
 </template>
 
 <script>
+import { lowlight } from 'lowlight'
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Table from "@tiptap/extension-table";
@@ -180,6 +181,7 @@ import TableCell from "@tiptap/extension-table-cell";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import Placeholder from "@tiptap/extension-placeholder";
 import TableHeader from "@tiptap/extension-table-header";
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 
 const CustomDocument = Document.extend({
   content: "heading block*",
@@ -221,6 +223,9 @@ export default {
         TableCell,
         TextAlign.configure({
           types: ['heading', 'paragraph'],
+        }),
+        CodeBlockLowlight.configure({
+          lowlight,
         }),
       ],
       content: $(".from-markdown").html(),

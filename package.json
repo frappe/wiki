@@ -4,6 +4,7 @@
     "@cypress/code-coverage": "^3",
     "@testing-library/cypress": "^8",
     "@testing-library/dom": "8.17.1",
+    "@tiptap/extension-code-block-lowlight": "^2.0.0-beta.220",
     "@tiptap/extension-document": "^2.0.0-beta.218",
     "@tiptap/extension-image": "^2.0.0-beta.218",
     "@tiptap/extension-link": "^2.0.0-beta.218",
@@ -17,6 +18,7 @@
     "@tiptap/starter-kit": "^2.0.0-beta.218",
     "@tiptap/vue-3": "^2.0.0-beta.218",
     "cypress": "^10",
-    "cypress-real-events": "^1.7.6"
+    "cypress-real-events": "^1.7.6",
+    "lowlight": "^2.8.1"
   }
 }
