@@ -314,14 +314,7 @@ $font-sizes-mobile: (
 		// for byline
 		& + p {
 			margin-top: 1.5rem !important;
-			font-size: map-get($font-sizes-mobile, "xl");
-			letter-spacing: -0.014em;
 			line-height: 1.4;
-
-			@include media-breakpoint-up(md) {
-				font-size: map-get($font-sizes-desktop, "xl");
-				letter-spacing: -0.0175em;
-			}
 		}
 	}
 
@@ -531,6 +524,13 @@ $font-sizes-mobile: (
 
 	> :last-child {
 		padding: 0 1rem;
+	}
+}
+
+.wiki-content {
+	> p:first-child {
+		margin-top: 1.5rem !important;
+		line-height: 1.4;
 	}
 }
 
