@@ -356,7 +356,7 @@ def update(
 	context = frappe._dict(context)
 	if type == "Rich Text":
 		content = extract_images_from_html(content)
-	print(name)
+
 	if new:
 		new = True
 
