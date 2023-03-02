@@ -286,20 +286,20 @@ def get_open_drafts():
 	return f'<span class="count">{count}</span>'
 
 
-# @frappe.whitelist()
-# def preview(content, name, new, type, diff_css=False):
-# 	html = frappe.utils.md_to_html(content)
-# 	if new:
-# 		return {"html": html}
-# 	from ghdiff import diff
+@frappe.whitelist()
+def preview(content, name, new, type, diff_css=False):
+	html = frappe.utils.md_to_html(content)
+	if new:
+		return {"html": html}
+	from ghdiff import diff
 
-# 	old_content = frappe.db.get_value("Wiki Page", name, "content")
-# 	diff = diff(old_content, content, css=diff_css)
-# 	return {
-# 		"html": html,
-# 		"diff": diff,
-# 		"orignal_preview": frappe.utils.md_to_html(old_content),
-# 	}
+	old_content = frappe.db.get_value("Wiki Page", name, "content")
+	diff = diff(old_content, content, css=diff_css)
+	return {
+		"html": html,
+		"diff": diff,
+		"orignal_preview": frappe.utils.md_to_html(old_content),
+	}
 
 
 @frappe.whitelist()
