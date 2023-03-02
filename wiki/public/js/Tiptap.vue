@@ -273,7 +273,9 @@ export default {
           name: $('[name="wiki-page-name"]').val(),
           // wiki_page_patch: $('[name="wiki_page_patch"]').val(),
           // message: this.get_value("edit_message"),
-          content: $(".ProseMirror").html().replace(/<h1>.*?<\/h1>/, ''),
+
+          // markdown=1 tag is needed for older wiki content to properly render
+          content: `<div markdown="1">${$(".ProseMirror").html().replace(/<h1>.*?<\/h1>/, '')}</div>`,
           type: "Rich Text",
           // attachments: me.attachments,
           // new: $('[name="new"]').val(),
