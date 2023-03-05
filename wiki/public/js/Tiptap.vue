@@ -204,6 +204,7 @@ export default {
         CustomDocument,
         StarterKit.configure({
           document: false,
+          codeBlock: false,
         }),
         Placeholder.configure({
           placeholder: ({ node }) => {
