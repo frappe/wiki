@@ -208,7 +208,7 @@ export default {
         }),
         Placeholder.configure({
           placeholder: ({ node }) => {
-            if (node.type.name === "heading") return "What’s the title?";
+            if (node.type.name === "heading" && node.attrs.level === 1) return "What’s the Wiki title?";
           },
         }),
         Link.configure({
