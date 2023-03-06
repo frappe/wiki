@@ -229,30 +229,18 @@ window.RenderWiki = class RenderWiki extends Wiki {
     ).appendTo($(".web-sidebar"));
     var me = this;
     $(".add-sidebar-group").on("click", function () {
-      var dfs = [
-        {
-          fieldname: "route",
-          label: "Route",
-          fieldtype: "Data",
-          mandatory_depends_on: true,
-        },
-        {
-          fieldname: "title",
-          label: "Title",
-          fieldtype: "Data",
-          mandatory_depends_on: true,
-        },
-      ];
+      $("#addGroupModal").modal();
+    });
 
-      var dialog = new frappe.ui.Dialog({
-        title: "Add Group to Sidebar",
-        fields: dfs,
-        primary_action: function (fields) {
-          me.add_wiki_sidebar(fields);
-          dialog.hide();
-        },
-      });
-      dialog.show();
+    $(".add-group-btn").on("click", () => {
+      const route = $("#addGroupModal #route").val();
+      const title = $("#addGroupModal #title").val();
+      if (route && title) {
+        $("#addGroupModal").modal();
+        $("#addGroupModal #route").val("");
+        $("#addGroupModal #title").val("");
+        this.add_wiki_sidebar(route, title);
+      }
     });
 
     $(".add-sidebar-page").on("click", function () {
@@ -277,5 +265,57 @@ window.RenderWiki = class RenderWiki extends Wiki {
         freeze: true,
       });
     });
+  }
+
+  add_wiki_sidebar(route, title) {
+    let $new_page = this.get_wiki_sidebar_html(route, title);
+
+    $new_page.appendTo(
+      $(".doc-sidebar .sidebar-items")
+        .children(".list-unstyled")
+        .not(".hidden")
+        .first(),
+    );
+
+    $(".web-sidebar ul").each(function () {
+      new Sortable(this, {
+        group: {
+          name: "qux",
+          put: ["qux"],
+          pull: ["qux"],
+        },
+        filter: ".disabled",
+      });
+    });
+  }
+
+  get_wiki_sidebar_html(route, title) {
+    return $(`
+			<li class="sidebar-group" data-type="Wiki Sidebar"
+				data-name="new-sidebar" data-group-name="${route}"
+				data-new=1 data-title="${title}" draggable="false">
+
+				<div class="collapsible">
+					<span class="drop-icon hidden">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+								xmlns="http://www.w3.org/2000/svg">
+								<path d="M8 10L12 14L16 10" stroke="#4C5A67"
+								stroke-miterlimit="10" stroke-linecap="round"
+								stroke-linejoin="round"></path>
+							</svg>
+					</span>
+
+					<span class="drop-left">
+							<svg width="24" height="24" viewBox="0 0 24 24"
+								fill="none" xmlns="http://www.w3.org/2000/svg">
+								<path d="M10 16L14 12L10 8" stroke="#4C5A67"
+								stroke-linecap="round" stroke-linejoin="round"></path>
+							</svg>
+					</span>
+					<span class="h6">${title}</span>
+					</div>
+					<ul class="list-unstyled hidden" style="min-height:20px;"> </ul>
+			</li>
+			`);
   }
 };

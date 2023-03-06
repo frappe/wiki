@@ -15,6 +15,27 @@
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 </div>
 <div class="wiki-editor hide"></div>
+<div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+	  <div class="modal-content">
+		<div class="modal-header">
+		  <h5 class="modal-title" id="addGroupModalRoute">Route</h5>
+		</div>
+		<div class="modal-body">
+		  <input type="text" id="route" name="route">
+		</div>
+		<div class="modal-header">
+			<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+		  </div>
+		  <div class="modal-body">
+			<input type="text" id="title" name="title">
+		  </div>
+		<div class="modal-footer">
+		  <button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+		</div>
+	  </div>
+	</div>
+  </div>
 <div class="wiki-footer">
 	<!-- <div class="my-4 wiki-revision-meta">
 		<ul class="user-contributions">
