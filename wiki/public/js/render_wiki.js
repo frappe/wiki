@@ -14,6 +14,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.scrolltotop();
         this.set_add_item();
         this.add_trash_icon();
+        this.set_empty_ul();
         this.set_edit_mode();
       }
     });
@@ -317,5 +318,19 @@ window.RenderWiki = class RenderWiki extends Wiki {
 					<ul class="list-unstyled hidden" style="min-height:20px;"> </ul>
 			</li>
 			`);
+  }
+
+  set_empty_ul() {
+    $(".collapsible").each(function () {
+      if ($(this).parent().find("ul").length == 0) {
+        $(this)
+          .parent()
+          .append(
+            $(
+              `<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`,
+            ),
+          );
+      }
+    });
   }
 };

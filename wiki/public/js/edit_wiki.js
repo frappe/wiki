@@ -61,20 +61,6 @@ window.EditWiki = class EditWiki extends Wiki {
     }
   }
 
-  set_empty_ul() {
-    $(".collapsible").each(function () {
-      if ($(this).parent().find("ul").length == 0) {
-        $(this)
-          .parent()
-          .append(
-            $(
-              `<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`,
-            ),
-          );
-      }
-    });
-  }
-
   get_add_new_item_dialog_fields() {
     return [
       {
