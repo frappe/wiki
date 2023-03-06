@@ -13,95 +13,7 @@ window.EditWiki = class EditWiki extends Wiki {
           this.activate_sidebars();
           this.set_active_sidebar();
           this.set_empty_ul();
-          this.set_sortable();
-          this.set_add_item();
           this.scrolltotop();
-          this.add_trash_icon();
-        });
-    });
-  }
-
-  add_trash_icon() {
-    if (!window.location.pathname.endsWith("/edit-wiki")) return;
-
-    const trashIcon = `<div class="text-muted remove-sidebar-item small">
-      <span class="trash-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-      </span>
-    </div>`;
-
-    $(".sidebar-item > div").each(function (index) {
-      $(trashIcon).insertAfter($(this));
-    });
-
-    $(".sidebar-group > div").each(function () {
-      $(this).append(trashIcon);
-    });
-
-    $(".remove-sidebar-item").click(function () {
-      if (!e) var e = window.event;
-      if (e.stopPropagation) e.stopPropagation();
-
-      const type = $(this).parents("li").data("type");
-      const route = $(this).parents("li").data("route");
-      const title = $(this).parents("li").data("title");
-
-      if (type === "Wiki Page")
-        frappe.msgprint({
-          title: __("Delete Wiki Page"),
-          indicator: "red",
-          message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
-          ),
-          primary_action: {
-            label: "Yes",
-            action() {
-              frappe.call({
-                method:
-                  "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-                args: {
-                  wiki_page_route: route,
-                },
-                callback: (r) => {
-                  if (r.message) {
-                    const segments = window.location.pathname.split("/");
-                    segments.pop();
-                    const wikiInURL = segments.pop() || segments.pop();
-
-                    if (route.substring(1) === wikiInURL)
-                      window.location.assign("/wiki");
-                    else window.location.reload();
-                  }
-                },
-              });
-            },
-          },
-        });
-      else if (type === "Wiki Sidebar")
-        frappe.msgprint({
-          title: __("Delete Wiki Sidebar Group"),
-          indicator: "red",
-          message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?<br>This will also delete all the children under it.`,
-          ),
-          primary_action: {
-            label: "Yes",
-            action() {
-              frappe.call({
-                method:
-                  "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
-                args: {
-                  sidebar_group_name: route.substring(1),
-                },
-                callback: (r) => {
-                  if (r.message) {
-                    $(`.sidebar-group[data-route='${route}']`).remove();
-                    this.hide();
-                  }
-                },
-              });
-            },
-          },
         });
     });
   }
@@ -160,39 +72,6 @@ window.EditWiki = class EditWiki extends Wiki {
             ),
           );
       }
-    });
-  }
-
-  set_sortable() {
-    $(".web-sidebar ul").each(function () {
-      new Sortable(this, {
-        group: {
-          name: "qux",
-          put: ["qux"],
-          pull: ["qux"],
-        },
-      });
-    });
-  }
-
-  set_add_item() {
-    $(`<div class="text-muted add-sidebar-item small">+ Add Group</div>
-			<div class="text-muted small mt-3"><i>Drag items to re-order</i></div>`).appendTo(
-      $(".web-sidebar"),
-    );
-    var me = this;
-    $(".add-sidebar-item").click(function () {
-      var dfs = me.get_add_new_item_dialog_fields();
-
-      var dialog = new frappe.ui.Dialog({
-        title: "Add Group to Sidebar",
-        fields: dfs,
-        primary_action: function (fields) {
-          me.add_wiki_sidebar(fields);
-          dialog.hide();
-        },
-      });
-      dialog.show();
     });
   }
 

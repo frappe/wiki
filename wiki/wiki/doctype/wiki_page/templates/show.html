@@ -48,25 +48,66 @@
 <script>
 	var user = "{{ user }}"
 
-	new RenderWiki();
-	function handleDelete() {
-		if (user === "Guest")
-			window.location.assign("/login")
-		else	
-			frappe.confirm('Are you sure you want to delete the Wiki Page?',
-				() => {
-					frappe.call({
-					method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-					args: {
-						wiki_page_route: new URL(window.location.href).pathname
-					},
-					callback: (r) => {
-						if (r.message)
-							window.location.assign("/wiki")
-					}
-				})
-			})
+	function getSidebarItems() {
+		let side = {};
+
+		let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name;
+		side[name] = [];
+		let items = $($(".doc-sidebar .web-sidebar").get(0))
+			.children(".sidebar-items")
+			.children("ul")
+			.not(".hidden")
+			.children("li");
+		items.each((item) => {
+			if (!items[item].dataset.name) return;
+			side[name].push({
+			name: items[item].dataset.name,
+			type: items[item].dataset.type,
+			new: items[item].dataset.new,
+			title: items[item].dataset.title,
+			group_name: items[item].dataset.groupName,
+			});
+		});
+
+		$('.doc-sidebar [data-type="Wiki Sidebar"]').each(function () {
+			let name = $(this).get(0).dataset.groupName;
+			side[name] = [];
+			let items = $(this).children("ul").children("li");
+			items.each((item) => {
+			if (!items[item].dataset.name) return;
+			side[name].push({
+				name: items[item].dataset.name,
+				type: items[item].dataset.type,
+				new: items[item].dataset.new,
+				title: items[item].dataset.title,
+				group_name: items[item].dataset.groupName,
+			});
+			});
+		});
+
+		return side;
 	}
+
+	new RenderWiki();
+
+	// function handleDelete() {
+	// 	if (user === "Guest")
+	// 		window.location.assign("/login")
+	// 	else	
+	// 		frappe.confirm('Are you sure you want to delete the Wiki Page?',
+	// 			() => {
+	// 				frappe.call({
+	// 				method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+	// 				args: {
+	// 					wiki_page_route: new URL(window.location.href).pathname
+	// 				},
+	// 				callback: (r) => {
+	// 					if (r.message)
+	// 						window.location.assign("/wiki")
+	// 				}
+	// 			})
+	// 		})
+	// }
 </script>
 
 {%- if script -%}

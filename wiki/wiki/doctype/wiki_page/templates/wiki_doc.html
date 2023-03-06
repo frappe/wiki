@@ -79,9 +79,9 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 				{% block page_container %}
 				<main>
 					<div class="page_content page-content doc-content">
-						{%- if add_breadcrumbs -%}
+						<!-- {%- if add_breadcrumbs -%}
 						{% include "wiki/doctype/wiki_page/templates/breadcrumbs.html" %}
-						{%- endif -%}
+						{%- endif -%} -->
 						{%- block page_content -%}{%- endblock -%}
 					</div>
 				</main>

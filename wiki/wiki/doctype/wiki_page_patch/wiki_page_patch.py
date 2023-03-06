@@ -8,7 +8,6 @@ import frappe
 from frappe import _
 from frappe.desk.form.utils import add_comment
 from frappe.model.document import Document
-from frappe.utils import cint
 from frappe.website.utils import cleanup_page_name
 from ghdiff import diff
 
@@ -41,11 +40,11 @@ class WikiPagePatch(Document):
 		else:
 			self.update_old_page()
 
-		if cint(self.sidebar_edited):
+		if self.sidebar_edited:
 			self.update_sidebars()
 
 	def clear_sidebar_cache(self):
-		if cint(self.sidebar_edited) or self.new_title != self.wiki_page_doc.title:
+		if self.sidebar_edited or self.new_title != self.wiki_page_doc.title:
 			for key in frappe.cache().hgetall("wiki_sidebar").keys():
 				frappe.cache().hdel("wiki_sidebar", key)
 
@@ -79,6 +78,19 @@ class WikiPagePatch(Document):
 			self.new_sidebar_items = "{}"
 
 		sidebars = json.loads(self.new_sidebar_items)
+
+		if self.new:
+			wiki_settings = frappe.get_single("Wiki Settings")
+			root_sidebar = wiki_settings.sidebar
+
+			sidebars[root_sidebar].append(
+				{
+					"name": "new-wiki-page",
+					"type": "Wiki Page",
+					"title": self.new_title,
+				}
+			)
+
 		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
 		if sidebar_items:

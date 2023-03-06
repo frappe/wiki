@@ -277,6 +277,18 @@ textarea.wiki-content {
 
 .sm-sidebar .web-sidebar {
 	padding-bottom: 2rem;
+
+	.add-sidebar-items {
+		background-color: transparent;
+	}
+}
+
+.web-sidebar {
+	position: relative;
+
+	.sidebar-items {
+		overflow-y: hidden;
+	}
 }
 
 .doc-sidebar {
@@ -293,6 +305,7 @@ textarea.wiki-content {
 		.sidebar-items {
 			padding-top: 1rem;
 			width: 18rem;
+			height: calc(100% - 7.5vh);
 
 			.list-unstyled {
 				max-width: 16rem;
@@ -710,10 +723,17 @@ navbar
 
 .my-contributions,
 .new-wiki-page,
-.add-sidebar-item {
+.add-sidebar-group,
+.add-sidebar-page {
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
-	margin-top: 1rem;
+}
+
+.add-sidebar-items {
+	position: sticky;
+	bottom: 0;
+	width: 16rem;
+	background-color: var(--sidebar-bg-color);
 }
 
 .web-footer {

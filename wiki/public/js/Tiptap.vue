@@ -273,21 +273,27 @@ export default {
       input.click();
     },
     saveWikiPage() {
+      const sidebarItems = getSidebarItems()
+      const title = $(".ProseMirror h1").html();
+
       frappe.call({
         method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
         args: {
           name: $('[name="wiki-page-name"]').val(),
           // wiki_page_patch: $('[name="wiki_page_patch"]').val(),
-          // message: this.get_value("edit_message"),
+          message: `Edited ${title}`,
 
           // markdown=1 tag is needed for older wiki content to properly render
           content: `<div markdown="1">${$(".ProseMirror").html().replace(/<h1>.*?<\/h1>/, '')}</div>`,
           type: "Rich Text",
           // attachments: me.attachments,
           // new: $('[name="new"]').val(),
-          title: $(".ProseMirror h1").html(),
+          title,
           // new_sidebar: $(".doc-sidebar").get(0).innerHTML,
-          // new_sidebar_items: side,
+          new_sidebar_items: sidebarItems,
+
+          // TODO: Dynamically find if sidebar edited or not to avoid db calls
+          sidebar_edited: true
           // draft: draft ? draft : null,
         },
         callback: (r) => {
