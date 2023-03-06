@@ -237,12 +237,12 @@ export default {
     openLinkDialog() {
       $('#linkModal').modal();
       const previousUrl = this.editor.getAttributes("link").href;
-      if (previousUrl) $(".modal-body #link").val(previousUrl)
-      else $(".modal-body #link").val("")
+      if (previousUrl) $("#linkModal #link").val(previousUrl)
+      else $("#linkModal #link").val("")
     },
     setLink() {
       $('#linkModal').modal();
-      const link = $(".modal-body #link").val()
+      const link = $("#linkModal #link").val()
       if (link === null) return;
 
       // empty
