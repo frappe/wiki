@@ -97,12 +97,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    $(".sidebar-item").each(function () {
-      $(this).addClass("disabled");
-    });
-    $(".sidebar-group").each(function () {
-      $(this).addClass("disabled");
-    });
+    $(".sidebar-item, .sidebar-group").addClass("disabled");
 
     $(".web-sidebar ul").each(function () {
       new Sortable(this, {
