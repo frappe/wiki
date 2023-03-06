@@ -108,6 +108,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
           pull: ["qux"],
         },
         filter: ".disabled",
+        onUpdate: function () {
+          isSidebarChanged = true;
+        },
       });
     });
 
@@ -286,6 +289,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
           pull: ["qux"],
         },
         filter: ".disabled",
+        onUpdate: function () {
+          isSidebarChanged = true;
+        },
       });
     });
   }

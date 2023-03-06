@@ -292,8 +292,7 @@ export default {
           // new_sidebar: $(".doc-sidebar").get(0).innerHTML,
           new_sidebar_items: sidebarItems,
 
-          // TODO: Dynamically find if sidebar edited or not to avoid db calls
-          sidebar_edited: true
+          sidebar_edited: isSidebarChanged,
           // draft: draft ? draft : null,
         },
         callback: (r) => {
