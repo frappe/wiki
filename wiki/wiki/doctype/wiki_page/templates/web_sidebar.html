@@ -46,7 +46,7 @@
 
 {% macro render_sidebar_items(items) %}
 {%- if items | len > 0 -%}
-<ul class="list-unstyled">
+<ul class="list-unstyled" style="min-height: 20px;">
 	{% for item in items -%}
 	{{ render_sidebar_item(item) }}
 	{%- endfor %}

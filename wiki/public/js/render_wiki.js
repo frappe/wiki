@@ -1,3 +1,25 @@
+function setSortable() {
+  new Sortable(this, {
+    group: {
+      name: "qux",
+      put: ["qux"],
+      pull: ["qux"],
+    },
+    filter: ".disabled",
+    onUpdate: function (e) {
+      isSidebarChanged = true;
+    },
+    onMove: function (e) {
+      // don't allow groups to nest inside groups
+      if (
+        $(e.dragged).hasClass("sidebar-group") &&
+        !$(e.to).is($(".doc-sidebar .sidebar-items > .list-unstyled"))
+      )
+        return false;
+    },
+  });
+}
+
 window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
@@ -100,19 +122,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   set_edit_mode() {
     $(".sidebar-item, .sidebar-group").addClass("disabled");
 
-    $(".web-sidebar ul").each(function () {
-      new Sortable(this, {
-        group: {
-          name: "qux",
-          put: ["qux"],
-          pull: ["qux"],
-        },
-        filter: ".disabled",
-        onUpdate: function () {
-          isSidebarChanged = true;
-        },
-      });
-    });
+    $(".web-sidebar ul").each(setSortable);
 
     function toggleEditor() {
       $(".wiki-content").toggleClass("hide");
@@ -278,19 +288,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         .first(),
     );
 
-    $(".web-sidebar ul").each(function () {
-      new Sortable(this, {
-        group: {
-          name: "qux",
-          put: ["qux"],
-          pull: ["qux"],
-        },
-        filter: ".disabled",
-        onUpdate: function () {
-          isSidebarChanged = true;
-        },
-      });
-    });
+    $(".web-sidebar ul").each(setSortable);
   }
 
   get_wiki_sidebar_html(route, title) {
@@ -312,7 +310,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
               </svg>
           </span>
 					</div>
-					<ul class="list-unstyled hidden" style="min-height:20px;"> </ul>
+					<ul class="list-unstyled" style="min-height:20px;"> </ul>
 			</li>
 			`);
   }
@@ -323,9 +321,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $(this)
           .parent()
           .append(
-            $(
-              `<ul class="list-unstyled hidden" style="min-height:20px;"> </ul`,
-            ),
+            $(`<ul class="list-unstyled" style="min-height:20px;"> </ul`),
           );
       }
     });
