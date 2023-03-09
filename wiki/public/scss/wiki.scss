@@ -161,7 +161,7 @@ textarea.wiki-content {
 
 .list-unstyled:first-child > * {
 	border-top: 1px solid var(--border-color);
-	padding: 0.75rem 0 1.5rem 0;
+	padding: 0.75rem 0;
 
 	&:first-child {
 		margin-top: 0.5rem;
@@ -194,10 +194,6 @@ textarea.wiki-content {
 		display: flex;
 		align-items: center;
 		width: 100%;
-
-		.remove-sidebar-item {
-			margin-left: auto;
-		}
 	}
 
 	.active {
@@ -228,11 +224,10 @@ textarea.wiki-content {
 	.drop-icon,
 	.drop-left {
 		display: inline-flex;
-		margin-left: 0.5rem;
+		margin-left: auto;
 		margin-right: 0.2rem;
 
 		&:hover {
-			background-color: var(--gray-400);
 			border-radius: 4px;
 		}
 	}
@@ -444,7 +439,7 @@ textarea.wiki-content {
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
-	margin-left: 2rem;
+	margin-left: 2.5rem;
 
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
@@ -725,6 +720,9 @@ navbar
 	bottom: 0;
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
+	display: grid;
+	justify-content: center;
+	border-top: 1px solid var(--border-color);
 }
 
 .web-footer {
@@ -852,6 +850,7 @@ p {
 
 	.modal-body {
 		padding-top: 0;
+		padding-bottom: 0;
 
 		label {
 			color: var(--text-color);

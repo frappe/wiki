@@ -8,17 +8,17 @@
 	>
 	{%- if item.group_title -%}
 	<div class="collapsible">
-		<!-- <span class='drop-icon hidden'>
+		<span class='h6'>{{ item.group_title }}</span>
+		<span class='drop-icon'>
 			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 				<path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
 		</span>
-		<span class='drop-left'> 
+		<span class='drop-left hidden'> 
 			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 				<path d="M10 16L14 12L10 8" stroke="#4C5A67" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
-		</span> -->
-		<span class='h6'>{{ item.group_title }}</span>
+		</span>
 
 	</div>
 	{{ render_sidebar_items(item.group_items) }}

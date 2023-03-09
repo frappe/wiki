@@ -47,15 +47,16 @@ window.Wiki = class Wiki {
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
-    const sidebar_groups = $(".sidebar-item.active").parents(
-      ".web-sidebar .sidebar-group",
-    );
-    sidebar_groups.each(function () {
-      $(this).children(".collapsible").find(".drop-left").addClass("hidden");
-    });
-    sidebar_groups.each(function () {
-      $(this).children(".collapsible").find(".drop-icon").removeClass("hidden");
-    });
+    // const sidebar_groups = $(".sidebar-item.active").parents(
+    //   ".web-sidebar .sidebar-group",
+    // );
+
+    // sidebar_groups.each(function () {
+    //   $(this).children(".collapsible").find(".drop-left").addClass("hidden");
+    // });
+    // sidebar_groups.each(function () {
+    //   $(this).children(".collapsible").find(".drop-icon").removeClass("hidden");
+    // });
   }
 
   scrolltotop() {

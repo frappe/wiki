@@ -163,6 +163,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       const type = $(this).parents("li").data("type");
       const route = $(this).parents("li").data("route");
       const title = $(this).parents("li").data("title");
+      const currentPath = window.location.href.split("?")[0];
 
       if (type === "Wiki Page")
         frappe.msgprint({
@@ -182,13 +183,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
                 },
                 callback: (r) => {
                   if (r.message) {
-                    const segments = window.location.pathname.split("/");
-                    segments.pop();
-                    const wikiInURL = segments.pop() || segments.pop();
-
-                    if (route.substring(1) === wikiInURL)
-                      window.location.assign("/wiki");
-                    else window.location.reload();
+                    if (currentPath.includes(route))
+                      window.location.assign(`/`);
+                    else window.location.assign(`${currentPath}?editWiki=1`);
                   }
                 },
               });
@@ -304,6 +301,16 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
 				<div class="collapsible">
 					<span class="h6">${title}</span>
+          <span class='drop-icon'>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+          </span>
+          <span class='drop-left hidden'> 
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 16L14 12L10 8" stroke="#4C5A67" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+          </span>
 					</div>
 					<ul class="list-unstyled hidden" style="min-height:20px;"> </ul>
 			</li>
