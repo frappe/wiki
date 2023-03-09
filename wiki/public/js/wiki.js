@@ -43,7 +43,7 @@ window.Wiki = class Wiki {
       ".collapsible",
       this.toggle_sidebar,
     );
-    $(".sidebar-group").children("ul").addClass("hidden");
+    // $(".sidebar-group").children("ul").addClass("hidden");
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");

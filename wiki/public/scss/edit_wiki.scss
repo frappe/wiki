@@ -89,7 +89,6 @@ body.dark {
 
 .form-control {
 	background-color: white;
-	border: 1px solid var(--border-color);
 }
 
 .form-control:focus {
@@ -121,7 +120,7 @@ body.dark {
 .remove-sidebar-item {
 	float: right;
 	cursor: pointer;
-	margin: 5px 15px 0 0;
+	margin: 2.5px 15px 2.5px 0;
 }
 
 .trash-icon {
@@ -212,6 +211,12 @@ $font-sizes-mobile: (
 	"2xl": 1.5rem,
 	"3xl": 1.75rem,
 );
+
+.wiki-editor,
+.from-markdown {
+	width: 900px;
+	margin: auto;
+}
 
 .wiki-editor, 
 .wiki-content {
@@ -421,7 +426,7 @@ $font-sizes-mobile: (
 		padding: 0.75rem 1rem;
 		border-radius: 0.5rem;
 		overflow-x: auto;
-		max-width: 60vw;
+		max-width: 55vw;
 
 		@include media-breakpoint-down(md) {
 			max-width: 90vw;
@@ -436,7 +441,8 @@ $font-sizes-mobile: (
 }
 
 .wiki-editor {
-	margin-left: -1rem;
+	width: 50vw;
+	margin: 0 -1rem;
 
 	h1 {
 		margin-top: 0.75rem;
@@ -468,8 +474,7 @@ $font-sizes-mobile: (
 	.ProseMirror {
 		height: 80vh;
 		overflow-y: auto;
-		padding-left: calc(1rem - 1px);
-		width: 64vw;
+		padding: 0 calc(1rem - 1px);
 		margin-top: -0.1px;
 
 		@include media-breakpoint-down(md) {
@@ -554,6 +559,8 @@ $font-sizes-mobile: (
 }
 
 .wiki-content {
+	min-height: 80vh;
+
 	div > p:first-child {
 		margin-top: 1.5rem !important;
 		line-height: 1.4;

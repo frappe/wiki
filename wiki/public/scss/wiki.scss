@@ -16,16 +16,18 @@ body {
 
 	// light mode vars
 	--background-color: white;
-	--sidebar-bg-color: var(--gray-50);
-	--sidebar-hover-color: var(--blue-50);
+	--sidebar-bg-color: #f6f6f7;
+	--sidebar-hover-color: #ebebe9;
 	--toc-hover-text-color: var(--gray-900);
 	--btn-text-color: var(--gray-900);
-	--active-item-color: var(--primary-light);
-	--active-item-text-color: var(--primary);
+	--active-item-color: #f1f1f0;
+	--active-item-text-color: $primary;
 	--searchbar-color: #f4f5f6;
-	--border-color: var(--gray-200);
+	--border-color: var(--gray-300);
 	--code-bg-color: var(--light);
 	--code-text-color: var(--purple-600);
+	--sidebar-text-color: #73726e;
+	--sidebar-text-hover-color: #37352f;
 
 // ------------------------------------------
 
@@ -53,6 +55,7 @@ body.dark {
 	--code-bg-color: var(--purple-900);
 	--code-text-color: var(--purple-50);
 	--input-bg-color: #242A30;
+	--sidebar-text-color: #909090;
 
 	--bg-orange: var(--orange-600);
 	--text-on-orange: var(--orange-50);
@@ -156,31 +159,39 @@ textarea.wiki-content {
 
 // sidebar
 
+.list-unstyled:first-child > * {
+	border-top: 1px solid var(--border-color);
+	padding: 0.75rem 0 1.5rem 0;
+
+	&:first-child {
+		margin-top: 0.5rem;
+	}
+}
+
 .sidebar-group {
 	margin: 0;
 	font-style: normal;
 	font-weight: 500;
 	font-size: $font-size-base;
-	line-height: 1.72;
+	line-height: 1.5;
 	/* identical to box height, or 28px */
 
 	letter-spacing: -0.011em;
-	
-	padding-left: 0.25rem;
-
-	// display: flex;
 
 	ul.list-unstyled {
-		padding-left: 0.65rem;
 		ul {
-			padding-left: 0.65rem;
+			padding-left: 0;
 		}
 	}
 
+	> ul {
+		padding-left: 0;
+		margin-bottom: 0;
+	}
+
 	.collapsible {
-		padding-top: 0.5rem;
-		padding-bottom: 0.5rem;
-		display: inline-flex;
+		padding: 4px 0.5rem;
+		display: flex;
 		align-items: center;
 		width: 100%;
 
@@ -200,74 +211,66 @@ textarea.wiki-content {
 		.h6 {
 			font-size: $font-size-sm;
 			margin-bottom: 0;
-			line-height: 1.5;
+			line-height: 1.5rem;
 			color: var(--text-color);
+			font-weight: 700;
 		}
 	}
 
 	.sidebar-item {
-		font-style: normal;
-		font-weight: normal;
-		font-size: 1px;
-		line-height: 1.5;
-		/* identical to box height, or 24px */
-		color: $text-muted;
-		letter-spacing: -0.011em;
-		padding: 0.375rem 0 0.375rem 0.8rem;
-		// div {
-		// 	display: flex;
-		// }
-
 		a {
 			margin: 0;
-			padding-left: 0;
-			padding-top: unset;
-			padding-bottom: unset;
-			font-weight: normal;
+			font-weight: 500;
 			width: 100%;
 		}
-		a:hover {
-			color: inherit;
-		}
-	}
-
-	.sidebar-item:hover:not(.active) {
-		background-color: var(--sidebar-hover-color);
-		color: var(--text-color);
-		border-radius: 4px;
 	}
 
 	.drop-icon,
 	.drop-left {
 		display: inline-flex;
-	}
+		margin-left: 0.5rem;
+		margin-right: 0.2rem;
 
-	.management {
-		padding-top: 1rem;
-		border-top: 1px solid #eef0f2;
+		&:hover {
+			background-color: var(--gray-400);
+			border-radius: 4px;
+		}
+	}
+}
+
+.sidebar-group .collapsible,
+.sidebar-item {
+	margin: 1px 0;
+	color: var(--sidebar-text-color);
+
+	&:hover:not(.active) {
+		color: var(--sidebar-text-hover-color);
+		border-radius: 4px;
 	}
 }
 
 .sidebar-item.active {
-	background-color: var(--active-item-color);
+	background-color: transparent;
 	border-radius: 4px;
 
 	a {
 		margin: 0.15rem 0;
 		background-color: transparent;
 		color: var(--active-item-text-color);
+		padding-bottom: 0;
 	}
 }
 
 .sidebar-item {
 	display: flex;
+
+	a {
+		color: inherit;
+		margin-top: 0 !important;
+	}
 	
 	:first-child {
 		margin-right: auto;
-	}
-
-	.active:hover {
-		background-color: var(--active-item-color);
 	}
 
 	a:hover {
@@ -285,10 +288,6 @@ textarea.wiki-content {
 
 .web-sidebar {
 	position: relative;
-
-	.sidebar-items {
-		overflow-y: hidden;
-	}
 }
 
 .doc-sidebar {
@@ -301,20 +300,16 @@ textarea.wiki-content {
 		padding-top: 4.5rem;
 		padding-bottom: 0;
 		overflow-x: hidden;
+		margin-left: 2rem;
 
 		.sidebar-items {
-			padding-top: 1rem;
 			width: 18rem;
-			height: calc(100% - 7.5vh);
+			height:100%;
 
 			.list-unstyled {
 				max-width: 16rem;
 			}
 		}
-	}
-
-	.management {
-		margin-bottom: 0;
 	}
 }
 
@@ -426,6 +421,8 @@ textarea.wiki-content {
 
 .doc-layout {
 	padding-top: 0rem;
+	margin: 0;
+	max-width: 100%;
 }
 
 .navbar-brand {
@@ -447,6 +444,7 @@ textarea.wiki-content {
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
+	margin-left: 2rem;
 
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
@@ -483,6 +481,9 @@ textarea.wiki-content {
 }
 
 .doc-content {
+	width: 900px;
+	margin: auto;
+
 	.from-markdown {
 		.edit-wiki-button {
 			cursor: pointer;
@@ -606,21 +607,11 @@ h6:hover .feather-link {
 	padding-left: 0;
 }
 
-@media (min-width: 1920px) {
-	.doc-container {
-		max-width: 1600px;
-	}
-}
-
 .doc-sidebar {
 	padding-right: 0.5rem;
 	margin-left: -15rem;
 	padding-left: 15rem;
 	background-color: var(--sidebar-bg-color);
-}
-
-.sidebar-group > ul {
-	margin-bottom: 0.5rem;
 }
 
 ul.user-contributions {
