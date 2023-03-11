@@ -119,8 +119,12 @@ body.dark {
 
 .remove-sidebar-item {
 	float: right;
-	cursor: pointer;
-	margin: 4px 15px 2.5px 0;
+	margin: 4px 15px 2.5px auto;
+}
+
+.collapsible .remove-sidebar-item {
+	margin-right: calc(15px - 0.5rem);
+	margin-bottom: 3px;
 }
 
 .trash-icon {

@@ -32,8 +32,6 @@ window.Wiki = class Wiki {
 
   toggle_sidebar(event) {
     $(event.currentTarget).parent().children("ul").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-icon").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-left").toggleClass("hidden");
     event.stopPropagation();
   }
 
@@ -47,16 +45,6 @@ window.Wiki = class Wiki {
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
-    // const sidebar_groups = $(".sidebar-item.active").parents(
-    //   ".web-sidebar .sidebar-group",
-    // );
-
-    // sidebar_groups.each(function () {
-    //   $(this).children(".collapsible").find(".drop-left").addClass("hidden");
-    // });
-    // sidebar_groups.each(function () {
-    //   $(this).children(".collapsible").find(".drop-icon").removeClass("hidden");
-    // });
   }
 
   scrolltotop() {
