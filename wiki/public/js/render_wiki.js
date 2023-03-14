@@ -165,10 +165,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(trashIcon).insertAfter($(this));
     });
 
-    $(".sidebar-group > div").each(function () {
-      $(this).append(trashIcon);
-    });
-
     $(".remove-sidebar-item").on("click", function () {
       if (!e) var e = window.event;
       if (e.stopPropagation) e.stopPropagation();
@@ -199,32 +195,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
                     if (currentPath.includes(route))
                       window.location.assign(`/`);
                     else window.location.assign(`${currentPath}?editWiki=1`);
-                  }
-                },
-              });
-            },
-          },
-        });
-      else if (type === "Wiki Sidebar")
-        frappe.msgprint({
-          title: __("Delete Wiki Sidebar Group"),
-          indicator: "red",
-          message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Sidebar Group <b>${title}</b>?<br>This will also delete all the children under it.`,
-          ),
-          primary_action: {
-            label: "Yes",
-            action() {
-              frappe.call({
-                method:
-                  "wiki.wiki.doctype.wiki_sidebar.wiki_sidebar.delete_sidebar_group",
-                args: {
-                  sidebar_group_name: route.substring(1),
-                },
-                callback: (r) => {
-                  if (r.message) {
-                    $(`.sidebar-group[data-route='${route}']`).remove();
-                    this.hide();
                   }
                 },
               });
