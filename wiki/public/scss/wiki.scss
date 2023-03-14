@@ -708,10 +708,19 @@ navbar
 
 .my-contributions,
 .new-wiki-page,
-.add-sidebar-group,
-.add-sidebar-page {
+.sidebar-edit-mode-btn,
+.add-sidebar-items > * {
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
+	margin: auto;
+}
+
+.sidebar-edit-mode-btn {
+	.sidebar-edit-mode-pencil {
+		height: 1rem;
+		width: 1rem;
+		margin-bottom: 2px;
+	}
 }
 
 .add-sidebar-items {

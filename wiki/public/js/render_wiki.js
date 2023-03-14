@@ -127,6 +127,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     $(".web-sidebar ul").each(setSortable);
 
+    function toggleSidebarEditMode() {
+      $(".remove-sidebar-item").toggleClass("hide");
+      $(".add-sidebar-items").toggleClass("hide");
+      $(".sidebar-item, .sidebar-group").toggleClass("disabled");
+      $(".sidebar-edit-mode-btn").toggleClass("hide");
+    }
+
     function toggleEditor() {
       $(".wiki-content").toggleClass("hide");
       $(".edit-wiki-btn").toggleClass("hide");
@@ -134,10 +141,39 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".page-toc").toggleClass("hide");
       $(".wiki-editor").toggleClass("hide");
       $(".wiki-title").toggleClass("hide");
-      $(".remove-sidebar-item").toggleClass("hide");
-      $(".add-sidebar-items").toggleClass("hide");
-      $(".sidebar-item, .sidebar-group").toggleClass("disabled");
     }
+
+    $(".sidebar-edit-mode-btn").on("click", function () {
+      // sidebar edit mode
+      toggleSidebarEditMode();
+    });
+
+    $(".discard-sidebar").on("click", function () {
+      // sidebar view mode
+      toggleSidebarEditMode();
+    });
+
+    $(".save-sidebar").on("click", function () {
+      // TODO: separate page update with sidebar update
+      frappe.call({
+        method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
+        args: {
+          name: $(".wiki-content + input").val(),
+          message: `Edited Sidebar`,
+          content: `<div markdown="1">${$(".ProseMirror")
+            .html()
+            .replace(/<h1>.*?<\/h1>/, "")}</div>`,
+          type: "Rich Text",
+          title: $(".wiki-title").text(),
+          new_sidebar_items: getSidebarItems(),
+          sidebar_edited: true,
+        },
+        callback: (r) => {
+          window.location.href = `/${r.message.route}`;
+        },
+        freeze: true,
+      });
+    });
 
     $(".edit-wiki-btn").on("click", function () {
       // switch to edit mode
@@ -209,6 +245,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       `<div class="add-sidebar-items hide">
         <div class="text-muted add-sidebar-group small">+ Add Group</div>
         <div class="text-muted add-sidebar-page small">+ Add Page</div>
+        <div class="text-muted discard-sidebar small">- Discard</div>
+        <div class="text-muted save-sidebar small">Save</div>
       </div>`,
     ).appendTo($(".web-sidebar"));
     var me = this;
@@ -217,13 +255,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
 
     $(".add-group-btn").on("click", () => {
-      const route = $("#addGroupModal #route").val();
       const title = $("#addGroupModal #title").val();
-      if (route && title) {
+      if (title) {
         $("#addGroupModal").modal();
-        $("#addGroupModal #route").val("");
         $("#addGroupModal #title").val("");
-        this.add_wiki_sidebar(route, title);
+        this.add_wiki_sidebar(title);
       }
     });
 
@@ -251,8 +287,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
   }
 
-  add_wiki_sidebar(route, title) {
-    let $new_page = this.get_wiki_sidebar_html(route, title);
+  add_wiki_sidebar(title) {
+    let $new_page = this.get_wiki_sidebar_html(title);
 
     $new_page.appendTo(
       $(".doc-sidebar .sidebar-items")
@@ -264,12 +300,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".web-sidebar ul").each(setSortable);
   }
 
-  get_wiki_sidebar_html(route, title) {
+  get_wiki_sidebar_html(title) {
     return $(`
 			<li class="sidebar-group" data-type="Wiki Sidebar"
-				data-name="new-sidebar" data-group-name="${route}"
-				data-new=1 data-title="${title}" draggable="false">
-
+				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
 				<div class="collapsible">
 					<span class="h6">${title}</span>
 					</div>

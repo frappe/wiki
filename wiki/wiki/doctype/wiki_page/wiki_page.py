@@ -188,6 +188,9 @@ class WikiPage(WebsiteGenerator):
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
 			context.docs_search_scope = topmost
+			context.has_edit_permission = frappe.has_permission(
+				doctype="Wiki Page", ptype="write", throw=False
+			)
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
 			)

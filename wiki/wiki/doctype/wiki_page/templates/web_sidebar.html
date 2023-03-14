@@ -15,25 +15,33 @@
 {% endmacro %}
 
 {% macro render_sidebar_items(sidebar_items) %}
-{%- if sidebar_items | len > 0 -%}
-<ul class="list-unstyled" style="min-height: 20px;">
-	{% for sidebar_group in sidebar_items -%}
-		<li class="sidebar-group"
-			data-type="Wiki Sidebar"
-			data-title="{{sidebar_group}}"
-		>
-			<div class="collapsible">
-				<span class='h6'>{{ sidebar_group }}</span>
+	{%- if sidebar_items | len > 0 -%}
+		<ul class="list-unstyled" style="min-height: 20px;">
+			{% for sidebar_group in sidebar_items -%}
+				<li class="sidebar-group"
+					data-type="Wiki Sidebar"
+					data-title="{{sidebar_group}}"
+				>
+					<div class="collapsible">
+						<span class='h6'>{{ sidebar_group }}</span>
+					</div>
+					<ul class="list-unstyled" style="min-height: 20px;">
+						{% for item in sidebar_items[sidebar_group] -%}
+							{{ render_sidebar_item(item) }}
+						{%- endfor %}
+					</ul>
+				</li>
+			{%- endfor %}
+		</ul>
+		{%- if has_edit_permission -%}
+			<div class="sidebar-edit-mode-btn">
+				<svg class="icon sidebar-edit-mode-pencil">
+					<use href="#icon-edit"></use>
+				</svg>
+				<span class="text-muted small">Edit Sidebar</span>
 			</div>
-			<ul class="list-unstyled" style="min-height: 20px;">
-				{% for item in sidebar_items[sidebar_group] -%}
-					{{ render_sidebar_item(item) }}
-				{%- endfor %}
-			</ul>
-		</li>
-	{%- endfor %}
-</ul>
-{%- endif -%}
+		{%- endif -%}
+	{%- endif -%}
 {% endmacro %}
 
 {% macro my_account() %}
