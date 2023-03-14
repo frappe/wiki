@@ -10,10 +10,13 @@ function setSortable() {
       isSidebarChanged = true;
     },
     onMove: function (e) {
-      // don't allow groups to nest inside groups
       if (
-        $(e.dragged).hasClass("sidebar-group") &&
-        !$(e.to).is($(".doc-sidebar .sidebar-items > .list-unstyled"))
+        // don't allow groups to nest inside groups
+        ($(e.dragged).hasClass("sidebar-group") &&
+          !$(e.to).is($(".doc-sidebar .sidebar-items > .list-unstyled"))) ||
+        // only allow items to nest inside groups and not root
+        ($(e.dragged).hasClass("sidebar-item") &&
+          $(e.to).is($(".doc-sidebar .sidebar-items > .list-unstyled")))
       )
         return false;
     },
