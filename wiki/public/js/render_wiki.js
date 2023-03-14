@@ -163,7 +163,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
           content: `<div markdown="1">${$(".ProseMirror")
             .html()
             .replace(/<h1>.*?<\/h1>/, "")}</div>`,
-          type: "Rich Text",
           title: $(".wiki-title").text(),
           new_sidebar_items: getSidebarItems(),
           sidebar_edited: true,
@@ -273,7 +272,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
           name: $(".wiki-content + input").val(),
           message: `Created ${title}`,
           content: `<p>Wiki Content</p>`,
-          type: "Rich Text",
           new: "1",
           title,
           new_sidebar_items: sidebarItems,

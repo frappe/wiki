@@ -343,7 +343,6 @@ def update(
 	name,
 	content,
 	title,
-	type,
 	attachments="{}",
 	message="",
 	wiki_page_patch=None,
@@ -356,8 +355,7 @@ def update(
 
 	context = {"route": name}
 	context = frappe._dict(context)
-	if type == "Rich Text":
-		content = extract_images_from_html(content)
+	content = extract_images_from_html(content)
 
 	if new:
 		new = True
