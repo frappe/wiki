@@ -559,6 +559,23 @@ $font-sizes-mobile: (
 
 	> :last-child {
 		padding: 0 1rem;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+
+		.wiki-edit-controls {
+			overflow-x: auto;
+			display: inline-flex;
+		}
+
+		.wiki-edit-control-btn {
+			display: inline-flex;
+
+			> * {
+				margin: 0.5rem 0.25rem;
+			}
+		}
 	}
 }
 

@@ -18,147 +18,150 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
 <template>
   <editor-content :editor="editor" />
   <div v-if="editor">
-    <div class="dropdown">
-      <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
-        aria-expanded="false">
-        <H2Icon />
-      </button>
-      <div class="dropdown-menu" aria-labelledby="headingDropdownMenuButton">
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }">
-          Heading 1
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }">
-          Heading 2
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }">
-          Heading 3
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 4 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 4 }) }">
-          Heading 4
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 5 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 5 }) }">
-          Heading 5
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 6 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 6 }) }">
-          Heading 6
-        </a>
+    <div class="wiki-edit-controls">
+      <div class="dropdown">
+        <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+          aria-expanded="false">
+          <H2Icon />
+        </button>
+        <div class="dropdown-menu" aria-labelledby="headingDropdownMenuButton">
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }">
+            Heading 1
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }">
+            Heading 2
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }">
+            Heading 3
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 4 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 4 }) }">
+            Heading 4
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 5 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 5 }) }">
+            Heading 5
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 6 }).run()"
+            :class="{ 'is-active': editor.isActive('heading', { level: 6 }) }">
+            Heading 6
+          </a>
+        </div>
       </div>
-    </div>
-    <div class="vertical-sep"></div>
-    <button @click="editor.chain().focus().toggleBold().run()"
-      :disabled="!editor.can().chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }">
-      <BoldIcon />
-    </button>
-    <button @click="editor.chain().focus().toggleItalic().run()"
-      :disabled="!editor.can().chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }">
-      <ItalicIcon />
-    </button>
-    <div class="vertical-sep"></div>
-    <button @click="editor.chain().focus().toggleBulletList().run()"
-      :class="{ 'is-active': editor.isActive('bulletList') }">
-      <ListUnorderedIcon />
-    </button>
-    <button @click="editor.chain().focus().toggleOrderedList().run()"
-      :class="{ 'is-active': editor.isActive('orderedList') }">
-      <ListOrderedIcon />
-    </button>
-    <div class="vertical-sep"></div>
-    <button @click="editor.chain().focus().setTextAlign('left').run()"
-      :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }">
-      <AlignLeftIcon />
-    </button>
-    <button @click="editor.chain().focus().setTextAlign('center').run()"
-      :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }">
-      <AlignCenterIcon />
-    </button>
-    <button @click="editor.chain().focus().setTextAlign('right').run()"
-      :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }">
-      <AlignRightIcon />
-    </button>
-    <div class="vertical-sep"></div>
-    <button @click="addImage" :class="{ 'is-active': editor.isActive('image') }">
-      <ImageAddLineIcon />
-    </button>
-    <button @click="openLinkDialog" :class="{ 'is-active': editor.isActive('link') }">
-      <LinkIcon />
-    </button>
-    <div class="modal fade" id="linkModal" tabindex="-1" role="dialog" aria-labelledby="linkModal" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="linkModalTitle">Set Link</h5>
-          </div>
-          <div class="modal-body">
-            <input type="text" id="link" name="link">
-          </div>
-          <div class="modal-footer">
-            <button type="button" @click="setLink" class="btn btn-primary btn-sm" data-dismiss="modal">Save</button>
+      <div class="vertical-sep"></div>
+      <button @click="editor.chain().focus().toggleBold().run()"
+        :disabled="!editor.can().chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }">
+        <BoldIcon />
+      </button>
+      <button @click="editor.chain().focus().toggleItalic().run()"
+        :disabled="!editor.can().chain().focus().toggleItalic().run()"
+        :class="{ 'is-active': editor.isActive('italic') }">
+        <ItalicIcon />
+      </button>
+      <div class="vertical-sep"></div>
+      <button @click="editor.chain().focus().toggleBulletList().run()"
+        :class="{ 'is-active': editor.isActive('bulletList') }">
+        <ListUnorderedIcon />
+      </button>
+      <button @click="editor.chain().focus().toggleOrderedList().run()"
+        :class="{ 'is-active': editor.isActive('orderedList') }">
+        <ListOrderedIcon />
+      </button>
+      <div class="vertical-sep"></div>
+      <button @click="editor.chain().focus().setTextAlign('left').run()"
+        :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }">
+        <AlignLeftIcon />
+      </button>
+      <button @click="editor.chain().focus().setTextAlign('center').run()"
+        :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }">
+        <AlignCenterIcon />
+      </button>
+      <button @click="editor.chain().focus().setTextAlign('right').run()"
+        :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }">
+        <AlignRightIcon />
+      </button>
+      <div class="vertical-sep"></div>
+      <button @click="addImage" :class="{ 'is-active': editor.isActive('image') }">
+        <ImageAddLineIcon />
+      </button>
+      <button @click="openLinkDialog" :class="{ 'is-active': editor.isActive('link') }">
+        <LinkIcon />
+      </button>
+      <div class="modal fade" id="linkModal" tabindex="-1" role="dialog" aria-labelledby="linkModal" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="linkModalTitle">Set Link</h5>
+            </div>
+            <div class="modal-body">
+              <input type="text" id="link" name="link">
+            </div>
+            <div class="modal-footer">
+              <button type="button" @click="setLink" class="btn btn-primary btn-sm" data-dismiss="modal">Save</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <button @click="editor.chain().focus().toggleBlockquote().run()"
-      :class="{ 'is-active': editor.isActive('blockquote') }">
-      <BlockquoteIcon />
-    </button>
-    <button @click="editor.chain().focus().toggleCodeBlock().run()"
-      :class="{ 'is-active': editor.isActive('codeBlock') }">
-      <CodeViewIcon />
-    </button>
-    <button @click="editor.chain().focus().setHorizontalRule().run()">
-      <HorizontalRule />
-    </button>
-    <div class="dropdown">
-      <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
-        aria-expanded="false">
-        <TableIcon />
+      <button @click="editor.chain().focus().toggleBlockquote().run()"
+        :class="{ 'is-active': editor.isActive('blockquote') }">
+        <BlockquoteIcon />
       </button>
-      <div class="dropdown-menu" aria-labelledby="tableDropdownMenuButton">
-        <a class="dropdown-item" @click="
-          editor
-            .chain()
-            .focus()
-            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-            .run()
-        ">
-          Insert Table
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().addColumnBefore().run()">
-          Add Column Before
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().addColumnAfter().run()">
-          Add Column After
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().deleteColumn().run()">
-          Delete Column
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().addRowBefore().run()">
-          Add Row Before
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().addRowAfter().run()">
-          Add Row After
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().deleteRow().run()">
-          Delete Row
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderColumn().run()">
-          Toggle Header Column
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderRow().run()">
-          Toggle Header Row
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderCell().run()">
-          Toggle Header Cell
-        </a>
-        <a class="dropdown-item" @click="editor.chain().focus().deleteTable().run()">
-          Delete Table
-        </a>
+      <button @click="editor.chain().focus().toggleCodeBlock().run()"
+        :class="{ 'is-active': editor.isActive('codeBlock') }">
+        <CodeViewIcon />
+      </button>
+      <button @click="editor.chain().focus().setHorizontalRule().run()">
+        <HorizontalRule />
+      </button>
+      <div class="dropdown">
+        <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+          aria-expanded="false">
+          <TableIcon />
+        </button>
+        <div class="dropdown-menu" aria-labelledby="tableDropdownMenuButton">
+          <a class="dropdown-item" @click="
+            editor
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          ">
+            Insert Table
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().addColumnBefore().run()">
+            Add Column Before
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().addColumnAfter().run()">
+            Add Column After
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().deleteColumn().run()">
+            Delete Column
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().addRowBefore().run()">
+            Add Row Before
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().addRowAfter().run()">
+            Add Row After
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().deleteRow().run()">
+            Delete Row
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderColumn().run()">
+            Toggle Header Column
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderRow().run()">
+            Toggle Header Row
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().toggleHeaderCell().run()">
+            Toggle Header Cell
+          </a>
+          <a class="dropdown-item" @click="editor.chain().focus().deleteTable().run()">
+            Delete Table
+          </a>
+        </div>
       </div>
     </div>
     <div class="wiki-edit-control-btn hide">
