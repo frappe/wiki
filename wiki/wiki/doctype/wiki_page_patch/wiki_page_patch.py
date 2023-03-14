@@ -37,6 +37,8 @@ class WikiPagePatch(Document):
 
 		if self.new:
 			self.create_new_wiki_page()
+		else:
+			self.update_old_page()
 
 		if self.sidebar_edited:
 			self.update_sidebars()
@@ -61,6 +63,9 @@ class WikiPagePatch(Document):
 
 		self.new_wiki_page.update(wiki_page_dict)
 		self.new_wiki_page.save()
+
+	def update_old_page(self):
+		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
 
 	def update_sidebars(self):
 		if not self.new_sidebar_items:
