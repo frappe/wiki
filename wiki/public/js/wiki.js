@@ -2,7 +2,7 @@ window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
       const active_class = "active";
-      let page_href = window.location.pathname;
+      let page_href = window.location.pathname.slice(1);
       if (page_href.indexOf("#") !== -1) {
         page_href = page_href.slice(0, page_href.indexOf("#"));
       }
