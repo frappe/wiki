@@ -273,7 +273,6 @@ export default {
       input.click();
     },
     saveWikiPage() {
-      const sidebarItems = getSidebarItems()
       const title = $(".ProseMirror h1").html();
 
       frappe.call({
@@ -290,7 +289,7 @@ export default {
           // new: $('[name="new"]').val(),
           title,
           // new_sidebar: $(".doc-sidebar").get(0).innerHTML,
-          new_sidebar_items: sidebarItems,
+          new_sidebar_items: getSidebarItems(),
 
           sidebar_edited: isSidebarChanged,
           // draft: draft ? draft : null,
