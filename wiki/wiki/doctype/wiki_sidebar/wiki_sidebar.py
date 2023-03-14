@@ -3,49 +3,11 @@
 
 
 import frappe
-from frappe import _
 from frappe.model.document import Document
 
 
 class WikiSidebar(Document):
-	def before_save(self):
-
-		details = frappe.db.get_values(
-			"Wiki Sidebar", filters={"name": self.name}, fieldname=["title"], pluck="title"
-		)
-
-		if not details:
-			return
-
-		old_title = details[0]
-
-		if old_title != self.title:
-			frappe.db.sql(
-				'Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Sidebar"',
-				(self.title, self.name),
-			)
-			self.clear_cache()
-
-	def get_children(self):
-		out = self.get_sidebar_items()
-
-		for idx, sidebar_item in enumerate(self.sidebar_items):
-			if sidebar_item.type == "Wiki Sidebar":
-				sidebar = frappe.get_doc("Wiki Sidebar", sidebar_item.item)
-				children = sidebar.get_children()
-				out[idx] = {
-					"group_title": sidebar_item.title,
-					"group_items": children,
-					"name": sidebar_item.name,
-					"group_name": sidebar.name,
-					"type": sidebar_item.type,
-					"item": f"/{sidebar.route}",
-				}
-
-		return out
-
 	def get_items(self):
-
 		topmost = self.find_topmost(self.name)
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
@@ -61,38 +23,8 @@ class WikiSidebar(Document):
 
 		return sidebar_html, topmost
 
-	def get_sidebar_items(self):
-		items_without_group = []
-		items = frappe.get_all(
-			"Wiki Sidebar Item",
-			filters={"parent": self.name},
-			fields=["title", "item", "name", "type", "route"],
-			order_by="idx asc",
-		)
-
-		for item in items:
-			item.item = "/" + str(item.route)
-			items_without_group.append(item)
-
-		# return [{"group_title": "Topics", "group_items": items_without_group}] if items else []
-		return items_without_group
-
 	def validate(self):
 		self.clear_cache()
-
-	def on_trash(self):
-		self.clear_cache()
-
-		sidebar_group_name = frappe.get_value("Wiki Sidebar Item", {"item": self.name}, pluck="name")
-		frappe.delete_doc("Wiki Sidebar Item", sidebar_group_name)
-
-		# delete children of the group
-		for child_doc in self.get_children():
-			if child_doc["type"] == "Wiki Page":
-				wiki_page_name = frappe.get_value("Wiki Page", {"route": child_doc["route"]}, pluck="name")
-				frappe.delete_doc("Wiki Page", wiki_page_name)
-			elif child_doc["type"] == "Wiki Sidebar":
-				frappe.delete_doc("Wiki Sidebar", child_doc["group_name"])
 
 	def on_update(self):
 		self.clear_cache()
@@ -106,68 +38,3 @@ class WikiSidebar(Document):
 	def clear_cache(self):
 		topmost = self.find_topmost(self.name)
 		frappe.cache().hdel("wiki_sidebar", topmost)
-
-	def clone(self, original, new):
-		items = frappe.get_all(
-			"Wiki Sidebar Item",
-			filters={
-				"parent": self.name,
-			},
-			fields=[
-				"title",
-				"item",
-				"name",
-				"type",
-				"route",
-				"modified",
-				"modified_by",
-				"creation",
-				"owner",
-			],
-			order_by="idx asc",
-		)
-
-		cloned_wiki_sidebar = frappe.new_doc("Wiki Sidebar")
-		if original in self.route:
-			cloned_wiki_sidebar.route = self.route.replace(original, new)
-		else:
-			cloned_wiki_sidebar.route = self.route + f"/{new}"
-		cloned_wiki_sidebar.title = self.title
-
-		for item in items:
-			if item.type == "Wiki Sidebar":
-				clone = frappe.get_doc("Wiki Sidebar", item.item).clone(original, new)
-				cloned_wiki_sidebar.append(
-					"sidebar_items",
-					{
-						"type": "Wiki Sidebar",
-						"item": clone.name,
-					},
-				)
-			else:
-				clone = frappe.get_doc("Wiki Page", item.item).clone(original, new)
-				cloned_wiki_sidebar.append(
-					"sidebar_items",
-					{
-						"type": "Wiki Page",
-						"item": clone.name,
-					},
-				)
-
-		cloned_wiki_sidebar.save()
-
-		return cloned_wiki_sidebar
-
-
-@frappe.whitelist()
-def delete_sidebar_group(sidebar_group_name):
-	if not frappe.has_permission(doctype="Wiki Sidebar", ptype="delete", throw=False):
-		frappe.throw(
-			_("You are not permitted to delete a Wiki Sidebar Group"),
-			frappe.PermissionError,
-		)
-
-	if frappe.delete_doc("Wiki Sidebar", sidebar_group_name) is False:
-		frappe.throw(_("The Wiki Page you are trying to delete doesn't exist"))
-	else:
-		return True

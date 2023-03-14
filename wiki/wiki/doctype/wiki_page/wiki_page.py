@@ -25,18 +25,7 @@ class WikiPage(WebsiteGenerator):
 
 		old_route, old_title = (details[0][0], details[0][1])
 
-		if old_route != self.route:
-			frappe.db.sql(
-				'Update `tabWiki Sidebar Item` set route = %s where item = %s and type = "Wiki Page"',
-				(self.route, self.name),
-			)
-			self.clear_sidebar_cache()
-
-		if old_title != self.title:
-			frappe.db.sql(
-				'Update `tabWiki Sidebar Item` set title = %s where item = %s and type = "Wiki Page"',
-				(self.title, self.name),
-			)
+		if old_route != self.route or old_title != self.title:
 			self.clear_sidebar_cache()
 
 	def after_insert(self):
@@ -80,10 +69,8 @@ class WikiPage(WebsiteGenerator):
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"):
 			frappe.db.set_value("Wiki Page Patch", name, "wiki_page", "")
 
-		for name in frappe.get_all(
-			"Wiki Sidebar Item", {"type": "Wiki Page", "item": self.name}, pluck="name"
-		):
-			frappe.delete_doc("Wiki Sidebar Item", name)
+		wiki_sidebar_name = frappe.get_value("Wiki Sidebar", {"wiki_page": self.name})
+		frappe.delete_doc("Wiki Sidebar", wiki_sidebar_name)
 
 		self.clear_sidebar_cache()
 
@@ -204,26 +191,49 @@ class WikiPage(WebsiteGenerator):
 			topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).find_topmost(sidebar[0].parent)
 		return topmost
 
-	def get_sidebar_items(self, context):
-		sidebar = frappe.get_all(
-			doctype="Wiki Sidebar Item",
-			fields=["name", "parent"],
-			filters=[["item", "=", self.name]],
-		)
-		sidebar_html = ""
-		topmost = "/"
-		if sidebar:
-			sidebar_html, topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).get_items()
-		else:
-			sidebar = frappe.db.get_single_value("Wiki Settings", "sidebar")
-			if sidebar:
+	def get_items(self, sidebar_items):
+		topmost = "/wiki"
 
-				sidebar_html, topmost = frappe.get_doc("Wiki Sidebar", sidebar).get_items()
+		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
+		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
+			context = frappe._dict({})
+			context.sidebar_items = sidebar_items
+			context.docs_search_scope = topmost
+			sidebar_html = frappe.render_template(
+				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
+			)
+			frappe.cache().hset("wiki_sidebar", topmost, sidebar_html)
 
+		return sidebar_html
+
+	def get_sidebar_items(self):
+		wiki_sidebar = frappe.get_single("Wiki Settings").wiki_sidebar
+		sidebar = {}
+
+		for sidebar_item in wiki_sidebar:
+			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+			if sidebar_item.parent_label not in sidebar:
+				sidebar[sidebar_item.parent_label] = [
+					{
+						"name": wiki_page.name,
+						"type": "Wiki Page",
+						"title": wiki_page.title,
+						"route": wiki_page.route,
+						"group_name": sidebar_item.parent_label,
+					}
+				]
 			else:
-				sidebar_html = ""
+				sidebar[sidebar_item.parent_label] += [
+					{
+						"name": wiki_page.name,
+						"type": "Wiki Page",
+						"title": wiki_page.title,
+						"route": wiki_page.route,
+						"group_name": sidebar_item.parent_label,
+					}
+				]
 
-		return sidebar_html, topmost
+		return self.get_items(sidebar)
 
 	def get_last_revision(self):
 		last_revision = frappe.db.get_value(
@@ -439,19 +449,9 @@ def get_source(resolved_route, jenv):
 		return jenv.loader.get_source(jenv, resolved_route.template)[0]
 
 
-def get_path_without_slash(path):
-	return path[1:] if path.startswith("/") else path
-
-
 @frappe.whitelist(allow_guest=True)
 def get_sidebar_for_page(wiki_page):
-	sidebar = []
-	context = frappe._dict({})
-	matching_pages = frappe.get_all("Wiki Page", {"name": wiki_page})
-	if matching_pages:
-		sidebar, _ = frappe.get_doc("Wiki Page", matching_pages[0].get("name")).get_sidebar_items(
-			context
-		)
+	sidebar = frappe.get_doc("Wiki Page", wiki_page).get_sidebar_items()
 	return sidebar
 
 
@@ -476,7 +476,7 @@ def delete_wiki_page(wiki_page_route):
 			_("You are not permitted to delete a Wiki Page"),
 			frappe.PermissionError,
 		)
-	wiki_page_name = frappe.get_value("Wiki Page", {"route": wiki_page_route[1:]})
+	wiki_page_name = frappe.get_value("Wiki Page", {"route": wiki_page_route})
 	if wiki_page_name:
 		frappe.delete_doc("Wiki Page", wiki_page_name)
 		return True

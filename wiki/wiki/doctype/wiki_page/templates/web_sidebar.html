@@ -1,43 +1,36 @@
 {% macro render_sidebar_item(item) %}
-<li class="{{ 'sidebar-group' if item.group_title else 'sidebar-item' }}" 
+<li class="sidebar-item"
 		data-type="{{item.type}}" 
 		data-name="{{item.name}}" 
-		data-title="{{item.title or item.group_title or item.name}}"
+		data-title="{{item.title or item.name}}"
 		data-group-name="{{item.group_name or 'sidebar-item'}}"
-		data-route="{{ item.item }}"
+		data-route="{{ item.route }}"
 	>
-	{%- if item.group_title -%}
-	<div class="collapsible">
-		<span class='h6'>{{ item.group_title }}</span>
-	</div>
-	{{ render_sidebar_items(item.group_items) }}
-
-	{%- else -%}
 	<div>
-		<div>
-			{% if item.type != 'input' %}
-			<a href="{{ item.item }}" {% if item.target %}target="{{ item.target }}" {% endif %}>
-				{{ item.title or item.label or item.name }}
-			</a>
-			{% else %}
-			<form action='{{ item.item }}' class="mr-4">
-				<input name='q' class='form-control' type='text' style="outline: none"
-					placeholder="{{ _(item.title or item.label) }}">
-			</form>
-
-		</div>
-
-		{% endif %}
-
-		{%- endif -%}
+		<a href="{{ item.route }}">
+			{{ item.title or item.name }}
+		</a>
+	</div>
 </li>
 {% endmacro %}
 
-{% macro render_sidebar_items(items) %}
-{%- if items | len > 0 -%}
+{% macro render_sidebar_items(sidebar_items) %}
+{%- if sidebar_items | len > 0 -%}
 <ul class="list-unstyled" style="min-height: 20px;">
-	{% for item in items -%}
-	{{ render_sidebar_item(item) }}
+	{% for sidebar_group in sidebar_items -%}
+		<li class="sidebar-group"
+			data-type="Wiki Sidebar"
+			data-title="{{sidebar_group}}"
+		>
+			<div class="collapsible">
+				<span class='h6'>{{ sidebar_group }}</span>
+			</div>
+			<ul class="list-unstyled" style="min-height: 20px;">
+				{% for item in sidebar_items[sidebar_group] -%}
+					{{ render_sidebar_item(item) }}
+				{%- endfor %}
+			</ul>
+		</li>
 	{%- endfor %}
 </ul>
 {%- endif -%}

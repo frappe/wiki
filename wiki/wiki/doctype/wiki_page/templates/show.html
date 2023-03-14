@@ -72,37 +72,24 @@
 	function getSidebarItems() {
 		let side = {};
 
-		let name = $(".doc-sidebar .web-sidebar").get(0).dataset.name;
-		side[name] = [];
 		let items = $($(".doc-sidebar .web-sidebar").get(0))
 			.children(".sidebar-items")
 			.children("ul")
 			.not(".hidden")
 			.children("li");
-		items.each((item) => {
-			if (!items[item].dataset.name) return;
-			side[name].push({
-			name: items[item].dataset.name,
-			type: items[item].dataset.type,
-			new: items[item].dataset.new,
-			title: items[item].dataset.title,
-			group_name: items[item].dataset.groupName,
-			});
-		});
 
-		$('.doc-sidebar [data-type="Wiki Sidebar"]').each(function () {
-			let name = $(this).get(0).dataset.groupName;
+		items.each(function(item) {
+			name = $(this).children(".collapsible").children("span.h6").text();
 			side[name] = [];
-			let items = $(this).children("ul").children("li");
-			items.each((item) => {
-			if (!items[item].dataset.name) return;
-			side[name].push({
-				name: items[item].dataset.name,
-				type: items[item].dataset.type,
-				new: items[item].dataset.new,
-				title: items[item].dataset.title,
-				group_name: items[item].dataset.groupName,
-			});
+
+			$(this).children(".list-unstyled").children(".sidebar-item").each(function (item) {
+				side[name].push({
+					name: $(this).data('name'),
+					type: $(this).data('type'),
+					new: $(this).data('new'),
+					title: $(this).data('title'),
+					group_name: $(this).data('groupName'),
+				});
 			});
 		});
 

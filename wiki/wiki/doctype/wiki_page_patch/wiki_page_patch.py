@@ -80,68 +80,27 @@ class WikiPagePatch(Document):
 		sidebars = json.loads(self.new_sidebar_items)
 
 		if self.new:
-			wiki_settings = frappe.get_single("Wiki Settings")
-			root_sidebar = wiki_settings.sidebar
+			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
+			wiki_sidebar_dict = {
+				"wiki_page": self.new_wiki_page.name,
+				"parent_label": list(sidebars)[-1],
+				"parent": "Wiki Settings",
+				"parenttype": "Wiki Settings",
+				"parentfield": "wiki_sidebar",
+				"idx": len(frappe.get_single("Wiki Settings").wiki_sidebar) + 1,
+			}
+			wiki_sidebar.update(wiki_sidebar_dict)
+			wiki_sidebar.save()
 
-			sidebars[root_sidebar].append(
-				{
-					"name": "new-wiki-page",
-					"type": "Wiki Page",
-					"title": self.new_title,
-				}
-			)
-
-		self.create_new_child(sidebars)
 		sidebar_items = sidebars.items()
 		if sidebar_items:
+			idx = 0
 			for sidebar, items in sidebar_items:
-				for idx, item in enumerate(items, start=1):
-					frappe.db.set_value("Wiki Sidebar Item", item["name"], {"parent": sidebar, "idx": idx})
-
-	def create_new_child(self, sidebars):
-		for sidebar, items in sidebars.items():
-			for idx, item in enumerate(items):
-				if item["name"] == "new-wiki-page":
-					# new wiki page was created(/new)
-					wiki_sidebar_item = frappe.new_doc("Wiki Sidebar Item")
-					wiki_sidebar_item_dict = {
-						"type": item["type"],
-						"item": self.new_wiki_page.name,
-						"parent": sidebar,
-						"parenttype": "Wiki Sidebar",
-						"parentfield": "sidebar_items",
-						"idx": idx,
-					}
-					wiki_sidebar_item.update(wiki_sidebar_item_dict)
-					wiki_sidebar_item.save()
-					item["name"] = self.new_wiki_page.name
-
-				elif item.get("new"):
-					# new item was added via the add item button
-					sidebar_name = item.get("name")
-					if item["type"] == "Wiki Sidebar":
-						# Create New Sidebar
-						wiki_sidebar = frappe.new_doc("Wiki Sidebar")
-						wiki_sidebar_dict = {
-							"route": item.get("group_name"),
-							"title": item.get("title"),
-						}
-						wiki_sidebar.update(wiki_sidebar_dict)
-						wiki_sidebar.save()
-						sidebar_name = wiki_sidebar.name
-
-					# add new sidebar or page to wiki sidebar
-					wiki_sidebar_item = frappe.new_doc("Wiki Sidebar Item")
-					wiki_sidebar_item_dict = {
-						"type": item["type"],
-						"item": sidebar_name,
-						"parent": sidebar,
-						"parenttype": "Wiki Sidebar",
-						"parentfield": "sidebar_items",
-					}
-					wiki_sidebar_item.update(wiki_sidebar_item_dict)
-					wiki_sidebar_item.save()
-					item["name"] = wiki_sidebar_item.name
+				for item in items:
+					idx += 1
+					frappe.db.set_value(
+						"Wiki Sidebar", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
+					)
 
 
 @frappe.whitelist()

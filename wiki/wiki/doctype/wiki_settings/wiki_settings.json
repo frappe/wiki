@@ -7,7 +7,7 @@
  "field_order": [
   "logo",
   "dark_mode_logo",
-  "sidebar",
+  "wiki_sidebar",
   "add_dark_mode",
   "add_search_bar",
   "javascript"
@@ -17,12 +17,6 @@
    "fieldname": "logo",
    "fieldtype": "Attach Image",
    "label": "Light Mode Logo"
-  },
-  {
-   "fieldname": "sidebar",
-   "fieldtype": "Link",
-   "label": "Wiki Sidebar",
-   "options": "Wiki Sidebar"
   },
   {
    "fieldname": "javascript",
@@ -46,12 +40,18 @@
    "fieldname": "add_dark_mode",
    "fieldtype": "Check",
    "label": "Add Dark Mode"
+  },
+  {
+   "fieldname": "wiki_sidebar",
+   "fieldtype": "Table",
+   "label": "Wiki Sidebar",
+   "options": "Wiki Sidebar"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-02-02 18:02:15.429235",
+ "modified": "2023-03-11 10:11:32.611033",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
