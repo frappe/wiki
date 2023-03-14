@@ -140,7 +140,7 @@ class WikiPage(WebsiteGenerator):
 		context.dark_mode_logo = wiki_settings.dark_mode_logo
 		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.script = wiki_settings.javascript
-		context.docs_search_scope = self.get_docs_search_scope()
+		context.docs_search_scope = "wiki"
 		context.metatags = {
 			"title": self.title,
 			"description": self.meta_description,
@@ -180,19 +180,8 @@ class WikiPage(WebsiteGenerator):
 			}
 		)
 
-	def get_docs_search_scope(self):
-		sidebar = frappe.get_all(
-			doctype="Wiki Sidebar Item",
-			fields=["name", "parent"],
-			filters=[["item", "=", self.name]],
-		)
-		topmost = ""
-		if sidebar:
-			topmost = frappe.get_doc("Wiki Sidebar", sidebar[0].parent).find_topmost(sidebar[0].parent)
-		return topmost
-
 	def get_items(self, sidebar_items):
-		topmost = "/wiki"
+		topmost = "wiki"
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:

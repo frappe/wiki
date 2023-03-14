@@ -37,8 +37,6 @@ class WikiPagePatch(Document):
 
 		if self.new:
 			self.create_new_wiki_page()
-		else:
-			self.update_old_page()
 
 		if self.sidebar_edited:
 			self.update_sidebars()
@@ -63,15 +61,6 @@ class WikiPagePatch(Document):
 
 		self.new_wiki_page.update(wiki_page_dict)
 		self.new_wiki_page.save()
-
-	def update_old_page(self):
-		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
-		updated_page = frappe.get_all(
-			"Wiki Sidebar Item", {"item": self.wiki_page, "type": "Wiki Page"}, pluck="name"
-		)
-		for page in updated_page:
-			frappe.db.set_value("Wiki Sidebar Item", page, "title", self.new_title)
-		return
 
 	def update_sidebars(self):
 		if not self.new_sidebar_items:
