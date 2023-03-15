@@ -157,8 +157,11 @@ class WikiPage(WebsiteGenerator):
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
 		context.page_toc_html = html.toc_html
-		context.has_edit_permission = frappe.has_permission(
+		context.has_wiki_page_edit_permission = frappe.has_permission(
 			doctype="Wiki Page", ptype="write", throw=False
+		)
+		context.has_sidebar_edit_permission = frappe.has_permission(
+			doctype="Wiki Sidebar", ptype="write", throw=False
 		)
 		context.show_sidebar = True
 		context.hide_login = True
@@ -188,9 +191,6 @@ class WikiPage(WebsiteGenerator):
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
 			context.docs_search_scope = topmost
-			context.has_edit_permission = frappe.has_permission(
-				doctype="Wiki Page", ptype="write", throw=False
-			)
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
 			)

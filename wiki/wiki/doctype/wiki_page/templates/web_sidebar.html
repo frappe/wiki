@@ -35,14 +35,7 @@
 				</li>
 			{%- endfor %}
 		</ul>
-		{%- if has_edit_permission -%}
-			<div class="sidebar-edit-mode-btn">
-				<svg class="icon sidebar-edit-mode-pencil">
-					<use href="#icon-edit"></use>
-				</svg>
-				<span class="text-muted small">Edit Sidebar</span>
-			</div>
-		{%- endif -%}
+		<div class="sidebar-edit-mode-btn"></div>
 	{%- endif -%}
 {% endmacro %}
 

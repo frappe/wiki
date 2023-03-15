@@ -130,6 +130,21 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
+    if (hasSidebarEditPerm == "True")
+      $(".sidebar-edit-mode-btn").append(
+        `<svg class="icon sidebar-edit-mode-pencil">
+            <use href="#icon-edit"></use>
+          </svg>
+          <span class="text-muted small">Edit Sidebar</span>`,
+      );
+
+    if (hasWikiPageEditPerm == "True")
+      $(".edit-wiki-btn").append(
+        `<svg class="icon">
+          <use href="#icon-edit"></use>
+        </svg>`,
+      );
+
     $(".sidebar-item, .sidebar-group").addClass("disabled");
 
     $(".web-sidebar ul").each(setSortable);
