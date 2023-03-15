@@ -1,5 +1,7 @@
+let sortables = [];
+
 function setSortable() {
-  new Sortable(this, {
+  const sortable = new Sortable(this, {
     group: {
       name: "qux",
       put: ["qux"],
@@ -21,6 +23,11 @@ function setSortable() {
         return false;
     },
   });
+
+  // save sidebar order to revert when clicking on discard
+  const order = sortable.toArray();
+  localStorage.setItem(sortable.options.group.name, order.join("|"));
+  sortables.push(sortable);
 }
 
 window.RenderWiki = class RenderWiki extends Wiki {
@@ -150,6 +157,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     $(".discard-sidebar").on("click", function () {
       // sidebar view mode
+      sortables.forEach((sortable) => {
+        const order = localStorage
+          .getItem(sortable.options.group.name)
+          .split("|");
+        sortable.sort(order);
+      });
+
       toggleSidebarEditMode();
     });
 
