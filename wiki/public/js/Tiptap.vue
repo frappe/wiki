@@ -282,18 +282,12 @@ export default {
         method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
         args: {
           name: $('[name="wiki-page-name"]').val(),
-          // wiki_page_patch: $('[name="wiki_page_patch"]').val(),
           message: `Edited ${title}`,
-
           // markdown=1 tag is needed for older wiki content to properly render
           content: `<div markdown="1">${$(".ProseMirror").html().replace(/<h1>.*?<\/h1>/, '')}</div>`,
           // attachments: me.attachments,
           // new: $('[name="new"]').val(),
           title,
-          // new_sidebar: $(".doc-sidebar").get(0).innerHTML,
-          new_sidebar_items: getSidebarItems(),
-
-          sidebar_edited: isSidebarChanged,
           // draft: draft ? draft : null,
         },
         callback: (r) => {
