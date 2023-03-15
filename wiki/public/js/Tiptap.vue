@@ -232,7 +232,7 @@ export default {
           lowlight,
         }),
       ],
-      content: $(".from-markdown").html(),
+      content: $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
     });
   },
 
