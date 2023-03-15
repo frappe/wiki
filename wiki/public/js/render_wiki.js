@@ -1,7 +1,5 @@
-let sortables = [];
-
 function setSortable() {
-  const sortable = new Sortable(this, {
+  new Sortable(this, {
     group: {
       name: "qux",
       put: ["qux"],
@@ -23,11 +21,6 @@ function setSortable() {
         return false;
     },
   });
-
-  // save sidebar order to revert when clicking on discard
-  const order = sortable.toArray();
-  localStorage.setItem(sortable.options.group.name, order.join("|"));
-  sortables.push(sortable);
 }
 
 window.RenderWiki = class RenderWiki extends Wiki {
@@ -165,20 +158,18 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".wiki-title").toggleClass("hide");
     }
 
+    let sidebarHTML;
     $(".sidebar-edit-mode-btn").on("click", function () {
       // sidebar edit mode
       toggleSidebarEditMode();
+      sidebarHTML = $(".doc-sidebar .sidebar-items > .list-unstyled").html();
     });
 
     $(".discard-sidebar").on("click", function () {
-      // sidebar view mode
-      sortables.forEach((sortable) => {
-        const order = localStorage
-          .getItem(sortable.options.group.name)
-          .split("|");
-        sortable.sort(order);
-      });
-
+      // revert sidebar order when clicking on discard
+      $(".doc-sidebar .sidebar-items > .list-unstyled > *").remove();
+      $(".doc-sidebar .sidebar-items > .list-unstyled").append(sidebarHTML);
+      $(".web-sidebar ul").each(setSortable);
       toggleSidebarEditMode();
     });
 

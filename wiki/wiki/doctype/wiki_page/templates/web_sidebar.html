@@ -2,7 +2,6 @@
 <li class="sidebar-item"
 		data-type="{{item.type}}" 
 		data-name="{{item.name}}" 
-		data-id="{{item.name}}"
 		data-title="{{item.title or item.name}}"
 		data-group-name="{{item.group_name or 'sidebar-item'}}"
 		data-route="{{ item.route }}"
@@ -21,7 +20,6 @@
 			{% for sidebar_group in sidebar_items -%}
 				<li class="sidebar-group"
 					data-type="Wiki Sidebar"
-					data-id="{{sidebar_group}}"
 					data-title="{{sidebar_group}}"
 				>
 					<div class="collapsible">
