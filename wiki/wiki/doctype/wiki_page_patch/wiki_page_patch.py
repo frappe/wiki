@@ -72,6 +72,7 @@ class WikiPagePatch(Document):
 			self.new_sidebar_items = "{}"
 
 		sidebars = json.loads(self.new_sidebar_items)
+		no_of_wiki_pages = sum(len(value) for value in sidebars.values())
 
 		if self.new:
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
@@ -81,7 +82,7 @@ class WikiPagePatch(Document):
 				"parent": "Wiki Settings",
 				"parenttype": "Wiki Settings",
 				"parentfield": "wiki_sidebar",
-				"idx": len(frappe.get_single("Wiki Settings").wiki_sidebar) + 1,
+				"idx": no_of_wiki_pages + 1,
 			}
 			wiki_sidebar.update(wiki_sidebar_dict)
 			wiki_sidebar.save()
