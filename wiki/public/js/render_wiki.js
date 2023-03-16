@@ -23,6 +23,8 @@ function setSortable() {
   });
 }
 
+let sidebarHTML;
+
 window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
@@ -159,7 +161,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".wiki-title").toggleClass("hide");
     }
 
-    let sidebarHTML;
     $(".sidebar-edit-mode-btn").on("click", function () {
       // sidebar edit mode
       toggleSidebarEditMode();
@@ -250,6 +251,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
               callback: (r) => {
                 if (r.message) {
                   sidebar_item.remove();
+                  sidebarHTML = $(
+                    ".doc-sidebar .sidebar-items > .list-unstyled",
+                  ).html();
+
                   frappe.show_alert({
                     message: `Wiki Page <b>${title}</b> deleted`,
                     indicator: "green",
