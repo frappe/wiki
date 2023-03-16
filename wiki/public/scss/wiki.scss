@@ -221,7 +221,23 @@ textarea.wiki-content {
 			width: 100%;
 		}
 	}
+	
+	.drop-icon {
+		display: inline-flex;
+		margin: 4px 5px 2.5px auto;
+		transition: transform 0.2s ease-in-out;
+		transform: rotate(0deg);
+
+		&.rotate {
+			transform: rotate(-90deg);
+		}
+
+		&:hover {
+			color: var(--sidebar-text-hover-color);
+		}
+	}
 }
+
 
 // hover bg only on edit mode
 .sidebar-group:not(.disabled) .collapsible,

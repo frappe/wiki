@@ -324,6 +324,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
 				<div class="collapsible">
 					<span class="h6">${title}</span>
+          <span class='drop-icon'>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+          </span>
 					</div>
 					<ul class="list-unstyled" style="min-height:20px;"> </ul>
 			</li>
