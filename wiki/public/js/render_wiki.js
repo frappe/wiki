@@ -250,11 +250,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
               callback: (r) => {
                 if (r.message) {
                   sidebar_item.remove();
-                  frappe.msgprint({
+                  frappe.show_alert({
                     message: `Wiki Page <b>${title}</b> deleted`,
                     indicator: "green",
-                    title: "Wiki Page Deleted",
-                    alert: 1,
                   });
                   dialog.hide();
                 }
