@@ -229,38 +229,40 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (!e) var e = window.event;
       if (e.stopPropagation) e.stopPropagation();
 
-      const type = $(this).parents("li").data("type");
-      const route = $(this).parents("li").data("route");
-      const title = $(this).parents("li").data("title");
-      const currentPath = window.location.href.split("?")[0];
+      const sidebar_item = $($(this).parents("li")[0]);
+      const route = sidebar_item.data("route");
+      const title = sidebar_item.data("title");
 
-      if (type === "Wiki Page")
-        frappe.msgprint({
-          title: __("Delete Wiki Page"),
-          indicator: "red",
-          message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
-          ),
-          primary_action: {
-            label: "Yes",
-            action() {
-              frappe.call({
-                method:
-                  "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-                args: {
-                  wiki_page_route: route,
-                },
-                callback: (r) => {
-                  if (r.message) {
-                    if (currentPath.includes(route))
-                      window.location.assign(`/`);
-                    else window.location.assign(`${currentPath}?editWiki=1`);
-                  }
-                },
-              });
-            },
+      const dialog = frappe.msgprint({
+        title: __("Delete Wiki Page"),
+        indicator: "red",
+        message: __(
+          `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
+        ),
+        primary_action: {
+          label: "Yes",
+          action() {
+            frappe.call({
+              method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+              args: {
+                wiki_page_route: route,
+              },
+              callback: (r) => {
+                if (r.message) {
+                  sidebar_item.remove();
+                  frappe.msgprint({
+                    message: `Wiki Page <b>${title}</b> deleted`,
+                    indicator: "green",
+                    title: "Wiki Page Deleted",
+                    alert: 1,
+                  });
+                  dialog.hide();
+                }
+              },
+            });
           },
-        });
+        },
+      });
     });
   }
 
