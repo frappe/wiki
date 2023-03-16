@@ -149,12 +149,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".sidebar-edit-mode-btn").toggleClass("hide");
     }
 
-    function toggleEditor() {
+    function toggleEditor(newEditor = false) {
       $(".wiki-content").toggleClass("hide");
       $(".edit-wiki-btn").toggleClass("hide");
       $(".wiki-edit-control-btn").toggleClass("hide");
       $(".page-toc").toggleClass("hide");
-      $(".wiki-editor").toggleClass("hide");
+      if (newEditor) $(".new-wiki-editor").toggleClass("hide");
+      else $(".wiki-editor").toggleClass("hide");
       $(".wiki-title").toggleClass("hide");
     }
 
@@ -201,7 +202,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     $(".discard-edit-btn").on("click", function () {
       // switch to view mode
-      toggleEditor();
+      toggleEditor($(this).data("new"));
+    });
+
+    $(".add-sidebar-page").on("click", function () {
+      toggleEditor(true);
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -292,28 +297,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $("#addGroupModal #title").val("");
         this.add_wiki_sidebar(title);
       }
-    });
-
-    $(".add-sidebar-page").on("click", function () {
-      const sidebarItems = getSidebarItems();
-      const title = "New Wiki Page";
-
-      frappe.call({
-        method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
-        args: {
-          name: $(".wiki-content + input").val(),
-          message: `Created ${title}`,
-          content: `<p>Wiki Content</p>`,
-          new: "1",
-          title,
-          new_sidebar_items: sidebarItems,
-          sidebar_edited: true,
-        },
-        callback: (r) => {
-          window.location.href = `/${r.message.route}?editWiki=1`;
-        },
-        freeze: true,
-      });
     });
   }
 

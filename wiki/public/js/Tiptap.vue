@@ -165,7 +165,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
       </div>
     </div>
     <div class="wiki-edit-control-btn hide">
-      <div class="btn btn-primary-light discard-edit-btn btn-sm">Discard</div>
+      <div class="btn btn-primary-light discard-edit-btn btn-sm" :data-new="isEmptyEditor">Discard</div>
       <div class="btn btn-primary save-wiki-page-btn btn-sm" @click="saveWikiPage">Save</div>
     </div>
   </div>
@@ -193,6 +193,13 @@ const CustomDocument = Document.extend({
 export default {
   components: {
     EditorContent,
+  },
+
+  props: {
+    isEmptyEditor: {
+      type: Boolean,
+      default: false
+    },
   },
 
   data() {
@@ -232,7 +239,7 @@ export default {
           lowlight,
         }),
       ],
-      content: $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
+      content: this.isEmptyEditor ? "" : $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
     });
   },
 
@@ -276,17 +283,20 @@ export default {
       input.click();
     },
     saveWikiPage() {
-      const title = $(".ProseMirror h1").html();
+      const title = $(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror h1`).html();
+      const content = `<div markdown="1">${$(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror`).html().replace(/<h1>.*?<\/h1>/, '')}</div>`;
 
       frappe.call({
         method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
         args: {
           name: $('[name="wiki-page-name"]').val(),
-          message: `Edited ${title}`,
+          message: `${this.isEmptyEditor ? 'Created' : 'Edited'} ${title}`,
           // markdown=1 tag is needed for older wiki content to properly render
-          content: `<div markdown="1">${$(".ProseMirror").html().replace(/<h1>.*?<\/h1>/, '')}</div>`,
+          content,
           // attachments: me.attachments,
-          // new: $('[name="new"]').val(),
+          new: this.isEmptyEditor,
+          sidebar_edited: this.isEmptyEditor,
+          new_sidebar_items: this.isEmptyEditor ? getSidebarItems() : '',
           title,
           // draft: draft ? draft : null,
         },
