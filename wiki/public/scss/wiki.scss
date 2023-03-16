@@ -304,6 +304,7 @@ textarea.wiki-content {
 	margin-bottom: 0;
 
 	.web-sidebar {
+		display: grid;
 		margin-bottom: 8px;
 		margin-right: -0.5rem;
 		padding-top: 4.5rem;
@@ -313,7 +314,6 @@ textarea.wiki-content {
 
 		.sidebar-items {
 			width: 18rem;
-			height:100%;
 
 			.list-unstyled {
 				max-width: 16rem;
@@ -747,6 +747,7 @@ navbar
 	display: grid;
 	justify-content: center;
 	border-top: 1px solid var(--border-color);
+	align-self: end;
 }
 
 .web-footer {
