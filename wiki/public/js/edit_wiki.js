@@ -109,7 +109,7 @@ window.EditWiki = class EditWiki extends Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
       const active_class = "active";
-      let page_href = window.location.pathname;
+      let page_href = decodeURIComponent(window.location.pathname);
       if (page_href.indexOf("#") !== -1) {
         page_href = page_href.slice(0, page_href.indexOf("#"));
       }

@@ -45,7 +45,7 @@
 					frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
 					args: {
-						wiki_page_route: new URL(window.location.href).pathname
+						wiki_page_route: decodeURIComponent(new URL(window.location.href).pathname)
 					},
 					callback: (r) => {
 						if (r.message)
