@@ -168,7 +168,6 @@ class WikiPage(WebsiteGenerator):
 		context = context.update(
 			{
 				"navbar_items": modify_header_footer_items(wiki_settings.navbar),
-				"footer_items": modify_header_footer_items(wiki_settings.footer_items),
 				"post_login": [
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
@@ -183,8 +182,6 @@ class WikiPage(WebsiteGenerator):
 				],
 			}
 		)
-		context.footer_powered = wiki_settings.footer_powered
-		context.copyright = wiki_settings.copyright
 
 	def get_items(self, sidebar_items):
 		topmost = "wiki"

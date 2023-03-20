@@ -61,16 +61,6 @@
 		{{ content }}
 	{% endblock %}
 
-	{%- block footer -%}
-		{{ web_block(
-			footer_template or 'Standard Footer',
-			values=_context_dict,
-			add_container=0,
-			add_top_padding=0,
-			add_bottom_padding=0
-		) }}
-	{%- endblock -%} 
-
 	{% block base_scripts %}
 	<!-- js should be loaded in body! -->
 	<script>

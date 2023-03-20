@@ -15,14 +15,7 @@
   "navbar_tab",
   "navbar_column",
   "navbar",
-  "add_search_bar",
-  "footer_tab",
-  "footer_items_column",
-  "footer_items",
-  "footer_details_section",
-  "copyright",
-  "column_break_xjzl",
-  "footer_powered"
+  "add_search_bar"
  ],
  "fields": [
   {
@@ -76,22 +69,6 @@
    "options": "Top Bar Item"
   },
   {
-   "fieldname": "footer_tab",
-   "fieldtype": "Tab Break",
-   "label": "Footer"
-  },
-  {
-   "fieldname": "footer_items_column",
-   "fieldtype": "Column Break",
-   "label": "Footer Items"
-  },
-  {
-   "fieldname": "footer_items",
-   "fieldtype": "Table",
-   "label": "Footer Items",
-   "options": "Top Bar Item"
-  },
-  {
    "fieldname": "section_break_mmtu",
    "fieldtype": "Section Break"
   },
@@ -99,31 +76,12 @@
    "fieldname": "general_tab",
    "fieldtype": "Tab Break",
    "label": "General"
-  },
-  {
-   "fieldname": "copyright",
-   "fieldtype": "Data",
-   "label": "Copyright"
-  },
-  {
-   "fieldname": "footer_details_section",
-   "fieldtype": "Section Break",
-   "label": "Footer Details"
-  },
-  {
-   "fieldname": "column_break_xjzl",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "footer_powered",
-   "fieldtype": "Data",
-   "label": "Footer \"Powered By\""
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-03-20 10:39:11.425735",
+ "modified": "2023-03-20 14:33:25.954525",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
