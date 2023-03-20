@@ -175,21 +175,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
 
     $(".save-sidebar").on("click", function () {
-      // TODO: separate page update with sidebar update
       frappe.call({
-        method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
+        method: "wiki.wiki.doctype.wiki_settings.wiki_settings.update_sidebar",
         args: {
-          name: $(".wiki-content + input").val(),
-          message: `Edited Sidebar`,
-          content: `<div markdown="1">${$(".ProseMirror")
-            .html()
-            .replace(/<h1>.*?<\/h1>/, "")}</div>`,
-          title: $(".wiki-title").text(),
-          new_sidebar_items: getSidebarItems(),
-          sidebar_edited: true,
+          sidebar_items: getSidebarItems(),
         },
         callback: (r) => {
-          window.location.href = `/${r.message.route}`;
+          window.location.reload();
         },
         freeze: true,
       });

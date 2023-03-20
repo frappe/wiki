@@ -68,13 +68,13 @@ class WikiPagePatch(Document):
 		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
 
 	def update_sidebars(self):
-		if not self.new_sidebar_items:
-			self.new_sidebar_items = "{}"
-
-		sidebars = json.loads(self.new_sidebar_items)
-		no_of_wiki_pages = sum(len(value) for value in sidebars.values())
-
 		if self.new:
+			if not self.new_sidebar_items:
+				self.new_sidebar_items = "{}"
+
+			sidebars = json.loads(self.new_sidebar_items)
+			no_of_wiki_pages = sum(len(value) for value in sidebars.values())
+
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 			wiki_sidebar_dict = {
 				"wiki_page": self.new_wiki_page.name,
@@ -86,16 +86,6 @@ class WikiPagePatch(Document):
 			}
 			wiki_sidebar.update(wiki_sidebar_dict)
 			wiki_sidebar.save()
-
-		sidebar_items = sidebars.items()
-		if sidebar_items:
-			idx = 0
-			for sidebar, items in sidebar_items:
-				for item in items:
-					idx += 1
-					frappe.db.set_value(
-						"Wiki Sidebar", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
-					)
 
 
 @frappe.whitelist()
