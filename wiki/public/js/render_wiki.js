@@ -143,6 +143,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".add-sidebar-items").toggleClass("hide");
       $(".sidebar-item, .sidebar-group").toggleClass("disabled");
       $(".sidebar-edit-mode-btn").toggleClass("hide");
+      $(".edit-wiki-btn").toggleClass("hide");
     }
 
     function toggleEditor(newEditor = false) {
@@ -153,6 +154,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (newEditor) $(".new-wiki-editor").toggleClass("hide");
       else $(".wiki-editor").toggleClass("hide");
       $(".wiki-title").toggleClass("hide");
+      if (!newEditor) $(".sidebar-edit-mode-btn").toggleClass("hide");
     }
 
     $(".sidebar-edit-mode-btn").on("click", function () {
