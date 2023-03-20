@@ -733,6 +733,7 @@ navbar
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
 	margin: auto;
+	font-weight: 500;
 }
 
 .sidebar-edit-mode-btn {
@@ -748,9 +749,11 @@ navbar
 	bottom: 0;
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
-	display: grid;
-	justify-content: center;
 	border-top: 1px solid var(--border-color);
+
+	> * {
+		margin-left: 1.5rem;
+	}
 }
 
 .web-footer {
