@@ -21,13 +21,13 @@ window.Wiki = class Wiki {
     }
 
     // avoid active sidebar item to be hidden under logo
-    let web_sidebar = $(".web-sidebar");
-    if (web_sidebar.length > 0) {
-      web_sidebar.get(1).scrollBy({
-        top: -100,
-        behavior: "smooth",
-      });
-    }
+    // let web_sidebar = $(".web-sidebar");
+    // if (web_sidebar.length > 0) {
+    //   web_sidebar.get(1).scrollBy({
+    //     top: -100,
+    //     behavior: "smooth",
+    //   });
+    // }
   }
 
   toggle_sidebar(event) {

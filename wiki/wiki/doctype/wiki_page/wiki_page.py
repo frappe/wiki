@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 import frappe
 from frappe import _
 from frappe.core.doctype.file.file import get_random_filename
+from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
 
@@ -136,8 +137,6 @@ class WikiPage(WebsiteGenerator):
 		self.set_breadcrumbs(context)
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.navbar_search = wiki_settings.add_search_bar
-		context.light_mode_logo = wiki_settings.logo
-		context.dark_mode_logo = wiki_settings.dark_mode_logo
 		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.script = wiki_settings.javascript
 		context.docs_search_scope = "wiki"
@@ -167,6 +166,8 @@ class WikiPage(WebsiteGenerator):
 		context.name = self.name
 		context = context.update(
 			{
+				"navbar_items": modify_header_footer_items(wiki_settings.navbar),
+				"footer_items": modify_header_footer_items(wiki_settings.footer_items),
 				"post_login": [
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
@@ -178,9 +179,11 @@ class WikiPage(WebsiteGenerator):
 						"label": _("My Drafts ") + get_open_drafts(),
 						"url": "/drafts",
 					},
-				]
+				],
 			}
 		)
+		context.footer_powered = wiki_settings.footer_powered
+		context.copyright = wiki_settings.copyright
 
 	def get_items(self, sidebar_items):
 		topmost = "wiki"
@@ -190,6 +193,9 @@ class WikiPage(WebsiteGenerator):
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
 			context.docs_search_scope = topmost
+			wiki_settings = frappe.get_single("Wiki Settings")
+			context.light_mode_logo = wiki_settings.logo
+			context.dark_mode_logo = wiki_settings.dark_mode_logo
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
 			)

@@ -51,6 +51,19 @@
 {% endmacro %}
 
 <div class="web-sidebar" data-name="{{docs_search_scope}}">
+	<div class="navbar-brand-container">
+		<a class="navbar-brand" href="{{ url_prefix }}{{ home_page or "/" }}">
+			{%- if light_mode_logo -%}
+				<img data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
+			{%- elif dark_mode_logo -%}
+				<img data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
+			{%- elif brand_html -%}
+				{{ brand_html }}
+			{%- else -%}
+				<span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
+			{%- endif -%}
+		</a>
+	</div>
 	{% if sidebar_title %}
 	<li class="title">
 		{{ sidebar_title }}

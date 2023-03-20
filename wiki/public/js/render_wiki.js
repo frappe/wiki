@@ -90,35 +90,29 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
   set_nav_buttons() {
     var current_index = -1;
+    const sidebar_items = $(".sidebar-column").find("a").not(".navbar-brand");
 
-    $(".sidebar-column")
-      .find("a")
-      .each(function (index) {
-        if ($(this).attr("class")) {
-          let dish = $(this).attr("class").split(/\s+/)[0];
-          if (dish === "active") {
-            current_index = index;
-          }
+    sidebar_items.each(function (index) {
+      if ($(this).attr("class")) {
+        let dish = $(this).attr("class").split(/\s+/)[0];
+        if (dish === "active") {
+          current_index = index;
         }
-      });
+      }
+    });
 
     if (current_index > 0) {
-      $(".btn.left")[0].href =
-        $(".sidebar-column").find("a")[current_index - 1].href;
+      $(".btn.left")[0].href = sidebar_items[current_index - 1].href;
       $(".btn.left")[0].innerHTML =
-        "←" + $(".sidebar-column").find("a")[current_index - 1].innerHTML;
+        "←" + sidebar_items[current_index - 1].innerHTML;
     } else {
       $(".btn.left").hide();
     }
 
-    if (
-      current_index >= 0 &&
-      current_index < $(".sidebar-column").find("a").length - 1
-    ) {
-      $(".btn.right")[0].href =
-        $(".sidebar-column").find("a")[current_index + 1].href;
+    if (current_index >= 0 && current_index < sidebar_items.length - 1) {
+      $(".btn.right")[0].href = sidebar_items[current_index + 1].href;
       $(".btn.right")[0].innerHTML =
-        $(".sidebar-column").find("a")[current_index + 1].innerHTML + "→";
+        sidebar_items[current_index + 1].innerHTML + "→";
     } else {
       $(".btn.right").hide();
     }

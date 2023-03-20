@@ -5,12 +5,24 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "general_tab",
   "logo",
-  "dark_mode_logo",
-  "wiki_sidebar",
   "add_dark_mode",
+  "dark_mode_logo",
+  "section_break_mmtu",
+  "wiki_sidebar",
+  "javascript",
+  "navbar_tab",
+  "navbar_column",
+  "navbar",
   "add_search_bar",
-  "javascript"
+  "footer_tab",
+  "footer_items_column",
+  "footer_items",
+  "footer_details_section",
+  "copyright",
+  "column_break_xjzl",
+  "footer_powered"
  ],
  "fields": [
   {
@@ -46,12 +58,72 @@
    "fieldtype": "Table",
    "label": "Wiki Sidebar",
    "options": "Wiki Sidebar"
+  },
+  {
+   "fieldname": "navbar_tab",
+   "fieldtype": "Tab Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar_column",
+   "fieldtype": "Column Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar",
+   "fieldtype": "Table",
+   "label": "Navbar Items",
+   "options": "Top Bar Item"
+  },
+  {
+   "fieldname": "footer_tab",
+   "fieldtype": "Tab Break",
+   "label": "Footer"
+  },
+  {
+   "fieldname": "footer_items_column",
+   "fieldtype": "Column Break",
+   "label": "Footer Items"
+  },
+  {
+   "fieldname": "footer_items",
+   "fieldtype": "Table",
+   "label": "Footer Items",
+   "options": "Top Bar Item"
+  },
+  {
+   "fieldname": "section_break_mmtu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "general_tab",
+   "fieldtype": "Tab Break",
+   "label": "General"
+  },
+  {
+   "fieldname": "copyright",
+   "fieldtype": "Data",
+   "label": "Copyright"
+  },
+  {
+   "fieldname": "footer_details_section",
+   "fieldtype": "Section Break",
+   "label": "Footer Details"
+  },
+  {
+   "fieldname": "column_break_xjzl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "footer_powered",
+   "fieldtype": "Data",
+   "label": "Footer \"Powered By\""
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-03-11 10:11:32.611033",
+ "modified": "2023-03-20 10:39:11.425735",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

@@ -304,16 +304,18 @@ textarea.wiki-content {
 	margin-bottom: 0;
 
 	.web-sidebar {
-		display: grid;
+		display: flex;
+		flex-direction: column;
 		margin-bottom: 8px;
 		margin-right: -0.5rem;
-		padding-top: 4.5rem;
+		padding-top: 0;
 		padding-bottom: 0;
 		overflow-x: hidden;
 		margin-left: 2rem;
 
 		.sidebar-items {
 			width: 18rem;
+			margin-bottom: auto;
 
 			.list-unstyled {
 				max-width: 16rem;
@@ -392,7 +394,7 @@ textarea.wiki-content {
 	}
 }
 .navbar {
-	width: 100%;
+	width: 80%;
 	position: fixed;
 	top: 0;
 	z-index: 1020;
@@ -453,8 +455,10 @@ textarea.wiki-content {
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
-	margin-left: 2rem;
 	padding-left: 0.5rem;
+	position: sticky;
+	top: 0;
+	z-index: 5;
 
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
@@ -471,7 +475,7 @@ textarea.wiki-content {
 	padding-bottom: 2rem;
 
 	.page-content-wrapper {
-		margin-top: 3.5rem;
+		margin: 3.5rem 2rem 5rem;
 		padding-top: 2rem;
 		padding-bottom: 0;
 	}
@@ -747,7 +751,6 @@ navbar
 	display: grid;
 	justify-content: center;
 	border-top: 1px solid var(--border-color);
-	align-self: end;
 }
 
 .web-footer {

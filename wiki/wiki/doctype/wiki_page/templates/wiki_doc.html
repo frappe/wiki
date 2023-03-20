@@ -1,59 +1,10 @@
-{% extends "templates/base.html" %}
-{%- from "templates/includes/navbar/navbar_items.html" import render_item -%}
+{% extends "wiki/doctype/wiki_page/templates/base.html" %}
 
 {%- block head_include %}
 <link rel="stylesheet" href="/assets/frappe/css/hljs-night-owl.css">
 {% endblock -%}
 
-{%- block navbar -%}
-<nav class="navbar navbar-light navbar-expand-lg doc-navbar fixed-top">
-	<div class="container-fluid doc-container">
-		<div class="row no-gutters w-100">
-			<div class="col-12 col-lg-2">
-				<a class="navbar-brand" href="{{ url_prefix }}{{ home_page or "/" }}">
-					{%- if light_mode_logo -%}
-						<img data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
-					{%- elif dark_mode_logo -%}
-						<img data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
-					{%- elif brand_html -%}
-						{{ brand_html }}
-					{%- else -%}
-					<span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
-					{%- endif -%}
-				</a>
-			</div>
-			<div class="col-12 col-lg-8">
-				<div class="doc-search-container">
-					<div class="website-search doc-search" id="search-container">
-					</div>
-					<button class="navbar-toggler" type="button"
-						data-toggle="collapse"
-						data-target="#navbarSupportedContent"
-						aria-controls="navbarSupportedContent"
-						aria-expanded="false"
-						aria-label="Toggle navigation">
-						<span class="navbar-toggler-icon"></span>
-					</button>
-				</div>
-			</div>
-			<div class="col-12 col-lg-2">
-				<div class="collapse navbar-collapse" id="navbarSupportedContent">
-					<ul class="navbar-nav">
-						{%- set items = docs_navbar_items or [] -%}
-						{%- for item in items -%}
-						{{ render_item(item, parent=True) }}
-						{%- endfor -%}
-					</ul>
-					{% include "templates/includes/web_sidebar.html" %}
-				</div>
-			</div>
-		</div>
-	</div>
-</nav>
-{%- endblock -%}
-
 {% block content %}
-
 
 {% macro container_attributes() -%}
 id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
@@ -75,6 +26,9 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 		{%- endif -%}
 
 		<div class="main-column doc-main">
+			{%- block wiki_navbar -%}
+				{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+			{%- endblock -%}
 			<div class="page-content-wrapper">
 				{% block page_container %}
 				<main>
@@ -87,6 +41,15 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 				</main>
 				{% endblock %}
 			</div>
+			<!-- {%- block footer -%}
+				{{ web_block(
+					footer_template or 'Standard Footer',
+					values=_context_dict,
+					add_container=0,
+					add_top_padding=0,
+					add_bottom_padding=0
+				) }}
+			{%- endblock -%} -->
 		</div>
 		{%- if page_toc_html -%}
 		<div class="page-toc d-none d-xl-block">
