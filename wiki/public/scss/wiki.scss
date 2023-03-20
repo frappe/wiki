@@ -418,7 +418,7 @@ textarea.wiki-content {
 
 	.sun-moon-container {
 		cursor: pointer;
-		margin: auto 0 auto 1rem;
+		margin: 0.25rem 0 auto 1rem;
 
 		@include media-breakpoint-down(md) {
 			margin-bottom: 1rem;

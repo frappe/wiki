@@ -2,7 +2,7 @@ window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
       const active_class = "active";
-      let page_href = window.location.pathname.slice(1);
+      let page_href = decodeURIComponent(window.location.pathname.slice(1));
       if (page_href.indexOf("#") !== -1) {
         page_href = page_href.slice(0, page_href.indexOf("#"));
       }
@@ -57,8 +57,9 @@ window.Wiki = class Wiki {
       const altSrc = $(".navbar-brand img").data("alt-src");
       const src = $(".navbar-brand img").attr("src");
       if (
-        altSrc !== "{{ light_mode_logo }}" &&
-        altSrc !== "{{ dark_mode_logo }}"
+        !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None"].includes(
+          altSrc,
+        )
       ) {
         $(".navbar-brand img").attr("src", altSrc);
         $(".navbar-brand img").data("alt-src", src);
