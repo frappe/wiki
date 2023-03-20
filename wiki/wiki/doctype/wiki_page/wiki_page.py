@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 import frappe
 from frappe import _
 from frappe.core.doctype.file.file import get_random_filename
+from frappe.utils.data import sbool
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
@@ -362,8 +363,7 @@ def update(
 	context = frappe._dict(context)
 	content = extract_images_from_html(content)
 
-	if new:
-		new = True
+	new = sbool(new)
 
 	status = "Draft" if draft else "Under Review"
 	if wiki_page_patch:
@@ -375,7 +375,7 @@ def update(
 		patch.new = new
 		patch.new_sidebar = new_sidebar
 		patch.new_sidebar_items = new_sidebar_items
-		patch.sidebar_edited = sidebar_edited
+		patch.sidebar_edited = sbool(sidebar_edited)
 		patch.save()
 
 	else:
@@ -389,7 +389,7 @@ def update(
 			"message": message,
 			"new": new,
 			"new_title": title,
-			"sidebar_edited": sidebar_edited,
+			"sidebar_edited": sbool(sidebar_edited),
 			"new_sidebar_items": new_sidebar_items,
 		}
 
