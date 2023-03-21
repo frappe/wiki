@@ -222,7 +222,8 @@ textarea.wiki-content {
 		}
 	}
 	
-	.drop-icon {
+	.drop-icon,
+	.add-sidebar-page {
 		display: inline-flex;
 		margin: 4px 5px 2.5px auto;
 		transition: transform 0.2s ease-in-out;
@@ -531,8 +532,8 @@ h6:hover .feather-link {
 	visibility: visible;	
 }
 
-.btn.btn-secondary, .btn.btn-secondary:hover {
-	color: var(--background-color);
+.btn.btn-secondary:hover {
+	background-color: var(--gray-300);
 }
 
 .edit-wiki-btn {
@@ -729,7 +730,7 @@ navbar
 .my-contributions,
 .new-wiki-page,
 .sidebar-edit-mode-btn,
-.add-sidebar-items > * {
+.add-sidebar-group {
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
 	margin: auto;
@@ -750,6 +751,7 @@ navbar
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	border-top: 1px solid var(--border-color);
+	padding: 1rem;
 
 	> * {
 		margin-left: 1.5rem;

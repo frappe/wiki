@@ -143,6 +143,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".add-sidebar-items").toggleClass("hide");
       $(".sidebar-item, .sidebar-group").toggleClass("disabled");
       $(".sidebar-edit-mode-btn").toggleClass("hide");
+      $(".drop-icon").toggleClass("hide");
+      $(".add-sidebar-page").toggleClass("hide");
+      $(".add-sidebar-group").toggleClass("hide");
       if (!$(".new-wiki-editor, .wiki-editor").is(":visible"))
         $(".edit-wiki-btn").toggleClass("hide");
     }
@@ -195,11 +198,33 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".discard-edit-btn").on("click", function () {
       // switch to view mode
       toggleEditor($(this).data("new"));
+      if ($(this).data("new") === true)
+        $('.sidebar-item[data-name="new-wiki-page"]').remove();
     });
 
-    $(".add-sidebar-page").on("click", function () {
-      toggleEditor(true);
-    });
+    $(".sidebar-items > .list-unstyled").on(
+      "click",
+      ".add-sidebar-page",
+      function (e) {
+        if (!$(".sidebar-item[data-name=new-wiki-page]").length) {
+          $(`
+					<li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-group-name=${$(
+            this,
+          )
+            .parent()
+            .children("span:first-child")
+            .text()}>
+						<div>
+							<a href="#">New Wiki Page</a>
+						</div>
+					</li>
+				`).appendTo($(this).parent().parent().children(".list-unstyled"));
+          $(this).parent().parent().each(setSortable);
+        } else $(".sidebar-item[data-name=new-wiki-page]").remove();
+        toggleEditor(true);
+        e.stopPropagation();
+      },
+    );
 
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("editWiki") && $(".edit-wiki-btn").length)
@@ -217,68 +242,58 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(trashIcon).insertAfter($(this));
     });
 
-    $(".remove-sidebar-item").on("click", function () {
-      if (!e) var e = window.event;
-      if (e.stopPropagation) e.stopPropagation();
+    $(".sidebar-items > .list-unstyled").on(
+      "click",
+      ".remove-sidebar-item",
+      function (e) {
+        e.stopPropagation();
 
-      const sidebar_item = $($(this).parents("li")[0]);
-      const route = sidebar_item.data("route");
-      const title = sidebar_item.data("title");
+        const sidebar_item = $($(this).parents("li")[0]);
+        const route = sidebar_item.data("route");
+        const title = sidebar_item.data("title");
 
-      const dialog = frappe.msgprint({
-        title: __("Delete Wiki Page"),
-        indicator: "red",
-        message: __(
-          `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
-        ),
-        primary_action: {
-          label: "Yes",
-          action() {
-            frappe.call({
-              method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-              args: {
-                wiki_page_route: route,
-              },
-              callback: (r) => {
-                if (r.message) {
-                  sidebar_item.remove();
-                  sidebarHTML = $(
-                    ".doc-sidebar .sidebar-items > .list-unstyled",
-                  ).html();
+        const dialog = frappe.msgprint({
+          title: __("Delete Wiki Page"),
+          indicator: "red",
+          message: __(
+            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
+          ),
+          primary_action: {
+            label: "Yes",
+            action() {
+              frappe.call({
+                method:
+                  "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
+                args: {
+                  wiki_page_route: route,
+                },
+                callback: (r) => {
+                  if (r.message) {
+                    sidebar_item.remove();
+                    sidebarHTML = $(
+                      ".doc-sidebar .sidebar-items > .list-unstyled",
+                    ).html();
 
-                  frappe.show_alert({
-                    message: `Wiki Page <b>${title}</b> deleted`,
-                    indicator: "green",
-                  });
-                  dialog.hide();
-                }
-              },
-            });
+                    frappe.show_alert({
+                      message: `Wiki Page <b>${title}</b> deleted`,
+                      indicator: "green",
+                    });
+                    dialog.hide();
+                  }
+                },
+              });
+            },
           },
-        },
-      });
-    });
+        });
+      },
+    );
   }
 
   set_add_item() {
     $(
       `<div class="add-sidebar-items hide">
-        <div class="text-muted add-sidebar-group small">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add Group</span>
-        </div>
-        <div class="text-muted add-sidebar-page small">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add Page</span>
-        </div>
-        <div class="text-muted discard-sidebar small">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-x"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          <span>Discard</span>
-        </div>
-        <div class="text-muted save-sidebar small">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          <span>Save</span>
-        </div>
+        <div class="btn btn-secondary discard-sidebar btn-sm">Discard</div>
+        <div class="btn btn-primary save-sidebar btn-sm">Save</div>
       </div>`,
     ).appendTo($(".web-sidebar"));
     var me = this;
@@ -315,13 +330,16 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
 				<div class="collapsible">
 					<span class="h6">${title}</span>
-          <span class='drop-icon'>
+          <span class='drop-icon hide'>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
           </span>
-					</div>
-					<ul class="list-unstyled" style="min-height:20px;"> </ul>
+          <span class='add-sidebar-page'>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </span>
+        </div>
+        <ul class="list-unstyled" style="min-height:20px;"> </ul>
 			</li>
 			`);
   }
