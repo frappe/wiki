@@ -735,13 +735,16 @@ navbar
 	cursor: pointer;
 	margin: auto;
 	font-weight: 500;
+
+	svg {
+		margin-bottom: 0.1rem;
+	}
 }
 
 .sidebar-edit-mode-btn {
 	.sidebar-edit-mode-pencil {
 		height: 1rem;
 		width: 1rem;
-		margin-bottom: 2px;
 	}
 }
 

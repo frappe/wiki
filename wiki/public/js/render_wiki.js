@@ -23,6 +23,12 @@ function setSortable() {
   });
 }
 
+function set_search_params(key = "", value = "") {
+  const url = new URL(window.location.href.split("?")[0]);
+  if (key && value) url.searchParams.set(key, value);
+  window.history.pushState({}, "", url);
+}
+
 let sidebarHTML;
 
 window.RenderWiki = class RenderWiki extends Wiki {
@@ -34,6 +40,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
       ) {
+        window.addEventListener("popstate", (event) => {
+          console.log(event);
+          this.set_url_state();
+        });
         this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
@@ -43,8 +53,36 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.add_trash_icon();
         this.set_empty_ul();
         this.set_edit_mode();
+        this.set_url_state();
       }
     });
+  }
+
+  set_url_state() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("editWiki") && $(".edit-wiki-btn .icon").length)
+      $(".edit-wiki-btn").trigger("click");
+    else if (
+      urlParams.get("editSidebar") &&
+      $(".sidebar-edit-mode-pencil").length
+    )
+      $(".doc-sidebar .sidebar-edit-mode-btn").trigger("click");
+    else if (
+      urlParams.get("newWiki") &&
+      $(
+        `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
+          "newWiki",
+        )}"] .add-sidebar-page`,
+      ).length &&
+      $(".edit-wiki-btn .icon").length
+    ) {
+      $(".doc-sidebar .sidebar-edit-mode-btn").trigger("click");
+      $(
+        `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
+          "newWiki",
+        )}"] .add-sidebar-page`,
+      ).trigger("click");
+    }
   }
 
   set_toc_highlighter() {
@@ -167,6 +205,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       // sidebar edit mode
       toggleSidebarEditMode();
       sidebarHTML = $(".doc-sidebar .sidebar-items > .list-unstyled").html();
+
+      set_search_params("editSidebar", "1");
     });
 
     $(".discard-sidebar").on("click", function () {
@@ -175,6 +215,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".doc-sidebar .sidebar-items > .list-unstyled").append(sidebarHTML);
       $(".web-sidebar ul").each(setSortable);
       toggleSidebarEditMode();
+
+      set_search_params();
     });
 
     $(".save-sidebar").on("click", function () {
@@ -184,7 +226,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           sidebar_items: getSidebarItems(),
         },
         callback: (r) => {
-          window.location.reload();
+          window.location = window.location.pathname;
         },
         freeze: true,
       });
@@ -193,6 +235,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".edit-wiki-btn").on("click", function () {
       // switch to edit mode
       toggleEditor();
+
+      set_search_params("editWiki", "1");
     });
 
     $(".discard-edit-btn").on("click", function () {
@@ -200,35 +244,46 @@ window.RenderWiki = class RenderWiki extends Wiki {
       toggleEditor($(this).data("new"));
       if ($(this).data("new") === true)
         $('.sidebar-item[data-name="new-wiki-page"]').remove();
+      set_search_params();
     });
 
     $(".sidebar-items > .list-unstyled").on(
       "click",
       ".add-sidebar-page",
       function (e) {
-        if (!$(".sidebar-item[data-name=new-wiki-page]").length) {
-          $(`
-					<li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-group-name=${$(
-            this,
-          )
-            .parent()
-            .children("span:first-child")
-            .text()}>
-						<div>
-							<a href="#">New Wiki Page</a>
-						</div>
-					</li>
-				`).appendTo($(this).parent().parent().children(".list-unstyled"));
-          $(this).parent().parent().each(setSortable);
-        } else $(".sidebar-item[data-name=new-wiki-page]").remove();
-        toggleEditor(true);
+        const groupName = $(this).parent().children("span:first-child").text();
+        const newWikiPage = $(".sidebar-item[data-name=new-wiki-page]");
+        const newSidebarItem = $(`
+        <li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
+          <div>
+            <a href="#">New Wiki Page</a>
+          </div>
+        </li>
+      `);
+
+        if (newWikiPage.length) {
+          if (newWikiPage.data("group-name") !== groupName) {
+            newSidebarItem.appendTo(
+              $(this).parent().parent().children(".list-unstyled"),
+            );
+            set_search_params("newWiki", groupName);
+          } else {
+            toggleEditor(true);
+            set_search_params();
+          }
+          newWikiPage.remove();
+        } else {
+          newSidebarItem.appendTo(
+            $(this).parent().parent().children(".list-unstyled"),
+          );
+          toggleEditor(true);
+          set_search_params("newWiki", groupName);
+        }
+
+        $(this).parent().parent().each(setSortable);
         e.stopPropagation();
       },
     );
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("editWiki") && $(".edit-wiki-btn").length)
-      $(".edit-wiki-btn").trigger("click");
   }
 
   add_trash_icon() {
