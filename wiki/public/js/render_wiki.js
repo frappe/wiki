@@ -247,6 +247,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       set_search_params();
     });
 
+    let active_items = "";
     $(".sidebar-items > .list-unstyled").on(
       "click",
       ".add-sidebar-page",
@@ -254,25 +255,37 @@ window.RenderWiki = class RenderWiki extends Wiki {
         const groupName = $(this).parent().children("span:first-child").text();
         const newWikiPage = $(".sidebar-item[data-name=new-wiki-page]");
         const newSidebarItem = $(`
-        <li class="sidebar-item" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
+        <li class="sidebar-item active" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
           <div>
-            <a href="#">New Wiki Page</a>
+            <a href="#" class="active">New Wiki Page</a>
           </div>
         </li>
       `);
 
         if (newWikiPage.length) {
+          // a temp new item is already created
           if (newWikiPage.data("group-name") !== groupName) {
+            // when new item is created in a different group as earlier
             newSidebarItem.appendTo(
               $(this).parent().parent().children(".list-unstyled"),
             );
             set_search_params("newWiki", groupName);
           } else {
+            // when new item is removed (discarding it) by clicking on + again
+            active_items.each(function () {
+              $(this).toggleClass("active");
+            });
+
             toggleEditor(true);
             set_search_params();
           }
           newWikiPage.remove();
         } else {
+          // fresh new item
+          active_items = $(
+            ".sidebar-item.active, .sidebar-item.active .active",
+          ).removeClass("active");
+
           newSidebarItem.appendTo(
             $(this).parent().parent().children(".list-unstyled"),
           );
