@@ -40,10 +40,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
       ) {
-        window.addEventListener("popstate", (event) => {
-          console.log(event);
-          this.set_url_state();
-        });
         this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
