@@ -352,7 +352,6 @@ def update(
 	new=False,
 	new_sidebar="",
 	new_sidebar_items="",
-	sidebar_edited=False,
 	draft=False,
 ):
 
@@ -372,7 +371,6 @@ def update(
 		patch.new = new
 		patch.new_sidebar = new_sidebar
 		patch.new_sidebar_items = new_sidebar_items
-		patch.sidebar_edited = sbool(sidebar_edited)
 		patch.save()
 
 	else:
@@ -386,7 +384,6 @@ def update(
 			"message": message,
 			"new": new,
 			"new_title": title,
-			"sidebar_edited": sbool(sidebar_edited),
 			"new_sidebar_items": new_sidebar_items,
 		}
 

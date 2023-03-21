@@ -13,7 +13,6 @@
   "status",
   "approved_by",
   "new",
-  "sidebar_edited",
   "compare_changes_section",
   "diff",
   "compare",
@@ -26,12 +25,7 @@
   "new_preview",
   "orignal_preview_store",
   "new_preview_store",
-  "amended_from",
-  "sidebar_section",
-  "new_sidebar_store",
-  "old_sidebar_store",
-  "new_sidebar",
-  "new_sidebar_items"
+  "amended_from"
  ],
  "fields": [
   {
@@ -160,49 +154,12 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "New Title"
-  },
-  {
-   "depends_on": "eval: doc.sidebar_edited;",
-   "fieldname": "sidebar_section",
-   "fieldtype": "Section Break",
-   "label": "SIdebar"
-  },
-  {
-   "fieldname": "new_sidebar_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "New Sidebar Store"
-  },
-  {
-   "fieldname": "new_sidebar",
-   "fieldtype": "HTML",
-   "label": "New Sidebar",
-   "options": "<div style=\"height: 500px; overflow: auto; display: flex;\">\n    <div width=\"50%\">\n        <h2>New Sidebar</h2>\n        <ul id=\"new_sidebar\">. \n\n        </ul>\n    </div>\n\n    <div width=\"50%\">\n        <h2>Old Sidebar</h2>\n        <div id=\"old_sidebar\">. \n\n        </div>\n    </div>\n</div>"
-  },
-  {
-   "fieldname": "old_sidebar_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Old Sidebar Store"
-  },
-  {
-   "fieldname": "new_sidebar_items",
-   "fieldtype": "Code",
-   "hidden": 1,
-   "label": "New Sidebar Items",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "sidebar_edited",
-   "fieldtype": "Check",
-   "label": "Sidebar Edited"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-01-06 20:20:06.315426",
+ "modified": "2023-03-21 14:42:59.096061",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",

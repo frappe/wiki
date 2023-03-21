@@ -37,14 +37,12 @@ class WikiPagePatch(Document):
 
 		if self.new:
 			self.create_new_wiki_page()
+			self.update_sidebars()
 		else:
 			self.update_old_page()
 
-		if self.sidebar_edited and self.new:
-			self.update_sidebars()
-
 	def clear_sidebar_cache(self):
-		if self.sidebar_edited or self.new_title != self.wiki_page_doc.title:
+		if self.new or self.new_title != self.wiki_page_doc.title:
 			for key in frappe.cache().hgetall("wiki_sidebar").keys():
 				frappe.cache().hdel("wiki_sidebar", key)
 

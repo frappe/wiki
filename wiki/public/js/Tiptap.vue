@@ -295,7 +295,6 @@ export default {
           content,
           // attachments: me.attachments,
           new: this.isEmptyEditor,
-          sidebar_edited: this.isEmptyEditor,
           new_sidebar_items: this.isEmptyEditor ? getSidebarItems() : '',
           title,
           // draft: draft ? draft : null,

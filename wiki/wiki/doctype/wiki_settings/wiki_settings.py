@@ -24,3 +24,6 @@ def update_sidebar(sidebar_items):
 				frappe.db.set_value(
 					"Wiki Sidebar", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
 				)
+
+	for key in frappe.cache().hgetall("wiki_sidebar").keys():
+		frappe.cache().hdel("wiki_sidebar", key)
