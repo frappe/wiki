@@ -159,9 +159,6 @@ class WikiPage(WebsiteGenerator):
 		context.has_wiki_page_edit_permission = frappe.has_permission(
 			doctype="Wiki Page", ptype="write", throw=False
 		)
-		context.has_sidebar_edit_permission = frappe.has_permission(
-			doctype="Wiki Settings", ptype="write", throw=False
-		)
 		context.show_sidebar = True
 		context.hide_login = True
 		context.name = self.name

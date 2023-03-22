@@ -290,10 +290,6 @@ textarea.wiki-content {
 
 .sm-sidebar .web-sidebar {
 	padding-bottom: 2rem;
-
-	.add-sidebar-items {
-		background-color: transparent;
-	}
 }
 
 .web-sidebar {
@@ -729,7 +725,6 @@ navbar
 
 .my-contributions,
 .new-wiki-page,
-.sidebar-edit-mode-btn,
 .add-sidebar-group {
 	padding: 0.25rem 0.5rem 0.25rem 0;
 	cursor: pointer;
@@ -738,26 +733,6 @@ navbar
 
 	svg {
 		margin-bottom: 0.1rem;
-	}
-}
-
-.sidebar-edit-mode-btn {
-	.sidebar-edit-mode-pencil {
-		height: 1rem;
-		width: 1rem;
-	}
-}
-
-.add-sidebar-items {
-	position: sticky;
-	bottom: 0;
-	width: 16rem;
-	background-color: var(--sidebar-bg-color);
-	border-top: 1px solid var(--border-color);
-	padding: 1rem;
-
-	> * {
-		margin-left: 1.5rem;
 	}
 }
 
