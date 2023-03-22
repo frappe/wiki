@@ -6,7 +6,7 @@ function setSortable() {
       pull: ["qux"],
     },
     filter: ".disabled",
-    onUpdate: function (e) {
+    onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
           method:
