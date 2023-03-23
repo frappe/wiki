@@ -148,16 +148,14 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     if (current_index > 0) {
       $(".btn.left")[0].href = sidebar_items[current_index - 1].href;
-      $(".btn.left")[0].innerHTML =
-        "←" + sidebar_items[current_index - 1].innerHTML;
+      $($(".btn.left p")[1]).text(sidebar_items[current_index - 1].innerText);
     } else {
       $(".btn.left").hide();
     }
 
     if (current_index >= 0 && current_index < sidebar_items.length - 1) {
       $(".btn.right")[0].href = sidebar_items[current_index + 1].href;
-      $(".btn.right")[0].innerHTML =
-        sidebar_items[current_index + 1].innerHTML + "→";
+      $($(".btn.right p")[1]).text(sidebar_items[current_index + 1].innerText);
     } else {
       $(".btn.right").hide();
     }
