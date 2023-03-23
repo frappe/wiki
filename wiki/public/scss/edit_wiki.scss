@@ -235,6 +235,10 @@ $font-sizes-mobile: (
 		margin-bottom: 0 !important;
 	}
 
+	p {
+		color: var(--text-color);
+	}
+
 	ul,
 	ol {
 		padding-left: 2rem;
@@ -251,6 +255,10 @@ $font-sizes-mobile: (
 	li {
 		padding-top: 1px;
 		padding-bottom: 1px;
+
+		&::marker {
+			color: var(--text-color);
+		}
 
 		p {
 			margin-bottom: 0;
@@ -275,13 +283,11 @@ $font-sizes-mobile: (
 		padding: 0.75rem 1rem 0.75rem 1.25rem;
 		font-size: $font-size-sm;
 		font-weight: 500;
-		border: 1px solid $gray-200;
-		border-left: 3px solid $yellow;
-		border-top-left-radius: 0.1rem;
-		border-bottom-left-radius: 0.1rem;
-		border-top-right-radius: 0.375rem;
-		border-bottom-right-radius: 0.375rem;
+		border: 1px solid var(--bqoute-border-color);
+		border-left: 5px solid var(--bqoute-border-color);
+		border-radius: 0.5rem;
 		margin: 1.5rem 0 !important;
+		background-color: var(--bqoute-bg-color);
 	}
 
 	blockquote p:last-child {
@@ -400,7 +406,8 @@ $font-sizes-mobile: (
 
 	code:not(.hljs) {
 		padding: 0 0.25rem;
-		background: $light;
+		background-color: var(--code-bg-color);
+		color: var(--code-text-color);
 		border-radius: 0.125rem;
 	}
 
@@ -429,7 +436,7 @@ $font-sizes-mobile: (
 		th {
 			font-weight: bold;
 			text-align: left;
-			background-color: #f1f3f5;
+			background-color: var(--active-item-color);
 		}
 
 		.selectedCell:after {
@@ -473,9 +480,10 @@ $font-sizes-mobile: (
 	}
 
 	pre {
+		margin: 1rem 0;
 		background: #011627;
 		color: #D6DEEB;
-		padding: 0.75rem 1rem 0;
+		padding: 0.75rem 1rem;
 		border-radius: 0.5rem;
 		overflow-x: auto;
 		max-width: 55vw;
@@ -486,7 +494,7 @@ $font-sizes-mobile: (
 
 		code {
 		  color: inherit;
-		  padding: 0 0 0.75rem;
+		  padding: 0;
 		  background: none !important;
 		}
 	}

@@ -19,13 +19,23 @@ body {
 	--sidebar-bg-color: #f6f6f7;
 	--sidebar-hover-color: #ebebe9;
 	--toc-hover-text-color: var(--gray-900);
+
 	--btn-text-color: var(--gray-900);
+	--btn-secondary-color: #f4f5f6;
+	--btn-secondary-hover-color: var(--gray-300);
+
 	--active-item-color: #f1f1f0;
 	--active-item-text-color: $primary;
+
 	--searchbar-color: #f4f5f6;
 	--border-color: var(--gray-300);
+
+	--bqoute-border-color: var(--gray-400);
+	--bqoute-bg-color: var(--gray-50);
+
 	--code-bg-color: var(--light);
 	--code-text-color: var(--purple-600);
+
 	--sidebar-text-color: #73726e;
 	--sidebar-text-hover-color: #37352f;
 
@@ -46,16 +56,25 @@ body.dark {
 	--sidebar-bg-color: var(--gray-900);
 	--sidebar-hover-color: var(--blue-900);
 	--toc-hover-text-color: var(--gray-500);
+
 	--btn-text-color: var(--blue-500);
 	--btn-color: var(--gray-700);
+	--btn-secondary-color: var(--gray-700);
+	--btn-secondary-hover-color: var(--gray-500);
+
 	--active-item-color: var(--gray-700);
-	--active-item-text-color: var(--text-color);
 	--searchbar-color: #242a30;
 	--border-color: var(--gray-700);
+
+	--bqoute-border-color: #47474d;
+	--bqoute-bg-color: var(--gray-900);
+
 	--code-bg-color: var(--purple-900);
 	--code-text-color: var(--purple-50);
 	--input-bg-color: #242A30;
+
 	--sidebar-text-color: #909090;
+	--sidebar-text-hover-color: #f4f5f6;
 
 	--bg-orange: var(--orange-600);
 	--text-on-orange: var(--orange-50);
@@ -112,6 +131,7 @@ textarea.wiki-content {
 		}
 
 		&:hover {
+			background-color: transparent;
 			border: 1px solid var(--primary);
 		}
 	}
@@ -512,6 +532,7 @@ textarea.wiki-content {
 
 .doc-content .from-markdown > :first-child {
 	margin-top: 0;
+	margin-bottom: 4rem;
 }
 
 .from-markdown > blockquote {
@@ -535,17 +556,25 @@ textarea.wiki-content {
 		h2 {
 			margin-top: 2.5rem;
 		}
-
-		code:not(.hljs) {
-			background-color: var(--code-bg-color);
-			color: var(--code-text-color);
-		}
-	
 	}
 }
 
 .feather-link {
 	visibility: hidden;
+}
+
+// TODO: clear this when website related css is removed
+.doc-content .from-markdown {
+	h1, h2, h3, h4, h5, h6{
+		&::before {
+			height: 0;
+			margin-top: 0;
+		}
+	}
+}
+
+.hljs {
+	overflow-x: visible;
 }
 
 h2:hover .feather-link,
@@ -556,13 +585,18 @@ h6:hover .feather-link {
 	visibility: visible;	
 }
 
-.btn.btn-secondary:hover {
-	background-color: var(--gray-300);
+.btn.btn-secondary {
+	background-color: var(--btn-secondary-color);
+
+	&:hover {
+		background-color: var(--btn-secondary-hover-color);
+	}
 }
 
 .edit-wiki-btn {
 	width: 2rem;
 	height: 2rem;
+	margin-top: 1rem;
 
 	svg {
 		width: 2rem;
