@@ -6,16 +6,11 @@ import frappe
 
 
 def get_context(context):
-	res = frappe.db.get_all(
-		"Wiki Page",
-		filters={"route": ("is", "set")},
-		fields=["name", "route"],
-		order_by="creation asc",
-		limit=1,
-	)
-	wiki_page = res[0] if res else None
+	topmost_wiki_name = frappe.get_value("Wiki Sidebar", {"idx": 1}, "wiki_page")
+	topmost_wiki_route = frappe.get_value("Wiki Page", topmost_wiki_name, "route")
+
 	# find and route to the first wiki page
-	if wiki_page:
-		frappe.response.location = wiki_page.route
+	if topmost_wiki_route:
+		frappe.response.location = topmost_wiki_route
 		frappe.response.type = "redirect"
 		raise frappe.Redirect
