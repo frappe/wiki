@@ -89,7 +89,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".wiki-title").toggleClass("hide");
     }
     $(".from-markdown").removeClass("hide");
-    $(".wiki-footer").removeClass("hide");
+    $(".wiki-footer").toggleClass("hide");
   }
 
   set_toc_highlighter() {
@@ -179,6 +179,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $(".new-wiki-editor").toggleClass("hide");
       } else {
         $(".wiki-content").toggleClass("hide");
+        $(".wiki-revision-meta").toggleClass("hide");
+        $(".wiki-footer").toggleClass("hide");
         $(".wiki-edit-control-btn").toggleClass("hide");
         $(".page-toc").toggleClass("hide");
         $(".remove-sidebar-item").toggleClass("hide");
