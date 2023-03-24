@@ -2,7 +2,6 @@
 # For license information, please see license.txt
 
 
-import json
 import re
 from urllib.parse import urlencode
 
@@ -309,6 +308,7 @@ def preview(content, name, new, type, diff_css=False):
 @frappe.whitelist()
 def extract_images_from_html(content):
 	frappe.flags.has_dataurl = False
+	file_ids = {"name": []}
 
 	def _save_file(match):
 		data = match.group(1)
@@ -330,6 +330,7 @@ def extract_images_from_html(content):
 		)
 		_file.save(ignore_permissions=True)
 		file_url = _file.file_url
+		file_ids["name"] += [_file.name]
 		if not frappe.flags.has_dataurl:
 			frappe.flags.has_dataurl = True
 
@@ -337,7 +338,7 @@ def extract_images_from_html(content):
 
 	if content and isinstance(content, str):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
-	return content
+	return content, file_ids["name"]
 
 
 @frappe.whitelist()
@@ -356,7 +357,7 @@ def update(
 
 	context = {"route": name}
 	context = frappe._dict(context)
-	content = extract_images_from_html(content)
+	content, file_ids = extract_images_from_html(content)
 
 	new = sbool(new)
 
@@ -390,7 +391,8 @@ def update(
 
 		patch.save()
 
-		update_file_links(attachments, patch.name)
+		if file_ids:
+			update_file_links(file_ids, patch.name)
 
 	out = frappe._dict()
 
@@ -413,11 +415,11 @@ def update(
 	return out
 
 
-def update_file_links(attachments, name):
-	for attachment in json.loads(attachments):
-		file = frappe.get_doc("File", attachment.get("name"))
+def update_file_links(file_ids, patch_name):
+	for file_id in file_ids:
+		file = frappe.get_doc("File", file_id)
 		file.attached_to_doctype = "Wiki Page Patch"
-		file.attached_to_name = name
+		file.attached_to_name = patch_name
 		file.save()
 
 
