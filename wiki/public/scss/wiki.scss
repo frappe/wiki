@@ -103,6 +103,7 @@ textarea.wiki-content {
 
 	.btn {
 		margin-top: 1rem;
+		margin-bottom: 4rem;
 		color: var(--text-color);
 		border: 1px solid var(--border-color);
 		border-radius: 8px;
@@ -527,7 +528,7 @@ textarea.wiki-content {
 	padding-bottom: 2rem;
 
 	.page-content-wrapper {
-		margin: 3.5rem 2rem 5rem;
+		margin: 3.5rem 2rem 0;
 		padding-top: 2rem;
 		padding-bottom: 0;
 
