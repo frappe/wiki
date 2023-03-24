@@ -752,6 +752,7 @@ navbar
 
 .form-control:focus {
 	color: var(--text-color);
+	border: 1px solid var(--gray-500);
 }
 
 @include media-breakpoint-down(md) {
