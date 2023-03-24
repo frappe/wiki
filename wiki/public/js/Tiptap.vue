@@ -96,7 +96,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
               <input type="text" id="link" name="link">
             </div>
             <div class="modal-footer">
-              <button type="button" @click="setLink" class="btn btn-primary btn-sm" data-dismiss="modal">Save</button>
+              <button type="button" @click="setLink" class="btn btn-primary btn-sm" data-dismiss="modal">Add Link</button>
             </div>
           </div>
         </div>
@@ -162,7 +162,8 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
     </div>
     <div class="wiki-edit-control-btn hide">
       <div class="btn btn-secondary discard-edit-btn btn-sm" :data-new="isEmptyEditor">Discard</div>
-      <div class="btn btn-primary save-wiki-page-btn btn-sm" @click="saveWikiPage">Save</div>
+      <div v-if="isEmptyEditor" class="btn btn-primary save-wiki-page-btn btn-sm" @click="saveWikiPage">Save</div>
+      <div v-else class="btn btn-primary save-wiki-page-btn btn-sm" @click="saveWikiPage">Edit</div>
     </div>
   </div>
 </template>
