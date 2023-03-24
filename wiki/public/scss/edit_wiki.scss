@@ -334,6 +334,11 @@ $font-sizes-mobile: (
 		}
 	}
 
+	& > p {
+		margin-top: 1.5rem !important;
+		line-height: 1.4;
+	}
+
 	h2 {
 		font-size: map-get($font-sizes-mobile, "2xl");
 		line-height: 1.56;
