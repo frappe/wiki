@@ -99,7 +99,7 @@ textarea.wiki-content {
 
 .wiki-footer {
 	border-top: 1px solid var(--border-color);
-	margin-top: 2rem;
+	margin-top: 1rem;
 
 	.btn {
 		margin-top: 1rem;
@@ -706,6 +706,8 @@ ul.user-contributions {
 	display: flex;
 	padding-left: 0;
 	flex-wrap: wrap;
+	margin: 1rem 0 0 auto;
+	color: var(--sidebar-text-color);
 }
 
 ul.user-contributions li {
