@@ -446,6 +446,11 @@ textarea.wiki-content {
 	background-color: transparent;
 	padding-top: 0;
 
+	@include media-breakpoint-down(md) {
+		width: auto;
+		padding: 0 0 1rem 0;
+	}
+
 	.doc-container .navbar-collapse {
 		padding-top: 2rem;
 		margin-top: -1rem;
@@ -454,7 +459,8 @@ textarea.wiki-content {
 		padding-bottom: 1rem;
 
 		@include media-breakpoint-down(md) {
-			margin-left: 0;
+			padding-top: 0;
+			margin: 0;
 		}
 	}
 	.container {
@@ -466,7 +472,7 @@ textarea.wiki-content {
 		margin: 0.25rem 0 auto 1rem;
 
 		@include media-breakpoint-down(md) {
-			margin-bottom: 1rem;
+			margin: 0.25rem 0 1rem 0.5rem;
 		}
 	}
 }
@@ -508,6 +514,7 @@ textarea.wiki-content {
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
 		width: calc(max-width - 27px);
+		position: inherit;
 		background-color: var(--background-color);
 	}
 }
@@ -523,6 +530,10 @@ textarea.wiki-content {
 		margin: 3.5rem 2rem 5rem;
 		padding-top: 2rem;
 		padding-bottom: 0;
+
+		@include media-breakpoint-down(md) {
+			margin: 0;
+		}
 	}
 }
 
@@ -556,6 +567,10 @@ textarea.wiki-content {
 		h2 {
 			margin-top: 2.5rem;
 		}
+	}
+	@include media-breakpoint-down(md) {
+		width: auto;
+		margin: unset;
 	}
 }
 
@@ -740,15 +755,15 @@ navbar
 	color: var(--text-color);
 }
 
-@media (max-width: 767px) {
+@include media-breakpoint-down(md) {
 	.navbar {
 		position: inherit;
 	}
 
 	.navbar-expand-lg .doc-container {
-		padding-left: 0;
-		padding-right: 0;
+		padding: 0.5rem 0;
 	}
+
 	.web-sidebar {
 		padding-top: 0;
 	}
@@ -770,7 +785,7 @@ navbar
 	}
 
 	.nav-item {
-		margin-left: 10px;
+		margin-left: 0;
 
 		#search-container {
 			margin: 10px 0;
