@@ -202,6 +202,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".edit-wiki-btn").on("click", function () {
       // switch to edit mode
       toggleEditor();
+      $("html").css({ overflow: "hidden" });
 
       set_search_params("editWiki", "1");
     });
@@ -209,6 +210,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".discard-edit-btn").on("click", function () {
       // switch to view mode
       toggleEditor($(this).data("new"));
+      $("html").css({ overflow: "auto" });
       if ($(this).data("new") === true)
         $('.sidebar-item[data-name="new-wiki-page"]').remove();
       set_search_params();
