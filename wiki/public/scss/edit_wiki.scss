@@ -409,7 +409,7 @@ $font-sizes-mobile: (
 		margin-bottom: 2rem !important;
 	}
 
-	code:not(.hljs) {
+	p > code:not(.hljs) {
 		padding: 0 0.25rem;
 		background-color: var(--code-bg-color);
 		color: var(--code-text-color);
