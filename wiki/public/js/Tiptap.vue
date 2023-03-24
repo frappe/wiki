@@ -284,6 +284,7 @@ export default {
     },
     saveWikiPage() {
       const title = $(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror h1`).html();
+      // markdown=1 tag is needed for older wiki content to properly render
       const content = `<div markdown="1">${$(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror`).html().replace(/<h1>.*?<\/h1>/, '')}</div>`;
 
       frappe.call({
@@ -291,7 +292,6 @@ export default {
         args: {
           name: $('[name="wiki-page-name"]').val(),
           message: `${this.isEmptyEditor ? 'Created' : 'Edited'} ${title}`,
-          // markdown=1 tag is needed for older wiki content to properly render
           content,
           // attachments: me.attachments,
           new: this.isEmptyEditor,
