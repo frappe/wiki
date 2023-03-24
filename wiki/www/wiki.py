@@ -6,7 +6,7 @@ import frappe
 
 
 def get_context(context):
-	topmost_wiki_name = frappe.get_value("Wiki Sidebar", {"idx": 1}, "wiki_page")
+	topmost_wiki_name = frappe.get_single("Wiki Settings").wiki_sidebar[0].wiki_page
 	topmost_wiki_route = frappe.get_value("Wiki Page", topmost_wiki_name, "route")
 
 	# find and route to the first wiki page
