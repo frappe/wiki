@@ -25,10 +25,6 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
           <H2Icon />
         </button>
         <div class="dropdown-menu" aria-labelledby="headingDropdownMenuButton">
-          <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-            :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }">
-            Heading 1
-          </a>
           <a class="dropdown-item" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
             :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }">
             Heading 2
@@ -181,7 +177,7 @@ import Document from "@tiptap/extension-document";
 import TableRow from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import TableCell from "@tiptap/extension-table-cell";
-import { Editor, EditorContent } from "@tiptap/vue-3";
+import { Editor, EditorContent, InputRule } from "@tiptap/vue-3";
 import Placeholder from "@tiptap/extension-placeholder";
 import TableHeader from "@tiptap/extension-table-header";
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
@@ -209,6 +205,19 @@ export default {
   },
 
   mounted() {
+    const disableMarkdownShortcut = (markdownShortcut, originalChar) => {
+      return new InputRule(
+        new RegExp(`(^|[\\s])${markdownShortcut}(?![\\w])`, 'g'),
+        (state, match, start, end) => {
+          const text = state.doc.textBetween(start, end)
+          console.log("state, text, match, end");
+          if (text === markdownShortcut) {
+            return originalChar
+          }
+          return null
+        }
+      )
+    }
     this.editor = new Editor({
       extensions: [
         CustomDocument,
@@ -239,6 +248,7 @@ export default {
           lowlight,
         }),
       ],
+      inputRules: [disableMarkdownShortcut("#", "#")],
       content: this.isEmptyEditor ? "" : $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
     });
   },
