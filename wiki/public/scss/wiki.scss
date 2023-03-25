@@ -550,7 +550,7 @@ textarea.wiki-content {
 }
 
 .doc-content {
-	width: 900px;
+	max-width: 900px;
 	margin: auto;
 
 	.from-markdown {
