@@ -33,23 +33,11 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 				{% block page_container %}
 				<main>
 					<div class="page_content page-content doc-content">
-						<!-- {%- if add_breadcrumbs -%}
-						{% include "wiki/doctype/wiki_page/templates/breadcrumbs.html" %}
-						{%- endif -%} -->
 						{%- block page_content -%}{%- endblock -%}
 					</div>
 				</main>
 				{% endblock %}
 			</div>
-			<!-- {%- block footer -%}
-				{{ web_block(
-					footer_template or 'Standard Footer',
-					values=_context_dict,
-					add_container=0,
-					add_top_padding=0,
-					add_bottom_padding=0
-				) }}
-			{%- endblock -%} -->
 		</div>
 		{%- if page_toc_html -%}
 		<div class="page-toc d-none d-xl-block">

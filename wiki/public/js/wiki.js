@@ -19,15 +19,6 @@ window.Wiki = class Wiki {
         block: "center",
       });
     }
-
-    // avoid active sidebar item to be hidden under logo
-    // let web_sidebar = $(".web-sidebar");
-    // if (web_sidebar.length > 0) {
-    //   web_sidebar.get(1).scrollBy({
-    //     top: -100,
-    //     behavior: "smooth",
-    //   });
-    // }
   }
 
   toggle_sidebar(event) {
@@ -42,7 +33,7 @@ window.Wiki = class Wiki {
       ".collapsible",
       this.toggle_sidebar,
     );
-    // $(".sidebar-group").children("ul").addClass("hidden");
+
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");

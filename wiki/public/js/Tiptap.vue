@@ -304,30 +304,11 @@ export default {
           name: $('[name="wiki-page-name"]').val(),
           message: `${this.isEmptyEditor ? 'Created' : 'Edited'} ${title}`,
           content,
-          // attachments: me.attachments,
           new: this.isEmptyEditor,
           new_sidebar_items: this.isEmptyEditor ? getSidebarItems() : '',
           title,
-          // draft: draft ? draft : null,
         },
         callback: (r) => {
-          // if (!r.message.approved && r.message.route == "contributions") {
-          //   frappe.msgprint({
-          //     message:
-          //       "A Change Request has been created. You can track your requests on the contributions page",
-          //     indicator: "green",
-          //     title: "Change Request Created",
-          //     alert: 1,
-          //   });
-          // } else if (!r.message.approved && r.message.route == "drafts") {
-          //   frappe.msgprint({
-          //     message: "Draft Saved",
-          //     indicator: "green",
-          //     title: "Change Request Created",
-          //     alert: 1,
-          //   });
-          // }
-
           // route back to the main page
           window.location.href = "/" + r.message.route;
         },
