@@ -1,14 +1,5 @@
-@import "frappe/public/scss/desk/css_variables";
 @import "frappe/public/scss/website/variables";
-@import "frappe/public/scss/website/index";
-@import "frappe/public/scss/common/awesomeplete";
-@import "frappe/public/scss/common/buttons";
-@import "frappe/public/scss/common/mixins";
-@import "frappe/public/scss/common/controls";
-@import "frappe/public/scss/desk/timeline";
-@import "frappe/public/scss/desk/form";
 @import "frappe/public/css/fonts/inter/inter";
-@import "frappe/public/css/octicons/octicons.css";
 
 body {
 	--gray-800: #1C2126;
@@ -147,43 +138,6 @@ textarea.wiki-content {
 	}
 }
 
-.wiki-diff {
-	max-width: 700px;
-
-	.diff {
-		font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
-			monospace;
-		font-size: $font-size-sm;
-		border: 1px solid $border-color;
-		border-radius: 0.5rem;
-		overflow: auto;
-
-		display: flex;
-		flex-direction: column;
-		flex-wrap: wrap;
-
-		div {
-			padding: 0.25rem 0.5rem;
-			background-color: $light;
-			color: $body-color;
-		}
-
-		.control {
-			color: $gray-500;
-			background-color: $input-bg;
-		}
-
-		.delete {
-			background-color: #fff5f5;
-			color: $gray-900;
-		}
-
-		.insert {
-			background-color: #f0fff4;
-			color: $gray-900;
-		}
-	}
-}
 .wiki-revision-meta {
 	font-size: $font-size-sm;
 	display: flex;
@@ -208,11 +162,20 @@ textarea.wiki-content {
 // sidebar
 
 .list-unstyled:first-child > * {
-	border-top: 1px solid var(--border-color);
 	padding: 0.75rem 0;
 
+	&::before{
+		content: '';
+		position: relative;
+		top: -0.75rem;
+		left: 0.5rem;
+		border-top: 1px solid var(--border-color);
+		width: 99.8%;
+		display: block;
+	 }
+
 	&:first-child {
-		margin-top: 0.5rem;
+		padding-top: 0.7rem;
 		border-top: 0;
 	}
 }
@@ -312,10 +275,8 @@ textarea.wiki-content {
 	border-radius: 4px;
 
 	a {
-		margin: 0.15rem 0;
 		background-color: transparent;
 		color: var(--active-item-text-color);
-		padding-bottom: 0;
 	}
 }
 
@@ -506,7 +467,7 @@ textarea.wiki-content {
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
-	padding-left: 0.5rem;
+	margin-left: 0.5rem;
 	position: sticky;
 	top: 0;
 	z-index: 5;
