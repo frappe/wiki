@@ -85,7 +85,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if ($(".from-markdown").is(":visible"))
         $(".new-wiki-editor").toggleClass("hide");
 
-      $(".edit-wiki-btn").toggleClass("hide");
+      $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
       $(".wiki-title").toggleClass("hide");
     }
     $(".from-markdown").removeClass("hide");
@@ -162,12 +162,17 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    if (hasWikiPageEditPerm == "True")
+    if (hasWikiPageEditPerm == "True") {
       $(".edit-wiki-btn").append(
         `<svg class="icon">
           <use href="#icon-edit"></use>
         </svg>`,
       );
+      $(".sidebar-edit-mode-btn").append(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-3"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        <span class="small">Edit Sidebar</span>`,
+      );
+    }
 
     $(".sidebar-item, .sidebar-group").addClass("disabled");
 
@@ -194,12 +199,12 @@ window.RenderWiki = class RenderWiki extends Wiki {
           if (newEditor) $(".new-wiki-editor").toggleClass("hide");
           else $(".wiki-editor").toggleClass("hide");
 
-        $(".edit-wiki-btn").toggleClass("hide");
+        $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
         $(".wiki-title").toggleClass("hide");
       }
     }
 
-    $(".edit-wiki-btn").on("click", function () {
+    $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
       // switch to edit mode
       toggleEditor();
       $("html").css({ overflow: "hidden" });
