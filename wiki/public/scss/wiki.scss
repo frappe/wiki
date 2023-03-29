@@ -346,9 +346,13 @@ textarea.wiki-content {
 	    position: sticky;
 		background-color: var(--background-color);
 		border: 1px solid var(--border-color);
-		
+
 		.dropdown-item {
 			color: var(--text-color);
+			
+			&:focus-visible {
+				outline: none;
+			}
 		}
 
 		.dropdown-item:hover {
