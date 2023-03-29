@@ -250,7 +250,7 @@ export default {
         }),
       ],
       inputRules: [disableMarkdownShortcut("#", "#")],
-      content: this.isEmptyEditor ? "" : $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
+      content: this.isEmptyEditor ? "<h1></h1><p></p>" : $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
     });
   },
 
