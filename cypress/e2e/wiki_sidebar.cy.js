@@ -18,7 +18,7 @@ context("Wiki Sidebar", () => {
     cy.get(".new-wiki-editor > * > .ProseMirror")
       .clear()
       .type("Test Wiki Page{enter}New Wiki Page");
-    cy.contains("Save").click();
+    cy.get('.btn:contains("Save"):visible').click();
 
     cy.get(".sidebar-group").should("contain", "Test Wiki Sidebar");
   });
