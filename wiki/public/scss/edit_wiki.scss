@@ -231,7 +231,7 @@ $font-sizes-mobile: (
 	letter-spacing: -0.011em;
 
 
-	> :last-child {
+	> :first-child {
 		margin-bottom: 0 !important;
 	}
 
@@ -508,6 +508,9 @@ $font-sizes-mobile: (
 .new-wiki-editor,
 .wiki-editor {
 	margin: 0 -1rem;
+	border-radius: 1rem;
+	border: 1px solid $gray-200;
+	overflow: hidden;
 
 	h1 {
 		margin-top: 0.75rem;
@@ -555,16 +558,13 @@ $font-sizes-mobile: (
 			height: 0;
 		}
 	}
-	
-	border-radius: 1rem;
-	border: 1px solid $gray-200;
-	
-	> :first-child {
-		margin-top: 0 !important;
-		border-bottom: 1px solid $gray-200;
-	}
 
 	> :last-child {
+		margin-top: 0 !important;
+		border-top: 1px solid $gray-200;
+	}
+
+	> :first-child {
 		padding: 0 1rem;
 		display: flex;
 		flex-direction: row;
