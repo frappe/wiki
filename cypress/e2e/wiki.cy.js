@@ -10,7 +10,7 @@ context("Wiki", () => {
     cy.get(".new-wiki-editor > * > .ProseMirror")
       .clear()
       .type("Test Wiki Page{enter}New Wiki Page");
-    cy.contains("Save").click();
+    cy.get('.btn:contains("Save"):visible').click();
 
     cy.intercept("/test-wiki-page").as("testWikiPage");
     cy.wait("@testWikiPage");
@@ -26,7 +26,7 @@ context("Wiki", () => {
     cy.get(".wiki-editor > * > .ProseMirror")
       .clear()
       .type("Old Wiki Page{enter}Old Wiki Page");
-    cy.contains("Edit").click();
+    cy.get('.btn:contains("Save"):visible').click();
 
     cy.intercept("/old-wiki-page").as("testWikiPage");
     cy.wait("@testWikiPage");
