@@ -7,7 +7,7 @@
 		data-route="{{ item.route }}"
 	>
 	<div>
-		<a href="{{ item.route }}">
+		<a href="{{ item.route.split('/')[-1] }}">
 			{{ item.title or item.name }}
 		</a>
 	</div>
@@ -57,7 +57,7 @@
 </ul>
 {% endmacro %}
 
-<div class="web-sidebar" data-name="{{docs_search_scope}}">
+<div class="web-sidebar" data-name="{{wiki_search_scope}}">
 	<div class="navbar-brand-container">
 		<a class="navbar-brand" href="{{ url_prefix or "" }}{{ home_page or "/" }}">
 			{%- if light_mode_logo -%}

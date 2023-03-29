@@ -10,6 +10,7 @@
   "add_dark_mode",
   "dark_mode_logo",
   "section_break_mmtu",
+  "wiki_search_scope",
   "wiki_sidebar",
   "javascript",
   "navbar_tab",
@@ -76,12 +77,19 @@
    "fieldname": "general_tab",
    "fieldtype": "Tab Break",
    "label": "General"
+  },
+  {
+   "default": "wiki",
+   "description": "The search scope is used to index wiki content for search. This will also prepend the scope before the route of a wiki page.",
+   "fieldname": "wiki_search_scope",
+   "fieldtype": "Data",
+   "label": "Wiki Search Scope"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-03-20 14:33:25.954525",
+ "modified": "2023-03-27 17:26:35.837480",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

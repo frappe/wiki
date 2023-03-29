@@ -139,7 +139,7 @@ class WikiPage(WebsiteGenerator):
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.script = wiki_settings.javascript
-		context.docs_search_scope = "wiki"
+		context.wiki_search_scope = wiki_settings.wiki_search_scope
 		context.metatags = {
 			"title": self.title,
 			"description": self.meta_description,
@@ -188,8 +188,8 @@ class WikiPage(WebsiteGenerator):
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
-			context.docs_search_scope = topmost
 			wiki_settings = frappe.get_single("Wiki Settings")
+			context.wiki_search_scope = wiki_settings.wiki_search_scope
 			context.light_mode_logo = wiki_settings.logo
 			context.dark_mode_logo = wiki_settings.dark_mode_logo
 			sidebar_html = frappe.render_template(
