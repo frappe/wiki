@@ -8,7 +8,10 @@ import frappe
 
 
 def execute():
-	topmost = find_topmost(frappe.get_single("Wiki Settings").sidebar)
+	wiki_settings = frappe.get_single("Wiki Settings")
+	if not hasattr(wiki_settings, "sidebar"):
+		return
+	topmost = find_topmost(wiki_settings.sidebar)
 
 	def get_sidebar_for_patch(sidebar_items, group_name):
 		sidebar_item = OrderedDict({group_name: []})
