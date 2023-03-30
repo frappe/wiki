@@ -11,10 +11,12 @@ class WikiSettings(Document):
 	def on_update(self):
 		# change the route of wiki page for search scope
 		for wiki_page in frappe.get_all("Wiki Page", fields=["name", "route"]):
+			if self.wiki_search_scope == wiki_page.route.split("/", 1)[0]:
+				break
 			frappe.db.set_value(
 				"Wiki Page",
 				wiki_page["name"],
-				{"route": f"{self.wiki_search_scope}/{wiki_page['route'].split('/')[-1]}"},
+				{"route": f"{self.wiki_search_scope}/{wiki_page['route'].split('/', 1)[-1]}"},
 			)
 
 
