@@ -17,8 +17,10 @@
     "@tiptap/pm": "^2.0.0-beta.218",
     "@tiptap/starter-kit": "^2.0.0-beta.218",
     "@tiptap/vue-3": "^2.0.0-beta.218",
-    "cypress": "12.9.0",
     "cypress-real-events": "^1.7.6",
     "lowlight": "^2.8.1"
+  },
+  "devDependencies": {
+    "cypress": "11"
   }
 }
