@@ -96,7 +96,9 @@ class WikiPage(WebsiteGenerator):
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
-		self.route = cleanup_page_name(self.title)
+
+		# only update the tail end of route
+		self.route = f"{self.route[::-1].split('/',1)[1][::-1]}/{cleanup_page_name(self.title)}"
 
 		if content != self.content:
 			self.content = content
