@@ -26,7 +26,7 @@ context("Wiki Sidebar", () => {
   it("deletes a wiki sidebar group when the group is empty", () => {
     cy.get(".edit-wiki-btn .icon").click();
     cy.contains("Test Wiki Page").parent().next().click();
-    cy.contains("Yes").click();
+    cy.get('.btn:contains("Yes"):visible').click();
 
     cy.intercept("/*").as("testWikiSidebar");
     cy.visit("/wiki");
