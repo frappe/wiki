@@ -50,6 +50,7 @@ class WikiPage(WebsiteGenerator):
 		revision.append("wiki_pages", {"wiki_page": self.name})
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
+		revision.raised_by = frappe.session.user
 		revision.insert()
 
 	def clear_sidebar_cache(self):
