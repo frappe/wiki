@@ -98,7 +98,7 @@ class WikiPage(WebsiteGenerator):
 		self.title = title
 
 		# only update the tail end of route
-		self.route = f"{self.route[::-1].split('/',1)[-1][::-1]}/{cleanup_page_name(self.title)}"
+		self.route = self.route.replace(self.route.split("/")[-1], cleanup_page_name(self.title))
 
 		if content != self.content:
 			self.content = content
