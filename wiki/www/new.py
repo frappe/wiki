@@ -49,7 +49,9 @@ def get_context(context):
 	context.content_html = "New Wiki Page"
 	if frappe.form_dict.wiki_page_patch:
 		context.wiki_page_patch = frappe.form_dict.wiki_page_patch
-		context.doc.content = frappe.db.get_value("Wiki Page Patch", context.wiki_page_patch, "new_code")
+		context.doc.content, context.doc.title = frappe.db.get_value(
+			"Wiki Page Patch", context.wiki_page_patch, ["new_code", "new_title"]
+		)
 		context.comments = get_comments("Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment")
 		context.content_md = context.doc.content
 		context.content_html = frappe.utils.md_to_html(context.doc.content)

@@ -55,10 +55,11 @@ def get_context(context):
 			context.doc.content,
 			context.sidebar_edited,
 			context.new_sidebar_items,
+			context.doc.title,
 		) = frappe.db.get_value(
 			"Wiki Page Patch",
 			context.wiki_page_patch,
-			["message", "new_code", "sidebar_edited", "new_sidebar_items"],
+			["message", "new_code", "sidebar_edited", "new_sidebar_items", "new_title"],
 		)
 
 		context.comments = get_comments("Wiki Page Patch", frappe.form_dict.wiki_page_patch, "Comment")
