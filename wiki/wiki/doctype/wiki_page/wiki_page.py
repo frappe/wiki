@@ -40,6 +40,7 @@ class WikiPage(WebsiteGenerator):
 		revision.append("wiki_pages", {"wiki_page": self.name})
 		revision.content = self.content
 		revision.message = "Create Wiki Page"
+		revision.raised_by = frappe.session.user
 		revision.insert()
 
 	def clear_sidebar_cache(self):
@@ -84,7 +85,9 @@ class WikiPage(WebsiteGenerator):
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
-		self.route = cleanup_page_name(self.title)
+
+		# only update the tail end of route
+		self.route = self.route.replace(self.route.split("/")[-1], cleanup_page_name(self.title))
 
 		if content != self.content:
 			self.content = content
