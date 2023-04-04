@@ -172,7 +172,11 @@ textarea.wiki-content {
 		border-top: 1px solid var(--border-color);
 		width: 99.8%;
 		display: block;
-	 }
+
+		@include media-breakpoint-down(md) {
+			width: 75%;
+		}
+	}
 
 	&:first-child {
 		padding-top: 0.7rem;

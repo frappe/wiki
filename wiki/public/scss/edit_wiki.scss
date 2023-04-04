@@ -229,7 +229,7 @@ $font-sizes-mobile: (
 	color: $gray-700;
 	line-height: 1.7;
 	letter-spacing: -0.011em;
-
+	max-width: calc(100vw - 6rem);
 
 	> :first-child {
 		margin-bottom: 0 !important;
@@ -491,11 +491,6 @@ $font-sizes-mobile: (
 		padding: 0.75rem 1rem;
 		border-radius: 0.5rem;
 		overflow-x: auto;
-		max-width: 55vw;
-
-		@include media-breakpoint-down(md) {
-			max-width: 90vw;
-		}
 
 		code {
 		  color: inherit;
