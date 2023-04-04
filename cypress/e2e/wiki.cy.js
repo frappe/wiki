@@ -1,10 +1,10 @@
 context("Wiki", () => {
   beforeEach(() => {
     cy.login();
+    cy.visit("/wiki");
   });
 
   it("creates a new wiki page", () => {
-    cy.visit("/wiki");
     cy.get(".edit-wiki-btn .icon").click();
     cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page").click();
     cy.get(".new-wiki-editor > * > .ProseMirror")
@@ -21,7 +21,7 @@ context("Wiki", () => {
   });
 
   it("edits a wiki page", () => {
-    cy.visit("/test-wiki-page");
+    cy.contains("Test Wiki Page").click();
     cy.get(".edit-wiki-btn .icon").click();
     cy.get(".wiki-editor > * > .ProseMirror")
       .clear()
@@ -37,7 +37,7 @@ context("Wiki", () => {
   });
 
   it("deletes a wiki page", () => {
-    cy.visit("/old-wiki-page");
+    cy.contains("Old Wiki Page").click();
     cy.get(".edit-wiki-btn .icon").click();
     cy.contains("Old Wiki Page").parent().next().click();
     cy.contains("Yes").click();
