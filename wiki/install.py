@@ -15,13 +15,10 @@ def after_install():
 	page.insert()
 
 	# create the wiki sidebar
-	sidebar = frappe.new_doc("Wiki Sidebar")
-	sidebar.title = "Wiki"
-	sidebar.route = "wiki"
-	sidebar.append("sidebar_items", {"item": page.name})
+	sidebar = frappe.new_doc("Wiki Group Item")
+	sidebar.wiki_page = page.name
+	sidebar.parent_label = "Wiki"
+	sidebar.parent = "Wiki Settings"
+	sidebar.parenttype = "Wiki Settings"
+	sidebar.parentfield = "wiki_sidebar"
 	sidebar.insert()
-
-	# set the sidebar in settings
-	settings = frappe.get_single("Wiki Settings")
-	settings.sidebar = sidebar.name
-	settings.save()

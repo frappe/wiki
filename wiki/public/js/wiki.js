@@ -2,7 +2,7 @@ window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
       const active_class = "active";
-      let page_href = decodeURIComponent(window.location.pathname);
+      let page_href = decodeURIComponent(window.location.pathname.slice(1));
       if (page_href.indexOf("#") !== -1) {
         page_href = page_href.slice(0, page_href.indexOf("#"));
       }
@@ -12,28 +12,18 @@ window.Wiki = class Wiki {
       }
     });
     // scroll the active sidebar item into view
-    let active_sidebar_item = $(".sidebar-item.active");
+    let active_sidebar_item = $(".doc-sidebar .sidebar-item.active");
     if (active_sidebar_item.length > 0) {
-      active_sidebar_item.get(1).scrollIntoView(true, {
+      active_sidebar_item.get(0).scrollIntoView({
         behavior: "smooth",
-        block: "nearest",
-      });
-    }
-
-    // avoid active sidebar item to be hidden under logo
-    let web_sidebar = $(".web-sidebar");
-    if (web_sidebar.length > 0) {
-      web_sidebar.get(1).scrollBy({
-        top: -100,
-        behavior: "smooth",
+        block: "center",
       });
     }
   }
 
   toggle_sidebar(event) {
     $(event.currentTarget).parent().children("ul").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-icon").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-left").toggleClass("hidden");
+    $(event.currentTarget).find(".drop-icon").toggleClass("rotate");
     event.stopPropagation();
   }
 
@@ -43,19 +33,10 @@ window.Wiki = class Wiki {
       ".collapsible",
       this.toggle_sidebar,
     );
-    $(".sidebar-group").children("ul").addClass("hidden");
+
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
-    const sidebar_groups = $(".sidebar-item.active").parents(
-      ".web-sidebar .sidebar-group",
-    );
-    sidebar_groups.each(function () {
-      $(this).children(".collapsible").find(".drop-left").addClass("hidden");
-    });
-    sidebar_groups.each(function () {
-      $(this).children(".collapsible").find(".drop-icon").removeClass("hidden");
-    });
   }
 
   scrolltotop() {

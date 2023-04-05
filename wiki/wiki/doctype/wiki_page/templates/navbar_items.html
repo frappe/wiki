@@ -49,9 +49,9 @@
 {% endif %}
 {% endmacro %}
 
-{% if top_bar_items -%}
+{% if navbar_items -%}
 <ul class="mr-auto navbar-nav">
-	{%- for item in top_bar_items -%}
+	{%- for item in navbar_items -%}
 		{% if not item.parent_label and not item.right -%}
 			{{ render_item(item, parent=True) }}
 		{%- endif -%}
@@ -60,7 +60,7 @@
 {%- endif %}
 <ul class="ml-auto navbar-nav navbar-light">
 	{% include "wiki/doctype/wiki_page/templates/navbar_search.html" %}
-	{%- for item in top_bar_items -%}
+	{%- for item in navbar_items -%}
 		{% if not item.parent_label and item.right -%}
 			{{ render_item(item, parent=True) }}
 		{%- endif -%}
@@ -70,7 +70,6 @@
 	{% endif %}
 	<div class="d-block d-sm-none sm-sidebar">
 		<!--sidebar-->
-		<hr>
 	</div>
 	{% if add_dark_mode -%}
 		<div class="sun-moon-container">

@@ -63,16 +63,14 @@ def restore_wiki_revision(wiki_revision_name, wiki_page_name, wiki_revision_mess
 		)
 
 	wiki_revision_content = frappe.get_value("Wiki Page Revision", wiki_revision_name, ["content"])
-	wiki_patch_title, new_sidebar_items = frappe.get_value(
-		"Wiki Page Patch", {"wiki_page": wiki_page_name}, ["new_title", "new_sidebar_items"]
+	wiki_patch_title = frappe.get_value(
+		"Wiki Page Patch", {"wiki_page": wiki_page_name}, ["new_title"]
 	)
 
 	update_vals = update(
 		name=wiki_page_name,
 		content=wiki_revision_content,
 		title=wiki_patch_title,
-		type="Markdown",
-		new_sidebar_items=new_sidebar_items,
 		message=wiki_revision_message,
 	)
 

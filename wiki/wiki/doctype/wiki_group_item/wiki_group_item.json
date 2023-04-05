@@ -2,14 +2,13 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "hash",
- "creation": "2021-05-07 01:38:50.629713",
+ "creation": "2023-04-04 18:17:37.507102",
  "doctype": "DocType",
- "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "wiki_page",
-  "parent_label"
+  "parent_label",
+  "wiki_page"
  ],
  "fields": [
   {
@@ -25,22 +24,20 @@
    "in_list_view": 1,
    "label": "Wiki Page",
    "options": "Wiki Page",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   }
  ],
+ "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-03-11 09:35:52.824480",
+ "modified": "2023-04-04 18:17:37.507102",
  "modified_by": "Administrator",
  "module": "Wiki",
- "name": "Wiki Sidebar",
+ "name": "Wiki Group Item",
  "naming_rule": "Random",
- "nsm_parent_field": "parent_wiki_sidebar",
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+ "states": []
 }

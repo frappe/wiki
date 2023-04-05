@@ -1,30 +1,50 @@
-<div class="from-markdown">
+<div class="from-markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
 	<div class="d-flex justify-content-between align-items-center">
-		<h1>{{ title }}</h1>
-
+		<h1 class="wiki-title">{{ title }}</h1>
+			<i class="edit-wiki-btn"></i>
 	</div>
-	{{ content }}
+	<div class="wiki-content">
+		{{ content }}
+	</div>
+	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 </div>
-<div class="wiki-footer">
-	<div class="my-4 wiki-revision-meta">
-		<ul class="user-contributions">
-
-			{%- if last_revision -%}
-			{{ last_revision.raised_by_username or last_revision.owner }} edited {{ frappe.utils.pretty_date(last_revision.creation) }}
-			{%- if number_of_revisions > 0 %}
-			&middot;
-			<li><a href="/{{ path }}/revisions">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
-			{%- endif -%}
-			{%- endif -%}
-			<li><a href="/{{ path }}/edit-wiki">Edit Page</a>&nbsp;</li>
-			<li><a href="javascript:;" onclick="handleDelete()">Delete Page</a>&nbsp;</li>
-			<li><a href="/{{ path }}/new-wiki">New Page</a>&nbsp;</li>
-		</ul>
+<div class="wiki-editor {% if not edit_wiki_page %}hide{% endif %}"></div>
+<div class="new-wiki-editor {% if not new_wiki_page %}hide{% endif %}"></div>
+<div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+	  <div class="modal-content">
+		<div class="modal-header">
+			<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+		  </div>
+		  <div class="modal-body">
+			<input type="text" id="title" name="title">
+		  </div>
+		<div class="modal-footer">
+		  <button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+		</div>
+	  </div>
 	</div>
+  </div>
 
+  <div class="my-4 wiki-revision-meta">
+	  <ul class="user-contributions">
+
+		  {%- if last_revision -%}
+			 last updated {{ frappe.utils.pretty_date(last_revision.creation) }}
+		  {%- endif -%}
+	  </ul>
+  </div>
+
+  <div class="wiki-footer hide">
 	<div class = "forward-back">
-		<a href="#" class="btn left">Left</a>
-		<a href="#" class="btn pull-right right">Right</a>
+		<a href="#" class="btn left">
+			<p>Previous Page</p>
+			<p>Left</p>
+		</a>
+		<a href="#" class="btn pull-right right">
+			<p>Next Page</p>
+			<p>Right</p></a>
+		</a>
 	</div>
 
 </div>
@@ -33,27 +53,36 @@
 {{ include_script('wiki.bundle.js') }}
 
 <script>
-	var user = "{{ user }}"
+	const hasWikiPageEditPerm = `{{ has_wiki_page_edit_permission }}`
+
+	function getSidebarItems() {
+		let side = {};
+
+		let items = $($(".doc-sidebar .web-sidebar").get(0))
+			.children(".sidebar-items")
+			.children("ul")
+			.not(".hidden")
+			.children("li");
+
+		items.each(function(item) {
+			name = $(this).children(".collapsible").children("span.h6").text();
+			side[name] = [];
+
+			$(this).children(".list-unstyled").children(".sidebar-item").each(function (item) {
+				side[name].push({
+					name: $(this).data('name'),
+					type: $(this).data('type'),
+					new: $(this).data('new'),
+					title: $(this).data('title'),
+					group_name: $(this).data('groupName'),
+				});
+			});
+		});
+
+		return side;
+	}
 
 	new RenderWiki();
-	function handleDelete() {
-		if (user === "Guest")
-			window.location.assign("/login")
-		else	
-			frappe.confirm('Are you sure you want to delete the Wiki Page?',
-				() => {
-					frappe.call({
-					method: "wiki.wiki.doctype.wiki_page.wiki_page.delete_wiki_page",
-					args: {
-						wiki_page_route: decodeURIComponent(new URL(window.location.href).pathname)
-					},
-					callback: (r) => {
-						if (r.message)
-							window.location.assign("/wiki")
-					}
-				})
-			})
-	}
 </script>
 
 {%- if script -%}
