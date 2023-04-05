@@ -33,7 +33,7 @@
 						<td class="worker-name"><span class="indicator-pill no-margin {{j.color}}">&nbsp;&nbsp;{{
 								j.status }}</span></td>
 						<td>{{ j.message }}</td>
-						<td>{{ j.creation }}</td>
+						<td>{{ j.modified }}</td>
 						<td> <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">Open Draft</a>
 						</td>
 					</tr>
@@ -86,7 +86,7 @@
 									<td class="worker-name"><span class="indicator-pill no-margin ${contribution.color}">&nbsp;&nbsp;
 										${contribution.status}</span></td>
 									<td>${contribution.message}</td>
-									<td>${contribution.creation}</td>
+									<td>${contribution.modified}</td>
 									<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Draft</a>
 									</td>
 								</tr>

@@ -161,7 +161,16 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
     </div>
     <div class="wiki-edit-control-btn hide">
       <div class="btn btn-secondary discard-edit-btn btn-sm" :data-new="isEmptyEditor">Discard</div>
-      <div class="btn btn-primary save-wiki-page-btn btn-sm" @click="saveWikiPage">Save</div>
+      <div class="btn-group">
+        <div type="button" class="btn btn-primary save-wiki-page-btn btn-sm" @click="() => saveWikiPage()">Save</div>
+        <div type="button" class="btn btn-primary btn-sm dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span class="sr-only">Toggle Dropdown</span>
+        </div>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" @click="() => saveWikiPage()">Save</a>
+          <a class="dropdown-item" @click="() => saveWikiPage(true)">Draft</a>
+        </div>
+      </div>
     </div>
   </div>
   <editor-content :editor="editor" />
@@ -210,7 +219,6 @@ export default {
         new RegExp(`(^|[\\s])${markdownShortcut}(?![\\w])`, 'g'),
         (state, match, start, end) => {
           const text = state.doc.textBetween(start, end)
-          console.log("state, text, match, end");
           if (text === markdownShortcut) {
             return originalChar
           }
@@ -218,6 +226,13 @@ export default {
         }
       )
     }
+
+    const getContent = () => {
+      if (patchNewCode !== "<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}") return patchNewCode
+      else if (!this.isEmptyEditor) return $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, '')
+      return "<h1></h1><p></p>"
+    }
+
     this.editor = new Editor({
       extensions: [
         CustomDocument,
@@ -249,7 +264,7 @@ export default {
         }),
       ],
       inputRules: [disableMarkdownShortcut("#", "#")],
-      content: this.isEmptyEditor ? "<h1></h1><p></p>" : $(".from-markdown").html().replaceAll(/<br class="ProseMirror-trailingBreak">/g, ''),
+      content: getContent(),
     });
   },
 
@@ -292,7 +307,8 @@ export default {
       }
       input.click();
     },
-    saveWikiPage() {
+    saveWikiPage(draft=false) {
+      const urlParams = new URLSearchParams(window.location.search);
       const title = $(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror h1`).html();
       // markdown=1 tag is needed for older wiki content to properly render
       const content = `<div markdown="1">${$(`.${this.isEmptyEditor ? 'new-' : ''}wiki-editor .ProseMirror`).html().replace(/<h1>.*?<\/h1>/, '')}</div>`;
@@ -306,6 +322,9 @@ export default {
           new: this.isEmptyEditor,
           new_sidebar_items: this.isEmptyEditor ? getSidebarItems() : '',
           title,
+          draft,
+          new_sidebar_group: this.isEmptyEditor ? urlParams.get("newWiki"): "",
+          wiki_page_patch: urlParams.get("wikiPagePatch")
         },
         callback: (r) => {
           // route back to the main page

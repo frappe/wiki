@@ -37,6 +37,34 @@ function set_search_params(key = "", value = "") {
   window.history.pushState({}, "", url);
 }
 
+function toggleEditor(newEditor = false, fromEdit = false) {
+  if (fromEdit) {
+    $(".wiki-editor").toggleClass("hide");
+    $(".new-wiki-editor").toggleClass("hide");
+  } else {
+    $(".wiki-content").toggleClass("hide");
+    $(".wiki-revision-meta").toggleClass("hide");
+    $(".wiki-footer").toggleClass("hide");
+    $(".wiki-edit-control-btn").toggleClass("hide");
+    $(".page-toc").toggleClass("hide");
+    $(".remove-sidebar-item").toggleClass("hide");
+    $(".sidebar-item, .sidebar-group").toggleClass("disabled");
+    $(".drop-icon").toggleClass("hide");
+    $(".add-sidebar-page").toggleClass("hide");
+    $(".add-sidebar-group").toggleClass("hide");
+
+    // avoid hiding editor when params ?editWiki or ?newWiki
+    if ($(".from-markdown").is(":visible"))
+      if (newEditor) $(".new-wiki-editor").toggleClass("hide");
+      else $(".wiki-editor").toggleClass("hide");
+
+    $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
+    $(".wiki-title").toggleClass("hide");
+  }
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+
 window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
@@ -61,7 +89,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_url_state() {
-    const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("editWiki") && $(".edit-wiki-btn .icon").length)
       $(".edit-wiki-btn").trigger("click");
     else if (
@@ -73,23 +100,21 @@ window.RenderWiki = class RenderWiki extends Wiki {
       ).length &&
       $(".edit-wiki-btn .icon").length
     ) {
-      $(".wiki-content").toggleClass("hide");
-      $(".wiki-edit-control-btn").toggleClass("hide");
-      $(".page-toc").toggleClass("hide");
-      $(".remove-sidebar-item").toggleClass("hide");
-      $(".sidebar-item, .sidebar-group").toggleClass("disabled");
-      $(".drop-icon").toggleClass("hide");
-      $(".add-sidebar-page").toggleClass("hide");
-      $(".add-sidebar-group").toggleClass("hide");
+      toggleEditor();
+      $("html").css({ overflow: "hidden" });
 
-      if ($(".from-markdown").is(":visible"))
-        $(".new-wiki-editor").toggleClass("hide");
+      $(
+        $(
+          `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
+            "newWiki",
+          )}) + .add-sidebar-page`,
+        )[0],
+      ).trigger("click");
 
-      $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
-      $(".wiki-title").toggleClass("hide");
+      $(".new-wiki-editor, .wiki-editor").toggleClass("hide");
     }
     $(".from-markdown").removeClass("hide");
-    $(".wiki-footer").toggleClass("hide");
+    $(".wiki-footer, .wiki-revision-meta").toggleClass("hide");
   }
 
   set_toc_highlighter() {
@@ -178,38 +203,12 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     $(".web-sidebar ul").each(setSortable);
 
-    function toggleEditor(newEditor = false, fromEdit = false) {
-      if (fromEdit) {
-        $(".wiki-editor").toggleClass("hide");
-        $(".new-wiki-editor").toggleClass("hide");
-      } else {
-        $(".wiki-content").toggleClass("hide");
-        $(".wiki-revision-meta").toggleClass("hide");
-        $(".wiki-footer").toggleClass("hide");
-        $(".wiki-edit-control-btn").toggleClass("hide");
-        $(".page-toc").toggleClass("hide");
-        $(".remove-sidebar-item").toggleClass("hide");
-        $(".sidebar-item, .sidebar-group").toggleClass("disabled");
-        $(".drop-icon").toggleClass("hide");
-        $(".add-sidebar-page").toggleClass("hide");
-        $(".add-sidebar-group").toggleClass("hide");
-
-        // avoid hiding editor when params ?editWiki or ?newWiki
-        if ($(".from-markdown").is(":visible"))
-          if (newEditor) $(".new-wiki-editor").toggleClass("hide");
-          else $(".wiki-editor").toggleClass("hide");
-
-        $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
-        $(".wiki-title").toggleClass("hide");
-      }
-    }
-
     $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
       // switch to edit mode
       toggleEditor();
       $("html").css({ overflow: "hidden" });
 
-      set_search_params("editWiki", "1");
+      if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
     });
 
     $(".discard-edit-btn").on("click", function () {
@@ -243,7 +242,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
             newSidebarItem.appendTo(
               $(this).parent().parent().children(".list-unstyled"),
             );
-            set_search_params("newWiki", groupName);
+            if (urlParams.get("newWiki") !== groupName)
+              set_search_params("newWiki", groupName);
           } else {
             // when new item is removed (discarding it) by clicking on + again
             active_items.each(function () {
@@ -270,7 +270,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
             true,
             $(".wiki-editor, .new-wiki-editor").is(":visible"),
           );
-          set_search_params("newWiki", groupName);
+          if (urlParams.get("newWiki") !== groupName)
+            set_search_params("newWiki", groupName);
         }
 
         $(this).parent().parent().each(setSortable);

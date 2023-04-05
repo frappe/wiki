@@ -165,6 +165,16 @@ class WikiPage(WebsiteGenerator):
 		context.show_sidebar = True
 		context.hide_login = True
 		context.name = self.name
+		if (frappe.form_dict.editWiki or frappe.form_dict.newWiki) and frappe.form_dict.wikiPagePatch:
+			(
+				context.patch_new_code,
+				context.patch_new_title,
+				context.new_sidebar_group,
+			) = frappe.db.get_value(
+				"Wiki Page Patch",
+				frappe.form_dict.wikiPagePatch,
+				["new_code", "new_title", "new_sidebar_group"],
+			)
 		context = context.update(
 			{
 				"navbar_items": modify_header_footer_items(wiki_settings.navbar),
@@ -355,6 +365,7 @@ def update(
 	new_sidebar="",
 	new_sidebar_items="",
 	draft=False,
+	new_sidebar_group="",
 ):
 
 	context = {"route": name}
@@ -362,6 +373,7 @@ def update(
 	content, file_ids = extract_images_from_html(content)
 
 	new = sbool(new)
+	draft = sbool(draft)
 
 	status = "Draft" if draft else "Under Review"
 	if wiki_page_patch:
@@ -373,6 +385,7 @@ def update(
 		patch.new = new
 		patch.new_sidebar = new_sidebar
 		patch.new_sidebar_items = new_sidebar_items
+		patch.new_sidebar_group = new_sidebar_group
 		patch.save()
 
 	else:
@@ -387,6 +400,7 @@ def update(
 			"new": new,
 			"new_title": title,
 			"new_sidebar_items": new_sidebar_items,
+			"new_sidebar_group": new_sidebar_group,
 		}
 
 		patch.update(patch_dict)
