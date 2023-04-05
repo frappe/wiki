@@ -488,13 +488,13 @@ $font-sizes-mobile: (
 		margin: 1rem 0;
 		background: #011627;
 		color: #D6DEEB;
-		padding: 0.75rem 1rem;
 		border-radius: 0.5rem;
-		overflow-x: auto;
+		overflow: hidden;
 
 		code {
+		  padding: 0.75rem 1rem;
+		  overflow-x: auto;
 		  color: inherit;
-		  padding: 0;
 		  background: none !important;
 		}
 	}
@@ -506,6 +506,10 @@ $font-sizes-mobile: (
 	border-radius: 1rem;
 	border: 1px solid $gray-200;
 	overflow: hidden;
+
+	pre {
+		padding: 0.75rem 1rem;
+	}
 
 	h1 {
 		margin-top: 0.75rem;
