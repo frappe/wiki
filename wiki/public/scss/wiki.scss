@@ -1,14 +1,5 @@
-@import "frappe/public/scss/desk/css_variables";
 @import "frappe/public/scss/website/variables";
-@import "frappe/public/scss/website/index";
-@import "frappe/public/scss/common/awesomeplete";
-@import "frappe/public/scss/common/buttons";
-@import "frappe/public/scss/common/mixins";
-@import "frappe/public/scss/common/controls";
-@import "frappe/public/scss/desk/timeline";
-@import "frappe/public/scss/desk/form";
 @import "frappe/public/css/fonts/inter/inter";
-@import "frappe/public/css/octicons/octicons.css";
 
 body {
 	--gray-800: #1C2126;
@@ -16,16 +7,28 @@ body {
 
 	// light mode vars
 	--background-color: white;
-	--sidebar-bg-color: white;
-	--sidebar-hover-color: var(--blue-50);
+	--sidebar-bg-color: #f6f6f7;
+	--sidebar-hover-color: #ebebe9;
 	--toc-hover-text-color: var(--gray-900);
+
 	--btn-text-color: var(--gray-900);
-	--active-item-color: var(--primary-light);
-	--active-item-text-color: var(--primary);
+	--btn-secondary-color: #f4f5f6;
+	--btn-secondary-hover-color: var(--gray-300);
+
+	--active-item-color: #f1f1f0;
+	--active-item-text-color: $primary;
+
 	--searchbar-color: #f4f5f6;
-	--border-color: var(--gray-200);
+	--border-color: var(--gray-300);
+
+	--bqoute-border-color: var(--gray-400);
+	--bqoute-bg-color: var(--gray-50);
+
 	--code-bg-color: var(--light);
 	--code-text-color: var(--purple-600);
+
+	--sidebar-text-color: #73726e;
+	--sidebar-text-hover-color: #37352f;
 
 // ------------------------------------------
 
@@ -44,15 +47,25 @@ body.dark {
 	--sidebar-bg-color: var(--gray-900);
 	--sidebar-hover-color: var(--blue-900);
 	--toc-hover-text-color: var(--gray-500);
+
 	--btn-text-color: var(--blue-500);
 	--btn-color: var(--gray-700);
+	--btn-secondary-color: var(--gray-700);
+	--btn-secondary-hover-color: var(--gray-500);
+
 	--active-item-color: var(--gray-700);
-	--active-item-text-color: var(--text-color);
 	--searchbar-color: #242a30;
 	--border-color: var(--gray-700);
+
+	--bqoute-border-color: #47474d;
+	--bqoute-bg-color: var(--gray-900);
+
 	--code-bg-color: var(--purple-900);
 	--code-text-color: var(--purple-50);
 	--input-bg-color: #242A30;
+
+	--sidebar-text-color: #909090;
+	--sidebar-text-hover-color: #f4f5f6;
 
 	--bg-orange: var(--orange-600);
 	--text-on-orange: var(--orange-50);
@@ -77,61 +90,54 @@ textarea.wiki-content {
 
 .wiki-footer {
 	border-top: 1px solid var(--border-color);
-	margin-top: 2rem;
+	margin-top: 1rem;
 
 	.btn {
+		margin-top: 1rem;
 		color: var(--text-color);
 		border: 1px solid var(--border-color);
+		border-radius: 8px;
+		padding: 11px 16px 13px;
+		width: 48%;
+		height: 100%;
+		transition: border-color .25s;
+		box-shadow: unset;
+
+		p {
+			line-height: 20px;
+			margin: 0;
+
+			&:first-child {
+				font-size: 12px;
+				font-weight: 500;
+				color: var(--sidebar-text-color);
+			}
+
+			&:last-child {
+				font-size: 14px;
+				font-weight: 500;
+				color: var(--primary);
+				transition: color .25s;
+			}
+		}
+
+		&:hover {
+			background-color: transparent;
+			border: 1px solid var(--primary);
+		}
 	}
 
 	.btn.left {
-		float: left;
-		max-width: 40%;
+		margin-right: auto;
+		text-align: left;
 	}
 
 	.btn.right {
-		float: right;
-		max-width: 40%;
+		margin-left: auto;
+		text-align: right;
 	}
 }
 
-.wiki-diff {
-	max-width: 700px;
-
-	.diff {
-		font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
-			monospace;
-		font-size: $font-size-sm;
-		border: 1px solid $border-color;
-		border-radius: 0.5rem;
-		overflow: auto;
-
-		display: flex;
-		flex-direction: column;
-		flex-wrap: wrap;
-
-		div {
-			padding: 0.25rem 0.5rem;
-			background-color: $light;
-			color: $body-color;
-		}
-
-		.control {
-			color: $gray-500;
-			background-color: $input-bg;
-		}
-
-		.delete {
-			background-color: #fff5f5;
-			color: $gray-900;
-		}
-
-		.insert {
-			background-color: #f0fff4;
-			color: $gray-900;
-		}
-	}
-}
 .wiki-revision-meta {
 	font-size: $font-size-sm;
 	display: flex;
@@ -155,37 +161,55 @@ textarea.wiki-content {
 
 // sidebar
 
+.list-unstyled:first-child > * {
+	padding: 0.75rem 0;
+
+	&::before{
+		content: '';
+		position: relative;
+		top: -0.75rem;
+		left: 0.5rem;
+		border-top: 1px solid var(--border-color);
+		width: 99.8%;
+		display: block;
+
+		@include media-breakpoint-down(md) {
+			width: 95%;
+		}
+	}
+
+	&:first-child {
+		padding-top: 0.7rem;
+		border-top: 0;
+	}
+}
+
 .sidebar-group {
 	margin: 0;
 	font-style: normal;
 	font-weight: 500;
 	font-size: $font-size-base;
-	line-height: 1.72;
+	line-height: 1.5;
 	/* identical to box height, or 28px */
 
 	letter-spacing: -0.011em;
-	
-	padding-left: 0.25rem;
-
-	// display: flex;
 
 	ul.list-unstyled {
-		padding-left: 0.65rem;
 		ul {
-			padding-left: 0.65rem;
+			padding-left: 0;
 		}
 	}
 
+	> ul {
+		padding-left: 0;
+		margin-bottom: 0;
+	}
+
 	.collapsible {
-		padding-top: 0.5rem;
-		padding-bottom: 0.5rem;
-		display: inline-flex;
+		padding: 4px 0.5rem;
+		display: flex;
 		align-items: center;
 		width: 100%;
-
-		.remove-sidebar-item {
-			margin-left: auto;
-		}
 	}
 
 	.active {
@@ -199,60 +223,62 @@ textarea.wiki-content {
 		.h6 {
 			font-size: $font-size-sm;
 			margin-bottom: 0;
-			line-height: 1.5;
+			line-height: 1.5rem;
 			color: var(--text-color);
+			font-weight: 700;
 		}
 	}
 
 	.sidebar-item {
-		font-style: normal;
-		font-weight: normal;
-		font-size: 1px;
-		line-height: 1.5;
-		/* identical to box height, or 24px */
-		color: $text-muted;
-		letter-spacing: -0.011em;
-		padding: 0.375rem 0 0.375rem 0.8rem;
-		// div {
-		// 	display: flex;
-		// }
-
 		a {
 			margin: 0;
-			padding-left: 0;
-			padding-top: unset;
-			padding-bottom: unset;
-			font-weight: normal;
+			font-weight: 500;
 			width: 100%;
 		}
-		a:hover {
-			color: inherit;
+	}
+	
+	.drop-icon,
+	.add-sidebar-page {
+		display: inline-flex;
+		margin: 4px 5px 2.5px auto;
+		transition: transform 0.2s ease-in-out;
+		transform: rotate(0deg);
+
+		&.rotate {
+			transform: rotate(-90deg);
+		}
+
+		&:hover {
+			color: var(--sidebar-text-hover-color);
 		}
 	}
+}
 
-	.sidebar-item:hover:not(.active) {
+
+// hover bg only on edit mode
+.sidebar-group:not(.disabled) .collapsible,
+.sidebar-item:not(.disabled) {
+	&:hover {
 		background-color: var(--sidebar-hover-color);
-		color: var(--text-color);
+	}
+}
+
+.sidebar-group .collapsible,
+.sidebar-item {
+	margin: 1px 0;
+	color: var(--sidebar-text-color);
+
+	&:hover:not(.active) {
+		color: var(--sidebar-text-hover-color);
 		border-radius: 4px;
-	}
-
-	.drop-icon,
-	.drop-left {
-		display: inline-flex;
-	}
-
-	.management {
-		padding-top: 1rem;
-		border-top: 1px solid #eef0f2;
 	}
 }
 
 .sidebar-item.active {
-	background-color: var(--active-item-color);
+	background-color: transparent;
 	border-radius: 4px;
 
 	a {
-		margin: 0.15rem 0;
 		background-color: transparent;
 		color: var(--active-item-text-color);
 	}
@@ -260,13 +286,14 @@ textarea.wiki-content {
 
 .sidebar-item {
 	display: flex;
+
+	a {
+		color: inherit;
+		margin-top: 0 !important;
+	}
 	
 	:first-child {
 		margin-right: auto;
-	}
-
-	.active:hover {
-		background-color: var(--active-item-color);
 	}
 
 	a:hover {
@@ -278,29 +305,32 @@ textarea.wiki-content {
 	padding-bottom: 2rem;
 }
 
+.web-sidebar {
+	position: relative;
+}
+
 .doc-sidebar {
 	height: 100vh;
 	margin-bottom: 0;
 
 	.web-sidebar {
+		display: flex;
+		flex-direction: column;
 		margin-bottom: 8px;
 		margin-right: -0.5rem;
-		padding-top: 4.5rem;
+		padding-top: 0;
 		padding-bottom: 0;
 		overflow-x: hidden;
+		margin-left: 2rem;
 
 		.sidebar-items {
-			padding-top: 1rem;
 			width: 18rem;
+			margin-bottom: auto;
 
 			.list-unstyled {
 				max-width: 16rem;
 			}
 		}
-	}
-
-	.management {
-		margin-bottom: 0;
 	}
 }
 
@@ -320,9 +350,13 @@ textarea.wiki-content {
 	    position: sticky;
 		background-color: var(--background-color);
 		border: 1px solid var(--border-color);
-		
+
 		.dropdown-item {
 			color: var(--text-color);
+			
+			&:focus-visible {
+				outline: none;
+			}
 		}
 
 		.dropdown-item:hover {
@@ -374,12 +408,17 @@ textarea.wiki-content {
 	}
 }
 .navbar {
-	width: 100%;
-	position: fixed;
+	position: sticky;
 	top: 0;
 	z-index: 1020;
 	background-color: transparent;
 	padding-top: 0;
+	margin-left: auto;
+
+	@include media-breakpoint-down(md) {
+		width: auto;
+		padding: 0 0 1rem 0;
+	}
 
 	.doc-container .navbar-collapse {
 		padding-top: 2rem;
@@ -389,7 +428,8 @@ textarea.wiki-content {
 		padding-bottom: 1rem;
 
 		@include media-breakpoint-down(md) {
-			margin-left: 0;
+			padding-top: 0;
+			margin: 0;
 		}
 	}
 	.container {
@@ -401,7 +441,7 @@ textarea.wiki-content {
 		margin: 0.25rem 0 auto 1rem;
 
 		@include media-breakpoint-down(md) {
-			margin-bottom: 1rem;
+			margin: 0.25rem 0 1rem 0.5rem;
 		}
 	}
 }
@@ -412,6 +452,8 @@ textarea.wiki-content {
 
 .doc-layout {
 	padding-top: 0rem;
+	margin: 0;
+	max-width: 100%;
 }
 
 .navbar-brand {
@@ -433,10 +475,15 @@ textarea.wiki-content {
 	width: 16rem;
 	background-color: var(--sidebar-bg-color);
 	padding-top: 1.4rem;
+	margin-left: 0.5rem;
+	position: sticky;
+	top: 0;
+	z-index: 5;
 
 	@include media-breakpoint-down(md) {
 		border-bottom: 0;
 		width: calc(max-width - 27px);
+		position: inherit;
 		background-color: var(--background-color);
 	}
 }
@@ -446,16 +493,14 @@ textarea.wiki-content {
 	background-color: var(--background-color);
 	flex: 8;
 	text-align: left;
-	padding-bottom: 2rem;
 
 	.page-content-wrapper {
-		margin-top: 3.5rem;
-		padding-top: 2rem;
-		padding-bottom: 0;
-	}
+		margin: 0 2rem 3.5rem;;
+		padding: 0 2rem 2rem !important;
 
-	.hljs {
-		max-width: 40rem;
+		@include media-breakpoint-down(md) {
+			margin: 0;
+		}
 	}
 }
 
@@ -473,21 +518,44 @@ textarea.wiki-content {
 }
 
 .doc-content {
+	max-width: 900px;
+	margin: auto;
+
 	.from-markdown {
+		.edit-wiki-button {
+			cursor: pointer;
+		}
+
+		p {
+			font-size: 1rem;
+		}
+
 		h2 {
 			margin-top: 2.5rem;
 		}
-
-		code:not(.hljs) {
-			background-color: var(--code-bg-color);
-			color: var(--code-text-color);
-		}
-	
+	}
+	@include media-breakpoint-down(md) {
+		width: auto;
+		margin: unset;
 	}
 }
 
 .feather-link {
 	visibility: hidden;
+}
+
+// TODO: clear this when website related css is removed
+.doc-content .from-markdown {
+	h1, h2, h3, h4, h5, h6{
+		&::before {
+			height: 0;
+			margin-top: 0;
+		}
+	}
+}
+
+.hljs {
+	overflow-x: visible;
 }
 
 h2:hover .feather-link,
@@ -498,8 +566,27 @@ h6:hover .feather-link {
 	visibility: visible;	
 }
 
-.btn.btn-secondary, .btn.btn-secondary:hover {
-	color: var(--background-color);
+.btn.btn-secondary {
+	background-color: var(--btn-secondary-color);
+
+	&:hover {
+		background-color: var(--btn-secondary-hover-color);
+	}
+}
+
+.edit-wiki-btn {
+	width: 2rem;
+	height: 2rem;
+	margin-top: 1rem;
+
+	svg {
+		width: 2rem;
+	}
+}
+
+.edit-wiki-btn:hover {
+	background-color: var(--gray-200);
+	border-radius: 5px;
 }
 
 // toc
@@ -574,12 +661,6 @@ h6:hover .feather-link {
 	padding-left: 0;
 }
 
-@media (min-width: 1920px) {
-	.doc-container {
-		max-width: 1600px;
-	}
-}
-
 .doc-sidebar {
 	padding-right: 0.5rem;
 	margin-left: -15rem;
@@ -587,15 +668,13 @@ h6:hover .feather-link {
 	background-color: var(--sidebar-bg-color);
 }
 
-.sidebar-group > ul {
-	margin-bottom: 0.5rem;
-}
-
 ul.user-contributions {
 	list-style-type: none;
 	display: flex;
 	padding-left: 0;
 	flex-wrap: wrap;
+	margin: 1rem 0 0 auto;
+	color: var(--sidebar-text-color);
 }
 
 ul.user-contributions li {
@@ -642,17 +721,18 @@ navbar
 
 .form-control:focus {
 	color: var(--text-color);
+	border: 1px solid var(--gray-500);
 }
 
-@media (max-width: 767px) {
+@include media-breakpoint-down(md) {
 	.navbar {
 		position: inherit;
 	}
 
 	.navbar-expand-lg .doc-container {
-		padding-left: 0;
-		padding-right: 0;
+		padding: 0.5rem 0;
 	}
+
 	.web-sidebar {
 		padding-top: 0;
 	}
@@ -674,7 +754,7 @@ navbar
 	}
 
 	.nav-item {
-		margin-left: 10px;
+		margin-left: 0;
 
 		#search-container {
 			margin: 10px 0;
@@ -691,10 +771,16 @@ navbar
 
 .my-contributions,
 .new-wiki-page,
-.add-sidebar-item {
-	padding: 0.25rem 0.5rem 0.25rem 0;
+.sidebar-edit-mode-btn,
+.add-sidebar-group {
+	padding: 0.25rem 0.5rem;
 	cursor: pointer;
-	margin-top: 1rem;
+	margin: auto;
+	font-weight: 500;
+
+	svg {
+		margin-bottom: 0.1rem;
+	}
 }
 
 .web-footer {
@@ -763,7 +849,7 @@ h1 {
 	@include media-breakpoint-up(sm) {
 		font-size: 2rem;
 		margin-top: 1rem;
-		margin-bottom: 1.25rem;
+		margin-bottom: 0;
 	}
 }
 
@@ -821,6 +907,9 @@ p {
 	}
 
 	.modal-body {
+		padding-top: 0;
+		padding-bottom: 0;
+
 		label {
 			color: var(--text-color);
 		}
@@ -829,4 +918,16 @@ p {
 			background-color: var(--searchbar-color);
 		}
 	}
+}
+
+// edit mode
+
+.ProseMirror:focus-visible {
+	outline: none;
+}
+
+.vertical-sep {
+	display: inline;
+	padding: 0.2rem 0;
+  	border-right: 1px solid $gray-200;
 }

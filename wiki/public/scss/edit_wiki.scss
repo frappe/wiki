@@ -89,7 +89,6 @@ body.dark {
 
 .form-control {
 	background-color: white;
-	border: 1px solid var(--border-color);
 }
 
 .form-control:focus {
@@ -120,8 +119,12 @@ body.dark {
 
 .remove-sidebar-item {
 	float: right;
-	cursor: pointer;
-	margin: 5px 15px 0 0;
+	margin: 4px 15px 2.5px auto;
+}
+
+.collapsible .remove-sidebar-item {
+	margin-right: calc(15px - 0.5rem);
+	margin-bottom: 3px;
 }
 
 .trash-icon {
@@ -213,23 +216,27 @@ $font-sizes-mobile: (
 	"3xl": 1.75rem,
 );
 
-.ql-snow .ql-editor {
+.wiki-editor,
+.new-wiki-editor,
+.from-markdown {
+	margin: auto;
+}
+
+.wiki-editor, 
+.new-wiki-editor,
+.wiki-content {
 	font-size: map-get($font-sizes-desktop, "base");
 	color: $gray-700;
 	line-height: 1.7;
 	letter-spacing: -0.011em;
-
-	> * + * {
-		margin-top: 0.75rem !important;
-		margin-bottom: 0 !important;
-	}
+	max-width: calc(100vw - 6rem);
 
 	> :first-child {
-		margin-top: 0 !important;
+		margin-bottom: 0 !important;
 	}
 
-	> :last-child {
-		margin-bottom: 0 !important;
+	p {
+		color: var(--text-color);
 	}
 
 	ul,
@@ -248,6 +255,14 @@ $font-sizes-mobile: (
 	li {
 		padding-top: 1px;
 		padding-bottom: 1px;
+
+		&::marker {
+			color: var(--text-color);
+		}
+
+		p {
+			margin-bottom: 0;
+		}
 	}
 
 	li > ul,
@@ -264,17 +279,15 @@ $font-sizes-mobile: (
 		margin-top: 2px !important;
 	}
 
-	> blockquote {
+	blockquote {
 		padding: 0.75rem 1rem 0.75rem 1.25rem;
 		font-size: $font-size-sm;
 		font-weight: 500;
-		border: 1px solid $gray-200;
-		border-left: 3px solid $yellow;
-		border-top-left-radius: 0.1rem;
-		border-bottom-left-radius: 0.1rem;
-		border-top-right-radius: 0.375rem;
-		border-bottom-right-radius: 0.375rem;
+		border: 1px solid var(--bqoute-border-color);
+		border-left: 5px solid var(--bqoute-border-color);
+		border-radius: 0.5rem;
 		margin: 1.5rem 0 !important;
+		background-color: var(--bqoute-bg-color);
 	}
 
 	blockquote p:last-child {
@@ -305,35 +318,32 @@ $font-sizes-mobile: (
 	}
 
 	h1 {
-		font-size: map-get($font-sizes-mobile, "3xl");
+		font-size: map-get($font-sizes-desktop, "3xl");
 		line-height: 1.5;
 		letter-spacing: -0.021em;
-		font-weight: 700;
+		font-weight: 600;
 
 		@include media-breakpoint-up(md) {
-			font-size: map-get($font-sizes-desktop, "3xl");
 			letter-spacing: -0.024em;
 		}
 
 		// for byline
 		& + p {
 			margin-top: 1.5rem !important;
-			font-size: map-get($font-sizes-mobile, "xl");
-			letter-spacing: -0.014em;
 			line-height: 1.4;
-
-			@include media-breakpoint-up(md) {
-				font-size: map-get($font-sizes-desktop, "xl");
-				letter-spacing: -0.0175em;
-			}
 		}
+	}
+
+	& > p {
+		margin-top: 1.5rem !important;
+		line-height: 1.4;
 	}
 
 	h2 {
 		font-size: map-get($font-sizes-mobile, "2xl");
 		line-height: 1.56;
 		letter-spacing: -0.015em;
-		margin-top: 4rem !important;
+		margin: 3rem 0 1rem !important;
 
 		@include media-breakpoint-up(md) {
 			font-size: map-get($font-sizes-desktop, "2xl");
@@ -345,7 +355,7 @@ $font-sizes-mobile: (
 		font-size: map-get($font-sizes-mobile, "xl");
 		line-height: 1.56;
 		letter-spacing: -0.014em;
-		margin-top: 2.25rem !important;
+		margin: 2rem 0 1rem !important;
 
 		@include media-breakpoint-up(md) {
 			font-size: map-get($font-sizes-desktop, "xl");
@@ -357,15 +367,15 @@ $font-sizes-mobile: (
 		font-size: map-get($font-sizes-mobile, "lg");
 		line-height: 1.56;
 		letter-spacing: -0.014em;
-		margin-top: 2.5rem !important;
+		margin-top: 1rem !important;
 	}
 
-	h5 {
+	h5:not(.modal-title) {
 		font-size: map-get($font-sizes-mobile, "base");
 		line-height: 1.5;
 		letter-spacing: -0.011em;
 		font-weight: 600;
-		margin-top: 2rem !important;
+		margin-top: 1rem !important;
 	}
 
 	h6 {
@@ -373,7 +383,7 @@ $font-sizes-mobile: (
 		line-height: 1.35;
 		font-weight: 600;
 		text-transform: uppercase;
-		margin-top: 1.5rem !important;
+		margin-top: 1rem !important;
 	}
 
 	tr > td,
@@ -399,18 +409,66 @@ $font-sizes-mobile: (
 		margin-bottom: 2rem !important;
 	}
 
-	code:not(.hljs) {
+	p > code:not(.hljs) {
 		padding: 0 0.25rem;
-		background: $light;
+		background-color: var(--code-bg-color);
+		color: var(--code-text-color);
 		border-radius: 0.125rem;
 	}
 
 	table {
 		border-color: $gray-200;
-	}
+		border-collapse: collapse;
+		table-layout: fixed;
+		width: 100%;
+		margin: 0;
+		overflow: hidden;
 
-	table thead {
-		background-color: $light;
+		td,
+		th {
+			min-width: 1em;
+			border: 2px solid #ced4da;
+			padding: 3px 5px;
+			vertical-align: top;
+			box-sizing: border-box;
+			position: relative;
+
+			>* {
+			margin-bottom: 0;
+			}
+		}
+
+		th {
+			font-weight: bold;
+			text-align: left;
+			background-color: var(--active-item-color);
+		}
+
+		.selectedCell:after {
+			z-index: 2;
+			position: absolute;
+			content: "";
+			left: 0;
+			right: 0;
+			top: 0;
+			bottom: 0;
+			background: rgba(200, 200, 255, 0.4);
+			pointer-events: none;
+		}
+
+		.column-resize-handle {
+			position: absolute;
+			right: -2px;
+			top: 0;
+			bottom: -2px;
+			width: 4px;
+			background-color: #adf;
+			pointer-events: none;
+		}
+
+		p {
+			margin: 0;
+		}
 	}
 
 	.table-bordered,
@@ -425,14 +483,133 @@ $font-sizes-mobile: (
 	.table-bordered thead td {
 		border-bottom-width: 1px;
 	}
+
+	pre {
+		margin: 1rem 0;
+		background: #011627;
+		color: #D6DEEB;
+		padding: 0.75rem 1rem;
+		border-radius: 0.5rem;
+		overflow-x: auto;
+
+		code {
+		  color: inherit;
+		  padding: 0;
+		  background: none !important;
+		}
+	}
 }
 
-.modal .modal-header {
-	border-bottom: unset;
+.new-wiki-editor,
+.wiki-editor {
+	margin: 0 -1rem;
+	border-radius: 1rem;
+	border: 1px solid $gray-200;
+	overflow: hidden;
+
+	h1 {
+		margin-top: 0.75rem;
+	}
+	button:not(.btn-primary) {
+		all: unset;
+		cursor: pointer;
+		padding: 0.25rem;
+		margin: 0.25rem;
+		border-radius: 0.25rem;
+	}
+	
+	button:hover {
+		background-color: var(--gray-100);
+	}
+	
+	.is-active {
+		background-color: var(--gray-100);
+	}
+	
+	.dropdown {
+		display: inline-block;
+	
+		#dropdownMenuButton::after {
+			display: none;
+		}
+	}
+	
+	.ProseMirror {
+		height: 80vh;
+		overflow-y: auto;
+		padding: 0 calc(1rem - 1px);
+		margin-top: -0.1px;
+
+		@include media-breakpoint-down(md) {
+			padding-right: 1rem;
+			width: 92vw;
+		}
+		
+		.is-empty::before {
+			content: attr(data-placeholder);
+			float: left;
+			color: #ced4da;
+			pointer-events: none;
+			height: 0;
+		}
+	}
+
+	> :last-child {
+		margin-top: 0 !important;
+		border-top: 1px solid $gray-200;
+	}
+
+	> :first-child {
+		padding: 0 1rem;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+
+		.wiki-edit-controls {
+			display: inline-flex;
+		}
+
+		.wiki-edit-control-btn {
+			display: inline-flex;
+
+			> * {
+				margin: 0.5rem 0.25rem;
+			}
+		}
+	}
 }
 
-.modal .modal-footer {
-	border-top: unset;
+.wiki-content {
+	min-height: 55vh;
+
+	div > p:first-child {
+		margin-top: 1.5rem !important;
+		line-height: 1.4;
+	}
+}
+
+.modal {
+
+ 	.modal-header {
+		border-bottom: unset;
+	}
+
+	.modal-footer {
+		border-top: unset;
+		justify-content: end;
+	}
+
+	.modal-body input {
+		width: 100%;
+		background: $gray-200;
+		border-radius: .375rem;
+		border: none;
+		outline: none;
+		padding: 0.25rem 0.5rem;
+		font-size: 13px;
+		line-height: 1.25rem;
+	}
 }
 
 // button

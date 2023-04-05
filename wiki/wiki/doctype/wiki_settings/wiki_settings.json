@@ -5,24 +5,24 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "general_tab",
   "logo",
-  "dark_mode_logo",
-  "sidebar",
   "add_dark_mode",
-  "add_search_bar",
-  "javascript"
+  "dark_mode_logo",
+  "section_break_mmtu",
+  "wiki_search_scope",
+  "wiki_sidebar",
+  "javascript",
+  "navbar_tab",
+  "navbar_column",
+  "navbar",
+  "add_search_bar"
  ],
  "fields": [
   {
    "fieldname": "logo",
    "fieldtype": "Attach Image",
    "label": "Light Mode Logo"
-  },
-  {
-   "fieldname": "sidebar",
-   "fieldtype": "Link",
-   "label": "Wiki Sidebar",
-   "options": "Wiki Sidebar"
   },
   {
    "fieldname": "javascript",
@@ -46,12 +46,50 @@
    "fieldname": "add_dark_mode",
    "fieldtype": "Check",
    "label": "Add Dark Mode"
+  },
+  {
+   "fieldname": "wiki_sidebar",
+   "fieldtype": "Table",
+   "label": "Wiki Sidebar",
+   "options": "Wiki Group Item"
+  },
+  {
+   "fieldname": "navbar_tab",
+   "fieldtype": "Tab Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar_column",
+   "fieldtype": "Column Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar",
+   "fieldtype": "Table",
+   "label": "Navbar Items",
+   "options": "Top Bar Item"
+  },
+  {
+   "fieldname": "section_break_mmtu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "general_tab",
+   "fieldtype": "Tab Break",
+   "label": "General"
+  },
+  {
+   "default": "wiki",
+   "description": "The search scope is used to index wiki content for search. This will also prepend the scope before the route of a wiki page.",
+   "fieldname": "wiki_search_scope",
+   "fieldtype": "Data",
+   "label": "Wiki Search Scope"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-02-02 18:02:15.429235",
+ "modified": "2023-04-04 20:45:07.523813",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

@@ -37,7 +37,6 @@ class TestWikiPage(unittest.TestCase):
 			name=self.wiki_page.name,
 			content="New Content",
 			title="New Title",
-			type="Markdown",
 			message="test",
 		)
 
@@ -73,14 +72,14 @@ class TestWikiPage(unittest.TestCase):
 		)
 
 	def test_wiki_page_deletion(self):
-		delete_wiki_page(f"/{self.wiki_page.route}")
+		delete_wiki_page(f"{self.wiki_page.route}")
 		self.assertEqual(frappe.db.exists("Wiki Page", self.wiki_page.name), None)
 
 		patches = frappe.get_all("Wiki Page Patch", {"wiki_page": self.wiki_page.name}, pluck="name")
 		self.assertEqual(patches, [])
 
 		sidebar_items = frappe.get_all(
-			"Wiki Sidebar Item", {"type": "Wiki Page", "item": self.wiki_page.name}, pluck="name"
+			"Wiki Group Item", {"wiki_page": self.wiki_page.name}, pluck="name"
 		)
 		self.assertEqual(sidebar_items, [])
 
@@ -90,7 +89,6 @@ class TestWikiPage(unittest.TestCase):
 			name=self.wiki_page.name,
 			content="New Content",
 			title="New Title",
-			type="Markdown",
 			message="test",
 		)
 
