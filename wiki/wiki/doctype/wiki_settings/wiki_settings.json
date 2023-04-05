@@ -51,7 +51,7 @@
    "fieldname": "wiki_sidebar",
    "fieldtype": "Table",
    "label": "Wiki Sidebar",
-   "options": "Wiki Sidebar"
+   "options": "Wiki Group Item"
   },
   {
    "fieldname": "navbar_tab",
@@ -89,7 +89,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-03-27 17:26:35.837480",
+ "modified": "2023-04-04 20:45:07.523813",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

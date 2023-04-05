@@ -15,7 +15,7 @@ def after_install():
 	page.insert()
 
 	# create the wiki sidebar
-	sidebar = frappe.new_doc("Wiki Sidebar")
+	sidebar = frappe.new_doc("Wiki Group Item")
 	sidebar.wiki_page = page.name
 	sidebar.parent_label = "Wiki"
 	sidebar.parent = "Wiki Settings"

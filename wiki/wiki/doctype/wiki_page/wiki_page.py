@@ -71,8 +71,8 @@ class WikiPage(WebsiteGenerator):
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"):
 			frappe.db.set_value("Wiki Page Patch", name, "wiki_page", "")
 
-		wiki_sidebar_name = frappe.get_value("Wiki Sidebar", {"wiki_page": self.name})
-		frappe.delete_doc("Wiki Sidebar", wiki_sidebar_name)
+		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
+		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
 
 		self.clear_sidebar_cache()
 

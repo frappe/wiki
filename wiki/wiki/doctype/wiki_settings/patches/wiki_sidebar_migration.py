@@ -13,20 +13,6 @@ def execute():
 		return
 	topmost = find_topmost(wiki_settings.sidebar)
 
-	def get_sidebar_for_patch(sidebar_items, group_name):
-		sidebar_item = OrderedDict({group_name: []})
-
-		for item in sidebar_items:
-			if not item.get("group_title"):
-				sidebar_item[group_name].append(item)
-			else:
-				for group, children in get_sidebar_for_patch(
-					item.get("group_items"), item.get("group_name")
-				).items():
-					sidebar_item[group] = children
-
-		return sidebar_item
-
 	frappe.reload_doctype("Wiki Sidebar")
 	sidebar_items = get_children(frappe.get_doc("Wiki Sidebar", topmost))
 	sidebars = get_sidebar_for_patch(sidebar_items, topmost)
@@ -35,25 +21,18 @@ def execute():
 	sidebar_items = sidebars.items()
 	frappe.reload_doctype("Wiki Settings")
 	if sidebar_items:
-		idx = 0
 		for sidebar, items in sidebar_items:
 			for item in items:
-				wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 				wiki_sidebar_dict = {
-					"name": item.name,
 					"wiki_page": item.item,
 					"parent_label": item.group_name,
-					"parent": "Wiki Settings",
-					"parenttype": "Wiki Settings",
-					"parentfield": "wiki_sidebar",
-					"idx": idx,
 				}
-				wiki_sidebar.update(wiki_sidebar_dict)
-				wiki_sidebar.save()
-				idx += 1
+				wiki_settings.append("wiki_sidebar", wiki_sidebar_dict)
 
 			# delete old sidebar groups
 			frappe.db.delete("Wiki Sidebar", sidebar)
+	wiki_settings.wiki_search_scope = topmost
+	wiki_settings.save()
 
 
 def find_topmost(me):
@@ -61,6 +40,21 @@ def find_topmost(me):
 	if not parent:
 		return me
 	return find_topmost(parent)
+
+
+def get_sidebar_for_patch(sidebar_items, group_name):
+	sidebar_item = OrderedDict({group_name: []})
+
+	for item in sidebar_items:
+		if not item.get("group_title"):
+			sidebar_item[group_name].append(item)
+		else:
+			for group, children in get_sidebar_for_patch(
+				item.get("group_items"), item.get("group_name")
+			).items():
+				sidebar_item[group] = children
+
+	return sidebar_item
 
 
 def get_children(doc):

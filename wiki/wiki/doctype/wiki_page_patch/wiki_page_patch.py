@@ -81,7 +81,7 @@ class WikiPagePatch(Document):
 					if item["name"] == "new-wiki-page":
 						item["name"] = self.new_wiki_page.name
 
-						wiki_sidebar = frappe.new_doc("Wiki Sidebar")
+						wiki_sidebar = frappe.new_doc("Wiki Group Item")
 						wiki_sidebar_dict = {
 							"wiki_page": self.new_wiki_page.name,
 							"parent_label": list(sidebars)[-1],
@@ -94,7 +94,7 @@ class WikiPagePatch(Document):
 						wiki_sidebar.save()
 
 					frappe.db.set_value(
-						"Wiki Sidebar", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
+						"Wiki Group Item", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
 					)
 
 

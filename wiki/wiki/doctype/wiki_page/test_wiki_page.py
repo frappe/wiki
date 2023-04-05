@@ -78,7 +78,9 @@ class TestWikiPage(unittest.TestCase):
 		patches = frappe.get_all("Wiki Page Patch", {"wiki_page": self.wiki_page.name}, pluck="name")
 		self.assertEqual(patches, [])
 
-		sidebar_items = frappe.get_all("Wiki Sidebar", {"wiki_page": self.wiki_page.name}, pluck="name")
+		sidebar_items = frappe.get_all(
+			"Wiki Group Item", {"wiki_page": self.wiki_page.name}, pluck="name"
+		)
 		self.assertEqual(sidebar_items, [])
 
 	def test_wiki_page_revision_restore(self):
