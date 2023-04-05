@@ -18,13 +18,6 @@ frappe.ui.form.on("Wiki Settings", {
     );
   },
 
-  set_parent_options: function (frm, doctype, name) {
-    var item = frappe.get_doc(doctype, name);
-    if (item.parentfield === "navbar_items") {
-      frm.trigger("set_parent_label_options");
-    }
-  },
-
   get_parent_options: function (frm, table_field) {
     var items = frm.doc[table_field] || [];
     var main_items = [""];
@@ -39,19 +32,23 @@ frappe.ui.form.on("Wiki Settings", {
 });
 
 frappe.ui.form.on("Top Bar Item", {
-  navbar_items_delete(frm) {
+  navbar_delete(frm) {
+    frm.events.set_parent_label_options(frm);
+  },
+
+  navbar_add(frm, cdt, cdn) {
     frm.events.set_parent_label_options(frm);
   },
 
   parent_label: function (frm, doctype, name) {
-    frm.events.set_parent_options(frm, doctype, name);
+    frm.events.set_parent_label_options(frm);
   },
 
   url: function (frm, doctype, name) {
-    frm.events.set_parent_options(frm, doctype, name);
+    frm.events.set_parent_label_options(frm);
   },
 
   label: function (frm, doctype, name) {
-    frm.events.set_parent_options(frm, doctype, name);
+    frm.events.set_parent_label_options(frm);
   },
 });
