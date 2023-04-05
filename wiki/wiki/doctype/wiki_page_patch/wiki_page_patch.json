@@ -12,6 +12,7 @@
   "raised_by",
   "status",
   "approved_by",
+  "new_sidebar_group",
   "new",
   "compare_changes_section",
   "diff",
@@ -154,12 +155,17 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "New Title"
+  },
+  {
+   "fieldname": "new_sidebar_group",
+   "fieldtype": "Data",
+   "label": "New Sidebar Group"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-03-21 14:42:59.096061",
+ "modified": "2023-04-05 20:23:42.992090",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
@@ -177,7 +183,6 @@
    "report": 1,
    "role": "System Manager",
    "select": 1,
-   "set_user_permissions": 1,
    "share": 1,
    "submit": 1,
    "write": 1
@@ -207,7 +212,6 @@
    "report": 1,
    "role": "Wiki Approver",
    "select": 1,
-   "set_user_permissions": 1,
    "share": 1,
    "submit": 1,
    "write": 1

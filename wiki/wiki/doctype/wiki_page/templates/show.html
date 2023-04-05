@@ -26,7 +26,7 @@
 	</div>
   </div>
 
-  <div class="my-4 wiki-revision-meta">
+  <div class="my-4 wiki-revision-meta hide">
 	  <ul class="user-contributions">
 
 		  {%- if last_revision -%}
@@ -50,6 +50,10 @@
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+<script>
+	const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`
+</script>
+
 {{ include_script('wiki.bundle.js') }}
 
 <script>
