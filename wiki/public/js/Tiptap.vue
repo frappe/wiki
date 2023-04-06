@@ -16,6 +16,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
 </script>
 
 <template>
+  <div>
   <div v-if="editor">
     <div class="wiki-edit-controls">
       <div class="dropdown">
@@ -174,6 +175,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
     </div>
   </div>
   <editor-content :editor="editor" />
+  </div>
 </template>
 
 <script>
