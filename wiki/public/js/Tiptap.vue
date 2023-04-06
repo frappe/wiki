@@ -20,7 +20,7 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
   <div v-if="editor">
     <div class="wiki-edit-controls">
       <div class="dropdown">
-        <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+        <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown tooltip" aria-haspopup="true" data-placement="top" title="Heading"
           aria-expanded="false">
           <H2Icon />
         </button>
@@ -48,42 +48,42 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
         </div>
       </div>
       <div class="vertical-sep"></div>
-      <button @click="editor.chain().focus().toggleBold().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Bold" @click="editor.chain().focus().toggleBold().run()"
         :disabled="!editor.can().chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }">
         <BoldIcon />
       </button>
-      <button @click="editor.chain().focus().toggleItalic().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Italic" @click="editor.chain().focus().toggleItalic().run()"
         :disabled="!editor.can().chain().focus().toggleItalic().run()"
         :class="{ 'is-active': editor.isActive('italic') }">
         <ItalicIcon />
       </button>
       <div class="vertical-sep"></div>
-      <button @click="editor.chain().focus().toggleBulletList().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Bullet List" @click="editor.chain().focus().toggleBulletList().run()"
         :class="{ 'is-active': editor.isActive('bulletList') }">
         <ListUnorderedIcon />
       </button>
-      <button @click="editor.chain().focus().toggleOrderedList().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Number List" @click="editor.chain().focus().toggleOrderedList().run()"
         :class="{ 'is-active': editor.isActive('orderedList') }">
         <ListOrderedIcon />
       </button>
       <div class="vertical-sep"></div>
-      <button @click="editor.chain().focus().setTextAlign('left').run()"
+      <button data-toggle="tooltip" data-placement="top" title="Align Left" @click="editor.chain().focus().setTextAlign('left').run()"
         :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }">
         <AlignLeftIcon />
       </button>
-      <button @click="editor.chain().focus().setTextAlign('center').run()"
+      <button data-toggle="tooltip" data-placement="top" title="Align Center" @click="editor.chain().focus().setTextAlign('center').run()"
         :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }">
         <AlignCenterIcon />
       </button>
-      <button @click="editor.chain().focus().setTextAlign('right').run()"
+      <button data-toggle="tooltip" data-placement="top" title="Align Right" @click="editor.chain().focus().setTextAlign('right').run()"
         :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }">
         <AlignRightIcon />
       </button>
       <div class="vertical-sep"></div>
-      <button @click="addImage" :class="{ 'is-active': editor.isActive('image') }">
+      <button data-toggle="tooltip" data-placement="top" title="Image" @click="addImage" :class="{ 'is-active': editor.isActive('image') }">
         <ImageAddLineIcon />
       </button>
-      <button @click="openLinkDialog" :class="{ 'is-active': editor.isActive('link') }">
+      <button data-toggle="tooltip" data-placement="top" title="Link" @click="openLinkDialog" :class="{ 'is-active': editor.isActive('link') }">
         <LinkIcon />
       </button>
       <div class="modal fade" id="linkModal" tabindex="-1" role="dialog" aria-labelledby="linkModal" aria-hidden="true">
@@ -101,19 +101,19 @@ import ListUnorderedIcon from "./icons/list-unordered.vue";
           </div>
         </div>
       </div>
-      <button @click="editor.chain().focus().toggleBlockquote().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Blockquote" @click="editor.chain().focus().toggleBlockquote().run()"
         :class="{ 'is-active': editor.isActive('blockquote') }">
         <BlockquoteIcon />
       </button>
-      <button @click="editor.chain().focus().toggleCodeBlock().run()"
+      <button data-toggle="tooltip" data-placement="top" title="Code" @click="editor.chain().focus().toggleCodeBlock().run()"
         :class="{ 'is-active': editor.isActive('codeBlock') }">
         <CodeViewIcon />
       </button>
-      <button @click="editor.chain().focus().setHorizontalRule().run()">
+      <button data-toggle="tooltip" data-placement="top" title="Horizontal Rule" @click="editor.chain().focus().setHorizontalRule().run()">
         <HorizontalRule />
       </button>
       <div class="dropdown">
-        <button class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+        <button data-toggle="dropdown tooltip" data-placement="top" title="Table" class="dropdown-toggle" type="button" id="dropdownMenuButton" aria-haspopup="true"
           aria-expanded="false">
           <TableIcon />
         </button>
