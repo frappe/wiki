@@ -10,7 +10,7 @@
 
 
 {% block page_content %}
-<input class="d-none" type="text" name="limit" value="2">
+<input class="d-none" type="text" name="limit" value="{{contributions|length}}">
 
 <div class='contributions-header'> {{pilled_title}} </div>
 
@@ -67,40 +67,37 @@
 {{ include_script('bootstrap-4-web.bundle.js') }}
 
 <script>
-	frappe.ready(
-		() => {
-			$('.get_contributions').click(() => {
-				let start = $(".list-jobs tbody tr").length;
-				frappe.call({
-					method: "wiki.www.drafts.get_drafts",
-					args: {
-						start: start,
-						limit: parseInt($('[name="limit"]').val()) + 10,
-					},
-					callback: (response) => {
+	if (parseInt($('[name="limit"]').val()) < 10) $('.get_contributions').hide();
 
-						if (response.message) {
-							$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + 10)
-							for (contribution of response.message.contributions) {
-								$('.list-jobs tbody').append($(`	<tr>
-									<td class="worker-name"><span class="indicator-pill no-margin ${contribution.color}">&nbsp;&nbsp;
-										${contribution.status}</span></td>
-									<td>${contribution.message}</td>
-									<td>${contribution.modified}</td>
-									<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Draft</a>
-									</td>
-								</tr>
+	$('.get_contributions').on("click", () => {
+		frappe.call({
+			method: "wiki.www.drafts.get_drafts",
+			args: {
+				start: parseInt($('[name="limit"]').val()),
+				limit: 10,
+			},
+			callback: (response) => {
+				if (response.message) {
+					for (contribution of response.message.contributions) {
+						$('.list-jobs tbody').append($(`	<tr>
+							<td class="worker-name"><span class="indicator-pill no-margin ${contribution.color}">&nbsp;&nbsp;
+								${contribution.status}</span></td>
+							<td>${contribution.message}</td>
+							<td>${contribution.modified}</td>
+							<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Draft</a>
+							</td>
+						</tr>
 
-							`))
-							}
-						}
+					`))
+					}
+					$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + response.message.contributions.length)
+					if ($('[name="limit"]').val() % 10 !== 0) $('.get_contributions').hide();
+				}
 
-					},
-					freeze: true,
-				})
-			});
-		}
-	)
+			},
+			freeze: true,
+		})
+	});
 </script>
 
 
