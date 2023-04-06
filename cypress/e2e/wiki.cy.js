@@ -7,7 +7,7 @@ context("Wiki", () => {
   it("creates a new wiki page", () => {
     cy.get(".edit-wiki-btn .icon").click();
     cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page").click();
-    cy.get(".new-wiki-editor > * > .ProseMirror")
+    cy.get(".new-wiki-editor .ProseMirror")
       .clear()
       .type("Test Wiki Page{enter}New Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
@@ -23,7 +23,7 @@ context("Wiki", () => {
   it("edits a wiki page", () => {
     cy.contains("Test Wiki Page").click();
     cy.get(".edit-wiki-btn .icon").click();
-    cy.get(".wiki-editor > * > .ProseMirror")
+    cy.get(".wiki-editor .ProseMirror")
       .clear()
       .type("Old Wiki Page{enter}Old Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
