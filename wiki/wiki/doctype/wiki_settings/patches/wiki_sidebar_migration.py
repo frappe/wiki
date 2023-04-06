@@ -9,7 +9,9 @@ import frappe
 
 def execute():
 	wiki_settings = frappe.get_single("Wiki Settings")
-	if not hasattr(wiki_settings, "sidebar"):
+	if not hasattr(wiki_settings, "sidebar") or not frappe.get_all(
+		"Wiki Sidebar", pluck="name", order_by="creation"
+	):
 		return
 	topmost = find_topmost(wiki_settings.sidebar)
 
