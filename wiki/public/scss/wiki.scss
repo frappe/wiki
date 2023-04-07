@@ -589,6 +589,10 @@ h6:hover .feather-link {
 	border-radius: 5px;
 }
 
+.dark .edit-wiki-btn:hover{
+	background-color: var(--gray-700);
+}
+
 // toc
 .page-toc {
 	background-color: var(--background-color);
