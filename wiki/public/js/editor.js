@@ -67,7 +67,6 @@ const saveWikiPage = (draft = false) => {
     },
     callback: (r) => {
       // route back to the main page
-
       window.location.href = "/" + r.message.route;
     },
     freeze: true,
