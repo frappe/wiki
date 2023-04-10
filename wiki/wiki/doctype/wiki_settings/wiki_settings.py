@@ -4,24 +4,20 @@
 import json
 
 import frappe
-from frappe import _
 from frappe.model.document import Document
 
 
 class WikiSettings(Document):
-	def validate(self):
-		if self.wiki_search_scope == "":
-			frappe.throw(_("The search scope should never be empty!"))
-
 	def on_update(self):
 		# change the route of wiki page for search scope
 		for wiki_page in frappe.get_all("Wiki Page", fields=["name", "route"]):
 			if self.wiki_search_scope == wiki_page.route.split("/", 1)[0]:
 				break
+			prepend_string = f"{self.wiki_search_scope}/" if self.wiki_search_scope else ""
 			frappe.db.set_value(
 				"Wiki Page",
 				wiki_page["name"],
-				{"route": f"{self.wiki_search_scope}/{wiki_page['route'].split('/', 1)[-1]}"},
+				{"route": f"{prepend_string}{wiki_page['route'].split('/', 1)[-1]}"},
 			)
 
 
