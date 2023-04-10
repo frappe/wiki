@@ -13,3 +13,4 @@ wiki/public/node_modules
 .cypress-coverage
 cypress/screenshots
 cypress/videos
+__pycache__/
