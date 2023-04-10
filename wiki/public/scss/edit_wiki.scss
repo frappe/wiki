@@ -217,13 +217,11 @@ $font-sizes-mobile: (
 );
 
 .wiki-editor,
-.new-wiki-editor,
 .from-markdown {
 	margin: auto;
 }
 
-.wiki-editor > div,
-.new-wiki-editor > div,
+.wiki-editor,
 .wiki-content {
 	font-size: map-get($font-sizes-desktop, "base");
 	color: $gray-700;
@@ -500,8 +498,7 @@ $font-sizes-mobile: (
 	}
 }
 
-.new-wiki-editor > div,
-.wiki-editor > div {
+.wiki-editor {
 	margin: 0 -1rem;
 	border-radius: 1rem;
 	border: 1px solid $gray-200;
