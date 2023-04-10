@@ -8,7 +8,7 @@
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 </div>
-<div class="wiki-editor {% if not edit_wiki_page %}hide{% endif %}">
+<div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
 	{% include "wiki/doctype/wiki_page/templates/editor.html" %}
 </div>
 <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal" aria-hidden="true">

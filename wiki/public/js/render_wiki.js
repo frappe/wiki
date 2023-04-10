@@ -51,9 +51,7 @@ function toggleEditor() {
 
   // avoid hiding editor when params ?editWiki or ?newWiki
   if ($(".from-markdown").is(":visible")) $(".wiki-editor").toggleClass("hide");
-  else {
-    $(".from-markdown").toggleClass("hide");
-  }
+  else $(".from-markdown").toggleClass("hide");
 
   $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
   $(".wiki-title").toggleClass("hide");
@@ -96,6 +94,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       ).length &&
       $(".edit-wiki-btn .icon").length
     ) {
+      toggleEditor();
       $("html").css({ overflow: "hidden" });
 
       $(
@@ -105,8 +104,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
           )}) + .add-sidebar-page`,
         )[0],
       ).trigger("click");
-
-      $(".wiki-editor").toggleClass("hide");
     }
     $(".wiki-footer, .wiki-revision-meta").toggleClass("hide");
   }
