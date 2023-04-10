@@ -31,7 +31,7 @@
 	  <ul class="user-contributions">
 
 		  {%- if last_revision -%}
-			 last updated {{ frappe.utils.pretty_date(last_revision.creation) }}
+			 last updated {{ frappe.utils.pretty_date(last_revision.modified) }}
 		  {%- endif -%}
 	  </ul>
   </div>
