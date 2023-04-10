@@ -57,8 +57,6 @@ function toggleEditor() {
   $(".wiki-title").toggleClass("hide");
 }
 
-const urlParams = new URLSearchParams(window.location.search);
-
 window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
@@ -83,6 +81,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_url_state() {
+    const urlParams = new URLSearchParams(window.location.search);
+
     if (urlParams.get("editWiki") && $(".edit-wiki-btn .icon").length)
       $(".edit-wiki-btn").trigger("click");
     else if (
@@ -195,6 +195,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".web-sidebar ul").each(setSortable);
 
     $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
+      const urlParams = new URLSearchParams(window.location.search);
+
       // switch to edit mode
       toggleEditor();
       $("html").css({ overflow: "hidden" });
@@ -216,6 +218,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       "click",
       ".add-sidebar-page",
       function (e) {
+        const urlParams = new URLSearchParams(window.location.search);
         const groupName = $(this).parent().children("span:first-child").text();
         const newWikiPage = $(".sidebar-item[data-name=new-wiki-page]");
         const newSidebarItem = $(`
