@@ -6,12 +6,13 @@
  "engine": "InnoDB",
  "field_order": [
   "general_tab",
+  "theme_section",
   "logo",
   "add_dark_mode",
   "dark_mode_logo",
+  "section_break_vefv",
+  "default_wiki_space",
   "section_break_mmtu",
-  "wiki_search_scope",
-  "wiki_sidebar",
   "javascript",
   "navbar_tab",
   "navbar_column",
@@ -48,12 +49,6 @@
    "label": "Add Dark Mode"
   },
   {
-   "fieldname": "wiki_sidebar",
-   "fieldtype": "Table",
-   "label": "Wiki Sidebar",
-   "options": "Wiki Group Item"
-  },
-  {
    "fieldname": "navbar_tab",
    "fieldtype": "Tab Break",
    "label": "Navbar"
@@ -79,17 +74,26 @@
    "label": "General"
   },
   {
-   "default": "wiki",
-   "description": "The search scope is used to index wiki content for search. This will also prepend the scope before the route of a wiki page.",
-   "fieldname": "wiki_search_scope",
-   "fieldtype": "Data",
-   "label": "Wiki Search Scope"
+   "default": "Wiki",
+   "fieldname": "default_wiki_space",
+   "fieldtype": "Autocomplete",
+   "label": "Default Wiki Space",
+   "options": "Wiki Space"
+  },
+  {
+   "fieldname": "theme_section",
+   "fieldtype": "Section Break",
+   "label": "Theme"
+  },
+  {
+   "fieldname": "section_break_vefv",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-04-04 20:45:07.523813",
+ "modified": "2023-04-11 16:35:18.265575",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
