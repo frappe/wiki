@@ -324,7 +324,7 @@ buttons.draftWikiPage.addEventListener("click", () => {
   saveWikiPage((draft = true));
 });
 
-$(".add-sidebar-page").on("click", () => {
+$(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const isEmptyEditor = !!urlParams.get("newWiki");
   if ($(".editor-space").is(":visible") || isEmptyEditor) {
