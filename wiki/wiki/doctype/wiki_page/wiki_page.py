@@ -212,7 +212,9 @@ class WikiPage(WebsiteGenerator):
 		return sidebar_html
 
 	def get_sidebar_items(self):
-		wiki_sidebar = frappe.get_single("Wiki Settings").wiki_sidebar
+		wiki_sidebar = frappe.get_doc(
+			"Wiki Space", {"route": "/".join(self.route.split("/")[:-1])}
+		).wiki_sidebars
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
