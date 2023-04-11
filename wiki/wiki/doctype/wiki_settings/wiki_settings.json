@@ -77,8 +77,7 @@
    "default": "Wiki",
    "fieldname": "default_wiki_space",
    "fieldtype": "Autocomplete",
-   "label": "Default Wiki Space",
-   "options": "Wiki Space"
+   "label": "Default Wiki Space"
   },
   {
    "fieldname": "theme_section",
@@ -93,7 +92,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-04-11 16:35:18.265575",
+ "modified": "2023-04-11 17:34:57.203152",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
