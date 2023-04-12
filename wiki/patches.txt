@@ -4,5 +4,5 @@ wiki.wiki.doctype.wiki_page.patches.delete_is_new
 wiki.wiki.doctype.wiki_page_revision.patches.add_usernames
 
 [post_model_sync]
-wiki.wiki.doctype.wiki_settings.patches.wiki_sidebar_migration
+wiki.wiki.doctype.wiki_space.patches.wiki_sidebar_migration
 wiki.wiki.doctype.wiki_settings.patches.wiki_navbar_item_migration
