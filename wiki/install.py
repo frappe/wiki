@@ -23,7 +23,7 @@ def after_install():
 	sidebar = frappe.new_doc("Wiki Group Item")
 	sidebar.wiki_page = page.name
 	sidebar.parent_label = "Wiki"
-	sidebar.parent = (space.name,)
+	sidebar.parent = space.name
 	sidebar.parenttype = "Wiki Space"
 	sidebar.parentfield = "wiki_sidebars"
 	sidebar.insert()
