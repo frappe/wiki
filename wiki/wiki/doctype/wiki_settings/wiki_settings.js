@@ -6,6 +6,14 @@ frappe.ui.form.on("Wiki Settings", {
     frm.add_web_link("/wiki", __("See on website"));
   },
 
+  onload: function (frm) {
+    frm.set_query("default_wiki_space", function () {
+      return {
+        query: "wiki.wiki.doctype.wiki_settings.wiki_settings.get_all_spaces",
+      };
+    });
+  },
+
   onload_post_render: function (frm) {
     frm.trigger("set_parent_label_options");
   },

@@ -6,11 +6,11 @@ import frappe
 
 
 def get_context(context):
-	topmost_wiki_name = frappe.get_single("Wiki Settings").wiki_sidebar[0].wiki_page
-	topmost_wiki_route = frappe.get_value("Wiki Page", topmost_wiki_name, "route")
+	"""Find and route to the default wiki space's route, which will further route to it's first wiki page"""
 
-	# find and route to the first wiki page
-	if topmost_wiki_route:
-		frappe.response.location = topmost_wiki_route
+	default_space_route = frappe.get_single("Wiki Settings").default_wiki_space
+
+	if default_space_route:
+		frappe.response.location = default_space_route
 		frappe.response.type = "redirect"
 		raise frappe.Redirect

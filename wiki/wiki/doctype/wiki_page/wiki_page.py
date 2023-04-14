@@ -142,7 +142,7 @@ class WikiPage(WebsiteGenerator):
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.script = wiki_settings.javascript
-		context.wiki_search_scope = wiki_settings.wiki_search_scope
+		context.wiki_search_scope = "/".join(self.route.split("/")[:-1])
 		context.metatags = {
 			"title": self.title,
 			"description": self.meta_description,
@@ -201,7 +201,7 @@ class WikiPage(WebsiteGenerator):
 			context = frappe._dict({})
 			context.sidebar_items = sidebar_items
 			wiki_settings = frappe.get_single("Wiki Settings")
-			context.wiki_search_scope = wiki_settings.wiki_search_scope
+			context.wiki_search_scope = "/".join(self.route.split("/")[:-1])
 			context.light_mode_logo = wiki_settings.logo
 			context.dark_mode_logo = wiki_settings.dark_mode_logo
 			sidebar_html = frappe.render_template(
@@ -212,7 +212,9 @@ class WikiPage(WebsiteGenerator):
 		return sidebar_html
 
 	def get_sidebar_items(self):
-		wiki_sidebar = frappe.get_single("Wiki Settings").wiki_sidebar
+		wiki_sidebar = frappe.get_doc(
+			"Wiki Space", {"route": "/".join(self.route.split("/")[:-1])}
+		).wiki_sidebars
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
