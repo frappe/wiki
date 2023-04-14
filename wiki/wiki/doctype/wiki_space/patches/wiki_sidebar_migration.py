@@ -15,7 +15,6 @@ def execute():
 
 	if wiki_search_scope_tuple:
 		# get sidebar from when wiki stored sidebars in `Wiki Settings` and move to a Wiki Space
-
 		wiki_search_scope = wiki_search_scope_tuple[0][0]
 
 		frappe.reload_doctype("Wiki Space")
@@ -42,28 +41,36 @@ def execute():
 
 	elif hasattr(wiki_settings, "sidebar"):
 		# get sidebar from legacy version of wiki
-		if not frappe.get_all("Wiki Sidebar"):
+		if not (
+			all_sidebars := frappe.db.get_all("Wiki Sidebar", pluck="name", order_by="creation asc")
+		):
 			return
 
 		# find all root sidebars
-		topmosts = find_topmost(wiki_settings.sidebar)
+		sidebars_with_parents = frappe.db.get_all(
+			"Wiki Sidebar Item",
+			filters=[["type", "=", "Wiki Sidebar"]],
+			pluck="item",
+			order_by="creation asc",
+		)
+
+		topmosts = set(all_sidebars) - set(sidebars_with_parents)
 
 		frappe.reload_doctype("Wiki Sidebar")
 
 		for topmost in topmosts:
+			frappe.reload_doctype("Wiki Space")
 			space = frappe.new_doc("Wiki Space")
-			space.route = "wiki"
-			space.insert()
+			space.route = topmost
 
 			sidebar_items = get_children(frappe.get_doc("Wiki Sidebar", topmost))
 			sidebars = get_sidebar_for_patch(sidebar_items, topmost)
 
 			# store sidebars in wiki settings
 			sidebar_items = sidebars.items()
-			frappe.reload_doctype("Wiki Settings")
-			if sidebar_items:
-				for sidebar, items in sidebar_items:
-					for item in items:
+			for sidebar, items in sidebar_items:
+				for item in items:
+					if item.type == "Wiki Page":
 						wiki_sidebar_dict = {
 							"wiki_page": item.item,
 							"parent_label": item.group_name,
@@ -72,9 +79,11 @@ def execute():
 
 					# delete old sidebar groups
 					frappe.db.delete("Wiki Sidebar", sidebar)
-				space.save()
 
-		wiki_settings.default_wiki_space = topmost
+			if space.wiki_sidebars:
+				space.insert()
+				wiki_settings.default_wiki_space = topmost
+
 		wiki_settings.save()
 
 
@@ -104,7 +113,7 @@ def get_children(doc):
 	out = get_sidebar_items(doc)
 
 	for idx, sidebar_item in enumerate(out):
-		if sidebar_item.type == "Wiki Sidebar":
+		if sidebar_item.type == "Wiki Sidebar" and frappe.db.exists("Wiki Sidebar", sidebar_item.item):
 			sidebar = frappe.get_doc("Wiki Sidebar", sidebar_item.item)
 			children = get_children(sidebar)
 			out[idx] = {
@@ -128,7 +137,18 @@ def get_sidebar_items(doc):
 		order_by="idx asc",
 	)
 	for item in items:
-		item.group_name = frappe.get_doc("Wiki Sidebar", item.parent).title
+		item.group_name = frappe.get_doc("Wiki Sidebar", get_root_parent_title(item.parent)).title
 		items_without_group.append(item)
 
 	return items_without_group
+
+
+def get_root_parent_title(name, last_parent=""):
+	if parent := frappe.db.get_value(
+		"Wiki Sidebar Item", {"item": name, "type": "Wiki Sidebar"}, "parent"
+	):
+		return get_root_parent_title(parent, name)
+	else:
+		if last_parent:
+			return last_parent
+		return name
