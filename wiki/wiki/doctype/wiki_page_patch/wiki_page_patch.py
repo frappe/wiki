@@ -80,14 +80,17 @@ class WikiPagePatch(Document):
 					idx += 1
 					if item["name"] == "new-wiki-page":
 						item["name"] = self.new_wiki_page.name
+						wiki_space_name = frappe.get_value(
+							"Wiki Space", {"route": "/".join(self.wiki_page_doc.route.split("/")[:-1])}
+						)
 
 						wiki_sidebar = frappe.new_doc("Wiki Group Item")
 						wiki_sidebar_dict = {
 							"wiki_page": self.new_wiki_page.name,
 							"parent_label": list(sidebars)[-1],
-							"parent": "Wiki Settings",
-							"parenttype": "Wiki Settings",
-							"parentfield": "wiki_sidebar",
+							"parent": wiki_space_name,
+							"parenttype": "Wiki Space",
+							"parentfield": "wiki_sidebars",
 							"idx": no_of_wiki_pages + 1,
 						}
 						wiki_sidebar.update(wiki_sidebar_dict)

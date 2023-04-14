@@ -9,8 +9,7 @@ function setSortable() {
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
-          method:
-            "wiki.wiki.doctype.wiki_settings.wiki_settings.update_sidebar",
+          method: "wiki.wiki.doctype.wiki_space.wiki_space.update_sidebar",
           args: {
             sidebar_items: getSidebarItems(),
           },
