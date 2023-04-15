@@ -124,6 +124,7 @@ const buttons = {
   alignRight: document.querySelector('[data-tiptap-button="alignRight"]'),
   image: document.querySelector('[data-tiptap-button="image"]'),
   link: document.querySelector('[data-tiptap-button="link"]'),
+  modalLink: document.querySelector('[data-modal-button="link"]'),
   blockquote: document.querySelector('[data-tiptap-button="blockquote"]'),
   codeBlock: document.querySelector('[data-tiptap-button="codeBlock"]'),
   horizontalRule: document.querySelector(
@@ -238,6 +239,13 @@ buttons.image.addEventListener("click", () => {
 });
 
 buttons.link.addEventListener("click", () => {
+  $("#linkModal").modal();
+  const previousUrl = editor.getAttributes("link").href;
+  if (previousUrl) $("#linkModal #link").val(previousUrl);
+  else $("#linkModal #link").val("");
+});
+
+buttons.modalLink.addEventListener("click", () => {
   $("#linkModal").modal();
   const link = $("#linkModal #link").val();
   if (link === null) return;
