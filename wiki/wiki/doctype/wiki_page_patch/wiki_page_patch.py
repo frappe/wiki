@@ -70,7 +70,6 @@ class WikiPagePatch(Document):
 			self.new_sidebar_items = "{}"
 
 		sidebars = json.loads(self.new_sidebar_items)
-		no_of_wiki_pages = sum(len(value) for value in sidebars.values())
 
 		sidebar_items = sidebars.items()
 		if sidebar_items:
@@ -84,17 +83,15 @@ class WikiPagePatch(Document):
 							"Wiki Space", {"route": "/".join(self.wiki_page_doc.route.split("/")[:-1])}
 						)
 
-						wiki_sidebar = frappe.new_doc("Wiki Group Item")
-						wiki_sidebar_dict = {
-							"wiki_page": self.new_wiki_page.name,
-							"parent_label": list(sidebars)[-1],
-							"parent": wiki_space_name,
-							"parenttype": "Wiki Space",
-							"parentfield": "wiki_sidebars",
-							"idx": no_of_wiki_pages + 1,
-						}
-						wiki_sidebar.update(wiki_sidebar_dict)
-						wiki_sidebar.save()
+						wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
+						wiki_space.append(
+							"wiki_sidebars",
+							{
+								"wiki_page": self.new_wiki_page.name,
+								"parent_label": list(sidebars)[-1],
+							},
+						)
+						wiki_space.save()
 
 					frappe.db.set_value(
 						"Wiki Group Item", {"wiki_page": str(item["name"])}, {"parent_label": sidebar, "idx": idx}
