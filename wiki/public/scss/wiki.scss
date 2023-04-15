@@ -118,6 +118,7 @@ textarea.wiki-content {
 		height: 100%;
 		transition: border-color .25s;
 		box-shadow: unset;
+		margin-bottom: 3.5rem;
 
 		p {
 			line-height: 20px;
@@ -511,7 +512,7 @@ textarea.wiki-content {
 	text-align: left;
 
 	.page-content-wrapper {
-		margin: 0 2rem 3.5rem;;
+		margin: 0 2rem;
 		padding: 0 2rem 2rem !important;
 
 		@include media-breakpoint-down(md) {
