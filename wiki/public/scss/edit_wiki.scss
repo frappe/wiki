@@ -490,7 +490,6 @@ $font-sizes-mobile: (
 		overflow: hidden;
 
 		code {
-		  padding: 0.75rem 1rem;
 		  overflow-x: auto;
 		  color: inherit;
 		  background: none !important;
@@ -587,6 +586,10 @@ $font-sizes-mobile: (
 	div > p:first-child {
 		margin-top: 1.5rem !important;
 		line-height: 1.4;
+	}
+
+	code {
+		padding: 0.75rem 1rem;
 	}
 }
 

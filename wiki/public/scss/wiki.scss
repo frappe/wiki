@@ -27,7 +27,7 @@ body {
 	--code-bg-color: var(--light);
 	--code-text-color: var(--purple-600);
 
-	--sidebar-text-color: #73726e;
+	--sidebar-text-color: var(--gray-600);
 	--sidebar-text-hover-color: #37352f;
 
 // ------------------------------------------
@@ -689,12 +689,9 @@ h6:hover .feather-link {
 }
 
 ul.user-contributions {
-	list-style-type: none;
-	display: flex;
-	padding-left: 0;
-	flex-wrap: wrap;
 	margin: 1rem 0 0 auto;
 	color: var(--sidebar-text-color);
+	font-size: 0.8rem;
 }
 
 ul.user-contributions li {
