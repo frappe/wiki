@@ -97,7 +97,7 @@ class WikiPagePatch(Document):
 						wiki_sidebar.save()
 
 					frappe.db.set_value(
-						"Wiki Group Item", {"wiki_page": item["name"]}, {"parent_label": sidebar, "idx": idx}
+						"Wiki Group Item", {"wiki_page": str(item["name"])}, {"parent_label": sidebar, "idx": idx}
 					)
 
 
