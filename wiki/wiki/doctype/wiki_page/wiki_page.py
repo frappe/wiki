@@ -194,7 +194,7 @@ class WikiPage(WebsiteGenerator):
 		)
 
 	def get_items(self, sidebar_items):
-		topmost = "wiki"
+		topmost = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, ["parent"])
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
