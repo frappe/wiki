@@ -482,3 +482,8 @@ def delete_wiki_page(wiki_page_route):
 		return True
 
 	frappe.throw(_("The Wiki Page you are trying to delete doesn't exist"))
+
+
+@frappe.whitelist(allow_guest=True)
+def has_edit_permission():
+	return frappe.has_permission(doctype="Wiki Page", ptype="write", throw=False)
