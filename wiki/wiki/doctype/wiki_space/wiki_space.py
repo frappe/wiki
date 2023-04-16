@@ -13,7 +13,7 @@ class WikiSpace(Document):
 	def before_save(self):
 		# prepend space route to the route of wiki page
 		old_route = frappe.db.get_value("Wiki Space", self.name, "route")
-		if self.route == old_route:
+		if not old_route or self.route == old_route:
 			return
 
 		for wiki_sidebar in self.wiki_sidebars:
