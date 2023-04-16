@@ -10,7 +10,6 @@ from frappe import _
 from frappe.core.doctype.file.file import get_random_filename
 from frappe.utils.data import sbool
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
-from frappe.website.utils import cleanup_page_name
 from frappe.website.website_generator import WebsiteGenerator
 
 
@@ -76,18 +75,11 @@ class WikiPage(WebsiteGenerator):
 
 		self.clear_sidebar_cache()
 
-	def set_route(self):
-		if not self.route:
-			self.route = "wiki/" + cleanup_page_name(self.title)
-
 	def update_page(self, title, content, edit_message, raised_by=None):
 		"""
 		Update Wiki Page and create a Wiki Page Revision
 		"""
 		self.title = title
-
-		# only update the tail end of route
-		self.route = self.route.replace(self.route.split("/")[-1], cleanup_page_name(self.title))
 
 		if content != self.content:
 			self.content = content

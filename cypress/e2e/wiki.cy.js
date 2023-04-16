@@ -28,7 +28,7 @@ context("Wiki", () => {
       .type("Old Wiki Page{enter}Old Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
 
-    cy.intercept("*/old-wiki-page").as("testWikiPage");
+    cy.intercept("*/test-wiki-page").as("testWikiPage");
     cy.wait("@testWikiPage");
 
     cy.get(".sidebar-item.active").should("contain", "Old Wiki Page");
