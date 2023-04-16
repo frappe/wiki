@@ -10,13 +10,16 @@ from frappe.website.utils import cleanup_page_name
 
 
 class WikiSpace(Document):
-	def on_update(self):
+	def before_save(self):
 		# prepend space route to the route of wiki page
+		old_route = frappe.db.get_value("Wiki Space", self.name, "route")
+		if self.route == old_route:
+			return
+
 		for wiki_sidebar in self.wiki_sidebars:
 			wiki_page = frappe.get_doc("Wiki Page", wiki_sidebar.wiki_page)
 			prepend_string = f"{self.route}/" if self.route else ""
-			if prepend_string == wiki_page.route[::-1].split("/", 1)[-1][::-1]:
-				return
+
 			try:
 				frappe.db.set_value(
 					"Wiki Page",
