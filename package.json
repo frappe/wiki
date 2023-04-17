@@ -1,9 +1,5 @@
 {
   "dependencies": {
-    "@4tw/cypress-drag-drop": "^2",
-    "@cypress/code-coverage": "^3",
-    "@testing-library/cypress": "^8",
-    "@testing-library/dom": "8.17.1",
     "@tiptap/core": "^2.0.2",
     "@tiptap/extension-code-block": "^2.0.2",
     "@tiptap/extension-code-block-lowlight": "^2.0.2",
@@ -18,10 +14,14 @@
     "@tiptap/extension-text-align": "^2.0.2",
     "@tiptap/pm": "^2.0.2",
     "@tiptap/starter-kit": "^2.0.2",
-    "cypress-real-events": "^1.7.6",
     "lowlight": "^2.8.1"
   },
   "devDependencies": {
-    "cypress": "11"
+    "@4tw/cypress-drag-drop": "^2.2.3",
+    "@cypress/code-coverage": "^3.10.4",
+    "@testing-library/cypress": "^9.0.0",
+    "@testing-library/dom": "^9.2.0",
+    "cypress": "11",
+    "cypress-real-events": "^1.7.6"
   }
 }
