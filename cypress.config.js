@@ -2,6 +2,7 @@ const { defineConfig } = require("cypress");
 
 module.exports = defineConfig({
   e2e: {
+    baseUrl: "http://wiki.test:8000",
     projectId: "w2jgcb",
     adminPassword: "admin",
     viewportWidth: 1100,
