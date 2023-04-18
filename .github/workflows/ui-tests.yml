@@ -90,6 +90,12 @@ jobs:
           cd ~/frappe-bench/
           bench --site wiki.test execute frappe.utils.install.complete_setup_wizard
           bench --site wiki.test execute frappe.tests.ui_test_helpers.create_test_user
+
+      - name: cypress pre-requisites
+        run: |
+          cd ~/frappe-bench/apps/wiki
+          yarn add cypress@^10 --no-lockfile
+
       - name: UI Tests
         run: cd ~/frappe-bench && bench --site wiki.test run-ui-tests wiki --headless
         env:
