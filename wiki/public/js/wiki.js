@@ -14,10 +14,12 @@ window.Wiki = class Wiki {
     // scroll the active sidebar item into view
     let active_sidebar_item = $(".doc-sidebar .sidebar-item.active");
     if (active_sidebar_item.length > 0) {
-      active_sidebar_item.get(0).scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      setTimeout(function () {
+        active_sidebar_item.get(0).scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
     }
   }
 
