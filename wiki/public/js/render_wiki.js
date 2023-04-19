@@ -330,6 +330,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
   set_revisions() {
     const initial_content = $(".revision-content").html().trim();
+    let revisions = [];
+    let currentRevisionIndex = 1;
 
     // set initial revision
     if (initial_content !== "<h5>No Revisions</h5>") {
@@ -345,62 +347,70 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".revisions-modal .modal-header").hide();
     }
 
-    // set previous revision
-    $(".previous-revision").on("click", function () {
-      const revision_name = $(this).data("revision-name");
+    $(".show-revisions").on("click", function () {
       frappe.call({
         method:
-          "wiki.wiki.doctype.wiki_page_revision.wiki_page_revision.get_previous_revision_content",
+          "wiki.wiki.doctype.wiki_page_revision.wiki_page_revision.get_revisions",
         args: {
-          revision_name,
           wiki_page_name: $('[name="wiki-page-name"]').val(),
         },
         callback: (r) => {
-          if (r.message && !!r.message.is_revisions) {
-            if (!r.message.previous_content) $(this).addClass("hide");
-            $(".next-revision").removeClass("hide");
-            $(".next-revision").data("revision-name", revision_name);
-            $(this).data("revision-name", r.message.previous_revision);
-            $(".revision-content")[0].innerHTML = HtmlDiff.execute(
-              r.message.previous_content,
-              r.message.latest_content,
-            );
-            $(
-              ".revision-time",
-            )[0].innerHTML = `${r.message.author} edited ${r.message.revision_time}`;
-          }
+          revisions = r.message;
         },
       });
     });
 
+    function addHljsClass() {
+      // to fix code blocks not having .hljs class
+      // which leaves without styles from hljs
+      $(".revision-content code").each(function () {
+        if ($(this).parent().is("pre")) $(this).addClass("hljs");
+      });
+    }
+
+    // set previous revision
+    $(".previous-revision").on("click", function () {
+      const currentRevision = revisions[currentRevisionIndex];
+      let previousRevision = { content: "", creation: "", author: "" };
+
+      if (revisions.length > currentRevisionIndex + 1)
+        previousRevision = revisions[currentRevisionIndex + 1];
+
+      if (!previousRevision.content) $(this).addClass("hide");
+      $(".next-revision").removeClass("hide");
+      if (previousRevision.content)
+        $(".revision-content")[0].innerHTML = HtmlDiff.execute(
+          previousRevision.content,
+          currentRevision.content,
+        );
+      else $(".revision-content")[0].innerHTML = currentRevision.content;
+      $(
+        ".revision-time",
+      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      currentRevisionIndex++;
+      addHljsClass();
+    });
+
     // set next revision
     $(".next-revision").on("click", function () {
-      const revision_name = $(this).data("revision-name");
-      frappe.call({
-        method:
-          "wiki.wiki.doctype.wiki_page_revision.wiki_page_revision.get_next_revision_content",
-        args: {
-          revision_name,
-          wiki_page_name: $('[name="wiki-page-name"]').val(),
-        },
-        callback: (r) => {
-          if (r.message) {
-            if (r.message.latest_content === initial_content)
-              $(this).addClass("hide");
-            $(".previous-revision").removeClass("hide");
-            $(".previous-revision").data("revision-name", revision_name);
-            $(this).data("revision-name", r.message.next_revision);
-            $(".revision-content")[0].innerHTML = HtmlDiff.execute(
-              r.message.latest_content,
-              r.message.next_content,
-            );
-            $(
-              ".revision-time",
-            )[0].innerHTML = `${r.message.author} edited ${r.message.revision_time}`;
-          }
-        },
-      });
+      const currentRevision = revisions[currentRevisionIndex - 2];
+      let nextRevision = { content: "", creation: "", author: "" };
+
+      if (currentRevisionIndex > 0)
+        nextRevision = revisions[currentRevisionIndex - 1];
+
+      if (currentRevisionIndex <= 2) $(this).addClass("hide");
+      $(".previous-revision").removeClass("hide");
+      $(".revision-content")[0].innerHTML = HtmlDiff.execute(
+        nextRevision.content,
+        currentRevision.content,
+      );
+      $(
+        ".revision-time",
+      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      currentRevisionIndex--;
     });
+    addHljsClass();
   }
 
   set_add_item() {

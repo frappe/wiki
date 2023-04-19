@@ -489,7 +489,6 @@ $font-sizes-mobile: (
 		color: #D6DEEB;
 		border-radius: 0.5rem;
 		overflow: hidden;
-		padding: 0.75rem 1rem;
 
 		code {
 			overflow-x: auto;
@@ -516,6 +515,10 @@ $font-sizes-mobile: (
 	border-radius: 1rem;
 	border: 1px solid $gray-200;
 	overflow: auto;
+
+	pre {
+		padding: 0.75rem 1rem;
+	}
 
 	h1 {
 		margin-top: 0.75rem;
