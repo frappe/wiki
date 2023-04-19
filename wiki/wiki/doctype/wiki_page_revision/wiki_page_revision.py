@@ -3,11 +3,8 @@
 
 
 import frappe
-from frappe import _
 from frappe.model.document import Document
 from frappe.utils import pretty_date
-
-from wiki.wiki.doctype.wiki_page.wiki_page import update
 
 
 class WikiPageRevision(Document):
@@ -66,28 +63,3 @@ def get_next_revision_content(revision_name, wiki_page_name):
 		"next_revision": next_revision,
 		"next_content": next_content if next_revision else "",
 	}
-
-
-@frappe.whitelist()
-def restore_wiki_revision(
-	wiki_revision_name, wiki_page_name, wiki_revision_message="Reverted Wiki Page"
-):
-	if not frappe.has_permission(doctype="Wiki Page", ptype="update", throw=False):
-		frappe.throw(
-			_("You are not permitted to revert the Wiki Page"),
-			frappe.PermissionError,
-		)
-
-	wiki_revision_content = frappe.get_value("Wiki Page Revision", wiki_revision_name, ["content"])
-	wiki_patch_title = frappe.get_value(
-		"Wiki Page Patch", {"wiki_page": wiki_page_name}, ["new_title"]
-	)
-
-	update_vals = update(
-		name=wiki_page_name,
-		content=wiki_revision_content,
-		title=wiki_patch_title,
-		message=wiki_revision_message,
-	)
-
-	return update_vals.route

@@ -167,14 +167,6 @@ textarea.wiki-content {
 	justify-content: space-between;
 }
 
-.restore-wiki-revision {
-	float: right;
-	@include media-breakpoint-down(sm) {
-		float: none;
-		margin: 10px 0;
-	}
-}
-
 .revision-message {
 	display: inline;
 	@include media-breakpoint-down(sm) {
