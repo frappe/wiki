@@ -1,8 +1,5 @@
 import frappe
-from frappe import _
 from frappe.query_builder import DocType
-
-from wiki.wiki.doctype.wiki_page.wiki_page import update
 
 
 def get_context(context):
@@ -52,26 +49,3 @@ def get_context(context):
 		context.diff = diff(previous_revisions[-1][0], revision.content, css=False)
 
 	return context
-
-
-@frappe.whitelist()
-def restore_wiki_revision(wiki_revision_name, wiki_page_name, wiki_revision_message):
-	if not frappe.has_permission(doctype="Wiki Page", ptype="update", throw=False):
-		frappe.throw(
-			_("You are not permitted to revert the Wiki Page"),
-			frappe.PermissionError,
-		)
-
-	wiki_revision_content = frappe.get_value("Wiki Page Revision", wiki_revision_name, ["content"])
-	wiki_patch_title = frappe.get_value(
-		"Wiki Page Patch", {"wiki_page": wiki_page_name}, ["new_title"]
-	)
-
-	update_vals = update(
-		name=wiki_page_name,
-		content=wiki_revision_content,
-		title=wiki_patch_title,
-		message=wiki_revision_message,
-	)
-
-	return update_vals.route

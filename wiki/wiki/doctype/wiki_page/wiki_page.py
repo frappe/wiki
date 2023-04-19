@@ -160,6 +160,18 @@ class WikiPage(WebsiteGenerator):
 		context.has_wiki_page_edit_permission = frappe.has_permission(
 			doctype="Wiki Page", ptype="write", throw=False
 		)
+
+		revisions = frappe.db.get_all(
+			"Wiki Page Revision",
+			filters=[["wiki_page", "=", self.name]],
+			fields=["content", "creation", "owner", "name", "raised_by", "raised_by_username"],
+		)
+		context.current_revision = revisions[0]
+		if len(revisions) > 1:
+			context.previous_revision = revisions[1]
+		else:
+			context.previous_revision = {"content": "<h5>No Revisions</h5>", "name": ""}
+
 		context.show_sidebar = True
 		context.hide_login = True
 		context.name = self.name

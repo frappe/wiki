@@ -1,3 +1,5 @@
+import HtmlDiff from "htmldiff-js";
+
 function setSortable() {
   new Sortable(this, {
     group: {
@@ -51,7 +53,7 @@ function toggleEditor() {
   // avoid hiding editor when params ?editWiki or ?newWiki
   if ($(".from-markdown").is(":visible")) {
     $(".wiki-editor").toggleClass("hide");
-    $(".edit-wiki-btn, .sidebar-edit-mode-btn").toggleClass("hide");
+    $(".wiki-options, .sidebar-edit-mode-btn").toggleClass("hide");
   } else $(".from-markdown").toggleClass("hide");
 
   $(".wiki-title").toggleClass("hide");
@@ -76,6 +78,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_empty_ul();
         this.set_edit_mode();
         this.set_url_state();
+        this.set_revisions();
       }
     });
   }
@@ -83,9 +86,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
   set_url_state() {
     const urlParams = new URLSearchParams(window.location.search);
 
-    if (urlParams.get("editWiki") && $(".edit-wiki-btn .icon").length)
-      $(".edit-wiki-btn").trigger("click");
-    else if (
+    if (urlParams.get("editWiki") && $(".wiki-options").length) {
+      toggleEditor();
+      $("html").css({ overflow: "hidden" });
+    } else if (
       urlParams.get("newWiki") &&
       $(
         `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
@@ -322,6 +326,81 @@ window.RenderWiki = class RenderWiki extends Wiki {
         });
       },
     );
+  }
+
+  set_revisions() {
+    const initial_content = $(".revision-content").html().trim();
+
+    // set initial revision
+    if (initial_content !== "<h5>No Revisions</h5>") {
+      $(".revision-content")[0].innerHTML = HtmlDiff.execute(
+        $(".revision-content").html(),
+        $(".from-markdown .wiki-content")
+          .html()
+          .replaceAll(/<br class="ProseMirror-trailingBreak">/g, ""),
+      );
+      $(".previous-revision").removeClass("hide");
+    } else {
+      $(".revision-time").hide();
+      $(".revisions-modal .modal-header").hide();
+    }
+
+    // set previous revision
+    $(".previous-revision").on("click", function () {
+      const revision_name = $(this).data("revision-name");
+      frappe.call({
+        method:
+          "wiki.wiki.doctype.wiki_page_revision.wiki_page_revision.get_previous_revision_content",
+        args: {
+          revision_name,
+          wiki_page_name: $('[name="wiki-page-name"]').val(),
+        },
+        callback: (r) => {
+          if (r.message && !!r.message.is_revisions) {
+            if (!r.message.previous_content) $(this).addClass("hide");
+            $(".next-revision").removeClass("hide");
+            $(".next-revision").data("revision-name", revision_name);
+            $(this).data("revision-name", r.message.previous_revision);
+            $(".revision-content")[0].innerHTML = HtmlDiff.execute(
+              r.message.previous_content,
+              r.message.latest_content,
+            );
+            $(
+              ".revision-time",
+            )[0].innerHTML = `${r.message.author} edited ${r.message.revision_time}`;
+          }
+        },
+      });
+    });
+
+    // set next revision
+    $(".next-revision").on("click", function () {
+      const revision_name = $(this).data("revision-name");
+      frappe.call({
+        method:
+          "wiki.wiki.doctype.wiki_page_revision.wiki_page_revision.get_next_revision_content",
+        args: {
+          revision_name,
+          wiki_page_name: $('[name="wiki-page-name"]').val(),
+        },
+        callback: (r) => {
+          if (r.message) {
+            if (r.message.latest_content === initial_content)
+              $(this).addClass("hide");
+            $(".previous-revision").removeClass("hide");
+            $(".previous-revision").data("revision-name", revision_name);
+            $(this).data("revision-name", r.message.next_revision);
+            $(".revision-content")[0].innerHTML = HtmlDiff.execute(
+              r.message.latest_content,
+              r.message.next_content,
+            );
+            $(
+              ".revision-time",
+            )[0].innerHTML = `${r.message.author} edited ${r.message.revision_time}`;
+          }
+        },
+      });
+    });
   }
 
   set_add_item() {

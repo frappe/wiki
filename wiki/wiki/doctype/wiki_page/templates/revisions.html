@@ -1,0 +1,23 @@
+<div class="modal revisions-modal fade" id="revisionsModal" tabindex="-1" role="dialog"
+    aria-labelledby="revisionsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title revision-title" id="revisionsModalTitle">{{ title }}</h5>
+                <span class="small text-muted revision-time">{{ current_revision.raised_by_username or current_revision.raised_by or
+                    current_revision.owner }} edited {{
+                    frappe.utils.pretty_date(current_revision.creation) }}</span>
+                <!-- <button type="button" class="btn btn-primary restore-wiki-revision">Restore</button> -->
+            </div>
+            <div class="modal-body">
+                <div class="revision-content wiki-content">
+                    {{ previous_revision.content }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" data-revision-name={{ previous_revision.name }} data-modal-button="previous" class="previous-revision btn btn-secondary btn-sm hide">Previous</button>
+                <button type="button" data-revision-name={{ current_revision.name }} data-modal-button="next" class="next-revision btn btn-secondary btn-sm hide">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
