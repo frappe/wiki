@@ -54,7 +54,13 @@ function toggleEditor() {
   if ($(".from-markdown").is(":visible")) {
     $(".wiki-editor").toggleClass("hide");
     $(".wiki-options, .sidebar-edit-mode-btn").toggleClass("hide");
-  } else $(".from-markdown").toggleClass("hide");
+  } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("editWiki") || urlParams.get("newWiki"))
+      $(".wiki-options, .sidebar-edit-mode-btn").toggleClass("hide");
+
+    $(".from-markdown").toggleClass("hide");
+  }
 
   $(".wiki-title").toggleClass("hide");
 }
@@ -200,22 +206,25 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
 
     $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
-      const urlParams = new URLSearchParams(window.location.search);
+      if (frappe.session.user === "Guest") window.location.assign("/login");
+      else {
+        const urlParams = new URLSearchParams(window.location.search);
 
-      // switch to edit mode
-      toggleEditor();
-      $("html").css({ overflow: "hidden" });
+        // switch to edit mode
+        toggleEditor();
+        $("html").css({ overflow: "hidden" });
 
-      if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
+        if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
+      }
     });
 
-    $(".discard-edit-btn").on("click", function () {
+    $(".discard-edit-btn").on("click", () => {
       // switch to view mode
       toggleEditor();
       $("html").css({ overflow: "auto" });
-      if ($(this).data("new") === true)
-        $('.sidebar-item[data-name="new-wiki-page"]').remove();
+      $('.sidebar-item[data-name="new-wiki-page"]').remove();
       set_search_params();
+      this.activate_sidebars();
     });
 
     let active_items = "";
@@ -249,7 +258,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
               $(this).toggleClass("active");
             });
 
-            if (!$(".wiki-editor").is(":visible")) toggleEditor();
+            toggleEditor();
             set_search_params();
           }
           newWikiPage.remove();

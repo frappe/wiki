@@ -157,9 +157,6 @@ class WikiPage(WebsiteGenerator):
 		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
-		context.has_wiki_page_edit_permission = frappe.has_permission(
-			doctype="Wiki Page", ptype="write", throw=False
-		)
 
 		revisions = frappe.db.get_all(
 			"Wiki Page Revision",
