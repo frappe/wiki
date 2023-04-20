@@ -10,7 +10,7 @@
             </div>
             <div class="modal-body">
                 <div class="revision-content wiki-content">
-                    {{ previous_revision.content }}
+                    {{ frappe.utils.md_to_html(previous_revision.content) }}
                 </div>
             </div>
             <div class="modal-footer">

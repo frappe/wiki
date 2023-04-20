@@ -4,7 +4,7 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import pretty_date
+from frappe.utils import md_to_html, pretty_date
 
 
 class WikiPageRevision(Document):
@@ -22,6 +22,7 @@ def get_revisions(wiki_page_name):
 	for revision in revisions:
 		revision.revision_time = pretty_date(revision.creation)
 		revision.author = revision.raised_by_username or revision.raised_by or revision.owner
+		revision.content = md_to_html(revision.content)
 		del revision.raised_by_username
 		del revision.raised_by
 		del revision.creation
