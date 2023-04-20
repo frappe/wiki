@@ -101,8 +101,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
           "newWiki",
         )}"] .add-sidebar-page`,
-      ).length &&
-      $(".edit-wiki-btn .icon").length
+      ).length
     ) {
       toggleEditor();
       $("html").css({ overflow: "hidden" });
