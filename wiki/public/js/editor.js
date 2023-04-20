@@ -36,9 +36,9 @@ const getContent = () => {
   if (patchNewCode !== "<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}")
     return patchNewCode;
   else if (!isEmptyEditor)
-    return $(".from-markdown")
-      .html()
-      .replaceAll(/<br class="ProseMirror-trailingBreak">/g, "");
+    return `${$(".from-markdown .wiki-title").prop("outerHTML")}${$(
+      ".from-markdown .wiki-content",
+    ).html()}`.replaceAll(/<br class="ProseMirror-trailingBreak">/g, "");
   return "<h1></h1><p></p>";
 };
 

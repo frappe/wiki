@@ -6,7 +6,6 @@ import unittest
 import frappe
 
 from wiki.wiki.doctype.wiki_page.wiki_page import delete_wiki_page, update
-from wiki.www.compare import restore_wiki_revision
 
 
 class TestWikiPage(unittest.TestCase):
@@ -82,21 +81,3 @@ class TestWikiPage(unittest.TestCase):
 			"Wiki Group Item", {"wiki_page": self.wiki_page.name}, pluck="name"
 		)
 		self.assertEqual(sidebar_items, [])
-
-	def test_wiki_page_revision_restore(self):
-		#  update the wiki page so that we have something to revert back
-		update(
-			name=self.wiki_page.name,
-			content="New Content",
-			title="New Title",
-			message="test",
-		)
-
-		wiki_revision_name = frappe.get_value("Wiki Page Revision", {"message": "Create Wiki Page"})
-
-		restore_wiki_revision(wiki_revision_name, self.wiki_page.name, "Revert back to xx")
-
-		wiki_page = frappe.get_doc("Wiki Page", self.wiki_page.name)
-
-		self.assertEqual(wiki_page.title, "New Title")
-		self.assertEqual(wiki_page.content, "Hello World")

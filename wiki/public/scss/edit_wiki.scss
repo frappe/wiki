@@ -491,9 +491,21 @@ $font-sizes-mobile: (
 		overflow: hidden;
 
 		code {
-		  overflow-x: auto;
-		  color: inherit;
-		  background: none !important;
+			overflow-x: auto;
+			color: inherit;
+			background: none !important;
+
+			del {
+				&.diffmod, &.diffdel {
+					background-color: #8B0000;
+				}
+			}
+
+			ins {
+				&.diffmod, &.diffins {
+					background-color: #006400;
+				}
+			}
 		}
 	}
 }
@@ -595,9 +607,9 @@ $font-sizes-mobile: (
 }
 
 .modal {
-
  	.modal-header {
 		border-bottom: unset;
+		flex-direction: column;
 	}
 
 	.modal-footer {
