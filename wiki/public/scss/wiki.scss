@@ -991,6 +991,10 @@ p {
 		display: none;
 	}
 
+	.modal-header {
+		position: inherit;
+	}
+
 	.modal-body {
 		padding: 1rem;
 
@@ -1000,6 +1004,8 @@ p {
 	}
 
 	.modal-footer {
+		position: inherit;
+
 		.previous-revision {
 			margin-right: auto;
 		}
