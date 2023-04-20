@@ -1,16 +1,28 @@
 <div class="from-markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="wiki-title">{{ title }}</h1>
-			<i class="edit-wiki-btn hide">
-				<svg class="icon">
-					<use href="#icon-edit"></use>
+		<div class="dropdown wiki-options">
+			<div class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
+				aria-expanded="false">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+					class="feather feather-more-vertical">
+					<circle cx="12" cy="12" r="1"></circle>
+					<circle cx="12" cy="5" r="1"></circle>
+					<circle cx="12" cy="19" r="1"></circle>
 				</svg>
-			</i>
+			</div>
+			<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+				<a class="dropdown-item edit-wiki-btn" href="#">Edit</a>
+				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">Revisions</a>
+			</div>
+		</div>
 	</div>
 	<div class="wiki-content">
 		{{ content }}
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
+	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
 </div>
 <div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
 	{% include "wiki/doctype/wiki_page/templates/editor.html" %}

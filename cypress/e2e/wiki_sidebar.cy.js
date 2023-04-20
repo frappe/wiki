@@ -5,7 +5,9 @@ context("Wiki Sidebar", () => {
   });
 
   it("creates a new wiki sidebar group", () => {
+    cy.get(".wiki-options .dropdown-toggle").click();
     cy.get(".edit-wiki-btn").click();
+
     cy.contains("Add Group").click();
     cy.get('input[name="title"]')
       .clear()
@@ -24,7 +26,9 @@ context("Wiki Sidebar", () => {
   });
 
   it("deletes a wiki sidebar group when the group is empty", () => {
-    cy.get(".edit-wiki-btn .icon").click();
+    cy.get(".wiki-options .dropdown-toggle").click();
+    cy.get(".edit-wiki-btn").click();
+
     cy.contains("Test Wiki Page").parent().next().click();
     cy.get('.btn:contains("Yes"):visible').click();
 
