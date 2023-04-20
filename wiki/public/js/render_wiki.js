@@ -417,8 +417,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
         ".revision-time",
       )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex--;
+      addHljsClass();
     });
-    addHljsClass();
   }
 
   set_add_item() {
