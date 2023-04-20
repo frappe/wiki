@@ -342,7 +342,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     let currentRevisionIndex = 1;
 
     // set initial revision
-    if (initial_content !== "<h5>No Revisions</h5>") {
+    if (initial_content !== "<h3>No Revisions</h3>") {
       $(".revision-content")[0].innerHTML = HtmlDiff.execute(
         $(".revision-content").html(),
         $(".from-markdown .wiki-content")

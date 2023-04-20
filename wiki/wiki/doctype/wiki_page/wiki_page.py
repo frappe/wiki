@@ -167,7 +167,7 @@ class WikiPage(WebsiteGenerator):
 		if len(revisions) > 1:
 			context.previous_revision = revisions[1]
 		else:
-			context.previous_revision = {"content": "<h5>No Revisions</h5>", "name": ""}
+			context.previous_revision = {"content": "<h3>No Revisions</h3>", "name": ""}
 
 		context.show_sidebar = True
 		context.hide_login = True
