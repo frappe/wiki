@@ -987,6 +987,10 @@ p {
 }
 
 .revisions-modal {
+	.feather-link {
+		display: none;
+	}
+
 	.modal-body {
 		padding: 1rem;
 
