@@ -524,7 +524,8 @@ textarea.wiki-content {
 
 		@include media-breakpoint-down(md) {
 			margin: 0;
-		}
+			padding: 0 0 2rem !important;
+	}
 	}
 }
 

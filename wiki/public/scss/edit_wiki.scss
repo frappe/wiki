@@ -596,6 +596,10 @@ $font-sizes-mobile: (
 .wiki-content {
 	min-height: 55vh;
 
+	@include media-breakpoint-down(md) {
+		max-width: calc(100vw - 3rem);
+	}
+
 	div > p:first-child {
 		margin-top: 1.5rem !important;
 		line-height: 1.4;
