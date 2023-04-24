@@ -65,6 +65,8 @@ website_route_rules = [
 # before_install = "wiki.install.before_install"
 after_install = "wiki.install.after_install"
 
+after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]
+
 # Desk Notifications
 # ------------------
 # See frappe.core.notifications.get_notification_config

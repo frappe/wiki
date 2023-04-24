@@ -85,6 +85,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_edit_mode();
         this.set_url_state();
         this.set_revisions();
+        this.setup_search();
       }
     });
   }
@@ -479,6 +480,144 @@ window.RenderWiki = class RenderWiki extends Wiki {
             $(`<ul class="list-unstyled" style="min-height:20px;"> </ul`),
           );
       }
+    });
+  }
+
+  setup_search() {
+    const target = $("#search-container");
+    const $search_input = $("#dropdownMenuSearch");
+
+    target.empty();
+    $search_input.appendTo(target);
+
+    const $dropdown_menu = $search_input.find(".dropdown-menu");
+    const $input = $search_input.find("input");
+    let dropdownItems;
+    let offsetIndex = 0;
+
+    function trimContent(content) {
+      let trimmedLength = 100;
+      let indexOf = content.indexOf("<mark>");
+      if (indexOf === -1) {
+        return content.slice(0, 200);
+      }
+
+      let start = indexOf - trimmedLength / 2;
+      if (start < 0) {
+        start = 0;
+      }
+      let end = indexOf + trimmedLength / 2;
+      if (end > content.length) {
+        end = content.length;
+      }
+      return content.slice(start, end);
+    }
+
+    $(document).on("keypress", (e) => {
+      if ($(e.target).is("textarea, input, select")) {
+        return;
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        $input.trigger("focus");
+      }
+    });
+
+    $input.on(
+      "input",
+      frappe.utils.debounce(() => {
+        if (!$input.val()) {
+          clear_dropdown();
+          return;
+        }
+
+        frappe
+          .call({
+            method: "wiki.wiki.doctype.wiki_page.search.search",
+            args: {
+              query: $input.val(),
+              path: window.location.pathname,
+            },
+          })
+          .then((r) => {
+            let results = r.message.docs || [];
+            let dropdown_html;
+            if (results.length == 0) {
+              dropdown_html = `<div class="dropdown-item">No results found</div>`;
+            } else {
+              dropdown_html = results
+                .map((r) => {
+                  return `<a class="dropdown-item" href="/${r.route}">
+              <h6>${r.title}</h6>
+              <div style="white-space: normal;">${trimContent(r.content)}</div>
+            </a>`;
+                })
+                .join("");
+            }
+            $dropdown_menu.html(dropdown_html);
+            $dropdown_menu.addClass("show");
+            dropdownItems = $dropdown_menu.find(".dropdown-item");
+          });
+      }, 500),
+    );
+
+    $input.on("focus", () => {
+      if (!$input.val()) {
+        clear_dropdown();
+      } else {
+        $input.trigger("input");
+      }
+    });
+
+    $input.keydown(function (e) {
+      // up: 38, down: 40
+      if (e.which == 40) {
+        navigate(0);
+      }
+    });
+
+    $dropdown_menu.keydown(function (e) {
+      // up: 38, down: 40
+      if (e.which == 38) {
+        navigate(-1);
+      } else if (e.which == 40) {
+        navigate(1);
+      } else if (e.which == 27) {
+        setTimeout(() => {
+          clear_dropdown();
+        }, 300);
+      }
+    });
+
+    // Clear dropdown when clicked
+    $(window).click(function () {
+      clear_dropdown();
+    });
+
+    $search_input.click(function (event) {
+      event.stopPropagation();
+    });
+
+    // Navigate the list
+    var navigate = function (diff) {
+      offsetIndex += diff;
+
+      if (offsetIndex >= dropdownItems.length) offsetIndex = 0;
+      if (offsetIndex < 0) offsetIndex = dropdownItems.length - 1;
+      $input.off("blur");
+      dropdownItems.eq(offsetIndex).focus();
+    };
+
+    function clear_dropdown() {
+      offsetIndex = 0;
+      $dropdown_menu.html("");
+      $dropdown_menu.removeClass("show");
+      dropdownItems = undefined;
+    }
+
+    // Remove focus state on hover
+    $dropdown_menu.on("mouseover", function () {
+      dropdownItems.blur();
     });
   }
 };
