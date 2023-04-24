@@ -394,6 +394,13 @@ textarea.wiki-content {
 		height: 100%;
 		padding-right: 0px;
 		padding-left: 0px;
+
+		mark {
+			background-color: var(--primary-light);
+			color: var(--primary);
+			font-weight: 500;
+		}
+
 		.dropdown {
 			height: 100%;
 

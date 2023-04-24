@@ -8,6 +8,8 @@ import pymysql
 from frappe.model.document import Document
 from frappe.website.utils import cleanup_page_name
 
+from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index
+
 
 class WikiSpace(Document):
 	def before_save(self):
@@ -45,6 +47,12 @@ class WikiSpace(Document):
 							"route": f"{prepend_string}{cleanup_page_name(wiki_sidebar.parent_label)}-{wiki_page.route.split('/')[-1]}-{random() * 10000}"
 						},
 					)
+
+	def on_update(self):
+		rebuild_index()
+
+	def on_trash(self):
+		drop_index(self.route)
 
 
 @frappe.whitelist()
