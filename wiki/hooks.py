@@ -109,7 +109,7 @@ after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background
 # ---------------
 
 scheduler_events = {
-	"*/5 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_if_not_exists"]
+	"cron": {"*/5 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_if_not_exists"]}
 }
 
 # scheduler_events = {
