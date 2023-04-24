@@ -51,8 +51,14 @@ class WikiSpace(Document):
 	def on_update(self):
 		rebuild_index()
 
+		# clear sidebar cache
+		frappe.cache().hdel("wiki_sidebar", self.name)
+
 	def on_trash(self):
 		drop_index(self.route)
+
+		# clear sidebar cache
+		frappe.cache().hdel("wiki_sidebar", self.name)
 
 
 @frappe.whitelist()
