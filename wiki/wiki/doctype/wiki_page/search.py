@@ -110,8 +110,11 @@ def create_index_for_records(records, space):
 def remove_index_for_records(records, space):
 	r = frappe.cache()
 	for d in records:
-		key = r.make_key(f"{PREFIX}{space}:{d.name}").decode()
-		r.ft(space).delete_document(key)
+		try:
+			key = r.make_key(f"{PREFIX}{space}:{d.name}").decode()
+			r.ft(space).delete_document(key)
+		except ResponseError:
+			pass
 
 
 def update_index(doc):
