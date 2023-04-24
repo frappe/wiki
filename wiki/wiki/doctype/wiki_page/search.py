@@ -56,7 +56,6 @@ def get_space_route(path):
 def rebuild_index():
 	r = frappe.cache()
 	r.set_value("wiki_page_index_in_progress", True)
-	drop_index()
 
 	# Options for index creation
 	schema = (
@@ -68,6 +67,8 @@ def rebuild_index():
 	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	for space in spaces:
 		try:
+			drop_index(space)
+
 			index_def = IndexDefinition(
 				prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
 			)
@@ -144,11 +145,8 @@ def remove_index(doc):
 	remove_index_for_records([record], space)
 
 
-def drop_index():
-	spaces = frappe.db.get_all("Wiki Space", pluck="route")
-	r = frappe.cache()
-	for space in spaces:
-		try:
-			r.ft(space).dropindex(delete_documents=True)
-		except ResponseError:
-			pass
+def drop_index(space):
+	try:
+		frappe.cache().ft(space).dropindex(delete_documents=True)
+	except ResponseError:
+		pass
