@@ -55,15 +55,3 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 </div>
 
 {% endblock %}
-
-{%- block script -%}
-<script>
-	frappe.ready(() => {
-		frappe.setup_search('#search-container', '{{ wiki_search_scope or "" }}');
-
-		$('.web-footer .container')
-			.removeClass('container')
-			.addClass('container-fluid doc-container');
-	});
-</script>
-{%- endblock -%}

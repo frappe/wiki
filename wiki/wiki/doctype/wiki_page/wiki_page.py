@@ -12,6 +12,8 @@ from frappe.utils.data import sbool
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.website_generator import WebsiteGenerator
 
+from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
+
 
 class WikiPage(WebsiteGenerator):
 	def before_save(self):
@@ -41,6 +43,9 @@ class WikiPage(WebsiteGenerator):
 		revision.message = "Create Wiki Page"
 		revision.raised_by = frappe.session.user
 		revision.insert()
+
+	def on_update(self):
+		update_index(self)
 
 	def clear_sidebar_cache(self):
 		for key in frappe.cache().hgetall("wiki_sidebar").keys():
@@ -74,6 +79,7 @@ class WikiPage(WebsiteGenerator):
 		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
 
 		self.clear_sidebar_cache()
+		remove_index(self)
 
 	def update_page(self, title, content, edit_message, raised_by=None):
 		"""
