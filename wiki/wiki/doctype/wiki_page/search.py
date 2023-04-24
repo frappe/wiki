@@ -12,8 +12,6 @@ from redis.exceptions import ResponseError
 
 PREFIX = "wiki_page_search_doc"
 
-spaces = set(frappe.db.get_all("Wiki Space", pluck="route"))
-
 
 @frappe.whitelist(allow_guest=True)
 def search(query, path):
@@ -50,7 +48,7 @@ def search(query, path):
 
 
 def get_space_route(path):
-	for space in spaces:
+	for space in frappe.db.get_all("Wiki Space", pluck="route"):
 		if space in path:
 			return space
 
@@ -67,6 +65,7 @@ def rebuild_index():
 	)
 
 	# Create an index and pass in the schema
+	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	for space in spaces:
 		index_def = IndexDefinition(
 			prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
@@ -85,6 +84,7 @@ def rebuild_index_in_background():
 
 
 def rebuild_index_if_not_exists():
+	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	for space in spaces:
 		try:
 			frappe.cache().ft(space).info()
@@ -136,6 +136,7 @@ def remove_index(doc):
 
 
 def drop_index():
+	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	r = frappe.cache()
 	for space in spaces:
 		try:
