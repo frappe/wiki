@@ -8,7 +8,7 @@ import pymysql
 from frappe.model.document import Document
 from frappe.website.utils import cleanup_page_name
 
-from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index
+from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index_in_background
 
 
 class WikiSpace(Document):
@@ -49,7 +49,7 @@ class WikiSpace(Document):
 					)
 
 	def on_update(self):
-		rebuild_index()
+		rebuild_index_in_background()
 
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
