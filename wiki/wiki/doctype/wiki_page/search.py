@@ -76,14 +76,15 @@ def rebuild_index():
 			wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
 			records_to_index = [d for d in wiki_pages if space in d.get("route")]
 			create_index_for_records(records_to_index, space)
-		except ResponseError:
-			pass
+		except ResponseError as e:
+			print(e)
 
 	r.set_value("wiki_page_index_in_progress", False)
 
 
 def rebuild_index_in_background():
 	if not frappe.cache().get_value("wiki_page_index_in_progress"):
+		print(f"Queued rebuilding of search index for {frappe.local.site}")
 		frappe.enqueue(rebuild_index, queue="long")
 
 
@@ -94,6 +95,7 @@ def rebuild_index_if_not_exists():
 			frappe.cache().ft(space).info()
 		except ResponseError:
 			rebuild_index()
+			break
 
 
 def create_index_for_records(records, space):
