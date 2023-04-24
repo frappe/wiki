@@ -67,14 +67,18 @@ def rebuild_index():
 	# Create an index and pass in the schema
 	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	for space in spaces:
-		index_def = IndexDefinition(
-			prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
-		)
-		r.ft(space).create_index(schema, definition=index_def)
+		try:
+			index_def = IndexDefinition(
+				prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
+			)
+			r.ft(space).create_index(schema, definition=index_def)
 
-		wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
-		records_to_index = [d for d in wiki_pages if space in d.get("route")]
-		create_index_for_records(records_to_index, space)
+			wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
+			records_to_index = [d for d in wiki_pages if space in d.get("route")]
+			create_index_for_records(records_to_index, space)
+		except ResponseError:
+			pass
+
 	r.set_value("wiki_page_index_in_progress", False)
 
 
