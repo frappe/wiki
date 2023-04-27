@@ -85,7 +85,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_edit_mode();
         this.set_url_state();
         this.set_revisions();
-        this.setup_search();
       }
     });
   }
@@ -486,7 +485,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
   }
 
-  setup_search() {
+  setup_search(search_scope = '') {
     const target = $("#search-container");
     const $search_input = $("#dropdownMenuSearch");
 
@@ -540,6 +539,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             args: {
               query: $input.val(),
               path: window.location.pathname,
+              space: search_scope,
             },
           })
           .then((r) => {
