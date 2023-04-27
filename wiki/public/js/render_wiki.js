@@ -485,7 +485,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
   }
 
-  setup_search(search_scope = '') {
+  setup_search(search_scope = "") {
     const target = $("#search-container");
     const $search_input = $("#dropdownMenuSearch");
 

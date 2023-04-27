@@ -10,7 +10,7 @@ from redis.exceptions import ResponseError
 FRAPPE_MAJOR_VER = int(frappe.__version__.split(".")[0])
 
 if FRAPPE_MAJOR_VER <= 14:
-	from redisearch import TextField, IndexDefinition, Client, Query
+	from redisearch import Client, IndexDefinition, Query, TextField
 else:
 	from redis.commands.search.field import TextField
 	from redis.commands.search.indexDefinition import IndexDefinition
@@ -185,5 +185,6 @@ def drop_index(space):
 	except ResponseError:
 		pass
 
+
 def make_key(key):
-	return f"{frappe.conf.db_name}|{key}".encode("utf-8")
+	return f"{frappe.conf.db_name}|{key}".encode()
