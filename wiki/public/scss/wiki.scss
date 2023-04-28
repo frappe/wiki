@@ -876,6 +876,10 @@ img[alt]::after{
 	height: unset;
 }
 
+img.ProseMirror-selectednode {
+	border: 2px solid #7CBCF5;
+}
+
 // body
 // make sm / xl sizes the same
 
