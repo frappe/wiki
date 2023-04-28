@@ -94,7 +94,9 @@ const editor = new Editor({
       allowBase64: true,
       inline: true,
     }),
-    Table,
+    Table.configure({
+      resizable: true,
+    }),
     TableRow,
     TableHeader,
     TableCell,
