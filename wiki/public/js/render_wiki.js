@@ -206,7 +206,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
 
     $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
-      if (frappe.session.user === "Guest") window.location.assign("/login");
+      if (frappe.session.user === "Guest")
+        window.location.assign(
+          `/login?redirect-to=${window.location.pathname}`,
+        );
       else {
         const urlParams = new URLSearchParams(window.location.search);
 
