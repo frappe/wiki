@@ -48,8 +48,8 @@ const saveWikiPage = (draft = false) => {
 
   const title = $(`.wiki-editor .ProseMirror h1`).html();
   // markdown=1 tag is needed for older wiki content to properly render
-  const content = `<div markdown="1">${$(`.wiki-editor .ProseMirror`)
-    .html()
+  const content = `<div markdown="1">${editor
+    .getHTML()
     .replace(/<h1>.*?<\/h1>/, "")}</div>`;
 
   frappe.call({
