@@ -1030,6 +1030,11 @@ p {
 
 del {
 	&.diffmod, &.diffdel {
+		* {
+			border: 4px var(--htmldiff-del-color) solid;
+			border-radius: 5px;
+		}
+
 		all: unset;
 		background-color: var(--htmldiff-del-color);
 	}
@@ -1037,6 +1042,11 @@ del {
 
 ins {
 	&.diffmod, &.diffins {
+		* {
+			border: 4px var(--htmldiff-ins-color) solid;
+			border-radius: 5px;
+		}
+
 		all: unset;
 		background-color: var(--htmldiff-ins-color);
 	}
