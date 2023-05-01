@@ -12,6 +12,28 @@ from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index_in_back
 
 
 class WikiSpace(Document):
+	def before_insert(self):
+		# insert a new wiki page when sidebar is empty
+		if not self.wiki_sidebars:
+			wiki_page = frappe.get_doc(
+				{
+					"doctype": "Wiki Page",
+					"title": "New Wiki Page",
+					"route": f"{self.route}/new-wiki-page",
+					"published": 1,
+					"content": f"Welcome to Wiki Space {self.route}",
+				}
+			)
+			wiki_page.insert()
+
+			self.append(
+				"wiki_sidebars",
+				{
+					"wiki_page": wiki_page.name,
+					"parent_label": "New Group",
+				},
+			)
+
 	def before_save(self):
 		# prepend space route to the route of wiki page
 		old_route = frappe.db.get_value("Wiki Space", self.name, "route")
