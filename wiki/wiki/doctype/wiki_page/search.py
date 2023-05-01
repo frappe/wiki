@@ -6,15 +6,7 @@ import frappe
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 from redis.exceptions import ResponseError
-
-FRAPPE_MAJOR_VER = int(frappe.__version__.split(".")[0])
-
-if FRAPPE_MAJOR_VER <= 14:
-	from redisearch import Client, IndexDefinition, Query, TextField
-else:
-	from redis.commands.search.field import TextField
-	from redis.commands.search.indexDefinition import IndexDefinition
-	from redis.commands.search.query import Query
+from redisearch import Client, IndexDefinition, Query, TextField
 
 PREFIX = "wiki_page_search_doc"
 
@@ -26,12 +18,7 @@ def search(query, path, space):
 	if not space:
 		space = get_space_route(path)
 
-	if FRAPPE_MAJOR_VER <= 14:
-		# search for FF v14 and below
-		client = Client(make_key(space), conn=r)
-	else:
-		# search for FF v15+
-		client = r.ft(space)
+	client = Client(make_key(space), conn=r)
 
 	query = Query(query).paging(0, 5).highlight(tags=["<mark>", "</mark>"])
 
@@ -90,11 +77,7 @@ def rebuild_index():
 				prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
 			)
 
-			if FRAPPE_MAJOR_VER <= 14:
-				index = Client(make_key(space), conn=frappe.cache())
-			else:
-				index = frappe.cache().ft(space)
-
+			index = Client(make_key(space), conn=frappe.cache())
 			index.create_index(schema, definition=index_def)
 
 			records_to_index = [d for d in wiki_pages if space in d.get("route")]
@@ -115,11 +98,8 @@ def rebuild_index_if_not_exists():
 	spaces = frappe.db.get_all("Wiki Space", pluck="route")
 	for space in spaces:
 		try:
-			if FRAPPE_MAJOR_VER <= 14:
-				client = Client(make_key(space), conn=frappe.cache())
-				client.info()
-			else:
-				frappe.cache().ft(space).info()
+			client = Client(make_key(space), conn=frappe.cache())
+			client.info()
 		except ResponseError:
 			rebuild_index()
 			break
@@ -145,11 +125,8 @@ def remove_index_for_records(records, space):
 	for d in records:
 		try:
 			key = r.make_key(f"{PREFIX}{space}:{d.name}").decode()
-			if FRAPPE_MAJOR_VER <= 14:
-				client = Client(make_key(space), conn=frappe.cache())
-				client.delete_document(key)
-			else:
-				r.ft(space).delete_document(key)
+			client = Client(make_key(space), conn=frappe.cache())
+			client.delete_document(key)
 		except ResponseError:
 			pass
 
@@ -177,11 +154,8 @@ def remove_index(doc):
 
 def drop_index(space):
 	try:
-		if FRAPPE_MAJOR_VER <= 14:
-			client = Client(make_key(space), conn=frappe.cache())
-			client.drop_index(delete_documents=True)
-		else:
-			frappe.cache().ft(space).dropindex(delete_documents=True)
+		client = Client(make_key(space), conn=frappe.cache())
+		client.drop_index(delete_documents=True)
 	except ResponseError:
 		pass
 
