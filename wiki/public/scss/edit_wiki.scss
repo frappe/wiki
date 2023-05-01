@@ -224,7 +224,7 @@ $font-sizes-mobile: (
 .wiki-editor,
 .wiki-content {
 	font-size: map-get($font-sizes-desktop, "base");
-	color: $gray-700;
+	color: var(--editor-button-text-color);
 	line-height: 1.7;
 	letter-spacing: -0.011em;
 	max-width: calc(100vw - 6rem);
@@ -532,11 +532,11 @@ $font-sizes-mobile: (
 	}
 	
 	button:hover {
-		background-color: var(--gray-100);
+		background-color: var(--editor-hover-button-color);
 	}
 	
 	.is-active {
-		background-color: var(--gray-100);
+		background-color: var(--editor-hover-button-color);
 	}
 	
 	.dropdown {

@@ -2,6 +2,7 @@
 @import "frappe/public/css/fonts/inter/inter";
 
 body {
+	--gray-700: #242a30;
 	--gray-800: #1C2126;
 	--gray-900: #161A1F;
 
@@ -33,6 +34,9 @@ body {
 	--htmldiff-ins-color: #dcfce7;
 	--htmldiff-del-color: #fee2e2;
 
+	--editor-button-text-color: var(--gray-700);
+	--editor-hover-button-color: var(--gray-100);
+
 // ------------------------------------------
 
 	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -48,12 +52,12 @@ body.dark {
 	--background-color: var(--gray-800);
 	--text-color: var(--gray-50);
 	--sidebar-bg-color: var(--gray-900);
-	--sidebar-hover-color: var(--blue-900);
+	--sidebar-hover-color: #242a30;
 	--toc-hover-text-color: var(--gray-500);
 
 	--btn-text-color: var(--blue-500);
-	--btn-color: var(--gray-700);
-	--btn-secondary-color: var(--gray-700);
+	--btn-color: #4c5a67;
+	--btn-secondary-color: var(--btn-color);
 	--btn-secondary-hover-color: var(--gray-500);
 
 	--active-item-color: var(--gray-700);
@@ -77,6 +81,9 @@ body.dark {
 
 	--htmldiff-ins-color: #006400;
 	--htmldiff-del-color: #8B0000;
+
+	--editor-button-text-color: var(--gray-400);
+	--editor-hover-button-color: var(--gray-700);
 
 	&, .web-sidebar, .ProseMirror {
 		&::-webkit-scrollbar {
@@ -516,6 +523,11 @@ textarea.wiki-content {
 
 	.dropdown-item {
 		color: var(--text-color);
+
+		&:active, &:hover {
+			background-color: var(--sidebar-hover-color);
+			color: var(--text-color);
+		}
 	}
 }
 
@@ -621,15 +633,6 @@ h6:hover .feather-link {
 
 	.dropdown-menu {
 		min-width: 7.5rem;
-	}
-
-	.dropdown-item:active {
-		color: var(--text-color);
-		background-color: var(--gray-300);
-
-		&:hover {
-			color: inherit;
-		}
 	}
 }
 
