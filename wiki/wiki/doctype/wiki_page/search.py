@@ -14,9 +14,12 @@ PREFIX = "wiki_page_search_doc"
 
 
 @frappe.whitelist(allow_guest=True)
-def search(query, path):
-	space = get_space_route(path)
+def search(query, path, space):
 	r = frappe.cache()
+
+	if not space:
+		space = get_space_route(path)
+
 	query = Query(query).paging(0, 5).highlight(tags=["<mark>", "</mark>"])
 
 	try:
@@ -65,6 +68,7 @@ def rebuild_index():
 
 	# Create an index and pass in the schema
 	spaces = frappe.db.get_all("Wiki Space", pluck="route")
+	wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
 	for space in spaces:
 		try:
 			drop_index(space)
@@ -74,7 +78,6 @@ def rebuild_index():
 			)
 			r.ft(space).create_index(schema, definition=index_def)
 
-			wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
 			records_to_index = [d for d in wiki_pages if space in d.get("route")]
 			create_index_for_records(records_to_index, space)
 		except ResponseError as e:
