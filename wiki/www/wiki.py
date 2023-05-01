@@ -11,6 +11,6 @@ def get_context(context):
 	default_space_route = frappe.get_single("Wiki Settings").default_wiki_space
 
 	if default_space_route:
-		frappe.response.location = default_space_route
+		frappe.response.location = f"/{default_space_route}"
 		frappe.response.type = "redirect"
 		raise frappe.Redirect
