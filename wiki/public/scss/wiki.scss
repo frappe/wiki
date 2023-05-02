@@ -627,7 +627,7 @@ h6:hover .feather-link {
 		width: 2rem;
 	}
 
-	#dropdownMenuButton::after {
+	#wikiOptionsButton::after {
 		display: none;
 	  }
 
@@ -728,10 +728,6 @@ ul.user-contributions {
 	margin: 1rem 0 0 auto;
 	color: var(--sidebar-text-color);
 	font-size: 0.8rem;
-}
-
-ul.user-contributions li {
-	margin: 0 4px;
 }
 
 /*
