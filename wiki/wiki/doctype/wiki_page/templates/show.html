@@ -2,8 +2,7 @@
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="wiki-title">{{ title }}</h1>
 		<div class="dropdown wiki-options">
-			<div class="dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true"
-				aria-expanded="false">
+			<div class="dropdown-toggle" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
 					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
 					class="feather feather-more-vertical">
@@ -12,7 +11,7 @@
 					<circle cx="12" cy="19" r="1"></circle>
 				</svg>
 			</div>
-			<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+			<div class="dropdown-menu" aria-labelledby="wikiOptionsButton">
 				<a class="dropdown-item edit-wiki-btn" href="#">Edit</a>
 				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">Revisions</a>
 			</div>
@@ -44,12 +43,11 @@
   </div>
 
   <div class="my-4 wiki-revision-meta hide">
-	  <ul class="user-contributions">
-
+	  <div class="user-contributions">
 		  {%- if last_revision -%}
 			 last updated {{ frappe.utils.pretty_date(last_revision.modified) }}
 		  {%- endif -%}
-	  </ul>
+	  </div>
   </div>
   <div class="wiki-footer hide">
 	<div class = "forward-back">
