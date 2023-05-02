@@ -11,7 +11,7 @@
 					<circle cx="12" cy="19" r="1"></circle>
 				</svg>
 			</div>
-			<div class="dropdown-menu" aria-labelledby="wikiOptionsButton">
+			<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
 				<a class="dropdown-item edit-wiki-btn" href="#">Edit</a>
 				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">Revisions</a>
 			</div>
@@ -42,14 +42,14 @@
 	</div>
   </div>
 
-  <div class="my-4 wiki-revision-meta hide">
+  <div class="my-4 wiki-revision-meta hide d-print-none">
 	  <div class="user-contributions">
 		  {%- if last_revision -%}
 			 last updated {{ frappe.utils.pretty_date(last_revision.modified) }}
 		  {%- endif -%}
 	  </div>
   </div>
-  <div class="wiki-footer hide">
+  <div class="wiki-footer hide d-print-none">
 	<div class = "forward-back">
 		<a href="#" class="btn left">
 			<p>Previous Page</p>
