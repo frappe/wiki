@@ -260,7 +260,7 @@ textarea.wiki-content {
 			width: 100%;
 		}
 	}
-	
+
 	.drop-icon,
 	.add-sidebar-page {
 		display: inline-flex;
@@ -315,7 +315,7 @@ textarea.wiki-content {
 		color: inherit;
 		margin-top: 0 !important;
 	}
-	
+
 	:first-child {
 		margin-right: auto;
 	}
@@ -369,14 +369,14 @@ textarea.wiki-content {
 .navbar-nav {
 	height: 100%;
 	background-color: var(--background-color);
-	
+
 	.dropdown-menu {
 	    position: sticky;
 		border: 1px solid var(--border-color);
 
 		.dropdown-item {
 			color: var(--text-color);
-			
+
 			&:focus-visible {
 				outline: none;
 			}
@@ -390,7 +390,7 @@ textarea.wiki-content {
 			}
 		}
 	}
-	
+
 }
 
 .nav-item {
@@ -437,13 +437,8 @@ textarea.wiki-content {
 		height: 100%;
 	}
 }
-.navbar {
-	position: sticky;
-	top: 0;
-	z-index: 1020;
-	background-color: transparent;
-	padding-top: 0;
-	margin-left: auto;
+.wiki-navbar {
+    box-shadow: 20px 5px 14px 8px #fff;
 
 	@include media-breakpoint-down(md) {
 		width: auto;
@@ -548,11 +543,7 @@ textarea.wiki-content {
 	}
 }
 
-.wiki-flex {
-	flex-wrap: nowrap;
-}
-
-.doc-content .from-markdown > :first-child {
+.wiki-content .from-markdown > :first-child {
 	margin-top: 0;
 }
 
@@ -561,9 +552,9 @@ textarea.wiki-content {
 	border-left: 3px solid #ffc107;
 }
 
-.doc-content {
-	max-width: 900px;
-	margin: auto;
+.wiki-page-content {
+	max-width: 750px;
+	margin: 0 auto;
 
 	.from-markdown {
 		.edit-wiki-button {
@@ -589,7 +580,7 @@ textarea.wiki-content {
 }
 
 // TODO: clear this when website related css is removed
-.doc-content .from-markdown {
+.wiki-page-content .from-markdown {
 	h1, h2, h3, h4, h5, h6{
 		&::before {
 			height: 0;
@@ -607,7 +598,7 @@ h3:hover .feather-link,
 h4:hover .feather-link,
 h5:hover .feather-link,
 h6:hover .feather-link {
-	visibility: visible;	
+	visibility: visible;
 }
 
 .btn.btn-secondary {
@@ -736,7 +727,7 @@ breadcrumbs
 ====
 */
 
-.doc-content .breadcrumb-container {
+.wiki-page-content .breadcrumb-container {
 	margin-top: 0rem; /* spacing adjusment for breadcrumb */
 	margin: 0;
 	padding: 0;

@@ -335,7 +335,6 @@ $font-sizes-mobile: (
 
 	& > p {
 		margin-top: 1.5rem !important;
-		line-height: 1.4;
 	}
 
 	h2 {
@@ -530,23 +529,23 @@ $font-sizes-mobile: (
 		margin: 0.25rem;
 		border-radius: 0.25rem;
 	}
-	
+
 	button:hover {
 		background-color: var(--editor-hover-button-color);
 	}
-	
+
 	.is-active {
 		background-color: var(--editor-hover-button-color);
 	}
-	
+
 	.dropdown {
 		display: inline-block;
-	
+
 		#dropdownMenuButton::after {
 			display: none;
 		}
 	}
-	
+
 	.ProseMirror {
 		height: 80vh;
 		overflow-y: auto;
@@ -557,7 +556,7 @@ $font-sizes-mobile: (
 			padding-right: 1rem;
 			width: 92vw;
 		}
-		
+
 		.is-empty::before {
 			content: attr(data-placeholder);
 			float: left;
