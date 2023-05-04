@@ -5,7 +5,7 @@
 
 		{%- set dropdown_id = 'id-' + frappe.utils.generate_hash('Dropdown', 12) -%}
 		<li class="nav-item dropdown {% if submenu %} dropdown-submenu {% endif %}">
-			<a class="nav-link dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button"
+			<a class="navbar-link dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button"
 				data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				{{ _(item.label) }}
 			</a>
@@ -34,7 +34,7 @@
 
 	{% if parent %}
 	<li class="nav-item">
-		<a class="nav-link" href="{{ (item.url or '')|abs_url }}"
+		<a class="navbar-link" href="{{ (item.url or '')|abs_url }}"
 			{% if item.open_in_new_tab %} target="_blank" {% endif %}>
 			{{ _(item.label) }}
 		</a>
@@ -58,7 +58,7 @@
 	{%- endfor %}
 </ul>
 {%- endif %}
-<ul class="ml-auto navbar-nav navbar-light">
+<ul class="navbar-nav">
 	{% include "wiki/doctype/wiki_page/templates/navbar_search.html" %}
 	{%- for item in navbar_items -%}
 		{% if not item.parent_label and item.right -%}

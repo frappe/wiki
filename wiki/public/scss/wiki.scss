@@ -419,26 +419,13 @@ textarea.wiki-content {
 		}
 	}
 
-	.nav-link {
-		font-style: normal;
-		font-weight: normal;
-		font-size: $font-size-base;
-		line-height: 150%;
-		/* identical to box height, or 24px */
-
-		letter-spacing: -0.011em;
-
-		color: $body-color;
-		padding-left: 0rem !important;
-		padding-right: 0rem !important;
-	}
-
 	select {
 		height: 100%;
 	}
 }
 .wiki-navbar {
-    box-shadow: 20px 5px 14px 8px #fff;
+	background-color: var(--background-color);
+    box-shadow: 20px 5px 14px 8px var(--background-color);
 
 	@include media-breakpoint-down(md) {
 		width: auto;
@@ -745,7 +732,7 @@ navbar
 ====
 */
 
-.navbar .navbar-light {
+.navbar {
 	.navbar-expand-lg {
 		width: 100%;
 		position: fixed;
@@ -754,8 +741,21 @@ navbar
 		right: 0;
 	}
 
-	.nav-link {
+	.navbar-link {
 		color: var(--text-color);
+		font-size: .875rem;
+		font-weight: 500;
+		padding: 0.5rem 0;
+		display: block;
+
+		&:hover {
+			color: $primary;
+			text-decoration: none;
+		}
+	}
+
+	.logged-in {
+		padding-left: 0;
 	}
 }
 
@@ -804,9 +804,6 @@ navbar
 	.search-nav-item {
 		height: 2.2rem;
 	}
-	// #dropdownMenuSearch {
-	//   margin-right: 20px;
-	// }
 }
 
 .my-contributions,

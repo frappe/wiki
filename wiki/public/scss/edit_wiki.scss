@@ -65,12 +65,6 @@ body.dark {
 		@include media-breakpoint-down(sm) {
 			margin: 0 1.1rem 0 0;
 		}
-
-		.nav-link {
-			padding: 0.5rem 0;
-			margin-right: 0;
-			font-weight: 500;
-		}
 	}
 }
 
@@ -510,7 +504,7 @@ $font-sizes-mobile: (
 }
 
 .wiki-editor {
-	margin: 0 -1rem;
+	margin: 1rem auto;
 	border-radius: 1rem;
 	border: 1px solid $gray-200;
 	overflow: auto;
