@@ -367,8 +367,14 @@ textarea.wiki-content {
 
 // navbar
 .navbar-nav {
+	width: 100%;
 	height: 100%;
+	justify-content: flex-end;
 	background-color: var(--background-color);
+
+	.nav-item:first-child {
+		margin-right: auto;
+	}
 
 	.dropdown-menu {
 	    position: sticky;
@@ -754,7 +760,7 @@ navbar
 		}
 	}
 
-	.logged-in {
+	.logged-in .nav-avatar {
 		padding-left: 0;
 	}
 }

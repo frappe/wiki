@@ -49,15 +49,6 @@
 {% endif %}
 {% endmacro %}
 
-{% if navbar_items -%}
-<ul class="mr-auto navbar-nav">
-	{%- for item in navbar_items -%}
-		{% if not item.parent_label and not item.right -%}
-			{{ render_item(item, parent=True) }}
-		{%- endif -%}
-	{%- endfor %}
-</ul>
-{%- endif %}
 <ul class="navbar-nav">
 	{% include "wiki/doctype/wiki_page/templates/navbar_search.html" %}
 	{%- for item in navbar_items -%}
