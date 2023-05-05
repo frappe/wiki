@@ -40,7 +40,7 @@ function set_search_params(key = "", value = "") {
 
 function toggleEditor() {
   $(".wiki-content").toggleClass("hide");
-  $(".wiki-revision-meta").toggleClass("hide");
+  $(".wiki-page-meta").toggleClass("hide");
   $(".wiki-footer").toggleClass("hide");
   $(".wiki-edit-control-btn").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
@@ -74,6 +74,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
       ) {
+        this.add_link_to_headings();
         this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
@@ -114,7 +115,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         )[0],
       ).trigger("click");
     }
-    $(".wiki-footer, .wiki-revision-meta").toggleClass("hide");
+    $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
   }
 
   set_toc_highlighter() {
