@@ -23,7 +23,7 @@ context("Wiki", () => {
   });
 
   it("edits a wiki page", () => {
-    cy.contains("Test Wiki Page").click();
+    cy.get(".doc-sidebar").contains("Test Wiki Page").click();
 
     cy.get(".wiki-options .dropdown-toggle").click();
     cy.get(".edit-wiki-btn").click();
@@ -42,12 +42,12 @@ context("Wiki", () => {
   });
 
   it("deletes a wiki page", () => {
-    cy.contains("Old Wiki Page").click();
+    cy.get(".doc-sidebar").contains("Old Wiki Page").click();
 
     cy.get(".wiki-options .dropdown-toggle").click();
     cy.get(".edit-wiki-btn").click();
 
-    cy.contains("Old Wiki Page").parent().next().click();
+    cy.get(".doc-sidebar").contains("Old Wiki Page").parent().next().click();
     cy.contains("Yes").click();
 
     cy.get(".doc-sidebar .sidebar-item").should("not.contain", "Old Wiki Page");

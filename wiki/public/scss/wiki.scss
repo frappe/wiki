@@ -45,6 +45,7 @@ body {
 
 	background-color: var(--background-color);
 	color: var(--text-color);
+	height: auto;
 }
 
 body.dark {
@@ -171,6 +172,9 @@ body.dark {
 }
 
 // sidebar
+.sidebar-wrapper {
+	margin-top: -8rem;
+}
 
 .web-sidebar {
 	.list-unstyled:first-child > * {
@@ -422,6 +426,7 @@ body.dark {
 .wiki-navbar {
 	background-color: var(--background-color);
     box-shadow: 20px 5px 14px 8px var(--background-color);
+	margin-left: 20rem;
 
 	@include media-breakpoint-down(md) {
 		width: auto;
@@ -623,49 +628,41 @@ h6:hover .feather-link {
 
 	.list-unstyled {
 		top: 0;
+		border-left: 1px solid var(--border-color);
 	}
 
 	h5 {
 		font-size: $font-size-xs;
+		padding-left: 1rem;
+		letter-spacing: .4px;
+		line-height: 28px;
+		font-size: 13px;
+		font-weight: 600;
+		margin-bottom: 0;
 	}
 
 	div {
 		width: 100%;
-		margin-top: 0;
-		margin-bottom: 0;
-		padding-top: 2rem;
-		padding-bottom: 2rem;
+		margin: 2rem 0;
+		padding: 0;
+
 		ul {
 			padding-bottom: 0;
 			margin-bottom: 0;
 		}
-
-		.h5 {
-			font-style: normal;
-			font-weight: 500;
-			font-size: $font-size-xs;
-			line-height: 1.35;
-			color: $headings-color;
-		}
-	}
-
-	li {
-		padding-left: 4px;
-		margin: 2px 0;
 	}
 
 	.active {
-		border-radius: 4px;
-		color: $primary;
-		background-color: var(--active-item-color);
-		border-left: 3px solid $primary;
-		border-radius: 0.1rem 0.375rem 0.375rem 0.1rem;
+		color: var(--text-color);
+		box-shadow: 1px 0 0 var(--primary) inset;
+		transition: color 0.2s, box-shadow 0.2s linear, transform 0.2s linear;
 	}
 
 	a {
+		font-size: 13px;
 		padding: 0.25rem;
-		color: var(--text-color);
-
+		color: var(--sidebar-text-color);
+		transform: translateX(-1px);
 	}
 	a:hover:not(.active) {
 		color: var(--toc-hover-text-color);
