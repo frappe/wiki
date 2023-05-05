@@ -411,6 +411,14 @@ $font-sizes-mobile: (
 			pointer-events: none;
 			height: 0;
 		}
+
+		&:focus-visible {
+			outline: none;
+		}
+	}
+
+	img.ProseMirror-selectednode {
+		border: 2px solid #7CBCF5;
 	}
 
 	> :last-child {
@@ -427,6 +435,10 @@ $font-sizes-mobile: (
 
 		.wiki-edit-controls {
 			display: inline-flex;
+
+			.vertical-sep {
+				border-right: 1px solid $gray-200;
+			}
 		}
 
 		.wiki-edit-control-btn {
@@ -453,29 +465,6 @@ $font-sizes-mobile: (
 
 	code {
 		padding: 0.75rem 1rem;
-	}
-}
-
-.modal {
- 	.modal-header {
-		border-bottom: unset;
-		flex-direction: column;
-	}
-
-	.modal-footer {
-		border-top: unset;
-		justify-content: end;
-	}
-
-	.modal-body input {
-		width: 100%;
-		background: $gray-200;
-		border-radius: .375rem;
-		border: none;
-		outline: none;
-		padding: 0.25rem 0.5rem;
-		font-size: 13px;
-		line-height: 1.25rem;
 	}
 }
 
