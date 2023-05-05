@@ -543,7 +543,7 @@ $font-sizes-mobile: (
 	.ProseMirror {
 		height: 80vh;
 		overflow-y: auto;
-		padding: 0 calc(1rem - 1px);
+		padding: 0 1rem;
 
 		@include media-breakpoint-down(md) {
 			padding-right: 1rem;
