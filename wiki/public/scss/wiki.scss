@@ -692,15 +692,6 @@ h6:hover .feather-link {
 	}
 }
 
-.breadcrumb-item + .breadcrumb-item::before {
-	content: "";
-	display: none;
-}
-
-.breadcrumb-item + .breadcrumb-item {
-	padding-left: 0;
-}
-
 .doc-sidebar {
 	padding-right: 0.5rem;
 	background-color: var(--sidebar-bg-color);
@@ -710,24 +701,6 @@ h6:hover .feather-link {
 	margin: 1rem 0 0 auto;
 	color: var(--sidebar-text-color);
 	font-size: 0.8rem;
-}
-
-/*
-====
-breadcrumbs
-====
-*/
-
-.wiki-page-content .breadcrumb-container {
-	margin-top: 0rem; /* spacing adjusment for breadcrumb */
-	margin: 0;
-	padding: 0;
-}
-
-ol.breadcrumb {
-	li [itemprop="item"] {
-		align-self: center;
-	}
 }
 
 /*
