@@ -8,7 +8,7 @@ context("Wiki Sidebar", () => {
     cy.get(".wiki-options .dropdown-toggle").click();
     cy.get(".edit-wiki-btn").click();
 
-    cy.contains("Add Group").click();
+    cy.get(".doc-sidebar").contains("Add Group").click();
     cy.get('input[name="title"]')
       .clear()
       .type("T")
@@ -29,7 +29,7 @@ context("Wiki Sidebar", () => {
     cy.get(".wiki-options .dropdown-toggle").click();
     cy.get(".edit-wiki-btn").click();
 
-    cy.contains("Test Wiki Page").parent().next().click();
+    cy.get(".doc-sidebar").contains("Test Wiki Page").parent().next().click();
     cy.get('.btn:contains("Yes"):visible').click();
 
     cy.intercept("/*").as("testWikiSidebar");
