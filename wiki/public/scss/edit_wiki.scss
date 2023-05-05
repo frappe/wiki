@@ -544,7 +544,6 @@ $font-sizes-mobile: (
 		height: 80vh;
 		overflow-y: auto;
 		padding: 0 calc(1rem - 1px);
-		margin-top: -0.1px;
 
 		@include media-breakpoint-down(md) {
 			padding-right: 1rem;

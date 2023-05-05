@@ -524,15 +524,10 @@ textarea.wiki-content {
 	background-color: var(--background-color);
 	flex: 8;
 	text-align: left;
+	margin: 0 2rem;
 
-	.page-content-wrapper {
-		margin: 0 2rem;
-		padding: 0 2rem 2rem !important;
-
-		@include media-breakpoint-down(md) {
-			margin: 0;
-			padding: 0 0 2rem !important;
-	}
+	@include media-breakpoint-down(md) {
+		margin: 1rem;
 	}
 }
 
@@ -774,8 +769,8 @@ navbar
 		margin-left: 0;
 
 		#search-container {
-			margin: 10px 0;
-			width: 100%;
+			margin: 1rem 0;
+			width: 150%;
 		}
 	}
 	.search-nav-item {
