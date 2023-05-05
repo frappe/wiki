@@ -16,71 +16,6 @@ body.dark {
 	}
 }
 
-.edit-page-head {
-	margin-top: 1rem;
-	display: flex;
-	justify-content: space-between;
-	.edit-title {
-		width: 100%;
-		margin-right: 20px;
-		align-items: flex-start;
-		span {
-			color: var(--text-color);
-		}
-
-		i {
-			padding: 0.35rem 0.5rem 0.5rem 0.5rem;
-		}
-	}
-
-	.draft-wiki-page {
-		margin-right: 20px;
-		max-height: 2.2rem;
-		min-width: 130px;
-	}
-
-	.submit-wiki-page {
-		max-height: 2.2rem;
-		min-width: 130px;
-	}
-}
-
-@include media-breakpoint-down(md) {
-	.edit-page-head {
-		flex-wrap: wrap;
-		justify-content: flex-start;
-		.edit-title {
-			flex: 100%;
-			margin-bottom: 20px;
-		}
-	}
-}
-
-.nav-tabs {
-	padding-bottom: 0;
-	border-bottom: 1px solid var(--border-color);
-
-	.nav-item {
-		margin: 0 2rem 0 0;
-		@include media-breakpoint-down(sm) {
-			margin: 0 1.1rem 0 0;
-		}
-	}
-}
-
-.edit-form {
-	margin-top: 0.8rem !important;
-}
-
-.form-column {
-	padding: 0;
-
-	.frappe-control .ql-editor {
-		background-color: var(--input-bg-color);
-		color: var(--text-color);
-	}
-}
-
 .form-control {
 	background-color: white;
 }
@@ -88,25 +23,6 @@ body.dark {
 .form-control:focus {
 	background-color: white;
 	border: solid $gray-300 1px;
-}
-
-.ace-editor-target {
-	background-color: var(--input-bg-color);
-	border: 1px solid var(--border-color);
-
-	.ace_active-line {
-		background-color: var(--input-bg-color) !important;
-	}
-}
-
-.ace-tm .ace_gutter {
-	background-color: white;
-	border-right: solid rgb(244, 245, 246) 1px;
-}
-
-.ace_editor .ace_gutter {
-	background: var(--editor-line-no-bg-color);
-	color: var(--text-color);
 }
 
 // edit page
@@ -128,68 +44,6 @@ body.dark {
 .sidebar-item:hover .trash-icon,
 .sidebar-group .collapsible:hover .trash-icon {
 	visibility: visible;
-}
-
-.input-with-feedback {
-	color: var(--text-color);
-	background-color: var(--input-bg-color);
-}
-
-.attachment-controls {
-	cursor: pointer;
-	max-height: 28px;
-	display: flex;
-	justify-content: flex-end;
-
-	.show-attachments {
-		padding: 8px;
-		color: $primary;
-	}
-
-	.add-attachment-wiki {
-		.btn {
-			color: var(--text-color);
-		}
-
-		.btn:hover {
-			--icon-stroke: var(--btn-text-color);
-			color: var(--btn-text-color);
-		}
-	}
-}
-
-div[data-fieldname="type"] {
-	.form-group {
-		margin-bottom: 0;
-	}
-	.clearfix {
-		display: none;
-	}
-}
-
-.popover {
-	max-width: 400px;
-	td {
-		border-top: 0;
-	}
-}
-
-.edit-title {
-	display: flex;
-	align-items: center;
-
-	span {
-		margin-bottom: 0;
-	}
-
-	i {
-		cursor: pointer;
-		padding: 0.5rem;
-	}
-}
-
-.wiki-write select {
-	height: calc(1.5em + 0.75rem + 2px);
 }
 
 $font-sizes-desktop: (
