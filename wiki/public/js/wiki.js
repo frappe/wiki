@@ -84,6 +84,9 @@ window.Wiki = class Wiki {
       .not(".revision-content")
       .find("h2, h3, h4, h5, h6")
       .each((i, $heading) => {
+        const text = $heading.textContent.trim();
+        $heading.id =
+          $heading.id || text.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
         let id = $heading.id;
         let $a = $('<a class="no-underline">')
           .prop("href", "#" + id)

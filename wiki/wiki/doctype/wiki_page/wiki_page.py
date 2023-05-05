@@ -139,6 +139,26 @@ class WikiPage(WebsiteGenerator):
 			if space_route in self.route:
 				return space_route
 
+	def calculate_toc_html(self, html):
+		from bs4 import BeautifulSoup
+
+		soup = BeautifulSoup(html, "html.parser")
+		headings = soup.find_all(["h2", "h3", "h4", "h5", "h6"])
+
+		toc_html = ""
+		for heading in headings:
+			title = heading.get_text().strip()
+			heading_id = re.sub(r"[^a-zA-Z0-9]+", "-", title.lower())
+			heading["id"] = heading_id
+			title = heading.get_text().strip()
+			level = int(heading.name[1])
+			toc_entry = (
+				f"<li><a style='padding-left: {level - 1}rem' href='#{heading['id']}'>{title}</a></li>"
+			)
+			toc_html += toc_entry
+
+		return toc_html
+
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
@@ -163,6 +183,7 @@ class WikiPage(WebsiteGenerator):
 		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
+		context.page_toc_html = self.calculate_toc_html(html)
 
 		revisions = frappe.db.get_all(
 			"Wiki Page Revision",
