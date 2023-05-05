@@ -17,7 +17,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 {%- endblock -%}
 
 <div class="row no-gutters flex-nowrap" {{ container_attributes() }}>
-    <div class="sidebar-wrapper">
+    <div class="sidebar-column">
         <aside class="doc-sidebar">
             {% block page_sidebar %}
             {% include "templates/includes/web_sidebar.html" %}
