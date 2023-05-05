@@ -174,7 +174,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
   set_nav_buttons() {
     var current_index = -1;
-    const sidebar_items = $(".sidebar-wrapper").find("a").not(".navbar-brand");
+    const sidebar_items = $(".sidebar-column").find("a").not(".navbar-brand");
 
     sidebar_items.each(function (index) {
       if ($(this).attr("class")) {
