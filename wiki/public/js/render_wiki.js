@@ -78,7 +78,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
-        this.set_toc_highlighter();
+        this.set_toc();
         this.scrolltotop();
         this.set_add_item();
         this.add_trash_icon();
@@ -118,12 +118,25 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
   }
 
-  set_toc_highlighter() {
+  set_toc() {
     $(document).ready(function () {
       $(window).scroll(function () {
         if (currentAnchor().not(".no-underline").hasClass("active")) return;
         $(".page-toc a").removeClass("active");
         currentAnchor().addClass("active");
+      });
+
+      const navbarHeight = $(".navbar").height();
+      $(".page-toc a").click(function (e) {
+        e.preventDefault();
+        var target = $(this).attr("href");
+        var offset = $(target).offset().top - navbarHeight - 50;
+        $("html, body").animate(
+          {
+            scrollTop: offset,
+          },
+          500,
+        );
       });
     });
 
@@ -161,7 +174,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
   set_nav_buttons() {
     var current_index = -1;
-    const sidebar_items = $(".sidebar-column").find("a").not(".navbar-brand");
+    const sidebar_items = $(".sidebar-wrapper").find("a").not(".navbar-brand");
 
     sidebar_items.each(function (index) {
       if ($(this).attr("class")) {

@@ -12,8 +12,12 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 {%- if source_content_type %}source-content-type="{{ source_content_type }}"{%- endif %}
 {%- endmacro %}
 
+{%- block wiki_navbar -%}
+	{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+{%- endblock -%}
+
 <div class="row no-gutters flex-nowrap" {{ container_attributes() }}>
-    <div class="sidebar-column">
+    <div class="sidebar-wrapper">
         <aside class="doc-sidebar">
             {% block page_sidebar %}
             {% include "templates/includes/web_sidebar.html" %}
@@ -22,9 +26,6 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
     </div>
 
 	<div class="main-column doc-main">
-		{%- block wiki_navbar -%}
-			{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
-		{%- endblock -%}
 		<div class="wiki-page-content">
 			{% block page_container %}
 			<main>
@@ -33,18 +34,18 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			{% endblock %}
 		</div>
 	</div>
-	{%- if page_toc_html -%}
-	<div class="page-toc d-none d-xl-block">
-		{% block page_toc %}
-		{% if page_toc_html %}
-		<div class='list-unstyled'>
-			<h5>On this page</h5>
-			{{ page_toc_html }}
+	{% block page_toc %}
+		<div class="page-toc d-none d-xl-block">
+			{% if page_toc_html %}
+			<div class='list-unstyled'>
+				<h5>On this page</h5>
+					<ul>
+						{{ page_toc_html }}
+					</ul>
+			</div>
+			{% endif %}
 		</div>
-		{% endif %}
-		{% endblock %}
-	</div>
-	{%- endif -%}
+	{% endblock %}
 </div>
 
 {% endblock %}
