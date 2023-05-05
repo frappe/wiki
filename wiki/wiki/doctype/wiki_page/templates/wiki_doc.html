@@ -12,46 +12,39 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 {%- if source_content_type %}source-content-type="{{ source_content_type }}"{%- endif %}
 {%- endmacro %}
 
-<div class="container-fluid doc-layout doc-container">
-	<div class="row no-gutters wiki-flex" {{ container_attributes() }}>
-		{%- if  not no_sidebar -%}
+<div class="row no-gutters flex-nowrap" {{ container_attributes() }}>
+    <div class="sidebar-column">
+        <aside class="doc-sidebar">
+            {% block page_sidebar %}
+            {% include "templates/includes/web_sidebar.html" %}
+            {% endblock %}
+        </aside>
+    </div>
 
-			<div class="sidebar-column">
-				<aside class="doc-sidebar">
-					{% block page_sidebar %}
-					{% include "templates/includes/web_sidebar.html" %}
-					{% endblock %}
-				</aside>
-			</div>
-		{%- endif -%}
-
-		<div class="main-column doc-main">
-			{%- block wiki_navbar -%}
-				{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
-			{%- endblock -%}
-			<div class="page-content-wrapper">
-				{% block page_container %}
-				<main>
-					<div class="page_content page-content doc-content">
-						{%- block page_content -%}{%- endblock -%}
-					</div>
-				</main>
-				{% endblock %}
-			</div>
-		</div>
-		{%- if page_toc_html -%}
-		<div class="page-toc d-none d-xl-block">
-			{% block page_toc %}
-			{% if page_toc_html %}
-			<div class='list-unstyled'>
-				<h5>On this page</h5>
-				{{ page_toc_html }}
-			</div>
-			{% endif %}
+	<div class="main-column doc-main">
+		{%- block wiki_navbar -%}
+			{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+		{%- endblock -%}
+		<div class="wiki-page-content">
+			{% block page_container %}
+			<main>
+					{%- block page_content -%}{%- endblock -%}
+			</main>
 			{% endblock %}
 		</div>
-		{%- endif -%}
 	</div>
+	{%- if page_toc_html -%}
+	<div class="page-toc d-none d-xl-block">
+		{% block page_toc %}
+		{% if page_toc_html %}
+		<div class='list-unstyled'>
+			<h5>On this page</h5>
+			{{ page_toc_html }}
+		</div>
+		{% endif %}
+		{% endblock %}
+	</div>
+	{%- endif -%}
 </div>
 
 {% endblock %}
