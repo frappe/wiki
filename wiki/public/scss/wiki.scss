@@ -168,7 +168,7 @@ textarea.wiki-content {
 	}
 }
 
-.wiki-revision-meta {
+.wiki-page-meta {
 	font-size: $font-size-sm;
 	display: flex;
 	justify-content: space-between;
@@ -403,7 +403,7 @@ textarea.wiki-content {
 	margin-left: 24px;
 
 	#search-container {
-		width: 312px;
+		width: 512px;
 		height: 100%;
 		padding-right: 0px;
 		padding-left: 0px;
@@ -703,8 +703,6 @@ h6:hover .feather-link {
 
 .doc-sidebar {
 	padding-right: 0.5rem;
-	margin-left: -15rem;
-	padding-left: 15rem;
 	background-color: var(--sidebar-bg-color);
 }
 
