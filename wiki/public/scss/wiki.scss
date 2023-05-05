@@ -102,19 +102,8 @@ body.dark {
 	}
 }
 
-// diff
-textarea.wiki-content {
-	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
-		monospace;
-	font-size: $font-size-sm;
-}
-
 .nav-tabs {
 	font-size: var(--font-size-sm);
-}
-
-.wiki-preview {
-	min-height: 600px;
 }
 
 .wiki-footer {
@@ -429,6 +418,7 @@ textarea.wiki-content {
 		height: 100%;
 	}
 }
+
 .wiki-navbar {
 	background-color: var(--background-color);
     box-shadow: 20px 5px 14px 8px var(--background-color);
@@ -533,11 +523,6 @@ textarea.wiki-content {
 
 .wiki-content .from-markdown > :first-child {
 	margin-top: 0;
-}
-
-.from-markdown > blockquote {
-	border: 1px solid var(--border-color);
-	border-left: 3px solid #ffc107;
 }
 
 .wiki-page-content {
