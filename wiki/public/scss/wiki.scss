@@ -431,6 +431,7 @@ body.dark {
 	@include media-breakpoint-down(md) {
 		width: auto;
 		padding: 0 0 1rem 0;
+		margin-left: 2rem;
 	}
 
 	.doc-container .navbar-collapse {
@@ -708,6 +709,10 @@ navbar
 		}
 	}
 
+	.navbar-toggler {
+		margin-top: 1rem;
+	}
+
 	.logged-in .nav-avatar {
 		padding-left: 0;
 	}
@@ -748,7 +753,7 @@ navbar
 
 		#search-container {
 			margin: 1rem 0;
-			width: 150%;
+			width: 140%;
 		}
 	}
 	.search-nav-item {
