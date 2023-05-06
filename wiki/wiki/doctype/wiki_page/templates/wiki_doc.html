@@ -35,16 +35,16 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 		</div>
 	</div>
 	{% block page_toc %}
+	{% if page_toc_html %}
 		<div class="page-toc d-none d-xl-block">
-			{% if page_toc_html %}
 			<div class='list-unstyled'>
 				<h5>On this page</h5>
 					<ul>
 						{{ page_toc_html }}
 					</ul>
 			</div>
-			{% endif %}
 		</div>
+		{% endif %}
 	{% endblock %}
 </div>
 
