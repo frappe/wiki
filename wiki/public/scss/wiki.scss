@@ -45,6 +45,7 @@ body {
 
 	background-color: var(--background-color);
 	color: var(--text-color);
+	height: auto;
 }
 
 body.dark {
@@ -102,19 +103,8 @@ body.dark {
 	}
 }
 
-// diff
-textarea.wiki-content {
-	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier,
-		monospace;
-	font-size: $font-size-sm;
-}
-
 .nav-tabs {
 	font-size: var(--font-size-sm);
-}
-
-.wiki-preview {
-	min-height: 600px;
 }
 
 .wiki-footer {
@@ -168,7 +158,7 @@ textarea.wiki-content {
 	}
 }
 
-.wiki-revision-meta {
+.wiki-page-meta {
 	font-size: $font-size-sm;
 	display: flex;
 	justify-content: space-between;
@@ -182,6 +172,9 @@ textarea.wiki-content {
 }
 
 // sidebar
+.sidebar-column {
+	margin-top: -8rem;
+}
 
 .web-sidebar {
 	.list-unstyled:first-child > * {
@@ -260,7 +253,7 @@ textarea.wiki-content {
 			width: 100%;
 		}
 	}
-	
+
 	.drop-icon,
 	.add-sidebar-page {
 		display: inline-flex;
@@ -315,7 +308,7 @@ textarea.wiki-content {
 		color: inherit;
 		margin-top: 0 !important;
 	}
-	
+
 	:first-child {
 		margin-right: auto;
 	}
@@ -367,16 +360,22 @@ textarea.wiki-content {
 
 // navbar
 .navbar-nav {
+	width: 100%;
 	height: 100%;
+	justify-content: flex-end;
 	background-color: var(--background-color);
-	
+
+	.nav-item:first-child {
+		margin-right: auto;
+	}
+
 	.dropdown-menu {
 	    position: sticky;
 		border: 1px solid var(--border-color);
 
 		.dropdown-item {
 			color: var(--text-color);
-			
+
 			&:focus-visible {
 				outline: none;
 			}
@@ -390,14 +389,14 @@ textarea.wiki-content {
 			}
 		}
 	}
-	
+
 }
 
 .nav-item {
 	margin-left: 24px;
 
 	#search-container {
-		width: 312px;
+		width: 512px;
 		height: 100%;
 		padding-right: 0px;
 		padding-left: 0px;
@@ -419,35 +418,20 @@ textarea.wiki-content {
 		}
 	}
 
-	.nav-link {
-		font-style: normal;
-		font-weight: normal;
-		font-size: $font-size-base;
-		line-height: 150%;
-		/* identical to box height, or 24px */
-
-		letter-spacing: -0.011em;
-
-		color: $body-color;
-		padding-left: 0rem !important;
-		padding-right: 0rem !important;
-	}
-
 	select {
 		height: 100%;
 	}
 }
-.navbar {
-	position: sticky;
-	top: 0;
-	z-index: 1020;
-	background-color: transparent;
-	padding-top: 0;
-	margin-left: auto;
+
+.wiki-navbar {
+	background-color: var(--background-color);
+    box-shadow: 20px 5px 14px 8px var(--background-color);
+	margin-left: 20rem;
 
 	@include media-breakpoint-down(md) {
 		width: auto;
 		padding: 0 0 1rem 0;
+		margin-left: 2rem;
 	}
 
 	.doc-container .navbar-collapse {
@@ -536,34 +520,20 @@ textarea.wiki-content {
 	background-color: var(--background-color);
 	flex: 8;
 	text-align: left;
+	margin: 0 2rem;
 
-	.page-content-wrapper {
-		margin: 0 2rem;
-		padding: 0 2rem 2rem !important;
-
-		@include media-breakpoint-down(md) {
-			margin: 0;
-			padding: 0 0 2rem !important;
-	}
+	@include media-breakpoint-down(md) {
+		margin: 1rem;
 	}
 }
 
-.wiki-flex {
-	flex-wrap: nowrap;
-}
-
-.doc-content .from-markdown > :first-child {
+.wiki-content .from-markdown > :first-child {
 	margin-top: 0;
 }
 
-.from-markdown > blockquote {
-	border: 1px solid var(--border-color);
-	border-left: 3px solid #ffc107;
-}
-
-.doc-content {
-	max-width: 900px;
-	margin: auto;
+.wiki-page-content {
+	max-width: 750px;
+	margin: 0 auto;
 
 	.from-markdown {
 		.edit-wiki-button {
@@ -589,7 +559,7 @@ textarea.wiki-content {
 }
 
 // TODO: clear this when website related css is removed
-.doc-content .from-markdown {
+.wiki-page-content .from-markdown {
 	h1, h2, h3, h4, h5, h6{
 		&::before {
 			height: 0;
@@ -607,7 +577,7 @@ h3:hover .feather-link,
 h4:hover .feather-link,
 h5:hover .feather-link,
 h6:hover .feather-link {
-	visibility: visible;	
+	visibility: visible;
 }
 
 .btn.btn-secondary {
@@ -627,7 +597,7 @@ h6:hover .feather-link {
 		width: 2rem;
 	}
 
-	#dropdownMenuButton::after {
+	#wikiOptionsButton::after {
 		display: none;
 	  }
 
@@ -648,7 +618,7 @@ h6:hover .feather-link {
 // toc
 .page-toc {
 	background-color: var(--background-color);
-	flex: 2;
+	flex: 2.5;
 	font-size: $font-size-xs;
 	position: sticky;
 	top: 72px;
@@ -659,97 +629,56 @@ h6:hover .feather-link {
 
 	.list-unstyled {
 		top: 0;
+		border-left: 1px solid var(--border-color);
 	}
 
 	h5 {
 		font-size: $font-size-xs;
+		padding-left: 1rem;
+		letter-spacing: .4px;
+		line-height: 28px;
+		font-size: 13px;
+		font-weight: 600;
+		margin-bottom: 0;
 	}
 
 	div {
 		width: 100%;
-		margin-top: 0;
-		margin-bottom: 0;
-		padding-top: 2rem;
-		padding-bottom: 2rem;
+		margin: 2rem 0;
+		padding: 0;
+
 		ul {
 			padding-bottom: 0;
 			margin-bottom: 0;
 		}
-
-		.h5 {
-			font-style: normal;
-			font-weight: 500;
-			font-size: $font-size-xs;
-			line-height: 1.35;
-			color: $headings-color;
-		}
-	}
-
-	li {
-		padding-left: 4px;
-		margin: 2px 0;
 	}
 
 	.active {
-		border-radius: 4px;
-		color: $primary;
-		background-color: var(--active-item-color);
-		border-left: 3px solid $primary;
-		border-radius: 0.1rem 0.375rem 0.375rem 0.1rem;
+		color: var(--text-color);
+		box-shadow: 1px 0 0 var(--primary) inset;
+		transition: color 0.2s, box-shadow 0.2s linear, transform 0.2s linear;
 	}
 
 	a {
+		font-size: 13px;
 		padding: 0.25rem;
-		color: var(--text-color);
-
+		color: var(--sidebar-text-color);
+		transform: translateX(-1px);
 	}
 	a:hover:not(.active) {
 		color: var(--toc-hover-text-color);
 	}
 }
 
-.breadcrumb-item + .breadcrumb-item::before {
-	content: "";
-	display: none;
-}
-
-.breadcrumb-item + .breadcrumb-item {
-	padding-left: 0;
-}
-
 .doc-sidebar {
 	padding-right: 0.5rem;
-	margin-left: -15rem;
-	padding-left: 15rem;
 	background-color: var(--sidebar-bg-color);
 }
 
-ul.user-contributions {
+.user-contributions {
 	margin: 1rem 0 0 auto;
 	color: var(--sidebar-text-color);
 	font-size: 0.8rem;
-}
-
-ul.user-contributions li {
-	margin: 0 4px;
-}
-
-/*
-====
-breadcrumbs
-====
-*/
-
-.doc-content .breadcrumb-container {
-	margin-top: 0rem; /* spacing adjusment for breadcrumb */
-	margin: 0;
-	padding: 0;
-}
-
-ol.breadcrumb {
-	li [itemprop="item"] {
-		align-self: center;
-	}
 }
 
 /*
@@ -758,7 +687,7 @@ navbar
 ====
 */
 
-.navbar .navbar-light {
+.navbar {
 	.navbar-expand-lg {
 		width: 100%;
 		position: fixed;
@@ -767,8 +696,25 @@ navbar
 		right: 0;
 	}
 
-	.nav-link {
+	.navbar-link {
 		color: var(--text-color);
+		font-size: .875rem;
+		font-weight: 500;
+		padding: 0.5rem 0;
+		display: block;
+
+		&:hover {
+			color: $primary;
+			text-decoration: none;
+		}
+	}
+
+	.navbar-toggler {
+		margin-top: 1rem;
+	}
+
+	.logged-in .nav-avatar {
+		padding-left: 0;
 	}
 }
 
@@ -794,10 +740,6 @@ navbar
 		display: none;
 	}
 
-	.page-content-wrapper {
-		margin-top: 0 !important;
-	}
-
 	.wiki-footer {
 		.btn.left,
 		.btn.right {
@@ -810,16 +752,13 @@ navbar
 		margin-left: 0;
 
 		#search-container {
-			margin: 10px 0;
-			width: 100%;
+			margin: 1rem 0;
+			width: 140%;
 		}
 	}
 	.search-nav-item {
 		height: 2.2rem;
 	}
-	// #dropdownMenuSearch {
-	//   margin-right: 20px;
-	// }
 }
 
 .my-contributions,
@@ -877,10 +816,6 @@ img::after{
 img[alt]::after{
 	width: unset;
 	height: unset;
-}
-
-img.ProseMirror-selectednode {
-	border: 2px solid #7CBCF5;
 }
 
 // body
@@ -957,10 +892,14 @@ p {
 }
 
 // dialog boxes
-
 .modal {
 	.modal-content {
 		background-color: var(--background-color);
+	}
+
+	.modal-header {
+		border-bottom: unset;
+		flex-direction: column;
 	}
 
 	.modal-body {
@@ -971,22 +910,26 @@ p {
 			color: var(--text-color);
 		}
 
+		input {
+			width: 100%;
+			background: $gray-200;
+			border-radius: .375rem;
+			border: none;
+			outline: none;
+			padding: 0.25rem 0.5rem;
+			font-size: 13px;
+			line-height: 1.25rem;
+		}
+
 		input:focus, textarea:focus {
 			background-color: var(--searchbar-color);
 		}
 	}
-}
 
-// edit mode
-
-.ProseMirror:focus-visible {
-	outline: none;
-}
-
-.vertical-sep {
-	display: inline;
-	padding: 0.2rem 0;
-  	border-right: 1px solid $gray-200;
+	.modal-footer {
+		border-top: unset;
+		justify-content: end;
+	}
 }
 
 // revisions

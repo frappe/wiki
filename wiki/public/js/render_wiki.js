@@ -40,7 +40,7 @@ function set_search_params(key = "", value = "") {
 
 function toggleEditor() {
   $(".wiki-content").toggleClass("hide");
-  $(".wiki-revision-meta").toggleClass("hide");
+  $(".wiki-page-meta").toggleClass("hide");
   $(".wiki-footer").toggleClass("hide");
   $(".wiki-edit-control-btn").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
@@ -74,10 +74,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
       ) {
+        this.add_link_to_headings();
         this.activate_sidebars();
         this.set_active_sidebar();
         this.set_nav_buttons();
-        this.set_toc_highlighter();
+        this.set_toc();
         this.scrolltotop();
         this.set_add_item();
         this.add_trash_icon();
@@ -114,15 +115,28 @@ window.RenderWiki = class RenderWiki extends Wiki {
         )[0],
       ).trigger("click");
     }
-    $(".wiki-footer, .wiki-revision-meta").toggleClass("hide");
+    $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
   }
 
-  set_toc_highlighter() {
+  set_toc() {
     $(document).ready(function () {
       $(window).scroll(function () {
         if (currentAnchor().not(".no-underline").hasClass("active")) return;
         $(".page-toc a").removeClass("active");
         currentAnchor().addClass("active");
+      });
+
+      const navbarHeight = $(".navbar").height();
+      $(".page-toc a").click(function (e) {
+        e.preventDefault();
+        var target = $(this).attr("href");
+        var offset = $(target).offset().top - navbarHeight - 50;
+        $("html, body").animate(
+          {
+            scrollTop: offset,
+          },
+          500,
+        );
       });
     });
 

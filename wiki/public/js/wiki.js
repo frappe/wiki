@@ -78,4 +78,26 @@ window.Wiki = class Wiki {
       localStorage.setItem("darkMode", $("body").hasClass("dark"));
     });
   }
+
+  add_link_to_headings() {
+    $(".wiki-content")
+      .not(".revision-content")
+      .find("h2, h3, h4, h5, h6")
+      .each((i, $heading) => {
+        const text = $heading.textContent.trim();
+        $heading.id =
+          $heading.id || text.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+        let id = $heading.id;
+        let $a = $('<a class="no-underline">')
+          .prop("href", "#" + id)
+          .attr("aria-hidden", "true").html(`
+					<svg xmlns="http://www.w3.org/2000/svg" style="width: 0.8em; height: 0.8em;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
+						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+						<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+					</svg>
+				`);
+        $($heading).append($a);
+      });
+  }
 };
