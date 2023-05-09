@@ -20,7 +20,6 @@ def execute():
 		frappe.reload_doctype("Wiki Space")
 		space = frappe.new_doc("Wiki Space")
 		space.route = wiki_search_scope
-		space.insert()
 
 		for sidebar_item in frappe.get_all(
 			"Wiki Group Item", fields=["name", "wiki_page", "parent_label"], order_by="idx asc"
@@ -33,7 +32,7 @@ def execute():
 				},
 			)
 			frappe.db.delete("Wiki Group Item", sidebar_item.name)
-		space.save()
+		space.insert()
 
 		frappe.reload_doctype("Wiki Settings")
 		wiki_settings.default_wiki_space = wiki_search_scope
