@@ -137,7 +137,7 @@ def get_sidebar_items(doc):
 		order_by="idx asc",
 	)
 	for item in items:
-		item.group_name = frappe.get_doc("Wiki Sidebar", get_root_parent_title(item.parent)).title
+		item.group_name = frappe.get_doc("Wiki Sidebar", item.parent).title
 		items_without_group.append(item)
 
 	return items_without_group
