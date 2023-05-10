@@ -28,10 +28,9 @@
    "default": "No Content",
    "description": "It is recommended that you start your first heading with h2, as the title will be the h1.",
    "fieldname": "content",
-   "fieldtype": "Code",
+   "fieldtype": "HTML Editor",
    "in_preview": 1,
    "label": "Content",
-   "options": "Markdown",
    "reqd": 1
   },
   {
@@ -113,7 +112,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2022-09-24 15:09:35.710833",
+ "modified": "2023-05-09 20:41:59.476421",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
@@ -141,7 +140,6 @@
    "read": 1,
    "report": 1,
    "role": "Wiki Approver",
-   "set_user_permissions": 1,
    "share": 1,
    "write": 1
   }
