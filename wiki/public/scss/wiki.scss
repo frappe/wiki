@@ -85,22 +85,6 @@ body.dark {
 
 	--editor-button-text-color: var(--gray-400);
 	--editor-hover-button-color: var(--gray-700);
-
-	&, .web-sidebar, .ProseMirror {
-		&::-webkit-scrollbar {
-			width: 15px;
-		}
-
-		&::-webkit-scrollbar-track {
-			background: #2e2e2e;
-		}
-
-		&::-webkit-scrollbar-thumb {
-			background-color: #757575;
-			border-radius: 20px;
-			border: 3px solid #2e2e2e;
-		}
-	}
 }
 
 .nav-tabs {
