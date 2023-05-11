@@ -96,24 +96,34 @@ window.RenderWiki = class RenderWiki extends Wiki {
     if (urlParams.get("editWiki") && $(".wiki-options").length) {
       toggleEditor();
       $("html").css({ overflow: "hidden" });
-    } else if (
-      urlParams.get("newWiki") &&
-      $(
-        `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
-          "newWiki",
-        )}"] .add-sidebar-page`,
-      ).length
-    ) {
+    } else if (urlParams.get("newWiki")) {
       toggleEditor();
       $("html").css({ overflow: "hidden" });
 
-      $(
-        $(
-          `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
+      if (
+        !$(
+          `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
             "newWiki",
-          )}) + .add-sidebar-page`,
-        )[0],
-      ).trigger("click");
+          )}"] .add-sidebar-page`,
+        ).length
+      ) {
+        this.add_wiki_sidebar(urlParams.get("newWiki"));
+
+        $(
+          $(
+            `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
+              "newWiki",
+            )}) + .add-sidebar-page`,
+          )[0],
+        ).trigger("click");
+      } else
+        $(
+          $(
+            `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
+              "newWiki",
+            )}) + .add-sidebar-page`,
+          )[1],
+        ).trigger("click");
     }
     $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
   }
@@ -473,13 +483,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
 				<div class="collapsible">
 					<span class="h6">${title}</span>
+          <span class='add-sidebar-page'>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </span>
           <span class='drop-icon hide'>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 10L12 14L16 10" stroke="#4C5A67" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-          </span>
-          <span class='add-sidebar-page'>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </span>
         </div>
         <ul class="list-unstyled" style="min-height:20px;"> </ul>
