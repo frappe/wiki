@@ -510,14 +510,15 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   setup_search(search_scope = "") {
-    const target = $("#search-container");
+    // const target = $("#searchModal");
     const $search_input = $("#dropdownMenuSearch");
 
-    target.empty();
-    $search_input.appendTo(target);
+    // target.empty();
+    // $search_input.appendTo(target);
 
-    const $dropdown_menu = $search_input.find(".dropdown-menu");
+    const $dropdown_menu = $("#searchModal .search-dropdown-menu");
     const $input = $search_input.find("input");
+    const searchInput = $("#searchInput");
     let dropdownItems;
     let offsetIndex = 0;
 
@@ -536,23 +537,32 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (end > content.length) {
         end = content.length;
       }
-      return content.slice(start, end);
+
+      // fixes html tags when they are sliced
+      return new DOMParser().parseFromString(
+        content.slice(start, end),
+        "text/html",
+      ).body.innerHTML;
     }
 
     $(document).on("keypress", (e) => {
-      if ($(e.target).is("textarea, input, select")) {
+      if (
+        $(e.target).is("textarea, input, select") ||
+        $(e.target).hasClass("ProseMirror")
+      )
         return;
-      }
+
       if (e.key === "/") {
         e.preventDefault();
-        $input.trigger("focus");
+        $("#searchModal").modal();
+        searchInput.trigger("focus");
       }
     });
 
-    $input.on(
+    searchInput.on(
       "input",
       frappe.utils.debounce(() => {
-        if (!$input.val()) {
+        if (!searchInput.val()) {
           clear_dropdown();
           return;
         }
@@ -561,7 +571,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           .call({
             method: "wiki.wiki.doctype.wiki_page.search.search",
             args: {
-              query: $input.val(),
+              query: searchInput.val(),
               path: window.location.pathname,
               space: search_scope,
             },
@@ -569,14 +579,14 @@ window.RenderWiki = class RenderWiki extends Wiki {
           .then((r) => {
             let results = r.message.docs || [];
             let dropdown_html;
-            if (results.length == 0) {
-              dropdown_html = `<div class="dropdown-item">No results found</div>`;
+            if (results.length === 0) {
+              dropdown_html = `<div style="margin: 0.5rem 9rem;">No results found</div>`;
             } else {
               dropdown_html = results
                 .map((r) => {
                   return `<a class="dropdown-item" href="/${r.route}">
               <h6>${r.title}</h6>
-              <div style="white-space: normal;">${trimContent(r.content)}</div>
+              <div>${trimContent(r.content)}</div>
             </a>`;
                 })
                 .join("");
@@ -589,40 +599,33 @@ window.RenderWiki = class RenderWiki extends Wiki {
     );
 
     $input.on("focus", () => {
-      if (!$input.val()) {
-        clear_dropdown();
-      } else {
-        $input.trigger("input");
-      }
+      $("#searchModal").modal();
+      searchInput.trigger("focus");
+
+      // if (!$input.val()) {
+      //   clear_dropdown();
+      // } else {
+      // $input.trigger("input");
+      // }
     });
 
-    $input.keydown(function (e) {
-      // up: 38, down: 40
-      if (e.which == 40) {
-        navigate(0);
-      }
+    searchInput.on("keydown", function (e) {
+      if (e.key === "ArrowDown") navigate(0);
     });
 
-    $dropdown_menu.keydown(function (e) {
-      // up: 38, down: 40
-      if (e.which == 38) {
-        navigate(-1);
-      } else if (e.which == 40) {
-        navigate(1);
-      } else if (e.which == 27) {
-        setTimeout(() => {
-          clear_dropdown();
-        }, 300);
-      }
+    $dropdown_menu.on("keydown", function (e) {
+      if (e.key === "ArrowUp") navigate(-1);
+      else if (e.key === "ArrowDown") navigate(1);
+      else if (e.key === "Escape") setTimeout(() => clear_dropdown(), 300);
     });
 
     // Clear dropdown when clicked
-    $(window).click(function () {
-      clear_dropdown();
-    });
-
-    $search_input.click(function (event) {
-      event.stopPropagation();
+    $(window).on("click", function (e) {
+      console.log(e.target !== searchInput.get(0));
+      if (e.target !== searchInput.get(0)) {
+        searchInput.val("");
+        clear_dropdown();
+      }
     });
 
     // Navigate the list

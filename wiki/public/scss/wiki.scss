@@ -380,19 +380,25 @@ body.dark {
 	margin-left: 24px;
 
 	#search-container {
-		width: 512px;
+		width: 8rem;
 		height: 100%;
 		padding-right: 0px;
 		padding-left: 0px;
 
-		mark {
-			background-color: var(--primary-light);
-			color: var(--primary);
-			font-weight: 500;
-		}
-
 		.dropdown {
 			height: 100%;
+
+			kbd {
+				position: absolute;
+				top: 0;
+				right: 0;
+				margin: 0.4rem 0.5rem 0.5rem;
+				border: 1px solid var(--border-color);
+				padding: 0 0.4rem;
+				border-radius: 5px;
+				color: var(--sidebar-text-color);
+				background-color: transparent;
+			}
 
 			input {
 				height: 100%;
@@ -404,6 +410,53 @@ body.dark {
 
 	select {
 		height: 100%;
+	}
+}
+
+#searchModal {
+	> div:first-child {
+		margin-top: 5rem;
+	}
+
+	mark {
+		background-color: transparent;
+		color: var(--primary);
+		font-weight: 500;
+	}
+
+	input {
+		height: 3rem;
+		background: var(--searchbar-color);
+		border-radius: 4px;
+		padding-left: 2.5rem;
+		font-size: inherit;
+	}
+
+	.search-icon {
+		position: absolute;
+		padding: 0.7rem 0 0 0.5rem;
+	}
+
+	svg {
+		color: #74808b;
+	}
+
+	.modal-body {
+		padding: 1rem;
+		min-height: 5rem;
+
+		.text-muted {
+			margin: 1rem 9rem;
+		}
+	}
+
+	.dropdown-item {
+		font-size: 14px;
+		outline: unset;
+
+		h6 {
+			font-size: 15px;
+		}
 	}
 }
 
