@@ -467,6 +467,11 @@ body.dark {
 		margin: 0.5rem 0;
 		white-space: inherit;
 
+		&:active {
+			color: unset;
+			background-color: unset;
+		}
+
 		h6 {
 			font-size: 15px;
 		}
