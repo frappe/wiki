@@ -619,7 +619,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     // Clear dropdown when clicked
     $(window).on("click", function (e) {
-      if (e.target !== searchInput.get(0)) {
+      if (
+        !$(e.target).is($("#searchModal")) &&
+        !$("#searchModal").has(e.target).length
+      ) {
         searchInput.val("");
         clear_dropdown();
       }
