@@ -526,7 +526,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       let trimmedLength = 100;
       let indexOf = content.indexOf("<mark>");
       if (indexOf === -1) {
-        return content.slice(0, 200);
+        return content.slice(0, 100);
       }
 
       let start = indexOf - trimmedLength / 2;
@@ -555,8 +555,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (e.key === "/") {
         e.preventDefault();
         $("#searchModal").modal();
-        searchInput.trigger("focus");
       }
+    });
+
+    $("#searchModal").on("shown.bs.modal", function () {
+      searchInput.trigger("focus");
     });
 
     searchInput.on(
@@ -598,15 +601,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
       }, 500),
     );
 
-    $input.on("focus", () => {
+    $input.on("focus", (e) => {
+      e.preventDefault();
       $("#searchModal").modal();
-      searchInput.trigger("focus");
-
-      // if (!$input.val()) {
-      //   clear_dropdown();
-      // } else {
-      // $input.trigger("input");
-      // }
     });
 
     searchInput.on("keydown", function (e) {
@@ -621,7 +618,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     // Clear dropdown when clicked
     $(window).on("click", function (e) {
-      console.log(e.target !== searchInput.get(0));
       if (e.target !== searchInput.get(0)) {
         searchInput.val("");
         clear_dropdown();
