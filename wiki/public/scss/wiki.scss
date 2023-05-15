@@ -453,6 +453,9 @@ body.dark {
 	.dropdown-item {
 		font-size: 14px;
 		outline: unset;
+		overflow: auto;
+		margin: 0.5rem 0;
+		white-space: inherit;
 
 		h6 {
 			font-size: 15px;
