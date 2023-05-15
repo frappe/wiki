@@ -466,10 +466,15 @@ body.dark {
 		overflow: auto;
 		margin: 0.5rem 0;
 		white-space: inherit;
+		color: var(--text-color);
 
 		&:active {
 			color: unset;
 			background-color: unset;
+		}
+
+		&:focus, &:hover {
+			background-color: var(--active-item-color);
 		}
 
 		h6 {
