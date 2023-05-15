@@ -448,6 +448,16 @@ body.dark {
 		.text-muted {
 			margin: 1rem 9rem;
 		}
+
+		.dropdown-border {
+			height: 1px;
+			margin: 0 0.5rem;
+			background-color: var(--border-color);
+
+			&:last-child {
+				background-color: unset;
+			}
+		}
 	}
 
 	.dropdown-item {

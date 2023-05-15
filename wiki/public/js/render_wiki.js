@@ -590,7 +590,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
                   return `<a class="dropdown-item" href="/${r.route}">
               <h6>${r.title}</h6>
               <div>${trimContent(r.content)}</div>
-            </a>`;
+              </a>
+              <div class='dropdown-border'></div>`;
                 })
                 .join("");
             }
