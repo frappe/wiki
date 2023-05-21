@@ -627,7 +627,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
       if (offsetIndex >= dropdownItems.length) offsetIndex = 0;
       if (offsetIndex < 0) offsetIndex = dropdownItems.length - 1;
-      dropdownItems.eq(offsetIndex).focus();
+      dropdownItems.eq(offsetIndex).trigger("focus");
     };
 
     function clear_dropdown() {
