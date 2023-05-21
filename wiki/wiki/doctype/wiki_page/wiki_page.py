@@ -183,7 +183,9 @@ class WikiPage(WebsiteGenerator):
 		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
-		context.page_toc_html = self.calculate_toc_html(html)
+		context.page_toc_html = (
+			self.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None
+		)
 
 		revisions = frappe.db.get_all(
 			"Wiki Page Revision",
