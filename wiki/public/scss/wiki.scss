@@ -388,7 +388,8 @@ body.dark {
 		.dropdown {
 			height: 100%;
 			border-radius: 4px;
-			border: 0.5px solid var(--border-color);
+			border: 1px solid var(--border-color);
+			box-shadow: none;
 
 			&:hover {
 				background-color: var(--searchbar-color);
