@@ -341,6 +341,7 @@ body.dark {
 
 		.sidebar-items {
 			width: 18rem;
+			padding-top: 4.5rem;
 			margin-bottom: auto;
 
 			.list-unstyled {
@@ -508,7 +509,7 @@ body.dark {
 }
 
 .wiki-navbar {
-	background-color: var(--background-color);
+	background-color: transparent;
 	padding: 0;
 
 	@include media-breakpoint-down(md) {
@@ -518,6 +519,7 @@ body.dark {
 
 	.wiki-navbar-container {
 		padding: 1rem 0;
+		margin-left: 1rem;
 		box-shadow: 20px 5px 14px 8px var(--background-color);
 
 		@include media-breakpoint-down(md) {
@@ -563,14 +565,6 @@ body.dark {
 	max-width: 100%;
 }
 
-.navbar-brand-curtain {
-	height: 4.5rem;
-
-	@include media-breakpoint-down(md) {
-		height: .5rem;
-	}
-}
-
 .navbar-brand {
 	padding-bottom: 1rem;
 	color: var(--text-color) !important;
@@ -594,7 +588,7 @@ body.dark {
 }
 
 .navbar-brand-container {
-	padding: 1.4rem 1rem 0 2.5rem;
+	padding: 1.4rem 0 0 2.5rem;
 	background-color: var(--sidebar-bg-color);
 	position: sticky;
 	top: 0;
