@@ -12,6 +12,8 @@
   "dark_mode_logo",
   "section_break_vefv",
   "default_wiki_space",
+  "table_of_contents_section",
+  "enable_table_of_contents",
   "section_break_mmtu",
   "javascript",
   "navbar_tab",
@@ -86,13 +88,25 @@
   },
   {
    "fieldname": "section_break_vefv",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Wiki Space"
+  },
+  {
+   "fieldname": "table_of_contents_section",
+   "fieldtype": "Section Break",
+   "label": "Table of Contents"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_table_of_contents",
+   "fieldtype": "Check",
+   "label": "Enable Table of Contents"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-04-11 17:34:57.203152",
+ "modified": "2023-05-21 15:32:59.427141",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
