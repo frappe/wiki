@@ -62,6 +62,23 @@ function toggleEditor() {
     $(".from-markdown").toggleClass("hide");
   }
 
+  // sidebar item pointer switching
+  if ($(".sidebar-edit-mode-btn").hasClass("hide")) {
+    $(".sidebar-group div, .sidebar-item, .sidebar-item a").css(
+      "cursor",
+      "grab",
+    );
+    $(".sidebar-item a").removeAttr("href");
+  } else {
+    $(".sidebar-group div, .sidebar-item a").css("cursor", "pointer");
+    $(".sidebar-item").css("cursor", "default");
+    $(".sidebar-item").each(function () {
+      $(this)
+        .find("a")
+        .attr("href", `/${$(this).data("route")}`);
+    });
+  }
+
   $(".wiki-title").toggleClass("hide");
 }
 

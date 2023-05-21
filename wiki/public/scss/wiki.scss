@@ -160,6 +160,12 @@ body.dark {
 	margin-top: -4.5rem;
 }
 
+.sortable-chosen,
+.sortable-chosen div,
+.sortable-chosen div a {
+	cursor: grabbing !important;
+}
+
 .web-sidebar {
 	.list-unstyled:first-child > * {
 		padding: 0.75rem 0;
