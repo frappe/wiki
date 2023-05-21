@@ -468,7 +468,8 @@ body.dark {
 		min-height: 5rem;
 
 		.text-muted {
-			margin: 1rem 9rem;
+			margin: auto;
+			width: max-content;
 		}
 
 		.dropdown-border {
