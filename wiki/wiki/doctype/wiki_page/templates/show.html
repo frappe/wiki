@@ -43,11 +43,10 @@
   </div>
 
   <div class="my-4 wiki-page-meta hide d-print-none">
-	  <div class="user-contributions">
-		  {%- if last_revision -%}
-			 last updated {{ frappe.utils.pretty_date(last_revision.modified) }}
-		  {%- endif -%}
-	  </div>
+	{%- if last_revision -%}
+		<div class="user-contributions" data-date="{{ last_revision.modified }}">
+		</div>
+	{%- endif -%}
   </div>
   <div class="wiki-footer hide d-print-none">
 	<div class = "forward-back">
