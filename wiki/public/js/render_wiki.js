@@ -510,14 +510,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   setup_search(search_scope = "") {
-    // const target = $("#searchModal");
-    const $search_input = $("#dropdownMenuSearch");
-
-    // target.empty();
-    // $search_input.appendTo(target);
-
+    const $input_button = $("#dropdownMenuSearch");
     const $dropdown_menu = $("#searchModal .search-dropdown-menu");
-    const $input = $search_input.find("input");
     const searchInput = $("#searchInput");
     let dropdownItems;
     let offsetIndex = 0;
@@ -602,8 +596,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       }, 500),
     );
 
-    $input.on("focus", (e) => {
-      e.preventDefault();
+    $input_button.on("click", () => {
       $("#searchModal").modal();
     });
 
@@ -634,7 +627,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
       if (offsetIndex >= dropdownItems.length) offsetIndex = 0;
       if (offsetIndex < 0) offsetIndex = dropdownItems.length - 1;
-      $input.off("blur");
       dropdownItems.eq(offsetIndex).focus();
     };
 
