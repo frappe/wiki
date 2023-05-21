@@ -841,6 +841,13 @@ navbar
 	}
 }
 
+.sidebar-options {
+	bottom: 0;
+	position: sticky;
+	padding: 0.5rem 0;
+	background-color: var(--sidebar-bg-color);
+}
+
 .web-footer {
 	border-top: 1px solid var(--border-color);
 	background-color: var(--background-color);
