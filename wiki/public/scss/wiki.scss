@@ -405,9 +405,10 @@ body.dark {
 			border-radius: 4px;
 			border: 1px solid var(--border-color);
 			box-shadow: none;
+			background-color: var(--searchbar-color);
 
 			&:hover {
-				background-color: var(--searchbar-color);
+				border-color: $primary;
 			}
 
 			kbd {
