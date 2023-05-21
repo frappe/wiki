@@ -20,3 +20,38 @@
         <select class="form-control"></select>
     </div>
 </nav>
+
+
+{% if navbar_search %}
+<!-- separated the modal to avoid being unresponsive when inside <nav> -->
+<div class="modal fade" id="searchModal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+            <input id="searchInput" type="search" class="form-control" placeholder="Search the docs"/>
+            <div class="search-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="feather feather-search">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
+        </div>
+        <div class="modal-body">
+            <div class="overflow-hidden search-dropdown-menu w-100" aria-labelledby="dropdownMenuSearch"></div>
+            <!-- <div class="text-muted">
+                No search results
+            </div> -->
+        </div>
+        <!-- <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary">Save changes</button>
+        </div> -->
+      </div>
+    </div>
+  </div>
+
+{% endif %}
