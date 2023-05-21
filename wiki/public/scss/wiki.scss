@@ -507,18 +507,24 @@ body.dark {
 
 .wiki-navbar {
 	background-color: var(--background-color);
-    box-shadow: 20px 5px 14px 8px var(--background-color);
-	margin-left: 20rem;
+	padding: 0;
 
 	@include media-breakpoint-down(md) {
 		width: auto;
-		padding: 0 0 1rem 0;
-		margin-left: 2rem;
+		padding-left: 2rem;
+	}
+
+	.wiki-navbar-container {
+		padding: 1rem 0;
+		box-shadow: 20px 5px 14px 8px var(--background-color);
+
+		@include media-breakpoint-down(md) {
+			box-shadow: unset;
+		}
 	}
 
 	.doc-container .navbar-collapse {
 		padding-top: 2rem;
-		margin-top: -1rem;
 		background-color: var(--background-color);
 		margin-left: 2rem;
 		padding-bottom: 1rem;
@@ -528,6 +534,7 @@ body.dark {
 			margin: 0;
 		}
 	}
+
 	.container {
 		height: 36px;
 	}
@@ -540,11 +547,13 @@ body.dark {
 			margin: 0.25rem 0 1rem 0.5rem;
 		}
 	}
+
+	.mobile-search-icon {
+		margin: 0 2rem 0 auto;
+		cursor: pointer;
+	}
 }
 
-.navbar-light {
-	border-bottom: 0;
-}
 
 .doc-layout {
 	padding-top: 0rem;
@@ -552,9 +561,25 @@ body.dark {
 	max-width: 100%;
 }
 
+.navbar-brand-curtain {
+	height: 4.5rem;
+
+	@include media-breakpoint-down(md) {
+		height: .5rem;
+	}
+}
+
 .navbar-brand {
 	padding-bottom: 1rem;
 	color: var(--text-color) !important;
+	border-bottom: 1px solid var(--border-color);
+	width: 16rem;
+	margin-right: 0.5rem;
+
+	@include media-breakpoint-down(md) {
+		border-bottom: unset;
+	}
+
 	img {
 		max-height: 18px;
 	}
@@ -567,19 +592,14 @@ body.dark {
 }
 
 .navbar-brand-container {
-	border-bottom: 1px solid var(--border-color);
-	width: 16rem;
+	padding: 1.4rem 1rem 0 2.5rem;
 	background-color: var(--sidebar-bg-color);
-	padding-top: 1.4rem;
-	margin-left: 0.5rem;
 	position: sticky;
 	top: 0;
 	z-index: 5;
 
 	@include media-breakpoint-down(md) {
-		border-bottom: 0;
-		width: calc(max-width - 27px);
-		position: inherit;
+		padding: 1rem 0 0 0;
 		background-color: var(--background-color);
 	}
 }
@@ -792,7 +812,12 @@ navbar
 	}
 
 	.navbar-toggler {
-		margin-top: 1rem;
+		border-color: transparent;
+		padding: 0;
+
+		&:focus {
+			outline: unset;
+		}
 	}
 
 	.logged-in .nav-avatar {
@@ -831,7 +856,7 @@ navbar
 	}
 
 	.nav-item {
-		margin-left: 0;
+		margin-left: 0.5rem;
 
 		#search-container {
 			margin: 1rem 0;
@@ -840,6 +865,12 @@ navbar
 	}
 	.search-nav-item {
 		height: 2.2rem;
+	}
+}
+
+@include media-breakpoint-up(md) {
+	.navbar-light {
+		border-bottom: 0;
 	}
 }
 

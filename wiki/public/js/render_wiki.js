@@ -532,7 +532,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   setup_search(search_scope = "") {
-    const $input_button = $("#dropdownMenuSearch");
     const $dropdown_menu = $("#searchModal .search-dropdown-menu");
     const searchInput = $("#searchInput");
     let dropdownItems;
@@ -618,7 +617,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       }, 500),
     );
 
-    $input_button.on("click", () => {
+    $("#dropdownMenuSearch, .mobile-search-icon").on("click", () => {
       $("#searchModal").modal();
     });
 
