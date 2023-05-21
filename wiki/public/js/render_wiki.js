@@ -7,6 +7,7 @@ function setSortable() {
       put: ["qux"],
       pull: ["qux"],
     },
+    swapThreshold: 0.7,
     filter: ".disabled",
     onEnd: function (e) {
       frappe.utils.debounce(() => {
