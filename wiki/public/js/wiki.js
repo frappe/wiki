@@ -45,6 +45,13 @@ window.Wiki = class Wiki {
     $("html,body").animate({ scrollTop: 0 }, 0);
   }
 
+  set_last_updated_date() {
+    const lastUpdatedDate = frappe.datetime.prettyDate(
+      $(".user-contributions").data("date"),
+    );
+    $(".user-contributions").append(`last updated ${lastUpdatedDate}`);
+  }
+
   set_darkmode_button() {
     function switchBanner() {
       const altSrc = $(".navbar-brand img").data("alt-src");

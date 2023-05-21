@@ -100,6 +100,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_active_sidebar();
         this.set_nav_buttons();
         this.set_toc();
+        this.set_last_updated_date();
         this.scrolltotop();
         this.set_add_item();
         this.add_trash_icon();
