@@ -18,6 +18,9 @@ function setSortable() {
           },
         });
       }, 1500)();
+
+      // whitespace cleanup to display warning message for empty groups
+      if ($(e.from).children("li").length === 0) $(e.from).empty();
     },
     onMove: function (e) {
       if (

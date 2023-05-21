@@ -201,6 +201,15 @@ body.dark {
 
 	letter-spacing: -0.011em;
 
+	.list-unstyled:empty::after {
+		margin: 0.5rem;
+		font-size: 12px;
+		font-weight: 400;
+		font-style: italic;
+		color: var(--sidebar-text-color);
+		content: "This Wiki Group will be deleted automatically";
+	}
+
 	ul.list-unstyled {
 		ul {
 			padding-left: 0;
