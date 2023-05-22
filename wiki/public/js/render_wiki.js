@@ -52,7 +52,7 @@ function toggleEditor() {
   $(".sidebar-item, .sidebar-group").toggleClass("disabled");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
-  $(".add-sidebar-group").toggleClass("hide");
+  $(".add-sidebar-group, .sidebar-view-mode-btn").toggleClass("hide");
 
   // avoid hiding editor when params ?editWiki or ?newWiki
   if ($(".from-markdown").is(":visible")) {
@@ -266,7 +266,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       }
     });
 
-    $(".discard-edit-btn").on("click", () => {
+    $(".discard-edit-btn , .sidebar-view-mode-btn").on("click", () => {
       // switch to view mode
       toggleEditor();
       $("html").css({ overflow: "auto" });
