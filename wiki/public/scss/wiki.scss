@@ -518,8 +518,9 @@ body.dark {
 	}
 
 	.wiki-navbar-container {
-		padding: 1rem 0;
+		padding: 1.2rem 0 1rem;;
 		margin-left: 1rem;
+		background-color: var(--background-color);
 		box-shadow: 20px 5px 14px 8px var(--background-color);
 
 		@include media-breakpoint-down(md) {
