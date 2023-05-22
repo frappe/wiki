@@ -726,6 +726,10 @@ h6:hover .feather-link {
 	scrollbar-width: none;
 	height: 90vh;
 
+	&::-webkit-scrollbar {
+		display: none;
+	}
+
 	.list-unstyled {
 		top: 0;
 		border-left: 1px solid var(--border-color);
