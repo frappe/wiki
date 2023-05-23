@@ -108,6 +108,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_edit_mode();
         this.set_url_state();
         this.set_revisions();
+        this.add_click_to_copy();
       }
     });
   }

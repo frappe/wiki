@@ -318,6 +318,20 @@ $font-sizes-mobile: (
 		color: #D6DEEB;
 		border-radius: 0.5rem;
 		overflow: hidden;
+		position: relative;
+
+		.copy-btn {
+			top: 0.5rem;
+			right: 0.5rem;
+			padding: 0.75rem;
+			position: absolute;
+
+			&:hover {
+				color: var(--gray-500);
+				background-color: inherit;
+				border-color: inherit;
+			}
+		}
 
 		code {
 			overflow-x: auto;
