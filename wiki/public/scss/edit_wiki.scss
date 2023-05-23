@@ -320,7 +320,12 @@ $font-sizes-mobile: (
 		overflow: hidden;
 		position: relative;
 
+		&:hover .copy-btn {
+			visibility: visible;
+		}
+
 		.copy-btn {
+			visibility: hidden;
 			right: 0.5rem;
 			padding: 0.75rem;
 			position: absolute;
