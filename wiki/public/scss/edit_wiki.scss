@@ -365,7 +365,7 @@ $font-sizes-mobile: (
 	}
 
 	.is-active {
-		background-color: var(--editor-hover-button-color);
+		background-color: var(--editor-hover-button-color) !important;
 	}
 
 	.dropdown {

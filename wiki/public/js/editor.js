@@ -157,13 +157,25 @@ const buttons = {
   draftWikiPage: document.querySelector('[data-tiptap-button="draftWikiPage"]'),
 };
 
-const setButtonActive = (button, mark) => {
-  if (editor.isActive(mark)) {
-    button.classList.add("active");
-  } else {
-    button.classList.remove("active");
+editor.on("transaction", ({ editor, transaction }) => {
+  const marks = {
+    bold: "bold",
+    italic: "italic",
+    bulletList: "bulletList",
+    orderedList: "orderedList",
+    alignLeft: { textAlign: "left" },
+    alignCenter: { textAlign: "center" },
+    alignRight: { textAlign: "right" },
+    image: "image",
+    link: "link",
+    blockquote: "blockquote",
+    codeBlock: "codeBlock",
+  };
+  for (let mark in marks) {
+    if (editor.isActive(marks[mark])) buttons[mark].classList.add("is-active");
+    else buttons[mark].classList.remove("is-active");
   }
-};
+});
 
 buttons.h2.addEventListener("click", () => {
   editor.chain().focus().toggleHeading({ level: 2 }).run();
@@ -187,37 +199,30 @@ buttons.h6.addEventListener("click", () => {
 
 buttons.bold.addEventListener("click", () => {
   editor.chain().focus().toggleBold().run();
-  setButtonActive(buttons.bold, "bold");
 });
 
 buttons.italic.addEventListener("click", () => {
   editor.chain().focus().toggleItalic().run();
-  setButtonActive(buttons.italic, "italic");
 });
 
 buttons.bulletList.addEventListener("click", () => {
   editor.chain().focus().toggleBulletList().run();
-  setButtonActive(buttons.bulletList, "bulletList");
 });
 
 buttons.orderedList.addEventListener("click", () => {
   editor.chain().focus().toggleOrderedList().run();
-  setButtonActive(buttons.orderedList, "orderedList");
 });
 
 buttons.alignLeft.addEventListener("click", () => {
   editor.chain().focus().setTextAlign("left").run();
-  setButtonActive(buttons.alignLeft, { textAlign: "left" });
 });
 
 buttons.alignCenter.addEventListener("click", () => {
   editor.chain().focus().setTextAlign("center").run();
-  setButtonActive(buttons.alignCenter, { textAlign: "center" });
 });
 
 buttons.alignRight.addEventListener("click", () => {
   editor.chain().focus().setTextAlign("right").run();
-  setButtonActive(buttons.alignRight, { textAlign: "right" });
 });
 
 buttons.image.addEventListener("click", () => {
@@ -238,7 +243,6 @@ buttons.image.addEventListener("click", () => {
     };
   };
   input.click();
-  setButtonActive(buttons.image, "image");
 });
 
 buttons.link.addEventListener("click", () => {
@@ -261,18 +265,14 @@ buttons.modalLink.addEventListener("click", () => {
 
   // update link
   editor.chain().focus().extendMarkRange("link").setLink({ href: link }).run();
-
-  setButtonActive(buttons.link, "link");
 });
 
 buttons.blockquote.addEventListener("click", () => {
   editor.chain().focus().toggleBlockquote().run();
-  setButtonActive(buttons.blockquote, "blockquote");
 });
 
 buttons.codeBlock.addEventListener("click", () => {
   editor.chain().focus().toggleCodeBlock().run();
-  setButtonActive(buttons.codeBlock, "codeBlock");
 });
 
 buttons.horizontalRule.addEventListener("click", () => {
