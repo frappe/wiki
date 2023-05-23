@@ -525,6 +525,7 @@ body.dark {
 
 		@include media-breakpoint-down(md) {
 			box-shadow: unset;
+			margin-left: 0;
 		}
 	}
 
