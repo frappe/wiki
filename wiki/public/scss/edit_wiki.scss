@@ -366,7 +366,6 @@ $font-sizes-mobile: (
 	margin: 1rem auto;
 	border-radius: 1rem;
 	border: 1px solid $gray-200;
-	overflow: auto;
 
 	pre {
 		padding: 0.75rem 1rem;
@@ -427,6 +426,7 @@ $font-sizes-mobile: (
 	}
 
 	> :last-child {
+		overflow: auto;
 		margin-top: 0 !important;
 		border-top: 1px solid $gray-200;
 	}
@@ -434,11 +434,13 @@ $font-sizes-mobile: (
 	> :first-child {
 		padding: 0 1rem;
 		display: flex;
+		flex-wrap: wrap;
 		flex-direction: row;
 		align-items: center;
 		justify-content: space-between;
 
 		.wiki-edit-controls {
+			flex-wrap: wrap;
 			display: inline-flex;
 
 			.vertical-sep {
@@ -447,6 +449,7 @@ $font-sizes-mobile: (
 		}
 
 		.wiki-edit-control-btn {
+			margin-left: auto;
 			display: inline-flex;
 
 			> * {
