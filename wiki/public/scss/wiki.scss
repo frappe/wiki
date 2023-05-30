@@ -466,9 +466,6 @@ body.dark {
 	}
 
 	.modal-body {
-		padding: 1rem;
-		min-height: 5rem;
-
 		.text-muted {
 			margin: auto;
 			width: max-content;
@@ -483,6 +480,11 @@ body.dark {
 				background-color: unset;
 			}
 		}
+	}
+
+	.modal-header {
+		border-bottom-right-radius: calc(var(--border-radius-lg) - 1px);
+		border-bottom-left-radius: calc(var(--border-radius-lg) - 1px);
 	}
 
 	.dropdown-item {

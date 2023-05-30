@@ -599,7 +599,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             let results = r.message.docs || [];
             let dropdown_html;
             if (results.length === 0) {
-              dropdown_html = `<div style="margin: 0.5rem 9rem;">No results found</div>`;
+              dropdown_html = `<div style="margin: 1.5rem 9rem;">No results found</div>`;
             } else {
               dropdown_html = results
                 .map((r) => {
