@@ -46,21 +46,10 @@ Note: Wiki's master branch does not support v13 Frappe / ERPNext
 ## Screenshots
 
 ### 1. Rendered Page
-<img width="1552" alt="wiki-rendered" src="https://user-images.githubusercontent.com/28212972/127900631-c9b1c699-4a19-4b12-953e-308786d01c17.png">
+<img width="1552" alt="wiki-rendered" src="https://github.com/frappe/wiki/assets/63963181/011e976e-b572-4d3a-82e8-374d26ecd0d0.png">
 
 ### 2. Edit Page
-<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/28212972/127900757-9a3c9994-8e4c-42bc-99dd-f710a54315bb.png">
-
-### 3. Review Edited Page
-<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/28212972/127900874-23664b1f-87e7-4e86-b4f3-c7e2c78ca0d7.png">
-
-### 4. Revisions
-<img width="1552" alt="wiki-revisions" src="https://user-images.githubusercontent.com/28212972/127901208-8b007e97-e779-4a5c-a097-06954e11a823.png">
-
-### 5. Compare changes
-<img width="1552" alt="wiki-compare" src="https://user-images.githubusercontent.com/28212972/127901119-d7d7c3a8-2abd-453b-9318-67ad5861c72c.png">
-
-
+<img width="1552" alt="wiki-edit" src="https://github.com/frappe/wiki/assets/63963181/339d1422-6c99-450d-9e97-7348651abe63.png">
 
 #### License
 
