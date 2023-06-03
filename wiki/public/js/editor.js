@@ -276,7 +276,7 @@ buttons.image.addEventListener("click", () => {
           .setImage({
             src: content,
             title: fileName,
-            alt: fileName.split(".png")[0],
+            alt: fileName.split(".").slice(0, -1).join("."),
           })
           .run();
       }
