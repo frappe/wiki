@@ -259,13 +259,23 @@ buttons.image.addEventListener("click", () => {
 
   input.onchange = (e) => {
     const file = e.target.files[0];
+    const fileName = file.name;
     const reader = new FileReader();
     reader.readAsDataURL(file);
 
     reader.onload = (readerEvent) => {
-      const content = readerEvent.target.result;
+      const [header, data] = readerEvent.target.result.split(",");
+      const content = `${header};filename=${fileName},${data}`;
       if (content) {
-        editor.chain().focus().setImage({ src: content }).run();
+        editor
+          .chain()
+          .focus()
+          .setImage({
+            src: content,
+            title: fileName,
+            alt: fileName.split(".png")[0],
+          })
+          .run();
       }
     };
   };
