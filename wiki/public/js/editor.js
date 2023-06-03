@@ -93,6 +93,9 @@ const editor = new Editor({
     Image.configure({
       allowBase64: true,
       inline: true,
+      HTMLAttributes: {
+        class: "screenshot",
+      },
     }),
     Table.configure({
       resizable: true,
