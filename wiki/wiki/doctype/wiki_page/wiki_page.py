@@ -28,17 +28,9 @@ class WikiPage(WebsiteGenerator):
 	def before_save(self):
 		self.content = self.sanitize_html()
 
-		details = frappe.db.get_values(
-			"Wiki Page", filters={"name": self.name}, fieldname=["route", "title"]
-		)
-
-		if not details:
-			return
-
-		old_route, old_title = (details[0][0], details[0][1])
-
-		if old_route != self.route or old_title != self.title:
-			self.clear_sidebar_cache()
+		if old_title := frappe.db.get_value("Wiki Page", self.name, "title"):
+			if old_title != self.title:
+				self.clear_sidebar_cache()
 
 	def after_insert(self):
 		frappe.cache().hdel("website_page", self.name)
