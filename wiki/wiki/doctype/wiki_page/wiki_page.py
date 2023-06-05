@@ -6,9 +6,18 @@ import re
 from urllib.parse import urlencode
 
 import frappe
+from bleach_allowlist import bleach_allowlist
 from frappe import _
 from frappe.core.doctype.file.file import get_random_filename
 from frappe.utils.data import sbool
+from frappe.utils.html_utils import (
+	acceptable_attributes,
+	acceptable_elements,
+	is_json,
+	mathml_elements,
+	svg_attributes,
+	svg_elements,
+)
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.website_generator import WebsiteGenerator
 
@@ -17,6 +26,7 @@ from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
 
 class WikiPage(WebsiteGenerator):
 	def before_save(self):
+		self.content = self.sanitize_html()
 
 		details = frappe.db.get_values(
 			"Wiki Page", filters={"name": self.name}, fieldname=["route", "title"]
@@ -80,6 +90,58 @@ class WikiPage(WebsiteGenerator):
 
 		self.clear_sidebar_cache()
 		remove_index(self)
+
+	def sanitize_html(self):
+		"""
+		Sanitize HTML tags, attributes and style to prevent XSS attacks
+		Based on bleach clean, bleach whitelist and html5lib's Sanitizer defaults
+
+		Does not sanitize JSON, as it could lead to future problems
+
+		Kanged from frappe.utils.html_utils.sanitize_html to allow only iframes with youtube embeds
+		"""
+		import bleach
+		from bs4 import BeautifulSoup
+
+		html = self.content
+
+		if is_json(html):
+			return html
+
+		if not bool(BeautifulSoup(html, "html.parser").find()):
+			return html
+
+		tags = (
+			acceptable_elements
+			+ svg_elements
+			+ mathml_elements
+			+ ["html", "head", "meta", "link", "body", "style", "o:p", "iframe"]
+		)
+
+		def attributes_filter(tag, name, value):
+			if name.startswith("data-"):
+				return True
+			return name in acceptable_attributes
+
+		# returns html with escaped tags, escaped orphan >, <, etc.
+		escaped_html = bleach.clean(
+			html,
+			tags=tags,
+			attributes={"*": attributes_filter, "svg": svg_attributes},
+			styles=bleach_allowlist.all_styles,
+			strip_comments=False,
+			protocols=["cid", "http", "https", "mailto"],
+		)
+
+		# sanitize iframe tags that aren't youtube links
+		soup = BeautifulSoup(escaped_html, "html.parser")
+		iframes = soup.find_all("iframe")
+		for iframe in iframes:
+			if "youtube.com/embed/" not in iframe["src"]:
+				iframe.replace_with(str(iframe))
+
+		escaped_html = str(soup)
+		return escaped_html
 
 	def update_page(self, title, content, edit_message, raised_by=None):
 		"""
