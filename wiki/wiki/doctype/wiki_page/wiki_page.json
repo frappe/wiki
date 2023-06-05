@@ -29,6 +29,7 @@
    "description": "It is recommended that you start your first heading with h2, as the title will be the h1.",
    "fieldname": "content",
    "fieldtype": "HTML Editor",
+   "ignore_xss_filter": 1,
    "in_preview": 1,
    "label": "Content",
    "reqd": 1
@@ -112,7 +113,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2023-05-09 20:41:59.476421",
+ "modified": "2023-06-05 10:34:03.810229",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",

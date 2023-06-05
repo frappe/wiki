@@ -59,7 +59,8 @@ repos:
         # W191 - Doesn't like indentation with tabs
         # E501 - Doesn't like lines > 79 (some sql queries are ~140) 
         # E203 - Doesn't like space infront of ':' (isn't pep8 compliant)
-        args: ['--ignore=W191,E501,E203']
+        # W503 - Doesn't like line break before binary operator (isn't pep8 compliant)
+        args: ['--ignore=W191,E501,E203,W503']
         additional_dependencies: ['flake8-bugbear',]
 
 ci:
