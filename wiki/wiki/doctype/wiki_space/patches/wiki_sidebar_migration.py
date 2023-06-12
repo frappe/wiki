@@ -69,7 +69,7 @@ def execute():
 			sidebar_items = sidebars.items()
 			for sidebar, items in sidebar_items:
 				for item in items:
-					if item.type == "Wiki Page":
+					if item.type == "Wiki Page" and frappe.db.exists("Wiki Page", item.item):
 						wiki_sidebar_dict = {
 							"wiki_page": item.item,
 							"parent_label": item.group_name,
