@@ -275,6 +275,14 @@ window.RenderWiki = class RenderWiki extends Wiki {
       this.activate_sidebars();
     });
 
+    $(".add-wiki-btn").on("click", () => {
+      const groupName = $(".sidebar-item.active").data("group-name");
+      $(".edit-wiki-btn").trigger("click");
+      $(
+        `.doc-sidebar .add-sidebar-page[data-group-name="${groupName}"]`,
+      ).trigger("click");
+    });
+
     let active_items = "";
     $(".sidebar-items > .list-unstyled").on(
       "click",
