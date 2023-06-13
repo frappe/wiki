@@ -68,10 +68,9 @@ function toggleEditor() {
 
   // sidebar item pointer switching
   if ($(".sidebar-edit-mode-btn").hasClass("hide")) {
-    $(".sidebar-group div, .sidebar-item, .sidebar-item a").css(
-      "cursor",
-      "grab",
-    );
+    $(".sidebar-group div, .sidebar-item, .sidebar-item a")
+      .not(".remove-sidebar-item")
+      .css("cursor", "grab");
     $(".sidebar-item a").removeAttr("href");
   } else {
     $(".sidebar-group div, .sidebar-item a").css("cursor", "pointer");
