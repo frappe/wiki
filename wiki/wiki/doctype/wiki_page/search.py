@@ -24,7 +24,9 @@ def search(query, path, space):
 
 	try:
 		result = client.search(query)
-	except ResponseError:
+	except ResponseError as e:
+		if str(e).endswith("no such index"):
+			rebuild_index_in_background()
 		return {"total": 0, "docs": [], "duration": 0}
 
 	names = []
@@ -92,17 +94,6 @@ def rebuild_index_in_background():
 	if not frappe.cache().get_value("wiki_page_index_in_progress"):
 		print(f"Queued rebuilding of search index for {frappe.local.site}")
 		frappe.enqueue(rebuild_index, queue="long")
-
-
-def rebuild_index_if_not_exists():
-	spaces = frappe.db.get_all("Wiki Space", pluck="route")
-	for space in spaces:
-		try:
-			client = Client(make_key(space), conn=frappe.cache())
-			client.info()
-		except ResponseError:
-			rebuild_index()
-			break
 
 
 def create_index_for_records(records, space):
