@@ -24,7 +24,9 @@ def search(query, path, space):
 
 	try:
 		result = r.ft(space).search(query)
-	except ResponseError:
+	except ResponseError as e:
+		if str(e).endswith("no such index"):
+			rebuild_index_in_background()
 		return {"total": 0, "docs": [], "duration": 0}
 
 	names = []
