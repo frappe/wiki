@@ -94,16 +94,6 @@ def rebuild_index_in_background():
 		frappe.enqueue(rebuild_index, queue="long")
 
 
-def rebuild_index_if_not_exists():
-	spaces = frappe.db.get_all("Wiki Space", pluck="route")
-	for space in spaces:
-		try:
-			frappe.cache().ft(space).info()
-		except ResponseError:
-			rebuild_index()
-			break
-
-
 def create_index_for_records(records, space):
 	r = frappe.cache()
 	for i, d in enumerate(records):
