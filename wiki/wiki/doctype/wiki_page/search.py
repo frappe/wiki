@@ -25,6 +25,7 @@ def search(query, path, space):
 	try:
 		result = client.search(query)
 	except ResponseError as e:
+		frappe.logger().error(f"Error in search: {e}")
 		if str(e).endswith("no such index"):
 			rebuild_index_in_background()
 		return {"total": 0, "docs": [], "duration": 0}
