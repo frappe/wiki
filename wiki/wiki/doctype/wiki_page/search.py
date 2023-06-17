@@ -24,10 +24,8 @@ def search(query, path, space):
 
 	try:
 		result = r.ft(space).search(query)
-	except ResponseError as e:
-		frappe.logger().error(f"Error in search: {e}")
-		if str(e).endswith("no such index"):
-			rebuild_index_in_background()
+	except ResponseError:
+		rebuild_index_in_background()
 		return {"total": 0, "docs": [], "duration": 0}
 
 	names = []
