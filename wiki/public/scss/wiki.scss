@@ -1076,6 +1076,10 @@ p {
 
 	.modal-header {
 		position: inherit;
+
+		.close {
+			margin-top: -2.5rem;
+		}
 	}
 
 	.modal-body {
