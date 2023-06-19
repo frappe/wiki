@@ -49,7 +49,8 @@ def get_user_contributions(start, limit):
 		filters=[["status", "!=", "Draft"], ["owner", "=", frappe.session.user]],
 	)
 	for wiki_page_patch in wiki_page_patches:
-		wiki_page_patch.edit_link = f"app/wiki-page-patch/{wiki_page_patch.name}"
+		route = frappe.db.get_value("Wiki Page", wiki_page_patch.wiki_page, "route")
+		wiki_page_patch.edit_link = f"/{route}?editWiki=1&wikiPagePatch={wiki_page_patch.name}"
 		wiki_page_patch.color = color_map[wiki_page_patch.status]
 		wiki_page_patch.modified = frappe.utils.pretty_date(wiki_page_patch.modified)
 		contributions.extend([wiki_page_patch])
