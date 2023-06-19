@@ -291,6 +291,11 @@ class WikiPage(WebsiteGenerator):
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
 			context = frappe._dict({})
+			wiki_settings = frappe.get_single("Wiki Settings")
+			context.active_sidebar_group = frappe.get_value(
+				"Wiki Group Item", {"wiki_page": self.name}, ["parent_label"]
+			)
+			context.hide_sidebar_items = wiki_settings.hide_sidebar_items
 			context.sidebar_items = sidebar_items
 			context.wiki_search_scope = self.get_space_route()
 			sidebar_html = frappe.render_template(

@@ -13,6 +13,7 @@
   "section_break_vefv",
   "default_wiki_space",
   "table_of_contents_section",
+  "hide_sidebar_items",
   "enable_table_of_contents",
   "section_break_mmtu",
   "javascript",
@@ -94,19 +95,25 @@
   {
    "fieldname": "table_of_contents_section",
    "fieldtype": "Section Break",
-   "label": "Table of Contents"
+   "label": "Wiki Page Configs"
   },
   {
    "default": "1",
    "fieldname": "enable_table_of_contents",
    "fieldtype": "Check",
    "label": "Enable Table of Contents"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_sidebar_items",
+   "fieldtype": "Check",
+   "label": "Hide Sidebar Items"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-05-21 15:32:59.427141",
+ "modified": "2023-06-18 16:53:53.487700",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
