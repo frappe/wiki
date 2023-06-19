@@ -35,9 +35,8 @@ Note: Wiki's master branch does not support v13 Frappe / ERPNext
 ## Features
 
 1. Create Wiki Pages
-2. Author content in Markdown or Rich Text
+2. Author content in Rich Text
 3. Set-up Controlled Wiki Updates
-4. Unlimited Sidebar Hierarchy
 5. Add attachments
 6. Table of Contents
 7. Caching
