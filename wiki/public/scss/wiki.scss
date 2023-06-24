@@ -600,6 +600,7 @@ body.dark {
 	z-index: 5;
 
 	@include media-breakpoint-down(md) {
+		max-width: 14rem;
 		padding: 1rem 0 0 0;
 		background-color: var(--background-color);
 	}
