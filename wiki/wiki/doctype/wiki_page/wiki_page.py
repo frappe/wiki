@@ -188,10 +188,12 @@ class WikiPage(WebsiteGenerator):
 				context.parents = parents
 
 	def get_space_route(self):
-		spaces = frappe.db.get_all("Wiki Space", pluck="route")
-		for space_route in spaces:
-			if space_route in self.route:
-				return space_route
+		if space := frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent"):
+			return frappe.get_value("Wiki Space", space, "route")
+		else:
+			frappe.throw(
+				"Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk."
+			)
 
 	def calculate_toc_html(self, html):
 		from bs4 import BeautifulSoup
