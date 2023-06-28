@@ -547,7 +547,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     function trimContent(content) {
       let trimmedLength = 100;
-      let indexOf = content.indexOf("<b class=match>");
+      const indexOf = content.indexOf('<b class="match">');
       if (indexOf === -1) {
         return content.slice(0, 100);
       }
