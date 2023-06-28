@@ -547,7 +547,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     function trimContent(content) {
       let trimmedLength = 100;
-      let indexOf = content.indexOf("<mark>");
+      let indexOf = content.indexOf("<b class=match>");
       if (indexOf === -1) {
         return content.slice(0, 100);
       }
@@ -602,8 +602,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
               space: search_scope,
             },
           })
-          .then((r) => {
-            let results = r.message.docs || [];
+          .then((res) => {
+            let results = res.message.docs || [];
             let dropdown_html;
             if (results.length === 0) {
               dropdown_html = `<div style="margin: 1.5rem 9rem;">No results found</div>`;
@@ -612,7 +612,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
                 .map((r) => {
                   return `<a class="dropdown-item" href="/${r.route}">
               <h6>${r.title}</h6>
-              <div>${trimContent(r.content)}</div>
+              <div>${
+                res.message.search_engine === "frappe_web_search"
+                  ? r.content
+                  : trimContent(r.content)
+              }</div>
               </a>
               <div class='dropdown-border'></div>`;
                 })
