@@ -3,6 +3,7 @@
 
 
 import frappe
+from frappe.search import web_search
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 from redis.exceptions import ResponseError
@@ -13,20 +14,34 @@ PREFIX = "wiki_page_search_doc"
 
 @frappe.whitelist(allow_guest=True)
 def search(query, path, space):
-	r = frappe.cache()
-
 	if not space:
 		space = get_space_route(path)
 
-	client = Client(make_key(space), conn=r)
+	# fallback to frappe web search if redisearch is not enabled
+	if not frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search"):
+		result = web_search(query, space, 5)
 
-	query = Query(query).paging(0, 5).highlight(tags=["<mark>", "</mark>"])
+		for d in result:
+			d.title = d.title_highlights or d.title
+			d.route = d.path
+			d.content = d.content_highlights
+
+			del d.title_highlights
+			del d.content_highlights
+			del d.path
+
+		return {"docs": result, "search_engine": "frappe_web_search"}
+
+	# if redisearch enabled use redisearch
+	r = frappe.cache()
+	client = Client(make_key(space), conn=r)
+	query = Query(query).paging(0, 5).highlight(tags=['<b class="match">', "</b>"])
 
 	try:
 		result = client.search(query)
 	except ResponseError:
 		rebuild_index_in_background()
-		return {"total": 0, "docs": [], "duration": 0}
+		return {"docs": [], "search_engine": "redisearch"}
 
 	names = []
 	for d in result.docs:
@@ -48,7 +63,7 @@ def search(query, path, space):
 		doc.content = d.content
 		docs.append(doc)
 
-	return {"docs": docs, "total": result.total, "duration": result.duration}
+	return {"docs": docs, "search_engine": "redisearch"}
 
 
 def get_space_route(path):
