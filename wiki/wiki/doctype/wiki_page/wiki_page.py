@@ -342,13 +342,13 @@ class WikiPage(WebsiteGenerator):
 		)
 		return frappe.get_doc("Wiki Page Revision", last_revision)
 
-	def clone(self, original, new):
+	def clone(self, original_space, new_space):
 
 		# used in after_insert of Wiki Page to resist create of Wiki Page Revision
 		frappe.local.in_clone = True
 
 		cloned_wiki_page = frappe.copy_doc(self, ignore_no_copy=True)
-		cloned_wiki_page.route = cloned_wiki_page.route.replace(original, new)
+		cloned_wiki_page.route = cloned_wiki_page.route.replace(original_space, new_space)
 
 		cloned_wiki_page.flags.ignore_mandatory = True
 		cloned_wiki_page.save()
