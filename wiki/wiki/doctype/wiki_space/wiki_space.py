@@ -83,7 +83,10 @@ class WikiSpace(Document):
 		frappe.cache().hdel("wiki_sidebar", self.name)
 
 	@frappe.whitelist()
-	def clone(self, new_space_route):
+	def clone_wiki_space_in_background(self, new_space_route):
+		frappe.enqueue(self.clone_wiki_space, new_space_route=new_space_route, queue="long")
+
+	def clone_wiki_space(self, new_space_route):
 		if frappe.db.exists("Wiki Space", new_space_route):
 			frappe.throw(f"Wiki Space <b>{new_space_route}</b> already exists.")
 
