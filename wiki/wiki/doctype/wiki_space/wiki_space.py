@@ -82,6 +82,40 @@ class WikiSpace(Document):
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
 
+	@frappe.whitelist()
+	def clone(self, new_space_route):
+		if frappe.db.exists("Wiki Space", new_space_route):
+			frappe.throw(f"Wiki Space <b>{new_space_route}</b> already exists.")
+
+		items = frappe.get_all(
+			"Wiki Group Item",
+			filters={"parent": self.name},
+			fields=["wiki_page", "parent_label"],
+			order_by="idx asc",
+		)
+
+		cloned_wiki_space = frappe.new_doc("Wiki Space")
+		cloned_wiki_space.route = new_space_route
+
+		for idx, item in enumerate(items, 1):
+			frappe.publish_progress(
+				idx * 100 / len(items),
+				title=f"Cloning into new Wiki Space <b>{new_space_route}</b>",
+				description=f"{idx}/{len(items)}",
+			)
+			cloned_doc = frappe.get_doc("Wiki Page", item.wiki_page).clone(self.route, new_space_route)
+			cloned_wiki_space.append(
+				"wiki_sidebars",
+				{
+					"wiki_page": cloned_doc.name,
+					"parent_label": item.parent_label,
+				},
+			)
+
+		cloned_wiki_space.insert()
+
+		return cloned_wiki_space
+
 
 @frappe.whitelist()
 def update_sidebar(sidebar_items):
