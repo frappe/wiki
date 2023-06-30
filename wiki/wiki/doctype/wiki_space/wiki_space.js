@@ -7,13 +7,7 @@ frappe.ui.form.on("Wiki Space", {
 
     frm.add_custom_button("Clone Wiki Space", () => {
       frappe.prompt("Enter new Wiki Space's route", ({ value }) => {
-        frm
-          .call("clone_wiki_space_in_background", { new_space_route: value })
-          .then((r) =>
-            frappe.msgprint(
-              `Cloning completed. Visit the new Wiki Space at <a href="/app/wiki-space/${value}">${value}</a>`,
-            ),
-          );
+        frm.call("clone_wiki_space_in_background", { new_space_route: value });
       });
     });
   },
