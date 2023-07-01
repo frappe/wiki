@@ -52,9 +52,7 @@ class WikiPagePatch(Document):
 		wiki_page_dict = {
 			"title": self.new_title,
 			"content": self.new_code,
-			"route": "/".join(
-				self.wiki_page_doc.route.split("/")[:-1] + [cleanup_page_name(self.new_title)]
-			),
+			"route": "/".join(self.wiki_page_doc.get_space_route() + [cleanup_page_name(self.new_title)]),
 			"published": 1,
 			"allow_guest": self.wiki_page_doc.allow_guest,
 		}
@@ -80,7 +78,7 @@ class WikiPagePatch(Document):
 					if item["name"] == "new-wiki-page":
 						item["name"] = self.new_wiki_page.name
 						wiki_space_name = frappe.get_value(
-							"Wiki Space", {"route": "/".join(self.wiki_page_doc.route.split("/")[:-1])}
+							"Wiki Space", {"route": self.wiki_page_doc.get_space_route()}
 						)
 
 						wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
