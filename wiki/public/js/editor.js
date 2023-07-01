@@ -156,6 +156,8 @@ const buttons = {
   toggleHeaderCell: document.querySelector(
     '[data-tiptap-button="toggleHeaderCell"]',
   ),
+  mergeCells: document.querySelector('[data-tiptap-button="mergeCells"]'),
+  splitCell: document.querySelector('[data-tiptap-button="splitCell"]'),
   deleteTable: document.querySelector('[data-tiptap-button="deleteTable"]'),
   saveWikiPage: document.querySelector('[data-tiptap-button="saveWikiPage"]'),
   draftWikiPage: document.querySelector('[data-tiptap-button="draftWikiPage"]'),
@@ -362,6 +364,14 @@ buttons.toggleHeaderRow.addEventListener("click", () => {
 
 buttons.toggleHeaderCell.addEventListener("click", () => {
   editor.chain().focus().toggleHeaderCell().run();
+});
+
+buttons.mergeCells.addEventListener("click", () => {
+  editor.chain().focus().mergeCells().run();
+});
+
+buttons.splitCell.addEventListener("click", () => {
+  editor.chain().focus().splitCell().run();
 });
 
 buttons.deleteTable.addEventListener("click", () => {
