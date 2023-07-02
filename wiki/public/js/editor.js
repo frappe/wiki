@@ -125,6 +125,7 @@ const buttons = {
   italic: document.querySelector('[data-tiptap-button="italic"]'),
   bulletList: document.querySelector('[data-tiptap-button="bulletList"]'),
   orderedList: document.querySelector('[data-tiptap-button="orderedList"]'),
+  alignJustify: document.querySelector('[data-tiptap-button="alignJustify"]'),
   alignLeft: document.querySelector('[data-tiptap-button="alignLeft"]'),
   alignCenter: document.querySelector('[data-tiptap-button="alignCenter"]'),
   alignRight: document.querySelector('[data-tiptap-button="alignRight"]'),
@@ -169,6 +170,7 @@ editor.on("transaction", ({ editor, transaction }) => {
     italic: "italic",
     bulletList: "bulletList",
     orderedList: "orderedList",
+    alignJustify: { textAlign: "justify" },
     alignLeft: { textAlign: "left" },
     alignCenter: { textAlign: "center" },
     alignRight: { textAlign: "right" },
@@ -244,6 +246,10 @@ buttons.bulletList.addEventListener("click", () => {
 
 buttons.orderedList.addEventListener("click", () => {
   editor.chain().focus().toggleOrderedList().run();
+});
+
+buttons.alignJustify.addEventListener("click", () => {
+  editor.chain().focus().setTextAlign("justify").run();
 });
 
 buttons.alignLeft.addEventListener("click", () => {
