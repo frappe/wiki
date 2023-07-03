@@ -41,7 +41,6 @@ def search(query, path, space):
 	try:
 		result = r.ft(space).search(query)
 	except ResponseError:
-		rebuild_index_in_background()
 		return {"docs": [], "search_engine": "redisearch"}
 
 	names = []
