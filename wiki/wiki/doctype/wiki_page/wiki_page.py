@@ -260,10 +260,8 @@ class WikiPage(WebsiteGenerator):
 		context.hide_login = True
 		context.name = self.name
 		if (frappe.form_dict.editWiki or frappe.form_dict.newWiki) and frappe.form_dict.wikiPagePatch:
-			(context.patch_new_code, context.patch_new_title,) = frappe.db.get_value(
-				"Wiki Page Patch",
-				frappe.form_dict.wikiPagePatch,
-				["new_code", "new_title"],
+			context.patch_new_code, context.patch_new_title = frappe.db.get_value(
+				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_code", "new_title"]
 			)
 		context = context.update(
 			{
