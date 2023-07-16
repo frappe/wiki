@@ -12,20 +12,13 @@
   "raised_by",
   "status",
   "approved_by",
-  "new_sidebar_group",
   "new",
   "compare_changes_section",
-  "diff",
   "compare",
   "code",
   "orignal_code",
   "new_code",
-  "previews_section",
-  "orignal_preview",
   "new_preview_section_section",
-  "new_preview",
-  "orignal_preview_store",
-  "new_preview_store",
   "amended_from"
  ],
  "fields": [
@@ -63,16 +56,10 @@
    "label": "Compare Changes"
   },
   {
-   "fieldname": "diff",
-   "fieldtype": "Long Text",
-   "hidden": 1,
-   "label": "Diff"
-  },
-  {
    "fieldname": "compare",
    "fieldtype": "HTML",
    "label": "Compare",
-   "options": "<div class=\"mt-6\">\n\t<div class=\"wiki-diff\">\n\t</div>\n</div>"
+   "options": "<div class=\"mt-6\">\n\t<div class=\"wiki-diff like-disabled-input\">\n\t</div>\n</div>"
   },
   {
    "fieldname": "code",
@@ -80,50 +67,13 @@
    "label": "Code"
   },
   {
-   "depends_on": "eval: !doc.new; ",
-   "fieldname": "orignal_code",
-   "fieldtype": "Code",
-   "label": "Orignal Code"
-  },
-  {
    "fieldname": "new_code",
    "fieldtype": "Code",
-   "label": "New Code"
-  },
-  {
-   "depends_on": "eval: !doc.new; ",
-   "fieldname": "previews_section",
-   "fieldtype": "Section Break",
-   "label": "Orignal Preview Section"
-  },
-  {
-   "fieldname": "orignal_preview",
-   "fieldtype": "HTML",
-   "label": "Orignal Preview",
-   "options": "<div id=\"orignal_preview\" style=\"height: 300px; overflow: auto;\"></div>"
+   "label": "New HTML"
   },
   {
    "fieldname": "new_preview_section_section",
-   "fieldtype": "Section Break",
-   "label": "New Preview Section"
-  },
-  {
-   "fieldname": "new_preview",
-   "fieldtype": "HTML",
-   "label": "New Preview",
-   "options": "<div id=\"new_preview\" style=\"height: 300px; overflow: auto;\"></div>"
-  },
-  {
-   "fieldname": "orignal_preview_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Orignal Preview Store"
-  },
-  {
-   "fieldname": "new_preview_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "New Preview Store"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "amended_from",
@@ -157,15 +107,16 @@
    "label": "New Title"
   },
   {
-   "fieldname": "new_sidebar_group",
-   "fieldtype": "Data",
-   "label": "New Sidebar Group"
+   "depends_on": "eval: !doc.new;",
+   "fieldname": "orignal_code",
+   "fieldtype": "Code",
+   "label": "Original HTML"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-04-05 20:23:42.992090",
+ "modified": "2023-07-16 22:58:51.195566",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
