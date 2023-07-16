@@ -10,7 +10,7 @@ frappe.ui.form.on("Wiki Page Patch", {
       .parent(".like-disabled-input")
       .html(frm.doc.new_code);
 
-    if (!frm.doc.new)
+    if (!frm.doc.new && !frm.doc.__unsaved)
       frappe.call({
         method: "wiki.wiki.doctype.wiki_page.wiki_page.preview",
         args: {
