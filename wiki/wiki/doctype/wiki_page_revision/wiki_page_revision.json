@@ -5,13 +5,13 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "raised_by",
-  "message",
-  "column_break_4",
-  "raised_by_username",
   "content",
   "section_break_6",
-  "wiki_pages"
+  "raised_by",
+  "raised_by_username",
+  "wiki_pages",
+  "column_break_vovw",
+  "message"
  ],
  "fields": [
   {
@@ -21,15 +21,15 @@
   },
   {
    "fieldname": "content",
-   "fieldtype": "Code",
-   "label": "Content",
-   "options": "Markdown"
+   "fieldtype": "HTML Editor",
+   "label": "Content"
   },
   {
    "fieldname": "raised_by",
    "fieldtype": "Link",
    "label": "Raised By",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fetch_from": "raised_by.username",
@@ -37,10 +37,6 @@
    "fieldtype": "Data",
    "label": "Raised By Username",
    "read_only": 1
-  },
-  {
-   "fieldname": "column_break_4",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "section_break_6",
@@ -51,11 +47,15 @@
    "fieldtype": "Table",
    "label": "Wiki Pages",
    "options": "Wiki Page Revision Item"
+  },
+  {
+   "fieldname": "column_break_vovw",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2022-11-28 13:12:30.491116",
+ "modified": "2023-07-23 00:08:32.210599",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",
