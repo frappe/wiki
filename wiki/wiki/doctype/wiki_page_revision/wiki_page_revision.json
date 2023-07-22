@@ -21,8 +21,9 @@
   },
   {
    "fieldname": "content",
-   "fieldtype": "HTML Editor",
-   "label": "Content"
+   "fieldtype": "Code",
+   "label": "Content",
+   "read_only": 1
   },
   {
    "fieldname": "raised_by",
@@ -55,7 +56,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-07-23 00:08:32.210599",
+ "modified": "2023-07-23 00:22:44.919982",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Revision",
