@@ -1,5 +1,16 @@
 .frappe-card {
   padding: 0;
+  background-color: var(--background-color);
+}
+
+.navbar-brand-container {
+  background-color: var(--background-color);
+  position: relative;
+  border: 0;
+}
+
+.navbar .doc-container .navbar-collapse {
+  margin-left: 0;
 }
 
 .list-jobs {
@@ -9,13 +20,22 @@
 .table {
   margin-bottom: 0px;
   margin-top: 0px;
-
+  color: var(--text-color);
+  
   td {
     padding: 14px 20px;
+  }
+
+  a {
+    color: var(--btn-text-color) !important;
   }
 }
 thead td {
   border-top: 0 !important;
+}
+
+.table th, .table td {
+  margin-top: -1px;
 }
 
 .worker-name {
@@ -54,9 +74,5 @@ thead td {
 
 .page-content-wrapper {
   padding: 0 !important;
-  margin: 6rem 0 1rem 0 !important;
-}
-
-.count {
-	font-size: 1rem;
+  margin: 0 0 1rem 0 !important;
 }

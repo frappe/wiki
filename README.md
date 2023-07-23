@@ -11,6 +11,10 @@
 
 <div align="center">
  Wiki App built on the <a href= "https://frappeframework.com" >Frappe Framework</a> | <a href = "https://wiki-docs.frappe.cloud/use_on_frappe_cloud">Try on Frappe Cloud</a>
+ 
+ \
+ [![Wiki](https://img.shields.io/endpoint?url=https://cloud.cypress.io/badge/simple/w2jgcb/master&style=flat&logo=cypress)](https://cloud.cypress.io/projects/w2jgcb/runs)
+ [![CI](https://github.com/frappe/wiki/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/frappe/wiki/actions/workflows/ci.yml)
 </div>
 
 ## Introduction
@@ -31,9 +35,8 @@ Note: Wiki's master branch does not support v13 Frappe / ERPNext
 ## Features
 
 1. Create Wiki Pages
-2. Author content in Markdown or Rich Text
+2. Author content in Rich Text
 3. Set-up Controlled Wiki Updates
-4. Unlimited Sidebar Hierarchy
 5. Add attachments
 6. Table of Contents
 7. Caching
@@ -42,21 +45,10 @@ Note: Wiki's master branch does not support v13 Frappe / ERPNext
 ## Screenshots
 
 ### 1. Rendered Page
-<img width="1552" alt="wiki-rendered" src="https://user-images.githubusercontent.com/28212972/127900631-c9b1c699-4a19-4b12-953e-308786d01c17.png">
+<img width="1552" alt="wiki-rendered" src="https://github.com/frappe/wiki/assets/63963181/011e976e-b572-4d3a-82e8-374d26ecd0d0.png">
 
 ### 2. Edit Page
-<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/28212972/127900757-9a3c9994-8e4c-42bc-99dd-f710a54315bb.png">
-
-### 3. Review Edited Page
-<img width="1552" alt="wiki-new" src="https://user-images.githubusercontent.com/28212972/127900874-23664b1f-87e7-4e86-b4f3-c7e2c78ca0d7.png">
-
-### 4. Revisions
-<img width="1552" alt="wiki-revisions" src="https://user-images.githubusercontent.com/28212972/127901208-8b007e97-e779-4a5c-a097-06954e11a823.png">
-
-### 5. Compare changes
-<img width="1552" alt="wiki-compare" src="https://user-images.githubusercontent.com/28212972/127901119-d7d7c3a8-2abd-453b-9318-67ad5861c72c.png">
-
-
+<img width="1552" alt="wiki-edit" src="https://github.com/frappe/wiki/assets/63963181/339d1422-6c99-450d-9e97-7348651abe63.png">
 
 #### License
 

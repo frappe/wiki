@@ -8,3 +8,9 @@ wiki/public/css
 wiki/public/dist
 dist/
 css-rtl/
+node_modules/*
+wiki/public/node_modules
+.cypress-coverage
+cypress/screenshots
+cypress/videos
+__pycache__/

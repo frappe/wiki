@@ -1,39 +1,106 @@
-<div class="from-markdown">
+<div class="from-markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
 	<div class="d-flex justify-content-between align-items-center">
-		<h1>{{ title }}</h1>
-
+		<h1 class="wiki-title">{{ title }}</h1>
+		<div class="dropdown wiki-options">
+			<div class="dropdown-toggle" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+					class="feather feather-more-vertical">
+					<circle cx="12" cy="12" r="1"></circle>
+					<circle cx="12" cy="5" r="1"></circle>
+					<circle cx="12" cy="19" r="1"></circle>
+				</svg>
+			</div>
+			<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
+				<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
+				<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
+				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">Revisions</a>
+			</div>
+		</div>
 	</div>
-	{{ content }}
+	<div class="wiki-content">
+		{{ content }}
+	</div>
+	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
+	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
 </div>
-<div class="wiki-footer">
-	<div class="my-4 wiki-revision-meta">
-		<ul class="user-contributions">
-
-			{%- if last_revision -%}
-			{{ last_revision.raised_by_username or last_revision.owner }} edited {{ frappe.utils.pretty_date(last_revision.creation) }}
-			{%- if number_of_revisions > 0 %}
-			&middot;
-			<li><a href="/{{ path }}/revisions">{{ number_of_revisions }} Revisions</a>&nbsp;</li>
-			{%- endif -%}
-			{%- endif -%}
-			<li><a href="/{{ path }}/edit-wiki">Edit Page</a>&nbsp;</li>
-			<li><a href="/{{ path }}/new-wiki">New Page</a>&nbsp;</li>
-		</ul>
+<div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
+	{% include "wiki/doctype/wiki_page/templates/editor.html" %}
+</div>
+<div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+	  <div class="modal-content">
+		<div class="modal-header">
+			<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+		  </div>
+		  <div class="modal-body">
+			<input type="text" id="title" name="title">
+		  </div>
+		<div class="modal-footer">
+		  <button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+		</div>
+	  </div>
 	</div>
+  </div>
 
+  <div class="my-4 wiki-page-meta hide d-print-none">
+	{%- if last_revision -%}
+		<div class="user-contributions" data-date="{{ last_revision.modified }}">
+		</div>
+	{%- endif -%}
+  </div>
+  <div class="wiki-footer hide d-print-none">
 	<div class = "forward-back">
-		<a href="#" class="btn left">Left</a>
-		<a href="#" class="btn pull-right right">Right</a>
+		<a href="#" class="btn left">
+			<p>Previous Page</p>
+			<p>Left</p>
+		</a>
+		<a href="#" class="btn pull-right right">
+			<p>Next Page</p>
+			<p>Right</p></a>
+		</a>
 	</div>
 
 </div>
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+<script>
+	const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`;
+	const wikiSearchScope = `{{ wiki_search_scope or "" }}`;
+</script>
+
 {{ include_script('wiki.bundle.js') }}
 
 <script>
-	new RenderWiki();
+	function getSidebarItems() {
+		let side = {};
 
+		let items = $($(".doc-sidebar .web-sidebar").get(0))
+			.children(".sidebar-items")
+			.children("ul")
+			.not(".hidden")
+			.children("li");
+
+		items.each(function(item) {
+			name = $(this).children(".collapsible").children("span.h6").text();
+			side[name] = [];
+
+			$(this).children(".list-unstyled").children(".sidebar-item").each(function (item) {
+				side[name].push({
+					name: $(this).data('name'),
+					type: $(this).data('type'),
+					new: $(this).data('new'),
+					title: $(this).data('title'),
+					group_name: $(this).data('groupName'),
+				});
+			});
+		});
+
+		return side;
+	}
+
+	const render_wiki = new RenderWiki();
+	frappe.ready(() => render_wiki.setup_search(wikiSearchScope))
 </script>
 
 {%- if script -%}

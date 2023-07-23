@@ -5,22 +5,31 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "general_tab",
+  "theme_section",
   "logo",
-  "sidebar",
+  "add_dark_mode",
+  "dark_mode_logo",
+  "section_break_vefv",
+  "default_wiki_space",
+  "table_of_contents_section",
+  "hide_sidebar_items",
+  "enable_table_of_contents",
+  "section_break_mmtu",
+  "javascript",
+  "navbar_tab",
+  "navbar_column",
+  "navbar",
+  "section_break_skhp",
+  "search_column",
   "add_search_bar",
-  "javascript"
+  "use_redisearch_for_search"
  ],
  "fields": [
   {
    "fieldname": "logo",
    "fieldtype": "Attach Image",
-   "label": "Logo"
-  },
-  {
-   "fieldname": "sidebar",
-   "fieldtype": "Link",
-   "label": "Wiki Sidebar",
-   "options": "Wiki Sidebar"
+   "label": "Light Mode Logo"
   },
   {
    "fieldname": "javascript",
@@ -33,12 +42,98 @@
    "fieldname": "add_search_bar",
    "fieldtype": "Check",
    "label": "Add Search Bar"
+  },
+  {
+   "fieldname": "dark_mode_logo",
+   "fieldtype": "Attach Image",
+   "label": "Dark Mode Logo"
+  },
+  {
+   "default": "0",
+   "fieldname": "add_dark_mode",
+   "fieldtype": "Check",
+   "label": "Add Dark Mode"
+  },
+  {
+   "fieldname": "navbar_tab",
+   "fieldtype": "Tab Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar_column",
+   "fieldtype": "Column Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "navbar",
+   "fieldtype": "Table",
+   "label": "Navbar Items",
+   "options": "Top Bar Item"
+  },
+  {
+   "fieldname": "section_break_mmtu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "general_tab",
+   "fieldtype": "Tab Break",
+   "label": "General"
+  },
+  {
+   "default": "Wiki",
+   "fieldname": "default_wiki_space",
+   "fieldtype": "Autocomplete",
+   "label": "Default Wiki Space"
+  },
+  {
+   "fieldname": "theme_section",
+   "fieldtype": "Section Break",
+   "label": "Theme"
+  },
+  {
+   "fieldname": "section_break_vefv",
+   "fieldtype": "Section Break",
+   "label": "Wiki Space"
+  },
+  {
+   "fieldname": "table_of_contents_section",
+   "fieldtype": "Section Break",
+   "label": "Wiki Page Configs"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_table_of_contents",
+   "fieldtype": "Check",
+   "label": "Enable Table of Contents"
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_sidebar_items",
+   "fieldtype": "Check",
+   "label": "Hide Sidebar Items"
+  },
+  {
+   "fieldname": "section_break_skhp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "search_column",
+   "fieldtype": "Column Break",
+   "label": "Search"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.add_search_bar;",
+   "description": "Use Redisearch instead of Frappe Web Search for faster, accurate results",
+   "fieldname": "use_redisearch_for_search",
+   "fieldtype": "Check",
+   "label": "Use Redisearch for Search"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2021-12-01 22:43:13.548674",
+ "modified": "2023-06-27 23:00:42.995242",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
@@ -68,5 +163,6 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

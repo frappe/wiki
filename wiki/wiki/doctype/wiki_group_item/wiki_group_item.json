@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2023-04-04 18:17:37.507102",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "parent_label",
+  "wiki_page"
+ ],
+ "fields": [
+  {
+   "fieldname": "parent_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Parent Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "wiki_page",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Wiki Page",
+   "options": "Wiki Page",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2023-04-04 18:17:37.507102",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki Group Item",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

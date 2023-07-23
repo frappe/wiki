@@ -1,75 +1,46 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:route",
+ "autoname": "hash",
  "creation": "2021-05-07 01:38:50.629713",
  "doctype": "DocType",
  "document_type": "Document",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "route",
-  "title",
-  "sidebar_items"
+  "wiki_page",
+  "parent_label"
  ],
  "fields": [
   {
-   "allow_in_quick_entry": 1,
-   "fieldname": "sidebar_items",
-   "fieldtype": "Table",
-   "label": "Sidebar Items",
-   "options": "Wiki Sidebar Item"
-  },
-  {
-   "allow_in_quick_entry": 1,
-   "fieldname": "route",
+   "fieldname": "parent_label",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Sidebar Name",
-   "reqd": 1,
-   "unique": 1
+   "label": "Parent Label",
+   "reqd": 1
   },
   {
-   "allow_in_quick_entry": 1,
-   "fieldname": "title",
-   "fieldtype": "Data",
-   "label": "Title"
+   "fieldname": "wiki_page",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Wiki Page",
+   "options": "Wiki Page",
+   "reqd": 1,
+   "unique": 1
   }
  ],
+ "istable": 1,
  "links": [],
- "modified": "2021-08-21 14:21:29.147688",
+ "modified": "2023-03-11 09:35:52.824480",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Sidebar",
+ "naming_rule": "Random",
  "nsm_parent_field": "parent_wiki_sidebar",
  "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Website Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Wiki Approver",
-   "share": 1,
-   "write": 1
-  }
- ],
+ "permissions": [],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

@@ -6,32 +6,20 @@
  "engine": "InnoDB",
  "field_order": [
   "wiki_page",
-  "message",
   "new_title",
-  "new",
-  "sidebar_edited",
+  "message",
   "column_break_3",
   "raised_by",
   "status",
   "approved_by",
+  "new",
   "compare_changes_section",
-  "diff",
   "compare",
   "code",
   "orignal_code",
   "new_code",
-  "previews_section",
-  "orignal_preview",
   "new_preview_section_section",
-  "new_preview",
-  "orignal_preview_store",
-  "new_preview_store",
-  "amended_from",
-  "sidebar_section",
-  "new_sidebar_store",
-  "old_sidebar_store",
-  "new_sidebar",
-  "new_sidebar_items"
+  "amended_from"
  ],
  "fields": [
   {
@@ -68,16 +56,10 @@
    "label": "Compare Changes"
   },
   {
-   "fieldname": "diff",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Diff"
-  },
-  {
    "fieldname": "compare",
    "fieldtype": "HTML",
    "label": "Compare",
-   "options": "<div class=\"mt-6\">\n\t<div class=\"wiki-diff\">\n\t</div>\n</div>"
+   "options": "<div class=\"mt-6\">\n\t<div class=\"wiki-diff like-disabled-input\">\n\t</div>\n</div>"
   },
   {
    "fieldname": "code",
@@ -85,50 +67,13 @@
    "label": "Code"
   },
   {
-   "depends_on": "eval: !doc.new; ",
-   "fieldname": "orignal_code",
-   "fieldtype": "Code",
-   "label": "Orignal Code"
-  },
-  {
    "fieldname": "new_code",
    "fieldtype": "Code",
-   "label": "New Code"
-  },
-  {
-   "depends_on": "eval: !doc.new; ",
-   "fieldname": "previews_section",
-   "fieldtype": "Section Break",
-   "label": "Orignal Preview Section"
-  },
-  {
-   "fieldname": "orignal_preview",
-   "fieldtype": "HTML",
-   "label": "Orignal Preview",
-   "options": "<div id=\"orignal_preview\" style=\"height: 300px; overflow: auto;\"></div>"
+   "label": "New HTML"
   },
   {
    "fieldname": "new_preview_section_section",
-   "fieldtype": "Section Break",
-   "label": "New Preview Section"
-  },
-  {
-   "fieldname": "new_preview",
-   "fieldtype": "HTML",
-   "label": "New Preview",
-   "options": "<div id=\"new_preview\" style=\"height: 300px; overflow: auto;\"></div>"
-  },
-  {
-   "fieldname": "orignal_preview_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Orignal Preview Store"
-  },
-  {
-   "fieldname": "new_preview_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "New Preview Store"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "amended_from",
@@ -141,7 +86,7 @@
   },
   {
    "fieldname": "message",
-   "fieldtype": "Data",
+   "fieldtype": "Text",
    "label": "Message"
   },
   {
@@ -162,47 +107,16 @@
    "label": "New Title"
   },
   {
-   "depends_on": "eval: doc.sidebar_edited;",
-   "fieldname": "sidebar_section",
-   "fieldtype": "Section Break",
-   "label": "SIdebar"
-  },
-  {
-   "fieldname": "new_sidebar_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "New Sidebar Store"
-  },
-  {
-   "fieldname": "new_sidebar",
-   "fieldtype": "HTML",
-   "label": "New Sidebar",
-   "options": "<div style=\"height: 500px; overflow: auto; display: flex;\">\n    <div width=\"50%\">\n        <h2>New Sidebar</h2>\n        <ul id=\"new_sidebar\">. \n\n        </ul>\n    </div>\n\n    <div width=\"50%\">\n        <h2>Old Sidebar</h2>\n        <div id=\"old_sidebar\">. \n\n        </div>\n    </div>\n</div>"
-  },
-  {
-   "fieldname": "old_sidebar_store",
-   "fieldtype": "Text",
-   "hidden": 1,
-   "label": "Old Sidebar Store"
-  },
-  {
-   "fieldname": "new_sidebar_items",
+   "depends_on": "eval: !doc.new;",
+   "fieldname": "orignal_code",
    "fieldtype": "Code",
-   "hidden": 1,
-   "label": "New Sidebar Items",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "sidebar_edited",
-   "fieldtype": "Check",
-   "label": "Sidebar Edited"
+   "label": "Original HTML"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2021-11-30 13:31:31.838347",
+ "modified": "2023-07-16 22:58:51.195566",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
@@ -220,7 +134,6 @@
    "report": 1,
    "role": "System Manager",
    "select": 1,
-   "set_user_permissions": 1,
    "share": 1,
    "submit": 1,
    "write": 1
@@ -250,25 +163,18 @@
    "report": 1,
    "role": "Wiki Approver",
    "select": 1,
-   "set_user_permissions": 1,
    "share": 1,
    "submit": 1,
    "write": 1
   },
   {
-   "create": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
    "read": 1,
-   "report": 1,
-   "role": "Guest",
-   "share": 1,
-   "write": 1
+   "role": "Guest"
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "title_field": "message",
  "track_changes": 1,
  "track_seen": 1,
