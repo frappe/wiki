@@ -4,6 +4,20 @@
 frappe.ui.form.on("Wiki Settings", {
   refresh: function (frm) {
     frm.add_web_link("/wiki", __("See on website"));
+
+    frm.add_custom_button("Clear Wiki Page Cache", () => {
+      frm.call({
+        method: "clear_wiki_page_cache",
+        callback: (r) => {
+          if (r.message) {
+            frappe.show_alert({
+              message: "Wiki Page Cache Cleared",
+              indicator: "blue",
+            });
+          }
+        },
+      });
+    });
   },
 
   onload: function (frm) {
