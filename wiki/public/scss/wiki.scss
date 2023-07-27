@@ -1047,8 +1047,9 @@ p {
 			line-height: 1.25rem;
 		}
 
-		input:focus, textarea:focus {
+		input, textarea {
 			background-color: var(--searchbar-color);
+			color: var(--text-color);
 		}
 	}
 
