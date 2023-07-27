@@ -93,6 +93,7 @@ class WikiPage(WebsiteGenerator):
 		Kanged from frappe.utils.html_utils.sanitize_html to allow only iframes with youtube embeds
 		"""
 		import bleach
+		from bleach.css_sanitizer import CSSSanitizer
 		from bs4 import BeautifulSoup
 
 		html = self.content
@@ -115,12 +116,14 @@ class WikiPage(WebsiteGenerator):
 				return True
 			return name in acceptable_attributes
 
+		css_sanitizer = CSSSanitizer(bleach_allowlist.all_styles)
+
 		# returns html with escaped tags, escaped orphan >, <, etc.
 		escaped_html = bleach.clean(
 			html,
-			tags=tags,
+			tags=set(tags),
 			attributes={"*": attributes_filter, "svg": svg_attributes},
-			styles=bleach_allowlist.all_styles,
+			css_sanitizer=css_sanitizer,
 			strip_comments=False,
 			protocols=["cid", "http", "https", "mailto"],
 		)
@@ -153,6 +156,14 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def verify_permission(self, permtype):
+		if wiki_space_name := frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent"):
+			space = frappe.get_doc("Wiki Space", wiki_space_name)
+			if not space.roles or "All" in space.roles:
+				pass
+			elif [x for x in frappe.get_roles() if x in space.roles]:
+				print("User has access to this page")
+				# TODO: make sure user without access can't access from desk too
+
 		if permtype == "read" and self.allow_guest:
 			return True
 		permitted = frappe.has_permission(self.doctype, permtype, self)
