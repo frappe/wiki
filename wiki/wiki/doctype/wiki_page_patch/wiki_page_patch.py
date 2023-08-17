@@ -60,7 +60,7 @@ class WikiPagePatch(Document):
 		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
 
 	def update_sidebars(self):
-		if not self.new_sidebar_items:
+		if not hasattr(self, "new_sidebar_items") or not self.new_sidebar_items:
 			self.new_sidebar_items = "{}"
 
 		sidebars = json.loads(self.new_sidebar_items)
