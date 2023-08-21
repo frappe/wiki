@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import frappe
 from bleach_allowlist import bleach_allowlist
 from frappe import _
-from frappe.core.doctype.file.file import get_random_filename
+from frappe.core.doctype.file.utils import get_random_filename
 from frappe.utils.data import sbool
 from frappe.utils.html_utils import (
 	acceptable_attributes,

@@ -6,7 +6,7 @@ import os
 import shutil
 
 import frappe
-from frappe.core.doctype.file.file import get_content_hash, get_file_name
+from frappe.core.doctype.file.utils import get_content_hash, get_file_name
 from frappe.model.document import Document
 
 
