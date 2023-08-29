@@ -183,7 +183,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     var _anchors = null;
     function anchors() {
       if (!_anchors) {
-        _anchors = $(".page-toc a").map(function () {
+        _anchors = $(".page-toc .list-unstyled a").map(function () {
           return $(this).attr("href");
         });
       }
