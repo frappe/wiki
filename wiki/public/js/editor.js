@@ -11,6 +11,8 @@ import { Editor, InputRule } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import TableHeader from "@tiptap/extension-table-header";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
 
 const CustomDocument = Document.extend({
   content: "heading block*",
@@ -109,6 +111,10 @@ const editor = new Editor({
     }),
     CodeBlockLowlight.configure({
       lowlight,
+    }),
+    TaskList,
+    TaskItem.configure({
+      nested: true,
     }),
   ],
   inputRules: [disableMarkdownShortcut("#", "#")],
