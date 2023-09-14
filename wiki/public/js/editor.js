@@ -116,7 +116,8 @@ const editor = new Editor({
     TaskItem.configure({
       nested: true,
       //Save state when task-item is updated in View mode
-      onReadOnlyChecked: () => true,
+      //TODO: Enable once ueberdosis/tiptap#3676 is fixed
+      //onReadOnlyChecked: () => true,
     }),
   ],
   inputRules: [disableMarkdownShortcut("#", "#")],
@@ -416,4 +417,12 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
 $(".edit-wiki-btn").on("click", () => {
   editor.commands.setContent(getContent());
   editor.commands.focus("start");
+});
+
+// TODO: Remove once ueberdosis/tiptap#3676 is fixed
+$('ul[data-type=taskList] input[type=checkbox]').click(function(){
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if(!urlParams.get("newWiki") && !urlParams.get("editWiki"))
+      return false;
 });
