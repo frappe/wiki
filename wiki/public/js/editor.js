@@ -115,6 +115,8 @@ const editor = new Editor({
     TaskList,
     TaskItem.configure({
       nested: true,
+      //Save state when task-item is updated in View mode
+      onReadOnlyChecked: () => true,
     }),
   ],
   inputRules: [disableMarkdownShortcut("#", "#")],
