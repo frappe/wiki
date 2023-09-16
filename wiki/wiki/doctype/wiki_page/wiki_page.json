@@ -113,7 +113,7 @@
    "link_fieldname": "wiki_page"
   }
  ],
- "modified": "2023-06-05 10:34:03.810229",
+ "modified": "2023-09-16 09:44:36.699353",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page",
@@ -145,6 +145,7 @@
    "write": 1
   }
  ],
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
