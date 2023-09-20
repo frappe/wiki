@@ -487,6 +487,11 @@ $font-sizes-mobile: (
 	code {
 		padding: 0.75rem 1rem;
 	}
+
+	// tiptap task-list
+	ul[data-type="taskList"] p {
+		margin: 0 !important;
+	}
 }
 
 // button
@@ -501,3 +506,45 @@ $font-sizes-mobile: (
 	background-color: #0b5ed7;
 	border-color: #0a58ca;
 }
+
+// tiptap task-list
+ul[data-type="taskList"] {
+	list-style: none;
+	padding: 0;
+
+	p {
+	  margin: 0;
+	}
+
+	li {
+	  display: flex;
+
+	  > label {
+		flex: 0 0 auto;
+		margin-right: 0.25rem;
+		margin-bottom: 0;
+		user-select: none;
+	  }
+
+	  > div {
+		flex: 1 1 auto;
+	  }
+
+	  ul li,
+	  ol li {
+		  display: list-item;
+	  }
+
+	  ul[data-type="taskList"] > li {
+		  display: flex;
+	  }
+
+	  input {
+		color: #000;
+		margin: .1rem;
+		margin-top: 0.4rem;
+		border: 1.25px solid black;
+		accent-color: black;
+	  }
+	}
+  }
