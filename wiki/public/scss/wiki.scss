@@ -651,6 +651,10 @@ body.dark {
 		h2 {
 			margin-top: 2.5rem;
 		}
+
+		ul[data-type="taskList"] input {
+			margin-top: 0;
+		}
 	}
 	@include media-breakpoint-down(md) {
 		width: auto;

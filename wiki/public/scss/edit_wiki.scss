@@ -521,7 +521,8 @@ ul[data-type="taskList"] {
 
 	  > label {
 		flex: 0 0 auto;
-		margin-right: 0.5rem;
+		margin-right: 0.25rem;
+		margin-bottom: 0;
 		user-select: none;
 	  }
 
@@ -536,6 +537,14 @@ ul[data-type="taskList"] {
 
 	  ul[data-type="taskList"] > li {
 		  display: flex;
+	  }
+
+	  input {
+		color: #000;
+		margin: .1rem;
+		margin-top: 0.4rem;
+		border: 1.25px solid black;
+		accent-color: black;
 	  }
 	}
   }
