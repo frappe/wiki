@@ -49,6 +49,9 @@ const saveWikiPage = (draft = false) => {
   const isEmptyEditor = !!urlParams.get("newWiki");
 
   const title = $(`.wiki-editor .ProseMirror h1`).html();
+  // mock tiptap edit mode for task-list
+  // will be made redundant once editor.getHTML() is used to load content for saving
+  $('[data-type="taskList"] > li').attr('data-type', 'taskItem');
   // markdown=1 tag is needed for older wiki content to properly render
   // TODO: use editor.getHTML() instead of this when ueberdosis/tiptap#4044 is fixed
   const content = `<div markdown="1">${$(".editor-space .ProseMirror")
