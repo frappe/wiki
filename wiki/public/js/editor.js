@@ -11,8 +11,8 @@ import { Editor, InputRule } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import TableHeader from "@tiptap/extension-table-header";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import TaskItem from '@tiptap/extension-task-item';
-import TaskList from '@tiptap/extension-task-list';
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 
 const CustomDocument = Document.extend({
   content: "heading block*",
@@ -51,7 +51,7 @@ const saveWikiPage = (draft = false) => {
   const title = $(`.wiki-editor .ProseMirror h1`).html();
   // mock tiptap edit mode for task-list
   // will be made redundant once editor.getHTML() is used to load content for saving
-  $('[data-type="taskList"] > li').attr('data-type', 'taskItem');
+  $('[data-type="taskList"] > li').attr("data-type", "taskItem");
   // markdown=1 tag is needed for older wiki content to properly render
   // TODO: use editor.getHTML() instead of this when ueberdosis/tiptap#4044 is fixed
   const content = `<div markdown="1">${$(".editor-space .ProseMirror")
@@ -423,9 +423,8 @@ $(".edit-wiki-btn").on("click", () => {
 });
 
 // TODO: Remove once ueberdosis/tiptap#3676 is fixed
-$('ul[data-type=taskList] input[type=checkbox]').click(function(){
-    const urlParams = new URLSearchParams(window.location.search);
+$("ul[data-type=taskList] input[type=checkbox]").click(function () {
+  const urlParams = new URLSearchParams(window.location.search);
 
-    if(!urlParams.get("newWiki") && !urlParams.get("editWiki"))
-      return false;
+  if (!urlParams.get("newWiki") && !urlParams.get("editWiki")) return false;
 });
