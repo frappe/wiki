@@ -37,7 +37,7 @@ body {
 	--editor-button-text-color: var(--gray-700);
 	--editor-hover-button-color: var(--gray-100);
 
-// ------------------------------------------
+	// ------------------------------------------
 
 	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
 		"Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
@@ -150,6 +150,7 @@ body.dark {
 
 .revision-message {
 	display: inline;
+
 	@include media-breakpoint-down(sm) {
 		display: block;
 	}
@@ -167,10 +168,10 @@ body.dark {
 }
 
 .web-sidebar {
-	.list-unstyled:first-child > * {
+	.list-unstyled:first-child>* {
 		padding: 0.75rem 0;
 
-		&::before{
+		&::before {
 			content: '';
 			position: relative;
 			top: -0.75rem;
@@ -216,7 +217,7 @@ body.dark {
 		}
 	}
 
-	> ul {
+	>ul {
 		padding-left: 0;
 		margin-bottom: 0;
 	}
@@ -236,6 +237,7 @@ body.dark {
 
 	div {
 		cursor: pointer;
+
 		.h6 {
 			font-size: $font-size-sm;
 			margin-bottom: 0;
@@ -371,7 +373,7 @@ body.dark {
 	}
 
 	.dropdown-menu {
-	    position: sticky;
+		position: sticky;
 		border: 1px solid var(--border-color);
 
 		.dropdown-item {
@@ -438,7 +440,7 @@ body.dark {
 }
 
 #searchModal {
-	> div:first-child {
+	>div:first-child {
 		margin-top: 5rem;
 	}
 
@@ -501,7 +503,8 @@ body.dark {
 			background-color: unset;
 		}
 
-		&:focus, &:hover {
+		&:focus,
+		&:hover {
 			background-color: var(--active-item-color);
 		}
 
@@ -521,7 +524,8 @@ body.dark {
 	}
 
 	.wiki-navbar-container {
-		padding: 1.2rem 0 1rem;;
+		padding: 1.2rem 0 1rem;
+		;
 		margin-left: 1rem;
 		background-color: var(--background-color);
 		box-shadow: 20px 5px 14px 8px var(--background-color);
@@ -612,7 +616,8 @@ body.dark {
 	.dropdown-item {
 		color: var(--text-color);
 
-		&:active, &:hover {
+		&:active,
+		&:hover {
 			background-color: var(--sidebar-hover-color);
 			color: var(--text-color);
 		}
@@ -631,7 +636,7 @@ body.dark {
 	}
 }
 
-.wiki-content .from-markdown > :first-child {
+.wiki-content .from-markdown> :first-child {
 	margin-top: 0;
 }
 
@@ -656,6 +661,7 @@ body.dark {
 			margin-top: 0;
 		}
 	}
+
 	@include media-breakpoint-down(md) {
 		width: auto;
 		margin: unset;
@@ -668,7 +674,13 @@ body.dark {
 
 // TODO: clear this when website related css is removed
 .wiki-page-content .from-markdown {
-	h1, h2, h3, h4, h5, h6{
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
 		&::before {
 			height: 0;
 			margin-top: 0;
@@ -707,7 +719,7 @@ h6:hover .feather-link {
 
 	#wikiOptionsButton::after {
 		display: none;
-	  }
+	}
 
 	.dropdown-menu {
 		min-width: 7.5rem;
@@ -719,7 +731,7 @@ h6:hover .feather-link {
 	border-radius: 5px;
 }
 
-.dark .wiki-options:hover{
+.dark .wiki-options:hover {
 	background-color: var(--gray-700);
 }
 
@@ -777,6 +789,7 @@ h6:hover .feather-link {
 		color: var(--sidebar-text-color);
 		transform: translateX(-1px);
 	}
+
 	a:hover:not(.active) {
 		color: var(--toc-hover-text-color);
 	}
@@ -803,7 +816,8 @@ navbar
 	.navbar-expand-lg {
 		width: 100%;
 		position: fixed;
-		top: 0; /*ensure navbar stays affixes to the top*/
+		top: 0;
+		/*ensure navbar stays affixes to the top*/
 		left: 0;
 		right: 0;
 	}
@@ -853,11 +867,12 @@ navbar
 		padding-top: 0;
 	}
 
-	.web-sidebar > a {
+	.web-sidebar>a {
 		display: none;
 	}
 
 	.wiki-footer {
+
 		.btn.left,
 		.btn.right {
 			width: 100%;
@@ -873,6 +888,7 @@ navbar
 			width: 140%;
 		}
 	}
+
 	.search-nav-item {
 		height: 2.2rem;
 	}
@@ -931,19 +947,19 @@ navbar
 
 .count {
 	font-size: var(--text-xs);
-    background-color: var(--gray-500);
-    border-radius: var(--border-radius-sm);
-    color: var(--gray-50);
-    padding: 0 var(--padding-xs);
+	background-color: var(--gray-500);
+	border-radius: var(--border-radius-sm);
+	color: var(--gray-50);
+	padding: 0 var(--padding-xs);
 	float: right;
 	margin-top: 2px;
 }
 
-img::after{
+img::after {
 	content: '';
 }
 
-img[alt]::after{
+img[alt]::after {
 	width: unset;
 	height: unset;
 }
@@ -1004,6 +1020,7 @@ h4 {
 	@include media-breakpoint-up(sm) {
 		margin-top: 2.5rem;
 	}
+
 	a {
 		color: $body-color;
 	}
@@ -1051,7 +1068,8 @@ p {
 			line-height: 1.25rem;
 		}
 
-		input, textarea {
+		input,
+		textarea {
 			background-color: var(--searchbar-color);
 			color: var(--text-color);
 		}
@@ -1091,7 +1109,7 @@ p {
 	.modal-body {
 		padding: 1rem;
 
-		.wiki-content{
+		.wiki-content {
 			min-height: unset;
 		}
 	}
@@ -1110,7 +1128,9 @@ p {
 }
 
 del {
-	&.diffmod, &.diffdel {
+
+	&.diffmod,
+	&.diffdel {
 		* {
 			border: 4px var(--htmldiff-del-color) solid !important;
 			border-radius: 5px;
@@ -1121,7 +1141,9 @@ del {
 }
 
 ins {
-	&.diffmod, &.diffins {
+
+	&.diffmod,
+	&.diffins {
 		* {
 			border: 4px var(--htmldiff-ins-color) solid !important;
 			border-radius: 5px;

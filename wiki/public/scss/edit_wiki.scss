@@ -10,7 +10,7 @@ body.dark {
 	--editor-line-no-bg-color: var(--gray-800);
 	--control-bg-on-gray: var(--gray-700);
 
-	.draft-wiki-page{
+	.draft-wiki-page {
 		background: var(--gray-700);
 		color: var(--gray-50);
 	}
@@ -107,17 +107,17 @@ $font-sizes-mobile: (
 		}
 	}
 
-	li > ul,
-	li > ol {
+	li>ul,
+	li>ol {
 		padding-left: 1.5rem;
 	}
 
-	ul > li:first-child {
+	ul>li:first-child {
 		margin-top: 3px !important;
 	}
 
-	ul > * + *,
-	ol > * + * {
+	ul>*+*,
+	ol>*+* {
 		margin-top: 2px !important;
 	}
 
@@ -170,13 +170,13 @@ $font-sizes-mobile: (
 		}
 
 		// for byline
-		& + p {
+		&+p {
 			margin-top: 1.5rem !important;
 			line-height: 1.4;
 		}
 	}
 
-	& > p {
+	&>p {
 		margin-top: 1.5rem !important;
 	}
 
@@ -227,8 +227,8 @@ $font-sizes-mobile: (
 		margin-top: 1rem !important;
 	}
 
-	tr > td,
-	tr > th {
+	tr>td,
+	tr>th {
 		font-size: $font-size-sm;
 		padding: 0.5rem;
 	}
@@ -243,14 +243,14 @@ $font-sizes-mobile: (
 		margin-top: 0.5rem !important;
 	}
 
-	.screenshot + em {
+	.screenshot+em {
 		text-align: center;
 		display: block;
 		margin-top: 0.5rem !important;
 		margin-bottom: 2rem !important;
 	}
 
-	p > code:not(.hljs) {
+	p>code:not(.hljs) {
 		padding: 0 0.25rem;
 		background-color: var(--code-bg-color);
 		color: var(--code-text-color);
@@ -275,7 +275,7 @@ $font-sizes-mobile: (
 			position: relative;
 
 			>* {
-			margin-bottom: 0;
+				margin-bottom: 0;
 			}
 		}
 
@@ -361,13 +361,17 @@ $font-sizes-mobile: (
 			background: none !important;
 
 			del {
-				&.diffmod, &.diffdel {
+
+				&.diffmod,
+				&.diffdel {
 					background-color: #8B0000;
 				}
 			}
 
 			ins {
-				&.diffmod, &.diffins {
+
+				&.diffmod,
+				&.diffins {
 					background-color: #006400;
 				}
 			}
@@ -387,6 +391,7 @@ $font-sizes-mobile: (
 	h1 {
 		margin-top: 0.75rem;
 	}
+
 	button:not(.btn-primary) {
 		all: unset;
 		cursor: pointer;
@@ -465,7 +470,7 @@ $font-sizes-mobile: (
 			margin-left: auto;
 			display: inline-flex;
 
-			> * {
+			>* {
 				margin: 0.5rem 0.25rem;
 			}
 		}
@@ -479,7 +484,7 @@ $font-sizes-mobile: (
 		max-width: calc(100vw - 3rem);
 	}
 
-	div > p:first-child {
+	div>p:first-child {
 		margin-top: 1.5rem !important;
 		line-height: 1.4;
 	}
@@ -503,8 +508,8 @@ $font-sizes-mobile: (
 
 .btn.btn-primary:hover {
 	color: #fff;
-	background-color: #0b5ed7;
-	border-color: #0a58ca;
+	background-color: #383838;
+	border-color: #383838;
 }
 
 // tiptap task-list
@@ -513,38 +518,38 @@ ul[data-type="taskList"] {
 	padding: 0;
 
 	p {
-	  margin: 0;
+		margin: 0;
 	}
 
 	li {
-	  display: flex;
+		display: flex;
 
-	  > label {
-		flex: 0 0 auto;
-		margin-right: 0.25rem;
-		margin-bottom: 0;
-		user-select: none;
-	  }
+		>label {
+			flex: 0 0 auto;
+			margin-right: 0.25rem;
+			margin-bottom: 0;
+			user-select: none;
+		}
 
-	  > div {
-		flex: 1 1 auto;
-	  }
+		>div {
+			flex: 1 1 auto;
+		}
 
-	  ul li,
-	  ol li {
-		  display: list-item;
-	  }
+		ul li,
+		ol li {
+			display: list-item;
+		}
 
-	  ul[data-type="taskList"] > li {
-		  display: flex;
-	  }
+		ul[data-type="taskList"]>li {
+			display: flex;
+		}
 
-	  input {
-		color: #000;
-		margin: .1rem;
-		margin-top: 0.4rem;
-		border: 1.25px solid black;
-		accent-color: black;
-	  }
+		input {
+			color: #000;
+			margin: .1rem;
+			margin-top: 0.4rem;
+			border: 1.25px solid black;
+			accent-color: black;
+		}
 	}
-  }
+}
