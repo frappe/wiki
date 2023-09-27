@@ -17,7 +17,7 @@ body {
 	--btn-secondary-hover-color: var(--gray-300);
 
 	--active-item-color: #f1f1f0;
-	--active-item-text-color: $primary;
+	--active-item-text-color: var(--primary);
 
 	--searchbar-color: #f4f5f6;
 	--border-color: var(--gray-300);
@@ -50,6 +50,9 @@ body {
 
 body.dark {
 	// dark mode vars
+
+	--primary: var(--gray-100);
+
 	--background-color: var(--gray-800);
 	--text-color: var(--gray-50);
 	--sidebar-bg-color: var(--gray-900);
@@ -85,6 +88,11 @@ body.dark {
 
 	--editor-button-text-color: var(--gray-400);
 	--editor-hover-button-color: var(--gray-700);
+
+	.navbar .navbar-toggler-icon {
+		background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+	}
+
 }
 
 .nav-tabs {
@@ -231,7 +239,7 @@ body.dark {
 
 	.active {
 		border-radius: 4px;
-		color: $primary;
+		color: var(--primary);
 		background-color: #ebf5ff;
 	}
 
@@ -412,7 +420,7 @@ body.dark {
 			background-color: var(--searchbar-color);
 
 			&:hover {
-				border-color: $primary;
+				border-color: var(--primary);
 			}
 
 			kbd {
@@ -790,7 +798,7 @@ h6:hover .feather-link {
 		transform: translateX(-1px);
 	}
 
-	a:hover:not(.active) {
+	a:hover {
 		color: var(--toc-hover-text-color);
 	}
 }
@@ -830,7 +838,7 @@ navbar
 		display: block;
 
 		&:hover {
-			color: $primary;
+			color: var(--primary);
 			text-decoration: none;
 		}
 	}

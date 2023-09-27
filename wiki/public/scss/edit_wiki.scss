@@ -76,6 +76,11 @@ $font-sizes-mobile: (
 		margin-bottom: 0 !important;
 	}
 
+	a:not(.dropdown-item) {
+		color: var(--text-color);
+		text-decoration: underline;
+	}
+
 	p {
 		color: var(--text-color);
 	}
@@ -548,8 +553,17 @@ ul[data-type="taskList"] {
 			color: #000;
 			margin: .1rem;
 			margin-top: 0.4rem;
-			border: 1.25px solid black;
+			border: 1px solid var(--gray-500);
 			accent-color: black;
+
+			&:checked {
+				background-color: var(--primary);
+				background-image: url("data:image/svg+xml, <svg viewBox='0 0 8 7' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 4.00001L2.66667 5.80001L7 1.20001' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"), var(--checkbox-gradient);
+				background-size: 57%, 100%;
+				box-shadow: none;
+				border: none;
+			}
 		}
+
 	}
 }
