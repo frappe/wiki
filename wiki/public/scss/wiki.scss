@@ -844,6 +844,11 @@ navbar
 		}
 	}
 
+	.logged-in {
+		display: flex;
+		align-items: center;
+	}
+
 	.logged-in .nav-avatar {
 		padding-left: 0;
 	}
