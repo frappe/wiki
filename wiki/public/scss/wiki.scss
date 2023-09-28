@@ -39,13 +39,10 @@ body {
 
 	// ------------------------------------------
 
-	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-		"Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-		sans-serif;
-
-	background-color: var(--background-color);
-	color: var(--text-color);
-	height: auto;
+	font-family: var(--font-stack);
+	// background-color: var(--sidebar-bg-color);
+	// color: var(--text-color);
+	// height: auto;
 }
 
 body.dark {
@@ -85,6 +82,209 @@ body.dark {
 
 	--editor-button-text-color: var(--gray-400);
 	--editor-hover-button-color: var(--gray-700);
+}
+
+
+// sidebar
+.sidebar-column {
+	background-color: var(--sidebar-bg-color);
+	width: 17rem;
+	height: calc(100vh - 72px)
+}
+
+.sortable-chosen,
+.sortable-chosen div,
+.sortable-chosen div a {
+	cursor: grabbing !important;
+}
+
+.web-sidebar {
+	.list-unstyled:first-child>* {
+		// padding: 0.75rem 0;
+
+		// &::before {
+		// 	content: '';
+		// 	position: relative;
+		// 	top: -0.75rem;
+		// 	left: 0.5rem;
+		// 	border-top: 1px solid var(--border-color);
+		// 	width: 99.8%;
+		// 	display: block;
+
+		// 	@include media-breakpoint-down(md) {
+		// 		width: 95%;
+		// 	}
+		// }
+
+		&:first-child {
+			border-top: 0;
+		}
+	}
+}
+
+.sidebar-group {
+	margin: 0;
+	padding-top: 1rem;
+	padding-bottom: 1rem;
+
+	font-style: normal;
+	font-weight: 500;
+	font-size: $font-size-base;
+	line-height: 1.5;
+	/* identical to box height, or 28px */
+
+	letter-spacing: -0.011em;
+
+	.list-unstyled:empty::after {
+		margin: 0.5rem;
+		font-size: 12px;
+		font-weight: 400;
+		font-style: italic;
+		color: var(--sidebar-text-color);
+		content: "This Wiki Group will be deleted automatically";
+	}
+
+	ul.list-unstyled {
+		ul {
+			padding-left: 0;
+		}
+	}
+
+	>ul {
+		padding-left: 0;
+		margin-bottom: 0;
+	}
+
+	.collapsible {
+		padding: 4px 0.5rem;
+		display: flex;
+		align-items: center;
+		width: 100%;
+	}
+
+	.active {
+		border-radius: 4px;
+		color: $primary;
+		background-color: #ebf5ff;
+	}
+
+	div {
+		cursor: pointer;
+
+		.h6 {
+			font-size: $font-size-sm;
+			margin-bottom: 0;
+			line-height: 1.5rem;
+			color: var(--text-color);
+			font-weight: 700;
+		}
+	}
+
+	.sidebar-item {
+		a {
+			margin: 0;
+			font-weight: 500;
+			width: 100%;
+		}
+	}
+
+	.drop-icon,
+	.add-sidebar-page {
+		cursor: pointer;
+		display: inline-flex;
+		margin: 0;
+		margin-left: auto;
+		transition: transform 0.2s ease-in-out;
+		transform: rotate(0deg);
+
+		&.rotate {
+			transform: rotate(-90deg);
+		}
+
+		&:hover {
+			color: var(--sidebar-text-hover-color);
+		}
+	}
+}
+
+
+// hover bg only on edit mode
+.sidebar-group:not(.disabled) .collapsible,
+.sidebar-item:not(.disabled) {
+	&:hover {
+		background-color: var(--sidebar-hover-color);
+	}
+}
+
+.sidebar-group .collapsible,
+.sidebar-item {
+	color: var(--sidebar-text-color);
+
+	&:hover:not(.active) {
+		color: var(--sidebar-text-hover-color);
+		border-radius: 4px;
+	}
+}
+
+.sidebar-item.active {
+	background-color: transparent;
+	border-radius: 4px;
+
+	a {
+		background-color: transparent;
+		color: var(--active-item-text-color);
+	}
+}
+
+.sidebar-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+
+	a {
+		color: inherit;
+		margin-top: 0 !important;
+	}
+
+	a:hover {
+		color: inherit;
+	}
+}
+
+.sm-sidebar .web-sidebar {
+	padding-bottom: 2rem;
+}
+
+
+.doc-sidebar {
+	height: 100%;
+	margin-bottom: 0;
+
+	.web-sidebar {
+		display: flex;
+		position: relative;
+		flex-direction: column;
+		padding: 0;
+		overflow-x: hidden;
+
+		.sidebar-items {
+			width: 100%;
+			padding-left: 1.5rem;
+			padding-right: 1.5rem;
+			padding-bottom: 1.5rem;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			height: 100%;
+		}
+	}
+}
+
+@media (min-width: 992px) {
+	.doc-sidebar {
+		top: 0;
+		padding-bottom: 0;
+	}
 }
 
 .nav-tabs {
@@ -156,210 +356,6 @@ body.dark {
 	}
 }
 
-// sidebar
-.sidebar-column {
-	margin-top: -4.5rem;
-}
-
-.sortable-chosen,
-.sortable-chosen div,
-.sortable-chosen div a {
-	cursor: grabbing !important;
-}
-
-.web-sidebar {
-	.list-unstyled:first-child>* {
-		padding: 0.75rem 0;
-
-		&::before {
-			content: '';
-			position: relative;
-			top: -0.75rem;
-			left: 0.5rem;
-			border-top: 1px solid var(--border-color);
-			width: 99.8%;
-			display: block;
-
-			@include media-breakpoint-down(md) {
-				width: 95%;
-			}
-		}
-
-		&:first-child {
-			padding-top: 0.7rem;
-			border-top: 0;
-		}
-	}
-}
-
-.sidebar-group {
-	margin: 0;
-	font-style: normal;
-	font-weight: 500;
-	font-size: $font-size-base;
-	line-height: 1.5;
-	/* identical to box height, or 28px */
-
-	letter-spacing: -0.011em;
-
-	.list-unstyled:empty::after {
-		margin: 0.5rem;
-		font-size: 12px;
-		font-weight: 400;
-		font-style: italic;
-		color: var(--sidebar-text-color);
-		content: "This Wiki Group will be deleted automatically";
-	}
-
-	ul.list-unstyled {
-		ul {
-			padding-left: 0;
-		}
-	}
-
-	>ul {
-		padding-left: 0;
-		margin-bottom: 0;
-	}
-
-	.collapsible {
-		padding: 4px 0.5rem;
-		display: flex;
-		align-items: center;
-		width: 100%;
-	}
-
-	.active {
-		border-radius: 4px;
-		color: $primary;
-		background-color: #ebf5ff;
-	}
-
-	div {
-		cursor: pointer;
-
-		.h6 {
-			font-size: $font-size-sm;
-			margin-bottom: 0;
-			line-height: 1.5rem;
-			color: var(--text-color);
-			font-weight: 700;
-		}
-	}
-
-	.sidebar-item {
-		a {
-			margin: 0;
-			font-weight: 500;
-			width: 100%;
-		}
-	}
-
-	.drop-icon,
-	.add-sidebar-page {
-		cursor: pointer;
-		display: inline-flex;
-		margin: 4px 5px 2.5px auto;
-		transition: transform 0.2s ease-in-out;
-		transform: rotate(0deg);
-
-		&.rotate {
-			transform: rotate(-90deg);
-		}
-
-		&:hover {
-			color: var(--sidebar-text-hover-color);
-		}
-	}
-}
-
-
-// hover bg only on edit mode
-.sidebar-group:not(.disabled) .collapsible,
-.sidebar-item:not(.disabled) {
-	&:hover {
-		background-color: var(--sidebar-hover-color);
-	}
-}
-
-.sidebar-group .collapsible,
-.sidebar-item {
-	margin: 1px 0;
-	color: var(--sidebar-text-color);
-
-	&:hover:not(.active) {
-		color: var(--sidebar-text-hover-color);
-		border-radius: 4px;
-	}
-}
-
-.sidebar-item.active {
-	background-color: transparent;
-	border-radius: 4px;
-
-	a {
-		background-color: transparent;
-		color: var(--active-item-text-color);
-	}
-}
-
-.sidebar-item {
-	display: flex;
-
-	a {
-		color: inherit;
-		margin-top: 0 !important;
-	}
-
-	:first-child {
-		margin-right: auto;
-	}
-
-	a:hover {
-		color: inherit;
-	}
-}
-
-.sm-sidebar .web-sidebar {
-	padding-bottom: 2rem;
-}
-
-.web-sidebar {
-	position: relative;
-}
-
-.doc-sidebar {
-	height: 100vh;
-	margin-bottom: 0;
-
-	.web-sidebar {
-		display: flex;
-		flex-direction: column;
-		margin-bottom: 8px;
-		margin-right: -0.5rem;
-		padding-top: 0;
-		padding-bottom: 0;
-		overflow-x: hidden;
-		margin-left: 2rem;
-
-		.sidebar-items {
-			width: 18rem;
-			padding-top: 4.5rem;
-			margin-bottom: auto;
-
-			.list-unstyled {
-				max-width: 16rem;
-			}
-		}
-	}
-}
-
-@media (min-width: 992px) {
-	.doc-sidebar {
-		top: 0;
-		padding-bottom: 0;
-	}
-}
 
 // navbar
 .navbar-nav {
@@ -568,40 +564,30 @@ body.dark {
 }
 
 
-.doc-layout {
-	padding-top: 0rem;
-	margin: 0;
-	max-width: 100%;
-}
-
 .navbar-brand {
-	padding-bottom: 1rem;
 	color: var(--text-color) !important;
+	padding: 1rem 2rem;
 	border-bottom: 1px solid var(--border-color);
-	width: 16rem;
-	margin-right: 0.5rem;
+	width: 17rem;
+	margin-right: 0;
 
 	@include media-breakpoint-down(md) {
+		width: auto;
 		border-bottom: unset;
-	}
-
-	img {
-		max-height: 18px;
-	}
-}
-
-.container-fluid.doc-layout.doc-container {
-	@include media-breakpoint-down(md) {
-		border-bottom: 1px solid var(--border-color);
+		padding: 0;
+		padding-bottom: 1rem;
 	}
 }
 
 .navbar-brand-container {
-	padding: 1.4rem 0 0 2.5rem;
+	// padding: 1.4rem 0 0 2rem;
 	background-color: var(--sidebar-bg-color);
 	position: sticky;
 	top: 0;
 	z-index: 5;
+	height: 100%;
+	display: flex;
+	align-items: center;
 
 	@include media-breakpoint-down(md) {
 		max-width: 14rem;
@@ -626,14 +612,13 @@ body.dark {
 
 // main-content
 .main-column {
+	height: calc(100vh - 72px);
+	overflow-y: scroll;
 	background-color: var(--background-color);
 	flex: 8;
 	text-align: left;
-	margin: 0 2rem;
-
-	@include media-breakpoint-down(md) {
-		margin: 1rem;
-	}
+	display: flex;
+	flex-direction: column;
 }
 
 .wiki-content .from-markdown> :first-child {
@@ -641,7 +626,7 @@ body.dark {
 }
 
 .wiki-page-content {
-	max-width: 750px;
+	width: 750px;
 	margin: 0 auto;
 
 	.from-markdown {
@@ -664,7 +649,6 @@ body.dark {
 
 	@include media-breakpoint-down(md) {
 		width: auto;
-		margin: unset;
 	}
 }
 
@@ -745,7 +729,7 @@ h6:hover .feather-link {
 	overflow-x: hidden;
 	overflow-y: auto;
 	scrollbar-width: none;
-	height: 90vh;
+	height: calc(100vh - 72px);
 
 	&::-webkit-scrollbar {
 		display: none;
@@ -793,11 +777,6 @@ h6:hover .feather-link {
 	a:hover:not(.active) {
 		color: var(--toc-hover-text-color);
 	}
-}
-
-.doc-sidebar {
-	padding-right: 0.5rem;
-	background-color: var(--sidebar-bg-color);
 }
 
 .user-contributions {
@@ -906,19 +885,32 @@ navbar
 .sidebar-view-mode-btn,
 .add-sidebar-group {
 	cursor: pointer;
-	margin: auto;
 	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 
-	svg {
-		margin-bottom: 0.1rem;
+	&:hover {
+		color: var(--gray-800) !important;
 	}
+
+	// svg {
+	// 	margin-bottom: 0.1rem;
+	// }
 }
 
 .sidebar-options {
 	bottom: 0;
 	position: sticky;
 	padding: 0.5rem;
+	display: flex;
+	flex-direction: column;
 	background-color: var(--sidebar-bg-color);
+	gap: 0.5rem;
+
+	@include media-breakpoint-down(md) {
+		background-color: transparent;
+	}
 }
 
 .web-footer {
