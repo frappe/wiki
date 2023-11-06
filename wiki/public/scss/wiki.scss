@@ -29,7 +29,8 @@ body {
 	--code-text-color: var(--purple-600);
 
 	--sidebar-text-color: var(--gray-600);
-	--sidebar-text-hover-color: #37352f;
+	--sidebar-hover-color: #f3f3f3;
+	--sidebar-active-item-color: #fff;
 
 	--htmldiff-ins-color: #dcfce7;
 	--htmldiff-del-color: #fee2e2;
@@ -75,8 +76,9 @@ body.dark {
 	--code-text-color: var(--purple-50);
 	--input-bg-color: #242A30;
 
-	--sidebar-text-color: #383838;
-	--sidebar-text-hover-color: #f4f5f6;
+	--sidebar-text-color: var(--gray-400);
+	--sidebar-hover-color: #242a30;
+	--sidebar-active-item-color: var(--gray-700);
 
 	--bg-orange: var(--orange-600);
 	--text-on-orange: var(--orange-50);
@@ -276,7 +278,7 @@ body.dark {
 		cursor: pointer;
 
 		&:not(.active) {
-			background-color: #f3f3f3;
+			background-color: var(--sidebar-hover-color);
 			border-radius: .625rem;
 		}
 	}
@@ -288,7 +290,7 @@ body.dark {
 	min-height: 1.75rem;
 
 	&.active {
-		background-color: #ffffff;
+		background-color: var(--sidebar-active-item-color);
 		border-radius: .625rem;
 		box-shadow: 0 0 #0000, 0 0 #0000, 0px 1px 2px rgba(0, 0, 0, .1);
 	}
@@ -302,6 +304,10 @@ body.dark {
 		margin: 0;
 		font-weight: 400;
 		width: 100%;
+
+		&:hover {
+			color: unset;
+		}
 	}
 
 	:first-child {
