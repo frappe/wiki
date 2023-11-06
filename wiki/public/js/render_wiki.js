@@ -512,7 +512,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 			<li class="sidebar-group" data-type="Wiki Sidebar"
 				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
 				<div class="collapsible">
-					<span class="h6">${title}</span>
+					<span class="text-sm">${title}</span>
           <span class='add-sidebar-page'>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </span>

@@ -1,13 +1,8 @@
 {% macro render_sidebar_item(item) %}
-<li class="sidebar-item"
-		data-type="{{item.type}}" 
-		data-name="{{item.name}}" 
-		data-title="{{item.title or item.name}}"
-		data-group-name="{{item.group_name or 'sidebar-item'}}"
-		data-route="{{ item.route }}"
-	>
+<li class="sidebar-item" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.name}}"
+	data-group-name="{{item.group_name or 'sidebar-item'}}" data-route="{{ item.route }}">
 	<div>
-		<a href="/{{ item.route }}">
+		<a class="text-sm" href="/{{ item.route }}">
 			{{ item.title or item.name }}
 		</a>
 	</div>
@@ -15,51 +10,70 @@
 {% endmacro %}
 
 {% macro render_sidebar_items(sidebar_items) %}
-	{%- if sidebar_items | len > 0 -%}
-		<ul class="list-unstyled" style="min-height: 20px;">
-			{% for sidebar_group in sidebar_items -%}
-				<li class="sidebar-group"
-					data-type="Wiki Sidebar"
-					data-title="{{sidebar_group}}"
-				>
-					<div class="collapsible">
-						<span class='h6'>{{ sidebar_group }}</span>
-						<span class='add-sidebar-page hide' data-group-name="{{ sidebar_group }}" data-toggle="tooltip" data-placement="top" title="New Wiki Page in the group {{ sidebar_group }}">
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-						</span>
-						<span class='drop-icon {% if hide_sidebar_items and sidebar_group != active_sidebar_group %}rotate{% endif %}'>
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-								<path d="M8 10L12 14L16 10" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-								</svg>
-						</span>
-					</div>
-					<ul class="list-unstyled {% if hide_sidebar_items and sidebar_group != active_sidebar_group %}hidden{% endif %}" style="min-height: 20px;">
-						{% for item in sidebar_items[sidebar_group] -%}
-							{{ render_sidebar_item(item) }}
-						{%- endfor %}
-					</ul>
-				</li>
+{%- if sidebar_items | len > 0 -%}
+<ul class="list-unstyled" style="min-height: 20px;">
+	{% for sidebar_group in sidebar_items -%}
+	<li class="sidebar-group" data-type="Wiki Sidebar" data-title="{{sidebar_group}}">
+		<div class="collapsible">
+			<span class='text-sm'>{{ sidebar_group }}</span>
+			<span class='add-sidebar-page hide' data-group-name="{{ sidebar_group }}" data-toggle="tooltip"
+				data-placement="top" title="New Wiki Page in the group {{ sidebar_group }}">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none"
+					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+					class="feather feather-plus">
+					<line x1="12" y1="5" x2="12" y2="19"></line>
+					<line x1="5" y1="12" x2="19" y2="12"></line>
+				</svg>
+			</span>
+			<span
+				class='drop-icon {% if hide_sidebar_items and sidebar_group != active_sidebar_group %}rotate{% endif %}'>
+				<svg width="16" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path
+						d="M4 8.53967L4 3.46033C4 3.05582 4.45534 2.81874 4.78673 3.05071L8.41483 5.59038C8.69919 5.78943 8.69919 6.21057 8.41483 6.40962L4.78673 8.94929C4.45534 9.18126 4 8.94418 4 8.53967Z"
+						fill="currentColor"></path>
+				</svg>
+			</span>
+		</div>
+		<ul class="list-unstyled {% if hide_sidebar_items and sidebar_group != active_sidebar_group %}hidden{% endif %}"
+			style="min-height: 20px;">
+			{% for item in sidebar_items[sidebar_group] -%}
+			{{ render_sidebar_item(item) }}
 			{%- endfor %}
 		</ul>
-		<div class="d-none d-lg-block sidebar-options">
-			<div class="sidebar-edit-mode-btn text-muted" data-toggle="tooltip" data-placement="top" title="Changes to sidebar will be automatically saved">
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-					stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-3">
-					<path d="M12 20h9"></path>
-					<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-				</svg>
-				<span class="small">Edit Sidebar</span>
-			</div>
-			<div class="add-sidebar-group text-muted hide">
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-				<span class="small">Add Group</span>
-			</div>
-			<div class="sidebar-view-mode-btn text-muted hide">
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sidebar"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-				<span class="small">View Sidebar</span>
-			</div>
-		</div>
-	{%- endif -%}
+	</li>
+	{%- endfor %}
+</ul>
+<div class="d-none d-lg-block sidebar-options">
+	<div class="sidebar-edit-mode-btn text-muted" data-toggle="tooltip" data-placement="top"
+		title="Changes to sidebar will be automatically saved">
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+			class="feather feather-edit-3">
+			<path d="M12 20h9"></path>
+			<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+		</svg>
+		<span class="small">Edit Sidebar</span>
+	</div>
+	<div class="add-sidebar-group text-muted hide">
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+			class="feather feather-plus">
+			<line x1="12" y1="5" x2="12" y2="19"></line>
+			<line x1="5" y1="12" x2="19" y2="12"></line>
+		</svg>
+		<span class="small">Add Group</span>
+	</div>
+	<div class="sidebar-view-mode-btn text-muted hide">
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+			class="feather feather-sidebar">
+			<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+			<line x1="9" y1="3" x2="9" y2="21"></line>
+		</svg>
+		<span class="small">View Sidebar</span>
+	</div>
+</div>
+{%- endif -%}
 {% endmacro %}
 
 {% macro my_account() %}

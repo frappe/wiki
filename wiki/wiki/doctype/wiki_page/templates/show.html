@@ -34,6 +34,7 @@
 			<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
 		  </div>
 		  <div class="modal-body">
+			<span class="text-muted text-xs">Enter title for the new Wiki Group</span>
 			<input type="text" id="title" name="title">
 		  </div>
 		<div class="modal-footer">
@@ -82,7 +83,7 @@
 			.children("li");
 
 		items.each(function(item) {
-			name = $(this).children(".collapsible").children("span.h6").text();
+			name = $(this).children(".collapsible").children("span.text-sm").text();
 			side[name] = [];
 
 			$(this).children(".list-unstyled").children(".sidebar-item").each(function (item) {
