@@ -76,7 +76,7 @@ $font-sizes-mobile: (
 		margin-bottom: 0 !important;
 	}
 
-	a:not(.dropdown-item) {
+	a:not(.dropdown-item, .btn) {
 		color: var(--text-color);
 		text-decoration: underline;
 	}
