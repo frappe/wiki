@@ -378,6 +378,7 @@ body.dark {
 
 	.search-item {
 		margin-right: auto;
+		height: auto !important;
 	}
 
 	.dropdown-menu {
@@ -408,7 +409,7 @@ body.dark {
 
 	#search-container {
 		width: 8rem;
-		height: 100%;
+		height: 2.25rem;
 		padding-right: 0px;
 		padding-left: 0px;
 
@@ -429,14 +430,14 @@ body.dark {
 				right: 0;
 				margin: 0.5rem;
 				border: 1px solid var(--border-color);
-				padding: 0 0.4rem;
+				padding: 0.1rem 0.4rem;
 				border-radius: 5px;
 				color: var(--sidebar-text-color);
 				background-color: transparent;
 			}
 
 			span {
-				margin-left: 1.25rem;
+				margin-left: 2rem;
 				margin-right: 3rem;
 			}
 		}
@@ -532,7 +533,7 @@ body.dark {
 	}
 
 	.wiki-navbar-container {
-		padding: 1.2rem 0 1rem;
+		padding: 0.6rem 0 1rem;
 		;
 		margin-left: 1rem;
 		background-color: var(--background-color);
@@ -562,7 +563,7 @@ body.dark {
 
 	.sun-moon-container {
 		cursor: pointer;
-		margin: 0.25rem 0 auto 1rem;
+		margin-left: 1rem;
 
 		@include media-breakpoint-down(md) {
 			margin: 0.25rem 0 1rem 0.5rem;
