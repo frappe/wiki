@@ -447,6 +447,7 @@ def update(
 	wiki_page_patch=None,
 	new=False,
 	new_sidebar_group="",
+	new_sidebar_items="",
 	draft=False,
 ):
 	context = {"route": name}
@@ -465,6 +466,7 @@ def update(
 		patch.message = message
 		patch.new = new
 		patch.new_sidebar_group = new_sidebar_group
+		patch.new_sidebar_items = new_sidebar_items
 		patch.save()
 
 	else:
@@ -479,6 +481,7 @@ def update(
 			"new": new,
 			"new_title": title,
 			"new_sidebar_group": new_sidebar_group,
+			"new_sidebar_items": new_sidebar_items,
 		}
 
 		patch.update(patch_dict)
