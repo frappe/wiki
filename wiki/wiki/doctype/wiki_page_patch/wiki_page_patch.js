@@ -31,10 +31,25 @@ frappe.ui.form.on("Wiki Page Patch", {
                     background-color:  #dcfce7;
                     text-decoration: none;
                 }
-             </style>`,
+             </style>`
             );
           }
         },
       });
+
+    frm.add_custom_button("Approve", () => {
+      frm.call({
+        doc: frm.doc,
+        method: "approve_patch",
+        callback: (r) => {
+          if (r.message) {
+            frappe.show_alert({
+              message: "Wiki Page Patch Approved",
+              indicator: "green",
+            });
+          }
+        },
+      });
+    });
   },
 });
