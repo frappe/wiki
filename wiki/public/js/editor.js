@@ -65,7 +65,6 @@ const saveWikiPage = (draft = false) => {
       message: `${isEmptyEditor ? "Created" : "Edited"} ${title}`,
       content,
       new: isEmptyEditor,
-      new_sidebar_items: isEmptyEditor ? getSidebarItems() : "",
       title,
       draft,
       new_sidebar_group: isEmptyEditor ? urlParams.get("newWiki") : "",

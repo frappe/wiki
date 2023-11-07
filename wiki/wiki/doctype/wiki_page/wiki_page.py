@@ -446,11 +446,9 @@ def update(
 	message="",
 	wiki_page_patch=None,
 	new=False,
-	new_sidebar="",
-	new_sidebar_items="",
+	new_sidebar_group="",
 	draft=False,
 ):
-
 	context = {"route": name}
 	context = frappe._dict(context)
 	content, file_ids = extract_images_from_html(content)
@@ -466,7 +464,7 @@ def update(
 		patch.status = status
 		patch.message = message
 		patch.new = new
-		patch.new_sidebar_items = new_sidebar_items
+		patch.new_sidebar_group = new_sidebar_group
 		patch.save()
 
 	else:
@@ -480,7 +478,7 @@ def update(
 			"message": message,
 			"new": new,
 			"new_title": title,
-			"new_sidebar_items": new_sidebar_items,
+			"new_sidebar_group": new_sidebar_group,
 		}
 
 		patch.update(patch_dict)

@@ -7,6 +7,7 @@
  "field_order": [
   "wiki_page",
   "new_title",
+  "new_sidebar_group",
   "message",
   "column_break_3",
   "raised_by",
@@ -26,13 +27,15 @@
    "fieldname": "wiki_page",
    "fieldtype": "Link",
    "label": "Wiki Page",
-   "options": "Wiki Page"
+   "options": "Wiki Page",
+   "read_only": 1
   },
   {
    "fieldname": "raised_by",
    "fieldtype": "Link",
    "label": "Raised By",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.status=='Approved';",
@@ -98,25 +101,33 @@
    "fieldname": "new",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "New"
+   "label": "New",
+   "read_only": 1
   },
   {
    "fieldname": "new_title",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "New Title"
+   "label": "New Title",
+   "read_only": 1
   },
   {
    "depends_on": "eval: !doc.new;",
    "fieldname": "orignal_code",
    "fieldtype": "Code",
    "label": "Original HTML"
+  },
+  {
+   "fieldname": "new_sidebar_group",
+   "fieldtype": "Data",
+   "label": "New Sidebar Group",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2023-07-16 22:58:51.195566",
+ "modified": "2023-11-07 10:27:24.234747",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Page Patch",
