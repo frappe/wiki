@@ -294,7 +294,7 @@ class WikiPage(WebsiteGenerator):
 			context.active_sidebar_group = frappe.get_value(
 				"Wiki Group Item", {"wiki_page": self.name}, ["parent_label"]
 			)
-			context.hide_sidebar_items = wiki_settings.hide_sidebar_items
+			context.collapse_sidebar_groups = wiki_settings.collapse_sidebar_groups
 			context.sidebar_items = sidebar_items
 			context.wiki_search_scope = self.get_space_route()
 			sidebar_html = frappe.render_template(
