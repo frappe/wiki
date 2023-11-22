@@ -13,7 +13,7 @@
   "section_break_vefv",
   "default_wiki_space",
   "table_of_contents_section",
-  "hide_sidebar_items",
+  "collapse_sidebar_groups",
   "enable_table_of_contents",
   "section_break_mmtu",
   "javascript",
@@ -107,12 +107,6 @@
    "label": "Enable Table of Contents"
   },
   {
-   "default": "0",
-   "fieldname": "hide_sidebar_items",
-   "fieldtype": "Check",
-   "label": "Hide Sidebar Items"
-  },
-  {
    "fieldname": "section_break_skhp",
    "fieldtype": "Section Break"
   },
@@ -128,12 +122,18 @@
    "fieldname": "use_redisearch_for_search",
    "fieldtype": "Check",
    "label": "Use Redisearch for Search"
+  },
+  {
+   "default": "0",
+   "fieldname": "collapse_sidebar_groups",
+   "fieldtype": "Check",
+   "label": "Collapse Sidebar Groups"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-06-27 23:00:42.995242",
+ "modified": "2023-11-22 22:46:30.514623",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
