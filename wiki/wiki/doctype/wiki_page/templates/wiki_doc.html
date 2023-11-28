@@ -39,8 +39,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 	{% if page_toc_html %}
 		<div class="page-toc d-none d-xl-block">
 			{% if page_toc_html %}
+				<p class="page-toc-title">On this page</p>
 				<div class='list-unstyled'>
-					<h5>On this page</h5>
 					<ul>
 						{{ page_toc_html }}
 					</ul>
