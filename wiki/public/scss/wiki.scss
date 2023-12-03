@@ -185,8 +185,8 @@ body.dark {
 	padding: 0px;
 }
 .sidebar-group-container {
-	height: 26px;
-	padding: 5px 8px;
+	height: 32px;
+	padding: 5px 10px;
 	border-radius: 8px;
 	gap: 8px;
 }
@@ -249,7 +249,7 @@ body.dark {
 	}
 
 	.collapsible {
-		padding: 4px 0.5rem;
+		padding: 4px 10px;
 		display: flex;
 		align-items: center;
 		width: 100%;
@@ -817,6 +817,7 @@ h6:hover .feather-link {
 	margin-left: auto;
 	width: 240px;
 	margin-right: 16px;
+	padding-bottom: 10rem;
 
 	&::-webkit-scrollbar {
 		display: none;
