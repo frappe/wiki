@@ -8,7 +8,7 @@ repos:
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
-        files: "frappe.*"
+        files: "wiki.*"
         exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
       - id: check-yaml
       # - id: no-commit-to-branch
@@ -40,12 +40,12 @@ repos:
         # Ignore any files that might contain jinja / bundles
         exclude: |
             (?x)^(
-                frappe/public/dist/.*|
+                wiki/public/dist/.*|
                 .*node_modules.*|
                 .*boilerplate.*|
-                frappe/www/website_script.js|
-                frappe/templates/includes/.*|
-                frappe/public/js/lib/.*
+                wiki/www/website_script.js|
+                wiki/templates/includes/.*|
+                wiki/public/js/lib/.*
             )$
   - repo: https://github.com/timothycrosley/isort
     rev: 5.12.0
