@@ -210,7 +210,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     sidebar_items.each(function (index) {
       if ($(this).attr("class")) {
-        const hasActiveClass = $(this).attr("class").split(/\s+/).includes("active");
+        const hasActiveClass = $(this)
+          .attr("class")
+          .split(/\s+/)
+          .includes("active");
         if (hasActiveClass) {
           current_index = index;
         }

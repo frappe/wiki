@@ -31,7 +31,7 @@ frappe.ui.form.on("Wiki Page Patch", {
                     background-color:  #dcfce7;
                     text-decoration: none;
                 }
-             </style>`
+             </style>`,
             );
           }
         },
