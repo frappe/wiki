@@ -1,8 +1,9 @@
 {% macro render_sidebar_item(item) %}
-<li class="sidebar-item" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.name}}"
+<li class="sidebar-item sidebar-group-item  {% if item.route == current_route %}sidebar-item-active{% endif %}" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.name}}"
 	data-group-name="{{item.group_name or 'sidebar-item'}}" data-route="{{ item.route }}">
 	<div>
-		<a class="text-sm" href="/{{ item.route }}">
+		<a class="text-sm sidebar-group-item-title" 
+		href="/{{ item.route }}">
 			{{ item.title or item.name }}
 		</a>
 	</div>
@@ -11,11 +12,11 @@
 
 {% macro render_sidebar_items(sidebar_items) %}
 {%- if sidebar_items | len > 0 -%}
-<ul class="list-unstyled" style="min-height: 20px;">
+<ul class="list-unstyled sidebar-group-list" style="min-height: 20px;">
 	{% for sidebar_group in sidebar_items -%}
 	<li class="sidebar-group" data-type="Wiki Sidebar" data-title="{{sidebar_group}}">
-		<div class="collapsible">
-			<span class='text-sm'>{{ sidebar_group }}</span>
+		<div class="sidebar-group-container collapsible">
+			<span class='sidebar-group-title'>{{ sidebar_group }}</span>
 			<span class='add-sidebar-page hide' data-group-name="{{ sidebar_group }}" data-toggle="tooltip"
 				data-placement="top" title="New Wiki Page in the group {{ sidebar_group }}">
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none"
@@ -27,14 +28,10 @@
 			</span>
 			<span
 				class='drop-icon {% if collapse_sidebar_groups and sidebar_group != active_sidebar_group %}rotate{% endif %}'>
-				<svg width="16" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path
-						d="M4 8.53967L4 3.46033C4 3.05582 4.45534 2.81874 4.78673 3.05071L8.41483 5.59038C8.69919 5.78943 8.69919 6.21057 8.41483 6.40962L4.78673 8.94929C4.45534 9.18126 4 8.94418 4 8.53967Z"
-						fill="currentColor"></path>
-				</svg>
+				<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1"><polyline points="6 9 12 15 18 9"></polyline></svg>
 			</span>
 		</div>
-		<ul class="list-unstyled {% if collapse_sidebar_groups and sidebar_group != active_sidebar_group %}hidden{% endif %}"
+		<ul class="list-unstyled sidebar-group-item-list {% if collapse_sidebar_groups and sidebar_group != active_sidebar_group %}hidden{% endif %}"
 			style="min-height: 20px;">
 			{% for item in sidebar_items[sidebar_group] -%}
 			{{ render_sidebar_item(item) }}

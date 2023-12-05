@@ -98,6 +98,7 @@ class WikiPagePatch(Document):
 		self.save()
 		return True
 
+
 @frappe.whitelist()
 def add_comment_to_patch(reference_name, content):
 	email = frappe.session.user
