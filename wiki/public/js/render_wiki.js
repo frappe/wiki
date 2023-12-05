@@ -292,9 +292,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
         const groupName = $(this).parent().children("span:first-child").text();
         const newWikiPage = $(".sidebar-item[data-name=new-wiki-page]");
         const newSidebarItem = $(`
-        <li class="sidebar-item active" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
+        <li class="sidebar-item sidebar-group-item active" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
           <div>
-            <a href="#" class="active">New Wiki Page</a>
+            <a href="#">New Wiki Page</a>
           </div>
         </li>
       `);
