@@ -82,7 +82,7 @@
 			.children("li");
 
 		items.each(function(item) {
-			name = $(this).children(".collapsible").children("span.sidebar-group-title").text();
+			name = $(this).children(".collapsible").children("span.sidebar-group-title, span.text-sm").text();
 			side[name] = [];
 
 			$(this).children(".list-unstyled").children(".sidebar-item").each(function (item) {
