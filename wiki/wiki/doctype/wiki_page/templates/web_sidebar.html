@@ -2,7 +2,7 @@
 <li class="sidebar-item sidebar-group-item  {% if item.route == current_route %}sidebar-item-active{% endif %}" data-type="{{item.type}}" data-name="{{item.name}}" data-title="{{item.title or item.name}}"
 	data-group-name="{{item.group_name or 'sidebar-item'}}" data-route="{{ item.route }}">
 	<div>
-		<a class="text-sm sidebar-group-item-title" 
+		<a class="text-sm sidebar-group-item-title"
 		href="/{{ item.route }}">
 			{{ item.title or item.name }}
 		</a>
