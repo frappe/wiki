@@ -435,6 +435,9 @@ body.dark {
 			}
 
 			kbd {
+				position: absolute;
+				top: 7px;
+				right: 5px;
 				padding: 0.1rem 0.4rem;
 				color: var(--sidebar-text-color);
 				background-color: transparent;
@@ -609,12 +612,10 @@ body.dark {
 .navbar-brand {
 	padding: 0;
 	color: var(--text-color) !important;
-	// border-bottom: 1px solid var(--border-color);
-	// width: 15rem;
-	// margin-right: 0.5rem;
 
 	img {
-		height: 24px;
+		height: 20px;
+		max-width: fit-content;
 	}
 
 	@include media-breakpoint-down(md) {
