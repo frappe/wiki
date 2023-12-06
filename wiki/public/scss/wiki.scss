@@ -764,6 +764,54 @@ h6:hover .feather-link {
 	}
 }
 
+.feedback-btn {
+	position: fixed;
+	right: 0;
+	top: 75%;
+	z-index: 1000;
+}
+
+.feedback-modal {
+	margin-right: 0;
+	width: 22rem;
+
+	.form-control:focus {
+		border: none;
+	}
+
+	.rating-options-buttons {
+		display: grid;
+		border-radius: 6px;
+		overflow: hidden;
+		border: 1.5px solid #000;
+	}
+
+	.rating-options-buttons>.ratings-number {
+		border-right: 1px solid #000;
+
+		&:last-child {
+			border-right: none;
+		}
+	}
+
+	.ratings-number {
+		font-size: 14px;
+		padding: 8px 0px;
+		border: none;
+		color: #000;
+		background-color: #fff;
+
+		&.rating-active {
+			background-color: #000;
+			color: #fff;
+		}
+	}
+
+	.submit-feedback-btn.disabled {
+		pointer-events: none;
+	}
+}
+
 .wiki-options {
 	width: 2rem;
 	height: 2rem;
@@ -1137,6 +1185,10 @@ p {
 
 	.modal-header {
 		border-bottom: unset;
+
+		.close {
+			font-weight: 400;
+		}
 	}
 
 	.modal-body {
