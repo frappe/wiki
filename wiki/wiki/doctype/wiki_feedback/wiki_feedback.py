@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.utils import validate_email_address
 
 
 class WikiFeedback(Document):
@@ -11,6 +12,8 @@ class WikiFeedback(Document):
 
 @frappe.whitelist(allow_guest=True)
 def submit_feedback(name, feedback, rating, email=None):
+	email = validate_email_address(email)
+
 	if feedback_name := frappe.db.get_value("Wiki Feedback", {"wiki_page": name}):
 		doc = frappe.get_doc("Wiki Feedback", feedback_name)
 		doc.append("response", {"rating": rating, "feedback": feedback, "email_id": email})
