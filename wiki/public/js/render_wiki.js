@@ -693,6 +693,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       const email = $(".feedback-email").val();
       const name = $('[name="wiki-page-name"]').val();
 
+      const feedbackIndex = localStorage.getItem(`feedback-${name}`);
+
       frappe
         .call({
           method:
@@ -702,13 +704,17 @@ window.RenderWiki = class RenderWiki extends Wiki {
             rating,
             feedback,
             email,
+            feedback_index: feedbackIndex,
           },
         })
-        .then(() => {
+        .then((r) => {
           frappe.show_alert({
             message: __("Thank you for submitting your feedback!"),
             indicator: "green",
           });
+
+          localStorage.setItem(`feedback-${name}`, r.message);
+
           $(".ratings-number").removeClass("rating-active");
           $(".long-feedback").val("");
           $(".feedback-email").val("");
