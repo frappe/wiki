@@ -709,7 +709,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             message: __("Feedback submitted successfully"),
             indicator: "green",
           });
-          $(".ratings-number").removeClass("active");
+          $(".ratings-number").removeClass("rating-active");
           $(".long-feedback").val("");
           $(".feedback-email").val("");
         });
