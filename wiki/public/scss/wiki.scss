@@ -772,8 +772,13 @@ h6:hover .feather-link {
 .feedback-btn {
 	position: fixed;
 	right: 0;
-	top: 75%;
+	top: 60%;
 	z-index: 1000;
+
+	&:focus, &:active {
+		outline: none !important;
+		box-shadow: none !important;
+	}
 }
 
 .feedback-modal {
