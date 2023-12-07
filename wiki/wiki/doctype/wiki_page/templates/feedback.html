@@ -8,8 +8,8 @@
                 </button>
             </div>
             <div class="modal-body">
-                <span class="text-muted text-xs">How would you rate this documentation?</span>
-                <div class="rating-options mb-2">
+                <label for="rating-options" class="text-muted text-xs">How would you rate this documentation?</label>
+                <div id="rating-options" class="rating-options mb-2">
                     <div class="rating-options-buttons" style="grid-template-columns: repeat(5, minmax(0px, 1fr));">
                         <button class="ratings-number question-2-rating-1 auto-text-color" type="submit" value="0.2">
                             1
@@ -28,11 +28,12 @@
                         </button>
                     </div>
                 </div>
-                <span class="text-muted text-xs">How can we make it better?</span>
-                <textarea class="long-feedback form-control mb-2"></textarea>
+                <label for="long-feedback" class="text-muted text-xs">How can we make it better?</label>
+                <textarea id="long-feedback" class="long-feedback form-control mb-2"></textarea>
                 {%- if ask_for_contact_details -%}
-                <span class="text-muted text-xs">Enter your email if you would like to contribute to the docs</span>
-                <input class="feedback-email" type="text" id="email" name="email">
+                <label for="email" class="text-muted text-xs">Enter your email if you would like to contribute to the
+                    docs</label>
+                <input class="feedback-email" type="email" id="email" name="email">
                 {%- endif -%}
             </div>
             <div class="modal-footer">
