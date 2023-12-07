@@ -167,11 +167,6 @@ class WikiPage(WebsiteGenerator):
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
 
-	def redirect_to_login(self, action):
-		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
-		raise frappe.Redirect
-
 	def set_breadcrumbs(self, context):
 		context.add_breadcrumbs = True
 		if frappe.form_dict:
