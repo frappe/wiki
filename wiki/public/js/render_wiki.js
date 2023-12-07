@@ -706,7 +706,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         })
         .then(() => {
           frappe.show_alert({
-            message: __("Feedback submitted successfully"),
+            message: __("Thank you for submitting your feedback!"),
             indicator: "green",
           });
           $(".ratings-number").removeClass("rating-active");
