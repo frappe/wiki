@@ -15,6 +15,9 @@
   "table_of_contents_section",
   "collapse_sidebar_groups",
   "enable_table_of_contents",
+  "feedback_section",
+  "enable_feedback",
+  "ask_for_contact_details",
   "section_break_mmtu",
   "javascript",
   "navbar_tab",
@@ -98,7 +101,7 @@
   {
    "fieldname": "table_of_contents_section",
    "fieldtype": "Section Break",
-   "label": "Wiki Page Configs"
+   "label": "Wiki Page Configurations"
   },
   {
    "default": "1",
@@ -128,12 +131,31 @@
    "fieldname": "collapse_sidebar_groups",
    "fieldtype": "Check",
    "label": "Collapse Sidebar Groups"
+  },
+  {
+   "fieldname": "feedback_section",
+   "fieldtype": "Section Break",
+   "label": "Feedback"
+  },
+  {
+   "default": "0",
+   "description": "It will show a feedback widget on every Wiki Page when enabled. It will collect the rating, email and related info about the Wiki Page.",
+   "fieldname": "enable_feedback",
+   "fieldtype": "Check",
+   "label": "Enable Feedback"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_feedback",
+   "fieldname": "ask_for_contact_details",
+   "fieldtype": "Check",
+   "label": "Ask for contact details"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-11-22 22:46:30.514623",
+ "modified": "2023-12-06 16:37:55.392279",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

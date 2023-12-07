@@ -227,6 +227,8 @@ class WikiPage(WebsiteGenerator):
 		context.light_mode_logo = wiki_settings.logo
 		context.dark_mode_logo = wiki_settings.dark_mode_logo
 		context.script = wiki_settings.javascript
+		context.show_feedback = wiki_settings.enable_feedback
+		context.ask_for_contact_details = wiki_settings.ask_for_contact_details
 		context.wiki_search_scope = self.get_space_route()
 		context.metatags = {
 			"title": self.title,

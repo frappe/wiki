@@ -108,6 +108,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_url_state();
         this.set_revisions();
         this.add_click_to_copy();
+        this.setup_feedback();
       }
     });
   }
@@ -676,6 +677,48 @@ window.RenderWiki = class RenderWiki extends Wiki {
     // Remove focus state on hover
     $dropdown_menu.on("mouseover", function () {
       dropdownItems.blur();
+    });
+  }
+
+  setup_feedback() {
+    $(".ratings-number").on("click", function () {
+      $(".submit-feedback-btn").removeClass("disabled");
+      $(".ratings-number").removeClass("rating-active");
+      $(this).addClass("rating-active");
+    });
+
+    $(".submit-feedback-btn").on("click", function () {
+      const rating = $(".ratings-number.rating-active").val();
+      const feedback = $(".long-feedback").val();
+      const email = $(".feedback-email").val();
+      const name = $('[name="wiki-page-name"]').val();
+
+      const feedbackIndex = localStorage.getItem(`feedback-${name}`);
+
+      frappe
+        .call({
+          method:
+            "wiki.wiki.doctype.wiki_feedback.wiki_feedback.submit_feedback",
+          args: {
+            name,
+            rating,
+            feedback,
+            email,
+            feedback_index: feedbackIndex,
+          },
+        })
+        .then((r) => {
+          frappe.show_alert({
+            message: __("Thank you for submitting your feedback!"),
+            indicator: "green",
+          });
+
+          localStorage.setItem(`feedback-${name}`, r.message);
+
+          $(".ratings-number").removeClass("rating-active");
+          $(".long-feedback").val("");
+          $(".feedback-email").val("");
+        });
     });
   }
 };

@@ -2,7 +2,8 @@
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="wiki-title">{{ title }}</h1>
 		<div class="dropdown wiki-options">
-			<div class="dropdown-toggle" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
+			<div class="dropdown-toggle" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown"
+				aria-label="Wiki Option Button" aria-expanded="false">
 				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
 					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
 					class="feather feather-more-vertical">
@@ -14,7 +15,8 @@
 			<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
 				<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
 				<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
-				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">Revisions</a>
+				<a class="dropdown-item show-revisions" href="#" data-toggle="modal"
+					data-target="#revisionsModal">Revisions</a>
 			</div>
 		</div>
 	</div>
@@ -27,41 +29,53 @@
 <div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
 	{% include "wiki/doctype/wiki_page/templates/editor.html" %}
 </div>
-<div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal" aria-hidden="true">
+<div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModal"
+	aria-hidden="true">
 	<div class="modal-dialog modal-dialog-centered" role="document">
-	  <div class="modal-content">
-		<div class="modal-header">
-			<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
-		  </div>
-		  <div class="modal-body">
-			<span class="text-muted text-xs">Enter title for the new Wiki Group</span>
-			<input type="text" id="title" name="title">
-		  </div>
-		<div class="modal-footer">
-		  <button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+			</div>
+			<div class="modal-body">
+				<span class="text-muted text-xs">Enter title for the new Wiki Group</span>
+				<input type="text" id="title" name="title">
+			</div>
+			<div class="modal-footer">
+				<button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+			</div>
 		</div>
-	  </div>
 	</div>
-  </div>
+</div>
 
-  <div class="my-4 wiki-page-meta hide d-print-none">
+<div class="my-4 wiki-page-meta hide d-print-none">
 	{%- if last_revision -%}
-		<div class="user-contributions" data-date="{{ last_revision.modified }}">
-		</div>
-	{%- endif -%}
-  </div>
-  <div class="wiki-footer hide d-print-none">
-		<div class = "forward-back">
-			<a href="#" class="btn left">
-				<p>Previous Page</p>
-				<p>Left</p>
-			</a>
-			<a href="#" class="btn pull-right right">
-				<p>Next Page</p>
-				<p>Right</p></a>
-			</a>
-		</div>
+	<div class="user-contributions" data-date="{{ last_revision.modified }}">
 	</div>
+	{%- endif -%}
+</div>
+<div class="wiki-footer hide d-print-none">
+	<div class="forward-back">
+		<a href="#" class="btn left">
+			<p>Previous Page</p>
+			<p>Left</p>
+		</a>
+		<a href="#" class="btn pull-right right">
+			<p>Next Page</p>
+			<p>Right</p>
+		</a>
+		</a>
+	</div>
+</div>
+
+{%- if show_feedback -%}
+<button class="btn btn-secondary btn-sm feedback-btn" data-toggle="modal" data-target="#feedbackModal">
+	<svg xmlns="http://www.w3.org/2000/svg" width="24" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+		stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-square">
+		<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+	</svg>
+</button>
+{% include "wiki/doctype/wiki_page/templates/feedback.html" %}
+{%- endif -%}
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 <script>
@@ -81,7 +95,7 @@
 			.not(".hidden")
 			.children("li");
 
-		items.each(function(item) {
+		items.each(function (item) {
 			name = $(this).children(".collapsible").children("span.sidebar-group-title, span.text-sm").text();
 			side[name] = [];
 
@@ -104,5 +118,5 @@
 </script>
 
 {%- if script -%}
-<script>{{ script }}</script>
+<script>{ { script } }</script>
 {%- endif -%}

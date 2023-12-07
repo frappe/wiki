@@ -1,0 +1,46 @@
+<div class="modal fade" id="feedbackModal" tabindex="-1" role="dialog" aria-labelledby="feedback" aria-hidden="true">
+    <div class="modal-dialog feedback-modal modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="feedbackRating">Feedback</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="outline: none;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <label for="rating-options" class="text-muted text-xs">How would you rate this documentation?</label>
+                <div id="rating-options" class="rating-options mb-2">
+                    <div class="rating-options-buttons" style="grid-template-columns: repeat(5, minmax(0px, 1fr));">
+                        <button class="ratings-number question-2-rating-1 auto-text-color" type="submit" value="0.2">
+                            1
+                        </button>
+                        <button class="ratings-number question-2-rating-2 auto-text-color" type="submit" value="0.4">
+                            2
+                        </button>
+                        <button class="ratings-number question-2-rating-3 auto-text-color" type="submit" value="0.6">
+                            3
+                        </button>
+                        <button class="ratings-number question-2-rating-4 auto-text-color" type="submit" value="0.8">
+                            4
+                        </button>
+                        <button class="ratings-number question-2-rating-5 auto-text-color" type="submit" value="1">
+                            5
+                        </button>
+                    </div>
+                </div>
+                <label for="long-feedback" class="text-muted text-xs">How can we make it better?</label>
+                <textarea id="long-feedback" class="long-feedback form-control mb-2"></textarea>
+                {%- if ask_for_contact_details -%}
+                <label for="email" class="text-muted text-xs">Enter your email if you would like to contribute to the
+                    docs</label>
+                <input class="feedback-email" type="email" id="email" name="email">
+                {%- endif -%}
+            </div>
+            <div class="modal-footer">
+                <button class="submit-feedback-btn disabled btn btn-primary btn-sm" type="button" data-dismiss="modal">
+                    Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
