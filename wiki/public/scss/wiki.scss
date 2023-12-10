@@ -715,12 +715,32 @@ body.dark {
 			text-align: left;
 		}
 
+		h4 {
+			font-size: 15px;
+			font-weight: 600;
+			line-height: 16px;
+			letter-spacing: 0.02em;
+			text-align: left;
+		}
+
 		a.btn-primary-light {
 			background-color: var(--btn-secondary-color) !important;
 		}
 
 		ul[data-type="taskList"] input {
 			margin-top: 0;
+		}
+
+		li {
+			font-size: 14px;
+			font-weight: 420;
+			line-height: 21px;
+			letter-spacing: 0.02em;
+			text-align: left;
+
+			&::marker {
+				font-size: 14px;
+			}
 		}
 	}
 
