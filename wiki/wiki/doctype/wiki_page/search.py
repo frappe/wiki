@@ -6,12 +6,17 @@ import frappe
 from frappe.search import web_search
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
-from redis.commands.search.field import TextField
-from redis.commands.search.indexDefinition import IndexDefinition
-from redis.commands.search.query import Query
-from redis.exceptions import ResponseError
 
 PREFIX = "wiki_page_search_doc"
+
+
+_redisearch_available = False
+try:
+	from redis.commands.search.query import Query  # noqa: F401
+
+	_redisearch_available = True
+except ImportError:
+	pass
 
 
 @frappe.whitelist(allow_guest=True)
@@ -19,8 +24,8 @@ def search(query, path, space):
 	if not space:
 		space = get_space_route(path)
 
-	# fallback to frappe web search if redisearch is not enabled
-	if not frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search"):
+	use_redisearch = frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search")
+	if not use_redisearch or not _redisearch_available:
 		result = web_search(query, space, 5)
 
 		for d in result:
@@ -33,6 +38,9 @@ def search(query, path, space):
 			del d.path
 
 		return {"docs": result, "search_engine": "frappe_web_search"}
+
+	from redis.commands.search.query import Query  # noqa: F811
+	from redis.exceptions import ResponseError
 
 	# if redisearch enabled use redisearch
 	r = frappe.cache()
@@ -73,6 +81,10 @@ def get_space_route(path):
 
 
 def rebuild_index():
+	from redis.commands.search.field import TextField
+	from redis.commands.search.indexDefinition import IndexDefinition
+	from redis.exceptions import ResponseError
+
 	r = frappe.cache()
 	r.set_value("wiki_page_index_in_progress", True)
 
@@ -124,6 +136,8 @@ def create_index_for_records(records, space):
 
 
 def remove_index_for_records(records, space):
+	from redis.exceptions import ResponseError
+
 	r = frappe.cache()
 	for d in records:
 		try:
@@ -155,6 +169,8 @@ def remove_index(doc):
 
 
 def drop_index(space):
+	from redis.exceptions import ResponseError
+
 	try:
 		frappe.cache().ft(space).dropindex(delete_documents=True)
 	except ResponseError:
