@@ -30,7 +30,9 @@ $ bench get-app https://github.com/frappe/wiki
 # install on site
 $ bench --site sitename install-app wiki
 ```
-Note: Wiki's master branch does not support v13 Frappe / ERPNext
+
+> [!NOTE]  
+> Use `version-14` branch with Frappe Framework v14 and for v14+ use `master` branch.
 
 ## Features
 
