@@ -47,7 +47,15 @@
 	</div>
 </div>
 
-<div class="my-4 wiki-page-meta hide d-print-none">
+<div class="flex my-4 wiki-page-meta hide d-print-none">
+	{%- if show_feedback -%}
+	<div class="flex mt-4">
+		<span class="text-sm">Was this article helpful?</span>
+		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">Give Feedback</span>
+	</div>
+	{% include "wiki/doctype/wiki_page/templates/feedback.html" %}
+	{%- endif -%}
+
 	{%- if last_revision -%}
 	<div class="user-contributions" data-date="{{ last_revision.modified }}">
 	</div>
@@ -66,16 +74,6 @@
 		</a>
 	</div>
 </div>
-
-{%- if show_feedback -%}
-<button class="btn btn-secondary btn-sm feedback-btn" data-toggle="modal" data-target="#feedbackModal">
-	<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-		stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-square">
-		<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-	</svg>
-</button>
-{% include "wiki/doctype/wiki_page/templates/feedback.html" %}
-{%- endif -%}
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 <script>

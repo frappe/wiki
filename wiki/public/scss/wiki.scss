@@ -791,20 +791,15 @@ h6:hover .feather-link {
 }
 
 .feedback-btn {
-	position: fixed;
-	right: 2%;
-	top: 93%;
-	z-index: 1000;
+	cursor: pointer;
 
-	&:focus, &:active {
-		outline: none !important;
-		box-shadow: none !important;
+	&:hover {
+		text-decoration: underline;
 	}
 }
 
 .feedback-modal {
-	margin-right: 0;
-	width: 22rem;
+	width: 25rem;
 
 	.form-control:focus {
 		border: none;
