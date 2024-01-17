@@ -159,3 +159,21 @@ scheduler_events = {
 # exempt linked doctypes from being automatically cancelled
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
+
+# whitelisted_paths = {
+# 	"/update-page": ["Wiki Page", "update"],
+# 	"/new-page": ["Wiki Page", "new"],
+# 	"/get-route": "wiki.wiki.doctype.wiki_page.wiki_page.get_route",
+# }
+
+#
+# each overriding function accepts a `data` argument;
+# generated from the base implementation of the doctype dashboard,
+# along with any modifications made in other Frappe apps
+# override_doctype_dashboards = {
+# 	"Task": "wiki.task.get_dashboard_data"
+# }
+
+# exempt linked doctypes from being automatically cancelled
+#
+# auto_cancel_exempted_doctypes = ["Auto Repeat"]
