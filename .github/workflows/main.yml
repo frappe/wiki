@@ -1,0 +1,35 @@
+name: Run Frappe Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+
+    - name: Install bench
+      run: |
+        pip install bench
+
+    - name: Install Frappe Site
+      run: |
+        bench init test.com --frappe-branch version-13
+		cd frappe-branch
+        bench get-app erpnext --branch version-13
+		bench get-app https://github.com/shahaji8848/sk-wiki.git
+		bench --site test.com install-app erpnext
+		bench --site test.com install-app wiki
+    - name: Run Frappe Tests
+      run: |
+        bench --site test.com run-tests
