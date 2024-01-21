@@ -364,6 +364,10 @@ $font-sizes-mobile: (
 			}
 		}
 	}
+
+	hr {
+		border-top: 1px solid $gray-200;
+	}
 }
 
 .wiki-editor {
