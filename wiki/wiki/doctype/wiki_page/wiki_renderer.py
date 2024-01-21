@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 import frappe
 from frappe.website.page_renderers.document_page import DocumentPage
@@ -17,9 +18,7 @@ class WikiPageRenderer(DocumentPage):
 			topmost_wiki_route = frappe.get_value(
 				"Wiki Page", wiki_space.wiki_sidebars[0].wiki_page, "route"
 			)
-			frappe.response.location = f"/{topmost_wiki_route}"
-			frappe.response.type = "redirect"
-			raise frappe.Redirect
+			frappe.redirect(f"/{quote(topmost_wiki_route)}")
 		return self.search_in_doctypes_with_web_view()
 
 	def search_in_doctypes_with_web_view(self):
