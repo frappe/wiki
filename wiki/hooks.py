@@ -10,9 +10,9 @@ app_license = "MIT"
 page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
 
 website_route_rules = [
-	{"from_route": "/<path:wiki_page>/edit-wiki", "to_route": "/edit"},
-	{"from_route": "/<path:wiki_page>/new-wiki", "to_route": "/new"},
-	{"from_route": "/<path:wiki_page>/revisions", "to_route": "/revisions"},
+    {"from_route": "/<path:wiki_page>/edit-wiki", "to_route": "/edit"},
+    {"from_route": "/<path:wiki_page>/new-wiki", "to_route": "/new"},
+    {"from_route": "/<path:wiki_page>/revisions", "to_route": "/revisions"},
 ]
 
 # Includes in <head>
@@ -109,7 +109,7 @@ after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background
 # ---------------
 
 scheduler_events = {
-	"cron": {"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]}
+    "cron": {"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]}
 }
 
 # scheduler_events = {
@@ -159,3 +159,11 @@ scheduler_events = {
 # exempt linked doctypes from being automatically cancelled
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
+
+frappe_search_doctypes = {
+    "Wiki Page": {
+        "title": "title",
+        "content": ["content"],
+        "extras": ["route"],
+    },
+}
