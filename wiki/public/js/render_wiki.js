@@ -599,7 +599,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
         frappe
           .call({
-            method: "frappe_search.core.search",
+            method: "frappe_search.api.search",
             args: {
               query: searchInput.val(),
               path: window.location.pathname,
@@ -612,10 +612,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
             if (results.length === 0) {
               dropdown_html = `<div style="margin: 1.5rem 9rem;">No results found</div>`;
             } else {
-              console.log(results);
               dropdown_html = results
                 .map((r) => {
-                  return `<a class="dropdown-item" href="/${r.extras.route}">
+                  return `<a class="dropdown-item" href="/${r.fields.route}">
               <h6>${r.highlighted_title || r.title}</h6>
               <div>${
                 res.message.search_engine === "frappe_web_search"

@@ -167,3 +167,11 @@ frappe_search_doctypes = {
         "extras": ["route"],
     },
 }
+
+frappe_search_doctypes = {
+    "Wiki Page": {
+        "title": "title",
+        "content": ["content"],
+        "fields": ["route"],
+    },
+}
