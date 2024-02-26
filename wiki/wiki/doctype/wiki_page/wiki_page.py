@@ -156,9 +156,9 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def verify_permission(self, permtype):
+		permitted = frappe.has_permission(self.doctype, permtype, self)
 		if permtype == "read" and self.allow_guest:
 			return True
-		permitted = frappe.has_permission(self.doctype, permtype, self)
 		if not permitted:
 			action = permtype
 			if action == "write":
@@ -216,6 +216,23 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
+		ccc = frappe.db.sql(""" select user, allow, for_value,name from `tabUser Permission` where user=%s and allow='Wiki Space' """,(frappe.session.user))
+		print(self.name)
+		match_found = False
+		for c in ccc:
+			ws = frappe.db.sql(""" select w.wiki_page from `tabWiki Group Item` as w where parent=%s""",(c[2]))
+			for a in ws:
+				print(a[0])
+				if a[0] == self.name:
+					match_found = True
+					break
+		if match_found:
+			print("ok")
+		else:
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = "/"
+			raise frappe.Redirect
+		print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
@@ -283,6 +300,7 @@ class WikiPage(WebsiteGenerator):
 
 	def get_items(self, sidebar_items):
 		topmost = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, ["parent"])
+		wikiSpace = frappe.db.sql("""select name from `tabWiki Space`""")
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
@@ -294,6 +312,7 @@ class WikiPage(WebsiteGenerator):
 			context.current_route = self.route
 			context.collapse_sidebar_groups = wiki_settings.collapse_sidebar_groups
 			context.sidebar_items = sidebar_items
+			context.wikiSpace = wikiSpace
 			context.wiki_search_scope = self.get_space_route()
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
@@ -304,30 +323,36 @@ class WikiPage(WebsiteGenerator):
 
 	def get_sidebar_items(self):
 		wiki_sidebar = frappe.get_doc("Wiki Space", {"route": self.get_space_route()}).wiki_sidebars
+		check = frappe.db.sql(""" select user, allow, for_value,name from `tabUser Permission` where user=%s and allow='Wiki Space' """,(frappe.session.user))
+		print("==================================================================")
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
-			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
-			if sidebar_item.parent_label not in sidebar:
-				sidebar[sidebar_item.parent_label] = [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
-			else:
-				sidebar[sidebar_item.parent_label] += [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
+			for c in check:
+				if c and c[2] and c[2] == sidebar_item.parent:
+					wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+					if sidebar_item.parent_label not in sidebar:
+						sidebar[sidebar_item.parent_label] = [
+							{
+								"name": wiki_page.name,
+								"type": "Wiki Page",
+								"title": wiki_page.title,
+								"route": wiki_page.route,
+								"group_name": sidebar_item.parent_label,
+							}
+						]
+					else:
+						sidebar[sidebar_item.parent_label] += [
+							{
+								"name": wiki_page.name,
+								"type": "Wiki Page",
+								"title": wiki_page.title,
+								"route": wiki_page.route,
+								"group_name": sidebar_item.parent_label,
+							}
+						]
+				else:
+					print("_________________________________________________")
 
 		return self.get_items(sidebar)
 
