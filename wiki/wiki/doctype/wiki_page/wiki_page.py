@@ -216,23 +216,20 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
-		ccc = frappe.db.sql(""" select user, allow, for_value,name from `tabUser Permission` where user=%s and allow='Wiki Space' """,(frappe.session.user))
-		print(self.name)
+		results = frappe.db.get_value("User Permission", {"user": frappe.session.user, "allow": "Wiki Space"}, ["user", "allow", "for_value", "name"])
 		match_found = False
-		for c in ccc:
-			ws = frappe.db.sql(""" select w.wiki_page from `tabWiki Group Item` as w where parent=%s""",(c[2]))
-			for a in ws:
-				print(a[0])
-				if a[0] == self.name:
+		for result in results:
+			wikiGroup = frappe.db.get_value("Wiki Group Item",{"parent",result[2]})
+			for wk in wikiGroup:
+				if wk[0] == self.name:
 					match_found = True
 					break
 		if match_found:
-			print("ok")
+			pass
 		else:
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/"
 			raise frappe.Redirect
-		print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
