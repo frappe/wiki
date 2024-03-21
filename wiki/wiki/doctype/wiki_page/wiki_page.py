@@ -156,9 +156,9 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def verify_permission(self, permtype):
+		permitted = frappe.has_permission(self.doctype, permtype, self)
 		if permtype == "read" and self.allow_guest:
 			return True
-		permitted = frappe.has_permission(self.doctype, permtype, self)
 		if not permitted:
 			action = permtype
 			if action == "write":
@@ -216,6 +216,26 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
+		results = frappe.db.get_all("User Permission", {"user": frappe.session.user, "allow": "Wiki Space"}, ["user", "allow", "for_value", "name"])
+		if results:
+			match_found = False
+			for result in results:
+				wikiGroup = frappe.db.get_all("Wiki Group Item", {"parent": result['for_value']},["name","wiki_page"])
+				if wikiGroup:
+					for wk in wikiGroup:
+						if wk['wiki_page'] == self.name:
+							match_found = True
+							break
+				if match_found:
+					break
+			if not match_found:
+				frappe.local.response["type"] = "redirect"
+				frappe.local.response["location"] = "/"
+				raise frappe.Redirect
+		else:
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = "/"
+			raise frappe.Redirect
 		wiki_settings = frappe.get_single("Wiki Settings")
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
@@ -283,6 +303,7 @@ class WikiPage(WebsiteGenerator):
 
 	def get_items(self, sidebar_items):
 		topmost = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, ["parent"])
+		wikiSpace = frappe.db.sql("""select name from `tabWiki Space`""")
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
@@ -294,6 +315,7 @@ class WikiPage(WebsiteGenerator):
 			context.current_route = self.route
 			context.collapse_sidebar_groups = wiki_settings.collapse_sidebar_groups
 			context.sidebar_items = sidebar_items
+			context.wikiSpace = wikiSpace
 			context.wiki_search_scope = self.get_space_route()
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
@@ -304,30 +326,37 @@ class WikiPage(WebsiteGenerator):
 
 	def get_sidebar_items(self):
 		wiki_sidebar = frappe.get_doc("Wiki Space", {"route": self.get_space_route()}).wiki_sidebars
+		user = frappe.session.user
+		check = frappe.db.get_all("User Permission", {"user": user, "allow": "Wiki Space"}, ["user", "allow", "for_value", "name"])
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
-			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
-			if sidebar_item.parent_label not in sidebar:
-				sidebar[sidebar_item.parent_label] = [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
-			else:
-				sidebar[sidebar_item.parent_label] += [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
+			if check:
+				for c in check:
+					if c and c['for_value'] and c['for_value'] == sidebar_item.parent:
+						wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+						if sidebar_item.parent_label not in sidebar:
+							sidebar[sidebar_item.parent_label] = [
+								{
+									"name": wiki_page.name,
+									"type": "Wiki Page",
+									"title": wiki_page.title,
+									"route": wiki_page.route,
+									"group_name": sidebar_item.parent_label,
+								}
+							]
+						else:
+							sidebar[sidebar_item.parent_label] += [
+								{
+									"name": wiki_page.name,
+									"type": "Wiki Page",
+									"title": wiki_page.title,
+									"route": wiki_page.route,
+									"group_name": sidebar_item.parent_label,
+								}
+							]
+					else:
+						pass
 
 		return self.get_items(sidebar)
 
