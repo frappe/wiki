@@ -128,14 +128,6 @@ class WikiPage(WebsiteGenerator):
 			protocols=["cid", "http", "https", "mailto"],
 		)
 
-		# sanitize iframe tags that aren't youtube links
-		soup = BeautifulSoup(escaped_html, "html.parser")
-		iframes = soup.find_all("iframe")
-		for iframe in iframes:
-			if "youtube.com/embed/" not in iframe["src"]:
-				iframe.replace_with(str(iframe))
-
-		escaped_html = str(soup)
 		return escaped_html
 
 	def update_page(self, title, content, edit_message, raised_by=None):
