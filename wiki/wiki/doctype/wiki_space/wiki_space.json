@@ -12,7 +12,10 @@
   "route",
   "wiki_sidebars",
   "navbar_tab",
-  "wiki_space_logo",
+  "logo_section",
+  "light_mode_logo",
+  "dark_mode_logo",
+  "section_break_fhui",
   "navbar_items"
  ],
  "fields": [
@@ -41,20 +44,34 @@
    "label": "Navbar"
   },
   {
-   "fieldname": "wiki_space_logo",
-   "fieldtype": "Attach Image",
-   "label": "Wiki Space Logo"
-  },
-  {
    "fieldname": "navbar_items",
    "fieldtype": "Table",
    "label": "Navbar Items",
    "options": "Top Bar Item"
+  },
+  {
+   "fieldname": "logo_section",
+   "fieldtype": "Section Break",
+   "label": "Logo"
+  },
+  {
+   "fieldname": "light_mode_logo",
+   "fieldtype": "Attach Image",
+   "label": "Light Mode Logo"
+  },
+  {
+   "fieldname": "dark_mode_logo",
+   "fieldtype": "Attach Image",
+   "label": "Dark Mode Logo"
+  },
+  {
+   "fieldname": "section_break_fhui",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-05 13:36:07.517135",
+ "modified": "2024-04-05 21:21:29.535486",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

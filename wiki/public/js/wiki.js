@@ -57,7 +57,7 @@ window.Wiki = class Wiki {
       const altSrc = $(".navbar-brand img").data("alt-src");
       const src = $(".navbar-brand img").attr("src");
       if (
-        !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None"].includes(
+        !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None", ""].includes(
           altSrc,
         )
       ) {
