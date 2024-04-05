@@ -139,7 +139,7 @@ class MigrateToWiki(Document):
 					with open(f"{root}{os.sep}index.txt") as f:
 						lines = f.readlines()
 					content = content.replace("{index}", "<ul><li>" + "<li>".join(lines) + "</ul>")
-				except BaseException:
+				except Exception:
 					content = content.replace("{index}", "<ul><li>" + "<li>".join(files) + "</ul>")
 
 				route = f"{parent}".strip("/")
@@ -158,7 +158,7 @@ class MigrateToWiki(Document):
 		wiki_page.update(wiki_page_dict)
 		try:
 			wiki_page.save()
-		except BaseException:
+		except Exception:
 			print(wiki_page.name)
 			print(wiki_page.title)
 
