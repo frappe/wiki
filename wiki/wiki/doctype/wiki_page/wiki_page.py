@@ -225,9 +225,8 @@ class WikiPage(WebsiteGenerator):
 		context.add_dark_mode = wiki_settings.add_dark_mode
 		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
 		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
-		context.home_page = (
-			wiki_space.route if wiki_space.light_mode_logo or wiki_space.dark_mode_logo else "/"
-		)
+		if wiki_space.light_mode_logo or wiki_space.dark_mode_logo:
+			context.home_page = "/" + wiki_space.route
 		context.script = wiki_settings.javascript
 		context.show_feedback = wiki_settings.enable_feedback
 		context.ask_for_contact_details = wiki_settings.ask_for_contact_details
