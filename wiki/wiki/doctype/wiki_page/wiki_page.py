@@ -216,11 +216,15 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
+
 		wiki_settings = frappe.get_single("Wiki Settings")
+		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
+		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
+
 		context.navbar_search = wiki_settings.add_search_bar
 		context.add_dark_mode = wiki_settings.add_dark_mode
-		context.light_mode_logo = wiki_settings.logo
-		context.dark_mode_logo = wiki_settings.dark_mode_logo
+		context.light_mode_logo = wiki_space.wiki_space_logo or wiki_settings.logo
+		context.dark_mode_logo = wiki_space.wiki_space_logo or wiki_settings.dark_mode_logo
 		context.script = wiki_settings.javascript
 		context.show_feedback = wiki_settings.enable_feedback
 		context.ask_for_contact_details = wiki_settings.ask_for_contact_details
@@ -265,7 +269,7 @@ class WikiPage(WebsiteGenerator):
 			)
 		context = context.update(
 			{
-				"navbar_items": modify_header_footer_items(wiki_settings.navbar),
+				"navbar_items": modify_header_footer_items(wiki_space.navbar_items or wiki_settings.navbar),
 				"post_login": [
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},

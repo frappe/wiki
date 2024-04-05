@@ -8,8 +8,12 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "general_tab",
   "route",
-  "wiki_sidebars"
+  "wiki_sidebars",
+  "navbar_tab",
+  "wiki_space_logo",
+  "navbar_items"
  ],
  "fields": [
   {
@@ -25,11 +29,32 @@
    "fieldtype": "Table",
    "label": "Wiki Sidebars",
    "options": "Wiki Group Item"
+  },
+  {
+   "fieldname": "general_tab",
+   "fieldtype": "Tab Break",
+   "label": "General"
+  },
+  {
+   "fieldname": "navbar_tab",
+   "fieldtype": "Tab Break",
+   "label": "Navbar"
+  },
+  {
+   "fieldname": "wiki_space_logo",
+   "fieldtype": "Attach Image",
+   "label": "Wiki Space Logo"
+  },
+  {
+   "fieldname": "navbar_items",
+   "fieldtype": "Table",
+   "label": "Navbar Items",
+   "options": "Top Bar Item"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-04-11 17:49:56.612594",
+ "modified": "2024-04-05 13:36:07.517135",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
