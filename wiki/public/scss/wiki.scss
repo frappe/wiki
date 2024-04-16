@@ -1233,6 +1233,25 @@ p {
 			padding: 0.25rem 0.5rem;
 			font-size: 13px;
 			line-height: 1.25rem;
+
+			&[type="checkbox"] {
+				color: #000;
+				padding: 0%;
+				border: 1px solid var(--gray-500);
+				border-radius: 4px;
+				accent-color: black;
+
+				&:checked {
+					background-color: var(--primary);
+					background-image: url("data:image/svg+xml, <svg viewBox='0 0 8 7' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 4.00001L2.66667 5.80001L7 1.20001' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
+						var(--checkbox-gradient);
+					background-size: 57%, 100%;
+					box-shadow: none;
+					border: none;
+					background-repeat: no-repeat;
+					background-position: center;
+				}
+			}
 		}
 
 		input,
@@ -1333,4 +1352,12 @@ ins {
 	line-height: 1.15;
 	letter-spacing: 0.02em;
 	font-weight: 400;
+}
+
+.wiki-space-route-block {
+	padding: 0.4rem 0.5rem;
+	border-radius: 0.375rem;
+	background-color: var(--gray-300);
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
 }

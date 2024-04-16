@@ -245,6 +245,10 @@ class WikiPage(WebsiteGenerator):
 		context.number_of_revisions = frappe.db.count(
 			"Wiki Page Revision Item", {"wiki_page": self.name}
 		)
+		# TODO: group all context values
+		context.hide_on_sidebar = frappe.get_value(
+			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
+		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
 		context.page_toc_html = (
@@ -313,6 +317,9 @@ class WikiPage(WebsiteGenerator):
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
+			if sidebar_item.hide_on_sidebar:
+				continue
+
 			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
 			if sidebar_item.parent_label not in sidebar:
 				sidebar[sidebar_item.parent_label] = [
@@ -578,3 +585,17 @@ def delete_wiki_page(wiki_page_route):
 @frappe.whitelist(allow_guest=True)
 def has_edit_permission():
 	return frappe.has_permission(doctype="Wiki Page", ptype="write", throw=False)
+
+
+@frappe.whitelist()
+def update_page_settings(name, settings):
+	from frappe.utils import sbool
+
+	frappe.has_permission(doctype="Wiki Page", ptype="write", doc=name, throw=True)
+	settings = frappe.parse_json(settings)
+
+	frappe.db.set_value(
+		"Wiki Group Item", {"wiki_page": name}, "hide_on_sidebar", sbool(settings.hide_on_sidebar)
+	)
+
+	frappe.db.set_value("Wiki Page", name, "route", settings.route)
