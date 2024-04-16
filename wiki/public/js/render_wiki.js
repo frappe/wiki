@@ -742,7 +742,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             indicator: "green",
           });
 
-          $("#pageSettingsModal").modal("hide");
+          window.location.reload();
         });
     });
   }

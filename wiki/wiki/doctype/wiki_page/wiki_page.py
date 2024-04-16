@@ -591,6 +591,7 @@ def has_edit_permission():
 def update_page_settings(name, hide_on_sidebar):
 	from frappe.utils import sbool
 
+	frappe.has_permission(doctype="Wiki Page", ptype="write", doc=name, throw=True)
 	frappe.db.set_value(
 		"Wiki Group Item", {"wiki_page": name}, "hide_on_sidebar", sbool(hide_on_sidebar)
 	)
