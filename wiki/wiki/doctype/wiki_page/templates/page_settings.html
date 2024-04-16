@@ -18,9 +18,9 @@
                                     title="Wiki Space route (can't be modified)">
                                     {{ route.split('/')[0] }}/
                                 </div>
-                                <input type="text" id="pageRoute" name="pageRoute" class="form-control"
-                                    style="border-top-left-radius: 0; border-bottom-left-radius: 0;" value="{{ "
-                                    /".join(route.split('/')[1:]) }}">
+                                <input value="{{ " /".join(route.split('/')[1:]) }}" type="text" id="pageRoute"
+                                    name="pageRoute" class="form-control"
+                                    style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                             </div>
                         </div>
                         <div class="mt-4 flex align-content-center">
