@@ -30,7 +30,7 @@ class WikiPage(WebsiteGenerator):
 
 		if old_title := frappe.db.get_value("Wiki Page", self.name, "title"):
 			if old_title != self.title:
-				self.clear_sidebar_cache()
+				clear_sidebar_cache()
 
 	def after_insert(self):
 		frappe.cache().hdel("website_page", self.name)
@@ -48,10 +48,6 @@ class WikiPage(WebsiteGenerator):
 
 	def on_update(self):
 		update_index(self)
-
-	def clear_sidebar_cache(self):
-		for key in frappe.cache().hgetall("wiki_sidebar").keys():
-			frappe.cache().hdel("wiki_sidebar", key)
 
 	def on_trash(self):
 
@@ -80,7 +76,7 @@ class WikiPage(WebsiteGenerator):
 		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
 		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
 
-		self.clear_sidebar_cache()
+		clear_sidebar_cache()
 		remove_index(self)
 
 	def sanitize_html(self):
@@ -405,6 +401,11 @@ def get_open_drafts():
 	return f'<span class="count">{count}</span>'
 
 
+def clear_sidebar_cache():
+	for key in frappe.cache.hgetall("wiki_sidebar").keys():
+		frappe.cache.hdel("wiki_sidebar", key)
+
+
 @frappe.whitelist()
 def preview(original_code, new_code, name):
 	from lxml.html.diff import htmldiff
@@ -592,6 +593,7 @@ def update_page_settings(name, settings):
 	from frappe.utils import sbool
 
 	frappe.has_permission(doctype="Wiki Page", ptype="write", doc=name, throw=True)
+	clear_sidebar_cache()
 	settings = frappe.parse_json(settings)
 
 	frappe.db.set_value(
