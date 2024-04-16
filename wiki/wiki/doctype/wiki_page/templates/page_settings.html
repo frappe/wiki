@@ -11,7 +11,19 @@
             <div class="modal-body">
                 <form class="page-settings-form">
                     <div class="form-group">
-                        <div class="flex align-content-center">
+                        <div>
+                            <label class="text-muted text-xs" for="pageRoute">Route</label>
+                            <div class="flex align-items-center">
+                                <div class="text-sm wiki-space-route-block"
+                                    title="Wiki Space route (can't be modified)">
+                                    {{ route.split('/')[0] }}/
+                                </div>
+                                <input type="text" id="pageRoute" name="pageRoute" class="form-control"
+                                    style="border-top-left-radius: 0; border-bottom-left-radius: 0;" value="{{ "
+                                    /".join(route.split('/')[1:]) }}">
+                            </div>
+                        </div>
+                        <div class="mt-4 flex align-content-center">
                             <input type="checkbox" id="pageHideOnSidebar" {{ 'checked' if bool(hide_on_sidebar) else ''
                                 }} name="pageHideOnSidebar">
                             <label class="text-muted text-xs" for="pageHideOnSidebar" class="mt-2">

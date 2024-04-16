@@ -588,10 +588,14 @@ def has_edit_permission():
 
 
 @frappe.whitelist()
-def update_page_settings(name, hide_on_sidebar):
+def update_page_settings(name, settings):
 	from frappe.utils import sbool
 
 	frappe.has_permission(doctype="Wiki Page", ptype="write", doc=name, throw=True)
+	settings = frappe.parse_json(settings)
+
 	frappe.db.set_value(
-		"Wiki Group Item", {"wiki_page": name}, "hide_on_sidebar", sbool(hide_on_sidebar)
+		"Wiki Group Item", {"wiki_page": name}, "hide_on_sidebar", sbool(settings.hide_on_sidebar)
 	)
+
+	frappe.db.set_value("Wiki Page", name, "route", settings.route)

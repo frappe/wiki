@@ -1353,3 +1353,11 @@ ins {
 	letter-spacing: 0.02em;
 	font-weight: 400;
 }
+
+.wiki-space-route-block {
+	padding: 0.4rem 0.5rem;
+	border-radius: 0.375rem;
+	background-color: var(--gray-300);
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}

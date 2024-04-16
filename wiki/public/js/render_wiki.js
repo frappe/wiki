@@ -727,13 +727,19 @@ window.RenderWiki = class RenderWiki extends Wiki {
       const hideOnSidebar = $('input[name="pageHideOnSidebar"]').prop(
         "checked",
       );
+      const route =
+        $(".wiki-space-route-block").text().trim() +
+        $('input[name="pageRoute"]').val();
 
       frappe
         .call({
           method: "wiki.wiki.doctype.wiki_page.wiki_page.update_page_settings",
           args: {
             name,
-            hide_on_sidebar: !!hideOnSidebar,
+            settings: {
+              hide_on_sidebar: !!hideOnSidebar,
+              route,
+            },
           },
         })
         .then(() => {
@@ -742,7 +748,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
             indicator: "green",
           });
 
-          window.location.reload();
+          setTimeout(() => {
+            window.location.href = "/" + route;
+          }, 1000);
         });
     });
   }
