@@ -8,7 +8,8 @@
  "engine": "InnoDB",
  "field_order": [
   "parent_label",
-  "wiki_page"
+  "wiki_page",
+  "hide_on_sidebar"
  ],
  "fields": [
   {
@@ -25,12 +26,18 @@
    "label": "Wiki Page",
    "options": "Wiki Page",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "hide_on_sidebar",
+   "fieldtype": "Check",
+   "label": "Hide on sidebar"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-04-04 18:17:37.507102",
+ "modified": "2024-04-16 12:06:18.398870",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Group Item",

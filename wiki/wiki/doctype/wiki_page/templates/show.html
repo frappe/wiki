@@ -15,8 +15,13 @@
 			<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
 				<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
 				<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
-				<a class="dropdown-item show-revisions" href="#" data-toggle="modal"
-					data-target="#revisionsModal">Revisions</a>
+				<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">
+					Revisions
+				</a>
+				<a class="dropdown-item show-page-settings" href="#" data-toggle="modal"
+					data-target="#pageSettingsModal">
+					Page Settings
+				</a>
 			</div>
 		</div>
 	</div>
@@ -25,6 +30,7 @@
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
+	{% include "wiki/doctype/wiki_page/templates/page_settings.html" %}
 </div>
 <div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
 	{% include "wiki/doctype/wiki_page/templates/editor.html" %}
@@ -116,5 +122,5 @@
 </script>
 
 {%- if script -%}
-<script>{{ script }}</script>
+<script>{ { script } }</script>
 {%- endif -%}

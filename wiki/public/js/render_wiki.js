@@ -109,6 +109,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_revisions();
         this.add_click_to_copy();
         this.setup_feedback();
+        this.setup_page_settings();
       }
     });
   }
@@ -716,6 +717,32 @@ window.RenderWiki = class RenderWiki extends Wiki {
           $(".ratings-number").removeClass("rating-active");
           $(".long-feedback").val("");
           $(".feedback-email").val("");
+        });
+    });
+  }
+
+  setup_page_settings() {
+    $(".update-page-settings-button").on("click", function () {
+      const name = $('[name="wiki-page-name"]').val();
+      const hideOnSidebar = $('input[name="pageHideOnSidebar"]').prop(
+        "checked",
+      );
+
+      frappe
+        .call({
+          method: "wiki.wiki.doctype.wiki_page.wiki_page.update_page_settings",
+          args: {
+            name,
+            hide_on_sidebar: !!hideOnSidebar,
+          },
+        })
+        .then(() => {
+          frappe.show_alert({
+            message: __("Page settings updated successfully"),
+            indicator: "green",
+          });
+
+          $("#pageSettingsModal").modal("hide");
         });
     });
   }
