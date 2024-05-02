@@ -26,7 +26,7 @@ def search(query, path, space):
 
 	use_redisearch = frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search")
 	if not use_redisearch or not _redisearch_available:
-		result = web_search(query, space, 5)
+		result = web_search(query, space)
 
 		for d in result:
 			d.title = d.title_highlights or d.title
@@ -44,7 +44,7 @@ def search(query, path, space):
 
 	# if redisearch enabled use redisearch
 	r = frappe.cache()
-	query = Query(query).paging(0, 5).highlight(tags=['<b class="match">', "</b>"])
+	query = Query(query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
 
 	try:
 		result = r.ft(space).search(query)
