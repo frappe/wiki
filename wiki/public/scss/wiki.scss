@@ -1288,11 +1288,17 @@ p {
 		display: none;
 	}
 
+	.revision-content {
+		height: 500px;
+		overflow-y: auto;
+	}
+
+
 	.modal-header {
 		position: inherit;
 
-		.close {
-			margin-top: -2.5rem;
+		.modal-title {
+			max-width: 100%;
 		}
 	}
 
@@ -1308,10 +1314,12 @@ p {
 		position: inherit;
 
 		.previous-revision {
+			width: inherit;
 			margin-right: auto;
 		}
 
 		.next-revision {
+			width: inherit;
 			margin-left: auto;
 		}
 	}
