@@ -91,13 +91,6 @@ class WikiPagePatch(Document):
 						"Wiki Group Item", {"wiki_page": str(item["name"])}, {"parent_label": sidebar, "idx": idx}
 					)
 
-	@frappe.whitelist()
-	def approve_patch(self):
-		self.approved_by = frappe.session.user
-		self.status = "Approved"
-		self.save()
-		return True
-
 
 @frappe.whitelist()
 def add_comment_to_patch(reference_name, content):
