@@ -275,11 +275,11 @@ body.dark {
 		display: inline-flex;
 		margin: 0 5px 0 auto;
 		transition: transform 0.2s ease-in-out;
-		// transform: rotate(90deg);
+		transform: rotate(0deg);
 		color: var(--sidebar-text-color);
 
 		&.rotate {
-			transform: rotate(0deg);
+			transform: rotate(-90deg);
 		}
 	}
 }
