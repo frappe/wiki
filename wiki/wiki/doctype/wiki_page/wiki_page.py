@@ -317,6 +317,12 @@ class WikiPage(WebsiteGenerator):
 				continue
 
 			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+
+			if not wiki_page.allow_guest:
+				permitted = frappe.has_permission(wiki_page.doctype, 'read', wiki_page)
+				if not permitted:
+					continue
+
 			if sidebar_item.parent_label not in sidebar:
 				sidebar[sidebar_item.parent_label] = [
 					{
