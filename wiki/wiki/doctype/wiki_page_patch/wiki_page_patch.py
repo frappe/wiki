@@ -61,7 +61,20 @@ class WikiPagePatch(Document):
 
 	def update_sidebars(self):
 		if not hasattr(self, "new_sidebar_items") or not self.new_sidebar_items:
-			self.new_sidebar_items = "{}"
+			wiki_space_name = frappe.get_value(
+				"Wiki Space", {"route": self.wiki_page_doc.get_space_route()}
+			)
+
+			wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
+			wiki_space.append(
+				"wiki_sidebars",
+				{
+					"wiki_page": self.new_wiki_page.name,
+					"parent_label": self.new_sidebar_group,
+				},
+			)
+			wiki_space.save()
+			return
 
 		sidebars = json.loads(self.new_sidebar_items)
 
