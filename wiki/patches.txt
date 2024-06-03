@@ -2,6 +2,7 @@
 wiki.wiki.doctype.wiki_page.patches.set_allow_guest
 wiki.wiki.doctype.wiki_page.patches.delete_is_new
 wiki.wiki.doctype.wiki_page_revision.patches.add_usernames
+wiki.wiki.doctype.wiki_feedback.patches.delete_wiki_feedback_item
 
 [post_model_sync]
 wiki.wiki.doctype.wiki_space.patches.wiki_sidebar_migration
