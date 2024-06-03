@@ -1,16 +1,26 @@
 import frappe
 
 def execute():
-    for d in frappe.db.sql("select * from `tabWiki Feedback Item`"):
-        frappe.get_doc(dict(
-            doctype = "Wiki Feedback",
-            status = "Open",
-            rating = d.rating,
-            feedback = d.feedback,
-            email_id = d.email_id
-        )).insert()
+	for d in frappe.db.sql("select * from `tabWiki Feedback Item`", as_dict=True):
+		if not d.parent: 
+			continue
+		
+		wiki_page = frappe.db.get_value('Wiki Feedback', d.parent, "wiki_page")
+		
+		if not wiki_page:
+			continue
 
-        frappe.db.sql("update `tabWiki Feedback` set creation = %s, modified = %s" % (d.creation, d.modified))
+		doc = frappe.get_doc(dict(
+			doctype = "Wiki Feedback",
+			status = "Open",
+			wiki_page = wiki_page,
+			rating = d.rating,
+			feedback = d.feedback,
+			email_id = d.email_id,
+		)).insert()
+		
+		frappe.db.set_value('Wiki Feedback', doc.name, 'creation', d.creation)
+		frappe.db.set_value('Wiki Feedback', doc.name, 'modified', d.modified, update_modified = False)
 
-        # delete old
-        frappe.db.sql("delete from `tabWiki Feedback` where name = %s" % d.parent)
+		# delete old
+		frappe.delete_doc('Wiki Feedback', d.parent)
