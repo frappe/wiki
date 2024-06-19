@@ -89,7 +89,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   constructor(opts) {
     super();
     $("document").ready(() => {
-      this.set_darkmode_button();
+      //this.set_darkmode_button();
       if (
         window.location.pathname != "/revisions" &&
         window.location.pathname != "/compare"
@@ -100,7 +100,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_nav_buttons();
         this.set_toc();
         this.set_last_updated_date();
-        this.scrolltotop();
+        //this.scrolltotop();
         this.set_add_item();
         this.add_trash_icon();
         this.set_empty_ul();
