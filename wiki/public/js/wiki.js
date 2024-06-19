@@ -16,7 +16,7 @@ window.Wiki = class Wiki {
     if (active_sidebar_item.length > 0) {
       setTimeout(function () {
         active_sidebar_item.get(0).scrollIntoView({
-          behavior: "smooth",
+          behavior: "instant",
           block: "center",
         });
       }, 50);
