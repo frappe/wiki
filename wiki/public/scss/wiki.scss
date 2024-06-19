@@ -839,6 +839,10 @@ h6:hover .feather-link {
 	}
 }
 
+.dropdown-toggle.wiki-options::after {
+	display: none;
+}
+
 .wiki-options {
 	width: 2rem;
 	height: 2rem;
@@ -847,10 +851,6 @@ h6:hover .feather-link {
 
 	svg {
 		width: 2rem;
-	}
-
-	.dropdown-toggle.wiki-options::after {
-		display: none;
 	}
 
 	.dropdown-menu {
