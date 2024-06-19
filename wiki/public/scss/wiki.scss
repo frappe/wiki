@@ -132,7 +132,7 @@ body.dark {
 			}
 
 			&:last-child {
-				font-size: 14px;
+				font-size: 15px;
 				font-weight: 500;
 				color: var(--primary);
 				transition: color 0.25s;
@@ -159,6 +159,7 @@ body.dark {
 .wiki-page-meta {
 	font-size: $font-size-sm;
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
 }
 
@@ -195,7 +196,7 @@ body.dark {
 	gap: 8px;
 }
 .sidebar-group-title {
-	font-size: 14px;
+	font-size: 15px;
 	font-weight: 450;
 	line-height: 16px;
 	letter-spacing: 0.015em;
@@ -511,7 +512,7 @@ body.dark {
 	}
 
 	.dropdown-item {
-		font-size: 14px;
+		font-size: 15px;
 		outline: unset;
 		overflow: auto;
 		margin: 0.5rem 0;
@@ -692,9 +693,9 @@ body.dark {
 		}
 
 		p {
-			font-size: 14px;
+			font-size: 15px;
 			font-weight: 420;
-			line-height: 21px;
+			line-height: 155%;
 			letter-spacing: 0.02em;
 			text-align: left;
 		}
@@ -733,14 +734,14 @@ body.dark {
 		}
 
 		li {
-			font-size: 14px;
+			font-size: 15px;
 			font-weight: 420;
-			line-height: 21px;
+			line-height: 155%;
 			letter-spacing: 0.02em;
 			text-align: left;
 
 			&::marker {
-				font-size: 14px;
+				font-size: 15px;
 			}
 		}
 	}
@@ -821,7 +822,7 @@ h6:hover .feather-link {
 	}
 
 	.ratings-number {
-		font-size: 14px;
+		font-size: 15px;
 		padding: 8px 0px;
 		border: none;
 		color: #000;
@@ -841,13 +842,14 @@ h6:hover .feather-link {
 .wiki-options {
 	width: 2rem;
 	height: 2rem;
-	margin-top: 1rem;
+	margin-top: 0.5rem;
+	margin-left: 0.5rem;
 
 	svg {
 		width: 2rem;
 	}
 
-	#wikiOptionsButton::after {
+	.dropdown-toggle.wiki-options::after {
 		display: none;
 	}
 
@@ -958,7 +960,7 @@ h6:hover .feather-link {
 }
 
 .user-contributions {
-	margin: 1rem 0 0 auto;
+	margin: 0 0 0 auto;
 	color: var(--sidebar-text-color);
 	font-size: 0.8rem;
 }

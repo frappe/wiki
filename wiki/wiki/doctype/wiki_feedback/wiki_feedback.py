@@ -19,7 +19,7 @@ def submit_feedback(name, feedback, rating, email=None, feedback_index=None):
 			"wiki_page": name,
 			"rating": rating,
 			"feedback": feedback,
-			"email_id": email
+			"email_id": email,
 		}
 	)
 	doc.insert()

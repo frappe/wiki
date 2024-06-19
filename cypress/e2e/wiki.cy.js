@@ -5,7 +5,7 @@ context("Wiki", () => {
   });
 
   it("creates a new wiki page", () => {
-    cy.get(".wiki-options .dropdown-toggle").click();
+    cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
     cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page").click();
@@ -25,7 +25,7 @@ context("Wiki", () => {
   it("edits a wiki page", () => {
     cy.get(".doc-sidebar").contains("Test Wiki Page").click();
 
-    cy.get(".wiki-options .dropdown-toggle").click();
+    cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
     cy.get(".wiki-editor .ProseMirror")
@@ -44,7 +44,7 @@ context("Wiki", () => {
   it("deletes a wiki page", () => {
     cy.get(".doc-sidebar").contains("Old Wiki Page").click();
 
-    cy.get(".wiki-options .dropdown-toggle").click();
+    cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
     cy.get(".doc-sidebar").contains("Old Wiki Page").parent().next().click();

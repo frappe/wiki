@@ -8,7 +8,6 @@
   "general_tab",
   "theme_section",
   "logo",
-  "add_dark_mode",
   "dark_mode_logo",
   "section_break_vefv",
   "default_wiki_space",
@@ -51,12 +50,6 @@
    "fieldname": "dark_mode_logo",
    "fieldtype": "Attach Image",
    "label": "Dark Mode Logo"
-  },
-  {
-   "default": "0",
-   "fieldname": "add_dark_mode",
-   "fieldtype": "Check",
-   "label": "Add Dark Mode"
   },
   {
    "fieldname": "navbar_tab",
@@ -161,7 +154,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-03 16:19:02.137666",
+ "modified": "2024-06-03 16:19:02.137667",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
