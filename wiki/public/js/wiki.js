@@ -15,10 +15,7 @@ window.Wiki = class Wiki {
     let active_sidebar_item = $(".doc-sidebar .sidebar-item.active");
     if (active_sidebar_item.length > 0) {
       setTimeout(function () {
-        active_sidebar_item.get(0).scrollIntoView({
-          behavior: "instant",
-          block: "center",
-        });
+        active_sidebar_item.get(0).scrollIntoView(false);
       }, 50);
     }
   }

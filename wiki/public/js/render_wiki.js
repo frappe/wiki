@@ -169,7 +169,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           {
             scrollTop: offset,
           },
-          500,
+          100,
         );
       });
     });
