@@ -84,8 +84,8 @@ window.Wiki = class Wiki {
 
       $("body").toggleClass("dark");
 
-      localStorage.setItem("darkMode", $("body").hasClass("dark"));
     });
+    localStorage.setItem("darkMode", $("body").hasClass("dark"));
   }
 
   add_link_to_headings() {
