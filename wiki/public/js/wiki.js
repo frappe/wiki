@@ -63,6 +63,7 @@ window.Wiki = class Wiki {
         $(".navbar-brand img").data("alt-src", src);
       }
     }
+    localStorage.setItem("darkMode", $("body").hasClass("dark"));
     const darkMode = localStorage.getItem("darkMode");
 
     if (
@@ -85,7 +86,6 @@ window.Wiki = class Wiki {
       $("body").toggleClass("dark");
 
     });
-    localStorage.setItem("darkMode", $("body").hasClass("dark"));
   }
 
   add_link_to_headings() {
