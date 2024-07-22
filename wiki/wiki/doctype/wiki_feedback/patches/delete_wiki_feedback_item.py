@@ -2,6 +2,9 @@ import frappe
 
 
 def execute():
+	if not frappe.db.table_exists("Wiki Feedback Item"):
+		return
+
 	for d in frappe.db.sql("select * from `tabWiki Feedback Item`", as_dict=True):
 		if not d.parent:
 			continue
