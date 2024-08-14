@@ -50,7 +50,6 @@ class WikiPage(WebsiteGenerator):
 		update_index(self)
 
 	def on_trash(self):
-
 		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
 
 		frappe.db.sql(
@@ -185,9 +184,7 @@ class WikiPage(WebsiteGenerator):
 		if space := frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent"):
 			return frappe.get_value("Wiki Space", space, "route")
 		else:
-			frappe.throw(
-				"Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk."
-			)
+			frappe.throw("Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk.")
 
 	def calculate_toc_html(self, html):
 		from bs4 import BeautifulSoup
@@ -238,9 +235,7 @@ class WikiPage(WebsiteGenerator):
 		context.edit_wiki_page = frappe.form_dict.get("editWiki")
 		context.new_wiki_page = frappe.form_dict.get("newWiki")
 		context.last_revision = self.get_last_revision()
-		context.number_of_revisions = frappe.db.count(
-			"Wiki Page Revision Item", {"wiki_page": self.name}
-		)
+		context.number_of_revisions = frappe.db.count("Wiki Page Revision Item", {"wiki_page": self.name})
 		# TODO: group all context values
 		context.hide_on_sidebar = frappe.get_value(
 			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
@@ -353,7 +348,6 @@ class WikiPage(WebsiteGenerator):
 		return frappe.get_doc("Wiki Page Revision", last_revision)
 
 	def clone(self, original_space, new_space):
-
 		# used in after_insert of Wiki Page to resist create of Wiki Page Revision
 		frappe.local.in_clone = True
 
@@ -439,9 +433,7 @@ def extract_images_from_html(content):
 			mtype = headers.split(";")[0]
 			filename = get_random_filename(content_type=mtype)
 
-		_file = frappe.get_doc(
-			{"doctype": "File", "file_name": filename, "content": content, "decode": True}
-		)
+		_file = frappe.get_doc({"doctype": "File", "file_name": filename, "content": content, "decode": True})
 		_file.save(ignore_permissions=True)
 		file_url = _file.file_url
 		file_ids["name"] += [_file.name]

@@ -12,7 +12,7 @@ PREFIX = "wiki_page_search_doc"
 
 _redisearch_available = False
 try:
-	from redis.commands.search.query import Query  # noqa: F401
+	from redis.commands.search.query import Query
 
 	_redisearch_available = True
 except ImportError:
@@ -39,7 +39,7 @@ def search(query, path, space):
 
 		return {"docs": result, "search_engine": "frappe_web_search"}
 
-	from redis.commands.search.query import Query  # noqa: F811
+	from redis.commands.search.query import Query
 	from redis.exceptions import ResponseError
 
 	# if redisearch enabled use redisearch
@@ -58,8 +58,7 @@ def search(query, path, space):
 	names = list(set(names))
 
 	data_by_name = {
-		d.name: d
-		for d in frappe.db.get_all("Wiki Page", fields=["name"], filters={"name": ["in", names]})
+		d.name: d for d in frappe.db.get_all("Wiki Page", fields=["name"], filters={"name": ["in", names]})
 	}
 
 	docs = []
@@ -148,9 +147,7 @@ def remove_index_for_records(records, space):
 
 
 def update_index(doc):
-	record = frappe._dict(
-		{"name": doc.name, "title": doc.title, "content": doc.content, "route": doc.route}
-	)
+	record = frappe._dict({"name": doc.name, "title": doc.title, "content": doc.content, "route": doc.route})
 	space = get_space_route(doc.route)
 
 	create_index_for_records([record], space)

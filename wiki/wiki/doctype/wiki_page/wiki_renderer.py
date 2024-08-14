@@ -15,9 +15,7 @@ class WikiPageRenderer(DocumentPage):
 	def can_render(self):
 		if wiki_space_name := frappe.get_value("Wiki Space", {"route": self.path}):
 			wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
-			topmost_wiki_route = frappe.get_value(
-				"Wiki Page", wiki_space.wiki_sidebars[0].wiki_page, "route"
-			)
+			topmost_wiki_route = frappe.get_value("Wiki Page", wiki_space.wiki_sidebars[0].wiki_page, "route")
 			frappe.redirect(f"/{quote(topmost_wiki_route)}")
 		return self.search_in_doctypes_with_web_view()
 
