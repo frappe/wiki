@@ -2,7 +2,6 @@ import frappe
 
 
 def execute():
-
 	frappe.reload_doctype("Wiki Page Revision")
 
 	revision = frappe.qb.DocType("Wiki Page Revision")

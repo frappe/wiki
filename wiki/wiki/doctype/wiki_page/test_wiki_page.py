@@ -27,7 +27,6 @@ class TestWikiPage(unittest.TestCase):
 		self.wiki_page.delete()
 
 	def test_wiki_page_lifecycle(self):
-
 		self.assertEqual(
 			frappe.db.get_value("Wiki Page", {"route": "wiki/page"}, "name"), self.wiki_page.name
 		)
@@ -77,7 +76,5 @@ class TestWikiPage(unittest.TestCase):
 		patches = frappe.get_all("Wiki Page Patch", {"wiki_page": self.wiki_page.name}, pluck="name")
 		self.assertEqual(patches, [])
 
-		sidebar_items = frappe.get_all(
-			"Wiki Group Item", {"wiki_page": self.wiki_page.name}, pluck="name"
-		)
+		sidebar_items = frappe.get_all("Wiki Group Item", {"wiki_page": self.wiki_page.name}, pluck="name")
 		self.assertEqual(sidebar_items, [])

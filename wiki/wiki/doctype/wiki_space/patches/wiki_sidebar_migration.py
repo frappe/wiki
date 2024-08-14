@@ -40,9 +40,7 @@ def execute():
 
 	elif hasattr(wiki_settings, "sidebar"):
 		# get sidebar from legacy version of wiki
-		if not (
-			all_sidebars := frappe.db.get_all("Wiki Sidebar", pluck="name", order_by="creation asc")
-		):
+		if not (all_sidebars := frappe.db.get_all("Wiki Sidebar", pluck="name", order_by="creation asc")):
 			return
 
 		# find all root sidebars
@@ -143,9 +141,7 @@ def get_sidebar_items(doc):
 
 
 def get_root_parent_title(name, last_parent=""):
-	if parent := frappe.db.get_value(
-		"Wiki Sidebar Item", {"item": name, "type": "Wiki Sidebar"}, "parent"
-	):
+	if parent := frappe.db.get_value("Wiki Sidebar Item", {"item": name, "type": "Wiki Sidebar"}, "parent"):
 		return get_root_parent_title(parent, name)
 	else:
 		if last_parent:
