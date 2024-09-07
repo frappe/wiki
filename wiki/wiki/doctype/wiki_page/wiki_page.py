@@ -30,7 +30,7 @@ class WikiPage(WebsiteGenerator):
 
 		if old_title := frappe.db.get_value("Wiki Page", self.name, "title"):
 			if old_title != self.title:
-				self.clear_sidebar_cache()
+				clear_sidebar_cache()
 
 	def after_insert(self):
 		frappe.cache().hdel("website_page", self.name)
@@ -49,12 +49,7 @@ class WikiPage(WebsiteGenerator):
 	def on_update(self):
 		update_index(self)
 
-	def clear_sidebar_cache(self):
-		for key in frappe.cache().hgetall("wiki_sidebar").keys():
-			frappe.cache().hdel("wiki_sidebar", key)
-
 	def on_trash(self):
-
 		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
 
 		frappe.db.sql(
@@ -80,7 +75,7 @@ class WikiPage(WebsiteGenerator):
 		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
 		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
 
-		self.clear_sidebar_cache()
+		clear_sidebar_cache()
 		remove_index(self)
 
 	def sanitize_html(self):
@@ -189,9 +184,7 @@ class WikiPage(WebsiteGenerator):
 		if space := frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent"):
 			return frappe.get_value("Wiki Space", space, "route")
 		else:
-			frappe.throw(
-				"Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk."
-			)
+			frappe.throw("Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk.")
 
 	def calculate_toc_html(self, html):
 		from bs4 import BeautifulSoup
@@ -236,11 +229,17 @@ class WikiPage(WebsiteGenerator):
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/"
 			raise frappe.Redirect
+
 		wiki_settings = frappe.get_single("Wiki Settings")
+		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
+		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
+
+		context.no_cache = 1
 		context.navbar_search = wiki_settings.add_search_bar
-		context.add_dark_mode = wiki_settings.add_dark_mode
-		context.light_mode_logo = wiki_settings.logo
-		context.dark_mode_logo = wiki_settings.dark_mode_logo
+		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
+		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
+		if wiki_space.light_mode_logo or wiki_space.dark_mode_logo:
+			context.home_page = "/" + wiki_space.route
 		context.script = wiki_settings.javascript
 		context.show_feedback = wiki_settings.enable_feedback
 		context.ask_for_contact_details = wiki_settings.ask_for_contact_details
@@ -256,8 +255,10 @@ class WikiPage(WebsiteGenerator):
 		context.edit_wiki_page = frappe.form_dict.get("editWiki")
 		context.new_wiki_page = frappe.form_dict.get("newWiki")
 		context.last_revision = self.get_last_revision()
-		context.number_of_revisions = frappe.db.count(
-			"Wiki Page Revision Item", {"wiki_page": self.name}
+		context.number_of_revisions = frappe.db.count("Wiki Page Revision Item", {"wiki_page": self.name})
+		# TODO: group all context values
+		context.hide_on_sidebar = frappe.get_value(
+			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
 		)
 		html = frappe.utils.md_to_html(self.content)
 		context.content = html
@@ -285,7 +286,7 @@ class WikiPage(WebsiteGenerator):
 			)
 		context = context.update(
 			{
-				"navbar_items": modify_header_footer_items(wiki_settings.navbar),
+				"navbar_items": modify_header_footer_items(wiki_space.navbar_items or wiki_settings.navbar),
 				"post_login": [
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
@@ -331,32 +332,36 @@ class WikiPage(WebsiteGenerator):
 		sidebar = {}
 
 		for sidebar_item in wiki_sidebar:
-			if check:
-				for c in check:
-					if c and c['for_value'] and c['for_value'] == sidebar_item.parent:
-						wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
-						if sidebar_item.parent_label not in sidebar:
-							sidebar[sidebar_item.parent_label] = [
-								{
-									"name": wiki_page.name,
-									"type": "Wiki Page",
-									"title": wiki_page.title,
-									"route": wiki_page.route,
-									"group_name": sidebar_item.parent_label,
-								}
-							]
-						else:
-							sidebar[sidebar_item.parent_label] += [
-								{
-									"name": wiki_page.name,
-									"type": "Wiki Page",
-									"title": wiki_page.title,
-									"route": wiki_page.route,
-									"group_name": sidebar_item.parent_label,
-								}
-							]
-					else:
-						pass
+			if sidebar_item.hide_on_sidebar:
+				continue
+
+			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+
+			if not wiki_page.allow_guest:
+				permitted = frappe.has_permission(wiki_page.doctype, "read", wiki_page)
+				if not permitted:
+					continue
+
+			if sidebar_item.parent_label not in sidebar:
+				sidebar[sidebar_item.parent_label] = [
+					{
+						"name": wiki_page.name,
+						"type": "Wiki Page",
+						"title": wiki_page.title,
+						"route": wiki_page.route,
+						"group_name": sidebar_item.parent_label,
+					}
+				]
+			else:
+				sidebar[sidebar_item.parent_label] += [
+					{
+						"name": wiki_page.name,
+						"type": "Wiki Page",
+						"title": wiki_page.title,
+						"route": wiki_page.route,
+						"group_name": sidebar_item.parent_label,
+					}
+				]
 
 		return self.get_items(sidebar)
 
@@ -367,7 +372,6 @@ class WikiPage(WebsiteGenerator):
 		return frappe.get_doc("Wiki Page Revision", last_revision)
 
 	def clone(self, original_space, new_space):
-
 		# used in after_insert of Wiki Page to resist create of Wiki Page Revision
 		frappe.local.in_clone = True
 
@@ -421,6 +425,11 @@ def get_open_drafts():
 	return f'<span class="count">{count}</span>'
 
 
+def clear_sidebar_cache():
+	for key in frappe.cache.hgetall("wiki_sidebar").keys():
+		frappe.cache.hdel("wiki_sidebar", key)
+
+
 @frappe.whitelist()
 def preview(original_code, new_code, name):
 	from lxml.html.diff import htmldiff
@@ -448,9 +457,7 @@ def extract_images_from_html(content):
 			mtype = headers.split(";")[0]
 			filename = get_random_filename(content_type=mtype)
 
-		_file = frappe.get_doc(
-			{"doctype": "File", "file_name": filename, "content": content, "decode": True}
-		)
+		_file = frappe.get_doc({"doctype": "File", "file_name": filename, "content": content, "decode": True})
 		_file.save(ignore_permissions=True)
 		file_url = _file.file_url
 		file_ids["name"] += [_file.name]
@@ -601,3 +608,18 @@ def delete_wiki_page(wiki_page_route):
 @frappe.whitelist(allow_guest=True)
 def has_edit_permission():
 	return frappe.has_permission(doctype="Wiki Page", ptype="write", throw=False)
+
+
+@frappe.whitelist()
+def update_page_settings(name, settings):
+	from frappe.utils import sbool
+
+	frappe.has_permission(doctype="Wiki Page", ptype="write", doc=name, throw=True)
+	clear_sidebar_cache()
+	settings = frappe.parse_json(settings)
+
+	frappe.db.set_value(
+		"Wiki Group Item", {"wiki_page": name}, "hide_on_sidebar", sbool(settings.hide_on_sidebar)
+	)
+
+	frappe.db.set_value("Wiki Page", name, "route", settings.route)

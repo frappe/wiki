@@ -15,10 +15,9 @@ window.Wiki = class Wiki {
     let active_sidebar_item = $(".doc-sidebar .sidebar-item.active");
     if (active_sidebar_item.length > 0) {
       setTimeout(function () {
-        active_sidebar_item.get(0).scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+        let position =
+          active_sidebar_item.offset().top - $(".doc-sidebar").offset().top;
+        $(".doc-sidebar .web-sidebar").get(0).scrollTo(0, position);
       }, 50);
     }
   }
@@ -57,7 +56,7 @@ window.Wiki = class Wiki {
       const altSrc = $(".navbar-brand img").data("alt-src");
       const src = $(".navbar-brand img").attr("src");
       if (
-        !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None"].includes(
+        !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None", ""].includes(
           altSrc,
         )
       ) {
@@ -65,6 +64,7 @@ window.Wiki = class Wiki {
         $(".navbar-brand img").data("alt-src", src);
       }
     }
+    localStorage.setItem("darkMode", $("body").hasClass("dark"));
     const darkMode = localStorage.getItem("darkMode");
 
     if (
@@ -85,8 +85,6 @@ window.Wiki = class Wiki {
       switchBanner();
 
       $("body").toggleClass("dark");
-
-      localStorage.setItem("darkMode", $("body").hasClass("dark"));
     });
   }
 

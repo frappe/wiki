@@ -1,12 +1,12 @@
 
 <script>
-  if (localStorage.getItem("darkMode") === "true" || (!("darkMode" in localStorage) && window.matchMedia?.("(prefers-color-scheme: dark)")?.matches))
+  if (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches)
     document.body.classList.add("dark");
 </script>
 
 <nav class="wiki-navbar navbar navbar-light navbar-expand-lg sticky-top pr-4">
     <div class="navbar-brand-container">
-      <a class="navbar-brand" alt="Go to home page" href="{{ url_prefix or "" }}{{ home_page or "/" }}">
+      <a class="navbar-brand" alt="Go to home page" data-prefix="{{ url_prefix }}" href="{{ url_prefix or "" }}{{ home_page or "/" }}">
         {%- if light_mode_logo -%}
           <img alt="Logo" data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
         {%- elif dark_mode_logo -%}

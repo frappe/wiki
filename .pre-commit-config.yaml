@@ -5,7 +5,7 @@ fail_fast: false
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
         files: "wiki.*"
@@ -20,20 +20,18 @@ repos:
       - id: check-yaml
       - id: debug-statements
 
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.2
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.7
     hooks:
-      - id: pyupgrade
-        args: ['--py310-plus']
+      - id: ruff
+        name: "Run ruff linter and apply fixes"
+        args: ["--fix"]
 
-  - repo: https://github.com/adityahase/black
-    rev: 9cb0a69f4d0030cdf687eddf314468b39ed54119
-    hooks:
-      - id: black
-        additional_dependencies: ['click==8.0.4']
+      - id: ruff-format
+        name: "Format Python code"
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.9-for-vscode
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         types_or: [javascript]
@@ -47,22 +45,6 @@ repos:
                 wiki/templates/includes/.*|
                 wiki/public/js/lib/.*
             )$
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        # W191 - Doesn't like indentation with tabs
-        # E501 - Doesn't like lines > 79 (some sql queries are ~140) 
-        # E203 - Doesn't like space infront of ':' (isn't pep8 compliant)
-        # W503 - Doesn't like line break before binary operator (isn't pep8 compliant)
-        args: ['--ignore=W191,E501,E203,W503']
-        additional_dependencies: ['flake8-bugbear',]
-
 ci:
     autoupdate_schedule: weekly
     skip: []

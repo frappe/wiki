@@ -77,9 +77,7 @@ class MigrateToWiki(Document):
 			wiki_sidebar = frappe.new_doc("Wiki Sidebar")
 			parent_wiki_sidebar = f"{self.documentation_route}{os.sep}{root[root.find(self.docs_directory) + len(self.docs_directory) + 1: ]}".replace(
 				"//", "/"
-			).strip(
-				"/"
-			)
+			).strip("/")
 			wiki_sidebar_dict = {
 				"route": f"{parent_wiki_sidebar}{os.sep}{directory}".replace("//", "/"),
 				"title": directory.capitalize(),
@@ -101,7 +99,6 @@ class MigrateToWiki(Document):
 			wiki_sidebar_item.save()
 
 	def migrate_file(self, root, file, files):
-
 		if file == "index.md" and "contents.md" in files:
 			return
 		heading_index = -1
@@ -116,14 +113,10 @@ class MigrateToWiki(Document):
 
 		parent = f"{self.documentation_route}{os.sep}{root[root.find(self.docs_directory) + len(self.docs_directory) + 1: ]}".replace(
 			"//", "/"
-		).strip(
-			"/"
-		)
+		).strip("/")
 		route = f"{parent}{os.sep}{file[:-3]}"
 
-		title = (
-			lines[heading_index].strip("#").strip(" ") if heading_index != -1 else route.split(os.sep)[-1]
-		)
+		title = lines[heading_index].strip("#").strip(" ") if heading_index != -1 else route.split(os.sep)[-1]
 		content = "".join(lines[heading_index + 1 :]) if heading_index != -1 else "".join(lines)
 		if "shifted to landing page" in content:
 			return
@@ -134,12 +127,11 @@ class MigrateToWiki(Document):
 			content = content.replace(self.docs_directory.strip("w"), f"/{self.documentation_route}")
 
 			if file.endswith("index.md") or file.endswith("contents.md"):
-
 				try:
 					with open(f"{root}{os.sep}index.txt") as f:
 						lines = f.readlines()
 					content = content.replace("{index}", "<ul><li>" + "<li>".join(lines) + "</ul>")
-				except BaseException:
+				except Exception:
 					content = content.replace("{index}", "<ul><li>" + "<li>".join(files) + "</ul>")
 
 				route = f"{parent}".strip("/")
@@ -158,7 +150,7 @@ class MigrateToWiki(Document):
 		wiki_page.update(wiki_page_dict)
 		try:
 			wiki_page.save()
-		except BaseException:
+		except Exception:
 			print(wiki_page.name)
 			print(wiki_page.title)
 
@@ -221,11 +213,8 @@ class MigrateToWiki(Document):
 			folder = f"{folder}{os.sep}{directory}"
 
 		for root, dirs, files in self.assets_tree_generator:
-
 			for directory in dirs:
-				fold = (
-					f"{folder}{os.sep}{root[root.find(self.assets_directory)  + len(self.assets_directory) + 1:]}"
-				)
+				fold = f"{folder}{os.sep}{root[root.find(self.assets_directory)  + len(self.assets_directory) + 1:]}"
 				fold = fold.replace(f"{os.sep}{os.sep}", os.sep)
 				if fold.endswith(f"{os.sep}"):
 					fold = fold[:-1]
@@ -257,7 +246,9 @@ class MigrateToWiki(Document):
 							with open(f"{root}{os.sep}{file}", "rb") as f:
 								content_hash = get_content_hash(f.read())
 						except OSError:
-							frappe.msgprint(frappe._("File {0} does not exist").format(f"{root}{os.sep}{file}"))
+							frappe.msgprint(
+								frappe._("File {0} does not exist").format(f"{root}{os.sep}{file}")
+							)
 							raise
 
 						new_file_name = get_file_name(file, content_hash[-6:])
@@ -299,6 +290,6 @@ class MigrateToWiki(Document):
 				orig_file_url = f"{self.assets_prepend}{os.sep}{root[root.find(self.assets_directory) + len(self.assets_directory) + 1:] }{os.sep}{file}"
 
 				self.docs_change_dict[orig_file_url] = file_url
-				self.docs_change_dict[
-					orig_file_url.replace("{{docs_base_url}}", self.docs_base_url)
-				] = file_url
+				self.docs_change_dict[orig_file_url.replace("{{docs_base_url}}", self.docs_base_url)] = (
+					file_url
+				)
