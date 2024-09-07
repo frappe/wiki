@@ -50,16 +50,23 @@ class WikiPage(WebsiteGenerator):
 		update_index(self)
 
 	def on_trash(self):
-		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
+		if frappe.db.exists('Wiki Page Revision Item', {'wiki_page': self.name}):
+			frappe.db.delete('Wiki Page Revision Item', {'wiki_page': self.name})
 
-		frappe.db.sql(
-			"""DELETE FROM `tabWiki Page Revision` WHERE name in
-			(
-				SELECT name FROM `tabWiki Page Revision`
-				EXCEPT
-				SELECT DISTINCT parent from `tabWiki Page Revision Item`
-			)"""
+		# Get names of revisions that are not referenced in `Wiki Page Revision Item`
+		revisions_to_delete = frappe.db.get_all(
+			"Wiki Page Revision",
+			filters={
+				"name": ["not in", frappe.db.get_all(
+					"Wiki Page Revision Item",
+					fields=["distinct parent"]
+				)]
+			},
+			pluck="name"
 		)
+
+		if revisions_to_delete:
+			frappe.db.delete("Wiki Page Revision", {"name": ["in", revisions_to_delete]})
 
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 0}, pluck="name"):
 			patch = frappe.get_doc("Wiki Page Patch", name)
@@ -72,8 +79,7 @@ class WikiPage(WebsiteGenerator):
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"):
 			frappe.db.set_value("Wiki Page Patch", name, "wiki_page", "")
 
-		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
-		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
+		frappe.db.delete("Wiki Group Item", {"wiki_page": self.name})
 
 		clear_sidebar_cache()
 		remove_index(self)
@@ -209,19 +215,18 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
-		results = frappe.db.get_all("User Permission", {"user": frappe.session.user, "allow": "Wiki Space"}, ["user", "allow", "for_value", "name"])
-		if results:
-			match_found = False
-			for result in results:
-				wikiGroup = frappe.db.get_all("Wiki Group Item", {"parent": result['for_value']},["name","wiki_page"])
-				if wikiGroup:
-					for wk in wikiGroup:
-						if wk['wiki_page'] == self.name:
-							match_found = True
-							break
-				if match_found:
-					break
-			if not match_found:
+
+		user_permissions = frappe.db.get_all("User Permission", filters={"user": frappe.session.user, "allow": "Wiki Space"}, pluck="for_value")
+		if user_permissions:
+			# Fetch all Wiki Groups associated with the user permissions
+			wiki_groups = frappe.db.get_all(
+				"Wiki Group Item",
+				filters={"parent": ["in", user_permissions]},
+				pluck="wiki_page"
+			)
+
+			# Check if the current wiki page is in the allowed wiki groups
+			if self.name not in wiki_groups:
 				frappe.local.response["type"] = "redirect"
 				frappe.local.response["location"] = "/"
 				raise frappe.Redirect
@@ -304,7 +309,7 @@ class WikiPage(WebsiteGenerator):
 
 	def get_items(self, sidebar_items):
 		topmost = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, ["parent"])
-		wikiSpace = frappe.db.sql("""select name from `tabWiki Space`""")
+		wikiSpace = frappe.get_all('Wiki Space', pluck='name')
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
@@ -337,31 +342,18 @@ class WikiPage(WebsiteGenerator):
 
 			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
 
-			if not wiki_page.allow_guest:
-				permitted = frappe.has_permission(wiki_page.doctype, "read", wiki_page)
-				if not permitted:
-					continue
-
-			if sidebar_item.parent_label not in sidebar:
-				sidebar[sidebar_item.parent_label] = [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
-			else:
-				sidebar[sidebar_item.parent_label] += [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
+			if wiki_page.allow_guest or frappe.has_permission(wiki_page.doctype, "read", wiki_page):
+				page_info = {
+                    "name": wiki_page.name,
+                    "type": "Wiki Page",
+                    "title": wiki_page.title,
+                    "route": wiki_page.route,
+                    "group_name": sidebar_item.parent_label,
+                }
+				if sidebar_item.parent_label not in sidebar:
+					sidebar[sidebar_item.parent_label] = [page_info]
+				else:
+					sidebar[sidebar_item.parent_label].append(page_info)
 
 		return self.get_items(sidebar)
 
