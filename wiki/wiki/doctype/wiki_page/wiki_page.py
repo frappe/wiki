@@ -241,7 +241,7 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
 		)
 		html = frappe.utils.md_to_html(self.content)
-		context.content = html
+		context.content = self.content
 		context.page_toc_html = (
 			self.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None
 		)
@@ -261,8 +261,8 @@ class WikiPage(WebsiteGenerator):
 		context.hide_login = True
 		context.name = self.name
 		if (frappe.form_dict.editWiki or frappe.form_dict.newWiki) and frappe.form_dict.wikiPagePatch:
-			context.patch_new_code, context.patch_new_title = frappe.db.get_value(
-				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_code", "new_title"]
+			context.title, context.content = frappe.db.get_value(
+				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_title", "new_code"]
 			)
 		context = context.update(
 			{
@@ -300,7 +300,6 @@ class WikiPage(WebsiteGenerator):
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
 			)
 			frappe.cache().hset("wiki_sidebar", topmost, sidebar_html)
-
 		return sidebar_html
 
 	def get_sidebar_items(self):
@@ -446,6 +445,15 @@ def extract_images_from_html(content):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
 	return content, file_ids["name"]
 
+@frappe.whitelist()
+def convert_markdown(markdown):
+	html = frappe.utils.md_to_html(markdown)
+	return html
+
+@frappe.whitelist()
+def convert_html(html):
+	markdown = frappe.utils.to_markdown(html)
+	return markdown
 
 @frappe.whitelist()
 def update(
