@@ -216,24 +216,11 @@ class WikiPage(WebsiteGenerator):
 		self.verify_permission("read")
 		self.set_breadcrumbs(context)
 
-		user_permissions = frappe.db.get_all("User Permission", filters={"user": frappe.session.user, "allow": "Wiki Space"}, pluck="for_value")
-		if user_permissions:
-			# Fetch all Wiki Groups associated with the user permissions
-			wiki_groups = frappe.db.get_all(
-				"Wiki Group Item",
-				filters={"parent": ["in", user_permissions]},
-				pluck="wiki_page"
-			)
-
-			# Check if the current wiki page is in the allowed wiki groups
-			if self.name not in wiki_groups:
-				frappe.local.response["type"] = "redirect"
-				frappe.local.response["location"] = "/"
-				raise frappe.Redirect
-		else:
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = "/"
-			raise frappe.Redirect
+		if frappe.session.user != "Administrator":  # Administrator should have all wiki access
+			user_permissions = frappe.db.get_all("User Permission", filters={"user": frappe.session.user, "allow": "Wiki Space"}, pluck="for_value")
+			
+			if not user_permissions or not frappe.db.exists("Wiki Group Item", {"parent": ["in", user_permissions], "wiki_page": self.name}):
+				raise frappe.PermissionError(_("You do not have permission to access this page.<br><h6> Please contact the Administrator for assistance.</h6>"))
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
