@@ -445,15 +445,18 @@ def extract_images_from_html(content):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
 	return content, file_ids["name"]
 
+
 @frappe.whitelist()
 def convert_markdown(markdown):
 	html = frappe.utils.md_to_html(markdown)
 	return html
 
+
 @frappe.whitelist()
 def convert_html(html):
 	markdown = frappe.utils.to_markdown(html)
 	return markdown
+
 
 @frappe.whitelist()
 def update(

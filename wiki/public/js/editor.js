@@ -8,10 +8,10 @@ const previewToggleBtn = $("#toggle-btn");
 const wikiTitleInput = $(".wiki-title-input");
 const editWikiBtn = $(".edit-wiki-btn");
 const saveWikiPageBtn = document.querySelector(
-  '[data-wiki-button="saveWikiPage"]'
+  '[data-wiki-button="saveWikiPage"]',
 );
 const draftWikiPageBtn = document.querySelector(
-  '[data-wiki-button="draftWikiPage"]'
+  '[data-wiki-button="draftWikiPage"]',
 );
 let showPreview = false;
 
@@ -122,7 +122,7 @@ editorContainer.addEventListener(
     e.preventDefault();
     e.stopPropagation();
   },
-  500
+  500,
 );
 
 editorContainer.addEventListener("drop", function (e) {
@@ -159,7 +159,7 @@ editorContainer.addEventListener("drop", function (e) {
       }
       editor.session.insert(
         editor.getCursorPosition(),
-        `![](${encodeURI(file_doc.file_url)}`
+        `![](${encodeURI(file_doc.file_url)}`,
       );
     },
   });
