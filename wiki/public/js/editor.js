@@ -13,11 +13,11 @@ const saveWikiPageBtn = document.querySelector(
 const draftWikiPageBtn = document.querySelector(
   '[data-wiki-button="draftWikiPage"]'
 );
-let show_preview = false;
+let showPreview = false;
 
 let editor = Ace.edit(editorContainer, {
   mode: "ace/mode/markdown",
-  placeholder: "Wiki Content",
+  placeholder: "Write your content here...",
   theme: "ace/theme/tomorrow_night",
 });
 
@@ -34,9 +34,9 @@ $(document).ready(() => {
 
 previewContainer.hide();
 previewToggleBtn.on("click", function () {
-  show_preview = !show_preview;
-  previewToggleBtn.text(show_preview ? "Edit" : "Preview");
-  if (show_preview) {
+  showPreview = !showPreview;
+  previewToggleBtn.text(showPreview ? "Edit" : "Preview");
+  if (showPreview) {
     previewContainer.show();
     $(".wiki-editor-container").hide();
     frappe.call({
@@ -116,7 +116,6 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   editor.setValue("");
 });
 
-// handle image drop
 editorContainer.addEventListener(
   "dragover",
   function (e) {

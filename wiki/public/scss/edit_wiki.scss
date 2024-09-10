@@ -468,7 +468,6 @@ $font-sizes-mobile: (
     padding-right: 120px;
     border-radius: 0.5rem;
     background-color: #333c44;
-    // color: var(--text-color);
 
     @include media-breakpoint-down(md) {
       padding-right: 1rem;

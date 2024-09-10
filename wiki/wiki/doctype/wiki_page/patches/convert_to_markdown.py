@@ -1,5 +1,6 @@
 import frappe
 
+
 def execute():
     wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "content"])
     for page in wiki_pages:

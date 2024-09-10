@@ -46,7 +46,6 @@ function toggleEditor() {
   $(".wiki-content").toggleClass("hide");
   $(".wiki-page-meta").toggleClass("hide");
   $(".wiki-footer").toggleClass("hide");
-  // $(".wiki-edit-control-btn").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
   $(".remove-sidebar-item").toggleClass("hide");
   $(".sidebar-item, .sidebar-group").toggleClass("disabled");
@@ -454,9 +453,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
           currentRevision.content
         );
       else $(".revision-content")[0].innerHTML = currentRevision.content;
-      $(
-        ".revision-time"
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex++;
       addHljsClass();
     });
@@ -475,9 +473,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
         nextRevision.content,
         currentRevision.content
       );
-      $(
-        ".revision-time"
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex--;
       addHljsClass();
     });
