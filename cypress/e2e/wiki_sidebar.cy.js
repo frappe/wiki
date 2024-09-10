@@ -17,9 +17,8 @@ context("Wiki Sidebar", () => {
     cy.contains("Submit").click();
 
     cy.get(".doc-sidebar .sidebar-group:last-child .add-sidebar-page").click();
-    cy.get(".wiki-editor .ProseMirror")
-      .clear()
-      .type("Test Wiki Page{enter}New Wiki Page");
+    cy.get(".wiki-editor .wiki-title-input").clear().type("Test Wiki Page");
+    cy.get(".ace_text-input").first().focus().type("New Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
 
     cy.get(".sidebar-group").should("contain", "Test Wiki Sidebar");

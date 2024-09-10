@@ -1,10 +1,12 @@
 import * as Ace from "ace-builds";
-import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/theme-tomorrow_night";
 import "ace-builds/src-noconflict/mode-markdown";
 
 const editorContainer = document.getElementById("wiki-editor");
+const previewContainer = $("#preview-container");
 const previewToggleBtn = $("#toggle-btn");
 const wikiTitleInput = $(".wiki-title-input");
+const editWikiBtn = $(".edit-wiki-btn");
 const saveWikiPageBtn = document.querySelector(
   '[data-wiki-button="saveWikiPage"]'
 );
@@ -16,9 +18,10 @@ let show_preview = false;
 let editor = Ace.edit(editorContainer, {
   mode: "ace/mode/markdown",
   placeholder: "Wiki Content",
+  theme: "ace/theme/tomorrow_night",
 });
 
-$(".edit-wiki-btn").click(() => {
+editWikiBtn.on("click", () => {
   setEditor();
 });
 
@@ -29,14 +32,33 @@ $(document).ready(() => {
   }
 });
 
-$("#preview-container").hide();
+previewContainer.hide();
+previewToggleBtn.on("click", function () {
+  show_preview = !show_preview;
+  previewToggleBtn.text(show_preview ? "Edit" : "Preview");
+  if (show_preview) {
+    previewContainer.show();
+    $(".wiki-editor-container").hide();
+    frappe.call({
+      method: "wiki.wiki.doctype.wiki_page.wiki_page.convert_markdown",
+      args: {
+        markdown: editor.getValue(),
+      },
+      callback: (r) => {
+        previewContainer.html(`<h1>${wikiTitleInput.val()}</h1>` + r.message);
+      },
+    });
+  } else {
+    previewContainer.hide();
+    $(".wiki-editor-container").show();
+  }
+});
 
 function setEditor() {
   editor.setOption("wrap", true);
   editor.setOption("showPrintMargin", true);
-  editor.setTheme("ace/theme/tomorrow");
+  editor.setTheme("ace/theme/tomorrow_night");
   editor.renderer.lineHeight = 20;
-
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.convert_html",
     args: {
@@ -47,30 +69,7 @@ function setEditor() {
     },
   });
 
-  $(".wiki-title-input").val($(".wiki-title").text() || "");
-
-  previewToggleBtn.on("click", function () {
-    show_preview = !show_preview;
-    previewToggleBtn.text(show_preview ? "Edit" : "Preview");
-    if (show_preview) {
-      $("#preview-container").show();
-      $(".wiki-editor-container").hide();
-      frappe.call({
-        method: "wiki.wiki.doctype.wiki_page.wiki_page.convert_markdown",
-        args: {
-          markdown: editor.getValue(),
-        },
-        callback: (r) => {
-          $("#preview-container").html(
-            `<h1>${$(".wiki-title-input").val()}</h1>` + r.message
-          );
-        },
-      });
-    } else {
-      $("#preview-container").hide();
-      $(".wiki-editor-container").show();
-    }
-  });
+  wikiTitleInput.val($(".wiki-title").text() || "");
 }
 
 function saveWikiPage(draft = false) {
@@ -102,6 +101,7 @@ function saveWikiPage(draft = false) {
 saveWikiPageBtn.addEventListener("click", () => {
   saveWikiPage();
 });
+
 draftWikiPageBtn.addEventListener("click", () => {
   saveWikiPage((draft = true));
 });
@@ -112,8 +112,8 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   if ($(".editor-space").is(":visible") || isEmptyEditor) {
     $(".discard-edit-btn").attr("data-new", true);
   }
-  editor.setValue();
-  $(".wiki-title-input").val("");
+  wikiTitleInput.val("");
+  editor.setValue("");
 });
 
 // handle image drop
