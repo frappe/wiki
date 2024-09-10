@@ -65,7 +65,7 @@ function setEditor() {
       html: $(".wiki-content").html(),
     },
     callback: (r) => {
-      editor.setValue(r.message, 1);
+      editor.setValue(markdown_content || "", 1);
     },
   });
 
