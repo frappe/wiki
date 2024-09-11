@@ -889,24 +889,6 @@ h6:hover .feather-link {
   }
 }
 
-.menu {
-  cursor: pointer;
-  font-size: 24px;
-
-  .dots {
-    display: flex;
-    justify-content: space-around;
-    width: 16px;
-
-    .dot {
-      background-color: #333;
-      border-radius: 50%;
-      width: 6px;
-      height: 6px;
-    }
-  }
-}
-
 .wiki-options:hover {
   background-color: var(--gray-200);
   border-radius: 5px;

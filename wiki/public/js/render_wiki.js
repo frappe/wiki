@@ -8,7 +8,7 @@ function setSortable() {
       pull: ["qux"],
     },
     swapThreshold: 0.7,
-    filter: ".disabled",
+    filter: ["draggable", "true"],
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
@@ -48,7 +48,7 @@ function toggleEditor() {
   $(".wiki-footer").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
   $(".remove-sidebar-item").toggleClass("hide");
-  $(".sidebar-item, .sidebar-group").toggleClass("disabled");
+  $(".sidebar-item, .sidebar-group").attr("draggable", "true");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
   $(".add-sidebar-group, .sidebar-view-mode-btn").toggleClass("hide");
@@ -237,7 +237,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    $(".sidebar-item, .sidebar-group").addClass("disabled");
+    // $(".sidebar-item, .sidebar-group").addClass("disxabled");
 
     $(".web-sidebar ul").each(setSortable);
 
@@ -264,7 +264,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
         // switch to edit mode
         toggleEditor();
-        $("html").css({ overflow: "hidden" });
+        // $("html").css({ overflow: "auto" });
 
         if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
       }
