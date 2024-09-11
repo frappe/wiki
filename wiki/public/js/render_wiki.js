@@ -237,8 +237,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    // $(".sidebar-item, .sidebar-group").addClass("disxabled");
-
     $(".web-sidebar ul").each(setSortable);
 
     frappe.call({
@@ -264,7 +262,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
         // switch to edit mode
         toggleEditor();
-        // $("html").css({ overflow: "auto" });
 
         if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
       }
