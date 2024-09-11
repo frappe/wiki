@@ -40,9 +40,21 @@ body {
 
   // ------------------------------------------
 
-  font-family: InterVariable, ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol,
+  font-family:
+    InterVariable,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Helvetica Neue,
+    Arial,
+    Noto Sans,
+    sans-serif,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    Segoe UI Symbol,
     "Noto Color Emoji";
 
   background-color: var(--background-color);
@@ -316,7 +328,10 @@ body.dark {
   &.active {
     background-color: var(--sidebar-active-item-color);
     border-radius: 0.625rem;
-    box-shadow: 0 0 #0000, 0 0 #0000, 0px 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 0 #0000,
+      0 0 #0000,
+      0px 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   div {
@@ -858,9 +873,11 @@ h6:hover .feather-link {
 }
 
 .wiki-options {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
-  margin-top: 0.5rem;
   margin-left: 0.5rem;
 
   svg {
@@ -869,6 +886,24 @@ h6:hover .feather-link {
 
   .dropdown-menu {
     min-width: 7.5rem;
+  }
+}
+
+.menu {
+  cursor: pointer;
+  font-size: 24px;
+
+  .dots {
+    display: flex;
+    justify-content: space-around;
+    width: 16px;
+
+    .dot {
+      background-color: #333;
+      border-radius: 50%;
+      width: 6px;
+      height: 6px;
+    }
   }
 }
 
@@ -953,7 +988,10 @@ h6:hover .feather-link {
   .active {
     color: var(--text-color);
     box-shadow: 1px 0 0 var(--primary) inset;
-    transition: color 0.2s, box-shadow 0.2s linear, transform 0.2s linear;
+    transition:
+      color 0.2s,
+      box-shadow 0.2s linear,
+      transform 0.2s linear;
   }
 
   a {

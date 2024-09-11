@@ -55,20 +55,13 @@ previewToggleBtn.on("click", function () {
 });
 
 function setEditor() {
-  editor.setOption("wrap", true);
-  editor.setOption("showPrintMargin", true);
-  editor.setTheme("ace/theme/tomorrow_night");
-  editor.renderer.lineHeight = 20;
-  frappe.call({
-    method: "wiki.wiki.doctype.wiki_page.wiki_page.convert_html",
-    args: {
-      html: $(".wiki-content").html(),
-    },
-    callback: (r) => {
-      editor.setValue(markdown_content || "", 1);
-    },
+  editor.setOptions({
+    wrap: true,
+    showPrintMargin: true,
+    theme: "ace/theme/tomorrow_night",
   });
-
+  editor.renderer.lineHeight = 20;
+  editor.setValue(markdown_content || "", 1);
   wikiTitleInput.val($(".wiki-title").text() || "");
 }
 
