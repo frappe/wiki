@@ -14,6 +14,8 @@
   "table_of_contents_section",
   "collapse_sidebar_groups",
   "enable_table_of_contents",
+  "permission_settings_section",
+  "enable_custom_permissions",
   "navbar_tab",
   "navbar_column",
   "navbar",
@@ -149,12 +151,24 @@
    "fieldname": "feedback_tab",
    "fieldtype": "Tab Break",
    "label": "Feedback"
+  },
+  {
+   "default": "0",
+   "description": "Enable this to enforce permissions on Wiki pages.",
+   "fieldname": "enable_custom_permissions",
+   "fieldtype": "Check",
+   "label": "Enable Custom Permissions"
+  },
+  {
+   "fieldname": "permission_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Permission Settings"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-06-03 16:19:02.137667",
+ "modified": "2024-09-11 15:36:40.973302",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
