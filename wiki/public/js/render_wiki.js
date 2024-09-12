@@ -1,6 +1,9 @@
 import HtmlDiff from "htmldiff-js";
 
 function setSortable() {
+  if (window.innerWidth < 768) {
+    return;
+  }
   new Sortable(this, {
     group: {
       name: "qux",
@@ -8,7 +11,7 @@ function setSortable() {
       pull: ["qux"],
     },
     swapThreshold: 0.7,
-    filter: ["draggable", "true"],
+    filter: ".draggable",
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
@@ -48,7 +51,7 @@ function toggleEditor() {
   $(".wiki-footer").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
   $(".remove-sidebar-item").toggleClass("hide");
-  $(".sidebar-item, .sidebar-group").attr("draggable", "true");
+  $(".sidebar-item, .sidebar-group").toggleClass("draggable");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
   $(".add-sidebar-group, .sidebar-view-mode-btn").toggleClass("hide");
@@ -237,6 +240,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
+    $(".sidebar-item, .sidebar-group").addClass("draggable");
+
     $(".web-sidebar ul").each(setSortable);
 
     frappe.call({
@@ -509,7 +514,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   get_wiki_sidebar_html(title) {
     return $(`
 			<li class="sidebar-group" data-type="Wiki Sidebar"
-				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
+				data-name="new-sidebar" data-new=1 data-title="${title}">
 				<div class="collapsible">
 					<span class="text-sm">${title}</span>
           <span class='add-sidebar-page'>

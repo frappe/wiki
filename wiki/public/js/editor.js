@@ -6,7 +6,7 @@ const editorContainer = document.getElementById("wiki-editor");
 const previewContainer = $("#preview-container");
 const previewToggleBtn = $("#toggle-btn");
 const wikiTitleInput = $(".wiki-title-input");
-const editWikiBtn = $(".edit-wiki-btn");
+const editWikiBtn = $(".edit-wiki-btn, .sidebar-edit-mode-btn");
 const saveWikiPageBtn = document.querySelector(
   '[data-wiki-button="saveWikiPage"]',
 );
@@ -45,6 +45,7 @@ previewToggleBtn.on("click", function () {
         markdown: editor.getValue(),
       },
       callback: (r) => {
+        console.log(r.message);
         previewContainer.html(`<h1>${wikiTitleInput.val()}</h1>` + r.message);
       },
     });
