@@ -453,12 +453,6 @@ def convert_markdown(markdown):
 
 
 @frappe.whitelist()
-def convert_html(html):
-	markdown = frappe.utils.to_markdown(html)
-	return markdown
-
-
-@frappe.whitelist()
 def update(
 	name,
 	content,
