@@ -50,8 +50,7 @@ class WikiPage(WebsiteGenerator):
 		update_index(self)
 
 	def on_trash(self):
-		if frappe.db.exists('Wiki Page Revision Item', {'wiki_page': self.name}):
-			frappe.db.delete('Wiki Page Revision Item', {'wiki_page': self.name})
+		frappe.delete_doc_if_exists('Wiki Page Revision Item', {'wiki_page': self.name})
 
 		# Get names of revisions that are not referenced in `Wiki Page Revision Item`
 		revisions_to_delete = frappe.db.get_all(
@@ -157,10 +156,9 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def verify_permission(self, permtype):
-		permitted = frappe.has_permission(self.doctype, permtype, self)
 		if permtype == "read" and self.allow_guest:
 			return True
-		if not permitted:
+		if not frappe.has_permission(self.doctype, permtype, self):
 			action = permtype
 			if action == "write":
 				action = "edit"
