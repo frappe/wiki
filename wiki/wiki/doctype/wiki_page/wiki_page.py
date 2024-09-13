@@ -50,16 +50,22 @@ class WikiPage(WebsiteGenerator):
 		update_index(self)
 
 	def on_trash(self):
-		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
+		frappe.delete_doc_if_exists('Wiki Page Revision Item', {'wiki_page': self.name})
 
-		frappe.db.sql(
-			"""DELETE FROM `tabWiki Page Revision` WHERE name in
-			(
-				SELECT name FROM `tabWiki Page Revision`
-				EXCEPT
-				SELECT DISTINCT parent from `tabWiki Page Revision Item`
-			)"""
+		# Get names of revisions that are not referenced in `Wiki Page Revision Item`
+		revisions_to_delete = frappe.db.get_all(
+			"Wiki Page Revision",
+			filters={
+				"name": ["not in", frappe.db.get_all(
+					"Wiki Page Revision Item",
+					fields=["distinct parent"]
+				)]
+			},
+			pluck="name"
 		)
+
+		if revisions_to_delete:
+			frappe.db.delete("Wiki Page Revision", {"name": ["in", revisions_to_delete]})
 
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 0}, pluck="name"):
 			patch = frappe.get_doc("Wiki Page Patch", name)
@@ -72,8 +78,7 @@ class WikiPage(WebsiteGenerator):
 		for name in frappe.get_all("Wiki Page Patch", {"wiki_page": self.name, "new": 1}, pluck="name"):
 			frappe.db.set_value("Wiki Page Patch", name, "wiki_page", "")
 
-		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
-		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
+		frappe.db.delete("Wiki Group Item", {"wiki_page": self.name})
 
 		clear_sidebar_cache()
 		remove_index(self)
@@ -153,8 +158,7 @@ class WikiPage(WebsiteGenerator):
 	def verify_permission(self, permtype):
 		if permtype == "read" and self.allow_guest:
 			return True
-		permitted = frappe.has_permission(self.doctype, permtype, self)
-		if not permitted:
+		if not frappe.has_permission(self.doctype, permtype, self):
 			action = permtype
 			if action == "write":
 				action = "edit"
@@ -211,79 +215,80 @@ class WikiPage(WebsiteGenerator):
 		self.set_breadcrumbs(context)
 
 		wiki_settings = frappe.get_single("Wiki Settings")
+
+		if sbool(wiki_settings.enable_custom_permissions) and frappe.session.user != "Administrator" and not self.allow_guest:
+			user_permissions = frappe.db.get_all("User Permission", filters={"user": frappe.session.user, "allow": "Wiki Space"}, pluck="for_value")
+
+			if not user_permissions or not frappe.db.exists("Wiki Group Item", {"parent": ["in", user_permissions], "wiki_page": self.name}):
+				raise frappe.PermissionError(_("It seems you don't have access to this page. Please contact an administrator if you believe this is a mistake."))
+
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
 		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
 
-		context.no_cache = 1
-		context.navbar_search = wiki_settings.add_search_bar
-		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
-		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
-		if wiki_space.light_mode_logo or wiki_space.dark_mode_logo:
-			context.home_page = "/" + wiki_space.route
-		context.script = wiki_settings.javascript
-		context.show_feedback = wiki_settings.enable_feedback
-		context.ask_for_contact_details = wiki_settings.ask_for_contact_details
-		context.wiki_search_scope = self.get_space_route()
-		context.metatags = {
-			"title": self.title,
-			"description": self.meta_description,
-			"keywords": self.meta_keywords,
-			"image": self.meta_image,
-			"og:image:width": "1200",
-			"og:image:height": "630",
-		}
-		context.edit_wiki_page = frappe.form_dict.get("editWiki")
-		context.new_wiki_page = frappe.form_dict.get("newWiki")
-		context.last_revision = self.get_last_revision()
-		context.number_of_revisions = frappe.db.count("Wiki Page Revision Item", {"wiki_page": self.name})
-		# TODO: group all context values
-		context.hide_on_sidebar = frappe.get_value(
-			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
-		)
-		html = frappe.utils.md_to_html(self.content)
-		context.content = html
-		context.page_toc_html = (
-			self.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None
-		)
-
+		# Fetch values that are used more than once
+		navbar_items = wiki_space.navbar_items or wiki_settings.navbar
+		light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
+		dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
 		revisions = frappe.db.get_all(
 			"Wiki Page Revision",
 			filters=[["wiki_page", "=", self.name]],
 			fields=["content", "creation", "owner", "name", "raised_by", "raised_by_username"],
 		)
-		context.current_revision = revisions[0]
-		if len(revisions) > 1:
-			context.previous_revision = revisions[1]
-		else:
-			context.previous_revision = {"content": "<h3>No Revisions</h3>", "name": ""}
 
-		context.show_sidebar = True
-		context.hide_login = True
-		context.name = self.name
-		if (frappe.form_dict.editWiki or frappe.form_dict.newWiki) and frappe.form_dict.wikiPagePatch:
-			context.patch_new_code, context.patch_new_title = frappe.db.get_value(
+		# Prepare context updates in a single dictionary
+		context_updates = {
+			"no_cache": 1,
+			"navbar_search": wiki_settings.add_search_bar,
+			"light_mode_logo": light_mode_logo,
+			"dark_mode_logo": dark_mode_logo,
+			"home_page": f"/{wiki_space.route}" if light_mode_logo or dark_mode_logo else None,
+			"script": wiki_settings.javascript,
+			"show_feedback": wiki_settings.enable_feedback,
+			"ask_for_contact_details": wiki_settings.ask_for_contact_details,
+			"wiki_search_scope": self.get_space_route(),
+			"metatags": {
+				"title": self.title,
+				"description": self.meta_description,
+				"keywords": self.meta_keywords,
+				"image": self.meta_image,
+				"og:image:width": "1200",
+				"og:image:height": "630",
+			},
+			"edit_wiki_page": frappe.form_dict.get("editWiki"),
+			"new_wiki_page": frappe.form_dict.get("newWiki"),
+			"last_revision": self.get_last_revision(),
+			"number_of_revisions": frappe.db.count("Wiki Page Revision Item", {"wiki_page": self.name}),
+			"hide_on_sidebar": frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"),
+			"content": frappe.utils.md_to_html(self.content),
+			"page_toc_html": self.calculate_toc_html(
+				frappe.utils.md_to_html(self.content)) if wiki_settings.enable_table_of_contents else None,
+			"current_revision": revisions[0] if revisions else 0,
+			"previous_revision": revisions[1] if len(revisions) > 1 else {"content": "<h3>No Revisions</h3>",
+			                                                              "name": ""},
+			"show_sidebar": True,
+			"hide_login": True,
+			"name": self.name,
+			"navbar_items": modify_header_footer_items(navbar_items),
+			"post_login": [
+				{"label": _("My Account"), "url": "/me"},
+				{"label": _("Logout"), "url": "/?cmd=web_logout"},
+				{"label": _("Contributions ") + get_open_contributions(), "url": "/contributions"},
+				{"label": _("My Drafts ") + get_open_drafts(), "url": "/drafts"},
+			],
+		}
+		
+		# Handle conditional patch updates
+		if (context_updates["edit_wiki_page"] or context_updates["new_wiki_page"]) and frappe.form_dict.wikiPagePatch:
+			context_updates["patch_new_code"], context_updates["patch_new_title"] = frappe.db.get_value(
 				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_code", "new_title"]
 			)
-		context = context.update(
-			{
-				"navbar_items": modify_header_footer_items(wiki_space.navbar_items or wiki_settings.navbar),
-				"post_login": [
-					{"label": _("My Account"), "url": "/me"},
-					{"label": _("Logout"), "url": "/?cmd=web_logout"},
-					{
-						"label": _("Contributions ") + get_open_contributions(),
-						"url": "/contributions",
-					},
-					{
-						"label": _("My Drafts ") + get_open_drafts(),
-						"url": "/drafts",
-					},
-				],
-			}
-		)
+		
+		# Apply all context updates in one go
+		context.update(context_updates)
 
 	def get_items(self, sidebar_items):
 		topmost = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, ["parent"])
+		wikiSpace = frappe.get_all('Wiki Space', pluck='name')
 
 		sidebar_html = frappe.cache().hget("wiki_sidebar", topmost)
 		if not sidebar_html or frappe.conf.disable_website_cache or frappe.conf.developer_mode:
@@ -295,6 +300,7 @@ class WikiPage(WebsiteGenerator):
 			context.current_route = self.route
 			context.collapse_sidebar_groups = wiki_settings.collapse_sidebar_groups
 			context.sidebar_items = sidebar_items
+			context.wikiSpace = wikiSpace
 			context.wiki_search_scope = self.get_space_route()
 			sidebar_html = frappe.render_template(
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
@@ -313,31 +319,18 @@ class WikiPage(WebsiteGenerator):
 
 			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
 
-			if not wiki_page.allow_guest:
-				permitted = frappe.has_permission(wiki_page.doctype, "read", wiki_page)
-				if not permitted:
-					continue
-
-			if sidebar_item.parent_label not in sidebar:
-				sidebar[sidebar_item.parent_label] = [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
-			else:
-				sidebar[sidebar_item.parent_label] += [
-					{
-						"name": wiki_page.name,
-						"type": "Wiki Page",
-						"title": wiki_page.title,
-						"route": wiki_page.route,
-						"group_name": sidebar_item.parent_label,
-					}
-				]
+			if wiki_page.allow_guest or frappe.has_permission(wiki_page.doctype, "read", wiki_page):
+				page_info = {
+                    "name": wiki_page.name,
+                    "type": "Wiki Page",
+                    "title": wiki_page.title,
+                    "route": wiki_page.route,
+                    "group_name": sidebar_item.parent_label,
+                }
+				if sidebar_item.parent_label not in sidebar:
+					sidebar[sidebar_item.parent_label] = [page_info]
+				else:
+					sidebar[sidebar_item.parent_label].append(page_info)
 
 		return self.get_items(sidebar)
 
@@ -345,7 +338,8 @@ class WikiPage(WebsiteGenerator):
 		last_revision = frappe.db.get_value(
 			"Wiki Page Revision Item", filters={"wiki_page": self.name}, fieldname="parent"
 		)
-		return frappe.get_doc("Wiki Page Revision", last_revision)
+		if frappe.db.exists('Wiki Page Revision', last_revision):
+			return frappe.get_doc("Wiki Page Revision", last_revision)
 
 	def clone(self, original_space, new_space):
 		# used in after_insert of Wiki Page to resist create of Wiki Page Revision
