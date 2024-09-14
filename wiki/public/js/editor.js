@@ -45,7 +45,6 @@ previewToggleBtn.on("click", function () {
         markdown: editor.getValue(),
       },
       callback: (r) => {
-        console.log(r.message);
         previewContainer.html(`<h1>${wikiTitleInput.val()}</h1>` + r.message);
       },
     });
