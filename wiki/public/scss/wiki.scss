@@ -777,8 +777,7 @@ body.dark {
     margin-bottom: 1rem;
   }
   .wiki-title-input {
-    color: #fff;
-    background-color: #333c44;
+    background-color: var(--editor-background-color);
   }
 }
 .feather-link {

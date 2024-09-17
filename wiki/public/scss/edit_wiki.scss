@@ -4,11 +4,14 @@ body {
   --icon-stroke: var(--text-color);
 
   --editor-line-no-bg-color: var(--gray-100);
+
+  --editor-background-color: #f3f3f3;
 }
 
 body.dark {
   --editor-line-no-bg-color: var(--gray-800);
   --control-bg-on-gray: var(--gray-700);
+  --editor-background-color: #333c44;
 
   .draft-wiki-page {
     background: var(--gray-700);
@@ -430,7 +433,7 @@ $font-sizes-mobile: (
   button:not(.btn-primary) {
     all: unset;
     cursor: pointer;
-    background: #333c44;
+    background: var(--editor-background-color);
     border-radius: 0.5rem;
     display: flex;
     align-items: center;
@@ -467,7 +470,7 @@ $font-sizes-mobile: (
     padding: 0 1rem;
     padding-right: 120px;
     border-radius: 0.5rem;
-    background-color: #333c44;
+    background-color: var(--editor-background-color);
 
     @include media-breakpoint-down(md) {
       padding-right: 1rem;
@@ -488,7 +491,7 @@ $font-sizes-mobile: (
   }
   .ace_editor .ace_gutter {
     z-index: auto;
-    background: #333c44;
+    background: var(--editor-background-color);
     color: var(--text-light);
   }
 
@@ -499,7 +502,6 @@ $font-sizes-mobile: (
   > :last-child {
     overflow-x: auto;
     margin-top: 0 !important;
-    border: 1px solid #232323;
     border-radius: 0.5rem;
   }
 
@@ -576,7 +578,7 @@ $font-sizes-mobile: (
 
 .btn.btn-primary:hover {
   color: #fff;
-  background-color: #383838;
+  background-color: var(--editor-background-color);
   border-color: #383838;
 }
 
