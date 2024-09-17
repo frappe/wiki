@@ -7,4 +7,3 @@ wiki.wiki.doctype.wiki_feedback.patches.delete_wiki_feedback_item
 [post_model_sync]
 wiki.wiki.doctype.wiki_space.patches.wiki_sidebar_migration
 wiki.wiki.doctype.wiki_settings.patches.wiki_navbar_item_migration
-wiki.wiki.doctype.wiki_page.patches.convert_wiki_content_to_markdown
