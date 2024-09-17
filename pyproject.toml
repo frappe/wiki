@@ -17,9 +17,6 @@ Repository = "https://github.com/frappe/wiki.git"
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
-dependencies = [
-    "html2markdown~=0.1.7"
-]
 
 [tool.ruff]
 line-length = 110
