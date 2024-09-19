@@ -152,7 +152,7 @@ editorContainer.addEventListener("drop", function (e) {
       }
       editor.session.insert(
         editor.getCursorPosition(),
-        `![](${encodeURI(file_doc.file_url)}`,
+        `![](${encodeURI(file_doc.file_url)})`,
       );
     },
   });

@@ -26,7 +26,7 @@ from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
 
 class WikiPage(WebsiteGenerator):
 	def before_save(self):
-		self.content = self.sanitize_html()
+		self.content = self.sanitize_html().replace("`", "&#96;").replace("${", "&#36;{")
 
 		if old_title := frappe.db.get_value("Wiki Page", self.name, "title"):
 			if old_title != self.title:
@@ -130,7 +130,7 @@ class WikiPage(WebsiteGenerator):
 			if "youtube.com/embed/" not in iframe["src"]:
 				iframe.replace_with(str(iframe))
 
-		escaped_html = str(soup)
+		escaped_html = str(soup).replace("`", "&#96;").replace("${", "&#36;{")
 		return escaped_html
 
 	def update_page(self, title, content, edit_message, raised_by=None):
@@ -241,6 +241,8 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
 		)
 		html = frappe.utils.md_to_html(self.content)
+		context.show_content = self.content.replace("&#96;", "`").replace("&#36;{", "${")
+		#
 		context.content = self.content
 		context.page_toc_html = (
 			self.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None
