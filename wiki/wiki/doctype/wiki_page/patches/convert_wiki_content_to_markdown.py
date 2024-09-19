@@ -9,7 +9,7 @@ html_heading_re = re.compile(r"h[1-6]")
 
 
 class CustomMarkdownConverter(MarkdownConverter):
-	# overeride markdownify's process_tag function to escape certain html tags
+	# override markdownify's process_tag function to escape certain html tags instead of removing them
 	def process_tag(self, node, convert_as_inline, children_only=False):
 		text = ""
 
@@ -51,7 +51,10 @@ class CustomMarkdownConverter(MarkdownConverter):
 			else:
 				if el.name in ["video", "iframe", "audio", "embed", "object", "source", "picture", "math"]:
 					text += self.process_text(el)
-				text += self.process_tag(el, convert_children_as_inline)
+
+				processed_tag = self.process_tag(el, convert_children_as_inline)
+				if processed_tag is not None:  # Ensure it doesn't return None
+					text += processed_tag
 
 		if not children_only:
 			convert_fn = getattr(self, f"convert_{node.name}", None)
@@ -59,6 +62,21 @@ class CustomMarkdownConverter(MarkdownConverter):
 				text = convert_fn(node, text, convert_as_inline)
 
 		return text
+
+	def convert_img(self, el, text, convert_as_inline):
+		alt = el.attrs.get("alt", None) or ""
+		src = el.attrs.get("src", None) or ""
+		title = el.attrs.get("title", None) or ""
+		title_part = ' "{}"'.format(title.replace('"', r"\"")) if title else ""
+
+		# Only include image tags with valid src attribute, this is to remove empty image tags added by Prosemirror
+		if not src or src.strip() == "":
+			return ""
+
+		if convert_as_inline and el.parent.name not in self.options["keep_inline_images_in"]:
+			return alt
+
+		return f"![{alt}]({src}{title_part})"
 
 
 def custom_markdownify(html, **options):
@@ -68,5 +86,5 @@ def custom_markdownify(html, **options):
 def execute():
 	wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "content"])
 	for page in wiki_pages:
-		markdown_content = custom_markdownify(page["content"])
+		markdown_content = custom_markdownify(page["content"]).replace("`", "&#96;").replace("${", "&#36;{")
 		frappe.db.set_value("Wiki Page", page["name"], "content", markdown_content)
