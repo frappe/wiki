@@ -9,9 +9,8 @@ context("Wiki", () => {
     cy.get(".edit-wiki-btn").click();
 
     cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page").click();
-    cy.get(".wiki-editor .ProseMirror")
-      .clear()
-      .type("Test Wiki Page{enter}New Wiki Page");
+    cy.get(".wiki-editor .wiki-title-input").clear().type("Test Wiki Page");
+    cy.get(".ace_text-input").first().focus().type("New Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
 
     cy.intercept("*/test-wiki-page").as("testWikiPage");
@@ -28,9 +27,8 @@ context("Wiki", () => {
     cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
-    cy.get(".wiki-editor .ProseMirror")
-      .clear()
-      .type("Old Wiki Page{enter}Old Wiki Page");
+    cy.get(".wiki-editor .wiki-title-input").clear().type("Old Wiki Page");
+    cy.get(".ace_text-input").first().focus().type("Old wiki page");
     cy.get('.btn:contains("Save"):visible').click();
 
     cy.intercept("*/test-wiki-page").as("testWikiPage");
@@ -38,7 +36,7 @@ context("Wiki", () => {
 
     cy.get(".sidebar-item.active").should("contain", "Old Wiki Page");
     cy.get(".from-markdown h1").should("contain", "Old Wiki Page");
-    cy.get(".from-markdown p").should("contain", "Old Wiki Page");
+    cy.get(".from-markdown p").should("contain", "Old wiki page");
   });
 
   it("deletes a wiki page", () => {

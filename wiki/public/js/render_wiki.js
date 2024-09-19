@@ -1,6 +1,9 @@
 import HtmlDiff from "htmldiff-js";
 
 function setSortable() {
+  if (window.innerWidth < 768) {
+    return;
+  }
   new Sortable(this, {
     group: {
       name: "qux",
@@ -8,7 +11,7 @@ function setSortable() {
       pull: ["qux"],
     },
     swapThreshold: 0.7,
-    filter: ".disabled",
+    filter: ".draggable",
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
@@ -46,10 +49,9 @@ function toggleEditor() {
   $(".wiki-content").toggleClass("hide");
   $(".wiki-page-meta").toggleClass("hide");
   $(".wiki-footer").toggleClass("hide");
-  $(".wiki-edit-control-btn").toggleClass("hide");
   $(".page-toc").toggleClass("hide");
   $(".remove-sidebar-item").toggleClass("hide");
-  $(".sidebar-item, .sidebar-group").toggleClass("disabled");
+  $(".sidebar-item, .sidebar-group").toggleClass("draggable");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
   $(".add-sidebar-group, .sidebar-view-mode-btn").toggleClass("hide");
@@ -238,7 +240,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    $(".sidebar-item, .sidebar-group").addClass("disabled");
+    $(".sidebar-item, .sidebar-group").addClass("draggable");
 
     $(".web-sidebar ul").each(setSortable);
 
@@ -265,7 +267,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
         // switch to edit mode
         toggleEditor();
-        $("html").css({ overflow: "hidden" });
 
         if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
       }
@@ -513,7 +514,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   get_wiki_sidebar_html(title) {
     return $(`
 			<li class="sidebar-group" data-type="Wiki Sidebar"
-				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
+				data-name="new-sidebar" data-new=1 data-title="${title}">
 				<div class="collapsible">
 					<span class="text-sm">${title}</span>
           <span class='add-sidebar-page'>

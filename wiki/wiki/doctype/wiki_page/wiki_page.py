@@ -26,7 +26,7 @@ from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
 
 class WikiPage(WebsiteGenerator):
 	def before_save(self):
-		self.content = self.sanitize_html()
+		self.content = self.sanitize_html().replace("`", "&#96;").replace("${", "&#36;{")
 
 		if old_title := frappe.db.get_value("Wiki Page", self.name, "title"):
 			if old_title != self.title:
@@ -130,7 +130,7 @@ class WikiPage(WebsiteGenerator):
 			if "youtube.com/embed/" not in iframe["src"]:
 				iframe.replace_with(str(iframe))
 
-		escaped_html = str(soup)
+		escaped_html = str(soup).replace("`", "&#96;").replace("${", "&#36;{")
 		return escaped_html
 
 	def update_page(self, title, content, edit_message, raised_by=None):
@@ -241,7 +241,9 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Group Item", {"wiki_page": self.name}, "hide_on_sidebar"
 		)
 		html = frappe.utils.md_to_html(self.content)
-		context.content = html
+		context.show_content = self.content.replace("&#96;", "`").replace("&#36;{", "${")
+		#
+		context.content = self.content
 		context.page_toc_html = (
 			self.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None
 		)
@@ -261,8 +263,8 @@ class WikiPage(WebsiteGenerator):
 		context.hide_login = True
 		context.name = self.name
 		if (frappe.form_dict.editWiki or frappe.form_dict.newWiki) and frappe.form_dict.wikiPagePatch:
-			context.patch_new_code, context.patch_new_title = frappe.db.get_value(
-				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_code", "new_title"]
+			context.title, context.content = frappe.db.get_value(
+				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_title", "new_code"]
 			)
 		context = context.update(
 			{
@@ -300,7 +302,6 @@ class WikiPage(WebsiteGenerator):
 				"wiki/wiki/doctype/wiki_page/templates/web_sidebar.html", context
 			)
 			frappe.cache().hset("wiki_sidebar", topmost, sidebar_html)
-
 		return sidebar_html
 
 	def get_sidebar_items(self):
@@ -445,6 +446,12 @@ def extract_images_from_html(content):
 	if content and isinstance(content, str):
 		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
 	return content, file_ids["name"]
+
+
+@frappe.whitelist()
+def convert_markdown(markdown):
+	html = frappe.utils.md_to_html(markdown)
+	return html
 
 
 @frappe.whitelist()

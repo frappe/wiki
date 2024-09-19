@@ -3,7 +3,7 @@
 		<h1 class="wiki-title">{{ title }}</h1>
 	</div>
 	<div class="wiki-content">
-		{{ content }}
+		{{frappe.utils.md_to_html(show_content)}}
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
@@ -44,14 +44,14 @@
 	</div>
 	{%- endif -%}
 	<div class="dropdown">
-		<div class="dropdown-toggle wiki-options" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown"
+		<div class="dropdown-toggle wiki-options menu" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown"
 			aria-label="Wiki Option Button" aria-expanded="false">
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
 				stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-				class="feather feather-more-vertical">
+				class="feather feather-more-horizontal">
+				<circle cx="5" cy="12" r="1"></circle>
 				<circle cx="12" cy="12" r="1"></circle>
-				<circle cx="12" cy="5" r="1"></circle>
-				<circle cx="12" cy="19" r="1"></circle>
+				<circle cx="19" cy="12" r="1"></circle>
 			</svg>
 		</div>
 		<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
@@ -83,13 +83,16 @@
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 <script>
-	const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`;
+	/** // const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`;
+	// const patchNewCode = {title: `{{patch_new_title}}`, content: `{{patch_new_code}}`} **/
+	const patchNewCode = `{{patch_new_title}},{{patch_new_code}}`
 	const wikiSearchScope = `{{ wiki_search_scope or "" }}`;
 </script>
 
 {{ include_script('wiki.bundle.js') }}
 
 <script>
+	const markdown_content = `{{content}}`;
 	function getSidebarItems() {
 		let side = {};
 
