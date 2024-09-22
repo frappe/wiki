@@ -108,6 +108,8 @@ after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background
 # Scheduled Tasks
 # ---------------
 
+fixtures = ["Wiki Page"]
+
 scheduler_events = {
 	"cron": {"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]}
 }

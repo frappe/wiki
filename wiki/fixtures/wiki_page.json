@@ -1,0 +1,72 @@
+[
+ {
+  "allow_guest": 1,
+  "content": "Welcome to the homepage of your wiki!",
+  "docstatus": 0,
+  "doctype": "Wiki Page",
+  "meta_description": null,
+  "meta_image": null,
+  "meta_keywords": null,
+  "modified": "2024-09-22 20:24:03.875376",
+  "name": "67178315aa",
+  "published": 1,
+  "route": "wiki/home",
+  "title": "Home"
+ },
+ {
+  "allow_guest": 1,
+  "content": "Welcome to Wiki Space wiki",
+  "docstatus": 0,
+  "doctype": "Wiki Page",
+  "meta_description": null,
+  "meta_image": null,
+  "meta_keywords": null,
+  "modified": "2024-09-22 20:24:04.063489",
+  "name": "7de09e1870",
+  "published": 1,
+  "route": "wiki/new-wiki-page",
+  "title": "New Wiki Page"
+ },
+ {
+  "allow_guest": 1,
+  "content": "This is the content",
+  "docstatus": 0,
+  "doctype": "Wiki Page",
+  "meta_description": null,
+  "meta_image": null,
+  "meta_keywords": null,
+  "modified": "2024-09-22 20:26:09.990554",
+  "name": "1b4138123d",
+  "published": 1,
+  "route": "wiki/wiki-test-page-for-testing",
+  "title": "Wiki Test Page for testing"
+ },
+ {
+  "allow_guest": 1,
+  "content": "No Content",
+  "docstatus": 0,
+  "doctype": "Wiki Page",
+  "meta_description": null,
+  "meta_image": null,
+  "meta_keywords": null,
+  "modified": "2024-09-22 20:47:39.001318",
+  "name": "e5c29fce75",
+  "published": 0,
+  "route": "Yes",
+  "title": "Niggerette"
+ },
+ {
+  "allow_guest": 1,
+  "content": "This is something else",
+  "docstatus": 0,
+  "doctype": "Wiki Page",
+  "meta_description": null,
+  "meta_image": null,
+  "meta_keywords": null,
+  "modified": "2024-09-22 20:48:30.585174",
+  "name": "b6fdcdd74a",
+  "published": 1,
+  "route": "wiki/something-else",
+  "title": "Something else"
+ }
+]
