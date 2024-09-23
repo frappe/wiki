@@ -61,7 +61,15 @@ function setEditor() {
     theme: "ace/theme/tomorrow_night",
   });
   editor.renderer.lineHeight = 20;
-  editor.setValue(markdown_content || "", 1);
+  frappe.call({
+    method: "wiki.wiki.doctype.wiki_page.wiki_page.get_markdown_content",
+    args: {
+      wikiPageName,
+    },
+    callback: (r) => {
+      editor.setValue(r.message || "", 1);
+    },
+  });
   wikiTitleInput.val($(".wiki-title").text() || "");
 }
 
