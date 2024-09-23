@@ -238,7 +238,6 @@ body.dark {
   display: flex;
   align-items: center;
   height: 26px;
-  padding: 5px 8px;
   border-radius: 8px;
 }
 .sidebar-item-active {
@@ -343,7 +342,7 @@ body.dark {
     margin: 0;
     font-weight: 420;
     width: 100%;
-    padding: 0;
+    padding: 5px 8px;
 
     &:hover {
       color: unset;
