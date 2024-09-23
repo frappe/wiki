@@ -7,6 +7,16 @@ app_color = "grey"
 app_email = "developers@frappe.io"
 app_license = "MIT"
 
+add_to_apps_screen = [
+	{
+		"name": "wiki",
+		"logo": "/assets/wiki/images/wiki-logo.png",
+		"title": "Wiki",
+		"route": "/app/wiki",
+		# "has_permission": "erpnext.check_app_permission",
+	}
+]
+
 page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
 
 website_route_rules = [
