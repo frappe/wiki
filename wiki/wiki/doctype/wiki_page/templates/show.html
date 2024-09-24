@@ -3,7 +3,7 @@
 		<h1 class="wiki-title">{{ title }}</h1>
 	</div>
 	<div class="wiki-content">
-		{{frappe.utils.md_to_html(show_content)}}
+		{{frappe.utils.md_to_html(content)}}
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
@@ -92,7 +92,7 @@
 {{ include_script('wiki.bundle.js') }}
 
 <script>
-	const markdown_content = `{{content}}`;
+	const wikiPageName = `{{name}}`;
 	function getSidebarItems() {
 		let side = {};
 
