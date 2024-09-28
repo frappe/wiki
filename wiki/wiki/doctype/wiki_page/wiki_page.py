@@ -148,14 +148,9 @@ class WikiPage(WebsiteGenerator):
 
 		self.save()
 
-	def verify_permission(self, permtype):
-		if permtype == "read" and self.allow_guest:
-			return True
-		permitted = frappe.has_permission(self.doctype, permtype, self)
+	def verify_permission(self):
+		permitted = self.allow_guest or frappe.session.user != "Guest"
 		if not permitted:
-			action = permtype
-			if action == "write":
-				action = "edit"
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
@@ -205,7 +200,7 @@ class WikiPage(WebsiteGenerator):
 		return toc_html
 
 	def get_context(self, context):
-		self.verify_permission("read")
+		self.verify_permission()
 		self.set_breadcrumbs(context)
 
 		wiki_settings = frappe.get_single("Wiki Settings")
@@ -310,10 +305,9 @@ class WikiPage(WebsiteGenerator):
 
 			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
 
-			if not wiki_page.allow_guest:
-				permitted = frappe.has_permission(wiki_page.doctype, "read", wiki_page)
-				if not permitted:
-					continue
+			permitted = wiki_page.allow_guest or frappe.session.user != "Guest"
+			if not permitted:
+				continue
 
 			if sidebar_item.parent_label not in sidebar:
 				sidebar[sidebar_item.parent_label] = [
