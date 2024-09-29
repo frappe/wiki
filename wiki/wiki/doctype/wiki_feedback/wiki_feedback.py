@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_email_address
 
 
@@ -10,7 +11,13 @@ class WikiFeedback(Document):
 	pass
 
 
+def get_feedback_limit():
+	wiki_settings = frappe.get_single("Wiki Settings")
+	return wiki_settings.feedback_submission_limit or 3
+
+
 @frappe.whitelist(allow_guest=True)
+@rate_limit(limit=get_feedback_limit, seconds=60 * 60)
 def submit_feedback(name, feedback, rating, email=None, feedback_index=None):
 	email = validate_email_address(email)
 	doc = frappe.get_doc(
