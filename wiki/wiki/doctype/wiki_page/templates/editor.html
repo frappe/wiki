@@ -1,10 +1,10 @@
 <div class="wiki-edit-control-btn">
   <button id="toggle-btn" class="btn btn-secondary btn-sm text-sm">
-    Preview
+    {{ _("Preview") }}
   </button>
   <div class="wiki-edit-control-btn flex">
     <div class="btn btn-secondary discard-edit-btn btn-sm" data-new="false">
-      Discard
+      {{ _("Discard") }}
     </div>
     <div class="btn-group">
       <div
@@ -12,7 +12,7 @@
         class="btn btn-group btn-primary save-wiki-page-btn btn-sm"
         data-wiki-button="saveWikiPage"
       >
-        Save
+        {{ _("Save") }}
       </div>
       <div
         type="button"
@@ -21,14 +21,14 @@
         aria-haspopup="true"
         aria-expanded="false"
       >
-        <span class="sr-only">Toggle Dropdown</span>
+        <span class="sr-only">{{ _("Toggle Dropdown") }}</span>
       </div>
       <div class="dropdown-menu" aria-labelledby="saveDropdownMenuButton">
         <a
           href="#"
           class="dropdown-item text-sm"
           data-wiki-button="draftWikiPage"
-          >Draft</a
+          >{{ _("Draft") }}</a
         >
       </div>
     </div>
@@ -38,7 +38,7 @@
 <div id="preview-container" class="markdown-preview"></div>
 <div class="wiki-editor-container">
   <div class="wiki-title-container">
-    <label class="text-sm">Title</label>
+    <label class="text-sm">{{ _("Title") }}</label>
     <input
       type="text"
       class="form-control wiki-title-input"
@@ -46,6 +46,6 @@
       placeholder="What's the Wiki Title?"
     />
   </div>
-  <label class="text-sm">Content</label>
+  <label class="text-sm">{{ _("Content") }}</label>
   <div id="wiki-editor"></div>
 </div>

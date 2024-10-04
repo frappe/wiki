@@ -17,14 +17,14 @@
 	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+				<h5 class="modal-title" id="addGroupModalTitle">{{ _("Title") }}</h5>
 			</div>
 			<div class="modal-body">
-				<span class="text-muted text-xs">Enter title for the new Wiki Group</span>
+				<span class="text-muted text-xs">{{ _("Enter title for the new Wiki Group") }}</span>
 				<input type="text" id="title" name="title">
 			</div>
 			<div class="modal-footer">
-				<button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+				<button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">{{ _("Submit") }}</button>
 			</div>
 		</div>
 	</div>
@@ -34,7 +34,7 @@
 	{%- if show_feedback -%}
 	<div class="flex mt-4">
 		<span class="text-sm d-none d-sm-block">Was this article helpful?</span>
-		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">Give Feedback</span>
+		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">{{ _("Give Feedback") }}</span>
 	</div>
 	{% include "wiki/doctype/wiki_page/templates/feedback.html" %}
 	{%- endif -%}
@@ -55,14 +55,14 @@
 			</svg>
 		</div>
 		<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
-			<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
-			<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
+			<a class="dropdown-item edit-wiki-btn" href="#">{{ _("Edit Page") }}</a>
+			<a class="dropdown-item add-wiki-btn" href="#">{{ _("New Page") }}</a>
 			<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">
-				Revisions
+				{{ _("Revisions") }}
 			</a>
 			<a class="dropdown-item show-page-settings" href="#" data-toggle="modal"
 				data-target="#pageSettingsModal">
-				Page Settings
+				{{ _("Page Settings") }}
 			</a>
 		</div>
 	</div>
@@ -70,11 +70,11 @@
 <div class="wiki-footer hide d-print-none">
 	<div class="forward-back">
 		<a href="#" class="btn left">
-			<p>Previous Page</p>
+			<p>{{ _("Previous Page") }}</p>
 			<p>Left</p>
 		</a>
 		<a href="#" class="btn pull-right right">
-			<p>Next Page</p>
+			<p>{{ _("Next Page") }}</p>
 			<p>Right</p>
 		</a>
 		</a>

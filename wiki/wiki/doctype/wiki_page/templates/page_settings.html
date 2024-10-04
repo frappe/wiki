@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title page-settings-title">Page Settings</h5>
+                <h5 class="modal-title page-settings-title">{{ _("Page Settings") }}</h5>
                 <button type="button" class="d-block d-sm-none close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -11,7 +11,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <div>
-                        <label class="text-muted text-xs" for="pageRoute">Route</label>
+                        <label class="text-muted text-xs" for="pageRoute">{{ _("Route") }}</label>
                         <div class="flex align-items-center">
                             <div class="text-sm wiki-space-route-block" title="Wiki Space route (can't be modified)">
                                 {{ route.split('/')[0] }}/
@@ -25,7 +25,7 @@
                         <input type="checkbox" id="pageHideOnSidebar" {{ 'checked' if bool(hide_on_sidebar) else '' }}
                             name="pageHideOnSidebar">
                         <label class="text-muted text-xs" for="pageHideOnSidebar" class="mt-2">
-                            Hide on Sidebar
+                            {{ _("Hide on Sidebar") }}
                         </label>
                     </div>
                 </div>
@@ -33,7 +33,7 @@
             <div class="modal-footer">
                 <button type="button" data-modal-button="update"
                     class="btn btn-primary btn-sm update-page-settings-button">
-                    Update
+                    {{ _("Update") }}
                 </button>
             </div>
         </div>
