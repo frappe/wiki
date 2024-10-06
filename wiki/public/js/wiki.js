@@ -94,7 +94,9 @@ window.Wiki = class Wiki {
       .find("h2, h3, h4, h5, h6")
       .each((i, $heading) => {
         const text = $heading.textContent.trim();
-        $heading.id = text.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+        $heading.id = text
+          .replace(/[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]/g, "")
+          .replace(/[ ]/g, "-");
         let id = $heading.id;
         let $a = $('<a class="no-underline">')
           .prop("href", "#" + id)
