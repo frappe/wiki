@@ -9,3 +9,4 @@ wiki.wiki.doctype.wiki_space.patches.wiki_sidebar_migration
 wiki.wiki.doctype.wiki_settings.patches.wiki_navbar_item_migration
 wiki.wiki.doctype.wiki_page.patches.convert_wiki_content_to_markdown
 wiki.wiki.doctype.wiki_page.patches.update_escaped_code_content
+wiki.wiki.doctype.wiki_page.patches.update_escaped_chars
