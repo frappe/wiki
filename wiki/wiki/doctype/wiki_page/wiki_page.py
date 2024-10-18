@@ -188,7 +188,7 @@ class WikiPage(WebsiteGenerator):
 		toc_html = ""
 		for heading in headings:
 			title = heading.get_text().strip()
-			heading_id = re.sub(r"[^a-zA-Z0-9]+", "-", title.lower())
+			heading_id = re.sub(r"[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]", "", title).replace(" ", "-").lower()
 			heading["id"] = heading_id
 			title = heading.get_text().strip()
 			level = int(heading.name[1])
