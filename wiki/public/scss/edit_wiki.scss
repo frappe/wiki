@@ -265,7 +265,6 @@ $font-sizes-mobile: (
     td,
     th {
       min-width: 1em;
-      border: 2px solid #ced4da;
       padding: 3px 5px;
       vertical-align: top;
       box-sizing: border-box;
@@ -312,9 +311,9 @@ $font-sizes-mobile: (
   .table-bordered,
   .table-bordered th,
   .table-bordered td {
-    border-left: none;
-    border-right: none;
+    border: 1px solid;
     border-color: $gray-200;
+    color: inherit;
   }
 
   .table-bordered thead th,
