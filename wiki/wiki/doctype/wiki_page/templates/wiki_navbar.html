@@ -1,7 +1,6 @@
 
 <script>
-  if (localStorage.getItem("darkMode") === "true" || (!("darkMode" in localStorage) && window.matchMedia?.("(prefers-color-scheme: dark)")?.matches))
-    document.body.classList.add("dark");
+	if (localStorage.getItem("darkMode") === "true") document.body.classList.add("dark");
 </script>
 
 <nav class="wiki-navbar navbar navbar-light navbar-expand-lg sticky-top pr-4">

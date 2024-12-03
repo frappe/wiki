@@ -67,11 +67,7 @@ window.Wiki = class Wiki {
     }
     const darkMode = localStorage.getItem("darkMode");
 
-    if (
-      (!("darkMode" in localStorage) &&
-        !window.matchMedia?.("(prefers-color-scheme: dark)")?.matches) ||
-      darkMode === "false"
-    ) {
+    if (darkMode === null || darkMode === "false") {
       $(".sun-moon-container .feather-sun").removeClass("hide");
     } else {
       $(".sun-moon-container .feather-moon").removeClass("hide");
