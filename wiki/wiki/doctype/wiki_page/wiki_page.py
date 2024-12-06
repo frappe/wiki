@@ -205,7 +205,7 @@ class WikiPage(WebsiteGenerator):
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
-		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
+		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
 
 		context.no_cache = 1
 		context.navbar_search = wiki_settings.add_search_bar
