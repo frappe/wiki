@@ -47,10 +47,10 @@ $ bench --site sitename install-app wiki
 ## Screenshots
 
 ### 1. Rendered Page
-<img width="1552" alt="wiki-rendered" src="https://github.com/frappe/wiki/assets/63963181/011e976e-b572-4d3a-82e8-374d26ecd0d0.png">
+<img width="1552" alt="wiki-rendered" src="https://github.com/user-attachments/assets/11d4eea0-adf6-475c-a380-206ece8de9f1">
 
 ### 2. Edit Page
-<img width="1552" alt="wiki-edit" src="https://github.com/frappe/wiki/assets/63963181/339d1422-6c99-450d-9e97-7348651abe63.png">
+<img width="1552" alt="wiki-edit" src="https://github.com/user-attachments/assets/748052ab-2391-47c1-a8e5-674214d5de26">
 
 #### License
 
