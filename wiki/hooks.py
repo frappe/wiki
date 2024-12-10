@@ -13,7 +13,7 @@ add_to_apps_screen = [
 		"logo": "/assets/wiki/images/wiki-logo.png",
 		"title": "Wiki",
 		"route": "/app/wiki",
-		# "has_permission": "erpnext.check_app_permission",
+		"has_permission": "wiki.utils.check_app_permission",
 	}
 ]
 
