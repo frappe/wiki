@@ -50,9 +50,9 @@ def get_data(filters: dict | None = None) -> list[list]:
 	"""
 	data = []
 
-	if not filters:
-		wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "content"])
-	elif filters.get("wiki_space"):
+	wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "content"])
+
+	if filters and filters.get("wiki_space"):
 		wiki_space = filters.get("wiki_space")
 		wiki_pages = frappe.db.get_all(
 			"Wiki Group Item",
@@ -60,22 +60,25 @@ def get_data(filters: dict | None = None) -> list[list]:
 			filters={"parent": wiki_space, "parenttype": "Wiki Space"},
 		)
 
+	include_images = filters and bool(filters.get("check_images"))
 	for page in wiki_pages:
-		broken_links_for_page = get_broken_links(page.content)
+		broken_links_for_page = get_broken_links(page.content, include_images)
 		rows = [{"broken_link": link, "wiki_page": page["name"]} for link in broken_links_for_page]
 		data.extend(rows)
 
 	return data
 
 
-def get_broken_links(md_content: str):
+def get_broken_links(md_content: str, include_images: bool = True):
 	html = frappe.utils.md_to_html(md_content)
 	soup = BeautifulSoup(html, "html.parser")
 
 	links = soup.find_all("a")
-	images = soup.find_all("img")
+	if include_images:
+		links += soup.find_all("img")
+
 	broken_links = []
-	for el in links + images:
+	for el in links:
 		url = el.attrs.get("href") or el.attrs.get("src")
 		try:
 			response = requests.head(url, verify=False, timeout=5)

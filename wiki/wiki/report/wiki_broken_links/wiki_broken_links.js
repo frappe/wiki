@@ -9,5 +9,11 @@ frappe.query_reports["Wiki Broken Links"] = {
       fieldtype: "Link",
       options: "Wiki Space",
     },
+    {
+      fieldname: "check_images",
+      label: __("Check Images?"),
+      fieldtype: "Check",
+      default: 1,
+    },
   ],
 };
