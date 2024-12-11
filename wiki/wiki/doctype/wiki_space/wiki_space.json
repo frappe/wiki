@@ -71,7 +71,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-05 21:21:29.535486",
+ "modified": "2024-12-11 15:27:44.629602",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
@@ -105,5 +105,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "route"
 }
