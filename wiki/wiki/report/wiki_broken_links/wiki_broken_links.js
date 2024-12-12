@@ -11,13 +11,13 @@ frappe.query_reports["Wiki Broken Links"] = {
     },
     {
       fieldname: "check_images",
-      label: __("Check images?"),
+      label: __("Include images?"),
       fieldtype: "Check",
       default: 1,
     },
     {
       fieldname: "check_internal_links",
-      label: __("Check internal links?"),
+      label: __("Include internal links?"),
       fieldtype: "Check",
       default: 0,
     },
