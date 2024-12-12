@@ -15,7 +15,7 @@ WORKING_INTERNAL_URL = "/api/method/ping"
 BROKEN_INTERNAL_URL = "/api/method/ring"
 
 
-def internal_to_external_urls(internal_url: str):
+def internal_to_external_urls(internal_url: str) -> str:
 	if internal_url == WORKING_INTERNAL_URL:
 		return WORKING_EXTERNAL_URL
 	else:

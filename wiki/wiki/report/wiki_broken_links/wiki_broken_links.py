@@ -64,14 +64,16 @@ def get_data(filters: dict | None = None) -> list[list]:
 	check_internal_links = filters and bool(filters.get("check_internal_links"))
 
 	for page in wiki_pages:
-		broken_links_for_page = get_broken_links(page.content, include_images, not check_internal_links)
+		broken_links_for_page = get_broken_links(page.content, include_images, check_internal_links)
 		rows = [{"broken_link": link, "wiki_page": page["name"]} for link in broken_links_for_page]
 		data.extend(rows)
 
 	return data
 
 
-def get_broken_links(md_content: str, include_images: bool = True, ignore_relative_urls: bool = True):
+def get_broken_links(
+	md_content: str, include_images: bool = True, include_relative_urls: bool = False
+) -> list[str]:
 	html = frappe.utils.md_to_html(md_content)
 	soup = BeautifulSoup(html, "html.parser")
 
@@ -85,29 +87,38 @@ def get_broken_links(md_content: str, include_images: bool = True, ignore_relati
 		is_relative = is_relative_url(url)
 		relative_url = None
 
-		if is_relative and ignore_relative_urls:
+		if is_relative and not include_relative_urls:
 			continue
-		elif is_relative:
-			from frappe.utils.data import get_url
 
+		if is_relative:
 			relative_url = url
-			url = get_url(url)  # absolute URL
+			url = frappe.utils.data.get_url(url)  # absolute URL
 
-		try:
-			response = requests.head(url, verify=False, timeout=5)
-			if response.status_code >= 400:
-				if is_relative:
-					broken_links.append(relative_url)
-				else:
-					broken_links.append(url)
-		except Exception:
+		is_broken = is_broken_link(url)
+		if is_broken:
 			if is_relative:
-				broken_links.append(relative_url)
+				broken_links.append(relative_url)  # original URL
 			else:
 				broken_links.append(url)
 
 	return broken_links
 
 
-def is_relative_url(url: str):
+def is_relative_url(url: str) -> bool:
 	return url.startswith("/")
+
+
+def is_broken_link(url: str) -> bool:
+	try:
+		status_code = get_request_status_code(url)
+		if status_code >= 400:
+			return True
+	except Exception:
+		return True
+
+	return False
+
+
+def get_request_status_code(url: str) -> int:
+	response = requests.head(url, verify=False, timeout=5)
+	return response.status_code
