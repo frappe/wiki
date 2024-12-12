@@ -31,6 +31,8 @@ This is a [valid link]({WORKING_EXTERNAL_URL}).
 And [this is a correct relative link]({WORKING_INTERNAL_URL}).
 And [this is an incorrect relative link]({BROKEN_INTERNAL_URL}).
 
+This [hash link](#hash-link) should be ignored.
+
 ![Broken Image]({BROKEN_IMG_URL})
 """
 
