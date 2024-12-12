@@ -61,15 +61,17 @@ def get_data(filters: dict | None = None) -> list[list]:
 		)
 
 	include_images = filters and bool(filters.get("check_images"))
+	check_internal_links = filters and bool(filters.get("check_internal_links"))
+
 	for page in wiki_pages:
-		broken_links_for_page = get_broken_links(page.content, include_images)
+		broken_links_for_page = get_broken_links(page.content, include_images, not check_internal_links)
 		rows = [{"broken_link": link, "wiki_page": page["name"]} for link in broken_links_for_page]
 		data.extend(rows)
 
 	return data
 
 
-def get_broken_links(md_content: str, include_images: bool = True):
+def get_broken_links(md_content: str, include_images: bool = True, ignore_relative_urls: bool = True):
 	html = frappe.utils.md_to_html(md_content)
 	soup = BeautifulSoup(html, "html.parser")
 
@@ -80,11 +82,32 @@ def get_broken_links(md_content: str, include_images: bool = True):
 	broken_links = []
 	for el in links:
 		url = el.attrs.get("href") or el.attrs.get("src")
+		is_relative = is_relative_url(url)
+		relative_url = None
+
+		if is_relative and ignore_relative_urls:
+			continue
+		elif is_relative:
+			from frappe.utils.data import get_url
+
+			relative_url = url
+			url = get_url(url)  # absolute URL
+
 		try:
 			response = requests.head(url, verify=False, timeout=5)
 			if response.status_code >= 400:
-				broken_links.append(url)
+				if is_relative:
+					broken_links.append(relative_url)
+				else:
+					broken_links.append(url)
 		except Exception:
-			broken_links.append(url)
+			if is_relative:
+				broken_links.append(relative_url)
+			else:
+				broken_links.append(url)
 
 	return broken_links
+
+
+def is_relative_url(url: str):
+	return url.startswith("/")
