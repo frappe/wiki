@@ -9,10 +9,10 @@ echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://pack
 
 sudo apt update
 sudo apt remove mysql-server mysql-client
-sudo apt install libcups2-dev redis mariadb-client-10.6
+sudo apt install libcups2-dev redis mariadb-client
 
 install_wkhtmltopdf() {
-  wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.focal_amd64.deb
-  sudo apt install ./wkhtmltox_0.12.6-1.focal_amd64.deb
+  wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+  sudo apt install ./wkhtmltox_0.12.6.1-2.jammy_amd64.deb
 }
 install_wkhtmltopdf &
