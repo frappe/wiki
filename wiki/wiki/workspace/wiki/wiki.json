@@ -1,4 +1,5 @@
 {
+ "app": "wiki",
  "charts": [],
  "content": "[{\"id\":\"f6laZQUa0x\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Wiki</span>\",\"col\":12}},{\"id\":\"ir8Llemis5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Pages\",\"col\":4}},{\"id\":\"tZQ_AtqABm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Space\",\"col\":4}},{\"id\":\"z4qT3yMggL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Settings\",\"col\":4}},{\"id\":\"cTIBC0weUT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Patches\",\"col\":4}},{\"id\":\"IfrRKY62Tc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Feedback\",\"col\":4}},{\"id\":\"BsC6YwujPn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Revisions\",\"col\":4}}]",
  "creation": "2022-09-25 16:45:20.547072",
@@ -12,7 +13,7 @@
  "is_hidden": 0,
  "label": "Wiki",
  "links": [],
- "modified": "2024-06-03 16:10:59.630080",
+ "modified": "2024-12-17 16:48:53.058886",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki",
@@ -72,5 +73,6 @@
    "type": "DocType"
   }
  ],
- "title": "Wiki"
+ "title": "Wiki",
+ "type": "Workspace"
 }
