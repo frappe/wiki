@@ -27,7 +27,7 @@ editWikiBtn.on("click", () => {
 
 $(document).ready(() => {
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get("editWiki") === "1") {
+  if (urlParams.get("editWiki") || urlParams.get("wikiPagePatch")) {
     setEditor();
   }
 });
@@ -55,6 +55,7 @@ previewToggleBtn.on("click", function () {
 });
 
 function setEditor() {
+  const urlParams = new URLSearchParams(window.location.search);
   editor.setOptions({
     wrap: true,
     showPrintMargin: true,
@@ -65,9 +66,10 @@ function setEditor() {
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_markdown_content",
     args: {
       wikiPageName,
+      wikiPagePatch: urlParams.get("wikiPagePatch") || "",
     },
     callback: (r) => {
-      editor.setValue(r.message || "", 1);
+      editor.setValue(r.message.content || "", 1);
     },
   });
   wikiTitleInput.val($(".wiki-title").text() || "");
