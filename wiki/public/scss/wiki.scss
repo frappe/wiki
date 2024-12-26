@@ -657,8 +657,9 @@ body.dark {
 }
 
 .dropdown-menu {
-  background-color: var(--background-color);
-
+  background-color: var(--editor-background-color);
+  border-color: var(--editor-background-color);
+  
   .dropdown-item {
     color: var(--text-color);
 
@@ -668,6 +669,10 @@ body.dark {
       color: var(--text-color);
     }
   }
+}
+
+.dropdown-menu.show {
+  top: 4px !important;
 }
 
 // main-content
@@ -816,7 +821,7 @@ h6:hover .feather-link {
   width: 25rem;
 
   .form-control:focus {
-    border: none;
+    border: 1px solid var(--background-color);
   }
 
   .rating-options-buttons {

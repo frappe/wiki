@@ -6,12 +6,16 @@ body {
   --editor-line-no-bg-color: var(--gray-100);
 
   --editor-background-color: #f3f3f3;
+
+  --button-background-color: #383838;
 }
 
 body.dark {
   --editor-line-no-bg-color: var(--gray-800);
   --control-bg-on-gray: var(--gray-700);
   --editor-background-color: #333c44;
+  
+  --button-background-color: #383838;
 
   .draft-wiki-page {
     background: var(--gray-700);
@@ -21,6 +25,7 @@ body.dark {
 
 .form-control {
   background-color: white;
+  border: 1px solid var(--background-color);
 }
 
 // edit page
@@ -577,7 +582,7 @@ $font-sizes-mobile: (
 
 .btn.btn-primary:hover {
   color: #fff;
-  background-color: var(--editor-background-color);
+  background-color: var(--button-background-color);
   border-color: #383838;
 }
 
