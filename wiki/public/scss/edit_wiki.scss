@@ -445,6 +445,34 @@ $font-sizes-mobile: (
     width: fit-content;
   }
 
+  .btn-primary {
+    color: var(--btn-primary-color) !important;
+    background-color: var(--btn-primary-bg-color) !important;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--btn-primary-hover-bg-color) !important;
+  }
+  
+  .btn-primary:active {
+    color: var(--btn-primary-color) !important;
+    background-color: var(--btn-primary-active-bg-color) !important;
+  }
+  
+  .btn-secondary {
+    color: var(--btn-secondary-color) !important;
+    background-color: var(--btn-secondary-bg-color) !important;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--btn-secondary-hover-bg-color) !important;
+  }
+  
+  .btn-secondary:active {
+    background-color: var(--btn-secondary-active-bg-color) !important;
+  }
+
+
   a.btn-primary-light {
     background-color: var(--btn-secondary-color) !important;
   }
