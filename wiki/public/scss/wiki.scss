@@ -11,7 +11,7 @@ body {
   --sidebar-bg-color: #f8f8f8;
   --sidebar-hover-color: #ebebe9;
   --toc-hover-text-color: var(--gray-900);
-  
+
   --btn-primary-color: #fff;
   --btn-primary-bg-color: #171717;
   --btn-primary-hover-bg-color: #383838;
@@ -102,6 +102,7 @@ body.dark {
 
   --editor-button-text-color: var(--gray-400);
   --editor-hover-button-color: var(--gray-700);
+  --subtle-fg: var(--btn-secondary-bg-color);
 
   .navbar .navbar-toggler-icon {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
@@ -670,7 +671,7 @@ body.dark {
 .dropdown-menu {
   background-color: var(--editor-background-color);
   border-color: var(--editor-background-color);
-  
+
   .dropdown-item {
     color: var(--text-color);
 
@@ -813,11 +814,16 @@ h6:hover .feather-link {
 }
 
 .btn.btn-secondary {
-  background-color: var(--btn-secondary-color);
+  color: var(--btn-secondary-color) !important;
+  background-color: var(--btn-secondary-bg-color) !important;
+}
 
-  &:hover {
-    background-color: var(--btn-secondary-hover-color);
-  }
+.btn.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover-bg-color) !important;
+}
+
+.btn.btn-secondary:active {
+  background-color: var(--btn-secondary-active-bg-color) !important;
 }
 
 .feedback-btn {
