@@ -28,5 +28,37 @@
     <input type="text" class="form-control wiki-title-input" value="" placeholder="What's the Wiki Title?" />
   </div>
   <label class="text-sm">Content</label>
-  <div id="wiki-editor"></div>
+  <div class="editor-container">
+    <div class="toolbar">
+      <button data-mde-button="bold" title="Bold">
+        <i class="fa fa-bold"></i>
+      </button>
+      <button data-mde-button="italic" title="Italic">
+        <i class="fa fa-italic"></i>
+      </button>
+      <button data-mde-button="heading" title="Heading">
+        <i class="fa fa-header"></i>
+      </button>
+      <button data-mde-button="quote" title="Quote">
+        <i class="fa fa-quote-left"></i>
+      </button>
+      <button data-mde-button="olist" title="Ordered List">
+        <i class="fa fa-list-ol"></i>
+      </button>
+      <button data-mde-button="ulist" title="Unordered List">
+        <i class="fa fa-list-ul"></i>
+      </button>
+      <button data-mde-button="link" title="Link">
+        <i class="fa fa-link"></i>
+      </button>
+      <button data-mde-button="image" title="Image">
+        <i class="fa fa-picture-o"></i>
+      </button>
+      <button data-mde-button="table" title="Table">
+        <i class="fa fa-table"></i>
+      </button>
+    </div>
+    <div id="wiki-editor"></div>
+  </div>
 </div>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
