@@ -219,6 +219,11 @@ function insertMarkdown(type) {
     case "table":
       insertion = `${selection}\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Row 1 | Row 1 |\n| Row 2 | Row 2 |`;
       break;
+    case "disclosure":
+      insertion = `\n<details>\n<summary>${
+        selection || "Title"
+      }</summary>\nContent\n</details>`;
+      break;
   }
 
   editor.insert(insertion);
@@ -234,6 +239,9 @@ const mdeUlistBtn = document.querySelector('[data-mde-button="ulist"]');
 const mdeLinkBtn = document.querySelector('[data-mde-button="link"]');
 const mdeImageBtn = document.querySelector('[data-mde-button="image"]');
 const mdeTableBtn = document.querySelector('[data-mde-button="table"]');
+const mdeDisclosureBtn = document.querySelector(
+  '[data-mde-button="disclosure"]'
+);
 
 mdeBoldBtn.addEventListener("click", () => insertMarkdown("bold"));
 mdeItalicBtn.addEventListener("click", () => insertMarkdown("italic"));
@@ -244,6 +252,7 @@ mdeUlistBtn.addEventListener("click", () => insertMarkdown("ulist"));
 mdeLinkBtn.addEventListener("click", () => insertMarkdown("link"));
 mdeImageBtn.addEventListener("click", () => insertMarkdown("image"));
 mdeTableBtn.addEventListener("click", () => insertMarkdown("table"));
+mdeDisclosureBtn.addEventListener("click", () => insertMarkdown("disclosure"));
 
 editor.commands.addCommand({
   name: "bold",
