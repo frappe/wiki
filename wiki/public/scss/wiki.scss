@@ -708,65 +708,6 @@ body.dark {
   max-width: 750px;
   margin: 0.5rem auto;
 
-  .from-markdown {
-    .edit-wiki-button {
-      cursor: pointer;
-    }
-
-    p {
-      font-size: 15px;
-      font-weight: 420;
-      line-height: 155%;
-      letter-spacing: 0.02em;
-      text-align: left;
-    }
-
-    h2 {
-      margin-top: 2.5rem;
-      font-size: 20px;
-      font-weight: 600;
-      line-height: 23px;
-      letter-spacing: 0.01em;
-      text-align: left;
-    }
-
-    h3 {
-      font-size: 16px;
-      font-weight: 600;
-      line-height: 18px;
-      letter-spacing: 0.015em;
-      text-align: left;
-    }
-
-    h4 {
-      font-size: 15px;
-      font-weight: 600;
-      line-height: 16px;
-      letter-spacing: 0.02em;
-      text-align: left;
-    }
-
-    a.btn-primary-light {
-      background-color: var(--btn-secondary-color) !important;
-    }
-
-    ul[data-type="taskList"] input {
-      margin-top: 0;
-    }
-
-    li {
-      font-size: 15px;
-      font-weight: 420;
-      line-height: 155%;
-      letter-spacing: 0.02em;
-      text-align: left;
-
-      &::marker {
-        font-size: 15px;
-      }
-    }
-  }
-
   @include media-breakpoint-down(md) {
     width: auto;
     margin: unset;
