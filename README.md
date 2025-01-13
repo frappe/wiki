@@ -8,7 +8,7 @@
 [![Wiki](https://img.shields.io/endpoint?url=https://cloud.cypress.io/badge/simple/w2jgcb/master&style=flat&logo=cypress)](https://cloud.cypress.io/projects/w2jgcb/runs)
 [![CI](https://github.com/frappe/wiki/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/frappe/wiki/actions/workflows/ci.yml)
 
-<img width="1470" alt="Hero Image" src="https://github.com/user-attachments/assets/ecec722d-076f-4ffa-8630-76473d1f494f" />
+<img width="1582" alt="Hero Image" src="https://github.com/user-attachments/assets/b4bedd31-96fe-4c07-aded-339eade4a7d1" />
 
 <br />
 <br />
@@ -23,7 +23,7 @@ Frappe Wiki is an Open Source Wiki app built on the Frappe Framework. It is well
 
 <details>
 <summary>Screenshots</summary>
-<img width="1470" alt="EditvPage" src="https://github.com/user-attachments/assets/33ff0704-0f5e-4e9a-8e59-5f50cd8b664c" />
+<img width="1582" alt="Screenshot 2025-01-13 at 2 13 54 PM" src="https://github.com/user-attachments/assets/36120ff2-7dd4-4c29-ac02-131907ef381e" />
 </details>
 
 
