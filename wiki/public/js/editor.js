@@ -201,6 +201,8 @@ function insertMarkdown(type) {
         docname: this.docname,
         frm: this.frm,
         folder: "Home/Attachments",
+        disable_file_browser: true,
+        allow_toggle_private: false,
         allow_multiple: false,
         restrictions: {
           allowed_file_types: ["image/*"],
