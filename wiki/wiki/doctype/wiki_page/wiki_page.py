@@ -207,7 +207,7 @@ class WikiPage(WebsiteGenerator):
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
 		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
 
-		context.no_cache = 1
+		context.no_cache = 0  # Changes will invalidate HTML cache
 		context.navbar_search = wiki_settings.add_search_bar
 		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
 		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
