@@ -12,11 +12,6 @@ reg = re.compile("<!--sidebar-->")
 
 class WikiPageRenderer(DocumentPage):
 	def can_render(self):
-		if wiki_space_name := frappe.get_value("Wiki Space", {"route": self.path}):
-			wiki_space = frappe.get_doc("Wiki Space", wiki_space_name)
-			topmost_wiki_route = frappe.get_value("Wiki Page", wiki_space.wiki_sidebars[0].wiki_page, "route")
-			frappe.redirect(f"/{quote(topmost_wiki_route)}")
-
 		doctype = "Wiki Page"
 		try:
 			self.docname = frappe.db.get_value(doctype, {"route": self.path, "published": 1}, "name")
@@ -26,6 +21,13 @@ class WikiPageRenderer(DocumentPage):
 		except Exception as e:
 			if not frappe.db.is_missing_column(e):
 				raise e
+
+		if wiki_space_name := frappe.db.get_value("Wiki Space", {"route": self.path}):
+			wiki_space = frappe.get_cached_doc("Wiki Space", wiki_space_name)
+			topmost_wiki_route = frappe.db.get_value(
+				"Wiki Page", wiki_space.wiki_sidebars[0].wiki_page, "route"
+			)
+			frappe.redirect(f"/{quote(topmost_wiki_route)}")
 
 	def render(self):
 		html = self.get_html()
