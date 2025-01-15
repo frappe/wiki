@@ -205,9 +205,11 @@ class WikiPage(WebsiteGenerator):
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
-		wiki_space = frappe.get_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
+		wiki_space = (
+			frappe.get_cached_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
+		)
 
-		context.no_cache = 1
+		context.no_cache = 0  # Changes will invalidate HTML cache
 		context.navbar_search = wiki_settings.add_search_bar
 		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
 		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
@@ -303,7 +305,7 @@ class WikiPage(WebsiteGenerator):
 			if sidebar_item.hide_on_sidebar:
 				continue
 
-			wiki_page = frappe.get_doc("Wiki Page", sidebar_item.wiki_page)
+			wiki_page = frappe.get_cached_doc("Wiki Page", sidebar_item.wiki_page)
 
 			permitted = wiki_page.allow_guest or frappe.session.user != "Guest"
 			if not permitted:
@@ -545,7 +547,7 @@ def get_source(resolved_route, jenv):
 
 @frappe.whitelist(allow_guest=True)
 def get_sidebar_for_page(wiki_page):
-	sidebar = frappe.get_doc("Wiki Page", wiki_page).get_sidebar_items()
+	sidebar = frappe.get_cached_doc("Wiki Page", wiki_page).get_sidebar_items()
 	return sidebar
 
 
