@@ -9,17 +9,16 @@ window.Wiki = class Wiki {
       if ($(this).data("route") == page_href) {
         $(this).addClass(active_class);
         $(this).find("a").addClass(active_class);
+
+        const element = $(this);
+        setTimeout(function () {
+          const topOffset = element.position().top;
+          $(".doc-sidebar .web-sidebar")
+            .get(0)
+            .scrollTo(0, topOffset - 200);
+        }, 50);
       }
     });
-    // scroll the active sidebar item into view
-    let active_sidebar_item = $(".doc-sidebar .sidebar-item.active");
-    if (active_sidebar_item.length > 0) {
-      setTimeout(function () {
-        let position =
-          active_sidebar_item.offset().top - $(".doc-sidebar").offset().top;
-        $(".doc-sidebar .web-sidebar").get(0).scrollTo(0, position);
-      }, 50);
-    }
   }
 
   toggle_sidebar(event) {
@@ -32,7 +31,7 @@ window.Wiki = class Wiki {
     $(".doc-sidebar,.web-sidebar").on(
       "click",
       ".collapsible",
-      this.toggle_sidebar,
+      this.toggle_sidebar
     );
 
     $(".sidebar-item.active")
@@ -46,7 +45,7 @@ window.Wiki = class Wiki {
 
   set_last_updated_date() {
     const lastUpdatedDate = frappe.datetime.prettyDate(
-      $(".user-contributions").data("date"),
+      $(".user-contributions").data("date")
     );
     $(".user-contributions").append(`last updated ${lastUpdatedDate}`);
   }
@@ -57,7 +56,7 @@ window.Wiki = class Wiki {
       const src = $(".navbar-brand img").attr("src");
       if (
         !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None", ""].includes(
-          altSrc,
+          altSrc
         )
       ) {
         $(".navbar-brand img").attr("src", altSrc);
@@ -117,7 +116,7 @@ window.Wiki = class Wiki {
     $("pre code")
       .parent("pre")
       .prepend(
-        `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`,
+        `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`
       );
 
     $(".copy-btn").on("click", function () {
