@@ -208,8 +208,10 @@ class WikiPage(WebsiteGenerator):
 		wiki_space = (
 			frappe.get_cached_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
 		)
-
-		context.no_cache = 0  # Changes will invalidate HTML cache
+		# Do not cache in developer mode
+		context.no_cache = (
+			frappe.local.conf.developer_mode or frappe.local.dev_server
+		)  # Changes will invalidate HTML cache
 		context.navbar_search = wiki_settings.add_search_bar
 		context.light_mode_logo = wiki_space.light_mode_logo or wiki_settings.logo
 		context.dark_mode_logo = wiki_space.dark_mode_logo or wiki_settings.dark_mode_logo
