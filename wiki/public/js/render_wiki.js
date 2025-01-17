@@ -425,6 +425,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
       );
       $(".previous-revision").removeClass("hide");
     } else {
+      $(
+        ".revision-content"
+      )[0].innerHTML = `<div class="no-revision">No Revisions</div>`;
       $(".revision-time").hide();
       $(".revisions-modal .modal-header").hide();
     }
