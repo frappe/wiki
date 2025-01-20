@@ -88,9 +88,9 @@ window.Wiki = class Wiki {
   }
 
   add_link_to_headings() {
-    $(".wiki-content")
+    $(".from-markdown")
       .not(".revision-content")
-      .find("h2, h3, h4, h5, h6")
+      .find("h1, h2, h3, h4, h5, h6")
       .each((i, $heading) => {
         const text = $heading.textContent.trim();
         $heading.id = text
