@@ -183,9 +183,9 @@ class WikiPage(WebsiteGenerator):
 		from bs4 import BeautifulSoup
 
 		soup = BeautifulSoup(html, "html.parser")
-		headings = soup.find_all(["h2", "h3", "h4", "h5", "h6"])
-
-		toc_html = ""
+		headings = soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
+		# Add the title as the first entry in the TOC
+		toc_html = f"<li><a  style='padding-left: 1rem' href='#{re.sub(r'[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]', '', self.title).replace(' ', '-').lower()}'>{self.title}</a></li>"
 		for heading in headings:
 			title = heading.get_text().strip()
 			heading_id = re.sub(r"[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]", "", title).replace(" ", "-").lower()
