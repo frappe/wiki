@@ -51,6 +51,18 @@ window.Wiki = class Wiki {
   }
 
   set_darkmode_button() {
+    function getDarkModeState() {
+      const isUserPreferenceDarkMode = localStorage.getItem("darkMode");
+      const isSystemPreferenceDarkMode = window.matchMedia?.(
+        "(prefers-color-scheme: dark)"
+      )?.matches;
+      const darkModeState = isUserPreferenceDarkMode
+        ? isUserPreferenceDarkMode == "true"
+        : isSystemPreferenceDarkMode;
+
+      return darkModeState;
+    }
+
     function switchBanner() {
       const altSrc = $(".navbar-brand img").data("alt-src");
       const src = $(".navbar-brand img").attr("src");
@@ -63,24 +75,22 @@ window.Wiki = class Wiki {
         $(".navbar-brand img").data("alt-src", src);
       }
     }
-    localStorage.setItem("darkMode", $("body").hasClass("dark"));
-    const darkMode = localStorage.getItem("darkMode");
 
-    if (
-      (!("darkMode" in localStorage) &&
-        !window.matchMedia?.("(prefers-color-scheme: dark)")?.matches) ||
-      darkMode === "false"
-    ) {
+    if (getDarkModeState()) {
       $(".sun-moon-container .feather-sun").removeClass("hide");
+      $("body").addClass("dark");
+      switchBanner();
     } else {
       $(".sun-moon-container .feather-moon").removeClass("hide");
+      $("body").removeClass("dark");
       switchBanner();
     }
 
     $(".sun-moon-container").on("click", function () {
       $(".sun-moon-container .feather-sun").toggleClass("hide");
       $(".sun-moon-container .feather-moon").toggleClass("hide");
-
+      const currentMode = getDarkModeState();
+      localStorage.setItem("darkMode", !currentMode);
       switchBanner();
 
       $("body").toggleClass("dark");
