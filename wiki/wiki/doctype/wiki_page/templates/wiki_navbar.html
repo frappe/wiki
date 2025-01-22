@@ -1,76 +1,65 @@
-
-<script>
-  if (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches)
-    document.body.classList.add("dark");
-</script>
-
 <nav class="wiki-navbar navbar navbar-light navbar-expand-lg sticky-top pr-4">
-    <div class="navbar-brand-container">
-      <a class="navbar-brand" alt="Go to home page" data-prefix="{{ url_prefix }}" href="{{ url_prefix or "" }}{{ home_page or "/" }}">
-        {%- if light_mode_logo -%}
-          <img alt="Logo" data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
-        {%- elif dark_mode_logo -%}
-          <img alt="Logo" data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
-        {%- elif brand_html -%}
-          {{ brand_html }}
-        {%- else -%}
-          <span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
-        {%- endif -%}
-      </a>
-    </div>
+  <div class="navbar-brand-container">
+    <a class="navbar-brand" alt="Go to home page" data-prefix="{{ url_prefix }}"
+      href="{{ url_prefix or "" }}{{ home_page or " /" }}">
+      {%- if light_mode_logo -%}
+      <img alt="Logo" data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
+      {%- elif dark_mode_logo -%}
+      <img alt="Logo" data-alt-src="{{ light_mode_logo }}" src='{{ dark_mode_logo }}'>
+      {%- elif brand_html -%}
+      {{ brand_html }}
+      {%- else -%}
+      <span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
+      {%- endif -%}
+    </a>
+  </div>
 
-    {% if navbar_search %}
-      <div class="d-lg-none mobile-search-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          class="feather feather-search">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      </div>
-    {%- endif -%}
+  {% if navbar_search %}
+  <div class="d-lg-none mobile-search-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+  </div>
+  {%- endif -%}
 
-    <button class="navbar-toggler" type="button"
-        data-toggle="collapse"
-        data-target="#navbarSupportedContent"
-        aria-controls="navbarSupportedContent"
-        aria-expanded="false"
-        aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+    aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
 
-    <div class="collapse navbar-collapse wiki-navbar-container" id="navbarSupportedContent">
-        {% include "wiki/doctype/wiki_page/templates/navbar_items.html" %}
-    </div>
-    <div class="form-group mb-0 hide" id="language-switcher">
-        <select class="form-control"></select>
-    </div>
+  <div class="collapse navbar-collapse wiki-navbar-container" id="navbarSupportedContent">
+    {% include "wiki/doctype/wiki_page/templates/navbar_items.html" %}
+  </div>
+  <div class="form-group mb-0 hide" id="language-switcher">
+    <select class="form-control"></select>
+  </div>
 </nav>
 
 
 {% if navbar_search %}
 <!-- separated the modal to avoid being unresponsive when inside <nav> -->
-<div class="modal fade" id="searchModal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-            <input id="searchInput" type="search" class="form-control" placeholder="Search the docs"/>
-            <div class="search-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="feather feather-search">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </div>
+<div class="modal fade" id="searchModal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <input id="searchInput" type="search" class="form-control" placeholder="Search the docs" />
+        <div class="search-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="feather feather-search">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
         </div>
-        <div class="modal-body">
-            <div class="overflow-hidden search-dropdown-menu w-100" aria-labelledby="dropdownMenuSearch"></div>
-        </div>
+      </div>
+      <div class="modal-body">
+        <div class="overflow-hidden search-dropdown-menu w-100" aria-labelledby="dropdownMenuSearch"></div>
       </div>
     </div>
   </div>
+</div>
 
 {% endif %}
