@@ -284,12 +284,21 @@ window.RenderWiki = class RenderWiki extends Wiki {
     });
 
     $(".discard-edit-btn").on("click", () => {
-      // switch to view mode
-      toggleEditor();
-      $("html").css({ overflow: "auto" });
-      $('.sidebar-item[data-name="new-wiki-page"]').remove();
-      set_search_params();
-      this.activate_sidebars();
+      const discardDialog = frappe.msgprint({
+        title: __("Discard edits"),
+        indicator: "red",
+        message: __(`Are you sure you want to <b>discard</b> the changes?`),
+        primary_action: {
+          label: "Yes",
+          action() {
+            toggleEditor();
+            $("html").css({ overflow: "auto" });
+            $('.sidebar-item[data-name="new-wiki-page"]').remove();
+            set_search_params();
+            discardDialog.hide();
+          },
+        },
+      });
     });
 
     $(".add-wiki-btn").on("click", () => {
