@@ -44,6 +44,10 @@ body {
   --editor-button-text-color: var(--gray-700);
   --editor-hover-button-color: var(--gray-100);
 
+  --navbar-dropdown-bg-color: #d7d7d7;
+  --navbar-dropdown-hover-color: #c0c0c0;
+
+
   // ------------------------------------------
 
   font-family: InterVariable, ui-sans-serif, system-ui, -apple-system,
@@ -103,6 +107,9 @@ body.dark {
   --editor-button-text-color: var(--gray-400);
   --editor-hover-button-color: var(--gray-700);
   --subtle-fg: var(--btn-secondary-bg-color);
+
+  --navbar-dropdown-bg-color: #32393f;
+  --navbar-dropdown-hover-color: #262c30;
 
   .navbar .navbar-toggler-icon {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
@@ -660,6 +667,7 @@ body.dark {
   top: 0;
   z-index: 5;
   height: 60px;
+  position: relative;
 
   @include media-breakpoint-down(md) {
     max-width: 14rem;
@@ -1347,4 +1355,47 @@ ins {
   background-color: var(--bqoute-border-color);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+#navbar-dropdown{
+  flex-grow: 1;
+  display: flex;
+  justify-content: end;
+  height: 80%;
+  cursor: pointer;
+}
+
+#navbar-dropdown-content {
+  position: absolute;
+  left: 10px;
+  top: 100%;
+  padding: 6px;
+  background-color: var(--navbar-dropdown-bg-color);
+  width: 90%;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px -3px #0000001a;
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  a:hover {
+      color:inherit !important;
+      text-decoration:none !important;
+      cursor:pointer !important;
+  }
+
+  .app-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    padding: 6px;
+  }
+
+  .app-switcher:hover{
+    background-color: var(--navbar-dropdown-hover-color);
+    border-radius: 4px;
+  }
 }

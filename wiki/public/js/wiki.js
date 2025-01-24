@@ -134,3 +134,8 @@ window.Wiki = class Wiki {
     });
   }
 };
+
+$("#navbar-dropdown").on("click", function (e) {
+  e.stopPropagation();
+  $("#navbar-dropdown-content").toggleClass("hide");
+});
