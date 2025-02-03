@@ -83,7 +83,6 @@ window.Wiki = class Wiki {
     } else {
       $(".sun-moon-container .feather-moon").removeClass("hide");
       $("body").removeClass("dark");
-      switchBanner();
     }
 
     $(".sun-moon-container").on("click", function () {
