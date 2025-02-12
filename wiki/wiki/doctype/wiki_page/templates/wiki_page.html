@@ -6,9 +6,6 @@
 {%- block head_include %}
 {{ super() }}
 {{ include_style('wiki.bundle.css') }}
-{%- if frappe.form_dict.edit or frappe.form_dict.new -%}
-{{ include_style('edit_wiki.bundle.css') }}
-{%- endif -%}
 
 {% endblock -%}
 

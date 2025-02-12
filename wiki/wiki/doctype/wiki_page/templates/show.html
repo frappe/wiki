@@ -1,4 +1,4 @@
-<div class="from-markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
+<div class="from-markdown markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
 	<div class="d-flex justify-content-between align-items-center">
 		<h1 class="wiki-title">{{ title }}</h1>
 	</div>
@@ -44,8 +44,8 @@
 	</div>
 	{%- endif -%}
 	<div class="dropdown">
-		<div class="dropdown-toggle wiki-options menu" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown"
-			aria-label="Wiki Option Button" aria-expanded="false">
+		<div class="dropdown-toggle wiki-options menu" type="button" role="button" id="wikiOptionsButton"
+			data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
 				stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
 				class="feather feather-more-horizontal">
@@ -60,8 +60,7 @@
 			<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">
 				Revisions
 			</a>
-			<a class="dropdown-item show-page-settings" href="#" data-toggle="modal"
-				data-target="#pageSettingsModal">
+			<a class="dropdown-item show-page-settings" href="#" data-toggle="modal" data-target="#pageSettingsModal">
 				Page Settings
 			</a>
 		</div>
@@ -125,5 +124,5 @@
 </script>
 
 {%- if script -%}
-<script>{{ script }}</script>
+<script>{ { script } }</script>
 {%- endif -%}

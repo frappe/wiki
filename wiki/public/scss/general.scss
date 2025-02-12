@@ -1,108 +1,287 @@
-@import "frappe/public/scss/website/variables";
-
-body {
-  --icon-stroke: var(--text-color);
-
-  --editor-line-no-bg-color: var(--gray-100);
-
-  --editor-background-color: #f3f3f3;
-
-  --button-background-color: #383838;
-
-  --editor-toolbar-btn-color: var(--gray-800);
-  --editor-toolbar-btn-bg-color: var(--editor-background-color);
-
-  --editor-text-selection-color: #d0d0d0;
-
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
 }
 
-body.dark {
-  --editor-line-no-bg-color: var(--gray-800);
-  --control-bg-on-gray: var(--gray-700);
-  --editor-background-color: #333c44;
+.wiki-page-meta {
+  font-size: $font-size-sm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-  --button-background-color: #383838;
+.drafts {
+  border: 1px solid var(--searchbar-color) !important;
+  border-radius: 0.5rem;
 
-  --editor-toolbar-btn-color: var(--gray-100);
-  --editor-toolbar-btn-bg-color: var(--editor-background-color);
-
-  --editor-text-selection-color: #606060;
-
-
-  .draft-wiki-page {
-    background: var(--gray-700);
-    color: var(--gray-50);
+  .table th,
+  .table td {
+    border-top: 1px solid var(--searchbar-color);
   }
 }
 
-.form-control {
-  background-color: white;
-  border: 1px solid var(--background-color);
+#searchModal {
+  > div:first-child {
+    margin-top: 5rem;
+  }
+
+  b.match {
+    background-color: transparent;
+    color: var(--primary);
+    font-weight: 500;
+    padding: 0; // rm website css
+  }
+
+  input {
+    height: 3rem;
+    background: var(--searchbar-color);
+    border-radius: 4px;
+    padding-left: 2.5rem;
+    font-size: inherit;
+  }
+
+  .search-icon {
+    position: absolute;
+    padding: 0.7rem 0 0 0.5rem;
+  }
+
+  svg {
+    color: #74808b;
+  }
+
+  .modal-body {
+    .text-muted {
+      margin: auto;
+      width: max-content;
+    }
+
+    .dropdown-border {
+      height: 1px;
+      margin: 0 0.5rem;
+      background-color: var(--border-color);
+
+      &:last-child {
+        background-color: unset;
+      }
+    }
+  }
+
+  .modal-header {
+    border-bottom-right-radius: calc(var(--border-radius-lg) - 1px);
+    border-bottom-left-radius: calc(var(--border-radius-lg) - 1px);
+  }
+
+  .dropdown-item {
+    font-size: 15px;
+    outline: unset;
+    overflow: auto;
+    margin: 0.5rem 0;
+    white-space: inherit;
+    color: var(--text-color);
+
+    &:active {
+      color: unset;
+      background-color: unset;
+    }
+
+    &:focus,
+    &:hover {
+      background-color: var(--active-item-color);
+    }
+
+    h6 {
+      font-size: 15px;
+    }
+  }
 }
 
-// edit page
+.dropdown-menu {
+  background-color: var(--editor-background-color);
+  border-color: var(--editor-background-color);
 
-.remove-sidebar-item {
-  cursor: pointer;
-  margin: 0 1rem 0 auto;
+  .dropdown-item {
+    color: var(--text-color);
+
+    &:active,
+    &:hover {
+      background-color: var(--sidebar-hover-color);
+      color: var(--text-color);
+    }
+  }
 }
 
-.collapsible .remove-sidebar-item {
-  margin-right: calc(15px - 0.5rem);
-  margin-bottom: 3px;
+.dropdown-menu.show {
+  top: 4px !important;
 }
 
-.trash-icon {
+.main-column {
+  background-color: var(--background-color);
+  width: 745px;
+  padding: 0px 50px;
+  margin: 0 auto;
+
+  @include media-breakpoint-down(md) {
+    padding: 20px;
+    width: 100vw;
+  }
+}
+
+.wiki-editor {
+  .wiki-title-container {
+    margin-bottom: 1rem;
+  }
+  .wiki-title-input {
+    color: var(--text-color);
+    background-color: var(--editor-background-color);
+  }
+}
+
+.feather-link {
   visibility: hidden;
 }
 
-.sidebar-item:hover .trash-icon,
-.sidebar-group .collapsible:hover .trash-icon {
-  visibility: visible;
+.user-contributions {
+  margin: 0 0 0 auto;
+  color: var(--sidebar-text-color);
+  font-size: 0.8rem;
 }
 
-$font-sizes-desktop: (
-  "sm": 0.75rem,
-  "base": 1rem,
-  "lg": 1.125rem,
-  "xl": 1.41rem,
-  "2xl": 1.6rem,
-  "3xl": 2rem,
-);
-
-$font-sizes-mobile: (
-  "sm": 0.75rem,
-  "base": 1rem,
-  "lg": 1.125rem,
-  "xl": 1.25rem,
-  "2xl": 1.5rem,
-  "3xl": 1.75rem,
-);
-
-.wiki-editor,
-.from-markdown {
-  margin: auto;
+.form-control:focus {
+  color: var(--text-color);
+  border: 1px solid var(--gray-500);
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+.contributions-header {
+  margin: 2rem 0 1.5rem 0;
+  font-size: $font-size-xl;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.count {
+  font-size: var(--text-xs);
+  background-color: var(--gray-700);
+  border-radius: var(--border-radius-sm);
+  color: var(--gray-50);
+  padding: 0 var(--padding-xs);
+  float: right;
+  margin-top: 2px;
+}
+
+img::after {
+  content: "";
+}
+
+img[alt]::after {
+  width: unset;
+  height: unset;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-color) !important;
+  font-weight: 600 !important;
+}
+
+strong {
+  font-weight: 800 !important;
+}
+
+h1 {
+  margin-top: 3rem;
+  margin-bottom: 0.75rem;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: 0.005em;
+
+  @include media-breakpoint-up(sm) {
+    margin-top: 1.5rem !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+h2 {
+  font-size: 22px;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+
+  @include media-breakpoint-up(sm) {
+    margin-top: 4rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+h3 {
+  font-size: 20px;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+
+  @include media-breakpoint-up(sm) {
+    margin-top: 2.5rem;
+  }
+}
+
+h4 {
+  font-size: 18px;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+
+  @include media-breakpoint-up(sm) {
+    margin-top: 2.5rem;
+  }
+
+  a {
+    color: $body-color;
+  }
+}
+
+h5 {
+  font-size: 16px;
+}
+
+h6 {
+  font-size: 16px;
+}
+
+p {
+  font-size: 1rem;
+}
+
+.text-sm {
+  font-size: 13px !important;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.text-xs {
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+
+.wiki-space-route-block {
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.375rem;
+  background-color: var(--bqoute-border-color);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .wiki-editor,
 .wiki-content {
   font-size: map-get($font-sizes-desktop, "base");
-  color: var(--editor-button-text-color);
   line-height: 1.7;
   max-width: calc(100vw - 6rem);
 
   a:not(.dropdown-item, .btn) {
     color: var(--text-color);
     text-decoration: underline;
-  }
-
-  p {
-    color: var(--text-color);
   }
 
   ul,
@@ -119,7 +298,6 @@ $font-sizes-mobile: (
   }
 
   li {
-    color: var(--text-color);
     padding-top: 1px;
     padding-bottom: 1px;
 
@@ -163,7 +341,7 @@ $font-sizes-mobile: (
 
   b,
   strong {
-    color: $gray-800;
+    color: var(--content-text-color);
     font-weight: 600;
   }
 
@@ -295,7 +473,7 @@ $font-sizes-mobile: (
     th {
       font-weight: bold;
       text-align: left;
-      background-color: var(--active-item-color);
+      background-color: var(--table-header-color);
     }
 
     .selectedCell:after {
@@ -329,7 +507,7 @@ $font-sizes-mobile: (
   .table-bordered th,
   .table-bordered td {
     border: 1px solid;
-    border-color: $gray-200;
+    border-color: var(--table-border-color);
     color: inherit;
   }
 
@@ -339,10 +517,6 @@ $font-sizes-mobile: (
   }
 
   pre {
-    margin: 1rem 0;
-    background: #011627;
-    color: #d6deeb;
-    border-radius: 0.5rem;
     overflow: hidden;
     position: relative;
 
@@ -368,25 +542,25 @@ $font-sizes-mobile: (
       }
     }
 
-    code {
-      overflow-x: auto;
-      color: inherit;
-      background: none !important;
+    // code {
+    //   overflow-x: auto;
+    //   color: inherit;
+    //   background: none !important;
 
-      del {
-        &.diffmod,
-        &.diffdel {
-          background-color: #8b0000;
-        }
-      }
+    //   del {
+    //     &.diffmod,
+    //     &.diffdel {
+    //       background-color: #8b0000;
+    //     }
+    //   }
 
-      ins {
-        &.diffmod,
-        &.diffins {
-          background-color: #006400;
-        }
-      }
-    }
+    //   // ins {
+    //   //   &.diffmod,
+    //   //   &.diffins {
+    //   //     background-color: #006400;
+    //   //   }
+    //   // }
+    // }
   }
 
   hr {
@@ -515,7 +689,6 @@ $font-sizes-mobile: (
     background-color: var(--btn-secondary-active-bg-color) !important;
   }
 
-
   a.btn-primary-light {
     background-color: var(--btn-secondary-color) !important;
   }
@@ -639,12 +812,6 @@ $font-sizes-mobile: (
   }
 }
 
-.markdown-preview {
-  overflow: auto;
-  padding: 0 !important;
-}
-
-// button
 .btn:hover {
   color: #000;
   background-color: #f9fafb;
@@ -713,7 +880,7 @@ ul[data-type="taskList"] {
 }
 
 .file-upload-area div button {
-  color: var(--btn-secondary-color) !important; ;
+  color: var(--btn-secondary-color) !important;
 }
 
 .ace_editor .ace_marker-layer .ace_selection {
@@ -746,8 +913,44 @@ ul[data-type="taskList"] {
   font-size: 14px;
 }
 
-.no-revision{
+.no-revision {
   text-align: center;
   margin: 10px !important;
   font-size: 24px;
+}
+
+.forward-back {
+  a {
+    p {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+  }
+}
+
+.btn.btn-secondary {
+  color: var(--btn-secondary-color) !important;
+  background-color: var(--btn-secondary-bg-color) !important;
+}
+
+.btn.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover-bg-color) !important;
+}
+
+.btn.btn-secondary:active {
+  background-color: var(--btn-secondary-active-bg-color) !important;
+}
+
+.feedback-btn {
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.form-control {
+  background-color: white;
+  border: 1px solid var(--background-color);
 }
