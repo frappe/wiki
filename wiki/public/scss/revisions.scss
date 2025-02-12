@@ -1,0 +1,74 @@
+.wiki-revision-list {
+  padding-bottom: 1rem;
+  margin: auto;
+
+  .wiki-revision-item {
+    list-style-type: none;
+    margin-bottom: 1rem;
+  }
+}
+
+.revisions-modal {
+  .feather-link {
+    display: none;
+  }
+
+  .revision-content {
+    height: 500px;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    position: inherit;
+
+    .modal-title {
+      max-width: 100%;
+    }
+  }
+
+  .modal-body {
+    padding: 1rem;
+
+    .wiki-content {
+      min-height: unset;
+    }
+  }
+
+  .modal-footer {
+    position: inherit;
+
+    .previous-revision {
+      width: inherit;
+      margin-right: auto;
+    }
+
+    .next-revision {
+      width: inherit;
+      margin-left: auto;
+    }
+  }
+}
+
+del {
+  &.diffmod,
+  &.diffdel {
+    * {
+      border: 4px var(--htmldiff-del-color) solid !important;
+      border-radius: 5px;
+    }
+
+    all: unset;
+  }
+}
+
+ins {
+  &.diffmod,
+  &.diffins {
+    * {
+      border: 4px var(--htmldiff-ins-color) solid !important;
+      border-radius: 5px;
+    }
+
+    all: unset;
+  }
+}
