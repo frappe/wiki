@@ -44,7 +44,17 @@ def search(query, path, space):
 
 	# if redisearch enabled use redisearch
 	r = frappe.cache()
-	query = Query(query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
+
+	# Build fuzzy search terms with wildcard matching
+	search_terms = []
+	for term in query.split():
+		search_terms.append(f"*{term}*")
+	fuzzy_query = " ".join(search_terms)
+
+	query = Query(fuzzy_query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
+
+	# Create search query with pagination and highlighting
+	query = Query(fuzzy_query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
 
 	try:
 		result = r.ft(space).search(query)
@@ -105,7 +115,15 @@ def rebuild_index():
 			)
 			r.ft(space).create_index(schema, definition=index_def)
 
-			records_to_index = [d for d in wiki_pages if space in d.get("route")]
+			records_to_index = [
+				d
+				for d in wiki_pages
+				if (space + "/" == d.get("route"))
+				or (
+					d.get("route").startswith(space + "/")
+					and not d.get("route").replace(space + "/", "").startswith("v")
+				)
+			]
 			create_index_for_records(records_to_index, space)
 		except ResponseError as e:
 			print(e)
