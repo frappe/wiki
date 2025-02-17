@@ -634,13 +634,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
             let results = res.message.docs || [];
             let dropdown_html;
             if (results.length === 0) {
-              dropdown_html = `<div style="margin: 1.5rem 9rem;">No results found</div>`;
+              dropdown_html = `<div style="margin: 0.8rem;text-align: center;">No results found</div>`;
             } else {
               dropdown_html = results
                 .map((r) => {
                   return `<a class="dropdown-item" href="/${r.route}">
-              <h6>${r.title}</h6>
-              <div>${
+              <span class="result-title">${r.title}</span>
+              <div class="result-text">${
                 res.message.search_engine === "frappe_web_search"
                   ? r.content
                   : trimContent(r.content)
