@@ -1,4 +1,4 @@
-#navbar-dropdown{
+#navbar-dropdown {
   flex-grow: 1;
   display: flex;
   justify-content: end;
@@ -11,9 +11,8 @@
   position: absolute;
   left: 10px;
   top: 100%;
-  padding: 6px;
   background-color: var(--navbar-dropdown-bg-color);
-  width: 90%;
+  width: 96%;
   border-radius: 8px;
   box-shadow: 0 10px 24px -3px #0000001a;
 
@@ -23,25 +22,31 @@
   }
 
   a:hover {
-      color:inherit !important;
-      text-decoration:none !important;
-      cursor:pointer !important;
+    color: inherit !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
   }
 
   .app-switcher {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 2px;
     font-size: 14px;
-    padding: 6px;
+    padding: 10px;
+    height: 350px;
+    overflow: auto;
   }
 
-  .app-switcher:hover{
-    background-color: var(--navbar-dropdown-hover-color);
+  .space-link {
+    padding: 4px;
+    padding-left: 8px;
+  }
+
+  .space-link:hover {
+    background-color: var(--sidebar-hover-color);
     border-radius: 4px;
   }
 }
-
 
 .dropdown-toggle.wiki-options::after {
   display: none;

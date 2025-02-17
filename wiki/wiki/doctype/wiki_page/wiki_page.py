@@ -22,6 +22,7 @@ from frappe.website.doctype.website_settings.website_settings import modify_head
 from frappe.website.website_generator import WebsiteGenerator
 
 from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
+from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
 
 
 class WikiPage(WebsiteGenerator):
@@ -204,6 +205,11 @@ class WikiPage(WebsiteGenerator):
 	def get_context(self, context):
 		self.verify_permission()
 		self.set_breadcrumbs(context)
+
+		allSpaces = get_all_spaces()
+
+		filtered_spaces = [space for space in allSpaces if "/" not in space]
+		context.spaces = [{"url": space, "name": space.capitalize()} for space in filtered_spaces]
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
