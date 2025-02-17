@@ -149,7 +149,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
           )[1]
         ).trigger("click");
     }
-    $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
   }
 
   set_toc() {
