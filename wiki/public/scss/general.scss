@@ -116,9 +116,7 @@
 
 .main-column {
   background-color: var(--background-color);
-  width: 745px;
   padding: 0px 50px;
-  margin: 0 auto;
 
   @include media-breakpoint-down(md) {
     padding: 20px;

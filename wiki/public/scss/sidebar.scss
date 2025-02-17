@@ -45,7 +45,7 @@
 .sidebar-group-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
   list-style-type: none;
   padding: 0px;
 }
@@ -56,8 +56,8 @@
   gap: 8px;
 }
 .sidebar-group-title {
-  font-size: 15px;
-  font-weight: 450;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 16px;
   letter-spacing: 0.015em;
   text-align: left;
@@ -66,8 +66,7 @@
   display: flex;
   flex-direction: column;
   list-style-type: none;
-  padding: 0px 10px;
-  margin-top: 10px;
+  margin-top: 4px;
   margin-left: 10px;
   margin-bottom: 10px !important;
   border-left: 1px solid var(--border-color);
@@ -166,10 +165,6 @@
   &.active {
     background-color: var(--sidebar-active-item-color);
     box-shadow: 0 0 #0000, 0 0 #0000, 0px 1px 2px rgba(0, 0, 0, 0.1);
-  }
-
-  .active {
-    font-weight: 700 !important;
   }
 
   div {
