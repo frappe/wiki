@@ -66,6 +66,9 @@ body {
 
   --scroll-thumb-color: var(--scrollbar-thumb-color);
   --scroll-track-color: var(--scrollbar-track-color);
+  --search-modal-bg-color: white;
+  --search-modal-color: #494949;
+  --search-modal-hover-color: var(--sidebar-hover-color);
 
   // ------------------------------------------
 
@@ -144,6 +147,9 @@ body.dark {
   --scroll-thumb-color: #949494;
   --scroll-track-color: #3f3f3f;
   --sidebar-font-color: #d1d5dc;
+  --search-modal-bg-color: rgb(35, 35, 35);
+  --search-modal-color: rgb(212, 212, 212);
+  --search-modal-hover-color: #343434;
 
   .draft-wiki-page {
     background: var(--gray-700);
