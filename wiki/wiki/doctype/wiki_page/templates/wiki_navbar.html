@@ -12,6 +12,7 @@
       <span>{{ (frappe.get_hooks("brand_html") or [_("Home")])[0] }}</span>
       {%- endif -%}
     </a>
+    {% if spaces and spaces|length > 0 %}
     <div id="navbar-dropdown">
       <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
         stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1">
@@ -21,12 +22,16 @@
     <div id="navbar-dropdown-content" class="hide">
       <div class="app-switcher">
         {% for space in spaces %}
-        <a href="/{{ space.url }}" class="space-link">
-          {{ space.name }}
+        <a href="/{{ space.route }}" class="space-link">
+          <img src="{{space.app_switcher_logo or '/app-icon.png'}}" alt="{{space.space_name}} logo" />
+          <span>
+            {{ space.space_name }}
+          </span>
         </a>
         {% endfor %}
       </div>
     </div>
+    {% endif %}
   </div>
 
   {% if navbar_search %}

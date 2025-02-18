@@ -11,7 +11,8 @@
   position: absolute;
   left: 10px;
   top: 100%;
-  background-color: var(--navbar-dropdown-bg-color);
+  background-color: var(--search-modal-bg-color);
+  color: var(--search-modal-color);
   width: 96%;
   border-radius: 8px;
   box-shadow: 0 10px 24px -3px #0000001a;
@@ -30,20 +31,29 @@
   .app-switcher {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     font-size: 14px;
     padding: 10px;
-    height: 350px;
+    height: 100%;
+    max-height: 350px;
     overflow: auto;
+    font-weight: 500;
   }
 
   .space-link {
     padding: 4px;
     padding-left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    img {
+      width: 22px;
+    }
   }
 
   .space-link:hover {
-    background-color: var(--sidebar-hover-color);
+    background-color: var(--search-modal-hover-color);
     border-radius: 4px;
   }
 }

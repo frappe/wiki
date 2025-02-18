@@ -9,7 +9,10 @@
  "engine": "InnoDB",
  "field_order": [
   "general_tab",
+  "space_name",
   "route",
+  "show_in_navbar_app_switcher",
+  "app_switcher_logo",
   "wiki_sidebars",
   "navbar_tab",
   "logo_section",
@@ -67,11 +70,29 @@
   {
    "fieldname": "section_break_fhui",
    "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_in_navbar_app_switcher",
+   "fieldtype": "Check",
+   "label": "Show in navbar app switcher"
+  },
+  {
+   "fieldname": "space_name",
+   "fieldtype": "Data",
+   "label": "Space Name"
+  },
+  {
+   "depends_on": "eval:doc.show_in_navbar_app_switcher==1;",
+   "fieldname": "app_switcher_logo",
+   "fieldtype": "Attach Image",
+   "label": "App Switcher Logo",
+   "make_attachment_public": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-11 15:27:44.629602",
+ "modified": "2025-02-18 14:09:29.088972",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

@@ -206,10 +206,13 @@ class WikiPage(WebsiteGenerator):
 		self.verify_permission()
 		self.set_breadcrumbs(context)
 
-		allSpaces = get_all_spaces()
+		allSpaces = frappe.get_all(
+			"Wiki Space",
+			fields=["route", "space_name", "app_switcher_logo"],
+			filters={"show_in_navbar_app_switcher": 1},
+		)
 
-		filtered_spaces = [space for space in allSpaces if "/" not in space]
-		context.spaces = [{"url": space, "name": space.capitalize()} for space in filtered_spaces]
+		context.spaces = allSpaces
 
 		wiki_settings = frappe.get_single("Wiki Settings")
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
