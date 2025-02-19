@@ -138,3 +138,11 @@ $("#navbar-dropdown").on("click", function (e) {
   e.stopPropagation();
   $("#navbar-dropdown-content").toggleClass("hide");
 });
+
+$(document).on("click", function (e) {
+  if (
+    !$(e.target).closest("#navbar-dropdown, #navbar-dropdown-content").length
+  ) {
+    $("#navbar-dropdown-content").addClass("hide");
+  }
+});
