@@ -285,6 +285,7 @@
 
 .wiki-page-content {
   margin: 0.5rem auto;
+  width: 650px;
 
   @include media-breakpoint-down(md) {
     width: auto;

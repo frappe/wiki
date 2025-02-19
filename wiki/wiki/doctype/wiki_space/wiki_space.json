@@ -11,7 +11,6 @@
   "general_tab",
   "space_name",
   "route",
-  "show_in_navbar_app_switcher",
   "app_switcher_logo",
   "wiki_sidebars",
   "navbar_tab",
@@ -72,12 +71,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "default": "0",
-   "fieldname": "show_in_navbar_app_switcher",
-   "fieldtype": "Check",
-   "label": "Show in navbar app switcher"
-  },
-  {
    "fieldname": "space_name",
    "fieldtype": "Data",
    "label": "Space Name"
@@ -92,7 +85,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-02-18 14:09:29.088972",
+ "modified": "2025-02-19 16:11:08.336359",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

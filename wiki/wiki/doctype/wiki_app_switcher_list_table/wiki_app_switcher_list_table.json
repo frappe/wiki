@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-02-19 15:39:10.706506",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "app_title",
+  "wiki_space"
+ ],
+ "fields": [
+  {
+   "fetch_from": "wiki_space.space_name",
+   "fieldname": "app_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "App Title",
+   "placeholder": "Select Wiki Space to see title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "wiki_space",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Wiki Space",
+   "options": "Wiki Space"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-02-19 15:42:44.734010",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki App Switcher List Table",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

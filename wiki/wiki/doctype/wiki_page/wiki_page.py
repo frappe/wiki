@@ -206,15 +206,31 @@ class WikiPage(WebsiteGenerator):
 		self.verify_permission()
 		self.set_breadcrumbs(context)
 
-		allSpaces = frappe.get_all(
-			"Wiki Space",
-			fields=["route", "space_name", "app_switcher_logo"],
-			filters={"show_in_navbar_app_switcher": 1},
-		)
-
-		context.spaces = allSpaces
-
 		wiki_settings = frappe.get_single("Wiki Settings")
+
+		# Extract wiki_space names in the original order
+		wiki_space_names = [entry.wiki_space for entry in wiki_settings.app_switcher_list]
+
+		# Fetch all linked Wiki Space documents
+		if wiki_space_names:
+			wiki_spaces = frappe.get_all(
+				"Wiki Space",
+				filters={"name": ["in", wiki_space_names]},
+				fields=["name", "space_name", "app_switcher_logo", "route"],
+			)
+
+			# Create a dictionary for quick lookup
+			wiki_spaces_dict = {doc.name: doc for doc in wiki_spaces}
+
+			# Reorder the documents based on the original list's order
+			ordered_wiki_spaces = [
+				wiki_spaces_dict[name] for name in wiki_space_names if name in wiki_spaces_dict
+			]
+		else:
+			ordered_wiki_spaces = []
+
+		context.spaces = ordered_wiki_spaces
+
 		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
 		wiki_space = (
 			frappe.get_cached_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()

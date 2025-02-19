@@ -17,6 +17,7 @@
   "navbar_tab",
   "navbar_column",
   "navbar",
+  "app_switcher_list",
   "section_break_skhp",
   "search_column",
   "add_search_bar",
@@ -158,12 +159,18 @@
    "fieldtype": "Int",
    "label": "Feedback Submission Limit",
    "non_negative": 1
+  },
+  {
+   "fieldname": "app_switcher_list",
+   "fieldtype": "Table",
+   "label": "App Switcher List",
+   "options": "Wiki App Switcher List Table"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-29 14:05:32.587922",
+ "modified": "2025-02-19 15:41:34.635439",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

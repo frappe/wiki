@@ -23,7 +23,6 @@
   z-index: 5;
   height: 60px;
   position: relative;
-  border-bottom: 1px solid var(--border-color);
 
   @include media-breakpoint-down(md) {
     max-width: 14rem;
@@ -131,7 +130,6 @@
     padding-right: 1rem;
     height: 60px;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
     background-color: var(--background-color);
 
     @include media-breakpoint-down(md) {
@@ -209,7 +207,7 @@
 
   .navbar-toggler {
     border-color: transparent;
-    padding: 18px;
+    padding: 8px;
 
     &:focus {
       outline: unset;
@@ -238,11 +236,5 @@
       margin: 1rem 0;
       width: 140%;
     }
-  }
-}
-
-@include media-breakpoint-up(md) {
-  .navbar-light {
-    border-bottom: 0;
   }
 }
