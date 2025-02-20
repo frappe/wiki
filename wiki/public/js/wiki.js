@@ -230,6 +230,7 @@ $(document).on("click", function (e) {
 });
 
 function loadWikiPage(url, pageElement, replaceState = false) {
+  $(".main-column, .page-toc").toggleClass("pulse");
   // Update URL and history state
   const historyMethod = replaceState ? "replaceState" : "pushState";
   window[`history`][historyMethod](
@@ -268,6 +269,7 @@ function loadWikiPage(url, pageElement, replaceState = false) {
         add_click_to_copy();
         set_toc();
       }
+      $(".main-column, .page-toc").toggleClass("pulse");
     },
   });
 }
