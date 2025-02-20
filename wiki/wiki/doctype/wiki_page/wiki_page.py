@@ -638,15 +638,28 @@ def get_markdown_content(wikiPageName, wikiPagePatch):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_page_content(wiki_page_name):
-	wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
-	content = wiki_page.content
+def get_page_content(wiki_page_name: str):
+	html_cache_key = f"wiki_page_html:{wiki_page_name}"
+	content = frappe.cache.hget(html_cache_key, "content")
+	page_title = frappe.cache.hget(html_cache_key, "page_title")
+	# TOC can be "None" if user has disabled it
+	toc_html = frappe.cache.hget(html_cache_key, "toc_html")
 
-	html = frappe.utils.md_to_html(content)
-	wiki_settings = frappe.get_single("Wiki Settings")
+	if not all([content, page_title]):
+		wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
+		md_content = wiki_page.content
+
+		content = frappe.utils.md_to_html(md_content)
+		wiki_settings = frappe.get_single("Wiki Settings")
+		toc_html = wiki_page.calculate_toc_html(content) if wiki_settings.enable_table_of_contents else None
+		page_title = wiki_page.title
+
+		frappe.cache.hset(html_cache_key, "content", content)
+		frappe.cache.hset(html_cache_key, "page_title", page_title)
+		frappe.cache.hset(html_cache_key, "toc_html", toc_html)
 
 	return {
-		"title": wiki_page.title,
-		"content": html,
-		"toc_html": (wiki_page.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None),
+		"title": page_title,
+		"content": content,
+		"toc_html": toc_html,
 	}
