@@ -76,7 +76,6 @@
    "label": "Space Name"
   },
   {
-   "depends_on": "eval:doc.show_in_navbar_app_switcher==1;",
    "fieldname": "app_switcher_logo",
    "fieldtype": "Attach Image",
    "label": "App Switcher Logo",
@@ -85,7 +84,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-02-19 16:11:08.336359",
+ "modified": "2025-02-20 12:08:19.790688",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
