@@ -635,3 +635,18 @@ def get_markdown_content(wikiPageName, wikiPagePatch):
 		new_code, new_title = frappe.db.get_value("Wiki Page Patch", wikiPagePatch, ["new_code", "new_title"])
 		return {"content": new_code, "title": new_title}
 	return frappe.db.get_value("Wiki Page", wikiPageName, ["content", "title"], as_dict=True)
+
+
+@frappe.whitelist(allow_guest=True)
+def get_page_content(wiki_page_name):
+	wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
+	content = wiki_page.content
+
+	html = frappe.utils.md_to_html(content)
+	wiki_settings = frappe.get_single("Wiki Settings")
+
+	return {
+		"title": wiki_page.title,
+		"content": html,
+		"toc_html": (wiki_page.calculate_toc_html(html) if wiki_settings.enable_table_of_contents else None),
+	}

@@ -1,3 +1,96 @@
+function add_link_to_headings() {
+  $(".from-markdown")
+    .not(".revision-content")
+    .find("h1, h2, h3, h4, h5, h6")
+    .each((i, $heading) => {
+      const text = $heading.textContent.trim();
+      $heading.id = text
+        .replace(/[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]/g, "")
+        .replace(/[ ]/g, "-")
+        .toLowerCase();
+
+      let id = $heading.id;
+      let $a = $('<a class="no-underline">')
+        .prop("href", "#" + id)
+        .attr("aria-hidden", "true").html(`
+        <svg xmlns="http://www.w3.org/2000/svg" style="width: 0.8em; height: 0.8em;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+      `);
+      $($heading).append($a);
+    });
+}
+
+function add_click_to_copy() {
+  $("pre code")
+    .parent("pre")
+    .prepend(
+      `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`
+    );
+
+  $(".copy-btn").on("click", function () {
+    frappe.utils.copy_to_clipboard($(this).siblings("code").text());
+  });
+}
+
+function set_toc() {
+  // Reset scroll event listener to avoid scroll jitterness
+  $(window).off("scroll");
+  $(document).ready(function () {
+    $(window).scroll(function () {
+      if (currentAnchor().not(".no-underline").hasClass("active")) return;
+      $(".page-toc a").removeClass("active");
+      currentAnchor().addClass("active");
+    });
+
+    const navbarHeight = $(".navbar").height();
+    $(".page-toc a").click(function (e) {
+      e.preventDefault();
+      var target = $(this).attr("href");
+      var offset = $(target).offset().top - navbarHeight - 50;
+      $("html, body").animate(
+        {
+          scrollTop: offset,
+        },
+        100
+      );
+    });
+  });
+
+  function tocItem(anchor) {
+    return $('[href="' + anchor + '"]');
+  }
+
+  function heading(anchor) {
+    return $("[id=" + anchor.substr(1) + "]");
+  }
+
+  var _anchors = null;
+  function anchors() {
+    if (!_anchors) {
+      _anchors = $(".page-toc .list-unstyled a").map(function () {
+        return $(this).attr("href");
+      });
+    }
+    return _anchors;
+  }
+
+  function currentAnchor() {
+    var winY = window.pageYOffset;
+    var currAnchor = null;
+    anchors().each(function () {
+      var y = heading(this).position()?.top;
+      if (y < winY + window.innerHeight * 0.23) {
+        currAnchor = this;
+        return;
+      }
+    });
+    return tocItem(currAnchor);
+  }
+}
+
 window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
@@ -18,6 +111,20 @@ window.Wiki = class Wiki {
             .scrollTo(0, topOffset - 200);
         }, 50);
       }
+
+      $($(this))
+        .find("a")
+        .on("click", (e) => {
+          e.preventDefault();
+          const href = $(e.currentTarget).attr("href");
+          loadWikiPage(href, e.currentTarget);
+          $("html, body").animate(
+            {
+              scrollTop: 0,
+            },
+            100
+          );
+        });
     });
   }
 
@@ -96,41 +203,16 @@ window.Wiki = class Wiki {
     });
   }
 
-  add_link_to_headings() {
-    $(".from-markdown")
-      .not(".revision-content")
-      .find("h1, h2, h3, h4, h5, h6")
-      .each((i, $heading) => {
-        const text = $heading.textContent.trim();
-        $heading.id = text
-          .replace(/[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]/g, "")
-          .replace(/[ ]/g, "-")
-          .toLowerCase();
+  set_toc() {
+    set_toc();
+  }
 
-        let id = $heading.id;
-        let $a = $('<a class="no-underline">')
-          .prop("href", "#" + id)
-          .attr("aria-hidden", "true").html(`
-					<svg xmlns="http://www.w3.org/2000/svg" style="width: 0.8em; height: 0.8em;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-						stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
-						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-						<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-					</svg>
-				`);
-        $($heading).append($a);
-      });
+  add_link_to_headings() {
+    add_link_to_headings();
   }
 
   add_click_to_copy() {
-    $("pre code")
-      .parent("pre")
-      .prepend(
-        `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`
-      );
-
-    $(".copy-btn").on("click", function () {
-      frappe.utils.copy_to_clipboard($(this).siblings("code").text());
-    });
+    add_click_to_copy();
   }
 };
 
@@ -144,5 +226,66 @@ $(document).on("click", function (e) {
     !$(e.target).closest("#navbar-dropdown, #navbar-dropdown-content").length
   ) {
     $("#navbar-dropdown-content").addClass("hide");
+  }
+});
+
+function loadWikiPage(url, pageElement, replaceState = false) {
+  // Update URL and history state
+  const historyMethod = replaceState ? "replaceState" : "pushState";
+  window[`history`][historyMethod](
+    {
+      pageName: $(pageElement).closest(".sidebar-item").data("name"),
+      url: url,
+    },
+    "",
+    url
+  );
+
+  // Get the wiki page name from the parent element's data attribute
+  const pageName = $(pageElement).closest(".sidebar-item").data("name");
+
+  frappe.call({
+    method: "wiki.wiki.doctype.wiki_page.wiki_page.get_page_content",
+    args: { wiki_page_name: pageName },
+    callback: (r) => {
+      if (r.message) {
+        $(".wiki-content").html(r.message.content);
+
+        $(".wiki-title").html(r.message.title);
+
+        if (r.message.toc_html) {
+          $(".page-toc .list-unstyled").html(r.message.toc_html);
+        }
+
+        // Update active sidebar item
+        $(".sidebar-item").removeClass("active");
+        $(".sidebar-item").find("a").removeClass("active");
+        $(pageElement).closest(".sidebar-item").addClass("active");
+        $(pageElement).addClass("active");
+
+        // Re-initialize necessary components
+        add_link_to_headings();
+        add_click_to_copy();
+        set_toc();
+      }
+    },
+  });
+}
+
+window.addEventListener("popstate", function (event) {
+  if (event.state && event.state.pageName) {
+    const sidebarItem = $(`.sidebar-item[data-name="${event.state.pageName}"]`);
+    if (sidebarItem.length) {
+      const pageElement = sidebarItem.find("a")[0];
+      loadWikiPage(event.state.url, pageElement, true);
+    }
+  } else {
+    // Fallback to path-based lookup
+    const path = window.location.pathname;
+    const sidebarItem = $(`.sidebar-item[data-route="${path.slice(1)}"]`);
+    if (sidebarItem.length) {
+      const pageElement = sidebarItem.find("a")[0];
+      loadWikiPage(path, pageElement, true);
+    }
   }
 });

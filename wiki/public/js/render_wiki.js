@@ -151,60 +151,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
     }
   }
 
-  set_toc() {
-    $(document).ready(function () {
-      $(window).scroll(function () {
-        if (currentAnchor().not(".no-underline").hasClass("active")) return;
-        $(".page-toc a").removeClass("active");
-        currentAnchor().addClass("active");
-      });
-
-      const navbarHeight = $(".navbar").height();
-      $(".page-toc a").click(function (e) {
-        e.preventDefault();
-        var target = $(this).attr("href");
-        var offset = $(target).offset().top - navbarHeight - 50;
-        $("html, body").animate(
-          {
-            scrollTop: offset,
-          },
-          100
-        );
-      });
-    });
-
-    function tocItem(anchor) {
-      return $('[href="' + anchor + '"]');
-    }
-
-    function heading(anchor) {
-      return $("[id=" + anchor.substr(1) + "]");
-    }
-
-    var _anchors = null;
-    function anchors() {
-      if (!_anchors) {
-        _anchors = $(".page-toc .list-unstyled a").map(function () {
-          return $(this).attr("href");
-        });
-      }
-      return _anchors;
-    }
-
-    function currentAnchor() {
-      var winY = window.pageYOffset;
-      var currAnchor = null;
-      anchors().each(function () {
-        var y = heading(this).position().top;
-        if (y < winY + window.innerHeight * 0.23) {
-          currAnchor = this;
-          return;
-        }
-      });
-      return tocItem(currAnchor);
-    }
-  }
-
   set_nav_buttons() {
     var current_index = -1;
     const sidebar_items = $(".sidebar-column").find("a").not(".navbar-brand");
