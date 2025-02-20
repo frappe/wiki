@@ -245,6 +245,9 @@ function loadWikiPage(url, pageElement, replaceState = false) {
   // Get the wiki page name from the parent element's data attribute
   const pageName = $(pageElement).closest(".sidebar-item").data("name");
 
+  // Update wiki page name for other functions
+  wikiPageName = pageName;
+
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_page_content",
     args: { wiki_page_name: pageName },
