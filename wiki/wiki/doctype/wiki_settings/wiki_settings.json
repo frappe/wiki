@@ -14,6 +14,7 @@
   "table_of_contents_section",
   "collapse_sidebar_groups",
   "enable_table_of_contents",
+  "disable_guest_access",
   "navbar_tab",
   "navbar_column",
   "navbar",
@@ -165,12 +166,18 @@
    "fieldtype": "Table",
    "label": "App Switcher List",
    "options": "Wiki App Switcher List Table"
+  },
+  {
+   "default": "0",
+   "fieldname": "disable_guest_access",
+   "fieldtype": "Check",
+   "label": "Disable guest access"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-02-19 15:41:34.635439",
+ "modified": "2025-02-21 15:58:45.056326",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

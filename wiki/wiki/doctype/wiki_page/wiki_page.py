@@ -150,8 +150,16 @@ class WikiPage(WebsiteGenerator):
 		self.save()
 
 	def verify_permission(self):
-		permitted = self.allow_guest or frappe.session.user != "Guest"
-		if not permitted:
+		wiki_settings = frappe.get_single("Wiki Settings")
+		user_is_guest = frappe.session.user == "Guest"
+
+		disable_guest_access = False
+		if wiki_settings.disable_guest_access and user_is_guest:
+			disable_guest_access = True
+
+		access_permitted = self.allow_guest or not user_is_guest
+
+		if not access_permitted or disable_guest_access:
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
@@ -640,17 +648,28 @@ def get_markdown_content(wikiPageName, wikiPagePatch):
 @frappe.whitelist(allow_guest=True)
 def get_page_content(wiki_page_name: str):
 	html_cache_key = f"wiki_page_html:{wiki_page_name}"
+
 	content = frappe.cache.hget(html_cache_key, "content")
 	page_title = frappe.cache.hget(html_cache_key, "page_title")
 	# TOC can be "None" if user has disabled it
 	toc_html = frappe.cache.hget(html_cache_key, "toc_html")
 
+	wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
+	wiki_settings = frappe.get_single("Wiki Settings")
+
+	user_is_guest = frappe.session.user == "Guest"
+	disable_guest_access = False
+	if wiki_settings.disable_guest_access and user_is_guest:
+		disable_guest_access = True
+
+	if not wiki_page.allow_guest or disable_guest_access:
+		frappe.local.response.http_status_code = 403
+		frappe.throw(_("You are not permitted to access this page"), frappe.PermissionError)
+
 	if not all([content, page_title]):
-		wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
 		md_content = wiki_page.content
 
 		content = frappe.utils.md_to_html(md_content)
-		wiki_settings = frappe.get_single("Wiki Settings")
 		toc_html = wiki_page.calculate_toc_html(content) if wiki_settings.enable_table_of_contents else None
 		page_title = wiki_page.title
 
