@@ -271,6 +271,10 @@ function loadWikiPage(url, pageElement, replaceState = false) {
         add_link_to_headings();
         add_click_to_copy();
         set_toc();
+        hljs.configure({
+          languages: ["python", "html", "css", "javascript", "shell", "bash"],
+        });
+        hljs.highlightAll();
       }
       $(".main-column, .page-toc").toggleClass("pulse");
     },
