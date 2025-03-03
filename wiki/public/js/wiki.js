@@ -248,6 +248,9 @@ function loadWikiPage(url, pageElement, replaceState = false) {
   // Update wiki page name for other functions
   wikiPageName = pageName;
 
+  // Save wiki page name on input used by editor.js and render_wiki.js
+  $('[name="wiki-page-name"]').val(wikiPageName)
+
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_page_content",
     args: { wiki_page_name: pageName },
