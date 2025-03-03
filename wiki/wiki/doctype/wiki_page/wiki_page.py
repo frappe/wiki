@@ -672,7 +672,7 @@ def get_page_content(wiki_page_name: str):
 	if wiki_settings.disable_guest_access and user_is_guest:
 		disable_guest_access = True
 
-	if not wiki_page.allow_guest or disable_guest_access:
+	if user_is_guest and (not wiki_page.allow_guest or wiki_settings.disable_guest_access):
 		frappe.local.response.http_status_code = 403
 		frappe.throw(_("You are not permitted to access this page"), frappe.PermissionError)
 
