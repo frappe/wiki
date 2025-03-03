@@ -47,6 +47,7 @@ class WikiPage(WebsiteGenerator):
 
 	def on_update(self):
 		update_index(self)
+		clear_page_html_cache()
 
 	def on_trash(self):
 		frappe.db.sql("DELETE FROM `tabWiki Page Revision Item` WHERE wiki_page = %s", self.name)
@@ -74,6 +75,7 @@ class WikiPage(WebsiteGenerator):
 		wiki_sidebar_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name})
 		frappe.delete_doc("Wiki Group Item", wiki_sidebar_name)
 
+		clear_page_html_cache()
 		clear_sidebar_cache()
 		remove_index(self)
 
@@ -409,6 +411,14 @@ class WikiPage(WebsiteGenerator):
 	def update_time_and_user(self, dt, dn, new_doc):
 		for field in ("modified", "modified_by", "creation", "owner"):
 			frappe.db.set_value(dt, dn, field, new_doc.get(field))
+
+	def clear_page_html_cache(self):
+	
+		html_cache_key = f"wiki_page_html:{self.name}"
+	
+		frappe.cache.hdel(html_cache_key, "content")
+		frappe.cache.hdel(html_cache_key, "page_title")
+		frappe.cache.hdel(html_cache_key, "toc_html")
 
 
 def get_open_contributions():
