@@ -72,7 +72,7 @@ function setEditor() {
       editor.setValue(r.message.content || "", 1);
     },
   });
-  wikiTitleInput.val($(".wiki-title").text() || "");
+  wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
 }
 
 function saveWikiPage(draft = false) {
