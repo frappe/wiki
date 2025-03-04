@@ -76,7 +76,7 @@ function setEditor() {
       window.history.replaceState({}, "", currentUrl);
     },
   });
-  wikiTitleInput.val($(".wiki-title").text() || "");
+  wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
 }
 
 function saveWikiPage(draft = false) {
