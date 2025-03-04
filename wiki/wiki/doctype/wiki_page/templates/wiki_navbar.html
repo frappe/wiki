@@ -26,6 +26,9 @@
           <img src="{{space.app_switcher_logo or '/app-icon.png'}}" alt="{{space.space_name}} logo" />
           <span>
             {{ space.space_name }}
+            {% if is_admin and space.pending_reviews %}
+            <div class="pending-reviews-count" title="Pending reviews">{{ space.pending_reviews }}</div>
+            {% endif %}
           </span>
         </a>
         {% endfor %}

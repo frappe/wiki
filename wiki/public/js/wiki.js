@@ -91,6 +91,25 @@ function set_toc() {
   }
 }
 
+function toggleEditor() {
+  $(".wiki-content").toggleClass("hide");
+  $(".wiki-page-meta").toggleClass("hide");
+  $(".wiki-footer").toggleClass("hide");
+  $(".page-toc").toggleClass("hide");
+
+  // avoid hiding editor when params ?editWiki or ?newWiki
+  if ($(".from-markdown").is(":visible")) {
+    $(".wiki-editor").toggleClass("hide");
+  } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
+      $(".from-markdown").toggleClass("hide");
+    }
+  }
+
+  $(".wiki-title").toggleClass("hide");
+}
+
 window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
@@ -117,6 +136,10 @@ window.Wiki = class Wiki {
         .on("click", (e) => {
           e.preventDefault();
           const href = $(e.currentTarget).attr("href");
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
+            toggleEditor();
+          }
           loadWikiPage(href, e.currentTarget);
           $("html, body").animate(
             {
@@ -249,7 +272,7 @@ function loadWikiPage(url, pageElement, replaceState = false) {
   wikiPageName = pageName;
 
   // Save wiki page name on input used by editor.js and render_wiki.js
-  $('[name="wiki-page-name"]').val(wikiPageName)
+  $('[name="wiki-page-name"]').val(wikiPageName);
 
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_page_content",
@@ -262,6 +285,15 @@ function loadWikiPage(url, pageElement, replaceState = false) {
 
         if (r.message.toc_html) {
           $(".page-toc .list-unstyled").html(r.message.toc_html);
+        }
+
+        // Update pending patches count and banner visibility
+        if (r.message.pending_patches_count !== undefined) {
+          $("#pending-patches-count").text(r.message.pending_patches_count);
+          $(".admin-banner").toggleClass(
+            "hide",
+            r.message.pending_patches_count === 0
+          );
         }
 
         // Update active sidebar item

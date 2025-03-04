@@ -56,6 +56,8 @@ previewToggleBtn.on("click", function () {
 
 function setEditor() {
   const urlParams = new URLSearchParams(window.location.search);
+  const currentUrl = new URL(window.location.href);
+
   editor.setOptions({
     wrap: true,
     showPrintMargin: true,
@@ -70,13 +72,15 @@ function setEditor() {
     },
     callback: (r) => {
       editor.setValue(r.message.content || "", 1);
+      currentUrl.searchParams.set("editWiki", 1);
+      window.history.replaceState({}, "", currentUrl);
     },
   });
   wikiTitleInput.val($(".wiki-title").text() || "");
 }
 
 function saveWikiPage(draft = false) {
-  const title = wikiTitleInput.val();
+  const title = wikiTitleInput.val()?.trim();
   const content = editor.getValue();
   const urlParams = new URLSearchParams(window.location.search);
   const isEmptyEditor = !!urlParams.get("newWiki");
@@ -117,6 +121,7 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   }
   wikiTitleInput.val("");
   editor.setValue("");
+  $(".admin-banner").addClass("hide");
 });
 
 editorContainer.addEventListener(
