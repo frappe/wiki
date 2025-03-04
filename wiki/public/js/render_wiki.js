@@ -223,6 +223,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         const urlParams = new URLSearchParams(window.location.search);
         // switch to edit mode
         toggleEditor();
+
         $(".admin-banner").addClass("hide");
 
         if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");

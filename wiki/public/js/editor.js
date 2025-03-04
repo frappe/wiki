@@ -129,6 +129,8 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
     url.searchParams.set("newWiki", "1");
     window[`history`]["pushState"]({}, "", url);
   }, 1);
+
+  $(".admin-banner").addClass("hide");
 });
 
 editorContainer.addEventListener(
