@@ -153,7 +153,7 @@ window.Wiki = class Wiki {
 
   toggle_sidebar(event) {
     $(event.currentTarget).parent().children("ul").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-icon").toggleClass("rotate");
+    $(event.currentTarget).find(".icon").toggleClass("rotate");
     event.stopPropagation();
   }
 
