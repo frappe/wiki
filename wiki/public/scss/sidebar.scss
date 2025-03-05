@@ -54,6 +54,17 @@
   padding: 5px 10px;
   border-radius: 8px;
   gap: 8px;
+
+  .icon {
+    width: 8px;
+    height: 8px;
+    margin: 0;
+    color: #999999;
+
+    &.rotate {
+      transform: rotate(90deg);
+    }
+  }
 }
 .sidebar-group-title {
   font-size: 13px;
@@ -69,7 +80,6 @@
   margin-top: 4px;
   margin-left: 10px;
   margin-bottom: 10px !important;
-  border-left: 1px solid var(--border-color);
   gap: 4px;
 }
 .sidebar-group-item {
@@ -102,7 +112,7 @@
   letter-spacing: -0.011em;
 
   ul {
-    padding-left: 0.25rem;
+    padding-left: 14px;
   }
 
   .list-unstyled:empty::after {
@@ -175,7 +185,7 @@
   a {
     margin: 0;
     width: 100%;
-    padding: 5px 8px;
+    padding: 5px 12px;
 
     &:hover {
       color: unset;

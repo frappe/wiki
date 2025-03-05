@@ -130,7 +130,7 @@ window.Wiki = class Wiki {
 
   toggle_sidebar(event) {
     $(event.currentTarget).parent().children("ul").toggleClass("hidden");
-    $(event.currentTarget).find(".drop-icon").toggleClass("rotate");
+    $(event.currentTarget).find(".icon").toggleClass("rotate");
     event.stopPropagation();
   }
 
@@ -249,7 +249,7 @@ function loadWikiPage(url, pageElement, replaceState = false) {
   wikiPageName = pageName;
 
   // Save wiki page name on input used by editor.js and render_wiki.js
-  $('[name="wiki-page-name"]').val(wikiPageName)
+  $('[name="wiki-page-name"]').val(wikiPageName);
 
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_page_content",
