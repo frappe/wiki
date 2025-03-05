@@ -14,6 +14,12 @@ sidebar_items | len > 0 -%}
   {% for sidebar_group in sidebar_items -%}
   <li class="sidebar-group" data-type="Wiki Sidebar" data-title="{{sidebar_group}}">
     <div class="sidebar-group-container collapsible">
+      <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="icon {% if collapse_sidebar_groups and sidebar_group == active_sidebar_group %}rotate{% endif %}">
+        <path
+          d="M4 8.53967L4 3.46033C4 3.05582 4.45534 2.81874 4.78673 3.05071L8.41483 5.59038C8.69919 5.78943 8.69919 6.21057 8.41483 6.40962L4.78673 8.94929C4.45534 9.18126 4 8.94418 4 8.53967Z"
+          fill="currentColor"></path>
+      </svg>
       <span class="sidebar-group-title">{{ sidebar_group }}</span>
       <span class="add-sidebar-page hide" data-group-name="{{ sidebar_group }}" data-toggle="tooltip"
         data-placement="top" title="New Wiki Page in the group {{ sidebar_group }}">
@@ -22,13 +28,6 @@ sidebar_items | len > 0 -%}
           class="feather feather-plus">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </span>
-      <span
-        class="drop-icon {% if collapse_sidebar_groups and sidebar_group != active_sidebar_group %}rotate{% endif %}">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"
-          stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1">
-          <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </span>
     </div>
