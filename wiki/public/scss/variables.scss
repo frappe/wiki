@@ -11,6 +11,12 @@ body {
   --sidebar-bg-color: #f8f8f8;
   --sidebar-hover-color: #ebebe9;
 
+  --admin-banner-bg: #fff3cd;
+  --admin-banner-text: #856404;
+  --admin-banner-btn-bg: #ffc107;
+  --admin-banner-btn-text: #000;
+  --admin-banner-btn-hover-bg: #e0a800;
+
   --btn-primary-color: #fff;
   --btn-primary-bg-color: #171717;
   --btn-primary-hover-bg-color: #383838;
@@ -70,6 +76,9 @@ body {
   --search-modal-color: #494949;
   --search-modal-hover-color: var(--sidebar-hover-color);
 
+  --badge-color: #525252;
+  --badge-bg-color: #e8e8e8;
+
   // ------------------------------------------
 
   font-family: "InterVariable", "Inter", "-apple-system", "BlinkMacSystemFont",
@@ -88,6 +97,12 @@ body.dark {
   --text-color: var(--gray-50);
   --sidebar-bg-color: var(--background-color); /* #111111; */
   --sidebar-hover-color: #242a30;
+
+  --admin-banner-bg: #382c1b;
+  --admin-banner-text: #ffd98f;
+  --admin-banner-btn-bg: #b98307;
+  --admin-banner-btn-text: #fff;
+  --admin-banner-btn-hover-bg: #8f6506;
 
   --btn-primary-color: #000;
   --btn-primary-bg-color: #fff;
@@ -150,6 +165,9 @@ body.dark {
   --search-modal-bg-color: rgb(35, 35, 35);
   --search-modal-color: rgb(212, 212, 212);
   --search-modal-hover-color: #343434;
+
+  --badge-color: #cdcdcd;
+  --badge-bg-color: #484848;
 
   .draft-wiki-page {
     background: var(--gray-700);
