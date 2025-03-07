@@ -3,6 +3,21 @@
   scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
 }
 
+.admin-banner {
+  background-color: var(--admin-banner-bg) !important;
+  color: var(--admin-banner-text) !important;
+  font-size: 14px;
+  margin-top: 8px;
+  .btn-warning {
+    background-color: var(--admin-banner-btn-bg);
+    color: var(--admin-banner-btn-text) !important;
+
+    &:hover {
+      background-color: var(--admin-banner-btn-hover-bg);
+    }
+  }
+}
+
 .wiki-page-meta {
   font-size: $font-size-sm;
   display: flex;
