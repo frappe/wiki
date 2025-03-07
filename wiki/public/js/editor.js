@@ -122,6 +122,13 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   wikiTitleInput.val("");
   editor.setValue("");
   $(".admin-banner").addClass("hide");
+
+  // workaround to fix the param not getting set
+  setTimeout(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("newWiki", "1");
+    window[`history`]["pushState"]({}, "", url);
+  }, 1);
 });
 
 editorContainer.addEventListener(
