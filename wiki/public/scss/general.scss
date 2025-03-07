@@ -8,6 +8,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin: auto;
+  width: 650px;
 }
 
 .drafts {
@@ -42,7 +44,7 @@
 .main-column {
   background-color: var(--background-color);
   padding: 0px 50px;
-  margin: auto;
+  width: 100%;
 
   @include media-breakpoint-down(md) {
     padding: 20px;

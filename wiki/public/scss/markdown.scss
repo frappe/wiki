@@ -2,6 +2,7 @@
   font-size: 14px;
   line-height: 2 !important;
   color: var(--content-text-color);
+  width: 650px;
 
   a:not(.dropdown-item, .btn) {
     color: var(--text-color);
@@ -285,7 +286,7 @@
 
 .wiki-page-content {
   margin: 0.5rem auto;
-  max-width: 650px;
+  width: 100%;
 
   @include media-breakpoint-down(md) {
     width: auto;

@@ -1,6 +1,8 @@
 .wiki-footer {
   border-top: 1px solid var(--border-color);
   margin-top: 1rem;
+  width: 650px;
+  margin: auto;
 
   .btn {
     margin-top: 1rem;
@@ -49,9 +51,8 @@
   }
 }
 
-
 @include media-breakpoint-down(md) {
-	.wiki-footer {
+  .wiki-footer {
     .btn.left,
     .btn.right {
       width: 100%;
