@@ -220,8 +220,14 @@ class WikiPage(WebsiteGenerator):
 		if frappe.session.user != "Guest":
 			context.is_admin = frappe.has_permission("Wiki Page Patch", "write")
 			if context.is_admin:
+				wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent")
+				# Get all Wiki Pages in this space
+				wiki_pages_in_space = frappe.get_all(
+					"Wiki Group Item", filters={"parent": wiki_space_name}, pluck="wiki_page"
+				)
+				# Count pending patches for all pages in the space
 				context.pending_patches_count = frappe.db.count(
-					"Wiki Page Patch", filters={"status": "Under Review", "wiki_page": self.name}
+					"Wiki Page Patch", {"wiki_page": ["in", wiki_pages_in_space], "status": "Under Review"}
 				)
 
 		wiki_settings = frappe.get_single("Wiki Settings")
@@ -692,7 +698,6 @@ def get_page_content(wiki_page_name: str):
 
 	wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
 	wiki_settings = frappe.get_single("Wiki Settings")
-	is_user_admin = frappe.session.user == "Administrator"
 
 	user_is_guest = frappe.session.user == "Guest"
 
@@ -706,21 +711,13 @@ def get_page_content(wiki_page_name: str):
 		content = frappe.utils.md_to_html(md_content)
 		toc_html = wiki_page.calculate_toc_html(content) if wiki_settings.enable_table_of_contents else None
 		page_title = wiki_page.title
-		if is_user_admin:
-			pending_patches_count = frappe.db.count(
-				"Wiki Page Patch", {"wiki_page": wiki_page_name, "status": "Under Review"}
-			)
-			frappe.cache.hset(html_cache_key, "pending_patches_count", pending_patches_count)
 
 		frappe.cache.hset(html_cache_key, "content", content)
 		frappe.cache.hset(html_cache_key, "page_title", page_title)
 		frappe.cache.hset(html_cache_key, "toc_html", toc_html)
 
-	pending_patches_count = pending_patches_count if is_user_admin else 0
-
 	return {
 		"title": page_title,
 		"content": content,
 		"toc_html": toc_html,
-		"pending_patches_count": pending_patches_count,
 	}

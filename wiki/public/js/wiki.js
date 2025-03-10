@@ -287,15 +287,6 @@ function loadWikiPage(url, pageElement, replaceState = false) {
           $(".page-toc .list-unstyled").html(r.message.toc_html);
         }
 
-        // Update pending patches count and banner visibility
-        if (r.message.pending_patches_count !== undefined) {
-          $("#pending-patches-count").text(r.message.pending_patches_count);
-          $(".admin-banner").toggleClass(
-            "hide",
-            r.message.pending_patches_count === 0
-          );
-        }
-
         // Update active sidebar item
         $(".sidebar-item").removeClass("active");
         $(".sidebar-item").find("a").removeClass("active");

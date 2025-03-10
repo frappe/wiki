@@ -30,7 +30,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 		<div class="alert alert-warning admin-banner {% if not (is_admin and pending_patches_count)%}hide{% endif %}"
 			role="alert">
 			<div class="d-flex justify-content-between align-items-center">
-				<div>This page has
+				<div>This space has
 					<strong id="pending-patches-count">{{ pending_patches_count }}</strong> change(s) pending for
 					review.
 				</div>
