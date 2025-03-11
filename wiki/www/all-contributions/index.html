@@ -1,0 +1,147 @@
+{% extends "wiki/doctype/wiki_page/templates/wiki_page.html" %}
+
+{%- block head_include %}
+{{ super() }}
+{{ include_style('wiki.bundle.css') }}
+{{ include_style('contributions.bundle.css') }}
+{% endblock -%}
+
+{% block page_content %}
+<input class="d-none" type="text" autocomplete="off" name="limit" value="{{patches|length}}">
+
+<div class='contributions-header'> All Contributions </div>
+
+<div class="frappe-card">
+	<div class="table-area all-contributions">
+		<div class="list-jobs table-responsive">
+			{% if patches %}
+			<table class="table">
+				<thead class="white">
+					<tr>
+						<td class="status-col">{{ _("Status") }}</th>
+						<td class="message-col">{{ _("Message") }}</th>
+						<td class="raised-by-col">{{ _("Raised By") }}</th>
+						<td class="date-col">{{ _("Last update on") }}</th>
+						<td class="actions-col">{{ _("Actions") }}</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for patch in patches %}
+					<tr>
+						<td class="worker-name"><span class="indicator-pill no-margin {{patch.color}}">&nbsp;&nbsp;{{patch.status
+								}}</span></td>
+						<td class="message-cell">{{ patch.message }}</td>
+						<td class="raised-by-cell">{{ patch.raised_by }}</td>
+						<td>{{ patch.modified }}</td>
+						<td class="action-buttons">
+							<a class="btn btn-default btn-xs" href="{{ patch.edit_link }}">View</a>
+							{% if patch.can_review %}
+							<button class="btn btn-success btn-xs approve-patch" data-patch="{{ patch.name }}">Approve</button>
+							<button class="btn btn-danger btn-xs reject-patch" data-patch="{{ patch.name }}">Reject</button>
+							{% endif %}
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+			<div class="no-background-jobs">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
+				<p class="text-muted">{{ _("No Pending Contributions") }}</p>
+			</div>
+			{% endif %}
+		</div>
+	</div>
+</div>
+
+{% if patches %}
+<br>
+<div> <button class='btn pull-right get_patches'>More</button></div>
+<br>
+<br>
+{% endif %}
+
+{% endblock %}
+
+{% block base_scripts %}
+<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+{{ include_script("frappe-web.bundle.js") }}
+{{ include_script("diff_modal.js") }}
+
+<script>
+	if (parseInt($('[name="limit"]').val()) < 10) $('.get_patches').hide();
+
+	$('.get_patches').on("click", () => {
+		frappe.call({
+			method: "wiki.www.all-contributions.index.get_patches_api",
+			args: {
+				start: parseInt($('[name="limit"]').val()),
+				limit: 10,
+			},
+			callback: (response) => {
+				if (response.message) {
+					for (patch of response.message.patches) {
+						let actionButtons = `<a class="btn btn-default btn-xs" href="${patch.edit_link}">View</a>`;
+						if (patch.can_review) {
+							actionButtons += `
+								<button class="btn btn-success btn-xs approve-patch" data-patch="${patch.name}">Approve</button>
+								<button class="btn btn-danger btn-xs reject-patch" data-patch="${patch.name}">Reject</button>
+							`;
+						}
+						$('.list-jobs tbody').append($(`	<tr>
+						<td class="worker-name"><span class="indicator-pill no-margin ${patch.color}">&nbsp;&nbsp;
+							${patch.status}</span></td>
+						<td class="message-cell">${patch.message}</td>
+						<td class="raised-by-cell">${patch.raised_by}</td>
+						<td class="date-cell">${patch.modified}</td>
+						<td class="action-buttons">${actionButtons}</td>
+					</tr>
+				`));
+					}
+					$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + response.message.patches.length);
+					if ($('[name="limit"]').val() % 10 !== 0) $('.get_patches').hide();
+				}
+			},
+			freeze: true,
+		});
+	});
+
+	// Handle approve/reject actions
+	$(document).on('click', '.approve-patch', function () {
+		const patchName = $(this).data('patch');
+		frappe.call({
+			method: "wiki.www.all-contributions.index.update_patch_status",
+			args: {
+				patch: patchName,
+				status: "Approved"
+			},
+			callback: function (r) {
+				if (r.message) {
+					frappe.show_alert({ message: __("Patch approved successfully"), indicator: 'green' });
+					window.location.reload();
+				}
+			}
+		});
+	});
+
+	$(document).on('click', '.reject-patch', function () {
+		const patchName = $(this).data('patch');
+		frappe.call({
+			method: "wiki.www.all-contributions.index.update_patch_status",
+			args: {
+				patch: patchName,
+				status: "Rejected"
+			},
+			callback: function (r) {
+				if (r.message) {
+					frappe.show_alert({ message: __("Patch rejected successfully"), indicator: 'red' });
+					window.location.reload();
+				}
+			}
+		});
+	});
+</script>
+{% endblock %}
+
+{% block page_sidebar %}
+{% endblock %}

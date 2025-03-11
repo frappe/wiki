@@ -246,23 +246,6 @@ class WikiPage(WebsiteGenerator):
 			# Create a dictionary for quick lookup
 			wiki_spaces_dict = {doc.name: doc for doc in wiki_spaces}
 
-			is_user_admin = frappe.session.user == "Administrator"
-			if is_user_admin:
-				# Add pending review counts for each space
-				for space in wiki_spaces:
-					space.pending_reviews = frappe.db.count(
-						"Wiki Page Patch",
-						filters={
-							"status": "Under Review",
-							"wiki_page": [
-								"in",
-								frappe.get_all(
-									"Wiki Group Item", filters={"parent": space.name}, pluck="wiki_page"
-								),
-							],
-						},
-					)
-
 			# Reorder the documents based on the original list's order
 			ordered_wiki_spaces = [
 				wiki_spaces_dict[name] for name in wiki_space_names if name in wiki_spaces_dict

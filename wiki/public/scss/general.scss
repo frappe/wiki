@@ -17,6 +17,10 @@
     &:hover {
       background-color: var(--admin-banner-btn-hover-bg);
     }
+
+    &:active {
+      background-color: var(--admin-banner-btn-active-bg) !important;
+    }
   }
 }
 
