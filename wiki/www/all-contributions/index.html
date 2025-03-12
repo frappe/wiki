@@ -1,0 +1,177 @@
+{% extends "wiki/doctype/wiki_page/templates/wiki_page.html" %}
+
+{%- block head_include %}
+{{ super() }}
+{{ include_style('wiki.bundle.css') }}
+{{ include_style('contributions.bundle.css') }}
+{% endblock -%}
+
+{% block page_content %}
+<div class="modal fade" id="patchDiffModal" tabindex="-1" role="dialog" aria-labelledby="patchDiffModalTitle"
+	aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+		<div class="modal-content review-patch-modal">
+			<div class="modal-header">
+				<div class="d-flex flex-column">
+					<h5 class="modal-title" id="patchDiffModalTitle">Review Changes</h5>
+					<span class="small text-muted patch-info"></span>
+				</div>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<pre class="diff-content"></pre>
+			</div>
+			<div class="modal-footer review-modal-footer">
+				<button type="button" class="btn approve-patch">Approve</button>
+				<button type="button" class="btn reject-patch">Reject</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<input class="d-none" type="text" autocomplete="off" name="limit" value="{{patches|length}}">
+
+<div class='contributions-header'> All Contributions </div>
+
+<div class="frappe-card">
+	<div class="table-area all-contributions">
+		<div class="list-jobs table-responsive">
+			{% if patches %}
+			<table class="table">
+				<thead class="white">
+					<tr>
+						<td class="message-col">{{ _("Message") }}</th>
+						<td class="status-col">{{ _("Status") }}</th>
+						<td class="space-col">{{ _("Space") }}</th>
+						<td class="raised-by-col">{{ _("Raised By") }}</th>
+						<td class="date-col">{{ _("Last update on") }}</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for patch in patches %}
+					<tr class="patch-row" data-patch="{{ patch.name }}">
+						<td class="message-cell" title="{{ patch.message }}">{{ patch.message }}</td>
+						<td class="worker-name" title="{{patch.status}}"><span
+								class="indicator-pill no-margin {{patch.color}}">&nbsp;&nbsp;{{patch.status}}</span></td>
+						<td class="space-cell" title="{{ patch.space_name }}">{{ patch.space_name }}</td>
+						<td class="raised-by-cell" title="{{ patch.raised_by }}">{{ patch.raised_by }}</td>
+						<td title="{{ patch.modified }}">{{ patch.modified }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+			<div class="no-background-jobs">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
+				<p class="text-muted">{{ _("No Pending Contributions") }}</p>
+			</div>
+			{% endif %}
+		</div>
+	</div>
+</div>
+
+{% if patches %}
+<br>
+<div> <button class='btn pull-right get_patches'>More</button></div>
+<br>
+<br>
+{% endif %}
+
+{% endblock %}
+
+{% block base_scripts %}
+<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+{{ include_script("frappe-web.bundle.js") }}
+{{ include_script("diff_modal.js") }}
+
+<script>
+	if (parseInt($('[name="limit"]').val()) < 10) $('.get_patches').hide();
+
+	// Handle row click to show diff modal
+	$(document).on('click', '.patch-row', function () {
+		const patchName = $(this).data('patch');
+
+		frappe.call({
+			method: "wiki.www.all-contributions.index.get_patch_diff",
+			args: { patch: patchName },
+			callback: function (r) {
+				if (r.message) {
+					$('.diff-content').html(r.message.diff);
+					$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
+
+					$('#patchDiffModal').modal('show');
+				}
+			}
+		});
+	});
+
+	$('.approve-patch').on('click', function () {
+		frappe.call({
+			method: "wiki.www.all-contributions.index.update_patch_status",
+			args: {
+				patch: $('.patch-row').data('patch'),
+				status: "Approved"
+			},
+			callback: function (r) {
+				if (r.message) {
+					frappe.show_alert({ message: __("Patch approved successfully"), indicator: 'green' });
+					window.location.reload();
+				}
+			}
+		});
+		$('#patchDiffModal').modal('hide');
+	});
+
+	$('.reject-patch').on('click', function () {
+		frappe.call({
+			method: "wiki.www.all-contributions.index.update_patch_status",
+			args: {
+				patch: $('.patch-row').data('patch'),
+				status: "Rejected"
+			},
+			callback: function (r) {
+				if (r.message) {
+					frappe.show_alert({ message: __("Patch rejected successfully"), indicator: 'red' });
+					window.location.reload();
+				}
+			}
+		});
+		$('#patchDiffModal').modal('hide');
+	});
+
+	$('.get_patches').on("click", () => {
+		frappe.call({
+			method: "wiki.www.all-contributions.index.get_patches_api",
+			args: {
+				start: parseInt($('[name="limit"]').val()),
+				limit: 10,
+			},
+			callback: (response) => {
+				if (response.message) {
+					for (patch of response.message.patches) {
+						$('.list-jobs tbody').append($(`
+						<tr class="patch-row" data-patch="${patch.name}">
+						<td class="message-cell" title="${patch.message}">${patch.message}</td>
+							<td class="worker-name" title="${patch.status}">
+								<span class="indicator-pill no-margin ${patch.color}">&nbsp;&nbsp;${patch.status}</span>
+						</td>
+						<td class="space-cell" title="${patch.space_name}">${patch.space_name}</td>
+						<td class="raised-by-cell" title="${patch.raised_by}">${patch.raised_by}</td>
+						<td class="date-cell" title="${patch.modified}">${patch.modified}</td>
+						</tr>
+				`));
+					}
+					$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + response.message.patches.length);
+					if ($('[name="limit"]').val() % 10 !== 0) $('.get_patches').hide();
+				}
+			},
+			freeze: true,
+		});
+	});
+</script>
+{% endblock %}
+
+{% block page_sidebar %}
+{% endblock %}

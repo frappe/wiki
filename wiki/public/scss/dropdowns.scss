@@ -40,12 +40,32 @@
     font-weight: 500;
   }
 
+  .pending-reviews-count {
+    color: var(--badge-color);
+    background-color: var(--badge-bg-color);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    margin-left: auto;
+    width: 21px;
+    height: 21px;
+    text-align: center;
+    font-weight: 750;
+  }
+
   .space-link {
     padding: 4px;
     padding-left: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+
+    span {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
 
     img {
       width: 22px;
