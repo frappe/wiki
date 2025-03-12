@@ -1,26 +1,37 @@
 .all-contributions {
   .table {
     td {
-      &.status-col {
-        width: 10%;
-      }
       &.message-col {
-        width: 25%;
+        width: auto;
+      }
+      &.status-col {
+        width: 15%;
       }
       &.raised-by-col {
-        width: 20%;
+        width: auto;
       }
       &.date-col {
-        width: 20%;
+        width: 15%;
       }
-      &.actions-col {
-        width: 25%;
+    }
+
+    .patch-row {
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #f8f8f8;
       }
     }
   }
 
+  .message-cell {
+    font-weight: 550;
+  }
+
   .message-cell,
-  .raised-by-cell {
+  .raised-by-cell,
+  .space-cell {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -29,9 +40,9 @@
 
   .action-buttons {
     .btn {
-      margin-right: 5px;
+      margin-right: 4px;
       border-radius: 8px;
-      padding: 4px 12px;
+      padding: 3px 8px;
       font-size: 13px;
       border: none;
 
@@ -67,5 +78,54 @@
 
   .get_patches {
     margin-top: 15px;
+  }
+}
+
+.diff-content {
+  text-wrap: auto;
+
+  ins {
+    background-color: #dcfce7;
+    text-decoration: none;
+  }
+  del {
+    background-color: #fee2e2;
+    text-decoration: none;
+  }
+}
+
+.review-patch-modal {
+  .modal-header {
+    border-bottom: 1px solid #e9e9e9;
+  }
+
+  .modal-title {
+    max-width: 100% !important;
+  }
+
+  .modal-body {
+    padding-top: 18px;
+  }
+
+  .review-modal-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    border-top: 1px solid #e9e9e9;
+
+    .btn {
+      width: auto;
+    }
+
+    .approve-patch {
+      background-color: #000;
+      color: #fff;
+    }
+
+    .reject-patch {
+      background-color: #fff;
+      color: #000;
+      background-color: #f8f8f8;
+    }
   }
 }

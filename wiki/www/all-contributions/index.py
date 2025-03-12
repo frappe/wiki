@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils import cint
+from lxml.html.diff import htmldiff
 
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
@@ -29,10 +30,13 @@ def fetch_patches(start=0, limit=10):
 
 	for patch in wiki_page_patches:
 		route = frappe.db.get_value("Wiki Page", patch.wiki_page, "route")
+		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": patch.wiki_page}, "parent")
+		patch.space_name = (
+			frappe.get_value("Wiki Space", wiki_space_name, "space_name") if wiki_space_name else ""
+		)
 		patch.edit_link = f"/{route}?editWiki=1&wikiPagePatch={patch.name}"
 		patch.color = "orange"
 		patch.modified = frappe.utils.pretty_date(patch.modified)
-		patch.can_review = frappe.has_permission("Wiki Page Patch", "write")
 		patches.extend([patch])
 
 	return patches
@@ -59,3 +63,19 @@ def update_patch_status(patch, status):
 		patch_doc.submit()
 
 	return True
+
+
+@frappe.whitelist()
+def get_patch_diff(patch):
+	if not frappe.has_permission("Wiki Page Patch", "write"):
+		frappe.throw(_("You don't have permission to view this patch"))
+	patch_doc = frappe.get_doc("Wiki Page Patch", patch)
+
+	original_code = patch_doc.orignal_code or ""
+	new_code = patch_doc.new_code or ""
+
+	return {
+		"diff": htmldiff(original_code, new_code),
+		"raised_by": patch_doc.raised_by,
+		"raised_on": frappe.utils.pretty_date(patch_doc.modified),
+	}
