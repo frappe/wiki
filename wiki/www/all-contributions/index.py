@@ -20,12 +20,21 @@ def get_context(context):
 
 def fetch_patches(start=0, limit=10):
 	patches = []
+	filters = [["status", "=", "Under Review"]]
+
+	# Add space filter if provided in URL
+	space = frappe.form_dict.get("space")
+	if space:
+		wiki_pages = frappe.get_all("Wiki Group Item", filters={"parent": space}, pluck="wiki_page")
+		if wiki_pages:
+			filters.append(["wiki_page", "in", wiki_pages])
+
 	wiki_page_patches = frappe.get_list(
 		"Wiki Page Patch",
 		["name", "message", "status", "raised_by", "modified", "wiki_page"],
 		start=cint(start),
 		limit=cint(limit),
-		filters=[["status", "=", "Under Review"]],
+		filters=filters,
 	)
 
 	for patch in wiki_page_patches:

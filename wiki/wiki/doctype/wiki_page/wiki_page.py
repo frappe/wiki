@@ -259,6 +259,7 @@ class WikiPage(WebsiteGenerator):
 		wiki_space = (
 			frappe.get_cached_doc("Wiki Space", wiki_space_name) if wiki_space_name else frappe._dict()
 		)
+		context.wiki_space_name = wiki_space_name
 		# Do not cache in developer mode
 		context.no_cache = (
 			frappe.local.conf.developer_mode or frappe.local.dev_server
