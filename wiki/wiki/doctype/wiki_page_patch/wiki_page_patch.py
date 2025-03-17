@@ -3,12 +3,15 @@
 
 
 import json
+import re
 
 import frappe
 from frappe import _
 from frappe.desk.form.utils import add_comment
 from frappe.model.document import Document
 from frappe.website.utils import cleanup_page_name
+
+from wiki.utils import apply_changes, apply_markdown_diff, highlight_changes
 
 
 class WikiPagePatch(Document):
@@ -57,7 +60,14 @@ class WikiPagePatch(Document):
 		self.new_wiki_page.save()
 
 	def update_old_page(self):
-		self.wiki_page_doc.update_page(self.new_title, self.new_code, self.message, self.raised_by)
+		original_md = self.wiki_page_doc.content or ""
+		modified_md = self.new_code or ""
+
+		merge_old_content = apply_markdown_diff(self.orignal_code, modified_md)[1]
+		merge_new_content = apply_changes(original_md, merge_old_content)
+		new_modified_md = apply_markdown_diff(original_md, merge_new_content)[0]
+
+		self.wiki_page_doc.update_page(self.new_title, new_modified_md, self.message, self.raised_by)
 
 	def update_sidebars(self):
 		if not hasattr(self, "new_sidebar_items") or not self.new_sidebar_items:
