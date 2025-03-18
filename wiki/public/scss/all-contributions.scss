@@ -95,16 +95,68 @@
 }
 
 .review-patch-modal {
+  min-height: calc(100vh - 100px);
+
   .modal-header {
     border-bottom: 1px solid #e9e9e9;
+    padding: 1rem 1rem;
+
+    .close {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      padding: 0;
+      margin: 0;
+    }
   }
 
+  .view-toggle-buttons-wrapper {
+    display: flex;
+    align-items: end;
+  }
+
+  .view-toggle-buttons {
+    display: flex;
+    gap: 6px;
+    background-color: #ececec;
+    padding: 4px;
+    width: max-content;
+    border-radius: 10px;
+    margin-top: 22px;
+    margin-right: 14px;
+
+    .btn {
+      padding: 3px 6px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #383838;
+      background-color: #ececec;
+      transition: all 0.2s ease;
+
+      &.active {
+        background-color: #fff;
+        border: 1px solid #e5e7eb;
+        border-color: #d1d5db;
+        color: #111827;
+      }
+    }
+  }
   .modal-title {
     max-width: 100% !important;
   }
 
   .modal-body {
     padding-top: 18px;
+
+    .diff-content,
+    .preview-content {
+      display: none;
+      max-width: 100%;
+      &.active {
+        display: block;
+      }
+    }
   }
 
   .review-modal-footer {
@@ -126,6 +178,50 @@
       background-color: #fff;
       color: #000;
       background-color: #f8f8f8;
+      font: optional;
     }
   }
+}
+
+.filters-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+
+  .space-filter {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+
+    label {
+      font-size: 14px;
+      font-weight: 550;
+      margin-bottom: 4px;
+    }
+
+    select {
+      position: relative;
+      border: 1.5px solid #c7c7c7;
+      border-radius: 8px;
+      padding: 8px;
+      padding-top: 2px;
+      padding-bottom: 2px;
+      font-size: 14px;
+
+      -moz-appearance: none;
+      -webkit-appearance: none;
+      appearance: none;
+
+      svg {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+  }
+}
+
+.frappe-card {
+  margin-top: 12px;
 }

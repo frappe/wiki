@@ -3,6 +3,7 @@ from frappe import _
 from frappe.utils import cint
 from lxml.html.diff import htmldiff
 
+from wiki.utils import apply_changes, apply_markdown_diff, highlight_changes
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
 
 
@@ -15,6 +16,11 @@ def get_context(context):
 	context.no_cache = 1
 	context.show_sidebar = True
 	context.patches = fetch_patches()
+
+	# Get list of available spaces
+	context.spaces = frappe.get_all("Wiki Space", fields=["name", "space_name"])
+	context.selected_space = frappe.form_dict.get("space")
+
 	return context
 
 
@@ -78,13 +84,23 @@ def update_patch_status(patch, status):
 def get_patch_diff(patch):
 	if not frappe.has_permission("Wiki Page Patch", "write"):
 		frappe.throw(_("You don't have permission to view this patch"))
-	patch_doc = frappe.get_doc("Wiki Page Patch", patch)
 
-	original_code = patch_doc.orignal_code or ""
-	new_code = patch_doc.new_code or ""
+	patch_doc = frappe.get_doc("Wiki Page Patch", patch)
+	original_doc = frappe.get_doc("Wiki Page", patch_doc.wiki_page)
+
+	patch_md = patch_doc.orignal_code or ""
+	original_md = "" if patch_doc.new else original_doc.content or ""
+	modified_md = patch_doc.new_code or ""
+
+	merge_old_content = apply_markdown_diff(patch_md, modified_md)[1]
+
+	merge_new_content = apply_changes(original_md, merge_old_content)
+
+	new_modified_md = apply_markdown_diff(original_md, merge_new_content)[1]
 
 	return {
-		"diff": htmldiff(original_code, new_code),
+		"diff": highlight_changes(original_md, new_modified_md),
 		"raised_by": patch_doc.raised_by,
 		"raised_on": frappe.utils.pretty_date(patch_doc.modified),
+		"merged_html": frappe.utils.md_to_html(merge_new_content),
 	}

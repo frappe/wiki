@@ -7,8 +7,9 @@
   background-color: var(--admin-banner-bg) !important;
   color: var(--admin-banner-text) !important;
   font-size: 14px;
-  margin-top: 8px;
+  margin-top: 22px !important;
   margin-bottom: 0;
+  padding: 0.5rem 0.7rem;
 
   .btn-warning {
     background-color: var(--admin-banner-btn-bg);

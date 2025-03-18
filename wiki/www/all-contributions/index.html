@@ -16,12 +16,22 @@
 					<h5 class="modal-title" id="patchDiffModalTitle">Review Changes</h5>
 					<span class="small text-muted patch-info"></span>
 				</div>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
+				<div>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<div class="view-toggle-buttons-wrapper">
+						<div class="view-toggle-buttons">
+							<button type="button" class="btn btn-sm btn-default view-raw active">View Raw</button>
+							<button type="button" class="btn btn-sm btn-default view-preview">View Preview</button>
+						</div>
+					</div>
+				</div>
 			</div>
 			<div class="modal-body">
-				<pre class="diff-content"></pre>
+
+				<pre class="diff-content active"></pre>
+				<div class="preview-content"></div>
 			</div>
 			<div class="modal-footer review-modal-footer">
 				<button type="button" class="btn approve-patch">Approve</button>
@@ -34,7 +44,24 @@
 <input class="d-none" type="text" autocomplete="off" name="limit" value="{{patches|length}}">
 
 <div class='contributions-header'> All Contributions </div>
+<div class="filters-wrapper">
+	<div class="space-filter">
+		<label for="space-filter">Space</label>
+		<select class="w-auto" id="space-filter">
+			<option value="">All Spaces</option>
+			{% for space in spaces %}
+			<option value="{{ space.name }}" {% if selected_space==space.name %}selected{% endif %}>{{ space.space_name }}
+			</option>
+			{% endfor %}
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path fill-rule="evenodd" clip-rule="evenodd"
+					d="M5.85355 10.6464C5.65829 10.4512 5.34171 10.4512 5.14645 10.6464C4.95118 10.8417 4.95118 11.1583 5.14645 11.3536L7.64645 13.8536C7.84171 14.0488 8.15829 14.0488 8.35355 13.8536L10.8536 11.3536C11.0488 11.1583 11.0488 10.8417 10.8536 10.6464C10.6583 10.4512 10.3417 10.4512 10.1464 10.6464L8 12.7929L5.85355 10.6464ZM5.85355 5.35355C5.65829 5.54882 5.34171 5.54882 5.14645 5.35355C4.95118 5.15829 4.95118 4.84171 5.14645 4.64645L7.64645 2.14645C7.84171 1.95118 8.15829 1.95118 8.35355 2.14645L10.8536 4.64645C11.0488 4.84171 11.0488 5.15829 10.8536 5.35355C10.6583 5.54882 10.3417 5.54882 10.1464 5.35355L8 3.20711L5.85355 5.35355Z"
+					fill="#525252" />
+			</svg>
 
+		</select>
+	</div>
+</div>
 <div class="frappe-card">
 	<div class="table-area all-contributions">
 		<div class="list-jobs table-responsive">
@@ -99,12 +126,27 @@
 			callback: function (r) {
 				if (r.message) {
 					$('.diff-content').html(r.message.diff);
+					$('.preview-content').html(r.message.merged_html);
 					$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
 
 					$('#patchDiffModal').modal('show');
 				}
 			}
 		});
+	});
+
+	// Handle view toggle
+	$('.view-toggle-buttons .btn').on('click', function () {
+		$('.view-toggle-buttons .btn').removeClass('active');
+		$(this).addClass('active');
+
+		if ($(this).hasClass('view-raw')) {
+			$('.diff-content').addClass('active');
+			$('.preview-content').removeClass('active');
+		} else {
+			$('.preview-content').addClass('active');
+			$('.diff-content').removeClass('active');
+		}
 	});
 
 	$('.approve-patch').on('click', function () {
@@ -165,6 +207,65 @@
 					}
 					$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + response.message.patches.length);
 					if ($('[name="limit"]').val() % 10 !== 0) $('.get_patches').hide();
+				}
+			},
+			freeze: true,
+		});
+	});
+
+	// Handle space filter change
+	document.getElementById('space-filter').addEventListener('change', function () {
+		const currentUrl = new URL(window.location.href);
+		const searchParams = currentUrl.searchParams;
+
+		// Update space parameter
+		if (this.value) {
+			searchParams.set('space', this.value);
+		} else {
+			searchParams.delete('space');
+		}
+
+		// Update URL without reloading the page
+		history.pushState({}, '', currentUrl.toString());
+
+		// Reload the content
+		frappe.call({
+			method: "wiki.www.all-contributions.index.get_patches_api",
+			args: {
+				start: 0,
+				limit: 10,
+				space: this.value
+			},
+			callback: (response) => {
+				if (response.message) {
+					// Clear existing table body
+					const tbody = document.querySelector('.list-jobs tbody');
+					tbody.innerHTML = '';
+
+					// Add new patches
+					for (const patch of response.message.patches) {
+						tbody.insertAdjacentHTML('beforeend', `
+						<tr class="patch-row" data-patch="${patch.name}">
+							<td class="message-cell" title="${patch.message}">${patch.message}</td>
+							<td class="worker-name" title="${patch.status}">
+								<span class="indicator-pill no-margin ${patch.color}">&nbsp;&nbsp;${patch.status}</span>
+							</td>
+							<td class="space-cell" title="${patch.space_name}">${patch.space_name}</td>
+							<td class="raised-by-cell" title="${patch.raised_by}">${patch.raised_by}</td>
+							<td class="date-cell" title="${patch.modified}">${patch.modified}</td>
+						</tr>
+					`);
+					}
+
+					// Update limit input
+					$('[name="limit"]').val(response.message.patches.length);
+
+					// Show/hide 'More' button
+					if (response.message.patches.length < 10) {
+						$('.get_patches').hide();
+					} else {
+						$('.get_patches').show();
+					}
 				}
 			},
 			freeze: true,
