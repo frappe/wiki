@@ -98,8 +98,8 @@
   min-height: calc(100vh - 100px);
 
   .modal-header {
-    border-bottom: 1px solid #e9e9e9;
-    padding: 1rem 1rem;
+    border-bottom: 1px solid #e9e9e9 !important;
+    padding: 1rem 1rem !important;
 
     .close {
       position: absolute;
@@ -147,7 +147,7 @@
   }
 
   .modal-body {
-    padding-top: 18px;
+    padding-top: 18px !important;
 
     .diff-content,
     .preview-content {
@@ -166,7 +166,7 @@
     border-top: 1px solid #e9e9e9;
 
     .btn {
-      width: auto;
+      width: auto !important;
     }
 
     .approve-patch {
@@ -178,7 +178,6 @@
       background-color: #fff;
       color: #000;
       background-color: #f8f8f8;
-      font: optional;
     }
   }
 }
@@ -223,5 +222,15 @@
 }
 
 .frappe-card {
+  margin-top: 12px;
+}
+
+.contributions-view {
+  width: 100%;
+  padding: 32px;
+  padding-top: 18px;
+}
+
+.pagination-container {
   margin-top: 12px;
 }
