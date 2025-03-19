@@ -137,6 +137,12 @@ window.Wiki = class Wiki {
           e.preventDefault();
           const href = $(e.currentTarget).attr("href");
           const urlParams = new URLSearchParams(window.location.search);
+
+          // Toggle between content and contributions view
+          $(".contributions-view").addClass("d-none");
+          $(".doc-main").removeClass("d-none");
+          $(".page-toc").addClass("d-xl-block");
+
           if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
             toggleEditor();
           }

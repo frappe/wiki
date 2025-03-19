@@ -11,6 +11,10 @@
   margin-bottom: 0;
   padding: 0.5rem 0.7rem;
 
+  strong {
+    color: inherit;
+  }
+
   .btn-warning {
     background-color: var(--admin-banner-btn-bg);
     color: var(--admin-banner-btn-text) !important;
@@ -41,7 +45,7 @@
 
   .table th,
   .table td {
-    border-top: 1px solid var(--searchbar-color);
+    border-top: 1px solid var(--table-border-color);
   }
 }
 
@@ -61,7 +65,7 @@
 }
 
 .dropdown-menu.show {
-  top: 4px !important;
+  top: 40px !important;
 }
 
 .main-column {

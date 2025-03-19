@@ -1,27 +1,8 @@
 import frappe
 from frappe import _
 from frappe.utils import cint
-from lxml.html.diff import htmldiff
 
 from wiki.utils import apply_changes, apply_markdown_diff, highlight_changes
-from wiki.wiki.doctype.wiki_page.wiki_page import get_open_contributions
-
-
-def get_context(context):
-	if not frappe.has_permission("Wiki Page Patch", "write"):
-		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = "/login?redirect-to=/all-contributions"
-		raise frappe.Redirect
-
-	context.no_cache = 1
-	context.show_sidebar = True
-	context.patches = fetch_patches()
-
-	# Get list of available spaces
-	context.spaces = frappe.get_all("Wiki Space", fields=["name", "space_name"])
-	context.selected_space = frappe.form_dict.get("space")
-
-	return context
 
 
 def fetch_patches(start=0, limit=10):

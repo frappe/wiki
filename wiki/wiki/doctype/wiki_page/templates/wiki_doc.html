@@ -33,8 +33,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 					</button>
 					<div class="view-toggle-buttons-wrapper">
 						<div class="view-toggle-buttons">
-							<button type="button" class="btn btn-sm btn-default view-raw active">View Raw</button>
-							<button type="button" class="btn btn-sm btn-default view-preview">View Preview</button>
+							<button type="button" class="btn btn-sm view-raw active">View Raw</button>
+							<button type="button" class="btn btn-sm view-preview">View Preview</button>
 						</div>
 					</div>
 				</div>
@@ -87,7 +87,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 
 	<div class="contributions-view d-none">
 		<div class="d-flex justify-content-between align-items-center mb-4">
-			<button class="btn btn-default back-to-content">← Back to Content</button>
+			<span class="page-title">Review Changes</span>
+			<a class="back-to-content">← Back to Content</a>
 		</div>
 		<input class="d-none" type="text" autocomplete="off" name="limit" value="0">
 		<div class="frappe-card">
@@ -115,9 +116,6 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 		<br>
 	</div>
 
-	{% block base_scripts %}
-	{{ super() }}
-	{{ include_script("diff_modal.js") }}
 	<script>
 		$(document).ready(function () {
 			// Toggle between content and contributions view
@@ -139,7 +137,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			$(document).on('click', '.patch-row', function () {
 				const patchName = $(this).data('patch');
 				frappe.call({
-					method: "wiki.www.all-contributions.index.get_patch_diff",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patch_diff",
 					args: { patch: patchName },
 					callback: function (r) {
 						if (r.message) {
@@ -163,12 +161,13 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 				} else {
 					$('.preview-content').addClass('active');
 					$('.diff-content').removeClass('active');
+					hljs.highlightAll();
 				}
 			});
 
 			$('.approve-patch').on('click', function () {
 				frappe.call({
-					method: "wiki.www.all-contributions.index.update_patch_status",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
 					args: {
 						patch: $('.patch-row').data('patch'),
 						status: "Approved"
@@ -185,7 +184,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 
 			$('.reject-patch').on('click', function () {
 				frappe.call({
-					method: "wiki.www.all-contributions.index.update_patch_status",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
 					args: {
 						patch: $('.patch-row').data('patch'),
 						status: "Rejected"
@@ -203,7 +202,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			// Load contributions data
 			function loadContributions(space) {
 				frappe.call({
-					method: "wiki.www.all-contributions.index.get_patches_api",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patches_api",
 					args: {
 						start: 0,
 						limit: 10,
@@ -249,7 +248,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			$('.get_patches').on("click", function () {
 				const currentSpace = $('#space-filter').val() || "";
 				frappe.call({
-					method: "wiki.www.all-contributions.index.get_patches_api",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patches_api",
 					args: {
 						start: parseInt($('[name="limit"]').val()),
 						limit: 10,
@@ -286,7 +285,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			$(document).on('click', '.patch-row', function () {
 				const patchName = $(this).data('patch');
 				frappe.call({
-					method: "wiki.www.all-contributions.index.get_patch_diff",
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patch_diff",
 					args: { patch: patchName },
 					callback: function (r) {
 						if (r.message) {
@@ -300,7 +299,6 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			});
 		});
 	</script>
-	{% endblock %}
 </div>
 
 {% endblock %}

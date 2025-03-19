@@ -20,7 +20,7 @@
       transition: background-color 0.2s ease;
 
       &:hover {
-        background-color: #f8f8f8;
+        background-color: var(--btn-secondary-hover-bg-color);
       }
     }
   }
@@ -83,13 +83,16 @@
 
 .diff-content {
   text-wrap: auto;
+  color: var(--text-color);
 
   ins {
-    background-color: #dcfce7;
+    background-color: var(--diff-ins-bg-color);
+    color: var(--diff-ins-text-color);
     text-decoration: none;
   }
   del {
-    background-color: #fee2e2;
+    background-color: var(--diff-del-bg-color);
+    color: var(--diff-del-text-color);
     text-decoration: none;
   }
 }
@@ -100,6 +103,12 @@
   .modal-header {
     border-bottom: 1px solid #e9e9e9 !important;
     padding: 1rem 1rem !important;
+    display: flex;
+    flex-direction: row;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
 
     .close {
       position: absolute;
@@ -118,7 +127,7 @@
   .view-toggle-buttons {
     display: flex;
     gap: 6px;
-    background-color: #ececec;
+    background-color: var(--view-bg-color);
     padding: 4px;
     width: max-content;
     border-radius: 10px;
@@ -130,15 +139,19 @@
       border-radius: 8px;
       font-size: 12px;
       font-weight: 500;
-      color: #383838;
-      background-color: #ececec;
+      color: var(--view-btn-text);
+      background-color: var(--view-bg-color);
       transition: all 0.2s ease;
 
       &.active {
-        background-color: #fff;
-        border: 1px solid #e5e7eb;
-        border-color: #d1d5db;
-        color: #111827;
+        background-color: var(--view-btn-bg-active);
+        color: var(--view-btn-text-active);
+      }
+
+      &:active {
+        background-color: var(--view-btn-bg-active) !important;
+        color: var(--view-btn-text-active) !important;
+        outline: none !important;
       }
     }
   }
@@ -229,6 +242,34 @@
   width: 100%;
   padding: 32px;
   padding-top: 18px;
+
+  .btn-warning {
+    background-color: var(--admin-banner-btn-bg);
+    color: var(--admin-banner-btn-text) !important;
+
+    &:hover {
+      background-color: var(--admin-banner-btn-hover-bg);
+    }
+
+    &:active {
+      background-color: var(--admin-banner-btn-active-bg) !important;
+    }
+  }
+
+  .back-to-content {
+    font-size: 12px;
+    cursor: pointer;
+
+    color: var(--text-color);
+  }
+
+  .page-title {
+    font-weight: 550;
+  }
+
+  td {
+    border-top: 1px solid var(--table-border-color);
+  }
 }
 
 .pagination-container {
