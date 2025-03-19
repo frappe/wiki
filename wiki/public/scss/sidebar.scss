@@ -4,6 +4,10 @@
 .sm-sidebar .web-sidebar {
   margin-top: 4px;
   padding-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    padding-bottom: 0;
+  }
 }
 
 .web-sidebar {

@@ -5,6 +5,10 @@
   height: 80%;
   cursor: pointer;
   align-items: center;
+
+  @media (max-width: 768px) {
+    justify-content: unset;
+  }
 }
 
 #navbar-dropdown-content {
