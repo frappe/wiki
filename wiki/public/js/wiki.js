@@ -91,6 +91,25 @@ function set_toc() {
   }
 }
 
+function toggleEditor() {
+  $(".wiki-content").toggleClass("hide");
+  $(".wiki-page-meta").toggleClass("hide");
+  $(".wiki-footer").toggleClass("hide");
+  $(".page-toc").toggleClass("hide");
+
+  // avoid hiding editor when params ?editWiki or ?newWiki
+  if ($(".from-markdown").is(":visible")) {
+    $(".wiki-editor").toggleClass("hide");
+  } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
+      $(".from-markdown").toggleClass("hide");
+    }
+  }
+
+  $(".wiki-title").toggleClass("hide");
+}
+
 window.Wiki = class Wiki {
   activate_sidebars() {
     $(".sidebar-item").each(function (index) {
@@ -117,6 +136,16 @@ window.Wiki = class Wiki {
         .on("click", (e) => {
           e.preventDefault();
           const href = $(e.currentTarget).attr("href");
+          const urlParams = new URLSearchParams(window.location.search);
+
+          // Toggle between content and contributions view
+          $(".contributions-view").addClass("d-none");
+          $(".doc-main").removeClass("d-none");
+          $(".page-toc").addClass("d-xl-block");
+
+          if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
+            toggleEditor();
+          }
           loadWikiPage(href, e.currentTarget);
           $("html, body").animate(
             {

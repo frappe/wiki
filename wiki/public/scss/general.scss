@@ -3,13 +3,40 @@
   scrollbar-color: var(--scroll-thumb-color) var(--scroll-track-color);
 }
 
+.admin-banner {
+  background-color: var(--admin-banner-bg) !important;
+  color: var(--admin-banner-text) !important;
+  font-size: 14px;
+  margin-top: 22px !important;
+  margin-bottom: 0;
+  padding: 0.5rem 0.7rem;
+
+  strong {
+    color: inherit;
+  }
+
+  .btn-warning {
+    background-color: var(--admin-banner-btn-bg);
+    color: var(--admin-banner-btn-text) !important;
+
+    &:hover {
+      background-color: var(--admin-banner-btn-hover-bg);
+    }
+
+    &:active {
+      background-color: var(--admin-banner-btn-active-bg) !important;
+    }
+  }
+}
+
 .wiki-page-meta {
   font-size: $font-size-sm;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: auto;
-  width: 650px;
+  width: 100%;
+  max-width: 650px;
 }
 
 .drafts {
@@ -18,7 +45,7 @@
 
   .table th,
   .table td {
-    border-top: 1px solid var(--searchbar-color);
+    border-top: 1px solid var(--table-border-color);
   }
 }
 
@@ -38,7 +65,7 @@
 }
 
 .dropdown-menu.show {
-  top: 4px !important;
+  top: 40px !important;
 }
 
 .main-column {

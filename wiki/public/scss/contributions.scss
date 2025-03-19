@@ -34,8 +34,9 @@ thead td {
   border-top: 0 !important;
 }
 
-.table th, .table td {
-  margin-top: -1px;
+.table th,
+.table td {
+  margin-top: -0.5px;
 }
 
 .worker-name {

@@ -2,7 +2,8 @@
   font-size: 14px;
   line-height: 2 !important;
   color: var(--content-text-color);
-  width: 650px;
+  width: 100%;
+  max-width: 650px;
 
   a:not(.dropdown-item, .btn) {
     color: var(--text-color);
@@ -309,7 +310,7 @@
 }
 
 .hljs {
-  overflow-x: visible;
+  overflow: auto;
 }
 
 h2:hover .feather-link,

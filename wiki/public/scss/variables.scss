@@ -11,6 +11,13 @@ body {
   --sidebar-bg-color: #f8f8f8;
   --sidebar-hover-color: #ebebe9;
 
+  --admin-banner-bg: #f8f8f8;
+  --admin-banner-text: #242a30;
+  --admin-banner-btn-bg: #242a30;
+  --admin-banner-btn-active-bg: #383838;
+  --admin-banner-btn-text: #fff;
+  --admin-banner-btn-hover-bg: #1c2126;
+
   --btn-primary-color: #fff;
   --btn-primary-bg-color: #171717;
   --btn-primary-hover-bg-color: #383838;
@@ -39,6 +46,10 @@ body {
 
   --htmldiff-ins-color: #dcfce7;
   --htmldiff-del-color: #fee2e2;
+  --diff-ins-bg-color: #dcfce7;
+  --diff-ins-text-color: var(--text-color);
+  --diff-del-bg-color: #fee2e2;
+  --diff-del-text-color: var(--text-color);
 
   --editor-button-text-color: var(--gray-700);
   --editor-hover-button-color: var(--gray-100);
@@ -70,6 +81,15 @@ body {
   --search-modal-color: #494949;
   --search-modal-hover-color: var(--sidebar-hover-color);
 
+  --badge-color: #525252;
+  --badge-bg-color: #e8e8e8;
+
+  --view-bg-color: #ececec;
+  --view-btn-bg: #f3f3f3;
+  --view-btn-text: #383838;
+  --view-btn-bg-active: #fff;
+  --view-btn-text-active: #111827;
+
   // ------------------------------------------
 
   font-family: "InterVariable", "Inter", "-apple-system", "BlinkMacSystemFont",
@@ -88,6 +108,13 @@ body.dark {
   --text-color: var(--gray-50);
   --sidebar-bg-color: var(--background-color); /* #111111; */
   --sidebar-hover-color: #242a30;
+
+  --admin-banner-bg: #242a30;
+  --admin-banner-text: #fff;
+  --admin-banner-btn-bg: #f8f8f8;
+  --admin-banner-btn-active-bg: #e2e2e2;
+  --admin-banner-btn-text: #242a30;
+  --admin-banner-btn-hover-bg: #e2e2e2;
 
   --btn-primary-color: #000;
   --btn-primary-bg-color: #fff;
@@ -121,6 +148,10 @@ body.dark {
 
   --htmldiff-ins-color: #006400;
   --htmldiff-del-color: #8b0000;
+  --diff-ins-bg-color: #006400;
+  --diff-ins-text-color: var(--text-color);
+  --diff-del-bg-color: #8b0000;
+  --diff-del-text-color: var(--text-color);
 
   --editor-button-text-color: var(--gray-400);
   --editor-hover-button-color: var(--gray-700);
@@ -150,6 +181,15 @@ body.dark {
   --search-modal-bg-color: rgb(35, 35, 35);
   --search-modal-color: rgb(212, 212, 212);
   --search-modal-hover-color: #343434;
+
+  --badge-color: #cdcdcd;
+  --badge-bg-color: #484848;
+
+  --view-bg-color: #272727;
+  --view-btn-bg: #333c44;
+  --view-btn-text: #d4d4d4;
+  --view-btn-bg-active: #3d3d3d;
+  --view-btn-text-active: #d4d4d4;
 
   .draft-wiki-page {
     background: var(--gray-700);

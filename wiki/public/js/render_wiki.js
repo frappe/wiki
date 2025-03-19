@@ -80,8 +80,9 @@ function toggleEditor() {
     $(".wiki-editor").toggleClass("hide");
   } else {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("editWiki") || urlParams.get("newWiki"))
+    if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
       $(".from-markdown").toggleClass("hide");
+    }
   }
 
   $(".wiki-title").toggleClass("hide");
@@ -220,12 +221,12 @@ window.RenderWiki = class RenderWiki extends Wiki {
         );
       else {
         const urlParams = new URLSearchParams(window.location.search);
-
         // switch to edit mode
         toggleEditor();
-        setTimeout(() => {
-          if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
-        }, 1);
+
+        $(".admin-banner").addClass("hide");
+
+        if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
       }
     });
 

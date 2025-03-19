@@ -2,6 +2,8 @@
 
 {%- block head_include %}
 <link rel="stylesheet" href="/assets/frappe/css/hljs-night-owl.css">
+{{ include_style('wiki.bundle.css') }}
+{{ include_style('contributions.bundle.css') }}
 {% endblock -%}
 
 {% block content %}
@@ -13,23 +15,56 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 {%- endmacro %}
 
 {%- block wiki_navbar -%}
-	{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
+{% include "wiki/doctype/wiki_page/templates/wiki_navbar.html" %}
 {%- endblock -%}
 
-<div class="row no-gutters flex-nowrap" {{ container_attributes() }}>
-    <div class="sidebar-column">
-        <aside class="doc-sidebar">
-            {% block page_sidebar %}
-            {% include "templates/includes/web_sidebar.html" %}
-            {% endblock %}
-        </aside>
-    </div>
+<div class="modal fade" id="patchDiffModal" tabindex="-1" role="dialog" aria-labelledby="patchDiffModalTitle"
+	aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+		<div class="modal-content review-patch-modal">
+			<div class="modal-header">
+				<div class="d-flex flex-column">
+					<h5 class="modal-title" id="patchDiffModalTitle">Review Changes</h5>
+					<span class="small text-muted patch-info"></span>
+				</div>
+				<div>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<div class="view-toggle-buttons-wrapper">
+						<div class="view-toggle-buttons">
+							<button type="button" class="btn btn-sm view-raw active">View Raw</button>
+							<button type="button" class="btn btn-sm view-preview">View Preview</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-body">
+				<pre class="diff-content active"></pre>
+				<div class="preview-content markdown"></div>
+			</div>
+			<div class="modal-footer review-modal-footer">
+				<button type="button" class="btn approve-patch">Approve</button>
+				<button type="button" class="btn reject-patch">Reject</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="content-view row no-gutters flex-nowrap" {{ container_attributes() }}>
+	<div class="sidebar-column">
+		<aside class="doc-sidebar">
+			{% block page_sidebar %}
+			{% include "templates/includes/web_sidebar.html" %}
+			{% endblock %}
+		</aside>
+	</div>
 
 	<div class="main-column doc-main">
 		<div class="wiki-page-content">
 			{% block page_container %}
 			<main>
-					{%- block page_content -%}{%- endblock -%}
+				{%- block page_content -%}{%- endblock -%}
 			</main>
 			{% endblock %}
 		</div>
@@ -37,18 +72,233 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 	{% block page_toc %}
 	<!-- 2 if blocks to avoid the toc jerking thing on reload -->
 	{% if page_toc_html %}
-		<div class="page-toc d-none d-xl-block">
-			{% if page_toc_html %}
-				<p class="page-toc-title">On this page</p>
-				<div class='list-unstyled'>
-					<ul>
-						{{ page_toc_html }}
-					</ul>
-				</div>
-			{% endif %}
+	<div class="page-toc d-none d-xl-block">
+		{% if page_toc_html %}
+		<p class="page-toc-title">On this page</p>
+		<div class='list-unstyled'>
+			<ul>
+				{{ page_toc_html }}
+			</ul>
 		</div>
 		{% endif %}
+	</div>
+	{% endif %}
 	{% endblock %}
+
+	<div class="contributions-view d-none">
+		<div class="d-flex justify-content-between align-items-center mb-4">
+			<span class="page-title">Review Changes</span>
+			<a class="back-to-content">← Back to Content</a>
+		</div>
+		<input class="d-none" type="text" autocomplete="off" name="limit" value="0">
+		<div class="frappe-card">
+			<div class="table-area all-contributions">
+				<div class="list-jobs table-responsive">
+					<table class="table">
+						<thead class="white">
+							<tr>
+								<td class="message-col">{{ _("Message") }}</td>
+								<td class="status-col">{{ _("Status") }}</td>
+								<td class="space-col">{{ _("Space") }}</td>
+								<td class="raised-by-col">{{ _("Raised By") }}</td>
+								<td class="date-col">{{ _("Last update on") }}</td>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="pagination-container">
+			<button class="btn pull-right get_patches d-none">Load More</button>
+		</div>
+		<br>
+		<br>
+	</div>
+
+	<script>
+		$(document).ready(function () {
+			// Toggle between content and contributions view
+			$('.review-changes-btn').on('click', function () {
+				$('.doc-main').addClass('d-none');
+				$('.page-toc').removeClass('d-xl-block');
+				$('.contributions-view').removeClass('d-none');
+				let wiki_space_name = "{{ wiki_space_name }}";
+				loadContributions(wiki_space_name);
+			});
+
+			$('.back-to-content').on('click', function () {
+				$('.contributions-view').addClass('d-none');
+				$('.doc-main').removeClass('d-none');
+				$('.page-toc').addClass('d-xl-block');
+			});
+
+			// Handle patch row click
+			$(document).on('click', '.patch-row', function () {
+				const patchName = $(this).data('patch');
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patch_diff",
+					args: { patch: patchName },
+					callback: function (r) {
+						if (r.message) {
+							$('#patchDiffModal').modal('show');
+							$('.diff-content').html(r.message.diff);
+							$('.preview-content').html(r.message.merged_html);
+							$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
+						}
+					}
+				});
+			});
+
+			// Handle view toggle
+			$('.view-toggle-buttons .btn').on('click', function () {
+				$('.view-toggle-buttons .btn').removeClass('active');
+				$(this).addClass('active');
+
+				if ($(this).hasClass('view-raw')) {
+					$('.diff-content').addClass('active');
+					$('.preview-content').removeClass('active');
+				} else {
+					$('.preview-content').addClass('active');
+					$('.diff-content').removeClass('active');
+					hljs.highlightAll();
+				}
+			});
+
+			$('.approve-patch').on('click', function () {
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
+					args: {
+						patch: $('.patch-row').data('patch'),
+						status: "Approved"
+					},
+					callback: function (r) {
+						if (r.message) {
+							frappe.show_alert({ message: __("Patch approved successfully"), indicator: 'green' });
+							window.location.reload();
+						}
+					}
+				});
+				$('#patchDiffModal').modal('hide');
+			});
+
+			$('.reject-patch').on('click', function () {
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
+					args: {
+						patch: $('.patch-row').data('patch'),
+						status: "Rejected"
+					},
+					callback: function (r) {
+						if (r.message) {
+							frappe.show_alert({ message: __("Patch rejected successfully"), indicator: 'red' });
+							window.location.reload();
+						}
+					}
+				});
+				$('#patchDiffModal').modal('hide');
+			});
+
+			// Load contributions data
+			function loadContributions(space) {
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patches_api",
+					args: {
+						start: 0,
+						limit: 10,
+						space: space
+					},
+					callback: function (response) {
+						if (response.message && response.message.patches) {
+							const tbody = $('.all-contributions tbody');
+							tbody.empty();
+
+							response.message.patches.forEach(function (patch) {
+								tbody.append(`
+                                <tr class="patch-row" data-patch="${patch.name}">
+                                    <td class="message-cell" title="${patch.message}">${patch.message}</td>
+                                    <td class="worker-name" title="${patch.status}">
+                                        <span class="indicator-pill no-margin ${patch.color}">&nbsp;&nbsp;${patch.status}</span>
+                                    </td>
+                                    <td class="space-cell" title="${patch.space_name}">${patch.space_name}</td>
+                                    <td class="raised-by-cell" title="${patch.raised_by}">${patch.raised_by}</td>
+                                    <td class="date-cell" title="${patch.modified}">${patch.modified}</td>
+                                </tr>
+                            `);
+							});
+
+							// Update limit input and manage 'More' button visibility
+							$('[name="limit"]').val(response.message.patches.length);
+							if (response.message.patches.length >= 10) {
+								$('.get_patches').removeClass('d-none');
+							} else {
+								$('.get_patches').addClass('d-none');
+							}
+						}
+					}
+				});
+			}
+
+			// Handle space filter change
+			$('#space-filter').on('change', function () {
+				loadContributions($(this).val());
+			});
+
+			// Handle 'More' button click to load more contributions
+			$('.get_patches').on("click", function () {
+				const currentSpace = $('#space-filter').val() || "";
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patches_api",
+					args: {
+						start: parseInt($('[name="limit"]').val()),
+						limit: 10,
+						space: currentSpace
+					},
+					callback: function (response) {
+						if (response.message && response.message.patches) {
+							for (const patch of response.message.patches) {
+								$('.all-contributions tbody').append(`
+									<tr class="patch-row" data-patch="${patch.name}">
+										<td class="message-cell" title="${patch.message}">${patch.message}</td>
+										<td class="worker-name" title="${patch.status}">
+											<span class="indicator-pill no-margin ${patch.color}">&nbsp;&nbsp;${patch.status}</span>
+										</td>
+										<td class="space-cell" title="${patch.space_name}">${patch.space_name}</td>
+										<td class="raised-by-cell" title="${patch.raised_by}">${patch.raised_by}</td>
+										<td class="date-cell" title="${patch.modified}">${patch.modified}</td>
+									</tr>
+								`);
+							}
+
+							// Update limit value and manage 'More' button visibility
+							$('[name="limit"]').val(parseInt($('[name="limit"]').val()) + response.message.patches.length);
+							if (response.message.patches.length < 10) {
+								$('.get_patches').addClass('d-none');
+							}
+						}
+					},
+					freeze: true
+				});
+			});
+
+			// Handle patch row click
+			$(document).on('click', '.patch-row', function () {
+				const patchName = $(this).data('patch');
+				frappe.call({
+					method: "wiki.wiki.doctype.wiki_page.review_contributions.get_patch_diff",
+					args: { patch: patchName },
+					callback: function (r) {
+						if (r.message) {
+							$('#patchDiffModal').modal('show');
+							$('.diff-content').html(r.message.diff);
+							$('.preview-content').html(r.message.merged_html);
+							$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
+						}
+					}
+				});
+			});
+		});
+	</script>
 </div>
 
 {% endblock %}

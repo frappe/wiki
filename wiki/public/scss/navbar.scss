@@ -24,6 +24,10 @@
   height: 60px;
   position: relative;
 
+  @media (max-width: 768px) {
+    width: 12rem;
+  }
+
   @include media-breakpoint-down(md) {
     max-width: 14rem;
     background-color: var(--background-color);
@@ -170,7 +174,7 @@
     }
 
     @include media-breakpoint-down(md) {
-      margin: 0.25rem 0 1rem 0.5rem;
+      margin-left: 0px;
     }
   }
 
