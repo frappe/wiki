@@ -64,8 +64,10 @@
   }
 }
 
-.dropdown-menu.show {
-  top: 40px !important;
+.nav-item {
+  .dropdown-menu.show {
+    top: 40px !important;
+  }
 }
 
 .main-column {
