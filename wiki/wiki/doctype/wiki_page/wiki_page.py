@@ -204,7 +204,7 @@ class WikiPage(WebsiteGenerator):
 			heading_id = re.sub(r"[^\u00C0-\u1FFF\u2C00-\uD7FF\w\- ]", "", title).replace(" ", "-").lower()
 			heading["id"] = heading_id
 			title = heading.get_text().strip()
-			level = int(heading.name[1])
+			level = int(heading.name[1]) + 1
 			toc_entry = (
 				f"<li><a style='padding-left: {level - 1}rem' href='#{heading['id']}'>{title}</a></li>"
 			)
@@ -433,7 +433,8 @@ class WikiPage(WebsiteGenerator):
 		frappe.cache.hdel(html_cache_key, "content")
 		frappe.cache.hdel(html_cache_key, "page_title")
 		frappe.cache.hdel(html_cache_key, "toc_html")
-		frappe.cache.hdel(html_cache_key, "pending_patches_count")
+		frappe.cache.hdel(html_cache_key, "next_page")
+		frappe.cache.hdel(html_cache_key, "prev_page")
 
 
 def get_open_contributions():
@@ -678,7 +679,8 @@ def get_page_content(wiki_page_name: str):
 	page_title = frappe.cache.hget(html_cache_key, "page_title")
 	# TOC can be "None" if user has disabled it
 	toc_html = frappe.cache.hget(html_cache_key, "toc_html")
-	pending_patches_count = frappe.cache.hget(html_cache_key, "pending_patches_count")
+	next_page = frappe.cache.hget(html_cache_key, "next_page")
+	prev_page = frappe.cache.hget(html_cache_key, "prev_page")
 
 	wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
 	wiki_settings = frappe.get_single("Wiki Settings")
@@ -689,19 +691,46 @@ def get_page_content(wiki_page_name: str):
 		frappe.local.response.http_status_code = 403
 		frappe.throw(_("You are not permitted to access this page"), frappe.PermissionError)
 
-	if not all([content, page_title, pending_patches_count is not None]):
+	if not all([content, page_title, next_page, prev_page]):
 		md_content = wiki_page.content
 
 		content = frappe.utils.md_to_html(md_content)
 		toc_html = wiki_page.calculate_toc_html(content) if wiki_settings.enable_table_of_contents else None
 		page_title = wiki_page.title
 
+		wiki_space_name = frappe.get_value("Wiki Group Item", {"wiki_page": wiki_page_name}, "parent")
+		sidebar_items = frappe.get_all(
+			"Wiki Group Item",
+			filters={"parent": wiki_space_name, "hide_on_sidebar": 0},
+			fields=["wiki_page", "idx"],
+			order_by="idx",
+		)
+
+		current_idx = next(
+			(i for i, item in enumerate(sidebar_items) if item.wiki_page == wiki_page_name), -1
+		)
+		next_page = prev_page = None
+
+		if current_idx != -1:
+			if current_idx > 0:
+				prev_page = frappe.get_value(
+					"Wiki Page", sidebar_items[current_idx - 1].wiki_page, ["title", "route"], as_dict=True
+				)
+			if current_idx < len(sidebar_items) - 1:
+				next_page = frappe.get_value(
+					"Wiki Page", sidebar_items[current_idx + 1].wiki_page, ["title", "route"], as_dict=True
+				)
+
 		frappe.cache.hset(html_cache_key, "content", content)
 		frappe.cache.hset(html_cache_key, "page_title", page_title)
 		frappe.cache.hset(html_cache_key, "toc_html", toc_html)
+		frappe.cache.hset(html_cache_key, "next_page", next_page)
+		frappe.cache.hset(html_cache_key, "prev_page", prev_page)
 
 	return {
 		"title": page_title,
 		"content": content,
 		"toc_html": toc_html,
+		"next_page": next_page,
+		"prev_page": prev_page,
 	}

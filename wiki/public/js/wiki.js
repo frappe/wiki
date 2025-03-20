@@ -299,6 +299,27 @@ function loadWikiPage(url, pageElement, replaceState = false) {
         $(pageElement).closest(".sidebar-item").addClass("active");
         $(pageElement).addClass("active");
 
+        let nextPage = r.message.next_page;
+        let prevPage = r.message.prev_page;
+
+        if (nextPage) {
+          $(".footer-next-page-link")
+            .removeClass("hide")
+            .attr("href", `/${nextPage.route}`);
+          $(".footer-next-page").text(nextPage.title);
+        } else {
+          $(".footer-next-page-link").addClass("hide");
+        }
+
+        if (prevPage) {
+          $(".footer-prev-page-link")
+            .removeClass("hide")
+            .attr("href", `/${prevPage.route}`);
+          $(".footer-prev-page").text(prevPage.title);
+        } else {
+          $(".footer-prev-page-link").addClass("hide");
+        }
+
         // Re-initialize necessary components
         add_link_to_headings();
         add_click_to_copy();
