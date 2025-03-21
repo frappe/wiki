@@ -166,6 +166,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			});
 
 			$('.approve-patch').on('click', function () {
+				let wiki_space_name = "{{ wiki_space_name }}";
 				frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
 					args: {
@@ -175,7 +176,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 					callback: function (r) {
 						if (r.message) {
 							frappe.show_alert({ message: __("Patch approved successfully"), indicator: 'green' });
-							window.location.reload();
+							loadContributions(wiki_space_name);
 						}
 					}
 				});
@@ -183,6 +184,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			});
 
 			$('.reject-patch').on('click', function () {
+				let wiki_space_name = "{{ wiki_space_name }}";
 				frappe.call({
 					method: "wiki.wiki.doctype.wiki_page.review_contributions.update_patch_status",
 					args: {
@@ -192,7 +194,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 					callback: function (r) {
 						if (r.message) {
 							frappe.show_alert({ message: __("Patch rejected successfully"), indicator: 'red' });
-							window.location.reload();
+							loadContributions(wiki_space_name);
 						}
 					}
 				});
