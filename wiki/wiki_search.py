@@ -28,8 +28,7 @@ class WikiSearch(Search):
 
 	def search(self, query, space=None, **kwargs):
 		if query and space:
-			escaped_space = space.replace("/", "\\/")
-			query = rf"{query} @route:{{{escaped_space}\\*}}"
+			query = rf"{query} @route:{{{space}\/*}}"
 		return super().search(query, **kwargs)
 
 	def build_index(self):
