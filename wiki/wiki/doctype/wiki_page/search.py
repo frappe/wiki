@@ -21,6 +21,8 @@ except ImportError:
 
 @frappe.whitelist(allow_guest=True)
 def search(query, path, space):
+	from wiki.wiki_search import WikiSearch
+
 	if not space:
 		space = get_space_route(path)
 
@@ -39,46 +41,34 @@ def search(query, path, space):
 
 		return {"docs": result, "search_engine": "frappe_web_search"}
 
-	from redis.commands.search.query import Query
-	from redis.exceptions import ResponseError
+	search = WikiSearch()
+	search_query = search.clean_query(query)
+	query_parts = search_query.split(" ")
 
-	# if redisearch enabled use redisearch
-	r = frappe.cache()
+	if len(query_parts) == 1 and not query_parts[0].endswith("*"):
+		search_query = f"{query_parts[0]}*"
+	if len(query_parts) > 1:
+		search_query = " ".join([f"%%{q}%%" for q in query_parts])
 
-	# Build fuzzy search terms with wildcard matching
-	search_terms = []
-	for term in query.split():
-		search_terms.append(f"*{term}*")
-	fuzzy_query = " ".join(search_terms)
-
-	query = Query(fuzzy_query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
-
-	# Create search query with pagination and highlighting
-	query = Query(fuzzy_query).paging(0, 20).highlight(tags=['<b class="match">', "</b>"])
-
-	try:
-		result = r.ft(space).search(query)
-	except ResponseError:
-		return {"docs": [], "search_engine": "redisearch"}
-
-	names = []
-	for d in result.docs:
-		_, name = d.id.split(":")
-		names.append(name)
-	names = list(set(names))
-
-	data_by_name = {
-		d.name: d for d in frappe.db.get_all("Wiki Page", fields=["name"], filters={"name": ["in", names]})
-	}
+	result = search.search(
+		f"@title|content:({search_query})",
+		space=space,
+		start=0,
+		sort_by="modified desc",
+		highlight=True,
+		with_payloads=True,
+	)
 
 	docs = []
-	for d in result.docs:
-		_, name = d.id.split(":")
-		doc = data_by_name[name]
-		doc.title = d.title
-		doc.route = d.route
-		doc.content = d.content
-		docs.append(doc)
+	for doc in result.docs:
+		docs.append(
+			{
+				"content": doc.content,
+				"name": doc.id.split(":", 1)[1],
+				"route": doc.route,
+				"title": doc.title,
+			}
+		)
 
 	return {"docs": docs, "search_engine": "redisearch"}
 

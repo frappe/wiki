@@ -6,7 +6,7 @@ import frappe
 import pymysql
 from frappe.model.document import Document
 
-from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index_in_background
+from wiki.wiki_search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
@@ -66,16 +66,17 @@ class WikiSpace(Document):
 					raise e
 
 	def on_update(self):
-		rebuild_index_in_background()
+		build_index_in_background()
 
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
 
 	def on_trash(self):
-		drop_index(self.route)
+		drop_index()
 
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
+		build_index_in_background()
 
 	@frappe.whitelist()
 	def clone_wiki_space_in_background(self, new_space_route):

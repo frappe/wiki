@@ -21,8 +21,8 @@ from frappe.utils.html_utils import (
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.website_generator import WebsiteGenerator
 
-from wiki.wiki.doctype.wiki_page.search import remove_index, update_index
 from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
+from wiki.wiki_search import build_index_in_background, drop_index
 
 
 class WikiPage(WebsiteGenerator):
@@ -46,7 +46,7 @@ class WikiPage(WebsiteGenerator):
 		revision.insert()
 
 	def on_update(self):
-		update_index(self)
+		build_index_in_background()
 		self.clear_page_html_cache()
 
 	def on_trash(self):
@@ -77,7 +77,8 @@ class WikiPage(WebsiteGenerator):
 
 		self.clear_page_html_cache()
 		clear_sidebar_cache()
-		remove_index(self)
+		drop_index()
+		build_index_in_background()
 
 	def sanitize_html(self):
 		"""
