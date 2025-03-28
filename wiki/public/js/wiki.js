@@ -173,6 +173,11 @@ window.Wiki = class Wiki {
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
+
+    $(".sidebar-item.active")
+      .parents(" .web-sidebar .sidebar-group")
+      .find(".icon")
+      .addClass("rotate")
   }
 
   scrolltotop() {
@@ -288,6 +293,8 @@ function loadWikiPage(url, pageElement, replaceState = false) {
         $(".wiki-content").html(r.message.content);
 
         $(".wiki-title").html(r.message.title);
+        
+        $('title').text(r.message.title);
 
         if (r.message.toc_html) {
           $(".page-toc .list-unstyled").html(r.message.toc_html);
