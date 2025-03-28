@@ -173,6 +173,11 @@ window.Wiki = class Wiki {
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group>ul")
       .removeClass("hidden");
+
+    $(".sidebar-item.active")
+      .parents(" .web-sidebar .sidebar-group")
+      .find(".icon")
+      .addClass("rotate")
   }
 
   scrolltotop() {
