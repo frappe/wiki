@@ -292,6 +292,7 @@
   @include media-breakpoint-down(md) {
     width: auto;
     margin: unset;
+    overflow-x: hidden;
   }
 }
 
