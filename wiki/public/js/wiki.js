@@ -19,6 +19,20 @@ function add_link_to_headings() {
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
         </svg>
       `);
+
+      $a.on("click", function (e) {
+        e.preventDefault();
+        const navbarHeight = $(".navbar").height();
+        const targetPosition = $($heading).offset().top;
+        window.scrollTo({
+          top: targetPosition - navbarHeight - 20,
+          behavior: "smooth",
+        });
+
+        // Update URL hash without triggering scroll
+        history.pushState(null, null, this.hash);
+      });
+
       $($heading).append($a);
     });
 }
@@ -177,7 +191,7 @@ window.Wiki = class Wiki {
     $(".sidebar-item.active")
       .parents(" .web-sidebar .sidebar-group")
       .find(".icon")
-      .addClass("rotate")
+      .addClass("rotate");
   }
 
   scrolltotop() {
@@ -293,8 +307,8 @@ function loadWikiPage(url, pageElement, replaceState = false) {
         $(".wiki-content").html(r.message.content);
 
         $(".wiki-title").html(r.message.title);
-        
-        $('title').text(r.message.title);
+
+        $("title").text(r.message.title);
 
         if (r.message.toc_html) {
           $(".page-toc .list-unstyled").html(r.message.toc_html);
@@ -342,6 +356,12 @@ function loadWikiPage(url, pageElement, replaceState = false) {
 }
 
 window.addEventListener("popstate", function (event) {
+  // Don't process if it's just a hash change
+  const hasHashFragment = window.location.hash.length > 0;
+  if (hasHashFragment) {
+    return;
+  }
+
   if (event.state && event.state.pageName) {
     const sidebarItem = $(`.sidebar-item[data-name="${event.state.pageName}"]`);
     if (sidebarItem.length) {
