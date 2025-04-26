@@ -53,6 +53,7 @@
 	<div class="user-contributions" data-date="{{ last_revision.modified }}">
 	</div>
 	{%- endif -%}
+	{%- if show_dropdown -%}
 	<div class="dropdown">
 		<div class="dropdown-toggle wiki-options menu" type="button" role="button" id="wikiOptionsButton"
 			data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
@@ -75,6 +76,7 @@
 			</a>
 		</div>
 	</div>
+	{%- endif -%}
 </div>
 <div class="wiki-footer d-print-none">
 	<div class="forward-back">
