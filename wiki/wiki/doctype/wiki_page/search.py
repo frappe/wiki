@@ -3,7 +3,6 @@
 
 
 import frappe
-from frappe.search import web_search
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 
@@ -20,26 +19,63 @@ except ImportError:
 
 
 @frappe.whitelist(allow_guest=True)
-def search(query, path, space):
-	from wiki.wiki_search import WikiSearch
+def get_spaces():
+	return frappe.db.get_all("Wiki Space", pluck="route")
 
-	if not space:
+
+@frappe.whitelist(allow_guest=True)
+def search(
+	query: str,
+	path: str | None = None,
+	space: str | None = None,
+):
+	if not space and path:
 		space = get_space_route(path)
 
-	use_redisearch = frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search")
-	if not use_redisearch or not _redisearch_available:
-		result = web_search(query, space)
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		return sqlite_search(query, space)
 
-		for d in result:
-			d.title = d.title_highlights or d.title
-			d.route = d.path
-			d.content = d.content_highlights
+	if use_redis_search():
+		return redis_search(query, space)
 
-			del d.title_highlights
-			del d.content_highlights
-			del d.path
+	return web_search(query, space)
 
-		return {"docs": result, "search_engine": "frappe_web_search"}
+
+def use_redis_search():
+	return frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search") and _redisearch_available
+
+
+def sqlite_search(query, space):
+	from wiki.wiki.doctype.wiki_page.sqlite_search import search
+
+	return {
+		"docs": search(query, space),
+		"search_engine": "sqlite_fts",
+	}
+
+
+def web_search(query, space):
+	from frappe.search import web_search
+
+	result = web_search(query, space)
+
+	for d in result:
+		d.title = d.title_highlights or d.title
+		d.route = d.path
+		d.content = d.content_highlights
+
+		del d.title_highlights
+		del d.content_highlights
+		del d.path
+
+	return {
+		"docs": result,
+		"search_engine": "frappe_web_search",
+	}
+
+
+def redis_search(query, space):
+	from wiki.wiki_search import WikiSearch
 
 	search = WikiSearch()
 	search_query = search.clean_query(query)

@@ -21,7 +21,9 @@
   "app_switcher_list",
   "section_break_skhp",
   "search_column",
+  "use_sqlite_for_search",
   "add_search_bar",
+  "column_break_yaoi",
   "use_redisearch_for_search",
   "feedback_tab",
   "feedback_section",
@@ -108,12 +110,12 @@
   },
   {
    "fieldname": "section_break_skhp",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Search"
   },
   {
    "fieldname": "search_column",
-   "fieldtype": "Column Break",
-   "label": "Search"
+   "fieldtype": "Column Break"
   },
   {
    "default": "0",
@@ -172,12 +174,24 @@
    "fieldname": "disable_guest_access",
    "fieldtype": "Check",
    "label": "Disable guest access"
+  },
+  {
+   "default": "0",
+   "description": "Uses SQLite FTS for  searching. This takes precedence over Redis search if enabled.\n<br>\nSQLite based search is experimental.",
+   "fieldname": "use_sqlite_for_search",
+   "fieldtype": "Check",
+   "label": "Use SQLite for Search"
+  },
+  {
+   "fieldname": "column_break_yaoi",
+   "fieldtype": "Column Break"
   }
  ],
+ "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-02-21 15:58:45.056326",
+ "modified": "2025-05-21 09:32:30.142174",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
@@ -205,6 +219,7 @@
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
