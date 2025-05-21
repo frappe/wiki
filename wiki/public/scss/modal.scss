@@ -113,7 +113,6 @@
 
 .search-modal {
   padding: 10px;
-  padding-right: 0px;
   border-radius: 1rem;
   margin-top: 100px;
 
@@ -170,6 +169,8 @@
 
     .result-text {
       font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .match {

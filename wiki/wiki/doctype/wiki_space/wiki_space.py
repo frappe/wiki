@@ -6,7 +6,7 @@ import frappe
 import pymysql
 from frappe.model.document import Document
 
-from wiki.wiki_search import build_index_in_background, drop_index
+from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
