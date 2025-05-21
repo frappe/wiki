@@ -563,7 +563,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     searchInput.on(
       "input",
       frappe.utils.debounce(() => {
-        if (!searchInput.val()) {
+        if (!searchInput.val() || searchInput.val().length < 2) {
           clear_dropdown();
           return;
         }
@@ -579,29 +579,29 @@ window.RenderWiki = class RenderWiki extends Wiki {
           })
           .then((res) => {
             let results = res.message.docs || [];
-            let dropdown_html;
-            if (results.length === 0) {
-              dropdown_html = `<div style="margin: 0.8rem;text-align: center;">No results found</div>`;
-            } else {
+            let dropdown_html = `<div style="margin: 0.8rem;text-align: center;">No results found</div>`;
+            if (results.length > 0) {
               dropdown_html = results
                 .map((r) => {
+                  let content = r.content;
+                  if (content.startsWith('...')) content = content.slice(3);
+                  if (res.message.search_engine === "redisearch")
+                    content = trimContent(content);
+
                   return `<a class="dropdown-item" href="/${r.route}">
               <span class="result-title">${r.title}</span>
-              <div class="result-text">${
-                res.message.search_engine === "frappe_web_search"
-                  ? r.content
-                  : trimContent(r.content)
-              }</div>
+              <div class="result-text">${content}</div>
               </a>
               <div class='dropdown-border'></div>`;
                 })
                 .join("");
             }
+
             $dropdown_menu.html(dropdown_html);
             $dropdown_menu.addClass("show");
             dropdownItems = $dropdown_menu.find(".dropdown-item");
           });
-      }, 500)
+      }, 100)
     );
 
     $("#dropdownMenuSearch, .mobile-search-icon").on("click", () => {

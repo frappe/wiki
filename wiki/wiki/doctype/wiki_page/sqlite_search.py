@@ -15,7 +15,11 @@ def delete_db():
 
 def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	"""Search the index for the given query and return the results"""
-	conn = sqlite3.connect(_get_index_path())
+	index_path = _get_index_path()
+	if not index_path.exists():
+		build_index()
+
+	conn = sqlite3.connect(index_path)
 	cursor = conn.cursor()
 
 	_set_pragmas(cursor)
@@ -23,8 +27,8 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	search_query = """
 		SELECT
 			s.name,
-			snippet(search_fts, 1, '<|', '|>', '...', 64) as title,
-			snippet(search_fts, 2, '<|', '|>', '...', 64) as content,
+			snippet(search_fts, 1, '<|', '|>', '...', 16) as title,
+			snippet(search_fts, 2, '<|', '|>', '...', 16) as content,
 			s.route,
 			s.modified,
 			rank
@@ -68,6 +72,8 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 
 
 def _rerank_and_clean(results: list[dict]):
+	results = sorted(results, key=lambda x: _rank_score(x))
+
 	for r in results:
 		r["title"] = r["title"].replace("<|", "<b class='match'>").replace("|>", "</b>")
 		r["content"] = r["content"].replace("<|", "<b class='match'>").replace("|>", "</b>")
@@ -79,9 +85,17 @@ def _rerank_and_clean(results: list[dict]):
 		del r["is_title_match"]
 		del r["is_content_match"]
 
-	# TODO: add re-ranking
-
 	return results
+
+
+def _rank_score(item: dict) -> float:
+	if item["exact_match_in_title"]:
+		return 0
+
+	if item["exact_match_in_content"]:
+		return 1
+
+	return 2
 
 
 def _has_exact_match(snippet: str, query: str) -> bool:
@@ -198,8 +212,6 @@ def _clean_content(text: str) -> str:
 
 def _add_to_index(doc: dict[str, Any], cursor: sqlite3.Cursor):
 	"""Add a document to the search index"""
-	# Clean markdown from content
-	cleaned_content = _clean_content(doc["content"])
 
 	# Insert into main table
 	cursor.execute(
@@ -228,7 +240,7 @@ def _add_to_index(doc: dict[str, Any], cursor: sqlite3.Cursor):
 		(
 			doc["name"],
 			doc["title"],
-			cleaned_content,  # Use cleaned content for search
+			_clean_content(doc["content"]),  # Use cleaned content for search
 		),
 	)
 

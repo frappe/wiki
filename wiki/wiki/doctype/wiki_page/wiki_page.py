@@ -21,8 +21,8 @@ from frappe.utils.html_utils import (
 from frappe.website.doctype.website_settings.website_settings import modify_header_footer_items
 from frappe.website.website_generator import WebsiteGenerator
 
+from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
-from wiki.wiki_search import build_index_in_background, drop_index
 
 
 class WikiPage(WebsiteGenerator):

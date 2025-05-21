@@ -87,27 +87,3 @@ class WikiSearch(Search):
 			],
 			filters={"published": 1},
 		)
-
-
-def build_index():
-	frappe.cache().set_value(INDEX_BUILD_FLAG, True)
-	search = WikiSearch()
-	search.build_index()
-	frappe.cache().set_value(INDEX_BUILD_FLAG, False)
-
-
-def build_index_in_background():
-	if not frappe.cache().get_value(INDEX_BUILD_FLAG):
-		print(f"Queued rebuilding of search index for {frappe.local.site}")
-		frappe.enqueue(build_index, queue="long")
-
-
-def build_index_if_not_exists():
-	search = WikiSearch()
-	if not search.index_exists() or not frappe.cache.exists(INDEX_BUILD_FLAG):
-		build_index()
-
-
-def drop_index():
-	search = WikiSearch()
-	search.drop_index()

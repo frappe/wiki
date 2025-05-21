@@ -6,7 +6,10 @@ import frappe
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 
+from wiki.wiki_search import WikiSearch
+
 PREFIX = "wiki_page_search_doc"
+INDEX_BUILD_FLAG = "wiki_page_index_in_progress"
 
 
 _redisearch_available = False
@@ -115,54 +118,6 @@ def get_space_route(path):
 			return space
 
 
-def rebuild_index():
-	from redis.commands.search.field import TextField
-	from redis.commands.search.indexDefinition import IndexDefinition
-	from redis.exceptions import ResponseError
-
-	r = frappe.cache()
-	r.set_value("wiki_page_index_in_progress", True)
-
-	# Options for index creation
-	schema = (
-		TextField("title", weight=3.0),
-		TextField("content"),
-	)
-
-	# Create an index and pass in the schema
-	spaces = frappe.db.get_all("Wiki Space", pluck="route")
-	wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
-	for space in spaces:
-		try:
-			drop_index(space)
-
-			index_def = IndexDefinition(
-				prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
-			)
-			r.ft(space).create_index(schema, definition=index_def)
-
-			records_to_index = [
-				d
-				for d in wiki_pages
-				if (space + "/" == d.get("route"))
-				or (
-					d.get("route").startswith(space + "/")
-					and not d.get("route").replace(space + "/", "").startswith("v")
-				)
-			]
-			create_index_for_records(records_to_index, space)
-		except ResponseError as e:
-			print(e)
-
-	r.set_value("wiki_page_index_in_progress", False)
-
-
-def rebuild_index_in_background():
-	if not frappe.cache().get_value("wiki_page_index_in_progress"):
-		print(f"Queued rebuilding of search index for {frappe.local.site}")
-		frappe.enqueue(rebuild_index, queue="long")
-
-
 def create_index_for_records(records, space):
 	r = frappe.cache()
 	for i, d in enumerate(records):
@@ -209,10 +164,43 @@ def remove_index(doc):
 	remove_index_for_records([record], space)
 
 
-def drop_index(space):
+def drop_index(space: str | None = None):
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		from wiki.wiki.doctype.wiki_page.sqlite_search import delete_db
+
+		return delete_db()
+
+	if use_redis_search():
+		return WikiSearch().drop_index()
+
+	if not space:
+		return
+
 	from redis.exceptions import ResponseError
 
 	try:
 		frappe.cache().ft(space).dropindex(delete_documents=True)
 	except ResponseError:
 		pass
+
+
+def build_index_in_background():
+	if frappe.cache().get_value(INDEX_BUILD_FLAG):
+		return
+
+	print(f"Queued rebuilding of search index for {frappe.local.site}")
+	frappe.enqueue(build_index, queue="long")
+
+
+def build_index():
+	frappe.cache().set_value(INDEX_BUILD_FLAG, True)
+
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		from wiki.wiki.doctype.wiki_page.sqlite_search import build_index
+
+		return build_index()
+
+	if use_redis_search():
+		return WikiSearch().build_index()
+
+	frappe.cache().set_value(INDEX_BUILD_FLAG, False)
