@@ -527,6 +527,9 @@ def update(
 	context = frappe._dict(context)
 	content, file_ids = extract_images_from_html(content)
 
+	if not content:
+		frappe.throw(_("Content is required"))
+
 	new = sbool(new)
 	draft = sbool(draft)
 

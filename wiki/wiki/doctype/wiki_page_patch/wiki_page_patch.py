@@ -50,7 +50,7 @@ class WikiPagePatch(Document):
 
 		wiki_page_dict = {
 			"title": self.new_title,
-			"content": self.new_code,
+			"content": self.new_code or "content",
 			"route": f"{self.wiki_page_doc.get_space_route()}/{cleanup_page_name(self.new_title)}",
 			"published": 1,
 			"allow_guest": self.wiki_page_doc.allow_guest,
