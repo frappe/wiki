@@ -19,10 +19,10 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	if not index_path.exists():
 		build_index()
 
-	conn = sqlite3.connect(index_path)
+	conn = sqlite3.connect(f"file:{index_path}?mode=ro", uri=True)
 	cursor = conn.cursor()
 
-	_set_pragmas(cursor)
+	_set_pragmas(cursor, is_read=True)
 
 	search_query = """
 		SELECT
@@ -149,7 +149,7 @@ def build_index():
 	"""If index already exists, drop it and create a new one"""
 	conn = sqlite3.connect(_get_index_path())
 	cursor = conn.cursor()
-	_set_pragmas(cursor)
+	_set_pragmas(cursor, is_read=False)
 
 	cursor.execute("DROP TABLE IF EXISTS search_index")
 	cursor.execute("""
@@ -178,11 +178,13 @@ def build_index():
 	conn.close()
 
 
-def _set_pragmas(cursor: sqlite3.Cursor):
+def _set_pragmas(cursor: sqlite3.Cursor, is_read: bool):
 	cursor.execute("PRAGMA journal_mode = WAL;")
 	cursor.execute("PRAGMA synchronous = NORMAL;")
 	cursor.execute("PRAGMA cache_size = -8192;")  # 8MB cache
 	cursor.execute("PRAGMA temp_store = MEMORY;")
+	if is_read:
+		cursor.execute("PRAGMA query_only = 1;")
 
 
 def _get_index_path():
