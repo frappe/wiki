@@ -6,10 +6,15 @@ import json
 
 import frappe
 from frappe.utils import cstr
+from frappe.utils.change_log import get_app_branch
 from redis.commands.search.field import TagField, TextField
-from redis.commands.search.indexDefinition import IndexDefinition
 from redis.commands.search.query import Query
 from redis.exceptions import ResponseError
+
+if get_app_branch("frappe") == "develop":
+	from redis.commands.search.index_definition import IndexDefinition
+else:
+	from redis.commands.search.indexDefinition import IndexDefinition
 
 
 class Search:
@@ -52,7 +57,15 @@ class Search:
 		if self.index_exists():
 			self.redis.ft(self.index_name).delete_document(key)
 
-	def search(self, query, start=0, page_length=50, sort_by=None, highlight=False, with_payloads=False):
+	def search(
+		self,
+		query,
+		start=0,
+		page_length=50,
+		sort_by=None,
+		highlight=False,
+		with_payloads=False,
+	):
 		query = Query(query).paging(start, page_length)
 		if highlight:
 			query = query.highlight(tags=['<b class="match">', "</b>"])
