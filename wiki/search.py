@@ -14,7 +14,6 @@ try:
 	from redis.commands.search.index_definition import IndexDefinition
 except ImportError:
 	from redis.commands.search.indexDefinition import IndexDefinition
-  
 
 
 class Search:
