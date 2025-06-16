@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import re
 import sqlite3
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,7 @@ import frappe
 
 def delete_db():
 	"""Delete the index"""
-	with suppress(FileNotFoundError):
+	with contextlib.suppress(FileNotFoundError):
 		Path(_get_index_path()).unlink()
 
 
@@ -21,9 +21,11 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	if not index_path.exists():
 		build_index()
 
-	conn = sqlite3.connect(f"file:{index_path}?mode=ro", uri=True)
-	cursor = conn.cursor()
+	with contextlib.closing(sqlite3.connect(f"file:{index_path}?mode=ro", uri=True)) as conn:
+		return _search(conn.cursor(), query, space)
 
+
+def _search(cursor: sqlite3.Cursor, query: str, space: str | None = None) -> list[dict[str, Any]]:
 	_set_pragmas(cursor, is_read=True)
 
 	search_query = """
@@ -71,8 +73,6 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 			}
 		)
 
-	conn.close()
-
 	return _rerank_and_clean(query, results, not has_boolean_ops)
 
 
@@ -112,7 +112,7 @@ def _rank_score(
 	query: str,
 	query_lower: str,
 	match_case: bool,
-) -> float:
+) -> tuple[float, float]:
 	"""
 	Uses some sensible heuristics to return a ranking score depending on the
 	nature of the match
@@ -120,40 +120,40 @@ def _rank_score(
 
 	# Check exact matches
 	if query == item["title_raw"]:
-		return -8
+		return (-8, item["rank"])
 
 	if query == item["content_raw"]:
-		return -7
+		return (-7, item["rank"])
 
 	# Check exact matches, ignore case
 	if query_lower == item["title_raw"].lower():
-		return -6
+		return (-6, item["rank"])
 
 	if query_lower == item["content_raw"].lower():
-		return -5
+		return (-5, item["rank"])
 
 	# Check exact sub-query matches
 	if query in item["title_raw"]:
-		return -4
+		return (-4, item["rank"])
 
 	if query in item["content_raw"]:
-		return -3
+		return (-3, item["rank"])
 
 	# Check exact sub-query matches, ignore case
 	if query_lower in item["title_raw"].lower():
-		return -2
+		return (-2, item["rank"])
 
 	if query_lower in item["content_raw"].lower():
-		return -1
+		return (-1, item["rank"])
 
 	# Check sub-query matches against snippets
 	if _has_exact_match(item["title"], query, match_case):
-		return 0
+		return (0, item["rank"])
 
 	if _has_exact_match(item["content"], query, match_case):
-		return 1
+		return (1, item["rank"])
 
-	return 2
+	return (2, item["rank"])
 
 
 def _has_exact_match(snippet: str, query: str, match_case: bool) -> bool:
@@ -250,34 +250,33 @@ def build_index():
 	if temp_path.exists():
 		temp_path.unlink()
 
-	conn = sqlite3.connect(temp_path)
-	cursor = conn.cursor()
-	_set_pragmas(cursor, is_read=False)
+	with contextlib.closing(sqlite3.connect(temp_path)) as conn:
+		cursor = conn.cursor()
+		_set_pragmas(cursor, is_read=False)
 
-	cursor.execute("""
-		CREATE TABLE search_index (
-			name TEXT PRIMARY KEY,
-			title TEXT,
-			content TEXT,
-			route TEXT,
-			space TEXT,
-			modified TEXT
-		)
-	""")
-	cursor.execute("""
-		CREATE VIRTUAL TABLE search_fts USING fts5(
-			name UNINDEXED,
-			title,
-			content,
-			tokenize="unicode61 remove_diacritics 2 tokenchars '-_' categories 'L* N* P* Co Sm'",
-		)
-	""")
+		cursor.execute("""
+			CREATE TABLE search_index (
+				name TEXT PRIMARY KEY,
+				title TEXT,
+				content TEXT,
+				route TEXT,
+				space TEXT,
+				modified TEXT
+			)
+		""")
+		cursor.execute("""
+			CREATE VIRTUAL TABLE search_fts USING fts5(
+				name UNINDEXED,
+				title,
+				content,
+				tokenize="unicode61 remove_diacritics 2 tokenchars '-_'",
+			)
+		""")
 
-	for doc in _get_index_items():
-		_add_to_index(doc, cursor)
+		for doc in _get_index_items():
+			_add_to_index(doc, cursor)
 
-	conn.commit()
-	conn.close()
+		conn.commit()
 
 	actual = _get_index_path()
 	if actual.exists():
