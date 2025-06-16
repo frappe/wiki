@@ -14,6 +14,7 @@ try:
 	from redis.commands.search.index_definition import IndexDefinition
 except ImportError:
 	from redis.commands.search.indexDefinition import IndexDefinition
+  
 
 
 class Search:
@@ -26,6 +27,9 @@ class Search:
 			self.schema.append(frappe._dict(field))
 
 	def create_index(self):
+		if not IndexDefinition:
+			return
+
 		index_def = IndexDefinition(
 			prefix=[f"{self.redis.make_key(self.prefix).decode()}:"],
 		)
