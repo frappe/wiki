@@ -33,14 +33,16 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 			snippet(search_fts, 2, '<|', '|>', '...', 16) as content,
 			s.route,
 			s.modified,
-			rank
+			rank,
+			fts.title as title_raw,
+			fts.content as content_raw
 		FROM search_index s
 		JOIN search_fts fts ON s.name = fts.name
 		WHERE search_fts MATCH ?
 	"""
 
-	query = _clean_query(query)
-	params = [query]
+	cleaned_query, has_boolean_ops = _clean_query(query)
+	params = [cleaned_query]
 
 	# Add space filter if provided
 	if space:
@@ -64,45 +66,99 @@ def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 				"rank": row[5],
 				"is_title_match": "<|" in row[1],
 				"is_content_match": "<|" in row[2],
-				"exact_match_in_title": _has_exact_match(row[1], query),
-				"exact_match_in_content": _has_exact_match(row[2], query),
+				"title_raw": row[6],
+				"content_raw": row[7],
 			}
 		)
 
 	conn.close()
-	return _rerank_and_clean(results)
+
+	return _rerank_and_clean(query, results, not has_boolean_ops)
 
 
-def _rerank_and_clean(results: list[dict]):
-	results = sorted(results, key=lambda x: _rank_score(x))
+def _rerank_and_clean(query: str, results: list[dict], check_match: bool):
+	if query.startswith('"') and query.endswith('"') and '"' not in query[1:-1]:
+		query = query[1:-1]
+
+	if check_match:
+		query_lower = query.lower()
+		match_case = any(w.isupper() for w in query)
+		results = sorted(
+			results,
+			key=lambda x: _rank_score(
+				x,
+				query,
+				query_lower,
+				match_case,
+			),
+		)
 
 	for r in results:
 		r["title"] = r["title"].replace("<|", "<b class='match'>").replace("|>", "</b>")
 		r["content"] = r["content"].replace("<|", "<b class='match'>").replace("|>", "</b>")
 
-		del r["exact_match_in_title"]
-		del r["exact_match_in_content"]
 		del r["rank"]
 		del r["modified"]
 		del r["is_title_match"]
 		del r["is_content_match"]
+		del r["title_raw"]
+		del r["content_raw"]
 
 	return results
 
 
-def _rank_score(item: dict) -> float:
-	if item["exact_match_in_title"]:
+def _rank_score(
+	item: dict,
+	query: str,
+	query_lower: str,
+	match_case: bool,
+) -> float:
+	"""
+	Uses some sensible heuristics to return a ranking score depending on the
+	nature of the match
+	"""
+
+	# Check exact matches
+	if query == item["title_raw"]:
+		return -8
+
+	if query == item["content_raw"]:
+		return -7
+
+	# Check exact matches, ignore case
+	if query_lower == item["title_raw"].lower():
+		return -6
+
+	if query_lower == item["content_raw"].lower():
+		return -5
+
+	# Check exact sub-query matches
+	if query in item["title_raw"]:
+		return -4
+
+	if query in item["content_raw"]:
+		return -3
+
+	# Check exact sub-query matches, ignore case
+	if query_lower in item["title_raw"].lower():
+		return -2
+
+	if query_lower in item["content_raw"].lower():
+		return -1
+
+	# Check sub-query matches against snippets
+	if _has_exact_match(item["title"], query, match_case):
 		return 0
 
-	if item["exact_match_in_content"]:
+	if _has_exact_match(item["content"], query, match_case):
 		return 1
 
 	return 2
 
 
-def _has_exact_match(snippet: str, query: str) -> bool:
+def _has_exact_match(snippet: str, query: str, match_case: bool) -> bool:
 	"""Check all consecutive matches against the query string, uses smart case matching"""
-	has_upper = any(i.isupper() for i in query)  # exact match only if case matches
+	# Used for smart case matching, i.e. match case only if query has upper case
 	query_splits = query.strip().split()
 	snippet_splits = snippet.split()
 
@@ -120,7 +176,7 @@ def _has_exact_match(snippet: str, query: str) -> bool:
 			qs = query_splits[query_index]
 			ss = match.group(1)
 
-			if not has_upper:
+			if not match_case:
 				ss = ss.lower()
 				qs = qs.lower()
 
@@ -140,7 +196,7 @@ def _has_exact_match(snippet: str, query: str) -> bool:
 	return False
 
 
-def _clean_query(query: str) -> str:
+def _clean_query(query: str) -> tuple[str, bool]:
 	"""
 	Cleans query while preserving boolean operators, exact matches and internal
 	prefix searches. For example:
@@ -155,15 +211,14 @@ def _clean_query(query: str) -> str:
 
 	# exact match if wrapped in double quotes and no inner dqs
 	if query.startswith('"') and query.endswith('"') and '"' not in query[1:-1]:
-		return query
+		return query, False
 
 	# Check for boolean operators and escape special characters if present
-	boolean_operators = {"AND", "OR", "NOT"}
 	flags = dict(has_inner_prefix=False, has_boolean_ops=False)
 
 	def escape(word):
 		"""escape non boolean operator words while preserving ending '*'"""
-		if word in boolean_operators:
+		if word in {"AND", "OR", "NOT"}:
 			flags["has_boolean_ops"] = True
 			return word
 
@@ -184,9 +239,9 @@ def _clean_query(query: str) -> str:
 	query = " ".join(escaped_words)
 
 	if flags["has_boolean_ops"] or flags["has_inner_prefix"]:
-		return query
+		return query, False
 
-	return f"{query}*"
+	return f"{query}*", flags["has_boolean_ops"]
 
 
 def build_index():
