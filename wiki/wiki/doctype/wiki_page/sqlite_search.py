@@ -139,10 +139,52 @@ def _has_exact_match(snippet: str, query: str) -> bool:
 
 
 def _clean_query(query: str) -> str:
-	query = " ".join(query.strip().split())
-	if not query.endswith("*"):
-		query += "*"
-	return query
+	"""
+	Cleans query while preserving boolean operators, exact matches and internal
+	prefix searches. For example:
+	- auto prefix:             'hello world'       -> '"hello" "world"*'
+	- escape unsafe:           'hello wor"ld'      -> '"hello" "wor""ld"*'
+	- exact matches:           '"hello world"'     -> '"hello world"'
+	- preserve prefix:         'hello world*'      -> '"hello" "world"*'
+	- allow boolean ops:       'hello AND world'   -> '"hello" AND "world"'
+	- preserve inner prefix:   'hello* world'      -> '"hello"* "world"'
+	- boolean ops with prefix: 'hello* AND world*' -> '"hello"* AND "world"*'
+	"""
+
+	# exact match if wrapped in double quotes and no inner dqs
+	if query.startswith('"') and query.endswith('"') and '"' not in query[1:-1]:
+		return query
+
+	# Check for boolean operators and escape special characters if present
+	boolean_operators = {"AND", "OR", "NOT"}
+	flags = dict(has_inner_prefix=False, has_boolean_ops=False)
+
+	def escape(word):
+		"""escape non boolean operator words while preserving ending '*'"""
+		if word in boolean_operators:
+			flags["has_boolean_ops"] = True
+			return word
+
+		suffix = ""
+		if word.endswith("*"):
+			word = word[:-1]
+			suffix = "*"
+			flags["has_inner_prefix"] = True
+
+		if word.startswith('"') and word.endswith('"'):
+			word = word[1:-1]
+
+		word = word.replace('"', '""')  # escape internal double quotes
+		return f'"{word}"{suffix}'
+
+	# escape words while preserving boolean operators
+	escaped_words = [escape(w) for w in query.strip().split()]
+	query = " ".join(escaped_words)
+
+	if flags["has_boolean_ops"] or flags["has_inner_prefix"]:
+		return query
+
+	return f"{query}*"
 
 
 def build_index():
