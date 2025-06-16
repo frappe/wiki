@@ -118,42 +118,39 @@ def _rank_score(
 	nature of the match
 	"""
 
-	# Check exact matches
+	# Title match heuristics
 	if query == item["title_raw"]:
+		return (-10, item["rank"])
+
+	if query_lower == item["title_raw"].lower():
+		return (-9, item["rank"])
+
+	if query in item["title_raw"]:
 		return (-8, item["rank"])
 
-	if query == item["content_raw"]:
+	if query_lower in item["title_raw"].lower():
 		return (-7, item["rank"])
 
-	# Check exact matches, ignore case
-	if query_lower == item["title_raw"].lower():
+	if _has_exact_match(item["title"], query, match_case):
 		return (-6, item["rank"])
 
-	if query_lower == item["content_raw"].lower():
+	# Content match heuristics
+	if query == item["content_raw"]:
 		return (-5, item["rank"])
 
-	# Check exact sub-query matches
-	if query in item["title_raw"]:
+	if query_lower == item["content_raw"].lower():
 		return (-4, item["rank"])
 
 	if query in item["content_raw"]:
 		return (-3, item["rank"])
 
-	# Check exact sub-query matches, ignore case
-	if query_lower in item["title_raw"].lower():
+	if query_lower in item["content_raw"].lower():
 		return (-2, item["rank"])
 
-	if query_lower in item["content_raw"].lower():
+	if _has_exact_match(item["content"], query, match_case):
 		return (-1, item["rank"])
 
-	# Check sub-query matches against snippets
-	if _has_exact_match(item["title"], query, match_case):
-		return (0, item["rank"])
-
-	if _has_exact_match(item["content"], query, match_case):
-		return (1, item["rank"])
-
-	return (2, item["rank"])
+	return (0, item["rank"])
 
 
 def _has_exact_match(snippet: str, query: str, match_case: bool) -> bool:
