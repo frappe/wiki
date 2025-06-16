@@ -147,7 +147,8 @@ window.Wiki = class Wiki {
 
       $($(this))
         .find("a")
-        .on("click", (e) => {
+        // For iPad, touchstart listener is needed to recognize click.
+        .on("click touchstart", (e) => {
           e.preventDefault();
           const href = $(e.currentTarget).attr("href");
           const urlParams = new URLSearchParams(window.location.search);
@@ -180,6 +181,13 @@ window.Wiki = class Wiki {
   set_active_sidebar() {
     $(".doc-sidebar,.web-sidebar").on(
       "click",
+      ".collapsible",
+      this.toggle_sidebar
+    );
+
+    // For iPad, touchstart listener is needed to recognize click.
+    $(".doc-sidebar,.web-sidebar").on(
+      "touchstart",
       ".collapsible",
       this.toggle_sidebar
     );
