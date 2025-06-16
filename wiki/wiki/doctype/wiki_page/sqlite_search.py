@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,8 @@ import frappe
 
 def delete_db():
 	"""Delete the index"""
-	Path(_get_index_path()).unlink()
+	with suppress(FileNotFoundError):
+		Path(_get_index_path()).unlink()
 
 
 def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
@@ -188,12 +190,15 @@ def _clean_query(query: str) -> str:
 
 
 def build_index():
-	"""If index already exists, drop it and create a new one"""
-	conn = sqlite3.connect(_get_index_path())
+	"""Create new db with search index and replace existing one"""
+	temp_path = _get_index_path(is_temp=True)
+	if temp_path.exists():
+		temp_path.unlink()
+
+	conn = sqlite3.connect(temp_path)
 	cursor = conn.cursor()
 	_set_pragmas(cursor, is_read=False)
 
-	cursor.execute("DROP TABLE IF EXISTS search_index")
 	cursor.execute("""
 		CREATE TABLE search_index (
 			name TEXT PRIMARY KEY,
@@ -209,7 +214,7 @@ def build_index():
 			name UNINDEXED,
 			title,
 			content,
-			tokenize='porter unicode61',
+			tokenize="unicode61 remove_diacritics 2 tokenchars '-_' categories 'L* N* P* Co Sm'",
 		)
 	""")
 
@@ -218,6 +223,12 @@ def build_index():
 
 	conn.commit()
 	conn.close()
+
+	actual = _get_index_path()
+	if actual.exists():
+		actual.unlink()
+
+	temp_path.rename(actual)
 
 
 def _set_pragmas(cursor: sqlite3.Cursor, is_read: bool):
@@ -229,9 +240,13 @@ def _set_pragmas(cursor: sqlite3.Cursor, is_read: bool):
 		cursor.execute("PRAGMA query_only = 1;")
 
 
-def _get_index_path():
+def _get_index_path(is_temp: bool = False):
 	site_path = Path(frappe.get_site_path())
 	index_path = site_path / "indexes" / "wiki_page_search_index.db"
+
+	if is_temp:
+		index_path = index_path.with_suffix(".temp.db")
+
 	return index_path.absolute()
 
 
