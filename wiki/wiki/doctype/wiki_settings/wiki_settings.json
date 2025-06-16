@@ -176,7 +176,7 @@
    "label": "Disable guest access"
   },
   {
-   "default": "0",
+   "default": "1",
    "description": "Uses SQLite FTS for  searching. This takes precedence over Redis search if enabled.\n<br>\nSQLite based search is experimental.",
    "fieldname": "use_sqlite_for_search",
    "fieldtype": "Check",
@@ -191,7 +191,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-05-21 09:32:30.142174",
+ "modified": "2025-06-16 13:13:21.868523",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
