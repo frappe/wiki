@@ -11,9 +11,10 @@ from redis.commands.search.query import Query
 from redis.exceptions import ResponseError
 
 try:
-	from redis.commands.search.indexDefinition import IndexDefinition
+	from redis.commands.search.index_definition import IndexDefinition
 except ImportError:
-	IndexDefinition = None
+	from redis.commands.search.indexDefinition import IndexDefinition
+  
 
 
 class Search:
@@ -59,7 +60,15 @@ class Search:
 		if self.index_exists():
 			self.redis.ft(self.index_name).delete_document(key)
 
-	def search(self, query, start=0, page_length=50, sort_by=None, highlight=False, with_payloads=False):
+	def search(
+		self,
+		query,
+		start=0,
+		page_length=50,
+		sort_by=None,
+		highlight=False,
+		with_payloads=False,
+	):
 		query = Query(query).paging(start, page_length)
 		if highlight:
 			query = query.highlight(tags=['<b class="match">', "</b>"])
