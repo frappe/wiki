@@ -7,9 +7,13 @@ import json
 import frappe
 from frappe.utils import cstr
 from redis.commands.search.field import TagField, TextField
-from redis.commands.search.indexDefinition import IndexDefinition
 from redis.commands.search.query import Query
 from redis.exceptions import ResponseError
+
+try:
+	from redis.commands.search.indexDefinition import IndexDefinition
+except ImportError:
+	IndexDefinition = None
 
 
 class Search:
@@ -22,6 +26,9 @@ class Search:
 			self.schema.append(frappe._dict(field))
 
 	def create_index(self):
+		if not IndexDefinition:
+			return
+
 		index_def = IndexDefinition(
 			prefix=[f"{self.redis.make_key(self.prefix).decode()}:"],
 		)
