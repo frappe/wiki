@@ -6,14 +6,13 @@ import json
 
 import frappe
 from frappe.utils import cstr
-from frappe.utils.change_log import get_app_branch
 from redis.commands.search.field import TagField, TextField
 from redis.commands.search.query import Query
 from redis.exceptions import ResponseError
 
-if get_app_branch("frappe") == "develop":
+try:
 	from redis.commands.search.index_definition import IndexDefinition
-else:
+except ImportError:
 	from redis.commands.search.indexDefinition import IndexDefinition
 
 
