@@ -11,7 +11,7 @@ function setSortable() {
       pull: ["qux"],
     },
     swapThreshold: 0.7,
-    filter: ".draggable",
+    filter: ".non-draggable",
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
@@ -46,7 +46,7 @@ function set_search_params(key = "", value = "") {
 }
 
 function toggleSidebarEditor() {
-  $(".sidebar-item, .sidebar-group").toggleClass("draggable");
+  $(".sidebar-item, .sidebar-group").toggleClass("non-draggable");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
   $(".sidebar-edit-mode-btn").toggleClass("hide");
@@ -184,7 +184,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_edit_mode() {
-    $(".sidebar-item, .sidebar-group").addClass("draggable");
+    $(".sidebar-item, .sidebar-group").addClass("non-draggable");
 
     $(".web-sidebar ul").each(setSortable);
 
