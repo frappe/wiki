@@ -285,6 +285,7 @@ class WikiPage(WebsiteGenerator):
 		context.edit_wiki_page = frappe.form_dict.get("editWiki")
 		context.new_wiki_page = frappe.form_dict.get("newWiki")
 		context.last_revision = self.get_last_revision()
+		context.show_dropdown = frappe.session.user != "Guest"
 		context.number_of_revisions = frappe.db.count("Wiki Page Revision Item", {"wiki_page": self.name})
 		# TODO: group all context values
 		context.hide_on_sidebar = frappe.get_value(
