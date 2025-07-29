@@ -330,6 +330,7 @@ class WikiPage(WebsiteGenerator):
 						"url": "/drafts",
 					},
 				],
+				"favicon": wiki_space.favicon,
 			}
 		)
 
