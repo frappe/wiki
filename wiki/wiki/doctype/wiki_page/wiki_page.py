@@ -315,6 +315,8 @@ class WikiPage(WebsiteGenerator):
 			context.title, context.content = frappe.db.get_value(
 				"Wiki Page Patch", frappe.form_dict.wikiPagePatch, ["new_title", "new_code"]
 			)
+		if wiki_space.favicon:
+			context.favicon = wiki_space.favicon
 		context = context.update(
 			{
 				"navbar_items": modify_header_footer_items(wiki_space.navbar_items or wiki_settings.navbar),
@@ -330,7 +332,7 @@ class WikiPage(WebsiteGenerator):
 						"url": "/drafts",
 					},
 				],
-				"favicon": wiki_space.favicon or "/assets/frappe/images/frappe-favicon.svg",
+				
 			}
 		)
 
