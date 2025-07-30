@@ -65,7 +65,7 @@ class TestWikiBrokenLinkChecker(FrappeTestCase):
 		self.assertEqual(len(data), 0)
 
 		self.test_wiki_space.append(
-			"wiki_sidebars", {"wiki_page": self.test_wiki_page, "parent_label": "Test Parent Label"}
+			"wiki_sidebars", {"wiki_page": self.test_wiki_page.name, "parent_label": "Test Parent Label"}
 		)
 		self.test_wiki_space.save()
 
