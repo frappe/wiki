@@ -47,7 +47,7 @@ build_pid=$!
 
 bench --site wiki.test reinstall --yes
 bench --site wiki.test install-app wiki
-bench --site wiki.test execute wiki.wiki.doctype.wiki_page.search.build_index
+# bench --site wiki.test execute wiki.wiki.doctype.wiki_page.search.build_index
 
 # wait till assets are built succesfully
 wait $build_pid
