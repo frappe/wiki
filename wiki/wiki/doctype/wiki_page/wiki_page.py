@@ -332,7 +332,6 @@ class WikiPage(WebsiteGenerator):
 						"url": "/drafts",
 					},
 				],
-				
 			}
 		)
 
