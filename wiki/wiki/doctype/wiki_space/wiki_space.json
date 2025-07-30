@@ -11,7 +11,10 @@
   "general_tab",
   "space_name",
   "route",
+  "column_break_bynr",
   "app_switcher_logo",
+  "favicon",
+  "section_break_z5nn",
   "wiki_sidebars",
   "navbar_tab",
   "logo_section",
@@ -80,11 +83,24 @@
    "fieldtype": "Attach Image",
    "label": "App Switcher Logo",
    "make_attachment_public": 1
+  },
+  {
+   "fieldname": "favicon",
+   "fieldtype": "Attach Image",
+   "label": "Favicon"
+  },
+  {
+   "fieldname": "column_break_bynr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_z5nn",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-02-20 12:08:19.790688",
+ "modified": "2025-07-30 00:06:22.631960",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
@@ -116,6 +132,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
