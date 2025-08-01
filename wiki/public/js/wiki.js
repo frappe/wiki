@@ -168,7 +168,7 @@ window.Wiki = class Wiki {
             },
             100,
           );
-          $(".navbar-toggler").click()
+          $(".navbar-toggler").click();
         });
     });
   }
