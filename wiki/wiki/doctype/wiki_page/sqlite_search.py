@@ -293,8 +293,11 @@ def _set_pragmas(cursor: sqlite3.Cursor, is_read: bool):
 
 def _get_index_path(is_temp: bool = False):
 	site_path = Path(frappe.get_site_path())
-	index_path = site_path / "indexes" / "wiki_page_search_index.db"
+	indexes_dir = site_path / "indexes"
+	if not indexes_dir.exists():
+		indexes_dir.mkdir()
 
+	index_path = indexes_dir / "wiki_page_search_index.db"
 	if is_temp:
 		index_path = index_path.with_suffix(".temp.db")
 

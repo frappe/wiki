@@ -8,7 +8,10 @@ context("Wiki", () => {
     cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
-    cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page").click();
+    cy.contains("span.small", "Edit Sidebar").click();
+    cy.get(".doc-sidebar .sidebar-group:first-child .add-sidebar-page")
+      .should("be.visible")
+      .click();
     cy.get(".wiki-editor .wiki-title-input").clear().type("Test Wiki Page");
     cy.get(".ace_text-input").first().focus().type("New Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
