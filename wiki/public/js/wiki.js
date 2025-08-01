@@ -41,7 +41,7 @@ function add_click_to_copy() {
   $("pre code")
     .parent("pre")
     .prepend(
-      `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`
+      `<button title="Copy Code" class="btn copy-btn" data-toggle="tooltip"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-clipboard"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg></button>`,
     );
 
   $(".copy-btn").on("click", function () {
@@ -68,7 +68,7 @@ function set_toc() {
         {
           scrollTop: offset,
         },
-        100
+        100,
       );
     });
   });
@@ -166,9 +166,9 @@ window.Wiki = class Wiki {
             {
               scrollTop: 0,
             },
-            100
+            100,
           );
-          $(".navbar-toggler").click()
+          $(".navbar-toggler").click();
         });
     });
   }
@@ -183,14 +183,14 @@ window.Wiki = class Wiki {
     $(".doc-sidebar,.web-sidebar").on(
       "click",
       ".collapsible",
-      this.toggle_sidebar
+      this.toggle_sidebar,
     );
 
     // For iPad, touchstart listener is needed to recognize click.
     $(".doc-sidebar,.web-sidebar").on(
       "touchstart",
       ".collapsible",
-      this.toggle_sidebar
+      this.toggle_sidebar,
     );
 
     $(".sidebar-item.active")
@@ -209,7 +209,7 @@ window.Wiki = class Wiki {
 
   set_last_updated_date() {
     const lastUpdatedDate = frappe.datetime.prettyDate(
-      $(".user-contributions").data("date")
+      $(".user-contributions").data("date"),
     );
     $(".user-contributions").append(`last updated ${lastUpdatedDate}`);
   }
@@ -218,7 +218,7 @@ window.Wiki = class Wiki {
     function getDarkModeState() {
       const isUserPreferenceDarkMode = localStorage.getItem("darkMode");
       const isSystemPreferenceDarkMode = window.matchMedia?.(
-        "(prefers-color-scheme: dark)"
+        "(prefers-color-scheme: dark)",
       )?.matches;
       const darkModeState = isUserPreferenceDarkMode
         ? isUserPreferenceDarkMode == "true"
@@ -232,7 +232,7 @@ window.Wiki = class Wiki {
       const src = $(".navbar-brand img").attr("src");
       if (
         !["{{ light_mode_logo }}", "{{ dark_mode_logo }}", "None", ""].includes(
-          altSrc
+          altSrc,
         )
       ) {
         $(".navbar-brand img").attr("src", altSrc);
@@ -296,7 +296,7 @@ function loadWikiPage(url, pageElement, replaceState = false) {
       url: url,
     },
     "",
-    url
+    url,
   );
 
   // Get the wiki page name from the parent element's data attribute
