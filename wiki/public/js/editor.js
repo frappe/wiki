@@ -8,10 +8,10 @@ const previewToggleBtn = $("#toggle-btn");
 const wikiTitleInput = $(".wiki-title-input");
 const editWikiBtn = $(".edit-wiki-btn, .sidebar-edit-mode-btn");
 const saveWikiPageBtn = document.querySelector(
-  '[data-wiki-button="saveWikiPage"]'
+  '[data-wiki-button="saveWikiPage"]',
 );
 const draftWikiPageBtn = document.querySelector(
-  '[data-wiki-button="draftWikiPage"]'
+  '[data-wiki-button="draftWikiPage"]',
 );
 let showPreview = false;
 
@@ -137,7 +137,7 @@ editorContainer.addEventListener(
     e.preventDefault();
     e.stopPropagation();
   },
-  500
+  500,
 );
 
 editorContainer.addEventListener("drop", function (e) {
@@ -174,7 +174,7 @@ editorContainer.addEventListener("drop", function (e) {
       }
       editor.session.insert(
         editor.getCursorPosition(),
-        `![](${encodeURI(file_doc.file_url)})`
+        `![](${encodeURI(file_doc.file_url)})`,
       );
     },
   });
@@ -225,7 +225,7 @@ function insertMarkdown(type) {
           }
           editor.session.insert(
             editor.getCursorPosition(),
-            `\n![](${encodeURI(file_doc.file_url)})`
+            `\n![](${encodeURI(file_doc.file_url)})`,
           );
         },
       });
@@ -254,7 +254,7 @@ const mdeLinkBtn = document.querySelector('[data-mde-button="link"]');
 const mdeImageBtn = document.querySelector('[data-mde-button="image"]');
 const mdeTableBtn = document.querySelector('[data-mde-button="table"]');
 const mdeDisclosureBtn = document.querySelector(
-  '[data-mde-button="disclosure"]'
+  '[data-mde-button="disclosure"]',
 );
 
 mdeBoldBtn.addEventListener("click", () => insertMarkdown("bold"));

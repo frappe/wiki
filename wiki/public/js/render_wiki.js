@@ -128,8 +128,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (
         !$(
           `.doc-sidebar .sidebar-group[data-title="${urlParams.get(
-            "newWiki"
-          )}"] .add-sidebar-page`
+            "newWiki",
+          )}"] .add-sidebar-page`,
         ).length
       ) {
         this.add_wiki_sidebar(urlParams.get("newWiki"));
@@ -137,17 +137,17 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $(
           $(
             `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
-              "newWiki"
-            )}) + .add-sidebar-page`
-          )[0]
+              "newWiki",
+            )}) + .add-sidebar-page`,
+          )[0],
         ).trigger("click");
       } else
         $(
           $(
             `.sidebar-items > .list-unstyled .h6:contains(${urlParams.get(
-              "newWiki"
-            )}) + .add-sidebar-page`
-          )[1]
+              "newWiki",
+            )}) + .add-sidebar-page`,
+          )[1],
         ).trigger("click");
     }
   }
@@ -206,18 +206,18 @@ window.RenderWiki = class RenderWiki extends Wiki {
       function () {
         if (frappe.session.user === "Guest") {
           window.location.assign(
-            `/login?redirect-to=${window.location.pathname}`
+            `/login?redirect-to=${window.location.pathname}`,
           );
         } else {
           toggleSidebarEditor();
         }
-      }
+      },
     );
 
     $(".edit-wiki-btn").on("click", function () {
       if (frappe.session.user === "Guest")
         window.location.assign(
-          `/login?redirect-to=${window.location.pathname}`
+          `/login?redirect-to=${window.location.pathname}`,
         );
       else {
         const urlParams = new URLSearchParams(window.location.search);
@@ -251,7 +251,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       const groupName = $(".sidebar-item.active").data("group-name");
       $(".edit-wiki-btn").trigger("click");
       $(
-        `.doc-sidebar .add-sidebar-page[data-group-name="${groupName}"]`
+        `.doc-sidebar .add-sidebar-page[data-group-name="${groupName}"]`,
       ).trigger("click");
     });
 
@@ -276,7 +276,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           if (newWikiPage.data("group-name") !== groupName) {
             // when new item is created in a different group as earlier
             newSidebarItem.appendTo(
-              $(this).parent().parent().children(".list-unstyled")
+              $(this).parent().parent().children(".list-unstyled"),
             );
             if (urlParams.get("newWiki") !== groupName)
               set_search_params("newWiki", groupName);
@@ -293,11 +293,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
         } else {
           // fresh new item
           active_items = $(
-            ".sidebar-item.active, .sidebar-item.active .active"
+            ".sidebar-item.active, .sidebar-item.active .active",
           ).removeClass("active");
 
           newSidebarItem.appendTo(
-            $(this).parent().parent().children(".list-unstyled")
+            $(this).parent().parent().children(".list-unstyled"),
           );
           if (!$(".wiki-editor").is(":visible")) toggleEditor();
           if (urlParams.get("newWiki") !== groupName)
@@ -306,7 +306,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
         $(this).parent().parent().each(setSortable);
         e.stopPropagation();
-      }
+      },
     );
   }
 
@@ -335,7 +335,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           title: __("Delete Wiki Page"),
           indicator: "red",
           message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`
+            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
           ),
           primary_action: {
             label: "Yes",
@@ -361,7 +361,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             },
           },
         });
-      }
+      },
     );
   }
 
@@ -376,13 +376,12 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $(".revision-content").html(),
         $(".from-markdown .wiki-content")
           .html()
-          .replaceAll(/<br class="ProseMirror-trailingBreak">/g, "")
+          .replaceAll(/<br class="ProseMirror-trailingBreak">/g, ""),
       );
       $(".previous-revision").removeClass("hide");
     } else {
-      $(
-        ".revision-content"
-      )[0].innerHTML = `<div class="no-revision">No Revisions</div>`;
+      $(".revision-content")[0].innerHTML =
+        `<div class="no-revision">No Revisions</div>`;
       $(".revision-time").hide();
       $(".revisions-modal .modal-header").hide();
     }
@@ -421,12 +420,11 @@ window.RenderWiki = class RenderWiki extends Wiki {
       if (previousRevision.content)
         $(".revision-content")[0].innerHTML = HtmlDiff.execute(
           previousRevision.content,
-          currentRevision.content
+          currentRevision.content,
         );
       else $(".revision-content")[0].innerHTML = currentRevision.content;
-      $(
-        ".revision-time"
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex++;
       addHljsClass();
     });
@@ -443,11 +441,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".previous-revision").removeClass("hide");
       $(".revision-content")[0].innerHTML = HtmlDiff.execute(
         nextRevision.content,
-        currentRevision.content
+        currentRevision.content,
       );
-      $(
-        ".revision-time"
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex--;
       addHljsClass();
     });
@@ -476,7 +473,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".doc-sidebar .sidebar-items")
         .children(".list-unstyled")
         .not(".hidden")
-        .first()
+        .first(),
     );
 
     $(".web-sidebar ul").each(setSortable);
@@ -508,7 +505,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         $(this)
           .parent()
           .append(
-            $(`<ul class="list-unstyled" style="min-height:20px;"> </ul`)
+            $(`<ul class="list-unstyled" style="min-height:20px;"> </ul`),
           );
       }
     });
@@ -539,7 +536,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       // fixes html tags when they are sliced
       return new DOMParser().parseFromString(
         content.slice(start, end),
-        "text/html"
+        "text/html",
       ).body.innerHTML;
     }
 
@@ -584,7 +581,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
               dropdown_html = results
                 .map((r) => {
                   let content = r.content;
-                  if (content.startsWith('...')) content = content.slice(3);
+                  if (content.startsWith("...")) content = content.slice(3);
                   if (res.message.search_engine === "redisearch")
                     content = trimContent(content);
 
@@ -601,7 +598,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             $dropdown_menu.addClass("show");
             dropdownItems = $dropdown_menu.find(".dropdown-item");
           });
-      }, 100)
+      }, 100),
     );
 
     $("#dropdownMenuSearch, .mobile-search-icon").on("click", () => {
@@ -697,7 +694,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     $(".update-page-settings-button").on("click", function () {
       const name = $('[name="wiki-page-name"]').val();
       const hideOnSidebar = $('input[name="pageHideOnSidebar"]').prop(
-        "checked"
+        "checked",
       );
       const route =
         $(".wiki-space-route-block").text().trim() +
