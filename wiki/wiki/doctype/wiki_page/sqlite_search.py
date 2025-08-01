@@ -244,7 +244,6 @@ def _clean_query(query: str) -> tuple[str, bool]:
 def build_index():
 	"""Create new db with search index and replace existing one"""
 	temp_path = _get_index_path(is_temp=True)
-	print("Building search index at ", temp_path)
 	if temp_path.exists():
 		temp_path.unlink()
 
