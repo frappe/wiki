@@ -6,7 +6,7 @@ context("Wiki Sidebar", () => {
 
   it("creates a new wiki sidebar group", () => {
     cy.get(".dropdown-toggle.wiki-options").click();
-    cy.get(".edit-wiki-btn").click();
+    cy.get(".content-view .sidebar-edit-mode-btn").click();
 
     cy.get(".doc-sidebar").contains("Add Group").click();
     cy.get('input[name="title"]')
