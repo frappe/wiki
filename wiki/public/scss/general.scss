@@ -404,6 +404,10 @@ p {
     border-radius: 0.125rem;
   }
 
+  pre > code:not(.hljs) {
+    color: #fff;
+  }
+
   table {
     border-color: $gray-200;
     border-collapse: collapse;
@@ -539,6 +543,8 @@ p {
 
   pre {
     padding: 0.75rem 1rem;
+    background-color: #011627;
+    border-radius: 0.5rem;
   }
 
   h1 {
