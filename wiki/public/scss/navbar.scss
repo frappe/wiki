@@ -123,6 +123,7 @@
 .wiki-navbar {
   padding: 0px !important;
   border-bottom: 1px solid var(--border-color);
+  background-color: var(--background-color);
 
   @include media-breakpoint-down(md) {
     width: auto;
