@@ -188,6 +188,7 @@ window.Wiki = class Wiki {
 
     // For iPad, touchstart listener is needed to recognize click.
     $(".doc-sidebar,.web-sidebar").on(
+      "click",
       "touchstart",
       ".collapsible",
       this.toggle_sidebar,
