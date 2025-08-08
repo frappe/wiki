@@ -161,7 +161,6 @@ class WikiPage(WebsiteGenerator):
 		if wiki_settings.disable_guest_access and user_is_guest:
 			disable_guest_access = True
 		access_permitted = self.allow_guest or not user_is_guest
-
 		if not access_permitted or disable_guest_access:
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
