@@ -101,11 +101,32 @@
   {
    "fieldname": "section_break_z5nn",
    "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "restricted_to_roles",
+   "fieldtype": "Check",
+   "label": "Restricted to Roles"
+  },
+  {
+   "depends_on": "eval:doc.restricted_to_roles",
+   "fieldname": "allowed_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Allowed Roles",
+   "options": "Has Role"
+  },
+  {
+   "fieldname": "section_break_dog1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_bghn",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 00:06:22.631960",
+ "modified": "2025-08-09 00:17:12.616626",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

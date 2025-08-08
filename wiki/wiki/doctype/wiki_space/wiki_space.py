@@ -109,21 +109,7 @@ class WikiSpace(Document):
 			new_space_route=new_space_route,
 			queue="long",
 		)
-
-	def user_has_access(self):
-		# Public space allow anyone (including Guest)
-		if not self.is_private:
-			return True
-
-			# If private and no roles assigned deny everyone
-		if not self.allowed_roles:
-			return False
-
-		user_roles = frappe.get_roles()
-		allowed_roles = [d.role for d in self.allowed_roles]
-		return bool(set(user_roles) & set(allowed_roles))
-
-
+		
 def clone_wiki_space(name, route, new_space_route):
 	if frappe.db.exists("Wiki Space", new_space_route):
 		frappe.throw(f"Wiki Space <b>{new_space_route}</b> already exists.")

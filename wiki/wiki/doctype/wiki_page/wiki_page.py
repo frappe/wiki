@@ -155,7 +155,6 @@ class WikiPage(WebsiteGenerator):
 	def verify_permission(self):
 		wiki_settings = frappe.get_single("Wiki Settings")
 		user_is_guest = frappe.session.user == "Guest"
-		space = frappe.get_doc("Wiki Space", {"route": self.get_space_route()})
 
 		disable_guest_access = False
 		if wiki_settings.disable_guest_access and user_is_guest:
