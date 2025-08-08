@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "hash",
+ "autoname": "field:space_name",
  "creation": "2023-04-11 12:26:16.593440",
  "default_view": "List",
  "doctype": "DocType",
@@ -14,6 +14,8 @@
   "column_break_bynr",
   "app_switcher_logo",
   "favicon",
+  "allowed_roles",
+  "restricted_to_roles",
   "section_break_z5nn",
   "wiki_sidebars",
   "navbar_tab",
@@ -76,7 +78,8 @@
   {
    "fieldname": "space_name",
    "fieldtype": "Data",
-   "label": "Space Name"
+   "label": "Space Name",
+   "unique": 1
   },
   {
    "fieldname": "app_switcher_logo",
@@ -96,15 +99,28 @@
   {
    "fieldname": "section_break_z5nn",
    "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.restricted_to_roles",
+   "fieldname": "allowed_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Allowed Roles",
+   "options": "Has Role"
+  },
+  {
+   "default": "0",
+   "fieldname": "restricted_to_roles",
+   "fieldtype": "Check",
+   "label": "Restricted to Roles"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 00:06:22.631960",
+ "modified": "2025-08-08 11:21:39.544414",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
- "naming_rule": "Random",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -136,5 +152,5 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "route"
+ "title_field": "space_name"
 }

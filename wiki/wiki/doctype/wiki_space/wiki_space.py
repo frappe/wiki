@@ -1,6 +1,7 @@
 # Copyright (c) 2023, Frappe and contributors
 # For license information, please see license.txt
 import json
+from urllib.parse import urlencode
 
 import frappe
 import pymysql
@@ -10,6 +11,15 @@ from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_i
 
 
 class WikiSpace(Document):
+	
+	def validate(self):
+		for d in self.wiki_sidebars:
+			exists = frappe.db.exists("Wiki Group Item", {
+        	"wiki_page": d.wiki_page,
+        	"name": ["!=", d.name] 
+    })
+			if exists:
+				frappe.throw(f"{d.wiki_page} is already used in another Wiki Space.")
 	def before_insert(self):
 		# insert a new wiki page when sidebar is empty
 		if not self.wiki_sidebars:
@@ -87,7 +97,21 @@ class WikiSpace(Document):
 			new_space_route=new_space_route,
 			queue="long",
 		)
+	def user_has_access(self):
 
+		if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
+			return True
+
+        # Public space — allow anyone (including Guest)
+		if not self.is_private:
+			return True
+		
+        # If private and no roles assigned — deny everyone
+		if not self.allowed_roles:
+			return False
+		user_roles = frappe.get_roles(frappe.session.user)
+		allowed_roles = [d.role for d in self.allowed_roles]
+		return bool(set(user_roles) & set(allowed_roles))
 
 def clone_wiki_space(name, route, new_space_route):
 	if frappe.db.exists("Wiki Space", new_space_route):

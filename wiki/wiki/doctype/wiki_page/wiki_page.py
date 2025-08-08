@@ -155,13 +155,15 @@ class WikiPage(WebsiteGenerator):
 	def verify_permission(self):
 		wiki_settings = frappe.get_single("Wiki Settings")
 		user_is_guest = frappe.session.user == "Guest"
+		space = frappe.get_doc("Wiki Space", {"route": self.get_space_route()})
 
 		disable_guest_access = False
 		if wiki_settings.disable_guest_access and user_is_guest:
 			disable_guest_access = True
-
 		access_permitted = self.allow_guest or not user_is_guest
-
+		user_access = space.user_has_access()
+		if not user_access :
+			raise frappe.AuthenticationError(_("User does not have access"))
 		if not access_permitted or disable_guest_access:
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
