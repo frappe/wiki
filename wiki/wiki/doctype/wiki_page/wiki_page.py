@@ -161,13 +161,13 @@ class WikiPage(WebsiteGenerator):
 		if wiki_settings.disable_guest_access and user_is_guest:
 			disable_guest_access = True
 		access_permitted = self.allow_guest or not user_is_guest
-		user_access = space.user_has_access()
-		if not user_access :
-			raise frappe.AuthenticationError(_("User does not have access"))
+
 		if not access_permitted or disable_guest_access:
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
+		if not space.user_has_access():
+			raise frappe.PermissionError(_("User does not have access"))
 
 	def set_breadcrumbs(self, context):
 		context.add_breadcrumbs = True
