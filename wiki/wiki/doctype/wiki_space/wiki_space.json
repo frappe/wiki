@@ -11,11 +11,13 @@
   "general_tab",
   "space_name",
   "route",
+  "section_break_dog1",
   "column_break_bynr",
   "app_switcher_logo",
   "favicon",
-  "allowed_roles",
+  "column_break_bghn",
   "restricted_to_roles",
+  "allowed_roles",
   "section_break_z5nn",
   "wiki_sidebars",
   "navbar_tab",
@@ -99,24 +101,11 @@
   {
    "fieldname": "section_break_z5nn",
    "fieldtype": "Section Break"
-  },
-  {
-   "depends_on": "eval:doc.restricted_to_roles",
-   "fieldname": "allowed_roles",
-   "fieldtype": "Table MultiSelect",
-   "label": "Allowed Roles",
-   "options": "Has Role"
-  },
-  {
-   "default": "0",
-   "fieldname": "restricted_to_roles",
-   "fieldtype": "Check",
-   "label": "Restricted to Roles"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-08 11:21:39.544414",
+ "modified": "2025-07-30 00:06:22.631960",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
@@ -149,6 +138,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
