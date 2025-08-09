@@ -10,6 +10,27 @@ from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_i
 
 
 class WikiSpace(Document):
+	def validate(self):
+		for d in self.wiki_sidebars:
+			page_exists = frappe.db.exists("Wiki Group Item", {"wiki_page": d.wiki_page, "name": ["!=", d.name]}) 
+		if page_exists:
+			frappe.throw(f"{d.wiki_page} is already used in another wiki space")
+
+	def user_has_access(self, user=None):
+		user = user or frappe.session.user
+
+    # Public space — anyone can access
+		if not self.restricted_to_roles:
+			return True
+
+    # If restricted and no roles are assigned, deny everyone
+		if not self.allowed_roles:
+			return False
+
+		user_roles = frappe.get_roles(user)
+		allowed_roles = [d.role for d in self.allowed_roles]
+		return bool(set(user_roles) & set(allowed_roles))
+	
 	def before_insert(self):
 		# insert a new wiki page when sidebar is empty
 		if not self.wiki_sidebars:
@@ -139,3 +160,32 @@ def update_sidebar(sidebar_items):
 
 	for key in frappe.cache().hgetall("wiki_sidebar").keys():
 		frappe.cache().hdel("wiki_sidebar", key)
+
+def get_permission_query_conditions(user):
+    user = user or frappe.session.user
+
+    if user == "Administrator":
+        return ""
+
+    user_roles = frappe.get_roles(user)
+    roles_str = "', '".join(user_roles)
+
+    return f"""
+        IFNULL(restricted_to_roles, 0) = 0
+        OR name IN (
+            SELECT parent
+            FROM `tabHas Role`
+            WHERE role IN ('{roles_str}')
+              AND parenttype = 'Wiki Space'
+        )
+    """
+
+
+def has_permission(doc, user=None):
+    user = user or frappe.session.user
+
+    if user == "Administrator":
+        return True
+
+    return doc.user_has_access(user)
+
