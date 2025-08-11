@@ -18,8 +18,11 @@ class WikiSpace(Document):
 		if page_exists:
 			frappe.throw(f"{d.wiki_page} is already used in another wiki space")
 
-	def user_has_access(self, user=None):
+	def has_permission(self, user: str | None = None):
 		user = user or frappe.session.user
+
+		if user == "Administrator":
+			return True
 
 		# Public space — anyone can access
 		if not self.restricted_to_roles:
@@ -182,12 +185,3 @@ def get_permission_query_conditions(user):
               AND parenttype = 'Wiki Space'
         )
     """
-
-
-def has_permission(doc, user=None):
-	user = user or frappe.session.user
-
-	if user == "Administrator":
-		return True
-
-	return doc.user_has_access(user)
