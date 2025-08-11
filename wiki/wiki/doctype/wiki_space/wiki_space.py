@@ -167,7 +167,7 @@ def update_sidebar(sidebar_items):
 		frappe.cache().hdel("wiki_sidebar", key)
 
 
-def get_permission_query_conditions(user):
+def get_permission_query_conditions(user: str | None = None):
 	user = user or frappe.session.user
 
 	if user == "Administrator":
