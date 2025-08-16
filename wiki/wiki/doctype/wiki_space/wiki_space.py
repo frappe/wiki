@@ -23,9 +23,11 @@ class WikiSpace(Document):
         )
 		duplicates = all_pages
 		if duplicates:
-			frappe.throw(_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(''.join(
-					f'<li><a href="{get_url("/" + page.route)}">{page.wiki_page}</a></li>'
-					for page in duplicates if page.route)))
+			links = [f'<a href="{get_url("/" + page.route)}">{page.wiki_page}</a>'
+            for page in duplicates if page.route
+			]
+			formatted_links = ''.join([f'<li>{link}</li>' for link in links])
+			frappe.throw(_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(formatted_links))
 
 
 	def has_permission(self, user: str | None = None):
