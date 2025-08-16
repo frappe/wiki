@@ -5,18 +5,28 @@ import json
 import frappe
 import pymysql
 from frappe.model.document import Document
-
+from frappe import _
+from frappe.utils import get_url
 from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
 	def validate(self):
-		for d in self.wiki_sidebars:
-			page_exists = frappe.db.exists(
-				"Wiki Group Item", {"wiki_page": d.wiki_page, "name": ["!=", d.name]}
-			)
-		if page_exists:
-			frappe.throw(f"{d.wiki_page} is already used in another wiki space")
+		current_pages = {d.wiki_page for d in self.wiki_sidebars}
+		
+		all_pages = frappe.get_all( "Wiki Group Item",
+            filters={
+                "wiki_page": ["in", current_pages],
+                "parent": ["!=", self.name],
+            },
+            fields=["wiki_page", "wiki_page.route"]
+        )
+		duplicates = all_pages
+		if duplicates:
+			frappe.throw(_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(''.join(
+					f'<li><a href="{get_url("/" + page.route)}">{page.wiki_page}</a></li>'
+					for page in duplicates if page.route)))
+
 
 	def has_permission(self, user: str | None = None):
 		user = user or frappe.session.user
@@ -24,17 +34,15 @@ class WikiSpace(Document):
 		if user == "Administrator":
 			return True
 
-		# Public space — anyone can access
 		if not self.restricted_to_roles:
 			return True
 
-			# If restricted and no roles are assigned, deny everyone
 		if not self.allowed_roles:
 			return False
 
-		user_roles = frappe.get_roles(user)
-		allowed_roles = [d.role for d in self.allowed_roles]
-		return bool(set(user_roles) & set(allowed_roles))
+		user_roles = set(frappe.get_roles(user))
+		allowed_roles = set(d.role for d in self.allowed_roles)
+		return bool(user_roles & allowed_roles)
 
 	def before_insert(self):
 		# insert a new wiki page when sidebar is empty
