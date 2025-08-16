@@ -4,12 +4,55 @@ import json
 
 import frappe
 import pymysql
+from frappe import _
 from frappe.model.document import Document
+from frappe.utils import get_url
 
 from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
+	def validate(self):
+		current_pages = {d.wiki_page for d in self.wiki_sidebars}
+
+		all_pages = frappe.get_all(
+			"Wiki Group Item",
+			filters={
+				"wiki_page": ["in", current_pages],
+				"parent": ["!=", self.name],
+			},
+			fields=["wiki_page", "wiki_page.route"],
+		)
+		duplicates = all_pages
+		if duplicates:
+			links = [
+				f'<a href="{get_url("/" + page.route)}">{page.wiki_page}</a>'
+				for page in duplicates
+				if page.route
+			]
+			formatted_links = "".join([f"<li>{link}</li>" for link in links])
+			frappe.throw(
+				_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(
+					formatted_links
+				)
+			)
+
+	def has_permission(self, user: str | None = None):
+		user = user or frappe.session.user
+
+		if user == "Administrator":
+			return True
+
+		if not self.restricted_to_roles:
+			return True
+
+		if not self.allowed_roles:
+			return False
+
+		user_roles = set(frappe.get_roles(user))
+		allowed_roles = set(d.role for d in self.allowed_roles)
+		return bool(user_roles & allowed_roles)
+
 	def before_insert(self):
 		# insert a new wiki page when sidebar is empty
 		if not self.wiki_sidebars:
@@ -139,3 +182,23 @@ def update_sidebar(sidebar_items):
 
 	for key in frappe.cache().hgetall("wiki_sidebar").keys():
 		frappe.cache().hdel("wiki_sidebar", key)
+
+
+def get_permission_query_conditions(user: str | None = None):
+	user = user or frappe.session.user
+
+	if user == "Administrator":
+		return ""
+
+	user_roles = frappe.get_roles(user)
+	roles_str = "', '".join(user_roles)
+
+	return f"""
+        IFNULL(restricted_to_roles, 0) = 0
+        OR name IN (
+            SELECT parent
+            FROM `tabHas Role`
+            WHERE role IN ('{roles_str}')
+              AND parenttype = 'Wiki Space'
+        )
+    """

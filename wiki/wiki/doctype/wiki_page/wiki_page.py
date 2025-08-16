@@ -167,6 +167,10 @@ class WikiPage(WebsiteGenerator):
 			frappe.local.response["location"] = "/login?" + urlencode({"redirect-to": frappe.request.url})
 			raise frappe.Redirect
 
+		space = frappe.get_doc("Wiki Space", {"route": self.get_space_route()})
+		if not space.has_permission():
+			raise frappe.PermissionError(_("User does not have access"))
+
 	def set_breadcrumbs(self, context):
 		context.add_breadcrumbs = True
 		if frappe.form_dict:
