@@ -4,31 +4,38 @@ import json
 
 import frappe
 import pymysql
-from frappe.model.document import Document
 from frappe import _
+from frappe.model.document import Document
 from frappe.utils import get_url
+
 from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
 	def validate(self):
 		current_pages = {d.wiki_page for d in self.wiki_sidebars}
-		
-		all_pages = frappe.get_all( "Wiki Group Item",
-            filters={
-                "wiki_page": ["in", current_pages],
-                "parent": ["!=", self.name],
-            },
-            fields=["wiki_page", "wiki_page.route"]
-        )
+
+		all_pages = frappe.get_all(
+			"Wiki Group Item",
+			filters={
+				"wiki_page": ["in", current_pages],
+				"parent": ["!=", self.name],
+			},
+			fields=["wiki_page", "wiki_page.route"],
+		)
 		duplicates = all_pages
 		if duplicates:
-			links = [f'<a href="{get_url("/" + page.route)}">{page.wiki_page}</a>'
-            for page in duplicates if page.route
+			links = [
+				f'<a href="{get_url("/" + page.route)}">{page.wiki_page}</a>'
+				for page in duplicates
+				if page.route
 			]
-			formatted_links = ''.join([f'<li>{link}</li>' for link in links])
-			frappe.throw(_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(formatted_links))
-
+			formatted_links = "".join([f"<li>{link}</li>" for link in links])
+			frappe.throw(
+				_("These wiki pages are already used in other wiki space:<br/><ol>{}</ol>").format(
+					formatted_links
+				)
+			)
 
 	def has_permission(self, user: str | None = None):
 		user = user or frappe.session.user
