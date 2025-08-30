@@ -2,15 +2,20 @@
   "name": "wiki",
   "version": "3.0.0",
   "private": "true",
-  "dependencies": {},
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.14",
+		"tailwindcss": "^4.0.14"
+  },
   "devDependencies": {
-    "@biomejs/biome": "1.4.1"
+    "@biomejs/biome": "1.4.1",
+    "@tailwindcss/typography": "^0.5.16"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "cd frontend && yarn install",
     "dev": "cd frontend && yarn dev",
-    "build": "cd frontend && yarn build"
+    "build": "yarn tailwind:build && cd frontend && yarn build",
+    "tailwind:watch": "npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css --watch",
+		"tailwind:build": "npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css"
   },
   "keywords": [],
   "author": "",

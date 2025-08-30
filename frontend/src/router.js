@@ -6,7 +6,18 @@ const routes = [
 	{
 		path: '/',
 		name: 'Home',
-		component: () => import('@/pages/Home.vue'),
+		redirect: '/spaces',
+	},
+	{
+		path: '/spaces',
+		name: 'SpaceList',
+		component: () => import('@/pages/Spaces.vue'),
+	},
+	{
+		path: '/spaces/:spaceId',
+		name: 'SpaceDetails',
+		component: () => import('@/pages/SpaceDetails.vue'),
+		props: true,
 	},
 ];
 

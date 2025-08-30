@@ -26,5 +26,12 @@ class WikiDocumentRenderer(BaseRenderer):
 
 	def render(self):
 		doc = frappe.get_cached_doc("Wiki Document", self.wiki_doc_name)
-		html = frappe.utils.md_to_html(doc.content)
+		content_html = frappe.utils.md_to_html(doc.content)
+		html = frappe.render_template(
+			"templates/wiki/document.html",
+			{
+				"doc": doc,
+				"rendered_content": content_html,
+			},
+		)
 		return self.build_response(html)

@@ -9,7 +9,7 @@
 			{
 				label: '',
 				items: [
-					{label: 'Spaces', icon: LucideRocket, to: '/'},
+					{label: 'Spaces', icon: LucideRocket, to: { name: 'SpaceList' }},
 				]
 			}
 		]"/>
