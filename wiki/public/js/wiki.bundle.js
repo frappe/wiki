@@ -1,3 +1,3 @@
-import "./wiki";
-import "./render_wiki";
-import "./editor";
+import './editor';
+import './render_wiki';
+import './wiki';
