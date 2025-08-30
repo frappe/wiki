@@ -14,3 +14,5 @@ wiki/public/node_modules
 cypress/screenshots
 cypress/videos
 __pycache__/
+wiki/public/frontend/
+wiki/www/frontend.html
