@@ -1,7 +1,13 @@
 {% extends "templates/wiki/layout.html" %}
 
+{% block title %}
+    {{ doc.title }}
+{% endblock %}
+
 {% block body %}
 <div class="prose prose-lg">
     {{ rendered_content }}
 </div>
+
+<a href="http://wiki.localhost:8080/frontend/pages/{{doc.name}}">Edit page</a>
 {% endblock %}

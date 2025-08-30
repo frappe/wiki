@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>
+        {% block title %} 
+        {{_("Frappe Wiki")}}
+        {% endblock %}
+    </title>
 
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css">
 </head>
 <body>
+    {% include "templates/wiki/includes/header.html" %}
+    {% include "templates/wiki/includes/sidebar.html" %}
+    
     <main>
         {% block body %} {% endblock %}
     </main>

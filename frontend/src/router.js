@@ -19,6 +19,12 @@ const routes = [
 		component: () => import('@/pages/SpaceDetails.vue'),
 		props: true,
 	},
+	{
+		path: '/pages/:pageId',
+		name: 'WikiDocument',
+		component: () => import('@/pages/WikiDocument.vue'),
+		props: true,
+	},
 ];
 
 const router = createRouter({
