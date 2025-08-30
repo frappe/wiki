@@ -1,0 +1,123 @@
+{
+	"actions": [],
+	"allow_rename": 1,
+	"creation": "2025-08-30 16:32:29.700227",
+	"doctype": "DocType",
+	"engine": "InnoDB",
+	"field_order": [
+		"title",
+		"route",
+		"column_break_sfff",
+		"is_published",
+		"section_break_eooe",
+		"content",
+		"section_break_j5x7",
+		"lft",
+		"rgt",
+		"is_group",
+		"old_parent",
+		"parent_wiki_document"
+	],
+	"fields": [
+		{
+			"fieldname": "section_break_j5x7",
+			"fieldtype": "Section Break",
+			"label": "Tree Related Fields"
+		},
+		{
+			"fieldname": "lft",
+			"fieldtype": "Int",
+			"hidden": 1,
+			"label": "Left",
+			"no_copy": 1,
+			"read_only": 1
+		},
+		{
+			"fieldname": "rgt",
+			"fieldtype": "Int",
+			"hidden": 1,
+			"label": "Right",
+			"no_copy": 1,
+			"read_only": 1
+		},
+		{
+			"default": "0",
+			"fieldname": "is_group",
+			"fieldtype": "Check",
+			"label": "Is Group"
+		},
+		{
+			"fieldname": "old_parent",
+			"fieldtype": "Link",
+			"label": "Old Parent",
+			"options": "Wiki Document"
+		},
+		{
+			"fieldname": "parent_wiki_document",
+			"fieldtype": "Link",
+			"ignore_user_permissions": 1,
+			"label": "Parent Wiki Document",
+			"options": "Wiki Document"
+		},
+		{
+			"fieldname": "route",
+			"fieldtype": "Data",
+			"label": "Route"
+		},
+		{
+			"fieldname": "content",
+			"fieldtype": "Markdown Editor",
+			"label": "Content"
+		},
+		{
+			"default": "0",
+			"fieldname": "is_published",
+			"fieldtype": "Check",
+			"label": "Is Published?"
+		},
+		{
+			"fieldname": "title",
+			"fieldtype": "Data",
+			"in_list_view": 1,
+			"label": "Title",
+			"reqd": 1
+		},
+		{
+			"fieldname": "column_break_sfff",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "section_break_eooe",
+			"fieldtype": "Section Break"
+		}
+	],
+	"grid_page_length": 50,
+	"index_web_pages_for_search": 1,
+	"is_tree": 1,
+	"links": [],
+	"modified": "2025-08-30 16:35:52.041755",
+	"modified_by": "Administrator",
+	"module": "Frappe Wiki",
+	"name": "Wiki Document",
+	"nsm_parent_field": "parent_wiki_document",
+	"owner": "Administrator",
+	"permissions": [
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "System Manager",
+			"share": 1,
+			"write": 1
+		}
+	],
+	"row_format": "Dynamic",
+	"sort_field": "creation",
+	"sort_order": "DESC",
+	"states": [],
+	"title_field": "title"
+}

@@ -17,13 +17,8 @@ add_to_apps_screen = [
 	}
 ]
 
-page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
-
-website_route_rules = [
-	{"from_route": "/<path:wiki_page>/edit-wiki", "to_route": "/edit"},
-	{"from_route": "/<path:wiki_page>/new-wiki", "to_route": "/new"},
-	{"from_route": "/<path:wiki_page>/revisions", "to_route": "/revisions"},
-]
+page_renderer = "wiki.frappe_wiki.doctype.wiki_document.wiki_document.WikiDocumentRenderer"
+export_python_type_annotations = True
 
 # Includes in <head>
 # ------------------
