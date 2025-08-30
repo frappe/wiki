@@ -8,11 +8,6 @@ const routes = [
 		name: 'Home',
 		component: () => import('@/pages/Home.vue'),
 	},
-	{
-		name: 'Login',
-		path: '/account/login',
-		component: () => import('@/pages/Login.vue'),
-	},
 ];
 
 const router = createRouter({
@@ -23,15 +18,15 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
 	let isLoggedIn = session.isLoggedIn;
 	try {
-		await userResource.promise;
+		await userResource.fetch();
 	} catch (error) {
 		isLoggedIn = false;
 	}
 
-	if (to.name === 'Login' && isLoggedIn) {
-		next({ name: 'Home' });
-	} else if (to.name !== 'Login' && !isLoggedIn) {
-		next({ name: 'Login' });
+	if (!isLoggedIn) {
+		window.location.href = `/login?redirect-to=${encodeURIComponent(
+			to.fullPath,
+		)}`;
 	} else {
 		next();
 	}
