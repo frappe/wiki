@@ -1,68 +1,85 @@
 {
-    "charts": [],
-    "content": "[{\"id\":\"f6laZQUa0x\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Wiki</span>\",\"col\":12}},{\"id\":\"ir8Llemis5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Pages\",\"col\":4}},{\"id\":\"tZQ_AtqABm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Space\",\"col\":3}},{\"id\":\"z4qT3yMggL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Settings\",\"col\":4}},{\"id\":\"cTIBC0weUT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Patches\",\"col\":4}},{\"id\":\"BsC6YwujPn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Revisions\",\"col\":4}}]",
-    "creation": "2022-09-25 16:45:20.547072",
-    "custom_blocks": [],
-    "docstatus": 0,
-    "doctype": "Workspace",
-    "for_user": "",
-    "hide_custom": 0,
-    "icon": "education",
-    "idx": 0,
-    "is_hidden": 0,
-    "label": "Wiki",
-    "links": [],
-    "modified": "2023-07-23 13:03:07.200464",
-    "modified_by": "Administrator",
-    "module": "Wiki",
-    "name": "Wiki",
-    "number_cards": [],
-    "owner": "Administrator",
-    "parent_page": "",
-    "public": 1,
-    "quick_lists": [],
-    "roles": [],
-    "sequence_id": 31.0,
-    "shortcuts": [
-     {
-      "color": "Blue",
-      "doc_view": "List",
-      "format": "{} Published",
-      "label": "Wiki Pages",
-      "link_to": "Wiki Page",
-      "stats_filter": "{\"published\":[\"=\",1]}",
-      "type": "DocType"
-     },
-     {
-      "color": "Grey",
-      "doc_view": "List",
-      "label": "Wiki Space",
-      "link_to": "Wiki Space",
-      "type": "DocType"
-     },
-     {
-      "color": "Yellow",
-      "doc_view": "List",
-      "format": "{} Under Review",
-      "label": "Wiki Page Patches",
-      "link_to": "Wiki Page Patch",
-      "stats_filter": "{\"status\":[\"=\",\"Under Review\"]}",
-      "type": "DocType"
-     },
-     {
-      "color": "Grey",
-      "doc_view": "List",
-      "label": "Wiki Settings",
-      "link_to": "Wiki Settings",
-      "type": "DocType"
-     },
-     {
-      "color": "Grey",
-      "doc_view": "List",
-      "label": "Wiki Page Revisions",
-      "link_to": "Wiki Page Revision",
-      "type": "DocType"
-     }
-    ],
-    "title": "Wiki"
-   }
+ "app": "wiki",
+ "charts": [],
+ "content": "[{\"id\":\"f6laZQUa0x\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Wiki</span>\",\"col\":12}},{\"id\":\"ir8Llemis5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Pages\",\"col\":4}},{\"id\":\"tZQ_AtqABm\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Space\",\"col\":4}},{\"id\":\"z4qT3yMggL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Settings\",\"col\":4}},{\"id\":\"cTIBC0weUT\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Patches\",\"col\":4}},{\"id\":\"IfrRKY62Tc\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Feedback\",\"col\":4}},{\"id\":\"BsC6YwujPn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Wiki Page Revisions\",\"col\":4}},{\"id\":\"3gsyKHzfOC\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports</b></span>\",\"col\":12}},{\"id\":\"SI4uvLzSVb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Broken Links Report\",\"col\":4}}]",
+ "creation": "2022-09-25 16:45:20.547072",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "education",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Wiki",
+ "links": [],
+ "modified": "2024-12-17 16:49:43.372512",
+ "modified_by": "Administrator",
+ "module": "Wiki",
+ "name": "Wiki",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 31.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "format": "{} Published",
+   "label": "Wiki Pages",
+   "link_to": "Wiki Page",
+   "stats_filter": "{\"published\":[\"=\",1]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Broken Links Report",
+   "link_to": "Wiki Broken Links",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Feedback",
+   "link_to": "Wiki Feedback",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Space",
+   "link_to": "Wiki Space",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "format": "{} Under Review",
+   "label": "Wiki Page Patches",
+   "link_to": "Wiki Page Patch",
+   "stats_filter": "{\"status\":[\"=\",\"Under Review\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Settings",
+   "link_to": "Wiki Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Wiki Page Revisions",
+   "link_to": "Wiki Page Revision",
+   "type": "DocType"
+  }
+ ],
+ "title": "Wiki",
+ "type": "Workspace"
+}

@@ -7,6 +7,16 @@ app_color = "grey"
 app_email = "developers@frappe.io"
 app_license = "MIT"
 
+add_to_apps_screen = [
+	{
+		"name": "wiki",
+		"logo": "/assets/wiki/images/wiki-logo.png",
+		"title": "Wiki",
+		"route": "/app/wiki",
+		"has_permission": "wiki.utils.check_app_permission",
+	}
+]
+
 page_renderer = "wiki.wiki.doctype.wiki_page.wiki_renderer.WikiPageRenderer"
 
 website_route_rules = [
@@ -65,7 +75,7 @@ website_route_rules = [
 # before_install = "wiki.install.before_install"
 after_install = "wiki.install.after_install"
 
-after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]
+after_migrate = ["wiki.wiki.doctype.wiki_page.search.build_index_in_background"]
 
 # Desk Notifications
 # ------------------
@@ -109,7 +119,9 @@ after_migrate = ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background
 # ---------------
 
 scheduler_events = {
-	"cron": {"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.rebuild_index_in_background"]}
+	"cron": {
+		"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.build_index_in_background"],
+	},
 }
 
 # scheduler_events = {

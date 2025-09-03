@@ -3,16 +3,18 @@
 
 
 import frappe
-from frappe.search import web_search
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 
+from wiki.wiki_search import WikiSearch
+
 PREFIX = "wiki_page_search_doc"
+INDEX_BUILD_FLAG = "wiki_page_index_in_progress"
 
 
 _redisearch_available = False
 try:
-	from redis.commands.search.query import Query  # noqa: F401
+	from redis.commands.search.query import Query
 
 	_redisearch_available = True
 except ImportError:
@@ -20,56 +22,92 @@ except ImportError:
 
 
 @frappe.whitelist(allow_guest=True)
-def search(query, path, space):
-	if not space:
+def get_spaces():
+	return frappe.db.get_all("Wiki Space", pluck="route")
+
+
+@frappe.whitelist(allow_guest=True)
+def search(
+	query: str,
+	path: str | None = None,
+	space: str | None = None,
+):
+	if not space and path:
 		space = get_space_route(path)
 
-	use_redisearch = frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search")
-	if not use_redisearch or not _redisearch_available:
-		result = web_search(query, space, 5)
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		return sqlite_search(query, space)
 
-		for d in result:
-			d.title = d.title_highlights or d.title
-			d.route = d.path
-			d.content = d.content_highlights
+	if use_redis_search():
+		return redis_search(query, space)
 
-			del d.title_highlights
-			del d.content_highlights
-			del d.path
+	return web_search(query, space)
 
-		return {"docs": result, "search_engine": "frappe_web_search"}
 
-	from redis.commands.search.query import Query  # noqa: F811
-	from redis.exceptions import ResponseError
+def use_redis_search():
+	return frappe.db.get_single_value("Wiki Settings", "use_redisearch_for_search") and _redisearch_available
 
-	# if redisearch enabled use redisearch
-	r = frappe.cache()
-	query = Query(query).paging(0, 5).highlight(tags=['<b class="match">', "</b>"])
 
-	try:
-		result = r.ft(space).search(query)
-	except ResponseError:
-		return {"docs": [], "search_engine": "redisearch"}
+def sqlite_search(query, space):
+	from wiki.wiki.doctype.wiki_page.sqlite_search import search
 
-	names = []
-	for d in result.docs:
-		_, name = d.id.split(":")
-		names.append(name)
-	names = list(set(names))
-
-	data_by_name = {
-		d.name: d
-		for d in frappe.db.get_all("Wiki Page", fields=["name"], filters={"name": ["in", names]})
+	return {
+		"docs": search(query, space),
+		"search_engine": "sqlite_fts",
 	}
 
+
+def web_search(query, space):
+	from frappe.search import web_search
+
+	result = web_search(query, space)
+
+	for d in result:
+		d.title = d.title_highlights or d.title
+		d.route = d.path
+		d.content = d.content_highlights
+
+		del d.title_highlights
+		del d.content_highlights
+		del d.path
+
+	return {
+		"docs": result,
+		"search_engine": "frappe_web_search",
+	}
+
+
+def redis_search(query, space):
+	from wiki.wiki_search import WikiSearch
+
+	search = WikiSearch()
+	search_query = search.clean_query(query)
+	query_parts = search_query.split(" ")
+
+	if len(query_parts) == 1 and not query_parts[0].endswith("*"):
+		search_query = f"{query_parts[0]}*"
+	if len(query_parts) > 1:
+		search_query = " ".join([f"%%{q}%%" for q in query_parts])
+
+	result = search.search(
+		f"@title|content:({search_query})",
+		space=space,
+		start=0,
+		sort_by="modified desc",
+		highlight=True,
+		with_payloads=True,
+	)
+
 	docs = []
-	for d in result.docs:
-		_, name = d.id.split(":")
-		doc = data_by_name[name]
-		doc.title = d.title
-		doc.route = d.route
-		doc.content = d.content
-		docs.append(doc)
+	for doc in result.docs:
+		docs.append(
+			{
+				"content": doc.content,
+				"name": doc.id.split(":", 1)[1],
+				"route": doc.route,
+				"title": doc.title,
+			}
+		)
 
 	return {"docs": docs, "search_engine": "redisearch"}
 
@@ -78,46 +116,6 @@ def get_space_route(path):
 	for space in frappe.db.get_all("Wiki Space", pluck="route"):
 		if space in path:
 			return space
-
-
-def rebuild_index():
-	from redis.commands.search.field import TextField
-	from redis.commands.search.indexDefinition import IndexDefinition
-	from redis.exceptions import ResponseError
-
-	r = frappe.cache()
-	r.set_value("wiki_page_index_in_progress", True)
-
-	# Options for index creation
-	schema = (
-		TextField("title", weight=3.0),
-		TextField("content"),
-	)
-
-	# Create an index and pass in the schema
-	spaces = frappe.db.get_all("Wiki Space", pluck="route")
-	wiki_pages = frappe.db.get_all("Wiki Page", fields=["name", "title", "content", "route"])
-	for space in spaces:
-		try:
-			drop_index(space)
-
-			index_def = IndexDefinition(
-				prefix=[f"{r.make_key(f'{PREFIX}{space}').decode()}:"], score=0.5, score_field="doc_score"
-			)
-			r.ft(space).create_index(schema, definition=index_def)
-
-			records_to_index = [d for d in wiki_pages if space in d.get("route")]
-			create_index_for_records(records_to_index, space)
-		except ResponseError as e:
-			print(e)
-
-	r.set_value("wiki_page_index_in_progress", False)
-
-
-def rebuild_index_in_background():
-	if not frappe.cache().get_value("wiki_page_index_in_progress"):
-		print(f"Queued rebuilding of search index for {frappe.local.site}")
-		frappe.enqueue(rebuild_index, queue="long")
 
 
 def create_index_for_records(records, space):
@@ -148,9 +146,7 @@ def remove_index_for_records(records, space):
 
 
 def update_index(doc):
-	record = frappe._dict(
-		{"name": doc.name, "title": doc.title, "content": doc.content, "route": doc.route}
-	)
+	record = frappe._dict({"name": doc.name, "title": doc.title, "content": doc.content, "route": doc.route})
 	space = get_space_route(doc.route)
 
 	create_index_for_records([record], space)
@@ -168,10 +164,43 @@ def remove_index(doc):
 	remove_index_for_records([record], space)
 
 
-def drop_index(space):
+def drop_index(space: str | None = None):
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		from wiki.wiki.doctype.wiki_page.sqlite_search import delete_db
+
+		return delete_db()
+
+	if use_redis_search():
+		return WikiSearch().drop_index()
+
+	if not space:
+		return
+
 	from redis.exceptions import ResponseError
 
 	try:
 		frappe.cache().ft(space).dropindex(delete_documents=True)
 	except ResponseError:
 		pass
+
+
+def build_index_in_background():
+	if frappe.cache().get_value(INDEX_BUILD_FLAG):
+		return
+
+	print(f"Queued rebuilding of search index for {frappe.local.site}")
+	frappe.enqueue(build_index, queue="long")
+
+
+def build_index():
+	frappe.cache().set_value(INDEX_BUILD_FLAG, True)
+
+	if frappe.db.get_single_value("Wiki Settings", "use_sqlite_for_search"):
+		from wiki.wiki.doctype.wiki_page.sqlite_search import build_index
+
+		return build_index()
+
+	if use_redis_search():
+		return WikiSearch().build_index()
+
+	frappe.cache().set_value(INDEX_BUILD_FLAG, False)

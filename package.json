@@ -16,7 +16,9 @@
     "@tiptap/extension-text-align": "^2.0.2",
     "@tiptap/pm": "^2.0.2",
     "@tiptap/starter-kit": "^2.0.2",
+    "ace-builds": "^1.36.2",
     "htmldiff-js": "^1.0.5",
-    "lowlight": "^2.8.1"
+    "lowlight": "^2.8.1",
+    "pre-commit": "^1.2.2"
   }
 }

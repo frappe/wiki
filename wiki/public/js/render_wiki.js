@@ -1,6 +1,9 @@
 import HtmlDiff from "htmldiff-js";
 
 function setSortable() {
+  if (window.innerWidth < 768) {
+    return;
+  }
   new Sortable(this, {
     group: {
       name: "qux",
@@ -8,7 +11,7 @@ function setSortable() {
       pull: ["qux"],
     },
     swapThreshold: 0.7,
-    filter: ".disabled",
+    filter: ".non-draggable",
     onEnd: function (e) {
       frappe.utils.debounce(() => {
         frappe.call({
@@ -42,31 +45,14 @@ function set_search_params(key = "", value = "") {
   window.history.pushState({}, "", url);
 }
 
-function toggleEditor() {
-  $(".wiki-content").toggleClass("hide");
-  $(".wiki-page-meta").toggleClass("hide");
-  $(".wiki-footer").toggleClass("hide");
-  $(".wiki-edit-control-btn").toggleClass("hide");
-  $(".page-toc").toggleClass("hide");
-  $(".remove-sidebar-item").toggleClass("hide");
-  $(".sidebar-item, .sidebar-group").toggleClass("disabled");
+function toggleSidebarEditor() {
+  $(".sidebar-item, .sidebar-group").toggleClass("non-draggable");
   $(".drop-icon").toggleClass("hide");
   $(".add-sidebar-page").toggleClass("hide");
+  $(".sidebar-edit-mode-btn").toggleClass("hide");
   $(".add-sidebar-group, .sidebar-view-mode-btn").toggleClass("hide");
+  $(".remove-sidebar-item").toggleClass("hide");
 
-  // avoid hiding editor when params ?editWiki or ?newWiki
-  if ($(".from-markdown").is(":visible")) {
-    $(".wiki-editor").toggleClass("hide");
-    $(".wiki-options, .sidebar-edit-mode-btn").toggleClass("hide");
-  } else {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("editWiki") || urlParams.get("newWiki"))
-      $(".wiki-options, .sidebar-edit-mode-btn").toggleClass("hide");
-
-    $(".from-markdown").toggleClass("hide");
-  }
-
-  // sidebar item pointer switching
   if ($(".sidebar-edit-mode-btn").hasClass("hide")) {
     $(".sidebar-group div, .sidebar-item, .sidebar-item a")
       .not(".remove-sidebar-item")
@@ -80,6 +66,23 @@ function toggleEditor() {
         .find("a")
         .attr("href", `/${$(this).data("route")}`);
     });
+  }
+}
+
+function toggleEditor() {
+  $(".wiki-content").toggleClass("hide");
+  $(".wiki-page-meta").toggleClass("hide");
+  $(".wiki-footer").toggleClass("hide");
+  $(".page-toc").toggleClass("hide");
+
+  // avoid hiding editor when params ?editWiki or ?newWiki
+  if ($(".from-markdown").is(":visible")) {
+    $(".wiki-editor").toggleClass("hide");
+  } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("editWiki") || urlParams.get("newWiki")) {
+      $(".from-markdown").toggleClass("hide");
+    }
   }
 
   $(".wiki-title").toggleClass("hide");
@@ -109,6 +112,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         this.set_revisions();
         this.add_click_to_copy();
         this.setup_feedback();
+        this.setup_page_settings();
       }
     });
   }
@@ -118,10 +122,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
 
     if (urlParams.get("editWiki") && $(".wiki-options").length) {
       toggleEditor();
-      $("html").css({ overflow: "hidden" });
     } else if (urlParams.get("newWiki")) {
       toggleEditor();
-      $("html").css({ overflow: "hidden" });
 
       if (
         !$(
@@ -148,61 +150,6 @@ window.RenderWiki = class RenderWiki extends Wiki {
           )[1],
         ).trigger("click");
     }
-    $(".wiki-footer, .wiki-page-meta").toggleClass("hide");
-  }
-
-  set_toc() {
-    $(document).ready(function () {
-      $(window).scroll(function () {
-        if (currentAnchor().not(".no-underline").hasClass("active")) return;
-        $(".page-toc a").removeClass("active");
-        currentAnchor().addClass("active");
-      });
-
-      const navbarHeight = $(".navbar").height();
-      $(".page-toc a").click(function (e) {
-        e.preventDefault();
-        var target = $(this).attr("href");
-        var offset = $(target).offset().top - navbarHeight - 50;
-        $("html, body").animate(
-          {
-            scrollTop: offset,
-          },
-          500,
-        );
-      });
-    });
-
-    function tocItem(anchor) {
-      return $('[href="' + anchor + '"]');
-    }
-
-    function heading(anchor) {
-      return $("[id=" + anchor.substr(1) + "]");
-    }
-
-    var _anchors = null;
-    function anchors() {
-      if (!_anchors) {
-        _anchors = $(".page-toc .list-unstyled a").map(function () {
-          return $(this).attr("href");
-        });
-      }
-      return _anchors;
-    }
-
-    function currentAnchor() {
-      var winY = window.pageYOffset;
-      var currAnchor = null;
-      anchors().each(function () {
-        var y = heading(this).position().top;
-        if (y < winY + window.innerHeight * 0.23) {
-          currAnchor = this;
-          return;
-        }
-      });
-      return tocItem(currAnchor);
-    }
   }
 
   set_nav_buttons() {
@@ -225,19 +172,19 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".btn.left")[0].href = sidebar_items[current_index - 1].href;
       $($(".btn.left p")[1]).text(sidebar_items[current_index - 1].innerText);
     } else {
-      $(".btn.left").hide();
+      $(".btn.left").addClass("hide");
     }
 
     if (current_index >= 0 && current_index < sidebar_items.length - 1) {
       $(".btn.right")[0].href = sidebar_items[current_index + 1].href;
       $($(".btn.right p")[1]).text(sidebar_items[current_index + 1].innerText);
     } else {
-      $(".btn.right").hide();
+      $(".btn.right").addClass("hide");
     }
   }
 
   set_edit_mode() {
-    $(".sidebar-item, .sidebar-group").addClass("disabled");
+    $(".sidebar-item, .sidebar-group").addClass("non-draggable");
 
     $(".web-sidebar ul").each(setSortable);
 
@@ -254,29 +201,50 @@ window.RenderWiki = class RenderWiki extends Wiki {
       },
     });
 
-    $(".edit-wiki-btn, .sidebar-edit-mode-btn").on("click", function () {
+    $(".sidebar-edit-mode-btn, .sidebar-view-mode-btn").on(
+      "click",
+      function () {
+        if (frappe.session.user === "Guest") {
+          window.location.assign(
+            `/login?redirect-to=${window.location.pathname}`,
+          );
+        } else {
+          toggleSidebarEditor();
+        }
+      },
+    );
+
+    $(".edit-wiki-btn").on("click", function () {
       if (frappe.session.user === "Guest")
         window.location.assign(
           `/login?redirect-to=${window.location.pathname}`,
         );
       else {
         const urlParams = new URLSearchParams(window.location.search);
-
         // switch to edit mode
         toggleEditor();
-        $("html").css({ overflow: "hidden" });
+
+        $(".admin-banner").addClass("hide");
 
         if (!urlParams.get("editWiki")) set_search_params("editWiki", "1");
       }
     });
 
-    $(".discard-edit-btn , .sidebar-view-mode-btn").on("click", () => {
-      // switch to view mode
-      toggleEditor();
-      $("html").css({ overflow: "auto" });
-      $('.sidebar-item[data-name="new-wiki-page"]').remove();
-      set_search_params();
-      this.activate_sidebars();
+    $(".discard-edit-btn").on("click", () => {
+      const discardDialog = frappe.msgprint({
+        title: __("Discard edits"),
+        indicator: "red",
+        message: __(`Are you sure you want to <b>discard</b> the changes?`),
+        primary_action: {
+          label: "Yes",
+          action() {
+            toggleEditor();
+            $('.sidebar-item[data-name="new-wiki-page"]').remove();
+            set_search_params();
+            discardDialog.hide();
+          },
+        },
+      });
     });
 
     $(".add-wiki-btn").on("click", () => {
@@ -412,6 +380,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
       );
       $(".previous-revision").removeClass("hide");
     } else {
+      $(".revision-content")[0].innerHTML =
+        `<div class="no-revision">No Revisions</div>`;
       $(".revision-time").hide();
       $(".revisions-modal .modal-header").hide();
     }
@@ -453,9 +423,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
           currentRevision.content,
         );
       else $(".revision-content")[0].innerHTML = currentRevision.content;
-      $(
-        ".revision-time",
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex++;
       addHljsClass();
     });
@@ -474,9 +443,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
         nextRevision.content,
         currentRevision.content,
       );
-      $(
-        ".revision-time",
-      )[0].innerHTML = `${currentRevision.author} edited ${currentRevision.revision_time}`;
+      $(".revision-time")[0].innerHTML =
+        `${currentRevision.author} edited ${currentRevision.revision_time}`;
       currentRevisionIndex--;
       addHljsClass();
     });
@@ -514,7 +482,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   get_wiki_sidebar_html(title) {
     return $(`
 			<li class="sidebar-group" data-type="Wiki Sidebar"
-				data-name="new-sidebar" data-new=1 data-title="${title}" draggable="false">
+				data-name="new-sidebar" data-new=1 data-title="${title}">
 				<div class="collapsible">
 					<span class="text-sm">${title}</span>
           <span class='add-sidebar-page'>
@@ -592,7 +560,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
     searchInput.on(
       "input",
       frappe.utils.debounce(() => {
-        if (!searchInput.val()) {
+        if (!searchInput.val() || searchInput.val().length < 2) {
           clear_dropdown();
           return;
         }
@@ -608,29 +576,29 @@ window.RenderWiki = class RenderWiki extends Wiki {
           })
           .then((res) => {
             let results = res.message.docs || [];
-            let dropdown_html;
-            if (results.length === 0) {
-              dropdown_html = `<div style="margin: 1.5rem 9rem;">No results found</div>`;
-            } else {
+            let dropdown_html = `<div style="margin: 0.8rem;text-align: center;">No results found</div>`;
+            if (results.length > 0) {
               dropdown_html = results
                 .map((r) => {
+                  let content = r.content;
+                  if (content.startsWith("...")) content = content.slice(3);
+                  if (res.message.search_engine === "redisearch")
+                    content = trimContent(content);
+
                   return `<a class="dropdown-item" href="/${r.route}">
-              <h6>${r.title}</h6>
-              <div>${
-                res.message.search_engine === "frappe_web_search"
-                  ? r.content
-                  : trimContent(r.content)
-              }</div>
+              <span class="result-title">${r.title}</span>
+              <div class="result-text">${content}</div>
               </a>
               <div class='dropdown-border'></div>`;
                 })
                 .join("");
             }
+
             $dropdown_menu.html(dropdown_html);
             $dropdown_menu.addClass("show");
             dropdownItems = $dropdown_menu.find(".dropdown-item");
           });
-      }, 500),
+      }, 100),
     );
 
     $("#dropdownMenuSearch, .mobile-search-icon").on("click", () => {
@@ -718,6 +686,40 @@ window.RenderWiki = class RenderWiki extends Wiki {
           $(".ratings-number").removeClass("rating-active");
           $(".long-feedback").val("");
           $(".feedback-email").val("");
+        });
+    });
+  }
+
+  setup_page_settings() {
+    $(".update-page-settings-button").on("click", function () {
+      const name = $('[name="wiki-page-name"]').val();
+      const hideOnSidebar = $('input[name="pageHideOnSidebar"]').prop(
+        "checked",
+      );
+      const route =
+        $(".wiki-space-route-block").text().trim() +
+        $('input[name="pageRoute"]').val();
+
+      frappe
+        .call({
+          method: "wiki.wiki.doctype.wiki_page.wiki_page.update_page_settings",
+          args: {
+            name,
+            settings: {
+              hide_on_sidebar: !!hideOnSidebar,
+              route,
+            },
+          },
+        })
+        .then(() => {
+          frappe.show_alert({
+            message: __("Page settings updated successfully"),
+            indicator: "green",
+          });
+
+          setTimeout(() => {
+            window.location.href = "/" + route;
+          }, 1000);
         });
     });
   }

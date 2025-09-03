@@ -1,0 +1,268 @@
+.sm-sidebar {
+  width: 100%;
+}
+.sm-sidebar .web-sidebar {
+  margin-top: 4px;
+  padding-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    padding-bottom: 0;
+  }
+}
+
+.web-sidebar {
+  position: relative;
+}
+
+.doc-sidebar {
+  margin-bottom: 0;
+  height: 100vh;
+  padding-top: 60px;
+  display: flex;
+  flex-direction: column;
+
+  .web-sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0px 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 100%;
+    width: 17rem;
+
+    .sidebar-items {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 100%;
+      padding-top: 8px;
+    }
+  }
+}
+
+.sidebar-column {
+  margin-top: -60px;
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar-group-list {
+  display: flex;
+  flex-direction: column;
+  list-style-type: none;
+  padding: 0px;
+}
+.sidebar-group-container {
+  height: 32px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  gap: 8px;
+
+  .icon {
+    width: 8px;
+    height: 8px;
+    margin: 0;
+    color: #999999;
+
+    &.rotate {
+      transform: rotate(90deg);
+    }
+  }
+}
+.sidebar-group-title {
+  font-size: 13px;
+  font-weight: 420 !important;
+  line-height: 16px;
+  letter-spacing: 0.015em;
+  text-align: left;
+}
+.sidebar-group-item-list {
+  display: flex;
+  flex-direction: column;
+  list-style-type: none;
+  margin-left: 10px;
+  margin-bottom: 4px !important;
+  gap: 2px;
+}
+.sidebar-group-item {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  border-radius: 8px;
+}
+.sidebar-item-active {
+  a {
+    background-color: transparent !important;
+    color: var(--text-color) !important;
+  }
+}
+.sidebar-group-item-title {
+  color: var(--text-light);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: 420 !important;
+}
+
+.sidebar-group {
+  margin: 0;
+  font-style: normal;
+  font-weight: 500;
+  font-size: $font-size-base;
+  line-height: 1.5;
+  /* identical to box height, or 28px */
+
+  letter-spacing: -0.011em;
+
+  ul {
+    padding-left: 14px;
+  }
+
+  .list-unstyled:empty::after {
+    font-size: 12px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--sidebar-text-color);
+    content: "This Wiki Group will be deleted automatically";
+  }
+
+  .collapsible {
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  div {
+    .h6 {
+      font-size: $font-size-sm;
+      margin-bottom: 0;
+      line-height: 1.5rem;
+      color: var(--text-color);
+      font-weight: 700;
+    }
+  }
+
+  .drop-icon,
+  .add-sidebar-page {
+    cursor: pointer;
+    display: inline-flex;
+    margin: 0 5px 0 auto;
+    transition: transform 0.2s ease-in-out;
+    transform: rotate(0deg);
+    color: var(--sidebar-text-color);
+
+    &.rotate {
+      transform: rotate(-90deg);
+    }
+  }
+}
+
+.sidebar-group .collapsible,
+.sidebar-item {
+  &:hover {
+    cursor: pointer;
+
+    &:not(.active) {
+      background-color: var(--sidebar-hover-color);
+      border-radius: 0.625rem;
+    }
+  }
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  min-height: 1.75rem;
+
+  &.active {
+    background-color: var(--sidebar-active-item-color);
+    box-shadow: 0 0 #0000, 0 0 #0000, 0px 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  div {
+    display: flex;
+    align-items: center;
+  }
+
+  a {
+    margin: 0;
+    width: 100%;
+    padding: 5px 12px;
+
+    &:hover {
+      color: unset;
+    }
+  }
+
+  :first-child {
+    width: 100%;
+  }
+}
+
+.doc-sidebar {
+  // padding-right: 0.5rem;
+  background-color: var(--sidebar-bg-color);
+  color: var(--sidebar-font-color);
+}
+
+.my-contributions,
+.new-wiki-page,
+.sidebar-edit-mode-btn,
+.sidebar-view-mode-btn,
+.add-sidebar-group {
+  cursor: pointer;
+  margin: auto;
+  font-weight: 500;
+
+  svg {
+    margin-bottom: 0.1rem;
+  }
+
+  span {
+    font-size: 0.75rem;
+  }
+}
+
+.sidebar-options {
+  bottom: 0;
+  position: sticky;
+  padding: 0.5rem;
+  background-color: var(--sidebar-bg-color);
+}
+
+.remove-sidebar-item {
+  cursor: pointer;
+  margin: 0 1rem 0 auto;
+}
+
+.collapsible .remove-sidebar-item {
+  margin-right: calc(15px - 0.5rem);
+  margin-bottom: 3px;
+}
+
+.trash-icon {
+  visibility: hidden;
+}
+
+.sidebar-item:hover .trash-icon,
+.sidebar-group .collapsible:hover .trash-icon {
+  visibility: visible;
+}
+
+@media (min-width: 992px) {
+  .doc-sidebar {
+    top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .web-sidebar {
+    padding-top: 0;
+  }
+
+  .web-sidebar > a {
+    display: none;
+  }
+}

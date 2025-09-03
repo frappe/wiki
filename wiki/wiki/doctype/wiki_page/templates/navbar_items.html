@@ -1,50 +1,50 @@
 {% macro render_item(item, submenu=False, parent=False) %}
 {% if item.child_items %}
 
-	{% if parent %}
+{% if parent %}
 
-		{%- set dropdown_id = 'id-' + frappe.utils.generate_hash('Dropdown', 12) -%}
-		<li class="nav-item dropdown {% if submenu %} dropdown-submenu {% endif %}">
-			<a class="navbar-link dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button"
-				data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				{{ _(item.label) }}
-			</a>
-		  	<ul class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
-				{% for child in item.child_items %}
-					{{ render_item(child, True) }}
-			  {% endfor %}
-			</ul>
-		</li>
-	{% else %}
-		{%- set dropdown_id = 'id-' + frappe.utils.generate_hash('Dropdown', 12) -%}
-		<li class="dropdown {% if submenu %} dropdown-submenu {% endif %}">
-			<a class="dropdown-item dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button"
-				data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				{{ _(item.label) }}
-			</a>
-			<ul class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
-				{% for child in item.child_items %}
-					{{ render_item(child, True) }}
-			{% endfor %}
-			</ul>
-		</li>
-	{% endif %}
+{%- set dropdown_id = 'id-' + frappe.utils.generate_hash('Dropdown', 12) -%}
+<li class="nav-item dropdown {% if submenu %} dropdown-submenu {% endif %}">
+	<a class="navbar-link dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button" data-toggle="dropdown"
+		aria-haspopup="true" aria-expanded="false">
+		{{ _(item.label) }}
+	</a>
+	<ul class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
+		{% for child in item.child_items %}
+		{{ render_item(child, True) }}
+		{% endfor %}
+	</ul>
+</li>
+{% else %}
+{%- set dropdown_id = 'id-' + frappe.utils.generate_hash('Dropdown', 12) -%}
+<li class="dropdown {% if submenu %} dropdown-submenu {% endif %}">
+	<a class="dropdown-item dropdown-toggle" href="#" id="{{ dropdown_id }}" role="button" data-toggle="dropdown"
+		aria-haspopup="true" aria-expanded="false">
+		{{ _(item.label) }}
+	</a>
+	<ul class="dropdown-menu" aria-labelledby="{{ dropdown_id }}">
+		{% for child in item.child_items %}
+		{{ render_item(child, True) }}
+		{% endfor %}
+	</ul>
+</li>
+{% endif %}
 
 {% else %}
 
-	{% if parent %}
-	<li class="nav-item">
-		<a class="navbar-link" href="{{ (item.url or '')|abs_url }}"
-			{% if item.open_in_new_tab %} target="_blank" {% endif %}>
-			{{ _(item.label) }}
-		</a>
-	</li>
-	{% else %}
-	<a class="dropdown-item" href="{{ (item.url or '') | abs_url }}"
-		{% if item.open_in_new_tab %} target="_blank" {% endif %}>
+{% if parent %}
+<li class="nav-item">
+	<a class="navbar-link" href="{{ (item.url or '')|abs_url }}" {% if item.open_in_new_tab %} target="_blank" {% endif
+		%}>
 		{{ _(item.label) }}
 	</a>
-	{% endif %}
+</li>
+{% else %}
+<a class="dropdown-item" href="{{ (item.url or '') | abs_url }}" {% if item.open_in_new_tab %} target="_blank" {% endif
+	%}>
+	{{ _(item.label) }}
+</a>
+{% endif %}
 
 {% endif %}
 {% endmacro %}
@@ -52,23 +52,39 @@
 <ul class="navbar-nav">
 	{% include "wiki/doctype/wiki_page/templates/navbar_search.html" %}
 	{%- for item in navbar_items -%}
-		{% if not item.parent_label and item.right -%}
-			{{ render_item(item, parent=True) }}
-		{%- endif -%}
+	{% if not item.parent_label and item.right -%}
+	{{ render_item(item, parent=True) }}
+	{%- endif -%}
 	{%- endfor %}
 	{% if not only_static %}
-		{% block navbar_right_extension %}{% endblock %}
+	{% block navbar_right_extension %}{% endblock %}
 	{% endif %}
 	<div class="d-block d-sm-none sm-sidebar">
 		<!--sidebar-->
 	</div>
-	{% if add_dark_mode -%}
-		<li class="sun-moon-container">
-			<svg class="feather feather-moon hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-			<svg class="feather feather-sun hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-		</li>
-	{% endif %}
-	{% include "templates/includes/navbar/navbar_login.html" %}
+	<div style="display: flex; align-items: center;">
+		<div class="sun-moon-container">
+			<svg class="feather feather-moon hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+				stroke-linejoin="round">
+				<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+			</svg>
+			<svg class="feather feather-sun hide" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+				stroke-linejoin="round">
+				<circle cx="12" cy="12" r="5"></circle>
+				<line x1="12" y1="1" x2="12" y2="3"></line>
+				<line x1="12" y1="21" x2="12" y2="23"></line>
+				<line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+				<line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+				<line x1="1" y1="12" x2="3" y2="12"></line>
+				<line x1="21" y1="12" x2="23" y2="12"></line>
+				<line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+				<line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+			</svg>
+		</div>
+		{% include "templates/includes/navbar/navbar_login.html" %}
+	</div>
 
 
 </ul>

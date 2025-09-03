@@ -5,8 +5,8 @@ context("Wiki Sidebar", () => {
   });
 
   it("creates a new wiki sidebar group", () => {
-    cy.get(".wiki-options .dropdown-toggle").click();
-    cy.get(".edit-wiki-btn").click();
+    cy.get(".dropdown-toggle.wiki-options").click();
+    cy.get(".content-view .sidebar-edit-mode-btn").click();
 
     cy.get(".doc-sidebar").contains("Add Group").click();
     cy.get('input[name="title"]')
@@ -17,16 +17,15 @@ context("Wiki Sidebar", () => {
     cy.contains("Submit").click();
 
     cy.get(".doc-sidebar .sidebar-group:last-child .add-sidebar-page").click();
-    cy.get(".wiki-editor .ProseMirror")
-      .clear()
-      .type("Test Wiki Page{enter}New Wiki Page");
+    cy.get(".wiki-editor .wiki-title-input").clear().type("Test Wiki Page");
+    cy.get(".ace_text-input").first().focus().type("New Wiki Page");
     cy.get('.btn:contains("Save"):visible').click();
 
     cy.get(".sidebar-group").should("contain", "Test Wiki Sidebar");
   });
 
   it("deletes a wiki sidebar group when the group is empty", () => {
-    cy.get(".wiki-options .dropdown-toggle").click();
+    cy.get(".dropdown-toggle.wiki-options").click();
     cy.get(".edit-wiki-btn").click();
 
     cy.get(".doc-sidebar").contains("Test Wiki Page").parent().next().click();

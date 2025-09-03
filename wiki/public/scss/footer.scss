@@ -1,0 +1,63 @@
+.wiki-footer {
+  border-top: 1px solid var(--border-color);
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 650px;
+  margin: auto;
+
+  .btn {
+    margin-top: 1rem;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 11px 16px 13px !important;
+    width: 48%;
+    height: 100%;
+    transition: border-color 0.25s;
+    box-shadow: unset;
+    margin-bottom: 3.5rem;
+
+    p {
+      line-height: 20px;
+      margin: 0;
+
+      &:first-child {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--sidebar-text-color);
+      }
+
+      &:last-child {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--primary);
+        transition: color 0.25s;
+      }
+    }
+
+    &:hover {
+      background-color: transparent;
+      border: 1px solid var(--primary);
+    }
+  }
+
+  .btn.left {
+    margin-right: auto;
+    text-align: left;
+  }
+
+  .btn.right {
+    margin-left: auto;
+    text-align: right;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .wiki-footer {
+    .btn.left,
+    .btn.right {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+}

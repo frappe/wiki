@@ -1,0 +1,76 @@
+.page-toc {
+  background-color: var(--background-color);
+  font-size: $font-size-xs;
+  position: sticky;
+  top: 90px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  height: 90vh;
+  min-width: 220px;
+  max-width: 220px;
+  margin-right: 16px;
+  padding-bottom: 10rem;
+  margin-left: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .page-toc-title {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 13px;
+    letter-spacing: 0.09em;
+    text-align: left;
+    margin-bottom: 0.75rem;
+  }
+
+  h5 {
+    font-size: $font-size-xs;
+    padding-left: 1rem;
+    letter-spacing: 0.4px;
+    line-height: 28px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 0;
+  }
+
+  div {
+    width: 100%;
+    padding: 0;
+    top: 0;
+    border-left: 1px solid var(--border-color);
+
+    ul {
+      padding-bottom: 0;
+      margin-bottom: 0;
+
+      li {
+        a {
+          text-overflow: ellipsis;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+
+  .active {
+    color: var(--text-color);
+    box-shadow: 1px 0 0 var(--primary) inset;
+    transition: color 0.2s, box-shadow 0.2s linear, transform 0.2s linear;
+  }
+
+  a {
+    font-size: 13px;
+    padding: 0.25rem;
+    color: var(--sidebar-text-color);
+    transform: translateX(-1px);
+  }
+
+  a:hover {
+    color: var(--toc-hover-text-color);
+  }
+}

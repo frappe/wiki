@@ -9,5 +9,5 @@ def execute():
 	try:
 		frappe.db.sql("alter table `tabWiki Page Patch` drop column is_new;")
 		frappe.db.commit()
-	except BaseException:
+	except Exception:
 		pass

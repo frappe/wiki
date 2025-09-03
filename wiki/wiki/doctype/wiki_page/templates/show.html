@@ -1,30 +1,23 @@
-<div class="from-markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
-	<div class="d-flex justify-content-between align-items-center">
-		<h1 class="wiki-title">{{ title }}</h1>
-		<div class="dropdown wiki-options">
-			<div class="dropdown-toggle" type="button" role="button" id="wikiOptionsButton" data-toggle="dropdown"
-				aria-label="Wiki Option Button" aria-expanded="false">
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-					stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-					class="feather feather-more-vertical">
-					<circle cx="12" cy="12" r="1"></circle>
-					<circle cx="12" cy="5" r="1"></circle>
-					<circle cx="12" cy="19" r="1"></circle>
-				</svg>
+<div class="from-markdown markdown {% if edit_wiki_page or new_wiki_page %}hide{% endif %}">
+	<div class="alert alert-warning admin-banner {% if not (is_admin and pending_patches_count)%}hide{% endif %}"
+		role="alert">
+		<div class="d-flex justify-content-between align-items-center">
+			<div>This space has
+				<strong id="pending-patches-count">{{ pending_patches_count }}</strong> change(s) pending for
+				review.
 			</div>
-			<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
-				<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
-				<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
-				<a class="dropdown-item show-revisions" href="#" data-toggle="modal"
-					data-target="#revisionsModal">Revisions</a>
-			</div>
+			<button class="btn btn-sm btn-warning review-changes-btn">Review changes</button>
 		</div>
 	</div>
+	<div class="d-flex justify-content-between align-items-center">
+		<h1 class="wiki-title">{{ title }}</h1>
+	</div>
 	<div class="wiki-content">
-		{{ content }}
+		{{frappe.utils.md_to_html(content)}}
 	</div>
 	<input value={{ name }} class="d-none" name="wiki-page-name"></input>
 	{% include "wiki/doctype/wiki_page/templates/revisions.html" %}
+	{% include "wiki/doctype/wiki_page/templates/page_settings.html" %}
 </div>
 <div class="wiki-editor {% if not edit_wiki_page and not new_wiki_page %}hide{% endif %}">
 	{% include "wiki/doctype/wiki_page/templates/editor.html" %}
@@ -47,9 +40,9 @@
 	</div>
 </div>
 
-<div class="flex my-4 wiki-page-meta hide d-print-none">
+<div class="flex my-4 wiki-page-meta d-print-none">
 	{%- if show_feedback -%}
-	<div class="flex mt-4">
+	<div class="flex">
 		<span class="text-sm d-none d-sm-block">Was this article helpful?</span>
 		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">Give Feedback</span>
 	</div>
@@ -60,16 +53,40 @@
 	<div class="user-contributions" data-date="{{ last_revision.modified }}">
 	</div>
 	{%- endif -%}
+	{%- if show_dropdown -%}
+	<div class="dropdown">
+		<div class="dropdown-toggle wiki-options menu" type="button" role="button" id="wikiOptionsButton"
+			data-toggle="dropdown" aria-label="Wiki Option Button" aria-expanded="false">
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+				stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+				class="feather feather-more-horizontal">
+				<circle cx="5" cy="12" r="1"></circle>
+				<circle cx="12" cy="12" r="1"></circle>
+				<circle cx="19" cy="12" r="1"></circle>
+			</svg>
+		</div>
+		<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
+			<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
+			<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
+			<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">
+				Revisions
+			</a>
+			<a class="dropdown-item show-page-settings" href="#" data-toggle="modal" data-target="#pageSettingsModal">
+				Page Settings
+			</a>
+		</div>
+	</div>
+	{%- endif -%}
 </div>
-<div class="wiki-footer hide d-print-none">
+<div class="wiki-footer d-print-none">
 	<div class="forward-back">
-		<a href="#" class="btn left">
+		<a href="#" class="btn left footer-prev-page-link">
 			<p>Previous Page</p>
-			<p>Left</p>
+			<p class="footer-prev-page">Left</p>
 		</a>
-		<a href="#" class="btn pull-right right">
+		<a href="#" class="btn pull-right right footer-next-page-link">
 			<p>Next Page</p>
-			<p>Right</p>
+			<p class="footer-next-page">Right</p>
 		</a>
 		</a>
 	</div>
@@ -77,13 +94,16 @@
 
 <script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
 <script>
-	const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`;
+	/** // const patchNewCode = `<h1>{{ patch_new_title }}</h1>{{ patch_new_code }}`;
+	// const patchNewCode = {title: `{{patch_new_title}}`, content: `{{patch_new_code}}`} **/
+	const patchNewCode = `{{patch_new_title}},{{patch_new_code}}`
 	const wikiSearchScope = `{{ wiki_search_scope or "" }}`;
 </script>
 
 {{ include_script('wiki.bundle.js') }}
 
 <script>
+	var wikiPageName = `{{name}}`;
 	function getSidebarItems() {
 		let side = {};
 
@@ -116,5 +136,5 @@
 </script>
 
 {%- if script -%}
-<script>{ { script } }</script>
+<script>{{ script }}</script>
 {%- endif -%}

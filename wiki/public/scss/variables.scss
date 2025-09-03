@@ -1,0 +1,224 @@
+@import "frappe/public/scss/website/variables";
+
+body {
+  --gray-700: #242a30;
+  --gray-800: #1c2126;
+  --gray-900: #161a1f;
+
+  // light mode vars
+  --text-color: #494949;
+  --background-color: white;
+  --sidebar-bg-color: #f8f8f8;
+  --sidebar-hover-color: #ebebe9;
+
+  --admin-banner-bg: #f8f8f8;
+  --admin-banner-text: #242a30;
+  --admin-banner-btn-bg: #242a30;
+  --admin-banner-btn-active-bg: #383838;
+  --admin-banner-btn-text: #fff;
+  --admin-banner-btn-hover-bg: #1c2126;
+
+  --btn-primary-color: #fff;
+  --btn-primary-bg-color: #171717;
+  --btn-primary-hover-bg-color: #383838;
+  --btn-primary-active-bg-color: #525252;
+
+  --btn-secondary-color: #383838;
+  --btn-secondary-bg-color: #f3f3f3;
+  --btn-secondary-hover-bg-color: #ededed;
+  --btn-secondary-active-bg-color: #e2e2e2;
+
+  --active-item-color: #f1f1f0;
+  --active-item-text-color: var(--primary);
+
+  --searchbar-color: #f4f5f6;
+  --border-color: var(--gray-300);
+
+  --bqoute-border-color: var(--gray-400);
+  --bqoute-bg-color: var(--gray-50);
+
+  --code-bg-color: var(--light);
+  --code-text-color: var(--purple-600);
+
+  --sidebar-text-color: var(--gray-600);
+  --sidebar-hover-color: #f3f3f3;
+  --sidebar-active-item-color: #fff;
+
+  --htmldiff-ins-color: #dcfce7;
+  --htmldiff-del-color: #fee2e2;
+  --diff-ins-bg-color: #dcfce7;
+  --diff-ins-text-color: var(--text-color);
+  --diff-del-bg-color: #fee2e2;
+  --diff-del-text-color: var(--text-color);
+
+  --editor-button-text-color: var(--gray-700);
+  --editor-hover-button-color: var(--gray-100);
+
+  --navbar-dropdown-bg-color: white;
+  --navbar-dropdown-hover-color: #c0c0c0;
+  --toc-hover-text-color: var(--gray-900);
+
+  --icon-stroke: var(--text-color);
+
+  --editor-line-no-bg-color: var(--gray-100);
+
+  --editor-background-color: #f3f3f3;
+
+  --button-background-color: #383838;
+
+  --editor-toolbar-btn-color: var(--gray-800);
+  --editor-toolbar-btn-bg-color: var(--editor-background-color);
+
+  --editor-text-selection-color: #d0d0d0;
+
+  --content-text-color: #494949;
+  --table-border-color: #cbcbcb;
+  --table-header-color: #f1f1f0;
+
+  --scroll-thumb-color: var(--scrollbar-thumb-color);
+  --scroll-track-color: var(--scrollbar-track-color);
+  --search-modal-bg-color: white;
+  --search-modal-color: #494949;
+  --search-modal-hover-color: var(--sidebar-hover-color);
+
+  --badge-color: #525252;
+  --badge-bg-color: #e8e8e8;
+
+  --view-bg-color: #ececec;
+  --view-btn-bg: #f3f3f3;
+  --view-btn-text: #383838;
+  --view-btn-bg-active: #fff;
+  --view-btn-text-active: #111827;
+
+  // ------------------------------------------
+
+  font-family: "InterVariable", "Inter", "-apple-system", "BlinkMacSystemFont",
+    "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
+
+  background-color: var(--background-color);
+  color: var(--text-color);
+  height: auto;
+}
+
+body.dark {
+  --primary: var(--gray-100);
+
+  --background-color: #030712;
+  --text-color: var(--gray-50);
+  --sidebar-bg-color: var(--background-color); /* #111111; */
+  --sidebar-hover-color: #242a30;
+
+  --admin-banner-bg: #242a30;
+  --admin-banner-text: #fff;
+  --admin-banner-btn-bg: #f8f8f8;
+  --admin-banner-btn-active-bg: #e2e2e2;
+  --admin-banner-btn-text: #242a30;
+  --admin-banner-btn-hover-bg: #e2e2e2;
+
+  --btn-primary-color: #000;
+  --btn-primary-bg-color: #fff;
+  --btn-primary-hover-bg-color: #d4d4d4;
+  --btn-primary-active-bg-color: #afafaf;
+
+  --btn-secondary-color: #d4d4d4;
+  --btn-secondary-bg-color: #333c44;
+  --btn-secondary-hover-bg-color: #313a41;
+  --btn-secondary-active-bg-color: #2b3339;
+
+  --active-item-color: var(--gray-700);
+  --searchbar-color: #242a30;
+  --border-color: var(--gray-700);
+
+  --bqoute-border-color: #47474d;
+  --bqoute-bg-color: var(--gray-900);
+
+  --code-bg-color: var(--purple-900);
+  --code-text-color: #ad63ef;
+  --input-bg-color: #242a30;
+
+  --sidebar-text-color: var(--gray-400);
+  --sidebar-hover-color: #242a30;
+  --sidebar-active-item-color: var(--gray-700);
+
+  --bg-orange: var(--orange-600);
+  --text-on-orange: var(--orange-50);
+  --bg-green: var(--green-700);
+  --text-on-green: var(--green-50);
+
+  --htmldiff-ins-color: #006400;
+  --htmldiff-del-color: #8b0000;
+  --diff-ins-bg-color: #006400;
+  --diff-ins-text-color: var(--text-color);
+  --diff-del-bg-color: #8b0000;
+  --diff-del-text-color: var(--text-color);
+
+  --editor-button-text-color: var(--gray-400);
+  --editor-hover-button-color: var(--gray-700);
+  --subtle-fg: var(--btn-secondary-bg-color);
+
+  --navbar-dropdown-bg-color: #32393f;
+  --navbar-dropdown-hover-color: #262c30;
+  --toc-hover-text-color: #fff;
+  --editor-line-no-bg-color: var(--gray-800);
+  --control-bg-on-gray: var(--gray-700);
+  --editor-background-color: #333c44;
+
+  --button-background-color: #383838;
+
+  --editor-toolbar-btn-color: var(--gray-100);
+  --editor-toolbar-btn-bg-color: var(--editor-background-color);
+
+  --editor-text-selection-color: #606060;
+
+  --content-text-color: #d1d5dc;
+  --table-border-color: #434343;
+  --table-header-color: #181f24;
+
+  --scroll-thumb-color: #949494;
+  --scroll-track-color: #3f3f3f;
+  --sidebar-font-color: #d1d5dc;
+  --search-modal-bg-color: rgb(35, 35, 35);
+  --search-modal-color: rgb(212, 212, 212);
+  --search-modal-hover-color: #343434;
+
+  --badge-color: #cdcdcd;
+  --badge-bg-color: #484848;
+
+  --view-bg-color: #272727;
+  --view-btn-bg: #333c44;
+  --view-btn-text: #d4d4d4;
+  --view-btn-bg-active: #3d3d3d;
+  --view-btn-text-active: #d4d4d4;
+
+  .draft-wiki-page {
+    background: var(--gray-700);
+    color: var(--gray-50);
+  }
+
+  .navbar .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+
+  .alert-message {
+    color: var(--gray-800) !important;
+  }
+}
+
+$font-sizes-desktop: (
+  "sm": 0.75rem,
+  "base": 1rem,
+  "lg": 1.125rem,
+  "xl": 1.41rem,
+  "2xl": 1.6rem,
+  "3xl": 2rem,
+);
+
+$font-sizes-mobile: (
+  "sm": 0.75rem,
+  "base": 1rem,
+  "lg": 1.125rem,
+  "xl": 1.25rem,
+  "2xl": 1.5rem,
+  "3xl": 1.75rem,
+);

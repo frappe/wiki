@@ -6,7 +6,10 @@
  "engine": "InnoDB",
  "field_order": [
   "wiki_page",
-  "response"
+  "status",
+  "rating",
+  "feedback",
+  "email_id"
  ],
  "fields": [
   {
@@ -18,15 +21,33 @@
    "reqd": 1
   },
   {
-   "fieldname": "response",
-   "fieldtype": "Table",
-   "label": "Response",
-   "options": "Wiki Feedback Item"
+   "fieldname": "rating",
+   "fieldtype": "Rating",
+   "in_list_view": 1,
+   "label": "Rating"
+  },
+  {
+   "fieldname": "feedback",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Feedback"
+  },
+  {
+   "fieldname": "email_id",
+   "fieldtype": "Data",
+   "label": "Email Id"
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nClosed"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-12-06 22:12:33.836133",
+ "modified": "2024-06-03 16:29:53.387846",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Feedback",
@@ -79,5 +100,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "wiki_page"
 }

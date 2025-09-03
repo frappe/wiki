@@ -10,51 +10,53 @@
 
 
 {% block page_content %}
-<input class="d-none" autocomplete="off" type="text" name="limit" value="{{contributions|length}}">
+<div>
+	<input class="d-none" autocomplete="off" type="text" name="limit" value="{{contributions|length}}">
 
-<div class='contributions-header'> {{pilled_title}} </div>
+	<div class='contributions-header'> {{pilled_title}} </div>
 
-<div class="frappe-card">
-	<div class="table-area">
-		<div class="list-jobs table-responsive">
-			{% if contributions %}
-			<table class="table">
-				<thead class="white">
-					<tr>
-						<td style="width: 20%">{{ _("Status") }}</th>
-						<td style="width: 30%">{{ _("Message") }}</th>
-						<td style="width: 30%">{{ _("Last update on") }}</th>
-						<td style="width: 20%">{{ _("Link") }}</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for j in contributions %}
-					<tr>
-						<td class="worker-name"><span class="indicator-pill no-margin {{j.color}}">&nbsp;&nbsp;{{
-								j.status }}</span></td>
-						<td>{{ j.message }}</td>
-						<td>{{ j.modified }}</td>
-						<td> <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">Open Draft</a>
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			{% else %}
-			<div class="no-background-jobs">
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
-				<p class="text-muted">{{ _("No Drafts Made") }}</p>
+	<div class="drafts">
+		<div class="table-area">
+			<div class="list-jobs table-responsive">
+				{% if contributions %}
+				<table class="table">
+					<thead class="">
+						<tr>
+							<td style="width: 20%">{{ _("Status") }}</th>
+							<td style="width: 30%">{{ _("Message") }}</th>
+							<td style="width: 30%">{{ _("Last update on") }}</th>
+							<td style="width: 20%">{{ _("Link") }}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for j in contributions %}
+						<tr>
+							<td><span class="indicator-pill no-margin {{j.color}}">&nbsp;&nbsp;{{
+									j.status }}</span></td>
+							<td>{{ j.message }}</td>
+							<td>{{ j.modified }}</td>
+							<td> <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">Open Draft</a>
+							</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+				{% else %}
+				<div class="no-background-jobs">
+					<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
+					<p class="text-muted">{{ _("No Drafts Made") }}</p>
+				</div>
+				{% endif %}
+
 			</div>
-			{% endif %}
-
 		</div>
 	</div>
+	{% if contributions %}
+	<br>
+	<div> <button class='btn pull-right get_contributions'>More</button></div>
+	<br>
+	<br>
 </div>
-{% if contributions %}
-<br>
-<div> <button class='btn pull-right get_contributions'>More</button></div>
-<br>
-<br>
 
 {% endif %}
 

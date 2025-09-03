@@ -1,14 +1,12 @@
 # Copyright (c) 2023, Frappe and contributors
 # For license information, please see license.txt
 import json
-from random import random
 
 import frappe
 import pymysql
 from frappe.model.document import Document
-from frappe.website.utils import cleanup_page_name
 
-from wiki.wiki.doctype.wiki_page.search import drop_index, rebuild_index_in_background
+from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
 
 
 class WikiSpace(Document):
@@ -35,52 +33,50 @@ class WikiSpace(Document):
 			)
 
 	def before_save(self):
+		self.update_wiki_page_routes()
+
+	def update_wiki_page_routes(self):
 		# prepend space route to the route of wiki page
 		old_route = frappe.db.get_value("Wiki Space", self.name, "route")
 		if not old_route or self.route == old_route:
 			return
 
-		for wiki_sidebar in self.wiki_sidebars:
-			wiki_page = frappe.get_doc("Wiki Page", wiki_sidebar.wiki_page)
-			prepend_string = f"{self.route}/" if self.route else ""
+		for i, wiki_sidebar in enumerate(self.wiki_sidebars):
+			wiki_page = frappe.get_value("Wiki Page", wiki_sidebar.wiki_page, ["name", "route"], as_dict=1)
+			wiki_page_route = wiki_page.route.replace(old_route, self.route, 1)
+
+			frappe.publish_progress(
+				percent=i * 100 / len(self.wiki_sidebars),
+				title=f"Updating Wiki Page routes - <b>{self.route}</b>",
+				description=f"{i}/{len(self.wiki_sidebars)}",
+			)
 
 			try:
-				frappe.db.set_value(
-					"Wiki Page",
-					wiki_page.name,
-					{"route": f"{prepend_string}{wiki_page.route.split('/')[-1]}"},
-				)
-			except pymysql.err.IntegrityError:
-				try:
-					# prepending group name
+				if wiki_page_route:
 					frappe.db.set_value(
 						"Wiki Page",
-						wiki_page.name,
-						{
-							"route": f"{prepend_string}{cleanup_page_name(wiki_sidebar.parent_label)}-{wiki_page.route.split('/')[-1]}"
-						},
+						wiki_sidebar.wiki_page,
+						"route",
+						wiki_page_route,
 					)
-				except pymysql.err.IntegrityError:
-					# prepending group name and appending random number
-					frappe.db.set_value(
-						"Wiki Page",
-						wiki_page.name,
-						{
-							"route": f"{prepend_string}{cleanup_page_name(wiki_sidebar.parent_label)}-{wiki_page.route.split('/')[-1]}-{random() * 10000}"
-						},
-					)
+			except Exception as e:
+				if isinstance(e, pymysql.err.IntegrityError):
+					frappe.throw(f"Wiki Page with route <b>{wiki_page.route}</b> already exists.")
+				else:
+					raise e
 
 	def on_update(self):
-		rebuild_index_in_background()
+		build_index_in_background()
 
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
 
 	def on_trash(self):
-		drop_index(self.route)
+		drop_index()
 
 		# clear sidebar cache
 		frappe.cache().hdel("wiki_sidebar", self.name)
+		build_index_in_background()
 
 	@frappe.whitelist()
 	def clone_wiki_space_in_background(self, new_space_route):
