@@ -9,7 +9,7 @@
         </div>
     </div>
     <nav class="py-2">
-        {{ render_wiki_tree(nested_tree) }}
+        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '') }}
     </nav>
 </div>
 
@@ -18,10 +18,16 @@
         return {
             // Store expanded states with persistence
             expandedStates: Alpine.$persist({}),
+            currentRoute: '{{ doc.route if doc else "" }}',
             
             init() {
-                // Initialize any setup if needed
-                console.log('Wiki sidebar initialized with Alpine.js');
+                // Auto-expand parents of current page
+                this.expandCurrentPageParents();
+                
+                // Debug: log all route elements
+                this.$nextTick(() => {
+                    const allRouteElements = document.querySelectorAll('[data-route]');
+                });
             },
             
             toggleNode(nodeId) {
@@ -32,6 +38,38 @@
             isExpanded(nodeId) {
                 // Return whether this node is expanded (default to false)
                 return this.expandedStates[nodeId] || false;
+            },
+            
+            expandCurrentPageParents() {
+                // Find and expand all parent groups of the current page
+                if (!this.currentRoute) return;
+                
+                // Wait for DOM to be fully rendered
+                this.$nextTick(() => {
+                    // Find the current page element
+                    const currentPageElement = document.querySelector(`[data-route="${this.currentRoute}"]`);
+                    if (!currentPageElement) return;
+                    
+                    // Find all parent group containers and expand them
+                    let parentElement = currentPageElement.parentElement;
+                    while (parentElement) {
+                        // Look for parent wiki-children containers
+                        if (parentElement.classList.contains('wiki-children')) {
+                            // Find the sibling wiki-item-content that has a data-node-id
+                            const parentItem = parentElement.parentElement;
+                            if (parentItem) {
+                                const parentContent = parentItem.querySelector('.wiki-item-content[data-node-id]');
+                                if (parentContent) {
+                                    const nodeId = parentContent.getAttribute('data-node-id');
+                                    if (nodeId) {
+                                        this.expandedStates[nodeId] = true;
+                                    }
+                                }
+                            }
+                        }
+                        parentElement = parentElement.parentElement;
+                    }
+                });
             }
         }
     }
