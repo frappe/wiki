@@ -5,6 +5,11 @@
 - [ ] Theming (Dark mode with FrappeUI styles)
 
 
+### Vishwajeet ToDos
+
+1. Header styles + Dynamic Navbar Items from space
+2. Image uploads (see file uploader component code in FrappeUI)
+
 Next sprint:
 
 - [ ] Get Toasts working
