@@ -4,7 +4,6 @@
 *.swp
 tags
 wiki/docs/current
-wiki/public/css
 wiki/public/dist
 dist/
 css-rtl/
@@ -16,3 +15,4 @@ cypress/videos
 __pycache__/
 wiki/public/frontend/
 wiki/www/frontend.html
+wiki/public/css/tailwind.css
