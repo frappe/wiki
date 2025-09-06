@@ -18,13 +18,18 @@
 
     {% block head %} {% endblock %}
 </head>
-<body>
-    {% include "templates/wiki/includes/header.html" %}
-    {% include "templates/wiki/includes/sidebar.html" %}
+<body class="h-full">
+    <div class="h-full flex">
+        {% include "templates/wiki/includes/sidebar.html" %}
+
+        <div>
+            {% include "templates/wiki/includes/header.html" %}
+            <main class="p-3">
+                {% block body %} {% endblock %}
+            </main>
+        </div>
+    </div>
     
-    <main>
-        {% block body %} {% endblock %}
-    </main>
 </body>
 {% block scripts %} {% endblock %}
 </html>

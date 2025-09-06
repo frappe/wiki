@@ -1,13 +1,12 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 
-<div class="bg-gray-100">
-    This will be the sidebar!
-    <img class="size-8" src="{{ wiki_space.light_mode_logo }}"/>
-
 <div class="wiki-sidebar w-72 bg-gray-50 border-r border-gray-200 h-screen overflow-y-auto" 
      x-data="wikiSidebar()">
     <div class="p-4 border-b border-gray-200 bg-white">
-        <h3 class="text-lg font-semibold text-gray-700">Wiki Navigation</h3>
+        <div>
+            <img class="size-8" src="{{ wiki_space.light_mode_logo }}"/>
+            <h3 class="text-lg font-semibold text-gray-700">{{ wiki_space.space_name or _("Wiki") }}</h3>
+        </div>
     </div>
     <nav class="py-2">
         {{ render_wiki_tree(nested_tree) }}
@@ -37,4 +36,3 @@
         }
     }
 </script>
-</div>

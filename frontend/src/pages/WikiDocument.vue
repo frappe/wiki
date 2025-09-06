@@ -1,7 +1,7 @@
 <template>  
 <div>
-    Edit Wiki Document {{ pageId }}
     <div v-if="wikiDoc.doc">
+        Editing <strong>{{ wikiDoc.doc.title }}</strong>
         <div>
             <a target="_blank" :href="`http://wiki.localhost:8000/${wikiDoc.doc.route}`">View Page</a>
         </div>

@@ -1,8 +1,8 @@
 <template>
     <Button :loading="!editor && editor.loading" @click="saveToDB">Save to DB</Button>
 
-    <div class="border border-gray-300 rounded-md p-4 mt-4">
-        <Milkdown />
+    <div class="border border-gray-300 rounded-md min-h-28">
+        <Milkdown autofocus />
     </div>
 </template>
 
@@ -13,18 +13,17 @@ import "@milkdown/crepe/theme/frame.css";
 import { Crepe } from "@milkdown/crepe";
 import { getMarkdown } from "@milkdown/kit/utils";
 import { Milkdown, useEditor } from "@milkdown/vue";
-import { watch } from "vue";
 
 const props = defineProps({
     content: {
         type: String,
-        required: true
+        default: "",
     }
 });
 
 const emit = defineEmits(['save']);
 
-const content = props.content;
+const content = props.content || "start editing";
 const editor = useEditor((root) => {
     return new Crepe({ root, defaultValue: content });
 });
