@@ -1,3 +1,118 @@
-<div>
+<div class="bg-gray-100">
     This will be the sidebar!
+    <img class="size-8" src="{{ wiki_space.light_mode_logo }}"/>
+
+<!-- Updated Jinja Macro -->
+{% macro render_wiki_tree(nodes, level=0) %}
+    {% if nodes %}
+        <ul class="wiki-tree">
+            {% for node in nodes %}
+                <li class="wiki-item {{ 'is-group' if node.is_group else 'is-page' }}">
+                    <div class="wiki-item-content flex items-center py-2 px-4 hover:bg-gray-100 cursor-pointer transition-colors duration-200 {{ 'pl-8' if level == 1 else 'pl-12' if level == 2 else 'pl-16' if level >= 3 else 'pl-4' }}">
+                        {% if node.is_group %}
+                            <button class="wiki-toggle w-5 h-5 flex items-center justify-center mr-2 cursor-pointer transition-transform duration-200" 
+                                    onclick="toggleWikiNode(this)" 
+                                    data-expanded="false"
+                                    type="button">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </button>
+                        {% else %}
+                            <span class="w-5 h-5 mr-2"></span>
+                        {% endif %}
+                        
+                        <a href="/{{ node.route }}" class="wiki-link flex items-center text-gray-700 hover:text-blue-600 no-underline flex-1 transition-colors duration-200">
+                            {% if node.is_group %}
+                                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                </svg>
+                            {% else %}
+                                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            {% endif %}
+                            <span class="wiki-title text-sm {{ 'font-medium' if node.is_group else 'font-normal' }}">{{ node.title }}</span>
+                        </a>
+                    </div>
+                    
+                    {% if node.children %}
+                        <div class="wiki-children overflow-hidden transition-all duration-300" style="max-height: 0px;">
+                            {{ render_wiki_tree(node.children, level + 1) }}
+                        </div>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endmacro %}
+
+<div class="wiki-sidebar w-72 bg-gray-50 border-r border-gray-200 h-screen overflow-y-auto">
+    <div class="p-4 border-b border-gray-200 bg-white">
+        <h3 class="text-lg font-semibold text-gray-700">Wiki Navigation</h3>
+    </div>
+    <nav class="py-2">
+        {{ render_wiki_tree(nested_tree) }}
+    </nav>
+</div>
+
+<script>
+    function toggleWikiNode(toggleElement) {
+    // More robust way to find the parent item
+    const item = toggleElement.closest('li');
+    
+    if (!item) {
+        console.error('Could not find parent list item');
+        return;
+    }
+    
+    const children = item.querySelector('.wiki-children');
+    const chevron = toggleElement.querySelector('svg');
+    
+    if (!children) {
+        console.error('No children container found');
+        return;
+    }
+    
+    if (!chevron) {
+        console.error('No chevron SVG found');
+        return;
+    }
+    
+    const isCollapsed = children.style.maxHeight === '0px' || !children.style.maxHeight;
+    
+    if (isCollapsed) {
+        // Expand
+        children.style.maxHeight = children.scrollHeight + 'px';
+        chevron.style.transform = 'rotate(90deg)';
+    } else {
+        // Collapse
+        children.style.maxHeight = '0px';
+        chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Alternative approach using data attributes (recommended)
+function toggleWikiNodeAlt(toggleElement) {
+    const item = toggleElement.closest('li');
+    const children = item?.querySelector('.wiki-children');
+    const chevron = toggleElement.querySelector('svg');
+    
+    if (!children || !chevron) return;
+    
+    const isExpanded = toggleElement.dataset.expanded === 'true';
+    
+    if (isExpanded) {
+        // Collapse
+        children.style.maxHeight = '0px';
+        chevron.style.transform = 'rotate(0deg)';
+        toggleElement.dataset.expanded = 'false';
+    } else {
+        // Expand
+        children.style.maxHeight = children.scrollHeight + 'px';
+        chevron.style.transform = 'rotate(90deg)';
+        toggleElement.dataset.expanded = 'true';
+    }
+}
+</script>
 </div>

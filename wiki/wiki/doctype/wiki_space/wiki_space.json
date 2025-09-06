@@ -21,7 +21,9 @@
   "light_mode_logo",
   "dark_mode_logo",
   "section_break_fhui",
-  "navbar_items"
+  "navbar_items",
+  "version_3_tab",
+  "root_group"
  ],
  "fields": [
   {
@@ -96,11 +98,24 @@
   {
    "fieldname": "section_break_z5nn",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "version_3_tab",
+   "fieldtype": "Tab Break",
+   "label": "Version 3"
+  },
+  {
+   "fieldname": "root_group",
+   "fieldtype": "Link",
+   "label": "Root Group",
+   "link_filters": "[[\"Wiki Document\",\"is_group\",\"=\",1]]",
+   "options": "Wiki Document",
+   "unique": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 00:06:22.631960",
+ "modified": "2025-09-06 15:52:31.172451",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

@@ -2,6 +2,7 @@
 	"actions": [],
 	"allow_rename": 1,
 	"creation": "2025-08-30 16:32:29.700227",
+	"default_view": "Tree",
 	"doctype": "DocType",
 	"engine": "InnoDB",
 	"field_order": [
@@ -95,7 +96,7 @@
 	"index_web_pages_for_search": 1,
 	"is_tree": 1,
 	"links": [],
-	"modified": "2025-08-30 16:35:52.041755",
+	"modified": "2025-09-06 15:53:35.663679",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Document",
@@ -116,6 +117,7 @@
 		}
 	],
 	"row_format": "Dynamic",
+	"show_title_field_in_link": 1,
 	"sort_field": "creation",
 	"sort_order": "DESC",
 	"states": [],
