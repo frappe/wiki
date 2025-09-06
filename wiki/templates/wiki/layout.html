@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {% block title %} 
+        {{_("Frappe Wiki")}}
+        {% endblock %}
+    </title>
+
+    <link rel="stylesheet" href="/assets/wiki/css/tailwind.css">
+
+    <script src="/assets/wiki/js/vendor/alpinejs/plugins/persist.js"></script>
+    <script src="/assets/wiki/js/vendor/alpinejs/plugins/collapse.js"></script>
+
+    <script defer src="/assets/wiki/js/vendor/alpinejs/core.js"></script>
+
+    {% block head %} {% endblock %}
+</head>
+<body class="h-full">
+    {% include "templates/wiki/includes/sidebar.html" %}
+
+    <div class="h-full transition-all duration-300"
+         x-data
+         :class="$store.sidebar.isCollapsed ? 'ml-0' : 'ml-72'">
+        {% include "templates/wiki/includes/header.html" %}
+        <main class="p-3 h-full overflow-y-auto">
+            {% block body %} {% endblock %}
+        </main>
+    </div>
+    
+</body>
+{% block scripts %} {% endblock %}
+</html>

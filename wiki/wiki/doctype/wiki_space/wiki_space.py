@@ -10,6 +10,28 @@ from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_i
 
 
 class WikiSpace(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+		from frappe.website.doctype.top_bar_item.top_bar_item import TopBarItem
+
+		from wiki.wiki.doctype.wiki_group_item.wiki_group_item import WikiGroupItem
+
+		app_switcher_logo: DF.AttachImage | None
+		dark_mode_logo: DF.AttachImage | None
+		favicon: DF.AttachImage | None
+		light_mode_logo: DF.AttachImage | None
+		navbar_items: DF.Table[TopBarItem]
+		root_group: DF.Link | None
+		route: DF.Data
+		space_name: DF.Data | None
+		wiki_sidebars: DF.Table[WikiGroupItem]
+	# end: auto-generated types
+
 	def before_insert(self):
 		# insert a new wiki page when sidebar is empty
 		if not self.wiki_sidebars:

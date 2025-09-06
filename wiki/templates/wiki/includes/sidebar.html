@@ -1,0 +1,124 @@
+{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
+
+<div class="wiki-sidebar bg-gray-50 border-r border-gray-200 fixed left-0 top-0 h-screen flex flex-col transition-transform duration-300" 
+     x-data="wikiSidebar()"
+     :class="isCollapsed ? '-translate-x-64' : 'w-72'">
+    
+    <!-- Fixed Header -->
+    <div class="p-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div class="flex items-center justify-between">
+            <img class="size-8" src="{{ wiki_space.light_mode_logo }}"/>
+            <h3 class="text-lg font-semibold text-gray-900">{{ wiki_space.space_name or _("Wiki") }}</h3>
+        </div>
+    </div>
+    
+    <!-- Scrollable Navigation -->
+    <nav class="py-2 flex-1 overflow-y-auto">
+        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '') }}
+    </nav>
+    
+    <!-- Fixed Collapse Button -->
+    <div class="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+        <button @click="toggleSidebar()" 
+                class="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200">
+            <svg class="w-4 h-4 mr-2 transition-transform duration-200" 
+                 :class="isCollapsed ? 'rotate-180' : ''"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            <span x-text="isCollapsed ? 'Expand' : 'Collapse'"></span>
+        </button>
+    </div>
+</div>
+
+<!-- Collapse/Expand Toggle Button (visible when sidebar is collapsed) -->
+<div x-show="$store.sidebar.isCollapsed" 
+     x-data
+     class="fixed left-2 bottom-4 z-50 transition-opacity duration-300">
+    <button @click="$store.sidebar.toggle()" 
+            class="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-md shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200">
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+    </button>
+</div>
+
+<script>
+    // Initialize Alpine.js store for sidebar state
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('sidebar', {
+            isCollapsed: Alpine.$persist(false),
+            toggle() {
+                this.isCollapsed = !this.isCollapsed;
+            }
+        });
+    });
+
+    function wikiSidebar() {
+        return {
+            // Store expanded states with persistence
+            expandedStates: Alpine.$persist({}),
+            currentRoute: '{{ doc.route if doc else "" }}',
+            
+            get isCollapsed() {
+                return this.$store.sidebar.isCollapsed;
+            },
+            
+            init() {
+                // Auto-expand parents of current page
+                this.expandCurrentPageParents();
+                
+                // Debug: log all route elements
+                this.$nextTick(() => {
+                    const allRouteElements = document.querySelectorAll('[data-route]');
+                });
+            },
+            
+            toggleSidebar() {
+                this.$store.sidebar.toggle();
+            },
+            
+            toggleNode(nodeId) {
+                // Toggle the expanded state for this node
+                this.expandedStates[nodeId] = !this.expandedStates[nodeId];
+            },
+            
+            isExpanded(nodeId) {
+                // Return whether this node is expanded (default to false)
+                return this.expandedStates[nodeId] || false;
+            },
+            
+            expandCurrentPageParents() {
+                // Find and expand all parent groups of the current page
+                if (!this.currentRoute) return;
+                
+                // Wait for DOM to be fully rendered
+                this.$nextTick(() => {
+                    // Find the current page element
+                    const currentPageElement = document.querySelector(`[data-route="${this.currentRoute}"]`);
+                    if (!currentPageElement) return;
+                    
+                    // Find all parent group containers and expand them
+                    let parentElement = currentPageElement.parentElement;
+                    while (parentElement) {
+                        // Look for parent wiki-children containers
+                        if (parentElement.classList.contains('wiki-children')) {
+                            // Find the sibling wiki-item-content that has a data-node-id
+                            const parentItem = parentElement.parentElement;
+                            if (parentItem) {
+                                const parentContent = parentItem.querySelector('.wiki-item-content[data-node-id]');
+                                if (parentContent) {
+                                    const nodeId = parentContent.getAttribute('data-node-id');
+                                    if (nodeId) {
+                                        this.expandedStates[nodeId] = true;
+                                    }
+                                }
+                            }
+                        }
+                        parentElement = parentElement.parentElement;
+                    }
+                });
+            }
+        }
+    }
+</script>

@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "./font.css";
+@import "./theme.css";
+@plugin '@tailwindcss/typography';
+
+@utility no-scrollbar {
+  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
+

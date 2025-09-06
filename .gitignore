@@ -4,13 +4,14 @@
 *.swp
 tags
 wiki/docs/current
-wiki/public/css
 wiki/public/dist
 dist/
 css-rtl/
 node_modules/*
-wiki/public/node_modules
 .cypress-coverage
 cypress/screenshots
 cypress/videos
 __pycache__/
+wiki/public/frontend/
+wiki/www/frontend.html
+wiki/public/css/tailwind.css

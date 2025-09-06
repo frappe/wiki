@@ -1,17 +1,12 @@
+# When updating this file, please also update the linter_workflow_template in frappe/utils/boilerplate.py
 name: Linters
 
 on:
   pull_request:
   workflow_dispatch:
-  push:
-    branches: [ master ]
 
 permissions:
   contents: read
-
-concurrency:
-  group: commitcheck-frappe-${{ github.event_name }}-${{ github.event.number }}
-  cancel-in-progress: true
 
 jobs:
   commit-lint:
@@ -20,12 +15,12 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 200
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
           check-latest: true
 
       - name: Check commit titles
@@ -34,26 +29,34 @@ jobs:
           npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
 
   linter:
-    name: 'Frappe Linter'
+    name: 'Semgrep Rules'
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - uses: pre-commit/action@v3.0.0
+          python-version: '3.13'
+          cache: pip
 
-  deps-vulnerable-check:
-    name: 'Vulnerable Dependency Check'
+      - name: Download Semgrep rules
+        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
+
+      - name: Run Semgrep rules
+        run: |
+          pip install semgrep
+          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
+
+  precommit:
+    name: 'Pre-Commit'
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - uses: actions/checkout@v3
-      - run: |
-          pip install pip-audit
-          pip-audit --desc on .
+          python-version: '3.13'
+          cache: pip
+      - uses: pre-commit/action@v3.0.1
