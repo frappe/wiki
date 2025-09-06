@@ -71,9 +71,11 @@ def build_nested_wiki_tree(documents: list[str]):
 	wiki_documents = frappe.db.get_all(
 		"Wiki Document",
 		fields=["name", "title", "is_group", "parent_wiki_document", "route"],
-		filters={"name": ("in", documents), "is_published": 1},
+		filters={"name": ("in", documents)},
+		or_filters={"is_published": 1, "is_group": 1},
 		order_by="lft asc",
 	)
+
 	doc_map = {doc["name"]: {**doc, "children": []} for doc in wiki_documents}
 
 	# Find root nodes and build the tree
@@ -89,4 +91,32 @@ def build_nested_wiki_tree(documents: list[str]):
 			# This is a root node (parent not in our dataset)
 			root_nodes.append(doc_map[doc["name"]])
 
-	return root_nodes
+	# Remove empty groups recursively
+	def remove_empty_groups(nodes):
+		filtered_nodes = []
+		for node in nodes:
+			if node["is_group"]:
+				# Recursively filter children first
+				node["children"] = remove_empty_groups(node["children"])
+				# Only include group if it has children with content
+				if has_published_content(node):
+					filtered_nodes.append(node)
+			else:
+				# Include non-group nodes (they are already published due to DB filtering)
+				filtered_nodes.append(node)
+		return filtered_nodes
+
+	def has_published_content(node):
+		# If it's not a group, it has content (already filtered to be published at DB level)
+		if not node["is_group"]:
+			return True
+
+		# If it's a group, check if any of its children have content
+		if node["is_group"]:
+			for child in node["children"]:
+				if has_published_content(child):
+					return True
+
+		return False
+
+	return remove_empty_groups(root_nodes)

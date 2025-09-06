@@ -10,6 +10,13 @@
     </title>
 
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css">
+
+    <script src="/assets/wiki/js/vendor/alpinejs/plugins/persist.js"></script>
+    <script src="/assets/wiki/js/vendor/alpinejs/plugins/collapse.js"></script>
+
+    <script defer src="/assets/wiki/js/vendor/alpinejs/core.js"></script>
+
+    {% block head %} {% endblock %}
 </head>
 <body>
     {% include "templates/wiki/includes/header.html" %}
@@ -19,4 +26,5 @@
         {% block body %} {% endblock %}
     </main>
 </body>
+{% block scripts %} {% endblock %}
 </html>
