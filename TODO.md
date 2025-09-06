@@ -9,3 +9,4 @@ Next sprint:
 
 - [ ] Get Toasts working
 - [ ] Create wiki space and pages from frontend
+- [ ] Meta + S keyboard shortcut to save 
