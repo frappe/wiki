@@ -19,15 +19,15 @@
     {% block head %} {% endblock %}
 </head>
 <body class="h-full">
-    <div class="h-full flex">
-        {% include "templates/wiki/includes/sidebar.html" %}
+    {% include "templates/wiki/includes/sidebar.html" %}
 
-        <div>
-            {% include "templates/wiki/includes/header.html" %}
-            <main class="p-3">
-                {% block body %} {% endblock %}
-            </main>
-        </div>
+    <div class="h-full transition-all duration-300"
+         x-data
+         :class="$store.sidebar.isCollapsed ? 'ml-0' : 'ml-72'">
+        {% include "templates/wiki/includes/header.html" %}
+        <main class="p-3 h-full overflow-y-auto">
+            {% block body %} {% endblock %}
+        </main>
     </div>
     
 </body>
