@@ -17,15 +17,25 @@ def delete_db():
 
 def search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	"""Search the index for the given query and return the results"""
+
+	for _ in range(2):
+		try:
+			return _search(query, space)
+		except sqlite3.OperationalError:
+			delete_db()
+	return _search(query, space)
+
+
+def _search(query: str, space: str | None = None) -> list[dict[str, Any]]:
 	index_path = _get_index_path()
 	if not index_path.exists():
 		build_index()
 
 	with contextlib.closing(sqlite3.connect(f"file:{index_path}?mode=ro", uri=True)) as conn:
-		return _search(conn.cursor(), query, space)
+		return _run_search_query(conn.cursor(), query, space)
 
 
-def _search(cursor: sqlite3.Cursor, query: str, space: str | None = None) -> list[dict[str, Any]]:
+def _run_search_query(cursor: sqlite3.Cursor, query: str, space: str | None = None) -> list[dict[str, Any]]:
 	_set_pragmas(cursor, is_read=True)
 
 	search_query = """
