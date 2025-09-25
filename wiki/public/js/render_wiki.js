@@ -241,6 +241,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             toggleEditor();
             $('.sidebar-item[data-name="new-wiki-page"]').remove();
             set_search_params();
+            localStorage.removeItem(`wiki_draft_${wikiPageName}`);
             discardDialog.hide();
           },
         },

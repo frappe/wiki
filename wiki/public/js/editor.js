@@ -116,7 +116,7 @@ editor.session.on("change", function () {
 });
 
 // Also save title changes
-wikiTitleInput.on("change", function () {
+wikiTitleInput.on("input", function () {
   const content = editor.getValue();
   const title = $(this).val()?.trim() || "";
 
@@ -184,10 +184,6 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
     url.searchParams.set("newWiki", "1");
     window[`history`]["pushState"]({}, "", url);
   }, 1);
-});
-
-discardEditBtn.on("click", function () {
-  localStorage.removeItem(`wiki_draft_${wikiPageName}`);
 });
 
 editorContainer.addEventListener(
