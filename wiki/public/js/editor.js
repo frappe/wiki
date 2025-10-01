@@ -148,17 +148,23 @@ editorContainer.addEventListener("drop", function (e) {
     return;
   }
   let files = dataTransfer.files;
-  if (!files[0].type.includes("image")) {
+  const allowedTypes = ["image/", "video/mp4", "video/quicktime"];
+  const invalidFiles = Array.from(files).filter(
+    (file) => !allowedTypes.some((type) => file.type.includes(type)),
+  );
+
+  if (invalidFiles.length > 0) {
     frappe.show_alert({
-      message: __("You can only insert images in Markdown fields", [
-        files[0].name,
-      ]),
+      message: __(
+        "You can only insert images, videos and GIFs in Markdown fields. Invalid file(s): " +
+          invalidFiles.map((f) => f.name).join(", "),
+      ),
       indicator: "orange",
     });
     return;
   }
   new frappe.ui.FileUploader({
-    dialog_title: __("Insert Image in Markdown"),
+    dialog_title: __("Insert Media in Markdown"),
     doctype: this.doctype,
     docname: this.docname,
     frm: this.frm,
@@ -167,16 +173,21 @@ editorContainer.addEventListener("drop", function (e) {
     allow_multiple: true,
     make_attachments_public: true,
     restrictions: {
-      allowed_file_types: ["image/*"],
+      allowed_file_types: allowedTypes,
     },
     on_success: (file_doc) => {
       if (this.frm && !this.frm.is_new()) {
         this.frm.attachments.attachment_uploaded(file_doc);
       }
-      editor.session.insert(
-        editor.getCursorPosition(),
-        `![](${encodeURI(file_doc.file_url)})`,
-      );
+      const fileType = file_doc.file_url.split(".").pop().toLowerCase();
+      let content;
+      let file_url = encodeURI(file_doc.file_url);
+      if (["mp4", "mov"].includes(fileType)) {
+        content = `<video controls width="100%" height="auto"><source src="${file_url}" type="video/${fileType}"></video>`;
+      } else {
+        content = `![](${file_url})`;
+      }
+      editor.session.insert(editor.getCursorPosition(), content);
     },
   });
 });
