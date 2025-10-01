@@ -242,7 +242,10 @@ function uploadMedia(fileTypes, dialogTitle, files = null) {
       if (["mp4", "mov"].includes(fileType)) {
         content = `\n<video controls width="100%" height="auto"><source src="${file_url}" type="video/${fileType}"></video>`;
       } else {
-        content = `\n![](${file_url})`;
+        const fileName =
+          file_doc.file_name || file_doc.file_url.split("/").pop();
+        const altText = fileName.split(".").slice(0, -1).join(".");
+        content = `\n![${altText}](${file_url})`;
       }
       editor.session.insert(editor.getCursorPosition(), content);
     },
