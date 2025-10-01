@@ -163,33 +163,12 @@ editorContainer.addEventListener("drop", function (e) {
     });
     return;
   }
-  new frappe.ui.FileUploader({
-    dialog_title: __("Insert Media in Markdown"),
-    doctype: this.doctype,
-    docname: this.docname,
-    frm: this.frm,
+
+  uploadMedia(
+    ["image/*", "video/mp4", "video/quicktime"],
+    "Insert Media in Markdown",
     files,
-    folder: "Home/Attachments",
-    allow_multiple: true,
-    make_attachments_public: true,
-    restrictions: {
-      allowed_file_types: allowedTypes,
-    },
-    on_success: (file_doc) => {
-      if (this.frm && !this.frm.is_new()) {
-        this.frm.attachments.attachment_uploaded(file_doc);
-      }
-      const fileType = file_doc.file_url.split(".").pop().toLowerCase();
-      let content;
-      let file_url = encodeURI(file_doc.file_url);
-      if (["mp4", "mov"].includes(fileType)) {
-        content = `<video controls width="100%" height="auto"><source src="${file_url}" type="video/${fileType}"></video>`;
-      } else {
-        content = `![](${file_url})`;
-      }
-      editor.session.insert(editor.getCursorPosition(), content);
-    },
-  });
+  );
 });
 
 function insertMarkdown(type) {
@@ -219,29 +198,10 @@ function insertMarkdown(type) {
       insertion = `[${selection || "link text"}](url)`;
       break;
     case "image":
-      new frappe.ui.FileUploader({
-        dialog_title: __("Insert Image in Markdown"),
-        doctype: this.doctype,
-        docname: this.docname,
-        frm: this.frm,
-        folder: "Home/Attachments",
-        disable_file_browser: true,
-        allow_toggle_private: false,
-        allow_multiple: true,
-        make_attachments_public: true,
-        restrictions: {
-          allowed_file_types: ["image/*"],
-        },
-        on_success: (file_doc) => {
-          if (this.frm && !this.frm.is_new()) {
-            this.frm.attachments.attachment_uploaded(file_doc);
-          }
-          editor.session.insert(
-            editor.getCursorPosition(),
-            `\n![](${encodeURI(file_doc.file_url)})`,
-          );
-        },
-      });
+      uploadMedia(["image/*"], "Insert Image in Markdown");
+      break;
+    case "video":
+      uploadMedia(["video/mp4", "video/quicktime"], "Insert Video in Markdown");
       break;
     case "table":
       insertion = `${selection}\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Row 1 | Row 1 |\n| Row 2 | Row 2 |`;
@@ -257,6 +217,38 @@ function insertMarkdown(type) {
   editor.focus();
 }
 
+function uploadMedia(fileTypes, dialogTitle, files = null) {
+  new frappe.ui.FileUploader({
+    dialog_title: __(dialogTitle),
+    doctype: this.doctype,
+    docname: this.docname,
+    frm: this.frm,
+    files,
+    folder: "Home/Attachments",
+    disable_file_browser: !files,
+    allow_toggle_private: false,
+    allow_multiple: true,
+    make_attachments_public: true,
+    restrictions: {
+      allowed_file_types: fileTypes,
+    },
+    on_success: (file_doc) => {
+      if (this.frm && !this.frm.is_new()) {
+        this.frm.attachments.attachment_uploaded(file_doc);
+      }
+      const fileType = file_doc.file_url.split(".").pop().toLowerCase();
+      let content;
+      let file_url = encodeURI(file_doc.file_url);
+      if (["mp4", "mov"].includes(fileType)) {
+        content = `\n<video controls width="100%" height="auto"><source src="${file_url}" type="video/${fileType}"></video>`;
+      } else {
+        content = `\n![](${file_url})`;
+      }
+      editor.session.insert(editor.getCursorPosition(), content);
+    },
+  });
+}
+
 const mdeBoldBtn = document.querySelector('[data-mde-button="bold"]');
 const mdeItalicBtn = document.querySelector('[data-mde-button="italic"]');
 const mdeHeadingBtn = document.querySelector('[data-mde-button="heading"]');
@@ -265,6 +257,7 @@ const mdeOlistBtn = document.querySelector('[data-mde-button="olist"]');
 const mdeUlistBtn = document.querySelector('[data-mde-button="ulist"]');
 const mdeLinkBtn = document.querySelector('[data-mde-button="link"]');
 const mdeImageBtn = document.querySelector('[data-mde-button="image"]');
+const mdeVideoBtn = document.querySelector('[data-mde-button="video"]');
 const mdeTableBtn = document.querySelector('[data-mde-button="table"]');
 const mdeDisclosureBtn = document.querySelector(
   '[data-mde-button="disclosure"]',
@@ -278,6 +271,7 @@ mdeOlistBtn.addEventListener("click", () => insertMarkdown("olist"));
 mdeUlistBtn.addEventListener("click", () => insertMarkdown("ulist"));
 mdeLinkBtn.addEventListener("click", () => insertMarkdown("link"));
 mdeImageBtn.addEventListener("click", () => insertMarkdown("image"));
+mdeVideoBtn.addEventListener("click", () => insertMarkdown("video"));
 mdeTableBtn.addEventListener("click", () => insertMarkdown("table"));
 mdeDisclosureBtn.addEventListener("click", () => insertMarkdown("disclosure"));
 
@@ -334,5 +328,12 @@ editor.commands.addCommand({
   name: "image",
   bindKey: { win: "Ctrl-P", mac: "Command-P" },
   exec: () => insertMarkdown("image"),
+  readOnly: false,
+});
+
+editor.commands.addCommand({
+  name: "video",
+  bindKey: { win: "Ctrl-Shift-V", mac: "Command-Shift-V" },
+  exec: () => insertMarkdown("video"),
   readOnly: false,
 });
