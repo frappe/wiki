@@ -147,16 +147,32 @@ editorContainer.addEventListener("drop", function (e) {
   if (!dataTransfer?.files?.length) {
     return;
   }
-  let files = dataTransfer.files;
+  validateAndUploadFiles(dataTransfer.files, "drop");
+});
+
+editorContainer.addEventListener("paste", function (e) {
+  const clipboardData = e.clipboardData;
+  if (!clipboardData?.files?.length) {
+    return;
+  }
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  validateAndUploadFiles(clipboardData.files, "paste");
+});
+
+function validateAndUploadFiles(files, event) {
   const allowedTypes = ["image/", "video/mp4", "video/quicktime"];
   const invalidFiles = Array.from(files).filter(
     (file) => !allowedTypes.some((type) => file.type.includes(type)),
   );
 
   if (invalidFiles.length > 0) {
+    const action = event === "paste" ? "paste" : "insert";
     frappe.show_alert({
       message: __(
-        "You can only insert images, videos and GIFs in Markdown fields. Invalid file(s): " +
+        `You can only ${action} images, videos and GIFs in Markdown fields. Invalid file(s): ` +
           invalidFiles.map((f) => f.name).join(", "),
       ),
       indicator: "orange",
@@ -169,7 +185,7 @@ editorContainer.addEventListener("drop", function (e) {
     "Insert Media in Markdown",
     files,
   );
-});
+}
 
 function insertMarkdown(type) {
   const selection = editor.getSelectedText();
