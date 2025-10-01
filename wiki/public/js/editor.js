@@ -260,7 +260,12 @@ function uploadMedia(fileTypes, dialogTitle, files = null) {
       } else {
         const fileName =
           file_doc.file_name || file_doc.file_url.split("/").pop();
-        const altText = fileName.split(".").slice(0, -1).join(".");
+        const altText = fileName
+          .split(".")
+          .slice(0, -1)
+          .join(".") // without extension
+          .replaceAll("_", " ")
+          .replaceAll("-", " ");
         content = `\n![${altText}](${file_url})`;
       }
       editor.session.insert(editor.getCursorPosition(), content);
@@ -347,12 +352,5 @@ editor.commands.addCommand({
   name: "image",
   bindKey: { win: "Ctrl-P", mac: "Command-P" },
   exec: () => insertMarkdown("image"),
-  readOnly: false,
-});
-
-editor.commands.addCommand({
-  name: "video",
-  bindKey: { win: "Ctrl-Shift-V", mac: "Command-Shift-V" },
-  exec: () => insertMarkdown("video"),
   readOnly: false,
 });
