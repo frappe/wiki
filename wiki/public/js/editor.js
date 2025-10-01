@@ -164,7 +164,7 @@ editorContainer.addEventListener("drop", function (e) {
     frm: this.frm,
     files,
     folder: "Home/Attachments",
-    allow_multiple: false,
+    allow_multiple: true,
     make_attachments_public: true,
     restrictions: {
       allowed_file_types: ["image/*"],
@@ -216,7 +216,7 @@ function insertMarkdown(type) {
         folder: "Home/Attachments",
         disable_file_browser: true,
         allow_toggle_private: false,
-        allow_multiple: false,
+        allow_multiple: true,
         make_attachments_public: true,
         restrictions: {
           allowed_file_types: ["image/*"],
