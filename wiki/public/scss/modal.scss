@@ -58,10 +58,8 @@
   .modal-footer {
     border-top: unset;
     justify-content: end;
-
-    .btn {
-      width: 100%;
-    }
+    display: flex;
+    gap: 0.5rem;
   }
 }
 
