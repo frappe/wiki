@@ -98,8 +98,10 @@ function setEditor() {
   });
 }
 
-// Auto-save to localStorage
-editor.session.on("change", function () {
+editor.session.on("change", () => saveDraftLocally());
+wikiTitleInput.on("input", () => saveDraftLocally());
+
+function saveDraftLocally() {
   const content = editor.getValue();
   const title = wikiTitleInput.val()?.trim() || "";
 
@@ -113,24 +115,7 @@ editor.session.on("change", function () {
       }),
     );
   }
-});
-
-// Also save title changes
-wikiTitleInput.on("input", function () {
-  const content = editor.getValue();
-  const title = $(this).val()?.trim() || "";
-
-  if (content || title) {
-    localStorage.setItem(
-      `wiki_draft_${wikiPageName}`,
-      JSON.stringify({
-        content: content,
-        title: title,
-        timestamp: Date.now(),
-      }),
-    );
-  }
-});
+}
 
 function saveWikiPage(draft = false) {
   const title = wikiTitleInput.val()?.trim();
