@@ -30,6 +30,18 @@ $(document).ready(() => {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("editWiki") || urlParams.get("wikiPagePatch")) {
     setEditor();
+  } else if (urlParams.get("newWiki")) {
+    const draft = getLocalDraft();
+    if (draft && (draft.title || draft.content)) {
+      frappe.confirm(
+        __(
+          `An unsaved draft titled {0} was found. Do you want to continue editing it?`,
+          [draft.title.bold()],
+        ),
+        () => setLocalDraftinEditor(draft),
+        () => localStorage.removeItem(`wiki_draft_${wikiPageName}`),
+      );
+    }
   }
 });
 
@@ -73,20 +85,9 @@ function setEditor() {
       wikiPagePatch: urlParams.get("wikiPagePatch") || "",
     },
     callback: (r) => {
-      // Check for draft content first
-      const draftKey = `wiki_draft_${wikiPageName}`;
-      const savedDraft = localStorage.getItem(draftKey);
-
-      if (savedDraft) {
-        try {
-          const draft = JSON.parse(savedDraft);
-          editor.setValue(draft.content || "", 1);
-          wikiTitleInput.val(draft.title || "");
-        } catch (e) {
-          // Fallback to server content if draft is corrupted
-          editor.setValue(r.message.content || "", 1);
-          wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
-        }
+      const draft = getLocalDraft();
+      if (draft) {
+        setLocalDraftinEditor(draft);
       } else {
         editor.setValue(r.message.content || "", 1);
         wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
@@ -115,6 +116,25 @@ function saveDraftLocally() {
       }),
     );
   }
+}
+
+function getLocalDraft() {
+  const draftKey = `wiki_draft_${wikiPageName}`;
+  const draft = localStorage.getItem(draftKey);
+  if (draft) {
+    try {
+      return JSON.parse(draft);
+    } catch (e) {
+      localStorage.removeItem(draftKey);
+      return null;
+    }
+  }
+}
+
+function setLocalDraftinEditor(draft) {
+  if (!draft) return;
+  editor.setValue(draft.content || "", 1);
+  wikiTitleInput.val(draft.title || "");
 }
 
 function saveWikiPage(draft = false) {
