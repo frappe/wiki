@@ -36,7 +36,7 @@ $(document).ready(() => {
       frappe.confirm(
         __(
           `An unsaved draft titled {0} was found. Do you want to continue editing it?`,
-          [draft.title.bold()],
+          [__(draft.title || draft.content?.substring(0, 10) + "...").bold()],
         ),
         () => setLocalDraftinEditor(draft),
         () => localStorage.removeItem(`wiki_draft_${wikiPageName}`),
@@ -232,8 +232,8 @@ function validateAndUploadFiles(files, event) {
     const action = event === "paste" ? "paste" : "insert";
     frappe.show_alert({
       message: __(
-        `You can only ${action} images, videos and GIFs in Markdown fields. Invalid file(s): ` +
-          invalidFiles.map((f) => f.name).join(", "),
+        `You can only {0} images, videos and GIFs in Markdown fields. Invalid file(s): {1}`,
+        [__(action), invalidFiles.map((f) => f.name).join(", ")],
       ),
       indicator: "orange",
     });
