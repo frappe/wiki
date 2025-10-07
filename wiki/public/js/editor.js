@@ -67,6 +67,7 @@ previewToggleBtn.on("click", function () {
   }
 });
 
+let isLoadingDraft = false;
 function setEditor() {
   const urlParams = new URLSearchParams(window.location.search);
   const currentUrl = new URL(window.location.href);
@@ -103,6 +104,7 @@ editor.session.on("change", () => saveDraftLocally());
 wikiTitleInput.on("input", () => saveDraftLocally());
 
 function saveDraftLocally() {
+  if (isLoadingDraft) return;
   const content = editor.getValue();
   const title = wikiTitleInput.val()?.trim() || "";
 
@@ -133,8 +135,12 @@ function getLocalDraft() {
 
 function setLocalDraftinEditor(draft) {
   if (!draft) return;
+  isLoadingDraft = true;
   editor.setValue(draft.content || "", 1);
   wikiTitleInput.val(draft.title || "");
+  setTimeout(() => {
+	isLoadingDraft = false;
+  }, 100)
 }
 
 function saveWikiPage(draft = false) {
