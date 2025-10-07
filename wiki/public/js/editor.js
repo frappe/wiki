@@ -34,14 +34,13 @@ $(document).ready(() => {
   } else if (urlParams.get("newWiki")) {
     const draft = getLocalDraft();
     if (draft && (draft.title || draft.content)) {
-      frappe.confirm(
-        __(
-          `An unsaved draft titled {0} was found. Do you want to continue editing it?`,
-          [__(draft.title || draft.content?.substring(0, 10) + "...").bold()],
-        ),
-        () => setLocalDraftinEditor(draft),
-        () => localStorage.removeItem(`wiki_draft_${wikiPageName}`),
-      );
+      setLocalDraftinEditor(draft);
+      const draftPreview =
+        draft.title || draft.content?.substring(0, 30) + "...";
+      frappe.show_alert({
+        message: __("Unsaved draft '{0}' restored", [draftPreview.bold()]),
+        indicator: "blue",
+      });
     }
   }
 });
