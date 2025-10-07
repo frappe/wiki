@@ -35,12 +35,6 @@ $(document).ready(() => {
     const draft = getLocalDraft();
     if (draft && (draft.title || draft.content)) {
       setLocalDraftinEditor(draft);
-      const draftPreview =
-        draft.title || draft.content?.substring(0, 30) + "...";
-      frappe.show_alert({
-        message: __("Unsaved draft '{0}' restored", [draftPreview.bold()]),
-        indicator: "blue",
-      });
     }
   }
 });
@@ -157,6 +151,11 @@ function setLocalDraftinEditor(draft) {
   if (!draft) return;
   editor.setValue(draft.content || "", 1);
   wikiTitleInput.val(draft.title || "");
+  const draftPreview = draft.title || draft.content?.substring(0, 30) + "...";
+  frappe.show_alert({
+    message: __("Unsaved draft '{0}' restored", [draftPreview.bold()]),
+    indicator: "blue",
+  });
 }
 
 outdatedDraftWarning.hide();
