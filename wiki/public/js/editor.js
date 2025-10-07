@@ -67,7 +67,7 @@ previewToggleBtn.on("click", function () {
   }
 });
 
-let isLoadingDraft = false;
+let isSettingEditor = false;
 function setEditor() {
   const urlParams = new URLSearchParams(window.location.search);
   const currentUrl = new URL(window.location.href);
@@ -89,6 +89,7 @@ function setEditor() {
       const draft = getLocalDraft();
       const wikiModified = r.message.modified;
 
+      isSettingEditor = true;
       if (draft) {
         // Check if draft is older than wiki page
         if (
@@ -100,8 +101,9 @@ function setEditor() {
         setLocalDraftinEditor(draft);
       } else {
         editor.setValue(r.message.content || "", 1);
-        wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
+        wikiTitleInput.val(r.message.title || "");
       }
+      isSettingEditor = false;
 
       currentUrl.searchParams.set("editWiki", 1);
       window.history.replaceState({}, "", currentUrl);
@@ -113,7 +115,7 @@ editor.session.on("change", () => saveDraftLocally());
 wikiTitleInput.on("input", () => saveDraftLocally());
 
 function saveDraftLocally() {
-  if (isLoadingDraft) return;
+  if (isSettingEditor) return;
   const content = editor.getValue();
   const title = wikiTitleInput.val()?.trim() || "";
 
@@ -144,12 +146,8 @@ function getLocalDraft() {
 
 function setLocalDraftinEditor(draft) {
   if (!draft) return;
-  isLoadingDraft = true;
   editor.setValue(draft.content || "", 1);
   wikiTitleInput.val(draft.title || "");
-  setTimeout(() => {
-    isLoadingDraft = false;
-  }, 100);
 }
 
 outdatedDraftWarning.hide();
@@ -163,8 +161,10 @@ function showOutdatedDraftWarning(wikiPage) {
           "This will replace your current draft with the latest page content. Continue?",
         ),
         () => {
+          isSettingEditor = true;
           editor.setValue(wikiPage.content || "", 1);
-          wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
+          wikiTitleInput.val(wikiPage.title || "");
+          isSettingEditor = false;
           localStorage.removeItem(`wiki_draft_${wikiPageName}`);
           outdatedDraftWarning.hide();
           frappe.show_alert({
