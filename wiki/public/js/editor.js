@@ -121,7 +121,7 @@ function saveDraftLocally() {
 
   if (content || title) {
     localStorage.setItem(
-      `wiki_draft_${wikiPageName}`,
+      getDraftKey(),
       JSON.stringify({
         content: content,
         title: title,
@@ -131,8 +131,17 @@ function saveDraftLocally() {
   }
 }
 
+function getDraftKey() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const patchId = urlParams.get("wikiPagePatch");
+  if (patchId) {
+    return `wiki_page_patch_draft_${patchId}`;
+  }
+  return `wiki_page_draft_${wikiPageName}`;
+}
+
 function getLocalDraft() {
-  const draftKey = `wiki_draft_${wikiPageName}`;
+  const draftKey = getDraftKey();
   const draft = localStorage.getItem(draftKey);
   if (draft) {
     try {
@@ -165,7 +174,7 @@ function showOutdatedDraftWarning(wikiPage) {
           editor.setValue(wikiPage.content || "", 1);
           wikiTitleInput.val(wikiPage.title || "");
           isSettingEditor = false;
-          localStorage.removeItem(`wiki_draft_${wikiPageName}`);
+          localStorage.removeItem(getDraftKey());
           outdatedDraftWarning.hide();
           frappe.show_alert({
             message: __("Updated with latest changes"),
@@ -196,7 +205,7 @@ function saveWikiPage(draft = false) {
     },
     callback: (r) => {
       // Clear draft from localStorage after successful save
-      localStorage.removeItem(`wiki_draft_${wikiPageName}`);
+      localStorage.removeItem(getDraftKey());
       // route back to the main page
       window.location.href = "/" + r.message.route;
     },

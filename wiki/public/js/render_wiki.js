@@ -238,10 +238,17 @@ window.RenderWiki = class RenderWiki extends Wiki {
         primary_action: {
           label: "Yes",
           action() {
+            // clear draft from localstorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const patchId = urlParams.get("wikiPagePatch");
+            const draftKey = patchId
+              ? `wiki_page_patch_draft_${patchId}`
+              : `wiki_page_draft_${wikiPageName}`;
+            localStorage.removeItem(draftKey);
+
             toggleEditor();
             $('.sidebar-item[data-name="new-wiki-page"]').remove();
             set_search_params();
-            localStorage.removeItem(`wiki_draft_${wikiPageName}`);
             discardDialog.hide();
           },
         },
