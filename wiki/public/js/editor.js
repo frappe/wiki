@@ -14,6 +14,7 @@ const saveWikiPageBtn = document.querySelector(
 const draftWikiPageBtn = document.querySelector(
   '[data-wiki-button="draftWikiPage"]',
 );
+const outdatedDraftWarning = $("#outdated-draft-warning");
 let showPreview = false;
 
 let editor = Ace.edit(editorContainer, {
@@ -87,7 +88,16 @@ function setEditor() {
     },
     callback: (r) => {
       const draft = getLocalDraft();
+      const wikiModified = r.message.modified;
+
       if (draft) {
+        // Check if draft is older than wiki page
+        if (
+          wikiModified &&
+          draft.timestamp < new Date(wikiModified).getTime()
+        ) {
+          showOutdatedDraftWarning(r.message);
+        }
         setLocalDraftinEditor(draft);
       } else {
         editor.setValue(r.message.content || "", 1);
@@ -139,8 +149,32 @@ function setLocalDraftinEditor(draft) {
   editor.setValue(draft.content || "", 1);
   wikiTitleInput.val(draft.title || "");
   setTimeout(() => {
-	isLoadingDraft = false;
-  }, 100)
+    isLoadingDraft = false;
+  }, 100);
+}
+
+outdatedDraftWarning.hide();
+function showOutdatedDraftWarning(wikiPage) {
+  outdatedDraftWarning.show();
+  $(".load-latest-version-btn")
+    .off("click")
+    .on("click", function () {
+      frappe.confirm(
+        __(
+          "This will replace your current draft with the latest page content. Continue?",
+        ),
+        () => {
+          editor.setValue(wikiPage.content || "", 1);
+          wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
+          localStorage.removeItem(`wiki_draft_${wikiPageName}`);
+          outdatedDraftWarning.hide();
+          frappe.show_alert({
+            message: __("Updated with latest changes"),
+            indicator: "green",
+          });
+        },
+      );
+    });
 }
 
 function saveWikiPage(draft = false) {
