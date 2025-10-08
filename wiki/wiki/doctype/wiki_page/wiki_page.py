@@ -673,9 +673,11 @@ def update_page_settings(name, settings):
 @frappe.whitelist()
 def get_markdown_content(wikiPageName, wikiPagePatch):
 	if wikiPagePatch:
-		new_code, new_title = frappe.db.get_value("Wiki Page Patch", wikiPagePatch, ["new_code", "new_title"])
-		return {"content": new_code, "title": new_title}
-	return frappe.db.get_value("Wiki Page", wikiPageName, ["content", "title"], as_dict=True)
+		new_code, new_title, modified = frappe.db.get_value(
+			"Wiki Page Patch", wikiPagePatch, ["new_code", "new_title", "modified"]
+		)
+		return {"content": new_code, "title": new_title, "modified": modified}
+	return frappe.db.get_value("Wiki Page", wikiPageName, ["content", "title", "modified"], as_dict=True)
 
 
 @frappe.whitelist(allow_guest=True)

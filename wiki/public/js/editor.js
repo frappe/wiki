@@ -7,12 +7,14 @@ const previewContainer = $("#preview-container");
 const previewToggleBtn = $("#toggle-btn");
 const wikiTitleInput = $(".wiki-title-input");
 const editWikiBtn = $(".edit-wiki-btn, .sidebar-edit-mode-btn");
+const discardEditBtn = $(".discard-edit-btn");
 const saveWikiPageBtn = document.querySelector(
   '[data-wiki-button="saveWikiPage"]',
 );
 const draftWikiPageBtn = document.querySelector(
   '[data-wiki-button="draftWikiPage"]',
 );
+const outdatedDraftWarning = $("#outdated-draft-warning");
 let showPreview = false;
 
 let editor = Ace.edit(editorContainer, {
@@ -29,6 +31,11 @@ $(document).ready(() => {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("editWiki") || urlParams.get("wikiPagePatch")) {
     setEditor();
+  } else if (urlParams.get("newWiki")) {
+    const draft = getLocalDraft();
+    if (draft && (draft.title || draft.content)) {
+      setLocalDraftinEditor(draft);
+    }
   }
 });
 
@@ -54,6 +61,7 @@ previewToggleBtn.on("click", function () {
   }
 });
 
+let isSettingEditor = false;
 function setEditor() {
   const urlParams = new URLSearchParams(window.location.search);
   const currentUrl = new URL(window.location.href);
@@ -64,6 +72,7 @@ function setEditor() {
     theme: "ace/theme/tomorrow_night",
   });
   editor.renderer.lineHeight = 20;
+
   frappe.call({
     method: "wiki.wiki.doctype.wiki_page.wiki_page.get_markdown_content",
     args: {
@@ -71,12 +80,108 @@ function setEditor() {
       wikiPagePatch: urlParams.get("wikiPagePatch") || "",
     },
     callback: (r) => {
-      editor.setValue(r.message.content || "", 1);
+      const draft = getLocalDraft();
+      const wikiModified = r.message.modified;
+
+      isSettingEditor = true;
+      if (draft) {
+        // Check if draft is older than wiki page
+        if (
+          wikiModified &&
+          draft.timestamp < new Date(wikiModified).getTime()
+        ) {
+          showOutdatedDraftWarning(r.message);
+        }
+        setLocalDraftinEditor(draft);
+      } else {
+        editor.setValue(r.message.content || "", 1);
+        wikiTitleInput.val(r.message.title || "");
+      }
+      isSettingEditor = false;
+
       currentUrl.searchParams.set("editWiki", 1);
       window.history.replaceState({}, "", currentUrl);
     },
   });
-  wikiTitleInput.val($(".wiki-title").text()?.trim() || "");
+}
+
+editor.session.on("change", () => saveDraftLocally());
+wikiTitleInput.on("input", () => saveDraftLocally());
+
+function saveDraftLocally() {
+  if (isSettingEditor) return;
+  const content = editor.getValue();
+  const title = wikiTitleInput.val()?.trim() || "";
+
+  if (content || title) {
+    localStorage.setItem(
+      getDraftKey(),
+      JSON.stringify({
+        content: content,
+        title: title,
+        timestamp: Date.now(),
+      }),
+    );
+  }
+}
+
+function getDraftKey() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const patchId = urlParams.get("wikiPagePatch");
+  if (patchId) {
+    return `wiki_page_patch_draft_${patchId}`;
+  }
+  return `wiki_page_draft_${wikiPageName}`;
+}
+
+function getLocalDraft() {
+  const draftKey = getDraftKey();
+  const draft = localStorage.getItem(draftKey);
+  if (draft) {
+    try {
+      return JSON.parse(draft);
+    } catch (e) {
+      localStorage.removeItem(draftKey);
+      return null;
+    }
+  }
+}
+
+function setLocalDraftinEditor(draft) {
+  if (!draft) return;
+  editor.setValue(draft.content || "", 1);
+  wikiTitleInput.val(draft.title || "");
+  const draftPreview = draft.title || draft.content?.substring(0, 30) + "...";
+  frappe.show_alert({
+    message: __("Unsaved draft '{0}' restored", [draftPreview.bold()]),
+    indicator: "blue",
+  });
+}
+
+outdatedDraftWarning.hide();
+function showOutdatedDraftWarning(wikiPage) {
+  outdatedDraftWarning.show();
+  $(".load-latest-version-btn")
+    .off("click")
+    .on("click", function () {
+      frappe.confirm(
+        __(
+          "This will replace your current draft with the latest page content. Continue?",
+        ),
+        () => {
+          isSettingEditor = true;
+          editor.setValue(wikiPage.content || "", 1);
+          wikiTitleInput.val(wikiPage.title || "");
+          isSettingEditor = false;
+          localStorage.removeItem(getDraftKey());
+          outdatedDraftWarning.hide();
+          frappe.show_alert({
+            message: __("Updated with latest changes"),
+            indicator: "green",
+          });
+        },
+      );
+    });
 }
 
 function saveWikiPage(draft = false) {
@@ -98,6 +203,8 @@ function saveWikiPage(draft = false) {
       wiki_page_patch: urlParams.get("wikiPagePatch"),
     },
     callback: (r) => {
+      // Clear draft from localStorage after successful save
+      localStorage.removeItem(getDraftKey());
       // route back to the main page
       window.location.href = "/" + r.message.route;
     },
@@ -117,7 +224,7 @@ $(".sidebar-items > .list-unstyled").on("click", ".add-sidebar-page", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const isEmptyEditor = !!urlParams.get("newWiki");
   if ($(".editor-space").is(":visible") || isEmptyEditor) {
-    $(".discard-edit-btn").attr("data-new", true);
+    discardEditBtn.attr("data-new", true);
   }
   wikiTitleInput.val("");
   editor.setValue("");
@@ -172,8 +279,8 @@ function validateAndUploadFiles(files, event) {
     const action = event === "paste" ? "paste" : "insert";
     frappe.show_alert({
       message: __(
-        `You can only ${action} images, videos and GIFs in Markdown fields. Invalid file(s): ` +
-          invalidFiles.map((f) => f.name).join(", "),
+        `You can only {0} images, videos and GIFs in Markdown fields. Invalid file(s): {1}`,
+        [__(action), invalidFiles.map((f) => f.name).join(", ")],
       ),
       indicator: "orange",
     });
