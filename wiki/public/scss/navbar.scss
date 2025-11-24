@@ -32,6 +32,13 @@
     background-color: var(--background-color);
   }
 }
+.navbar {
+	padding: 0;
+	.navbar-nav {
+    align-items: center;
+    height: var(--navbar-height);
+  }
+}
 
 .navbar-nav {
   width: 100%;
