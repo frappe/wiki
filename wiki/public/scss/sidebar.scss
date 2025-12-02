@@ -266,3 +266,25 @@
     display: none;
   }
 }
+/* Adjustable Sidebar Width (Issue #63) */
+.wiki-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 240px) 1fr;
+  height: 100%;
+}
+
+.wiki-layout.sidebar-width-narrow {
+  --sidebar-width: 240px;
+}
+
+.wiki-layout.sidebar-width-wide {
+  --sidebar-width: 360px;
+}
+
+.wiki-layout.sidebar-width-collapsed {
+  --sidebar-width: 0;
+}
+
+.wiki-layout.sidebar-width-collapsed .wiki-sidebar {
+  display: none;
+}

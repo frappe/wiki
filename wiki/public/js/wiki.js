@@ -391,3 +391,46 @@ window.addEventListener("popstate", function (event) {
     }
   }
 });
+/***************************************************************************
+ * Adjustable Sidebar Width (Issue #63)
+ ***************************************************************************/
+
+function init_adjustable_sidebar() {
+  const layout = document.querySelector("#wiki-layout");
+  const toggleBtn = document.querySelector('[data-action="toggle-sidebar"]');
+  const searchInput = document.querySelector(".wiki-search-input");
+
+  if (!layout) return;
+
+  const MODES = [
+    "sidebar-width-narrow",
+    "sidebar-width-wide",
+    "sidebar-width-collapsed"
+  ];
+
+  function setMode(mode) {
+    MODES.forEach(m => layout.classList.remove(m));
+    layout.classList.add(mode);
+    localStorage.setItem("wikiSidebarMode", mode);
+  }
+
+  // Restore previously saved mode
+  const saved = localStorage.getItem("wikiSidebarMode");
+  setMode(saved || "sidebar-width-narrow");
+
+  // Collapse / expand sidebar
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      const collapsed = layout.classList.contains("sidebar-width-collapsed");
+      setMode(collapsed ? "sidebar-width-narrow" : "sidebar-width-collapsed");
+    });
+  }
+
+  // Sidebar becomes wide when searching
+  if (searchInput) {
+    searchInput.addEventListener("focus", () => setMode("sidebar-width-wide"));
+  }
+}
+
+// Run after Wiki page loads
+document.addEventListener("DOMContentLoaded", init_adjustable_sidebar);
