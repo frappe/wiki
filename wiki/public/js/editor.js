@@ -9,10 +9,10 @@ const wikiTitleInput = $(".wiki-title-input");
 const editWikiBtn = $(".edit-wiki-btn, .sidebar-edit-mode-btn");
 const discardEditBtn = $(".discard-edit-btn");
 const saveWikiPageBtn = document.querySelector(
-  '[data-wiki-button="saveWikiPage"]',
+  '[data-wiki-button="saveWikiPage"]'
 );
 const draftWikiPageBtn = document.querySelector(
-  '[data-wiki-button="draftWikiPage"]',
+  '[data-wiki-button="draftWikiPage"]'
 );
 const outdatedDraftWarning = $("#outdated-draft-warning");
 let showPreview = false;
@@ -120,7 +120,7 @@ function saveDraftLocally() {
         content: content,
         title: title,
         timestamp: Date.now(),
-      }),
+      })
     );
   }
 }
@@ -166,7 +166,7 @@ function showOutdatedDraftWarning(wikiPage) {
     .on("click", function () {
       frappe.confirm(
         __(
-          "This will replace your current draft with the latest page content. Continue?",
+          "This will replace your current draft with the latest page content. Continue?"
         ),
         () => {
           isSettingEditor = true;
@@ -179,7 +179,7 @@ function showOutdatedDraftWarning(wikiPage) {
             message: __("Updated with latest changes"),
             indicator: "green",
           });
-        },
+        }
       );
     });
 }
@@ -244,7 +244,7 @@ editorContainer.addEventListener(
     e.preventDefault();
     e.stopPropagation();
   },
-  500,
+  500
 );
 
 editorContainer.addEventListener("drop", function (e) {
@@ -272,7 +272,7 @@ editorContainer.addEventListener("paste", function (e) {
 function validateAndUploadFiles(files, event) {
   const allowedTypes = ["image/", "video/mp4", "video/quicktime"];
   const invalidFiles = Array.from(files).filter(
-    (file) => !allowedTypes.some((type) => file.type.includes(type)),
+    (file) => !allowedTypes.some((type) => file.type.includes(type))
   );
 
   if (invalidFiles.length > 0) {
@@ -280,7 +280,7 @@ function validateAndUploadFiles(files, event) {
     frappe.show_alert({
       message: __(
         `You can only {0} images, videos and GIFs in Markdown fields. Invalid file(s): {1}`,
-        [__(action), invalidFiles.map((f) => f.name).join(", ")],
+        [__(action), invalidFiles.map((f) => f.name).join(", ")]
       ),
       indicator: "orange",
     });
@@ -290,7 +290,7 @@ function validateAndUploadFiles(files, event) {
   uploadMedia(
     ["image/*", "video/mp4", "video/quicktime"],
     "Insert Media in Markdown",
-    files,
+    files
   );
 }
 
@@ -341,11 +341,10 @@ function insertMarkdown(type) {
 }
 
 function uploadMedia(fileTypes, dialogTitle, files = null) {
+  // Fixed issue #449: Removed undefined parameters (doctype, docname, frm)
+  // that were causing 400 errors. Use standalone file upload pattern instead.
   new frappe.ui.FileUploader({
     dialog_title: __(dialogTitle),
-    doctype: this.doctype,
-    docname: this.docname,
-    frm: this.frm,
     files,
     folder: "Home/Attachments",
     disable_file_browser: !files,
@@ -356,9 +355,6 @@ function uploadMedia(fileTypes, dialogTitle, files = null) {
       allowed_file_types: fileTypes,
     },
     on_success: (file_doc) => {
-      if (this.frm && !this.frm.is_new()) {
-        this.frm.attachments.attachment_uploaded(file_doc);
-      }
       const fileType = file_doc.file_url.split(".").pop().toLowerCase();
       let content;
       let file_url = encodeURI(file_doc.file_url);
@@ -391,7 +387,7 @@ const mdeImageBtn = document.querySelector('[data-mde-button="image"]');
 const mdeVideoBtn = document.querySelector('[data-mde-button="video"]');
 const mdeTableBtn = document.querySelector('[data-mde-button="table"]');
 const mdeDisclosureBtn = document.querySelector(
-  '[data-mde-button="disclosure"]',
+  '[data-mde-button="disclosure"]'
 );
 
 mdeBoldBtn.addEventListener("click", () => insertMarkdown("bold"));
