@@ -1,4 +1,5 @@
 import HtmlDiff from "htmldiff-js";
+const __ = globalThis.__;
 
 function setSortable() {
   if (window.innerWidth < 768) {
@@ -153,7 +154,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_nav_buttons() {
-    var current_index = -1;
+    let current_index = -1;
     const sidebar_items = $(".sidebar-column").find("a").not(".navbar-brand");
 
     sidebar_items.each(function (index) {
@@ -236,7 +237,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         indicator: "red",
         message: __(`Are you sure you want to <b>discard</b> the changes?`),
         primary_action: {
-          label: "Yes",
+          label: __("Yes"),
           action() {
             // clear draft from localstorage
             const urlParams = new URLSearchParams(window.location.search);
@@ -274,7 +275,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
         const newSidebarItem = $(`
         <li class="sidebar-item sidebar-group-item active" data-type="Wiki Page" data-name="new-wiki-page" data-group-name="${groupName}">
           <div>
-            <a href="#">New Wiki Page</a>
+            <a href="#">${__("New Wiki Page")}</a>
           </div>
         </li>
       `);
@@ -321,7 +322,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
   add_trash_icon() {
     const trashIcon = `<div class="text-muted hide remove-sidebar-item small">
       <span class="trash-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
       </span>
     </div>`;
 
@@ -346,7 +350,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
             `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
           ),
           primary_action: {
-            label: "Yes",
+            label: __("Yes"),
             action() {
               frappe.call({
                 method:
@@ -359,7 +363,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
                     sidebar_item.remove();
 
                     frappe.show_alert({
-                      message: `Wiki Page <b>${title}</b> deleted`,
+                      message: __(`Wiki Page <b>${title}</b> deleted`),
                       indicator: "green",
                     });
                     dialog.hide();
@@ -377,9 +381,10 @@ window.RenderWiki = class RenderWiki extends Wiki {
     const initial_content = $(".revision-content").html().trim();
     let revisions = [];
     let currentRevisionIndex = 1;
+    let message = __("No Revisions");
 
     // set initial revision
-    if (initial_content !== "<h3>No Revisions</h3>") {
+    if (initial_content !== `<h3>${message}</h3>`) {
       $(".revision-content")[0].innerHTML = HtmlDiff.execute(
         $(".revision-content").html(),
         $(".from-markdown .wiki-content")
@@ -389,7 +394,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
       $(".previous-revision").removeClass("hide");
     } else {
       $(".revision-content")[0].innerHTML =
-        `<div class="no-revision">No Revisions</div>`;
+        `<div class="no-revision">${message}</div>`;
       $(".revision-time").hide();
       $(".revisions-modal .modal-header").hide();
     }
@@ -494,7 +499,9 @@ window.RenderWiki = class RenderWiki extends Wiki {
 				<div class="collapsible">
 					<span class="text-sm">${title}</span>
           <span class='add-sidebar-page'>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus">
+              <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
           </span>
           <span class='drop-icon hide'>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -584,7 +591,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
           })
           .then((res) => {
             let results = res.message.docs || [];
-            let dropdown_html = `<div style="margin: 0.8rem;text-align: center;">No results found</div>`;
+            let dropdown_html = `<div style="margin: 0.8rem;text-align: center;">${__("No results found")}</div>`;
             if (results.length > 0) {
               dropdown_html = results
                 .map((r) => {

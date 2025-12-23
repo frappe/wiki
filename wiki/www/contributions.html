@@ -21,20 +21,20 @@
 			<table class="table">
 				<thead class="white">
 					<tr>
-						<td style="width: 20%">{{ _("Status") }}</th>
-						<td style="width: 30%">{{ _("Message") }}</th>
-						<td style="width: 30%">{{ _("Last update on") }}</th>
-						<td style="width: 20%">{{ _("Link") }}</th>
+						<th style="width: 20%">{{ _("Status") }}</th>
+						<th style="width: 30%">{{ _("Message") }}</th>
+						<th style="width: 30%">{{ _("Last update on") }}</th>
+						<th style="width: 20%">{{ _("Link") }}</th>
 					</tr>
 				</thead>
 				<tbody>
 					{% for j in contributions %}
 					<tr>
 						<td class="worker-name"><span class="indicator-pill no-margin {{j.color}}">&nbsp;&nbsp;{{
-								j.status }}</span></td>
+								j.status_label }}</span></td>
 						<td>{{ j.message }}</td>
 						<td>{{ j.modified }}</td>
-						<td> <a class="btn btn-secondary-dark btn-xs center" href="{{ j.edit_link }}">Open Contribution</a>
+						<td><a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">{{ _("Open Contribution") }}</a>
 						</td>
 					</tr>
 					{% endfor %}
@@ -52,7 +52,7 @@
 </div>
 {% if contributions %}
 <br>
-<div> <button class='btn pull-right get_contributions'>More</button></div>
+<div> <button class='btn pull-right get_contributions'>{{ _("More") }}</button></div>
 <br>
 <br>
 
@@ -80,10 +80,10 @@
 					for (contribution of response.message.contributions) {
 						$('.list-jobs tbody').append($(`	<tr>
 						<td class="worker-name"><span class="indicator-pill no-margin ${contribution.color}">&nbsp;&nbsp;
-							${contribution.status}</span></td>
+							${contribution.status_label}</span></td>
 						<td>${contribution.message}</td>
 						<td>${contribution.modified}</td>
-						<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">Open Contribution</a>
+						<td> <a class="btn btn-default btn-xs center" href="${contribution.edit_link}">{{ _("Open Contribution") }}</a>
 						</td>
 					</tr>
 				`))

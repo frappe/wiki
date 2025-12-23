@@ -4,6 +4,7 @@ import json
 
 import frappe
 import pymysql
+from frappe import _
 from frappe.model.document import Document
 
 from wiki.wiki.doctype.wiki_page.search import build_index_in_background, drop_index
@@ -16,10 +17,10 @@ class WikiSpace(Document):
 			wiki_page = frappe.get_doc(
 				{
 					"doctype": "Wiki Page",
-					"title": "New Wiki Page",
+					"title": _("New Wiki Page"),
 					"route": f"{self.route}/new-wiki-page",
 					"published": 1,
-					"content": f"Welcome to Wiki Space {self.route}",
+					"content": _("Welcome to Wiki Space {0}").format(self.route),
 				}
 			)
 			wiki_page.insert()
@@ -47,7 +48,7 @@ class WikiSpace(Document):
 
 			frappe.publish_progress(
 				percent=i * 100 / len(self.wiki_sidebars),
-				title=f"Updating Wiki Page routes - <b>{self.route}</b>",
+				title=_("Updating Wiki Page routes - <b>{0}</b>").format(self.route),
 				description=f"{i}/{len(self.wiki_sidebars)}",
 			)
 
@@ -61,7 +62,7 @@ class WikiSpace(Document):
 					)
 			except Exception as e:
 				if isinstance(e, pymysql.err.IntegrityError):
-					frappe.throw(f"Wiki Page with route <b>{wiki_page.route}</b> already exists.")
+					frappe.throw(_("Wiki Page with route <b>{0}</b> already exists.").format(wiki_page.route))
 				else:
 					raise e
 
@@ -91,7 +92,7 @@ class WikiSpace(Document):
 
 def clone_wiki_space(name, route, new_space_route):
 	if frappe.db.exists("Wiki Space", new_space_route):
-		frappe.throw(f"Wiki Space <b>{new_space_route}</b> already exists.")
+		frappe.throw(_("Wiki Space <b>{0}</b> already exists.").format(new_space_route))
 
 	items = frappe.get_all(
 		"Wiki Group Item",
@@ -106,7 +107,7 @@ def clone_wiki_space(name, route, new_space_route):
 	for idx, item in enumerate(items, 1):
 		frappe.publish_progress(
 			idx * 100 / len(items),
-			title=f"Cloning into new Wiki Space <b>{new_space_route}</b>",
+			title=_("Cloning into new Wiki Space <b>{0}</b>").format(new_space_route),
 			description=f"{idx}/{len(items)}",
 		)
 		cloned_doc = frappe.get_doc("Wiki Page", item.wiki_page).clone(route, new_space_route)

@@ -2,11 +2,11 @@
 	<div class="alert alert-warning admin-banner {% if not (is_admin and pending_patches_count)%}hide{% endif %}"
 		role="alert">
 		<div class="d-flex justify-content-between align-items-center">
-			<div>This space has
-				<strong id="pending-patches-count">{{ pending_patches_count }}</strong> change(s) pending for
-				review.
+			<div>{{ _("This space has") }}
+				<strong id="pending-patches-count">{{ pending_patches_count }}</strong>
+				{{ _("change(s) pending for review.") }}
 			</div>
-			<button class="btn btn-sm btn-warning review-changes-btn">Review changes</button>
+			<button class="btn btn-sm btn-warning review-changes-btn">{{ _("Review changes") }}</button>
 		</div>
 	</div>
 	<div class="d-flex justify-content-between align-items-center">
@@ -27,14 +27,14 @@
 	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="addGroupModalTitle">Title</h5>
+				<h5 class="modal-title" id="addGroupModalTitle">{{ _("Title") }}</h5>
 			</div>
 			<div class="modal-body">
-				<span class="text-muted text-xs">Enter title for the new Wiki Group</span>
+				<span class="text-muted text-xs">{{ _("Enter title for the new Wiki Group") }}</span>
 				<input type="text" id="title" name="title">
 			</div>
 			<div class="modal-footer">
-				<button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">Submit</button>
+				<button class="add-group-btn btn btn-primary btn-sm" type="button" data-dismiss="modal">{{ _("Submit") }}</button>
 			</div>
 		</div>
 	</div>
@@ -43,8 +43,8 @@
 <div class="flex my-4 wiki-page-meta d-print-none">
 	{%- if show_feedback -%}
 	<div class="flex">
-		<span class="text-sm d-none d-sm-block">Was this article helpful?</span>
-		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">Give Feedback</span>
+		<span class="text-sm d-none d-sm-block">{{ _("Was this article helpful?") }}</span>
+		<span class="text-sm ml-2 feedback-btn" data-toggle="modal" data-target="#feedbackModal">{{ _("Give Feedback") }}</span>
 	</div>
 	{% include "wiki/doctype/wiki_page/templates/feedback.html" %}
 	{%- endif -%}
@@ -66,13 +66,13 @@
 			</svg>
 		</div>
 		<div class="dropdown-menu d-print-none" aria-labelledby="wikiOptionsButton">
-			<a class="dropdown-item edit-wiki-btn" href="#">Edit Page</a>
-			<a class="dropdown-item add-wiki-btn" href="#">New Page</a>
+			<a class="dropdown-item edit-wiki-btn" href="#">{{ _("Edit Page") }}</a>
+			<a class="dropdown-item add-wiki-btn" href="#">{{ _("New Page") }}</a>
 			<a class="dropdown-item show-revisions" href="#" data-toggle="modal" data-target="#revisionsModal">
-				Revisions
+				{{ _("Revisions") }}
 			</a>
 			<a class="dropdown-item show-page-settings" href="#" data-toggle="modal" data-target="#pageSettingsModal">
-				Page Settings
+				{{ _("Page Settings") }}
 			</a>
 		</div>
 	</div>
@@ -81,12 +81,12 @@
 <div class="wiki-footer d-print-none">
 	<div class="forward-back">
 		<a href="#" class="btn left footer-prev-page-link">
-			<p>Previous Page</p>
-			<p class="footer-prev-page">Left</p>
+			<p> {{ _("Previous Page") }} </p>
+			<p class="footer-prev-page">{{ _("Left") }}</p>
 		</a>
 		<a href="#" class="btn pull-right right footer-next-page-link">
-			<p>Next Page</p>
-			<p class="footer-next-page">Right</p>
+			<p>{{ _("Next Page") }}</p>
+			<p class="footer-next-page">{{ _("Right") }}</p>
 		</a>
 		</a>
 	</div>

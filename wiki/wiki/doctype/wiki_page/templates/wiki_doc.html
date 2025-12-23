@@ -24,7 +24,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 		<div class="modal-content review-patch-modal">
 			<div class="modal-header">
 				<div class="d-flex flex-column">
-					<h5 class="modal-title" id="patchDiffModalTitle">Review Changes</h5>
+					<h5 class="modal-title" id="patchDiffModalTitle">{{ _("Review Changes") }}</h5>
 					<span class="small text-muted patch-info"></span>
 				</div>
 				<div>
@@ -33,8 +33,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 					</button>
 					<div class="view-toggle-buttons-wrapper">
 						<div class="view-toggle-buttons">
-							<button type="button" class="btn btn-sm view-raw active">View Raw</button>
-							<button type="button" class="btn btn-sm view-preview">View Preview</button>
+							<button type="button" class="btn btn-sm view-raw active">{{ _("View Raw") }}</button>
+							<button type="button" class="btn btn-sm view-preview">{{ _("View Preview") }}</button>
 						</div>
 					</div>
 				</div>
@@ -44,8 +44,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 				<div class="preview-content markdown"></div>
 			</div>
 			<div class="modal-footer review-modal-footer">
-				<button type="button" class="btn approve-patch">Approve</button>
-				<button type="button" class="btn reject-patch">Reject</button>
+				<button type="button" class="btn approve-patch">{{ _("Approve") }}</button>
+				<button type="button" class="btn reject-patch">{{ _("Reject") }}</button>
 			</div>
 		</div>
 	</div>
@@ -74,7 +74,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 	{% if page_toc_html %}
 	<div class="page-toc d-none d-xl-block">
 		{% if page_toc_html %}
-		<p class="page-toc-title">On this page</p>
+		<p class="page-toc-title">{{ _("On this page") }}</p>
 		<div class='list-unstyled'>
 			<ul>
 				{{ page_toc_html }}
@@ -87,8 +87,8 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 
 	<div class="contributions-view d-none">
 		<div class="d-flex justify-content-between align-items-center mb-4">
-			<span class="page-title">Review Changes</span>
-			<a class="back-to-content">← Back to Content</a>
+			<span class="page-title">{{ _("Review Changes") }}</span>
+			<a class="back-to-content">{{ _("← Back to Content") }}</a>
 		</div>
 		<input class="d-none" type="text" autocomplete="off" name="limit" value="0">
 		<div class="frappe-card">
@@ -97,11 +97,11 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 					<table class="table">
 						<thead class="white">
 							<tr>
-								<td class="message-col">{{ _("Message") }}</td>
-								<td class="status-col">{{ _("Status") }}</td>
-								<td class="space-col">{{ _("Space") }}</td>
-								<td class="raised-by-col">{{ _("Raised By") }}</td>
-								<td class="date-col">{{ _("Last update on") }}</td>
+								<th class="message-col">{{ _("Message") }}</th>
+								<th class="status-col">{{ _("Status") }}</th>
+								<th class="space-col">{{ _("Space") }}</th>
+								<th class="raised-by-col">{{ _("Raised By") }}</th>
+								<th class="date-col">{{ _("Last update on") }}</th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -110,7 +110,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 			</div>
 		</div>
 		<div class="pagination-container">
-			<button class="btn pull-right get_patches d-none">Load More</button>
+			<button class="btn pull-right get_patches d-none">{{ _("Load More") }}</button>
 		</div>
 		<br>
 		<br>
@@ -144,7 +144,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 							$('#patchDiffModal').modal('show');
 							$('.diff-content').html(r.message.diff);
 							$('.preview-content').html(r.message.merged_html);
-							$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
+							$('.patch-info').html(`<b>${r.message.raised_by}</b> {{ _("submitted changes") }} <b>${r.message.raised_on}</b>`);
 						}
 					}
 				});
@@ -294,7 +294,7 @@ id="page-{{ name or route | e }}" data-path="{{ pathname | e }}"
 							$('#patchDiffModal').modal('show');
 							$('.diff-content').html(r.message.diff);
 							$('.preview-content').html(r.message.merged_html);
-							$('.patch-info').html(`<b>${r.message.raised_by}</b> submitted changes <b>${r.message.raised_on}</b>`);
+							$('.patch-info').html(`<b>${r.message.raised_by}</b> {{ _("submitted changes") }} <b>${r.message.raised_on}</b>`);
 						}
 					}
 				});

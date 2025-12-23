@@ -41,7 +41,7 @@ class WikiPage(WebsiteGenerator):
 		revision = frappe.new_doc("Wiki Page Revision")
 		revision.append("wiki_pages", {"wiki_page": self.name})
 		revision.content = self.content
-		revision.message = "Create Wiki Page"
+		revision.message = _("Create Wiki Page")
 		revision.raised_by = frappe.session.user
 		revision.insert()
 
@@ -189,7 +189,9 @@ class WikiPage(WebsiteGenerator):
 		if space := frappe.get_value("Wiki Group Item", {"wiki_page": self.name}, "parent"):
 			return frappe.get_value("Wiki Space", space, "route")
 		else:
-			frappe.throw("Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk.")
+			frappe.throw(
+				_("Wiki Page doesn't have a Wiki Space associated with it. Please add them via Desk.")
+			)
 
 	def calculate_toc_html(self, html):
 		from bs4 import BeautifulSoup
@@ -306,7 +308,7 @@ class WikiPage(WebsiteGenerator):
 		if len(revisions) > 1:
 			context.previous_revision = revisions[1]
 		else:
-			context.previous_revision = {"content": "<h3>No Revisions</h3>", "name": ""}
+			context.previous_revision = {"content": f"<h3>{_('No Revisions')}</h3>", "name": ""}
 
 		context.show_sidebar = True
 		context.hide_login = True
@@ -324,11 +326,11 @@ class WikiPage(WebsiteGenerator):
 					{"label": _("My Account"), "url": "/me"},
 					{"label": _("Logout"), "url": "/?cmd=web_logout"},
 					{
-						"label": _("Contributions ") + get_open_contributions(),
+						"label": _("Contributions") + get_open_contributions(),
 						"url": "/contributions",
 					},
 					{
-						"label": _("My Drafts ") + get_open_drafts(),
+						"label": _("My Drafts") + get_open_drafts(),
 						"url": "/drafts",
 					},
 				],

@@ -44,7 +44,7 @@ class WikiSearch(Search):
 			print()
 
 	def index_doc(self, doc):
-		id = f"Wiki Page:{doc.name}"
+		doc_id = f"Wiki Page:{doc.name}"
 		fields = {
 			"title": doc.title,
 			"content": strip_html_tags(doc.content),
@@ -58,12 +58,12 @@ class WikiSearch(Search):
 			"published": doc.published,
 			"allow_guest": doc.allow_guest,
 		}
-		self.add_document(id, fields, payload=payload)
+		self.add_document(doc_id, fields, payload=payload)
 
 	def remove_doc(self, doc):
 		if doc.doctype == "Wiki Page":
-			id = f"Wiki Page:{doc.name}"
-			self.remove_document(id)
+			doc_id = f"Wiki Page:{doc.name}"
+			self.remove_document(doc_id)
 
 	def clean_query(self, query):
 		query = query.strip().replace("-*", "*")

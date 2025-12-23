@@ -3,14 +3,15 @@
 
 
 import frappe
+from frappe import _
 
 
 def after_install():
 	# create the wiki homepage
 	page = frappe.new_doc("Wiki Page")
-	page.title = "Home"
+	page.title = _("Home")
 	page.route = "wiki/home"
-	page.content = "Welcome to the homepage of your wiki!"
+	page.content = _("Welcome to the homepage of your wiki!")
 	page.published = True
 	page.insert()
 

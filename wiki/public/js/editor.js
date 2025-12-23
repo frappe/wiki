@@ -2,6 +2,8 @@ import * as Ace from "ace-builds";
 import "ace-builds/src-noconflict/mode-markdown";
 import "ace-builds/src-noconflict/theme-tomorrow_night";
 
+const __ = globalThis.__;
+
 const editorContainer = document.getElementById("wiki-editor");
 const previewContainer = $("#preview-container");
 const previewToggleBtn = $("#toggle-btn");
@@ -19,7 +21,6 @@ let showPreview = false;
 
 let editor = Ace.edit(editorContainer, {
   mode: "ace/mode/markdown",
-  placeholder: "Write your content here...",
   theme: "ace/theme/tomorrow_night",
 });
 
@@ -42,7 +43,7 @@ $(document).ready(() => {
 previewContainer.hide();
 previewToggleBtn.on("click", function () {
   showPreview = !showPreview;
-  previewToggleBtn.text(showPreview ? "Edit" : "Preview");
+  previewToggleBtn.text(showPreview ? __("Edit") : __("Preview"));
   if (showPreview) {
     previewContainer.show();
     $(".wiki-editor-container").hide();
@@ -70,6 +71,7 @@ function setEditor() {
     wrap: true,
     showPrintMargin: true,
     theme: "ace/theme/tomorrow_night",
+    placeholder: __("Write your content here..."),
   });
   editor.renderer.lineHeight = 20;
 
@@ -193,7 +195,7 @@ function saveWikiPage(draft = false) {
     method: "wiki.wiki.doctype.wiki_page.wiki_page.update",
     args: {
       name: $('[name="wiki-page-name"]').val(),
-      message: `${isEmptyEditor ? "Created" : "Edited"} ${title}`,
+      message: `${isEmptyEditor ? __("Created") : __("Edited")} ${title}`,
       content,
       new: isEmptyEditor,
       new_sidebar_items: isEmptyEditor ? getSidebarItems() : "",
@@ -276,11 +278,11 @@ function validateAndUploadFiles(files, event) {
   );
 
   if (invalidFiles.length > 0) {
-    const action = event === "paste" ? "paste" : "insert";
+    const action = event === "paste" ? __("paste") : __("insert");
     frappe.show_alert({
       message: __(
         `You can only {0} images, videos and GIFs in Markdown fields. Invalid file(s): {1}`,
-        [__(action), invalidFiles.map((f) => f.name).join(", ")],
+        [action, invalidFiles.map((f) => f.name).join(", ")],
       ),
       indicator: "orange",
     });
@@ -289,7 +291,7 @@ function validateAndUploadFiles(files, event) {
 
   uploadMedia(
     ["image/*", "video/mp4", "video/quicktime"],
-    "Insert Media in Markdown",
+    __("Insert Media in Markdown"),
     files,
   );
 }
@@ -300,39 +302,42 @@ function insertMarkdown(type) {
 
   switch (type) {
     case "bold":
-      insertion = `**${selection || "bold text"}**`;
+      insertion = `**${selection || __("bold text")}**`;
       break;
     case "italic":
-      insertion = `*${selection || "italic text"}*`;
+      insertion = `*${selection || __("italic text")}*`;
       break;
     case "heading":
-      insertion = `\n# ${selection || "Heading"}`;
+      insertion = `\n# ${selection || __("Heading")}`;
       break;
     case "quote":
-      insertion = `\n> ${selection || "Quote"}`;
+      insertion = `\n> ${selection || __("Quote")}`;
       break;
     case "olist":
-      insertion = `\n1. ${selection || "List item"}`;
+      insertion = `\n1. ${selection || __("List item")}`;
       break;
     case "ulist":
-      insertion = `\n* ${selection || "List item"}`;
+      insertion = `\n* ${selection || __("List item")}`;
       break;
     case "link":
-      insertion = `[${selection || "link text"}](url)`;
+      insertion = `[${selection || __("link text")}](url)`;
       break;
     case "image":
-      uploadMedia(["image/*"], "Insert Image in Markdown");
+      uploadMedia(["image/*"], __("Insert Image in Markdown"));
       break;
     case "video":
-      uploadMedia(["video/mp4", "video/quicktime"], "Insert Video in Markdown");
+      uploadMedia(
+        ["video/mp4", "video/quicktime"],
+        __("Insert Video in Markdown"),
+      );
       break;
     case "table":
-      insertion = `${selection}\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Row 1 | Row 1 |\n| Row 2 | Row 2 |`;
+      insertion = `${selection}\n| ${__("Header 1")} | ${__("Header 2")} |\n| -------- | -------- |\n| ${__("Row 1")} | ${__("Row 1")} |\n| ${__("Row 2")} | ${__("Row 2")} |`;
       break;
     case "disclosure":
       insertion = `\n<details>\n<summary>${
-        selection || "Title"
-      }</summary>\nContent\n</details>`;
+        selection || __("Title")
+      }</summary>\n${__("Content")}\n</details>`;
       break;
   }
 

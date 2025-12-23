@@ -1,6 +1,6 @@
 <nav class="wiki-navbar navbar navbar-light navbar-expand-lg sticky-top pr-4">
   <div class="navbar-brand-container">
-    <a class="navbar-brand" alt="Go to home page" data-prefix="{{ url_prefix }}"
+    <a class="navbar-brand" alt="__('Go to home page')" data-prefix="{{ url_prefix }}"
       href="{{ url_prefix or "" }}{{ home_page or " /" }}">
       {%- if light_mode_logo -%}
       <img alt="Logo" data-alt-src="{{ dark_mode_logo }}" src='{{ light_mode_logo }}'>
@@ -72,7 +72,7 @@
             <path d="m21 21-4.3-4.3"></path>
           </svg>
         </div>
-        <input id="searchInput" type="search" class="form-control" placeholder="Search" />
+        <input id="searchInput" type="search" class="form-control" placeholder="{{ _('Search') }}" />
       </div>
       <div class="modal-body">
         <div class="overflow-hidden search-dropdown-menu w-100" aria-labelledby="dropdownMenuSearch"></div>

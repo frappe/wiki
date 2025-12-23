@@ -3,6 +3,7 @@
 
 
 import frappe
+from frappe import _
 from frappe.utils import strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 
@@ -122,7 +123,7 @@ def create_index_for_records(records, space):
 	r = frappe.cache()
 	for i, d in enumerate(records):
 		if not hasattr(frappe.local, "request") and len(records) > 10:
-			update_progress_bar(f"Indexing Wiki Pages - {space}", i, len(records), absolute=True)
+			update_progress_bar(_("Indexing Wiki Pages - {0}").format(space), i, len(records), absolute=True)
 
 		key = r.make_key(f"{PREFIX}{space}:{d.name}").decode()
 		mapping = {
@@ -188,7 +189,7 @@ def build_index_in_background():
 	if frappe.cache().get_value(INDEX_BUILD_FLAG):
 		return
 
-	print(f"Queued rebuilding of search index for {frappe.local.site}")
+	print(_("Queued rebuilding of search index for {0}").format(frappe.local.site))
 	frappe.enqueue(build_index, queue="long")
 
 

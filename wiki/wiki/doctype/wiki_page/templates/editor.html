@@ -1,21 +1,21 @@
 <div class="wiki-edit-control-btn">
   <button id="toggle-btn" class="btn btn-secondary btn-sm text-sm">
-    Preview
+    {{ _("Preview") }}
   </button>
   <div class="wiki-edit-control-btn flex">
     <div class="btn btn-secondary discard-edit-btn btn-sm" data-new="false">
-      Discard
+      {{ _("Discard") }}
     </div>
     <div class="btn-group">
       <div type="button" class="btn btn-group btn-primary save-wiki-page-btn btn-sm" data-wiki-button="saveWikiPage">
-        Save
+        {{ _("Save") }}
       </div>
       <div type="button" class="btn btn-primary btn-sm dropdown-toggle dropdown-toggle-split" data-toggle="dropdown"
         aria-haspopup="true" aria-expanded="false">
-        <span class="sr-only">Toggle Dropdown</span>
+        <span class="sr-only">{{ _("Toggle Dropdown") }}</span>
       </div>
       <div class="dropdown-menu" aria-labelledby="saveDropdownMenuButton">
-        <a href="#" class="dropdown-item text-sm" data-wiki-button="draftWikiPage">Draft</a>
+        <a href="#" class="dropdown-item text-sm" data-wiki-button="draftWikiPage">{{ _("Draft") }}</a>
       </div>
     </div>
   </div>
@@ -23,24 +23,24 @@
 
 <div id="preview-container" class="markdown-preview"></div>
 <div id="outdated-draft-warning" class="alert alert-warning text-sm mb-5">
-    This page has been updated since your last edit. Your draft may contain outdated content.
-    <span role="button" tabindex="0" class="load-latest-version-btn ml-1 text-sm font-weight-bold">Load Latest Version</span>
+    {{ _("This page has been updated since your last edit. Your draft may contain outdated content.") }}
+    <span role="button" tabindex="0" class="load-latest-version-btn ml-1 text-sm font-weight-bold">{{ _("Load Latest Version") }}</span>
 </div>
 <div class="wiki-editor-container">
   <div class="wiki-title-container">
-    <label class="text-sm">Title</label>
-    <input type="text" class="form-control wiki-title-input" value="" placeholder="What's the Wiki Title?" />
+    <label class="text-sm">{{ _("Title") }}</label>
+    <input type="text" class="form-control wiki-title-input" value="" placeholder="{{ _('What is the Wiki Title?') }}" />
   </div>
-  <label class="text-sm">Content</label>
+  <label class="text-sm">{{ _("Content") }}</label>
   <div class="editor-container">
     <div class="toolbar">
-      <button data-mde-button="bold" title="Bold">
+      <button data-mde-button="bold" title="{{ _('Bold') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bold">
           <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8" />
         </svg>
       </button>
-      <button data-mde-button="italic" title="Italic">
+      <button data-mde-button="italic" title="{{ _('Italic') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-italic">
           <line x1="19" x2="10" y1="4" y2="4" />
@@ -48,7 +48,7 @@
           <line x1="15" x2="9" y1="4" y2="20" />
         </svg>
       </button>
-      <button data-mde-button="heading" title="Heading">
+      <button data-mde-button="heading" title="{{ _('Heading') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heading">
           <path d="M6 12h12" />
@@ -56,7 +56,7 @@
           <path d="M18 20V4" />
         </svg>
       </button>
-      <button data-mde-button="quote" title="Quote">
+      <button data-mde-button="quote" title="{{ _('Quote') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote">
           <path
@@ -65,7 +65,7 @@
             d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
         </svg>
       </button>
-      <button data-mde-button="olist" title="Ordered List">
+      <button data-mde-button="olist" title="{{ _('Ordered List') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-ordered">
           <path d="M10 12h11" />
@@ -76,7 +76,7 @@
           <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
         </svg>
       </button>
-      <button data-mde-button="ulist" title="Unordered List">
+      <button data-mde-button="ulist" title="{{ _('Unordered List') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list">
           <path d="M3 12h.01" />
@@ -87,14 +87,14 @@
           <path d="M8 6h13" />
         </svg>
       </button>
-      <button data-mde-button="link" title="Link">
+      <button data-mde-button="link" title="{{ _('Link') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
       </button>
-      <button data-mde-button="image" title="Image">
+      <button data-mde-button="image" title="{{ _('Image') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image">
           <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
@@ -102,14 +102,14 @@
           <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
         </svg>
       </button>
-      <button data-mde-button="video" title="video">
+      <button data-mde-button="video" title="{{ _('video') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-video">
           <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
           <rect x="2" y="6" width="14" height="12" rx="2" />
         </svg>
       </button>
-      <button data-mde-button="table" title="Table">
+      <button data-mde-button="table" title="{{ _('Table') }}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-table">
           <path d="M12 3v18" />
@@ -118,7 +118,7 @@
           <path d="M3 15h18" />
         </svg>
       </button>
-      <button data-mde-button="disclosure" title="Disclosure">
+      <button data-mde-button="disclosure" title="{{ _('Disclosure') }}">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           class="lucide lucide-list-collapse">

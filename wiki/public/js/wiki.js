@@ -1,3 +1,5 @@
+const __ = globalThis.__;
+
 function add_link_to_headings() {
   $(".from-markdown")
     .not(".revision-content")
@@ -215,7 +217,7 @@ window.Wiki = class Wiki {
     const lastUpdatedDate = frappe.datetime.prettyDate(
       $(".user-contributions").data("date"),
     );
-    $(".user-contributions").append(`last updated ${lastUpdatedDate}`);
+    $(".user-contributions").append(`${__("last updated")} ${lastUpdatedDate}`);
   }
 
   set_darkmode_button() {

@@ -5,6 +5,7 @@
 import json
 
 import frappe
+from frappe import _
 from frappe.utils import cstr
 from redis.commands.search.field import TagField, TextField
 from redis.commands.search.query import Query
@@ -87,9 +88,9 @@ class Search:
 
 		out = frappe._dict(docs=[], total=result.total, duration=result.duration)
 		for doc in result.docs:
-			id = doc.id.split(":", 1)[1]
+			doc_id = doc.id.split(":", 1)[1]
 			_doc = frappe._dict(doc.__dict__)
-			_doc.id = id
+			_doc.id = doc_id
 			_doc.payload = json.loads(doc.payload) if doc.payload else None
 			out.docs.append(_doc)
 		return out
@@ -99,7 +100,7 @@ class Search:
 
 	def drop_index(self):
 		if self.index_exists():
-			print(f"Dropping index {self.index_name}")
+			print(_("Dropping index {0}").format(self.index_name))
 			self.redis.ft(self.index_name).dropindex(delete_documents=True)
 
 	def index_exists(self):
