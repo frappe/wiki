@@ -4,20 +4,6 @@ from frappe.utils.data import cint
 
 from wiki.wiki.doctype.wiki_page.wiki_page import get_open_drafts
 
-color_map = {
-	"Changes Requested": "blue",
-	"Under Review": "orange",
-	"Rejected": "red",
-	"Approved": "green",
-}
-
-status_label_map = {
-	"Changes Requested": _("Changes Requested"),
-	"Under Review": _("Under Review"),
-	"Rejected": _("Rejected"),
-	"Approved": _("Approved"),
-}
-
 
 def get_context(context) -> dict:
 	context.pilled_title = _("My Contributions")
@@ -46,6 +32,20 @@ def get_contributions(start, limit) -> dict:
 
 
 def get_user_contributions(start, limit) -> list:
+	color_map = {
+		"Changes Requested": "blue",
+		"Under Review": "orange",
+		"Rejected": "red",
+		"Approved": "green",
+	}
+
+	status_label_map = {
+		"Changes Requested": _("Changes Requested"),
+		"Under Review": _("Under Review"),
+		"Rejected": _("Rejected"),
+		"Approved": _("Approved"),
+	}
+
 	contributions = []
 	wiki_page_patches = frappe.get_list(
 		"Wiki Page Patch",
