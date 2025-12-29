@@ -29,7 +29,7 @@ class WikiSpace(Document):
 				"wiki_sidebars",
 				{
 					"wiki_page": wiki_page.name,
-					"parent_label": "New Group",
+					"parent_label": _("New Group"),
 				},
 			)
 

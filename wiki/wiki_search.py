@@ -4,6 +4,7 @@
 import re
 
 import frappe
+from frappe import _
 from frappe.utils import cstr, strip_html_tags, update_progress_bar
 from frappe.utils.redis_wrapper import RedisWrapper
 
@@ -39,7 +40,7 @@ class WikiSearch(Search):
 		for i, doc in enumerate(records):
 			self.index_doc(doc)
 			if not hasattr(frappe.local, "request"):
-				update_progress_bar("Indexing Wiki Pages", i, total)
+				update_progress_bar(_("Indexing Wiki Pages"), i, total)
 		if not hasattr(frappe.local, "request"):
 			print()
 

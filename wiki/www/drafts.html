@@ -32,7 +32,7 @@
 						{% for j in contributions %}
 						<tr>
 							<td><span class="indicator-pill no-margin {{j.color}}">&nbsp;&nbsp;{{
-									j.status }}</span></td>
+									j.status_label }}</span></td>
 							<td>{{ j.message }}</td>
 							<td>{{ j.modified }}</td>
 							<td> <a class="btn btn-default btn-xs center" href="{{ j.edit_link }}">{{ _("Open Draft") }}</a>
@@ -43,7 +43,7 @@
 				</table>
 				{% else %}
 				<div class="no-background-jobs">
-					<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Empty State">
+					<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="{{ _('Empty State') }}">
 					<p class="text-muted">{{ _("No Drafts Made") }}</p>
 				</div>
 				{% endif %}

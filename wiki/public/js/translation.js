@@ -1,40 +1,60 @@
 export { translate as __ };
-if (!globalThis.translatedMessages) fetchTranslations();
+
+globalThis.translatedMessages = globalThis.translatedMessages || null;
+
+let translationsPromise = null;
+
 globalThis.__ = translate;
 
-function format(message, replace) {
-  return message.replace(/{(\d+)}/g, (match, number) =>
-    replace[number] === undefined ? match : replace[number],
-  );
+ensureTranslationsLoaded();
+
+function ensureTranslationsLoaded() {
+  if (!translationsPromise) {
+    translationsPromise = fetchTranslations();
+  }
+  return translationsPromise;
 }
 
-function translate(message, replace, context = null) {
-  const translatedMessages = globalThis.translatedMessages || {};
+function translate(message, replace = [], context = null) {
+  const messages = globalThis.translatedMessages;
+
+  if (!messages) {
+    return format(message, replace);
+  }
+
   let translatedMessage = "";
 
   if (context) {
-    const key = `${message}:${context}`;
-    if (translatedMessages[key]) {
-      translatedMessage = translatedMessages[key];
-    }
+    const contextualKey = `${message}:${context}`;
+    translatedMessage = messages[contextualKey] || "";
   }
 
   if (!translatedMessage) {
-    translatedMessage = translatedMessages[message] || message;
+    translatedMessage = messages[message] || message;
   }
 
-  const hasPlaceholders = /{\d+}/.test(message);
-  if (!hasPlaceholders) {
-    return translatedMessage;
-  }
-
-  return format(translatedMessage, replace);
+  return hasPlaceholders(translatedMessage)
+    ? format(translatedMessage, replace)
+    : translatedMessage;
 }
 
-function fetchTranslations() {
-  fetch("/api/method/wiki.api.get_translations")
-    .then((response) => response.json())
-    .then((data) => {
-      globalThis.translatedMessages = data.message;
-    });
+function format(message, replace) {
+  if (!replace?.length) return message;
+
+  return message.replace(/{(\d+)}/g, (match, index) => replace[index] ?? match);
+}
+
+function hasPlaceholders(message) {
+  return /{\d+}/.test(message);
+}
+
+async function fetchTranslations() {
+  try {
+    const response = await fetch("/api/method/wiki.api.get_translations");
+    const data = await response.json();
+    globalThis.translatedMessages = data.message || {};
+  } catch (error) {
+    console.error("Failed to load translations", error);
+    globalThis.translatedMessages = {};
+  }
 }

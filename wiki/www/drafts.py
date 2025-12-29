@@ -50,6 +50,7 @@ def get_user_drafts(start, limit):
 		else:
 			wiki_page_patch.edit_link = f"/{route}?editWiki=1&wikiPagePatch={wiki_page_patch.name}"
 		wiki_page_patch.color = "orange"
+		wiki_page_patch.status_label = _("Draft")
 		wiki_page_patch.modified = frappe.utils.pretty_date(wiki_page_patch.modified)
 		drafts.extend([wiki_page_patch])
 

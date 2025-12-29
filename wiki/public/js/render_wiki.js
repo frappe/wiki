@@ -347,7 +347,8 @@ window.RenderWiki = class RenderWiki extends Wiki {
           title: __("Delete Wiki Page"),
           indicator: "red",
           message: __(
-            `Are you sure you want to <b>delete</b> the Wiki Page <b>${title}</b>?`,
+            `Are you sure you want to <b>delete</b> the Wiki Page <b>{0}</b>?`,
+            [title],
           ),
           primary_action: {
             label: __("Yes"),
@@ -363,7 +364,7 @@ window.RenderWiki = class RenderWiki extends Wiki {
                     sidebar_item.remove();
 
                     frappe.show_alert({
-                      message: __(`Wiki Page <b>${title}</b> deleted`),
+                      message: __("Wiki Page <b>{0}</b> deleted", [title]),
                       indicator: "green",
                     });
                     dialog.hide();
@@ -378,13 +379,13 @@ window.RenderWiki = class RenderWiki extends Wiki {
   }
 
   set_revisions() {
-    const initial_content = $(".revision-content").html().trim();
+    const isEmpty = $(".revision-content").data("empty");
     let revisions = [];
     let currentRevisionIndex = 1;
     let message = __("No Revisions");
 
     // set initial revision
-    if (initial_content !== `<h3>${message}</h3>`) {
+    if (!isEmpty) {
       $(".revision-content")[0].innerHTML = HtmlDiff.execute(
         $(".revision-content").html(),
         $(".from-markdown .wiki-content")
