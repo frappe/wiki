@@ -10,7 +10,7 @@ def get_context(context) -> dict:
 	context.no_cache = 1
 	context.no_sidebar = 1
 	context.contributions = get_user_contributions(0, 10)
-	context = context.update(
+	context.update(
 		{
 			"post_login": [
 				{"label": _("My Account"), "url": "/me"},
