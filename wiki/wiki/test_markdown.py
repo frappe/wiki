@@ -3,7 +3,7 @@
 
 import unittest
 
-from wiki.wiki.markdown import render_markdown
+from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 
 class TestMarkdownRenderer(unittest.TestCase):
@@ -445,6 +445,150 @@ class TestTaskListRendering(unittest.TestCase):
 """
 		result = render_markdown(content)
 		self.assertIn('type="checkbox"', result)
+
+
+class TestTOCGeneration(unittest.TestCase):
+	"""Tests for Table of Contents (TOC) heading extraction."""
+
+	def test_toc_extracts_h2_headings(self):
+		"""Test that h2 headings are extracted for TOC."""
+		content = """## Introduction
+Some text.
+## Getting Started
+More text.
+## Conclusion
+Final text."""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 3)
+		self.assertEqual(headings[0]["text"], "Introduction")
+		self.assertEqual(headings[0]["id"], "introduction")
+		self.assertEqual(headings[0]["level"], 2)
+		self.assertEqual(headings[1]["text"], "Getting Started")
+		self.assertEqual(headings[2]["text"], "Conclusion")
+
+	def test_toc_extracts_h3_headings(self):
+		"""Test that h3 headings are extracted for TOC."""
+		content = """## Main Section
+### Subsection 1
+### Subsection 2"""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 3)
+		self.assertEqual(headings[0]["level"], 2)
+		self.assertEqual(headings[1]["level"], 3)
+		self.assertEqual(headings[2]["level"], 3)
+
+	def test_toc_excludes_h1_and_h4_plus(self):
+		"""Test that h1 and h4+ headings are NOT included in TOC."""
+		content = """# Title (h1 - excluded)
+## Section (h2 - included)
+### Subsection (h3 - included)
+#### Deep Section (h4 - excluded)
+##### Even Deeper (h5 - excluded)"""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 2)
+		self.assertEqual(headings[0]["text"], "Section (h2 - included)")
+		self.assertEqual(headings[1]["text"], "Subsection (h3 - included)")
+
+	def test_toc_empty_for_no_headings(self):
+		"""Test that empty list is returned when no h2/h3 headings."""
+		content = """Just some paragraph text.
+
+More text here.
+
+# Only an h1 heading"""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 0)
+
+	def test_toc_empty_for_empty_content(self):
+		"""Test that empty content returns empty list."""
+		html, headings = render_markdown_with_toc("")
+		self.assertEqual(html, "")
+		self.assertEqual(headings, [])
+
+	def test_toc_handles_duplicate_headings(self):
+		"""Test that duplicate headings get unique IDs in TOC."""
+		content = """## Introduction
+## Details
+## Introduction
+## Introduction"""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 4)
+		ids = [h["id"] for h in headings]
+		self.assertEqual(ids[0], "introduction")
+		self.assertEqual(ids[1], "details")
+		self.assertEqual(ids[2], "introduction-1")
+		self.assertEqual(ids[3], "introduction-2")
+
+	def test_toc_preserves_heading_text(self):
+		"""Test that heading text is preserved correctly."""
+		content = "## What's New? (2024)"
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 1)
+		self.assertEqual(headings[0]["text"], "What's New? (2024)")
+		self.assertEqual(headings[0]["id"], "whats-new-2024")
+
+	def test_toc_with_mixed_content(self):
+		"""Test TOC extraction with complex content including callouts."""
+		content = """## Getting Started
+
+:::note
+This is a note callout.
+:::
+
+Some regular paragraph text.
+
+### Prerequisites
+
+- Item 1
+- Item 2
+
+### Installation
+
+Code block example.
+
+## Advanced Usage
+
+More content here."""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 4)
+		self.assertEqual(headings[0]["text"], "Getting Started")
+		self.assertEqual(headings[0]["level"], 2)
+		self.assertEqual(headings[1]["text"], "Prerequisites")
+		self.assertEqual(headings[1]["level"], 3)
+		self.assertEqual(headings[2]["text"], "Installation")
+		self.assertEqual(headings[2]["level"], 3)
+		self.assertEqual(headings[3]["text"], "Advanced Usage")
+		self.assertEqual(headings[3]["level"], 2)
+
+	def test_toc_html_matches_render_markdown(self):
+		"""Test that HTML output is identical to render_markdown."""
+		content = """## Heading One
+Some text.
+## Heading Two
+More text."""
+		html_with_toc, headings = render_markdown_with_toc(content)
+		html_only = render_markdown(content)
+
+		self.assertEqual(html_with_toc, html_only)
+
+	def test_toc_heading_ids_match_html(self):
+		"""Test that TOC heading IDs match the IDs in rendered HTML."""
+		content = """## First Section
+## Second Section
+### Nested Section"""
+		html, headings = render_markdown_with_toc(content)
+
+		for heading in headings:
+			# Verify each heading ID exists in the HTML
+			expected_tag = f'<h{heading["level"]} id="{heading["id"]}">'
+			self.assertIn(expected_tag, html)
 
 
 if __name__ == "__main__":
