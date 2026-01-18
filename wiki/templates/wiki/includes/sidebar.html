@@ -1,7 +1,7 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 {% from "templates/wiki/macros/buttons.html" import ghost_button_full, icon_button, render_icon %}
 
-<div class="wiki-sidebar hidden xl:flex bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[53px] h-[calc(100vh-53px)]"
+<div class="wiki-sidebar hidden lg:flex bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[53px] h-[calc(100vh-53px)]"
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
@@ -13,7 +13,7 @@
 
 <!-- Sidebar Toggle Button (appears on hover at sidebar edge, always visible when collapsed) -->
 <div x-data="{ hovered: false }"
-     class="hidden xl:flex items-center fixed z-40 top-[53px] h-[calc(100vh-53px)] transition-[left] duration-300 ease-in-out"
+     class="hidden lg:flex items-center fixed z-40 top-[53px] h-[calc(100vh-53px)] transition-[left] duration-300 ease-in-out"
      :style="$store.sidebar.isCollapsed ? 'left: 0.5rem;' : 'left: calc(18rem - 0.25rem);'"
      @mouseenter="hovered = true"
      @mouseleave="hovered = false">
