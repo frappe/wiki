@@ -175,6 +175,15 @@ That is all.`;
 			await publicPage.setViewportSize({ width: 1100, height: 900 });
 			await publicPage.waitForLoadState('networkidle');
 
+			// Reload the page to ensure fresh content (avoid any caching)
+			await publicPage.reload();
+			await publicPage.waitForLoadState('networkidle');
+
+			// Verify the page content has headings (debug check)
+			await expect(
+				publicPage.locator('h2:has-text("Introduction")'),
+			).toBeVisible({ timeout: 5000 });
+
 			// TOC is now server-rendered, so it should be immediately available
 			// Verify the TOC aside with "On this page" heading is visible
 			const tocAside = publicPage.locator('aside').filter({
