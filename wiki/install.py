@@ -7,9 +7,10 @@ import frappe
 
 def after_install():
 	# create the wiki space
+	# Note: route "docs" is used instead of "wiki" to avoid conflict with the app's base URL /wiki
 	space = frappe.new_doc("Wiki Space")
 	space.space_name = "Wiki"
-	space.route = "wiki"
+	space.route = "docs"
 	space.insert()
 
 	page = frappe.new_doc("Wiki Document")
