@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { getDoc } from '../helpers/frappe';
 
 // Extend Window interface for Tiptap editor access in tests
 declare global {
@@ -14,6 +15,13 @@ declare global {
 	}
 }
 
+interface WikiDocument {
+	name: string;
+	title: string;
+	content: string;
+	route: string;
+}
+
 /**
  * Tests for the public-facing wiki pages.
  * These tests verify the reader experience on published wiki pages,
@@ -21,11 +29,9 @@ declare global {
  */
 test.describe('Public Wiki Pages', () => {
 	test.describe('Table of Contents', () => {
-		// Skip: Tiptap's markdown serialization in CI doesn't reliably preserve heading
-		// syntax when round-tripping through setContent -> getMarkdown. The server-side
-		// TOC generation is fully tested in wiki/wiki/test_markdown.py.
-		test.skip('should render TOC with correct headings on published page', async ({
+		test('should render TOC with correct headings on published page', async ({
 			page,
+			request,
 		}) => {
 			// Use wider viewport to see TOC (lg breakpoint = 1024px)
 			await page.setViewportSize({ width: 1100, height: 900 });
@@ -120,6 +126,21 @@ That is all.`;
 			await page.waitForLoadState('networkidle');
 			// Wait for save to complete in database
 			await page.waitForTimeout(2000);
+
+			// Verify content was saved with markdown headings
+			const url = page.url();
+			const pageIdMatch = url.match(/\/wiki\/spaces\/[^/]+\/page\/([^/?#]+)/);
+			expect(pageIdMatch).toBeTruthy();
+			const pageId = decodeURIComponent(pageIdMatch?.[1] ?? '');
+
+			const savedDoc = await getDoc<WikiDocument>(
+				request,
+				'Wiki Document',
+				pageId,
+			);
+			// Verify markdown headings are in the saved content
+			expect(savedDoc.content).toContain('## Introduction');
+			expect(savedDoc.content).toContain('## Conclusion');
 
 			// Publish the page via dropdown menu
 			await page
