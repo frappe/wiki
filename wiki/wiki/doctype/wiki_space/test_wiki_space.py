@@ -246,20 +246,20 @@ class TestUpdateRoutes(IntegrationTestCase):
 
 	def test_update_routes_with_similar_route_prefix(self):
 		"""Test that routes with similar prefixes don't get incorrectly updated."""
-		# Create first space
-		space1, _, _, _, _ = self._create_space_with_tree("docs", "Docs Space")
+		# Create first space (using unique routes to avoid conflict with default 'docs' route)
+		space1, _, _, _, _ = self._create_space_with_tree("prefix-test", "Prefix Test Space")
 
 		# Create second space with similar prefix
-		root2 = self._create_wiki_document("Docs API Root", "docs-api", is_group=True)
-		page2 = self._create_wiki_document("API Page", "docs-api/endpoints", parent=root2.name)
-		space2 = self._create_wiki_space("Docs API Space", "docs-api", root2.name)
+		root2 = self._create_wiki_document("Prefix Test API Root", "prefix-test-api", is_group=True)
+		page2 = self._create_wiki_document("API Page", "prefix-test-api/endpoints", parent=root2.name)
+		space2 = self._create_wiki_space("Prefix Test API Space", "prefix-test-api", root2.name)
 
 		# Update first space's routes
 		space1.update_routes("documentation")
 
 		# Second space's routes should remain unchanged
 		space2.reload()
-		self.assertEqual(space2.route, "docs-api")
+		self.assertEqual(space2.route, "prefix-test-api")
 
 		page2.reload()
-		self.assertEqual(page2.route, "docs-api/endpoints")
+		self.assertEqual(page2.route, "prefix-test-api/endpoints")
