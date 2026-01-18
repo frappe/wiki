@@ -517,6 +517,8 @@ onKeyStroke('s', (e) => {
 
 onMounted(() => {
     initEditor();
+    // Expose editor on window for E2E testing
+    window.wikiEditor = editor.value;
     // Listen for slash command image upload events
     document.addEventListener('wiki-editor-upload-image', handleSlashImageUploadEvent);
 });
@@ -526,6 +528,8 @@ onUnmounted(() => {
     document.removeEventListener('wiki-editor-upload-image', handleSlashImageUploadEvent);
     // Hide any open link popup
     hideLinkPopup();
+    // Clean up window reference
+    delete window.wikiEditor;
 
     if (autosaveTimer) {
         clearTimeout(autosaveTimer);

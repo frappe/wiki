@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+// Extend Window interface for Tiptap editor access in tests
+declare global {
+	interface Window {
+		wikiEditor: {
+			commands: {
+				setContent: (
+					content: string,
+					options?: { contentType?: string },
+				) => void;
+			};
+		};
+	}
+}
+
 /**
  * Tests for the public-facing wiki pages.
  * These tests verify the reader experience on published wiki pages,
@@ -7,11 +21,7 @@ import { expect, test } from '@playwright/test';
  */
 test.describe('Public Wiki Pages', () => {
 	test.describe('Table of Contents', () => {
-		// TODO: This test is skipped because Tiptap's markdown input rules don't
-		// consistently convert ## to headings when typing in Playwright/CI.
-		// The server-side TOC generation is verified by unit tests in test_markdown.py.
-		// Manual testing confirms TOC works correctly with proper heading content.
-		test.skip('should render TOC with correct headings on published page', async ({
+		test('should render TOC with correct headings on published page', async ({
 			page,
 		}) => {
 			// Use wider viewport to see TOC (lg breakpoint = 1024px)
@@ -51,61 +61,49 @@ test.describe('Public Wiki Pages', () => {
 				.click();
 			await page.waitForLoadState('networkidle');
 
-			// Wait for editor to be visible
+			// Wait for editor to be visible and ready
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });
 
-			// Clear editor and add content with markdown headings
-			// The Tiptap Markdown extension should convert markdown to proper nodes
-			await editor.click();
-			await page.keyboard.press('Control+a'); // Works on both Mac and Linux
-			await page.keyboard.press('Backspace');
+			// Wait for Tiptap editor to be exposed on window
+			await page.waitForFunction(() => window.wikiEditor !== undefined, {
+				timeout: 10000,
+			});
 
-			// Type markdown content - Tiptap's markdown extension uses input rules
-			// that convert ## at line start to h2 when followed by space
-			// Key: type the markdown on its own line, press Enter, then continue
-			await page.keyboard.type('## Introduction');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('This is the introduction section.');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
+			// Set markdown content directly via Tiptap's setContent command
+			// This is more reliable than typing, which depends on input rules
+			const markdownContent = `## Introduction
 
-			await page.keyboard.type('## Getting Started');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('Learn how to get started with this feature.');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
+This is the introduction section.
 
-			await page.keyboard.type('### Prerequisites');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('Before you begin.');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
+## Getting Started
 
-			await page.keyboard.type('### Installation');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('Follow these steps.');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
+Learn how to get started with this feature.
 
-			await page.keyboard.type('## Advanced Usage');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('Advanced topics.');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
+### Prerequisites
 
-			await page.keyboard.type('## Conclusion');
-			await page.keyboard.press('Enter');
-			await page.keyboard.press('Enter');
-			await page.keyboard.type('That is all.');
+Before you begin.
+
+### Installation
+
+Follow these steps.
+
+## Advanced Usage
+
+Advanced topics.
+
+## Conclusion
+
+That is all.`;
+
+			await page.evaluate((content) => {
+				window.wikiEditor.commands.setContent(content, {
+					contentType: 'markdown',
+				});
+			}, markdownContent);
 
 			// Wait for editor to process content
-			await page.waitForTimeout(500);
+			await page.waitForTimeout(300);
 
 			// Save the page
 			await page.click('button:has-text("Save")');
