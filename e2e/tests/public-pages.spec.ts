@@ -51,37 +51,45 @@ test.describe('Public Wiki Pages', () => {
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });
 
-			// Type content with multiple headings (h2 and h3)
+			// Add content with headings - type line by line to trigger input rules
 			await editor.click();
 			await page.keyboard.press('Meta+a');
+			await page.keyboard.press('Backspace');
 
-			const contentWithHeadings = `## Introduction
+			// Type content with delays to allow Tiptap input rules to process
+			// The ## at line start should trigger heading conversion
+			const lines = [
+				'## Introduction',
+				'',
+				'This is the introduction section.',
+				'',
+				'## Getting Started',
+				'',
+				'Learn how to get started with this feature.',
+				'',
+				'### Prerequisites',
+				'',
+				'Before you begin, make sure you have:',
+				'- Item 1',
+				'- Item 2',
+				'',
+				'### Installation',
+				'',
+				'Follow these steps to install.',
+				'',
+				'## Advanced Usage',
+				'',
+				'This section covers advanced topics.',
+				'',
+				'## Conclusion',
+				'',
+				"That's all for this guide.",
+			];
 
-This is the introduction section.
-
-## Getting Started
-
-Learn how to get started with this feature.
-
-### Prerequisites
-
-Before you begin, make sure you have:
-- Item 1
-- Item 2
-
-### Installation
-
-Follow these steps to install.
-
-## Advanced Usage
-
-This section covers advanced topics.
-
-## Conclusion
-
-That's all for this guide.`;
-
-			await page.keyboard.type(contentWithHeadings);
+			for (const line of lines) {
+				await page.keyboard.type(line, { delay: 10 });
+				await page.keyboard.press('Enter');
+			}
 
 			// Save the page
 			await page.click('button:has-text("Save")');
