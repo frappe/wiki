@@ -172,8 +172,19 @@ That is all.`;
 			// This is more reliable than opening a new tab
 			const publicRoute = savedDoc.route;
 			console.log('Navigating to public route:', publicRoute);
+			console.log(
+				'Full URL:',
+				`${page.url().split('/').slice(0, 3).join('/')}/${publicRoute}`,
+			);
 			await page.goto(`/${publicRoute}`);
 			await page.waitForLoadState('networkidle');
+
+			// Debug: Log what's on the page
+			console.log('Page URL after navigation:', page.url());
+			const publicPageTitle = await page.title();
+			console.log('Page title:', publicPageTitle);
+			const bodyText = await page.locator('body').textContent();
+			console.log('Body text preview:', bodyText?.substring(0, 300));
 
 			// Verify the page content has headings
 			await expect(
