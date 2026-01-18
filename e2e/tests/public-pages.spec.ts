@@ -168,33 +168,32 @@ That is all.`;
 			expect(savedDoc.content).toContain('## Introduction');
 			expect(savedDoc.content).toContain('## Conclusion');
 
-			// Navigate directly to the public route instead of clicking "View Page"
-			// This is more reliable than opening a new tab
-			const publicRoute = savedDoc.route;
-			console.log('Navigating to public route:', publicRoute);
-			console.log(
-				'Full URL:',
-				`${page.url().split('/').slice(0, 3).join('/')}/${publicRoute}`,
-			);
-			await page.goto(`/${publicRoute}`);
-			await page.waitForLoadState('networkidle');
+			// Click "View Page" to open the public page in a new tab
+			const viewPageButton = page.locator('button:has-text("View Page")');
+			await expect(viewPageButton).toBeVisible({ timeout: 5000 });
 
-			// Debug: Log what's on the page
-			console.log('Page URL after navigation:', page.url());
-			const publicPageTitle = await page.title();
-			console.log('Page title:', publicPageTitle);
-			const bodyText = await page.locator('body').textContent();
-			console.log('Body text preview:', bodyText?.substring(0, 300));
+			// Open public page in new tab
+			const [publicPage] = await Promise.all([
+				page.context().waitForEvent('page'),
+				viewPageButton.click(),
+			]);
+
+			await publicPage.waitForLoadState('networkidle');
+			// Set viewport for TOC visibility (lg breakpoint = 1024px)
+			await publicPage.setViewportSize({ width: 1100, height: 900 });
+
+			// Debug: Log the public page URL
+			console.log('Public page URL:', publicPage.url());
 
 			// Verify the page content has headings
 			await expect(
-				page.locator('#wiki-content h2:has-text("Introduction")'),
+				publicPage.locator('#wiki-content h2:has-text("Introduction")'),
 			).toBeVisible({ timeout: 10000 });
 
 			// TOC is now server-rendered, so it should be immediately available
 			// Verify the TOC aside with "On this page" heading is visible
-			const tocAside = page.locator('aside').filter({
-				has: page.locator('text=On this page'),
+			const tocAside = publicPage.locator('aside').filter({
+				has: publicPage.locator('text=On this page'),
 			});
 			await expect(tocAside).toBeVisible({ timeout: 10000 });
 
@@ -215,12 +214,14 @@ That is all.`;
 
 			// Verify clicking a TOC link scrolls to the heading
 			await tocNav.locator('a:has-text("Advanced Usage")').click();
-			await page.waitForTimeout(500);
+			await publicPage.waitForTimeout(500);
 
-			const advancedHeading = page
+			const advancedHeading = publicPage
 				.locator('h2')
 				.filter({ hasText: 'Advanced Usage' });
 			await expect(advancedHeading).toBeInViewport();
+
+			await publicPage.close();
 		});
 
 		test('should hide TOC on mobile viewport', async ({ page }) => {
