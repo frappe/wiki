@@ -17,10 +17,29 @@ export const WikiLink = Mark.create({
 	},
 
 	// TipTap v3 Markdown extension support
+	// Register as handler for 'link' tokens from marked.js
+	markdownTokenName: 'link',
+
+	// Parse markdown link tokens into link marks
+	// Token format: { type: 'link', href: '...', title: '...', tokens: [...] }
+	parseMarkdown(token, helpers) {
+		// Parse the link's child tokens (the link text)
+		const content = helpers.parseInline(token.tokens || []);
+		// Return a mark result that wraps content with the link mark
+		return helpers.applyMark('link', content, {
+			href: token.href || null,
+		});
+	},
+
 	// Renders link marks to markdown format: [text](url)
+	// Guards against empty href to avoid outputting invalid markdown like [text]()
 	renderMarkdown(node, helpers) {
 		const href = node.attrs?.href || '';
 		const content = helpers.renderChildren();
+		// If no href, just return the content without link formatting
+		if (!href) {
+			return content;
+		}
 		return `[${content}](${href})`;
 	},
 
