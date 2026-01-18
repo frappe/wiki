@@ -83,6 +83,9 @@ That's all for this guide.`;
 
 			await page.keyboard.type(contentWithHeadings);
 
+			// Wait for editor to process markdown conversion (## -> h2)
+			await page.waitForTimeout(500);
+
 			// Save the page
 			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
@@ -120,11 +123,18 @@ That's all for this guide.`;
 			await publicPage.setViewportSize({ width: 1100, height: 900 });
 			await publicPage.waitForLoadState('networkidle');
 
-			// Verify the TOC aside is visible (only visible on lg+ screens)
+			// First, verify the content has h2 headings rendered (markdown was converted to HTML)
+			// This ensures the page content is fully loaded before checking TOC
+			const contentHeading = publicPage.locator('#wiki-content h2').first();
+			await expect(contentHeading).toBeVisible({ timeout: 15000 });
+
+			// Wait for Alpine.js to initialize and extract headings
+			// Alpine uses x-init which runs after DOM is ready, but may need extra time
+			// Check for TOC link which only appears after headings are extracted
 			const tocAside = publicPage.locator('aside').filter({
 				has: publicPage.locator('text=On this page'),
 			});
-			await expect(tocAside).toBeVisible({ timeout: 10000 });
+			await expect(tocAside).toBeVisible({ timeout: 15000 });
 
 			// Verify TOC contains the expected headings
 			const tocNav = tocAside.locator('nav');
