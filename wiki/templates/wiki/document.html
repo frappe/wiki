@@ -152,8 +152,8 @@
                 return urls[provider] || '#';
             },
 
-            // tocScrollSpy properties
-            headings: [],
+            // tocScrollSpy properties - works with server-rendered TOC
+            headingIds: [],
             activeId: '',
             observer: null,
             resizeHandler: null,
@@ -161,10 +161,9 @@
             visibleHeadings: new Set(),
 
             init() {
-                this.extractHeadings('wiki-content');
-                this.setupScrollSpy();
+                this.initScrollSpy();
 
-                // Register refresh callback with store
+                // Register refresh callback with store for SPA navigation
                 Alpine.store('toc').setRefreshCallback(() => {
                     this.refresh();
                 });
@@ -183,42 +182,34 @@
                 }
                 this.visibleHeadings.clear();
 
-                // Re-extract headings and setup scroll spy
-                this.extractHeadings('wiki-content');
-                this.setupScrollSpy();
+                // Re-initialize scroll spy
+                this.initScrollSpy();
             },
 
-            extractHeadings(contentId) {
-                const content = document.getElementById(contentId);
-                if (!content) return;
+            initScrollSpy() {
+                // Get heading IDs from server-rendered TOC links
+                const tocLinks = document.querySelectorAll('[data-toc-link]');
+                this.headingIds = Array.from(tocLinks).map(link => link.dataset.tocLink);
 
-                const headingElements = content.querySelectorAll('h2, h3');
-                this.headings = Array.from(headingElements).map((heading, index) => {
-                    // Ensure heading has an ID for linking
-                    if (!heading.id) {
-                        heading.id = `heading-${index}`;
+                if (this.headingIds.length === 0) return;
+
+                // Add anchor links to headings in content
+                this.headingIds.forEach(id => {
+                    const heading = document.getElementById(id);
+                    if (heading) {
+                        this.addAnchorLink(heading);
                     }
-                    // Get text before adding anchor
-                    const text = heading.textContent.trim();
-                    // Add anchor link if not already present
-                    this.addAnchorLink(heading);
-                    return {
-                        id: heading.id,
-                        text: text,
-                        level: parseInt(heading.tagName.charAt(1))
-                    };
                 });
 
                 // Set initial active heading
-                if (this.headings.length > 0) {
-                    this.activeId = this.headings[0].id;
-                } else {
-                    this.activeId = '';
-                }
+                this.activeId = this.headingIds[0];
+                this.updateTocLinkStyles();
+
+                this.setupScrollSpy();
             },
 
             setupScrollSpy() {
-                if (this.headings.length === 0) return;
+                if (this.headingIds.length === 0) return;
 
                 this.createObserver();
 
@@ -265,8 +256,8 @@
                     this.updateActiveHeading();
                 }, options);
 
-                this.headings.forEach(heading => {
-                    const element = document.getElementById(heading.id);
+                this.headingIds.forEach(id => {
+                    const element = document.getElementById(id);
                     if (element) {
                         this.observer.observe(element);
                     }
@@ -274,30 +265,42 @@
             },
 
             updateActiveHeading() {
-                if (this.headings.length === 0) return;
+                if (this.headingIds.length === 0) return;
+
+                let newActiveId = this.activeId;
 
                 // When at the top of the page, always highlight the first heading
                 if (window.scrollY < 100) {
-                    this.activeId = this.headings[0].id;
-                    return;
-                }
-
-                if (this.visibleHeadings.size === 0) {
+                    newActiveId = this.headingIds[0];
+                } else if (this.visibleHeadings.size === 0) {
                     // No headings visible - keep current or set to first
                     if (!this.activeId) {
-                        this.activeId = this.headings[0].id;
+                        newActiveId = this.headingIds[0];
                     }
-                    return;
+                } else {
+                    // Find the last visible heading in DOM order (most recently scrolled past)
+                    const visibleInOrder = this.headingIds.filter(id => this.visibleHeadings.has(id));
+                    if (visibleInOrder.length > 0) {
+                        newActiveId = visibleInOrder[visibleInOrder.length - 1];
+                    }
                 }
 
-                // Find the last visible heading in DOM order (most recently scrolled past)
-                const headingIds = this.headings.map(h => h.id);
-                const visibleInOrder = headingIds.filter(id => this.visibleHeadings.has(id));
-
-                if (visibleInOrder.length > 0) {
-                    // Pick the last one (furthest down the page that's been scrolled past)
-                    this.activeId = visibleInOrder[visibleInOrder.length - 1];
+                // Only update DOM if active heading changed
+                if (newActiveId !== this.activeId) {
+                    this.activeId = newActiveId;
+                    this.updateTocLinkStyles();
                 }
+            },
+
+            updateTocLinkStyles() {
+                // Update the active class on server-rendered TOC links
+                document.querySelectorAll('[data-toc-link]').forEach(link => {
+                    if (link.dataset.tocLink === this.activeId) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
             },
 
             addAnchorLink(heading) {

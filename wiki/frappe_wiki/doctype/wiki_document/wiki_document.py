@@ -9,7 +9,7 @@ from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 
-from wiki.wiki.markdown import render_markdown
+from wiki.wiki.markdown import render_markdown_with_toc
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -248,6 +248,9 @@ class WikiDocument(NestedSet):
 		self.check_published()
 		wiki_space = self.get_wiki_space()
 
+		# Render markdown and extract TOC headings in one pass
+		rendered_content, toc_headings = render_markdown_with_toc(self.content or "")
+
 		# Base context with defaults for orphan documents
 		context = {
 			"doc": self,
@@ -257,7 +260,8 @@ class WikiDocument(NestedSet):
 			"wiki_spaces_for_switcher": [],
 			"navbar_items": [],
 			"favicon": None,
-			"rendered_content": render_markdown(self.content or ""),
+			"rendered_content": rendered_content,
+			"toc_headings": toc_headings,
 			"raw_markdown": self.content or "",
 			"nested_tree": [],
 			"prev_doc": None,

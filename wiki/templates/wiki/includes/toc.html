@@ -1,27 +1,33 @@
-<!-- Table of Contents (Right Sidebar) -->
+<!-- Table of Contents (Right Sidebar) - Server-rendered for reliability -->
+{% if toc_headings and toc_headings|length > 0 %}
 <aside class="hidden lg:block flex-shrink-0 w-56 py-6 pr-6">
     <nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
-        <template x-if="headings.length > 0">
-            <div>
-                <h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>
-                <ul class="space-y-2">
-                    <template x-for="heading in headings" :key="heading.id">
-                        <li>
-                            <a :href="'#' + heading.id"
-                               :class="activeId === heading.id
-                                   ? 'text-[var(--ink-gray-9)] font-medium'
-                                   : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]'"
-                               :style="`padding-left: ${(heading.level - 2) * 0.75}rem`"
-                               class="block text-sm transition-colors duration-200"
-                               x-text="heading.text">
-                            </a>
-                        </li>
-                    </template>
-                </ul>
-            </div>
-        </template>
+        <div>
+            <h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>
+            <ul class="space-y-2">
+                {% for heading in toc_headings %}
+                <li>
+                    <a href="#{{ heading.id }}"
+                       data-toc-link="{{ heading.id }}"
+                       style="padding-left: {{ (heading.level - 2) * 0.75 }}rem"
+                       class="toc-link block text-sm transition-colors duration-200 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]">
+                        {{ heading.text }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
     </nav>
 </aside>
+{% endif %}
+
+<style>
+    /* Active TOC link styling */
+    .toc-link.active {
+        color: var(--ink-gray-9) !important;
+        font-weight: 500;
+    }
+</style>
 
 <script>
     // Initialize TOC store for external refresh capability

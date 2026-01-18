@@ -212,6 +212,7 @@ class WikiRenderer(mistune.HTMLRenderer):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 		self._heading_slugs = {}  # Track used slugs to avoid duplicates
+		self._headings = []  # Track headings for TOC
 
 	def heading(self, text: str, level: int, **attrs) -> str:
 		"""Render heading with slugified ID for anchor links."""
@@ -231,26 +232,35 @@ class WikiRenderer(mistune.HTMLRenderer):
 
 		self._heading_slugs[slug] = True
 
+		# Track h2 and h3 headings for TOC
+		if level in (2, 3):
+			self._headings.append({"id": slug, "text": text, "level": level})
+
 		return f'<h{level} id="{slug}">{text}</h{level}>\n'
 
+	def get_headings(self) -> list:
+		"""Return the list of h2/h3 headings extracted during rendering."""
+		return self._headings
 
-def render_markdown(content: str) -> str:
+
+def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	"""
-	Convert markdown content to HTML with callout support.
+	Convert markdown content to HTML with callout support, and extract TOC headings.
 
 	Args:
 	    content: Markdown string to convert
 
 	Returns:
-	    HTML string
+	    Tuple of (HTML string, list of heading dicts with id, text, level)
 	"""
 	if not content:
-		return ""
+		return "", []
 
 	# Create a base Mistune markdown instance with custom renderer
 	# Note: escape=False must be passed to the renderer, not create_markdown
+	renderer = WikiRenderer(escape=False)
 	md = mistune.create_markdown(
-		renderer=WikiRenderer(escape=False),
+		renderer=renderer,
 		plugins=[
 			"strikethrough",
 			"footnotes",
@@ -271,4 +281,21 @@ def render_markdown(content: str) -> str:
 	# Step 4: Replace placeholders with actual callout HTML
 	html = _replace_callout_placeholders(html, callouts, placeholder_prefix, md)
 
+	# Get the headings extracted during rendering
+	headings = renderer.get_headings()
+
+	return html, headings
+
+
+def render_markdown(content: str) -> str:
+	"""
+	Convert markdown content to HTML with callout support.
+
+	Args:
+	    content: Markdown string to convert
+
+	Returns:
+	    HTML string
+	"""
+	html, _ = render_markdown_with_toc(content)
 	return html
