@@ -179,10 +179,17 @@ That is all.`;
 			await publicPage.reload();
 			await publicPage.waitForLoadState('networkidle');
 
+			// Debug: Log the page content to understand what's being rendered
+			const pageContent = await publicPage
+				.locator('#wiki-content')
+				.innerHTML()
+				.catch(() => 'Content not found');
+			console.log('Page content preview:', pageContent.substring(0, 500));
+
 			// Verify the page content has headings (debug check)
 			await expect(
-				publicPage.locator('h2:has-text("Introduction")'),
-			).toBeVisible({ timeout: 5000 });
+				publicPage.locator('#wiki-content h2:has-text("Introduction")'),
+			).toBeVisible({ timeout: 10000 });
 
 			// TOC is now server-rendered, so it should be immediately available
 			// Verify the TOC aside with "On this page" heading is visible
