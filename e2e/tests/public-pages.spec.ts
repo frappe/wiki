@@ -102,12 +102,21 @@ That is all.`;
 				});
 			}, markdownContent);
 
-			// Wait for editor to process content
-			await page.waitForTimeout(300);
+			// Verify headings are in the editor before saving
+			await expect(editor.locator('h2:has-text("Introduction")')).toBeVisible({
+				timeout: 5000,
+			});
+			await expect(editor.locator('h2:has-text("Conclusion")')).toBeVisible();
+
+			// Click in editor to ensure it's focused and triggers any pending updates
+			await editor.click();
+			await page.waitForTimeout(500);
 
 			// Save the page
 			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
+			// Wait for save to complete in database
+			await page.waitForTimeout(2000);
 
 			// Publish the page via dropdown menu
 			await page
