@@ -179,12 +179,15 @@ That is all.`;
 			await publicPage.reload();
 			await publicPage.waitForLoadState('networkidle');
 
-			// Debug: Log the page content to understand what's being rendered
-			const pageContent = await publicPage
-				.locator('#wiki-content')
+			// Debug: Log the URL and page structure
+			console.log('Public page URL:', publicPage.url());
+			const publicPageTitle = await publicPage.title();
+			console.log('Page title:', publicPageTitle);
+			const bodyHTML = await publicPage
+				.locator('body')
 				.innerHTML()
-				.catch(() => 'Content not found');
-			console.log('Page content preview:', pageContent.substring(0, 500));
+				.catch(() => 'Body not found');
+			console.log('Body preview:', bodyHTML.substring(0, 1000));
 
 			// Verify the page content has headings (debug check)
 			await expect(
