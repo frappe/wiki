@@ -51,45 +51,57 @@ test.describe('Public Wiki Pages', () => {
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });
 
-			// Add content with headings - type line by line to trigger input rules
+			// Clear editor and add content with markdown headings
+			// The Tiptap Markdown extension should convert markdown to proper nodes
 			await editor.click();
-			await page.keyboard.press('Meta+a');
+			await page.keyboard.press('Control+a'); // Works on both Mac and Linux
 			await page.keyboard.press('Backspace');
 
-			// Type content with delays to allow Tiptap input rules to process
-			// The ## at line start should trigger heading conversion
-			const lines = [
-				'## Introduction',
-				'',
-				'This is the introduction section.',
-				'',
-				'## Getting Started',
-				'',
-				'Learn how to get started with this feature.',
-				'',
-				'### Prerequisites',
-				'',
-				'Before you begin, make sure you have:',
-				'- Item 1',
-				'- Item 2',
-				'',
-				'### Installation',
-				'',
-				'Follow these steps to install.',
-				'',
-				'## Advanced Usage',
-				'',
-				'This section covers advanced topics.',
-				'',
-				'## Conclusion',
-				'',
-				"That's all for this guide.",
-			];
+			// Type markdown content - Tiptap's markdown extension uses input rules
+			// that convert ## at line start to h2 when followed by space
+			// Key: type the markdown on its own line, press Enter, then continue
+			await page.keyboard.type('## Introduction');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('This is the introduction section.');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
 
-			for (const line of lines) {
-				await page.keyboard.type(line, { delay: 10 });
-				await page.keyboard.press('Enter');
-			}
+			await page.keyboard.type('## Getting Started');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('Learn how to get started with this feature.');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+
+			await page.keyboard.type('### Prerequisites');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('Before you begin.');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+
+			await page.keyboard.type('### Installation');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('Follow these steps.');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+
+			await page.keyboard.type('## Advanced Usage');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('Advanced topics.');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+
+			await page.keyboard.type('## Conclusion');
+			await page.keyboard.press('Enter');
+			await page.keyboard.press('Enter');
+			await page.keyboard.type('That is all.');
+
+			// Wait for editor to process content
+			await page.waitForTimeout(500);
 
 			// Save the page
 			await page.click('button:has-text("Save")');
