@@ -50,10 +50,12 @@
         {% include "templates/wiki/includes/sidebar.html" %}
         {% endif %}
 
-        <!-- Main content area - grows to fill remaining space -->
+        <!-- Main content + TOC area -->
+        {% block content %}
         <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
             {% block body %} {% endblock %}
         </main>
+        {% endblock %}
     </div>
     
     {{ include_script("syntax_highlighting.bundle.js") }}

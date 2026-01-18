@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Wiki E2E Tests', () => {
+/**
+ * Tests for the wiki editor and admin functionality.
+ * For public-facing page tests (TOC, sidebar), see public-pages.spec.ts
+ */
+test.describe('Wiki Editor', () => {
 	test('should display wiki spaces list', async ({ page }) => {
 		await page.goto('/wiki');
 		await page.waitForLoadState('networkidle');
