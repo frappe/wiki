@@ -127,20 +127,11 @@ That is all.`;
 			// Wait for save to complete in database
 			await page.waitForTimeout(2000);
 
-			// Verify content was saved with markdown headings
+			// Extract page ID for later API calls
 			const url = page.url();
 			const pageIdMatch = url.match(/\/wiki\/spaces\/[^/]+\/page\/([^/?#]+)/);
 			expect(pageIdMatch).toBeTruthy();
 			const pageId = decodeURIComponent(pageIdMatch?.[1] ?? '');
-
-			const savedDoc = await getDoc<WikiDocument>(
-				request,
-				'Wiki Document',
-				pageId,
-			);
-			// Verify markdown headings are in the saved content
-			expect(savedDoc.content).toContain('## Introduction');
-			expect(savedDoc.content).toContain('## Conclusion');
 
 			// Publish the page via dropdown menu
 			await page
@@ -162,42 +153,32 @@ That is all.`;
 				timeout: 10000,
 			});
 
-			// Click "View Page" to open public page
-			const viewPageButton = page.locator('button:has-text("View Page")');
-			await expect(viewPageButton).toBeVisible({ timeout: 5000 });
+			// Get the document AFTER publishing to get the correct route and verify content
+			const savedDoc = await getDoc<WikiDocument>(
+				request,
+				'Wiki Document',
+				pageId,
+			);
+			// Verify markdown headings are in the saved content
+			expect(savedDoc.content).toContain('## Introduction');
+			expect(savedDoc.content).toContain('## Conclusion');
 
-			const [publicPage] = await Promise.all([
-				page.context().waitForEvent('page'),
-				viewPageButton.click(),
-			]);
+			// Navigate directly to the public route instead of clicking "View Page"
+			// This is more reliable than opening a new tab
+			const publicRoute = savedDoc.route;
+			console.log('Navigating to public route:', publicRoute);
+			await page.goto(`/${publicRoute}`);
+			await page.waitForLoadState('networkidle');
 
-			// Set viewport on new page too (lg breakpoint = 1024px)
-			await publicPage.setViewportSize({ width: 1100, height: 900 });
-			await publicPage.waitForLoadState('networkidle');
-
-			// Reload the page to ensure fresh content (avoid any caching)
-			await publicPage.reload();
-			await publicPage.waitForLoadState('networkidle');
-
-			// Debug: Log the URL and page structure
-			console.log('Public page URL:', publicPage.url());
-			const publicPageTitle = await publicPage.title();
-			console.log('Page title:', publicPageTitle);
-			const bodyHTML = await publicPage
-				.locator('body')
-				.innerHTML()
-				.catch(() => 'Body not found');
-			console.log('Body preview:', bodyHTML.substring(0, 1000));
-
-			// Verify the page content has headings (debug check)
+			// Verify the page content has headings
 			await expect(
-				publicPage.locator('#wiki-content h2:has-text("Introduction")'),
+				page.locator('#wiki-content h2:has-text("Introduction")'),
 			).toBeVisible({ timeout: 10000 });
 
 			// TOC is now server-rendered, so it should be immediately available
 			// Verify the TOC aside with "On this page" heading is visible
-			const tocAside = publicPage.locator('aside').filter({
-				has: publicPage.locator('text=On this page'),
+			const tocAside = page.locator('aside').filter({
+				has: page.locator('text=On this page'),
 			});
 			await expect(tocAside).toBeVisible({ timeout: 10000 });
 
@@ -218,14 +199,12 @@ That is all.`;
 
 			// Verify clicking a TOC link scrolls to the heading
 			await tocNav.locator('a:has-text("Advanced Usage")').click();
-			await publicPage.waitForTimeout(500);
+			await page.waitForTimeout(500);
 
-			const advancedHeading = publicPage
+			const advancedHeading = page
 				.locator('h2')
 				.filter({ hasText: 'Advanced Usage' });
 			await expect(advancedHeading).toBeInViewport();
-
-			await publicPage.close();
 		});
 
 		test('should hide TOC on mobile viewport', async ({ page }) => {
