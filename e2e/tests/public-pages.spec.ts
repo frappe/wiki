@@ -159,6 +159,11 @@ That is all.`;
 				'Wiki Document',
 				pageId,
 			);
+			// Log content for debugging
+			console.log(
+				'Saved content preview:',
+				savedDoc.content?.substring(0, 300),
+			);
 			// Verify markdown headings are in the saved content
 			expect(savedDoc.content).toContain('## Introduction');
 			expect(savedDoc.content).toContain('## Conclusion');
