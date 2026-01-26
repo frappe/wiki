@@ -7,7 +7,7 @@ from frappe.website.utils import build_response
 
 from wiki.wiki.doctype.wiki_page.wiki_page import get_sidebar_for_page
 
-reg = re.compile("<!--sidebar-->")
+reg = None  # sidebar substitution disabled to prevent character injection
 
 
 class WikiPageRenderer(DocumentPage):
@@ -29,6 +29,22 @@ class WikiPageRenderer(DocumentPage):
 			)
 			frappe.redirect(f"/{quote(topmost_wiki_route)}")
 
+	def get_context(self):
+		context = super().get_context()
+		lang = (context.get("lang") or "").lower()
+		path = f"/{(self.path or '').lower().strip('/')}/"
+
+		# Force LTR if the language starts with English (en-US, en-GB) or path contains /en/
+		if lang.startswith("en") or "/en/" in path:
+				context.text_direction = "ltr"
+				# Disable global Frappe RTL flag for English content
+				frappe.local.is_rtl = False
+		else:
+				# Respect global RTL detection for non-English content
+				context.text_direction = "rtl" if frappe.local.is_rtl else "ltr"
+
+		return context
+
 	def render(self):
 		html = self.get_html()
 		html = self.add_csrf_token(html)
@@ -36,4 +52,7 @@ class WikiPageRenderer(DocumentPage):
 		return build_response(self.path, html, self.http_status_code or 200, self.headers)
 
 	def add_sidebar(self, html):
-		return reg.sub(get_sidebar_for_page(self.docname), html)
+		if not reg:
+			return html
+		sidebar = get_sidebar_for_page(self.docname)
+		return reg.sub(sidebar, html)
