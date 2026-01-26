@@ -45,7 +45,7 @@ export const WikiLink = Mark.create({
 
 	addOptions() {
 		return {
-			openOnClick: false,
+			openOnClick: true,
 			autolink: true,
 			linkOnPaste: true,
 			HTMLAttributes: {
@@ -91,92 +91,92 @@ export const WikiLink = Mark.create({
 		return {
 			setLink:
 				(attributes) =>
-				({ chain }) => {
-					return chain()
-						.setMark(this.name, attributes)
-						.setMeta('preventAutolink', true)
-						.run();
-				},
+					({ chain }) => {
+						return chain()
+							.setMark(this.name, attributes)
+							.setMeta('preventAutolink', true)
+							.run();
+					},
 
 			toggleLink:
 				(attributes) =>
-				({ chain }) => {
-					return chain()
-						.toggleMark(this.name, attributes, { extendEmptyMarkRange: true })
-						.setMeta('preventAutolink', true)
-						.run();
-				},
+					({ chain }) => {
+						return chain()
+							.toggleMark(this.name, attributes, { extendEmptyMarkRange: true })
+							.setMeta('preventAutolink', true)
+							.run();
+					},
 
 			unsetLink:
 				() =>
-				({ chain }) => {
-					return chain()
-						.unsetMark(this.name, { extendEmptyMarkRange: true })
-						.setMeta('preventAutolink', true)
-						.run();
-				},
+					({ chain }) => {
+						return chain()
+							.unsetMark(this.name, { extendEmptyMarkRange: true })
+							.setMeta('preventAutolink', true)
+							.run();
+					},
 
 			openLinkEditor:
 				() =>
-				({ editor, state }) => {
-					const { from, to, empty } = state.selection;
-					const linkMark = editor.isActive('link');
+					({ editor, state }) => {
+						const { from, to, empty } = state.selection;
+						const linkMark = editor.isActive('link');
 
-					// If no text is selected and not in a link, do nothing
-					if (empty && !linkMark) {
-						return false;
-					}
+						// If no text is selected and not in a link, do nothing
+						if (empty && !linkMark) {
+							return false;
+						}
 
-					// Get the link mark range if cursor is within a link
-					let linkRange = null;
-					let currentHref = '';
+						// Get the link mark range if cursor is within a link
+						let linkRange = null;
+						let currentHref = '';
 
-					if (linkMark) {
-						const $pos = state.doc.resolve(from);
-						const markType = state.schema.marks.link;
-						const range = getMarkRange($pos, markType);
+						if (linkMark) {
+							const $pos = state.doc.resolve(from);
+							const markType = state.schema.marks.link;
+							const range = getMarkRange($pos, markType);
 
-						if (range) {
-							linkRange = range;
-							// Get the current href
-							const marks = $pos.marks();
-							const linkMarkInstance = marks.find(
-								(m) => m.type.name === 'link',
-							);
-							if (linkMarkInstance) {
-								currentHref = linkMarkInstance.attrs.href || '';
+							if (range) {
+								linkRange = range;
+								// Get the current href
+								const marks = $pos.marks();
+								const linkMarkInstance = marks.find(
+									(m) => m.type.name === 'link',
+								);
+								if (linkMarkInstance) {
+									currentHref = linkMarkInstance.attrs.href || '';
+								}
 							}
 						}
-					}
 
-					// Select the link text if we found a range
-					if (linkRange) {
-						editor.chain().setTextSelection(linkRange).run();
-					}
+						// Select the link text if we found a range
+						if (linkRange) {
+							editor.chain().setTextSelection(linkRange).run();
+						}
 
-					// Call the callback to show the popup
-					if (this.options.onOpenLinkEditor) {
-						// Use requestAnimationFrame to ensure selection is complete
-						requestAnimationFrame(() => {
-							const selection = window.getSelection();
-							if (selection && selection.rangeCount > 0) {
-								const range = selection.getRangeAt(0);
-								const rect = range.getBoundingClientRect();
+						// Call the callback to show the popup
+						if (this.options.onOpenLinkEditor) {
+							// Use requestAnimationFrame to ensure selection is complete
+							requestAnimationFrame(() => {
+								const selection = window.getSelection();
+								if (selection && selection.rangeCount > 0) {
+									const range = selection.getRangeAt(0);
+									const rect = range.getBoundingClientRect();
 
-								this.options.onOpenLinkEditor({
-									editor,
-									href: currentHref,
-									isNew: !linkMark,
-									rect,
-									from: linkRange?.from ?? from,
-									to: linkRange?.to ?? to,
-								});
-							}
-						});
-					}
+									this.options.onOpenLinkEditor({
+										editor,
+										href: currentHref,
+										isNew: !linkMark,
+										rect,
+										from: linkRange?.from ?? from,
+										to: linkRange?.to ?? to,
+									});
+								}
+							});
+						}
 
-					return true;
-				},
+						return true;
+					},
 		};
 	},
 
@@ -195,19 +195,23 @@ export const WikiLink = Mark.create({
 				key: new PluginKey('wikiLinkClick'),
 				props: {
 					handleClick: (view, pos, event) => {
-						// Cmd/Ctrl + Click opens link in new tab
-						if (event.metaKey || event.ctrlKey) {
-							const { state } = view;
-							const $pos = state.doc.resolve(pos);
-							const marks = $pos.marks();
-							const linkMark = marks.find((m) => m.type.name === 'link');
+						const { state } = view;
+						const $pos = state.doc.resolve(pos);
+						const marks = $pos.marks();
+						const linkMark = marks.find((m) => m.type.name === 'link');
 
-							if (linkMark?.attrs.href) {
+						if (linkMark?.attrs.href) {
+							// If the editor is NOT editable (Read Only/View Mode), let the link work normally
+							if (!view.editable) {
+								window.open(linkMark.attrs.href, '_blank');
+								return true;
+							}
+							// If in Edit Mode, only open if Cmd/Ctrl is held down
+							if (event.metaKey || event.ctrlKey) {
 								window.open(linkMark.attrs.href, '_blank');
 								return true;
 							}
 						}
-
 						return false;
 					},
 				},
