@@ -45,7 +45,6 @@ export const WikiLink = Mark.create({
 
 	addOptions() {
 		return {
-			openOnClick: true,
 			autolink: true,
 			linkOnPaste: true,
 			HTMLAttributes: {
@@ -201,19 +200,25 @@ export const WikiLink = Mark.create({
 						const linkMark = marks.find((m) => m.type.name === 'link');
 
 						if (linkMark?.attrs.href) {
+							// Helper function for secure programmatic link opening
+							const openSecurely = (url) => {
+								const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+								if (newWindow) newWindow.opener = null;
+							};
+
 							// If the editor is NOT editable (Read Only/View Mode), let the link work normally
 							if (!view.editable) {
-								window.open(linkMark.attrs.href, '_blank');
+								openSecurely(linkMark.attrs.href);
 								return true;
 							}
 							// If in Edit Mode, only open if Cmd/Ctrl is held down
 							if (event.metaKey || event.ctrlKey) {
-								window.open(linkMark.attrs.href, '_blank');
+								openSecurely(linkMark.attrs.href);
 								return true;
 							}
 						}
 						return false;
-					},
+					}
 				},
 			}),
 		);

@@ -411,7 +411,8 @@
 
 /* Ensure links in the Wiki Editor are visible and blue */
 .wiki-editor-content a {
-  color: #3b82f6 !important;
-  text-decoration: underline !important;
-  cursor: pointer !important;
+  color: var(--ink-blue-3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
