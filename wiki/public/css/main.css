@@ -409,10 +409,11 @@
   font-weight: 600;
 }
 
-/* Ensure links in the Wiki Editor are visible and blue */
+/* Ensure links in the Wiki Editor are recognizable across themes */
 .wiki-editor-content a {
-  color: var(--ink-blue-3);
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
