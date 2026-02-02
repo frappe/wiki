@@ -9,7 +9,7 @@ readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     "mistune>=3.0",
-    "setuptools",
+    "setuptools>=75.7.0",
 ]
 
 [project.urls]
