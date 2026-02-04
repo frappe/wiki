@@ -254,6 +254,46 @@ Content
 		result = render_markdown(content)
 		self.assertIn("Custom Title", result)
 
+	def test_callout_without_title(self):
+		"""Test callout with empty brackets renders without title."""
+		content = """:::note[]
+Just content, no title
+:::
+"""
+		result = render_markdown(content)
+		self.assertIn("callout-note", result)
+		self.assertIn("Just content, no title", result)
+		self.assertNotIn("callout-title", result)
+		# Icon should still be present
+		self.assertIn("callout-icon", result)
+
+	def test_callout_without_title_all_types(self):
+		"""Test all callout types work without title."""
+		for callout_type, css_class in [
+			("note", "callout-note"),
+			("tip", "callout-tip"),
+			("caution", "callout-caution"),
+			("danger", "callout-danger"),
+		]:
+			content = f""":::{callout_type}[]
+Content here
+:::
+"""
+			result = render_markdown(content)
+			self.assertIn(css_class, result)
+			self.assertNotIn("callout-title", result)
+			self.assertIn("callout-icon", result)
+
+	def test_callout_default_title_without_brackets(self):
+		"""Test callout without brackets gets default title."""
+		content = """:::note
+Content
+:::
+"""
+		result = render_markdown(content)
+		self.assertIn("callout-title", result)
+		self.assertIn(">Note<", result)
+
 
 class TestComplexMarkdownContent(unittest.TestCase):
 	"""Tests for complex markdown content with callouts and images."""

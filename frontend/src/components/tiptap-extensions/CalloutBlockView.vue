@@ -8,6 +8,10 @@
 
 import { computed, ref, nextTick, watch, onMounted, onUnmounted } from 'vue';
 import { NodeViewWrapper } from '@tiptap/vue-3';
+import { Editor, EditorContent } from '@tiptap/vue-3';
+import { StarterKit } from '@tiptap/starter-kit';
+import { Markdown } from '@tiptap/markdown';
+import { WikiLink } from './link-extension.js';
 import { Dropdown, Button, Dialog, Input } from 'frappe-ui';
 import LucideMoreHorizontal from '~icons/lucide/more-horizontal';
 import LucideInfo from '~icons/lucide/info';
@@ -15,6 +19,8 @@ import LucideLightbulb from '~icons/lucide/lightbulb';
 import LucideTriangleAlert from '~icons/lucide/triangle-alert';
 import LucideShieldAlert from '~icons/lucide/shield-alert';
 import LucidePencil from '~icons/lucide/pencil';
+import LucideEyeOff from '~icons/lucide/eye-off';
+import LucideEye from '~icons/lucide/eye';
 
 const props = defineProps({
     node: {
@@ -49,6 +55,9 @@ const defaultTitles = {
     danger: 'Danger',
 };
 
+// Whether title is hidden
+const isTitleHidden = computed(() => props.node.attrs.hideTitle);
+
 // Display title (custom or default)
 const displayTitle = computed(() => {
     return props.node.attrs.title || defaultTitles[normalizedType.value] || 'Note';
@@ -66,42 +75,85 @@ const icon = computed(() => icons[normalizedType.value] || icons.note);
 
 // Editing state
 const isEditingContent = ref(false);
-const editableContent = ref(props.node.attrs.content || '');
-const textareaRef = ref(null);
+const contentEditor = ref(null);
 let isSaving = false;
+
+// Render content as HTML for read mode
+const renderedContent = computed(() => {
+    const content = props.node.attrs.content || '';
+    if (!content) return '';
+    // Simple markdown to HTML for display: bold, italic, links
+    return content
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+});
 
 // Watch for external changes
 watch(
     () => props.node.attrs.content,
     (newContent) => {
-        if (!isEditingContent.value) {
-            editableContent.value = newContent || '';
+        if (!isEditingContent.value && contentEditor.value) {
+            // Not editing, no action needed (read mode uses computed)
         }
     }
 );
 
-function startEditing() {
-    editableContent.value = props.node.attrs.content || '';
-    isEditingContent.value = true;
-    nextTick(() => {
-        if (textareaRef.value) {
-            textareaRef.value.focus();
-        }
+function createMiniEditor(content) {
+    return new Editor({
+        extensions: [
+            StarterKit.configure({
+                // Only keep basic inline formatting
+                heading: false,
+                blockquote: false,
+                bulletList: false,
+                orderedList: false,
+                listItem: false,
+                codeBlock: false,
+                horizontalRule: false,
+            }),
+            WikiLink.configure({
+                openOnClick: false,
+                autolink: false,
+                linkOnPaste: false,
+            }),
+            Markdown,
+        ],
+        content,
+        contentType: 'markdown',
+        editorProps: {
+            attributes: {
+                class: 'callout-mini-prosemirror',
+            },
+        },
     });
 }
 
-function finishEditing() {
-    // Don't exit edit mode if we're in a save operation
-    if (isSaving) {
-        return;
-    }
-    isEditingContent.value = false;
-    syncContent();
+function startEditing() {
+    const md = props.node.attrs.content || '';
+    contentEditor.value = createMiniEditor(md);
+    isEditingContent.value = true;
+}
+
+function getMarkdown() {
+    if (!contentEditor.value) return props.node.attrs.content || '';
+    return contentEditor.value.storage.markdown.getMarkdown();
 }
 
 function syncContent() {
-    if (editableContent.value !== props.node.attrs.content) {
-        props.updateAttributes({ content: editableContent.value });
+    const md = getMarkdown();
+    if (md !== props.node.attrs.content) {
+        props.updateAttributes({ content: md });
+    }
+}
+
+function finishEditing() {
+    if (isSaving) return;
+    syncContent();
+    isEditingContent.value = false;
+    if (contentEditor.value) {
+        contentEditor.value.destroy();
+        contentEditor.value = null;
     }
 }
 
@@ -113,15 +165,12 @@ function handleBeforeSave() {
     }
 }
 
-// Re-focus textarea after save completes
+// Re-focus editor after save completes
 function handleAfterSave() {
     if (isSaving) {
         isSaving = false;
-        // Re-focus the textarea after save
         nextTick(() => {
-            if (textareaRef.value) {
-                textareaRef.value.focus();
-            }
+            contentEditor.value?.commands.focus();
         });
     }
 }
@@ -139,6 +188,10 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener('wiki-editor-before-save', handleBeforeSave);
     document.removeEventListener('wiki-editor-after-save', handleAfterSave);
+    if (contentEditor.value) {
+        contentEditor.value.destroy();
+        contentEditor.value = null;
+    }
 });
 
 // Title editing dialog
@@ -159,13 +212,31 @@ function changeType(newType) {
     props.updateAttributes({ type: newType });
 }
 
+function toggleTitle() {
+    props.updateAttributes({ hideTitle: !props.node.attrs.hideTitle });
+}
+
 // Dropdown menu options
 const dropdownOptions = computed(() => [
-    {
-        label: 'Edit Title',
-        icon: LucidePencil,
-        onClick: openTitleDialog,
-    },
+    ...(isTitleHidden.value
+        ? [{
+            label: 'Add Title',
+            icon: LucideEye,
+            onClick: toggleTitle,
+        }]
+        : [
+            {
+                label: 'Edit Title',
+                icon: LucidePencil,
+                onClick: openTitleDialog,
+            },
+            {
+                label: 'Remove Title',
+                icon: LucideEyeOff,
+                onClick: toggleTitle,
+            },
+        ]
+    ),
     {
         label: 'Delete',
         icon: 'trash-2',
@@ -206,28 +277,50 @@ const dropdownOptions = computed(() => [
         :class="[`callout-${normalizedType}`, { 'is-selected': selected }]"
         contenteditable="false"
     >
-        <div class="callout-header">
-            <span class="callout-icon" v-html="icon"></span>
-            <span class="callout-title-text">{{ displayTitle }}</span>
-            <Dropdown :options="dropdownOptions" placement="bottom-end">
-                <Button variant="ghost" size="sm" class="callout-menu-btn">
-                    <LucideMoreHorizontal class="size-3.5" />
-                </Button>
-            </Dropdown>
-        </div>
-        <div class="callout-content" @dblclick="startEditing">
-            <textarea
-                v-if="isEditingContent"
-                ref="textareaRef"
-                v-model="editableContent"
-                class="callout-content-editor"
-                @blur="finishEditing"
-                @keydown.escape="finishEditing"
-            ></textarea>
-            <div v-else class="callout-content-text">
-                {{ node.attrs.content || 'Double-click to edit...' }}
+        <!-- With title: header row + content row -->
+        <template v-if="!isTitleHidden">
+            <div class="callout-header">
+                <span class="callout-icon" v-html="icon"></span>
+                <span class="callout-title-text">{{ displayTitle }}</span>
+                <Dropdown :options="dropdownOptions" placement="bottom-end">
+                    <Button variant="ghost" size="sm" class="callout-menu-btn">
+                        <LucideMoreHorizontal class="size-3.5" />
+                    </Button>
+                </Dropdown>
             </div>
-        </div>
+            <div class="callout-content" @dblclick="!isEditingContent && startEditing()">
+                <template v-if="isEditingContent && contentEditor">
+                    <EditorContent :editor="contentEditor" class="callout-mini-editor" />
+                </template>
+                <div
+                    v-else
+                    class="callout-content-text prose prose-sm"
+                    v-html="renderedContent || 'Double-click to edit...'"
+                ></div>
+            </div>
+        </template>
+
+        <!-- Without title: icon + content inline (matches public page layout) -->
+        <template v-else>
+            <div class="callout-inline">
+                <span class="callout-icon" v-html="icon"></span>
+                <div class="callout-content callout-content-inline" @dblclick="!isEditingContent && startEditing()">
+                    <template v-if="isEditingContent && contentEditor">
+                        <EditorContent :editor="contentEditor" class="callout-mini-editor" />
+                    </template>
+                    <div
+                        v-else
+                        class="callout-content-text prose prose-sm"
+                        v-html="renderedContent || 'Double-click to edit...'"
+                    ></div>
+                </div>
+                <Dropdown :options="dropdownOptions" placement="bottom-end">
+                    <Button variant="ghost" size="sm" class="callout-menu-btn">
+                        <LucideMoreHorizontal class="size-3.5" />
+                    </Button>
+                </Dropdown>
+            </div>
+        </template>
 
         <!-- Title Edit Dialog -->
         <Dialog v-model="showTitleDialog" :options="{ title: 'Edit Callout Title' }">
@@ -303,6 +396,17 @@ const dropdownOptions = computed(() => [
     opacity: 1;
 }
 
+.callout-inline {
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.callout-content-inline {
+    flex: 1;
+    min-width: 0;
+}
+
 .callout-content {
     font-size: 0.875rem;
     line-height: 1.5;
@@ -313,25 +417,30 @@ const dropdownOptions = computed(() => [
     color: var(--ink-gray-7, #4b5563);
 }
 
-.callout-content-editor {
-    width: 100%;
-    min-height: 60px;
-    resize: vertical;
+/* Mini editor */
+.callout-mini-editor {
+    border: 1px solid var(--outline-gray-2, #e5e7eb);
+    border-radius: 0.375rem;
+    background-color: var(--surface-white, #ffffff);
+}
+
+.callout-mini-editor :deep(.ProseMirror) {
     padding: 0.5rem;
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.375rem;
-    background-color: var(--surface-white, #ffffff);
     color: inherit;
-    caret-color: var(--ink-gray-9, #111827);
+    outline: none;
+    min-height: 2.5rem;
 }
 
-.callout-content-editor:focus {
-    outline: none;
-    border-color: var(--outline-gray-4, #9ca3af);
-    box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.25);
+.callout-mini-editor :deep(.ProseMirror p) {
+    margin: 0;
+}
+
+.callout-mini-editor :deep(.ProseMirror a) {
+    color: var(--ink-blue-3, #2563eb);
+    text-decoration: underline;
 }
 
 /* Note - Blue (info style) */

@@ -75,22 +75,32 @@ CALLOUT_PATTERN = re.compile(
 
 
 def _generate_callout_html(callout_type, title, inner_html):
-	"""Generate HTML for a callout block."""
+	"""Generate HTML for a callout block.
+
+	Args:
+		callout_type: The callout type (note, tip, caution, danger, warning)
+		title: None = use default title, "" = no title, otherwise custom title
+		inner_html: The rendered HTML content
+	"""
 	# Normalize warning to caution for consistency
 	if callout_type == "warning":
 		callout_type = "caution"
 
-	# Use default title if none provided or empty
-	if not title:
+	icon = CALLOUT_ICONS.get(callout_type, CALLOUT_ICONS["note"])
+
+	# title=None means no brackets were provided, use default
+	# title="" means empty brackets :::type[], show no title
+	# title="something" means custom title
+	if title is None:
 		title = DEFAULT_TITLES.get(callout_type, callout_type.capitalize())
 
-	icon = CALLOUT_ICONS.get(callout_type, CALLOUT_ICONS["note"])
+	title_html = f'<span class="callout-title">{title}</span>\n' if title else ""
 
 	return (
 		f'<aside class="callout callout-{callout_type}">\n'
 		f'<span class="callout-icon">{icon}</span>\n'
 		f'<div class="callout-body">\n'
-		f'<span class="callout-title">{title}</span>\n'
+		f"{title_html}"
 		f'<div class="callout-content">{inner_html}</div>\n'
 		f"</div>\n"
 		f"</aside>"
@@ -108,7 +118,7 @@ def _process_callouts_with_placeholders(content):
 
 	def replacer(match):
 		callout_type = match.group("type")
-		title = match.group("title") or ""
+		title = match.group("title")  # None = no brackets (use default), "" = empty brackets (no title)
 		inner_content = match.group("content")
 
 		# Remove escape backslashes from title (editor escapes special chars like !)

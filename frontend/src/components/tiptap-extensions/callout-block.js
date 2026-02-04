@@ -44,6 +44,9 @@ export const CalloutBlock = Node.create({
 			title: {
 				default: '',
 			},
+			hideTitle: {
+				default: false,
+			},
 			content: {
 				default: '',
 			},
@@ -61,11 +64,12 @@ export const CalloutBlock = Node.create({
 
 					const titleEl = dom.querySelector('.callout-title span');
 					const title = titleEl ? titleEl.textContent : '';
+					const hideTitle = !dom.querySelector('.callout-title');
 
 					const contentEl = dom.querySelector('.callout-content');
 					const content = contentEl ? contentEl.textContent : '';
 
-					return { type, title, content };
+					return { type, title, hideTitle, content };
 				},
 			},
 			{
@@ -86,10 +90,9 @@ export const CalloutBlock = Node.create({
 			'data-callout-type': node.attrs.type,
 		});
 
-		return [
-			'aside',
-			attrs,
-			[
+		const children = [];
+		if (!node.attrs.hideTitle) {
+			children.push([
 				'div',
 				{ class: 'callout-title' },
 				[
@@ -98,9 +101,11 @@ export const CalloutBlock = Node.create({
 					node.attrs.title ||
 						node.attrs.type.charAt(0).toUpperCase() + node.attrs.type.slice(1),
 				],
-			],
-			['div', { class: 'callout-content' }, node.attrs.content],
-		];
+			]);
+		}
+		children.push(['div', { class: 'callout-content' }, node.attrs.content]);
+
+		return ['aside', attrs, ...children];
 	},
 
 	addNodeView() {
@@ -131,7 +136,7 @@ export const CalloutBlock = Node.create({
 
 		tokenize(src, tokens, lexer) {
 			// Match :::type[title]\ncontent\n::: or :::type\ncontent\n:::
-			const match = /^:::(\w+)(?:\[([^\]]*)\])?\n([\s\S]*?)\n:::/.exec(src);
+			const match = /^:::(\w+)(\[([^\]]*)\])?\n([\s\S]*?)\n:::/.exec(src);
 
 			if (!match) {
 				return undefined;
@@ -144,13 +149,16 @@ export const CalloutBlock = Node.create({
 
 			// Normalize 'warning' to 'caution'
 			const calloutType = rawType === 'warning' ? 'caution' : rawType;
+			const hasBrackets = match[2] !== undefined;
+			const bracketContent = match[3] || '';
 
 			return {
 				type: 'calloutBlock',
 				raw: match[0],
 				calloutType: calloutType,
-				title: match[2] || '',
-				text: (match[3] || '').trim(),
+				title: bracketContent,
+				hideTitle: hasBrackets && bracketContent === '',
+				text: (match[4] || '').trim(),
 			};
 		},
 	},
@@ -161,6 +169,7 @@ export const CalloutBlock = Node.create({
 			attrs: {
 				type: token.calloutType || 'note',
 				title: token.title || '',
+				hideTitle: token.hideTitle || false,
 				content: token.text || '',
 			},
 		};
@@ -170,7 +179,11 @@ export const CalloutBlock = Node.create({
 		const calloutType = node.attrs.type || 'note';
 		const title = node.attrs.title || '';
 		const content = node.attrs.content || '';
+		const hideTitle = node.attrs.hideTitle || false;
 
+		if (hideTitle) {
+			return `:::${calloutType}[]\n${content}\n:::\n\n`;
+		}
 		if (title) {
 			return `:::${calloutType}[${title}]\n${content}\n:::\n\n`;
 		}
