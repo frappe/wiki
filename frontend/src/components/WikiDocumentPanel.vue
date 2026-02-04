@@ -116,6 +116,7 @@ onMounted(async () => {
 
 watch(() => props.pageId, async (newPageId) => {
 	if (newPageId) {
+		currentCrPage.value = null;
 		wikiDoc.name = newPageId;
 		wikiDoc.reload();
 	}
@@ -176,12 +177,7 @@ const isSaving = computed(() => {
 	return updatePageResource.loading;
 });
 
-const editorKey = computed(() => {
-	if (wikiDoc.doc?.name === props.pageId) {
-		return props.pageId;
-	}
-	return null;
-});
+const editorKey = computed(() => props.pageId);
 
 const menuOptions = computed(() => {
 		return [
