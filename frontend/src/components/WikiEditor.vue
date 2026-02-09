@@ -22,42 +22,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, createApp, h } from 'vue';
-import { onKeyStroke } from '@vueuse/core';
-import { Editor, EditorContent } from '@tiptap/vue-3';
-import { StarterKit } from '@tiptap/starter-kit';
-import { Markdown } from '@tiptap/markdown';
-import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { TaskList, TaskItem } from '@tiptap/extension-list';
-import { Placeholder } from '@tiptap/extensions';
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
+import {
+	Table,
+	TableCell,
+	TableHeader,
+	TableRow,
+} from '@tiptap/extension-table';
+import { Placeholder } from '@tiptap/extensions';
+import { Markdown } from '@tiptap/markdown';
+import { StarterKit } from '@tiptap/starter-kit';
+import { Editor, EditorContent } from '@tiptap/vue-3';
+import { onKeyStroke } from '@vueuse/core';
+import { toast, useFileUpload } from 'frappe-ui';
 import { common, createLowlight } from 'lowlight';
-import { useFileUpload, toast } from 'frappe-ui';
+import { createApp, h, onMounted, onUnmounted, ref } from 'vue';
 
-// Import custom extensions
-import { CalloutBlock } from './tiptap-extensions/callout-block.js';
-import { VideoBlock } from './tiptap-extensions/video-block.js';
-import { WikiLink } from './tiptap-extensions/link-extension.js';
-import { WikiImage } from './tiptap-extensions/image-extension.js';
-import { SlashCommands, filterCommands } from './tiptap-extensions/slash-commands.js';
+import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
 import WikiToolbar from './tiptap-extensions/WikiToolbar.vue';
-import LinkPopup from './tiptap-extensions/LinkPopup.vue';
+// Import custom extensions
+import { CalloutBlock } from './tiptap-extensions/callout-block.js';
+import { WikiImage } from './tiptap-extensions/image-extension.js';
+import { WikiLink } from './tiptap-extensions/link-extension.js';
+import {
+	SlashCommands,
+	filterCommands,
+} from './tiptap-extensions/slash-commands.js';
+import { VideoBlock } from './tiptap-extensions/video-block.js';
 
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
 
 const props = defineProps({
-    content: {
-        type: String,
-        default: '',
-    },
-    saving: {
-        type: Boolean,
-        default: false,
-    },
+	content: {
+		type: String,
+		default: '',
+	},
+	saving: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const emit = defineEmits(['save']);
@@ -85,458 +93,471 @@ let linkPopupApp = null;
  * Upload file to Frappe and return the file URL
  */
 async function uploadFile(file) {
-    try {
-        const isImage = file.type.includes('image');
-        const result = await fileUploader.upload(file, {
-            private: false,
-            optimize: isImage,
-        });
+	try {
+		const isImage = file.type.includes('image');
+		const result = await fileUploader.upload(file, {
+			private: false,
+			optimize: isImage,
+		});
 
-        toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
-        return result.file_url;
-    } catch (error) {
-        toast.error('Failed to upload file');
-        throw error;
-    }
+		toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
+		return result.file_url;
+	} catch (error) {
+		toast.error('Failed to upload file');
+		throw error;
+	}
 }
 
 /**
  * Handle paste events to upload images
  */
 function handlePaste(_view, event) {
-    const items = event.clipboardData?.items;
-    if (!items) return false;
+	const items = event.clipboardData?.items;
+	if (!items) return false;
 
-    for (const item of items) {
-        if (item.type.indexOf('image') === 0) {
-            event.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-                uploadFile(file).then((url) => {
-                    if (editor.value) {
-                        editor.value.chain().focus().setImage({ src: url }).run();
-                    }
-                });
-            }
-            return true;
-        }
-    }
-    return false;
+	for (const item of items) {
+		if (item.type.indexOf('image') === 0) {
+			event.preventDefault();
+			const file = item.getAsFile();
+			if (file) {
+				uploadFile(file).then((url) => {
+					if (editor.value) {
+						editor.value.chain().focus().setImage({ src: url }).run();
+					}
+				});
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
  * Handle drop events to upload files
  */
 function handleDrop(_view, event) {
-    const files = event.dataTransfer?.files;
-    if (!files || files.length === 0) return false;
+	const files = event.dataTransfer?.files;
+	if (!files || files.length === 0) return false;
 
-    event.preventDefault();
+	event.preventDefault();
 
-    for (const file of files) {
-        const isImage = file.type.includes('image');
-        const isVideo = file.type.includes('video');
+	for (const file of files) {
+		const isImage = file.type.includes('image');
+		const isVideo = file.type.includes('video');
 
-        if (isImage || isVideo) {
-            uploadFile(file).then((url) => {
-                if (editor.value) {
-                    if (isVideo) {
-                        editor.value.chain().focus().setVideo({ src: url }).run();
-                    } else {
-                        editor.value.chain().focus().setImage({ src: url }).run();
-                    }
-                }
-            });
-        }
-    }
+		if (isImage) {
+			uploadFile(file).then((url) => {
+				if (editor.value) {
+					editor.value.chain().focus().setImage({ src: url }).run();
+				}
+			});
+		} else if (isVideo && editor.value) {
+			editor.value.commands.uploadVideo(file);
+		}
+	}
 
-    return true;
+	return true;
 }
 
 /**
  * Handle image upload from toolbar
  */
 async function handleImageUpload(file) {
-    try {
-        const url = await uploadFile(file);
-        if (editor.value) {
-            editor.value.chain().focus().setImage({ src: url }).run();
-        }
-    } catch (error) {
-        console.error('Failed to upload image:', error);
-    }
+	try {
+		const url = await uploadFile(file);
+		if (editor.value) {
+			editor.value.chain().focus().setImage({ src: url }).run();
+		}
+	} catch (error) {
+		console.error('Failed to upload image:', error);
+	}
 }
 
 /**
  * Handle image upload from slash command
  */
 function handleSlashImageSelect(event) {
-    const file = event.target.files?.[0];
-    if (file) {
-        handleImageUpload(file);
-    }
-    // Reset input so same file can be selected again
-    event.target.value = '';
+	const file = event.target.files?.[0];
+	if (file) {
+		handleImageUpload(file);
+	}
+	// Reset input so same file can be selected again
+	event.target.value = '';
 }
 
 /**
  * Handle slash command image upload event
  */
 function handleSlashImageUploadEvent() {
-    slashImageInput.value?.click();
+	slashImageInput.value?.click();
 }
 
 /**
  * Show link popup at the given position
  */
 function showLinkPopup({ editor: editorInstance, href, isNew, rect }) {
-    // Destroy existing popup if any
-    hideLinkPopup();
+	// Destroy existing popup if any
+	hideLinkPopup();
 
-    // Create container for the popup
-    const container = document.createElement('div');
+	// Create container for the popup
+	const container = document.createElement('div');
 
-    // Create Vue app for LinkPopup
-    linkPopupApp = createApp({
-        render() {
-            return h(LinkPopup, {
-                href: href || '',
-                isNew,
-                onSave: (newHref) => {
-                    editorInstance.chain().focus().setLink({ href: newHref }).run();
-                    hideLinkPopup();
-                },
-                onRemove: () => {
-                    editorInstance.chain().focus().unsetLink().run();
-                    hideLinkPopup();
-                },
-                onCancel: () => {
-                    hideLinkPopup();
-                },
-            });
-        },
-    });
-    linkPopupApp.mount(container);
+	// Create Vue app for LinkPopup
+	linkPopupApp = createApp({
+		render() {
+			return h(LinkPopup, {
+				href: href || '',
+				isNew,
+				onSave: (newHref) => {
+					editorInstance.chain().focus().setLink({ href: newHref }).run();
+					hideLinkPopup();
+				},
+				onRemove: () => {
+					editorInstance.chain().focus().unsetLink().run();
+					hideLinkPopup();
+				},
+				onCancel: () => {
+					hideLinkPopup();
+				},
+			});
+		},
+	});
+	linkPopupApp.mount(container);
 
-    // Create tippy popup
-    linkPopupInstance = tippy(document.body, {
-        getReferenceClientRect: () => rect,
-        appendTo: () => document.body,
-        content: container,
-        showOnCreate: true,
-        interactive: true,
-        trigger: 'manual',
-        placement: 'bottom-start',
-        maxWidth: 'none',
-        theme: 'none',
-        arrow: false,
-        offset: [0, 8],
-        onHide: () => {
-            // Cleanup when tippy hides
-            if (linkPopupApp) {
-                linkPopupApp.unmount();
-                linkPopupApp = null;
-            }
-        },
-    })[0];
+	// Create tippy popup
+	linkPopupInstance = tippy(document.body, {
+		getReferenceClientRect: () => rect,
+		appendTo: () => document.body,
+		content: container,
+		showOnCreate: true,
+		interactive: true,
+		trigger: 'manual',
+		placement: 'bottom-start',
+		maxWidth: 'none',
+		theme: 'none',
+		arrow: false,
+		offset: [0, 8],
+		onHide: () => {
+			// Cleanup when tippy hides
+			if (linkPopupApp) {
+				linkPopupApp.unmount();
+				linkPopupApp = null;
+			}
+		},
+	})[0];
 }
 
 /**
  * Hide link popup
  */
 function hideLinkPopup() {
-    if (linkPopupInstance && !linkPopupInstance.state.isDestroyed) {
-        linkPopupInstance.destroy();
-    }
-    linkPopupInstance = null;
+	if (linkPopupInstance && !linkPopupInstance.state.isDestroyed) {
+		linkPopupInstance.destroy();
+	}
+	linkPopupInstance = null;
 
-    if (linkPopupApp) {
-        linkPopupApp.unmount();
-        linkPopupApp = null;
-    }
+	if (linkPopupApp) {
+		linkPopupApp.unmount();
+		linkPopupApp = null;
+	}
 }
 
 /**
  * Create suggestion configuration for slash commands
  */
 function createSlashCommandsSuggestion() {
-    return {
-        items: ({ query }) => filterCommands(query),
-        render: () => {
-            let component;
-            let popup;
-            let isDestroyed = false;
+	return {
+		items: ({ query }) => filterCommands(query),
+		render: () => {
+			let component;
+			let popup;
+			let isDestroyed = false;
 
-            return {
-                onStart: (props) => {
-                    isDestroyed = false;
-                    // Create a container for the Vue component
-                    const container = document.createElement('div');
+			return {
+				onStart: (props) => {
+					isDestroyed = false;
+					// Create a container for the Vue component
+					const container = document.createElement('div');
 
-                    // Create the Vue component instance
-                    component = {
-                        element: container,
-                        props,
-                        vm: null,
-                        app: null,
-                    };
+					// Create the Vue component instance
+					component = {
+						element: container,
+						props,
+						vm: null,
+						app: null,
+					};
 
-                    // Mount the SlashCommandsList component directly
-                    import('vue').then(({ createApp }) => {
-                        if (isDestroyed) return;
-                        const app = createApp(SlashCommandsList, {
-                            items: props.items,
-                            command: props.command,
-                        });
-                        component.app = app;
-                        component.vm = app.mount(container);
-                    });
+					// Mount the SlashCommandsList component directly
+					import('vue').then(({ createApp }) => {
+						if (isDestroyed) return;
+						const app = createApp(SlashCommandsList, {
+							items: props.items,
+							command: props.command,
+						});
+						component.app = app;
+						component.vm = app.mount(container);
+					});
 
-                    // Create tippy popup with no default styling
-                    popup = tippy('body', {
-                        getReferenceClientRect: props.clientRect,
-                        appendTo: () => document.body,
-                        content: container,
-                        showOnCreate: true,
-                        interactive: true,
-                        trigger: 'manual',
-                        placement: 'bottom-start',
-                        maxWidth: 'none',
-                        theme: 'none',
-                        arrow: false,
-                        offset: [0, 4],
-                    })[0];
-                },
+					// Create tippy popup with no default styling
+					popup = tippy('body', {
+						getReferenceClientRect: props.clientRect,
+						appendTo: () => document.body,
+						content: container,
+						showOnCreate: true,
+						interactive: true,
+						trigger: 'manual',
+						placement: 'bottom-start',
+						maxWidth: 'none',
+						theme: 'none',
+						arrow: false,
+						offset: [0, 4],
+					})[0];
+				},
 
-                onUpdate: (props) => {
-                    if (isDestroyed) return;
+				onUpdate: (props) => {
+					if (isDestroyed) return;
 
-                    // Re-render with new items
-                    if (component?.app) {
-                        import('vue').then(({ createApp }) => {
-                            if (isDestroyed) return;
-                            // Unmount old app
-                            component.app.unmount();
-                            const container = component.element;
-                            // Create new app with updated props
-                            const app = createApp(SlashCommandsList, {
-                                items: props.items,
-                                command: props.command,
-                            });
-                            component.app = app;
-                            component.vm = app.mount(container);
-                        });
-                    }
+					// Re-render with new items
+					if (component?.app) {
+						import('vue').then(({ createApp }) => {
+							if (isDestroyed) return;
+							// Unmount old app
+							component.app.unmount();
+							const container = component.element;
+							// Create new app with updated props
+							const app = createApp(SlashCommandsList, {
+								items: props.items,
+								command: props.command,
+							});
+							component.app = app;
+							component.vm = app.mount(container);
+						});
+					}
 
-                    if (popup) {
-                        popup.setProps({
-                            getReferenceClientRect: props.clientRect,
-                        });
-                    }
-                },
+					if (popup) {
+						popup.setProps({
+							getReferenceClientRect: props.clientRect,
+						});
+					}
+				},
 
-                onKeyDown: (props) => {
-                    if (props.event.key === 'Escape') {
-                        popup?.hide();
-                        return true;
-                    }
+				onKeyDown: (props) => {
+					if (props.event.key === 'Escape') {
+						popup?.hide();
+						return true;
+					}
 
-                    // Let the component handle arrow keys and enter
-                    if (component?.vm?.onKeyDown) {
-                        return component.vm.onKeyDown(props.event);
-                    }
+					// Let the component handle arrow keys and enter
+					if (component?.vm?.onKeyDown) {
+						return component.vm.onKeyDown(props.event);
+					}
 
-                    return false;
-                },
+					return false;
+				},
 
-                onExit: () => {
-                    if (isDestroyed) return;
-                    isDestroyed = true;
+				onExit: () => {
+					if (isDestroyed) return;
+					isDestroyed = true;
 
-                    // Properly unmount Vue app
-                    if (component?.app) {
-                        component.app.unmount();
-                    }
+					// Properly unmount Vue app
+					if (component?.app) {
+						component.app.unmount();
+					}
 
-                    // Destroy tippy only if it exists and hasn't been destroyed
-                    if (popup && !popup.state.isDestroyed) {
-                        popup.destroy();
-                    }
+					// Destroy tippy only if it exists and hasn't been destroyed
+					if (popup && !popup.state.isDestroyed) {
+						popup.destroy();
+					}
 
-                    popup = null;
-                    component = null;
-                },
-            };
-        },
-    };
+					popup = null;
+					component = null;
+				},
+			};
+		},
+	};
 }
 
 /**
  * Initialize the editor
  */
 function initEditor() {
-    editor.value = new Editor({
-        extensions: [
-            StarterKit.configure({
-                codeBlock: false, // We use CodeBlockLowlight instead
-                // Disable StarterKit's link - we use our custom WikiLink
-                link: false,
-            }),
-            // Custom link extension with Cmd+K support
-            WikiLink.configure({
-                openOnClick: false,
-                HTMLAttributes: {
-                    rel: 'noopener noreferrer',
-                },
-                onOpenLinkEditor: showLinkPopup,
-            }),
-            Markdown,
-            // Custom image extension with caption support
-            WikiImage.configure({
-                inline: false,
-                allowBase64: true,
-            }),
-            Table.configure({
-                resizable: true,
-            }),
-            TableRow,
-            TableCell,
-            TableHeader,
-            TaskList,
-            TaskItem.configure({
-                nested: true,
-            }),
-            Placeholder.configure({
-                placeholder: 'Type "/" for commands, or start writing...',
-            }),
-            CodeBlockLowlight.configure({
-                lowlight,
-            }),
-            // Custom extensions
-            CalloutBlock,
-            VideoBlock,
-            // Slash commands
-            SlashCommands.configure({
-                suggestion: createSlashCommandsSuggestion(),
-            }),
-        ],
-        content: props.content || '',
-        contentType: 'markdown',
-        editorProps: {
-            handlePaste,
-            handleDrop,
-            attributes: {
-                class: 'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 wiki-editor-content',
-            },
-        },
-        onUpdate: () => {
-            handleContentChange();
-        },
-    });
+	editor.value = new Editor({
+		extensions: [
+			StarterKit.configure({
+				codeBlock: false, // We use CodeBlockLowlight instead
+				// Disable StarterKit's link - we use our custom WikiLink
+				link: false,
+			}),
+			// Custom link extension with Cmd+K support
+			WikiLink.configure({
+				openOnClick: false,
+				HTMLAttributes: {
+					rel: 'noopener noreferrer',
+				},
+				onOpenLinkEditor: showLinkPopup,
+			}),
+			Markdown,
+			// Custom image extension with caption support
+			WikiImage.configure({
+				inline: false,
+				allowBase64: true,
+			}),
+			Table.configure({
+				resizable: true,
+			}),
+			TableRow,
+			TableCell,
+			TableHeader,
+			TaskList,
+			TaskItem.configure({
+				nested: true,
+			}),
+			Placeholder.configure({
+				placeholder: 'Type "/" for commands, or start writing...',
+			}),
+			CodeBlockLowlight.configure({
+				lowlight,
+			}),
+			// Custom extensions
+			CalloutBlock,
+			VideoBlock.configure({
+				uploadFunction: uploadFile,
+			}),
+			// Slash commands
+			SlashCommands.configure({
+				suggestion: createSlashCommandsSuggestion(),
+			}),
+		],
+		content: props.content || '',
+		contentType: 'markdown',
+		editorProps: {
+			handlePaste,
+			handleDrop,
+			attributes: {
+				class:
+					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 wiki-editor-content',
+			},
+		},
+		onUpdate: () => {
+			handleContentChange();
+		},
+	});
 }
 
 function handleContentChange() {
-    // Clear existing timer
-    if (autosaveTimer) {
-        clearTimeout(autosaveTimer);
-    }
+	// Clear existing timer
+	if (autosaveTimer) {
+		clearTimeout(autosaveTimer);
+	}
 
-    // Check if content has changed
-    const currentContent = editor.value?.getMarkdown();
-    if (currentContent !== undefined && currentContent !== lastSavedContent.value) {
-        hasUnsavedChanges.value = true;
+	// Check if content has changed
+	const currentContent = editor.value?.getMarkdown();
+	if (
+		currentContent !== undefined &&
+		currentContent !== lastSavedContent.value
+	) {
+		hasUnsavedChanges.value = true;
 
-        // Set up debounced autosave
-        autosaveTimer = setTimeout(() => {
-            autoSave();
-        }, AUTOSAVE_DELAY);
-    }
+		// Set up debounced autosave
+		autosaveTimer = setTimeout(() => {
+			autoSave();
+		}, AUTOSAVE_DELAY);
+	}
 }
 
 async function autoSave() {
-    if (props.saving || !editor.value) {
-        return;
-    }
+	if (props.saving || !editor.value) {
+		return;
+	}
 
-    // Notify components to sync their content before we read it
-    document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
+	// Notify components to sync their content before we read it
+	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
-    const currentContent = editor.value.getMarkdown();
-    if (currentContent === undefined || currentContent === lastSavedContent.value) {
-        hasUnsavedChanges.value = false;
-        return;
-    }
+	const currentContent = editor.value.getMarkdown();
+	if (
+		currentContent === undefined ||
+		currentContent === lastSavedContent.value
+	) {
+		hasUnsavedChanges.value = false;
+		return;
+	}
 
-    emit('save', currentContent);
-    lastSavedContent.value = currentContent;
-    hasUnsavedChanges.value = false;
-    // Notify components that save is complete so they can restore focus
-    document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
+	emit('save', currentContent);
+	lastSavedContent.value = currentContent;
+	hasUnsavedChanges.value = false;
+	// Notify components that save is complete so they can restore focus
+	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 }
 
 function saveToDB() {
-    // Clear any pending autosave
-    if (autosaveTimer) {
-        clearTimeout(autosaveTimer);
-    }
+	// Clear any pending autosave
+	if (autosaveTimer) {
+		clearTimeout(autosaveTimer);
+	}
 
-    if (!editor.value) {
-        toast.error('Editor is not ready');
-        return;
-    }
+	if (!editor.value) {
+		toast.error('Editor is not ready');
+		return;
+	}
 
-    // Notify components to sync their content before we read it
-    document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
+	// Notify components to sync their content before we read it
+	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
-    // Get markdown from the editor
-    const markdown = editor.value.getMarkdown();
-    if (markdown !== undefined) {
-        emit('save', markdown);
-        lastSavedContent.value = markdown;
-        hasUnsavedChanges.value = false;
-        // Notify components that save is complete so they can restore focus
-        document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
-    } else {
-        toast.error('Could not get content from editor');
-    }
+	// Get markdown from the editor
+	const markdown = editor.value.getMarkdown();
+	if (markdown !== undefined) {
+		emit('save', markdown);
+		lastSavedContent.value = markdown;
+		hasUnsavedChanges.value = false;
+		// Notify components that save is complete so they can restore focus
+		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
+	} else {
+		toast.error('Could not get content from editor');
+	}
 }
 
 // Expose methods for parent component
 defineExpose({
-    saveToDB,
-    hasUnsavedChanges,
+	saveToDB,
+	hasUnsavedChanges,
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
 onKeyStroke('s', (e) => {
-    if (e.metaKey || e.ctrlKey) {
-        e.preventDefault();
-        saveToDB();
-    }
+	if (e.metaKey || e.ctrlKey) {
+		e.preventDefault();
+		saveToDB();
+	}
 });
 
 onMounted(() => {
-    initEditor();
-    // Expose editor on window for E2E testing
-    window.wikiEditor = editor.value;
-    // Listen for slash command image upload events
-    document.addEventListener('wiki-editor-upload-image', handleSlashImageUploadEvent);
+	initEditor();
+	// Expose editor on window for E2E testing
+	window.wikiEditor = editor.value;
+	// Listen for slash command image upload events
+	document.addEventListener(
+		'wiki-editor-upload-image',
+		handleSlashImageUploadEvent,
+	);
 });
 
 onUnmounted(() => {
-    // Remove event listener
-    document.removeEventListener('wiki-editor-upload-image', handleSlashImageUploadEvent);
-    // Hide any open link popup
-    hideLinkPopup();
-    // Clean up window reference
-    delete window.wikiEditor;
+	// Remove event listener
+	document.removeEventListener(
+		'wiki-editor-upload-image',
+		handleSlashImageUploadEvent,
+	);
+	// Hide any open link popup
+	hideLinkPopup();
+	// Clean up window reference
+	delete window.wikiEditor;
 
-    if (autosaveTimer) {
-        clearTimeout(autosaveTimer);
-    }
-    if (editor.value) {
-        editor.value.destroy();
-    }
+	if (autosaveTimer) {
+		clearTimeout(autosaveTimer);
+	}
+	if (editor.value) {
+		editor.value.destroy();
+	}
 });
 </script>
 

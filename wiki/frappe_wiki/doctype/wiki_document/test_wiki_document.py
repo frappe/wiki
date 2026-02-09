@@ -51,7 +51,9 @@ class TestGetWebContext(IntegrationTestCase):
 				frappe.delete_doc("Wiki Space", space_name, force=True)
 		self.test_spaces = []
 
-	def _create_wiki_document(self, title, parent=None, is_group=False, is_published=True, sort_order=0):
+	def _create_wiki_document(
+		self, title, parent=None, is_group=False, is_published=True, sort_order=0, content=None
+	):
 		"""Helper to create a wiki document for testing."""
 		doc = frappe.get_doc(
 			{
@@ -61,7 +63,7 @@ class TestGetWebContext(IntegrationTestCase):
 				"is_group": is_group,
 				"is_published": is_published,
 				"sort_order": sort_order,
-				"content": f"Content for {title}",
+				"content": content if content is not None else f"Content for {title}",
 			}
 		)
 		doc.insert(ignore_permissions=True)
@@ -271,6 +273,27 @@ class TestGetWebContext(IntegrationTestCase):
 		# Content should still be rendered
 		self.assertIsNotNone(context.get("rendered_content"))
 		self.assertEqual(context.get("title"), "Orphan Published Document")
+
+	def test_get_web_context_renders_video_markdown_as_html_video_block(self):
+		"""Video markdown should render as HTML5 video in public page context."""
+		root_group = self._create_wiki_document("Root Video Group", is_group=True)
+		video_doc = self._create_wiki_document(
+			"Video Document",
+			parent=root_group.name,
+			content="![Demo Video](/files/demo-video.mp4)",
+		)
+		self._create_wiki_space("Video Space", "video-space", root_group.name)
+
+		video_doc.reload()
+		context = video_doc.get_web_context()
+
+		self.assertIn('<div data-type="video-block"', context["rendered_content"])
+		self.assertIn(
+			'<video src="/files/demo-video.mp4" controls preload="metadata">',
+			context["rendered_content"],
+		)
+		self.assertIn('<source src="/files/demo-video.mp4" />', context["rendered_content"])
+		self.assertNotIn('<img src="/files/demo-video.mp4"', context["rendered_content"])
 
 	def test_wiki_spaces_for_switcher_ordered_by_switcher_order_then_name(self):
 		"""

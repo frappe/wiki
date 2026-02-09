@@ -2,6 +2,7 @@
     <BubbleMenu
         v-if="editor"
         :editor="editor"
+        :should-show="shouldShowBubbleMenu"
         :tippy-options="{
             duration: 100,
             maxWidth: 'none',
@@ -129,32 +130,45 @@
 </template>
 
 <script setup>
+import { NodeSelection } from '@tiptap/pm/state';
 import { BubbleMenu } from '@tiptap/vue-3/menus';
 import {
-    Bold,
-    Italic,
-    Strikethrough,
-    Code,
-    Link,
-    Heading1,
-    Heading2,
-    Heading3,
-    List,
-    ListOrdered,
-    Quote,
-    FileCode,
+	Bold,
+	Code,
+	FileCode,
+	Heading1,
+	Heading2,
+	Heading3,
+	Italic,
+	Link,
+	List,
+	ListOrdered,
+	Quote,
+	Strikethrough,
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    editor: {
-        type: Object,
-        required: true,
-    },
+	editor: {
+		type: Object,
+		required: true,
+	},
 });
 
+function shouldShowBubbleMenu({ editor, state }) {
+	const selection = state.selection;
+
+	// Bubble menu is only for inline text formatting, not media/node selections.
+	if (selection instanceof NodeSelection) return false;
+	if (selection.empty) return false;
+	if (editor.isActive('videoBlock')) return false;
+	if (editor.isActive('image')) return false;
+
+	return true;
+}
+
 function toggleLink() {
-    // Use the openLinkEditor command from our custom link extension
-    props.editor.commands.openLinkEditor();
+	// Use the openLinkEditor command from our custom link extension
+	props.editor.commands.openLinkEditor();
 }
 </script>
 

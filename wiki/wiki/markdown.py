@@ -156,6 +156,93 @@ IMAGE_PATTERN = re.compile(
 	r'!\[([^\]]*)\]\(([^)"\s]+(?:\s[^)]*)?)\)',
 )
 
+VIDEO_EXTENSIONS = (
+	".mp4",
+	".webm",
+	".ogg",
+	".mov",
+	".avi",
+	".mkv",
+	".m4v",
+)
+
+
+def _is_video_url(url: str) -> bool:
+	"""Return True when URL points to a known video file extension."""
+	if not url:
+		return False
+
+	clean_url = str(url).split("?", 1)[0].split("#", 1)[0].lower()
+	return clean_url.endswith(VIDEO_EXTENSIONS)
+
+
+SCRIPT_TAG_PATTERN = re.compile(r"(?is)<script\b[^>]*>.*?</script>|</?script\b[^>]*>")
+
+
+def _remove_script_tags(value: str | None) -> str:
+	"""Remove only <script> tags/content; keep all other HTML unchanged."""
+	if not value:
+		return ""
+	return SCRIPT_TAG_PATTERN.sub("", str(value))
+
+
+# Match full-line markdown image syntax with optional title:
+# ![alt](url) or ![alt](url "title")
+VIDEO_MARKDOWN_PATTERN = re.compile(
+	r'^!\[(?P<alt>[^\]]*)\]\((?P<url>[^)"\s]+)(?:\s+"(?P<title>[^"]*)")?\)[ \t]*$',
+	re.MULTILINE,
+)
+
+
+def _generate_video_html(url: str, alt: str = "", title: str = "") -> str:
+	"""Generate HTML for a video block."""
+	safe_alt = _remove_script_tags(alt)
+	safe_title = _remove_script_tags(title)
+	title_attr = f' title="{safe_title}"' if safe_title else ""
+	data_alt_attr = f' data-alt="{safe_alt}"' if safe_alt else ""
+	return (
+		f'<div data-type="video-block" data-src="{url}"{data_alt_attr}>'
+		f'<video src="{url}" controls preload="metadata"{title_attr}>'
+		f'<source src="{url}" />'
+		"</video></div>"
+	)
+
+
+def _process_videos_with_placeholders(content: str) -> tuple[str, list[dict], str]:
+	"""
+	Replace full-line video markdown with placeholders so videos render as block HTML.
+	"""
+	videos = []
+	placeholder_prefix = "WIKIVIDEOPLACEHOLDER"
+
+	def replacer(match):
+		url = match.group("url") or ""
+		if not _is_video_url(url):
+			return match.group(0)
+
+		idx = len(videos)
+		videos.append(
+			{
+				"url": url,
+				"alt": match.group("alt") or "",
+				"title": match.group("title") or "",
+			}
+		)
+		# Force paragraph break around video block
+		return f"\n\n{placeholder_prefix}{idx}END\n\n"
+
+	return VIDEO_MARKDOWN_PATTERN.sub(replacer, content), videos, placeholder_prefix
+
+
+def _replace_video_placeholders(html: str, videos: list[dict], placeholder_prefix: str) -> str:
+	"""Replace video placeholders with block video HTML."""
+	for idx, video in enumerate(videos):
+		placeholder = f"{placeholder_prefix}{idx}END"
+		video_html = _generate_video_html(video["url"], video["alt"], video["title"])
+		html = html.replace(f"<p>{placeholder}</p>", video_html)
+		html = html.replace(placeholder, video_html)
+	return html
+
 
 def _encode_image_url_spaces(content: str) -> str:
 	"""
@@ -239,6 +326,27 @@ class WikiRenderer(mistune.HTMLRenderer):
 
 		return f'<h{level} id="{slug}">{text}</h{level}>\n'
 
+	def image(self, text: str, url: str, title: str | None = None) -> str:
+		"""Render video URLs as HTML5 video blocks; others as normal images."""
+		src = self.safe_url(url)
+		alt = _remove_script_tags(text)
+		safe_title = _remove_script_tags(title)
+
+		if _is_video_url(url):
+			title_attr = f' title="{safe_title}"' if safe_title else ""
+			data_alt_attr = f' data-alt="{alt}"' if alt else ""
+			return (
+				f'<div data-type="video-block" data-src="{src}"{data_alt_attr}>'
+				f'<video src="{src}" controls preload="metadata"{title_attr}>'
+				f'<source src="{src}" />'
+				"</video></div>"
+			)
+
+		s = f'<img src="{src}" alt="{alt}"'
+		if safe_title:
+			s += f' title="{safe_title}"'
+		return s + " />"
+
 	def get_headings(self) -> list:
 		"""Return the list of h2/h3 headings extracted during rendering."""
 		return self._headings
@@ -276,11 +384,17 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	# Step 2: Extract callouts and replace with placeholders
 	processed_content, callouts, placeholder_prefix = _process_callouts_with_placeholders(processed_content)
 
-	# Step 3: Render markdown (placeholders will be wrapped in <p> tags)
+	# Step 3: Extract video blocks and replace with placeholders
+	processed_content, videos, video_placeholder_prefix = _process_videos_with_placeholders(processed_content)
+
+	# Step 4: Render markdown (placeholders may be wrapped in <p> tags)
 	html = md(processed_content)
 
-	# Step 4: Replace placeholders with actual callout HTML
+	# Step 5: Replace callout placeholders with actual callout HTML
 	html = _replace_callout_placeholders(html, callouts, placeholder_prefix, md)
+
+	# Step 6: Replace video placeholders with block video HTML
+	html = _replace_video_placeholders(html, videos, video_placeholder_prefix)
 
 	# Get the headings extracted during rendering
 	headings = renderer.get_headings()

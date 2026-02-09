@@ -132,6 +132,23 @@
                             {{ __('Update') }}
                         </Button>
                     </div>
+                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
+                        <div class="flex-1 mr-4">
+                            <p class="text-sm font-medium text-ink-gray-9">
+                                {{ __('Clone Space') }}
+                            </p>
+                            <p class="text-xs text-ink-gray-5 mt-0.5">
+                                {{ __('Create a new space with the same structure') }}
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="openCloneSpaceDialog"
+                        >
+                            {{ __('Clone') }}
+                        </Button>
+                    </div>
                 </div>
             </template>
             <template #actions="{ close }">
@@ -172,6 +189,36 @@
                         @click="updateRoutes(close)"
                     >
                         {{ __('Update Routes') }}
+                    </Button>
+                </div>
+            </template>
+        </Dialog>
+
+        <Dialog v-model="showCloneSpaceDialog">
+            <template #body-title>
+                <h3 class="text-xl font-semibold text-ink-gray-9">
+                    {{ __('Clone Wiki Space') }}
+                </h3>
+            </template>
+            <template #body-content>
+                <div class="space-y-4 py-2">
+                    <FormControl
+                        type="text"
+                        :label="__('New Space Route')"
+                        v-model="cloneRoute"
+                        :placeholder="__('Enter new route (without leading slash)')"
+                    />
+                </div>
+            </template>
+            <template #actions="{ close }">
+                <div class="flex justify-end gap-2">
+                    <Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+                    <Button
+                        variant="solid"
+                        :loading="cloningSpace"
+                        @click="cloneSpace(close)"
+                    >
+                        {{ __('Start Cloning') }}
                     </Button>
                 </div>
             </template>
@@ -217,8 +264,11 @@ const isManager = computed(() => isWikiManager());
 
 const showSettingsDialog = ref(false);
 const showUpdateRoutesDialog = ref(false);
+const showCloneSpaceDialog = ref(false);
 const newRoute = ref('');
 const updatingRoutes = ref(false);
+const cloneRoute = ref('');
+const cloningSpace = ref(false);
 
 const enableFeedbackCollection = ref(false);
 const updatingFeedbackSetting = ref(false);
@@ -238,6 +288,7 @@ const space = createDocumentResource({
     auto: true,
     whitelistedMethods: {
         updateRoutes: 'update_routes',
+        cloneWikiSpace: 'clone_wiki_space_in_background',
     },
 });
 
@@ -281,6 +332,15 @@ function openUpdateRoutesDialog() {
     showUpdateRoutesDialog.value = true;
 }
 
+function openCloneSpaceDialog() {
+    if (space.doc?.route) {
+        cloneRoute.value = `${space.doc.route}-copy`;
+    } else {
+        cloneRoute.value = '';
+    }
+    showCloneSpaceDialog.value = true;
+}
+
 async function updateRoutes(close) {
     if (!newRoute.value?.trim()) {
         return;
@@ -296,6 +356,24 @@ async function updateRoutes(close) {
         console.error('Failed to update routes:', error);
     } finally {
         updatingRoutes.value = false;
+    }
+}
+
+async function cloneSpace(close) {
+    if (!cloneRoute.value?.trim()) {
+        return;
+    }
+
+    cloningSpace.value = true;
+    try {
+        await space.cloneWikiSpace.submit({ new_space_route: cloneRoute.value.trim() });
+        toast.success(__('Cloning started in background'));
+        close();
+    } catch (error) {
+        console.error('Failed to start clone:', error);
+        toast.error(error.messages?.[0] || __('Error starting clone'));
+    } finally {
+        cloningSpace.value = false;
     }
 }
 

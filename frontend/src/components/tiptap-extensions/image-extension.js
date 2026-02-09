@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import ImageNodeView from './ImageNodeView.vue';
+import { isVideoUrl } from './video-block.js';
 
 // Markdown image regex: ![alt](src "title")
 const inputRegex = /(?:^|\s)(!\[(.+|:?)]\((\S+)(?:(?:\s+)["'](\S+)["'])?\))$/;
@@ -39,6 +40,9 @@ const imageCaptionTokenizer = {
 		}
 
 		const [imageRaw, alt, href, title] = imageMatch;
+		if (isVideoUrl(href)) {
+			return undefined;
+		}
 		let caption = null;
 		let raw = imageRaw;
 

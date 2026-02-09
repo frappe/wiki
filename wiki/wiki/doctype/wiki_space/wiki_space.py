@@ -1,7 +1,22 @@
 # Copyright (c) 2023, Frappe and contributors
 # For license information, please see license.txt
 import frappe
+from frappe import _
 from frappe.model.document import Document
+
+_CHILD_ROW_META_FIELDS = {
+	"name",
+	"parent",
+	"parenttype",
+	"parentfield",
+	"idx",
+	"owner",
+	"creation",
+	"modified",
+	"modified_by",
+	"docstatus",
+	"doctype",
+}
 
 
 class WikiSpace(Document):
@@ -133,19 +148,19 @@ class WikiSpace(Document):
 		new_route = new_route.strip().strip("/")
 
 		if not new_route:
-			frappe.throw("Route cannot be empty")
+			frappe.throw(_("Route cannot be empty"))
 
 		old_route = self.route
 		if old_route == new_route:
-			frappe.throw("New route is the same as current route")
+			frappe.throw(_("New route is the same as current route"))
 
 		if not self.root_group:
-			frappe.throw("This Wiki Space has no root group. Migrate to Version 3 first.")
+			frappe.throw(_("This Wiki Space has no root group. Migrate to Version 3 first."))
 
 		# Check for conflicts
 		existing = frappe.db.get_value("Wiki Space", {"route": new_route, "name": ("!=", self.name)})
 		if existing:
-			frappe.throw(f"Route '{new_route}' is already used by another Wiki Space")
+			frappe.throw(_("Route '{0}' is already used by another Wiki Space").format(new_route))
 
 		# Get all documents under this space
 		descendants = get_descendants_of("Wiki Document", self.root_group, ignore_permissions=True)
@@ -195,3 +210,151 @@ class WikiSpace(Document):
 		)
 
 		return len(doc_names)
+
+	@frappe.whitelist()
+	def clone_wiki_space_in_background(self, new_space_route: str) -> dict:
+		frappe.only_for("Wiki Manager")
+
+		new_route = (new_space_route or "").strip().strip("/")
+		if not new_route:
+			frappe.throw(_("Route cannot be empty"))
+
+		if new_route == self.route:
+			frappe.throw(_("New route is the same as current route"))
+
+		existing = frappe.db.get_value("Wiki Space", {"route": new_route}, "name")
+		if existing:
+			frappe.throw(_("Route '{0}' is already used by another Wiki Space").format(new_route))
+
+		if not self.root_group:
+			frappe.throw(_("This Wiki Space has no root group. Migrate to Version 3 first."))
+
+		frappe.enqueue(
+			"wiki.wiki.doctype.wiki_space.wiki_space.clone_wiki_space",
+			queue="long",
+			job_name=f"clone_wiki_space:{self.name}:{new_route}",
+			wiki_space=self.name,
+			new_space_route=new_route,
+			user=frappe.session.user,
+		)
+
+		return {"status": "queued", "new_route": new_route}
+
+
+def clone_wiki_space(wiki_space: str, new_space_route: str, user: str | None = None) -> str:
+	if user:
+		frappe.set_user(user)  # nosemgrep: frappe-setuser - restoring user context in background job
+
+	space = frappe.get_doc("Wiki Space", wiki_space)
+	if not space.root_group:
+		frappe.throw(_("This Wiki Space has no root group. Migrate to Version 3 first."))
+
+	new_route = (new_space_route or "").strip().strip("/")
+	if not new_route:
+		frappe.throw(_("Route cannot be empty"))
+
+	new_space = _create_space_copy(space, new_route)
+	_clone_wiki_documents(space, new_space)
+	return new_space.name
+
+
+def _create_space_copy(space: Document, new_route: str) -> Document:
+	new_space = frappe.new_doc("Wiki Space")
+
+	for field in space.meta.fields:
+		if field.fieldtype in ("Section Break", "Tab Break", "Column Break", "HTML", "Button"):
+			continue
+		if field.fieldtype == "Table":
+			continue
+		if field.fieldname in ("route", "root_group", "main_revision"):
+			continue
+		new_space.set(field.fieldname, space.get(field.fieldname))
+
+	new_space.route = new_route
+
+	for field in space.meta.fields:
+		if field.fieldtype != "Table":
+			continue
+		fieldname = field.fieldname
+		new_space.set(fieldname, [])
+		for row in space.get(fieldname) or []:
+			row_data = row.as_dict()
+			for key in _CHILD_ROW_META_FIELDS:
+				row_data.pop(key, None)
+			new_space.append(fieldname, row_data)
+
+	new_space.insert(ignore_permissions=True)
+	return new_space
+
+
+def _clone_wiki_documents(space: Document, new_space: Document) -> None:
+	root = frappe.get_doc("Wiki Document", space.root_group)
+	docs = frappe.get_all(
+		"Wiki Document",
+		fields=[
+			"name",
+			"title",
+			"slug",
+			"route",
+			"is_group",
+			"is_published",
+			"is_private",
+			"is_external_link",
+			"external_url",
+			"content",
+			"parent_wiki_document",
+			"sort_order",
+			"lft",
+		],
+		filters={"lft": (">=", root.lft), "rgt": ("<=", root.rgt)},
+		order_by="lft asc",
+	)
+
+	old_root = space.root_group
+	new_root = new_space.root_group
+	name_map = {old_root: new_root}
+
+	for doc in docs:
+		if doc["name"] == old_root:
+			continue
+
+		parent_name = name_map.get(doc.get("parent_wiki_document"))
+		new_doc = frappe.new_doc("Wiki Document")
+		new_doc.title = doc.get("title")
+		new_doc.slug = doc.get("slug")
+		new_doc.route = _clone_route(doc.get("route"), space.route, new_space.route)
+		new_doc.is_group = doc.get("is_group")
+		new_doc.is_published = doc.get("is_published")
+		new_doc.is_private = doc.get("is_private")
+		new_doc.is_external_link = doc.get("is_external_link")
+		new_doc.external_url = doc.get("external_url")
+		new_doc.content = doc.get("content")
+		new_doc.parent_wiki_document = parent_name
+
+		new_doc.insert(ignore_permissions=True)
+
+		sort_order = doc.get("sort_order")
+		if sort_order is not None:
+			frappe.db.set_value(
+				"Wiki Document",
+				new_doc.name,
+				"sort_order",
+				sort_order,
+				update_modified=False,
+			)
+
+		name_map[doc["name"]] = new_doc.name
+
+
+def _clone_route(route: str, old_base: str, new_base: str):
+	if not route or not old_base or not new_base:
+		return route
+
+	if route == old_base:
+		return new_base
+
+	prefix = f"{old_base}/"
+	if route.startswith(prefix):
+		return f"{new_base}{route[len(old_base):]}"
+
+	return route

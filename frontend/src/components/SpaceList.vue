@@ -10,38 +10,48 @@
       </Button>
     </div>
 
-    <ListView
-      class="h-full"
-      :columns="columns"
-      :rows="spaces.data || []"
-      :options="{
-        selectable: false,
-        showTooltip: true,
-        resizeColumn: false,
-        getRowRoute: (row) => ({ name: 'SpaceDetails', params: { spaceId: row.name } }),
-        emptyState: {
-          title: __('No Wiki Spaces'),
-          description: isManager ? __('Create your first wiki space to get started') : __('No wiki spaces available'),
-          button: isManager ? {
-            label: __('New Space'),
-            variant: 'solid',
-            onClick: () => (showCreateDialog = true),
-          } : undefined,
-        },
-      }"
-      row-key="name"
-    >
-      <template #cell="{ item, column }">
-        <Badge
-          v-if="column.key === 'is_published'"
-          variant="subtle"
-          :theme="item ? 'green' : 'orange'"
-          size="sm"
-          :label="item ? __('Published') : __('Unpublished')"
+    <div class="flex-1 overflow-auto">
+      <ListView
+        :columns="columns"
+        :rows="spaces.data || []"
+        :options="{
+          selectable: false,
+          showTooltip: true,
+          resizeColumn: false,
+          getRowRoute: (row) => ({ name: 'SpaceDetails', params: { spaceId: row.name } }),
+          emptyState: {
+            title: __('No Wiki Spaces'),
+            description: isManager ? __('Create your first wiki space to get started') : __('No wiki spaces available'),
+            button: isManager ? {
+              label: __('New Space'),
+              variant: 'solid',
+              onClick: () => (showCreateDialog = true),
+            } : undefined,
+          },
+        }"
+        row-key="name"
+      >
+        <template #cell="{ item, column }">
+          <Badge
+            v-if="column.key === 'is_published'"
+            variant="subtle"
+            :theme="item ? 'green' : 'orange'"
+            size="sm"
+            :label="item ? __('Published') : __('Unpublished')"
+          />
+          <span v-else>{{ item }}</span>
+        </template>
+      </ListView>
+
+      <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
+        <Button
+          @click="() => spaces.next()"
+          :loading="spaces.list.loading"
+          :label="__('Load more')"
+          icon-left="refresh-cw"
         />
-        <span v-else>{{ item }}</span>
-      </template>
-    </ListView>
+      </div>
+    </div>
 
     <Dialog
       v-model="showCreateDialog"
@@ -156,7 +166,7 @@ const spaces = createListResource({
   doctype: "Wiki Space",
   fields: ["name", "space_name", "route", "root_group", "is_published"],
   orderBy: "creation desc",
-  limit: 100,
+  pageLength: 25,
   auto: true,
   insert: {
     onSuccess: (doc) => {

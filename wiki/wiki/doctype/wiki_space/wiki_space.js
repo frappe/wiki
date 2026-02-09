@@ -5,10 +5,32 @@ frappe.ui.form.on("Wiki Space", {
   refresh(frm) {
     frm.add_web_link(`/${frm.doc.route}`, __("See on website"));
 
-    frm.add_custom_button("Clone Wiki Space", () => {
-      frappe.prompt("Enter new Wiki Space's route", ({ value }) => {
-        frm.call("clone_wiki_space_in_background", { new_space_route: value });
-      });
+    frm.add_custom_button(__("Clone Wiki Space"), () => {
+      frappe.prompt(
+        [
+          {
+            fieldname: "new_space_route",
+            fieldtype: "Data",
+            label: __("New Space Route"),
+            reqd: 1,
+            description: __("Enter the new base route (without leading slash)"),
+          },
+        ],
+        (values) => {
+          frm
+            .call({
+              method: "clone_wiki_space_in_background",
+              args: { new_space_route: values.new_space_route },
+              freeze: true,
+              freeze_message: __("Starting clone..."),
+            })
+            .then(() => {
+              frappe.msgprint(__("Cloning started in background."));
+            });
+        },
+        __("Clone Wiki Space"),
+        __("Start Cloning"),
+      );
     });
 
     if (frm.doc.root_group) {
