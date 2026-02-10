@@ -3,6 +3,7 @@
     <BubbleMenu
       v-if="editor"
       :editor="editor"
+      :should-show="shouldShowBubbleMenu"
       :tippy-options="{
         duration: 100,
         maxWidth: 'none',
@@ -136,31 +137,31 @@
     >
       <div class="bubble-menu-buttons">
         <button @click="editor.chain().focus().addRowBefore().run()" title="Add Row Above">
-          <PlusSquare :size="16" style="transform: rotate(180deg)" />
+          <TableRowsSplit :size="16" style="transform: rotate(180deg)" />
         </button>
         <button @click="editor.chain().focus().addRowAfter().run()" title="Add Row Below">
-          <PlusSquare :size="16" />
+          <TableRowsSplit :size="16" />
         </button>
         <button @click="editor.chain().focus().deleteRow().run()" title="Delete Row">
-          <Trash2 :size="16" color="#ef4444" />
+          <Trash2 :size="16" class="text-red-500" />
         </button>
 
         <span class="separator" />
 
         <button @click="editor.chain().focus().addColumnBefore().run()" title="Add Column Before">
-          <Columns :size="16" style="transform: rotate(90deg)" />
+          <TableColumnsSplit :size="16" style="transform: scaleX(-1)" />
         </button>
         <button @click="editor.chain().focus().addColumnAfter().run()" title="Add Column After">
-          <Columns :size="16" />
+          <TableColumnsSplit :size="16" />
         </button>
         <button @click="editor.chain().focus().deleteColumn().run()" title="Delete Column">
-          <Trash2 :size="16" color="#ef4444" />
+          <Trash2 :size="16" class="text-red-500" />
         </button>
 
         <span class="separator" />
 
         <button @click="editor.chain().focus().deleteTable().run()" title="Delete Table">
-          <Trash2 :size="16" color="#b91c1c" />
+          <Trash2 :size="16" class="text-red-700" />
         </button>
       </div>
     </BubbleMenu>
@@ -169,38 +170,55 @@
 
 <script setup>
 import { BubbleMenu } from "@tiptap/vue-3/menus";
+import { NodeSelection } from '@tiptap/pm/state';
 import {
-  Bold,
-  Italic,
-  Strikethrough,
-  Code,
-  Link,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  Quote,
-  FileCode,
-  Trash2,
-  PlusSquare,
-  Columns,
+  Bold, Italic, Strikethrough, Code, Link, Heading1, Heading2, Heading3,
+  List, ListOrdered, Quote, FileCode, Trash2, TableRowsSplit, TableColumnsSplit,
 } from "lucide-vue-next";
 
 const props = defineProps({
-  editor: {
-    type: Object,
-    required: true,
-  },
+  editor: { type: Object, required: true },
 });
+
+// ROBUST CHECK: Look at the selection path to see if we are in a table cell
+const isInsideTable = (editor) => {
+  const { state } = editor;
+  const { $from } = state.selection;
+
+  // Crawl up from the current position to check parent node types
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d);
+    if (!node) continue;
+    const nodeType = node.type && node.type.name;
+    if (['table', 'tableCell', 'tableHeader', 'table_cell', 'table_header'].includes(nodeType)) {
+      return true;
+    }
+  }
+
+  // fallback to isActive check
+  return editor.isActive('table');
+};
+
+function shouldShowBubbleMenu({ editor, state }) {
+  const { selection } = state;
+
+  // Basic checks
+  if (selection instanceof NodeSelection || selection.empty) return false;
+  if (editor.isActive('videoBlock') || editor.isActive('image')) return false;
+
+  // CRITICAL FIX: Explicitly return false if the cursor is anywhere in a table
+  if (isInsideTable(editor)) return false;
+
+  return true;
+}
+
+const shouldShowTableMenu = ({ editor }) => {
+  return isInsideTable(editor);
+};
 
 function toggleLink() {
   props.editor.commands.openLinkEditor();
 }
-
-const shouldShowTableMenu = ({ editor }) => {
-  return editor.isActive("table");
-};
 </script>
 
 <style scoped>
