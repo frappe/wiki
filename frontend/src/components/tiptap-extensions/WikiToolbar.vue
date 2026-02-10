@@ -163,6 +163,15 @@
                 @change="handleImageSelect"
             />
 
+            <!-- Video -->
+            <button
+                class="toolbar-btn"
+                @click="editor.chain().focus().selectAndUploadVideo().run()"
+                title="Insert Video"
+            >
+                <VideoIcon class="icon" />
+            </button>
+
             <div class="toolbar-separator"></div>
 
             <!-- Undo/Redo -->
@@ -187,37 +196,38 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
-    LucideHeading1 as H1Icon,
-    LucideHeading2 as H2Icon,
-    LucideHeading3 as H3Icon,
-    LucideHeading4 as H4Icon,
-    LucideHeading5 as H5Icon,
-    LucideHeading6 as H6Icon,
-    LucideType as TextIcon,
-    LucideBold as BoldIcon,
-    LucideItalic as ItalicIcon,
-    LucideStrikethrough as StrikethroughIcon,
-    LucideCode as CodeIcon,
-    LucideList as ListIcon,
-    LucideListOrdered as ListOrderedIcon,
-    LucideListChecks as ListChecksIcon,
-    LucideQuote as QuoteIcon,
-    LucideSquareCode as CodeBlockIcon,
-    LucideMinus as MinusIcon,
-    LucideTable as TableIcon,
-    LucideLink as LinkIcon,
-    LucideImage as ImageIcon,
-    LucideUndo2 as UndoIcon,
-    LucideRedo2 as RedoIcon,
+	LucideBold as BoldIcon,
+	LucideSquareCode as CodeBlockIcon,
+	LucideCode as CodeIcon,
+	LucideHeading1 as H1Icon,
+	LucideHeading2 as H2Icon,
+	LucideHeading3 as H3Icon,
+	LucideHeading4 as H4Icon,
+	LucideHeading5 as H5Icon,
+	LucideHeading6 as H6Icon,
+	LucideImage as ImageIcon,
+	LucideItalic as ItalicIcon,
+	LucideLink as LinkIcon,
+	LucideListChecks as ListChecksIcon,
+	LucideList as ListIcon,
+	LucideListOrdered as ListOrderedIcon,
+	LucideMinus as MinusIcon,
+	LucideQuote as QuoteIcon,
+	LucideRedo2 as RedoIcon,
+	LucideStrikethrough as StrikethroughIcon,
+	LucideTable as TableIcon,
+	LucideType as TextIcon,
+	LucideUndo2 as UndoIcon,
+	LucideVideo as VideoIcon,
 } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
-    editor: {
-        type: Object,
-        required: true,
-    },
+	editor: {
+		type: Object,
+		required: true,
+	},
 });
 
 const emit = defineEmits(['uploadImage']);
@@ -227,73 +237,80 @@ const headingsDropdown = ref(null);
 const imageInput = ref(null);
 
 const headingIcons = {
-    1: H1Icon,
-    2: H2Icon,
-    3: H3Icon,
-    4: H4Icon,
-    5: H5Icon,
-    6: H6Icon,
+	1: H1Icon,
+	2: H2Icon,
+	3: H3Icon,
+	4: H4Icon,
+	5: H5Icon,
+	6: H6Icon,
 };
 
 const currentHeadingIcon = computed(() => {
-    if (!props.editor) return TextIcon;
-    for (let level = 1; level <= 6; level++) {
-        if (props.editor.isActive('heading', { level })) {
-            return headingIcons[level];
-        }
-    }
-    return TextIcon;
+	if (!props.editor) return TextIcon;
+	for (let level = 1; level <= 6; level++) {
+		if (props.editor.isActive('heading', { level })) {
+			return headingIcons[level];
+		}
+	}
+	return TextIcon;
 });
 
 function toggleHeadingsDropdown() {
-    showHeadingsDropdown.value = !showHeadingsDropdown.value;
+	showHeadingsDropdown.value = !showHeadingsDropdown.value;
 }
 
 function setHeading(level) {
-    props.editor.chain().focus().toggleHeading({ level }).run();
-    showHeadingsDropdown.value = false;
+	props.editor.chain().focus().toggleHeading({ level }).run();
+	showHeadingsDropdown.value = false;
 }
 
 function setParagraph() {
-    props.editor.chain().focus().setParagraph().run();
-    showHeadingsDropdown.value = false;
+	props.editor.chain().focus().setParagraph().run();
+	showHeadingsDropdown.value = false;
 }
 
 function insertTable() {
-    props.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+	props.editor
+		.chain()
+		.focus()
+		.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+		.run();
 }
 
 function toggleLink() {
-    // Use the openLinkEditor command from our custom link extension
-    props.editor.commands.openLinkEditor();
+	// Use the openLinkEditor command from our custom link extension
+	props.editor.commands.openLinkEditor();
 }
 
 function triggerImageUpload() {
-    imageInput.value?.click();
+	imageInput.value?.click();
 }
 
 function handleImageSelect(event) {
-    const file = event.target.files?.[0];
-    if (file) {
-        emit('uploadImage', file);
-    }
-    // Reset input so same file can be selected again
-    event.target.value = '';
+	const file = event.target.files?.[0];
+	if (file) {
+		emit('uploadImage', file);
+	}
+	// Reset input so same file can be selected again
+	event.target.value = '';
 }
 
 // Close dropdown when clicking outside
 function handleClickOutside(event) {
-    if (headingsDropdown.value && !headingsDropdown.value.contains(event.target)) {
-        showHeadingsDropdown.value = false;
-    }
+	if (
+		headingsDropdown.value &&
+		!headingsDropdown.value.contains(event.target)
+	) {
+		showHeadingsDropdown.value = false;
+	}
 }
 
 onMounted(() => {
-    document.addEventListener('click', handleClickOutside);
+	document.addEventListener('click', handleClickOutside);
 });
 
 onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside);
+	document.removeEventListener('click', handleClickOutside);
 });
 </script>
 

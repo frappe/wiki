@@ -6,8 +6,18 @@ on:
     branches:
       - develop
       - main
-      - wiki-v3
+      - version-3
+    paths-ignore:
+      - '**.js'
+      - '**.vue'
+      - '**.css'
+      - '**.ts'
   pull_request:
+    paths-ignore:
+      - '**.js'
+      - '**.vue'
+      - '**.css'
+      - '**.ts'
 
 concurrency:
   group: develop-wiki-${{ github.event.number }}

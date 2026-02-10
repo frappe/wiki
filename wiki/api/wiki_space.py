@@ -85,10 +85,8 @@ def reorder_wiki_documents(
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
 
-	# Update parent if changed
 	if parent_changed:
-		doc.parent_wiki_document = new_parent
-		doc.save()
+		frappe.db.set_value("Wiki Document", doc_name, "parent_wiki_document", new_parent)
 
 	# Batch update sort_order for all siblings
 	_batch_update_sort_order(siblings_list)

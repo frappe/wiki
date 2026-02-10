@@ -20,99 +20,102 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
 import {
-    Heading1,
-    Heading2,
-    Heading3,
-    List,
-    ListOrdered,
-    ListChecks,
-    Code,
-    Quote,
-    Minus,
-    Table,
-    Image,
-    Info,
-    Lightbulb,
-    AlertTriangle,
-    AlertOctagon,
-    HelpCircle,
+	AlertOctagon,
+	AlertTriangle,
+	Code,
+	Heading1,
+	Heading2,
+	Heading3,
+	HelpCircle,
+	Image,
+	Info,
+	Lightbulb,
+	List,
+	ListChecks,
+	ListOrdered,
+	Minus,
+	Quote,
+	Table,
+	Video,
 } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
-    items: {
-        type: Array,
-        required: true,
-    },
-    command: {
-        type: Function,
-        required: true,
-    },
+	items: {
+		type: Array,
+		required: true,
+	},
+	command: {
+		type: Function,
+		required: true,
+	},
 });
 
 const selectedIndex = ref(0);
 
 // Icon mapping
 const iconMap = {
-    'heading-1': Heading1,
-    'heading-2': Heading2,
-    'heading-3': Heading3,
-    list: List,
-    'list-ordered': ListOrdered,
-    'list-checks': ListChecks,
-    code: Code,
-    quote: Quote,
-    minus: Minus,
-    table: Table,
-    image: Image,
-    info: Info,
-    lightbulb: Lightbulb,
-    'alert-triangle': AlertTriangle,
-    'alert-octagon': AlertOctagon,
+	'heading-1': Heading1,
+	'heading-2': Heading2,
+	'heading-3': Heading3,
+	list: List,
+	'list-ordered': ListOrdered,
+	'list-checks': ListChecks,
+	code: Code,
+	quote: Quote,
+	minus: Minus,
+	table: Table,
+	image: Image,
+	video: Video,
+	info: Info,
+	lightbulb: Lightbulb,
+	'alert-triangle': AlertTriangle,
+	'alert-octagon': AlertOctagon,
 };
 
 function getIcon(iconName) {
-    return iconMap[iconName] || HelpCircle;
+	return iconMap[iconName] || HelpCircle;
 }
 
 function selectItem(index) {
-    const item = props.items[index];
-    if (item) {
-        props.command(item);
-    }
+	const item = props.items[index];
+	if (item) {
+		props.command(item);
+	}
 }
 
 function onKeyDown(event) {
-    if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        selectedIndex.value = (selectedIndex.value - 1 + props.items.length) % props.items.length;
-        return true;
-    }
-    if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        selectedIndex.value = (selectedIndex.value + 1) % props.items.length;
-        return true;
-    }
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        selectItem(selectedIndex.value);
-        return true;
-    }
-    return false;
+	if (event.key === 'ArrowUp') {
+		event.preventDefault();
+		selectedIndex.value =
+			(selectedIndex.value - 1 + props.items.length) % props.items.length;
+		return true;
+	}
+	if (event.key === 'ArrowDown') {
+		event.preventDefault();
+		selectedIndex.value = (selectedIndex.value + 1) % props.items.length;
+		return true;
+	}
+	if (event.key === 'Enter') {
+		event.preventDefault();
+		selectItem(selectedIndex.value);
+		return true;
+	}
+	return false;
 }
 
 // Reset selected index when items change
 watch(
-    () => props.items,
-    () => {
-        selectedIndex.value = 0;
-    }
+	() => props.items,
+	() => {
+		selectedIndex.value = 0;
+	},
 );
 
 // Expose onKeyDown for parent component
 defineExpose({
-    onKeyDown,
+	onKeyDown,
 });
 </script>
 

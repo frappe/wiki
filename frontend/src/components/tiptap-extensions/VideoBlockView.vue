@@ -83,8 +83,8 @@ const videoType = computed(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 1rem 0;
-    padding: 0.5rem;
+    margin: 0.25rem 0;
+    padding: 0;
     border-radius: 8px;
     transition: background-color 0.2s ease;
 }

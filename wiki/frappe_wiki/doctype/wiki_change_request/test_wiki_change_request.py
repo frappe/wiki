@@ -359,6 +359,41 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(data.get("name"), cr.name)
 		self.assertEqual(data.get("title"), cr.title)
 
+	def test_merge_preserves_existing_routes(self):
+		"""Merging a CR must not regenerate routes for existing documents.
+		Routes are permalinks — they should remain stable across merges."""
+		space = create_test_wiki_space()
+
+		# Build a small tree with a group and two child pages
+		group = create_test_wiki_document(space.root_group, title="Introduction", is_group=1)
+		page_a = create_test_wiki_document(group.name, title="Getting Started")
+		page_b = create_test_wiki_document(group.name, title="Installation")
+
+		# Record routes before CR merge
+		routes_before = {}
+		for doc in (group, page_a, page_b):
+			doc.reload()
+			self.assertTrue(doc.route, f"{doc.title} should have a route")
+			routes_before[doc.name] = doc.route
+
+		# Create a change request that only edits content (no structural changes)
+		cr = create_change_request(space.name, "Content update")
+		page_a_key = frappe.get_value("Wiki Document", page_a.name, "doc_key")
+		update_cr_page(cr.name, page_a_key, {"content": "Updated content"})
+
+		# Merge — this used to set doc.route = None for every document,
+		# forcing regeneration and triggering duplicate-route errors.
+		merge_change_request(cr.name)
+
+		# Verify routes are unchanged
+		for doc_name, old_route in routes_before.items():
+			current_route = frappe.db.get_value("Wiki Document", doc_name, "route")
+			self.assertEqual(
+				current_route,
+				old_route,
+				f"Route of {doc_name} changed after CR merge: {old_route!r} -> {current_route!r}",
+			)
+
 	def test_archive_change_request_sets_status(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")

@@ -298,10 +298,8 @@ async function applyReorder(payload) {
 		payload.newParent,
 		siblingKeys,
 	);
-	for (const sibling of payload.siblings || []) {
-		if (sibling && !sibling._changeType) {
-			sibling._changeType = 'reordered';
-		}
+	if (payload?.item && !payload.item._changeType) {
+		payload.item._changeType = 'reordered';
 	}
 	toast.success(__('Documents reordered'));
 	await loadChanges();

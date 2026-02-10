@@ -152,12 +152,33 @@ class TestImageCaptionSupport(unittest.TestCase):
 		self.assertNotIn("<figure", result)
 		self.assertNotIn("<figcaption", result)
 
-	def test_image_alt_escapes_html(self):
-		"""Test that alt text is properly escaped."""
+	def test_image_alt_removes_script_tags(self):
+		"""Strip script tags from alt text."""
 		result = render_markdown("![<script>alert('xss')</script>](/files/test.jpg)")
 
-		# Script tags should be escaped, not rendered as HTML
+		# Script tags should not be present in rendered HTML
 		self.assertNotIn("<script>alert", result)
+
+	def test_image_alt_and_title_preserve_non_script_html(self):
+		"""Keep non-script HTML in alt/title, but strip script tags only."""
+		result = render_markdown(
+			'![<b>Bold Alt</b><script>alert(1)</script>](/files/test.jpg "<i>Title</i><script>x</script>")'
+		)
+
+		self.assertIn('alt="<b>Bold Alt</b>"', result)
+		self.assertIn('title="<i>Title</i>"', result)
+		self.assertNotIn("<script>", result)
+
+	def test_video_markdown_renders_as_block_not_inline_caption_pattern(self):
+		"""Video markdown should render as a block and not merge with following italic text."""
+		content = """![Demo Video](/files/demo-video.mp4)
+*This should remain italic text*"""
+		result = render_markdown(content)
+
+		self.assertIn('<div data-type="video-block" data-src="/files/demo-video.mp4"', result)
+		self.assertIn('<video src="/files/demo-video.mp4" controls preload="metadata">', result)
+		self.assertIn("<p><em>This should remain italic text</em></p>", result)
+		self.assertNotIn("<p><div data-type=", result)
 
 	def test_multiple_images_with_captions(self):
 		"""Test multiple images with captions."""

@@ -115,6 +115,14 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Video',
+		description: 'Upload a video',
+		icon: 'video',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).selectAndUploadVideo().run();
+		},
+	},
+	{
 		title: 'Note Callout',
 		description: 'Add a note callout block',
 		icon: 'info',

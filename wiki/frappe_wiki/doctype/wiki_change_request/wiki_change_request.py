@@ -1195,8 +1195,13 @@ def apply_merge_revision(space: Document, revision: Document) -> None:
 		if doc_key in key_to_name:
 			doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
 		else:
-			doc = frappe.new_doc("Wiki Document")
-			doc.doc_key = doc_key
+			# Check if a document with this doc_key exists outside the space's tree
+			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
+			if existing_name:
+				doc = frappe.get_doc("Wiki Document", existing_name)
+			else:
+				doc = frappe.new_doc("Wiki Document")
+				doc.doc_key = doc_key
 
 		doc.title = item.get("title")
 		doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
@@ -1215,7 +1220,6 @@ def apply_merge_revision(space: Document, revision: Document) -> None:
 			content = frappe.get_value("Wiki Content Blob", content_blob, "content")
 			doc.content = content
 
-		doc.route = None
 		if doc.is_new():
 			doc.insert()
 			key_to_name[doc_key] = doc.name

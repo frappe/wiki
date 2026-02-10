@@ -177,7 +177,7 @@ const isSaving = computed(() => {
 });
 
 const editorKey = computed(() => {
-	if (wikiDoc.doc?.name === props.pageId) {
+	if (wikiDoc.doc?.name === props.pageId && !crPageResource.loading) {
 		return props.pageId;
 	}
 	return null;

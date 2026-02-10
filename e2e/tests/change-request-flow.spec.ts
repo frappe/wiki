@@ -512,4 +512,89 @@ test.describe('Change Request Flow', () => {
 			changeCard.getByText('Reordered', { exact: true }),
 		).toBeVisible();
 	});
+
+	test('should navigate to published page after merging from space editor', async ({
+		page,
+		request,
+	}) => {
+		await page.goto('/wiki/spaces');
+		await page.waitForLoadState('networkidle');
+
+		const timestamp = Date.now();
+		const spaceName = `CR Merge Nav Space ${timestamp}`;
+		const spaceRoute = `cr-merge-nav-${timestamp}`;
+		const pageTitle = `merge-nav-page-${timestamp}`;
+		const pageContent = `Merge nav content ${timestamp}`;
+
+		// Create a new space
+		await page.getByRole('button', { name: 'New Space' }).click();
+		await page.waitForSelector('[role="dialog"]', { state: 'visible' });
+		await page.getByLabel('Space Name').fill(spaceName);
+		await page.getByLabel('Route').fill(spaceRoute);
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: 'Create' })
+			.click();
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+
+		// Create a new page draft
+		const createFirstPage = page.getByRole('button', {
+			name: 'Create First Page',
+		});
+		const newPageButton = page.getByRole('button', { name: 'New Page' });
+
+		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await createFirstPage.click();
+		} else {
+			await newPageButton.click();
+		}
+
+		await page.getByLabel('Title').fill(pageTitle);
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: 'Save Draft' })
+			.click();
+		await page.waitForTimeout(500);
+
+		// Open the draft page from sidebar
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForURL(/\/draft\/[^/?#]+/);
+
+		// Add content
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, pageContent);
+		await editor.click();
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.waitForTimeout(500);
+
+		// Merge directly from within the space editor (manager can merge Draft CRs)
+		const mergeButton = page.getByRole('button', { name: 'Merge' });
+		await expect(mergeButton).toBeVisible({ timeout: 10000 });
+		await mergeButton.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+
+		// The fix: after merge, URL should navigate to the published page route
+		// and NOT remain on the /draft/ route
+		await page.waitForURL(/\/page\//, { timeout: 10000 });
+		expect(page.url()).toMatch(/\/spaces\/[^/]+\/page\//);
+		expect(page.url()).not.toMatch(/\/draft\//);
+
+		// The published page content should be visible without needing a hard refresh
+		await expect(page.getByText(pageContent)).toBeVisible({
+			timeout: 10000,
+		});
+	});
 });
