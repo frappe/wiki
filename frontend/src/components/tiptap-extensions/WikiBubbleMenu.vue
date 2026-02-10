@@ -132,7 +132,28 @@
       v-if="editor"
       :editor="editor"
       :should-show="shouldShowTableMenu"
-      :tippy-options="{ duration: 100, zIndex: 50, offset: [0, 10] }"
+      :tippy-options="{
+        duration: 100,
+        zIndex: 50,
+        offset: [0, 10],
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                boundary: 'viewport',
+                padding: 8,
+              },
+            },
+            {
+              name: 'flip',
+              options: {
+                fallbackPlacements: ['top', 'bottom'],
+              },
+            },
+          ],
+        },
+      }"
       class="wiki-bubble-menu"
     >
       <div class="bubble-menu-buttons">
