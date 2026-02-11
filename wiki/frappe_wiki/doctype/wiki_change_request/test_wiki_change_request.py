@@ -25,6 +25,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
+	get_or_create_content_blob,
 )
 
 
@@ -71,6 +72,139 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(item.title, "New Page v2")
 		self.assertEqual(item.is_deleted, 0)
 		self.assertIsNotNone(item.content_blob)
+
+	def test_create_cr_page_prevents_duplicate_leaf_slug_under_parent(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR dup slug")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Fees",
+			slug="fees",
+			is_group=0,
+			is_published=1,
+			content="v1",
+		)
+
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(
+				cr.name,
+				parent_key=root_key,
+				title="Fees 2",
+				slug="fees",
+				is_group=0,
+				is_published=1,
+				content="v2",
+			)
+
+	def test_update_cr_page_prevents_duplicate_leaf_slug_under_parent(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR dup slug update")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		one = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="One",
+			slug="one",
+			is_group=0,
+			is_published=1,
+			content="v1",
+		)
+		two = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Two",
+			slug="two",
+			is_group=0,
+			is_published=1,
+			content="v2",
+		)
+
+		with self.assertRaises(frappe.ValidationError):
+			update_cr_page(cr.name, two, {"slug": "one"})
+
+		# Sanity: original still unchanged
+		item_one = get_revision_item(cr.head_revision, one)
+		self.assertEqual(item_one.slug, "one")
+
+	def test_move_cr_page_prevents_duplicate_leaf_slug_under_parent(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR dup slug move")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		group_a = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Group A",
+			slug="group-a",
+			is_group=1,
+			is_published=1,
+			content="",
+		)
+		group_b = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Group B",
+			slug="group-b",
+			is_group=1,
+			is_published=1,
+			content="",
+		)
+
+		_ = create_cr_page(
+			cr.name,
+			parent_key=group_a,
+			title="Fees",
+			slug="fees",
+			is_group=0,
+			is_published=1,
+			content="v1",
+		)
+		fees_b = create_cr_page(
+			cr.name,
+			parent_key=group_b,
+			title="Fees",
+			slug="fees",
+			is_group=0,
+			is_published=1,
+			content="v2",
+		)
+
+		with self.assertRaises(frappe.ValidationError):
+			move_cr_page(cr.name, fees_b, group_a)
+
+	def test_merge_change_request_fails_fast_on_duplicate_leaf_slugs(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR dup merge")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		blob = get_or_create_content_blob("x")
+
+		for i in range(2):
+			item = frappe.new_doc("Wiki Revision Item")
+			item.revision = cr.head_revision
+			item.doc_key = frappe.generate_hash(length=12)
+			item.title = f"Dup {i}"
+			item.slug = "dup"
+			item.is_group = 0
+			item.is_published = 1
+			item.is_external_link = 0
+			item.parent_key = root_key
+			item.order_index = 100 + i
+			item.content_blob = blob
+			item.is_deleted = 0
+			item.insert(ignore_permissions=True)
+
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			merge_change_request(cr.name)
+		self.assertIn("Duplicate leaf slugs detected", str(ctx.exception))
 
 	def test_move_reorder_in_cr(self):
 		space = create_test_wiki_space()

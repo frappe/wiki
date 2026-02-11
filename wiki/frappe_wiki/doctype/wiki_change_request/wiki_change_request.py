@@ -47,6 +47,85 @@ def touch_change_request(name: str) -> None:
 	)
 
 
+def _validate_unique_leaf_slug_in_revision(
+	revision: str,
+	doc_key: str,
+	parent_key: str | None,
+	slug: str | None,
+	*,
+	is_group: int | bool = 0,
+	is_deleted: int | bool = 0,
+) -> None:
+	"""Prevent invalid trees inside a revision.
+
+	A leaf's route is derived from ancestor slugs + its slug. Two leaf nodes with the same
+	(parent_key, slug) will compute the same route and fail at merge time.
+	"""
+	if is_deleted or is_group or not slug:
+		return
+
+	# Treat empty parent_key and None as equivalent.
+	parent_key = parent_key or None
+
+	existing = frappe.db.get_value(
+		"Wiki Revision Item",
+		{
+			"revision": revision,
+			"parent_key": parent_key,
+			"slug": slug,
+			"is_group": 0,
+			"is_deleted": 0,
+			"doc_key": ("!=", doc_key),
+		},
+		["name", "doc_key", "title"],
+		as_dict=True,
+	)
+	if existing:
+		frappe.throw(
+			_(
+				"Duplicate page slug '{0}' under the same parent in this change request. "
+				"Existing doc_key: {1} ({2})"
+			).format(slug, existing.doc_key, (existing.title or "").strip() or existing.name),
+			frappe.ValidationError,
+		)
+
+
+def _validate_no_duplicate_leaf_slugs(items: dict[str, dict[str, Any]]) -> None:
+	"""Validate the final merged tree has no duplicate leaf slugs under the same parent."""
+	seen: dict[tuple[str | None, str], dict[str, Any]] = {}
+	dupes: dict[tuple[str | None, str], list[dict[str, Any]]] = {}
+
+	for doc_key, item in items.items():
+		if not item or item.get("is_group") or not item.get("slug"):
+			continue
+		key = (item.get("parent_key") or None, item.get("slug"))
+		current = {"doc_key": doc_key, "title": item.get("title")}
+		if key in seen:
+			dupes.setdefault(key, [seen[key]]).append(current)
+		else:
+			seen[key] = current
+
+	if not dupes:
+		return
+
+	lines = []
+	for (parent_key, slug), rows in sorted(dupes.items(), key=lambda kv: (kv[0][0] or "", kv[0][1])):
+		parts = []
+		for r in rows:
+			title = (r.get("title") or "").strip()
+			parts.append(f"{r.get('doc_key')}{f' ({title})' if title else ''}")
+		parent_label = parent_key or "<root>"
+		lines.append(f"- parent_key={parent_label}, slug='{slug}': " + ", ".join(parts))
+
+	frappe.throw(
+		_(
+			"Duplicate leaf slugs detected in the merged tree (these would generate duplicate routes). "
+			"Resolve by renaming/moving/deleting one of the pages:\n{0}"
+		).format("\n".join(lines)),
+		frappe.ValidationError,
+	)
+
+
 def has_revision_changes(base_revision: str | None, head_revision: str | None) -> bool:
 	if not base_revision or not head_revision:
 		return False
@@ -378,6 +457,14 @@ def create_cr_page(
 	item.doc_key = frappe.generate_hash(length=12)
 	item.title = title
 	item.slug = slug or cleanup_page_name(title)
+	_validate_unique_leaf_slug_in_revision(
+		head_revision,
+		item.doc_key,
+		parent_key,
+		item.slug,
+		is_group=is_group,
+		is_deleted=0,
+	)
 	item.is_group = 1 if is_group else 0
 	item.is_published = 1 if is_published else 0
 	item.is_external_link = 1 if is_external_link else 0
@@ -419,6 +506,15 @@ def update_cr_page(name: str, doc_key: str, fields: dict[str, Any]) -> None:
 		item.content_blob = get_or_create_content_blob(fields["content"])
 	if "is_deleted" in fields and fields["is_deleted"] is not None:
 		item.is_deleted = 1 if fields["is_deleted"] else 0
+
+	_validate_unique_leaf_slug_in_revision(
+		cr.head_revision,
+		item.doc_key,
+		item.parent_key,
+		item.slug,
+		is_group=item.is_group,
+		is_deleted=item.is_deleted,
+	)
 	item.save()
 
 	recompute_revision_hashes(cr.head_revision)
@@ -436,6 +532,14 @@ def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: 
 
 	item = frappe.get_doc("Wiki Revision Item", item_name)
 	item.parent_key = new_parent_key
+	_validate_unique_leaf_slug_in_revision(
+		cr.head_revision,
+		item.doc_key,
+		item.parent_key,
+		item.slug,
+		is_group=item.is_group,
+		is_deleted=item.is_deleted,
+	)
 	if new_order_index is not None:
 		item.order_index = new_order_index
 	item.save()
@@ -762,7 +866,14 @@ def merge_change_request(name: str) -> str:
 			conflict_doc.status = "Open"
 			conflict_doc.insert(ignore_permissions=True)
 
+		# In web requests, an exception triggers a rollback which would erase the
+		# inserted conflict rows. Persist them so the UI can show details.
+		if not frappe.flags.in_test:
+			frappe.db.commit()
+
 		frappe.throw(_("Merge conflicts detected"), frappe.ValidationError)
+
+	_validate_no_duplicate_leaf_slugs(merged_items)
 
 	merge_revision = create_merge_revision(cr, merged_items)
 	apply_merge_revision(space, merge_revision)
