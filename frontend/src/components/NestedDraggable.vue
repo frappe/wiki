@@ -13,7 +13,10 @@
         @change="handleChange"
     >
         <template #item="{ element }">
-            <div class="draggable-item">
+            <div 
+                class="draggable-item"
+                :data-wiki-item="element.document_name || element.doc_key"
+            >
                 <div
                     class="flex items-center justify-between pr-2 py-1.5 hover:bg-surface-gray-2 group border-b border-outline-gray-1"
                     :class="getRowClasses(element)"
@@ -120,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, Badge, Button, toast } from 'frappe-ui';
@@ -186,6 +189,43 @@ function isExpanded(name) {
 function toggleExpanded(name) {
     expandedNodes.value[name] = !expandedNodes.value[name];
 }
+
+// Helper function to check if element is in viewport
+function isElementInViewport(element, container) {
+    if (!element || !container) return true;
+    const rect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    
+    return (
+        rect.top >= containerRect.top &&
+        rect.bottom <= containerRect.bottom
+    );
+}
+
+// Watch for changes to selectedPageId or selectedDraftKey and scroll into view if needed
+// Only runs at root level (level === 0) to avoid redundant watchers in recursive instances
+watch(
+    () => [props.selectedPageId, props.selectedDraftKey],
+    async () => {
+        // Only run scroll logic at root level to avoid running in every recursive instance
+        if (props.level !== 0) return;
+        
+        const selectedId = props.selectedPageId || props.selectedDraftKey;
+        if (!selectedId) return;
+        
+        // Use nextTick to ensure DOM is stable after route change
+        await nextTick();
+        
+        const selectedElement = document.querySelector(`[data-wiki-item="${selectedId}"]`);
+        const scrollContainer = selectedElement?.closest('.overflow-auto');
+        
+        if (selectedElement && scrollContainer && !isElementInViewport(selectedElement, scrollContainer)) {
+            // Frappe style: smooth scroll with nearest positioning
+            selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    },
+    { flush: 'post' }
+);
 
 function handleRowClick(element) {
     if (element._changeType === 'deleted') {
