@@ -41,17 +41,6 @@
 				</Button>
 			</template>
 
-			<template v-else-if="changeRequestStatus === 'In Review'">
-				<Button
-					variant="outline"
-					size="sm"
-					:loading="archiveChangeRequestResource?.loading"
-					@click="$emit('withdraw')"
-				>
-					{{ __('Archive') }}
-				</Button>
-			</template>
-
 			<template v-else-if="changeRequestStatus === 'Approved'">
 				<span class="text-sm font-medium text-green-700">
 					{{ __('Approved! Ready to merge.') }}
@@ -65,6 +54,17 @@
 					{{ __('Merge') }}
 				</Button>
 			</template>
+
+			<Button
+				v-if="canShowArchive"
+				variant="outline"
+				theme="red"
+				size="sm"
+				:loading="archiveChangeRequestResource?.loading"
+				@click="$emit('withdraw')"
+			>
+				{{ __('Archive') }}
+			</Button>
 		</div>
 
 		<Dialog v-model="showChangesDialog" :options="{ size: 'lg' }">
@@ -226,6 +226,10 @@ function confirmSubmit(closeDialog) {
 const canShowMerge = computed(() => {
 	return props.canMerge && props.changeCount > 0;
 });
+
+const canShowArchive = computed(() => {
+	return props.changeCount > 0 && (props.changeRequestStatus === 'Draft' || props.changeRequestStatus === 'In Review' || props.changeRequestStatus === 'Changes Requested');
+})
 
 function getChangeIcon(changeType) {
 	switch (changeType) {

@@ -456,6 +456,10 @@ async function handleArchiveChangeRequest() {
     try {
         await archiveChangeRequest();
         toast.success(__('Change request archived'));
+        currentChangeRequest.value = null;
+        await initChangeRequest();
+        await loadChanges();
+        await refreshTree();
     } catch (error) {
         toast.error(error.messages?.[0] || __('Error archiving change request'));
     }

@@ -1,8 +1,7 @@
 {
 	"actions": [],
-	"allow_rename": 0,
 	"autoname": "hash",
-	"creation": "2026-01-22 00:00:00.000000",
+	"creation": "2026-01-22 00:00:00",
 	"doctype": "DocType",
 	"engine": "InnoDB",
 	"field_order": [
@@ -13,6 +12,8 @@
 		"message",
 		"is_merge",
 		"is_working",
+		"is_overlay",
+		"hashes_stale",
 		"section_break_meta",
 		"created_by",
 		"created_at",
@@ -24,6 +25,7 @@
 		{
 			"fieldname": "wiki_space",
 			"fieldtype": "Link",
+			"in_list_view": 1,
 			"label": "Wiki Space",
 			"options": "Wiki Space",
 			"reqd": 1
@@ -60,6 +62,19 @@
 			"fieldname": "is_working",
 			"fieldtype": "Check",
 			"label": "Is Working"
+		},
+		{
+			"default": "0",
+			"fieldname": "is_overlay",
+			"fieldtype": "Check",
+			"label": "Is Overlay"
+		},
+		{
+			"default": "0",
+			"fieldname": "hashes_stale",
+			"fieldtype": "Check",
+			"hidden": 1,
+			"label": "Hashes Stale"
 		},
 		{
 			"fieldname": "section_break_meta",
@@ -99,9 +114,8 @@
 			"read_only": 1
 		}
 	],
-	"index_web_pages_for_search": 0,
 	"links": [],
-	"modified": "2026-01-22 00:00:00.000000",
+	"modified": "2026-02-17 11:57:07.163673",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Revision",
@@ -143,8 +157,22 @@
 			"role": "Wiki Approver",
 			"share": 1,
 			"write": 1
+		},
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"if_owner": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Wiki User",
+			"share": 1,
+			"write": 1
 		}
 	],
+	"row_format": "Dynamic",
 	"show_title_field_in_link": 1,
 	"sort_field": "modified",
 	"sort_order": "DESC",

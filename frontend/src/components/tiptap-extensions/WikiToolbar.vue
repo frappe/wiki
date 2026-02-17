@@ -128,14 +128,8 @@
 
             <div class="toolbar-separator"></div>
 
-            <!-- Table -->
-            <button
-                class="toolbar-btn"
-                @click="insertTable"
-                title="Insert Table"
-            >
-                <TableIcon class="icon" />
-            </button>
+            <!-- Table dropdown -->
+            <WikiTableDropdown :editor="editor" />
 
             <!-- Link -->
             <button
@@ -216,12 +210,12 @@ import {
 	LucideQuote as QuoteIcon,
 	LucideRedo2 as RedoIcon,
 	LucideStrikethrough as StrikethroughIcon,
-	LucideTable as TableIcon,
 	LucideType as TextIcon,
 	LucideUndo2 as UndoIcon,
 	LucideVideo as VideoIcon,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import WikiTableDropdown from './WikiTableDropdown.vue';
 
 const props = defineProps({
 	editor: {
@@ -267,14 +261,6 @@ function setHeading(level) {
 function setParagraph() {
 	props.editor.chain().focus().setParagraph().run();
 	showHeadingsDropdown.value = false;
-}
-
-function insertTable() {
-	props.editor
-		.chain()
-		.focus()
-		.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-		.run();
 }
 
 function toggleLink() {

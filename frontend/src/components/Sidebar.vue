@@ -34,7 +34,7 @@ const themeIcon = computed(() => {
 	return userTheme.value === "dark" ? LucideSun : LucideMoon;
 });
 
-const isSidebarCollapsed  = useStorage("is-sidebar-collapsed", true);
+const isSidebarCollapsed  = useStorage("is-sidebar-collapsed", false);
 
 onMounted(() => {
 	document.documentElement.setAttribute("data-theme", userTheme.value);

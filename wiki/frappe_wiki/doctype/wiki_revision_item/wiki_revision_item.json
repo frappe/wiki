@@ -1,8 +1,7 @@
 {
 	"actions": [],
-	"allow_rename": 0,
 	"autoname": "hash",
-	"creation": "2026-01-22 00:00:00.000000",
+	"creation": "2026-01-22 00:00:00",
 	"doctype": "DocType",
 	"engine": "InnoDB",
 	"field_order": [
@@ -24,6 +23,7 @@
 		{
 			"fieldname": "revision",
 			"fieldtype": "Link",
+			"in_list_view": 1,
 			"label": "Revision",
 			"options": "Wiki Revision",
 			"reqd": 1
@@ -31,6 +31,7 @@
 		{
 			"fieldname": "doc_key",
 			"fieldtype": "Data",
+			"in_list_view": 1,
 			"label": "Doc Key",
 			"reqd": 1
 		},
@@ -49,11 +50,13 @@
 			"fieldtype": "Column Break"
 		},
 		{
+			"default": "0",
 			"fieldname": "is_group",
 			"fieldtype": "Check",
 			"label": "Is Group"
 		},
 		{
+			"default": "0",
 			"fieldname": "is_published",
 			"fieldtype": "Check",
 			"label": "Is Published"
@@ -92,9 +95,8 @@
 			"label": "Is Deleted"
 		}
 	],
-	"index_web_pages_for_search": 0,
 	"links": [],
-	"modified": "2026-01-22 00:00:00.000000",
+	"modified": "2026-02-17 11:54:37.644118",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Revision Item",
@@ -136,8 +138,22 @@
 			"role": "Wiki Approver",
 			"share": 1,
 			"write": 1
+		},
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"if_owner": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Wiki User",
+			"share": 1,
+			"write": 1
 		}
 	],
+	"row_format": "Dynamic",
 	"sort_field": "modified",
 	"sort_order": "DESC",
 	"states": [],
