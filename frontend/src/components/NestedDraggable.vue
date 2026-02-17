@@ -120,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, Badge, Button, toast } from 'frappe-ui';
@@ -186,6 +186,37 @@ function isExpanded(name) {
 function toggleExpanded(name) {
     expandedNodes.value[name] = !expandedNodes.value[name];
 }
+
+function isElementInViewport(element, container) {
+    if (!element || !container) return true;
+    const rect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    
+    return (
+        rect.top >= containerRect.top &&
+        rect.bottom <= containerRect.bottom
+    );
+}
+
+watch(
+    () => [props.selectedPageId, props.selectedDraftKey],
+    async () => {
+        if (props.level !== 0) return;
+        
+        const selectedId = props.selectedPageId || props.selectedDraftKey;
+        if (!selectedId) return;
+        
+        await nextTick();
+        
+        const selectedElement = document.querySelector(`[data-wiki-item="${selectedId}"]`);
+        const scrollContainer = selectedElement?.closest('.overflow-auto');
+        
+        if (selectedElement && scrollContainer && !isElementInViewport(selectedElement, scrollContainer)) {
+            selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    },
+    { flush: 'post' }
+);
 
 function handleRowClick(element) {
     if (element._changeType === 'deleted') {
