@@ -37,7 +37,7 @@
                 <p class="text-sm text-ink-gray-5 mt-0.5">{{ space.doc?.route }}</p>
             </div>
 
-            <div v-if="space.doc && mergedTreeData" class="flex-1 overflow-auto p-2">
+            <div v-if="space.doc && mergedTreeData" class="flex-1 overflow-auto p-2" data-wiki-scroll-container>
                 <WikiDocumentList
                     :tree-data="mergedTreeData"
                     :space-id="spaceId"

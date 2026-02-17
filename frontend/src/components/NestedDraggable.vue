@@ -18,6 +18,7 @@
                     class="flex items-center justify-between pr-2 py-1.5 hover:bg-surface-gray-2 group border-b border-outline-gray-1"
                     :class="getRowClasses(element)"
                     :style="{ paddingLeft: `${level * 12 + 8}px` }"
+                    :data-wiki-item="element.document_name || element.doc_key"
                     @click="handleRowClick(element)"
                 >
                     <div class="flex items-center gap-1.5 flex-1 min-w-0">
@@ -120,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, Badge, Button, toast } from 'frappe-ui';
@@ -200,16 +201,14 @@ function isElementInViewport(element, container) {
 
 watch(
     () => [props.selectedPageId, props.selectedDraftKey],
-    async () => {
+    () => {
         if (props.level !== 0) return;
         
         const selectedId = props.selectedPageId || props.selectedDraftKey;
         if (!selectedId) return;
         
-        await nextTick();
-        
         const selectedElement = document.querySelector(`[data-wiki-item="${selectedId}"]`);
-        const scrollContainer = selectedElement?.closest('.overflow-auto');
+        const scrollContainer = selectedElement?.closest('[data-wiki-scroll-container]');
         
         if (selectedElement && scrollContainer && !isElementInViewport(selectedElement, scrollContainer)) {
             selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
