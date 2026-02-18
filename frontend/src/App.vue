@@ -8,7 +8,7 @@ setConfig("localTimezone", window.timezone?.user || null);
 
 <template>
 	<FrappeUIProvider>
-		<MainLayout>
+		<MainLayout class="isolate">
 			<router-view />
 		</MainLayout>
 	</FrappeUIProvider>
