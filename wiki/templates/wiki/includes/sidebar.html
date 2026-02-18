@@ -109,7 +109,15 @@
                 }
             },
 
-            async navigateTo(route, pushState = true) {
+            async navigateTo(route, pushState = true, event = null) {
+                if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) {
+                    return;
+                }
+
+                if (event && event.preventDefault) {
+                    event.preventDefault();
+                }
+
                 if (route === this.currentRoute) return;
 
                 if (this.prefetchCache[route]) {
@@ -221,7 +229,7 @@
                     if (prevDoc) {
                         html += `
                             <a href="/${prevDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${prevDoc.route}')"
+                               @click="$store.navigation.navigateTo('${prevDoc.route}', true, $event)"
                                @mouseenter="$store.navigation.prefetch('${prevDoc.route}')"
                                class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
                                 <svg class="w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,7 +246,7 @@
                         const mlClass = !prevDoc ? 'sm:ml-auto' : '';
                         html += `
                             <a href="/${nextDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${nextDoc.route}')"
+                               @click="$store.navigation.navigateTo('${nextDoc.route}', true, $event)"
                                @mouseenter="$store.navigation.prefetch('${nextDoc.route}')"
                                class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden ${mlClass}">
                                 <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
@@ -264,13 +272,15 @@
             // Store expanded states with persistence
             expandedStates: Alpine.$persist({}),
             currentRoute: '{{ doc.route if doc else "" }}',
-            
+            previousScrollRestoration: null,
+
             get isCollapsed() {
                 return this.$store.sidebar.isCollapsed;
             },
-            
+
             init() {
                 if ('scrollRestoration' in history) {
+                    this.previousScrollRestoration = history.scrollRestoration;
                     history.scrollRestoration = 'manual';
                 }
 
@@ -356,6 +366,16 @@
                 });
             },
 
+            isElementInViewport(element, container) {
+                if (!element || !container) return true;
+                const rect = element.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                return (
+                    rect.top >= containerRect.top &&
+                    rect.bottom <= containerRect.bottom
+                );
+            },
+
             scrollToSelectedItem() {
                 const attemptScroll = (retries = 0) => {
                     const sidebarContainer = document.querySelector('.wiki-sidebar');
@@ -386,6 +406,10 @@
 
                     if (containerHeight === 0) return;
 
+                    if (this.isElementInViewport(currentPageElement, sidebarNav)) {
+                        return;
+                    }
+
                     const elementRect = currentPageElement.getBoundingClientRect();
                     const containerRect = sidebarNav.getBoundingClientRect();
                     const elementRelativeTop = elementRect.top - containerRect.top + sidebarNav.scrollTop;
@@ -401,6 +425,12 @@
                 this.$nextTick(() => {
                     attemptScroll();
                 });
+            },
+
+            destroy() {
+                if ('scrollRestoration' in history && this.previousScrollRestoration !== null) {
+                    history.scrollRestoration = this.previousScrollRestoration;
+                }
             }
         }
     }

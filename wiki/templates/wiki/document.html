@@ -68,7 +68,7 @@
             <div class="flex flex-col sm:flex-row sm:items-stretch gap-4 {{ 'sm:justify-between' if prev_doc and next_doc else ('sm:justify-start' if prev_doc else 'sm:justify-end') }}">
                 {% if prev_doc %}
                 <a href="/{{ prev_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ prev_doc.route }}')"
+                   @click="$store.navigation.navigateTo('{{ prev_doc.route }}', true, $event)"
                    @mouseenter="$store.navigation.prefetch('{{ prev_doc.route }}')"
                    class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
                     {{ render_icon("chevron-left", "w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0") }}
@@ -81,7 +81,7 @@
 
                 {% if next_doc %}
                 <a href="/{{ next_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ next_doc.route }}')"
+                   @click="$store.navigation.navigateTo('{{ next_doc.route }}', true, $event)"
                    @mouseenter="$store.navigation.prefetch('{{ next_doc.route }}')"
                    class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden {{ 'sm:ml-auto' if not prev_doc else '' }}">
                     <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
