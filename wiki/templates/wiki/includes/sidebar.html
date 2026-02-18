@@ -273,6 +273,8 @@
             expandedStates: Alpine.$persist({}),
             currentRoute: '{{ doc.route if doc else "" }}',
             previousScrollRestoration: null,
+            scrollTimeoutHandle: null,
+            scrollRafHandle: null,
 
             get isCollapsed() {
                 return this.$store.sidebar.isCollapsed;
@@ -398,8 +400,8 @@
 
                     if ((containerHeight === 0 || containerWidth === 0) && retries < 8) {
                         const delay = Math.min(100 * Math.pow(1.5, retries), 1000);
-                        setTimeout(() => {
-                            requestAnimationFrame(() => attemptScroll(retries + 1));
+                        this.scrollTimeoutHandle = setTimeout(() => {
+                            this.scrollRafHandle = requestAnimationFrame(() => attemptScroll(retries + 1));
                         }, delay);
                         return;
                     }
@@ -428,6 +430,14 @@
             },
 
             destroy() {
+                if (this.scrollTimeoutHandle !== null) {
+                    clearTimeout(this.scrollTimeoutHandle);
+                    this.scrollTimeoutHandle = null;
+                }
+                if (this.scrollRafHandle !== null) {
+                    cancelAnimationFrame(this.scrollRafHandle);
+                    this.scrollRafHandle = null;
+                }
                 if ('scrollRestoration' in history && this.previousScrollRestoration !== null) {
                     history.scrollRestoration = this.previousScrollRestoration;
                 }
