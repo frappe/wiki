@@ -112,7 +112,6 @@
             async navigateTo(route, pushState = true) {
                 if (route === this.currentRoute) return;
 
-                // Check prefetch cache first
                 if (this.prefetchCache[route]) {
                     this.updateContent(this.prefetchCache[route]);
                     this.currentRoute = route;
@@ -145,7 +144,6 @@
                         throw new Error('Invalid response');
                     }
                 } catch (error) {
-                    // Fallback to full page load
                     window.location.href = '/' + route;
                 } finally {
                     this.loading = false;
@@ -203,8 +201,11 @@
                     hljs.highlightAll();
                 }
 
-                // Scroll to top
                 window.scrollTo(0, 0);
+
+                window.dispatchEvent(new CustomEvent('wiki-route-changed', {
+                    detail: { route: data.route || this.currentRoute }
+                }));
             },
 
             updateNavButtons(prevDoc, nextDoc) {
@@ -269,12 +270,36 @@
             },
             
             init() {
-                // Auto-expand parents of current page
-                this.expandCurrentPageParents();
-                
-                // Debug: log all route elements
-                this.$nextTick(() => {
-                    const allRouteElements = document.querySelectorAll('[data-route]');
+                if ('scrollRestoration' in history) {
+                    history.scrollRestoration = 'manual';
+                }
+
+                const initialScrollNeeded = this.currentRoute;
+                const handleInitialScroll = () => {
+                    if (initialScrollNeeded) {
+                        this.expandCurrentPageParents();
+                    }
+                };
+
+                if (document.readyState === 'complete') {
+                    handleInitialScroll();
+                } else {
+                    window.addEventListener('load', handleInitialScroll, { once: true });
+                }
+
+                window.addEventListener('wiki-route-changed', (event) => {
+                    const newRoute = event.detail?.route;
+                    if (newRoute && newRoute !== this.currentRoute) {
+                        this.currentRoute = newRoute;
+                        this.expandCurrentPageParents();
+                    }
+                });
+
+                this.$watch('$store.navigation.currentRoute', (newRoute) => {
+                    if (newRoute && newRoute !== this.currentRoute) {
+                        this.currentRoute = newRoute;
+                        this.expandCurrentPageParents();
+                    }
                 });
             },
             
@@ -293,34 +318,88 @@
             },
             
             expandCurrentPageParents() {
-                // Find and expand all parent groups of the current page
                 if (!this.currentRoute) return;
-                
-                // Wait for DOM to be fully rendered
+
                 this.$nextTick(() => {
-                    // Find the current page element
-                    const currentPageElement = document.querySelector(`[data-route="${this.currentRoute}"]`);
+                    const sidebarContainer = document.querySelector('.wiki-sidebar');
+                    if (!sidebarContainer) return;
+
+                    const currentPageElement = sidebarContainer.querySelector(`[data-route="${this.currentRoute}"]`);
                     if (!currentPageElement) return;
-                    
-                    // Find all parent group containers and expand them
+
                     let parentElement = currentPageElement.parentElement;
+                    const parentsToExpand = [];
+
                     while (parentElement) {
-                        // Look for parent wiki-children containers
                         if (parentElement.classList.contains('wiki-children')) {
-                            // Find the sibling wiki-item-content that has a data-node-id
                             const parentItem = parentElement.parentElement;
                             if (parentItem) {
                                 const parentContent = parentItem.querySelector('.wiki-item-content[data-node-id]');
                                 if (parentContent) {
                                     const nodeId = parentContent.getAttribute('data-node-id');
                                     if (nodeId) {
-                                        this.expandedStates[nodeId] = true;
+                                        parentsToExpand.push(nodeId);
                                     }
                                 }
                             }
                         }
                         parentElement = parentElement.parentElement;
                     }
+
+                    parentsToExpand.forEach(nodeId => {
+                        this.expandedStates[nodeId] = true;
+                    });
+
+                    this.$nextTick(() => {
+                        this.scrollToSelectedItem();
+                    });
+                });
+            },
+
+            scrollToSelectedItem() {
+                const attemptScroll = (retries = 0) => {
+                    const sidebarContainer = document.querySelector('.wiki-sidebar');
+                    if (!sidebarContainer) return;
+
+                    const currentPageElement = sidebarContainer.querySelector(`[data-route="${this.currentRoute}"]`);
+                    if (!currentPageElement) return;
+
+                    const sidebarNav = sidebarContainer.querySelector('nav');
+                    if (!sidebarNav) return;
+
+                    const computedStyle = window.getComputedStyle(sidebarContainer);
+                    const isHidden = computedStyle.display === 'none';
+                    const isCollapsed = sidebarContainer.offsetWidth === 0;
+
+                    if (isHidden || isCollapsed) return;
+
+                    const containerHeight = sidebarNav.clientHeight;
+                    const containerWidth = sidebarNav.clientWidth;
+
+                    if ((containerHeight === 0 || containerWidth === 0) && retries < 8) {
+                        const delay = Math.min(100 * Math.pow(1.5, retries), 1000);
+                        setTimeout(() => {
+                            requestAnimationFrame(() => attemptScroll(retries + 1));
+                        }, delay);
+                        return;
+                    }
+
+                    if (containerHeight === 0) return;
+
+                    const elementRect = currentPageElement.getBoundingClientRect();
+                    const containerRect = sidebarNav.getBoundingClientRect();
+                    const elementRelativeTop = elementRect.top - containerRect.top + sidebarNav.scrollTop;
+                    const elementHeight = currentPageElement.offsetHeight;
+                    const scrollPosition = elementRelativeTop - (containerHeight / 2) + (elementHeight / 2);
+
+                    sidebarNav.scrollTo({
+                        top: Math.max(0, scrollPosition),
+                        behavior: 'instant'
+                    });
+                };
+
+                this.$nextTick(() => {
+                    attemptScroll();
                 });
             }
         }

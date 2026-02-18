@@ -38,7 +38,7 @@
                     {% else %}
                         {# Page/leaf item #}
                         <a href="/{{ node.route }}"
-                           @click.prevent.exact="$store.navigation.navigateTo('{{ node.route }}')"
+                           @click.prevent="$store.navigation.navigateTo('{{ node.route }}')"
                            @mouseenter="$store.navigation.prefetch('{{ node.route }}')"
                            class="wiki-item-content wiki-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200"
                            :class="$store.navigation.currentRoute === '{{ node.route }}' ? 'bg-[var(--surface-selected)] shadow-sm text-[var(--ink-gray-9)]' : 'hover:bg-[var(--surface-gray-2)]'"

@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, Badge, Button, toast } from 'frappe-ui';
@@ -192,29 +192,70 @@ function isElementInViewport(element, container) {
     if (!element || !container) return true;
     const rect = element.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    
+
     return (
         rect.top >= containerRect.top &&
         rect.bottom <= containerRect.bottom
     );
 }
 
+function findParentGroups(items, targetKey, parents = []) {
+    for (const item of items) {
+        if (item.doc_key === targetKey || item.document_name === targetKey) {
+            return parents;
+        }
+        if (item.is_group && item.children) {
+            const found = findParentGroups(item.children, targetKey, [...parents, item.doc_key]);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function expandParentsAndScroll(selectedId) {
+    if (!selectedId) return;
+
+    const parentKeys = findParentGroups(localItems.value, selectedId);
+
+    if (parentKeys && parentKeys.length > 0) {
+        parentKeys.forEach(key => {
+            expandedNodes.value[key] = true;
+        });
+    }
+
+    nextTick(() => {
+        nextTick(() => {
+            try {
+                const escapedId = CSS.escape(selectedId);
+                const selectedElement = document.querySelector(`[data-wiki-item="${escapedId}"]`);
+
+                if (!selectedElement) {
+                    return;
+                }
+
+                const scrollContainer = selectedElement.closest('[data-wiki-scroll-container]');
+
+                if (scrollContainer && !isElementInViewport(selectedElement, scrollContainer)) {
+                    selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            } catch (error) {
+                console.error('Error scrolling to selected item:', error);
+            }
+        });
+    });
+}
+
 watch(
     () => [props.selectedPageId, props.selectedDraftKey],
     () => {
         if (props.level !== 0) return;
-        
+
         const selectedId = props.selectedPageId || props.selectedDraftKey;
         if (!selectedId) return;
-        
-        const selectedElement = document.querySelector(`[data-wiki-item="${selectedId}"]`);
-        const scrollContainer = selectedElement?.closest('[data-wiki-scroll-container]');
-        
-        if (selectedElement && scrollContainer && !isElementInViewport(selectedElement, scrollContainer)) {
-            selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+
+        expandParentsAndScroll(selectedId);
     },
-    { flush: 'post' }
+    { flush: 'post', immediate: true }
 );
 
 function handleRowClick(element) {
