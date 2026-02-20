@@ -31,14 +31,14 @@ def slugify(text: str) -> str:
 	    text: The heading text to slugify
 
 	Returns:
-	    A lowercase, hyphenated slug suitable for use as an HTML id
+	    A lowercase slug suitable for use as an HTML id (spaces become hyphens, underscores are preserved)
 	"""
 	# Remove HTML tags if any
 	text = re.sub(r"<[^>]+>", "", text)
 	# Convert to lowercase
 	text = text.lower()
-	# Replace spaces and underscores with hyphens
-	text = re.sub(r"[\s_]+", "-", text)
+	# Replace whitespace with hyphens (underscores are preserved)
+	text = re.sub(r"\s+", "-", text)
 	# Remove characters that aren't alphanumerics, hyphens, or unicode letters
 	text = re.sub(r"[^\w\-]", "", text, flags=re.UNICODE)
 	# Remove leading/trailing hyphens

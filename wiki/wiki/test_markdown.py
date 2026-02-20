@@ -99,6 +99,11 @@ class TestHeadingSlugGeneration(unittest.TestCase):
 		result = render_markdown("## Hello   ---   World")
 		self.assertIn('<h2 id="hello-world">Hello   ---   World</h2>', result)
 
+	def test_heading_slug_preserves_underscores(self):
+		"""Test that underscores in headings are preserved in slug."""
+		result = render_markdown("## get_filtered_list_url")
+		self.assertIn('<h2 id="get_filtered_list_url">get_filtered_list_url</h2>', result)
+
 
 class TestImageCaptionSupport(unittest.TestCase):
 	"""Tests for image caption support in markdown.
