@@ -542,11 +542,24 @@ def get_breadcrumbs(name: str) -> dict:
 @frappe.whitelist(allow_guest=True)
 def get_page_data(route: str) -> dict:
 	"""Returns all data needed to render a page dynamically for client-side navigation."""
-	doc_name = frappe.db.get_value("Wiki Document", {"route": route, "is_published": 1}, "name")
-	if not doc_name:
+	document = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_published": 1}, ["name", "is_group"], as_dict=True
+	)
+	if not document:
 		frappe.throw(frappe._("Page not found"), frappe.DoesNotExistError)
 
-	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	# If this is a group document (folder), resolve to its first published child
+	if document.is_group:
+		child_docs = get_descendants_of(
+			"Wiki Document", document.name, order_by="lft asc, sort_order desc", ignore_permissions=True
+		)
+		for child_name in child_docs:
+			child_doc = frappe.get_cached_doc("Wiki Document", child_name)
+			if not child_doc.is_group and child_doc.is_published:
+				return child_doc.get_web_context()
+		frappe.throw(frappe._("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", document.name)
 	return doc.get_web_context()
 
 

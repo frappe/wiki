@@ -136,10 +136,11 @@
                     const data = await response.json();
 
                     if (data.message) {
+                        const resolvedRoute = data.message.route || route;
                         this.updateContent(data.message);
-                        this.currentRoute = route;
+                        this.currentRoute = resolvedRoute;
                         if (pushState) {
-                            history.pushState({ route }, '', '/' + route);
+                            history.pushState({ route: resolvedRoute }, '', '/' + resolvedRoute);
                         }
                     } else {
                         throw new Error('Invalid response');
