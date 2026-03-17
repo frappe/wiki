@@ -579,6 +579,8 @@ def _sync_document_to_revision(doc):
 		return
 	if getattr(frappe.flags, "in_reorder_wiki_documents", False):
 		return
+	if getattr(frappe.flags, "in_wiki_v3_migration", False):
+		return
 
 	from wiki.api.wiki_space import _get_wiki_space_for_document, _sync_main_revision_for_space
 

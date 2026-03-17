@@ -77,19 +77,21 @@ class WikiSpace(Document):
 		if self.root_group:
 			return  # Migration already done
 
-		self.create_root_group()
-		self.save()
+		frappe.flags.in_wiki_v3_migration = True
+		try:
+			self.create_root_group()
+			self.save()
 
-		sidebar = self.wiki_sidebars
-		if not sidebar:
-			return
+			sidebar = self.wiki_sidebars
+			if not sidebar:
+				return
 
-		groups, group_order = self._group_sidebar_items(sidebar)
+			groups, group_order = self._group_sidebar_items(sidebar)
 
-		for sort_order, group_label in enumerate(group_order):
-			self._create_group_with_pages(group_label, groups[group_label], sort_order)
-
-		self.save()
+			for sort_order, group_label in enumerate(group_order):
+				self._create_group_with_pages(group_label, groups[group_label], sort_order)
+		finally:
+			frappe.flags.in_wiki_v3_migration = False
 
 	def _group_sidebar_items(self, sidebar):
 		"""Group sidebar items by parent_label while maintaining order"""
