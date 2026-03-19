@@ -2,10 +2,13 @@
 # See license.txt
 
 import unittest
+from threading import Thread
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
+from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import process_navbar_items
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -1162,3 +1165,131 @@ class TestExternalLinkExclusions(WikiDocumentTestBase):
 
 		context = get_page_data(route=normal_page.route)
 		self.assertEqual(context["title"], "Normal PageData Page")
+
+
+def _make_request(test_client, method, path, **kwargs):
+	"""Run a werkzeug test-client request in a thread (mirrors frappe test_api pattern)."""
+	site = frappe.local.site
+
+	class _T(Thread):
+		_return = None
+
+		def run(self):
+			target = getattr(test_client, method)
+			with patch("frappe.app.get_site_name", return_value=site):
+				self._return = target(path, **kwargs)
+
+	t = _T()
+	t.start()
+	t.join()
+	return t._return
+
+
+class TestMarkdownContentNegotiation(WikiDocumentTestBase):
+	"""Tests for the Accept: text/markdown content negotiation feature."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def test_accept_text_markdown_returns_raw_markdown(self):
+		"""Requesting a wiki page with Accept: text/markdown returns raw markdown content."""
+		markdown_content = "# Hello World\n\nThis is **bold** and *italic* text."
+		route = self._unique("md-raw")
+		root_group = create_test_wiki_document(self, "Root MD Test", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Markdown Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content=markdown_content,
+		)
+		create_test_wiki_space(self, "MD Test Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
+		self.assertEqual(response.get_data(as_text=True), markdown_content)
+
+	def test_default_accept_returns_html(self):
+		"""Requesting a wiki page without Accept: text/markdown returns HTML."""
+		route = self._unique("md-html")
+		root_group = create_test_wiki_document(self, "Root HTML Test", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"HTML Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Some content",
+		)
+		create_test_wiki_space(self, "HTML Test Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/html", response.headers.get("Content-Type", ""))
+
+	def test_markdown_response_for_unpublished_page_raises_error(self):
+		"""Requesting markdown for an unpublished page should return an error."""
+		route = self._unique("md-unpub")
+		root_group = create_test_wiki_document(self, "Root Unpub MD", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Unpublished MD Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Secret content",
+		)
+		create_test_wiki_space(self, "Unpub MD Space", route, root_group.name)
+
+		# Unpublish after creation since validation prevents inserting unpublished pages
+		frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
+		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertNotEqual(response.status_code, 200)
+
+	def test_markdown_response_has_utf8_charset(self):
+		"""Markdown response should specify UTF-8 charset."""
+		route = self._unique("md-charset")
+		root_group = create_test_wiki_document(self, "Root Charset", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Charset Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Unicode: éèê",
+		)
+		create_test_wiki_space(self, "Charset Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		content_type = response.headers.get("Content-Type", "")
+		self.assertIn("charset=utf-8", content_type)
