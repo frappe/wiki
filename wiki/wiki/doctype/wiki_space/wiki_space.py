@@ -79,6 +79,7 @@ class WikiSpace(Document):
 
 		self.create_root_group()
 		self.save()
+		self.reload()
 
 		sidebar = self.wiki_sidebars
 		if not sidebar:
