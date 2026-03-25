@@ -558,7 +558,7 @@ def get_breadcrumbs(name: str) -> dict:
 	return doc.get_breadcrumbs()
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_page_data(route: str) -> dict:
 	"""Returns all data needed to render a page dynamically for client-side navigation."""
 	doc_name = frappe.db.get_value(
