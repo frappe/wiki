@@ -24,7 +24,7 @@ class WikiSQLiteSearch(SQLiteSearch):
 				{"published": "is_published"},
 				"modified",
 			],
-			"filters": {"is_published": 1, "is_group": 0},
+			"filters": {"is_published": 1, "is_group": 0, "is_external_link": 0},
 		}
 	}
 

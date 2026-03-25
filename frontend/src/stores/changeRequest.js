@@ -1,39 +1,17 @@
-import { userResource } from '@/data/user';
+import { useUserStore } from '@/stores/user';
 import { createResource } from 'frappe-ui';
+import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
-const currentChangeRequest = ref(null);
-const isLoadingChangeRequest = ref(false);
-let initChangeRequestPromise = null;
+export const useChangeRequestStore = defineStore('changeRequest', () => {
+	const currentChangeRequest = ref(null);
+	const isLoadingChangeRequest = ref(false);
+	let initChangeRequestPromise = null;
+	let loadChangesPromise = null;
 
-export function isWikiManager() {
-	const user = userResource.data;
-	if (!user || !user.roles) return false;
-
-	return user.roles.some(
-		(role) => role.role === 'Wiki Manager' || role.role === 'System Manager',
+	const isChangeRequestMode = computed(
+		() => useUserStore().shouldUseChangeRequestMode,
 	);
-}
-
-export function canAccessWiki() {
-	const user = userResource.data;
-	if (!user || !user.roles) return false;
-
-	return user.roles.some(
-		(role) =>
-			role.role === 'Wiki User' ||
-			role.role === 'Wiki Manager' ||
-			role.role === 'System Manager',
-	);
-}
-
-export function shouldUseChangeRequestMode() {
-	const user = userResource.data;
-	return Boolean(user?.is_logged_in);
-}
-
-export function useChangeRequestMode(spaceId) {
-	const isChangeRequestMode = computed(() => shouldUseChangeRequestMode());
 	const hasActiveChangeRequest = computed(() => !!currentChangeRequest.value);
 
 	const changeRequestResource = createResource({
@@ -77,114 +55,6 @@ export function useChangeRequestMode(spaceId) {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',
 	});
 
-	async function refreshChangeRequest() {
-		if (!currentChangeRequest.value) return null;
-		await changeRequestResource.submit({
-			name: currentChangeRequest.value.name,
-		});
-		return currentChangeRequest.value;
-	}
-
-	async function initChangeRequest() {
-		if (!isChangeRequestMode.value || !spaceId.value) return null;
-
-		if (isLoadingChangeRequest.value && initChangeRequestPromise) {
-			await initChangeRequestPromise;
-			return currentChangeRequest.value;
-		}
-
-		isLoadingChangeRequest.value = true;
-		initChangeRequestPromise = draftChangeRequestResource.submit({
-			wiki_space: spaceId.value,
-		});
-		try {
-			await initChangeRequestPromise;
-		} finally {
-			initChangeRequestPromise = null;
-		}
-		return currentChangeRequest.value;
-	}
-
-	async function loadChanges() {
-		if (!currentChangeRequest.value) return [];
-
-		await changesResource.submit({
-			name: currentChangeRequest.value.name,
-			scope: 'summary',
-		});
-		return changesResource.data || [];
-	}
-
-	async function submitForReview(reviewers = []) {
-		if (!currentChangeRequest.value) return null;
-
-		await submitReviewResource.submit({
-			name: currentChangeRequest.value.name,
-			reviewers,
-		});
-		return currentChangeRequest.value;
-	}
-
-	async function archiveChangeRequest() {
-		if (!currentChangeRequest.value) return null;
-
-		await archiveChangeRequestResource.submit({
-			name: currentChangeRequest.value.name,
-		});
-		return currentChangeRequest.value;
-	}
-
-	async function mergeChangeRequest() {
-		if (!currentChangeRequest.value) return null;
-
-		await mergeChangeRequestResource.submit({
-			name: currentChangeRequest.value.name,
-		});
-		return currentChangeRequest.value;
-	}
-
-	const changeCount = computed(() => {
-		return changesResource.data?.length || 0;
-	});
-
-	const canSubmit = computed(() => {
-		return (
-			['Draft', 'Changes Requested'].includes(
-				currentChangeRequest.value?.status,
-			) && changeCount.value > 0
-		);
-	});
-
-	const canWithdraw = computed(() => {
-		return ['In Review', 'Changes Requested'].includes(
-			currentChangeRequest.value?.status,
-		);
-	});
-
-	return {
-		isChangeRequestMode,
-		currentChangeRequest,
-		hasActiveChangeRequest,
-		isLoadingChangeRequest,
-		changeCount,
-		canSubmit,
-		canWithdraw,
-		changeRequestResource,
-		draftChangeRequestResource,
-		changesResource,
-		submitReviewResource,
-		archiveChangeRequestResource,
-		mergeChangeRequestResource,
-		initChangeRequest,
-		loadChanges,
-		submitForReview,
-		archiveChangeRequest,
-		mergeChangeRequest,
-		refreshChangeRequest,
-	};
-}
-
-export function useChangeRequest() {
 	const createPageResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_cr_page',
 	});
@@ -203,6 +73,106 @@ export function useChangeRequest() {
 
 	const reorderChildrenResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.reorder_cr_children',
+	});
+
+	async function refreshChangeRequest() {
+		if (!currentChangeRequest.value) return null;
+		await changeRequestResource.submit({
+			name: currentChangeRequest.value.name,
+		});
+		return currentChangeRequest.value;
+	}
+
+	async function initChangeRequest(spaceId) {
+		if (!isChangeRequestMode.value || !spaceId) return null;
+
+		if (isLoadingChangeRequest.value && initChangeRequestPromise) {
+			await initChangeRequestPromise;
+			return currentChangeRequest.value;
+		}
+
+		isLoadingChangeRequest.value = true;
+		initChangeRequestPromise = draftChangeRequestResource.submit({
+			wiki_space: spaceId,
+		});
+		try {
+			await initChangeRequestPromise;
+		} finally {
+			initChangeRequestPromise = null;
+		}
+		return currentChangeRequest.value;
+	}
+
+	async function ensureChangeRequest(spaceId) {
+		if (!currentChangeRequest.value) {
+			await initChangeRequest(spaceId);
+		}
+		return !!currentChangeRequest.value;
+	}
+
+	async function loadChanges() {
+		if (!currentChangeRequest.value) return [];
+		if (loadChangesPromise) return loadChangesPromise;
+
+		loadChangesPromise = changesResource
+			.submit({
+				name: currentChangeRequest.value.name,
+				scope: 'summary',
+			})
+			.then(() => changesResource.data || [])
+			.finally(() => {
+				loadChangesPromise = null;
+			});
+
+		return loadChangesPromise;
+	}
+
+	async function submitForReview(reviewers = []) {
+		if (!currentChangeRequest.value) return null;
+		await submitReviewResource.submit({
+			name: currentChangeRequest.value.name,
+			reviewers,
+		});
+		return currentChangeRequest.value;
+	}
+
+	async function archiveChangeRequest() {
+		if (!currentChangeRequest.value) return null;
+		await archiveChangeRequestResource.submit({
+			name: currentChangeRequest.value.name,
+		});
+		return currentChangeRequest.value;
+	}
+
+	async function mergeChangeRequest() {
+		if (!currentChangeRequest.value) return null;
+		await mergeChangeRequestResource.submit({
+			name: currentChangeRequest.value.name,
+		});
+		return currentChangeRequest.value;
+	}
+
+	const changes = computed(() => changesResource.data || []);
+	const changeCount = computed(() => changes.value.length);
+	const isSubmitting = computed(() => submitReviewResource.loading);
+	const isArchiving = computed(() => archiveChangeRequestResource.loading);
+	const isMerging = computed(() => mergeChangeRequestResource.loading);
+	const isCreatingPage = computed(() => createPageResource.loading);
+	const isUpdatingPage = computed(() => updatePageResource.loading);
+	const isDeletingPage = computed(() => deletePageResource.loading);
+
+	const canSubmit = computed(() => {
+		return (
+			['Draft', 'Changes Requested'].includes(
+				currentChangeRequest.value?.status,
+			) && changeCount.value > 0
+		);
+	});
+
+	const canWithdraw = computed(() => {
+		return ['In Review', 'Changes Requested'].includes(
+			currentChangeRequest.value?.status,
+		);
 	});
 
 	async function createPage(
@@ -264,17 +234,31 @@ export function useChangeRequest() {
 	}
 
 	return {
-		createPageResource,
-		updatePageResource,
-		deletePageResource,
-		movePageResource,
-		reorderChildrenResource,
+		currentChangeRequest,
+		isLoadingChangeRequest,
+		isChangeRequestMode,
+		hasActiveChangeRequest,
+		changes,
+		changeCount,
+		canSubmit,
+		canWithdraw,
+		isSubmitting,
+		isArchiving,
+		isMerging,
+		isCreatingPage,
+		isUpdatingPage,
+		isDeletingPage,
+		refreshChangeRequest,
+		initChangeRequest,
+		ensureChangeRequest,
+		loadChanges,
+		submitForReview,
+		archiveChangeRequest,
+		mergeChangeRequest,
 		createPage,
 		updatePage,
 		deletePage,
 		movePage,
 		reorderChildren,
 	};
-}
-
-export { currentChangeRequest };
+});

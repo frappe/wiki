@@ -10,7 +10,7 @@ class WikiSettings(Document):
 		for key in frappe.cache().hgetall("wiki_sidebar").keys():
 			frappe.cache().hdel("wiki_sidebar", key)
 
-		clear_wiki_page_cache()
+		_clear_wiki_page_cache()
 
 
 @frappe.whitelist()
@@ -20,7 +20,11 @@ def get_all_spaces():
 
 @frappe.whitelist()
 def clear_wiki_page_cache():
+	frappe.only_for("System Manager")
+	_clear_wiki_page_cache()
+	return True
+
+
+def _clear_wiki_page_cache():
 	for route in frappe.get_all("Wiki Page", pluck="route"):
 		frappe.cache().hdel("website_page", route)
-
-	return True

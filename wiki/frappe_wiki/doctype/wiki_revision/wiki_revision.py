@@ -34,6 +34,7 @@ def create_revision_from_live_tree(
 			"doc_key",
 			"title",
 			"slug",
+			"route",
 			"is_group",
 			"is_published",
 			"is_external_link",
@@ -80,6 +81,7 @@ def create_revision_from_live_tree(
 		item.doc_key = doc.get("doc_key")
 		item.title = doc.get("title")
 		item.slug = doc.get("slug") or cleanup_page_name(doc.get("title") or "")
+		item.route = doc.get("route")
 		item.is_group = doc.get("is_group")
 		item.is_published = doc.get("is_published")
 		item.is_external_link = doc.get("is_external_link")
@@ -91,6 +93,31 @@ def create_revision_from_live_tree(
 		item.insert()
 
 	recompute_revision_hashes(revision.name)
+	return revision
+
+
+def create_overlay_revision(
+	base_revision: str,
+	change_request: str | None = None,
+	is_working: int = 0,
+) -> Document:
+	"""Create an empty overlay revision that inherits items from base_revision."""
+	base = frappe.get_doc("Wiki Revision", base_revision)
+	revision = frappe.new_doc("Wiki Revision")
+	revision.wiki_space = base.wiki_space
+	revision.change_request = change_request
+	revision.parent_revision = base_revision
+	revision.message = base.message
+	revision.is_merge = 0
+	revision.is_working = 1 if is_working else 0
+	revision.is_overlay = 1
+	revision.hashes_stale = 0
+	revision.created_by = frappe.session.user
+	revision.created_at = now_datetime()
+	revision.tree_hash = base.tree_hash
+	revision.content_hash = base.content_hash
+	revision.doc_count = base.doc_count
+	revision.insert(ignore_permissions=True)
 	return revision
 
 
@@ -118,6 +145,7 @@ def clone_revision(
 			"doc_key",
 			"title",
 			"slug",
+			"route",
 			"is_group",
 			"is_published",
 			"is_external_link",
@@ -136,6 +164,7 @@ def clone_revision(
 		new_item.doc_key = item["doc_key"]
 		new_item.title = item.get("title")
 		new_item.slug = item.get("slug")
+		new_item.route = item.get("route")
 		new_item.is_group = item.get("is_group")
 		new_item.is_published = item.get("is_published")
 		new_item.is_external_link = item.get("is_external_link")
@@ -144,7 +173,7 @@ def clone_revision(
 		new_item.order_index = item.get("order_index")
 		new_item.content_blob = item.get("content_blob")
 		new_item.is_deleted = item.get("is_deleted")
-		new_item.insert()
+		new_item.insert(ignore_permissions=True)
 
 	recompute_revision_hashes(new_revision.name)
 	return new_revision
@@ -169,25 +198,37 @@ def get_or_create_content_blob(content: str, content_type: str = "markdown") -> 
 
 
 def recompute_revision_hashes(revision: str) -> None:
-	items = frappe.get_all(
-		"Wiki Revision Item",
-		fields=["doc_key", "parent_key", "order_index", "slug", "content_blob", "is_deleted"],
-		filters={"revision": revision},
-	)
+	is_overlay = frappe.db.get_value("Wiki Revision", revision, "is_overlay")
 
-	blob_names = {item["content_blob"] for item in items if item.get("content_blob")}
-	blob_hashes = {
-		blob["name"]: blob["hash"]
-		for blob in frappe.get_all(
-			"Wiki Content Blob",
-			fields=["name", "hash"],
-			filters={"name": ("in", list(blob_names))},
+	if is_overlay:
+		# For overlay revisions, compute from the effective (merged) item set
+		effective = get_effective_revision_item_map(revision)
+		items = list(effective.values())
+		# Reuse content_hash already loaded by get_effective_revision_item_map
+		blob_hashes = {
+			item["content_blob"]: item.get("content_hash") or "" for item in items if item.get("content_blob")
+		}
+	else:
+		items = frappe.get_all(
+			"Wiki Revision Item",
+			fields=["doc_key", "parent_key", "order_index", "slug", "content_blob", "is_deleted"],
+			filters={"revision": revision},
 		)
-	}
+		blob_names = {item["content_blob"] for item in items if item.get("content_blob")}
+		blob_hashes = {}
+		if blob_names:
+			blob_hashes = {
+				blob["name"]: blob["hash"]
+				for blob in frappe.get_all(
+					"Wiki Content Blob",
+					fields=["name", "hash"],
+					filters={"name": ("in", list(blob_names))},
+				)
+			}
 
 	tree_parts = []
 	content_parts = []
-	for item in sorted(items, key=lambda x: x["doc_key"]):
+	for item in sorted(items, key=lambda x: x.get("doc_key") or ""):
 		if item.get("is_deleted"):
 			continue
 		tree_parts.append(
@@ -206,15 +247,15 @@ def recompute_revision_hashes(revision: str) -> None:
 	tree_hash = hashlib.sha256("\n".join(tree_parts).encode("utf-8")).hexdigest()
 	content_hash = hashlib.sha256("\n".join(content_parts).encode("utf-8")).hexdigest()
 
-	frappe.db.set_value(
-		"Wiki Revision",
-		revision,
-		{
-			"tree_hash": tree_hash,
-			"content_hash": content_hash,
-			"doc_count": len([item for item in items if not item.get("is_deleted")]),
-		},
-	)
+	update_fields = {
+		"tree_hash": tree_hash,
+		"content_hash": content_hash,
+		"doc_count": len([item for item in items if not item.get("is_deleted")]),
+	}
+	if is_overlay:
+		update_fields["hashes_stale"] = 0
+
+	frappe.db.set_value("Wiki Revision", revision, update_fields)
 
 
 def get_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
@@ -225,6 +266,7 @@ def get_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
 			"doc_key",
 			"title",
 			"slug",
+			"route",
 			"is_group",
 			"is_published",
 			"is_external_link",
@@ -255,6 +297,93 @@ def get_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
 		item["content_hash"] = blob_hashes.get(item.get("content_blob"))
 		item_map[item["doc_key"]] = item
 	return item_map
+
+
+def get_effective_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
+	"""Get the effective item map, resolving overlay inheritance.
+
+	For overlay revisions: base items + overlay items (overlay wins).
+	For full revisions: same as get_revision_item_map().
+	"""
+	rev_info = frappe.db.get_value("Wiki Revision", revision, ["is_overlay", "parent_revision"], as_dict=True)
+	if not (rev_info and rev_info.is_overlay and rev_info.parent_revision):
+		return get_revision_item_map(revision)
+
+	base_items = get_revision_item_map(rev_info.parent_revision)
+	overlay_items = get_revision_item_map(revision)
+
+	effective = dict(base_items)
+	effective.update(overlay_items)
+	return effective
+
+
+def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
+	"""Copy-on-write: ensure doc_key has an item in the overlay revision.
+
+	If the item already exists in the overlay, return its name.
+	If the revision is an overlay and the item exists in the base, copy it.
+	Returns the item name, or None if the item doesn't exist anywhere.
+	"""
+	existing = frappe.db.get_value("Wiki Revision Item", {"revision": revision, "doc_key": doc_key}, "name")
+	if existing:
+		return existing
+
+	rev_info = frappe.db.get_value("Wiki Revision", revision, ["is_overlay", "parent_revision"], as_dict=True)
+	if not (rev_info and rev_info.is_overlay and rev_info.parent_revision):
+		return None
+
+	base_item = frappe.db.get_value(
+		"Wiki Revision Item",
+		{"revision": rev_info.parent_revision, "doc_key": doc_key},
+		[
+			"doc_key",
+			"title",
+			"slug",
+			"route",
+			"is_group",
+			"is_published",
+			"is_external_link",
+			"external_url",
+			"parent_key",
+			"order_index",
+			"content_blob",
+			"is_deleted",
+		],
+		as_dict=True,
+	)
+	if not base_item:
+		return None
+
+	new_item = frappe.new_doc("Wiki Revision Item")
+	new_item.revision = revision
+	new_item.doc_key = base_item.doc_key
+	new_item.title = base_item.title
+	new_item.slug = base_item.slug
+	new_item.route = base_item.route
+	new_item.is_group = base_item.is_group
+	new_item.is_published = base_item.is_published
+	new_item.is_external_link = base_item.is_external_link
+	new_item.external_url = base_item.external_url
+	new_item.parent_key = base_item.parent_key
+	new_item.order_index = base_item.order_index
+	new_item.content_blob = base_item.content_blob
+	new_item.is_deleted = base_item.is_deleted
+	new_item.insert(ignore_permissions=True)
+	return new_item.name
+
+
+def mark_hashes_stale(revision: str) -> None:
+	"""Mark a revision's hashes as needing recomputation."""
+	frappe.db.set_value("Wiki Revision", revision, "hashes_stale", 1)
+
+
+def ensure_revision_hashes(revision: str) -> None:
+	"""Recompute hashes if they are stale."""
+	if not revision:
+		return
+	is_stale = frappe.db.get_value("Wiki Revision", revision, "hashes_stale")
+	if is_stale:
+		recompute_revision_hashes(revision)
 
 
 def build_tree_order(items: dict[str, dict[str, Any]]) -> list[str]:

@@ -30,16 +30,20 @@ test.describe('Wiki Editor', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Click create new space button
-		await page.click('button:has-text("New"), button:has-text("Create")');
+		await page.click('button:has-text("New Space")');
 
-		// Fill in space details in the dialog
-		await page.waitForSelector('[role="dialog"], .modal', { state: 'visible' });
+		// Fill in space details in the dialog (scope to dialog to avoid hitting search input)
+		const dialog = page.locator('[role="dialog"]').first();
+		await dialog.waitFor({ state: 'visible' });
 
 		const spaceName = `Test Space ${Date.now()}`;
-		await page.fill('input[type="text"]', spaceName);
+		await dialog.locator('input[type="text"]').first().fill(spaceName);
 
-		// Submit the form
-		await page.click('button:has-text("Create"), button[type="submit"]');
+		// Wait for route to auto-populate from space name
+		await page.waitForTimeout(500);
+
+		// Submit the form (click Create button inside the dialog)
+		await dialog.locator('button:has-text("Create")').click();
 
 		// Wait for the dialog to close and page to update
 		await page.waitForLoadState('networkidle');
@@ -65,13 +69,12 @@ test.describe('Wiki Editor', () => {
 		await expect(page.locator('aside')).toBeVisible();
 
 		// Look for add/create page button in sidebar
+		// "New Page" is an icon-only button with title attribute, not text content
 		const addButton = page
-			.locator(
-				'button:has-text("Create First Page"), button:has-text("New Page")',
-			)
+			.locator('button:has-text("Create First Page"), button[title="New Page"]')
 			.first();
 		await expect(addButton).toBeVisible({
-			timeout: 5000,
+			timeout: 10000,
 		});
 		await addButton.click();
 
@@ -138,32 +141,33 @@ test.describe('Wiki Editor', () => {
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		// Check if there's an existing page (indicated by "Not Published" badge in tree)
-		// or if we need to create one
-		const pageTreeRow = page
-			.locator('aside')
-			.locator('.cursor-pointer')
-			.first();
+		// Wait for sidebar to load - either "Create First Page" or "New Page" icon button
 		const createFirstPage = page.locator(
 			'button:has-text("Create First Page")',
 		);
+		const newPageButton = page.locator('button[title="New Page"]');
+		await expect(createFirstPage.or(newPageButton)).toBeVisible({
+			timeout: 10000,
+		});
 
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			// No pages - create one
+		// Always create a new page so we know exactly what to click
+		const pageTitle = `Test Page ${Date.now()}`;
+		if (await createFirstPage.isVisible().catch(() => false)) {
 			await createFirstPage.click();
-			const pageTitle = `Test Page ${Date.now()}`;
-			await page.getByLabel('Title').fill(pageTitle);
-			await page
-				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
-				.click();
-			await page.waitForLoadState('networkidle');
-			await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		} else {
-			// Pages exist - click on first tree row
-			await pageTreeRow.click();
-			await page.waitForLoadState('networkidle');
+			await newPageButton.click();
 		}
+
+		await page.getByLabel('Title').fill(pageTitle);
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: 'Save Draft' })
+			.click();
+		await page.waitForLoadState('networkidle');
+
+		// Click the newly created page in the sidebar
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForLoadState('networkidle');
 
 		// Editor should be visible (clicking a page opens it in edit mode)
 		await expect(

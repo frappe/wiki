@@ -2,10 +2,13 @@
 # See license.txt
 
 import unittest
+from threading import Thread
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
+from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import process_navbar_items
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -17,6 +20,67 @@ EXTRA_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
+def create_test_wiki_document(test_case, title, **kwargs):
+	"""Create a Wiki Document for testing and track it for cleanup."""
+	fields = {
+		"doctype": "Wiki Document",
+		"title": title,
+		"parent_wiki_document": kwargs.get("parent"),
+		"is_group": kwargs.get("is_group", False),
+		"is_published": kwargs.get("is_published", True),
+		"sort_order": kwargs.get("sort_order", 0),
+		"slug": kwargs.get("slug"),
+		"is_external_link": kwargs.get("is_external_link", False),
+		"external_url": kwargs.get("external_url"),
+		"content": kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
+	}
+	doc = frappe.get_doc(fields)
+	doc.insert(ignore_permissions=True)
+	test_case.test_docs.append(doc.name)
+	return doc
+
+
+def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
+	"""Create a Wiki Space for testing and track it for cleanup."""
+	fields = {
+		"doctype": "Wiki Space",
+		"space_name": space_name,
+		"route": route,
+		"root_group": root_group,
+		"show_in_switcher": kwargs.get("show_in_switcher", True),
+		"is_published": kwargs.get("is_published", True),
+		"switcher_order": kwargs.get("switcher_order", 0),
+	}
+	doc = frappe.get_doc(fields)
+	doc.insert(ignore_permissions=True)
+	test_case.test_spaces.append(doc.name)
+	# Track auto-created root_group for cleanup
+	if not root_group and doc.root_group:
+		test_case.test_docs.append(doc.root_group)
+	return doc
+
+
+class WikiDocumentTestBase(IntegrationTestCase):
+	"""Base class with common setup/teardown for Wiki Document tests."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.test_docs = []
+		cls.test_spaces = []
+
+	def tearDown(self):
+		for doc_name in reversed(self.test_docs):
+			if frappe.db.exists("Wiki Document", doc_name):
+				frappe.delete_doc("Wiki Document", doc_name, force=True)
+		self.test_docs = []
+
+		for space_name in self.test_spaces:
+			if frappe.db.exists("Wiki Space", space_name):
+				frappe.delete_doc("Wiki Space", space_name, force=True)
+		self.test_spaces = []
+
+
 class IntegrationTestWikiDocument(IntegrationTestCase):
 	"""
 	Integration tests for WikiDocument.
@@ -26,79 +90,22 @@ class IntegrationTestWikiDocument(IntegrationTestCase):
 	pass
 
 
-class TestGetWebContext(IntegrationTestCase):
+class TestGetWebContext(WikiDocumentTestBase):
 	"""
 	Unit tests for the get_web_context method of WikiDocument.
 	Tests navigation (prev/next doc) edge cases and wiki spaces switcher.
 	"""
 
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.test_docs = []
-		cls.test_spaces = []
-
-	def tearDown(self):
-		# Clean up test documents
-		for doc_name in reversed(self.test_docs):
-			if frappe.db.exists("Wiki Document", doc_name):
-				frappe.delete_doc("Wiki Document", doc_name, force=True)
-		self.test_docs = []
-
-		# Clean up test spaces
-		for space_name in self.test_spaces:
-			if frappe.db.exists("Wiki Space", space_name):
-				frappe.delete_doc("Wiki Space", space_name, force=True)
-		self.test_spaces = []
-
-	def _create_wiki_document(
-		self, title, parent=None, is_group=False, is_published=True, sort_order=0, content=None
-	):
-		"""Helper to create a wiki document for testing."""
-		doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Document",
-				"title": title,
-				"parent_wiki_document": parent,
-				"is_group": is_group,
-				"is_published": is_published,
-				"sort_order": sort_order,
-				"content": content if content is not None else f"Content for {title}",
-			}
-		)
-		doc.insert(ignore_permissions=True)
-		self.test_docs.append(doc.name)
-		return doc
-
-	def _create_wiki_space(
-		self, space_name, route, root_group, show_in_switcher=True, is_published=True, switcher_order=0
-	):
-		"""Helper to create a wiki space for testing."""
-		doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Space",
-				"space_name": space_name,
-				"route": route,
-				"root_group": root_group,
-				"show_in_switcher": show_in_switcher,
-				"is_published": is_published,
-				"switcher_order": switcher_order,
-			}
-		)
-		doc.insert(ignore_permissions=True)
-		self.test_spaces.append(doc.name)
-		return doc
-
 	def test_first_document_has_no_prev_doc(self):
 		"""Test that the first document in the tree has no previous document."""
 		# Create a simple tree: Root Group -> Doc1 -> Doc2 -> Doc3
-		root_group = self._create_wiki_document("Test Root Group", is_group=True)
-		doc1 = self._create_wiki_document("First Document", parent=root_group.name)
-		self._create_wiki_document("Second Document", parent=root_group.name)
-		self._create_wiki_document("Third Document", parent=root_group.name)
+		root_group = create_test_wiki_document(self, "Test Root Group", is_group=True)
+		doc1 = create_test_wiki_document(self, "First Document", parent=root_group.name)
+		create_test_wiki_document(self, "Second Document", parent=root_group.name)
+		create_test_wiki_document(self, "Third Document", parent=root_group.name)
 
 		# Create wiki space
-		self._create_wiki_space("Test Space", "test-space", root_group.name)
+		create_test_wiki_space(self, "Test Space", "test-space", root_group.name)
 
 		# Get context for the first document
 		doc1.reload()
@@ -112,13 +119,13 @@ class TestGetWebContext(IntegrationTestCase):
 	def test_last_document_has_no_next_doc(self):
 		"""Test that the last document in the tree has no next document."""
 		# Create a simple tree: Root Group -> Doc1 -> Doc2 -> Doc3
-		root_group = self._create_wiki_document("Test Root Group Last", is_group=True)
-		self._create_wiki_document("First Doc", parent=root_group.name)
-		self._create_wiki_document("Second Doc", parent=root_group.name)
-		doc3 = self._create_wiki_document("Third Doc", parent=root_group.name)
+		root_group = create_test_wiki_document(self, "Test Root Group Last", is_group=True)
+		create_test_wiki_document(self, "First Doc", parent=root_group.name)
+		create_test_wiki_document(self, "Second Doc", parent=root_group.name)
+		doc3 = create_test_wiki_document(self, "Third Doc", parent=root_group.name)
 
 		# Create wiki space
-		self._create_wiki_space("Test Space Last", "test-space-last", root_group.name)
+		create_test_wiki_space(self, "Test Space Last", "test-space-last", root_group.name)
 
 		# Get context for the last document
 		doc3.reload()
@@ -132,13 +139,13 @@ class TestGetWebContext(IntegrationTestCase):
 	def test_middle_document_has_both_prev_and_next(self):
 		"""Test that a middle document has both prev and next documents."""
 		# Create a simple tree: Root Group -> Doc1 -> Doc2 -> Doc3
-		root_group = self._create_wiki_document("Test Root Group Middle", is_group=True)
-		self._create_wiki_document("First Page", parent=root_group.name)
-		doc2 = self._create_wiki_document("Middle Page", parent=root_group.name)
-		self._create_wiki_document("Last Page", parent=root_group.name)
+		root_group = create_test_wiki_document(self, "Test Root Group Middle", is_group=True)
+		create_test_wiki_document(self, "First Page", parent=root_group.name)
+		doc2 = create_test_wiki_document(self, "Middle Page", parent=root_group.name)
+		create_test_wiki_document(self, "Last Page", parent=root_group.name)
 
 		# Create wiki space
-		self._create_wiki_space("Test Space Middle", "test-space-middle", root_group.name)
+		create_test_wiki_space(self, "Test Space Middle", "test-space-middle", root_group.name)
 
 		# Get context for the middle document
 		doc2.reload()
@@ -153,11 +160,11 @@ class TestGetWebContext(IntegrationTestCase):
 	def test_single_document_has_no_prev_or_next(self):
 		"""Test that a single document in the tree has neither prev nor next."""
 		# Create a tree with only one document
-		root_group = self._create_wiki_document("Test Root Group Single", is_group=True)
-		only_doc = self._create_wiki_document("Only Document", parent=root_group.name)
+		root_group = create_test_wiki_document(self, "Test Root Group Single", is_group=True)
+		only_doc = create_test_wiki_document(self, "Only Document", parent=root_group.name)
 
 		# Create wiki space
-		self._create_wiki_space("Test Space Single", "test-space-single", root_group.name)
+		create_test_wiki_space(self, "Test Space Single", "test-space-single", root_group.name)
 
 		# Get context for the only document
 		only_doc.reload()
@@ -173,19 +180,19 @@ class TestGetWebContext(IntegrationTestCase):
 		even when show_in_switcher is disabled, because of or_filters.
 		"""
 		# Create three wiki spaces with their root groups
-		root1 = self._create_wiki_document("Root Group Space 1", is_group=True)
-		doc1 = self._create_wiki_document("Doc in Space 1", parent=root1.name)
+		root1 = create_test_wiki_document(self, "Root Group Space 1", is_group=True)
+		doc1 = create_test_wiki_document(self, "Doc in Space 1", parent=root1.name)
 
-		root2 = self._create_wiki_document("Root Group Space 2", is_group=True)
-		self._create_wiki_document("Doc in Space 2", parent=root2.name)
+		root2 = create_test_wiki_document(self, "Root Group Space 2", is_group=True)
+		create_test_wiki_document(self, "Doc in Space 2", parent=root2.name)
 
-		root3 = self._create_wiki_document("Root Group Space 3", is_group=True)
-		self._create_wiki_document("Doc in Space 3", parent=root3.name)
+		root3 = create_test_wiki_document(self, "Root Group Space 3", is_group=True)
+		create_test_wiki_document(self, "Doc in Space 3", parent=root3.name)
 
 		# Create spaces - Space 1 has show_in_switcher=False but current doc belongs to it
-		self._create_wiki_space("Space One", "space-one", root1.name, show_in_switcher=False)
-		self._create_wiki_space("Space Two", "space-two", root2.name, show_in_switcher=True)
-		self._create_wiki_space("Space Three", "space-three", root3.name, show_in_switcher=True)
+		create_test_wiki_space(self, "Space One", "space-one", root1.name, show_in_switcher=False)
+		create_test_wiki_space(self, "Space Two", "space-two", root2.name, show_in_switcher=True)
+		create_test_wiki_space(self, "Space Three", "space-three", root3.name, show_in_switcher=True)
 
 		# Get context for doc in Space 1 (which has show_in_switcher=False)
 		doc1.reload()
@@ -210,19 +217,19 @@ class TestGetWebContext(IntegrationTestCase):
 		when viewing a document from a different space.
 		"""
 		# Create three wiki spaces with their root groups
-		root1 = self._create_wiki_document("Root Hidden Space", is_group=True)
-		self._create_wiki_document("Doc in Hidden Space", parent=root1.name)
+		root1 = create_test_wiki_document(self, "Root Hidden Space", is_group=True)
+		create_test_wiki_document(self, "Doc in Hidden Space", parent=root1.name)
 
-		root2 = self._create_wiki_document("Root Visible Space", is_group=True)
-		doc2 = self._create_wiki_document("Doc in Visible Space", parent=root2.name)
+		root2 = create_test_wiki_document(self, "Root Visible Space", is_group=True)
+		doc2 = create_test_wiki_document(self, "Doc in Visible Space", parent=root2.name)
 
-		root3 = self._create_wiki_document("Root Another Visible", is_group=True)
-		self._create_wiki_document("Doc in Another Visible", parent=root3.name)
+		root3 = create_test_wiki_document(self, "Root Another Visible", is_group=True)
+		create_test_wiki_document(self, "Doc in Another Visible", parent=root3.name)
 
 		# Create spaces - Space 1 (Hidden) has show_in_switcher=False
-		self._create_wiki_space("Hidden Space", "hidden-space", root1.name, show_in_switcher=False)
-		self._create_wiki_space("Visible Space", "visible-space", root2.name, show_in_switcher=True)
-		self._create_wiki_space("Another Visible", "another-visible", root3.name, show_in_switcher=True)
+		create_test_wiki_space(self, "Hidden Space", "hidden-space", root1.name, show_in_switcher=False)
+		create_test_wiki_space(self, "Visible Space", "visible-space", root2.name, show_in_switcher=True)
+		create_test_wiki_space(self, "Another Visible", "another-visible", root3.name, show_in_switcher=True)
 
 		# Get context for doc in Visible Space
 		doc2.reload()
@@ -246,7 +253,8 @@ class TestGetWebContext(IntegrationTestCase):
 		with any Wiki Space (no parent, standalone published document).
 		"""
 		# Create a standalone document with no parent and no wiki space
-		orphan_doc = self._create_wiki_document(
+		orphan_doc = create_test_wiki_document(
+			self,
 			"Orphan Published Document",
 			parent=None,
 			is_group=False,
@@ -276,13 +284,14 @@ class TestGetWebContext(IntegrationTestCase):
 
 	def test_get_web_context_renders_video_markdown_as_html_video_block(self):
 		"""Video markdown should render as HTML5 video in public page context."""
-		root_group = self._create_wiki_document("Root Video Group", is_group=True)
-		video_doc = self._create_wiki_document(
+		root_group = create_test_wiki_document(self, "Root Video Group", is_group=True)
+		video_doc = create_test_wiki_document(
+			self,
 			"Video Document",
 			parent=root_group.name,
 			content="![Demo Video](/files/demo-video.mp4)",
 		)
-		self._create_wiki_space("Video Space", "video-space", root_group.name)
+		create_test_wiki_space(self, "Video Space", "video-space", root_group.name)
 
 		video_doc.reload()
 		context = video_doc.get_web_context()
@@ -301,26 +310,26 @@ class TestGetWebContext(IntegrationTestCase):
 		then alphabetically by space_name.
 		"""
 		# Create wiki spaces with their root groups
-		root1 = self._create_wiki_document("Root Zebra Space", is_group=True)
-		doc1 = self._create_wiki_document("Doc in Zebra Space", parent=root1.name)
+		root1 = create_test_wiki_document(self, "Root Zebra Space", is_group=True)
+		doc1 = create_test_wiki_document(self, "Doc in Zebra Space", parent=root1.name)
 
-		root2 = self._create_wiki_document("Root Alpha Space", is_group=True)
-		self._create_wiki_document("Doc in Alpha Space", parent=root2.name)
+		root2 = create_test_wiki_document(self, "Root Alpha Space", is_group=True)
+		create_test_wiki_document(self, "Doc in Alpha Space", parent=root2.name)
 
-		root3 = self._create_wiki_document("Root Beta Space", is_group=True)
-		self._create_wiki_document("Doc in Beta Space", parent=root3.name)
+		root3 = create_test_wiki_document(self, "Root Beta Space", is_group=True)
+		create_test_wiki_document(self, "Doc in Beta Space", parent=root3.name)
 
-		root4 = self._create_wiki_document("Root Gamma Space", is_group=True)
-		self._create_wiki_document("Doc in Gamma Space", parent=root4.name)
+		root4 = create_test_wiki_document(self, "Root Gamma Space", is_group=True)
+		create_test_wiki_document(self, "Doc in Gamma Space", parent=root4.name)
 
 		# Create spaces with different switcher_order values
 		# Zebra has order 1, so should come first despite name
 		# Alpha and Beta both have order 2, so should be sorted alphabetically
 		# Gamma has order 3, so should come last
-		self._create_wiki_space("Zebra Space", "zebra-space", root1.name, switcher_order=1)
-		self._create_wiki_space("Alpha Space", "alpha-space", root2.name, switcher_order=2)
-		self._create_wiki_space("Beta Space", "beta-space", root3.name, switcher_order=2)
-		self._create_wiki_space("Gamma Space", "gamma-space", root4.name, switcher_order=3)
+		create_test_wiki_space(self, "Zebra Space", "zebra-space", root1.name, switcher_order=1)
+		create_test_wiki_space(self, "Alpha Space", "alpha-space", root2.name, switcher_order=2)
+		create_test_wiki_space(self, "Beta Space", "beta-space", root3.name, switcher_order=2)
+		create_test_wiki_space(self, "Gamma Space", "gamma-space", root4.name, switcher_order=3)
 
 		# Get context for doc in Zebra Space
 		doc1.reload()
@@ -974,63 +983,11 @@ class TestProcessNavbarItems(unittest.TestCase):
 		self.assertEqual(result[1]["icon"], "youtube")
 
 
-class TestSetRoute(IntegrationTestCase):
+class TestSetRoute(WikiDocumentTestBase):
 	"""
 	Unit tests for the set_route method of WikiDocument.
 	Tests route generation for nested documents to prevent path duplication.
 	"""
-
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.test_docs = []
-		cls.test_spaces = []
-
-	def tearDown(self):
-		# Clean up test documents (in reverse order to handle parent-child dependencies)
-		for doc_name in reversed(self.test_docs):
-			if frappe.db.exists("Wiki Document", doc_name):
-				frappe.delete_doc("Wiki Document", doc_name, force=True)
-		self.test_docs = []
-
-		# Clean up test spaces
-		for space_name in self.test_spaces:
-			if frappe.db.exists("Wiki Space", space_name):
-				frappe.delete_doc("Wiki Space", space_name, force=True)
-		self.test_spaces = []
-
-	def _create_wiki_document(self, title, parent=None, is_group=False, slug=None):
-		"""Helper to create a wiki document for testing."""
-		doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Document",
-				"title": title,
-				"parent_wiki_document": parent,
-				"is_group": is_group,
-				"slug": slug,
-				"content": f"Content for {title}",
-			}
-		)
-		doc.insert(ignore_permissions=True)
-		self.test_docs.append(doc.name)
-		return doc
-
-	def _create_wiki_space(self, space_name, route, root_group):
-		"""Helper to create a wiki space for testing."""
-		doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Space",
-				"space_name": space_name,
-				"route": route,
-				"root_group": root_group,
-			}
-		)
-		doc.insert(ignore_permissions=True)
-		self.test_spaces.append(doc.name)
-		# Track auto-created root_group for cleanup
-		if not root_group and doc.root_group:
-			self.test_docs.append(doc.root_group)
-		return doc
 
 	def test_nested_document_route_no_duplication(self):
 		"""
@@ -1045,17 +1002,17 @@ class TestSetRoute(IntegrationTestCase):
 		(which already included the space prefix) instead of just ancestor slugs.
 		"""
 		# Create wiki space first (this auto-creates a root_group)
-		space = self._create_wiki_space("Documentation Space", "documentation", None)
+		space = create_test_wiki_space(self, "Documentation Space", "documentation", None)
 		root_group_name = space.root_group
 
 		# Create the document hierarchy under the space's root_group: Root -> DocTypes -> Submittable -> Workflows
-		doctypes = self._create_wiki_document(
-			"DocTypes", parent=root_group_name, is_group=True, slug="doctypes"
+		doctypes = create_test_wiki_document(
+			self, "DocTypes", parent=root_group_name, is_group=True, slug="doctypes"
 		)
-		submittable = self._create_wiki_document(
-			"Submittable", parent=doctypes.name, is_group=True, slug="submittable"
+		submittable = create_test_wiki_document(
+			self, "Submittable", parent=doctypes.name, is_group=True, slug="submittable"
 		)
-		workflows = self._create_wiki_document("Workflows", parent=submittable.name, slug="workflows")
+		workflows = create_test_wiki_document(self, "Workflows", parent=submittable.name, slug="workflows")
 
 		# Verify routes are correct without duplication
 		self.assertEqual(doctypes.route, "documentation/doctypes")
@@ -1075,14 +1032,14 @@ class TestSetRoute(IntegrationTestCase):
 		and get_ancestors() is used instead of traversing parent_wiki_document.
 		"""
 		# Create wiki space first (this auto-creates a root_group)
-		space = self._create_wiki_space("Regen Test Space", "regen-space", None)
+		space = create_test_wiki_space(self, "Regen Test Space", "regen-space", None)
 		root_group_name = space.root_group
 
 		# Create the document hierarchy under the space's root_group
-		parent_folder = self._create_wiki_document(
-			"Parent Folder", parent=root_group_name, is_group=True, slug="parent"
+		parent_folder = create_test_wiki_document(
+			self, "Parent Folder", parent=root_group_name, is_group=True, slug="parent"
 		)
-		child_doc = self._create_wiki_document("Child Doc", parent=parent_folder.name, slug="child")
+		child_doc = create_test_wiki_document(self, "Child Doc", parent=parent_folder.name, slug="child")
 
 		# Verify initial route is correct
 		self.assertEqual(child_doc.route, "regen-space/parent/child")
@@ -1098,10 +1055,241 @@ class TestSetRoute(IntegrationTestCase):
 	def test_single_level_nesting_route(self):
 		"""Test route generation for a document one level deep."""
 		# Create wiki space first (this auto-creates a root_group)
-		space = self._create_wiki_space("Single Level Space", "single", None)
+		space = create_test_wiki_space(self, "Single Level Space", "single", None)
 		root_group_name = space.root_group
 
 		# Create child document under the space's root_group
-		child = self._create_wiki_document("Child Page", parent=root_group_name, slug="child-page")
+		child = create_test_wiki_document(self, "Child Page", parent=root_group_name, slug="child-page")
 
 		self.assertEqual(child.route, "single/child-page")
+
+
+class TestExternalLinkExclusions(WikiDocumentTestBase):
+	"""
+	Tests that external link documents are excluded from search indexing
+	and cannot be accessed via direct routing.
+	"""
+
+	def test_search_excludes_external_link(self):
+		"""Test that external link documents do not appear in search results."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		root_group = create_test_wiki_document(self, "Root ExtSearch", is_group=True)
+		normal_page = create_test_wiki_document(
+			self, "Normal Search Page", parent=root_group.name, content="unique_searchterm_abc"
+		)
+		create_test_wiki_document(
+			self,
+			"External Link Page",
+			parent=root_group.name,
+			is_external_link=True,
+			external_url="https://example.com",
+			content="unique_searchterm_abc",
+		)
+		create_test_wiki_space(self, "ExtSearch Space", "ext-search-space", root_group.name)
+
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+
+		results = search.search("unique_searchterm_abc")
+		result_names = [r["name"] for r in results["results"]]
+
+		self.assertIn(normal_page.name, result_names)
+		self.assertEqual(len(results["results"]), 1)
+
+	def test_renderer_cannot_render_external_link(self):
+		"""Test that WikiDocumentRenderer.can_render() returns False for external links."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WikiDocumentRenderer
+
+		root_group = create_test_wiki_document(self, "Root ExtRender", is_group=True)
+		external_link = create_test_wiki_document(
+			self,
+			"External Render Link",
+			parent=root_group.name,
+			is_external_link=True,
+			external_url="https://example.com",
+			slug="ext-render-link",
+		)
+		create_test_wiki_space(self, "ExtRender Space", "ext-render", root_group.name)
+
+		renderer = WikiDocumentRenderer(path=external_link.route)
+		self.assertFalse(renderer.can_render())
+
+	def test_renderer_can_render_normal_page(self):
+		"""Test that WikiDocumentRenderer.can_render() returns True for normal pages."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WikiDocumentRenderer
+
+		root_group = create_test_wiki_document(self, "Root NormalRender", is_group=True)
+		normal_page = create_test_wiki_document(
+			self,
+			"Normal Render Page",
+			parent=root_group.name,
+			slug="normal-render-page",
+		)
+		create_test_wiki_space(self, "NormalRender Space", "normal-render", root_group.name)
+
+		renderer = WikiDocumentRenderer(path=normal_page.route)
+		self.assertTrue(renderer.can_render())
+
+	def test_get_page_data_raises_for_external_link(self):
+		"""Test that get_page_data() raises DoesNotExistError for external links."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_page_data
+
+		root_group = create_test_wiki_document(self, "Root ExtPageData", is_group=True)
+		external_link = create_test_wiki_document(
+			self,
+			"External PageData Link",
+			parent=root_group.name,
+			is_external_link=True,
+			external_url="https://example.com",
+			slug="ext-pagedata-link",
+		)
+		create_test_wiki_space(self, "ExtPageData Space", "ext-pagedata", root_group.name)
+
+		with self.assertRaises(frappe.DoesNotExistError):
+			get_page_data(route=external_link.route)
+
+	def test_get_page_data_works_for_normal_page(self):
+		"""Test that get_page_data() works for normal published pages."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_page_data
+
+		root_group = create_test_wiki_document(self, "Root NormalPageData", is_group=True)
+		normal_page = create_test_wiki_document(
+			self,
+			"Normal PageData Page",
+			parent=root_group.name,
+			slug="normal-pagedata-page",
+		)
+		create_test_wiki_space(self, "NormalPageData Space", "normal-pagedata", root_group.name)
+
+		context = get_page_data(route=normal_page.route)
+		self.assertEqual(context["title"], "Normal PageData Page")
+
+
+def _make_request(test_client, method, path, **kwargs):
+	"""Run a werkzeug test-client request in a thread (mirrors frappe test_api pattern)."""
+	site = frappe.local.site
+
+	class _T(Thread):
+		_return = None
+
+		def run(self):
+			target = getattr(test_client, method)
+			with patch("frappe.app.get_site_name", return_value=site):
+				self._return = target(path, **kwargs)
+
+	t = _T()
+	t.start()
+	t.join()
+	return t._return
+
+
+class TestMarkdownContentNegotiation(WikiDocumentTestBase):
+	"""Tests for the Accept: text/markdown content negotiation feature."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def test_accept_text_markdown_returns_raw_markdown(self):
+		"""Requesting a wiki page with Accept: text/markdown returns raw markdown content."""
+		markdown_content = "# Hello World\n\nThis is **bold** and *italic* text."
+		route = self._unique("md-raw")
+		root_group = create_test_wiki_document(self, "Root MD Test", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Markdown Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content=markdown_content,
+		)
+		create_test_wiki_space(self, "MD Test Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
+		self.assertEqual(response.get_data(as_text=True), markdown_content)
+
+	def test_default_accept_returns_html(self):
+		"""Requesting a wiki page without Accept: text/markdown returns HTML."""
+		route = self._unique("md-html")
+		root_group = create_test_wiki_document(self, "Root HTML Test", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"HTML Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Some content",
+		)
+		create_test_wiki_space(self, "HTML Test Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/html", response.headers.get("Content-Type", ""))
+
+	def test_markdown_response_for_unpublished_page_raises_error(self):
+		"""Requesting markdown for an unpublished page should return an error."""
+		route = self._unique("md-unpub")
+		root_group = create_test_wiki_document(self, "Root Unpub MD", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Unpublished MD Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Secret content",
+		)
+		create_test_wiki_space(self, "Unpub MD Space", route, root_group.name)
+
+		# Unpublish after creation since validation prevents inserting unpublished pages
+		frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertNotEqual(response.status_code, 200)
+
+	def test_markdown_response_has_utf8_charset(self):
+		"""Markdown response should specify UTF-8 charset."""
+		route = self._unique("md-charset")
+		root_group = create_test_wiki_document(self, "Root Charset", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Charset Test Page",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content="# Unicode: éèê",
+		)
+		create_test_wiki_space(self, "Charset Space", route, root_group.name)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{page.route}",
+			headers={"Accept": "text/markdown"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		content_type = response.headers.get("Content-Type", "")
+		self.assertIn("charset=utf-8", content_type)

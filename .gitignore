@@ -18,3 +18,5 @@ wiki/public/css/tailwind.css
 playwright-report/
 test-results/
 e2e/.auth/
+.env
+screenshots/

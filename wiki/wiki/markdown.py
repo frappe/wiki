@@ -37,9 +37,9 @@ def slugify(text: str) -> str:
 	text = re.sub(r"<[^>]+>", "", text)
 	# Convert to lowercase
 	text = text.lower()
-	# Replace spaces and underscores with hyphens
-	text = re.sub(r"[\s_]+", "-", text)
-	# Remove characters that aren't alphanumerics, hyphens, or unicode letters
+	# Replace spaces with hyphens (preserve underscores for code-like headings)
+	text = re.sub(r"\s+", "-", text)
+	# Remove characters that aren't alphanumerics, hyphens, underscores, or unicode letters
 	text = re.sub(r"[^\w\-]", "", text, flags=re.UNICODE)
 	# Remove leading/trailing hyphens
 	text = text.strip("-")
@@ -69,7 +69,7 @@ CALLOUT_ICONS = {
 # Matches: :::type or :::type[title] or :::type\[title] (escaped bracket from editor)
 # Content continues until closing :::
 CALLOUT_PATTERN = re.compile(
-	r"^:::(?P<type>note|tip|caution|danger|warning)(?:\\?\[(?P<title>[^\]]*)\])?\s*\n(?P<content>[\s\S]*?)\n:::[ \t]*$",
+	r"^[ \t]*:::(?P<type>note|tip|caution|danger|warning)(?:\\?\[(?P<title>[^\]]*)\])?\s*\n(?P<content>[\s\S]*?)\n[ \t]*:::[ \t]*$",
 	re.MULTILINE,
 )
 
@@ -322,7 +322,9 @@ class WikiRenderer(mistune.HTMLRenderer):
 
 		# Track h2 and h3 headings for TOC
 		if level in (2, 3):
-			self._headings.append({"id": slug, "text": unescape(text), "level": level})
+			self._headings.append(
+				{"id": slug, "text": unescape(re.sub(r"<[^>]+>", "", text)), "level": level}
+			)
 
 		return f'<h{level} id="{slug}">{text}</h{level}>\n'
 

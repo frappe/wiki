@@ -1,6 +1,7 @@
 <template>
 	<div class="flex h-screen w-full flex-row shadow">
-		<template v-if="hasAccess">
+		<template v-if="isLoading"></template>
+		<template v-else-if="hasAccess">
 			<Sidebar />
 			<div class="flex-1 h-full min-w-0">
 				<slot></slot>
@@ -41,7 +42,10 @@
 <script setup>
 import { computed } from 'vue';
 import Sidebar from '../components/Sidebar.vue';
-import { canAccessWiki } from '@/composables/useChangeRequest';
+import { useUserStore } from '@/stores/user';
 
-const hasAccess = computed(() => canAccessWiki());
+const userStore = useUserStore();
+
+const isLoading = computed(() => userStore.isLoading);
+const hasAccess = computed(() => userStore.canAccessWiki);
 </script>

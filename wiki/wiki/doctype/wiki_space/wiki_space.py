@@ -73,11 +73,13 @@ class WikiSpace(Document):
 
 	@frappe.whitelist()
 	def migrate_to_v3(self):
+		frappe.only_for("Wiki Manager")
 		if self.root_group:
 			return  # Migration already done
 
 		self.create_root_group()
 		self.save()
+		self.reload()
 
 		sidebar = self.wiki_sidebars
 		if not sidebar:

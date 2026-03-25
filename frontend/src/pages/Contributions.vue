@@ -71,9 +71,10 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { ListView, Badge, Avatar, Tabs, createResource } from 'frappe-ui';
-import { isWikiManager } from '@/composables/useChangeRequest';
+import { useUserStore } from '@/stores/user';
 
-const isManager = computed(() => isWikiManager());
+const userStore = useUserStore();
+const isManager = computed(() => userStore.isWikiManager);
 const activeTabIndex = ref(0);
 
 const tabs = computed(() => {

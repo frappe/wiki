@@ -1,6 +1,6 @@
 <template>
 	<div
-		v-if="isChangeRequestMode"
+		v-if="crStore.isChangeRequestMode"
 		class="contribution-banner px-4 py-3 flex items-center justify-between gap-4"
 		:class="bannerClass"
 	>
@@ -14,41 +14,32 @@
 
 		<div class="flex items-center gap-2">
 			<button
-				v-if="changeCount > 0"
+				v-if="crStore.changeCount > 0"
 				class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200"
 				@click="showChangesDialog = true"
 			>
 				<LucideList class="size-3.5" />
-				{{ changeCount }} {{ changeCount === 1 ? __('change') : __('changes') }}
+				{{ crStore.changeCount }} {{ crStore.changeCount === 1 ? __('change') : __('changes') }}
 			</button>
 
 			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
 					v-if="canShowMerge"
 					size="sm"
-					:loading="mergeResource?.loading"
+					:loading="crStore.isMerging"
+					:disabled="mergeDisabled"
+					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
 					{{ __('Merge') }}
 				</Button>
 				<Button
-					v-if="changeCount > 0"
+					v-if="crStore.changeCount > 0"
 					size="sm"
-					:loading="submitReviewResource?.loading"
+					:loading="crStore.isSubmitting"
 					@click="showSubmitConfirmDialog = true"
 				>
 					{{ __('Submit for Review') }}
-				</Button>
-			</template>
-
-			<template v-else-if="changeRequestStatus === 'In Review'">
-				<Button
-					variant="outline"
-					size="sm"
-					:loading="archiveChangeRequestResource?.loading"
-					@click="$emit('withdraw')"
-				>
-					{{ __('Archive') }}
 				</Button>
 			</template>
 
@@ -59,12 +50,25 @@
 				<Button
 					v-if="canShowMerge"
 					size="sm"
-					:loading="mergeResource?.loading"
+					:loading="crStore.isMerging"
+					:disabled="mergeDisabled"
+					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
 					{{ __('Merge') }}
 				</Button>
 			</template>
+
+			<Button
+				v-if="canShowArchive"
+				variant="outline"
+				theme="red"
+				size="sm"
+				:loading="crStore.isArchiving"
+				@click="$emit('withdraw')"
+			>
+				{{ __('Archive') }}
+			</Button>
 		</div>
 
 		<Dialog v-model="showChangesDialog" :options="{ size: 'lg' }">
@@ -79,7 +83,7 @@
 			<template #body-content>
 				<div class="space-y-3 max-h-[60vh] overflow-y-auto">
 					<div
-						v-for="change in changes"
+						v-for="change in crStore.changes"
 						:key="change.doc_key"
 						class="flex items-start gap-3 p-3 rounded-lg border border-outline-gray-2 hover:bg-surface-gray-1"
 					>
@@ -116,7 +120,7 @@
 						</div>
 					</div>
 
-					<div v-if="changes.length === 0" class="text-center py-8 text-ink-gray-5">
+					<div v-if="crStore.changes.length === 0" class="text-center py-8 text-ink-gray-5">
 						{{ __('No pending changes') }}
 					</div>
 				</div>
@@ -142,7 +146,7 @@
 					{{ __('Are you sure you want to submit your changes for review?') }}
 				</p>
 				<p class="text-sm text-ink-gray-5 mt-2">
-					{{ __('You have {0} pending {1}.', [changeCount, changeCount === 1 ? __('change') : __('changes')]) }}
+					{{ __('You have {0} pending {1}.', [crStore.changeCount, crStore.changeCount === 1 ? __('change') : __('changes')]) }}
 				</p>
 			</template>
 			<template #actions="{ close }">
@@ -150,7 +154,7 @@
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button
 						variant="solid"
-						:loading="submitReviewResource?.loading"
+						:loading="crStore.isSubmitting"
 						@click="confirmSubmit(close)"
 					>
 						{{ __('Submit') }}
@@ -169,51 +173,28 @@ import LucideClock from '~icons/lucide/clock';
 import LucideCheckCircle from '~icons/lucide/check-circle';
 import LucideXCircle from '~icons/lucide/x-circle';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideArrowUpDown from '~icons/lucide/arrow-up-down';
 import LucideList from '~icons/lucide/list';
-import LucidePlus from '~icons/lucide/plus';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideTrash2 from '~icons/lucide/trash-2';
 import LucideFolder from '~icons/lucide/folder';
 import LucideFileText from '~icons/lucide/file-text';
 import LucideLink from '~icons/lucide/link';
+import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useUserStore } from '@/stores/user';
+
+const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
+const crStore = useChangeRequestStore();
+const userStore = useUserStore();
 
 const props = defineProps({
-	isChangeRequestMode: {
-		type: Boolean,
-		default: false,
-	},
-	changeRequestStatus: {
-		type: String,
-		default: 'Draft',
-	},
-	changeCount: {
-		type: Number,
-		default: 0,
-	},
-	changes: {
-		type: Array,
-		default: () => [],
-	},
-	submitReviewResource: {
-		type: Object,
-		default: null,
-	},
-	archiveChangeRequestResource: {
-		type: Object,
-		default: null,
-	},
-	mergeResource: {
-		type: Object,
-		default: null,
-	},
-	canMerge: {
+	mergeDisabled: {
 		type: Boolean,
 		default: false,
 	},
 });
 
 const emit = defineEmits(['submit', 'withdraw', 'merge']);
+
+const changeRequestStatus = computed(() => crStore.currentChangeRequest?.status || 'Draft');
 
 const showChangesDialog = ref(false);
 const showSubmitConfirmDialog = ref(false);
@@ -224,129 +205,63 @@ function confirmSubmit(closeDialog) {
 }
 
 const canShowMerge = computed(() => {
-	return props.canMerge && props.changeCount > 0;
+	return userStore.isWikiManager && crStore.changeCount > 0;
 });
 
-function getChangeIcon(changeType) {
-	switch (changeType) {
-		case 'added': return LucidePlus;
-		case 'modified': return LucidePencil;
-		case 'deleted': return LucideTrash2;
-		case 'reordered': return LucideArrowUpDown;
-		default: return LucideFileText;
+const mergeButtonTitle = computed(() => {
+	if (props.mergeDisabled) {
+		return __('Please wait for reordering to finish before merging');
 	}
-}
-
-function getChangeIconClass(changeType) {
-	switch (changeType) {
-		case 'added': return 'bg-green-100 text-green-600';
-		case 'modified': return 'bg-blue-100 text-blue-600';
-		case 'deleted': return 'bg-red-100 text-red-600';
-		case 'reordered': return 'bg-amber-100 text-amber-600';
-		default: return 'bg-gray-100 text-gray-600';
-	}
-}
-
-function getChangeTheme(changeType) {
-	switch (changeType) {
-		case 'added': return 'green';
-		case 'modified': return 'blue';
-		case 'deleted': return 'red';
-		case 'reordered': return 'orange';
-		default: return 'gray';
-	}
-}
-
-function getChangeLabel(changeType) {
-	switch (changeType) {
-		case 'added': return __('New');
-		case 'modified': return __('Modified');
-		case 'deleted': return __('Deleted');
-		case 'reordered': return __('Reordered');
-		default: return changeType;
-	}
-}
-
-function getChangeDescription(changeType, isGroup, isExternalLink) {
-	switch (changeType) {
-		case 'added':
-			if (isGroup) return __('New group to be created');
-			if (isExternalLink) return __('New external link added');
-			return __('New page to be created');
-		case 'modified':
-			return __('Content or metadata updated');
-		case 'deleted':
-			return __('Will be deleted');
-		case 'reordered':
-			return __('Order updated');
-		default:
-			return '';
-	}
-}
-
-const bannerClass = computed(() => {
-	switch (props.changeRequestStatus) {
-		case 'Draft':
-			return 'bg-blue-50 border-b border-blue-200 text-blue-800';
-		case 'In Review':
-			return 'bg-amber-50 border-b border-amber-200 text-amber-800';
-		case 'Changes Requested':
-			return 'bg-red-50 border-b border-red-200 text-red-800';
-		case 'Approved':
-			return 'bg-green-50 border-b border-green-200 text-green-800';
-		case 'Merged':
-			return 'bg-green-50 border-b border-green-200 text-green-800';
-		default:
-			return 'bg-gray-50 border-b border-gray-200 text-gray-800';
-	}
+	return '';
 });
 
-const bannerIcon = computed(() => {
-	switch (props.changeRequestStatus) {
-		case 'Draft':
-			return LucideGitBranch;
-		case 'In Review':
-			return LucideClock;
-		case 'Changes Requested':
-			return LucideXCircle;
-		case 'Approved':
-			return LucideCheckCircle;
-		default:
-			return LucideAlertCircle;
-	}
+const canShowArchive = computed(() => {
+	return crStore.changeCount > 0 && (changeRequestStatus.value === 'Draft' || changeRequestStatus.value === 'In Review' || changeRequestStatus.value === 'Changes Requested');
 });
 
-const bannerTitle = computed(() => {
-	switch (props.changeRequestStatus) {
-		case 'Draft':
-			return __('Change Request Draft');
-		case 'In Review':
-			return __('In Review');
-		case 'Changes Requested':
-			return __('Changes Requested');
-		case 'Approved':
-			return __('Approved');
-		case 'Merged':
-			return __('Merged');
-		default:
-			return __('Change Request');
-	}
-});
+const BANNER_CONFIG = {
+	Draft: {
+		class: 'bg-blue-50 border-b border-blue-200 text-blue-800',
+		icon: LucideGitBranch,
+		title: __('Change Request Draft'),
+		description: __('Your changes are saved as a draft change request'),
+	},
+	'In Review': {
+		class: 'bg-amber-50 border-b border-amber-200 text-amber-800',
+		icon: LucideClock,
+		title: __('In Review'),
+		description: __('Your change request is being reviewed'),
+	},
+	'Changes Requested': {
+		class: 'bg-red-50 border-b border-red-200 text-red-800',
+		icon: LucideXCircle,
+		title: __('Changes Requested'),
+		description: __('Please review the feedback and update your changes'),
+	},
+	Approved: {
+		class: 'bg-green-50 border-b border-green-200 text-green-800',
+		icon: LucideCheckCircle,
+		title: __('Approved'),
+		description: __('Approved and ready to merge'),
+	},
+	Merged: {
+		class: 'bg-green-50 border-b border-green-200 text-green-800',
+		icon: LucideCheckCircle,
+		title: __('Merged'),
+		description: __('Your changes have been merged'),
+	},
+};
 
-const bannerDescription = computed(() => {
-	switch (props.changeRequestStatus) {
-		case 'Draft':
-			return __('Your changes are saved as a draft change request');
-		case 'In Review':
-			return __('Your change request is being reviewed');
-		case 'Changes Requested':
-			return __('Please review the feedback and update your changes');
-		case 'Approved':
-			return __('Approved and ready to merge');
-		case 'Merged':
-			return __('Your changes have been merged');
-		default:
-			return '';
-	}
-});
+const DEFAULT_BANNER = {
+	class: 'bg-gray-50 border-b border-gray-200 text-gray-800',
+	icon: LucideAlertCircle,
+	title: __('Change Request'),
+	description: '',
+};
+
+const bannerConfig = computed(() => BANNER_CONFIG[changeRequestStatus.value] || DEFAULT_BANNER);
+const bannerClass = computed(() => bannerConfig.value.class);
+const bannerIcon = computed(() => bannerConfig.value.icon);
+const bannerTitle = computed(() => bannerConfig.value.title);
+const bannerDescription = computed(() => bannerConfig.value.description);
 </script>

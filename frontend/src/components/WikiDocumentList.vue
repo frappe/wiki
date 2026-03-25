@@ -29,6 +29,7 @@
 			<NestedDraggable
 				:key="treeKey"
 				:items="treeData.children"
+				:change-type-map="changeTypeMap"
 				:level="0"
 				:parent-name="rootNode"
 				:space-id="spaceId"
@@ -39,6 +40,7 @@
 				@rename="openRenameDialog"
 				@external-link="openExternalLinkDialog"
 				@edit-external-link="openEditExternalLinkDialog"
+				@drag-state-change="handleDragStateChange"
 				@update="handleTreeUpdate"
 			/>
 		</div>
@@ -58,7 +60,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="createPageResource.loading" @click="createDocument(close)">
+					<Button variant="solid" :loading="crStore.isCreatingPage" @click="createDocument(close)">
 						{{ __('Save Draft') }}
 					</Button>
 				</div>
@@ -96,7 +98,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" theme="gray" :loading="deletePageResource.loading"
+					<Button variant="solid" theme="gray" :loading="crStore.isDeletingPage"
 						@click="deleteDocument(close)">
 						{{ __('Save Delete Draft') }}
 					</Button>
@@ -119,7 +121,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="updatePageResource.loading"
+					<Button variant="solid" :loading="crStore.isUpdatingPage"
 						@click="renameDocument(close)">
 						{{ __('Save') }}
 					</Button>
@@ -144,7 +146,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="createPageResource.loading" @click="createExternalLink(close)">
+					<Button variant="solid" :loading="crStore.isCreatingPage" @click="createExternalLink(close)">
 						{{ __('Save Draft') }}
 					</Button>
 				</div>
@@ -168,7 +170,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="updatePageResource.loading" @click="updateExternalLink(close)">
+					<Button variant="solid" :loading="crStore.isUpdatingPage" @click="updateExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -178,11 +180,12 @@
 </template>
 
 <script setup>
-import { ref, toRef, computed } from 'vue';
+import { ref, computed, watch, toRef, onBeforeUnmount } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { toast, FormControl } from 'frappe-ui';
 import NestedDraggable from './NestedDraggable.vue';
-import { useChangeRequestMode, useChangeRequest, currentChangeRequest } from '@/composables/useChangeRequest';
+import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import LucideFilePlus from '~icons/lucide/file-plus';
 import LucideFileText from '~icons/lucide/file-text';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
@@ -192,6 +195,10 @@ const props = defineProps({
 	treeData: {
 		type: Object,
 		required: true,
+	},
+	changeTypeMap: {
+		type: Map,
+		default: () => new Map(),
 	},
 	spaceId: {
 		type: String,
@@ -211,56 +218,53 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['refresh']);
+const emit = defineEmits(['refresh', 'reorder-state-change']);
 const treeKey = computed(() => {
 	const getNodeIds = (nodes) => {
 		if (!nodes) return '';
-		return nodes.map(n => n.doc_key + (n.children ? getNodeIds(n.children) : '')).join(',');
+		const keys = nodes.map(n => n.doc_key).sort();
+		const childKeys = nodes
+			.filter(n => n.children?.length)
+			.map(n => n.doc_key + ':' + getNodeIds(n.children))
+			.sort();
+		return keys.join(',') + '|' + childKeys.join(';');
 	};
 	return getNodeIds(props.treeData?.children);
 });
 
-const spaceIdRef = toRef(props, 'spaceId');
-const {
-	initChangeRequest,
-	loadChanges,
-} = useChangeRequestMode(spaceIdRef);
-
-const {
-	createPage,
-	createPageResource,
-	updatePage,
-	updatePageResource,
-	deletePage,
-	deletePageResource,
-	movePage,
-	reorderChildren,
-} = useChangeRequest();
-
+const crStore = useChangeRequestStore();
 const expandedNodes = useStorage('wiki-tree-expanded-nodes', {});
 
-const showCreateDialog = ref(false);
-const createTitle = ref('');
-const createParent = ref(null);
-const createIsGroup = ref(false);
+const {
+	showCreateDialog, createTitle, createIsGroup,
+	showDeleteDialog, deleteNode, deleteChildCount,
+	showRenameDialog, renameTitle, renameNode,
+	showExternalLinkDialog, externalLinkTitle, externalLinkUrl,
+	showEditExternalLinkDialog, editExternalLinkTitle, editExternalLinkUrl,
+	openCreateDialog, openDeleteDialog, createDocument, deleteDocument,
+	openRenameDialog, renameDocument,
+	openExternalLinkDialog, createExternalLink,
+	openEditExternalLinkDialog, updateExternalLink,
+} = useTreeDialogs(toRef(props, 'spaceId'), expandedNodes, emit);
 
-const showDeleteDialog = ref(false);
-const deleteNode = ref(null);
-const deleteChildCount = ref(0);
+let reorderTimer = null;
+let pendingReorder = null;
+let reorderInFlight = false;
+const isDragActive = ref(false);
+const isReorderBusy = ref(false);
+const isReorderActive = computed(() => isDragActive.value || isReorderBusy.value);
 
-const showRenameDialog = ref(false);
-const renameTitle = ref('');
-const renameNode = ref(null);
+watch(
+	isReorderActive,
+	(value) => {
+		emit('reorder-state-change', value);
+	},
+	{ immediate: true },
+);
 
-const showExternalLinkDialog = ref(false);
-const externalLinkTitle = ref('');
-const externalLinkUrl = ref('');
-const externalLinkParent = ref(null);
-
-const showEditExternalLinkDialog = ref(false);
-const editExternalLinkTitle = ref('');
-const editExternalLinkUrl = ref('');
-const editExternalLinkNode = ref(null);
+function handleDragStateChange(isDragging) {
+	isDragActive.value = isDragging;
+}
 
 function handleTreeUpdate(payload) {
 	if (payload.type === 'refresh') {
@@ -269,250 +273,72 @@ function handleTreeUpdate(payload) {
 	}
 
 	if (payload.type === 'added' || payload.type === 'moved') {
-		applyReorder(payload).catch((error) => {
-			console.error('Error reordering:', error);
-			toast.error(error.messages?.[0] || __('Error reordering documents'));
-			emit('refresh');
-		});
+		isReorderBusy.value = true;
+		pendingReorder = payload;
+		if (reorderTimer) clearTimeout(reorderTimer);
+		reorderTimer = setTimeout(() => {
+			reorderTimer = null;
+			flushReorder();
+		}, 1000);
+	}
+}
+
+async function flushReorder() {
+	if (reorderInFlight) return;
+	if (!pendingReorder) {
+		if (!reorderTimer) isReorderBusy.value = false;
+		return;
+	}
+
+	const payload = pendingReorder;
+	pendingReorder = null;
+	reorderInFlight = true;
+
+	try {
+		await applyReorder(payload);
+	} catch (error) {
+		emit('refresh');
+	} finally {
+		reorderInFlight = false;
+		if (pendingReorder) {
+			flushReorder();
+		} else if (!reorderTimer) {
+			isReorderBusy.value = false;
+		}
 	}
 }
 
 async function applyReorder(payload) {
-	if (!currentChangeRequest.value) {
-		await initChangeRequest();
-	}
-	if (!currentChangeRequest.value) {
+	if (!(await crStore.ensureChangeRequest(props.spaceId))) {
 		toast.error(__('Could not create change request'));
 		return;
 	}
 
 	const siblingKeys = payload.siblings.map(s => s.doc_key);
-	await movePage(
-		currentChangeRequest.value.name,
+	await crStore.movePage(
+		crStore.currentChangeRequest.name,
 		payload.item.doc_key,
 		payload.newParent,
 		payload.newIndex,
 	);
-	await reorderChildren(
-		currentChangeRequest.value.name,
+	await crStore.reorderChildren(
+		crStore.currentChangeRequest.name,
 		payload.newParent,
 		siblingKeys,
 	);
-	if (payload?.item && !payload.item._changeType) {
-		payload.item._changeType = 'reordered';
-	}
 	toast.success(__('Documents reordered'));
-	await loadChanges();
 	emit('refresh');
 }
 
-function openCreateDialog(parentKey, isGroup) {
-	createParent.value = parentKey;
-	createIsGroup.value = isGroup;
-	createTitle.value = '';
-	showCreateDialog.value = true;
-}
-
-function countDescendants(node) {
-	if (!node?.children?.length) return 0;
-	return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
-}
-
-function openDeleteDialog(node) {
-	deleteNode.value = node;
-	deleteChildCount.value = node?.is_group ? countDescendants(node) : 0;
-	showDeleteDialog.value = true;
-}
-
-async function createDocument(close) {
-	if (!createTitle.value.trim()) {
-		toast.warning(__('Title is required'));
-		return;
+onBeforeUnmount(() => {
+	if (reorderTimer) {
+		clearTimeout(reorderTimer);
+		reorderTimer = null;
 	}
-
-	try {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest();
-		}
-
-		if (!currentChangeRequest.value) {
-			toast.error(__('Could not create change request'));
-			return;
-		}
-
-		await createPage(
-			currentChangeRequest.value.name,
-			createParent.value,
-			createTitle.value.trim(),
-			'',
-			createIsGroup.value,
-		);
-
-		toast.success(createIsGroup.value ? __('Group draft created') : __('Page draft created'));
-
-		if (createParent.value) {
-			expandedNodes.value[createParent.value] = true;
-		}
-
-		await loadChanges();
-		emit('refresh');
-		close();
-	} catch (error) {
-		console.error('Error creating page:', error);
-		toast.error(error.messages?.[0] || __('Error creating draft'));
-	}
-}
-
-async function deleteDocument(close) {
-	try {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest();
-		}
-
-		if (!currentChangeRequest.value) {
-			toast.error(__('Could not create change request'));
-			return;
-		}
-
-		await deletePage(currentChangeRequest.value.name, deleteNode.value.doc_key);
-
-		toast.success(__('Delete saved as draft'));
-		await loadChanges();
-		emit('refresh');
-		close();
-	} catch (error) {
-		console.error('Error creating delete draft:', error);
-		toast.error(error.messages?.[0] || __('Error creating draft'));
-	}
-}
-
-function openRenameDialog(node) {
-	renameNode.value = node;
-	renameTitle.value = node.title || '';
-	showRenameDialog.value = true;
-}
-
-async function renameDocument(close) {
-	if (!renameTitle.value.trim()) {
-		toast.warning(__('Name is required'));
-		return;
-	}
-
-	try {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest();
-		}
-
-		if (!currentChangeRequest.value) {
-			toast.error(__('Could not create change request'));
-			return;
-		}
-
-		await updatePage(currentChangeRequest.value.name, renameNode.value.doc_key, {
-			title: renameTitle.value.trim(),
-		});
-		toast.success(renameNode.value?.is_group ? __('Group renamed') : __('Title updated'));
-		await loadChanges();
-		emit('refresh');
-		close();
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating title'));
-	}
-}
-
-function openExternalLinkDialog(parentKey) {
-	externalLinkParent.value = parentKey;
-	externalLinkTitle.value = '';
-	externalLinkUrl.value = '';
-	showExternalLinkDialog.value = true;
-}
-
-async function createExternalLink(close) {
-	if (!externalLinkTitle.value.trim()) {
-		toast.warning(__('Title is required'));
-		return;
-	}
-
-	if (!externalLinkUrl.value.trim()) {
-		toast.warning(__('URL is required'));
-		return;
-	}
-
-	try {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest();
-		}
-
-		if (!currentChangeRequest.value) {
-			toast.error(__('Could not create change request'));
-			return;
-		}
-
-		await createPage(
-			currentChangeRequest.value.name,
-			externalLinkParent.value,
-			externalLinkTitle.value.trim(),
-			'',
-			false,
-			true,
-			externalLinkUrl.value.trim(),
-		);
-
-		toast.success(__('External link draft created'));
-
-		if (externalLinkParent.value) {
-			expandedNodes.value[externalLinkParent.value] = true;
-		}
-
-		await loadChanges();
-		emit('refresh');
-		close();
-	} catch (error) {
-		console.error('Error creating external link:', error);
-		toast.error(error.messages?.[0] || __('Error creating draft'));
-	}
-}
-
-function openEditExternalLinkDialog(node) {
-	editExternalLinkNode.value = node;
-	editExternalLinkTitle.value = node.title || '';
-	editExternalLinkUrl.value = node.external_url || '';
-	showEditExternalLinkDialog.value = true;
-}
-
-async function updateExternalLink(close) {
-	if (!editExternalLinkTitle.value.trim()) {
-		toast.warning(__('Title is required'));
-		return;
-	}
-
-	if (!editExternalLinkUrl.value.trim()) {
-		toast.warning(__('URL is required'));
-		return;
-	}
-
-	try {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest();
-		}
-
-		if (!currentChangeRequest.value) {
-			toast.error(__('Could not create change request'));
-			return;
-		}
-
-		await updatePage(currentChangeRequest.value.name, editExternalLinkNode.value.doc_key, {
-			title: editExternalLinkTitle.value.trim(),
-			external_url: editExternalLinkUrl.value.trim(),
-		});
-
-		toast.success(__('External link updated'));
-		await loadChanges();
-		emit('refresh');
-		close();
-	} catch (error) {
-		console.error('Error updating external link:', error);
-		toast.error(error.messages?.[0] || __('Error updating external link'));
-	}
-}
+	pendingReorder = null;
+	reorderInFlight = false;
+	isDragActive.value = false;
+	isReorderBusy.value = false;
+	emit('reorder-state-change', false);
+});
 </script>

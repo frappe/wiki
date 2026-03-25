@@ -3,6 +3,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { initSocket } from './socket';
+import { pinia } from './stores';
 
 import translationPlugin from './translation';
 
@@ -38,6 +39,7 @@ const app = createApp(App);
 
 setConfig('resourceFetcher', frappeRequest);
 
+app.use(pinia);
 app.use(router);
 app.use(translationPlugin);
 app.use(resourcesPlugin);

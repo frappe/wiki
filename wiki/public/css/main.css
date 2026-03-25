@@ -278,12 +278,6 @@
   margin-bottom: 0;
 }
 
-/* Links in callouts */
-.callout-content a {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
 /* Code in callouts */
 .callout-content code {
   background-color: rgba(0, 0, 0, 0.05);
@@ -324,20 +318,12 @@
   color: var(--ink-blue-3);
 }
 
-.callout-note .callout-content a {
-  color: var(--ink-blue-3);
-}
-
 /* Tip callout - Green (success style) */
 .callout-tip {
   background-color: var(--surface-green-2);
 }
 
 .callout-tip .callout-icon {
-  color: var(--ink-green-3);
-}
-
-.callout-tip .callout-content a {
   color: var(--ink-green-3);
 }
 
@@ -350,10 +336,6 @@
   color: var(--ink-amber-3);
 }
 
-.callout-caution .callout-content a {
-  color: var(--ink-amber-3);
-}
-
 /* Danger callout - Red (error style) */
 .callout-danger {
   background-color: var(--surface-red-2);
@@ -363,14 +345,23 @@
   color: var(--ink-red-3);
 }
 
-.callout-danger .callout-content a {
-  color: var(--ink-red-3);
+/* Image lightbox active state */
+#image-viewer.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+body.image-viewer-open {
+  overflow: hidden;
 }
 
 /* Ensure images don't overflow container */
 .prose img {
   max-width: 100%;
   height: auto;
+  border: 1px solid var(--ink-gray-3);
+  border-radius: 0.375rem;
+  cursor: zoom-in;
 }
 
 /* Image caption styling using img + em pattern

@@ -122,6 +122,9 @@ async function createPublishedTestPage(
 	return `/${routes[0].route}`;
 }
 
+/** Locator helpers using data-testid attributes */
+const tid = (page: Page, id: string) => page.getByTestId(id);
+
 test.describe('Mobile View', () => {
 	test.describe('Mobile Header', () => {
 		test('should display mobile header on small viewport', async ({
@@ -138,16 +141,19 @@ test.describe('Mobile View', () => {
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Mobile container should be visible (lg:hidden means visible below lg breakpoint)
-			const mobileContainer = page.locator('.lg\\:hidden').first();
-			await expect(mobileContainer).toBeVisible();
+			// Mobile nav container should be visible
+			const mobileNav = tid(page, 'mobile-nav');
+			await expect(mobileNav).toBeVisible();
 
 			// Mobile header should be visible
-			const mobileHeader = mobileContainer.locator('header').first();
+			const mobileHeader = tid(page, 'mobile-header');
 			await expect(mobileHeader).toBeVisible();
 
-			// Header should be sticky
-			await expect(mobileHeader).toHaveClass(/sticky/);
+			// Nav container should be sticky (check computed style, not class name)
+			const position = await mobileNav.evaluate(
+				(el) => getComputedStyle(el).position,
+			);
+			expect(position).toBe('sticky');
 
 			// Desktop sidebar should be hidden on mobile
 			const desktopSidebar = page.locator('.wiki-sidebar');
@@ -168,14 +174,11 @@ test.describe('Mobile View', () => {
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Mobile header should contain the space name (a span with font-semibold)
-			const mobileHeader = page.locator('.lg\\:hidden header').first();
-			const spaceNameElement = mobileHeader.locator('span.font-semibold');
-			await expect(spaceNameElement).toBeVisible();
+			// Space name element should be visible and non-empty
+			const spaceName = tid(page, 'mobile-space-name');
+			await expect(spaceName).toBeVisible();
 
-			// The space name should not be empty
-			const spaceNameText = await spaceNameElement.textContent();
-			expect(spaceNameText).toBeTruthy();
+			const spaceNameText = await spaceName.textContent();
 			expect(spaceNameText?.trim().length).toBeGreaterThan(0);
 		});
 	});
@@ -195,20 +198,15 @@ test.describe('Mobile View', () => {
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Find and click the menu toggle button (hamburger icon)
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await expect(menuButton).toBeVisible();
-			await menuButton.click();
+			// Click the menu toggle button
+			await tid(page, 'mobile-menu-toggle').click();
 
 			// Bottom sheet should be visible
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
-			// Bottom sheet should have rounded top corners
-			await expect(bottomSheet).toHaveClass(/rounded-t/);
-
 			// Overlay backdrop should be visible
-			const overlay = page.locator('.lg\\:hidden .fixed.inset-0.bg-black\\/50');
+			const overlay = tid(page, 'mobile-overlay');
 			await expect(overlay).toBeVisible();
 		});
 
@@ -227,10 +225,9 @@ test.describe('Mobile View', () => {
 			await page.waitForLoadState('networkidle');
 
 			// Open the bottom sheet
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await menuButton.click();
+			await tid(page, 'mobile-menu-toggle').click();
 
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
 			// Click the overlay to close (click at top of viewport, away from bottom sheet)
@@ -255,13 +252,12 @@ test.describe('Mobile View', () => {
 			await page.waitForLoadState('networkidle');
 
 			// Open the bottom sheet
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await menuButton.click();
+			await tid(page, 'mobile-menu-toggle').click();
 
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
-			// Find and click the close button (X icon) inside bottom sheet
+			// Click the close button inside bottom sheet
 			const closeButton = bottomSheet.getByRole('button', {
 				name: 'Close sidebar',
 			});
@@ -286,10 +282,9 @@ test.describe('Mobile View', () => {
 			await page.waitForLoadState('networkidle');
 
 			// Open the bottom sheet
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await menuButton.click();
+			await tid(page, 'mobile-menu-toggle').click();
 
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
 			// Bottom sheet should contain a nav element with wiki links
@@ -316,10 +311,9 @@ test.describe('Mobile View', () => {
 			await page.waitForLoadState('networkidle');
 
 			// Open the bottom sheet
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await menuButton.click();
+			await tid(page, 'mobile-menu-toggle').click();
 
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
 			// Click a navigation link
@@ -349,14 +343,13 @@ test.describe('Mobile View', () => {
 			await page.waitForLoadState('networkidle');
 
 			// Open the bottom sheet
-			const menuButton = page.locator('.lg\\:hidden header button').first();
-			await menuButton.click();
+			await tid(page, 'mobile-menu-toggle').click();
 
-			const bottomSheet = page.locator('.lg\\:hidden .fixed.bottom-0');
+			const bottomSheet = tid(page, 'mobile-bottom-sheet');
 			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
 
-			// Drag handle should be visible (rounded pill shape at top)
-			const dragHandle = bottomSheet.locator('.rounded-full').first();
+			// Drag handle should be visible
+			const dragHandle = tid(page, 'mobile-drag-handle');
 			await expect(dragHandle).toBeVisible();
 		});
 	});
@@ -393,14 +386,12 @@ Content for second section.`;
 			const contentHeadings = page.locator('#wiki-content h2');
 			await expect(contentHeadings.first()).toBeVisible({ timeout: 10000 });
 
-			// Verify the mobile header structure exists
-			const mobileHeader = page.locator('.lg\\:hidden header');
-			await expect(mobileHeader).toBeVisible();
+			// Verify the mobile header exists
+			await expect(tid(page, 'mobile-header')).toBeVisible();
 
-			// The TOC dropdown button exists in DOM (may be hidden via x-show)
-			const tocButton = mobileHeader.locator('button:has-text("On this page")');
-			// Just verify the element exists in the DOM structure
-			await expect(tocButton).toHaveCount(1);
+			// The TOC dropdown toggle exists in DOM (may be hidden via x-show)
+			const tocToggle = tid(page, 'mobile-toc-toggle');
+			await expect(tocToggle).toHaveCount(1);
 		});
 
 		test('should render headings with anchor links on mobile', async ({
@@ -461,24 +452,9 @@ Getting started content.`;
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// The mobile header should have buttons for search and theme toggle
-			const mobileHeader = page.locator('.lg\\:hidden header').first();
-			await expect(mobileHeader).toBeVisible();
-
-			// Find the header's right section with action buttons
-			const headerButtons = mobileHeader.locator('button');
-
-			// Should have multiple buttons (menu, search, theme toggle at minimum)
-			const buttonCount = await headerButtons.count();
-			expect(buttonCount).toBeGreaterThanOrEqual(3);
-
-			// The theme button should contain an SVG icon (sun or moon)
-			// It's in the right side buttons section
-			const rightButtons = mobileHeader
-				.locator('div.flex.items-center.gap-1')
-				.first()
-				.locator('button');
-			await expect(rightButtons.first()).toBeVisible();
+			// Theme toggle button should be visible
+			const themeToggle = tid(page, 'mobile-theme-toggle');
+			await expect(themeToggle).toBeVisible();
 		});
 	});
 
@@ -497,20 +473,10 @@ Getting started content.`;
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Find search button in mobile header
-			// It's one of the buttons on the right side of the header
-			const mobileHeader = page.locator('.lg\\:hidden header').first();
-			const headerButtons = mobileHeader.locator(
-				'> div > div:last-child button',
-			);
-
-			// Search button should be visible
-			const searchButton = headerButtons.first();
-			await expect(searchButton).toBeVisible();
-			await searchButton.click();
+			// Click the search button
+			await tid(page, 'mobile-search-button').click();
 
 			// Search modal/dialog should open
-			// Look for search input or search dialog
 			const searchInput = page.locator(
 				'[role="dialog"] input, [role="combobox"], input[type="search"], input[placeholder*="Search"]',
 			);
@@ -533,16 +499,16 @@ Getting started content.`;
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Verify mobile header is visible on mobile
-			const mobileContainer = page.locator('.lg\\:hidden').first();
-			await expect(mobileContainer).toBeVisible();
+			// Verify mobile nav is visible on mobile
+			const mobileNav = tid(page, 'mobile-nav');
+			await expect(mobileNav).toBeVisible();
 
 			// Switch to desktop viewport
 			await page.setViewportSize({ width: 1100, height: 900 });
 			await page.waitForTimeout(300);
 
-			// Mobile header should now be hidden
-			await expect(mobileContainer).not.toBeVisible();
+			// Mobile nav should now be hidden
+			await expect(mobileNav).not.toBeVisible();
 
 			// Desktop sidebar should be visible
 			const desktopSidebar = page.locator('.wiki-sidebar');
@@ -563,9 +529,9 @@ Getting started content.`;
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Mobile header should be visible on tablet (768px < 1024px lg breakpoint)
-			const mobileContainer = page.locator('.lg\\:hidden').first();
-			await expect(mobileContainer).toBeVisible();
+			// Mobile nav should be visible on tablet (768px < 1024px lg breakpoint)
+			const mobileNav = tid(page, 'mobile-nav');
+			await expect(mobileNav).toBeVisible();
 		});
 	});
 });

@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import {
 	Table,
@@ -33,6 +33,8 @@ import {
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
+import { Extension } from '@tiptap/core';
+import { Paragraph } from '@tiptap/extension-paragraph';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
@@ -56,6 +58,28 @@ import { VideoBlock } from './tiptap-extensions/video-block.js';
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
+
+// Preserve consecutive blank lines in markdown round-trips.
+// Parse: marked's 'space' tokens (ignored by default) become empty paragraphs.
+const PreserveBlankLines = Extension.create({
+	name: 'preserveBlankLines',
+	markdownTokenName: 'space',
+	parseMarkdown(token) {
+		const count = Math.floor(token.raw.length / 2) - 1;
+		if (count <= 0) return null;
+		return Array.from({ length: count }, () => ({ type: 'paragraph' }));
+	},
+});
+
+// Serialize: empty paragraphs render as blank lines instead of &nbsp;.
+const WikiParagraph = Paragraph.extend({
+	renderMarkdown: (node, h) => {
+		if (!node) return '';
+		const content = Array.isArray(node.content) ? node.content : [];
+		if (content.length === 0) return '';
+		return h.renderChildren(content);
+	},
+});
 
 const props = defineProps({
 	content: {
@@ -97,7 +121,6 @@ async function uploadFile(file) {
 		const isImage = file.type.includes('image');
 		const result = await fileUploader.upload(file, {
 			private: false,
-			optimize: isImage,
 		});
 
 		toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
@@ -385,9 +408,10 @@ function initEditor() {
 		extensions: [
 			StarterKit.configure({
 				codeBlock: false, // We use CodeBlockLowlight instead
-				// Disable StarterKit's link - we use our custom WikiLink
-				link: false,
+				link: false, // We use our custom WikiLink
+				paragraph: false, // We use WikiParagraph for blank line support
 			}),
+			WikiParagraph,
 			// Custom link extension with Cmd+K support
 			WikiLink.configure({
 				openOnClick: false,
@@ -396,7 +420,12 @@ function initEditor() {
 				},
 				onOpenLinkEditor: showLinkPopup,
 			}),
-			Markdown,
+			Markdown.configure({
+				markedOptions: {
+					breaks: true,
+				},
+			}),
+			PreserveBlankLines,
 			// Custom image extension with caption support
 			WikiImage.configure({
 				inline: false,
@@ -415,7 +444,7 @@ function initEditor() {
 			Placeholder.configure({
 				placeholder: 'Type "/" for commands, or start writing...',
 			}),
-			CodeBlockLowlight.configure({
+			WikiCodeBlock.configure({
 				lowlight,
 			}),
 			// Custom extensions
@@ -435,7 +464,7 @@ function initEditor() {
 			handleDrop,
 			attributes: {
 				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 wiki-editor-content',
+					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content',
 			},
 		},
 		onUpdate: () => {
@@ -665,17 +694,6 @@ onUnmounted(() => {
     font-style: italic;
 }
 
-/* Link styling */
-.wiki-editor-content a {
-    color: var(--primary, #171717);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
-
-.wiki-editor-content a:hover {
-    text-decoration-thickness: 2px;
-}
-
 /* Table styling */
 .wiki-editor-content table {
     width: 100%;
@@ -740,6 +758,7 @@ onUnmounted(() => {
 .wiki-editor-content img {
     max-width: 100%;
     height: auto;
+    border: 1px solid var(--ink-gray-3);
     border-radius: 0.375rem;
 }
 
@@ -875,5 +894,104 @@ onUnmounted(() => {
 
 .wiki-editor-content .hljs-property {
     color: #005cc5;
+}
+
+/* Syntax highlighting - Dark theme overrides (matches public page theme) */
+[data-theme="dark"] .wiki-editor-content .hljs-comment,
+[data-theme="dark"] .wiki-editor-content .hljs-quote {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-keyword,
+[data-theme="dark"] .wiki-editor-content .hljs-selector-tag {
+    color: #ff7b72;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-deletion {
+    color: #ffa198;
+    background-color: rgba(248, 81, 73, 0.15);
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-string,
+[data-theme="dark"] .wiki-editor-content .hljs-doctag {
+    color: #a5d6ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-addition {
+    color: #7ee787;
+    background-color: rgba(46, 160, 67, 0.15);
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-number,
+[data-theme="dark"] .wiki-editor-content .hljs-literal {
+    color: #79c0ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-symbol,
+[data-theme="dark"] .wiki-editor-content .hljs-bullet {
+    color: #ffa657;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-function {
+    color: #d2a8ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-title {
+    color: #d2a8ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-built_in {
+    color: #79c0ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-class .hljs-title,
+[data-theme="dark"] .wiki-editor-content .hljs-type {
+    color: #7ee787;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-attr {
+    color: #79c0ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-variable,
+[data-theme="dark"] .wiki-editor-content .hljs-template-variable {
+    color: #ffa657;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-name {
+    color: #7ee787;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-selector-id,
+[data-theme="dark"] .wiki-editor-content .hljs-selector-class {
+    color: #d2a8ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-regexp {
+    color: #a5d6ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-link {
+    color: #79c0ff;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-meta {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-operator {
+    color: #ff7b72;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-punctuation {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-params {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .wiki-editor-content .hljs-property {
+    color: #79c0ff;
 }
 </style>

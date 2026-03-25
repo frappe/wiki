@@ -127,6 +127,7 @@ function handleKeydown(event) {
     height: auto;
     border-radius: 0.375rem;
     cursor: pointer;
+    margin: 0;
 }
 
 .wiki-image-caption-input {
@@ -135,9 +136,10 @@ function handleKeydown(event) {
     text-align: center;
     background: transparent;
     border: none;
+    font-style: italic;
     font-size: 0.875rem;
     color: var(--ink-gray-6, #4b5563);
-    padding: 0.5rem 0.25rem;
+    padding: 0 0.25rem;
     margin-top: 0.25rem;
     outline: none;
     box-shadow: none;

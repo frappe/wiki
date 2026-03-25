@@ -10,6 +10,8 @@
         drag-class="dragging-item"
         handle=".drag-handle"
         :animation="150"
+        @start="onDragStart"
+        @end="onDragEnd"
         @change="handleChange"
     >
         <template #item="{ element }">
@@ -45,22 +47,22 @@
                         <LucideFileText v-else class="size-4 text-ink-gray-5 flex-shrink-0" />
 
                         <span
-                            class="text-sm truncate"
+                            class="text-sm truncate flex-1 min-w-0"
                             :class="getTitleClass(element)"
                         >
                             {{ element.title }}
                         </span>
 
-						<Badge v-if="element._changeType === 'added'" variant="subtle" theme="blue" size="sm">
+						<Badge v-if="changeTypeMap.get(element.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
 							{{ __('New') }}
 						</Badge>
-						<Badge v-else-if="element._changeType === 'deleted'" variant="subtle" theme="red" size="sm">
+						<Badge v-else-if="changeTypeMap.get(element.doc_key) === 'deleted'" variant="subtle" theme="red" size="sm">
 							{{ __('Deleted') }}
 						</Badge>
-						<Badge v-else-if="element._changeType === 'modified'" variant="subtle" theme="blue" size="sm">
+						<Badge v-else-if="changeTypeMap.get(element.doc_key) === 'modified'" variant="subtle" theme="blue" size="sm">
 							{{ __('Modified') }}
 						</Badge>
-						<Badge v-else-if="element._changeType === 'reordered'" variant="subtle" theme="orange" size="sm">
+						<Badge v-else-if="changeTypeMap.get(element.doc_key) === 'reordered'" variant="subtle" theme="orange" size="sm">
 							{{ __('Reordered') }}
 						</Badge>
 						<Badge v-else-if="!element.is_group && !element.is_published" variant="subtle" theme="orange" size="sm">
@@ -80,6 +82,7 @@
                 <div v-if="element.is_group" v-show="isExpanded(element.doc_key)">
                     <NestedDraggable
                         :items="element.children || []"
+                        :change-type-map="changeTypeMap"
                         :level="level + 1"
                         :parent-name="element.doc_key"
                         :space-id="spaceId"
@@ -90,6 +93,7 @@
                         @rename="(n) => emit('rename', n)"
                         @external-link="(parent) => emit('external-link', parent)"
                         @edit-external-link="(el) => emit('edit-external-link', el)"
+                        @drag-state-change="handleNestedDragStateChange"
                         @update="handleNestedUpdate"
                     />
                     <!-- Empty group actions -->
@@ -120,12 +124,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, Badge, Button, toast } from 'frappe-ui';
 import draggable from 'vuedraggable';
-import { useChangeRequest, currentChangeRequest } from '@/composables/useChangeRequest';
+import { useChangeRequestStore } from '@/stores/changeRequest';
 import LucideChevronRight from '~icons/lucide/chevron-right';
 import LucideFolder from '~icons/lucide/folder';
 import LucideFileText from '~icons/lucide/file-text';
@@ -143,6 +147,10 @@ const props = defineProps({
     items: {
         type: Array,
         required: true,
+    },
+    changeTypeMap: {
+        type: Map,
+        default: () => new Map(),
     },
     level: {
         type: Number,
@@ -166,15 +174,26 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['create', 'delete', 'update', 'rename', 'external-link', 'edit-external-link']);
+const emit = defineEmits([
+    'create',
+    'delete',
+    'update',
+    'rename',
+    'external-link',
+    'edit-external-link',
+    'drag-state-change',
+]);
 const router = useRouter();
-const { updatePage } = useChangeRequest();
+const crStore = useChangeRequestStore();
 
 const localItems = ref([...props.items]);
+const isDragging = ref(false);
+let dragSettleTimer = null;
 
 watch(() => props.items, (newItems) => {
+    if (isDragging.value) return;
     localItems.value = [...newItems];
-}, { deep: true });
+});
 
 const storageKey = computed(() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`);
 const expandedNodes = useStorage(storageKey, {});
@@ -188,7 +207,7 @@ function toggleExpanded(name) {
 }
 
 function handleRowClick(element) {
-    if (element._changeType === 'deleted') {
+    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
         return;
     }
 
@@ -224,7 +243,7 @@ function getRowClasses(element) {
         classes.push('bg-surface-gray-3');
     }
 
-    if (element._changeType === 'deleted') {
+    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
         classes.push('cursor-not-allowed', 'opacity-60');
     } else {
         classes.push('cursor-pointer');
@@ -234,13 +253,31 @@ function getRowClasses(element) {
 }
 
 function getTitleClass(element) {
-    if (element._changeType === 'deleted') {
+    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
         return 'text-ink-gray-4 line-through';
     }
     if (element.is_published || element.is_group) {
         return 'text-ink-gray-8';
     }
     return 'text-ink-gray-5';
+}
+
+function onDragStart() {
+    isDragging.value = true;
+    emit('drag-state-change', true);
+    if (dragSettleTimer) {
+        clearTimeout(dragSettleTimer);
+        dragSettleTimer = null;
+    }
+}
+
+function onDragEnd() {
+    if (dragSettleTimer) clearTimeout(dragSettleTimer);
+    dragSettleTimer = setTimeout(() => {
+        isDragging.value = false;
+        emit('drag-state-change', false);
+        dragSettleTimer = null;
+    }, 1000);
 }
 
 function handleChange(evt) {
@@ -262,14 +299,18 @@ function handleNestedUpdate(payload) {
     emit('update', payload);
 }
 
+function handleNestedDragStateChange(state) {
+    emit('drag-state-change', state);
+}
+
 async function togglePublish(element) {
-    if (!currentChangeRequest.value) {
+    if (!crStore.currentChangeRequest) {
         toast.error(__('No active change request'));
         return;
     }
     const newStatus = element.is_published ? 0 : 1;
     try {
-        await updatePage(currentChangeRequest.value.name, element.doc_key, {
+        await crStore.updatePage(crStore.currentChangeRequest.name, element.doc_key, {
             is_published: newStatus,
         });
         const action = element.is_published ? __('unpublished') : __('published');
@@ -338,6 +379,14 @@ function getDropdownOptions(element) {
 
     return options;
 }
+
+onBeforeUnmount(() => {
+    if (dragSettleTimer) {
+        clearTimeout(dragSettleTimer);
+        dragSettleTimer = null;
+    }
+    emit('drag-state-change', false);
+});
 </script>
 
 <style scoped>

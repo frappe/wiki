@@ -1,6 +1,6 @@
 <!-- Table of Contents (Right Sidebar) - Server-rendered for reliability -->
+<aside id="wiki-toc" class="hidden lg:block flex-shrink-0 py-6 pr-6 {% if toc_headings and toc_headings|length > 0 %}w-56{% else %}w-0 !p-0{% endif %}">
 {% if toc_headings and toc_headings|length > 0 %}
-<aside class="hidden lg:block flex-shrink-0 w-56 py-6 pr-6">
     <nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
         <div>
             <h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>
@@ -18,8 +18,8 @@
             </ul>
         </div>
     </nav>
-</aside>
 {% endif %}
+</aside>
 
 <style>
     /* Active TOC link styling */

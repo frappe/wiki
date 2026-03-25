@@ -85,16 +85,20 @@ def reorder_wiki_documents(
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
 
-	if parent_changed:
-		frappe.db.set_value("Wiki Document", doc_name, "parent_wiki_document", new_parent)
+	frappe.flags.in_reorder_wiki_documents = True
+	try:
+		if parent_changed:
+			frappe.db.set_value("Wiki Document", doc_name, "parent_wiki_document", new_parent)
 
-	# Batch update sort_order for all siblings
-	_batch_update_sort_order(siblings_list)
+		# Batch update sort_order for all siblings
+		_batch_update_sort_order(siblings_list)
 
-	# Only rebuild the tree if parent changed (structural change)
-	# For simple reorders, sort_order is sufficient
-	if parent_changed:
-		rebuild_wiki_tree()
+		# Only rebuild the tree if parent changed (structural change)
+		# For simple reorders, sort_order is sufficient
+		if parent_changed:
+			rebuild_wiki_tree()
+	finally:
+		frappe.flags.in_reorder_wiki_documents = False
 
 	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
 

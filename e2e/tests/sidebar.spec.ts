@@ -153,6 +153,144 @@ test.describe('Public Sidebar', () => {
 	});
 
 	test.describe('Sidebar Navigation', () => {
+		test('should use client-side navigation without full page refresh when clicking sidebar links', async ({
+			page,
+			request,
+		}) => {
+			await page.setViewportSize({ width: 1100, height: 900 });
+
+			// Navigate to wiki and click first space
+			await page.goto('/wiki');
+			await page.waitForLoadState('networkidle');
+
+			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			await expect(spaceLink).toBeVisible({ timeout: 5000 });
+			await spaceLink.click();
+			await page.waitForLoadState('networkidle');
+
+			// Create two pages so we can navigate between them
+			const firstPageTitle = `spa-nav-first-${Date.now()}`;
+			const createFirstPage = page.locator(
+				'button:has-text("Create First Page")',
+			);
+			const newPageButton = page.locator('button[title="New Page"]');
+
+			if (
+				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
+			) {
+				await createFirstPage.click();
+			} else {
+				await newPageButton.click();
+			}
+
+			await page.getByLabel('Title').fill(firstPageTitle);
+			await page
+				.getByRole('dialog')
+				.getByRole('button', { name: 'Save Draft' })
+				.click();
+			await page.waitForLoadState('networkidle');
+
+			await page
+				.locator('aside')
+				.getByText(firstPageTitle, { exact: true })
+				.click();
+			await page.waitForURL(/\/draft\/[^/?#]+/);
+			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
+			expect(draftMatch).toBeTruthy();
+			const firstDocKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
+			await expect(editor).toBeVisible({ timeout: 10000 });
+			await editor.click();
+			await page.keyboard.type('First SPA nav test page.');
+			await page.click('button:has-text("Save Draft")');
+			await page.waitForLoadState('networkidle');
+
+			const secondPageTitle = `spa-nav-second-${Date.now()}`;
+			await page.locator('button[title="New Page"]').click();
+			await page.getByLabel('Title').fill(secondPageTitle);
+			await page
+				.getByRole('dialog')
+				.getByRole('button', { name: 'Save Draft' })
+				.click();
+			await page.waitForLoadState('networkidle');
+
+			await page
+				.locator('aside')
+				.getByText(secondPageTitle, { exact: true })
+				.click();
+			await expect(editor).toBeVisible({ timeout: 10000 });
+			await editor.click();
+			await page.keyboard.type('Second SPA nav test page.');
+			await page.click('button:has-text("Save Draft")');
+			await page.waitForLoadState('networkidle');
+
+			// Merge both pages
+			await page.getByRole('button', { name: 'Submit for Review' }).click();
+			await page.getByRole('button', { name: 'Submit' }).click();
+			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+				timeout: 10000,
+			});
+			await page.getByRole('button', { name: 'Merge' }).click();
+			await expect(
+				page.locator('text=Change request merged').first(),
+			).toBeVisible({ timeout: 15000 });
+
+			// Open first page in public view
+			const routes = await getList<WikiDocumentRoute>(
+				request,
+				'Wiki Document',
+				{
+					fields: ['route', 'doc_key'],
+					filters: { doc_key: firstDocKey },
+					limit: 1,
+				},
+			);
+			expect(routes.length).toBe(1);
+			const publicPage = await page.context().newPage();
+			await publicPage.goto(`/${routes[0].route}`);
+			await publicPage.waitForLoadState('networkidle');
+			await publicPage.setViewportSize({ width: 1100, height: 900 });
+
+			await expect(publicPage.locator('#wiki-page-title')).toHaveText(
+				firstPageTitle,
+				{ timeout: 10000 },
+			);
+
+			// Set a sentinel on window — a full page refresh will wipe it
+			await publicPage.evaluate(() => {
+				(
+					window as unknown as Record<string, unknown>
+				).__spa_nav_sentinel = true;
+			});
+
+			// Click the second page in the sidebar
+			const sidebar = publicPage.locator('.wiki-sidebar');
+			const secondPageLink = sidebar.locator(
+				`.wiki-link:has-text("${secondPageTitle}")`,
+			);
+			await expect(secondPageLink).toBeVisible({ timeout: 5000 });
+			await secondPageLink.click();
+
+			// Wait for content to update (SPA navigation)
+			await expect(publicPage.locator('#wiki-page-title')).toHaveText(
+				secondPageTitle,
+				{ timeout: 10000 },
+			);
+
+			// The sentinel must still exist — if a full page refresh happened, it's gone
+			const sentinelSurvived = await publicPage.evaluate(
+				() =>
+					(window as unknown as Record<string, unknown>).__spa_nav_sentinel ===
+					true,
+			);
+			expect(sentinelSurvived).toBe(true);
+
+			// Verify URL changed (pushState, not a reload)
+			expect(publicPage.url()).not.toContain(routes[0].route);
+
+			await publicPage.close();
+		});
+
 		test('should update content, URL, active state, and metadata when clicking sidebar links', async ({
 			page,
 			request,
@@ -277,7 +415,7 @@ test.describe('Public Sidebar', () => {
 			await expect(lastUpdated).toContainText('Last updated');
 
 			// Get initial edit link href
-			const editLinks = publicPage.locator('#wiki-edit-link');
+			const editLinks = publicPage.locator('.wiki-edit-link, #wiki-edit-link');
 			const initialEditHref = await editLinks.first().getAttribute('href');
 
 			// Click the second page link in sidebar

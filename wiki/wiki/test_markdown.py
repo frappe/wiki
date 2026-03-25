@@ -275,6 +275,31 @@ Content
 		result = render_markdown(content)
 		self.assertIn("Custom Title", result)
 
+	def test_callout_with_inline_markdown(self):
+		"""Test callout content renders bold, italic, and links."""
+		content = """:::note
+This has **bold text** and *italic text* and [a link](https://example.com)
+:::
+"""
+		result = render_markdown(content)
+		self.assertIn("callout-note", result)
+		self.assertIn("<strong>bold text</strong>", result)
+		self.assertIn("<em>italic text</em>", result)
+		self.assertIn('href="https://example.com"', result)
+		self.assertIn("a link", result)
+
+	def test_indented_callout(self):
+		"""Test callout that is indented (e.g. inside a list item) still renders."""
+		content = """1. First item
+2. Second item
+  :::note
+  **This is an indented note inside a list.**
+  :::
+3. Third item"""
+		result = render_markdown(content)
+		self.assertIn("callout-note", result)
+		self.assertIn("This is an indented note inside a list.", result)
+
 
 class TestComplexMarkdownContent(unittest.TestCase):
 	"""Tests for complex markdown content with callouts and images."""
@@ -553,6 +578,24 @@ More text here.
 		self.assertEqual(len(headings), 1)
 		self.assertEqual(headings[0]["text"], "What's New? (2024)")
 		self.assertEqual(headings[0]["id"], "whats-new-2024")
+
+	def test_toc_preserves_underscores_in_heading_ids(self):
+		"""Test that underscores in heading text are preserved in IDs."""
+		content = """## get_filtered_list_url
+Some text.
+## add_to_date
+More text.
+## date_diff
+End."""
+		html, headings = render_markdown_with_toc(content)
+
+		self.assertEqual(len(headings), 3)
+		self.assertEqual(headings[0]["id"], "get_filtered_list_url")
+		self.assertEqual(headings[1]["id"], "add_to_date")
+		self.assertEqual(headings[2]["id"], "date_diff")
+		self.assertIn('id="get_filtered_list_url"', html)
+		self.assertIn('id="add_to_date"', html)
+		self.assertIn('id="date_diff"', html)
 
 	def test_toc_with_mixed_content(self):
 		"""Test TOC extraction with complex content including callouts."""

@@ -170,9 +170,11 @@
                     Alpine.store('pageContent').markdown = data.raw_markdown;
                 }
 
-                // Update edit link
-                const editLink = document.getElementById('wiki-edit-link');
-                if (editLink) editLink.setAttribute('href', data.edit_link);
+                // Update edit links
+                const editLinks = document.querySelectorAll('.wiki-edit-link');
+                if (editLinks) {
+                    editLinks.forEach(link => link.setAttribute('href', data.edit_link));
+                }
 
                 // Update last updated
                 const lastUpdatedEl = document.getElementById('wiki-last-updated');
@@ -184,7 +186,8 @@
                     }
                 }
 
-                // Reinitialize TOC
+                // Update TOC HTML with new headings, then reinitialize scroll spy
+                this.updateToc(data.toc_headings || []);
                 if (Alpine.store('toc')) {
                     Alpine.store('toc').refresh();
                 }
@@ -203,6 +206,39 @@
 
                 // Scroll to top
                 window.scrollTo(0, 0);
+            },
+
+            updateToc(headings) {
+                const tocContainer = document.getElementById('wiki-toc');
+                if (!tocContainer) return;
+
+                if (!headings || headings.length === 0) {
+                    tocContainer.innerHTML = '';
+                    tocContainer.classList.remove('w-56');
+                    tocContainer.classList.add('w-0', '!p-0');
+                    return;
+                }
+
+                tocContainer.classList.remove('w-0', '!p-0');
+                tocContainer.classList.add('w-56');
+
+                const escapeHtml = (str) => {
+                    const div = document.createElement('div');
+                    div.textContent = str;
+                    return div.innerHTML;
+                };
+
+                let html = '<nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar"><div>';
+                html += '<h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>';
+                html += '<ul class="space-y-2">';
+                headings.forEach(heading => {
+                    const paddingLeft = (heading.level - 2) * 0.75;
+                    const safeId = escapeHtml(heading.id);
+                    const safeText = escapeHtml(heading.text);
+                    html += `<li><a href="#${safeId}" data-toc-link="${safeId}" style="padding-left: ${paddingLeft}rem" class="toc-link block text-sm transition-colors duration-200 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]">${safeText}</a></li>`;
+                });
+                html += '</ul></div></nav>';
+                tocContainer.innerHTML = html;
             },
 
             updateNavButtons(prevDoc, nextDoc) {

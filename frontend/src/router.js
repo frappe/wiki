@@ -1,6 +1,4 @@
-import { userResource } from '@/data/user';
 import { createRouter, createWebHistory } from 'vue-router';
-import { session } from './data/session';
 
 const routes = [
 	{
@@ -77,15 +75,22 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
-	let isLoggedIn = session.isLoggedIn;
+	const { useSessionStore } = await import('@/stores/session');
+	const { useUserStore } = await import('@/stores/user');
+	const sessionStore = useSessionStore();
+
+	const userStore = useUserStore();
+	let isLoggedIn = sessionStore.isLoggedIn;
 	try {
-		await userResource.fetch();
+		if (!userStore.data) {
+			await userStore.fetch();
+		}
 	} catch (error) {
 		isLoggedIn = false;
 	}
 
 	if (!isLoggedIn) {
-		window.location.href = `/login?redirect-to=${encodeURIComponent(
+		window.location.href = `/login?redirect-to=/wiki${encodeURIComponent(
 			to.fullPath,
 		)}`;
 	} else {

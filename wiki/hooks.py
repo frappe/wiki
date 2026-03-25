@@ -110,6 +110,10 @@ after_install = "wiki.install.after_install"
 
 doc_events = {
 	"User": {"after_insert": "wiki.utils.add_wiki_user_role"},
+	"Wiki Document": {
+		"on_update": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_update",
+		"on_trash": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_trash",
+	},
 }
 
 # Scheduled Tasks
