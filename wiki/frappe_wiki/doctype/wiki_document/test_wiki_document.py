@@ -1206,7 +1206,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			content=markdown_content,
 		)
 		create_test_wiki_space(self, "MD Test Space", route, root_group.name)
-		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
 			self.TEST_CLIENT,
@@ -1231,7 +1231,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			content="# Some content",
 		)
 		create_test_wiki_space(self, "HTML Test Space", route, root_group.name)
-		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
 			self.TEST_CLIENT,
@@ -1258,7 +1258,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 
 		# Unpublish after creation since validation prevents inserting unpublished pages
 		frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
-		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
 			self.TEST_CLIENT,
@@ -1281,7 +1281,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			content="# Unicode: éèê",
 		)
 		create_test_wiki_space(self, "Charset Space", route, root_group.name)
-		frappe.db.commit()  # nosemgrep: required — WSGI test client runs in a separate thread/connection
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
 			self.TEST_CLIENT,
