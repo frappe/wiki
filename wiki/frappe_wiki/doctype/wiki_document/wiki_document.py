@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.website.page_renderers.base_renderer import BaseRenderer
+from werkzeug.wrappers import Response
 
 from wiki.wiki.markdown import render_markdown_with_toc
 
@@ -454,6 +455,17 @@ class WikiDocumentRenderer(BaseRenderer):
 
 	def render(self):
 		doc = frappe.get_cached_doc("Wiki Document", self.wiki_doc_name)
+
+		# Return plain markdown for AI agents and other markdown-aware clients
+		accept = frappe.request.headers.get("Accept", "")
+		if "text/markdown" in accept:
+			doc.check_guest_access()
+			doc.check_published()
+			response = Response()
+			response.data = doc.content or ""
+			response.headers["Content-Type"] = "text/markdown; charset=utf-8"
+			return response
+
 		context = doc.get_web_context()
 
 		csrf_token = frappe.sessions.get_csrf_token()
