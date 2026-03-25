@@ -132,7 +132,7 @@
 		}
 	],
 	"links": [],
-	"modified": "2026-02-17 11:54:18.272204",
+	"modified": "2026-03-25 11:20:11.515569",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Change Request",
@@ -173,13 +173,6 @@
 			"report": 1,
 			"role": "Wiki Approver",
 			"share": 1,
-			"write": 1
-		},
-		{
-			"create": 1,
-			"if_owner": 1,
-			"read": 1,
-			"role": "All",
 			"write": 1
 		},
 		{
