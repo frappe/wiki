@@ -2,7 +2,7 @@
 	<div class="flex flex-col h-full">
 		<div class="flex items-center justify-between p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
 			<div class="flex items-center gap-4">
-				<Button variant="ghost" icon-left="arrow-left" :route="{ name: 'ChangeRequests' }">
+				<Button variant="ghost" icon-left="arrow-left" @click="router.back()">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc">
@@ -275,8 +275,11 @@
 
 <script setup>
 import { ref, computed, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
+
+const router = useRouter();
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
