@@ -1,16 +1,16 @@
 <template>
-	<div class="flex flex-col gap-4 p-4 h-full">
-		<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 p-4 h-full overflow-hidden">
+		<div class="flex items-center justify-between shrink-0">
 			<h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
 		</div>
 
 		<Tabs v-model="activeTabIndex" :tabs="tabs">
 			<template #tab-panel="{ tab }">
-				<div v-if="tab.key === 'my'" class="pt-4">
-					<div v-if="myChangeRequests.list.loading && !myChangeRequests.data?.length" class="flex items-center justify-center h-[calc(100vh-280px)]">
+				<template v-if="tab.key === 'my'">
+					<div v-if="myChangeRequests.list.loading && !myChangeRequests.data?.length" class="flex items-center justify-center flex-1">
 						<LoadingIndicator class="size-8" />
 					</div>
-					<div v-else class="h-[calc(100vh-280px)] overflow-auto">
+					<div v-else class="flex-1 overflow-auto">
 						<ListView
 							:columns="myChangeRequestColumns"
 							:rows="myChangeRequests.data || []"
@@ -41,13 +41,13 @@
 							/>
 						</div>
 					</div>
-				</div>
+				</template>
 
-				<div v-else-if="tab.key === 'reviews'" class="pt-4">
-					<div v-if="pendingReviews.list.loading && !pendingReviews.data?.length" class="flex items-center justify-center h-[calc(100vh-280px)]">
+				<template v-else-if="tab.key === 'reviews'">
+					<div v-if="pendingReviews.list.loading && !pendingReviews.data?.length" class="flex items-center justify-center flex-1">
 						<LoadingIndicator class="size-8" />
 					</div>
-					<div v-else class="h-[calc(100vh-280px)] overflow-auto">
+					<div v-else class="flex-1 overflow-auto">
 						<ListView
 							:columns="reviewsColumns"
 							:rows="pendingReviews.data || []"
@@ -81,7 +81,7 @@
 							/>
 						</div>
 					</div>
-				</div>
+				</template>
 			</template>
 		</Tabs>
 	</div>
