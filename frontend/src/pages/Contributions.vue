@@ -133,7 +133,7 @@ const pendingReviews = createListResource({
 	doctype: 'Wiki Change Request',
 	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified'],
 	filters: { status: ['in', ['In Review', 'Approved']] },
-	orderBy: 'modified asc',
+	orderBy: 'modified desc',
 	pageLength: 25,
 	auto: computed(() => isManager.value),
 });
