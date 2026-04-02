@@ -90,8 +90,6 @@ class WikiSpace(Document):
 		for sort_order, group_label in enumerate(group_order):
 			self._create_group_with_pages(group_label, groups[group_label], sort_order)
 
-		self.save()
-
 	def _group_sidebar_items(self, sidebar):
 		"""Group sidebar items by parent_label while maintaining order"""
 		groups = {}
