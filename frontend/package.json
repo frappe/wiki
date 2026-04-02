@@ -26,6 +26,7 @@
     "@tiptap/suggestion": "^3.19.0",
     "@tiptap/vue-3": "^3.19.0",
     "@vueuse/core": "^14.1.0",
+    "@vueuse/router": "^14.2.1",
     "feather-icons": "^4.29.2",
     "frappe-ui": "^0.1.235",
     "highlight.js": "^11.11.1",
