@@ -52,7 +52,7 @@
 
         // Sidebar store for collapse state
         Alpine.store('sidebar', {
-            isCollapsed: Alpine.$persist(false),
+            isCollapsed: Alpine.$persist(false).as('sidebar.isCollapsed'),
             init() {
                 // Remove pre-Alpine CSS attribute — Alpine's :style takes over from here
                 document.documentElement.removeAttribute('data-sidebar-collapsed');

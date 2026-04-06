@@ -31,7 +31,7 @@
 
             // Read sidebar collapsed state to prevent layout shift
             try {
-                var sidebarState = localStorage.getItem('_x_isCollapsed');
+                var sidebarState = localStorage.getItem('sidebar.isCollapsed');
                 if (sidebarState === 'true') {
                     document.documentElement.setAttribute('data-sidebar-collapsed', '');
                 }
