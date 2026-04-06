@@ -322,6 +322,9 @@ class WikiDocument(NestedSet):
 		# Render markdown and extract TOC headings in one pass
 		rendered_content, toc_headings = render_markdown_with_toc(self.content or "")
 
+		# Ancestor nodes that should be expanded in the sidebar tree on initial render
+		expanded_nodes = set(self.get_ancestors()) if self.lft else set()
+
 		# Base context with defaults for orphan documents
 		context = {
 			"doc": self,
@@ -335,6 +338,7 @@ class WikiDocument(NestedSet):
 			"toc_headings": toc_headings,
 			"raw_markdown": self.content or "",
 			"nested_tree": [],
+			"expanded_nodes": expanded_nodes,
 			"prev_doc": None,
 			"next_doc": None,
 			"edit_link": self.get_edit_link(),

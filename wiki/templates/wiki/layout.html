@@ -13,15 +13,29 @@
     <link rel="stylesheet" href="/assets/wiki/css/hljs-github-light.css">
 
     <!-- Hide x-cloak elements until Alpine loads -->
-    <style>[x-cloak] { display: none !important; }</style>
+    <style>
+        [x-cloak] { display: none !important; }
+        /* Sidebar collapsed state before Alpine loads */
+        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; border-right-width: 0 !important; }
+        html[data-sidebar-collapsed] .wiki-sidebar-toggle { left: 0.5rem !important; }
+        html:not([data-sidebar-collapsed]) .wiki-sidebar-toggle { left: calc(18rem - 0.25rem); }
+    </style>
 
-    <!-- Theme initialization - must run before page renders to prevent flash -->
+    <!-- Theme + sidebar initialization - must run before page renders to prevent flash -->
     <script>
         (function() {
             const stored = localStorage.getItem('wiki-theme');
             // Default to light theme if no preference is stored
             const theme = stored || 'light';
             document.documentElement.setAttribute('data-theme', theme);
+
+            // Read sidebar collapsed state to prevent layout shift
+            try {
+                var sidebarState = localStorage.getItem('sidebar.isCollapsed');
+                if (sidebarState === 'true') {
+                    document.documentElement.setAttribute('data-sidebar-collapsed', '');
+                }
+            } catch(e) {}
         })();
 
         // CSRF token for API requests
