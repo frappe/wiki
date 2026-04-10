@@ -27,6 +27,7 @@ class WikiSpace(Document):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
+		from frappe.core.doctype.has_role.has_role import HasRole
 		from frappe.website.doctype.top_bar_item.top_bar_item import TopBarItem
 
 		from wiki.wiki.doctype.wiki_group_item.wiki_group_item import WikiGroupItem
@@ -40,6 +41,7 @@ class WikiSpace(Document):
 		navbar_items: DF.Table[TopBarItem]
 		root_group: DF.Link | None
 		route: DF.Data
+		roles: DF.Table[HasRole]
 		show_in_switcher: DF.Check
 		space_name: DF.Data | None
 		switcher_order: DF.Int

@@ -1,6 +1,6 @@
 {
  "actions": [],
- "allow_guest_to_view": 1,
+ "allow_guest_to_view": 0,
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "hash",

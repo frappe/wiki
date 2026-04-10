@@ -10,6 +10,7 @@ from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 from werkzeug.wrappers import Response
 
+from wiki.utils import has_wiki_space_access
 from wiki.wiki.markdown import render_markdown_with_toc
 
 # Mapping of known service domains to icon identifiers
@@ -242,6 +243,19 @@ class WikiDocument(NestedSet):
 				frappe._("You must be logged in to view this page"),
 				frappe.PermissionError,
 			)
+
+		wiki_space = self.get_wiki_space()
+		if not wiki_space:
+			return
+
+		space_doc = frappe.get_cached_doc("Wiki Space", wiki_space.name)
+		if not has_wiki_space_access(space_doc):
+			message = (
+				frappe._("You must be logged in to view this page")
+				if frappe.session.user == "Guest"
+				else frappe._("You do not have access to view this page")
+			)
+			frappe.throw(message, frappe.PermissionError)
 
 	def check_published(self):
 		if not self.is_published:

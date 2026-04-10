@@ -11,6 +11,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import process_navbar_items
+from wiki.test_api import create_test_user
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 # On IntegrationTestCase, the doctype test records and all
@@ -173,6 +174,41 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Single document should have neither prev_doc nor next_doc
 		self.assertIsNone(context["prev_doc"])
 		self.assertIsNone(context["next_doc"])
+
+	def test_role_restricted_space_blocks_user_without_allowed_role(self):
+		doc = create_test_wiki_document(self, "Restricted Document")
+		user = create_test_user("restricted-no-role@example.com", roles=["Website Manager"])
+		fake_space = SimpleNamespace(name="restricted-space", is_published=1, roles=[frappe._dict(role="Wiki User")])
+
+		with (
+			patch.object(doc, "get_wiki_space", return_value=frappe._dict(name="restricted-space")),
+			patch(
+				"wiki.frappe_wiki.doctype.wiki_document.wiki_document.frappe.get_cached_doc",
+				return_value=fake_space,
+			),
+		):
+			frappe.set_user(user.name)
+			with self.assertRaises(frappe.PermissionError):
+				doc.check_guest_access()
+
+		frappe.set_user("Administrator")
+
+	def test_role_restricted_space_allows_user_with_allowed_role(self):
+		doc = create_test_wiki_document(self, "Allowed Document")
+		user = create_test_user("restricted-allowed@example.com", roles=["Wiki User"])
+		fake_space = SimpleNamespace(name="restricted-space", is_published=1, roles=[frappe._dict(role="Wiki User")])
+
+		with (
+			patch.object(doc, "get_wiki_space", return_value=frappe._dict(name="restricted-space")),
+			patch(
+				"wiki.frappe_wiki.doctype.wiki_document.wiki_document.frappe.get_cached_doc",
+				return_value=fake_space,
+			),
+		):
+			frappe.set_user(user.name)
+			doc.check_guest_access()
+
+		frappe.set_user("Administrator")
 
 	def test_wiki_spaces_for_switcher_includes_current_space_even_if_not_published(self):
 		"""

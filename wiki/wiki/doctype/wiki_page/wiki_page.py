@@ -3,6 +3,8 @@
 import frappe
 from frappe.website.website_generator import WebsiteGenerator
 
+from wiki.utils import get_wiki_space_for_route, has_wiki_space_access
+
 
 class WikiPage(WebsiteGenerator):
 	def validate(self):
@@ -24,3 +26,16 @@ class WikiPage(WebsiteGenerator):
 				"is_private": not self.allow_guest,
 			}
 		).insert()
+
+	def has_website_permission(self, ptype, user, verbose=False):
+		if not self.published:
+			return False
+
+		wiki_space = get_wiki_space_for_route(self.route)
+		if wiki_space and not has_wiki_space_access(wiki_space, user=user):
+			return False
+
+		if self.allow_guest:
+			return True
+
+		return user != "Guest"

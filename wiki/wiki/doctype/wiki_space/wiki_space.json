@@ -11,6 +11,7 @@
   "general_tab",
   "space_name",
   "route",
+  "roles",
   "switcher_order",
   "column_break_bynr",
   "app_switcher_logo",
@@ -38,6 +39,12 @@
    "label": "Route",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "options": "Has Role"
   },
   {
    "fieldname": "wiki_sidebars",
