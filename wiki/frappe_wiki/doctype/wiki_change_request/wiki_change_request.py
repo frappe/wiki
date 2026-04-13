@@ -13,6 +13,7 @@ from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
+	batch_ensure_overlay_items,
 	build_tree_order,
 	create_overlay_revision,
 	create_revision_from_live_tree,
@@ -505,6 +506,60 @@ def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str])
 		if actual_parent != parent_key:
 			continue
 		frappe.db.set_value("Wiki Revision Item", item_name, "order_index", index)
+
+	mark_hashes_stale(cr.head_revision)
+	touch_change_request(cr.name)
+
+
+@frappe.whitelist()
+def reorder_cr_page(
+	name: str,
+	doc_key: str,
+	new_parent_key: str,
+	ordered_sibling_keys: list[str],
+) -> None:
+	"""Move a page and reorder its new siblings in a single batch operation.
+
+	Combines move_cr_page + reorder_cr_children into one API call with
+	batched DB operations to avoid per-item overhead.
+	"""
+	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("write")
+
+	# Batch ensure overlay items for the moved doc + all siblings at once
+	all_keys = list(dict.fromkeys([doc_key] + ordered_sibling_keys))
+	item_map = batch_ensure_overlay_items(cr.head_revision, all_keys)
+
+	# Update parent for the moved item
+	moved_item_name = item_map.get(doc_key)
+	if not moved_item_name:
+		frappe.throw(_("Document not found in change request"))
+	frappe.db.set_value("Wiki Revision Item", moved_item_name, "parent_key", new_parent_key)
+
+	# Batch update order_index for all siblings using a single CASE query
+	update_pairs = []
+	for index, sibling_key in enumerate(ordered_sibling_keys):
+		sibling_item = item_map.get(sibling_key)
+		if not sibling_item:
+			continue
+		update_pairs.append((sibling_item, index))
+
+	if update_pairs:
+		case_parts = []
+		names = []
+		for item_name, idx in update_pairs:
+			case_parts.append(f"WHEN %s THEN {idx}")
+			names.append(item_name)
+
+		placeholders = ", ".join(["%s"] * len(names))
+		frappe.db.sql(
+			f"""
+			UPDATE `tabWiki Revision Item`
+			SET order_index = CASE name {" ".join(case_parts)} END
+			WHERE name IN ({placeholders})
+			""",
+			tuple(names + names),
+		)
 
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)

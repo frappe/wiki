@@ -372,6 +372,80 @@ def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
 	return new_item.name
 
 
+_OVERLAY_ITEM_FIELDS = [
+	"doc_key",
+	"title",
+	"slug",
+	"route",
+	"is_group",
+	"is_published",
+	"is_external_link",
+	"external_url",
+	"parent_key",
+	"order_index",
+	"content_blob",
+	"is_deleted",
+]
+
+
+def batch_ensure_overlay_items(revision: str, doc_keys: list[str]) -> dict[str, str | None]:
+	"""Batch copy-on-write: ensure all doc_keys have items in the overlay revision.
+
+	Returns a mapping of doc_key → item name (or None if not found anywhere).
+	Much more efficient than calling ensure_overlay_item() in a loop because
+	it batches DB reads and inserts.
+	"""
+	if not doc_keys:
+		return {}
+
+	unique_keys = list(dict.fromkeys(doc_keys))  # dedupe preserving order
+
+	# 1. Find which doc_keys already exist in the overlay
+	existing = frappe.get_all(
+		"Wiki Revision Item",
+		filters={"revision": revision, "doc_key": ("in", unique_keys)},
+		fields=["name", "doc_key"],
+	)
+	result: dict[str, str | None] = {row["doc_key"]: row["name"] for row in existing}
+
+	missing_keys = [k for k in unique_keys if k not in result]
+	if not missing_keys:
+		return result
+
+	# 2. Check if this is an overlay revision with a parent
+	rev_info = frappe.db.get_value(
+		"Wiki Revision", revision, ["is_overlay", "parent_revision"], as_dict=True
+	)
+	if not (rev_info and rev_info.is_overlay and rev_info.parent_revision):
+		for k in missing_keys:
+			result[k] = None
+		return result
+
+	# 3. Batch fetch base items for the missing keys
+	base_items = frappe.get_all(
+		"Wiki Revision Item",
+		filters={"revision": rev_info.parent_revision, "doc_key": ("in", missing_keys)},
+		fields=_OVERLAY_ITEM_FIELDS,
+	)
+	base_map = {item["doc_key"]: item for item in base_items}
+
+	# 4. Batch insert copies into overlay
+	for key in missing_keys:
+		base_item = base_map.get(key)
+		if not base_item:
+			result[key] = None
+			continue
+
+		new_item = frappe.new_doc("Wiki Revision Item")
+		new_item.revision = revision
+		for field in _OVERLAY_ITEM_FIELDS:
+			setattr(new_item, field, base_item.get(field))
+		new_item.insert(ignore_permissions=True)
+		result[key] = new_item.name
+
+	return result
+
+
 def mark_hashes_stale(revision: str) -> None:
 	"""Mark a revision's hashes as needing recomputation."""
 	frappe.db.set_value("Wiki Revision", revision, "hashes_stale", 1)

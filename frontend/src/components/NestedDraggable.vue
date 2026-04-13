@@ -277,7 +277,7 @@ function onDragEnd() {
         isDragging.value = false;
         emit('drag-state-change', false);
         dragSettleTimer = null;
-    }, 1000);
+    }, 400);
 }
 
 function handleChange(evt) {

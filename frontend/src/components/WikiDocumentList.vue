@@ -279,7 +279,7 @@ function handleTreeUpdate(payload) {
 		reorderTimer = setTimeout(() => {
 			reorderTimer = null;
 			flushReorder();
-		}, 1000);
+		}, 300);
 	}
 }
 
@@ -315,19 +315,12 @@ async function applyReorder(payload) {
 	}
 
 	const siblingKeys = payload.siblings.map(s => s.doc_key);
-	await crStore.movePage(
+	await crStore.reorderPage(
 		crStore.currentChangeRequest.name,
 		payload.item.doc_key,
 		payload.newParent,
-		payload.newIndex,
-	);
-	await crStore.reorderChildren(
-		crStore.currentChangeRequest.name,
-		payload.newParent,
 		siblingKeys,
 	);
-	toast.success(__('Documents reordered'));
-	emit('refresh');
 }
 
 onBeforeUnmount(() => {

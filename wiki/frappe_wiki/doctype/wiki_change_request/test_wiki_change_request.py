@@ -22,6 +22,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	merge_content_three_way,
 	move_cr_page,
 	reorder_cr_children,
+	reorder_cr_page,
 	request_review,
 	resolve_merge_conflict,
 	retry_merge_after_resolution,
@@ -116,6 +117,69 @@ class TestWikiChangeRequest(FrappeTestCase):
 		move_cr_page(cr.name, page1_key, group_key, new_order_index=0)
 		item1 = get_revision_item(cr.head_revision, page1_key)
 		self.assertEqual(item1.parent_key, group_key)
+
+	def test_reorder_cr_page_batch(self):
+		"""Test the combined move+reorder endpoint works in a single call."""
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="Page 1")
+		page2 = create_test_wiki_document(space.root_group, title="Page 2")
+		page3 = create_test_wiki_document(space.root_group, title="Page 3")
+		cr = create_change_request(space.name, "CR batch reorder")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page1_key = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		page2_key = frappe.get_value("Wiki Document", page2.name, "doc_key")
+		page3_key = frappe.get_value("Wiki Document", page3.name, "doc_key")
+
+		# Reorder within same parent: move page3 to first position
+		reorder_cr_page(
+			cr.name,
+			doc_key=page3_key,
+			new_parent_key=root_key,
+			ordered_sibling_keys=[page3_key, page1_key, page2_key],
+		)
+
+		item1 = get_revision_item(cr.head_revision, page1_key)
+		item2 = get_revision_item(cr.head_revision, page2_key)
+		item3 = get_revision_item(cr.head_revision, page3_key)
+		self.assertEqual(item3.order_index, 0)
+		self.assertEqual(item1.order_index, 1)
+		self.assertEqual(item2.order_index, 2)
+		# Parent should remain unchanged
+		self.assertEqual(item3.parent_key, root_key)
+
+	def test_reorder_cr_page_move_to_group(self):
+		"""Test batch move+reorder when changing parent group."""
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="Page 1")
+		page2 = create_test_wiki_document(space.root_group, title="Page 2")
+		cr = create_change_request(space.name, "CR move+reorder")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page1_key = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		page2_key = frappe.get_value("Wiki Document", page2.name, "doc_key")
+
+		group_key = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Group",
+			slug="group",
+			is_group=1,
+			is_published=1,
+			content="",
+		)
+
+		# Move page1 into the group
+		reorder_cr_page(
+			cr.name,
+			doc_key=page1_key,
+			new_parent_key=group_key,
+			ordered_sibling_keys=[page1_key],
+		)
+
+		item1 = get_revision_item(cr.head_revision, page1_key)
+		self.assertEqual(item1.parent_key, group_key)
+		self.assertEqual(item1.order_index, 0)
 
 	def test_merge_without_conflicts_updates_live_tree(self):
 		space = create_test_wiki_space()

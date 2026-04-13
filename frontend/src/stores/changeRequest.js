@@ -75,6 +75,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.reorder_cr_children',
 	});
 
+	const reorderPageResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.reorder_cr_page',
+	});
+
 	async function refreshChangeRequest() {
 		if (!currentChangeRequest.value) return null;
 		await changeRequestResource.submit({
@@ -233,6 +237,20 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		});
 	}
 
+	async function reorderPage(
+		changeRequestName,
+		docKey,
+		newParentKey,
+		orderedSiblingKeys,
+	) {
+		return await reorderPageResource.submit({
+			name: changeRequestName,
+			doc_key: docKey,
+			new_parent_key: newParentKey,
+			ordered_sibling_keys: orderedSiblingKeys,
+		});
+	}
+
 	return {
 		currentChangeRequest,
 		isLoadingChangeRequest,
@@ -260,5 +278,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		deletePage,
 		movePage,
 		reorderChildren,
+		reorderPage,
 	};
 });
