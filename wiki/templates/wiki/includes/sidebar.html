@@ -10,7 +10,11 @@
     <div class="px-2 h-[53px] border-b border-[var(--outline-gray-1)] flex-shrink-0 flex items-center"
          {% if has_switcher %}x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false"{% endif %}>
         {% if has_switcher %}
-        <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
+        <button type="button"
+                @click="spaceSwitcherOpen = !spaceSwitcherOpen"
+                @keydown.escape="spaceSwitcherOpen = false"
+                aria-haspopup="menu"
+                :aria-expanded="spaceSwitcherOpen"
                 class="flex h-12 w-full items-center rounded-md py-2 px-2 duration-300 ease-in-out"
                 :class="spaceSwitcherOpen ? 'bg-[var(--surface-white)] shadow-sm' : 'hover:bg-[var(--surface-gray-3)]'"
                 title="Switch wiki space">
