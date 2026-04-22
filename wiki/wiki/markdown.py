@@ -345,6 +345,11 @@ class WikiRenderer(mistune.HTMLRenderer):
 		self._heading_slugs = {}  # Track used slugs to avoid duplicates
 		self._headings = []  # Track headings for TOC
 
+	def block_code(self, code: str, info: str | None = None) -> str:
+		# Trim trailing whitespace the author left inside the fence — spaces,
+		# tabs, and blank lines all render as phantom empty rows in <pre>.
+		return super().block_code(code.rstrip() + "\n", info)
+
 	def heading(self, text: str, level: int, **attrs) -> str:
 		"""Render heading with slugified ID for anchor links."""
 		# Generate base slug from heading text

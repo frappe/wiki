@@ -32,6 +32,12 @@ class TestMarkdownRenderer(unittest.TestCase):
 		self.assertIn('href="https://example.com"', result)
 		self.assertIn("Link text", result)
 
+	def test_code_block_strips_trailing_whitespace(self):
+		"""Trailing whitespace inside a fence shouldn't render as phantom empty rows."""
+		md = "```\nyarn install\nyarn dev   \n```\n"
+		result = render_markdown(md)
+		self.assertIn("<pre><code>yarn install\nyarn dev\n</code></pre>", result)
+
 
 class TestHeadingSlugGeneration(unittest.TestCase):
 	"""Tests for heading ID/slug generation."""

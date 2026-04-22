@@ -13,6 +13,12 @@ function initCodeBlocks() {
         if (pre.classList.contains('code-block-enhanced')) return;
         pre.classList.add('code-block-enhanced');
 
+        // Strip trailing whitespace so it doesn't render as empty rows.
+        const lastChild = codeBlock.lastChild;
+        if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
+            lastChild.nodeValue = lastChild.nodeValue.replace(/\s+$/, '\n');
+        }
+
         // Get language from hljs class
         const classes = codeBlock.className.split(' ');
         let language = '';
