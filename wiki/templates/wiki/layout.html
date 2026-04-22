@@ -53,23 +53,28 @@
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 
-    <!-- Full-width navbar at top -->
+    <!-- Mobile-only navbar at top -->
     {% include "templates/wiki/includes/mobile_header.html" %}
-    {% include "templates/wiki/includes/header.html" %}
     {% endif %}
 
-    <!-- Main flex container for sidebar + content (below navbar) -->
-    <div class="flex {{ 'min-h-[calc(100vh-53px)]' if not hide_chrome else 'min-h-screen' }}">
+    <!-- Main flex container: sidebar (full height) + content column -->
+    <div class="flex min-h-screen">
         {% if not hide_chrome %}
         {% include "templates/wiki/includes/sidebar.html" %}
         {% endif %}
 
-        <!-- Main content + TOC area -->
-        {% block content %}
-        <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
-            {% block body %} {% endblock %}
-        </main>
-        {% endblock %}
+        <!-- Content column: desktop header + main + TOC -->
+        <div class="flex-1 min-w-0 flex flex-col">
+            {% if not hide_chrome %}
+            {% include "templates/wiki/includes/header.html" %}
+            {% endif %}
+
+            {% block content %}
+            <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
+                {% block body %} {% endblock %}
+            </main>
+            {% endblock %}
+        </div>
     </div>
     
     <!-- Image lightbox overlay -->
