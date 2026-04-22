@@ -124,7 +124,8 @@ export const SLASH_COMMANDS = [
 	},
 	{
 		title: 'Embed',
-		description: 'Embed a YouTube, Vimeo, Loom, or Figma link',
+		description:
+			'Embed YouTube, Vimeo, Loom, Google Docs, Cloudflare/Bunny Stream, and more',
 		icon: 'embed',
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).insertIframePlaceholder().run();

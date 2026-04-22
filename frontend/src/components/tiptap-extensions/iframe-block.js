@@ -24,7 +24,17 @@ export const IFRAME_PROVIDERS = [
 	{ name: 'figma', hosts: ['figma.com'] },
 	{ name: 'framer', hosts: ['framer.com'] },
 	{ name: 'miro', hosts: ['miro.com'] },
-	{ name: 'google-docs', hosts: ['docs.google.com'] },
+	{ name: 'google', hosts: ['docs.google.com', 'drive.google.com'] },
+	{
+		name: 'cloudflare-stream',
+		hosts: ['cloudflarestream.com', 'videodelivery.net'],
+	},
+	{
+		name: 'bunny-stream',
+		hosts: ['mediadelivery.net', 'bunnycdn.com'],
+	},
+	{ name: 'aparat', hosts: ['aparat.com'] },
+	{ name: 'github-gist', hosts: ['gist.github.com'] },
 ];
 
 function hostOf(url) {
@@ -87,6 +97,50 @@ export function normalizeEmbedUrl(url) {
 	if (host === 'loom.com' && u.pathname.startsWith('/share/')) {
 		return `https://www.loom.com/embed/${u.pathname.slice('/share/'.length)}`;
 	}
+
+	// Google Drive: /file/d/<id>/view[?…] → /file/d/<id>/preview
+	if (host === 'drive.google.com') {
+		const id = u.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)/)?.[1];
+		if (id) return `https://drive.google.com/file/d/${id}/preview`;
+	}
+
+	// Google Docs / Sheets / Slides: /<kind>/d/<id>/edit|pub → /preview or /embed
+	if (host === 'docs.google.com') {
+		const m = u.pathname.match(
+			/^\/(document|spreadsheets|presentation)\/d\/([A-Za-z0-9_-]+)(\/(edit|pub|view))?/,
+		);
+		if (m) {
+			const kind = m[1];
+			const id = m[2];
+			const action = kind === 'presentation' ? 'embed' : 'preview';
+			return `https://docs.google.com/${kind}/d/${id}/${action}`;
+		}
+	}
+
+	// Cloudflare Stream: customer-*.cloudflarestream.com/<uid>/watch
+	if (host.endsWith('.cloudflarestream.com')) {
+		const id = u.pathname.match(/^\/([a-f0-9]{32})\/watch$/)?.[1];
+		if (id) return `https://iframe.videodelivery.net/${id}`;
+	}
+
+	// Bunny Stream share URLs → player.mediadelivery.net/embed
+	if (
+		host === 'iframe.mediadelivery.net' ||
+		host === 'video.bunnycdn.com' ||
+		host === 'player.mediadelivery.net'
+	) {
+		const match = u.pathname.match(/^\/play\/([A-Za-z0-9]+\/[A-Za-z0-9-]+)$/);
+		if (match) return `https://player.mediadelivery.net/embed/${match[1]}`;
+	}
+
+	// Aparat: /v/<hash> → /video/video/embed/videohash/<hash>/vt/frame
+	if (host === 'aparat.com') {
+		const id = u.pathname.match(/^\/v\/([^/?&]+)\/?$/)?.[1];
+		if (id) {
+			return `https://www.aparat.com/video/video/embed/videohash/${id}/vt/frame`;
+		}
+	}
+
 	return input;
 }
 

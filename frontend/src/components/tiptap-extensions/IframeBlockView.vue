@@ -88,7 +88,7 @@ function handleKeyDown(event) {
 					<path d="M20 17v3a2 2 0 0 1-2 2h-3" />
 					<rect x="7" y="7" width="10" height="10" rx="1" />
 				</svg>
-				<span>Paste a YouTube / Vimeo / Loom / CodePen / Figma URL or the full &lt;iframe&gt; embed code.</span>
+				<span>Paste a URL (YouTube, Vimeo, Loom, CodePen, CodeSandbox, Figma, Miro, Google Docs/Drive, Cloudflare Stream, Bunny Stream, Aparat, GitHub Gist) or the full &lt;iframe&gt; embed code.</span>
 			</div>
 			<input
 				v-model="urlInput"
