@@ -161,14 +161,15 @@ test.describe('Iframe embed extension', () => {
 			editor.commands.insertIframePlaceholder();
 		});
 
-		const placeholderInput = page.locator(
-			'.iframe-block-wrapper .placeholder-input',
-		);
+		const placeholderInput = page
+			.locator('.iframe-block-wrapper')
+			.getByPlaceholder('https://');
 		await expect(placeholderInput).toBeVisible({ timeout: 5000 });
 
 		await placeholderInput.fill(IFRAME_FIXTURE);
 		await page
-			.locator('.iframe-block-wrapper .placeholder-button.primary')
+			.locator('.iframe-block-wrapper')
+			.getByRole('button', { name: 'Embed' })
 			.click();
 
 		const preview = page.locator(

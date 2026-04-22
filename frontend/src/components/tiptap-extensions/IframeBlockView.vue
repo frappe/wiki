@@ -7,6 +7,7 @@
  */
 
 import { NodeViewWrapper } from '@tiptap/vue-3';
+import { Button, TextInput } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import {
 	iframeAttrsFromHtml,
@@ -45,7 +46,7 @@ function saveUrl() {
 	const normalized = normalizeEmbedUrl(raw);
 	if (!isAllowedIframeSrc(normalized)) {
 		errorMessage.value =
-			'Only known providers are supported (YouTube, Vimeo, Loom, CodePen, Figma, etc.).';
+			'This URL isn’t from a supported provider. Try a YouTube, Vimeo, or other embed URL.';
 		return;
 	}
 	errorMessage.value = '';
@@ -88,22 +89,18 @@ function handleKeyDown(event) {
 					<path d="M20 17v3a2 2 0 0 1-2 2h-3" />
 					<rect x="7" y="7" width="10" height="10" rx="1" />
 				</svg>
-				<span>Paste a URL (YouTube, Vimeo, Loom, CodePen, CodeSandbox, Figma, Miro, Google Docs/Drive, Cloudflare Stream, Bunny Stream, Aparat, GitHub Gist) or the full &lt;iframe&gt; embed code.</span>
+				<span>Paste a URL or &lt;iframe&gt; embed code.</span>
 			</div>
-			<input
+			<TextInput
 				v-model="urlInput"
-				class="placeholder-input"
+				class="iframe-placeholder-input"
 				type="url"
 				placeholder="https://www.youtube.com/watch?v=…"
 				@keydown="handleKeyDown"
 			/>
 			<div class="placeholder-actions">
-				<button type="button" class="placeholder-button primary" @click="saveUrl">
-					Embed
-				</button>
-				<button type="button" class="placeholder-button" @click="deleteNode()">
-					Remove
-				</button>
+				<Button variant="solid" @click="saveUrl">Embed</Button>
+				<Button variant="subtle" @click="deleteNode()">Remove</Button>
 			</div>
 			<p v-if="errorMessage" class="placeholder-error">{{ errorMessage }}</p>
 		</div>
@@ -146,10 +143,8 @@ function handleKeyDown(event) {
 	flex-direction: column;
 	gap: 0.75rem;
 	padding: 1.25rem;
-	background-color: #f9fafb;
-	border: 1px dashed #d1d5db;
+	border: 1px dashed var(--outline-gray-2, #d1d5db);
 	border-radius: 8px;
-	color: #374151;
 }
 
 .placeholder-heading {
@@ -157,23 +152,7 @@ function handleKeyDown(event) {
 	align-items: center;
 	gap: 0.5rem;
 	font-size: 0.875rem;
-	color: #4b5563;
-}
-
-.placeholder-input {
-	width: 100%;
-	padding: 0.5rem 0.75rem;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	background-color: #ffffff;
-	font-size: 0.875rem;
-	color: #111827;
-}
-
-.placeholder-input:focus {
-	outline: 2px solid rgba(59, 130, 246, 0.5);
-	outline-offset: 1px;
-	border-color: transparent;
+	color: var(--ink-gray-6, #4b5563);
 }
 
 .placeholder-actions {
@@ -181,55 +160,9 @@ function handleKeyDown(event) {
 	gap: 0.5rem;
 }
 
-.placeholder-button {
-	padding: 0.4rem 0.9rem;
-	border-radius: 6px;
-	border: 1px solid #d1d5db;
-	background-color: #ffffff;
-	color: #374151;
-	font-size: 0.875rem;
-	cursor: pointer;
-}
-
-.placeholder-button.primary {
-	background-color: #111827;
-	color: #ffffff;
-	border-color: #111827;
-}
-
 .placeholder-error {
 	margin: 0;
 	font-size: 0.8125rem;
-	color: #b91c1c;
-}
-
-@media (prefers-color-scheme: dark) {
-	.iframe-placeholder {
-		background-color: #1f2937;
-		border-color: #374151;
-		color: #e5e7eb;
-	}
-
-	.placeholder-heading {
-		color: #9ca3af;
-	}
-
-	.placeholder-input {
-		background-color: #111827;
-		border-color: #374151;
-		color: #f9fafb;
-	}
-
-	.placeholder-button {
-		background-color: #111827;
-		border-color: #374151;
-		color: #e5e7eb;
-	}
-
-	.placeholder-button.primary {
-		background-color: #f9fafb;
-		color: #111827;
-		border-color: #f9fafb;
-	}
+	color: var(--ink-red-6, #b91c1c);
 }
 </style>
