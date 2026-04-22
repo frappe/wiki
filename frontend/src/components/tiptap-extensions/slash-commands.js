@@ -123,6 +123,14 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Embed',
+		description: 'Embed a YouTube, Vimeo, Loom, or Figma link',
+		icon: 'embed',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).insertIframePlaceholder().run();
+		},
+	},
+	{
 		title: 'Note Callout',
 		description: 'Add a note callout block',
 		icon: 'info',

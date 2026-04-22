@@ -23,6 +23,7 @@
 import {
 	AlertOctagon,
 	AlertTriangle,
+	AppWindow,
 	Code,
 	Heading1,
 	Heading2,
@@ -68,6 +69,7 @@ const iconMap = {
 	table: Table,
 	image: Image,
 	video: Video,
+	embed: AppWindow,
 	info: Info,
 	lightbulb: Lightbulb,
 	'alert-triangle': AlertTriangle,
