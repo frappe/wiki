@@ -126,6 +126,7 @@ import { ref, computed, watch } from 'vue';
 import { createDocumentResource, Badge, Button, Dropdown, Dialog, FormControl, createResource, toast } from "frappe-ui";
 import WikiEditor from './WikiEditor.vue';
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useUserStore } from '@/stores/user';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucideLock from '~icons/lucide/lock';
 import LucideExternalLink from '~icons/lucide/external-link';
@@ -152,6 +153,7 @@ const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 
 const crStore = useChangeRequestStore();
+const userStore = useUserStore();
 
 const wikiDoc = createDocumentResource({
 	doctype: "Wiki Document",
@@ -247,13 +249,21 @@ const editorKey = computed(() => {
 });
 
 const menuOptions = computed(() => {
-		return [
-			{
+	const options = [
+		{
 			label: displayPublished.value ? __('Unpublish') : __('Publish'),
 			icon: 'upload-cloud',
 			onClick: togglePublish,
 		},
 	];
+	if (userStore.isWikiManager && wikiDoc.doc?.name) {
+		options.push({
+			label: __('View in Desk'),
+			icon: 'external-link',
+			onClick: () => window.open(`/app/wiki-document/${encodeURIComponent(wikiDoc.doc.name)}`, '_blank'),
+		});
+	}
+	return options;
 });
 
 async function saveTitleIfChanged() {
