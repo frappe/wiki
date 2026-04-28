@@ -321,6 +321,8 @@ class WikiDocument(NestedSet):
 
 		# Render markdown and extract TOC headings in one pass
 		rendered_content, toc_headings = render_markdown_with_toc(self.content or "")
+		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
+			toc_headings = []
 
 		# Ancestor nodes that should be expanded in the sidebar tree on initial render
 		expanded_nodes = set(self.get_ancestors()) if self.lft else set()
