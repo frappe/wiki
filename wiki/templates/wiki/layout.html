@@ -48,6 +48,8 @@
     <script defer src="/assets/wiki/js/vendor/alpinejs/core.js"></script>
 
     {% block head %} {% endblock %}
+
+    {% if head_html %}{{ head_html | safe }}{% endif %}
 </head>
 <body class="min-h-screen antialiased bg-[var(--surface-white)] text-[var(--ink-gray-9)]">
     {% if not hide_chrome %}

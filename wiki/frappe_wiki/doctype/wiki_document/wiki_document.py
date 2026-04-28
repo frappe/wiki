@@ -338,6 +338,7 @@ class WikiDocument(NestedSet):
 			"favicon": None,
 			"rendered_content": rendered_content,
 			"toc_headings": toc_headings,
+			"head_html": frappe.get_cached_value("Wiki Settings", "Wiki Settings", "head_html"),
 			"raw_markdown": self.content or "",
 			"nested_tree": [],
 			"expanded_nodes": expanded_nodes,
