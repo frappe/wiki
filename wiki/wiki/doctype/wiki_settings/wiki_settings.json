@@ -99,14 +99,15 @@
    "description": "Will be included in all public Wiki pages",
    "fieldname": "head_html",
    "fieldtype": "Code",
-   "label": "&lt;head&gt; HTML"
+   "label": "&lt;head&gt; HTML",
+   "options": "HTML"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-28 17:34:33.386653",
+ "modified": "2026-04-28 17:55:14.973293",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
