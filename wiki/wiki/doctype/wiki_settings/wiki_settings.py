@@ -19,6 +19,7 @@ class WikiSettings(Document):
 		enable_feedback: DF.Check
 		enable_table_of_contents: DF.Check
 		feedback_submission_limit: DF.Int
+		head_html: DF.Code | None
 		javascript: DF.Code | None
 	# end: auto-generated types
 

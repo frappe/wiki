@@ -49,7 +49,7 @@
 
     {% block head %} {% endblock %}
 
-    {% if head_html %}{{ head_html | safe }}{% endif %}
+    {{ head_html or "" }}
 </head>
 <body class="min-h-screen antialiased bg-[var(--surface-white)] text-[var(--ink-gray-9)]">
     {% if not hide_chrome %}

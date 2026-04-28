@@ -16,7 +16,9 @@
   "feedback_submission_limit",
   "ask_for_contact_details",
   "section_break_mmtu",
-  "javascript"
+  "javascript",
+  "header__robots_tab",
+  "head_html"
  ],
  "fields": [
   {
@@ -87,13 +89,24 @@
    "fieldtype": "Int",
    "label": "Feedback Submission Limit",
    "non_negative": 1
+  },
+  {
+   "fieldname": "header__robots_tab",
+   "fieldtype": "Tab Break",
+   "label": "Header / Robots"
+  },
+  {
+   "description": "Will be included in all public Wiki pages",
+   "fieldname": "head_html",
+   "fieldtype": "Code",
+   "label": "&lt;head&gt; HTML"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-28 17:11:45.872585",
+ "modified": "2026-04-28 17:34:33.386653",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",
