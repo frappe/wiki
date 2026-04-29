@@ -91,9 +91,27 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// Parent-driven save state. Used for the failure UX (mark dirty so a
+	// retry doesn't think we're clean) — clean transitions are driven off
+	// savedContent below, not this status.
+	saveStatus: {
+		type: String,
+		default: 'idle',
+		validator: (v) =>
+			['idle', 'dirty', 'saving', 'saved', 'failed'].includes(v),
+	},
+	// The canonical content the parent has confirmed as saved. The editor
+	// reconciles its dirty flag against this — concurrent / out-of-order
+	// saves can't trick the editor into marking the wrong payload clean
+	// because the source of truth is the actual content the parent reports
+	// as saved, not an internal in-flight slot.
+	savedContent: {
+		type: String,
+		default: '',
+	},
 });
 
-const emit = defineEmits(['save']);
+const emit = defineEmits(['save', 'dirty-change']);
 const hasUnsavedChanges = ref(false);
 const lastSavedContent = ref(props.content || '');
 
@@ -133,7 +151,7 @@ async function uploadFile(file) {
 }
 
 /**
- * Handle paste events to upload images
+ * Handle paste events to upload images and parse markdown text
  */
 function handlePaste(_view, event) {
 	const items = event.clipboardData?.items;
@@ -153,6 +171,23 @@ function handlePaste(_view, event) {
 			return true;
 		}
 	}
+
+	// If clipboard has plain text but no HTML, treat it as markdown so
+	// pastes like `# Heading` or `**bold**` render instead of staying literal.
+	// When HTML is present (Word, Google Docs, web pages), let ProseMirror's
+	// default handler keep the rich formatting.
+	const text = event.clipboardData?.getData('text/plain');
+	const html = event.clipboardData?.getData('text/html');
+	if (text && !html && editor.value?.markdown) {
+		event.preventDefault();
+		editor.value
+			.chain()
+			.focus()
+			.insertContent(text, { contentType: 'markdown' })
+			.run();
+		return true;
+	}
+
 	return false;
 }
 
@@ -497,7 +532,7 @@ function handleContentChange() {
 }
 
 async function autoSave() {
-	if (props.saving || !editor.value) {
+	if (props.saving || props.saveStatus === 'saving' || !editor.value) {
 		return;
 	}
 
@@ -514,9 +549,6 @@ async function autoSave() {
 	}
 
 	emit('save', currentContent);
-	lastSavedContent.value = currentContent;
-	hasUnsavedChanges.value = false;
-	// Notify components that save is complete so they can restore focus
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 }
 
@@ -531,6 +563,13 @@ function saveToDB() {
 		return;
 	}
 
+	// Don't fire a second save while one is already in flight — the parent
+	// serializes per-doc, but firing twice still spins the button and risks
+	// confusing autosave/manual-save interleaving.
+	if (props.saving || props.saveStatus === 'saving') {
+		return;
+	}
+
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
@@ -538,14 +577,39 @@ function saveToDB() {
 	const markdown = editor.value.getMarkdown();
 	if (markdown !== undefined) {
 		emit('save', markdown);
-		lastSavedContent.value = markdown;
-		hasUnsavedChanges.value = false;
-		// Notify components that save is complete so they can restore focus
 		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 	} else {
 		toast.error('Could not get content from editor');
 	}
 }
+
+// Reconcile dirty state against the canonical saved content the parent
+// reports. This handles concurrent / collapsed saves correctly: whatever
+// the parent has actually persisted is the truth; we don't trust an
+// internal in-flight slot that could be overwritten by a later save.
+watch(
+	() => props.savedContent,
+	(saved) => {
+		if (saved == null) return;
+		lastSavedContent.value = saved;
+		const current = editor.value?.getMarkdown();
+		const dirty = current !== undefined && current !== saved;
+		hasUnsavedChanges.value = dirty;
+		emit('dirty-change', dirty);
+	},
+);
+
+// On failure, surface dirty so the next edit / retry isn't gated by a
+// stale "clean" assumption.
+watch(
+	() => props.saveStatus,
+	(status) => {
+		if (status === 'failed') {
+			hasUnsavedChanges.value = true;
+			emit('dirty-change', true);
+		}
+	},
+);
 
 // Expose methods for parent component
 defineExpose({

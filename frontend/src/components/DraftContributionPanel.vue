@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" @save="saveContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -116,26 +116,35 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { createResource, Badge, Button, Dropdown, Dialog, FormControl, toast, LoadingIndicator } from "frappe-ui";
-import WikiEditor from './WikiEditor.vue';
 import { useChangeRequestStore } from '@/stores/changeRequest';
-import LucideSave from '~icons/lucide/save';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucideFolder from '~icons/lucide/folder';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import {
+	Badge,
+	Button,
+	Dialog,
+	Dropdown,
+	FormControl,
+	LoadingIndicator,
+	toast,
+} from 'frappe-ui';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
+import LucideFolder from '~icons/lucide/folder';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucidePencil from '~icons/lucide/pencil';
+import LucideSave from '~icons/lucide/save';
+import WikiEditor from './WikiEditor.vue';
 
 const props = defineProps({
 	docKey: {
 		type: String,
-		required: true
+		required: true,
 	},
 	spaceId: {
 		type: String,
-		required: false
-	}
+		required: false,
+	},
 });
 
 const emit = defineEmits(['refresh']);
@@ -147,26 +156,37 @@ const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 
 const crStore = useChangeRequestStore();
+const draftStore = useDraftWorkspaceStore();
 
 const crPage = ref(null);
 const isLoading = ref(true);
 
-const fetchCrPageResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_page',
-});
-
+// Read the page through the workspace store. Tmp pages live entirely on the
+// client; the store returns them from pagesByKey without hitting the
+// backend (which would 404 on a tmp_* key).
 async function loadCrPage() {
-	if (!crStore.currentChangeRequest) {
+	const docKey = props.docKey;
+	if (!docKey) {
 		crPage.value = null;
+		isLoading.value = false;
 		return;
 	}
 	isLoading.value = true;
 	try {
-		const result = await fetchCrPageResource.submit({
-			name: crStore.currentChangeRequest.name,
-			doc_key: props.docKey,
-		});
-		crPage.value = result;
+		const page = await draftStore.loadCrPage(docKey);
+		if (page) {
+			const node = draftStore.findNode(docKey);
+			crPage.value = {
+				doc_key: docKey,
+				title: page.title,
+				route: page.route,
+				content: page.content,
+				is_published: page.isPublished,
+				is_group: node?.isGroup || false,
+			};
+		} else {
+			crPage.value = null;
+		}
 	} catch (error) {
 		console.error('Error loading draft page:', error);
 		crPage.value = null;
@@ -177,40 +197,74 @@ async function loadCrPage() {
 
 onMounted(async () => {
 	if (props.spaceId) {
-		await crStore.initChangeRequest(props.spaceId);
-		await crStore.loadChanges();
+		await draftStore.hydrate(props.spaceId);
 	}
 	await loadCrPage();
 });
 
-watch(() => props.docKey, async (newId) => {
-	if (newId) {
-		await loadCrPage();
-	}
-});
+watch(
+	() => props.docKey,
+	async (newId) => {
+		if (newId) {
+			await loadCrPage();
+		}
+	},
+);
 
-watch(() => props.spaceId, async (newSpaceId) => {
-	if (newSpaceId) {
-		crStore.currentChangeRequest = null;
-		await crStore.initChangeRequest(newSpaceId);
-		await crStore.loadChanges();
-		await loadCrPage();
-	}
-});
+watch(
+	() => props.spaceId,
+	async (newSpaceId) => {
+		if (newSpaceId) {
+			crStore.currentChangeRequest = null;
+			draftStore.reset();
+			await draftStore.hydrate(newSpaceId);
+			await loadCrPage();
+		}
+	},
+);
 
-watch(crPage, (page) => {
-	if (page) {
-		editableTitle.value = page.title || '';
-	}
-}, { immediate: true });
+// Once the create syncs, swap the URL from /draft/tmp_* to /draft/realKey.
+// Without this the panel would stay on a temp key after sync, and any
+// reload would 404 on get_cr_page.
+watch(
+	() => draftStore.tempKeyResolutions[props.docKey],
+	(realKey) => {
+		if (realKey && realKey !== props.docKey) {
+			router.replace({
+				name: 'DraftChangeRequest',
+				params: { spaceId: props.spaceId, docKey: realKey },
+			});
+		}
+	},
+);
+
+watch(
+	crPage,
+	(page) => {
+		if (page) {
+			editableTitle.value = page.title || '';
+		}
+	},
+	{ immediate: true },
+);
 
 const editorContent = computed(() => {
 	return crPage.value?.content || '';
 });
 
-const isSaving = computed(() => {
-	return crStore.isUpdatingPage;
-});
+// Save state is now owned by the workspace store. The editor reads
+// pageSaveStatus and only marks itself clean when it sees 'saved' for the
+// content it just submitted.
+const pageSaveStatus = computed(
+	() => draftStore.pagesByKey[props.docKey]?.saveStatus || 'idle',
+);
+const isSaving = computed(() => pageSaveStatus.value === 'saving');
+// Canonical saved content from the store. The editor reconciles its dirty
+// flag against this rather than tracking what it last submitted, so
+// concurrent saves can't mark the wrong payload clean.
+const savedContent = computed(
+	() => draftStore.pagesByKey[props.docKey]?.content ?? '',
+);
 
 const editorKey = computed(() => {
 	if (crPage.value) {
@@ -232,14 +286,10 @@ const menuOptions = computed(() => {
 async function saveTitleIfChanged() {
 	const newTitle = editableTitle.value.trim();
 	if (!newTitle || newTitle === (crPage.value?.title || '')) return;
-	if (!crStore.currentChangeRequest || !crPage.value?.doc_key) return;
+	if (!crPage.value?.doc_key) return;
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, crPage.value.doc_key, {
-			title: newTitle,
-		});
-		await crStore.loadChanges();
+		await draftStore.updateNode(crPage.value.doc_key, { title: newTitle });
 		await loadCrPage();
-		emit('refresh');
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
 	}
@@ -256,15 +306,11 @@ async function saveRoute(close) {
 		close();
 		return;
 	}
-	if (!crStore.currentChangeRequest || !crPage.value?.doc_key) return;
+	if (!crPage.value?.doc_key) return;
 	isSavingRoute.value = true;
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, crPage.value.doc_key, {
-			route: newRoute,
-		});
-		await crStore.loadChanges();
+		await draftStore.updateNode(crPage.value.doc_key, { route: newRoute });
 		await loadCrPage();
-		emit('refresh');
 		close();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating route'));
@@ -278,34 +324,32 @@ function saveFromHeader() {
 }
 
 async function saveContent(content) {
-	if (!crStore.currentChangeRequest || !crPage.value?.doc_key) return;
+	if (!crPage.value?.doc_key) return;
 	try {
-		await crStore.updatePage(
-			crStore.currentChangeRequest.name,
+		await draftStore.saveContent(
 			crPage.value.doc_key,
-			{ content, title: editableTitle.value },
+			content,
+			editableTitle.value,
 		);
-		toast.success(__('Draft updated'));
-		await crStore.loadChanges();
-		emit('refresh');
 	} catch (error) {
 		console.error('Error saving draft:', error);
-		toast.error(error.messages?.[0] || __('Error saving draft'));
+		// Inline failure UX comes in task #7; keep a toast for now so the
+		// user isn't left wondering whether their save worked.
+		toast.error(
+			error.messages?.[0] || error.message || __('Error saving draft'),
+		);
 	}
 }
 
 async function deleteDraft() {
-	if (!crStore.currentChangeRequest || !crPage.value?.doc_key) return;
+	if (!crPage.value?.doc_key) return;
 	try {
-		await crStore.deletePage(crStore.currentChangeRequest.name, crPage.value.doc_key);
+		await draftStore.deleteNode(crPage.value.doc_key);
 		toast.success(__('Draft deleted'));
-		await crStore.loadChanges();
-		emit('refresh');
 		router.push({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
 	} catch (error) {
 		console.error('Error deleting draft:', error);
 		toast.error(error.messages?.[0] || __('Error deleting draft'));
 	}
 }
-
 </script>

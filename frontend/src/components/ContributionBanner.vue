@@ -13,6 +13,16 @@
 		</div>
 
 		<div class="flex items-center gap-2">
+			<span
+				v-if="syncStateLabel"
+				class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium"
+				:class="syncStateClass"
+				:title="syncStateTitle"
+			>
+				<component :is="syncStateIcon" class="size-3.5" :class="{ 'animate-spin': syncStateLabel === __('Saving…') }" />
+				{{ syncStateLabel }}
+			</span>
+
 			<button
 				v-if="crStore.changeCount > 0"
 				class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -27,7 +37,7 @@
 					v-if="canShowMerge"
 					size="sm"
 					:loading="crStore.isMerging"
-					:disabled="mergeDisabled"
+					:disabled="mergeDisabledComputed"
 					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
@@ -37,6 +47,8 @@
 					v-if="crStore.changeCount > 0"
 					size="sm"
 					:loading="crStore.isSubmitting"
+					:disabled="submitDisabled"
+					:title="submitButtonTitle"
 					@click="showSubmitConfirmDialog = true"
 				>
 					{{ __('Submit for Review') }}
@@ -51,7 +63,7 @@
 					v-if="canShowMerge"
 					size="sm"
 					:loading="crStore.isMerging"
-					:disabled="mergeDisabled"
+					:disabled="mergeDisabledComputed"
 					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
@@ -166,24 +178,90 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { Badge, Button, Dialog } from 'frappe-ui';
-import LucideGitBranch from '~icons/lucide/git-branch';
-import LucideClock from '~icons/lucide/clock';
-import LucideCheckCircle from '~icons/lucide/check-circle';
-import LucideXCircle from '~icons/lucide/x-circle';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideList from '~icons/lucide/list';
-import LucideFolder from '~icons/lucide/folder';
-import LucideFileText from '~icons/lucide/file-text';
-import LucideLink from '~icons/lucide/link';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
+import { Badge, Button, Dialog } from 'frappe-ui';
+import { computed, ref } from 'vue';
+import LucideAlertCircle from '~icons/lucide/alert-circle';
+import LucideAlertTriangle from '~icons/lucide/alert-triangle';
+import LucideCheckCircle from '~icons/lucide/check-circle';
+import LucideClock from '~icons/lucide/clock';
+import LucideFileText from '~icons/lucide/file-text';
+import LucideFolder from '~icons/lucide/folder';
+import LucideGitBranch from '~icons/lucide/git-branch';
+import LucideLink from '~icons/lucide/link';
+import LucideList from '~icons/lucide/list';
+import LucideLoader from '~icons/lucide/loader-2';
+import LucideXCircle from '~icons/lucide/x-circle';
 
-const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
+const {
+	getChangeIcon,
+	getChangeIconClass,
+	getChangeTheme,
+	getChangeLabel,
+	getChangeDescription,
+} = useChangeTypeDisplay();
 const crStore = useChangeRequestStore();
+const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+
+// Submit / merge are blocked while local mutations are still syncing or
+// failed — submitting a stale backend CR would silently drop the user's
+// in-flight edits. Reordering counts as pending too via mergeDisabled.
+const hasUnsyncedWork = computed(
+	() => draftStore.hasPendingMutations || draftStore.hasFailedMutations,
+);
+const submitDisabled = computed(() => hasUnsyncedWork.value);
+const submitButtonTitle = computed(() => {
+	if (draftStore.hasFailedMutations) {
+		return __('Resolve failed changes before submitting');
+	}
+	if (draftStore.hasPendingMutations) {
+		return __('Wait for pending changes to sync before submitting');
+	}
+	return '';
+});
+
+// Durable sync indicator. Replaces per-edit success toasts: while the
+// store is mid-flight or has failures, this pill is the source of truth.
+const syncStateLabel = computed(() => {
+	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
+		return __('Sync failed');
+	}
+	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
+		return __('Saving…');
+	}
+	if (draftStore.sync.lastSavedAt) {
+		return __('All changes saved');
+	}
+	return '';
+});
+const syncStateIcon = computed(() => {
+	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
+		return LucideAlertTriangle;
+	}
+	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
+		return LucideLoader;
+	}
+	return LucideCheckCircle;
+});
+const syncStateClass = computed(() => {
+	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
+		return 'bg-red-50 text-red-700 border border-red-200';
+	}
+	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
+		return 'bg-amber-50 text-amber-700 border border-amber-200';
+	}
+	return 'bg-green-50 text-green-700 border border-green-200';
+});
+const syncStateTitle = computed(() => {
+	if (draftStore.sync.error) return draftStore.sync.error;
+	const failed = draftStore.pending.find((m) => m.status === 'failed');
+	if (failed?.error) return failed.error;
+	return '';
+});
 
 const props = defineProps({
 	mergeDisabled: {
@@ -194,7 +272,9 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'withdraw', 'merge']);
 
-const changeRequestStatus = computed(() => crStore.currentChangeRequest?.status || 'Draft');
+const changeRequestStatus = computed(
+	() => crStore.currentChangeRequest?.status || 'Draft',
+);
 
 const showChangesDialog = ref(false);
 const showSubmitConfirmDialog = ref(false);
@@ -209,14 +289,29 @@ const canShowMerge = computed(() => {
 });
 
 const mergeButtonTitle = computed(() => {
+	if (draftStore.hasFailedMutations) {
+		return __('Resolve failed changes before merging');
+	}
+	if (draftStore.hasPendingMutations) {
+		return __('Wait for pending changes to sync before merging');
+	}
 	if (props.mergeDisabled) {
 		return __('Please wait for reordering to finish before merging');
 	}
 	return '';
 });
 
+const mergeDisabledComputed = computed(
+	() => props.mergeDisabled || hasUnsyncedWork.value,
+);
+
 const canShowArchive = computed(() => {
-	return crStore.changeCount > 0 && (changeRequestStatus.value === 'Draft' || changeRequestStatus.value === 'In Review' || changeRequestStatus.value === 'Changes Requested');
+	return (
+		crStore.changeCount > 0 &&
+		(changeRequestStatus.value === 'Draft' ||
+			changeRequestStatus.value === 'In Review' ||
+			changeRequestStatus.value === 'Changes Requested')
+	);
 });
 
 const BANNER_CONFIG = {
@@ -259,7 +354,9 @@ const DEFAULT_BANNER = {
 	description: '',
 };
 
-const bannerConfig = computed(() => BANNER_CONFIG[changeRequestStatus.value] || DEFAULT_BANNER);
+const bannerConfig = computed(
+	() => BANNER_CONFIG[changeRequestStatus.value] || DEFAULT_BANNER,
+);
 const bannerClass = computed(() => bannerConfig.value.class);
 const bannerIcon = computed(() => bannerConfig.value.icon);
 const bannerTitle = computed(() => bannerConfig.value.title);

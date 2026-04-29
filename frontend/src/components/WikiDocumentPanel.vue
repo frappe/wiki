@@ -68,7 +68,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" @save="saveContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" />
 			</div>
 		</div>
 
@@ -122,27 +122,37 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { createDocumentResource, Badge, Button, Dropdown, Dialog, FormControl, createResource, toast } from "frappe-ui";
-import WikiEditor from './WikiEditor.vue';
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucideLock from '~icons/lucide/lock';
+import {
+	Badge,
+	Button,
+	Dialog,
+	Dropdown,
+	FormControl,
+	createDocumentResource,
+	createResource,
+	toast,
+} from 'frappe-ui';
+import { computed, ref, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
+import LucideLock from '~icons/lucide/lock';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucidePencil from '~icons/lucide/pencil';
+import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
 const props = defineProps({
 	pageId: {
 		type: String,
-		required: true
+		required: true,
 	},
 	spaceId: {
 		type: String,
-		required: false
-	}
+		required: false,
+	},
 });
 
 const emit = defineEmits(['refresh']);
@@ -153,10 +163,11 @@ const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 
 const crStore = useChangeRequestStore();
+const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
 
 const wikiDoc = createDocumentResource({
-	doctype: "Wiki Document",
+	doctype: 'Wiki Document',
 	name: props.pageId,
 	auto: true,
 });
@@ -170,13 +181,16 @@ const crPageResource = createResource({
 
 const currentCrPage = ref(null);
 
-watch(() => props.pageId, (newPageId) => {
-	if (newPageId) {
-		currentCrPage.value = null;
-		wikiDoc.name = newPageId;
-		wikiDoc.reload();
-	}
-});
+watch(
+	() => props.pageId,
+	(newPageId) => {
+		if (newPageId) {
+			currentCrPage.value = null;
+			wikiDoc.name = newPageId;
+			wikiDoc.reload();
+		}
+	},
+);
 
 watch(
 	[() => crStore.currentChangeRequest?.name, () => wikiDoc.doc?.doc_key],
@@ -233,12 +247,31 @@ const displayRoute = computed(() => {
 	return currentCrPage.value?.route || wikiDoc.doc?.route || '';
 });
 
-watch(displayTitle, (newTitle) => {
-	editableTitle.value = newTitle;
-}, { immediate: true });
+watch(
+	displayTitle,
+	(newTitle) => {
+		editableTitle.value = newTitle;
+	},
+	{ immediate: true },
+);
 
-const isSaving = computed(() => {
-	return crStore.isUpdatingPage;
+// Save state for the editor lives on the workspace store entry keyed by
+// the published doc's CR overlay key. Until the user saves once, no entry
+// exists and we report 'idle'.
+const pageSaveStatus = computed(() => {
+	const docKey = wikiDoc.doc?.doc_key;
+	if (!docKey) return 'idle';
+	return draftStore.pagesByKey[docKey]?.saveStatus || 'idle';
+});
+const isSaving = computed(() => pageSaveStatus.value === 'saving');
+// Canonical saved content the editor reconciles against. Falls back to
+// editorContent so the first edit isn't seen as dirty before any save
+// has happened.
+const savedContent = computed(() => {
+	const docKey = wikiDoc.doc?.doc_key;
+	const stored = docKey ? draftStore.pagesByKey[docKey]?.content : null;
+	if (stored != null) return stored;
+	return editorContent.value;
 });
 
 const editorKey = computed(() => {
@@ -260,7 +293,11 @@ const menuOptions = computed(() => {
 		options.push({
 			label: __('View in Desk'),
 			icon: 'external-link',
-			onClick: () => window.open(`/app/wiki-document/${encodeURIComponent(wikiDoc.doc.name)}`, '_blank'),
+			onClick: () =>
+				window.open(
+					`/app/wiki-document/${encodeURIComponent(wikiDoc.doc.name)}`,
+					'_blank',
+				),
 		});
 	}
 	return options;
@@ -269,14 +306,10 @@ const menuOptions = computed(() => {
 async function saveTitleIfChanged() {
 	const newTitle = editableTitle.value.trim();
 	if (!newTitle || newTitle === displayTitle.value) return;
-	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) return;
+	if (!wikiDoc.doc?.doc_key) return;
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, wikiDoc.doc.doc_key, {
-			title: newTitle,
-		});
-		await crStore.loadChanges();
+		await draftStore.updateNode(wikiDoc.doc.doc_key, { title: newTitle });
 		await loadCrPage();
-		emit('refresh');
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
 	}
@@ -293,15 +326,11 @@ async function saveRoute(close) {
 		close();
 		return;
 	}
-	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) return;
+	if (!wikiDoc.doc?.doc_key) return;
 	isSavingRoute.value = true;
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, wikiDoc.doc.doc_key, {
-			route: newRoute,
-		});
-		await crStore.loadChanges();
+		await draftStore.updateNode(wikiDoc.doc.doc_key, { route: newRoute });
 		await loadCrPage();
-		emit('refresh');
 		close();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating route'));
@@ -311,18 +340,13 @@ async function saveRoute(close) {
 }
 
 async function togglePublish() {
-	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) return;
+	if (!wikiDoc.doc?.doc_key) return;
 	const newStatus = displayPublished.value ? 0 : 1;
-	const action = newStatus ? __('published') : __('unpublished');
-
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, wikiDoc.doc.doc_key, {
+		await draftStore.updateNode(wikiDoc.doc.doc_key, {
 			is_published: newStatus,
 		});
-		toast.success(__('Page {0}', [action]));
-		await crStore.loadChanges();
 		await loadCrPage();
-		emit('refresh');
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating publish status'));
 	}
@@ -337,23 +361,26 @@ function saveFromHeader() {
 }
 
 async function saveContent(content) {
-	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) {
+	if (!wikiDoc.doc?.doc_key) {
 		toast.error(__('No active change request'));
 		return;
 	}
 
 	try {
-		await crStore.updatePage(crStore.currentChangeRequest.name, wikiDoc.doc.doc_key, {
+		await draftStore.saveContent(
+			wikiDoc.doc.doc_key,
 			content,
-			title: editableTitle.value,
-		});
-		toast.success(__('Draft updated'));
-		await crStore.loadChanges();
-		emit('refresh');
+			editableTitle.value,
+		);
+		// Refresh the CR overlay snapshot so the panel's title/route/etc.
+		// stay in sync with the change we just wrote. Inline failure UX
+		// lands in task #7.
+		await loadCrPage();
 	} catch (error) {
 		console.error('Error saving change request:', error);
-		toast.error(error.messages?.[0] || __('Error saving draft'));
+		toast.error(
+			error.messages?.[0] || error.message || __('Error saving draft'),
+		);
 	}
 }
-
 </script>
