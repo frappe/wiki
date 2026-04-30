@@ -23,15 +23,6 @@
 				{{ syncStateLabel }}
 			</span>
 
-			<button
-				v-if="crStore.changeCount > 0"
-				class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200"
-				@click="showChangesDialog = true"
-			>
-				<LucideList class="size-3.5" />
-				{{ crStore.changeCount }} {{ crStore.changeCount === 1 ? __('change') : __('changes') }}
-			</button>
-
 			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
 					v-if="canShowMerge"
@@ -71,16 +62,11 @@
 				</Button>
 			</template>
 
-			<Button
-				v-if="canShowArchive"
-				variant="outline"
-				theme="red"
-				size="sm"
-				:loading="crStore.isArchiving"
-				@click="$emit('withdraw')"
-			>
-				{{ __('Archive') }}
-			</Button>
+			<Dropdown v-if="menuOptions.length > 0" :options="menuOptions">
+				<Button variant="outline" size="sm" :title="__('More actions')">
+					<LucideMoreVertical class="size-4" />
+				</Button>
+			</Dropdown>
 		</div>
 
 		<Dialog v-model="showChangesDialog" :options="{ size: 'lg' }">
@@ -182,7 +168,7 @@ import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
-import { Badge, Button, Dialog } from 'frappe-ui';
+import { Badge, Button, Dialog, Dropdown } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
@@ -192,8 +178,8 @@ import LucideFileText from '~icons/lucide/file-text';
 import LucideFolder from '~icons/lucide/folder';
 import LucideGitBranch from '~icons/lucide/git-branch';
 import LucideLink from '~icons/lucide/link';
-import LucideList from '~icons/lucide/list';
 import LucideLoader from '~icons/lucide/loader-2';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucideXCircle from '~icons/lucide/x-circle';
 
 const {
@@ -314,9 +300,30 @@ const canShowArchive = computed(() => {
 	);
 });
 
+const menuOptions = computed(() => {
+	const options = [];
+	if (crStore.changeCount > 0) {
+		options.push({
+			label: __('View changes ({0})', [crStore.changeCount]),
+			icon: 'list',
+			onClick: () => {
+				showChangesDialog.value = true;
+			},
+		});
+	}
+	if (canShowArchive.value) {
+		options.push({
+			label: __('Archive'),
+			icon: 'archive',
+			onClick: () => emit('withdraw'),
+		});
+	}
+	return options;
+});
+
 const BANNER_CONFIG = {
 	Draft: {
-		class: 'bg-blue-50 border-b border-blue-200 text-blue-800',
+		class: 'bg-gray-50 border-b border-gray-200 text-gray-800',
 		icon: LucideGitBranch,
 		title: __('Change Request Draft'),
 		description: __('Your changes are saved as a draft change request'),
