@@ -38,7 +38,7 @@ import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import { common, createLowlight } from 'lowlight';
-import { createApp, h, onMounted, onUnmounted, ref } from 'vue';
+import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
@@ -583,6 +583,10 @@ function saveToDB() {
 	}
 }
 
+function getMarkdown() {
+	return editor.value?.getMarkdown();
+}
+
 // Reconcile dirty state against the canonical saved content the parent
 // reports. This handles concurrent / collapsed saves correctly: whatever
 // the parent has actually persisted is the truth; we don't trust an
@@ -614,6 +618,7 @@ watch(
 // Expose methods for parent component
 defineExpose({
 	saveToDB,
+	getMarkdown,
 	hasUnsavedChanges,
 });
 

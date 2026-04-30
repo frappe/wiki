@@ -174,25 +174,29 @@ async function loadCrPage() {
 	isLoading.value = true;
 	try {
 		const page = await draftStore.loadCrPage(docKey);
-		if (page) {
-			const node = draftStore.findNode(docKey);
-			crPage.value = {
-				doc_key: docKey,
-				title: page.title,
-				route: page.route,
-				content: page.content,
-				is_published: page.isPublished,
-				is_group: node?.isGroup || false,
-			};
-		} else {
-			crPage.value = null;
-		}
+		setCrPageFromStore(docKey, page);
 	} catch (error) {
 		console.error('Error loading draft page:', error);
 		crPage.value = null;
 	} finally {
 		isLoading.value = false;
 	}
+}
+
+function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
+	if (!page) {
+		crPage.value = null;
+		return;
+	}
+	const node = draftStore.findNode(docKey);
+	crPage.value = {
+		doc_key: docKey,
+		title: page.title,
+		route: page.route,
+		content: page.content,
+		is_published: page.isPublished,
+		is_group: node?.isGroup || false,
+	};
 }
 
 onMounted(async () => {
@@ -230,6 +234,22 @@ watch(
 	() => draftStore.tempKeyResolutions[props.docKey],
 	(realKey) => {
 		if (realKey && realKey !== props.docKey) {
+			const currentContent = editorRef.value?.getMarkdown?.();
+			if (currentContent !== undefined) {
+				draftStore.updateLocalPageContent(
+					realKey,
+					currentContent,
+					editableTitle.value,
+				);
+				draftStore
+					.saveContent(realKey, currentContent, editableTitle.value)
+					.catch((error) => {
+						console.error('Error saving draft after create:', error);
+						toast.error(
+							error.messages?.[0] || error.message || __('Error saving draft'),
+						);
+					});
+			}
 			router.replace({
 				name: 'DraftChangeRequest',
 				params: { spaceId: props.spaceId, docKey: realKey },
@@ -246,6 +266,14 @@ watch(
 		}
 	},
 	{ immediate: true },
+);
+
+watch(
+	() => draftStore.pagesByKey[props.docKey],
+	(page) => {
+		if (page) setCrPageFromStore(props.docKey, page);
+	},
+	{ deep: true },
 );
 
 const editorContent = computed(() => {

@@ -20,6 +20,15 @@ function makeMutationId() {
 	return `m_${rand}`;
 }
 
+function slugify(text) {
+	return String(text || '')
+		.toLowerCase()
+		.trim()
+		.replace(/[^\w\s-]/g, '')
+		.replace(/[\s_-]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
 // Normalize a server tree node (snake_case from get_cr_tree) into a DraftNode.
 function normalizeNode(serverNode, parentKey = null) {
 	const docKey = serverNode.doc_key;
@@ -213,6 +222,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (docKey.startsWith('tmp_')) {
 			return pagesByKey[docKey] || null;
 		}
+		const localPage = pagesByKey[docKey];
+		if (
+			localPage &&
+			(localPage.dirty ||
+				['dirty', 'saving', 'failed'].includes(localPage.saveStatus))
+		) {
+			return localPage;
+		}
 		if (!crName.value) return null;
 		const result = await crPageResource.submit({
 			name: crName.value,
@@ -229,6 +246,35 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			error: null,
 		};
 		return pagesByKey[docKey];
+	}
+
+	function updateLocalPageContent(docKey, content, title = null) {
+		const realKey = tempKeyResolutions[docKey] || docKey;
+		if (!realKey) return null;
+		let page = pagesByKey[realKey] || pagesByKey[docKey];
+		if (!page) {
+			page = pagesByKey[realKey] = {
+				docKey: realKey,
+				title: title || '',
+				route: '',
+				content: '',
+				isPublished: true,
+				dirty: false,
+				saveStatus: 'idle',
+				error: null,
+			};
+		}
+		page.docKey = realKey;
+		page.content = content;
+		if (title != null) page.title = title;
+		page.dirty = true;
+		page.saveStatus = 'dirty';
+		page.error = null;
+		if (realKey !== docKey) {
+			pagesByKey[realKey] = page;
+			delete pagesByKey[docKey];
+		}
+		return page;
 	}
 
 	function findNode(docKey, nodes = tree.value) {
@@ -410,7 +456,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			serverDocKey: null,
 			documentName: null,
 			title,
-			route: '',
+			route: slugify(title),
 			parentKey: effectiveParent,
 			orderIndex: null,
 			isGroup,
@@ -428,7 +474,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			pagesByKey[tempKey] = {
 				docKey: tempKey,
 				title,
-				route: '',
+				route: slugify(title),
 				content,
 				isPublished,
 				dirty: false,
@@ -447,14 +493,28 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			content,
 		});
 
+		const createPromise = syncCreateNode(tempKey, mutation);
+
+		// Swallow rejection on the stored promise so dependent awaiters
+		// (resolveDocKey) don't trigger unhandled-rejection warnings; we
+		// surface the error through mutation status instead.
+		createInFlight.set(
+			tempKey,
+			createPromise.catch(() => null),
+		);
+		return { tempKey, promise: createPromise };
+	}
+
+	function syncCreateNode(tempKey, mutation) {
+		const payload = mutation.payload;
 		const createPromise = (async () => {
 			try {
 				if (!(await ensureCr())) throw new Error('No change request');
 
 				// If parent is itself a pending temp create, wait for it.
-				let resolvedParent = effectiveParent;
-				if (effectiveParent?.startsWith('tmp_')) {
-					resolvedParent = await resolveDocKey(effectiveParent);
+				let resolvedParent = payload.parentKey;
+				if (resolvedParent?.startsWith('tmp_')) {
+					resolvedParent = await resolveDocKey(resolvedParent);
 					if (!resolvedParent) throw new Error('Parent create failed');
 				}
 
@@ -462,11 +522,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				const result = await crStore.createPage(
 					crName.value,
 					resolvedParent,
-					title,
-					content,
-					isGroup,
-					isExternalLink,
-					externalUrl,
+					payload.title,
+					payload.content,
+					payload.isGroup,
+					payload.isExternalLink,
+					payload.externalUrl,
 				);
 				const realKey = typeof result === 'string' ? result : result?.doc_key;
 				if (realKey) {
@@ -474,12 +534,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					if (node) {
 						node.docKey = realKey;
 						node.serverDocKey = realKey;
+						node.route = result?.route || node.route;
 						node.localStatus = null;
 					}
 					if (pagesByKey[tempKey]) {
 						pagesByKey[realKey] = {
 							...pagesByKey[tempKey],
 							docKey: realKey,
+							route: result?.route || pagesByKey[tempKey].route,
 						};
 						delete pagesByKey[tempKey];
 					}
@@ -498,15 +560,26 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				createInFlight.delete(tempKey);
 			}
 		})();
+		return createPromise;
+	}
 
-		// Swallow rejection on the stored promise so dependent awaiters
-		// (resolveDocKey) don't trigger unhandled-rejection warnings; we
-		// surface the error through mutation status instead.
+	function retryFailedCreate(tempKey) {
+		const mutation = pending.value.find(
+			(m) =>
+				m.type === 'create_node' &&
+				m.payload?.tempKey === tempKey &&
+				m.status === 'failed',
+		);
+		if (!mutation) return null;
+		mutation.error = null;
+		const node = findNode(tempKey);
+		if (node) node.localStatus = 'pending_create';
+		const promise = syncCreateNode(tempKey, mutation);
 		createInFlight.set(
 			tempKey,
-			createPromise.catch(() => null),
+			promise.catch(() => null),
 		);
-		return { tempKey, promise: createPromise };
+		return promise;
 	}
 
 	async function updateNode(docKey, fields) {
@@ -530,6 +603,22 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (fields.route !== undefined) page.route = fields.route;
 			if (fields.is_published !== undefined)
 				page.isPublished = !!fields.is_published;
+		}
+
+		if (docKey.startsWith('tmp_')) {
+			const failedCreate = pending.value.find(
+				(m) =>
+					m.type === 'create_node' &&
+					m.payload?.tempKey === docKey &&
+					m.status === 'failed',
+			);
+			if (failedCreate) {
+				if (fields.title !== undefined)
+					failedCreate.payload.title = fields.title;
+				if (fields.content !== undefined)
+					failedCreate.payload.content = fields.content;
+				retryFailedCreate(docKey);
+			}
 		}
 
 		supersedeFailedMutationsFor(`update:${docKey}`);
@@ -880,6 +969,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		reloadTree,
 		reloadChanges,
 		loadCrPage,
+		updateLocalPageContent,
 		findNode,
 		reset,
 		ensureCr,
