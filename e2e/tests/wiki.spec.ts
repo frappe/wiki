@@ -116,15 +116,15 @@ test.describe('Wiki Editor', () => {
 		// Should have sidebar with space management buttons
 		await expect(page.locator('aside')).toBeVisible();
 
-		// Wait for the tree to load (CR mode requires async init)
-		// Should have either "Create First Page" (empty space) or icon buttons for New Group/Page
+		// Wait for the tree to load (CR mode requires async init).
+		// On an empty space, both the toolbar "New Page" button and the
+		// empty-state "Create First Page" button render — `.or().first()`
+		// tolerates either without tripping strict-mode on two matches.
 		const createFirstPage = page.locator(
 			'button:has-text("Create First Page")',
 		);
 		const newPageButton = page.locator('button[title="New Page"]');
-
-		// Use a combined locator with sufficient timeout for CR tree loading
-		await expect(createFirstPage.or(newPageButton)).toBeVisible({
+		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 	});
