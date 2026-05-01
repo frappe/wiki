@@ -42,7 +42,7 @@
                     :tree-data="treeData"
                     :change-type-map="changeTypeMap"
                     :space-id="spaceId"
-                    :root-node="treeData.root_group || space.doc.root_group"
+                    :root-node="treeData.root_group || ''"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="refreshTree"
@@ -245,7 +245,7 @@ import {
 	createDocumentResource,
 	toast,
 } from 'frappe-ui';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
@@ -265,6 +265,16 @@ const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+
+// Expose the draft workspace store for E2E tests (mirrors window.wikiEditor).
+// Lets specs invoke optimistic actions like moveNode without driving fragile
+// drag-and-drop sequences.
+onMounted(() => {
+	window.__draftStore = draftStore;
+});
+onBeforeUnmount(() => {
+	delete window.__draftStore;
+});
 
 const isManager = computed(() => userStore.isWikiManager);
 

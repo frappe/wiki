@@ -159,9 +159,6 @@ That is all.`;
 			// Set viewport for TOC visibility (lg breakpoint = 1024px)
 			await publicPage.setViewportSize({ width: 1100, height: 900 });
 
-			// Debug: Log the public page URL
-			console.log('Public page URL:', publicPage.url());
-
 			// Verify the page content has headings
 			await expect(
 				publicPage.locator('#wiki-content h2:has-text("Introduction")'),

@@ -204,8 +204,11 @@ const props = defineProps({
 		required: true,
 	},
 	rootNode: {
+		// Empty string while hydration is in flight; populated once
+		// draftStore.rootKey is set. createNode falls back to rootKey
+		// internally when this is empty, so it's safe to pass through.
 		type: String,
-		required: true,
+		default: '',
 	},
 	selectedPageId: {
 		type: String,

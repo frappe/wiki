@@ -73,7 +73,6 @@ test.describe('Wiki Document Ordering', () => {
 		};
 
 		const initialOrder = await getSidebarOrder();
-		console.log('Initial order:', initialOrder);
 
 		// Verify Q1-Q5 are in order
 		expect(initialOrder).toEqual(['Q1', 'Q2', 'Q3', 'Q4', 'Q5']);
@@ -96,7 +95,6 @@ test.describe('Wiki Document Ordering', () => {
 
 		// Get the new order - Q6 should be at the bottom
 		const orderAfterCreate = await getSidebarOrder();
-		console.log('Order after creating Q6:', orderAfterCreate);
 
 		// Q6 should appear at the end, not at the beginning
 		expect(orderAfterCreate[orderAfterCreate.length - 1]).toBe('Q6');
@@ -160,7 +158,6 @@ test.describe('Wiki Document Ordering', () => {
 		};
 
 		const initialOrder = await getSidebarFolderOrder();
-		console.log('Initial order:', initialOrder);
 		expect(initialOrder).toEqual([
 			'Folder1',
 			'Folder2',
@@ -191,7 +188,6 @@ test.describe('Wiki Document Ordering', () => {
 
 		// Verify the order persisted
 		const orderAfterRefresh = await getSidebarFolderOrder();
-		console.log('Order after refresh:', orderAfterRefresh);
 
 		expect(orderAfterRefresh).toEqual([
 			'Folder5',
@@ -268,7 +264,6 @@ test.describe('Wiki Document Ordering', () => {
 		};
 
 		const adminOrder = await getAdminOrder();
-		console.log('Admin order:', adminOrder);
 
 		// Navigate to public view
 		await page.goto(`/${spaceName}/alpha/page`);
@@ -291,7 +286,6 @@ test.describe('Wiki Document Ordering', () => {
 		};
 
 		const publicOrder = await getPublicOrder();
-		console.log('Public order:', publicOrder);
 
 		// Both orders should match
 		expect(publicOrder).toEqual(adminOrder);
@@ -361,8 +355,6 @@ test.describe('Wiki Document Ordering', () => {
 			return order;
 		};
 
-		console.log('Initial admin order:', await getOrder());
-
 		// Reorder via API: Move "Third" to first position
 		const newOrder = [folders[2], folders[0], folders[1]]; // Third, First, Second
 
@@ -378,7 +370,6 @@ test.describe('Wiki Document Ordering', () => {
 		await page.waitForLoadState('networkidle');
 
 		const adminOrderAfter = await getOrder();
-		console.log('Admin order after reorder:', adminOrderAfter);
 		expect(adminOrderAfter).toEqual(['Third', 'First', 'Second']);
 
 		// Check public view
@@ -400,7 +391,6 @@ test.describe('Wiki Document Ordering', () => {
 		};
 
 		const publicOrder = await getPublicOrder();
-		console.log('Public order after reorder:', publicOrder);
 		expect(publicOrder).toEqual(['Third', 'First', 'Second']);
 	});
 });

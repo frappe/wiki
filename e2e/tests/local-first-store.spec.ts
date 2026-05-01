@@ -1,0 +1,359 @@
+import { expect, test } from '@playwright/test';
+import { callMethod } from '../helpers/frappe';
+import { delayMethod, failMethod } from '../helpers/mock';
+
+interface DraftNode {
+	docKey: string;
+	title: string;
+	children: DraftNode[];
+}
+
+// `wikiEditor` is already declared globally by other specs (e.g.
+// iframe-embed.spec.ts). Only extend with what's specific to this file.
+declare global {
+	interface Window {
+		__draftStore: {
+			tree: DraftNode[];
+			rootKey: string | null;
+			moveNode: (args: {
+				docKey: string;
+				newParentKey: string | null;
+				newIndex: number;
+			}) => void;
+		};
+	}
+}
+
+/**
+ * E2E coverage for the local-first draft workspace store.
+ *
+ * These specs deliberately inject latency or failure on the underlying CR
+ * RPCs to verify that the optimistic UI does not regress: pages appear
+ * before the backend confirms, typed content survives temp-key promotion,
+ * failed saves keep local state visible, and submit/merge are blocked while
+ * mutations are pending or failed.
+ *
+ * See specs/local_first_editor_migration_step_1.md.
+ */
+
+const CR_METHOD_PREFIX =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
+
+async function createSpaceViaUI(
+	page: import('@playwright/test').Page,
+	{ name, route }: { name: string; route: string },
+) {
+	await page.goto('/wiki/spaces');
+	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'New Space' }).click();
+	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
+	await page.getByLabel('Space Name').fill(name);
+	await page.getByLabel('Route').fill(route);
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Create' })
+		.click();
+	await page.waitForLoadState('networkidle');
+	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	// `networkidle` can fire before draftStore.hydrate finishes setting
+	// rootKey. Without this wait, the create dialog falls back to
+	// `space.doc.root_group` (a Frappe document name) instead of the CR's
+	// doc_key, and the optimistic insert silently no-ops.
+	await page.waitForFunction(() => Boolean(window.__draftStore?.rootKey), {
+		timeout: 10000,
+	});
+	const spaceId = page.url().split('/wiki/spaces/')[1];
+	return { spaceId };
+}
+
+async function createPageViaUI(
+	page: import('@playwright/test').Page,
+	title: string,
+) {
+	const createFirstPage = page.getByRole('button', {
+		name: 'Create First Page',
+	});
+	const newPageButton = page.getByRole('button', { name: 'New Page' });
+	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await createFirstPage.click();
+	} else {
+		await newPageButton.click();
+	}
+	await page.getByLabel('Title').fill(title);
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Save Draft' })
+		.click();
+}
+
+test.describe('Local-first draft workspace', () => {
+	test('delayed create_cr_page: page appears immediately and content survives promotion', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Delay Create Space ${timestamp}`;
+		const spaceRoute = `delay-create-space-${timestamp}`;
+		const pageTitle = `delay-create-page-${timestamp}`;
+		const typedContent = `Typed before backend confirmed ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+
+		// Inject 2.5s of latency on create_cr_page so the optimistic UI is
+		// observable for the full duration before the temp key is promoted.
+		const unroute = await delayMethod(
+			page,
+			`${CR_METHOD_PREFIX}.create_cr_page`,
+			2500,
+		);
+
+		await createPageViaUI(page, pageTitle);
+
+		// Sidebar entry must be visible well before the create RPC resolves.
+		// The dialog also auto-navigates to /draft/<tmpKey>, so we don't need
+		// to click the sidebar entry — just verify both signals.
+		const sidebarEntry = page
+			.locator('aside')
+			.getByText(pageTitle, { exact: true });
+		await expect(sidebarEntry).toBeVisible({ timeout: 1500 });
+		await page.waitForURL(/\/draft\/tmp_[^/?#]+/, { timeout: 2000 });
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 5000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 5000,
+		});
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+
+		// Wait for the create RPC to actually resolve and the temp key to be
+		// swapped out for the real one. Then drop the interceptor.
+		await page.waitForFunction(
+			() => {
+				const draftKey = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!draftKey) return false;
+				return !decodeURIComponent(draftKey[1]).startsWith('tmp_');
+			},
+			{ timeout: 6000 },
+		);
+		await unroute();
+
+		// Typed content must still be in the editor after the key swap.
+		await expect(page.getByText(typedContent)).toBeVisible();
+
+		// Save Draft must succeed against the now-real key.
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+	});
+
+	test('failed update_cr_page: content stays visible and submit is blocked', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Fail Update Space ${timestamp}`;
+		const spaceRoute = `fail-update-space-${timestamp}`;
+		const pageTitle = `fail-update-page-${timestamp}`;
+		const typedContent = `Should survive failed save ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		// Wait for the URL to land on a real (non-temp) key so we don't
+		// accidentally fail the auto-save that fires when a temp key is
+		// promoted.
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		// Fail every update_cr_page from this point onward.
+		await failMethod(
+			page,
+			`${CR_METHOD_PREFIX}.update_cr_page`,
+			'Mocked update failure',
+		);
+
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+
+		// Sync-state badge should report failure.
+		await expect(page.getByText('Sync failed')).toBeVisible({
+			timeout: 5000,
+		});
+
+		// User's typed content must still be in the editor.
+		await expect(page.getByText(typedContent)).toBeVisible();
+
+		// Submit for Review must be disabled while there are failed mutations.
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeVisible();
+		await expect(submitButton).toBeDisabled();
+	});
+
+	test('delayed reorder: visual order stays stable across slow sync', async ({
+		page,
+		request,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Delay Reorder Space ${timestamp}`;
+		const spaceRoute = `delay-reorder-space-${timestamp}`;
+		const groupTitle = `Reorder Group ${timestamp}`;
+		const pageTitles = ['1', '2', '3', '4'].map(
+			(n) => `Reorder Page ${n} ${timestamp}`,
+		);
+
+		const { spaceId } = await createSpaceViaUI(page, {
+			name: spaceName,
+			route: spaceRoute,
+		});
+
+		// Seed a group with 4 pages directly via the existing CR APIs so the
+		// test focuses on the reorder behaviour, not creation.
+		const draft = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_or_create_draft_change_request`,
+			{ wiki_space: spaceId },
+		);
+		const tree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_cr_tree`,
+			{ name: draft.name },
+		);
+		const groupKey = await callMethod<string>(
+			request,
+			`${CR_METHOD_PREFIX}.create_cr_page`,
+			{
+				name: draft.name,
+				parent_key: tree.root_group,
+				title: groupTitle,
+				content: '',
+				is_group: 1,
+				is_published: 1,
+			},
+		);
+		for (const title of pageTitles) {
+			await callMethod(request, `${CR_METHOD_PREFIX}.create_cr_page`, {
+				name: draft.name,
+				parent_key: groupKey,
+				title,
+				content: '',
+				is_group: 0,
+				is_published: 1,
+			});
+		}
+
+		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('aside').getByText(groupTitle, { exact: true }).click();
+		for (const title of pageTitles) {
+			await expect(
+				page.locator('aside').getByText(title, { exact: true }),
+			).toBeVisible();
+		}
+
+		await page.waitForFunction(() => window.__draftStore !== undefined, {
+			timeout: 5000,
+		});
+
+		// Locate the doc_key of the page we want to move (first → third slot).
+		const movedTitle = pageTitles[0];
+		const movedDocKey = await page.evaluate((title) => {
+			type Node = {
+				title: string;
+				docKey: string;
+				children?: Node[];
+			};
+			const findInTree = (nodes: Node[] = []): string | null => {
+				for (const node of nodes) {
+					if (node.title === title) return node.docKey;
+					const child = findInTree(node.children);
+					if (child) return child;
+				}
+				return null;
+			};
+			return findInTree(window.__draftStore.tree as Node[]);
+		}, movedTitle);
+		if (!movedDocKey)
+			throw new Error('Could not locate doc_key for moved page');
+
+		// Inject latency on both move and reorder so the optimistic order is
+		// observable while the backend round-trips.
+		const unrouteMove = await delayMethod(
+			page,
+			`${CR_METHOD_PREFIX}.move_cr_page`,
+			2500,
+		);
+		const unrouteReorder = await delayMethod(
+			page,
+			`${CR_METHOD_PREFIX}.reorder_cr_children`,
+			2500,
+		);
+
+		await page.evaluate(
+			({ docKey, parentKey }) => {
+				window.__draftStore.moveNode({
+					docKey,
+					newParentKey: parentKey,
+					newIndex: 2,
+				});
+			},
+			{ docKey: movedDocKey, parentKey: groupKey },
+		);
+
+		// Reads sidebar text in order; titles unique enough that index ordering
+		// reflects DOM order.
+		const readOrder = async () => {
+			const sidebarText = await page.locator('aside').innerText();
+			return pageTitles
+				.map((t) => ({ t, idx: sidebarText.indexOf(t) }))
+				.filter((x) => x.idx >= 0)
+				.sort((a, b) => a.idx - b.idx)
+				.map((x) => x.t);
+		};
+
+		const expectedOrder = [
+			pageTitles[1],
+			pageTitles[2],
+			pageTitles[0],
+			pageTitles[3],
+		];
+
+		// Optimistic order must be in place before the backend resolves.
+		await expect.poll(readOrder, { timeout: 1500 }).toEqual(expectedOrder);
+
+		// Wait past the injected latency and re-check; optimistic order must
+		// not snap back when the backend finally responds.
+		await page.waitForTimeout(3500);
+		expect(await readOrder()).toEqual(expectedOrder);
+
+		await unrouteMove();
+		await unrouteReorder();
+	});
+});
