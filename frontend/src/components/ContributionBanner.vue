@@ -13,15 +13,15 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			<span
+			<Badge
 				v-if="syncStateLabel"
-				class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium"
-				:class="syncStateClass"
+				variant="subtle"
+				:theme="syncStateTheme"
+				size="md"
 				:title="syncStateTitle"
 			>
-				<component :is="syncStateIcon" class="size-3.5" :class="{ 'animate-spin': syncStateLabel === __('Saving…') }" />
 				{{ syncStateLabel }}
-			</span>
+			</Badge>
 
 			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
@@ -171,14 +171,12 @@ import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
 import LucideCheckCircle from '~icons/lucide/check-circle';
 import LucideClock from '~icons/lucide/clock';
 import LucideFileText from '~icons/lucide/file-text';
 import LucideFolder from '~icons/lucide/folder';
 import LucideGitBranch from '~icons/lucide/git-branch';
 import LucideLink from '~icons/lucide/link';
-import LucideLoader from '~icons/lucide/loader-2';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucideXCircle from '~icons/lucide/x-circle';
 
@@ -224,23 +222,14 @@ const syncStateLabel = computed(() => {
 	}
 	return '';
 });
-const syncStateIcon = computed(() => {
+const syncStateTheme = computed(() => {
 	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
-		return LucideAlertTriangle;
+		return 'red';
 	}
 	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
-		return LucideLoader;
+		return 'orange';
 	}
-	return LucideCheckCircle;
-});
-const syncStateClass = computed(() => {
-	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
-		return 'bg-red-50 text-red-700 border border-red-200';
-	}
-	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
-		return 'bg-amber-50 text-amber-700 border border-amber-200';
-	}
-	return 'bg-green-50 text-green-700 border border-green-200';
+	return 'green';
 });
 const syncStateTitle = computed(() => {
 	if (draftStore.sync.error) return draftStore.sync.error;
