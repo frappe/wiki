@@ -123,6 +123,22 @@ class WikiSpace(Document):
 	def _create_page_document(self, wiki_page_name, parent_group, sort_order):
 		"""Create a leaf Wiki Document from a Wiki Page"""
 		wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
+
+		# The same Wiki Page can be referenced by sidebars in multiple Wiki Spaces.
+		# Routes for leaves must be unique, so during migration the first space wins
+		# and subsequent duplicates are skipped with a log.
+		if (
+			getattr(frappe.flags, "in_migrate", False)
+			and wiki_page.route
+			and frappe.db.exists("Wiki Document", {"route": wiki_page.route, "is_group": 0})
+		):
+			print(
+				f"[wiki v3 migration] skipping duplicate leaf for Wiki Page "
+				f"'{wiki_page_name}' (route '{wiki_page.route}') in space '{self.name}': "
+				f"another sidebar already migrated this page."
+			)
+			return
+
 		leaf_doc = frappe.get_doc(
 			{
 				"doctype": "Wiki Document",
