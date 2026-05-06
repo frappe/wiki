@@ -315,6 +315,7 @@ class WikiDocument(NestedSet):
 
 	def get_web_context(self) -> dict:
 		"""Get all context needed to render this Wiki Document."""
+		print("DEBUG get_web_context called for:", self.name)
 		self.check_guest_access()
 		self.check_published()
 		wiki_space = self.get_wiki_space()
@@ -347,7 +348,11 @@ class WikiDocument(NestedSet):
 			"edit_link": self.get_edit_link(),
 			"last_updated": pretty_date(self.modified),
 			"last_updated_on": frappe.utils.format_datetime(self.modified),
+			"published_by": frappe.utils.get_fullname(self.owner),
+			"published_on": frappe.utils.formatdate(self.creation, "MM/dd/yyyy"),
+			"published_on_iso": frappe.utils.get_datetime(self.creation).isoformat(),
 			"hide_chrome": not wiki_space,
+			"test": "This is a test value to verify context is passed correctly",
 		}
 
 		if not wiki_space:
