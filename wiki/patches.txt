@@ -11,8 +11,8 @@ wiki.wiki.doctype.wiki_page.patches.convert_wiki_content_to_markdown
 wiki.wiki.doctype.wiki_page.patches.update_escaped_code_content
 wiki.wiki.doctype.wiki_page.patches.update_escaped_chars
 wiki.wiki.doctype.wiki_space.patches.wiki_navbar_app_switcher_migration
-wiki.wiki.doctype.wiki_space.patches.v3.migrate_to_new_tree_document_structure
+wiki.wiki.doctype.wiki_space.patches.v3.migrate_to_new_tree_document_structure #2026-05-07 rerun-patch
 wiki.wiki.doctype.wiki_space.patches.v3.assign_wiki_user_to_active_users
-wiki.wiki.doctype.wiki_space.patches.v3.migrate_orphan_pages_to_wiki_document
+wiki.wiki.doctype.wiki_space.patches.v3.migrate_orphan_pages_to_wiki_document #2026-05-07 rerun-patch
 wiki.frappe_wiki.doctype.wiki_revision.patches.convert_open_crs_to_overlay
 wiki.frappe_wiki.doctype.wiki_content_blob.patches.unescape_iframe_embeds
