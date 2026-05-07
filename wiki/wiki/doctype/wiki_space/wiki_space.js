@@ -80,10 +80,10 @@ frappe.ui.form.on("Wiki Space", {
       });
     }
 
-    if (!frm.doc.root_group) {
+    if ((frm.doc.wiki_sidebars || []).length) {
       frm.add_custom_button(__("Migrate to Version 3"), () => {
       frappe.confirm(
-        __("This will migrate the sidebar to tree-based Wiki Documents. Continue?"),
+        __("This will sync the sidebar into tree-based Wiki Documents. Continue?"),
         () => {
           frm.call("migrate_to_v3").then(() => {
             frappe.msgprint(__("Migration completed successfully."));
