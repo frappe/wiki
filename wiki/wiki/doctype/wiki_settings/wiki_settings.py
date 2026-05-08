@@ -6,25 +6,24 @@ from frappe.model.document import Document
 
 
 class WikiSettings(Document):
-	def on_update(self):
-		for key in frappe.cache().hgetall("wiki_sidebar").keys():
-			frappe.cache().hdel("wiki_sidebar", key)
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
 
-		_clear_wiki_page_cache()
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		ask_for_contact_details: DF.Check
+		default_wiki_space: DF.Autocomplete | None
+		enable_feedback: DF.Check
+		enable_table_of_contents: DF.Check
+		feedback_submission_limit: DF.Int
+		head_html: DF.Code | None
+		javascript: DF.Code | None
+	# end: auto-generated types
 
 
 @frappe.whitelist()
 def get_all_spaces():
 	return frappe.get_all("Wiki Space", pluck="route")
-
-
-@frappe.whitelist()
-def clear_wiki_page_cache():
-	frappe.only_for("System Manager")
-	_clear_wiki_page_cache()
-	return True
-
-
-def _clear_wiki_page_cache():
-	for route in frappe.get_all("Wiki Page", pluck="route"):
-		frappe.cache().hdel("website_page", route)

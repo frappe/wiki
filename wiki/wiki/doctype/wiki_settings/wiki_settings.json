@@ -6,71 +6,26 @@
  "engine": "InnoDB",
  "field_order": [
   "general_tab",
-  "theme_section",
-  "logo",
-  "dark_mode_logo",
   "section_break_vefv",
   "default_wiki_space",
   "table_of_contents_section",
-  "collapse_sidebar_groups",
   "enable_table_of_contents",
-  "disable_guest_access",
-  "navbar_tab",
-  "navbar_column",
-  "navbar",
-  "app_switcher_list",
-  "section_break_skhp",
-  "search_column",
-  "use_sqlite_for_search",
-  "add_search_bar",
-  "column_break_yaoi",
-  "use_redisearch_for_search",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
   "feedback_submission_limit",
   "ask_for_contact_details",
   "section_break_mmtu",
-  "javascript"
+  "javascript",
+  "header__robots_tab",
+  "head_html"
  ],
  "fields": [
-  {
-   "fieldname": "logo",
-   "fieldtype": "Attach Image",
-   "label": "Light Mode Logo"
-  },
   {
    "fieldname": "javascript",
    "fieldtype": "Code",
    "label": "Javascript",
    "options": "Javascript"
-  },
-  {
-   "default": "1",
-   "fieldname": "add_search_bar",
-   "fieldtype": "Check",
-   "label": "Add Search Bar"
-  },
-  {
-   "fieldname": "dark_mode_logo",
-   "fieldtype": "Attach Image",
-   "label": "Dark Mode Logo"
-  },
-  {
-   "fieldname": "navbar_tab",
-   "fieldtype": "Tab Break",
-   "label": "Navbar"
-  },
-  {
-   "fieldname": "navbar_column",
-   "fieldtype": "Column Break",
-   "label": "Navbar"
-  },
-  {
-   "fieldname": "navbar",
-   "fieldtype": "Table",
-   "label": "Navbar Items",
-   "options": "Top Bar Item"
   },
   {
    "fieldname": "section_break_mmtu",
@@ -88,11 +43,6 @@
    "label": "Default Wiki Space"
   },
   {
-   "fieldname": "theme_section",
-   "fieldtype": "Section Break",
-   "label": "Theme"
-  },
-  {
    "fieldname": "section_break_vefv",
    "fieldtype": "Section Break",
    "label": "Wiki Space"
@@ -107,29 +57,6 @@
    "fieldname": "enable_table_of_contents",
    "fieldtype": "Check",
    "label": "Enable Table of Contents"
-  },
-  {
-   "fieldname": "section_break_skhp",
-   "fieldtype": "Section Break",
-   "label": "Search"
-  },
-  {
-   "fieldname": "search_column",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "depends_on": "eval:doc.add_search_bar;",
-   "description": "Use Redisearch instead of Frappe Web Search for faster, accurate results",
-   "fieldname": "use_redisearch_for_search",
-   "fieldtype": "Check",
-   "label": "Use Redisearch for Search"
-  },
-  {
-   "default": "0",
-   "fieldname": "collapse_sidebar_groups",
-   "fieldtype": "Check",
-   "label": "Collapse Sidebar Groups"
   },
   {
    "fieldname": "feedback_section",
@@ -164,34 +91,23 @@
    "non_negative": 1
   },
   {
-   "fieldname": "app_switcher_list",
-   "fieldtype": "Table",
-   "label": "App Switcher List",
-   "options": "Wiki App Switcher List Table"
+   "fieldname": "header__robots_tab",
+   "fieldtype": "Tab Break",
+   "label": "Header / Robots"
   },
   {
-   "default": "0",
-   "fieldname": "disable_guest_access",
-   "fieldtype": "Check",
-   "label": "Disable guest access"
-  },
-  {
-   "default": "1",
-   "description": "Uses SQLite FTS for  searching. This takes precedence over Redis search if enabled.\n<br>\nSQLite based search is experimental.",
-   "fieldname": "use_sqlite_for_search",
-   "fieldtype": "Check",
-   "label": "Use SQLite for Search"
-  },
-  {
-   "fieldname": "column_break_yaoi",
-   "fieldtype": "Column Break"
+   "description": "Will be included in all public Wiki pages",
+   "fieldname": "head_html",
+   "fieldtype": "Code",
+   "label": "&lt;head&gt; HTML",
+   "options": "HTML"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-06-16 13:13:21.868523",
+ "modified": "2026-04-28 17:55:14.973293",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

@@ -244,6 +244,49 @@ def _replace_video_placeholders(html: str, videos: list[dict], placeholder_prefi
 	return html
 
 
+# Private-use Unicode sentinel — stands in for `|` inside inline-code on table
+# rows during Mistune parsing, then gets swapped back after rendering. Chosen
+# from the PUA block so it cannot collide with authored markdown content.
+_TABLE_CODE_PIPE_SENTINEL = ""
+
+
+def _escape_table_inline_code_pipes(content: str) -> str:
+	"""
+	Swap `|` characters inside inline-code spans on table-row lines for a
+	sentinel, which is restored after Mistune renders.
+
+	GFM-compliant parsers (marked, markdown-it) treat a backtick-delimited span
+	like `` `dict | list` `` as a single code token, so its `|` is not a column
+	separator. Mistune's table plugin instead counts raw pipes per row and,
+	finding a mismatch, rejects the entire block — the table collapses to a
+	paragraph. Hiding those pipes behind a sentinel makes the column count
+	match, and a post-render replace restores the `|` inside `<code>`.
+	"""
+	lines = content.split("\n")
+	in_fence = False
+	fence_marker: str | None = None
+
+	def replace_span(match: re.Match) -> str:
+		return match.group(0).replace("|", _TABLE_CODE_PIPE_SENTINEL)
+
+	for i, line in enumerate(lines):
+		stripped = line.lstrip()
+		if not in_fence and (stripped.startswith("```") or stripped.startswith("~~~")):
+			in_fence = True
+			fence_marker = stripped[:3]
+			continue
+		if in_fence:
+			if fence_marker and stripped.startswith(fence_marker):
+				in_fence = False
+				fence_marker = None
+			continue
+		if "|" not in line or not stripped.startswith("|"):
+			continue
+		lines[i] = re.sub(r"`[^`\n]+`", replace_span, line)
+
+	return "\n".join(lines)
+
+
 def _encode_image_url_spaces(content: str) -> str:
 	"""
 	Pre-process markdown to URL-encode spaces in image URLs.
@@ -301,6 +344,11 @@ class WikiRenderer(mistune.HTMLRenderer):
 		super().__init__(**kwargs)
 		self._heading_slugs = {}  # Track used slugs to avoid duplicates
 		self._headings = []  # Track headings for TOC
+
+	def block_code(self, code: str, info: str | None = None) -> str:
+		# Trim trailing whitespace the author left inside the fence — spaces,
+		# tabs, and blank lines all render as phantom empty rows in <pre>.
+		return super().block_code(code.rstrip() + "\n", info)
 
 	def heading(self, text: str, level: int, **attrs) -> str:
 		"""Render heading with slugified ID for anchor links."""
@@ -383,6 +431,10 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	# Step 1: URL-encode spaces in image URLs (mistune doesn't handle them)
 	processed_content = _encode_image_url_spaces(content)
 
+	# Step 1b: Escape `|` inside inline-code spans on table rows so Mistune's
+	# table plugin doesn't miscount columns and drop the table.
+	processed_content = _escape_table_inline_code_pipes(processed_content)
+
 	# Step 2: Extract callouts and replace with placeholders
 	processed_content, callouts, placeholder_prefix = _process_callouts_with_placeholders(processed_content)
 
@@ -397,6 +449,10 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 
 	# Step 6: Replace video placeholders with block video HTML
 	html = _replace_video_placeholders(html, videos, video_placeholder_prefix)
+
+	# Step 7: Restore pipes that were hidden from the table parser.
+	if _TABLE_CODE_PIPE_SENTINEL in html:
+		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
 
 	# Get the headings extracted during rendering
 	headings = renderer.get_headings()

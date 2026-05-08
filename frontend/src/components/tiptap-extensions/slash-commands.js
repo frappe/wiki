@@ -123,6 +123,15 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Embed',
+		description:
+			'Embed YouTube, Vimeo, Loom, Google Docs, Cloudflare/Bunny Stream, and more',
+		icon: 'embed',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).insertIframePlaceholder().run();
+		},
+	},
+	{
 		title: 'Note Callout',
 		description: 'Add a note callout block',
 		icon: 'info',

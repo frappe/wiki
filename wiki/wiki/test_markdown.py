@@ -32,6 +32,12 @@ class TestMarkdownRenderer(unittest.TestCase):
 		self.assertIn('href="https://example.com"', result)
 		self.assertIn("Link text", result)
 
+	def test_code_block_strips_trailing_whitespace(self):
+		"""Trailing whitespace inside a fence shouldn't render as phantom empty rows."""
+		md = "```\nyarn install\nyarn dev   \n```\n"
+		result = render_markdown(md)
+		self.assertIn("<pre><code>yarn install\nyarn dev\n</code></pre>", result)
+
 
 class TestHeadingSlugGeneration(unittest.TestCase):
 	"""Tests for heading ID/slug generation."""
@@ -478,6 +484,24 @@ class TestTableRendering(unittest.TestCase):
 		self.assertIn("<table>", result)
 		self.assertIn("<th>", result)
 		self.assertIn("<td>", result)
+
+	def test_table_with_pipe_inside_inline_code(self):
+		"""Table must render even when an inline-code cell contains a pipe.
+
+		The editor (marked/GFM) treats `` `dict | list` `` as a single code span,
+		so authors legitimately write such rows. The public renderer must do the
+		same instead of dropping the whole table to a paragraph.
+		"""
+		content = """
+| Attribute   | Type                     | Description        |
+| ----------- | ------------------------ | ------------------ |
+| `report_name` | `str`                  | Name of the report |
+| `row_map`   | `dict[int, dict | list]` | Row index to data  |
+| `has_total` | `bool`                   | Trailing total row |
+"""
+		result = render_markdown(content)
+		self.assertIn("<table>", result)
+		self.assertIn("<code>dict[int, dict | list]</code>", result)
 
 
 class TestTaskListRendering(unittest.TestCase):

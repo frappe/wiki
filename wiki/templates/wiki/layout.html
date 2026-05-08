@@ -13,15 +13,29 @@
     <link rel="stylesheet" href="/assets/wiki/css/hljs-github-light.css">
 
     <!-- Hide x-cloak elements until Alpine loads -->
-    <style>[x-cloak] { display: none !important; }</style>
+    <style>
+        [x-cloak] { display: none !important; }
+        /* Sidebar collapsed state before Alpine loads */
+        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; border-right-width: 0 !important; }
+        html[data-sidebar-collapsed] .wiki-sidebar-toggle { left: 0.5rem !important; }
+        html:not([data-sidebar-collapsed]) .wiki-sidebar-toggle { left: calc(18rem - 0.25rem); }
+    </style>
 
-    <!-- Theme initialization - must run before page renders to prevent flash -->
+    <!-- Theme + sidebar initialization - must run before page renders to prevent flash -->
     <script>
         (function() {
             const stored = localStorage.getItem('wiki-theme');
             // Default to light theme if no preference is stored
             const theme = stored || 'light';
             document.documentElement.setAttribute('data-theme', theme);
+
+            // Read sidebar collapsed state to prevent layout shift
+            try {
+                var sidebarState = localStorage.getItem('sidebar.isCollapsed');
+                if (sidebarState === 'true') {
+                    document.documentElement.setAttribute('data-sidebar-collapsed', '');
+                }
+            } catch(e) {}
         })();
 
         // CSRF token for API requests
@@ -34,28 +48,35 @@
     <script defer src="/assets/wiki/js/vendor/alpinejs/core.js"></script>
 
     {% block head %} {% endblock %}
+
+    {{ head_html or "" }}
 </head>
 <body class="min-h-screen antialiased bg-[var(--surface-white)] text-[var(--ink-gray-9)]">
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 
-    <!-- Full-width navbar at top -->
+    <!-- Mobile-only navbar at top -->
     {% include "templates/wiki/includes/mobile_header.html" %}
-    {% include "templates/wiki/includes/header.html" %}
     {% endif %}
 
-    <!-- Main flex container for sidebar + content (below navbar) -->
-    <div class="flex {{ 'min-h-[calc(100vh-53px)]' if not hide_chrome else 'min-h-screen' }}">
+    <!-- Main flex container: sidebar (full height) + content column -->
+    <div class="flex min-h-screen">
         {% if not hide_chrome %}
         {% include "templates/wiki/includes/sidebar.html" %}
         {% endif %}
 
-        <!-- Main content + TOC area -->
-        {% block content %}
-        <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
-            {% block body %} {% endblock %}
-        </main>
-        {% endblock %}
+        <!-- Content column: desktop header + main + TOC -->
+        <div class="flex-1 min-w-0 flex flex-col">
+            {% if not hide_chrome %}
+            {% include "templates/wiki/includes/header.html" %}
+            {% endif %}
+
+            {% block content %}
+            <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
+                {% block body %} {% endblock %}
+            </main>
+            {% endblock %}
+        </div>
     </div>
     
     <!-- Image lightbox overlay -->

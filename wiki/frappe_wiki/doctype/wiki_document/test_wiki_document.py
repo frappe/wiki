@@ -1167,6 +1167,62 @@ class TestExternalLinkExclusions(WikiDocumentTestBase):
 		self.assertEqual(context["title"], "Normal PageData Page")
 
 
+class TestContentPreservation(WikiDocumentTestBase):
+	"""Server-side guarantee: raw HTML in the content field round-trips untouched.
+
+	Locks in that none of the server paths (direct save, db.set_value, repeated
+	saves) mutate iframe HTML stored on a Wiki Document. The double-escape bug
+	in frappe/wiki#599 originates in the TipTap editor, not here — these tests
+	pin the Python boundary so adding sanitization later can't silently
+	re-introduce the same class of bug.
+	"""
+
+	IFRAME_CONTENT = (
+		'<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" '
+		'title="YouTube video" frameborder="0"></iframe>'
+	)
+
+	def test_iframe_content_survives_direct_save(self):
+		"""A Wiki Document with an iframe embed must round-trip unchanged."""
+		root_group = create_test_wiki_document(self, "Root XSS Save", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Iframe Page",
+			parent=root_group.name,
+			content=self.IFRAME_CONTENT,
+		)
+
+		page.reload()
+		self.assertEqual(page.content, self.IFRAME_CONTENT)
+
+	def test_iframe_content_survives_db_set_value(self):
+		"""Merge's content-only fast path uses frappe.db.set_value — same guarantee."""
+		root_group = create_test_wiki_document(self, "Root XSS SetValue", is_group=True)
+		page = create_test_wiki_document(self, "Iframe SetValue Page", parent=root_group.name)
+
+		frappe.db.set_value("Wiki Document", page.name, "content", self.IFRAME_CONTENT)
+
+		stored = frappe.db.get_value("Wiki Document", page.name, "content")
+		self.assertEqual(stored, self.IFRAME_CONTENT)
+
+	def test_repeated_saves_do_not_compound_escape(self):
+		"""Each save on a Code field must be idempotent (no cumulative mutation)."""
+		root_group = create_test_wiki_document(self, "Root XSS Compound", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Iframe Compound Page",
+			parent=root_group.name,
+			content=self.IFRAME_CONTENT,
+		)
+
+		for _ in range(3):
+			page.reload()
+			page.save()
+
+		page.reload()
+		self.assertEqual(page.content, self.IFRAME_CONTENT)
+
+
 def _make_request(test_client, method, path, **kwargs):
 	"""Run a werkzeug test-client request in a thread (mirrors frappe test_api pattern)."""
 	site = frappe.local.site

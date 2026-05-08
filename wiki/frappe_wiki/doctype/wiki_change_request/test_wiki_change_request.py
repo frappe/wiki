@@ -1122,6 +1122,41 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page.reload()
 		self.assertEqual(page.route, new_route)
 
+	def test_merge_preserves_iframe_embed_content(self):
+		"""Server-side guarantee: the merge path never mutates iframe HTML.
+
+		Related to frappe/wiki#599. The double-escape symptom reported there
+		lives in the TipTap editor round-trip, not in this merge code — but
+		this test pins the Python boundary so adding sanitization on either
+		side of the blob→document hop can't silently re-introduce the bug.
+		"""
+		iframe = (
+			'<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" '
+			'title="YouTube video" frameborder="0"></iframe>'
+		)
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Embed Page", content=iframe)
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+
+		# First merge cycle: edit via CR, preserve the iframe, merge.
+		cr1 = create_change_request(space.name, "Embed CR 1")
+		update_cr_page(cr1.name, page_key, {"content": iframe + "\n\nFirst edit."})
+		merge_change_request(cr1.name)
+
+		page.reload()
+		self.assertIn(iframe, page.content)
+		self.assertNotIn("&lt;iframe", page.content)
+
+		# Second merge cycle: the compounding used to happen here.
+		cr2 = create_change_request(space.name, "Embed CR 2")
+		update_cr_page(cr2.name, page_key, {"content": iframe + "\n\nSecond edit."})
+		merge_change_request(cr2.name)
+
+		page.reload()
+		self.assertIn(iframe, page.content)
+		self.assertNotIn("&lt;iframe", page.content)
+		self.assertNotIn("&amp;lt;", page.content)
+
 	def test_new_draft_page_gets_auto_generated_route(self):
 		"""A new page created in a CR should get an auto-generated route from ancestor slugs."""
 		space = create_test_wiki_space()

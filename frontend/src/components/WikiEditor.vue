@@ -22,8 +22,9 @@
 </template>
 
 <script setup>
-import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
+import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { Paragraph } from '@tiptap/extension-paragraph';
 import {
 	Table,
 	TableCell,
@@ -33,13 +34,12 @@ import {
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
-import { Extension } from '@tiptap/core';
-import { Paragraph } from '@tiptap/extension-paragraph';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import { common, createLowlight } from 'lowlight';
 import { createApp, h, onMounted, onUnmounted, ref } from 'vue';
+import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
@@ -47,6 +47,7 @@ import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
 import WikiToolbar from './tiptap-extensions/WikiToolbar.vue';
 // Import custom extensions
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
+import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import {
@@ -449,6 +450,7 @@ function initEditor() {
 			}),
 			// Custom extensions
 			CalloutBlock,
+			IframeBlock,
 			VideoBlock.configure({
 				uploadFunction: uploadFile,
 			}),

@@ -1,50 +1,8 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<header class="hidden lg:flex items-center gap-4 py-3 pr-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-white)] sticky top-0 z-30"
+<header class="hidden lg:flex items-center gap-4 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-white)] sticky top-0 z-30 h-[53px]"
         x-data>
-    {# Wiki Space Logo and Name - matches sidebar width (18rem) #}
-    <div class="w-72 flex items-center gap-3 flex-shrink-0 px-6">
-        {% if wiki_space.app_switcher_logo %}
-        <img class="size-7 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
-        {% endif %}
-        <span class="text-base font-medium text-[var(--ink-gray-8)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
-        {% if wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
-        <div class="relative" x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false">
-            <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
-                    class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[var(--surface-white)] border border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer"
-                    title="Switch wiki space">
-                <svg class="w-3.5 h-3.5 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </button>
-
-            <!-- Dropdown Menu -->
-            <div x-show="spaceSwitcherOpen"
-                 x-cloak
-                 x-transition:enter="transition ease-out duration-100"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="transition ease-in duration-75"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95"
-                 class="absolute left-0 mt-2 min-w-48 bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
-                {% for space in wiki_spaces_for_switcher %}
-                <a href="/{{ space.route }}"
-                   class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
-                    <span class="truncate">{{ space.space_name }}</span>
-                    {% if space.name == wiki_space.name %}
-                    <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    {% endif %}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    {# Spacer to push everything else to the right #}
+    {# Spacer to push everything to the right #}
     <div class="flex-1"></div>
 
     {# Text navigation links (items without icons) #}
@@ -61,7 +19,7 @@
     <button @click="$dispatch('open-search')"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--surface-gray-2)] ring-1 ring-inset ring-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] transition-colors duration-200 cursor-pointer">
         {{ render_icon("search", "-ml-0.5 w-4 h-4 text-[var(--ink-gray-5)]") }}
-        <kbd class="text-xs/4 text-[var(--ink-gray-4)] font-sans" x-text="navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl + K'"></kbd>
+        <kbd class="text-xs/4 text-[var(--ink-gray-4)] font-sans" x-text="navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'">⌘K</kbd>
     </button>
 
     {# Separator before toggle (only if there are text links) #}

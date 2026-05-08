@@ -1,19 +1,79 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 {% from "templates/wiki/macros/buttons.html" import ghost_button_full, icon_button, render_icon %}
 
-<div class="wiki-sidebar hidden lg:flex bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[53px] h-[calc(100vh-53px)]"
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-0 h-screen"
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
+    <!-- Sidebar Header: Space Logo + Switcher -->
+    {% set has_switcher = wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
+    <div class="px-2 h-[53px] border-b border-[var(--outline-gray-1)] flex-shrink-0 flex items-center"
+         {% if has_switcher %}x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false"{% endif %}>
+        {% if has_switcher %}
+        <button type="button"
+                @click="spaceSwitcherOpen = !spaceSwitcherOpen"
+                @keydown.escape="spaceSwitcherOpen = false"
+                aria-haspopup="menu"
+                :aria-expanded="spaceSwitcherOpen"
+                class="flex h-12 w-full items-center rounded-md py-2 px-2 duration-300 ease-in-out"
+                :class="spaceSwitcherOpen ? 'bg-[var(--surface-white)] shadow-sm' : 'hover:bg-[var(--surface-gray-3)]'"
+                title="Switch wiki space">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <div class="flex flex-1 flex-col text-left ml-2 truncate">
+                <div class="text-base font-medium leading-none text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+            </div>
+            <div class="ml-2">
+                <svg class="size-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </div>
+        </button>
+
+        <!-- Dropdown Menu (fixed so it escapes sidebar's overflow-hidden) -->
+        <div x-show="spaceSwitcherOpen"
+             x-cloak
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-75"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="fixed top-[57px] left-2 w-[17rem] bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+            {% for space in wiki_spaces_for_switcher %}
+            <a href="/{{ space.route }}"
+               class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
+                <span class="truncate">{{ space.space_name or space.name }}</span>
+                {% if space.name == wiki_space.name %}
+                <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="flex h-12 w-full items-center py-2 px-2">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <div class="flex flex-1 flex-col text-left ml-2 truncate">
+                <div class="text-base font-medium leading-none text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Scrollable Navigation -->
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
-        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '') }}
+        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '', expanded_nodes=expanded_nodes or set()) }}
     </nav>
 </div>
 
 <!-- Sidebar Toggle Button (appears on hover at sidebar edge, always visible when collapsed) -->
 <div x-data="{ hovered: false }"
-     class="hidden lg:flex items-center fixed z-40 top-[53px] h-[calc(100vh-53px)] transition-[left] duration-300 ease-in-out"
+     class="wiki-sidebar-toggle hidden lg:flex items-center fixed z-40 top-0 h-screen transition-[left] duration-300 ease-in-out"
      :style="$store.sidebar.isCollapsed ? 'left: 0.5rem;' : 'left: calc(18rem - 0.25rem);'"
      @mouseenter="hovered = true"
      @mouseleave="hovered = false">
@@ -52,7 +112,11 @@
 
         // Sidebar store for collapse state
         Alpine.store('sidebar', {
-            isCollapsed: Alpine.$persist(false),
+            isCollapsed: Alpine.$persist(false).as('sidebar.isCollapsed'),
+            init() {
+                // Remove pre-Alpine CSS attribute — Alpine's :style takes over from here
+                document.documentElement.removeAttribute('data-sidebar-collapsed');
+            },
             toggle() {
                 this.isCollapsed = !this.isCollapsed;
             }
