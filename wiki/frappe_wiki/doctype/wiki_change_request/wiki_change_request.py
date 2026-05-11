@@ -1271,6 +1271,10 @@ def _apply_merge_changes_only(
 		content_blob = item.get("content_blob")
 		content = blob_contents.get(content_blob, "") if content_blob else ""
 		frappe.db.set_value("Wiki Document", key_to_name[doc_key], "content", content)
+		# Manually trigger webhook since we bypassed doc.save()
+		doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
+		doc._action = "save"
+		doc.run_post_save_methods()
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys
