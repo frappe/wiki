@@ -22,11 +22,18 @@
             <div class="flex items-center justify-between gap-4">
                 <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
                 <div class="flex items-center gap-2">
-	                    <a href="{{ download_pdf_url }}"
-	                       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
-	                        {{ render_icon("download", "w-4 h-4") }}
-	                        <span>Download</span>
-	                    </a>
+                    <button @click="downloadPage()"
+                            :disabled="downloadInProgress"
+                            :aria-busy="downloadInProgress"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                        <template x-if="!downloadInProgress">
+                            {{ render_icon("download", "w-4 h-4") }}
+                        </template>
+                        <template x-if="downloadInProgress">
+                            {{ render_icon("loader", "w-4 h-4 animate-spin") }}
+                        </template>
+                        <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
+                    </button>
                     <button @click="copyMarkdown()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
                         <template x-if="!copied">
@@ -43,7 +50,23 @@
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
-                    {{ page_action_item(text="Download", description="Download this page as a PDF", icon="download", href=download_pdf_url) }}
+                    <button @click="downloadPage()"
+                            :disabled="downloadInProgress"
+                            :aria-busy="downloadInProgress"
+                            class="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                        <span class="flex-shrink-0 mt-0.5">
+                            <template x-if="!downloadInProgress">
+                                {{ render_icon("download", "w-5 h-5 text-[var(--ink-gray-5)]") }}
+                            </template>
+                            <template x-if="downloadInProgress">
+                                {{ render_icon("loader", "w-5 h-5 text-[var(--ink-gray-5)] animate-spin") }}
+                            </template>
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-medium text-[var(--ink-gray-8)]" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
+                            <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">Download this page as a PDF</div>
+                        </div>
+                    </button>
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
@@ -55,7 +78,23 @@
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
-                        {{ page_action_item(text="Download", description="Download this page as a PDF", icon="download", href=download_pdf_url) }}
+                        <button @click="downloadPage()"
+                                :disabled="downloadInProgress"
+                                :aria-busy="downloadInProgress"
+                                class="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                            <span class="flex-shrink-0 mt-0.5">
+                                <template x-if="!downloadInProgress">
+                                    {{ render_icon("download", "w-5 h-5 text-[var(--ink-gray-5)]") }}
+                                </template>
+                                <template x-if="downloadInProgress">
+                                    {{ render_icon("loader", "w-5 h-5 text-[var(--ink-gray-5)] animate-spin") }}
+                                </template>
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-[var(--ink-gray-8)]" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
+                                <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">Download this page as a PDF</div>
+                            </div>
+                        </button>
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
@@ -132,6 +171,8 @@
         Alpine.data('wikiPage', () => ({
             // wikiDocument properties
             copied: false,
+            downloadInProgress: false,
+            downloadPdfUrl: {{ download_pdf_url | tojson }},
 
             get markdown() {
                 return this.$store.pageContent?.markdown || '';
@@ -146,6 +187,65 @@
                 }).catch(err => {
                     console.error('Failed to copy markdown:', err);
                 });
+            },
+
+            getDownloadFilename(contentDisposition) {
+                if (!contentDisposition) {
+                    return '';
+                }
+
+                const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+                if (utf8Match?.[1]) {
+                    return decodeURIComponent(utf8Match[1]);
+                }
+
+                const asciiMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+                return asciiMatch?.[1] || '';
+            },
+
+            triggerBrowserDownload(blob, filename) {
+                const objectUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+
+                link.href = objectUrl;
+                link.download = filename || 'wiki-document.pdf';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => {
+                    URL.revokeObjectURL(objectUrl);
+                }, 1000);
+            },
+
+            async downloadPage() {
+                if (this.downloadInProgress) {
+                    return;
+                }
+
+                this.downloadInProgress = true;
+
+                try {
+                    const response = await fetch(this.downloadPdfUrl, {
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to download PDF: ${response.status}`);
+                    }
+
+                    const blob = await response.blob();
+                    const filename = this.getDownloadFilename(response.headers.get('content-disposition'));
+                    this.triggerBrowserDownload(blob, filename);
+                } catch (err) {
+                    console.error('Failed to download PDF:', err);
+                    window.frappe?.show_alert?.({
+                        message: __('Unable to download this page right now.'),
+                        indicator: 'red'
+                    });
+                } finally {
+                    this.downloadInProgress = false;
+                }
             },
 
             getAIUrl(provider) {

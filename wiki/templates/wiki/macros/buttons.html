@@ -243,6 +243,11 @@
     <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"></path>
     </svg>
+    {% elif icon == "loader" %}
+    <svg class="{{ icon_base_classes }}" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-20" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle>
+        <path class="opacity-100" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v2a7 7 0 0 1 7 7z"></path>
+    </svg>
     {% elif icon == "search" %}
     <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
