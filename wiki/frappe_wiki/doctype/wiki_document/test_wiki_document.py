@@ -10,7 +10,12 @@ import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import process_navbar_items
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	download_pdf,
+	get_default_print_format,
+	get_download_pdf_url,
+	process_navbar_items,
+)
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 # On IntegrationTestCase, the doctype test records and all
@@ -28,6 +33,7 @@ def create_test_wiki_document(test_case, title, **kwargs):
 		"parent_wiki_document": kwargs.get("parent"),
 		"is_group": kwargs.get("is_group", False),
 		"is_published": kwargs.get("is_published", True),
+		"is_private": kwargs.get("is_private", False),
 		"sort_order": kwargs.get("sort_order", 0),
 		"slug": kwargs.get("slug"),
 		"is_external_link": kwargs.get("is_external_link", False),
@@ -1221,6 +1227,83 @@ class TestContentPreservation(WikiDocumentTestBase):
 
 		page.reload()
 		self.assertEqual(page.content, self.IFRAME_CONTENT)
+
+
+class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
+	def tearDown(self):
+		frappe.db.set_single_value("Wiki Settings", "default_wiki_document_print_format", None)
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_download_pdf_returns_pdf_for_published_public_page(self):
+		root_group = create_test_wiki_document(self, "Root PDF Public", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Downloadable Page",
+			parent=root_group.name,
+			content="# Public Page\n\nThis page should download.",
+			slug="downloadable-page",
+		)
+		create_test_wiki_space(self, "PDF Public Space", "pdf-public-space", root_group.name)
+
+		frappe.set_user("Guest")
+		frappe.local.response = frappe._dict()
+
+		with patch(
+			"wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_print",
+			return_value=b"%PDF-test%",
+		) as mocked_get_print:
+			download_pdf(route=page.route)
+
+		mocked_get_print.assert_called_once()
+		self.assertEqual(mocked_get_print.call_args.kwargs["print_format"], "Wiki Document PDF")
+		self.assertEqual(frappe.local.response.type, "download")
+		self.assertEqual(frappe.local.response.content_type, "application/pdf")
+		self.assertEqual(frappe.local.response.filecontent, b"%PDF-test%")
+		self.assertEqual(frappe.local.response.filename, "downloadable-page.pdf")
+
+	def test_download_pdf_blocks_private_page_for_guest(self):
+		root_group = create_test_wiki_document(self, "Root PDF Private", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Private Download Page",
+			parent=root_group.name,
+			is_private=True,
+			slug="private-download-page",
+		)
+		create_test_wiki_space(self, "PDF Private Space", "pdf-private-space", root_group.name)
+
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.PermissionError):
+			download_pdf(route=page.route)
+
+	def test_before_print_prepares_rendered_content_for_template(self):
+		root_group = create_test_wiki_document(self, "Root PDF Context", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Printable Context Page",
+			parent=root_group.name,
+			content="## Section\n\nParagraph text.",
+			slug="printable-context-page",
+		)
+		create_test_wiki_space(self, "PDF Context Space", "pdf-context-space", root_group.name)
+
+		page.before_print()
+
+		self.assertIn("<h2", page.rendered_content_for_pdf)
+		self.assertEqual(page.print_heading, page.title)
+		self.assertEqual(page.pdf_space_name, "PDF Context Space")
+
+	def test_get_download_pdf_url_uses_route(self):
+		self.assertEqual(
+			get_download_pdf_url("docs/getting-started"),
+			"/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=docs%2Fgetting-started",
+		)
+
+	def test_wiki_settings_print_format_overrides_default(self):
+		frappe.db.set_single_value("Wiki Settings", "default_wiki_document_print_format", "Wiki Document PDF")
+		self.assertEqual(get_default_print_format(), "Wiki Document PDF")
 
 
 def _make_request(test_client, method, path, **kwargs):

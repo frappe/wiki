@@ -21,21 +21,29 @@
             {# Orphan document: Simple header with just copy button #}
             <div class="flex items-center justify-between gap-4">
                 <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
-                <button @click="copyMarkdown()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
-                    <template x-if="!copied">
-                        {{ render_icon("clipboard", "w-4 h-4") }}
-                    </template>
-                    <template x-if="copied">
-                        {{ render_icon("check", "w-4 h-4 text-green-600") }}
-                    </template>
-                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
-                </button>
+                <div class="flex items-center gap-2">
+	                    <a href="{{ download_pdf_url }}"
+	                       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
+	                        {{ render_icon("download", "w-4 h-4") }}
+	                        <span>Download</span>
+	                    </a>
+                    <button @click="copyMarkdown()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                        <template x-if="!copied">
+                            {{ render_icon("clipboard", "w-4 h-4") }}
+                        </template>
+                        <template x-if="copied">
+                            {{ render_icon("check", "w-4 h-4 text-green-600") }}
+                        </template>
+                        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                    </button>
+                </div>
             </div>
             {% else %}
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                    {{ page_action_item(text="Download", description="Download this page as a PDF", icon="download", href=download_pdf_url) }}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
@@ -47,6 +55,7 @@
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                        {{ page_action_item(text="Download", description="Download this page as a PDF", icon="download", href=download_pdf_url) }}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}

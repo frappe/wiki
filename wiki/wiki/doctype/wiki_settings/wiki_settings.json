@@ -4,12 +4,13 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": [
-  "general_tab",
-  "section_break_vefv",
-  "default_wiki_space",
-  "table_of_contents_section",
-  "enable_table_of_contents",
+  "field_order": [
+   "general_tab",
+   "section_break_vefv",
+   "default_wiki_space",
+   "default_wiki_document_print_format",
+   "table_of_contents_section",
+   "enable_table_of_contents",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
@@ -41,6 +42,13 @@
    "fieldname": "default_wiki_space",
    "fieldtype": "Autocomplete",
    "label": "Default Wiki Space"
+  },
+  {
+   "description": "Used when visitors download a Wiki Document as PDF.",
+   "fieldname": "default_wiki_document_print_format",
+   "fieldtype": "Link",
+   "label": "Default Wiki Document Print Format",
+   "options": "Print Format"
   },
   {
    "fieldname": "section_break_vefv",

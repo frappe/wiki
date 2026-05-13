@@ -1,16 +1,20 @@
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import frappe
 from frappe import _
+from frappe.translate import print_language
 from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
+from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 from werkzeug.wrappers import Response
 
 from wiki.wiki.markdown import render_markdown_with_toc
+
+DEFAULT_PRINT_FORMAT = "Wiki Document PDF"
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -332,6 +336,7 @@ class WikiDocument(NestedSet):
 			"doc": self,
 			"title": self.title,
 			"route": self.route,
+			"download_pdf_url": get_download_pdf_url(self.route),
 			"wiki_space": None,
 			"wiki_spaces_for_switcher": [],
 			"navbar_items": [],
@@ -376,6 +381,19 @@ class WikiDocument(NestedSet):
 		)
 
 		return context
+
+	def before_print(self, print_settings=None):
+		"""Prepare wiki-specific fields used by the standard print format."""
+		rendered_content, _toc_headings = render_markdown_with_toc(self.content or "")
+		wiki_space = self.get_wiki_space()
+
+		self.rendered_content_for_pdf = rendered_content
+		self.pdf_last_updated_on = frappe.utils.format_datetime(self.modified)
+		self.pdf_route = self.route
+		self.pdf_space_name = wiki_space.space_name if wiki_space else None
+
+		if not getattr(self, "print_heading", None):
+			self.print_heading = self.title
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -576,6 +594,66 @@ def get_page_data(route: str) -> dict:
 
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
 	return doc.get_web_context()
+
+
+def get_download_pdf_url(route: str, print_format: str | None = None) -> str:
+	params = [("route", route)]
+	if print_format:
+		params.append(("print_format", print_format))
+	query = "&".join(f"{key}={quote(str(value), safe='')}" for key, value in params)
+	return f"/api/method/{download_pdf.__module__}.{download_pdf.__name__}?{query}"
+
+
+def get_default_print_format() -> str:
+	configured_print_format = frappe.db.get_single_value(
+		"Wiki Settings", "default_wiki_document_print_format"
+	)
+	if configured_print_format:
+		return configured_print_format
+
+	meta = frappe.get_meta("Wiki Document")
+	return meta.default_print_format or DEFAULT_PRINT_FORMAT
+
+
+def get_download_filename(route: str, title: str | None = None) -> str:
+	route_tail = (route or "").strip("/").split("/")[-1]
+	filename_stem = route_tail or (title or "").strip() or "wiki-document"
+	return f"{filename_stem}.pdf"
+
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_pdf(route: str, print_format: str | None = None, language: str | None = None):
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_group": 0, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_guest_access()
+	doc.check_published()
+
+	selected_print_format = print_format or get_default_print_format()
+	original_ignore_flag = getattr(frappe.local.flags, "ignore_print_permissions", False)
+	frappe.local.flags.ignore_print_permissions = True
+
+	try:
+		with print_language(language):
+			pdf_file = get_print(
+				doctype="Wiki Document",
+				name=doc.name,
+				print_format=selected_print_format,
+				doc=doc,
+				as_pdf=True,
+				no_letterhead=1,
+			)
+	finally:
+		frappe.local.flags.ignore_print_permissions = original_ignore_flag
+
+	frappe.local.response.filename = get_download_filename(doc.route, doc.title)
+	frappe.local.response.filecontent = pdf_file
+	frappe.local.response.content_type = "application/pdf"
+	frappe.local.response.type = "download"
 
 
 def on_wiki_document_update(doc, method):
