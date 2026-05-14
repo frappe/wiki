@@ -1,16 +1,18 @@
 {
  "actions": [],
- "creation": "2020-09-26 16:02:57.409719",
+ "allow_bulk_edit": 1,
+ "creation": "2026-05-13 23:22:28.532593",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
-  "field_order": [
-   "general_tab",
-   "section_break_vefv",
-   "default_wiki_space",
-   "default_wiki_document_print_format",
-   "table_of_contents_section",
-   "enable_table_of_contents",
+ "field_order": [
+  "general_tab",
+  "section_break_vefv",
+  "default_wiki_space",
+  "column_break_vxsa",
+  "default_wiki_document_print_format",
+  "table_of_contents_section",
+  "enable_table_of_contents",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
@@ -109,13 +111,17 @@
    "fieldtype": "Code",
    "label": "&lt;head&gt; HTML",
    "options": "HTML"
+  },
+  {
+   "fieldname": "column_break_vxsa",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-04-28 17:55:14.973293",
+ "modified": "2026-05-14 16:28:41.527722",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Settings",

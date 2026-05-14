@@ -1256,7 +1256,7 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 			download_pdf(route=page.route)
 
 		mocked_get_print.assert_called_once()
-		self.assertEqual(mocked_get_print.call_args.kwargs["print_format"], "Wiki Document PDF")
+		self.assertEqual(mocked_get_print.call_args.kwargs["print_format"], "Standard Wiki Document")
 		self.assertEqual(frappe.local.response.type, "download")
 		self.assertEqual(frappe.local.response.content_type, "application/pdf")
 		self.assertEqual(frappe.local.response.filecontent, b"%PDF-test%")
@@ -1294,6 +1294,7 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 		self.assertEqual(page.print_heading, page.title)
 		self.assertEqual(page.pdf_space_name, "PDF Context Space")
+		self.assertEqual(page.pdf_last_updated_on, page.get_formatted("modified"))
 
 	def test_get_download_pdf_url_uses_route(self):
 		self.assertEqual(
@@ -1302,8 +1303,10 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		)
 
 	def test_wiki_settings_print_format_overrides_default(self):
-		frappe.db.set_single_value("Wiki Settings", "default_wiki_document_print_format", "Wiki Document PDF")
-		self.assertEqual(get_default_print_format(), "Wiki Document PDF")
+		frappe.db.set_single_value(
+			"Wiki Settings", "default_wiki_document_print_format", "Standard Wiki Document"
+		)
+		self.assertEqual(get_default_print_format(), "Standard Wiki Document")
 
 
 def _make_request(test_client, method, path, **kwargs):

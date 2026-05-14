@@ -42,25 +42,25 @@
 	}
 
 	.wiki-document-pdf .wiki-document-meta {
-		display: table;
-		width: 100%;
-		border-collapse: collapse;
 		margin-top: 10px;
+		display: grid;
+		row-gap: 12px;
 	}
 
 	.wiki-document-pdf .wiki-document-meta-row {
-		display: table-row;
+		display: grid;
+		grid-template-columns: 128px minmax(0, 1fr);
+		column-gap: 18px;
+		align-items: baseline;
 	}
 
 	.wiki-document-pdf .wiki-document-meta-label,
 	.wiki-document-pdf .wiki-document-meta-value {
-		display: table-cell;
-		padding: 6px 0;
-		vertical-align: top;
+		padding: 0;
+		line-height: 1.3;
 	}
 
 	.wiki-document-pdf .wiki-document-meta-label {
-		width: 120px;
 		font-size: 10px;
 		font-weight: 700;
 		letter-spacing: 0.08em;
@@ -190,6 +190,7 @@
 		border-top: 1px solid #e5e7eb;
 		margin: 28px 0;
 	}
+
 </style>
 
 <div class="page-break wiki-document-pdf">

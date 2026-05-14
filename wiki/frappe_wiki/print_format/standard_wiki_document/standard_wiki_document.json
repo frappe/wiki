@@ -19,7 +19,7 @@
 	"modified": "2026-05-13 00:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
-	"name": "Wiki Document PDF",
+	"name": "Standard Wiki Document",
 	"owner": "Administrator",
 	"page_number": "Hide",
 	"pdf_generator": "wkhtmltopdf",

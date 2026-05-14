@@ -15,8 +15,8 @@ class WikiSettings(Document):
 		from frappe.types import DF
 
 		ask_for_contact_details: DF.Check
-		default_wiki_space: DF.Autocomplete | None
 		default_wiki_document_print_format: DF.Link | None
+		default_wiki_space: DF.Autocomplete | None
 		enable_feedback: DF.Check
 		enable_table_of_contents: DF.Check
 		feedback_submission_limit: DF.Int

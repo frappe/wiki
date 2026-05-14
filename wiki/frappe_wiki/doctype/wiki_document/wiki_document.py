@@ -14,7 +14,7 @@ from werkzeug.wrappers import Response
 
 from wiki.wiki.markdown import render_markdown_with_toc
 
-DEFAULT_PRINT_FORMAT = "Wiki Document PDF"
+DEFAULT_PRINT_FORMAT = "Standard Wiki Document"
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -351,7 +351,7 @@ class WikiDocument(NestedSet):
 			"next_doc": None,
 			"edit_link": self.get_edit_link(),
 			"last_updated": pretty_date(self.modified),
-			"last_updated_on": frappe.utils.format_datetime(self.modified),
+			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 		}
 
@@ -388,7 +388,7 @@ class WikiDocument(NestedSet):
 		wiki_space = self.get_wiki_space()
 
 		self.rendered_content_for_pdf = rendered_content
-		self.pdf_last_updated_on = frappe.utils.format_datetime(self.modified)
+		self.pdf_last_updated_on = self.get_formatted("modified")
 		self.pdf_route = self.route
 		self.pdf_space_name = wiki_space.space_name if wiki_space else None
 
@@ -605,8 +605,8 @@ def get_download_pdf_url(route: str, print_format: str | None = None) -> str:
 
 
 def get_default_print_format() -> str:
-	configured_print_format = frappe.db.get_single_value(
-		"Wiki Settings", "default_wiki_document_print_format"
+	configured_print_format = frappe.get_cached_value(
+		"Wiki Settings", "Wiki Settings", "default_wiki_document_print_format"
 	)
 	if configured_print_format:
 		return configured_print_format
