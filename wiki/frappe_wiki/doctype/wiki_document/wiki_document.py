@@ -596,23 +596,9 @@ def get_page_data(route: str) -> dict:
 	return doc.get_web_context()
 
 
-def get_download_pdf_url(route: str, print_format: str | None = None) -> str:
-	params = [("route", route)]
-	if print_format:
-		params.append(("print_format", print_format))
-	query = "&".join(f"{key}={quote(str(value), safe='')}" for key, value in params)
+def get_download_pdf_url(route: str) -> str:
+	query = f"route={quote(str(route), safe='')}"
 	return f"/api/method/{download_pdf.__module__}.{download_pdf.__name__}?{query}"
-
-
-def get_default_print_format() -> str:
-	configured_print_format = frappe.get_cached_value(
-		"Wiki Settings", "Wiki Settings", "default_wiki_document_print_format"
-	)
-	if configured_print_format:
-		return configured_print_format
-
-	meta = frappe.get_meta("Wiki Document")
-	return meta.default_print_format or DEFAULT_PRINT_FORMAT
 
 
 def get_download_filename(route: str, title: str | None = None) -> str:
@@ -633,7 +619,6 @@ def download_pdf(route: str, print_format: str | None = None, language: str | No
 	doc.check_guest_access()
 	doc.check_published()
 
-	selected_print_format = print_format or get_default_print_format()
 	original_ignore_flag = getattr(frappe.local.flags, "ignore_print_permissions", False)
 	frappe.local.flags.ignore_print_permissions = True
 
@@ -642,7 +627,7 @@ def download_pdf(route: str, print_format: str | None = None, language: str | No
 			pdf_file = get_print(
 				doctype="Wiki Document",
 				name=doc.name,
-				print_format=selected_print_format,
+				print_format=DEFAULT_PRINT_FORMAT,
 				doc=doc,
 				as_pdf=True,
 				no_letterhead=1,

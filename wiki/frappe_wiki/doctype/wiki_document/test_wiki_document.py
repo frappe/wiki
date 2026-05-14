@@ -12,7 +12,6 @@ from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	download_pdf,
-	get_default_print_format,
 	get_download_pdf_url,
 	process_navbar_items,
 )
@@ -1231,7 +1230,6 @@ class TestContentPreservation(WikiDocumentTestBase):
 
 class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 	def tearDown(self):
-		frappe.db.set_single_value("Wiki Settings", "default_wiki_document_print_format", None)
 		frappe.set_user("Administrator")
 		super().tearDown()
 
@@ -1301,12 +1299,6 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 			get_download_pdf_url("docs/getting-started"),
 			"/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=docs%2Fgetting-started",
 		)
-
-	def test_wiki_settings_print_format_overrides_default(self):
-		frappe.db.set_single_value(
-			"Wiki Settings", "default_wiki_document_print_format", "Standard Wiki Document"
-		)
-		self.assertEqual(get_default_print_format(), "Standard Wiki Document")
 
 
 def _make_request(test_client, method, path, **kwargs):
