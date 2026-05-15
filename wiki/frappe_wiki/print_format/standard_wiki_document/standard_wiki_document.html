@@ -70,12 +70,16 @@
 	}
 
 	.wiki-document-content blockquote {
-		margin: 1.6em 0;
-		padding-left: 1em;
+		/* Reset Bootstrap defaults (full border + 10px 20px padding) that Frappe's print CSS layers in. */
+		border: 0;
 		border-left: 4px solid var(--gray-300);
+		padding: 0 0 0 1em;
+		margin: 1.6em 0;
+		font-size: inherit;
 		font-style: italic;
 		font-weight: 500;
 		color: var(--gray-800);
+		quotes: "\201C" "\201D" "\2018" "\2019";
 	}
 
 	.wiki-document-content blockquote p {
