@@ -35,10 +35,6 @@
 		color: var(--gray-600);
 	}
 
-	.wiki-document-route {
-		word-break: break-all;
-	}
-
 	.wiki-document-content img {
 		max-width: 100%;
 		height: auto;
@@ -75,24 +71,23 @@
 	}
 </style>
 
+{% set wiki_space = doc.get_wiki_space() %}
 <div class="page-break">
 	<div class="wiki-document-shell">
 		<header class="wiki-document-header">
-			{% if doc.pdf_space_name %}
-			<div class="wiki-document-eyebrow">{{ doc.pdf_space_name }}</div>
+			{% if wiki_space %}
+			<div class="wiki-document-eyebrow">{{ wiki_space.space_name }}</div>
 			{% endif %}
 
 			<h1 class="wiki-document-title">{{ doc.title }}</h1>
 
 			<div class="wiki-document-meta">
-				{% if doc.pdf_last_updated_on %}
 				<div class="row">
 					<div class="col-xs-3">
-						<label>{{ _("Downloaded At") }}</label>
+						<label>{{ _("Last Updated") }}</label>
 					</div>
-					<div class="col-xs-9">{{ doc.pdf_last_updated_on }}</div>
+					<div class="col-xs-9">{{ doc.get_formatted("modified") }}</div>
 				</div>
-				{% endif %}
 			</div>
 		</header>
 

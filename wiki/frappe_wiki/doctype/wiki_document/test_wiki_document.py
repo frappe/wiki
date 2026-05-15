@@ -12,7 +12,6 @@ from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	download_pdf,
-	get_download_pdf_url,
 	process_navbar_items,
 )
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -1276,7 +1275,7 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		with self.assertRaises(frappe.PermissionError):
 			download_pdf(route=page.route)
 
-	def test_before_print_prepares_rendered_content_for_template(self):
+	def test_before_print_renders_markdown_content(self):
 		root_group = create_test_wiki_document(self, "Root PDF Context", is_group=True)
 		page = create_test_wiki_document(
 			self,
@@ -1290,15 +1289,6 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		page.before_print()
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
-		self.assertEqual(page.print_heading, page.title)
-		self.assertEqual(page.pdf_space_name, "PDF Context Space")
-		self.assertEqual(page.pdf_last_updated_on, page.get_formatted("modified"))
-
-	def test_get_download_pdf_url_uses_route(self):
-		self.assertEqual(
-			get_download_pdf_url("docs/getting-started"),
-			"/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=docs%2Fgetting-started",
-		)
 
 
 def _make_request(test_client, method, path, **kwargs):
