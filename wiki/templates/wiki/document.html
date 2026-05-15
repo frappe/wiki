@@ -140,7 +140,6 @@
             // wikiDocument properties
             copied: false,
             downloadInProgress: false,
-            pageRoute: {{ doc.route | tojson }},
 
             get markdown() {
                 return this.$store.pageContent?.markdown || '';
@@ -161,7 +160,10 @@
                 if (this.downloadInProgress) return;
                 this.downloadInProgress = true;
 
-                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=${encodeURIComponent(this.pageRoute)}`;
+                // Read the route fresh each click — SPA navigation updates window.location
+                // via history.pushState, so this stays in sync with the visible page.
+                const route = window.location.pathname.replace(/^\/+/, '');
+                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=${encodeURIComponent(route)}`;
 
                 try {
                     const response = await fetch(url, { credentials: 'same-origin' });
@@ -172,7 +174,7 @@
                     const objectUrl = URL.createObjectURL(await response.blob());
                     const link = document.createElement('a');
                     link.href = objectUrl;
-                    link.download = `${this.pageRoute.split('/').pop() || 'wiki-document'}.pdf`;
+                    link.download = `${route.split('/').pop() || 'wiki-document'}.pdf`;
                     document.body.appendChild(link);
                     link.click();
                     link.remove();

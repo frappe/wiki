@@ -19,6 +19,11 @@
 		color: var(--gray-600);
 	}
 
+	.wiki-document-eyebrow .sep {
+		margin: 0 0.4em;
+		color: var(--gray-400);
+	}
+
 	.wiki-document-title {
 		margin: 0 0 1rem;
 	}
@@ -65,18 +70,45 @@
 	}
 
 	.wiki-document-content blockquote {
-		margin: 1rem 0;
-		padding-left: 1rem;
-		border-left: 3px solid var(--gray-300);
+		/* Reset Bootstrap defaults (full border + 10px 20px padding) that Frappe's print CSS layers in. */
+		border: 0;
+		border-left: 4px solid var(--gray-300);
+		padding: 0 0 0 1em;
+		margin: 1.6em 0;
+		font-size: inherit;
+		font-style: italic;
+		font-weight: 500;
+		color: var(--gray-800);
+		quotes: "\201C" "\201D" "\2018" "\2019";
+	}
+
+	.wiki-document-content blockquote p {
+		margin: 0.5em 0;
+	}
+
+	.wiki-document-content blockquote p:first-of-type::before {
+		content: open-quote;
+	}
+
+	.wiki-document-content blockquote p:last-of-type::after {
+		content: close-quote;
 	}
 </style>
 
-{% set wiki_space = doc.get_wiki_space() %}
+{% set breadcrumbs = doc.get_breadcrumbs() %}
+{% set space = breadcrumbs.space %}
+{# Skip the first ancestor — it's the wiki space's root group, already represented by the space name. #}
+{% set ancestors = breadcrumbs.ancestors[1:] if breadcrumbs.ancestors else [] %}
 <div class="page-break">
 	<div class="wiki-document-shell">
 		<header class="wiki-document-header">
-			{% if wiki_space %}
-			<div class="wiki-document-eyebrow">{{ wiki_space.space_name }}</div>
+			{% if space or ancestors %}
+			<div class="wiki-document-eyebrow">
+				{% if space %}{{ space.space_name }}{% endif %}
+				{% for ancestor in ancestors %}
+					<span class="sep">›</span>{{ ancestor.title }}
+				{% endfor %}
+			</div>
 			{% endif %}
 
 			<h1 class="wiki-document-title">{{ doc.title }}</h1>
