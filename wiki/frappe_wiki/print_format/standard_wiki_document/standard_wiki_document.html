@@ -1,0 +1,98 @@
+<style>
+	.wiki-document-shell {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+
+	.wiki-document-header {
+		margin-bottom: 1.5rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--gray-300);
+	}
+
+	.wiki-document-eyebrow {
+		margin-bottom: 0.5rem;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--gray-600);
+	}
+
+	.wiki-document-title {
+		margin: 0 0 1rem;
+	}
+
+	.wiki-document-meta .row + .row {
+		margin-top: 0.75rem;
+	}
+
+	.wiki-document-meta label {
+		margin-bottom: 0;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--gray-600);
+	}
+
+	.wiki-document-content img {
+		max-width: 100%;
+		height: auto;
+	}
+
+	.wiki-document-content a {
+		color: inherit;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		word-break: break-all;
+	}
+
+	.wiki-document-content pre {
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.wiki-document-content table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.wiki-document-content th,
+	.wiki-document-content td {
+		padding: 0.5rem;
+		border: 1px solid var(--gray-300);
+		vertical-align: top;
+	}
+
+	.wiki-document-content blockquote {
+		margin: 1rem 0;
+		padding-left: 1rem;
+		border-left: 3px solid var(--gray-300);
+	}
+</style>
+
+{% set wiki_space = doc.get_wiki_space() %}
+<div class="page-break">
+	<div class="wiki-document-shell">
+		<header class="wiki-document-header">
+			{% if wiki_space %}
+			<div class="wiki-document-eyebrow">{{ wiki_space.space_name }}</div>
+			{% endif %}
+
+			<h1 class="wiki-document-title">{{ doc.title }}</h1>
+
+			<div class="wiki-document-meta">
+				<div class="row">
+					<div class="col-xs-3">
+						<label>{{ _("Last Updated") }}</label>
+					</div>
+					<div class="col-xs-9">{{ doc.get_formatted("modified") }}</div>
+				</div>
+			</div>
+		</header>
+
+		<div class="wiki-document-content">
+			{{ doc.rendered_content_for_pdf or "" }}
+		</div>
+	</div>
+</div>
