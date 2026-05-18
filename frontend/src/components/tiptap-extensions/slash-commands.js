@@ -71,6 +71,14 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Mermaid',
+		description: 'Add a Mermaid diagram',
+		icon: 'mermaid',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setMermaid({}).run();
+		},
+	},
+	{
 		title: 'Blockquote',
 		description: 'Add a blockquote',
 		icon: 'quote',

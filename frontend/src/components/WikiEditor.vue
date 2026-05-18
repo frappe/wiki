@@ -50,6 +50,7 @@ import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
+import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import {
 	SlashCommands,
@@ -598,6 +599,7 @@ function initEditor() {
 			// Custom extensions
 			CalloutBlock,
 			IframeBlock,
+			MermaidBlock,
 			PdfBlock,
 			VideoBlock.configure({
 				uploadFunction: uploadFile,
