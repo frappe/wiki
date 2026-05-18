@@ -400,6 +400,12 @@ def _build_markdown() -> MarkdownIt:
 		# Trim trailing whitespace the author left inside the fence — spaces,
 		# tabs, and blank lines all render as phantom empty rows in <pre>.
 		content = content.rstrip() + "\n"
+		# A ```mermaid fence is a diagram, not code: emit a bare <pre class="mermaid">
+		# holding the escaped source. mermaid-renderer.js hydrates it into an SVG
+		# client-side; with no JS it degrades to the raw source. No <code> wrapper,
+		# so code-blocks.js / highlight.js leaves it alone.
+		if lang == "mermaid":
+			return f'<pre class="mermaid">{escapeHtml(content)}</pre>\n'
 		cls = f' class="language-{escapeHtml(lang)}"' if lang else ""
 		return f"<pre><code{cls}>{escapeHtml(content)}</code></pre>\n"
 

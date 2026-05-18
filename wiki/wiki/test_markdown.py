@@ -38,6 +38,16 @@ class TestMarkdownRenderer(unittest.TestCase):
 		result = render_markdown(md)
 		self.assertIn("<pre><code>yarn install\nyarn dev\n</code></pre>", result)
 
+	def test_mermaid_code_block_renders_as_diagram_container(self):
+		"""Mermaid fenced code blocks should render as diagram containers."""
+		md = "```mermaid\nflowchart TD\n  A[Start] --> B{Done?}\n```\n"
+		result = render_markdown(md)
+
+		self.assertIn('<pre class="mermaid">', result)
+		self.assertIn("flowchart TD", result)
+		self.assertIn("A[Start] --&gt; B{Done?}", result)
+		self.assertNotIn("<code", result)
+
 
 class TestHeadingSlugGeneration(unittest.TestCase):
 	"""Tests for heading ID/slug generation."""
