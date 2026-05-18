@@ -1,30 +1,32 @@
 const MERMAID_ASSET_URL = '/assets/wiki/js/vendor/mermaid/mermaid.min.js';
+const MERMAID_LOADER_URL = '/assets/wiki/js/mermaid-loader.js';
 
-let mermaidPromise = null;
+let loaderPromise = null;
 
-export function getMermaid() {
-	if (window.mermaid) {
-		return Promise.resolve(window.mermaid);
+function loadSharedMermaidLoader() {
+	if (window.wikiGetMermaid) {
+		return Promise.resolve(window.wikiGetMermaid);
 	}
-
-	if (!mermaidPromise) {
-		mermaidPromise = new Promise((resolve, reject) => {
+	if (!loaderPromise) {
+		loaderPromise = new Promise((resolve, reject) => {
 			const script = document.createElement('script');
-			script.src = MERMAID_ASSET_URL;
-			script.onload = () => resolve(window.mermaid);
-			script.onerror = () => reject(new Error('Unable to load Mermaid asset'));
+			script.src = MERMAID_LOADER_URL;
+			script.onload = () => resolve(window.wikiGetMermaid);
+			script.onerror = () =>
+				reject(new Error('Unable to load Mermaid loader asset'));
 			document.head.appendChild(script);
-		}).then((mermaid) => {
-			if (!mermaid) {
-				throw new Error('Mermaid asset did not expose window.mermaid');
+		}).then((wikiGetMermaid) => {
+			if (!wikiGetMermaid) {
+				throw new Error('Mermaid loader did not expose window.wikiGetMermaid');
 			}
-			mermaid.initialize({
-				startOnLoad: false,
-				securityLevel: 'strict',
-			});
-			return mermaid;
+			return wikiGetMermaid;
 		});
 	}
 
-	return mermaidPromise;
+	return loaderPromise;
+}
+
+export async function getMermaid() {
+	const wikiGetMermaid = await loadSharedMermaidLoader();
+	return wikiGetMermaid({ assetUrl: MERMAID_ASSET_URL });
 }
