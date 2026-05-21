@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Offline — Frappe Wiki</title>
+	<link rel="stylesheet" href="/assets/wiki/css/tailwind.css">
+	<style>
+		[data-theme="light"] { color-scheme: light; }
+	</style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-[var(--surface-white)] text-[var(--ink-gray-9)] p-6" data-theme="light">
+	<main class="max-w-md text-center space-y-4">
+		<div class="text-5xl">📡</div>
+		<h1 class="text-2xl font-semibold">You're offline</h1>
+		<p class="text-[var(--ink-gray-6)]">
+			This page hasn't been downloaded for offline reading. Open a space you've
+			made available offline, or reconnect to the internet.
+		</p>
+		<div class="flex items-center justify-center gap-2 pt-2">
+			<button type="button" onclick="history.back()"
+				class="px-4 py-2 rounded-lg border border-[var(--outline-gray-2)] text-sm font-medium hover:bg-[var(--surface-gray-1)]">
+				Go back
+			</button>
+			<button type="button" onclick="window.location.reload()"
+				class="px-4 py-2 rounded-lg bg-[var(--ink-gray-9)] text-white text-sm font-medium hover:opacity-90">
+				Retry
+			</button>
+		</div>
+	</main>
+</body>
+</html>

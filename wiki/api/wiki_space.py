@@ -1,6 +1,116 @@
+import hashlib
+import re
+
 import frappe
 from frappe import _
 from frappe.utils.nestedset import get_descendants_of
+
+# Matches the `src` attribute of `<img>` tags in rendered markdown — used to
+# enumerate embedded assets so the service worker can precache them.
+_IMG_SRC_RE = re.compile(r'<img\b[^>]*?\bsrc=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+@frappe.whitelist(
+	allow_guest=True, methods=["GET"]
+)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def get_space_manifest(space_route: str) -> dict:
+	"""Return the precache manifest for a Wiki Space, used by the PWA service worker.
+
+	Only published, public, internal leaf pages are listed. External links and
+	groups are omitted from `pages` but kept in the tree metadata so the sidebar
+	renders correctly offline.
+	"""
+	space = frappe.db.get_value(
+		"Wiki Space",
+		{"route": space_route, "is_published": 1},
+		["name", "space_name", "route", "root_group", "favicon", "light_mode_logo"],
+		as_dict=True,
+	)
+	if not space or not space.root_group:
+		frappe.throw(_("Space not found"), frappe.DoesNotExistError)
+
+	descendants = get_descendants_of("Wiki Document", space.root_group, ignore_permissions=True)
+	if not descendants:
+		return _empty_manifest(space)
+
+	docs = frappe.db.get_all(
+		"Wiki Document",
+		fields=["name", "title", "route", "content", "modified", "is_group", "is_external_link"],
+		filters={
+			"name": ("in", descendants),
+			"is_published": 1,
+			"is_private": 0,
+			"is_group": 0,
+			"is_external_link": 0,
+		},
+		order_by="lft asc",
+	)
+
+	pages = []
+	hasher = hashlib.sha256()
+	for doc in docs:
+		page_hash = hashlib.sha256(
+			(doc.content or "").encode("utf-8") + str(doc.modified).encode("utf-8")
+		).hexdigest()[:12]
+
+		image_urls = sorted(
+			{src for src in _IMG_SRC_RE.findall(doc.content or "") if src.startswith("/files/")}
+		)
+
+		pages.append(
+			{
+				"route": doc.route,
+				"title": doc.title,
+				"hash": page_hash,
+				"images": image_urls,
+			}
+		)
+		hasher.update(page_hash.encode("utf-8"))
+
+	manifest = _empty_manifest(space)
+	manifest.update(
+		{
+			"version": hasher.hexdigest()[:16],
+			"pages": pages,
+			"shared_assets": _shared_assets(),
+		}
+	)
+	return manifest
+
+
+def _empty_manifest(space: dict) -> dict:
+	return {
+		"space": {
+			"name": space.name,
+			"space_name": space.space_name,
+			"route": space.route,
+			"favicon": space.favicon,
+			"logo": space.light_mode_logo,
+		},
+		"version": "",
+		"pages": [],
+		"shared_assets": _shared_assets(),
+	}
+
+
+def _shared_assets() -> list[str]:
+	"""Shared CSS/JS/font assets every wiki page needs, regardless of space.
+
+	These are precached when the service worker installs, before any space is
+	downloaded.
+	"""
+	from wiki.utils import get_tailwindcss_hash
+
+	return [
+		f"/assets/wiki/css/tailwind.css?v={get_tailwindcss_hash()}",
+		"/assets/wiki/css/hljs-github-light.css",
+		"/assets/wiki/js/vendor/alpinejs/plugins/persist.js",
+		"/assets/wiki/js/vendor/alpinejs/plugins/collapse.js",
+		"/assets/wiki/js/vendor/alpinejs/core.js",
+		"/assets/wiki/js/code-blocks.js",
+		"/assets/wiki/js/image-viewer.js",
+		"/assets/wiki/favicon.png",
+	]
 
 
 @frappe.whitelist()

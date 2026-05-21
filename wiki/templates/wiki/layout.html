@@ -9,6 +9,12 @@
         {% endblock %}
     </title>
 
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#171717">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css?v={{get_tailwindcss_hash()}}">
     <link rel="stylesheet" href="/assets/wiki/css/hljs-github-light.css">
 
@@ -40,6 +46,9 @@
 
         // CSRF token for API requests
         window.CSRF_TOKEN = '{{ csrf_token }}';
+
+        // Space route the current page belongs to (used by the PWA store).
+        window.WIKI_SPACE_ROUTE = {{ (wiki_space.route if wiki_space else "") | tojson }};
     </script>
 
     <script src="/assets/wiki/js/vendor/alpinejs/plugins/persist.js"></script>
@@ -86,9 +95,186 @@
              class="min-w-[45rem] max-w-[60vw] max-h-[80vh] object-contain cursor-zoom-out max-[768px]:min-w-[100vw]" />
     </div>
 
+    {% if not hide_chrome %}
+    {% include "templates/wiki/includes/install_prompt.html" %}
+    {% endif %}
+
+    {# PWA update-available banner — shown when cached version of current space is stale #}
+    {% if wiki_space and wiki_space.is_published %}
+    <div x-data
+         x-show="$store.pwa.statusFor('{{ wiki_space.route }}') === 'update-available'"
+         x-cloak
+         x-transition.opacity
+         class="fixed top-0 inset-x-0 z-[80] bg-amber-50 border-b border-amber-200 text-amber-900">
+        <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-3 text-sm">
+            <span>New content available for offline reading.</span>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button @click="$store.pwa.download('{{ wiki_space.route }}')"
+                        class="px-3 py-1 bg-amber-900 text-white rounded-md text-xs font-medium hover:bg-amber-800 transition-colors">
+                    Update offline copy
+                </button>
+                <button @click="$store.pwa.spaces['{{ wiki_space.route }}'].updateAvailable = false"
+                        aria-label="Dismiss"
+                        class="p-1 text-amber-700 hover:text-amber-900">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# PWA download progress + completion toast — shown across all wiki pages #}
+    <div x-data
+         x-show="$store.pwa.inProgress || $store.pwa.completed"
+         x-cloak
+         x-transition.opacity
+         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] pointer-events-none">
+        <div class="pointer-events-auto bg-[var(--ink-gray-9)] text-white text-sm rounded-full shadow-lg px-4 py-2 inline-flex items-center gap-2">
+            <template x-if="$store.pwa.inProgress">
+                <span class="inline-flex items-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>
+                    <span x-text="$store.pwa.progress.total
+                        ? `Saving for offline — ${$store.pwa.progress.done}/${$store.pwa.progress.total}`
+                        : 'Saving for offline — starting…'"></span>
+                </span>
+            </template>
+            <template x-if="!$store.pwa.inProgress && $store.pwa.completed">
+                <span class="inline-flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                    <span>Available offline</span>
+                    <button @click="$store.pwa.completed = null"
+                            aria-label="Dismiss"
+                            class="ml-1 -mr-1 text-white/60 hover:text-white">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </span>
+            </template>
+        </div>
+    </div>
+
     {{ include_script("syntax_highlighting.bundle.js") }}
     <script src="/assets/wiki/js/code-blocks.js"></script>
     <script src="/assets/wiki/js/image-viewer.js"></script>
+
+    <script>
+        // PWA: register service worker and expose an Alpine store the install
+        // nudge, update banner, and management page all read from.
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('pwa', {
+                supported: 'serviceWorker' in navigator,
+                spaces: {},          // route -> { version, downloaded, updateAvailable }
+                inProgress: null,    // route currently downloading
+                progress: { done: 0, total: 0 },
+                completed: null,     // { route, name, failed } — clears after 6s
+                completedTimer: null,
+
+                async init() {
+                    if (!this.supported) return;
+                    try {
+                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                    } catch (e) {
+                        console.warn('SW registration failed', e);
+                        return;
+                    }
+
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        const msg = event.data || {};
+                        if (msg.type === 'PRECACHE_PROGRESS') {
+                            this.progress = { done: msg.done, total: msg.total };
+                        } else if (msg.type === 'PRECACHE_DONE') {
+                            this.inProgress = null;
+                            this.progress = { done: 0, total: 0 };
+                            this.spaces[msg.spaceRoute] = {
+                                version: msg.version,
+                                downloaded: true,
+                                updateAvailable: false,
+                                failed: (msg.failed || []).length,
+                            };
+                            this.completed = {
+                                route: msg.spaceRoute,
+                                failed: (msg.failed || []).length,
+                            };
+                            if (this.completedTimer) clearTimeout(this.completedTimer);
+                            this.completedTimer = setTimeout(() => { this.completed = null; }, 6000);
+                        } else if (msg.type === 'SPACES_LIST') {
+                            (msg.spaces || []).forEach((m) => {
+                                const route = m.space.route;
+                                this.spaces[route] = Object.assign({
+                                    version: m.version,
+                                    downloaded: true,
+                                    updateAvailable: false,
+                                }, this.spaces[route] || {});
+                            });
+                        }
+                    });
+
+                    await navigator.serviceWorker.ready;
+                    this.refreshSpaces();
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible') this.checkCurrentSpaceForUpdates();
+                    });
+                },
+
+                refreshSpaces() {
+                    if (navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({ type: 'LIST_SPACES' });
+                    }
+                },
+
+                async download(spaceRoute) {
+                    if (this.inProgress) return;
+                    this.inProgress = spaceRoute;
+                    this.progress = { done: 0, total: 0 };
+                    try {
+                        const url = `/api/method/wiki.api.wiki_space.get_space_manifest?space_route=${encodeURIComponent(spaceRoute)}`;
+                        const res = await fetch(url, { credentials: 'same-origin' });
+                        const data = await res.json();
+                        const manifest = data.message;
+                        const controller = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
+                        controller.postMessage({ type: 'PRECACHE_SPACE', manifest });
+                    } catch (e) {
+                        console.warn('Failed to start precache', e);
+                        this.inProgress = null;
+                    }
+                },
+
+                async remove(spaceRoute) {
+                    const controller = navigator.serviceWorker.controller;
+                    if (!controller) return;
+                    controller.postMessage({ type: 'REMOVE_SPACE', spaceRoute });
+                    delete this.spaces[spaceRoute];
+                },
+
+                async checkCurrentSpaceForUpdates() {
+                    const current = window.WIKI_SPACE_ROUTE;
+                    if (!current || !this.spaces[current]) return;
+                    try {
+                        const url = `/api/method/wiki.api.wiki_space.get_space_manifest?space_route=${encodeURIComponent(current)}`;
+                        const res = await fetch(url, { credentials: 'same-origin' });
+                        const data = await res.json();
+                        const remoteVersion = data.message && data.message.version;
+                        if (remoteVersion && remoteVersion !== this.spaces[current].version) {
+                            this.spaces[current].updateAvailable = true;
+                        }
+                    } catch (e) { /* offline — ignore */ }
+                },
+
+                statusFor(spaceRoute) {
+                    if (this.inProgress === spaceRoute) return 'downloading';
+                    const s = this.spaces[spaceRoute];
+                    if (!s) return 'not-downloaded';
+                    if (s.updateAvailable) return 'update-available';
+                    return 'downloaded';
+                },
+            });
+
+            Alpine.store('pwa').init();
+        });
+    </script>
 </body>
 {% block scripts %} {% endblock %}
 </html>

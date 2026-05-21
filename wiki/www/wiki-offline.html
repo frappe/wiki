@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Offline Spaces — Frappe Wiki</title>
+	<link rel="manifest" href="/manifest.json">
+	<meta name="theme-color" content="#171717">
+	<link rel="stylesheet" href="/assets/wiki/css/tailwind.css">
+	<style>
+		[x-cloak] { display: none !important; }
+	</style>
+	<script>
+		document.documentElement.setAttribute('data-theme', localStorage.getItem('wiki-theme') || 'light');
+	</script>
+	<script src="/assets/wiki/js/vendor/alpinejs/plugins/persist.js"></script>
+	<script defer src="/assets/wiki/js/vendor/alpinejs/core.js"></script>
+</head>
+<body class="min-h-screen bg-[var(--surface-white)] text-[var(--ink-gray-9)]" data-theme="light">
+	<main class="max-w-3xl mx-auto px-4 py-10" x-data="offlineManager()" x-init="init()">
+		<header class="mb-8">
+			<h1 class="text-2xl font-semibold">Offline spaces</h1>
+			<p class="text-sm text-[var(--ink-gray-6)] mt-1">Manage the wiki spaces you've saved for offline reading.</p>
+		</header>
+
+		{# Not supported #}
+		<div x-show="!supported" x-cloak class="rounded-lg border border-[var(--outline-gray-2)] p-6 text-center text-sm text-[var(--ink-gray-6)]">
+			Your browser doesn't support offline reading. Try a recent version of Chrome, Edge, Firefox, or Safari.
+		</div>
+
+		{# Loading #}
+		<div x-show="supported && loading" x-cloak class="text-sm text-[var(--ink-gray-5)]">Loading…</div>
+
+		{# Empty state #}
+		<div x-show="supported && !loading && spaces.length === 0" x-cloak
+			 class="rounded-lg border border-dashed border-[var(--outline-gray-2)] p-8 text-center">
+			<p class="text-sm text-[var(--ink-gray-6)]">No spaces saved for offline reading yet.</p>
+			<p class="text-xs text-[var(--ink-gray-5)] mt-2">Visit a wiki space and accept the install prompt to save it.</p>
+		</div>
+
+		{# List #}
+		<ul x-show="supported && !loading && spaces.length > 0" x-cloak class="space-y-3">
+			<template x-for="space in spaces" :key="space.route">
+				<li class="border border-[var(--outline-gray-1)] rounded-lg p-4 flex items-center justify-between gap-4">
+					<div class="min-w-0 flex-1">
+						<a :href="'/' + space.route"
+						   class="block font-medium text-[var(--ink-gray-9)] hover:underline truncate"
+						   x-text="space.name"></a>
+						<p class="text-xs text-[var(--ink-gray-5)] mt-0.5">
+							<span x-text="`${space.pageCount} page${space.pageCount === 1 ? '' : 's'}`"></span>
+							<span class="mx-1">·</span>
+							<span x-text="`version ${space.version.slice(0, 7)}`"></span>
+							<template x-if="space.updateAvailable">
+								<span class="ml-2 text-amber-700 font-medium">update available</span>
+							</template>
+						</p>
+					</div>
+					<div class="flex items-center gap-2 flex-shrink-0">
+						<button x-show="space.updateAvailable"
+								@click="refresh(space.route)"
+								class="px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200 rounded-md hover:bg-amber-100">
+							Update
+						</button>
+						<button @click="remove(space.route)"
+								class="px-3 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-md hover:bg-red-50">
+							Remove
+						</button>
+					</div>
+				</li>
+			</template>
+		</ul>
+
+		<footer class="mt-10 pt-6 border-t border-[var(--outline-gray-1)] text-xs text-[var(--ink-gray-5)] flex items-center justify-between">
+			<div>
+				<span x-show="quota.usage !== null" x-cloak
+					  x-text="`Using ${formatBytes(quota.usage)} of ${formatBytes(quota.quota)}`"></span>
+			</div>
+			<a href="/" class="hover:text-[var(--ink-gray-9)]">← Back to wiki</a>
+		</footer>
+	</main>
+
+<script>
+	function offlineManager() {
+		return {
+			supported: 'serviceWorker' in navigator,
+			loading: true,
+			spaces: [],
+			quota: { usage: null, quota: null },
+
+			async init() {
+				if (!this.supported) return;
+				// Register the SW (in case the user landed here directly before visiting a wiki page).
+				try { await navigator.serviceWorker.register('/sw.js', { scope: '/' }); } catch (e) {}
+
+				navigator.serviceWorker.addEventListener('message', (event) => {
+					const msg = event.data || {};
+					if (msg.type === 'SPACES_LIST') {
+						this.spaces = (msg.spaces || []).map((m) => ({
+							route: m.space.route,
+							name: m.space.space_name || m.space.route,
+							version: m.version || '',
+							pageCount: (m.pages || []).length,
+							updateAvailable: false,
+						}));
+						this.loading = false;
+						this.checkForUpdates();
+					} else if (msg.type === 'PRECACHE_DONE') {
+						this.requestList();
+					}
+				});
+
+				await navigator.serviceWorker.ready;
+				this.requestList();
+
+				if (navigator.storage && navigator.storage.estimate) {
+					try {
+						const e = await navigator.storage.estimate();
+						this.quota = { usage: e.usage, quota: e.quota };
+					} catch (err) {}
+				}
+			},
+
+			requestList() {
+				const controller = navigator.serviceWorker.controller;
+				if (controller) controller.postMessage({ type: 'LIST_SPACES' });
+				else this.loading = false;
+			},
+
+			async remove(route) {
+				if (!confirm('Remove this space from offline storage?')) return;
+				navigator.serviceWorker.controller.postMessage({ type: 'REMOVE_SPACE', spaceRoute: route });
+				this.spaces = this.spaces.filter((s) => s.route !== route);
+			},
+
+			async refresh(route) {
+				try {
+					const url = `/api/method/wiki.api.wiki_space.get_space_manifest?space_route=${encodeURIComponent(route)}`;
+					const res = await fetch(url, { credentials: 'same-origin' });
+					const data = await res.json();
+					navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_SPACE', manifest: data.message });
+				} catch (e) { alert('Could not fetch latest manifest — are you online?'); }
+			},
+
+			async checkForUpdates() {
+				for (const space of this.spaces) {
+					try {
+						const url = `/api/method/wiki.api.wiki_space.get_space_manifest?space_route=${encodeURIComponent(space.route)}`;
+						const res = await fetch(url, { credentials: 'same-origin' });
+						const data = await res.json();
+						if (data.message && data.message.version && data.message.version !== space.version) {
+							space.updateAvailable = true;
+						}
+					} catch (e) { /* offline — skip */ }
+				}
+			},
+
+			formatBytes(bytes) {
+				if (bytes === null || bytes === undefined) return '–';
+				const units = ['B', 'KB', 'MB', 'GB'];
+				let i = 0;
+				while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+				return `${bytes.toFixed(bytes >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+			},
+		};
+	}
+</script>
+</body>
+</html>
