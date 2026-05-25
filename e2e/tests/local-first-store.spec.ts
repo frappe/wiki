@@ -27,13 +27,13 @@ declare global {
 /**
  * E2E coverage for the local-first draft workspace store.
  *
- * These specs deliberately inject latency or failure on the underlying CR
- * RPCs to verify that the optimistic UI does not regress: pages appear
- * before the backend confirms, typed content survives temp-key promotion,
- * failed saves keep local state visible, and submit/merge are blocked while
- * mutations are pending or failed.
+ * These specs deliberately inject latency or failure on the batch sync
+ * endpoint (`apply_cr_operations`) to verify that the optimistic UI does
+ * not regress: pages appear before the backend confirms, typed content
+ * survives temp-key promotion, failed saves keep local state visible, and
+ * submit/merge are blocked while mutations are pending or failed.
  *
- * See specs/local_first_editor_migration_step_1.md.
+ * See specs/local_first_editor_migration_step_2.md.
  */
 
 const CR_METHOD_PREFIX =
@@ -87,7 +87,7 @@ async function createPageViaUI(
 }
 
 test.describe('Local-first draft workspace', () => {
-	test('delayed create_cr_page: page appears immediately and content survives promotion', async ({
+	test('delayed apply_cr_operations create: page appears immediately and content survives promotion', async ({
 		page,
 	}) => {
 		const timestamp = Date.now();
@@ -98,11 +98,11 @@ test.describe('Local-first draft workspace', () => {
 
 		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
 
-		// Inject 2.5s of latency on create_cr_page so the optimistic UI is
-		// observable for the full duration before the temp key is promoted.
+		// Inject 2.5s of latency on apply_cr_operations so the optimistic UI
+		// is observable for the full duration before the temp key is promoted.
 		const unroute = await delayMethod(
 			page,
-			`${CR_METHOD_PREFIX}.create_cr_page`,
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
 			2500,
 		);
 
@@ -153,7 +153,7 @@ test.describe('Local-first draft workspace', () => {
 		});
 	});
 
-	test('failed update_cr_page: content stays visible and submit is blocked', async ({
+	test('failed apply_cr_operations save: content stays visible and submit is blocked', async ({
 		page,
 	}) => {
 		const timestamp = Date.now();
@@ -186,11 +186,13 @@ test.describe('Local-first draft workspace', () => {
 			timeout: 10000,
 		});
 
-		// Fail every update_cr_page from this point onward.
+		// Fail every apply_cr_operations from this point onward. The create
+		// op already completed (URL is on the real key), so this only affects
+		// the user's manual save.
 		await failMethod(
 			page,
-			`${CR_METHOD_PREFIX}.update_cr_page`,
-			'Mocked update failure',
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
+			'Mocked save failure',
 		);
 
 		await page.evaluate((content) => {
@@ -303,16 +305,12 @@ test.describe('Local-first draft workspace', () => {
 		if (!movedDocKey)
 			throw new Error('Could not locate doc_key for moved page');
 
-		// Inject latency on both move and reorder so the optimistic order is
-		// observable while the backend round-trips.
-		const unrouteMove = await delayMethod(
+		// Inject latency on apply_cr_operations so the optimistic order is
+		// observable while the backend round-trips. Move + reorder ride in
+		// one batch.
+		const unrouteBatch = await delayMethod(
 			page,
-			`${CR_METHOD_PREFIX}.move_cr_page`,
-			2500,
-		);
-		const unrouteReorder = await delayMethod(
-			page,
-			`${CR_METHOD_PREFIX}.reorder_cr_children`,
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
 			2500,
 		);
 
@@ -353,7 +351,6 @@ test.describe('Local-first draft workspace', () => {
 		await page.waitForTimeout(3500);
 		expect(await readOrder()).toEqual(expectedOrder);
 
-		await unrouteMove();
-		await unrouteReorder();
+		await unrouteBatch();
 	});
 });

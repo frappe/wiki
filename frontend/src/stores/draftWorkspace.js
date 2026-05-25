@@ -5,8 +5,15 @@ import { defineStore } from 'pinia';
 import { computed, reactive, ref } from 'vue';
 
 // Local-first workspace store. Owns optimistic UI state for the active change
-// request; backed by the existing CR RPCs (no new backend yet). See
-// specs/local_first_editor_migration_step_1.md.
+// request. Sync flushes through the batched `apply_cr_operations` endpoint
+// (see specs/local_first_editor_migration_step_2.md). The legacy per-action
+// CR RPCs remain wired up under `useBatchOperations = false` for rollout
+// safety and will be removed once the batch path is stable in production.
+
+// Toggle to fall back to the Step 1 per-RPC sync path during rollout. Flip to
+// false to bypass `apply_cr_operations` and use create_cr_page / update_cr_page
+// / move_cr_page / reorder_cr_children / delete_cr_page directly.
+const useBatchOperations = true;
 
 function makeTempKey() {
 	const rand =
@@ -80,10 +87,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const pagesByKey = reactive({});
 	const changesByKey = reactive({});
 	const pending = ref([]);
+	// Last `operation_version` we know the server is on for this CR. Sent as
+	// `base_version` on the next batch so the server can detect concurrent
+	// edits and reject with a structured conflict instead of clobbering.
+	const operationVersion = ref(null);
 	const sync = reactive({
 		status: 'idle', // 'idle' | 'saving' | 'failed'
 		lastSavedAt: null,
 		error: null,
+		conflict: false,
 	});
 
 	const isHydrating = ref(false);
@@ -150,9 +162,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			reorderTimer = null;
 		}
 		pending.value = [];
+		operationVersion.value = null;
 		sync.status = 'idle';
 		sync.lastSavedAt = null;
 		sync.error = null;
+		sync.conflict = false;
 	}
 
 	function applyServerTree(serverTree) {
@@ -160,6 +174,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		tree.value = (serverTree?.children || []).map((c) =>
 			normalizeNode(c, rootKey.value),
 		);
+		if (typeof serverTree?.operation_version === 'number') {
+			operationVersion.value = serverTree.operation_version;
+			// Keep the per-CR map in sync so subsequent batches for this CR
+			// use the freshly hydrated version as their base.
+			const state = _getCrState(crName.value);
+			if (state) state.version = serverTree.operation_version;
+		}
 	}
 
 	function applyChangesSummary(changes) {
@@ -436,6 +457,97 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
+	// Per-CR sync state: tail (so same-CR batches serialize and never race
+	// on base_version) and the latest known version. Keyed by CR name so a
+	// mid-flight workspace switch can't reroute a queued batch to a
+	// different CR — each CR has its own tail/version, captured at enqueue
+	// time. The map is intentionally not cleared on `reset()`: pending
+	// batches for an abandoned CR still need to resolve against their
+	// captured CR, and re-entering a CR re-hydrates the entry from
+	// `get_cr_tree`.
+	const crSyncState = new Map();
+
+	function _getCrState(name) {
+		if (!name) return null;
+		let state = crSyncState.get(name);
+		if (!state) {
+			state = { tail: Promise.resolve(), version: null };
+			crSyncState.set(name, state);
+		}
+		return state;
+	}
+
+	// Submit a batch to `apply_cr_operations` and bookkeep the version /
+	// conflict state. Returns the response on success and rejects with an
+	// Error whose `code === 'version_conflict'` when the server reports the
+	// client is behind. Callers do their own local-store merging from
+	// `result.temp_key_map`, `result.items`, and `result.deleted_doc_keys`.
+	async function applyBatchOps(operations) {
+		if (!operations || operations.length === 0) return null;
+		if (!(await ensureCr())) throw new Error('No change request');
+
+		// Pin the CR identity at enqueue so a mid-flight space switch can't
+		// reroute this batch to a different CR.
+		const submitCr = crName.value;
+		const state = _getCrState(submitCr);
+
+		// Chain onto the per-CR tail. Swallowing prior errors prevents one
+		// failed batch from poisoning subsequent ones, while each caller
+		// still observes its own batch's outcome through its own promise
+		// reference.
+		const next = state.tail.then(
+			() => _submitBatch(submitCr, operations),
+			() => _submitBatch(submitCr, operations),
+		);
+		state.tail = next.catch(() => {});
+		return next;
+	}
+
+	async function _submitBatch(submitCr, operations) {
+		const state = _getCrState(submitCr);
+		const result = await crStore.applyOperations(
+			submitCr,
+			state.version,
+			operations,
+		);
+
+		if (!result) {
+			throw new Error('Empty response from apply_cr_operations');
+		}
+		if (result.ok === false) {
+			if (result.error === 'version_conflict') {
+				if (typeof result.current_version === 'number') {
+					state.version = result.current_version;
+					if (crName.value === submitCr) {
+						operationVersion.value = state.version;
+					}
+				}
+				if (crName.value === submitCr) {
+					sync.status = 'failed';
+					sync.error = result.message || 'This draft has changed elsewhere.';
+					sync.conflict = true;
+				}
+				const err = new Error(
+					result.message || 'This draft has changed elsewhere.',
+				);
+				err.code = 'version_conflict';
+				throw err;
+			}
+			throw new Error(result.message || 'Batch sync failed');
+		}
+
+		if (typeof result.current_version === 'number') {
+			state.version = result.current_version;
+		}
+		if (crName.value === submitCr) {
+			if (typeof result.current_version === 'number') {
+				operationVersion.value = result.current_version;
+			}
+			sync.conflict = false;
+		}
+		return result;
+	}
+
 	// Insert node locally with pending_create *before* awaiting anything,
 	// then sync in the background. On success swap the temp doc key for the
 	// real one. On failure leave the node visible with sync_failed so the
@@ -519,29 +631,60 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				}
 
 				setMutationStatus(mutation.id, 'syncing');
-				const result = await crStore.createPage(
-					crName.value,
-					resolvedParent,
-					payload.title,
-					payload.content,
-					payload.isGroup,
-					payload.isExternalLink,
-					payload.externalUrl,
-				);
-				const realKey = typeof result === 'string' ? result : result?.doc_key;
+
+				let realKey = null;
+				let route = null;
+				let documentName = null;
+				if (useBatchOperations) {
+					const result = await applyBatchOps([
+						{
+							id: mutation.id,
+							type: 'create_node',
+							temp_key: tempKey,
+							parent_key: resolvedParent,
+							title: payload.title,
+							content: payload.content || '',
+							is_group: !!payload.isGroup,
+							is_external_link: !!payload.isExternalLink,
+							external_url: payload.externalUrl ?? null,
+						},
+					]);
+					realKey = result?.temp_key_map?.[tempKey] || null;
+					if (realKey) {
+						const item = (result.items || []).find(
+							(it) => it.doc_key === realKey,
+						);
+						route = item?.route || null;
+						documentName = item?.document_name || null;
+					}
+				} else {
+					const result = await crStore.createPage(
+						crName.value,
+						resolvedParent,
+						payload.title,
+						payload.content,
+						payload.isGroup,
+						payload.isExternalLink,
+						payload.externalUrl,
+					);
+					realKey = typeof result === 'string' ? result : result?.doc_key;
+					route = result?.route || null;
+				}
+
 				if (realKey) {
 					const node = findNode(tempKey);
 					if (node) {
 						node.docKey = realKey;
 						node.serverDocKey = realKey;
-						node.route = result?.route || node.route;
+						if (route) node.route = route;
+						if (documentName) node.documentName = documentName;
 						node.localStatus = null;
 					}
 					if (pagesByKey[tempKey]) {
 						pagesByKey[realKey] = {
 							...pagesByKey[tempKey],
 							docKey: realKey,
-							route: result?.route || pagesByKey[tempKey].route,
+							route: route ?? pagesByKey[tempKey].route,
 						};
 						delete pagesByKey[tempKey];
 					}
@@ -630,7 +773,33 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const realKey = await resolveDocKey(docKey);
 			if (!realKey) throw new Error('Pending create did not resolve');
 			if (!(await ensureCr())) throw new Error('No change request');
-			await crStore.updatePage(crName.value, realKey, fields);
+			if (useBatchOperations) {
+				const result = await applyBatchOps([
+					{
+						id: mutation.id,
+						type: 'update_node',
+						doc_key: realKey,
+						fields,
+					},
+				]);
+				// Pick up server-recomputed metadata (notably route, when title/slug
+				// changed and the caller didn't pin a route).
+				const item = (result?.items || []).find((it) => it.doc_key === realKey);
+				if (item) {
+					const fresh = findNode(realKey) || findNode(docKey);
+					if (fresh) {
+						if (item.route) fresh.route = item.route;
+						if (item.title != null) fresh.title = item.title;
+					}
+					const page = pagesByKey[realKey] || pagesByKey[docKey];
+					if (page) {
+						if (item.route) page.route = item.route;
+						if (item.title != null) page.title = item.title;
+					}
+				}
+			} else {
+				await crStore.updatePage(crName.value, realKey, fields);
+			}
 			const fresh = findNode(realKey) || findNode(docKey);
 			if (fresh) fresh.localStatus = null;
 			clearMutation(mutation.id);
@@ -724,45 +893,102 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 		const failedKeys = [];
 		try {
-			for (const [docKey, { targetParentKey }] of snapshot) {
-				const realKey = await resolveDocKey(docKey);
-				const realParentKey = await resolveDocKey(targetParentKey);
-				if (!realKey || !realParentKey) {
-					failedKeys.push(docKey);
-					continue;
+			if (useBatchOperations) {
+				// Pack every drag (and its parent's full sibling order) into a
+				// single atomic batch so the backend sees one user intent
+				// rather than a chain of move/reorder pairs.
+				const ops = [];
+				const reorderedParents = new Set();
+				for (const [docKey, { targetParentKey }] of snapshot) {
+					const realKey = await resolveDocKey(docKey);
+					const realParentKey = await resolveDocKey(targetParentKey);
+					if (!realKey || !realParentKey) {
+						failedKeys.push(docKey);
+						continue;
+					}
+					const node = findNode(realKey) || findNode(docKey);
+					const parentList = node ? getChildList(node.parentKey) : null;
+					const newIndex = parentList
+						? parentList.findIndex(
+								(n) => n.docKey === realKey || n.docKey === docKey,
+						  )
+						: 0;
+					const muId =
+						moveMutations.find((m) => m.payload?.docKey === docKey)?.id ||
+						docKey;
+					ops.push({
+						id: `${muId}-move`,
+						type: 'move_node',
+						doc_key: realKey,
+						target_parent_key: realParentKey,
+						order_index: Math.max(0, newIndex),
+					});
+					if (!reorderedParents.has(realParentKey)) {
+						reorderedParents.add(realParentKey);
+						const siblingKeys = parentList
+							? await Promise.all(
+									parentList.map((n) => resolveDocKey(n.docKey)),
+							  )
+							: [];
+						const filteredSiblings = siblingKeys.filter(Boolean);
+						if (filteredSiblings.length) {
+							ops.push({
+								id: `${realParentKey}-reorder`,
+								type: 'reorder_children',
+								parent_key: realParentKey,
+								ordered_doc_keys: filteredSiblings,
+							});
+						}
+					}
 				}
+				if (ops.length) await applyBatchOps(ops);
+				for (const [docKey] of snapshot) {
+					if (failedKeys.includes(docKey)) continue;
+					const realKey = tempKeyResolutions[docKey] || docKey;
+					const fresh = findNode(realKey) || findNode(docKey);
+					if (fresh) fresh.localStatus = null;
+				}
+			} else {
+				for (const [docKey, { targetParentKey }] of snapshot) {
+					const realKey = await resolveDocKey(docKey);
+					const realParentKey = await resolveDocKey(targetParentKey);
+					if (!realKey || !realParentKey) {
+						failedKeys.push(docKey);
+						continue;
+					}
 
-				const node = findNode(realKey) || findNode(docKey);
-				const parentList = node ? getChildList(node.parentKey) : null;
-				const newIndex = parentList
-					? parentList.findIndex(
-							(n) => n.docKey === realKey || n.docKey === docKey,
-					  )
-					: 0;
+					const node = findNode(realKey) || findNode(docKey);
+					const parentList = node ? getChildList(node.parentKey) : null;
+					const newIndex = parentList
+						? parentList.findIndex(
+								(n) => n.docKey === realKey || n.docKey === docKey,
+						  )
+						: 0;
 
-				await crStore.movePage(
-					crName.value,
-					realKey,
-					realParentKey,
-					Math.max(0, newIndex),
-				);
-
-				// Send the parent's full sibling order so the backend matches
-				// what the user sees — resolving any temp siblings first.
-				const siblingKeys = parentList
-					? await Promise.all(parentList.map((n) => resolveDocKey(n.docKey)))
-					: [];
-				const filteredSiblings = siblingKeys.filter(Boolean);
-				if (filteredSiblings.length) {
-					await crStore.reorderChildren(
+					await crStore.movePage(
 						crName.value,
+						realKey,
 						realParentKey,
-						filteredSiblings,
+						Math.max(0, newIndex),
 					);
-				}
 
-				const fresh = findNode(realKey) || findNode(docKey);
-				if (fresh) fresh.localStatus = null;
+					// Send the parent's full sibling order so the backend matches
+					// what the user sees — resolving any temp siblings first.
+					const siblingKeys = parentList
+						? await Promise.all(parentList.map((n) => resolveDocKey(n.docKey)))
+						: [];
+					const filteredSiblings = siblingKeys.filter(Boolean);
+					if (filteredSiblings.length) {
+						await crStore.reorderChildren(
+							crName.value,
+							realParentKey,
+							filteredSiblings,
+						);
+					}
+
+					const fresh = findNode(realKey) || findNode(docKey);
+					if (fresh) fresh.localStatus = null;
+				}
 			}
 			for (const m of moveMutations) {
 				if (failedKeys.includes(m.payload?.docKey)) {
@@ -861,9 +1087,20 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		setMutationStatus(mutation.id, 'syncing');
 		try {
 			if (!(await ensureCr())) throw new Error('No change request');
-			const fields = { content };
-			if (title != null) fields.title = title;
-			await crStore.updatePage(crName.value, realKey, fields);
+			if (useBatchOperations) {
+				const op = {
+					id: mutation.id,
+					type: 'update_content',
+					doc_key: realKey,
+					content,
+				};
+				if (title != null) op.title = title;
+				await applyBatchOps([op]);
+			} else {
+				const fields = { content };
+				if (title != null) fields.title = title;
+				await crStore.updatePage(crName.value, realKey, fields);
+			}
 
 			const targetPage = pagesByKey[realKey] || pagesByKey[docKey];
 			if (targetPage) {
@@ -936,7 +1173,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				}
 			}
 			if (!(await ensureCr())) throw new Error('No change request');
-			await crStore.deletePage(crName.value, resolvedKey);
+			if (useBatchOperations) {
+				await applyBatchOps([
+					{
+						id: mutation.id,
+						type: 'delete_node',
+						doc_key: resolvedKey,
+					},
+				]);
+			} else {
+				await crStore.deletePage(crName.value, resolvedKey);
+			}
 			clearMutation(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
@@ -955,6 +1202,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		pagesByKey,
 		changesByKey,
 		pending,
+		operationVersion,
 		sync,
 		isHydrating,
 		tempKeyResolutions,
