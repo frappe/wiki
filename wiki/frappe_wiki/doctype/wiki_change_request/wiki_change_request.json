@@ -19,6 +19,7 @@
 		"merged_by",
 		"merged_at",
 		"archived_at",
+		"operation_version",
 		"section_break_participants",
 		"reviewers",
 		"participants"
@@ -111,6 +112,15 @@
 			"fieldname": "archived_at",
 			"fieldtype": "Datetime",
 			"label": "Archived At",
+			"read_only": 1
+		},
+		{
+			"default": "0",
+			"fieldname": "operation_version",
+			"fieldtype": "Int",
+			"hidden": 1,
+			"label": "Operation Version",
+			"non_negative": 1,
 			"read_only": 1
 		},
 		{
