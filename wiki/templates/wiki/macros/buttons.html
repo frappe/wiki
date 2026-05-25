@@ -158,6 +158,28 @@
              class="absolute left-0 sm:left-auto sm:right-0 mt-10 w-72 bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-2">
 {% endmacro %}
 
+{# Dropdown row that triggers downloadPage() and reflects the downloadInProgress state.
+   Keeps the dropdown open while preparing the PDF so the loading state stays visible. #}
+{% macro download_action_item() %}
+<button @click="downloadPage().finally(() => open = false)"
+        :disabled="downloadInProgress"
+        :aria-busy="downloadInProgress"
+        class="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+    <span class="flex-shrink-0 mt-0.5">
+        <template x-if="!downloadInProgress">
+            {{ render_icon("download", "w-5 h-5 text-[var(--ink-gray-5)]") }}
+        </template>
+        <template x-if="downloadInProgress">
+            {{ render_icon("loader", "w-5 h-5 text-[var(--ink-gray-5)] animate-spin") }}
+        </template>
+    </span>
+    <div class="flex-1 min-w-0">
+        <div class="text-sm font-medium text-[var(--ink-gray-8)]" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
+        <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">Download this page as a PDF</div>
+    </div>
+</button>
+{% endmacro %}
+
 {% macro page_action_item(text="", description="", icon="", href="", href_expr="", click="", target="") %}
     {% if click %}
     <button @click="{{ click }}"
@@ -238,6 +260,15 @@
     {% elif icon == "list" %}
     <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+    </svg>
+    {% elif icon == "download" %}
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"></path>
+    </svg>
+    {% elif icon == "loader" %}
+    <svg class="{{ icon_base_classes }}" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-20" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle>
+        <path class="opacity-100" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v2a7 7 0 0 1 7 7z"></path>
     </svg>
     {% elif icon == "search" %}
     <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">

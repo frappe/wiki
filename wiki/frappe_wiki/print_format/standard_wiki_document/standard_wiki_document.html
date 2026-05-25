@@ -1,0 +1,211 @@
+<style>
+	.wiki-document-shell {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+
+	.wiki-document-header {
+		margin-bottom: 1.5rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #e2e2e2;
+	}
+
+	.wiki-document-eyebrow {
+		margin-bottom: 0.5rem;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: #7c7c7c;
+	}
+
+	.wiki-document-eyebrow .sep {
+		margin: 0 0.4em;
+		color: #c7c7c7;
+	}
+
+	.wiki-document-title {
+		margin: 0 0 1rem;
+	}
+
+	.wiki-document-meta .row + .row {
+		margin-top: 0.75rem;
+	}
+
+	.wiki-document-meta label {
+		margin-bottom: 0;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: #7c7c7c;
+	}
+
+	.wiki-document-content img {
+		max-width: 100%;
+		height: auto;
+	}
+
+	.wiki-document-content a {
+		color: inherit;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		word-break: break-all;
+	}
+
+	.wiki-document-content pre {
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.wiki-document-content table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.wiki-document-content th,
+	.wiki-document-content td {
+		padding: 0.5rem;
+		border: 1px solid #e2e2e2;
+		vertical-align: top;
+	}
+
+	.wiki-document-content blockquote {
+		/* Reset Bootstrap defaults (full border + 10px 20px padding) that Frappe's print CSS layers in. */
+		border: 0;
+		border-left: 4px solid #e2e2e2;
+		padding: 0 0 0 1em;
+		margin: 1.6em 0;
+		font-size: inherit;
+		font-style: italic;
+		font-weight: 500;
+		color: #383838;
+		quotes: "\201C" "\201D" "\2018" "\2019";
+	}
+
+	.wiki-document-content blockquote p {
+		margin: 0.5em 0;
+	}
+
+	.wiki-document-content blockquote p:first-of-type::before {
+		content: open-quote;
+	}
+
+	.wiki-document-content blockquote p:last-of-type::after {
+		content: close-quote;
+	}
+
+	/* Callouts — mirror the public-page treatment. Public CSS uses display:grid;
+	   wkhtmltopdf's QtWebKit predates Grid, so use a float for icon-left layout. */
+	.wiki-document-content .callout {
+		margin: 1rem 0;
+		padding: 0.875rem 1rem;
+		border-radius: 6px;
+		overflow: hidden;
+	}
+
+	.wiki-document-content .callout-icon {
+		float: left;
+		width: 1rem;
+		margin-right: 0.75rem;
+		padding-top: 0.125rem;
+		line-height: 0;
+	}
+
+	.wiki-document-content .callout-icon svg {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.wiki-document-content .callout-body {
+		overflow: hidden;
+	}
+
+	.wiki-document-content .callout-title {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		line-height: 1.4;
+		color: #171717;
+	}
+
+	.wiki-document-content .callout-content {
+		font-size: 0.875rem;
+		line-height: 1.5;
+		color: #525252;
+	}
+
+	.wiki-document-content .callout-content > *:first-child {
+		margin-top: 0;
+	}
+
+	.wiki-document-content .callout-content > *:last-child {
+		margin-bottom: 0;
+	}
+
+	.wiki-document-content .callout-note {
+		background-color: #E6F4FF;
+	}
+
+	.wiki-document-content .callout-note .callout-icon {
+		color: #007BE0;
+	}
+
+	.wiki-document-content .callout-tip {
+		background-color: #E4FAEB;
+	}
+
+	.wiki-document-content .callout-tip .callout-icon {
+		color: #278F5E;
+	}
+
+	.wiki-document-content .callout-caution {
+		background-color: #FFF7D3;
+	}
+
+	.wiki-document-content .callout-caution .callout-icon {
+		color: #DB7706;
+	}
+
+	.wiki-document-content .callout-danger {
+		background-color: #FFE7E7;
+	}
+
+	.wiki-document-content .callout-danger .callout-icon {
+		color: #E03636;
+	}
+</style>
+
+{% set breadcrumbs = doc.get_breadcrumbs() %}
+{% set space = breadcrumbs.space %}
+{# Skip the first ancestor — it's the wiki space's root group, already represented by the space name. #}
+{% set ancestors = breadcrumbs.ancestors[1:] if breadcrumbs.ancestors else [] %}
+<div class="page-break">
+	<div class="wiki-document-shell">
+		<header class="wiki-document-header">
+			{% if space or ancestors %}
+			<div class="wiki-document-eyebrow">
+				{% if space %}{{ space.space_name }}{% endif %}
+				{% for ancestor in ancestors %}
+					<span class="sep">›</span>{{ ancestor.title }}
+				{% endfor %}
+			</div>
+			{% endif %}
+
+			<h1 class="wiki-document-title">{{ doc.title }}</h1>
+
+			<div class="wiki-document-meta">
+				<div class="row">
+					<div class="col-xs-3">
+						<label>{{ _("Last Updated") }}</label>
+					</div>
+					<div class="col-xs-9">{{ doc.get_formatted("modified") }}</div>
+				</div>
+			</div>
+		</header>
+
+		<div class="wiki-document-content">
+			{{ doc.rendered_content_for_pdf or "" }}
+		</div>
+	</div>
+</div>
