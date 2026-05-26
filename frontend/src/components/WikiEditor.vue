@@ -87,6 +87,10 @@ const props = defineProps({
 		type: String,
 		default: '',
 	},
+	documentKey: {
+		type: String,
+		default: null,
+	},
 	saving: {
 		type: Boolean,
 		default: false,
@@ -113,7 +117,15 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'dirty-change', 'local-content']);
 const hasUnsavedChanges = ref(false);
-const lastSavedContent = ref(props.content || '');
+const lastSavedContent = ref(props.savedContent ?? props.content ?? '');
+
+function emitDirtyChange(dirty) {
+	emit('dirty-change', dirty, props.documentKey);
+}
+
+function emitLocalContent(content) {
+	emit('local-content', content, props.documentKey);
+}
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
@@ -531,7 +543,7 @@ function handleContentChange() {
 		// gating in the parent can't know about local content until the
 		// 10s autosave fires. Only emit on the clean→dirty edge so the
 		// store doesn't churn on every keystroke.
-		if (wasClean) emit('dirty-change', true);
+		if (wasClean) emitDirtyChange(true);
 
 		// Set up debounced autosave
 		autosaveTimer = setTimeout(() => {
@@ -544,7 +556,7 @@ function handleContentChange() {
 		if (localPersistTimer) clearTimeout(localPersistTimer);
 		localPersistTimer = setTimeout(() => {
 			const latest = editor.value?.getMarkdown();
-			if (latest !== undefined) emit('local-content', latest);
+			if (latest !== undefined) emitLocalContent(latest);
 		}, LOCAL_PERSIST_DELAY);
 	} else {
 		// Edit returned to the last saved value (typed-then-undone). The
@@ -553,7 +565,7 @@ function handleContentChange() {
 		// requiring a redundant save.
 		const wasDirty = hasUnsavedChanges.value;
 		hasUnsavedChanges.value = false;
-		if (wasDirty) emit('dirty-change', false);
+		if (wasDirty) emitDirtyChange(false);
 		// Cancel any in-flight IDB write that would re-persist the
 		// pre-undo text and fire one final local-content so the parent
 		// can clear the persisted draft (it'll match saved content).
@@ -561,7 +573,7 @@ function handleContentChange() {
 			clearTimeout(localPersistTimer);
 			localPersistTimer = null;
 		}
-		emit('local-content', currentContent);
+		emitLocalContent(currentContent);
 	}
 }
 
@@ -580,7 +592,7 @@ async function autoSave() {
 	) {
 		const wasDirty = hasUnsavedChanges.value;
 		hasUnsavedChanges.value = false;
-		if (wasDirty) emit('dirty-change', false);
+		if (wasDirty) emitDirtyChange(false);
 		return;
 	}
 
@@ -635,7 +647,7 @@ watch(
 		const current = editor.value?.getMarkdown();
 		const dirty = current !== undefined && current !== saved;
 		hasUnsavedChanges.value = dirty;
-		emit('dirty-change', dirty);
+		emitDirtyChange(dirty);
 	},
 );
 
@@ -646,7 +658,7 @@ watch(
 	(status) => {
 		if (status === 'failed') {
 			hasUnsavedChanges.value = true;
-			emit('dirty-change', true);
+			emitDirtyChange(true);
 		}
 	},
 );
@@ -698,7 +710,7 @@ onUnmounted(() => {
 		clearTimeout(localPersistTimer);
 		localPersistTimer = null;
 		const latest = editor.value?.getMarkdown();
-		if (latest !== undefined) emit('local-content', latest);
+		if (latest !== undefined) emitLocalContent(latest);
 	}
 	if (editor.value) {
 		editor.value.destroy();

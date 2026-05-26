@@ -180,14 +180,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					docKey,
 					title: title || '',
 					route: '',
-					content,
+					content: null,
+					localContent: content,
 					isPublished: true,
 					dirty: true,
 					saveStatus: 'dirty',
 					error: null,
 				});
 			} else {
-				page.content = content;
+				page.localContent = content;
 				if (title) page.title = title;
 				page.dirty = true;
 				page.saveStatus = 'dirty';
@@ -243,6 +244,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const localPage = pageBuffers.get(docKey);
 		if (
 			localPage &&
+			localPage.content != null &&
 			(localPage.dirty ||
 				['dirty', 'saving', 'failed'].includes(localPage.saveStatus))
 		) {
@@ -250,11 +252,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 		if (!crName.value) return null;
 		const result = await transport.fetchPage(crName.value, docKey);
+		if (localPage?.dirty) {
+			if (!localPage.title) localPage.title = result?.title || '';
+			localPage.route = result?.route || '';
+			localPage.content = result?.content || '';
+			localPage.isPublished = result?.is_published !== false;
+			return localPage;
+		}
 		return pageBuffers.setPage(docKey, {
 			docKey,
 			title: result?.title || '',
 			route: result?.route || '',
 			content: result?.content || '',
+			localContent: null,
 			isPublished: result?.is_published !== false,
 			dirty: false,
 			saveStatus: 'idle',
@@ -643,19 +653,34 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
+				const hasNewerLocalContent =
+					targetPage.localContent != null &&
+					targetPage.localContent !== content;
 				targetPage.content = content;
 				if (title != null) targetPage.title = title;
-				targetPage.dirty = false;
-				targetPage.saveStatus = 'saved';
+				targetPage.dirty = hasNewerLocalContent;
+				targetPage.saveStatus = hasNewerLocalContent ? 'dirty' : 'saved';
 				targetPage.error = null;
+				if (!hasNewerLocalContent) {
+					targetPage.localContent = null;
+				}
 			}
 			// Content is durably on the server now — drop the local IDB
 			// backup for both the resolved key and (if different) the
 			// pre-promotion tmp key so a future hydrate doesn't restore
 			// stale typing on top of fresh server state.
 			if (crName.value) {
-				clearPersistedDraft(crName.value, realKey);
-				if (docKey !== realKey) clearPersistedDraft(crName.value, docKey);
+				if (targetPage?.dirty && targetPage.localContent != null) {
+					savePersistedDraft(crName.value, realKey, {
+						content: targetPage.localContent,
+						title: targetPage.title,
+					});
+				} else {
+					clearPersistedDraft(crName.value, realKey);
+				}
+				if (docKey !== realKey) {
+					clearPersistedDraft(crName.value, docKey);
+				}
 			}
 			// Only flip global sync to idle if no follow-up save is
 			// queued for this doc — otherwise we'd briefly flash 'saved'
@@ -679,11 +704,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	function markPageDirty(docKey) {
-		pageBuffers.markDirty(docKey);
+		const realKey = resolver.resolveKey(docKey) || docKey;
+		pageBuffers.markDirty(realKey);
 	}
 
 	function markPageClean(docKey) {
-		pageBuffers.markClean(docKey);
+		const realKey = resolver.resolveKey(docKey) || docKey;
+		pageBuffers.markClean(realKey);
 	}
 
 	// Persist the editor's current in-progress content to IndexedDB so
@@ -694,12 +721,16 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// instead so we don't restore stale typing on the next session.
 	function recordEditorContent(docKey, content, title) {
 		if (!docKey || !crName.value) return;
-		const page = pageBuffers.get(docKey);
+		const realKey = resolver.resolveKey(docKey) || docKey;
+		const page = pageBuffers.get(realKey);
 		const savedContent = page?.content;
 		if (content === savedContent) {
-			clearPersistedDraft(crName.value, docKey);
+			pageBuffers.clearLocalContent(realKey);
+			clearPersistedDraft(crName.value, realKey);
 		} else {
-			savePersistedDraft(crName.value, docKey, { content, title });
+			pageBuffers.markDirty(realKey);
+			pageBuffers.setLocalContent(realKey, content);
+			savePersistedDraft(crName.value, realKey, { content, title });
 		}
 	}
 

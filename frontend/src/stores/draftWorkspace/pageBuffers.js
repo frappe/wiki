@@ -6,6 +6,7 @@ function emptyPage(docKey, opts = {}) {
 		title: opts.title ?? '',
 		route: opts.route ?? '',
 		content: opts.content ?? '',
+		localContent: opts.localContent ?? null,
 		isPublished: opts.isPublished ?? true,
 		dirty: opts.dirty ?? false,
 		saveStatus: opts.saveStatus ?? 'idle',
@@ -13,8 +14,9 @@ function emptyPage(docKey, opts = {}) {
 	};
 }
 
-// Per-doc editor buffers (title/content/dirty/saveStatus). Knows nothing
-// about persistence or transport — the store wires those in.
+// Per-doc editor buffers. `content` is the server-confirmed baseline while
+// `localContent` retains unsaved text across navigation and restore.
+// Persistence and transport remain store concerns.
 export function createPageBuffers() {
 	const pagesByKey = reactive({});
 
@@ -93,7 +95,7 @@ export function createPageBuffers() {
 			});
 		}
 		page.docKey = finalKey;
-		page.content = content;
+		page.localContent = content;
 		if (title != null) page.title = title;
 		page.dirty = true;
 		page.saveStatus = 'dirty';
@@ -103,6 +105,18 @@ export function createPageBuffers() {
 			delete pagesByKey[docKey];
 		}
 		return page;
+	}
+
+	function setLocalContent(docKey, content) {
+		const page = pagesByKey[docKey];
+		if (!page) return null;
+		page.localContent = content;
+		return page;
+	}
+
+	function clearLocalContent(docKey) {
+		const page = pagesByKey[docKey];
+		if (page) page.localContent = null;
 	}
 
 	// Swap a tmp_* keyed buffer over to its real key once the create syncs.
@@ -142,6 +156,8 @@ export function createPageBuffers() {
 		markDirty,
 		markClean,
 		updateLocalContent,
+		setLocalContent,
+		clearLocalContent,
 		promoteKey,
 		clearFailedFlag,
 		reset,

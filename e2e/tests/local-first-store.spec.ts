@@ -132,7 +132,7 @@ test.describe('Local-first draft workspace', () => {
 		await editor.click();
 
 		// Wait for the create RPC to actually resolve and the temp key to be
-		// swapped out for the real one. Then drop the interceptor.
+		// swapped out for the real one.
 		await page.waitForFunction(
 			() => {
 				const draftKey = window.location.pathname.match(/\/draft\/([^/?#]+)/);
@@ -141,16 +141,16 @@ test.describe('Local-first draft workspace', () => {
 			},
 			{ timeout: 6000 },
 		);
-		await unroute();
 
 		// Typed content must still be in the editor after the key swap.
 		await expect(page.getByText(typedContent)).toBeVisible();
 
-		// Save Draft must succeed against the now-real key.
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		// Promotion triggers a save against the real key. Let that intercepted
+		// request finish before unregistering its delayed route handler.
 		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
+			timeout: 6000,
 		});
+		await unroute();
 	});
 
 	test('failed apply_cr_operations save: content stays visible and submit is blocked', async ({
@@ -355,6 +355,89 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeEnabled();
 	});
 
+	test('navigating away from dirty content keeps Submit disabled and restores the local buffer', async ({
+		page,
+		request,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Navigate Dirty Space ${timestamp}`;
+		const spaceRoute = `navigate-dirty-space-${timestamp}`;
+		const firstTitle = `navigate-first-page-${timestamp}`;
+		const secondTitle = `navigate-second-page-${timestamp}`;
+		const typedContent = `Must survive document navigation ${timestamp}`;
+
+		const { spaceId } = await createSpaceViaUI(page, {
+			name: spaceName,
+			route: spaceRoute,
+		});
+		const draft = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_or_create_draft_change_request`,
+			{ wiki_space: spaceId },
+		);
+		const tree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_cr_tree`,
+			{ name: draft.name },
+		);
+		const firstKey = await callMethod<string>(
+			request,
+			`${CR_METHOD_PREFIX}.create_cr_page`,
+			{
+				name: draft.name,
+				parent_key: tree.root_group,
+				title: firstTitle,
+				content: '',
+				is_group: 0,
+				is_published: 1,
+			},
+		);
+		await callMethod(request, `${CR_METHOD_PREFIX}.create_cr_page`, {
+			name: draft.name,
+			parent_key: tree.root_group,
+			title: secondTitle,
+			content: '',
+			is_group: 0,
+			is_published: 1,
+		});
+
+		await page.goto(`/wiki/spaces/${spaceId}/draft/${firstKey}`);
+		await page.waitForLoadState('networkidle');
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeEnabled();
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+		await expect(submitButton).toBeDisabled();
+
+		await page.locator('aside').getByText(secondTitle, { exact: true }).click();
+		await expect(submitButton).toBeDisabled();
+
+		await page.locator('aside').getByText(firstTitle, { exact: true }).click();
+		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
+		await expect(submitButton).toBeDisabled();
+
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(submitButton).toBeEnabled();
+	});
+
 	test('typing then undoing back to saved content re-enables Submit without a redundant save', async ({
 		page,
 	}) => {
@@ -421,6 +504,84 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, baselineContent);
 		await editor.click();
+		await expect(submitButton).toBeEnabled();
+	});
+
+	test('dirty content on an existing published page survives browser refresh', async ({
+		page,
+		request,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Published Persist Space ${timestamp}`;
+		const spaceRoute = `published-persist-space-${timestamp}`;
+		const pageTitle = `published-persist-page-${timestamp}`;
+		const typedContent = `Existing page survives refresh ${timestamp}`;
+
+		const { spaceId } = await createSpaceViaUI(page, {
+			name: spaceName,
+			route: spaceRoute,
+		});
+		const initialDraft = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_or_create_draft_change_request`,
+			{ wiki_space: spaceId },
+		);
+		const initialTree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_cr_tree`,
+			{ name: initialDraft.name },
+		);
+		await callMethod(request, `${CR_METHOD_PREFIX}.create_cr_page`, {
+			name: initialDraft.name,
+			parent_key: initialTree.root_group,
+			title: pageTitle,
+			content: '',
+			is_group: 0,
+			is_published: 1,
+		});
+		await callMethod(request, `${CR_METHOD_PREFIX}.request_review`, {
+			name: initialDraft.name,
+			reviewers: [],
+		});
+		await callMethod(request, `${CR_METHOD_PREFIX}.merge_change_request`, {
+			name: initialDraft.name,
+		});
+
+		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForURL(/\/page\/[^/?#]+/, { timeout: 10000 });
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+		await page.waitForTimeout(800);
+
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
+
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
 		await expect(submitButton).toBeEnabled();
 	});
 

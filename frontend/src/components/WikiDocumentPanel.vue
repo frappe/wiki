@@ -68,7 +68,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
 			</div>
 		</div>
 
@@ -132,10 +132,9 @@ import {
 	Dropdown,
 	FormControl,
 	createDocumentResource,
-	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
 import LucideLock from '~icons/lucide/lock';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
@@ -172,20 +171,18 @@ const wikiDoc = createDocumentResource({
 	auto: true,
 });
 
-const crPageResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_page',
-	onSuccess(data) {
-		currentCrPage.value = data;
-	},
-});
-
 const currentCrPage = ref(null);
+const isLoadingCrPage = ref(false);
+const loadedDocKey = ref(null);
+let latestPageLoad = 0;
 
 watch(
 	() => props.pageId,
 	(newPageId) => {
 		if (newPageId) {
+			latestPageLoad += 1;
 			currentCrPage.value = null;
+			loadedDocKey.value = null;
 			wikiDoc.name = newPageId;
 			wikiDoc.reload();
 		}
@@ -194,16 +191,12 @@ watch(
 
 watch(
 	[() => crStore.currentChangeRequest?.name, () => wikiDoc.doc?.doc_key],
-	async ([crName, docKey], [oldCrName, oldDocKey]) => {
-		// Editor unmounts on docKey change; its dirty flag belonged to the
-		// previous doc and must not bleed into the new doc's submit gate.
-		if (oldDocKey && oldDocKey !== docKey) {
-			draftStore.markPageClean(oldDocKey);
-		}
-		if (crName && docKey) {
+	async ([crName, docKey], [oldCrName]) => {
+		if (docKey) {
 			await loadCrPage();
 		} else {
 			currentCrPage.value = null;
+			loadedDocKey.value = null;
 		}
 		// After merge/archive, the CR name changes — reload wikiDoc to get updated route etc.
 		if (oldCrName && crName !== oldCrName) {
@@ -213,34 +206,55 @@ watch(
 	{ immediate: true },
 );
 
-function onEditorDirtyChange(dirty) {
-	const docKey = wikiDoc.doc?.doc_key;
+function onEditorDirtyChange(dirty, docKey = wikiDoc.doc?.doc_key) {
 	if (!docKey) return;
 	if (dirty) draftStore.markPageDirty(docKey);
 	else draftStore.markPageClean(docKey);
 }
 
-function onLocalContent(content) {
-	const docKey = wikiDoc.doc?.doc_key;
+function onLocalContent(content, docKey = wikiDoc.doc?.doc_key) {
 	if (!docKey) return;
-	draftStore.recordEditorContent(docKey, content, editableTitle.value);
+	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
+	draftStore.recordEditorContent(docKey, content, title);
 }
-
-onBeforeUnmount(() => {
-	const docKey = wikiDoc.doc?.doc_key;
-	if (docKey) draftStore.markPageClean(docKey);
-});
 
 async function loadCrPage() {
-	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) {
+	const docKey = wikiDoc.doc?.doc_key;
+	const pageLoad = ++latestPageLoad;
+	if (!docKey) {
 		currentCrPage.value = null;
+		loadedDocKey.value = null;
 		return;
 	}
-	await crPageResource.submit({
-		name: crStore.currentChangeRequest.name,
-		doc_key: wikiDoc.doc.doc_key,
-	});
+	isLoadingCrPage.value = true;
+	try {
+		if (
+			props.spaceId &&
+			draftStore.isEnabled &&
+			(draftStore.spaceId !== props.spaceId ||
+				draftStore.isHydrating ||
+				!crStore.currentChangeRequest)
+		) {
+			await draftStore.hydrate(props.spaceId);
+		}
+		const page = crStore.currentChangeRequest
+			? await draftStore.loadCrPage(docKey)
+			: null;
+		if (pageLoad === latestPageLoad && wikiDoc.doc?.doc_key === docKey) {
+			currentCrPage.value = page;
+			loadedDocKey.value = docKey;
+		}
+	} finally {
+		if (pageLoad === latestPageLoad) {
+			isLoadingCrPage.value = false;
+		}
+	}
 }
+
+const activePage = computed(() => {
+	const docKey = wikiDoc.doc?.doc_key;
+	return docKey ? draftStore.pagesByKey[docKey] : null;
+});
 
 const hasChangeForCurrentPage = computed(() => {
 	const docKey = wikiDoc.doc?.doc_key;
@@ -249,6 +263,12 @@ const hasChangeForCurrentPage = computed(() => {
 });
 
 const editorContent = computed(() => {
+	if (activePage.value?.localContent != null) {
+		return activePage.value.localContent;
+	}
+	if (activePage.value?.content != null) {
+		return activePage.value.content;
+	}
 	if (currentCrPage.value?.content != null) {
 		return currentCrPage.value.content;
 	}
@@ -256,10 +276,13 @@ const editorContent = computed(() => {
 });
 
 const displayTitle = computed(() => {
-	return currentCrPage.value?.title || wikiDoc.doc?.title || '';
+	return activePage.value?.title || currentCrPage.value?.title || wikiDoc.doc?.title || '';
 });
 
 const displayPublished = computed(() => {
+	if (activePage.value?.isPublished != null) {
+		return Boolean(activePage.value.isPublished);
+	}
 	if (currentCrPage.value?.is_published != null) {
 		return Boolean(currentCrPage.value.is_published);
 	}
@@ -267,7 +290,7 @@ const displayPublished = computed(() => {
 });
 
 const displayRoute = computed(() => {
-	return currentCrPage.value?.route || wikiDoc.doc?.route || '';
+	return activePage.value?.route || currentCrPage.value?.route || wikiDoc.doc?.route || '';
 });
 
 watch(
@@ -291,14 +314,17 @@ const isSaving = computed(() => pageSaveStatus.value === 'saving');
 // editorContent so the first edit isn't seen as dirty before any save
 // has happened.
 const savedContent = computed(() => {
-	const docKey = wikiDoc.doc?.doc_key;
-	const stored = docKey ? draftStore.pagesByKey[docKey]?.content : null;
+	const stored = activePage.value?.content;
 	if (stored != null) return stored;
 	return editorContent.value;
 });
 
 const editorKey = computed(() => {
-	if (wikiDoc.doc?.name === props.pageId && !crPageResource.loading) {
+	if (
+		wikiDoc.doc?.name === props.pageId &&
+		wikiDoc.doc?.doc_key === loadedDocKey.value &&
+		!isLoadingCrPage.value
+	) {
 		return props.pageId;
 	}
 	return null;

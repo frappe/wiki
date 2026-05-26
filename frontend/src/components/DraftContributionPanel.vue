@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -127,7 +127,7 @@ import {
 	LoadingIndicator,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideFolder from '~icons/lucide/folder';
@@ -193,7 +193,7 @@ function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
 		doc_key: docKey,
 		title: page.title,
 		route: page.route,
-		content: page.content,
+		content: page.localContent ?? page.content,
 		is_published: page.isPublished,
 		is_group: node?.isGroup || false,
 	};
@@ -208,30 +208,24 @@ onMounted(async () => {
 
 watch(
 	() => props.docKey,
-	async (newId, oldId) => {
-		// The previous editor is unmounting; its dirty flag belonged to
-		// `oldId` and should not bleed into the new doc's gate.
-		if (oldId) draftStore.markPageClean(oldId);
+	async (newId) => {
 		if (newId) {
 			await loadCrPage();
 		}
 	},
 );
 
-function onEditorDirtyChange(dirty) {
-	if (!props.docKey) return;
-	if (dirty) draftStore.markPageDirty(props.docKey);
-	else draftStore.markPageClean(props.docKey);
+function onEditorDirtyChange(dirty, docKey = props.docKey) {
+	if (!docKey) return;
+	if (dirty) draftStore.markPageDirty(docKey);
+	else draftStore.markPageClean(docKey);
 }
 
-function onLocalContent(content) {
-	if (!props.docKey) return;
-	draftStore.recordEditorContent(props.docKey, content, editableTitle.value);
+function onLocalContent(content, docKey = props.docKey) {
+	if (!docKey) return;
+	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
+	draftStore.recordEditorContent(docKey, content, title);
 }
-
-onBeforeUnmount(() => {
-	if (props.docKey) draftStore.markPageClean(props.docKey);
-});
 
 watch(
 	() => props.spaceId,
@@ -313,7 +307,7 @@ const savedContent = computed(
 );
 
 const editorKey = computed(() => {
-	if (crPage.value) {
+	if (crPage.value?.doc_key === props.docKey) {
 		return `draft-${props.docKey}-${crPage.value?.doc_key}`;
 	}
 	return null;
