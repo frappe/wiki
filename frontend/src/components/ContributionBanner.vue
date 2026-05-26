@@ -23,6 +23,17 @@
 				{{ syncStateLabel }}
 			</Badge>
 
+			<Button
+				v-if="showReloadLatest"
+				variant="outline"
+				size="sm"
+				:loading="reloading"
+				:title="__('Discard local failed changes and adopt server state')"
+				@click="onReloadLatest"
+			>
+				{{ __('Reload latest') }}
+			</Button>
+
 			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
 					v-if="canShowMerge"
@@ -168,7 +179,7 @@ import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
-import { Badge, Button, Dialog, Dropdown } from 'frappe-ui';
+import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideCheckCircle from '~icons/lucide/check-circle';
@@ -193,9 +204,15 @@ const userStore = useUserStore();
 
 // Submit / merge are blocked while local mutations are still syncing or
 // failed — submitting a stale backend CR would silently drop the user's
-// in-flight edits. Reordering counts as pending too via mergeDisabled.
+// in-flight edits. Unsaved editor content (debounced autosave hasn't fired
+// yet) also counts: without this guard a user could type and submit
+// within the 10s autosave window, sending the previous content. Reorder
+// counts as pending too via mergeDisabled.
 const hasUnsyncedWork = computed(
-	() => draftStore.hasPendingMutations || draftStore.hasFailedMutations,
+	() =>
+		draftStore.hasPendingMutations ||
+		draftStore.hasFailedMutations ||
+		draftStore.hasUnsavedEditorContent,
 );
 const submitDisabled = computed(() => hasUnsyncedWork.value);
 const submitButtonTitle = computed(() => {
@@ -205,17 +222,27 @@ const submitButtonTitle = computed(() => {
 	if (draftStore.hasPendingMutations) {
 		return __('Wait for pending changes to sync before submitting');
 	}
+	if (draftStore.hasUnsavedEditorContent) {
+		return __('Save your changes before submitting');
+	}
 	return '';
 });
 
 // Durable sync indicator. Replaces per-edit success toasts: while the
 // store is mid-flight or has failures, this pill is the source of truth.
+// "Unsaved changes" is a distinct state from "Saving…" — the latter
+// implies an in-flight RPC, while the former covers the autosave
+// debounce window where no save has even started. Conflating them
+// reads as dishonest UI per specs/local_first_editor_migration_step_1.md.
 const syncStateLabel = computed(() => {
 	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
 		return __('Sync failed');
 	}
 	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
 		return __('Saving…');
+	}
+	if (draftStore.hasUnsavedEditorContent) {
+		return __('Unsaved changes');
 	}
 	if (draftStore.sync.lastSavedAt) {
 		return __('All changes saved');
@@ -229,6 +256,9 @@ const syncStateTheme = computed(() => {
 	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
 		return 'orange';
 	}
+	if (draftStore.hasUnsavedEditorContent) {
+		return 'gray';
+	}
 	return 'green';
 });
 const syncStateTitle = computed(() => {
@@ -237,6 +267,30 @@ const syncStateTitle = computed(() => {
 	if (failed?.error) return failed.error;
 	return '';
 });
+
+// `Reload latest` is the first-line recovery for conflicts and sync
+// failures (specs/local_first_editor_migration_step_2.md). It appears
+// only when there is something to recover from — otherwise the action
+// would be a noisy noop next to a healthy sync pill.
+const showReloadLatest = computed(
+	() =>
+		draftStore.sync.conflict ||
+		draftStore.hasFailedMutations ||
+		draftStore.sync.status === 'failed',
+);
+const reloading = ref(false);
+async function onReloadLatest() {
+	reloading.value = true;
+	try {
+		await draftStore.reloadFromServer();
+	} catch (error) {
+		toast.error(
+			error.messages?.[0] || error.message || __('Could not reload from server'),
+		);
+	} finally {
+		reloading.value = false;
+	}
+}
 
 const props = defineProps({
 	mergeDisabled: {

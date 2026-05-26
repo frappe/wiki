@@ -143,6 +143,18 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const hasFailedMutations = computed(() =>
 		pending.value.some((m) => m.status === 'failed'),
 	);
+	// Any page whose local content differs from what the server has — this
+	// covers post-save 'failed' state and pre-debounce editor typing alike,
+	// since both flip `page.dirty` true. Submit/merge gate on this so a
+	// user can't ship a CR that doesn't yet contain what they see on
+	// screen. The signal is consolidated on `pagesByKey[*].dirty` rather
+	// than a parallel Set so there is one source of truth for "unsaved".
+	const hasUnsavedEditorContent = computed(() => {
+		for (const key of Object.keys(pagesByKey)) {
+			if (pagesByKey[key]?.dirty) return true;
+		}
+		return false;
+	});
 
 	function reset() {
 		spaceId.value = null;
@@ -233,6 +245,38 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function reloadChanges() {
 		await crStore.loadChanges();
 		applyChangesSummary(crStore.changes);
+	}
+
+	// "Reload latest" recovery. Adopts server tree + change-summary as
+	// truth, discards failed mutations, and refreshes `operation_version`
+	// so the next batch sends a non-stale base. Called from the
+	// ContributionBanner recovery button after a version conflict or sync
+	// failure.
+	//
+	// We intentionally do NOT clear `page.dirty` here. The open editor's
+	// DOM still holds whatever the user typed before the failure; if we
+	// unblocked Submit while that content was unsaved, the user could
+	// submit a CR that doesn't contain what they see on screen. Leaving
+	// `dirty` true keeps Submit gated until the user either saves (which
+	// will now succeed because `operation_version` is fresh) or reverts.
+	// We do downgrade `saveStatus` from 'failed' → 'dirty' so the editor
+	// header / sync pill stops asserting a save failure that no longer
+	// applies; the underlying content state is what matters.
+	async function reloadFromServer() {
+		if (!crName.value) return;
+		await Promise.all([reloadTree(), reloadChanges()]);
+		pending.value = pending.value.filter((m) => m.status !== 'failed');
+		for (const key of Object.keys(pagesByKey)) {
+			const page = pagesByKey[key];
+			if (!page) continue;
+			if (page.saveStatus === 'failed') {
+				page.saveStatus = page.dirty ? 'dirty' : 'idle';
+				page.error = null;
+			}
+		}
+		sync.status = 'idle';
+		sync.error = null;
+		sync.conflict = false;
 	}
 
 	// Load a single CR page into pagesByKey. Tmp pages live entirely on the
@@ -552,6 +596,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// then sync in the background. On success swap the temp doc key for the
 	// real one. On failure leave the node visible with sync_failed so the
 	// user can retry rather than losing their input.
+	//
+	// Note on single-batch create+content (specs/local_first_editor_migration_step_2.md:540):
+	// when `content` is provided up-front (e.g. paste-as-page), it's
+	// included in the create_node op and the backend creates + saves in
+	// one batch. We deliberately don't defer the create to coalesce with
+	// post-create typing — firing immediately keeps the page durable
+	// server-side within hundreds of ms; deferring would lose the page on
+	// browser refresh during the deferral window. Type-after-create
+	// therefore syncs as a second batch (gated by `resolveDocKey` in
+	// `_doSaveContent`), which is the right trade until Step 3 adds
+	// IndexedDB-backed durability.
 	function createNode({
 		parentKey,
 		title,
@@ -1002,13 +1057,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			for (const m of moveMutations) {
 				setMutationStatus(m.id, 'failed', errorMessage(err));
 			}
-			// Reconcile from server so the user sees what the backend ended up with.
-			try {
-				await reloadTree();
-			} catch (_reloadErr) {
-				// Reload failed; the failed-mutation status remains visible to
-				// the user with the original error.
-			}
+			// Keep the user's optimistic order visible — failing AND snapping
+			// the tree back to server state discards their drag intent
+			// twice. The failed mutation is visible in the sync pill, and
+			// `Reload latest` in ContributionBanner is the explicit recovery.
 		} finally {
 			reorderInFlight = false;
 			if (pendingMoves.size > 0) scheduleReorderSync(0);
@@ -1135,11 +1187,44 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	function markPageDirty(docKey) {
-		const page = pagesByKey[docKey];
-		if (!page) return;
+		if (!docKey) return;
+		let page = pagesByKey[docKey];
+		if (!page) {
+			// Lazy-create a stub so the WikiDocumentPanel flow (which
+			// caches its page in a local ref, not `pagesByKey`) can still
+			// register dirty state. The stub is shaped like the entries
+			// `_doSaveContent` creates on its own first save.
+			page = pagesByKey[docKey] = {
+				docKey,
+				title: '',
+				route: '',
+				content: '',
+				isPublished: true,
+				dirty: true,
+				saveStatus: 'dirty',
+				error: null,
+			};
+			return;
+		}
 		if (page.saveStatus === 'saving') return;
 		page.dirty = true;
 		page.saveStatus = 'dirty';
+	}
+
+	// The dirty→clean edge for an editor whose content went back to the
+	// last saved value (typed-then-undone). Without this, the dirty flag
+	// would stick and keep Submit/merge gated until the user issued a
+	// redundant save. Safe no-op while a save is in flight.
+	function markPageClean(docKey) {
+		if (!docKey) return;
+		const page = pagesByKey[docKey];
+		if (!page) return;
+		if (page.saveStatus === 'saving') return;
+		if (page.dirty || page.saveStatus === 'dirty') {
+			page.dirty = false;
+			page.saveStatus = page.saveStatus === 'failed' ? 'failed' : 'idle';
+			if (page.saveStatus !== 'failed') page.error = null;
+		}
 	}
 
 	// Mark pending_delete locally (treeAsLegacy hides those). On failure the
@@ -1212,10 +1297,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		treeAsLegacy,
 		hasPendingMutations,
 		hasFailedMutations,
+		hasUnsavedEditorContent,
 		// actions
 		hydrate,
 		reloadTree,
 		reloadChanges,
+		reloadFromServer,
 		loadCrPage,
 		updateLocalPageContent,
 		findNode,
@@ -1230,6 +1317,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		moveNode,
 		saveContent,
 		markPageDirty,
+		markPageClean,
 		// queue helpers (used by upcoming mutation actions)
 		enqueueMutation,
 		setMutationStatus,

@@ -219,6 +219,211 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeDisabled();
 	});
 
+	test('Reload latest after a failed save clears the conflict and re-enables Submit', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Reload Latest Space ${timestamp}`;
+		const spaceRoute = `reload-latest-space-${timestamp}`;
+		const pageTitle = `reload-latest-page-${timestamp}`;
+		const typedContent = `Will fail to save ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		const unroute = await failMethod(
+			page,
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
+			'Mocked save failure',
+		);
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+
+		// The save fails; banner surfaces it and Reload latest appears.
+		await expect(page.getByText('Sync failed')).toBeVisible({ timeout: 5000 });
+		const reloadButton = page.getByRole('button', { name: 'Reload latest' });
+		await expect(reloadButton).toBeVisible();
+
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeDisabled();
+
+		// Drop the failure interceptor so the reload's get_cr_tree / load_changes
+		// calls go through (Reload latest only refetches read-side state — it
+		// does not retry the failed batch).
+		await unroute();
+		await reloadButton.click();
+
+		// Sync-failed banner clears and the recovery button hides — but
+		// Submit MUST stay disabled because the editor's DOM still holds
+		// the user's unsaved typed content. Unblocking here would let the
+		// user submit a CR that doesn't contain what they see on screen.
+		await expect(page.getByText('Sync failed')).toBeHidden({ timeout: 5000 });
+		await expect(reloadButton).toBeHidden();
+		await expect(submitButton).toBeDisabled();
+
+		// Resolving the typed content (Save Draft now succeeds because the
+		// mock is gone and operation_version is fresh) is what finally
+		// re-enables Submit.
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(submitButton).toBeEnabled();
+	});
+
+	test('typing in editor disables Submit until the change is flushed to the CR', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Dirty Editor Space ${timestamp}`;
+		const spaceRoute = `dirty-editor-space-${timestamp}`;
+		const pageTitle = `dirty-editor-page-${timestamp}`;
+		const typedContent = `Must not be dropped by submit ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		// Wait until we're on a real key so any prior pending mutations are done.
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		// Baseline: nothing pending, Submit is enabled.
+		await expect(submitButton).toBeEnabled({ timeout: 5000 });
+
+		// Type into the editor. Autosave is debounced 10s, so the change is
+		// purely local — no apply_cr_operations call is in flight yet.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+
+		// The fix: Submit must be disabled while the editor has unsaved
+		// typed content the store hasn't received yet. Without it, the user
+		// can submit a stale backend CR and silently lose the latest text.
+		await expect(submitButton).toBeDisabled();
+
+		// Flushing via manual Save lands the content and re-enables Submit.
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(submitButton).toBeEnabled();
+	});
+
+	test('typing then undoing back to saved content re-enables Submit without a redundant save', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Undo Editor Space ${timestamp}`;
+		const spaceRoute = `undo-editor-space-${timestamp}`;
+		const pageTitle = `undo-editor-page-${timestamp}`;
+		const baselineContent = `Baseline ${timestamp}`;
+		const transientContent = `Transient typing ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		// Establish a saved baseline so we have something to undo *back to*.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, baselineContent);
+		await editor.click();
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeEnabled();
+
+		// Type something new — Submit should go disabled.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, transientContent);
+		await editor.click();
+		await expect(submitButton).toBeDisabled();
+
+		// Revert back to the saved content. No save is issued; the editor
+		// emits dirty-change(false) on the clean edge and the banner gate
+		// releases on its own.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, baselineContent);
+		await editor.click();
+		await expect(submitButton).toBeEnabled();
+	});
+
 	test('delayed reorder: visual order stays stable across slow sync', async ({
 		page,
 		request,

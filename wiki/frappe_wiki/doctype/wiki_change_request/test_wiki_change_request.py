@@ -1494,6 +1494,165 @@ class TestWikiChangeRequest(FrappeTestCase):
 			0,
 		)
 
+	def test_apply_cr_operations_reads_operation_version_with_for_update(self):
+		"""Regression guard: the base_version check must read with `for_update=True`.
+
+		Without the row lock, two concurrent batches against the same
+		`base_version` can both pass the `<` check, both call
+		`_bump_operation_version`, and end up advancing the counter by 1
+		instead of 2 — silently merging operations from two clients that
+		each believed they were the only writer. A real concurrency test
+		needs two DB connections, so this test only verifies the lock is
+		requested in the SQL the endpoint emits.
+		"""
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Concurrent CR")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		real_get_value = frappe.db.get_value
+		locked_reads = []
+
+		def tracking_get_value(*args, **kwargs):
+			doctype = args[0] if args else kwargs.get("doctype")
+			filters = args[1] if len(args) > 1 else kwargs.get("filters")
+			fieldname = args[2] if len(args) > 2 else kwargs.get("fieldname")
+			if (
+				doctype == "Wiki Change Request"
+				and filters == cr.name
+				and fieldname == "operation_version"
+				and kwargs.get("for_update")
+			):
+				locked_reads.append(True)
+			return real_get_value(*args, **kwargs)
+
+		frappe.db.get_value = tracking_get_value
+		try:
+			result = apply_cr_operations(
+				cr.name,
+				base_version=0,
+				operations=[
+					{
+						"id": "op-1",
+						"type": "create_node",
+						"temp_key": "t1",
+						"parent_key": root_key,
+						"title": "Page",
+					}
+				],
+			)
+		finally:
+			frappe.db.get_value = real_get_value
+
+		self.assertTrue(result["ok"])
+		self.assertTrue(
+			locked_reads,
+			"apply_cr_operations must read operation_version with for_update=True",
+		)
+
+	def test_legacy_mutators_lock_cr_row_for_update(self):
+		"""Regression guard for the legacy/batch rollout race.
+
+		During rollout the old per-action RPCs (`create_cr_page`,
+		`update_cr_page`, `delete_cr_page`, `move_cr_page`,
+		`reorder_cr_children`) still bump `operation_version`. If they
+		read the version without `for_update=True`, a concurrent batch on
+		the same CR can both pass the conflict check and both write the
+		same `+1`. Each legacy endpoint must therefore go through
+		`_lock_and_load_cr`.
+		"""
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Legacy Lock CR")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		real_get_value = frappe.db.get_value
+		seen: dict[str, bool] = {}
+		current_call: dict[str, str] = {}
+
+		def tracking_get_value(*args, **kwargs):
+			doctype = args[0] if args else kwargs.get("doctype")
+			filters = args[1] if len(args) > 1 else kwargs.get("filters")
+			fieldname = args[2] if len(args) > 2 else kwargs.get("fieldname")
+			if (
+				doctype == "Wiki Change Request"
+				and filters == cr.name
+				and fieldname == "operation_version"
+				and kwargs.get("for_update")
+				and current_call.get("name")
+			):
+				seen[current_call["name"]] = True
+			return real_get_value(*args, **kwargs)
+
+		def run(label: str, fn):
+			current_call["name"] = label
+			try:
+				fn()
+			finally:
+				current_call.pop("name", None)
+
+		frappe.db.get_value = tracking_get_value
+		try:
+			# create
+			run(
+				"create_cr_page",
+				lambda: create_cr_page(
+					name=cr.name,
+					parent_key=root_key,
+					title="Legacy A",
+					content="initial",
+				),
+			)
+			created_key = frappe.get_value(
+				"Wiki Revision Item",
+				{"revision": cr.head_revision, "title": "Legacy A"},
+				"doc_key",
+			)
+			self.assertTrue(created_key)
+
+			# update
+			run(
+				"update_cr_page",
+				lambda: update_cr_page(name=cr.name, doc_key=created_key, fields={"title": "Legacy A2"}),
+			)
+
+			# move (move into self-as-parent is forbidden; move to root again is fine)
+			run(
+				"move_cr_page",
+				lambda: move_cr_page(
+					name=cr.name,
+					doc_key=created_key,
+					new_parent_key=root_key,
+					new_order_index=0,
+				),
+			)
+
+			# reorder (single-child reorder is a valid no-op signal)
+			run(
+				"reorder_cr_children",
+				lambda: reorder_cr_children(
+					name=cr.name, parent_key=root_key, ordered_doc_keys=[created_key]
+				),
+			)
+
+			# delete (last so it doesn't break the earlier ops)
+			run(
+				"delete_cr_page",
+				lambda: delete_cr_page(name=cr.name, doc_key=created_key),
+			)
+		finally:
+			frappe.db.get_value = real_get_value
+
+		for endpoint in (
+			"create_cr_page",
+			"update_cr_page",
+			"move_cr_page",
+			"reorder_cr_children",
+			"delete_cr_page",
+		):
+			self.assertTrue(
+				seen.get(endpoint),
+				f"{endpoint} must load the CR via _lock_and_load_cr (for_update=True)",
+			)
+
 	def test_apply_cr_operations_null_base_version_accepted(self):
 		"""During rollout, older clients send no base_version; backend should accept."""
 		space = create_test_wiki_space()

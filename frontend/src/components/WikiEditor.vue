@@ -516,18 +516,30 @@ function handleContentChange() {
 		clearTimeout(autosaveTimer);
 	}
 
-	// Check if content has changed
 	const currentContent = editor.value?.getMarkdown();
-	if (
-		currentContent !== undefined &&
-		currentContent !== lastSavedContent.value
-	) {
+	if (currentContent === undefined) return;
+
+	if (currentContent !== lastSavedContent.value) {
+		const wasClean = !hasUnsavedChanges.value;
 		hasUnsavedChanges.value = true;
+		// Surface dirty as soon as the user types — otherwise Submit/merge
+		// gating in the parent can't know about local content until the
+		// 10s autosave fires. Only emit on the clean→dirty edge so the
+		// store doesn't churn on every keystroke.
+		if (wasClean) emit('dirty-change', true);
 
 		// Set up debounced autosave
 		autosaveTimer = setTimeout(() => {
 			autoSave();
 		}, AUTOSAVE_DELAY);
+	} else {
+		// Edit returned to the last saved value (typed-then-undone). The
+		// autosave timer is already cancelled above; flip dirty back to
+		// false on the dirty→clean edge so Submit/merge unblock without
+		// requiring a redundant save.
+		const wasDirty = hasUnsavedChanges.value;
+		hasUnsavedChanges.value = false;
+		if (wasDirty) emit('dirty-change', false);
 	}
 }
 
@@ -544,7 +556,9 @@ async function autoSave() {
 		currentContent === undefined ||
 		currentContent === lastSavedContent.value
 	) {
+		const wasDirty = hasUnsavedChanges.value;
 		hasUnsavedChanges.value = false;
+		if (wasDirty) emit('dirty-change', false);
 		return;
 	}
 

@@ -89,11 +89,34 @@ def _bump_operation_version(cr: Document) -> int:
 	on the frontend) could change state without bumping the version, and a
 	subsequent batch with a stale `base_version` would still be accepted —
 	silently overwriting the legacy write.
+
+	The caller must hold a row lock on this CR via `_lock_and_load_cr`,
+	otherwise two concurrent writers can both read the same in-memory
+	`cr.operation_version`, compute the same `+1`, and silently merge.
 	"""
 	new_version = int(cr.operation_version or 0) + 1
 	frappe.db.set_value("Wiki Change Request", cr.name, "operation_version", new_version)
 	cr.operation_version = new_version
 	return new_version
+
+
+def _lock_and_load_cr(name: str) -> Document:
+	"""Load a Change Request and acquire a row-level lock on `operation_version`.
+
+	Every mutating endpoint (batch + legacy RPCs) must load CRs through
+	this so concurrent writers serialize at the row level. The lock is
+	held until the request transaction commits/rollbacks; without it, two
+	in-flight writers can both read the same base version, both pass the
+	conflict check, and both `_bump_operation_version` to the same value
+	— leaving the counter advanced by 1 instead of 2 and merging two
+	clients' state against the same base.
+	"""
+	locked = frappe.db.get_value("Wiki Change Request", name, "operation_version", for_update=True)
+	cr = frappe.get_doc("Wiki Change Request", name)
+	# Keep the in-memory view consistent with the locked DB value so
+	# `_bump_operation_version` computes from the right base.
+	cr.operation_version = int(locked or 0)
+	return cr
 
 
 # --- Internal CR mutation helpers ---------------------------------------------------
@@ -659,7 +682,7 @@ def create_cr_page(
 	is_external_link: int = 0,
 	external_url: str | None = None,
 ) -> str:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	new_key = _create_cr_item(
 		cr,
@@ -681,7 +704,7 @@ def create_cr_page(
 
 @frappe.whitelist()
 def update_cr_page(name: str, doc_key: str, fields: dict[str, Any]) -> None:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_update_cr_item(cr, doc_key, fields)
 	mark_hashes_stale(cr.head_revision)
@@ -691,7 +714,7 @@ def update_cr_page(name: str, doc_key: str, fields: dict[str, Any]) -> None:
 
 @frappe.whitelist()
 def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: int | None = None) -> None:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_move_cr_item(cr, doc_key, new_parent_key, order_index=new_order_index)
 	mark_hashes_stale(cr.head_revision)
@@ -701,7 +724,7 @@ def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: 
 
 @frappe.whitelist()
 def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str]) -> None:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_reorder_cr_children(cr, parent_key, ordered_doc_keys)
 	mark_hashes_stale(cr.head_revision)
@@ -711,7 +734,7 @@ def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str])
 
 @frappe.whitelist()
 def delete_cr_page(name: str, doc_key: str) -> None:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_delete_cr_item(cr, doc_key)
 	mark_hashes_stale(cr.head_revision)
@@ -833,7 +856,7 @@ def apply_cr_operations(
 	if not isinstance(operations, list) or not operations:
 		frappe.throw(_("operations must be a non-empty list"))
 
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 
 	current_version = int(cr.operation_version or 0)

@@ -68,7 +68,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" />
 			</div>
 		</div>
 
@@ -135,7 +135,7 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
 import LucideLock from '~icons/lucide/lock';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
@@ -194,7 +194,12 @@ watch(
 
 watch(
 	[() => crStore.currentChangeRequest?.name, () => wikiDoc.doc?.doc_key],
-	async ([crName, docKey], [oldCrName]) => {
+	async ([crName, docKey], [oldCrName, oldDocKey]) => {
+		// Editor unmounts on docKey change; its dirty flag belonged to the
+		// previous doc and must not bleed into the new doc's submit gate.
+		if (oldDocKey && oldDocKey !== docKey) {
+			draftStore.markPageClean(oldDocKey);
+		}
 		if (crName && docKey) {
 			await loadCrPage();
 		} else {
@@ -207,6 +212,18 @@ watch(
 	},
 	{ immediate: true },
 );
+
+function onEditorDirtyChange(dirty) {
+	const docKey = wikiDoc.doc?.doc_key;
+	if (!docKey) return;
+	if (dirty) draftStore.markPageDirty(docKey);
+	else draftStore.markPageClean(docKey);
+}
+
+onBeforeUnmount(() => {
+	const docKey = wikiDoc.doc?.doc_key;
+	if (docKey) draftStore.markPageClean(docKey);
+});
 
 async function loadCrPage() {
 	if (!crStore.currentChangeRequest || !wikiDoc.doc?.doc_key) {

@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -127,7 +127,7 @@ import {
 	LoadingIndicator,
 	toast,
 } from 'frappe-ui';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideFolder from '~icons/lucide/folder';
@@ -208,12 +208,25 @@ onMounted(async () => {
 
 watch(
 	() => props.docKey,
-	async (newId) => {
+	async (newId, oldId) => {
+		// The previous editor is unmounting; its dirty flag belonged to
+		// `oldId` and should not bleed into the new doc's gate.
+		if (oldId) draftStore.markPageClean(oldId);
 		if (newId) {
 			await loadCrPage();
 		}
 	},
 );
+
+function onEditorDirtyChange(dirty) {
+	if (!props.docKey) return;
+	if (dirty) draftStore.markPageDirty(props.docKey);
+	else draftStore.markPageClean(props.docKey);
+}
+
+onBeforeUnmount(() => {
+	if (props.docKey) draftStore.markPageClean(props.docKey);
+});
 
 watch(
 	() => props.spaceId,
