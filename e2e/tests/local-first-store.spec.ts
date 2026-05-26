@@ -424,6 +424,79 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeEnabled();
 	});
 
+	test('dirty editor content survives a browser refresh via IndexedDB', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Persist Space ${timestamp}`;
+		const spaceRoute = `persist-space-${timestamp}`;
+		const pageTitle = `persist-page-${timestamp}`;
+		const typedContent = `Survives a refresh ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		// Type into the editor and let the LOCAL_PERSIST_DELAY (500ms)
+		// debounce settle. Crucially we do NOT save — Submit-blocking and
+		// IDB persistence both have to work entirely off the typing event.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, typedContent);
+		await editor.click();
+		await page.waitForTimeout(800);
+
+		// Hard refresh the tab. In-memory state (Vue refs, pinia store)
+		// is wiped; only IndexedDB-backed drafts survive.
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		// Navigate back to the draft page. The editor should reopen on the
+		// same content the user last typed, and the banner should report
+		// "Unsaved changes" with Submit still gated.
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		const restoredEditor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(restoredEditor).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
+
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeDisabled();
+
+		// Saving the restored draft clears the IDB entry and re-enables
+		// Submit, just like a normal first-save.
+		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(submitButton).toBeEnabled();
+	});
+
 	test('delayed reorder: visual order stays stable across slow sync', async ({
 		page,
 		request,

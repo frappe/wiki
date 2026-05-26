@@ -1,4 +1,9 @@
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import {
+	clearDraft as clearPersistedDraft,
+	loadDraftsForCr,
+	saveDraft as savePersistedDraft,
+} from '@/stores/draftPersistence';
 import { useUserStore } from '@/stores/user';
 import { createResource } from 'frappe-ui';
 import { defineStore } from 'pinia';
@@ -226,6 +231,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 			applyServerTree(serverTree);
 			applyChangesSummary(crStore.changes);
+			await restorePersistedDrafts();
 		})();
 
 		try {
@@ -233,6 +239,48 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		} finally {
 			isHydrating.value = false;
 			hydratePromise = null;
+		}
+	}
+
+	// Read any drafts persisted to IndexedDB for the current CR and
+	// reseed `pagesByKey` with them so the editor opens on the user's
+	// last in-progress text. Each restored entry is marked dirty so the
+	// banner shows "Unsaved changes" and Submit/merge stay gated until
+	// it's saved (or reverted via undo).
+	//
+	// Entries whose `docKey` no longer corresponds to a real tree node
+	// are ignored — they're orphans from deleted pages or from tmp_*
+	// creates that never reached the server. We don't garbage-collect
+	// them aggressively; future calls just skip them.
+	async function restorePersistedDrafts() {
+		if (!crName.value) return;
+		const drafts = await loadDraftsForCr(crName.value);
+		if (!drafts.length) return;
+		for (const draft of drafts) {
+			const { docKey, content, title } = draft;
+			if (!docKey || content == null) continue;
+			// Only restore for keys that still exist server-side. tmp_*
+			// orphans (lost creates) are out of scope for this v1.
+			if (docKey.startsWith('tmp_') || !findNode(docKey)) continue;
+			let page = pagesByKey[docKey];
+			if (!page) {
+				page = pagesByKey[docKey] = {
+					docKey,
+					title: title || '',
+					route: '',
+					content,
+					isPublished: true,
+					dirty: true,
+					saveStatus: 'dirty',
+					error: null,
+				};
+			} else {
+				page.content = content;
+				if (title) page.title = title;
+				page.dirty = true;
+				page.saveStatus = 'dirty';
+				page.error = null;
+			}
 		}
 	}
 
@@ -1162,6 +1210,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				targetPage.saveStatus = 'saved';
 				targetPage.error = null;
 			}
+			// Content is durably on the server now — drop the local IDB
+			// backup for both the resolved key and (if different) the
+			// pre-promotion tmp key so a future hydrate doesn't restore
+			// stale typing on top of fresh server state.
+			if (crName.value) {
+				clearPersistedDraft(crName.value, realKey);
+				if (docKey !== realKey) clearPersistedDraft(crName.value, docKey);
+			}
 			// Only flip global sync to idle if no follow-up save is queued
 			// for this doc — otherwise we'd briefly flash 'saved' between
 			// chained saves.
@@ -1209,6 +1265,23 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (page.saveStatus === 'saving') return;
 		page.dirty = true;
 		page.saveStatus = 'dirty';
+	}
+
+	// Persist the editor's current in-progress content to IndexedDB so a
+	// browser refresh in the 10s autosave window doesn't lose it. Called
+	// by the editor parents on every debounced `local-content` event
+	// (~500ms). When the content has converged back to what the server
+	// has (saved content), the persisted entry is cleared instead so we
+	// don't restore stale typing on the next session.
+	function recordEditorContent(docKey, content, title) {
+		if (!docKey || !crName.value) return;
+		const page = pagesByKey[docKey];
+		const savedContent = page?.content;
+		if (content === savedContent) {
+			clearPersistedDraft(crName.value, docKey);
+		} else {
+			savePersistedDraft(crName.value, docKey, { content, title });
+		}
 	}
 
 	// The dirty→clean edge for an editor whose content went back to the
@@ -1318,6 +1391,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		saveContent,
 		markPageDirty,
 		markPageClean,
+		recordEditorContent,
 		// queue helpers (used by upcoming mutation actions)
 		enqueueMutation,
 		setMutationStatus,

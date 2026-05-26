@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -222,6 +222,11 @@ function onEditorDirtyChange(dirty) {
 	if (!props.docKey) return;
 	if (dirty) draftStore.markPageDirty(props.docKey);
 	else draftStore.markPageClean(props.docKey);
+}
+
+function onLocalContent(content) {
+	if (!props.docKey) return;
+	draftStore.recordEditorContent(props.docKey, content, editableTitle.value);
 }
 
 onBeforeUnmount(() => {

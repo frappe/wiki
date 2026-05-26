@@ -111,12 +111,17 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['save', 'dirty-change']);
+const emit = defineEmits(['save', 'dirty-change', 'local-content']);
 const hasUnsavedChanges = ref(false);
 const lastSavedContent = ref(props.content || '');
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
+// Tight debounce for local IDB persistence — short enough that a
+// browser refresh loses at most ~500ms of typing, long enough that a
+// fast typist doesn't generate per-keystroke IDB writes.
+const LOCAL_PERSIST_DELAY = 500;
+let localPersistTimer = null;
 
 // Create lowlight instance for syntax highlighting
 const lowlight = createLowlight(common);
@@ -532,6 +537,15 @@ function handleContentChange() {
 		autosaveTimer = setTimeout(() => {
 			autoSave();
 		}, AUTOSAVE_DELAY);
+
+		// Persist locally on a much tighter schedule than autosave so a
+		// refresh in the 10s autosave window doesn't lose typing. The
+		// parent forwards the value to IndexedDB via the store.
+		if (localPersistTimer) clearTimeout(localPersistTimer);
+		localPersistTimer = setTimeout(() => {
+			const latest = editor.value?.getMarkdown();
+			if (latest !== undefined) emit('local-content', latest);
+		}, LOCAL_PERSIST_DELAY);
 	} else {
 		// Edit returned to the last saved value (typed-then-undone). The
 		// autosave timer is already cancelled above; flip dirty back to
@@ -540,6 +554,14 @@ function handleContentChange() {
 		const wasDirty = hasUnsavedChanges.value;
 		hasUnsavedChanges.value = false;
 		if (wasDirty) emit('dirty-change', false);
+		// Cancel any in-flight IDB write that would re-persist the
+		// pre-undo text and fire one final local-content so the parent
+		// can clear the persisted draft (it'll match saved content).
+		if (localPersistTimer) {
+			clearTimeout(localPersistTimer);
+			localPersistTimer = null;
+		}
+		emit('local-content', currentContent);
 	}
 }
 
@@ -668,6 +690,15 @@ onUnmounted(() => {
 
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
+	}
+	// Flush any pending IDB persist before tear-down: a user who typed
+	// within the last LOCAL_PERSIST_DELAY ms and navigated away would
+	// otherwise lose that window of work on the next refresh.
+	if (localPersistTimer) {
+		clearTimeout(localPersistTimer);
+		localPersistTimer = null;
+		const latest = editor.value?.getMarkdown();
+		if (latest !== undefined) emit('local-content', latest);
 	}
 	if (editor.value) {
 		editor.value.destroy();

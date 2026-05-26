@@ -68,7 +68,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
 			</div>
 		</div>
 
@@ -218,6 +218,12 @@ function onEditorDirtyChange(dirty) {
 	if (!docKey) return;
 	if (dirty) draftStore.markPageDirty(docKey);
 	else draftStore.markPageClean(docKey);
+}
+
+function onLocalContent(content) {
+	const docKey = wikiDoc.doc?.doc_key;
+	if (!docKey) return;
+	draftStore.recordEditorContent(docKey, content, editableTitle.value);
 }
 
 onBeforeUnmount(() => {
