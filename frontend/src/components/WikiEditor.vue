@@ -109,6 +109,13 @@ const props = defineProps({
 		type: String,
 		default: '',
 	},
+	// Steal focus once the editor instance is ready. Parents set this for
+	// freshly-created pages so the user can start typing without clicking
+	// into the canvas first.
+	autoFocus: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const emit = defineEmits(['save', 'dirty-change', 'local-content']);
@@ -501,6 +508,10 @@ function initEditor() {
 		],
 		content: props.content || '',
 		contentType: 'markdown',
+		// `autofocus: 'end'` puts the caret at the end of any seeded
+		// content. Parents pass true for freshly-created pages so the
+		// user can start typing without clicking into the canvas.
+		autofocus: props.autoFocus ? 'end' : false,
 		editorProps: {
 			handlePaste,
 			handleDrop,
