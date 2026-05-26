@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" :auto-focus="isFreshlyCreated" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -318,13 +318,6 @@ const editorKey = computed(() => {
 	}
 	return null;
 });
-
-// `tmp_*` docKey means the route was just opened from the New Page
-// dialog — the user hasn't interacted with the editor yet, so we steal
-// focus so they can start typing immediately.
-const isFreshlyCreated = computed(() =>
-	Boolean(props.docKey?.startsWith('tmp_')),
-);
 
 const menuOptions = computed(() => {
 	return [
