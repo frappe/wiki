@@ -391,7 +391,6 @@ async function deleteDraft() {
 	if (!crPage.value?.doc_key) return;
 	try {
 		await draftStore.deleteNode(crPage.value.doc_key);
-		toast.success(__('Draft deleted'));
 		router.push({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
 	} catch (error) {
 		console.error('Error deleting draft:', error);
