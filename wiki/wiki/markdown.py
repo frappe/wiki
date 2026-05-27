@@ -151,9 +151,12 @@ def _replace_callout_placeholders(html, callouts, placeholder_prefix, md_instanc
 
 
 # Pattern to match markdown image syntax: ![alt](url) or ![alt](url "title")
-# Captures: alt text, URL, and optional title
+# Captures: alt text, URL, and optional title.
+# URL allows one level of balanced parens so Frappe uploads named like
+# `/files/image (14).png` are matched whole (otherwise the inner `)` closes
+# the markdown and the rest of the filename leaks out as plain text).
 IMAGE_PATTERN = re.compile(
-	r'!\[([^\]]*)\]\(([^)"\s]+(?:\s[^)]*)?)\)',
+	r'!\[([^\]]*)\]\(((?:[^()"]|\([^()"]*\))+?)(?:\s+"([^"]*)")?\)',
 )
 
 VIDEO_EXTENSIONS = (
@@ -287,40 +290,31 @@ def _escape_table_inline_code_pipes(content: str) -> str:
 	return "\n".join(lines)
 
 
-def _encode_image_url_spaces(content: str) -> str:
+def _encode_image_url_unsafe_chars(content: str) -> str:
 	"""
-	Pre-process markdown to URL-encode spaces in image URLs.
+	Pre-process markdown to URL-encode characters in image URLs that Mistune
+	mishandles.
 
-	Mistune (unlike markdown2) doesn't handle spaces in URLs, so we need to
-	encode them before parsing. This function finds all image syntax and
-	encodes spaces in the URL portion.
+	Mistune (unlike markdown2) doesn't allow spaces in URLs, and its image
+	parser stops at the first `)` even when parens are balanced — so a Frappe
+	upload like `/files/image (14).png` ends up with src=`/files/image%20(14`
+	and `.png)` leaking out as text. We pre-encode literal `(`, `)`, and ` `
+	so Mistune sees a clean URL.
 
 	Args:
 	    content: Markdown string
 
 	Returns:
-	    Markdown string with spaces in image URLs encoded as %20
+	    Markdown string with unsafe chars in image URLs percent-encoded
 	"""
 
 	def encode_url(match):
 		alt_text = match.group(1)
-		url_part = match.group(2)
+		url = match.group(2).strip()
+		title = match.group(3)
 
-		# Split URL and optional title (title is in quotes after a space)
-		# e.g., '/path/to/image.png "Image Title"'
-		title_match = re.match(r'^([^"]+?)(?:\s+"([^"]*)")?$', url_part)
-		if title_match:
-			url = title_match.group(1).strip()
-			title = title_match.group(2)
-		else:
-			url = url_part
-			title = None
+		encoded_url = url.replace("(", "%28").replace(")", "%29").replace(" ", "%20")
 
-		# Only encode spaces, preserve other characters
-		# quote() with safe='' would encode everything, but we only want spaces
-		encoded_url = url.replace(" ", "%20")
-
-		# Reconstruct the image syntax
 		if title:
 			return f'![{alt_text}]({encoded_url} "{title}")'
 		return f"![{alt_text}]({encoded_url})"
@@ -428,8 +422,9 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 		],
 	)
 
-	# Step 1: URL-encode spaces in image URLs (mistune doesn't handle them)
-	processed_content = _encode_image_url_spaces(content)
+	# Step 1: URL-encode unsafe chars (spaces, parens) in image URLs that
+	# Mistune would otherwise mishandle.
+	processed_content = _encode_image_url_unsafe_chars(content)
 
 	# Step 1b: Escape `|` inside inline-code spans on table rows so Mistune's
 	# table plugin doesn't miscount columns and drop the table.
