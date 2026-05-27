@@ -1,10 +1,7 @@
 """
-Custom Markdown Renderer with Callout/Aside Support
+Wiki markdown → HTML renderer (markdown-it-py + custom callout/aside support).
 
-This module provides a custom markdown-to-HTML renderer using Mistune,
-with support for Astro Starlight-style callouts/asides.
-
-Syntax:
+Callout syntax:
     :::note
     Content here
     :::
@@ -17,10 +14,11 @@ Supported types: note, tip, caution, danger, warning (alias for caution)
 """
 
 import re
-from html import unescape
-from urllib.parse import quote
 
-import mistune
+from markdown_it import MarkdownIt
+from markdown_it.common.utils import escapeHtml
+from mdit_py_plugins.footnote import footnote_plugin
+from mdit_py_plugins.tasklists import tasklists_plugin
 
 
 def slugify(text: str) -> str:
@@ -103,7 +101,6 @@ def _process_callouts_with_placeholders(content):
 	and a list of callout data to be processed later.
 	"""
 	callouts = []
-	# Use HTML comment-like placeholder that won't be parsed as markdown
 	placeholder_prefix = "WIKICALLOUTPLACEHOLDER"
 
 	def replacer(match):
@@ -123,7 +120,6 @@ def _process_callouts_with_placeholders(content):
 				"content": inner_content.strip(),
 			}
 		)
-		# Return placeholder - use format that won't be parsed as markdown
 		return f"\n\n{placeholder_prefix}{idx}END\n\n"
 
 	# Process callouts (may be nested, so we process iteratively)
@@ -135,12 +131,11 @@ def _process_callouts_with_placeholders(content):
 	return content, callouts, placeholder_prefix
 
 
-def _replace_callout_placeholders(html, callouts, placeholder_prefix, md_instance):
+def _replace_callout_placeholders(html, callouts, placeholder_prefix, render_inner):
 	"""Replace callout placeholders with actual HTML after markdown rendering."""
 	for idx, callout in enumerate(callouts):
 		placeholder = f"{placeholder_prefix}{idx}END"
-		# The placeholder might be wrapped in <p> tags, so handle both cases
-		inner_html = md_instance(callout["content"]) if callout["content"] else ""
+		inner_html = render_inner(callout["content"]) if callout["content"] else ""
 		callout_html = _generate_callout_html(callout["type"], callout["title"], inner_html)
 
 		# Replace placeholder (may be wrapped in <p> tags)
@@ -151,9 +146,10 @@ def _replace_callout_placeholders(html, callouts, placeholder_prefix, md_instanc
 
 
 # Pattern to match markdown image syntax: ![alt](url) or ![alt](url "title")
-# Captures: alt text, URL, and optional title
+# URL allows one level of balanced parens so Frappe uploads named like
+# `/files/image (14).png` are matched whole.
 IMAGE_PATTERN = re.compile(
-	r'!\[([^\]]*)\]\(([^)"\s]+(?:\s[^)]*)?)\)',
+	r'!\[([^\]]*)\]\(((?:[^()"]|\([^()"]*\))+?)(?:\s+"([^"]*)")?\)',
 )
 
 VIDEO_EXTENSIONS = (
@@ -228,7 +224,6 @@ def _process_videos_with_placeholders(content: str) -> tuple[str, list[dict], st
 				"title": match.group("title") or "",
 			}
 		)
-		# Force paragraph break around video block
 		return f"\n\n{placeholder_prefix}{idx}END\n\n"
 
 	return VIDEO_MARKDOWN_PATTERN.sub(replacer, content), videos, placeholder_prefix
@@ -244,24 +239,38 @@ def _replace_video_placeholders(html: str, videos: list[dict], placeholder_prefi
 	return html
 
 
+def _encode_image_url_spaces(content: str) -> str:
+	"""
+	Pre-process markdown to URL-encode literal spaces in image URLs.
+
+	CommonMark forbids unescaped whitespace in URLs, but Frappe uploads
+	routinely contain spaces (e.g. `/files/my image.png`). The matching
+	regex tolerates balanced parens so URLs like `/files/image (14).png`
+	are captured whole — the parser handles those parens natively.
+	"""
+
+	def encode_url(match):
+		alt_text = match.group(1)
+		url = match.group(2).strip().replace(" ", "%20")
+		title = match.group(3)
+
+		if title:
+			return f'![{alt_text}]({url} "{title}")'
+		return f"![{alt_text}]({url})"
+
+	return IMAGE_PATTERN.sub(encode_url, content)
+
+
 # Private-use Unicode sentinel — stands in for `|` inside inline-code on table
-# rows during Mistune parsing, then gets swapped back after rendering. Chosen
-# from the PUA block so it cannot collide with authored markdown content.
+# rows during parsing, then gets swapped back after rendering. Both Mistune and
+# markdown-it-py count raw pipes per row in their table plugin and reject the
+# whole block on mismatch, dropping the table to a paragraph; hiding the inner
+# pipes behind a PUA sentinel keeps the column count honest.
 _TABLE_CODE_PIPE_SENTINEL = ""
 
 
 def _escape_table_inline_code_pipes(content: str) -> str:
-	"""
-	Swap `|` characters inside inline-code spans on table-row lines for a
-	sentinel, which is restored after Mistune renders.
-
-	GFM-compliant parsers (marked, markdown-it) treat a backtick-delimited span
-	like `` `dict | list` `` as a single code token, so its `|` is not a column
-	separator. Mistune's table plugin instead counts raw pipes per row and,
-	finding a mismatch, rejects the entire block — the table collapses to a
-	paragraph. Hiding those pipes behind a sentinel makes the column count
-	match, and a post-render replace restores the `|` inside `<code>`.
-	"""
+	"""Swap `|` inside inline-code spans on table-row lines for a sentinel."""
 	lines = content.split("\n")
 	in_fence = False
 	fence_marker: str | None = None
@@ -287,103 +296,41 @@ def _escape_table_inline_code_pipes(content: str) -> str:
 	return "\n".join(lines)
 
 
-def _encode_image_url_spaces(content: str) -> str:
-	"""
-	Pre-process markdown to URL-encode spaces in image URLs.
+def _build_markdown() -> MarkdownIt:
+	"""Build a configured markdown-it-py instance with our render overrides."""
+	md = (
+		MarkdownIt("commonmark", {"html": True, "linkify": False, "typographer": False})
+		.enable(["table", "strikethrough"])
+		.use(footnote_plugin)
+		.use(tasklists_plugin, enabled=True)
+	)
 
-	Mistune (unlike markdown2) doesn't handle spaces in URLs, so we need to
-	encode them before parsing. This function finds all image syntax and
-	encodes spaces in the URL portion.
-
-	Args:
-	    content: Markdown string
-
-	Returns:
-	    Markdown string with spaces in image URLs encoded as %20
-	"""
-
-	def encode_url(match):
-		alt_text = match.group(1)
-		url_part = match.group(2)
-
-		# Split URL and optional title (title is in quotes after a space)
-		# e.g., '/path/to/image.png "Image Title"'
-		title_match = re.match(r'^([^"]+?)(?:\s+"([^"]*)")?$', url_part)
-		if title_match:
-			url = title_match.group(1).strip()
-			title = title_match.group(2)
-		else:
-			url = url_part
-			title = None
-
-		# Only encode spaces, preserve other characters
-		# quote() with safe='' would encode everything, but we only want spaces
-		encoded_url = url.replace(" ", "%20")
-
-		# Reconstruct the image syntax
-		if title:
-			return f'![{alt_text}]({encoded_url} "{title}")'
-		return f"![{alt_text}]({encoded_url})"
-
-	return IMAGE_PATTERN.sub(encode_url, content)
-
-
-class WikiRenderer(mistune.HTMLRenderer):
-	"""Custom HTML renderer.
-
-	Image captions use the Stack Overflow pattern:
-	    ![alt text](image.jpg)
-	    *caption text*
-
-	This renders as <p><img ...><em>caption</em></p> (no blank line between).
-	Style with CSS: img + em { ... }
-	Alt text remains for accessibility, caption is separate.
-	"""
-
-	def __init__(self, **kwargs):
-		super().__init__(**kwargs)
-		self._heading_slugs = {}  # Track used slugs to avoid duplicates
-		self._headings = []  # Track headings for TOC
-
-	def block_code(self, code: str, info: str | None = None) -> str:
+	def _render_codeblock_html(content: str, lang: str = "") -> str:
 		# Trim trailing whitespace the author left inside the fence — spaces,
 		# tabs, and blank lines all render as phantom empty rows in <pre>.
-		return super().block_code(code.rstrip() + "\n", info)
+		content = content.rstrip() + "\n"
+		cls = f' class="language-{escapeHtml(lang)}"' if lang else ""
+		return f"<pre><code{cls}>{escapeHtml(content)}</code></pre>\n"
 
-	def heading(self, text: str, level: int, **attrs) -> str:
-		"""Render heading with slugified ID for anchor links."""
-		# Generate base slug from heading text
-		slug = slugify(text)
+	def fence_rstrip(tokens, idx, options, env):
+		tok = tokens[idx]
+		lang = next(iter((tok.info or "").split()), "")
+		return _render_codeblock_html(tok.content, lang)
 
-		# Handle empty slugs
-		if not slug:
-			slug = "heading"
+	def code_block_rstrip(tokens, idx, options, env):
+		return _render_codeblock_html(tokens[idx].content)
 
-		# Ensure unique slugs by appending numbers for duplicates
-		original_slug = slug
-		counter = 1
-		while slug in self._heading_slugs:
-			slug = f"{original_slug}-{counter}"
-			counter += 1
+	md.renderer.rules["fence"] = fence_rstrip
+	md.renderer.rules["code_block"] = code_block_rstrip
 
-		self._heading_slugs[slug] = True
+	def image_render(tokens, idx, options, env):
+		tok = tokens[idx]
+		src = tok.attrGet("src") or ""
+		alt = _remove_script_tags(tok.content)
+		title = _remove_script_tags(tok.attrGet("title") or "")
 
-		# Track h2 and h3 headings for TOC
-		if level in (2, 3):
-			self._headings.append(
-				{"id": slug, "text": unescape(re.sub(r"<[^>]+>", "", text)), "level": level}
-			)
-
-		return f'<h{level} id="{slug}">{text}</h{level}>\n'
-
-	def image(self, text: str, url: str, title: str | None = None) -> str:
-		"""Render video URLs as HTML5 video blocks; others as normal images."""
-		src = self.safe_url(url)
-		alt = _remove_script_tags(text)
-		safe_title = _remove_script_tags(title)
-
-		if _is_video_url(url):
-			title_attr = f' title="{safe_title}"' if safe_title else ""
+		if _is_video_url(src):
+			title_attr = f' title="{title}"' if title else ""
 			data_alt_attr = f' data-alt="{alt}"' if alt else ""
 			return (
 				f'<div data-type="video-block" data-src="{src}"{data_alt_attr}>'
@@ -391,15 +338,44 @@ class WikiRenderer(mistune.HTMLRenderer):
 				f'<source src="{src}" />'
 				"</video></div>"
 			)
-
 		s = f'<img src="{src}" alt="{alt}"'
-		if safe_title:
-			s += f' title="{safe_title}"'
+		if title:
+			s += f' title="{title}"'
 		return s + " />"
 
-	def get_headings(self) -> list:
-		"""Return the list of h2/h3 headings extracted during rendering."""
-		return self._headings
+	md.renderer.rules["image"] = image_render
+	return md
+
+
+def _apply_heading_slugs_and_toc(tokens, md: MarkdownIt) -> list[dict]:
+	"""
+	Walk parsed tokens, assign unique slug IDs to every heading, and collect
+	h2/h3 entries for the table of contents.
+	"""
+	used: set[str] = set()
+	headings: list[dict] = []
+
+	for i, tok in enumerate(tokens):
+		if tok.type != "heading_open":
+			continue
+		inline = tokens[i + 1] if i + 1 < len(tokens) else None
+		raw_text = inline.content if inline and inline.type == "inline" else ""
+
+		slug = base = slugify(raw_text) or "heading"
+		counter = 1
+		while slug in used:
+			slug = f"{base}-{counter}"
+			counter += 1
+		used.add(slug)
+		tok.attrSet("id", slug)
+
+		level = int(tok.tag[1])  # "h2" -> 2
+		if level in (2, 3):
+			# Render the inline as plain text so TOC entries drop markdown syntax
+			text = md.renderer.renderInlineAsText(inline.children or [], md.options, {})
+			headings.append({"id": slug, "text": text, "level": level})
+
+	return headings
 
 
 def render_markdown_with_toc(content: str) -> tuple[str, list]:
@@ -415,47 +391,23 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	if not content:
 		return "", []
 
-	# Create a base Mistune markdown instance with custom renderer
-	# Note: escape=False must be passed to the renderer, not create_markdown
-	renderer = WikiRenderer(escape=False)
-	md = mistune.create_markdown(
-		renderer=renderer,
-		plugins=[
-			"strikethrough",
-			"footnotes",
-			"table",
-			"task_lists",
-		],
-	)
+	md = _build_markdown()
 
-	# Step 1: URL-encode spaces in image URLs (mistune doesn't handle them)
 	processed_content = _encode_image_url_spaces(content)
-
-	# Step 1b: Escape `|` inside inline-code spans on table rows so Mistune's
-	# table plugin doesn't miscount columns and drop the table.
 	processed_content = _escape_table_inline_code_pipes(processed_content)
+	processed_content, callouts, callout_prefix = _process_callouts_with_placeholders(processed_content)
+	processed_content, videos, video_prefix = _process_videos_with_placeholders(processed_content)
 
-	# Step 2: Extract callouts and replace with placeholders
-	processed_content, callouts, placeholder_prefix = _process_callouts_with_placeholders(processed_content)
+	env: dict = {}
+	tokens = md.parse(processed_content, env)
+	headings = _apply_heading_slugs_and_toc(tokens, md)
+	html = md.renderer.render(tokens, md.options, env)
 
-	# Step 3: Extract video blocks and replace with placeholders
-	processed_content, videos, video_placeholder_prefix = _process_videos_with_placeholders(processed_content)
+	html = _replace_callout_placeholders(html, callouts, callout_prefix, md.render)
+	html = _replace_video_placeholders(html, videos, video_prefix)
 
-	# Step 4: Render markdown (placeholders may be wrapped in <p> tags)
-	html = md(processed_content)
-
-	# Step 5: Replace callout placeholders with actual callout HTML
-	html = _replace_callout_placeholders(html, callouts, placeholder_prefix, md)
-
-	# Step 6: Replace video placeholders with block video HTML
-	html = _replace_video_placeholders(html, videos, video_placeholder_prefix)
-
-	# Step 7: Restore pipes that were hidden from the table parser.
 	if _TABLE_CODE_PIPE_SENTINEL in html:
 		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
-
-	# Get the headings extracted during rendering
-	headings = renderer.get_headings()
 
 	return html, headings
 

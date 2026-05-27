@@ -413,6 +413,47 @@ class TestImageUrlSpaceEncoding(unittest.TestCase):
 		self.assertNotIn("%2520", result)
 
 
+class TestImageUrlWithParens(unittest.TestCase):
+	"""Frappe uploads commonly produce names like `image (14).png`. CommonMark
+	allows one level of balanced parens in URLs, so the parser handles them
+	natively; only literal spaces still need pre-encoding."""
+
+	def test_image_with_literal_parens(self):
+		content = "![](/files/image (14).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png)</p>", result)
+
+	def test_image_with_encoded_space_and_literal_parens(self):
+		"""The form Frappe actually emits: space encoded, parens literal."""
+		content = "![](/files/image%20(14).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png)</p>", result)
+
+	def test_image_with_parens_and_alt_and_title(self):
+		content = '![logo](/files/image (24).png "App Logo")'
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(24).png"', result)
+		self.assertIn('alt="logo"', result)
+		self.assertIn('title="App Logo"', result)
+
+	def test_image_with_parens_inline_in_paragraph(self):
+		"""Image embedded in a sentence still renders as an inline image."""
+		content = "See ![](/files/image (14).png) for context."
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png) for", result)
+		self.assertIn("See ", result)
+		self.assertIn(" for context.", result)
+
+	def test_multiple_images_with_parens(self):
+		content = "![](/files/image (14).png)\n\nSome text.\n\n![](/files/image (15).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertIn('<img src="/files/image%20(15).png"', result)
+
+
 class TestRawHTMLRendering(unittest.TestCase):
 	"""Tests for raw HTML rendering in markdown.
 
