@@ -4,6 +4,15 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+RESERVED_ROUTE = "wiki"
+
+
+def is_reserved_route(route: str) -> bool:
+	"""Routes under the `/wiki` namespace collide with the editor SPA and can't be served publicly."""
+	route = (route or "").strip().strip("/")
+	return route == RESERVED_ROUTE or route.startswith(RESERVED_ROUTE + "/")
+
+
 _CHILD_ROW_META_FIELDS = {
 	"name",
 	"parent",
@@ -51,10 +60,20 @@ class WikiSpace(Document):
 
 	def validate(self):
 		self.remove_leading_slash_from_route()
+		self.validate_route_namespace()
 
 	def remove_leading_slash_from_route(self):
 		if self.route and self.route.startswith("/"):
 			self.route = self.route[1 : len(self.route)]
+
+	def validate_route_namespace(self):
+		if is_reserved_route(self.route):
+			frappe.throw(
+				_(
+					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the "
+					"Wiki editor. Use a different route, e.g. 'docs'."
+				).format(RESERVED_ROUTE)
+			)
 
 	def create_root_group(self):
 		if not self.root_group:
@@ -151,6 +170,13 @@ class WikiSpace(Document):
 
 		if not new_route:
 			frappe.throw(_("Route cannot be empty"))
+
+		if is_reserved_route(new_route):
+			frappe.throw(
+				_(
+					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the Wiki editor."
+				).format(RESERVED_ROUTE)
+			)
 
 		old_route = self.route
 		if old_route == new_route:

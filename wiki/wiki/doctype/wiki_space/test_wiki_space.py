@@ -306,3 +306,32 @@ class TestWikiSpaceMigration(FrappeTestCase):
 
 	def tearDown(self):
 		frappe.db.rollback()
+
+
+class TestWikiSpaceRouteValidation(FrappeTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def test_reserved_routes_are_rejected(self):
+		for bad_route in ("wiki", "wiki/trial", "/wiki/trial"):
+			with self.assertRaises(frappe.ValidationError):
+				frappe.get_doc(
+					{
+						"doctype": "Wiki Space",
+						"space_name": f"Reserved {frappe.generate_hash(length=6)}",
+						"route": bad_route,
+					}
+				).insert()
+
+	def test_non_reserved_route_is_allowed(self):
+		space = frappe.get_doc(
+			{
+				"doctype": "Wiki Space",
+				"space_name": f"Allowed {frappe.generate_hash(length=6)}",
+				"route": f"docs-{frappe.generate_hash(length=6)}",
+			}
+		).insert()
+		self.assertTrue(space.name)
+
+	def tearDown(self):
+		frappe.db.rollback()
