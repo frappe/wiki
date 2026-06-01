@@ -72,7 +72,8 @@ class WikiSpace(Document):
 				_(
 					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the "
 					"Wiki editor. Use a different route, e.g. 'docs'."
-				).format(RESERVED_ROUTE)
+				).format(RESERVED_ROUTE),
+				frappe.ValidationError,
 			)
 
 	def create_root_group(self):
@@ -174,8 +175,10 @@ class WikiSpace(Document):
 		if is_reserved_route(new_route):
 			frappe.throw(
 				_(
-					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the Wiki editor."
-				).format(RESERVED_ROUTE)
+					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the "
+					"Wiki editor. Use a different route, e.g. 'docs'."
+				).format(RESERVED_ROUTE),
+				frappe.ValidationError,
 			)
 
 		old_route = self.route
@@ -249,6 +252,15 @@ class WikiSpace(Document):
 
 		if new_route == self.route:
 			frappe.throw(_("New route is the same as current route"))
+
+		if is_reserved_route(new_route):
+			frappe.throw(
+				_(
+					"Route cannot be '{0}' or start with '{0}/' — that path is reserved for the "
+					"Wiki editor. Use a different route, e.g. 'docs'."
+				).format(RESERVED_ROUTE),
+				frappe.ValidationError,
+			)
 
 		existing = frappe.db.get_value("Wiki Space", {"route": new_route}, "name")
 		if existing:

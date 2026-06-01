@@ -323,6 +323,21 @@ class TestWikiSpaceRouteValidation(FrappeTestCase):
 					}
 				).insert()
 
+	def test_update_routes_rejects_reserved_routes(self):
+		space = frappe.get_doc(
+			{
+				"doctype": "Wiki Space",
+				"space_name": f"Update Route {frappe.generate_hash(length=6)}",
+				"route": f"valid-route-{frappe.generate_hash(length=6)}",
+			}
+		).insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			space.update_routes("wiki")
+
+		with self.assertRaises(frappe.ValidationError):
+			space.update_routes("wiki/updated")
+
 	def test_non_reserved_route_is_allowed(self):
 		space = frappe.get_doc(
 			{
