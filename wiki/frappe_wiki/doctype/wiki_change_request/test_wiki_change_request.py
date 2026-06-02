@@ -87,6 +87,79 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(item.is_deleted, 0)
 		self.assertIsNotNone(item.content_blob)
 
+	def test_update_cr_page_normalizes_allowed_fields_and_ignores_none(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR update fields")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		new_key = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Original",
+			slug="original",
+			is_group=1,
+			is_published=1,
+			content="Original body",
+			is_external_link=1,
+			external_url="https://example.com/original",
+		)
+
+		update_cr_page(
+			cr.name,
+			new_key,
+			{
+				"title": "Updated",
+				"slug": "updated",
+				"route": "custom/updated",
+				"is_group": False,
+				"is_published": False,
+				"is_external_link": False,
+				"external_url": "",
+				"content": "Updated body",
+				"is_deleted": True,
+				"revision": "ignored",
+			},
+		)
+
+		item = get_revision_item(cr.head_revision, new_key)
+		self.assertEqual(item.title, "Updated")
+		self.assertEqual(item.slug, "updated")
+		self.assertEqual(item.route, "custom/updated")
+		self.assertEqual(item.is_group, 0)
+		self.assertEqual(item.is_published, 0)
+		self.assertEqual(item.is_external_link, 0)
+		self.assertEqual(item.external_url, "")
+		self.assertEqual(item.is_deleted, 1)
+		self.assertEqual(item.revision, cr.head_revision)
+		self.assertEqual(frappe.get_value("Wiki Content Blob", item.content_blob, "content"), "Updated body")
+		content_blob = item.content_blob
+
+		update_cr_page(
+			cr.name,
+			new_key,
+			{
+				"title": None,
+				"slug": None,
+				"route": None,
+				"is_group": None,
+				"is_published": None,
+				"is_external_link": None,
+				"external_url": None,
+				"content": None,
+				"is_deleted": False,
+			},
+		)
+
+		item.reload()
+		self.assertEqual(item.title, "Updated")
+		self.assertEqual(item.slug, "updated")
+		self.assertEqual(item.route, "custom/updated")
+		self.assertEqual(item.is_group, 0)
+		self.assertEqual(item.is_published, 0)
+		self.assertEqual(item.is_external_link, 0)
+		self.assertEqual(item.external_url, "")
+		self.assertEqual(item.content_blob, content_blob)
+		self.assertEqual(item.is_deleted, 0)
+
 	def test_move_reorder_in_cr(self):
 		space = create_test_wiki_space()
 		page1 = create_test_wiki_document(space.root_group, title="Page 1")
@@ -582,7 +655,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		base = "line1\nline2\nline3\n"
 		ours = "line1-ours\nline2\nline3\n"
 		theirs = "line1-theirs\nline2\nline3\n"
-		result, conflict = merge_content_three_way(base, ours, theirs)
+		_result, conflict = merge_content_three_way(base, ours, theirs)
 		self.assertTrue(conflict)
 
 	def test_merge_content_three_way_whitespace_tolerance(self):

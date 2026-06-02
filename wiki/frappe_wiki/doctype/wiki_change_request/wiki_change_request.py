@@ -127,6 +127,9 @@ def _lock_and_load_cr(name: str) -> Document:
 # the caller invokes those once after a logical unit of work so a batch only pays
 # that cost a single time.
 
+_CR_ITEM_SCALAR_UPDATE_FIELDS = ("title", "slug", "route", "external_url")
+_CR_ITEM_CHECKBOX_UPDATE_FIELDS = ("is_group", "is_published", "is_external_link", "is_deleted")
+
 
 def _compute_cr_route(
 	cr: Document, parent_key: str | None, slug: str, item_map: dict[str, dict[str, Any]]
@@ -261,24 +264,19 @@ def _update_cr_item(
 		frappe.throw(_("Document not found in change request"))
 
 	item = frappe.get_doc("Wiki Revision Item", item_name)
-	if "title" in fields and fields["title"] is not None:
-		item.title = fields["title"]
-	if "slug" in fields and fields["slug"] is not None:
-		item.slug = fields["slug"]
-	if "route" in fields and fields["route"] is not None:
-		item.route = fields["route"]
-	if "is_group" in fields and fields["is_group"] is not None:
-		item.is_group = 1 if fields["is_group"] else 0
-	if "is_published" in fields and fields["is_published"] is not None:
-		item.is_published = 1 if fields["is_published"] else 0
-	if "is_external_link" in fields and fields["is_external_link"] is not None:
-		item.is_external_link = 1 if fields["is_external_link"] else 0
-	if "external_url" in fields and fields["external_url"] is not None:
-		item.external_url = fields["external_url"]
-	if "content" in fields and fields["content"] is not None:
-		item.content_blob = get_or_create_content_blob(fields["content"])
-	if "is_deleted" in fields and fields["is_deleted"] is not None:
-		item.is_deleted = 1 if fields["is_deleted"] else 0
+	updates = {
+		field: fields[field] for field in _CR_ITEM_SCALAR_UPDATE_FIELDS if fields.get(field) is not None
+	}
+	updates.update(
+		{
+			field: int(bool(fields[field]))
+			for field in _CR_ITEM_CHECKBOX_UPDATE_FIELDS
+			if fields.get(field) is not None
+		}
+	)
+	if fields.get("content") is not None:
+		updates["content_blob"] = get_or_create_content_blob(fields["content"])
+	item.update(updates)
 
 	# When the caller (typically the batch endpoint) didn't pin a route but title
 	# or slug changed, recompute it so renames don't leave stale routes.
