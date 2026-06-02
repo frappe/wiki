@@ -39,7 +39,7 @@ test.describe('Markdown Line Breaks', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -251,7 +251,7 @@ test.describe('Markdown Line Breaks', () => {
 		}, inputMarkdown);
 
 		// Save the draft
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 

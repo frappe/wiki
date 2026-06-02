@@ -15,6 +15,8 @@ declare global {
 		__draftStore: {
 			tree: DraftNode[];
 			rootKey: string | null;
+			crName: string | null;
+			pagesByKey: Record<string, { content?: string | null }>;
 			moveNode: (args: {
 				docKey: string;
 				newParentKey: string | null;
@@ -80,10 +82,7 @@ async function createPageViaUI(
 		await newPageButton.click();
 	}
 	await page.getByLabel('Title').fill(title);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Save Draft' })
-		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 }
 
 test.describe('Local-first draft workspace', () => {
@@ -201,7 +200,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, typedContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		// Sync-state badge should report failure.
 		await expect(page.getByText('Sync failed')).toBeVisible({
@@ -260,7 +259,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, typedContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		// The save fails; banner surfaces it and Reload latest appears.
 		await expect(page.getByText('Sync failed')).toBeVisible({ timeout: 5000 });
@@ -286,10 +285,10 @@ test.describe('Local-first draft workspace', () => {
 		await expect(reloadButton).toBeHidden();
 		await expect(submitButton).toBeDisabled();
 
-		// Resolving the typed content (Save Draft now succeeds because the
+		// Resolving the typed content (Save now succeeds because the
 		// mock is gone and operation_version is fresh) is what finally
 		// re-enables Submit.
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -348,7 +347,7 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeDisabled();
 
 		// Flushing via manual Save lands the content and re-enables Submit.
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -431,7 +430,7 @@ test.describe('Local-first draft workspace', () => {
 		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
 		await expect(submitButton).toBeDisabled();
 
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -476,7 +475,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, baselineContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -575,7 +574,7 @@ test.describe('Local-first draft workspace', () => {
 			timeout: 5000,
 		});
 
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -651,11 +650,132 @@ test.describe('Local-first draft workspace', () => {
 
 		// Saving the restored draft clears the IDB entry and re-enables
 		// Submit, just like a normal first-save.
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
 		await expect(submitButton).toBeEnabled();
+	});
+
+	test('a persisted draft identical to the server self-heals instead of gating Submit', async ({
+		page,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Phantom Draft Space ${timestamp}`;
+		const spaceRoute = `phantom-draft-space-${timestamp}`;
+		const pageTitle = `phantom-draft-page-${timestamp}`;
+		const savedContent = `Already on the server ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+
+		const editor = page
+			.locator('.ProseMirror, [contenteditable="true"]')
+			.first();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		// Save baseline content so the server holds a confirmed copy.
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, savedContent);
+		await editor.click();
+		await page.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
+
+		// Plant a persisted IndexedDB draft whose content is byte-identical to
+		// what the server already holds — a phantom with no real unsaved
+		// changes (the shape an earlier non-idempotent markdown round-trip left
+		// behind). Restoring it as dirty would gate Submit/Merge on every
+		// hydrate and survive an IndexedDB clear once re-persisted.
+		const planted = await page.evaluate(async () => {
+			const store = window.__draftStore;
+			const crName = store.crName;
+			const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+			const docKey = match ? decodeURIComponent(match[1]) : null;
+			if (!crName || !docKey) return null;
+			const serverContent = store.pagesByKey[docKey]?.content ?? '';
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.open('wiki-drafts');
+				req.onupgradeneeded = () => req.result.createObjectStore('drafts');
+				req.onsuccess = () => {
+					const tx = req.result
+						.transaction('drafts', 'readwrite')
+						.objectStore('drafts');
+					const put = tx.put(
+						{ content: serverContent, title: '', savedAt: 1 },
+						`cr:${crName}:${docKey}`,
+					);
+					put.onsuccess = () => resolve();
+					put.onerror = () => reject(put.error);
+				};
+				req.onerror = () => reject(req.error);
+			});
+			return { crName, docKey };
+		});
+		if (!planted) throw new Error('Failed to plant phantom draft in IndexedDB');
+		const idbKey = `cr:${planted.crName}:${planted.docKey}`;
+
+		// Reload: in-memory state is wiped and hydrate runs
+		// restorePersistedDrafts, which must verify the draft against the
+		// server and drop it rather than reseeding dirty state.
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+
+		// The banner must not report unsaved changes; Submit stays enabled.
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeEnabled({ timeout: 10000 });
+		await expect(page.getByText('Unsaved changes')).toBeHidden();
+
+		// And the phantom entry must be gone from IndexedDB so it can't
+		// resurface on a later hydrate.
+		await expect
+			.poll(
+				() =>
+					page.evaluate(
+						(key) =>
+							new Promise<boolean>((resolve) => {
+								const req = indexedDB.open('wiki-drafts');
+								req.onsuccess = () => {
+									const db = req.result;
+									if (!db.objectStoreNames.contains('drafts')) {
+										return resolve(false);
+									}
+									db
+										.transaction('drafts')
+										.objectStore('drafts')
+										.getAllKeys().onsuccess = (e) =>
+										resolve(
+											(e.target as IDBRequest<IDBValidKey[]>).result.includes(
+												key,
+											),
+										);
+								};
+								req.onerror = () => resolve(false);
+							}),
+						idbKey,
+					),
+				{ timeout: 5000 },
+			)
+			.toBe(false);
 	});
 
 	test('delayed reorder: visual order stays stable across slow sync', async ({

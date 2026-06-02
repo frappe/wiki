@@ -40,7 +40,7 @@ test.describe('Link Persistence Tests', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -82,7 +82,7 @@ test.describe('Link Persistence Tests', () => {
 		await expect(editorLink).toHaveText('Example Website');
 
 		// Save the draft
-		const saveButton = page.locator('button:has-text("Save Draft")');
+		const saveButton = page.locator('button:has-text("Save")');
 		await saveButton.click();
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000); // Wait for DB commit

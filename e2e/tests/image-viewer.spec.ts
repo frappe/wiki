@@ -47,10 +47,7 @@ async function createAndPublishPage(
 	}
 
 	await page.getByLabel('Title').fill(title);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Save Draft' })
-		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await page.waitForLoadState('networkidle');
 
 	await page.locator('aside').getByText(title, { exact: true }).click();
@@ -74,7 +71,7 @@ async function createAndPublishPage(
 	await editor.click();
 	await page.waitForTimeout(500);
 
-	await page.click('button:has-text("Save Draft")');
+	await page.click('button:has-text("Save")');
 	await page.waitForLoadState('networkidle');
 	await page.waitForTimeout(2000);
 

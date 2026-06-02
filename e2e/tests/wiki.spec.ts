@@ -84,10 +84,10 @@ test.describe('Wiki Editor', () => {
 		const pageTitle = `Test Page ${Date.now()}`;
 		await titleInput.fill(pageTitle);
 
-		// Click Save Draft button in dialog (use role to be more specific)
+		// Click Save button in dialog (use role to be more specific)
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -161,7 +161,7 @@ test.describe('Wiki Editor', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -175,7 +175,7 @@ test.describe('Wiki Editor', () => {
 		).toBeVisible({ timeout: 10000 });
 
 		// Verify save draft button is present (indicates edit mode)
-		await expect(page.locator('button:has-text("Save Draft")')).toBeVisible();
+		await expect(page.locator('button:has-text("Save")')).toBeVisible();
 	});
 
 	test('should publish page and view it on public route', async ({
@@ -211,7 +211,7 @@ test.describe('Wiki Editor', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -232,7 +232,7 @@ test.describe('Wiki Editor', () => {
 		await page.keyboard.type(pageContent);
 
 		// Save the draft
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge

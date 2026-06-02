@@ -86,7 +86,7 @@ test.describe('Wiki Document Ordering', () => {
 		await page.getByLabel('Title').fill('Q6');
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 

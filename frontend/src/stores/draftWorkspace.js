@@ -168,33 +168,57 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (!crName.value) return;
 		const drafts = await loadDraftsForCr(crName.value);
 		if (!drafts.length) return;
-		for (const draft of drafts) {
-			const { docKey, content, title } = draft;
-			if (!docKey || content == null) continue;
-			// Only restore for keys that still exist server-side. tmp_*
-			// orphans (lost creates) are out of scope for this v1.
-			if (resolver.isTempKey(docKey) || !treeModel.findNode(docKey)) continue;
-			const page = pageBuffers.get(docKey);
-			if (!page) {
-				pageBuffers.setPage(docKey, {
-					docKey,
-					title: title || '',
-					route: '',
-					content: null,
-					localContent: content,
-					isPublished: true,
-					dirty: true,
-					saveStatus: 'dirty',
-					error: null,
-				});
-			} else {
-				page.localContent = content;
-				if (title) page.title = title;
-				page.dirty = true;
-				page.saveStatus = 'dirty';
-				page.error = null;
-			}
-		}
+		await Promise.all(
+			drafts.map(async (draft) => {
+				const { docKey, content, title } = draft;
+				if (!docKey || content == null) return;
+				// Only restore for keys that still exist server-side. tmp_*
+				// orphans (lost creates) are out of scope for this v1.
+				if (resolver.isTempKey(docKey) || !treeModel.findNode(docKey)) return;
+
+				// Verify against the server copy before restoring. A persisted
+				// draft that matches the server has no real unsaved changes —
+				// it's a redundant/stale entry (e.g. left over from an earlier
+				// non-idempotent serialization). Restoring it as dirty would
+				// gate Submit/Merge on a phantom "unsaved changes" on every
+				// hydrate (and survive an IndexedDB clear once re-persisted), so
+				// drop it instead of reseeding dirty state.
+				let serverContent = null;
+				try {
+					const result = await transport.fetchPage(crName.value, docKey);
+					serverContent = result?.content ?? '';
+				} catch (_err) {
+					// Couldn't reach the server — fall through and restore
+					// conservatively so we never silently discard real work.
+				}
+				if (serverContent != null && content === serverContent) {
+					clearPersistedDraft(crName.value, docKey);
+					return;
+				}
+
+				const page = pageBuffers.get(docKey);
+				if (!page) {
+					pageBuffers.setPage(docKey, {
+						docKey,
+						title: title || '',
+						route: '',
+						content: serverContent,
+						localContent: content,
+						isPublished: true,
+						dirty: true,
+						saveStatus: 'dirty',
+						error: null,
+					});
+				} else {
+					page.localContent = content;
+					if (title) page.title = title;
+					if (serverContent != null) page.content = serverContent;
+					page.dirty = true;
+					page.saveStatus = 'dirty';
+					page.error = null;
+				}
+			}),
+		);
 	}
 
 	async function reloadTree() {
