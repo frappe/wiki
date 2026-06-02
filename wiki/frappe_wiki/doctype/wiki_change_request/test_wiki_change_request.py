@@ -6,6 +6,7 @@ from frappe.core.doctype.user_permission.test_user_permission import create_user
 from frappe.tests.utils import FrappeTestCase
 
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+	apply_cr_operations,
 	archive_change_request,
 	check_outdated,
 	create_change_request,
@@ -85,6 +86,79 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(item.title, "New Page v2")
 		self.assertEqual(item.is_deleted, 0)
 		self.assertIsNotNone(item.content_blob)
+
+	def test_update_cr_page_normalizes_allowed_fields_and_ignores_none(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR update fields")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		new_key = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="Original",
+			slug="original",
+			is_group=1,
+			is_published=1,
+			content="Original body",
+			is_external_link=1,
+			external_url="https://example.com/original",
+		)
+
+		update_cr_page(
+			cr.name,
+			new_key,
+			{
+				"title": "Updated",
+				"slug": "updated",
+				"route": "custom/updated",
+				"is_group": False,
+				"is_published": False,
+				"is_external_link": False,
+				"external_url": "",
+				"content": "Updated body",
+				"is_deleted": True,
+				"revision": "ignored",
+			},
+		)
+
+		item = get_revision_item(cr.head_revision, new_key)
+		self.assertEqual(item.title, "Updated")
+		self.assertEqual(item.slug, "updated")
+		self.assertEqual(item.route, "custom/updated")
+		self.assertEqual(item.is_group, 0)
+		self.assertEqual(item.is_published, 0)
+		self.assertEqual(item.is_external_link, 0)
+		self.assertEqual(item.external_url, "")
+		self.assertEqual(item.is_deleted, 1)
+		self.assertEqual(item.revision, cr.head_revision)
+		self.assertEqual(frappe.get_value("Wiki Content Blob", item.content_blob, "content"), "Updated body")
+		content_blob = item.content_blob
+
+		update_cr_page(
+			cr.name,
+			new_key,
+			{
+				"title": None,
+				"slug": None,
+				"route": None,
+				"is_group": None,
+				"is_published": None,
+				"is_external_link": None,
+				"external_url": None,
+				"content": None,
+				"is_deleted": False,
+			},
+		)
+
+		item.reload()
+		self.assertEqual(item.title, "Updated")
+		self.assertEqual(item.slug, "updated")
+		self.assertEqual(item.route, "custom/updated")
+		self.assertEqual(item.is_group, 0)
+		self.assertEqual(item.is_published, 0)
+		self.assertEqual(item.is_external_link, 0)
+		self.assertEqual(item.external_url, "")
+		self.assertEqual(item.content_blob, content_blob)
+		self.assertEqual(item.is_deleted, 0)
 
 	def test_move_reorder_in_cr(self):
 		space = create_test_wiki_space()
@@ -581,7 +655,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		base = "line1\nline2\nline3\n"
 		ours = "line1-ours\nline2\nline3\n"
 		theirs = "line1-theirs\nline2\nline3\n"
-		result, conflict = merge_content_three_way(base, ours, theirs)
+		_result, conflict = merge_content_three_way(base, ours, theirs)
 		self.assertTrue(conflict)
 
 	def test_merge_content_three_way_whitespace_tolerance(self):
@@ -1179,6 +1253,651 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertTrue(new_doc_name, "New Wiki Document should exist after merge")
 		new_doc = frappe.get_doc("Wiki Document", new_doc_name)
 		self.assertTrue(new_doc.route, "New Wiki Document should have a route")
+
+	# --- apply_cr_operations -------------------------------------------------------
+
+	def test_apply_cr_operations_create_returns_temp_key_map(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 1")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "tmp-1",
+					"parent_key": root_key,
+					"title": "Batch Page",
+					"content": "Hello batch",
+				}
+			],
+		)
+
+		self.assertTrue(result["ok"])
+		self.assertIn("tmp-1", result["temp_key_map"])
+		new_key = result["temp_key_map"]["tmp-1"]
+		self.assertEqual(result["current_version"], 1)
+		self.assertEqual(len(result["items"]), 1)
+		self.assertEqual(result["items"][0]["doc_key"], new_key)
+		self.assertEqual(result["items"][0]["title"], "Batch Page")
+		# create_node carried content, so the canonical item should include it
+		self.assertEqual(result["items"][0]["content"], "Hello batch")
+
+	def test_apply_cr_operations_create_then_update_content_for_temp_key(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 2")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "tmp-1",
+					"parent_key": root_key,
+					"title": "Batched Edit",
+				},
+				{
+					"id": "op-2",
+					"type": "update_content",
+					"doc_key": "tmp-1",
+					"content": "Body written before promotion",
+				},
+			],
+		)
+
+		self.assertTrue(result["ok"])
+		new_key = result["temp_key_map"]["tmp-1"]
+		page = get_cr_page(cr.name, new_key)
+		self.assertEqual(page["content"], "Body written before promotion")
+
+	def test_apply_cr_operations_create_child_under_temp_parent(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 3")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "tmp-parent",
+					"parent_key": root_key,
+					"title": "Group",
+					"is_group": True,
+				},
+				{
+					"id": "op-2",
+					"type": "create_node",
+					"temp_key": "tmp-child",
+					"parent_key": "tmp-parent",
+					"title": "Child",
+				},
+			],
+		)
+
+		self.assertTrue(result["ok"])
+		parent_key = result["temp_key_map"]["tmp-parent"]
+		child_key = result["temp_key_map"]["tmp-child"]
+		child_page = get_cr_page(cr.name, child_key)
+		self.assertEqual(child_page["parent_key"], parent_key)
+
+	def test_apply_cr_operations_update_node_recomputes_route(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Old Name", content="x")
+		cr = create_change_request(space.name, "Batch CR 4")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "update_node",
+					"doc_key": page_key,
+					"fields": {"title": "Renamed", "slug": "renamed"},
+				},
+			],
+		)
+
+		self.assertTrue(result["ok"])
+		self.assertEqual(len(result["items"]), 1)
+		item = result["items"][0]
+		self.assertEqual(item["title"], "Renamed")
+		self.assertEqual(item["slug"], "renamed")
+		self.assertIn("renamed", item["route"])
+
+	def test_apply_cr_operations_delete_group_cascades_to_descendants(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Child")
+		cr = create_change_request(space.name, "Batch CR 5")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[{"id": "op-1", "type": "delete_node", "doc_key": group_key}],
+		)
+
+		self.assertTrue(result["ok"])
+		deleted = set(result["deleted_doc_keys"])
+		self.assertIn(group_key, deleted)
+		self.assertIn(child_key, deleted)
+
+	def test_apply_cr_operations_move_and_reorder_in_one_batch(self):
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="Page 1")
+		page2 = create_test_wiki_document(space.root_group, title="Page 2")
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		cr = create_change_request(space.name, "Batch CR 6")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page1_key = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		page2_key = frappe.get_value("Wiki Document", page2.name, "doc_key")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "move_node",
+					"doc_key": page1_key,
+					"target_parent_key": group_key,
+				},
+				{
+					"id": "op-2",
+					"type": "reorder_children",
+					"parent_key": root_key,
+					"ordered_doc_keys": [group_key, page2_key],
+				},
+			],
+		)
+
+		self.assertTrue(result["ok"])
+		moved = get_revision_item(cr.head_revision, page1_key)
+		self.assertEqual(moved.parent_key, group_key)
+		group_item = get_revision_item(cr.head_revision, group_key)
+		page2_item = get_revision_item(cr.head_revision, page2_key)
+		self.assertEqual(group_item.order_index, 0)
+		self.assertEqual(page2_item.order_index, 1)
+
+	def test_apply_cr_operations_unknown_type_rolls_back_batch(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 7")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		before_version = int(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version") or 0)
+
+		with self.assertRaises(frappe.ValidationError):
+			apply_cr_operations(
+				cr.name,
+				base_version=0,
+				operations=[
+					{
+						"id": "op-1",
+						"type": "create_node",
+						"temp_key": "tmp-1",
+						"parent_key": root_key,
+						"title": "Should not persist",
+					},
+					{"id": "op-2", "type": "frobnicate", "doc_key": "x"},
+				],
+			)
+
+		# Frappe's request transaction would roll back in production; in tests we
+		# explicitly roll back so the assertion below is meaningful.
+		frappe.db.rollback()
+
+		# No item with that title should exist.
+		count = frappe.db.count(
+			"Wiki Revision Item",
+			{"revision": cr.head_revision, "title": "Should not persist"},
+		)
+		self.assertEqual(count, 0)
+		self.assertEqual(
+			int(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version") or 0),
+			before_version,
+		)
+
+	def test_apply_cr_operations_invalid_doc_key_raises(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 8")
+
+		with self.assertRaises(Exception):
+			apply_cr_operations(
+				cr.name,
+				base_version=0,
+				operations=[
+					{
+						"id": "op-1",
+						"type": "update_node",
+						"doc_key": "does-not-exist",
+						"fields": {"title": "x"},
+					}
+				],
+			)
+
+	def test_apply_cr_operations_increments_operation_version(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 9")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		first = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "t1",
+					"parent_key": root_key,
+					"title": "A",
+				}
+			],
+		)
+		self.assertEqual(first["current_version"], 1)
+
+		second = apply_cr_operations(
+			cr.name,
+			base_version=1,
+			operations=[
+				{
+					"id": "op-2",
+					"type": "create_node",
+					"temp_key": "t2",
+					"parent_key": root_key,
+					"title": "B",
+				}
+			],
+		)
+		self.assertEqual(second["current_version"], 2)
+
+	def test_apply_cr_operations_stale_base_version_returns_conflict(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 10")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "t1",
+					"parent_key": root_key,
+					"title": "First",
+				}
+			],
+		)
+
+		stale = apply_cr_operations(
+			cr.name,
+			base_version=0,  # client thinks server is still at 0
+			operations=[
+				{
+					"id": "op-2",
+					"type": "create_node",
+					"temp_key": "t2",
+					"parent_key": root_key,
+					"title": "Stale",
+				}
+			],
+		)
+
+		self.assertFalse(stale["ok"])
+		self.assertEqual(stale["error"], "version_conflict")
+		self.assertEqual(stale["current_version"], 1)
+		# The stale batch must not have written anything.
+		self.assertEqual(
+			frappe.db.count(
+				"Wiki Revision Item",
+				{"revision": cr.head_revision, "title": "Stale"},
+			),
+			0,
+		)
+
+	def test_apply_cr_operations_reads_operation_version_with_for_update(self):
+		"""Regression guard: the base_version check must read with `for_update=True`.
+
+		Without the row lock, two concurrent batches against the same
+		`base_version` can both pass the `<` check, both call
+		`_bump_operation_version`, and end up advancing the counter by 1
+		instead of 2 — silently merging operations from two clients that
+		each believed they were the only writer. A real concurrency test
+		needs two DB connections, so this test only verifies the lock is
+		requested in the SQL the endpoint emits.
+		"""
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Concurrent CR")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		real_get_value = frappe.db.get_value
+		locked_reads = []
+
+		def tracking_get_value(*args, **kwargs):
+			doctype = args[0] if args else kwargs.get("doctype")
+			filters = args[1] if len(args) > 1 else kwargs.get("filters")
+			fieldname = args[2] if len(args) > 2 else kwargs.get("fieldname")
+			if (
+				doctype == "Wiki Change Request"
+				and filters == cr.name
+				and fieldname == "operation_version"
+				and kwargs.get("for_update")
+			):
+				locked_reads.append(True)
+			return real_get_value(*args, **kwargs)
+
+		frappe.db.get_value = tracking_get_value
+		try:
+			result = apply_cr_operations(
+				cr.name,
+				base_version=0,
+				operations=[
+					{
+						"id": "op-1",
+						"type": "create_node",
+						"temp_key": "t1",
+						"parent_key": root_key,
+						"title": "Page",
+					}
+				],
+			)
+		finally:
+			frappe.db.get_value = real_get_value
+
+		self.assertTrue(result["ok"])
+		self.assertTrue(
+			locked_reads,
+			"apply_cr_operations must read operation_version with for_update=True",
+		)
+
+	def test_legacy_mutators_lock_cr_row_for_update(self):
+		"""Regression guard for the legacy/batch rollout race.
+
+		During rollout the old per-action RPCs (`create_cr_page`,
+		`update_cr_page`, `delete_cr_page`, `move_cr_page`,
+		`reorder_cr_children`) still bump `operation_version`. If they
+		read the version without `for_update=True`, a concurrent batch on
+		the same CR can both pass the conflict check and both write the
+		same `+1`. Each legacy endpoint must therefore go through
+		`_lock_and_load_cr`.
+		"""
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Legacy Lock CR")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		real_get_value = frappe.db.get_value
+		seen: dict[str, bool] = {}
+		current_call: dict[str, str] = {}
+
+		def tracking_get_value(*args, **kwargs):
+			doctype = args[0] if args else kwargs.get("doctype")
+			filters = args[1] if len(args) > 1 else kwargs.get("filters")
+			fieldname = args[2] if len(args) > 2 else kwargs.get("fieldname")
+			if (
+				doctype == "Wiki Change Request"
+				and filters == cr.name
+				and fieldname == "operation_version"
+				and kwargs.get("for_update")
+				and current_call.get("name")
+			):
+				seen[current_call["name"]] = True
+			return real_get_value(*args, **kwargs)
+
+		def run(label: str, fn):
+			current_call["name"] = label
+			try:
+				fn()
+			finally:
+				current_call.pop("name", None)
+
+		frappe.db.get_value = tracking_get_value
+		try:
+			# create
+			run(
+				"create_cr_page",
+				lambda: create_cr_page(
+					name=cr.name,
+					parent_key=root_key,
+					title="Legacy A",
+					content="initial",
+				),
+			)
+			created_key = frappe.get_value(
+				"Wiki Revision Item",
+				{"revision": cr.head_revision, "title": "Legacy A"},
+				"doc_key",
+			)
+			self.assertTrue(created_key)
+
+			# update
+			run(
+				"update_cr_page",
+				lambda: update_cr_page(name=cr.name, doc_key=created_key, fields={"title": "Legacy A2"}),
+			)
+
+			# move (move into self-as-parent is forbidden; move to root again is fine)
+			run(
+				"move_cr_page",
+				lambda: move_cr_page(
+					name=cr.name,
+					doc_key=created_key,
+					new_parent_key=root_key,
+					new_order_index=0,
+				),
+			)
+
+			# reorder (single-child reorder is a valid no-op signal)
+			run(
+				"reorder_cr_children",
+				lambda: reorder_cr_children(
+					name=cr.name, parent_key=root_key, ordered_doc_keys=[created_key]
+				),
+			)
+
+			# delete (last so it doesn't break the earlier ops)
+			run(
+				"delete_cr_page",
+				lambda: delete_cr_page(name=cr.name, doc_key=created_key),
+			)
+		finally:
+			frappe.db.get_value = real_get_value
+
+		for endpoint in (
+			"create_cr_page",
+			"update_cr_page",
+			"move_cr_page",
+			"reorder_cr_children",
+			"delete_cr_page",
+		):
+			self.assertTrue(
+				seen.get(endpoint),
+				f"{endpoint} must load the CR via _lock_and_load_cr (for_update=True)",
+			)
+
+	def test_apply_cr_operations_null_base_version_accepted(self):
+		"""During rollout, older clients send no base_version; backend should accept."""
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 11")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		# Bump version once via a normal call.
+		apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "t1",
+					"parent_key": root_key,
+					"title": "First",
+				}
+			],
+		)
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=None,
+			operations=[
+				{
+					"id": "op-2",
+					"type": "create_node",
+					"temp_key": "t2",
+					"parent_key": root_key,
+					"title": "Second",
+				}
+			],
+		)
+		self.assertTrue(result["ok"])
+		self.assertEqual(result["current_version"], 2)
+
+	def test_apply_cr_operations_accepts_json_string_input(self):
+		"""Frappe's RPC layer can pass `operations` as a JSON string; endpoint must parse."""
+		import json
+
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR 12")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		result = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=json.dumps(
+				[
+					{
+						"id": "op-1",
+						"type": "create_node",
+						"temp_key": "t1",
+						"parent_key": root_key,
+						"title": "From JSON",
+					}
+				]
+			),
+		)
+		self.assertTrue(result["ok"])
+		self.assertIn("t1", result["temp_key_map"])
+
+	def test_legacy_create_cr_page_bumps_operation_version(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Legacy bump CR 1")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		create_cr_page(cr.name, root_key, "Legacy", content="x")
+
+		self.assertEqual(
+			int(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version") or 0),
+			1,
+		)
+
+	def test_legacy_update_move_reorder_delete_each_bump_version(self):
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="P1")
+		page2 = create_test_wiki_document(space.root_group, title="P2")
+		group = create_test_wiki_document(space.root_group, title="G", is_group=1)
+		cr = create_change_request(space.name, "Legacy bump CR 2")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		p1 = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		p2 = frappe.get_value("Wiki Document", page2.name, "doc_key")
+		g = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		def current():
+			return int(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version") or 0)
+
+		self.assertEqual(current(), 0)
+		update_cr_page(cr.name, p1, {"title": "P1 updated"})
+		self.assertEqual(current(), 1)
+		move_cr_page(cr.name, p1, g)
+		self.assertEqual(current(), 2)
+		reorder_cr_children(cr.name, root_key, [g, p2])
+		self.assertEqual(current(), 3)
+		delete_cr_page(cr.name, p2)
+		self.assertEqual(current(), 4)
+
+	def test_legacy_mutation_between_batches_advances_base_version(self):
+		"""Mixed-mode: a legacy RPC between two batches must move the version
+		so the second batch sends the bumped value as base_version.
+		"""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Mixed", content="x")
+		cr = create_change_request(space.name, "Mixed mode CR")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+
+		first = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "t1",
+					"parent_key": root_key,
+					"title": "Batch 1",
+				}
+			],
+		)
+		self.assertEqual(first["current_version"], 1)
+
+		# Legacy mutation sneaks in.
+		update_cr_page(cr.name, page_key, {"title": "Legacy rename"})
+		self.assertEqual(
+			int(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version") or 0),
+			2,
+		)
+
+		# A batch sent with base_version=1 (what the client knew before legacy
+		# write) must now be flagged as a conflict instead of clobbering.
+		stale = apply_cr_operations(
+			cr.name,
+			base_version=1,
+			operations=[
+				{
+					"id": "op-2",
+					"type": "create_node",
+					"temp_key": "t2",
+					"parent_key": root_key,
+					"title": "Batch 2 stale",
+				}
+			],
+		)
+		self.assertFalse(stale["ok"])
+		self.assertEqual(stale["error"], "version_conflict")
+		self.assertEqual(stale["current_version"], 2)
+
+	def test_get_cr_tree_returns_operation_version(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Tree version CR")
+		tree = get_cr_tree(cr.name)
+		self.assertEqual(tree.get("operation_version"), 0)
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[
+				{
+					"id": "op-1",
+					"type": "create_node",
+					"temp_key": "t1",
+					"parent_key": root_key,
+					"title": "Bumps version",
+				}
+			],
+		)
+		tree2 = get_cr_tree(cr.name)
+		self.assertEqual(tree2.get("operation_version"), 1)
 
 
 # Helpers

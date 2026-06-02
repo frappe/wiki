@@ -55,10 +55,7 @@ async function createPublishedTestPage(
 	}
 
 	await page.getByLabel('Title').fill(title);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Save Draft' })
-		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await page.waitForLoadState('networkidle');
 
 	// Open the newly created page from the sidebar tree
@@ -88,7 +85,7 @@ async function createPublishedTestPage(
 	}
 
 	// Save the draft
-	await page.click('button:has-text("Save Draft")');
+	await page.click('button:has-text("Save")');
 	await page.waitForLoadState('networkidle');
 
 	// Submit for review and merge the page

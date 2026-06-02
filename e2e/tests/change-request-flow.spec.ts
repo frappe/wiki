@@ -52,7 +52,7 @@ test.describe('Change Request Flow', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForTimeout(500);
 
@@ -76,7 +76,7 @@ test.describe('Change Request Flow', () => {
 			});
 		}, initialContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await page.waitForTimeout(500);
 
 		// Submit for review and merge
@@ -120,7 +120,7 @@ test.describe('Change Request Flow', () => {
 			});
 		}, `${initialContent}\n\n${updatedContent}`);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await page.waitForTimeout(500);
 
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
@@ -185,7 +185,7 @@ test.describe('Change Request Flow', () => {
 			await page.getByRole('dialog').getByLabel('Title').fill(title);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForSelector(`aside >> text=${title}`, {
 				timeout: 10000,
@@ -203,7 +203,7 @@ test.describe('Change Request Flow', () => {
 			await page.getByRole('dialog').getByLabel('Title').fill(pageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			const pageEntry = page
 				.locator('aside')
@@ -553,7 +553,7 @@ test.describe('Change Request Flow', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForTimeout(500);
 
@@ -575,7 +575,7 @@ test.describe('Change Request Flow', () => {
 			});
 		}, pageContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save Draft' }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 		await page.waitForTimeout(500);
 
 		// Merge directly from within the space editor (manager can merge Draft CRs)

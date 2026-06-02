@@ -50,7 +50,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(publishedPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -71,7 +71,7 @@ test.describe('Public Sidebar', () => {
 			await page.keyboard.type('This is published content.');
 
 			// Save the draft
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Submit for review and merge the page
@@ -100,7 +100,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(unpublishedPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -113,7 +113,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('This is unpublished content.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Open public page for published content
@@ -186,7 +186,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -202,7 +202,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('First SPA nav test page.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			const secondPageTitle = `spa-nav-second-${Date.now()}`;
@@ -210,7 +210,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -221,7 +221,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('Second SPA nav test page.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Merge both pages
@@ -323,7 +323,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -340,7 +340,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('First page content here.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Create second page in the same change request
@@ -349,7 +349,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -361,7 +361,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('Second page different content.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Submit for review and merge both pages

@@ -38,7 +38,7 @@ import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import { common, createLowlight } from 'lowlight';
-import { createApp, h, onMounted, onUnmounted, ref } from 'vue';
+import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
@@ -87,15 +87,20 @@ const props = defineProps({
 		type: String,
 		default: '',
 	},
-	saving: {
-		type: Boolean,
-		default: false,
+	documentKey: {
+		type: String,
+		default: null,
+	},
+	// The canonical content the parent has confirmed as saved. The editor
+	// normalizes this with its configured Markdown manager before handing
+	// both snapshots to the store for comparison.
+	savedContent: {
+		type: String,
+		default: '',
 	},
 });
 
-const emit = defineEmits(['save']);
-const hasUnsavedChanges = ref(false);
-const lastSavedContent = ref(props.content || '');
+const emit = defineEmits(['save', 'content-change', 'content-ready']);
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
@@ -133,7 +138,7 @@ async function uploadFile(file) {
 }
 
 /**
- * Handle paste events to upload images
+ * Handle paste events to upload images and parse markdown text
  */
 function handlePaste(_view, event) {
 	const items = event.clipboardData?.items;
@@ -153,6 +158,23 @@ function handlePaste(_view, event) {
 			return true;
 		}
 	}
+
+	// If clipboard has plain text but no HTML, treat it as markdown so
+	// pastes like `# Heading` or `**bold**` render instead of staying literal.
+	// When HTML is present (Word, Google Docs, web pages), let ProseMirror's
+	// default handler keep the rich formatting.
+	const text = event.clipboardData?.getData('text/plain');
+	const html = event.clipboardData?.getData('text/html');
+	if (text && !html && editor.value?.markdown) {
+		event.preventDefault();
+		editor.value
+			.chain()
+			.focus()
+			.insertContent(text, { contentType: 'markdown' })
+			.run();
+		return true;
+	}
+
 	return false;
 }
 
@@ -473,50 +495,76 @@ function initEditor() {
 			handleContentChange();
 		},
 	});
+
+	emitContentReady();
+}
+
+function normalizeMarkdown(content) {
+	const markdown = content ?? '';
+	const manager = editor.value?.markdown;
+	if (!manager) return markdown;
+	try {
+		return manager.serialize(manager.parse(markdown));
+	} catch (error) {
+		console.warn('[WikiEditor] Could not normalize markdown', error);
+		return markdown;
+	}
+}
+
+function getMarkdown() {
+	const markdown = editor.value?.getMarkdown();
+	return markdown === undefined ? undefined : normalizeMarkdown(markdown);
+}
+
+function emitContentChange(options = {}) {
+	const content = getMarkdown();
+	if (content === undefined) return;
+	emit('content-change', content, props.documentKey, options);
+}
+
+// The store compares editor-normalized snapshots. This keeps parser
+// round-trip differences from becoming phantom unsaved changes.
+function emitContentReady() {
+	const currentContent = getMarkdown();
+	if (currentContent === undefined) return;
+	emit(
+		'content-ready',
+		currentContent,
+		normalizeMarkdown(props.savedContent),
+		props.documentKey,
+	);
 }
 
 function handleContentChange() {
-	// Clear existing timer
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
 	}
 
-	// Check if content has changed
-	const currentContent = editor.value?.getMarkdown();
-	if (
-		currentContent !== undefined &&
-		currentContent !== lastSavedContent.value
-	) {
-		hasUnsavedChanges.value = true;
+	const currentContent = getMarkdown();
+	if (currentContent === undefined) return;
+	emitContentChange();
 
-		// Set up debounced autosave
-		autosaveTimer = setTimeout(() => {
-			autoSave();
-		}, AUTOSAVE_DELAY);
-	}
+	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+
+	autosaveTimer = setTimeout(() => {
+		autosaveTimer = null;
+		autoSave();
+	}, AUTOSAVE_DELAY);
 }
 
 async function autoSave() {
-	if (props.saving || !editor.value) {
-		return;
-	}
+	if (!editor.value) return;
 
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
-	const currentContent = editor.value.getMarkdown();
-	if (
-		currentContent === undefined ||
-		currentContent === lastSavedContent.value
-	) {
-		hasUnsavedChanges.value = false;
-		return;
-	}
+	const currentContent = getMarkdown();
+	if (currentContent === undefined) return;
+	emitContentChange();
+	if (currentContent === normalizeMarkdown(props.savedContent)) return;
 
 	emit('save', currentContent);
-	lastSavedContent.value = currentContent;
-	hasUnsavedChanges.value = false;
-	// Notify components that save is complete so they can restore focus
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 }
 
@@ -524,6 +572,7 @@ function saveToDB() {
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
 	}
 
 	if (!editor.value) {
@@ -535,22 +584,27 @@ function saveToDB() {
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
 	// Get markdown from the editor
-	const markdown = editor.value.getMarkdown();
+	const markdown = getMarkdown();
 	if (markdown !== undefined) {
-		emit('save', markdown);
-		lastSavedContent.value = markdown;
-		hasUnsavedChanges.value = false;
-		// Notify components that save is complete so they can restore focus
+		emitContentChange();
+		if (markdown !== normalizeMarkdown(props.savedContent)) {
+			emit('save', markdown);
+		}
 		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 	} else {
 		toast.error('Could not get content from editor');
 	}
 }
 
+watch(
+	() => props.savedContent,
+	() => emitContentReady(),
+);
+
 // Expose methods for parent component
 defineExpose({
 	saveToDB,
-	hasUnsavedChanges,
+	getMarkdown,
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
@@ -586,6 +640,7 @@ onUnmounted(() => {
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 	}
+	emitContentChange({ persistImmediately: true });
 	if (editor.value) {
 		editor.value.destroy();
 	}

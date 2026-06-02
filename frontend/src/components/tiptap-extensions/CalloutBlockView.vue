@@ -316,7 +316,7 @@ const dropdownOptions = computed(() => [
 <template>
     <NodeViewWrapper
         ref="wrapperRef"
-        class="callout-block-wrapper my-4 px-4 py-3.5 rounded-md relative flex flex-col gap-2"
+        class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-md relative flex flex-col gap-2"
         :class="[`callout-${normalizedType}`, { 'outline-none': selected }]"
         contenteditable="false"
     >
@@ -435,11 +435,6 @@ const dropdownOptions = computed(() => [
 .callout-icon :deep(svg) {
     width: 1rem;
     height: 1rem;
-}
-
-/* Menu button visibility on hover */
-.callout-block-wrapper:hover .callout-menu-btn {
-    opacity: 1;
 }
 
 /* Sub-editor ProseMirror element styling */

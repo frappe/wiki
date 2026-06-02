@@ -53,7 +53,13 @@
                             {{ element.title }}
                         </span>
 
-						<Badge v-if="changeTypeMap.get(element.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
+						<Badge v-if="element.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
+							{{ __('Sync failed') }}
+						</Badge>
+						<Badge v-else-if="element.local_status === 'pending_create' || element.local_status === 'pending_update'" variant="subtle" theme="gray" size="sm" :title="__('Saving…')">
+							{{ __('Syncing…') }}
+						</Badge>
+						<Badge v-else-if="changeTypeMap.get(element.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
 							{{ __('New') }}
 						</Badge>
 						<Badge v-else-if="changeTypeMap.get(element.doc_key) === 'deleted'" variant="subtle" theme="red" size="sm">
@@ -124,268 +130,276 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { Dropdown, Badge, Button, toast } from 'frappe-ui';
+import { Badge, Button, Dropdown, toast } from 'frappe-ui';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
-import { useChangeRequestStore } from '@/stores/changeRequest';
 import LucideChevronRight from '~icons/lucide/chevron-right';
-import LucideFolder from '~icons/lucide/folder';
+import LucideFilePlus from '~icons/lucide/file-plus';
 import LucideFileText from '~icons/lucide/file-text';
+import LucideFolder from '~icons/lucide/folder';
+import LucideFolderPlus from '~icons/lucide/folder-plus';
+import LucideGripVertical from '~icons/lucide/grip-vertical';
 import LucideLink from '~icons/lucide/link';
 import LucideMoreHorizontal from '~icons/lucide/more-horizontal';
-import LucideGripVertical from '~icons/lucide/grip-vertical';
-import LucideFilePlus from '~icons/lucide/file-plus';
-import LucideFolderPlus from '~icons/lucide/folder-plus';
 
 defineOptions({
-    name: 'NestedDraggable',
+	name: 'NestedDraggable',
 });
 
 const props = defineProps({
-    items: {
-        type: Array,
-        required: true,
-    },
-    changeTypeMap: {
-        type: Map,
-        default: () => new Map(),
-    },
-    level: {
-        type: Number,
-        default: 0,
-    },
-    parentName: {
-        type: String,
-        default: null,
-    },
-    spaceId: {
-        type: String,
-        default: null,
-    },
-    selectedPageId: {
-        type: String,
-        default: null,
-    },
-    selectedDraftKey: {
-        type: String,
-        default: null,
-    },
+	items: {
+		type: Array,
+		required: true,
+	},
+	changeTypeMap: {
+		type: Map,
+		default: () => new Map(),
+	},
+	level: {
+		type: Number,
+		default: 0,
+	},
+	parentName: {
+		type: String,
+		default: null,
+	},
+	spaceId: {
+		type: String,
+		default: null,
+	},
+	selectedPageId: {
+		type: String,
+		default: null,
+	},
+	selectedDraftKey: {
+		type: String,
+		default: null,
+	},
 });
 
 const emit = defineEmits([
-    'create',
-    'delete',
-    'update',
-    'rename',
-    'external-link',
-    'edit-external-link',
-    'drag-state-change',
+	'create',
+	'delete',
+	'update',
+	'rename',
+	'external-link',
+	'edit-external-link',
+	'drag-state-change',
 ]);
 const router = useRouter();
-const crStore = useChangeRequestStore();
+const draftStore = useDraftWorkspaceStore();
 
 const localItems = ref([...props.items]);
 const isDragging = ref(false);
 let dragSettleTimer = null;
 
-watch(() => props.items, (newItems) => {
-    if (isDragging.value) return;
-    localItems.value = [...newItems];
-});
+watch(
+	() => props.items,
+	(newItems) => {
+		if (isDragging.value) return;
+		localItems.value = [...newItems];
+	},
+);
 
-const storageKey = computed(() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`);
+const storageKey = computed(
+	() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`,
+);
 const expandedNodes = useStorage(storageKey, {});
 
 function isExpanded(name) {
-    return expandedNodes.value[name] === true;
+	return expandedNodes.value[name] === true;
 }
 
 function toggleExpanded(name) {
-    expandedNodes.value[name] = !expandedNodes.value[name];
+	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 
 function handleRowClick(element) {
-    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
-        return;
-    }
+	if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
+		return;
+	}
 
-    if (element.is_group) {
-        toggleExpanded(element.doc_key);
-        return;
-    }
+	if (element.is_group) {
+		toggleExpanded(element.doc_key);
+		return;
+	}
 
-    // External links open edit dialog instead of navigating
-    if (element.is_external_link) {
-        emit('edit-external-link', element);
-        return;
-    }
+	// External links open edit dialog instead of navigating
+	if (element.is_external_link) {
+		emit('edit-external-link', element);
+		return;
+	}
 
-    if (element.document_name) {
-        router.push({ name: 'SpacePage', params: { spaceId: props.spaceId, pageId: element.document_name } });
-        return;
-    }
+	if (element.document_name) {
+		router.push({
+			name: 'SpacePage',
+			params: { spaceId: props.spaceId, pageId: element.document_name },
+		});
+		return;
+	}
 
-    router.push({
-        name: 'DraftChangeRequest',
-        params: { spaceId: props.spaceId, docKey: element.doc_key }
-    });
+	router.push({
+		name: 'DraftChangeRequest',
+		params: { spaceId: props.spaceId, docKey: element.doc_key },
+	});
 }
 
 function getRowClasses(element) {
-    const classes = [];
+	const classes = [];
 
-    const isSelectedPage = !element.is_group && element.document_name === props.selectedPageId;
-    const isSelectedDraft = !element.document_name && element.doc_key === props.selectedDraftKey;
+	const isSelectedPage =
+		!element.is_group &&
+		!!props.selectedPageId &&
+		element.document_name === props.selectedPageId;
+	const isSelectedDraft =
+		!element.document_name &&
+		!!props.selectedDraftKey &&
+		element.doc_key === props.selectedDraftKey;
 
-    if (isSelectedPage || isSelectedDraft) {
-        classes.push('bg-surface-gray-3');
-    }
+	if (isSelectedPage || isSelectedDraft) {
+		classes.push('bg-surface-gray-3');
+	}
 
-    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
-        classes.push('cursor-not-allowed', 'opacity-60');
-    } else {
-        classes.push('cursor-pointer');
-    }
+	if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
+		classes.push('cursor-not-allowed', 'opacity-60');
+	} else {
+		classes.push('cursor-pointer');
+	}
 
-    return classes;
+	return classes;
 }
 
 function getTitleClass(element) {
-    if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
-        return 'text-ink-gray-4 line-through';
-    }
-    if (element.is_published || element.is_group) {
-        return 'text-ink-gray-8';
-    }
-    return 'text-ink-gray-5';
+	if (props.changeTypeMap.get(element.doc_key) === 'deleted') {
+		return 'text-ink-gray-4 line-through';
+	}
+	if (element.is_published || element.is_group) {
+		return 'text-ink-gray-8';
+	}
+	return 'text-ink-gray-5';
 }
 
 function onDragStart() {
-    isDragging.value = true;
-    emit('drag-state-change', true);
-    if (dragSettleTimer) {
-        clearTimeout(dragSettleTimer);
-        dragSettleTimer = null;
-    }
+	isDragging.value = true;
+	emit('drag-state-change', true);
+	if (dragSettleTimer) {
+		clearTimeout(dragSettleTimer);
+		dragSettleTimer = null;
+	}
 }
 
 function onDragEnd() {
-    if (dragSettleTimer) clearTimeout(dragSettleTimer);
-    dragSettleTimer = setTimeout(() => {
-        isDragging.value = false;
-        emit('drag-state-change', false);
-        dragSettleTimer = null;
-    }, 1000);
+	if (dragSettleTimer) clearTimeout(dragSettleTimer);
+	dragSettleTimer = setTimeout(() => {
+		isDragging.value = false;
+		emit('drag-state-change', false);
+		dragSettleTimer = null;
+	}, 1000);
 }
 
 function handleChange(evt) {
-    if (evt.added || evt.moved) {
-        const item = evt.added?.element || evt.moved?.element;
-        const newIndex = evt.added?.newIndex ?? evt.moved?.newIndex;
-        
-        emit('update', {
-            item,
-            newParent: props.parentName,
-            newIndex,
-            siblings: localItems.value,
-            type: evt.added ? 'added' : 'moved',
-        });
-    }
+	if (evt.added || evt.moved) {
+		const item = evt.added?.element || evt.moved?.element;
+		const newIndex = evt.added?.newIndex ?? evt.moved?.newIndex;
+
+		// Push the move into the workspace store synchronously so the legacy
+		// view rebuilds with the new order. The store also debounces the
+		// backend sync, so rapid drags coalesce into one roundtrip.
+		draftStore.moveNode({
+			docKey: item.doc_key,
+			newParentKey: props.parentName,
+			newIndex,
+		});
+	}
 }
 
 function handleNestedUpdate(payload) {
-    emit('update', payload);
+	emit('update', payload);
 }
 
 function handleNestedDragStateChange(state) {
-    emit('drag-state-change', state);
+	emit('drag-state-change', state);
 }
 
 async function togglePublish(element) {
-    if (!crStore.currentChangeRequest) {
-        toast.error(__('No active change request'));
-        return;
-    }
-    const newStatus = element.is_published ? 0 : 1;
-    try {
-        await crStore.updatePage(crStore.currentChangeRequest.name, element.doc_key, {
-            is_published: newStatus,
-        });
-        const action = element.is_published ? __('unpublished') : __('published');
-        toast.success(__('Page {0}', [action]));
-        emit('update', { type: 'refresh' });
-    } catch (error) {
-        toast.error(error.messages?.[0] || __('Error updating publish status'));
-    }
+	const newStatus = element.is_published ? 0 : 1;
+	try {
+		await draftStore.updateNode(element.doc_key, { is_published: newStatus });
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error updating publish status'));
+	}
 }
 
 function getDropdownOptions(element) {
-    const options = [];
+	const options = [];
 
-    if (element.is_group) {
-        options.push(...[
-                {
-                    label: __('Add Page'),
-                    icon: 'file-plus',
-                    onClick: () => emit('create', element.doc_key, false),
-                },
-                {
-                    label: __('Add Group'),
-                    icon: 'folder-plus',
-                    onClick: () => emit('create', element.doc_key, true),
-                },
-                {
-                    label: __('Add External Link'),
-                    icon: 'link',
-                    onClick: () => emit('external-link', element.doc_key),
-                },
-                {
-                    label: __('Rename'),
-                    icon: 'edit-2',
-                    onClick: () => emit('rename', element),
-                },
-            ]);
-    }
+	if (element.is_group) {
+		options.push(
+			...[
+				{
+					label: __('Add Page'),
+					icon: 'file-plus',
+					onClick: () => emit('create', element.doc_key, false),
+				},
+				{
+					label: __('Add Group'),
+					icon: 'folder-plus',
+					onClick: () => emit('create', element.doc_key, true),
+				},
+				{
+					label: __('Add External Link'),
+					icon: 'link',
+					onClick: () => emit('external-link', element.doc_key),
+				},
+				{
+					label: __('Rename'),
+					icon: 'edit-2',
+					onClick: () => emit('rename', element),
+				},
+			],
+		);
+	}
 
-    if (!element.is_group) {
-        options.push({
-            label: __('Change Title'),
-            icon: 'edit-2',
-            onClick: () => emit('rename', element),
-        });
-        options.push({
-            label: element.is_published ? __('Unpublish') : __('Publish'),
-            icon: element.is_published ? 'eye-off' : 'eye',
-            onClick: () => togglePublish(element),
-        });
-    }
+	if (!element.is_group) {
+		options.push({
+			label: __('Change Title'),
+			icon: 'edit-2',
+			onClick: () => emit('rename', element),
+		});
+		options.push({
+			label: element.is_published ? __('Unpublish') : __('Publish'),
+			icon: element.is_published ? 'eye-off' : 'eye',
+			onClick: () => togglePublish(element),
+		});
+	}
 
-    const hasChildren = element.is_group && element.children?.length > 0;
-    if (!hasChildren) {
-        options.push({
-            group: __('Danger'),
-            items: [
-                {
-                    label: __('Delete'),
-                    icon: 'trash-2',
-                    theme: 'red',
-                    onClick: () => emit('delete', element),
-                },
-            ],
-        });
-    }
+	const hasChildren = element.is_group && element.children?.length > 0;
+	if (!hasChildren) {
+		options.push({
+			group: __('Danger'),
+			items: [
+				{
+					label: __('Delete'),
+					icon: 'trash-2',
+					theme: 'red',
+					onClick: () => emit('delete', element),
+				},
+			],
+		});
+	}
 
-    return options;
+	return options;
 }
 
 onBeforeUnmount(() => {
-    if (dragSettleTimer) {
-        clearTimeout(dragSettleTimer);
-        dragSettleTimer = null;
-    }
-    emit('drag-state-change', false);
+	if (dragSettleTimer) {
+		clearTimeout(dragSettleTimer);
+		dragSettleTimer = null;
+	}
+	emit('drag-state-change', false);
 });
 </script>
 

@@ -30,6 +30,7 @@
     "feather-icons": "^4.29.2",
     "frappe-ui": "^0.1.235",
     "highlight.js": "^11.11.1",
+    "idb-keyval": "^6.2.0",
     "lowlight": "^3.3.0",
     "lucide-vue-next": "^0.468.0",
     "pinia": "^3.0.4",

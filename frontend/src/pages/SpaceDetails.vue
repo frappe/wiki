@@ -42,7 +42,7 @@
                     :tree-data="treeData"
                     :change-type-map="changeTypeMap"
                     :space-id="spaceId"
-                    :root-node="treeData.root_group || space.doc.root_group"
+                    :root-node="treeData.root_group || ''"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="refreshTree"
@@ -235,27 +235,46 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { createDocumentResource, createResource, Button, Dialog, Switch, FormControl, toast } from 'frappe-ui';
-import WikiDocumentList from '../components/WikiDocumentList.vue';
-import ContributionBanner from '../components/ContributionBanner.vue';
-import { useSidebarResize } from '../composables/useSidebarResize';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useUserStore } from '@/stores/user';
+import {
+	Button,
+	Dialog,
+	FormControl,
+	Switch,
+	createDocumentResource,
+	toast,
+} from 'frappe-ui';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import ContributionBanner from '../components/ContributionBanner.vue';
+import WikiDocumentList from '../components/WikiDocumentList.vue';
+import { useSidebarResize } from '../composables/useSidebarResize';
+import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 
 const props = defineProps({
-    spaceId: {
-        type: String,
-        required: true,
-    },
+	spaceId: {
+		type: String,
+		required: true,
+	},
 });
 
 const route = useRoute();
 
 const router = useRouter();
 const crStore = useChangeRequestStore();
+const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+
+// Expose the draft workspace store for E2E tests (mirrors window.wikiEditor).
+// Lets specs invoke optimistic actions like moveNode without driving fragile
+// drag-and-drop sequences.
+onMounted(() => {
+	window.__draftStore = draftStore;
+});
+onBeforeUnmount(() => {
+	delete window.__draftStore;
+});
 
 const isManager = computed(() => userStore.isWikiManager);
 
@@ -274,215 +293,243 @@ const isPublished = ref(true);
 const updatingPublishSetting = ref(false);
 
 const sidebarRef = ref(null);
-const { sidebarWidth, sidebarResizing, startResize } = useSidebarResize(sidebarRef);
+const { sidebarWidth, sidebarResizing, startResize } =
+	useSidebarResize(sidebarRef);
 const isTreeReordering = ref(false);
 
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
 const space = createDocumentResource({
-    doctype: 'Wiki Space',
-    name: props.spaceId,
-    auto: true,
-    whitelistedMethods: {
-        updateRoutes: 'update_routes',
-        cloneWikiSpace: 'clone_wiki_space_in_background',
-    },
-});
-
-watch(() => space.doc, (doc) => {
-    if (doc) {
-        enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
-        isPublished.value = Boolean(doc.is_published);
-    }
-}, { immediate: true });
-
-async function updateFeedbackSetting(value) {
-    updatingFeedbackSetting.value = true;
-    try {
-        await space.setValue.submit({
-            enable_feedback_collection: value ? 1 : 0
-        });
-    } catch (error) {
-        console.error('Failed to update feedback setting:', error);
-        enableFeedbackCollection.value = !value;
-    } finally {
-        updatingFeedbackSetting.value = false;
-    }
-}
-
-async function updatePublishSetting(value) {
-    updatingPublishSetting.value = true;
-    try {
-        await space.setValue.submit({
-            is_published: value ? 1 : 0
-        });
-    } catch (error) {
-        console.error('Failed to update publish setting:', error);
-        isPublished.value = !value;
-    } finally {
-        updatingPublishSetting.value = false;
-    }
-}
-
-function openUpdateRoutesDialog() {
-    newRoute.value = space.doc?.route || '';
-    showUpdateRoutesDialog.value = true;
-}
-
-function openCloneSpaceDialog() {
-    if (space.doc?.route) {
-        cloneRoute.value = `${space.doc.route}-copy`;
-    } else {
-        cloneRoute.value = '';
-    }
-    showCloneSpaceDialog.value = true;
-}
-
-async function updateRoutes(close) {
-    if (!newRoute.value?.trim()) {
-        return;
-    }
-
-    updatingRoutes.value = true;
-    try {
-        await space.updateRoutes.submit({ new_route: newRoute.value.trim() });
-        close();
-        await space.reload();
-        await refreshTree();
-    } catch (error) {
-        console.error('Failed to update routes:', error);
-    } finally {
-        updatingRoutes.value = false;
-    }
-}
-
-async function cloneSpace(close) {
-    if (!cloneRoute.value?.trim()) {
-        return;
-    }
-
-    cloningSpace.value = true;
-    try {
-        await space.cloneWikiSpace.submit({ new_space_route: cloneRoute.value.trim() });
-        toast.success(__('Cloning started in background'));
-        close();
-    } catch (error) {
-        console.error('Failed to start clone:', error);
-        toast.error(error.messages?.[0] || __('Error starting clone'));
-    } finally {
-        cloningSpace.value = false;
-    }
-}
-
-const crTree = createResource({
-    url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_tree',
-    makeParams() {
-        if (!crStore.currentChangeRequest?.name) {
-            return null;
-        }
-        return { name: crStore.currentChangeRequest.name };
-    },
-    auto: false,
-});
-
-const treeData = computed(() => crTree.data);
-
-const changeTypeMap = computed(() => {
-    const map = new Map();
-    for (const change of crStore.changes) {
-        map.set(change.doc_key, change.change_type);
-    }
-    return map;
+	doctype: 'Wiki Space',
+	name: props.spaceId,
+	auto: true,
+	whitelistedMethods: {
+		updateRoutes: 'update_routes',
+		cloneWikiSpace: 'clone_wiki_space_in_background',
+	},
 });
 
 watch(
-    [() => space.doc, () => crStore.isChangeRequestMode, () => crStore.currentChangeRequest?.name],
-    async ([doc, isMode, crName], oldValues) => {
-        if (!doc || !isMode) return;
+	() => space.doc,
+	(doc) => {
+		if (doc) {
+			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
+			isPublished.value = Boolean(doc.is_published);
+		}
+	},
+	{ immediate: true },
+);
 
-        const [oldDoc, , oldCrName] = oldValues || [];
+async function updateFeedbackSetting(value) {
+	updatingFeedbackSetting.value = true;
+	try {
+		await space.setValue.submit({
+			enable_feedback_collection: value ? 1 : 0,
+		});
+	} catch (error) {
+		console.error('Failed to update feedback setting:', error);
+		enableFeedbackCollection.value = !value;
+	} finally {
+		updatingFeedbackSetting.value = false;
+	}
+}
 
-        if (doc !== oldDoc) {
-            crStore.currentChangeRequest = null;
-        }
+async function updatePublishSetting(value) {
+	updatingPublishSetting.value = true;
+	try {
+		await space.setValue.submit({
+			is_published: value ? 1 : 0,
+		});
+	} catch (error) {
+		console.error('Failed to update publish setting:', error);
+		isPublished.value = !value;
+	} finally {
+		updatingPublishSetting.value = false;
+	}
+}
 
-        if (!crStore.currentChangeRequest) {
-            await crStore.initChangeRequest(props.spaceId);
-            return;
-        }
+function openUpdateRoutesDialog() {
+	newRoute.value = space.doc?.route || '';
+	showUpdateRoutesDialog.value = true;
+}
 
-        if (crName && crName !== oldCrName) {
-            await crStore.loadChanges();
-            await crTree.reload();
-        }
-    },
-    { immediate: true },
+function openCloneSpaceDialog() {
+	if (space.doc?.route) {
+		cloneRoute.value = `${space.doc.route}-copy`;
+	} else {
+		cloneRoute.value = '';
+	}
+	showCloneSpaceDialog.value = true;
+}
+
+async function updateRoutes(close) {
+	if (!newRoute.value?.trim()) {
+		return;
+	}
+
+	updatingRoutes.value = true;
+	try {
+		await space.updateRoutes.submit({ new_route: newRoute.value.trim() });
+		close();
+		await space.reload();
+		await refreshTree();
+	} catch (error) {
+		console.error('Failed to update routes:', error);
+	} finally {
+		updatingRoutes.value = false;
+	}
+}
+
+async function cloneSpace(close) {
+	if (!cloneRoute.value?.trim()) {
+		return;
+	}
+
+	cloningSpace.value = true;
+	try {
+		await space.cloneWikiSpace.submit({
+			new_space_route: cloneRoute.value.trim(),
+		});
+		toast.success(__('Cloning started in background'));
+		close();
+	} catch (error) {
+		console.error('Failed to start clone:', error);
+		toast.error(error.messages?.[0] || __('Error starting clone'));
+	} finally {
+		cloningSpace.value = false;
+	}
+}
+
+// Tree, page drafts, and pending mutations live in the draft workspace store.
+// We hydrate it on space load and after merge/archive transitions; routine
+// edits update the store optimistically without a server round-trip.
+const treeData = computed(() => draftStore.treeAsLegacy);
+
+const changeTypeMap = computed(() => {
+	const map = new Map();
+	for (const change of crStore.changes) {
+		map.set(change.doc_key, change.change_type);
+	}
+	return map;
+});
+
+watch(
+	[() => space.doc, () => crStore.isChangeRequestMode],
+	async ([doc, isMode], oldValues) => {
+		if (!doc || !isMode) return;
+
+		const [oldDoc] = oldValues || [];
+		if (doc !== oldDoc) {
+			crStore.currentChangeRequest = null;
+			draftStore.reset();
+		}
+
+		await draftStore.hydrate(props.spaceId);
+	},
+	{ immediate: true },
 );
 
 async function refreshTree() {
-    if (!crStore.currentChangeRequest?.name) {
-        return;
-    }
-    await crTree.reload();
-    await crStore.loadChanges();
+	if (!crStore.currentChangeRequest?.name) {
+		return;
+	}
+	await draftStore.reloadTree();
+	await draftStore.reloadChanges();
 }
 
 function handleReorderStateChange(isReordering) {
-    isTreeReordering.value = Boolean(isReordering);
+	isTreeReordering.value = Boolean(isReordering);
+}
+
+function finalizationError(action) {
+	const blocker = draftStore.finalizationBlocker;
+	if (blocker === 'conflict') {
+		return __('Reload latest before {0}', [action]);
+	}
+	if (blocker === 'failed') {
+		return __('Resolve failed changes before {0}', [action]);
+	}
+	if (blocker === 'pending') {
+		return __('Wait for pending changes to sync before {0}', [action]);
+	}
+	if (blocker === 'unsaved') {
+		return __('Save your changes before {0}', [action]);
+	}
+	return null;
 }
 
 async function handleSubmitChangeRequest() {
-    try {
-        const result = await crStore.submitForReview();
-        toast.success(__('Change request submitted for review'));
-        if (result?.name) {
-            router.push({ name: 'ChangeRequestReview', params: { changeRequestId: result.name } });
-        }
-    } catch (error) {
-        toast.error(error.messages?.[0] || __('Error submitting for review'));
-    }
+	const blockerMessage = finalizationError(__('submitting'));
+	if (blockerMessage) {
+		toast.error(blockerMessage);
+		return;
+	}
+	try {
+		const result = await crStore.submitForReview();
+		toast.success(__('Change request submitted for review'));
+		if (result?.name) {
+			router.push({
+				name: 'ChangeRequestReview',
+				params: { changeRequestId: result.name },
+			});
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error submitting for review'));
+	}
 }
 
 async function handleArchiveChangeRequest() {
-    try {
-        await crStore.archiveChangeRequest();
-        toast.success(__('Change request archived'));
-        crStore.currentChangeRequest = null;
-        await crStore.initChangeRequest(props.spaceId);
-        await refreshTree();
-    } catch (error) {
-        toast.error(error.messages?.[0] || __('Error archiving change request'));
-    }
+	try {
+		await crStore.archiveChangeRequest();
+		toast.success(__('Change request archived'));
+		crStore.currentChangeRequest = null;
+		draftStore.reset();
+		await draftStore.hydrate(props.spaceId);
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error archiving change request'));
+	}
 }
 
 function findNodeByDocKey(nodes, docKey) {
-    if (!nodes) return null;
-    for (const node of nodes) {
-        if (node.doc_key === docKey) return node;
-        const found = findNodeByDocKey(node.children, docKey);
-        if (found) return found;
-    }
-    return null;
+	if (!nodes) return null;
+	for (const node of nodes) {
+		if (node.doc_key === docKey) return node;
+		const found = findNodeByDocKey(node.children, docKey);
+		if (found) return found;
+	}
+	return null;
 }
 
 async function handleMergeChangeRequest() {
-    const docKey = currentDraftKey.value;
-    try {
-        await crStore.mergeChangeRequest();
-        toast.success(__('Change request merged'));
-        crStore.currentChangeRequest = null;
-        await crStore.initChangeRequest(props.spaceId);
-        await refreshTree();
+	if (isTreeReordering.value) {
+		toast.error(__('Please wait for reordering to finish before merging'));
+		return;
+	}
+	const blockerMessage = finalizationError(__('merging'));
+	if (blockerMessage) {
+		toast.error(blockerMessage);
+		return;
+	}
+	const docKey = currentDraftKey.value;
+	try {
+		await crStore.mergeChangeRequest();
+		toast.success(__('Change request merged'));
+		crStore.currentChangeRequest = null;
+		draftStore.reset();
+		await draftStore.hydrate(props.spaceId);
 
-        if (docKey) {
-            const node = findNodeByDocKey(treeData.value?.children, docKey);
-            if (node?.document_name) {
-                router.push({ name: 'SpacePage', params: { spaceId: props.spaceId, pageId: node.document_name } });
-            }
-        }
-    } catch (error) {
-        toast.error(error.messages?.[0] || __('Error merging change request'));
-    }
+		if (docKey) {
+			const node = findNodeByDocKey(treeData.value?.children, docKey);
+			if (node?.document_name) {
+				router.push({
+					name: 'SpacePage',
+					params: { spaceId: props.spaceId, pageId: node.document_name },
+				});
+			}
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error merging change request'));
+	}
 }
 </script>

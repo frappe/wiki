@@ -33,7 +33,7 @@ test.describe('External Links', () => {
 		await page.getByLabel('URL').fill(externalLinkUrl);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -75,7 +75,7 @@ test.describe('External Links', () => {
 		await page.getByLabel('URL').fill(externalLinkUrl);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -154,7 +154,7 @@ test.describe('External Links', () => {
 		await page.getByLabel('URL').fill(externalLinkUrl);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -166,7 +166,7 @@ test.describe('External Links', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -178,7 +178,7 @@ test.describe('External Links', () => {
 		await expect(editor).toBeVisible({ timeout: 10000 });
 		await editor.click();
 		await page.keyboard.type('Test page content.');
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items

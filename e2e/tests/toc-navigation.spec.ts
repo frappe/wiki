@@ -55,7 +55,7 @@ test.describe('TOC Navigation', () => {
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -99,7 +99,7 @@ Beta sub content.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
@@ -109,7 +109,7 @@ Beta sub content.`;
 		await page.getByLabel('Title').fill(secondPageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -154,7 +154,7 @@ Epsilon content here.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
