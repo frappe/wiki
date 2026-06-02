@@ -31,7 +31,10 @@ const imageCaptionTokenizer = {
 
 	tokenize(src, tokens, lexer) {
 		// Match: ![alt](src) or ![alt](src "title") optionally followed by \n*caption*
-		const imagePattern = /^!\[([^\]]*)\]\(([^)"]+)(?:\s+"([^"]*)")?\)/;
+		// URL allows one level of balanced parens so Frappe filenames like
+		// `/files/image (24).png` survive (otherwise the inner `)` closes the markdown).
+		const imagePattern =
+			/^!\[([^\]]*)\]\(((?:[^()"\s]|\([^()"]*\))+)(?:\s+"([^"]*)")?\)/;
 		const captionPattern = /^\n\*([^*]+)\*/;
 
 		const imageMatch = imagePattern.exec(src);

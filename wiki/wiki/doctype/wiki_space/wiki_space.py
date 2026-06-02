@@ -74,12 +74,10 @@ class WikiSpace(Document):
 	@frappe.whitelist()
 	def migrate_to_v3(self):
 		frappe.only_for("Wiki Manager")
-		if self.root_group:
-			return  # Migration already done
-
-		self.create_root_group()
-		self.save()
-		self.reload()
+		if not self.root_group:
+			self.create_root_group()
+			self.save()
+			self.reload()
 
 		sidebar = self.wiki_sidebars
 		if not sidebar:
@@ -102,41 +100,45 @@ class WikiSpace(Document):
 		return groups, group_order
 
 	def _create_group_with_pages(self, group_label, items, sort_order):
-		"""Create a group Wiki Document and its child page documents"""
-		group_doc = frappe.get_doc(
+		"""Create or update a group Wiki Document and sync its child page documents."""
+		group_route = f"{self.route}/{frappe.scrub(group_label).replace('_', '-')}"
+		existing_name = frappe.db.get_value(
+			"Wiki Document",
 			{
-				"doctype": "Wiki Document",
-				"title": group_label,
-				"route": f"{self.route}/{frappe.scrub(group_label).replace('_', '-')}",
+				"route": group_route,
 				"is_group": 1,
-				"is_published": 1,
-				"content": "",
 				"parent_wiki_document": self.root_group,
-				"sort_order": sort_order,
-			}
+			},
+			"name",
 		)
-		group_doc.insert(ignore_permissions=True)
+		if existing_name:
+			group_doc = frappe.get_doc("Wiki Document", existing_name)
+		else:
+			group_doc = frappe.new_doc("Wiki Document")
+
+		group_doc.title = group_label
+		group_doc.route = group_route
+		group_doc.is_group = 1
+		group_doc.is_published = 1
+		group_doc.content = ""
+		group_doc.parent_wiki_document = self.root_group
+		group_doc.sort_order = sort_order
+
+		if existing_name:
+			group_doc.save(ignore_permissions=True)
+		else:
+			group_doc.insert(ignore_permissions=True)
 
 		for page_sort_order, item in enumerate(items):
 			self._create_page_document(item.wiki_page, group_doc.name, page_sort_order)
 
 	def _create_page_document(self, wiki_page_name, parent_group, sort_order):
-		"""Create a leaf Wiki Document from a Wiki Page"""
+		"""Create or update a leaf Wiki Document from a Wiki Page."""
 		wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
-		leaf_doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Document",
-				"title": wiki_page.title,
-				"route": wiki_page.route,
-				"is_group": 0,
-				"is_published": wiki_page.published,
-				"is_private": not wiki_page.allow_guest,
-				"content": wiki_page.content,
-				"parent_wiki_document": parent_group,
-				"sort_order": sort_order,
-			}
+		wiki_page._migrate_to_wiki_document(
+			parent_wiki_document=parent_group,
+			sort_order=sort_order,
 		)
-		leaf_doc.insert(ignore_permissions=True)
 
 	@frappe.whitelist()
 	def update_routes(self, new_route: str) -> dict:

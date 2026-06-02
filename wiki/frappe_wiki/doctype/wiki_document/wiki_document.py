@@ -7,10 +7,13 @@ import frappe
 from frappe import _
 from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
+from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 from werkzeug.wrappers import Response
 
-from wiki.wiki.markdown import render_markdown_with_toc
+from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
+
+WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -346,7 +349,7 @@ class WikiDocument(NestedSet):
 			"next_doc": None,
 			"edit_link": self.get_edit_link(),
 			"last_updated": pretty_date(self.modified),
-			"last_updated_on": frappe.utils.format_datetime(self.modified),
+			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 		}
 
@@ -376,6 +379,10 @@ class WikiDocument(NestedSet):
 		)
 
 		return context
+
+	def before_print(self, print_settings=None):
+		"""Render markdown content so the print format can drop it in as HTML."""
+		self.rendered_content_for_pdf = render_markdown(self.content or "")
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -576,6 +583,37 @@ def get_page_data(route: str) -> dict:
 
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
 	return doc.get_web_context()
+
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_pdf(route: str):
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_group": 0, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_guest_access()
+	doc.check_published()
+
+	# Guests can't print by default; we've already authorized them above via check_guest_access.
+	frappe.local.flags.ignore_print_permissions = True
+	try:
+		pdf_file = get_print(
+			doctype="Wiki Document",
+			print_format=WIKI_DOCUMENT_PRINT_FORMAT,
+			doc=doc,
+			as_pdf=True,
+			no_letterhead=1,
+		)
+	finally:
+		frappe.local.flags.ignore_print_permissions = False
+
+	frappe.local.response.filename = f"{doc.slug or doc.name}.pdf"
+	frappe.local.response.filecontent = pdf_file
+	frappe.local.response.content_type = "application/pdf"
+	frappe.local.response.type = "download"
 
 
 def on_wiki_document_update(doc, method):

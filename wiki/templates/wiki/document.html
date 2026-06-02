@@ -1,5 +1,5 @@
 {% extends "templates/wiki/layout.html" %}
-{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, dropdown_end %}
+{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
 
 {% block title %}
     {{ doc.title }}
@@ -21,21 +21,36 @@
             {# Orphan document: Simple header with just copy button #}
             <div class="flex items-center justify-between gap-4">
                 <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
-                <button @click="copyMarkdown()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
-                    <template x-if="!copied">
-                        {{ render_icon("clipboard", "w-4 h-4") }}
-                    </template>
-                    <template x-if="copied">
-                        {{ render_icon("check", "w-4 h-4 text-green-600") }}
-                    </template>
-                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button @click="downloadPage()"
+                            :disabled="downloadInProgress"
+                            :aria-busy="downloadInProgress"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                        <template x-if="!downloadInProgress">
+                            {{ render_icon("download", "w-4 h-4") }}
+                        </template>
+                        <template x-if="downloadInProgress">
+                            {{ render_icon("loader", "w-4 h-4 animate-spin") }}
+                        </template>
+                        <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
+                    </button>
+                    <button @click="copyMarkdown()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                        <template x-if="!copied">
+                            {{ render_icon("clipboard", "w-4 h-4") }}
+                        </template>
+                        <template x-if="copied">
+                            {{ render_icon("check", "w-4 h-4 text-green-600") }}
+                        </template>
+                        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                    </button>
+                </div>
             </div>
             {% else %}
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                    {{ download_action_item() }}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
@@ -47,6 +62,7 @@
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                        {{ download_action_item() }}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
@@ -123,6 +139,7 @@
         Alpine.data('wikiPage', () => ({
             // wikiDocument properties
             copied: false,
+            downloadInProgress: false,
 
             get markdown() {
                 return this.$store.pageContent?.markdown || '';
@@ -137,6 +154,40 @@
                 }).catch(err => {
                     console.error('Failed to copy markdown:', err);
                 });
+            },
+
+            async downloadPage() {
+                if (this.downloadInProgress) return;
+                this.downloadInProgress = true;
+
+                // Read the route fresh each click — SPA navigation updates window.location
+                // via history.pushState, so this stays in sync with the visible page.
+                const route = window.location.pathname.replace(/^\/+/, '');
+                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=${encodeURIComponent(route)}`;
+
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        throw new Error(`Failed to download PDF: ${response.status}`);
+                    }
+
+                    const objectUrl = URL.createObjectURL(await response.blob());
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = `${route.split('/').pop() || 'wiki-document'}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                } catch (err) {
+                    console.error('Failed to download PDF:', err);
+                    window.frappe?.show_alert?.({
+                        message: __('Unable to download this page right now.'),
+                        indicator: 'red'
+                    });
+                } finally {
+                    this.downloadInProgress = false;
+                }
             },
 
             getAIUrl(provider) {
