@@ -39,7 +39,7 @@
 						<template #prefix>
 							<LucideSave class="size-4" />
 						</template>
-						{{ __('Save Draft') }}
+						{{ __('Save') }}
 					</Button>
 					<Dropdown :options="menuOptions">
 						<Button variant="outline">

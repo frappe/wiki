@@ -525,6 +525,19 @@ function initEditor() {
 			handleContentChange();
 		},
 	});
+
+	// Anchor the clean baseline to the editor's OWN serialization of the
+	// freshly-loaded document, not the raw saved markdown. Some nodes don't
+	// round-trip byte-identically (e.g. a callout followed by another block, or
+	// preserved blank lines), so comparing getMarkdown() against the stored
+	// string would report the page as dirty even with no user edits — which
+	// permanently gates Submit/Merge. Comparing against our own serialization
+	// makes "dirty" mean "the user changed something".
+	const initialMarkdown = editor.value?.getMarkdown();
+	if (initialMarkdown !== undefined) {
+		lastSavedContent.value = initialMarkdown;
+		hasUnsavedChanges.value = false;
+	}
 }
 
 function handleContentChange() {
@@ -643,9 +656,29 @@ watch(
 	() => props.savedContent,
 	(saved) => {
 		if (saved == null) return;
-		lastSavedContent.value = saved;
 		const current = editor.value?.getMarkdown();
-		const dirty = current !== undefined && current !== saved;
+		if (current === undefined) {
+			lastSavedContent.value = saved;
+			return;
+		}
+		// No edits relative to our own baseline → a new saved snapshot from the
+		// parent (post-save reconciliation, background revalidation, reload)
+		// just reconfirms clean state. Rebase the baseline to the editor's
+		// serialization rather than the incoming string so a non-idempotent
+		// markdown round-trip can't manufacture a phantom dirty and gate
+		// Submit/Merge forever.
+		if (current === lastSavedContent.value) {
+			if (hasUnsavedChanges.value) {
+				hasUnsavedChanges.value = false;
+				emitDirtyChange(false);
+			}
+			return;
+		}
+		// The editor diverged from its baseline (genuine local edits). Reconcile
+		// against what the parent reports as persisted: if they match, the save
+		// landed and we're clean; otherwise stay dirty.
+		lastSavedContent.value = saved;
+		const dirty = current !== saved;
 		hasUnsavedChanges.value = dirty;
 		emitDirtyChange(dirty);
 	},
