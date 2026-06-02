@@ -1,6 +1,6 @@
 <template>
 	<div class="h-full flex flex-col">
-		<div v-if="crPage" class="h-full flex flex-col">
+		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
 			<div class="flex items-center justify-between p-6 pb-4 bg-surface-white shrink-0 border-b-2 border-b-gray-500/20">
 				<div class="flex items-center gap-2 min-w-0 flex-1">
 					<div class="flex flex-col gap-1 min-w-0 flex-1">
@@ -62,7 +62,7 @@
 			</div>
 		</div>
 
-		<div v-else-if="isLoading" class="h-full flex flex-col animate-pulse">
+		<div v-else-if="!loadFailed" class="h-full flex flex-col animate-pulse">
 			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
 				<div class="flex items-center gap-2">
 					<div class="h-7 w-48 rounded bg-surface-gray-3" />
@@ -159,27 +159,56 @@ const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 
 const crPage = ref(null);
-const isLoading = ref(true);
+// Becomes true only once we've confirmed the page genuinely doesn't exist,
+// so the "Draft not found" state never flashes during a normal load/switch.
+const loadFailed = ref(false);
+// Guards against a slow response for a page we've already navigated away
+// from overwriting the page the user is now looking at.
+let loadToken = 0;
 
 // Read the page through the workspace store. Tmp pages live entirely on the
 // client; the store returns them from pagesByKey without hitting the
 // backend (which would 404 on a tmp_* key).
+//
+// Stale-while-revalidate: if we already have this page cached in the store
+// (a tmp create, a prior visit, or unsaved local edits) we paint it
+// synchronously so switching pages is instant. The skeleton is reserved for
+// the cold case where nothing is cached yet. The background fetch then
+// revalidates whatever we showed.
 async function loadCrPage() {
 	const docKey = props.docKey;
+	const token = ++loadToken;
 	if (!docKey) {
 		crPage.value = null;
-		isLoading.value = false;
+		loadFailed.value = false;
 		return;
 	}
-	isLoading.value = true;
+	loadFailed.value = false;
+
+	const cached = draftStore.pagesByKey[docKey];
+	if (cached) setCrPageFromStore(docKey, cached);
+
 	try {
 		const page = await draftStore.loadCrPage(docKey);
-		setCrPageFromStore(docKey, page);
+		if (token !== loadToken) return; // superseded by a newer navigation
+		if (page) {
+			setCrPageFromStore(docKey, page);
+		} else if (
+			draftStore.crName &&
+			!(crPage.value && crPage.value.doc_key === docKey)
+		) {
+			// We have a change request but the page resolved to nothing —
+			// it's genuinely missing (deleted / bad URL), not still loading.
+			crPage.value = null;
+			loadFailed.value = true;
+		}
 	} catch (error) {
+		if (token !== loadToken) return;
 		console.error('Error loading draft page:', error);
-		crPage.value = null;
-	} finally {
-		isLoading.value = false;
+		if (!(crPage.value && crPage.value.doc_key === docKey)) {
+			crPage.value = null;
+			loadFailed.value = true;
+		}
 	}
 }
 

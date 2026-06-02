@@ -172,7 +172,6 @@ const wikiDoc = createDocumentResource({
 });
 
 const currentCrPage = ref(null);
-const isLoadingCrPage = ref(false);
 const loadedDocKey = ref(null);
 let latestPageLoad = 0;
 
@@ -226,28 +225,21 @@ async function loadCrPage() {
 		loadedDocKey.value = null;
 		return;
 	}
-	isLoadingCrPage.value = true;
-	try {
-		if (
-			props.spaceId &&
-			draftStore.isEnabled &&
-			(draftStore.spaceId !== props.spaceId ||
-				draftStore.isHydrating ||
-				!crStore.currentChangeRequest)
-		) {
-			await draftStore.hydrate(props.spaceId);
-		}
-		const page = crStore.currentChangeRequest
-			? await draftStore.loadCrPage(docKey)
-			: null;
-		if (pageLoad === latestPageLoad && wikiDoc.doc?.doc_key === docKey) {
-			currentCrPage.value = page;
-			loadedDocKey.value = docKey;
-		}
-	} finally {
-		if (pageLoad === latestPageLoad) {
-			isLoadingCrPage.value = false;
-		}
+	if (
+		props.spaceId &&
+		draftStore.isEnabled &&
+		(draftStore.spaceId !== props.spaceId ||
+			draftStore.isHydrating ||
+			!crStore.currentChangeRequest)
+	) {
+		await draftStore.hydrate(props.spaceId);
+	}
+	const page = crStore.currentChangeRequest
+		? await draftStore.loadCrPage(docKey)
+		: null;
+	if (pageLoad === latestPageLoad && wikiDoc.doc?.doc_key === docKey) {
+		currentCrPage.value = page;
+		loadedDocKey.value = docKey;
 	}
 }
 
@@ -320,10 +312,15 @@ const savedContent = computed(() => {
 });
 
 const editorKey = computed(() => {
+	// Gate on the loaded overlay matching the current doc — NOT on
+	// `isLoadingCrPage`. A background revalidation (after a save / title /
+	// route / publish edit) flips that flag without changing the page, and
+	// keying off it would tear down and remount the live editor mid-edit.
+	// `loadedDocKey` is reset on a real page switch, which is what should
+	// actually remount the editor.
 	if (
 		wikiDoc.doc?.name === props.pageId &&
-		wikiDoc.doc?.doc_key === loadedDocKey.value &&
-		!isLoadingCrPage.value
+		wikiDoc.doc?.doc_key === loadedDocKey.value
 	) {
 		return props.pageId;
 	}

@@ -60,7 +60,7 @@
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" :loading="isCreating" @click="createDocument(close)">
-						{{ __('Save Draft') }}
+						{{ __('Save') }}
 					</Button>
 				</div>
 			</template>
@@ -146,7 +146,7 @@
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" :loading="isCreating" @click="createExternalLink(close)">
-						{{ __('Save Draft') }}
+						{{ __('Save') }}
 					</Button>
 				</div>
 			</template>

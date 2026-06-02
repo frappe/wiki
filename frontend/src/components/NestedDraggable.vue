@@ -251,9 +251,13 @@ function getRowClasses(element) {
 	const classes = [];
 
 	const isSelectedPage =
-		!element.is_group && element.document_name === props.selectedPageId;
+		!element.is_group &&
+		!!props.selectedPageId &&
+		element.document_name === props.selectedPageId;
 	const isSelectedDraft =
-		!element.document_name && element.doc_key === props.selectedDraftKey;
+		!element.document_name &&
+		!!props.selectedDraftKey &&
+		element.doc_key === props.selectedDraftKey;
 
 	if (isSelectedPage || isSelectedDraft) {
 		classes.push('bg-surface-gray-3');
