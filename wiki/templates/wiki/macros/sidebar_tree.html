@@ -12,11 +12,11 @@
                                 title="{{ node.title }}"
                                 data-route="{{ node.route }}"
                                 data-node-id="{{ node.name }}">
-                            {# Triangle chevron that rotates 90° when expanded #}
+                            {# Lucide chevron-down points right when collapsed and down when expanded #}
                             <svg class="w-3 h-3 mr-1.5 text-[var(--ink-gray-4)] transition-transform duration-200 flex-shrink-0"
-                                 :class="isExpanded('{{ node.name }}') ? 'rotate-90' : 'rotate-0'"
-                                 viewBox="0 0 12 12" fill="currentColor">
-                                <path d="M4 8.54V3.46c0-.4.455-.64.787-.41l3.628 2.54a.5.5 0 010 .82L4.787 8.95A.5.5 0 014 8.54z"/>
+                                 :class="isExpanded('{{ node.name }}') ? 'rotate-0' : '-rotate-90'"
+                                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m6 9 6 6 6-6"/>
                             </svg>
                             <span class="wiki-title text-sm font-medium truncate">{{ node.title }}</span>
                         </button>
