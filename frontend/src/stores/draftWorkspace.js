@@ -58,6 +58,62 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		crName: () => crName.value,
 	});
 	const saver = createSaveSerializer();
+	const draftPersistTimers = new Map();
+
+	function draftPersistKey(changeRequestName, docKey) {
+		return `${changeRequestName}:${docKey}`;
+	}
+
+	function cancelDraftPersist(changeRequestName, docKey) {
+		const key = draftPersistKey(changeRequestName, docKey);
+		const timer = draftPersistTimers.get(key);
+		if (timer) clearTimeout(timer);
+		draftPersistTimers.delete(key);
+	}
+
+	function clearEditorDraft(changeRequestName, docKey) {
+		if (!changeRequestName || !docKey) return;
+		cancelDraftPersist(changeRequestName, docKey);
+		clearPersistedDraft(changeRequestName, docKey);
+	}
+
+	// Keep IndexedDB writes behind the store-owned snapshot. The editor reports
+	// content immediately for correct gating; persistence remains lightly
+	// debounced so ordinary typing doesn't write on every transaction.
+	function persistEditorDraft(docKey, title, { immediate = false } = {}) {
+		const changeRequestName = crName.value;
+		if (!changeRequestName || !docKey) return;
+		const page = pageBuffers.get(docKey);
+		if (!page) return;
+		const key = draftPersistKey(changeRequestName, docKey);
+		cancelDraftPersist(changeRequestName, docKey);
+		const persist = () => {
+			draftPersistTimers.delete(key);
+			if (pageBuffers.isDirty(page)) {
+				savePersistedDraft(changeRequestName, docKey, {
+					content: page.localContent,
+					title: title ?? page.title,
+					savedContent: page.content,
+				});
+			} else {
+				clearPersistedDraft(changeRequestName, docKey);
+			}
+		};
+		if (immediate) persist();
+		else draftPersistTimers.set(key, setTimeout(persist, 500));
+	}
+
+	const finalizationBlocker = computed(() => {
+		if (transport.sync.conflict) return 'conflict';
+		if (queue.hasFailedMutations.value || transport.sync.status === 'failed') {
+			return 'failed';
+		}
+		if (queue.hasPendingMutations.value || transport.sync.status === 'saving') {
+			return 'pending';
+		}
+		if (pageBuffers.hasUnsavedEditorContent.value) return 'unsaved';
+		return null;
+	});
 
 	let summaryRefreshTimer = null;
 	function scheduleSummaryRefresh(delay = 1000) {
@@ -191,8 +247,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					// Couldn't reach the server — fall through and restore
 					// conservatively so we never silently discard real work.
 				}
-				if (serverContent != null && content === serverContent) {
-					clearPersistedDraft(crName.value, docKey);
+				if (
+					content === draft.savedContent ||
+					(serverContent != null && content === serverContent)
+				) {
+					clearEditorDraft(crName.value, docKey);
 					return;
 				}
 
@@ -205,16 +264,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						content: serverContent,
 						localContent: content,
 						isPublished: true,
-						dirty: true,
-						saveStatus: 'dirty',
+						saveStatus: 'idle',
 						error: null,
 					});
 				} else {
 					page.localContent = content;
 					if (title) page.title = title;
 					if (serverContent != null) page.content = serverContent;
-					page.dirty = true;
-					page.saveStatus = 'dirty';
+					page.saveStatus = 'idle';
 					page.error = null;
 				}
 			}),
@@ -238,13 +295,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// ContributionBanner recovery button after a version conflict or sync
 	// failure.
 	//
-	// We intentionally do NOT clear `page.dirty` here. The open editor's
+	// We intentionally do NOT clear `page.localContent` here. The open editor's
 	// DOM still holds whatever the user typed before the failure; if we
 	// unblocked Submit while that content was unsaved, the user could
 	// submit a CR that doesn't contain what they see on screen. Leaving
-	// `dirty` true keeps Submit gated until the user either saves (which
+	// the divergent local snapshot keeps Submit gated until the user either saves (which
 	// will now succeed because `operation_version` is fresh) or reverts.
-	// We do downgrade `saveStatus` from 'failed' → 'dirty' so the editor
+	// We do downgrade `saveStatus` from 'failed' → 'idle' so the editor
 	// header / sync pill stops asserting a save failure that no longer
 	// applies; the underlying content state is what matters.
 	async function reloadFromServer() {
@@ -269,14 +326,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (
 			localPage &&
 			localPage.content != null &&
-			(localPage.dirty ||
-				['dirty', 'saving', 'failed'].includes(localPage.saveStatus))
+			(pageBuffers.isDirty(localPage) ||
+				['saving', 'failed'].includes(localPage.saveStatus))
 		) {
 			return localPage;
 		}
 		if (!crName.value) return null;
 		const result = await transport.fetchPage(crName.value, docKey);
-		if (localPage?.dirty) {
+		if (pageBuffers.isDirty(localPage)) {
 			if (!localPage.title) localPage.title = result?.title || '';
 			localPage.route = result?.route || '';
 			localPage.content = result?.content || '';
@@ -290,7 +347,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			content: result?.content || '',
 			localContent: null,
 			isPublished: result?.is_published !== false,
-			dirty: false,
 			saveStatus: 'idle',
 			error: null,
 		});
@@ -361,7 +417,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				route: slugify(title),
 				content,
 				isPublished,
-				dirty: false,
 				saveStatus: 'idle',
 				error: null,
 			});
@@ -619,20 +674,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		mover.schedule();
 	}
 
-	// Editor content save with success-aware state. The page's
-	// saveStatus flows dirty -> saving -> saved | failed; the editor
-	// only marks itself clean when the new savedContent prop matches its
-	// current markdown.
+	// Editor content save with success-aware state. `content` advances only
+	// after backend success; any newer `localContent` remains divergent.
 	function saveContent(docKey, content, title = null) {
 		if (!docKey) return Promise.reject(new Error('Missing docKey'));
 
 		// Mark the page as saving immediately so the banner / editor
 		// reflect that a save is queued.
-		const page = pageBuffers.get(docKey);
-		if (page) {
-			page.saveStatus = 'saving';
-			page.error = null;
-		}
+		const page = pageBuffers.ensure(docKey, { title: title || '' });
+		if (page.localContent == null) pageBuffers.setLocalContent(docKey, content);
+		page.saveStatus = 'saving';
+		page.error = null;
 		transport.markSaving();
 
 		return saver.enqueueSave(docKey, content, title, (c, t) =>
@@ -643,9 +695,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function doSaveContent(docKey, content, title) {
 		const page = pageBuffers.ensure(docKey, {
 			title: title || '',
-			dirty: true,
 			saveStatus: 'saving',
 		});
+		page.saveStatus = 'saving';
 
 		const realKey = await resolver.resolveDocKey(docKey);
 		if (!realKey) {
@@ -677,33 +729,24 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
-				const hasNewerLocalContent =
-					targetPage.localContent != null &&
-					targetPage.localContent !== content;
 				targetPage.content = content;
 				if (title != null) targetPage.title = title;
-				targetPage.dirty = hasNewerLocalContent;
-				targetPage.saveStatus = hasNewerLocalContent ? 'dirty' : 'saved';
-				targetPage.error = null;
-				if (!hasNewerLocalContent) {
+				if (targetPage.localContent === content) {
 					targetPage.localContent = null;
 				}
+				targetPage.saveStatus = pageBuffers.isDirty(targetPage)
+					? 'idle'
+					: 'saved';
+				targetPage.error = null;
 			}
 			// Content is durably on the server now — drop the local IDB
 			// backup for both the resolved key and (if different) the
 			// pre-promotion tmp key so a future hydrate doesn't restore
 			// stale typing on top of fresh server state.
 			if (crName.value) {
-				if (targetPage?.dirty && targetPage.localContent != null) {
-					savePersistedDraft(crName.value, realKey, {
-						content: targetPage.localContent,
-						title: targetPage.title,
-					});
-				} else {
-					clearPersistedDraft(crName.value, realKey);
-				}
+				persistEditorDraft(realKey, targetPage?.title, { immediate: true });
 				if (docKey !== realKey) {
-					clearPersistedDraft(crName.value, docKey);
+					clearEditorDraft(crName.value, docKey);
 				}
 			}
 			// Only flip global sync to idle if no follow-up save is
@@ -717,9 +760,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		} catch (err) {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
-				targetPage.dirty = true;
+				if (targetPage.localContent == null) targetPage.localContent = content;
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
+				persistEditorDraft(realKey, targetPage.title, { immediate: true });
 			}
 			transport.markFailed(errorMessage(err));
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
@@ -727,35 +771,31 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
-	function markPageDirty(docKey) {
+	// Record the editor's canonical markdown immediately so submit/merge
+	// gating observes the same snapshot that will be persisted and saved.
+	function recordEditorContent(docKey, content, title, options = {}) {
+		if (!docKey) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
-		pageBuffers.markDirty(realKey);
+		pageBuffers.ensure(realKey, { title: title || '' });
+		pageBuffers.setLocalContent(realKey, content);
+		persistEditorDraft(realKey, title, {
+			immediate: options.persistImmediately,
+		});
 	}
 
-	function markPageClean(docKey) {
+	// WikiEditor canonicalizes both the visible draft and the confirmed server
+	// markdown with its configured parser. Rebasing here prevents harmless
+	// markdown round-trip differences from manufacturing dirty state.
+	function reconcileEditorContent(docKey, content, savedContent, title) {
+		if (!docKey) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
-		pageBuffers.markClean(realKey);
-	}
-
-	// Persist the editor's current in-progress content to IndexedDB so
-	// a browser refresh in the 10s autosave window doesn't lose it.
-	// Called by the editor parents on every debounced `local-content`
-	// event (~500ms). When the content has converged back to what the
-	// server has (saved content), the persisted entry is cleared
-	// instead so we don't restore stale typing on the next session.
-	function recordEditorContent(docKey, content, title) {
-		if (!docKey || !crName.value) return;
-		const realKey = resolver.resolveKey(docKey) || docKey;
-		const page = pageBuffers.get(realKey);
-		const savedContent = page?.content;
-		if (content === savedContent) {
-			pageBuffers.clearLocalContent(realKey);
-			clearPersistedDraft(crName.value, realKey);
-		} else {
-			pageBuffers.markDirty(realKey);
-			pageBuffers.setLocalContent(realKey, content);
-			savePersistedDraft(crName.value, realKey, { content, title });
-		}
+		const page = pageBuffers.reconcileEditorContent(
+			realKey,
+			content,
+			savedContent,
+		);
+		if (title != null) page.title = title;
+		persistEditorDraft(realKey, title, { immediate: true });
 	}
 
 	// Mark pending_delete locally (treeAsLegacy hides those). On failure
@@ -830,6 +870,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasPendingMutations: queue.hasPendingMutations,
 		hasFailedMutations: queue.hasFailedMutations,
 		hasUnsavedEditorContent: pageBuffers.hasUnsavedEditorContent,
+		finalizationBlocker,
 		// actions
 		hydrate,
 		reloadTree,
@@ -848,9 +889,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		deleteNode,
 		moveNode,
 		saveContent,
-		markPageDirty,
-		markPageClean,
 		recordEditorContent,
+		reconcileEditorContent,
 		// queue helpers (used by upcoming mutation actions)
 		enqueueMutation: queue.enqueue,
 		setMutationStatus: queue.setStatus,

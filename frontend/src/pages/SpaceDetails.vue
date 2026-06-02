@@ -442,13 +442,27 @@ function handleReorderStateChange(isReordering) {
 	isTreeReordering.value = Boolean(isReordering);
 }
 
-async function handleSubmitChangeRequest() {
-	if (draftStore.hasFailedMutations) {
-		toast.error(__('Resolve failed changes before submitting'));
-		return;
+function finalizationError(action) {
+	const blocker = draftStore.finalizationBlocker;
+	if (blocker === 'conflict') {
+		return __('Reload latest before {0}', [action]);
 	}
-	if (draftStore.hasPendingMutations) {
-		toast.error(__('Wait for pending changes to sync before submitting'));
+	if (blocker === 'failed') {
+		return __('Resolve failed changes before {0}', [action]);
+	}
+	if (blocker === 'pending') {
+		return __('Wait for pending changes to sync before {0}', [action]);
+	}
+	if (blocker === 'unsaved') {
+		return __('Save your changes before {0}', [action]);
+	}
+	return null;
+}
+
+async function handleSubmitChangeRequest() {
+	const blockerMessage = finalizationError(__('submitting'));
+	if (blockerMessage) {
+		toast.error(blockerMessage);
 		return;
 	}
 	try {
@@ -488,12 +502,13 @@ function findNodeByDocKey(nodes, docKey) {
 }
 
 async function handleMergeChangeRequest() {
-	if (draftStore.hasFailedMutations) {
-		toast.error(__('Resolve failed changes before merging'));
+	if (isTreeReordering.value) {
+		toast.error(__('Please wait for reordering to finish before merging'));
 		return;
 	}
-	if (draftStore.hasPendingMutations) {
-		toast.error(__('Wait for pending changes to sync before merging'));
+	const blockerMessage = finalizationError(__('merging'));
+	if (blockerMessage) {
+		toast.error(blockerMessage);
 		return;
 	}
 	const docKey = currentDraftKey.value;

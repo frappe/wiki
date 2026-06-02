@@ -494,8 +494,8 @@ test.describe('Local-first draft workspace', () => {
 		await editor.click();
 		await expect(submitButton).toBeDisabled();
 
-		// Revert back to the saved content. No save is issued; the editor
-		// emits dirty-change(false) on the clean edge and the banner gate
+		// Revert back to the saved content. No save is issued; the derived
+		// local snapshot converges with the baseline and the banner gate
 		// releases on its own.
 		await page.evaluate((content) => {
 			window.wikiEditor.commands.setContent(content, {
@@ -776,6 +776,155 @@ test.describe('Local-first draft workspace', () => {
 				{ timeout: 5000 },
 			)
 			.toBe(false);
+	});
+
+	test('a restored draft matching normalized server markdown self-heals after editor mount', async ({
+		page,
+		request,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Normalized Draft Space ${timestamp}`;
+		const spaceRoute = `normalized-draft-space-${timestamp}`;
+		const pageTitle = `normalized-draft-page-${timestamp}`;
+		const rawServerContent = `Line A ${timestamp}\nLine B`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		const planted = await page.evaluate(async (rawContent) => {
+			const store = window.__draftStore;
+			const crName = store.crName;
+			const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+			const docKey = match ? decodeURIComponent(match[1]) : null;
+			const manager = (
+				window.wikiEditor as typeof window.wikiEditor & {
+					markdown?: {
+						parse: (content: string) => unknown;
+						serialize: (doc: unknown) => string;
+					};
+				}
+			).markdown;
+			if (!crName || !docKey || !manager) return null;
+			const normalizedContent = manager.serialize(manager.parse(rawContent));
+			if (normalizedContent === rawContent) return null;
+			await new Promise<void>((resolve, reject) => {
+				const req = indexedDB.open('wiki-drafts');
+				req.onupgradeneeded = () => req.result.createObjectStore('drafts');
+				req.onsuccess = () => {
+					const put = req.result
+						.transaction('drafts', 'readwrite')
+						.objectStore('drafts')
+						.put(
+							{ content: normalizedContent, title: '', savedAt: 1 },
+							`cr:${crName}:${docKey}`,
+						);
+					put.onsuccess = () => resolve();
+					put.onerror = () => reject(put.error);
+				};
+				req.onerror = () => reject(req.error);
+			});
+			return { crName, docKey, normalizedContent };
+		}, rawServerContent);
+		if (!planted) throw new Error('Expected markdown normalization to differ');
+
+		await callMethod(request, `${CR_METHOD_PREFIX}.update_cr_page`, {
+			name: planted.crName,
+			doc_key: planted.docKey,
+			fields: { content: rawServerContent },
+		});
+
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		// The persisted text and server text differ byte-for-byte, but Tiptap
+		// normalizes them to the same document. Mount reconciliation must clear
+		// the phantom draft instead of keeping Submit/Merge gated.
+		await expect(page.getByText('Unsaved changes')).toBeHidden();
+		await expect(
+			page.getByRole('button', { name: 'Submit for Review' }),
+		).toBeEnabled();
+	});
+
+	test('saving again while the first save is in flight persists the latest content', async ({
+		page,
+		request,
+	}) => {
+		const timestamp = Date.now();
+		const spaceName = `Queued Save Space ${timestamp}`;
+		const spaceRoute = `queued-save-space-${timestamp}`;
+		const pageTitle = `queued-save-page-${timestamp}`;
+		const firstContent = `First save ${timestamp}`;
+		const latestContent = `Latest save ${timestamp}`;
+
+		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createPageViaUI(page, pageTitle);
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForFunction(
+			() => {
+				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+				if (!match) return false;
+				return !decodeURIComponent(match[1]).startsWith('tmp_');
+			},
+			{ timeout: 10000 },
+		);
+		await page.waitForFunction(() => window.wikiEditor !== undefined, {
+			timeout: 10000,
+		});
+
+		const unroute = await delayMethod(
+			page,
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
+			1500,
+		);
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, firstContent);
+		await page.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByText('Saving…')).toBeVisible();
+
+		await page.evaluate((content) => {
+			window.wikiEditor.commands.setContent(content, {
+				contentType: 'markdown',
+			});
+		}, latestContent);
+		await page.keyboard.press('Control+s');
+
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 8000,
+		});
+		await unroute();
+
+		const { crName, docKey } = await page.evaluate(() => {
+			const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+			return {
+				crName: window.__draftStore.crName,
+				docKey: match ? decodeURIComponent(match[1]) : null,
+			};
+		});
+		if (!crName || !docKey) throw new Error('Draft page identity is missing');
+		const savedPage = await callMethod<{ content: string }>(
+			request,
+			`${CR_METHOD_PREFIX}.get_cr_page`,
+			{ name: crName, doc_key: docKey },
+		);
+		expect(savedPage.content).toBe(latestContent);
 	});
 
 	test('delayed reorder: visual order stays stable across slow sync', async ({

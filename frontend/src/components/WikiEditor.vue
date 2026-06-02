@@ -91,49 +91,19 @@ const props = defineProps({
 		type: String,
 		default: null,
 	},
-	saving: {
-		type: Boolean,
-		default: false,
-	},
-	// Parent-driven save state. Used for the failure UX (mark dirty so a
-	// retry doesn't think we're clean) — clean transitions are driven off
-	// savedContent below, not this status.
-	saveStatus: {
-		type: String,
-		default: 'idle',
-		validator: (v) =>
-			['idle', 'dirty', 'saving', 'saved', 'failed'].includes(v),
-	},
 	// The canonical content the parent has confirmed as saved. The editor
-	// reconciles its dirty flag against this — concurrent / out-of-order
-	// saves can't trick the editor into marking the wrong payload clean
-	// because the source of truth is the actual content the parent reports
-	// as saved, not an internal in-flight slot.
+	// normalizes this with its configured Markdown manager before handing
+	// both snapshots to the store for comparison.
 	savedContent: {
 		type: String,
 		default: '',
 	},
 });
 
-const emit = defineEmits(['save', 'dirty-change', 'local-content']);
-const hasUnsavedChanges = ref(false);
-const lastSavedContent = ref(props.savedContent ?? props.content ?? '');
-
-function emitDirtyChange(dirty) {
-	emit('dirty-change', dirty, props.documentKey);
-}
-
-function emitLocalContent(content) {
-	emit('local-content', content, props.documentKey);
-}
+const emit = defineEmits(['save', 'content-change', 'content-ready']);
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
-// Tight debounce for local IDB persistence — short enough that a
-// browser refresh loses at most ~500ms of typing, long enough that a
-// fast typist doesn't generate per-keystroke IDB writes.
-const LOCAL_PERSIST_DELAY = 500;
-let localPersistTimer = null;
 
 // Create lowlight instance for syntax highlighting
 const lowlight = createLowlight(common);
@@ -526,88 +496,66 @@ function initEditor() {
 		},
 	});
 
-	// Anchor the clean baseline to the editor's OWN serialization of the
-	// freshly-loaded document, not the raw saved markdown. Some nodes don't
-	// round-trip byte-identically (e.g. a callout followed by another block, or
-	// preserved blank lines), so comparing getMarkdown() against the stored
-	// string would report the page as dirty even with no user edits — which
-	// permanently gates Submit/Merge. Comparing against our own serialization
-	// makes "dirty" mean "the user changed something".
-	const initialMarkdown = editor.value?.getMarkdown();
-	if (initialMarkdown !== undefined) {
-		lastSavedContent.value = initialMarkdown;
-		hasUnsavedChanges.value = false;
+	emitContentReady();
+}
+
+function normalizeMarkdown(content) {
+	const markdown = content ?? '';
+	const manager = editor.value?.markdown;
+	if (!manager) return markdown;
+	try {
+		return manager.serialize(manager.parse(markdown));
+	} catch (error) {
+		console.warn('[WikiEditor] Could not normalize markdown', error);
+		return markdown;
 	}
 }
 
+function emitContentChange(content, options = {}) {
+	emit('content-change', content, props.documentKey, options);
+}
+
+// The store compares editor-normalized snapshots. This keeps parser
+// round-trip differences from becoming phantom unsaved changes.
+function emitContentReady() {
+	const currentContent = editor.value?.getMarkdown();
+	if (currentContent === undefined) return;
+	emit(
+		'content-ready',
+		currentContent,
+		normalizeMarkdown(props.savedContent),
+		props.documentKey,
+	);
+}
+
 function handleContentChange() {
-	// Clear existing timer
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
 	}
 
 	const currentContent = editor.value?.getMarkdown();
 	if (currentContent === undefined) return;
+	emitContentChange(currentContent);
 
-	if (currentContent !== lastSavedContent.value) {
-		const wasClean = !hasUnsavedChanges.value;
-		hasUnsavedChanges.value = true;
-		// Surface dirty as soon as the user types — otherwise Submit/merge
-		// gating in the parent can't know about local content until the
-		// 10s autosave fires. Only emit on the clean→dirty edge so the
-		// store doesn't churn on every keystroke.
-		if (wasClean) emitDirtyChange(true);
+	if (currentContent === normalizeMarkdown(props.savedContent)) return;
 
-		// Set up debounced autosave
-		autosaveTimer = setTimeout(() => {
-			autoSave();
-		}, AUTOSAVE_DELAY);
-
-		// Persist locally on a much tighter schedule than autosave so a
-		// refresh in the 10s autosave window doesn't lose typing. The
-		// parent forwards the value to IndexedDB via the store.
-		if (localPersistTimer) clearTimeout(localPersistTimer);
-		localPersistTimer = setTimeout(() => {
-			const latest = editor.value?.getMarkdown();
-			if (latest !== undefined) emitLocalContent(latest);
-		}, LOCAL_PERSIST_DELAY);
-	} else {
-		// Edit returned to the last saved value (typed-then-undone). The
-		// autosave timer is already cancelled above; flip dirty back to
-		// false on the dirty→clean edge so Submit/merge unblock without
-		// requiring a redundant save.
-		const wasDirty = hasUnsavedChanges.value;
-		hasUnsavedChanges.value = false;
-		if (wasDirty) emitDirtyChange(false);
-		// Cancel any in-flight IDB write that would re-persist the
-		// pre-undo text and fire one final local-content so the parent
-		// can clear the persisted draft (it'll match saved content).
-		if (localPersistTimer) {
-			clearTimeout(localPersistTimer);
-			localPersistTimer = null;
-		}
-		emitLocalContent(currentContent);
-	}
+	autosaveTimer = setTimeout(() => {
+		autosaveTimer = null;
+		autoSave();
+	}, AUTOSAVE_DELAY);
 }
 
 async function autoSave() {
-	if (props.saving || props.saveStatus === 'saving' || !editor.value) {
-		return;
-	}
+	if (!editor.value) return;
 
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
 	const currentContent = editor.value.getMarkdown();
-	if (
-		currentContent === undefined ||
-		currentContent === lastSavedContent.value
-	) {
-		const wasDirty = hasUnsavedChanges.value;
-		hasUnsavedChanges.value = false;
-		if (wasDirty) emitDirtyChange(false);
-		return;
-	}
+	if (currentContent === undefined) return;
+	emitContentChange(currentContent);
+	if (currentContent === normalizeMarkdown(props.savedContent)) return;
 
 	emit('save', currentContent);
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
@@ -617,17 +565,11 @@ function saveToDB() {
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
 	}
 
 	if (!editor.value) {
 		toast.error('Editor is not ready');
-		return;
-	}
-
-	// Don't fire a second save while one is already in flight — the parent
-	// serializes per-doc, but firing twice still spins the button and risks
-	// confusing autosave/manual-save interleaving.
-	if (props.saving || props.saveStatus === 'saving') {
 		return;
 	}
 
@@ -637,7 +579,10 @@ function saveToDB() {
 	// Get markdown from the editor
 	const markdown = editor.value.getMarkdown();
 	if (markdown !== undefined) {
-		emit('save', markdown);
+		emitContentChange(markdown);
+		if (markdown !== normalizeMarkdown(props.savedContent)) {
+			emit('save', markdown);
+		}
 		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 	} else {
 		toast.error('Could not get content from editor');
@@ -648,59 +593,15 @@ function getMarkdown() {
 	return editor.value?.getMarkdown();
 }
 
-// Reconcile dirty state against the canonical saved content the parent
-// reports. This handles concurrent / collapsed saves correctly: whatever
-// the parent has actually persisted is the truth; we don't trust an
-// internal in-flight slot that could be overwritten by a later save.
 watch(
 	() => props.savedContent,
-	(saved) => {
-		if (saved == null) return;
-		const current = editor.value?.getMarkdown();
-		if (current === undefined) {
-			lastSavedContent.value = saved;
-			return;
-		}
-		// No edits relative to our own baseline → a new saved snapshot from the
-		// parent (post-save reconciliation, background revalidation, reload)
-		// just reconfirms clean state. Rebase the baseline to the editor's
-		// serialization rather than the incoming string so a non-idempotent
-		// markdown round-trip can't manufacture a phantom dirty and gate
-		// Submit/Merge forever.
-		if (current === lastSavedContent.value) {
-			if (hasUnsavedChanges.value) {
-				hasUnsavedChanges.value = false;
-				emitDirtyChange(false);
-			}
-			return;
-		}
-		// The editor diverged from its baseline (genuine local edits). Reconcile
-		// against what the parent reports as persisted: if they match, the save
-		// landed and we're clean; otherwise stay dirty.
-		lastSavedContent.value = saved;
-		const dirty = current !== saved;
-		hasUnsavedChanges.value = dirty;
-		emitDirtyChange(dirty);
-	},
-);
-
-// On failure, surface dirty so the next edit / retry isn't gated by a
-// stale "clean" assumption.
-watch(
-	() => props.saveStatus,
-	(status) => {
-		if (status === 'failed') {
-			hasUnsavedChanges.value = true;
-			emitDirtyChange(true);
-		}
-	},
+	() => emitContentReady(),
 );
 
 // Expose methods for parent component
 defineExpose({
 	saveToDB,
 	getMarkdown,
-	hasUnsavedChanges,
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
@@ -736,14 +637,9 @@ onUnmounted(() => {
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 	}
-	// Flush any pending IDB persist before tear-down: a user who typed
-	// within the last LOCAL_PERSIST_DELAY ms and navigated away would
-	// otherwise lose that window of work on the next refresh.
-	if (localPersistTimer) {
-		clearTimeout(localPersistTimer);
-		localPersistTimer = null;
-		const latest = editor.value?.getMarkdown();
-		if (latest !== undefined) emitLocalContent(latest);
+	const latest = editor.value?.getMarkdown();
+	if (latest !== undefined) {
+		emitContentChange(latest, { persistImmediately: true });
 	}
 	if (editor.value) {
 		editor.value.destroy();

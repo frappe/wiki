@@ -8,26 +8,27 @@ function emptyPage(docKey, opts = {}) {
 		content: opts.content ?? '',
 		localContent: opts.localContent ?? null,
 		isPublished: opts.isPublished ?? true,
-		dirty: opts.dirty ?? false,
 		saveStatus: opts.saveStatus ?? 'idle',
 		error: null,
 	};
 }
 
 // Per-doc editor buffers. `content` is the server-confirmed baseline while
-// `localContent` retains unsaved text across navigation and restore.
+// `localContent` retains a divergent local snapshot across navigation and
+// restore. Both values are canonicalized by WikiEditor before comparison.
 // Persistence and transport remain store concerns.
 export function createPageBuffers() {
 	const pagesByKey = reactive({});
 
-	// Any page whose local content differs from what the server has — this
-	// covers post-save 'failed' state and pre-debounce editor typing alike,
-	// since both flip `page.dirty` true. Submit/merge gate on this so a
-	// user can't ship a CR that doesn't yet contain what they see on
-	// screen.
+	function isDirty(page) {
+		return page?.localContent != null && page.localContent !== page.content;
+	}
+
+	// Submit/merge gate on derived divergence, so every caller sees the
+	// same answer without coordinating a separate mutable dirty flag.
 	const hasUnsavedEditorContent = computed(() => {
 		for (const key of Object.keys(pagesByKey)) {
-			if (pagesByKey[key]?.dirty) return true;
+			if (isDirty(pagesByKey[key])) return true;
 		}
 		return false;
 	});
@@ -51,40 +52,6 @@ export function createPageBuffers() {
 		return page;
 	}
 
-	function markDirty(docKey) {
-		if (!docKey) return;
-		const page = pagesByKey[docKey];
-		if (!page) {
-			// Lazy-create a stub so the WikiDocumentPanel flow (which
-			// caches its page in a local ref, not `pagesByKey`) can still
-			// register dirty state.
-			pagesByKey[docKey] = emptyPage(docKey, {
-				dirty: true,
-				saveStatus: 'dirty',
-			});
-			return;
-		}
-		if (page.saveStatus === 'saving') return;
-		page.dirty = true;
-		page.saveStatus = 'dirty';
-	}
-
-	// The dirty→clean edge for an editor whose content went back to the
-	// last saved value (typed-then-undone). Without this, the dirty flag
-	// would stick and keep Submit/merge gated until the user issued a
-	// redundant save. Safe no-op while a save is in flight.
-	function markClean(docKey) {
-		if (!docKey) return;
-		const page = pagesByKey[docKey];
-		if (!page) return;
-		if (page.saveStatus === 'saving') return;
-		if (page.dirty || page.saveStatus === 'dirty') {
-			page.dirty = false;
-			page.saveStatus = page.saveStatus === 'failed' ? 'failed' : 'idle';
-			if (page.saveStatus !== 'failed') page.error = null;
-		}
-	}
-
 	function updateLocalContent(docKey, realKey, content, title) {
 		const finalKey = realKey || docKey;
 		if (!finalKey) return null;
@@ -95,11 +62,8 @@ export function createPageBuffers() {
 			});
 		}
 		page.docKey = finalKey;
-		page.localContent = content;
+		page.localContent = content === page.content ? null : content;
 		if (title != null) page.title = title;
-		page.dirty = true;
-		page.saveStatus = 'dirty';
-		page.error = null;
 		if (finalKey !== docKey) {
 			pagesByKey[finalKey] = page;
 			delete pagesByKey[docKey];
@@ -110,13 +74,20 @@ export function createPageBuffers() {
 	function setLocalContent(docKey, content) {
 		const page = pagesByKey[docKey];
 		if (!page) return null;
-		page.localContent = content;
+		page.localContent = content === page.content ? null : content;
 		return page;
 	}
 
 	function clearLocalContent(docKey) {
 		const page = pagesByKey[docKey];
 		if (page) page.localContent = null;
+	}
+
+	function reconcileEditorContent(docKey, content, savedContent) {
+		const page = ensure(docKey);
+		page.content = savedContent;
+		page.localContent = content === savedContent ? null : content;
+		return page;
 	}
 
 	// Swap a tmp_* keyed buffer over to its real key once the create syncs.
@@ -136,7 +107,7 @@ export function createPageBuffers() {
 		const page = pagesByKey[docKey];
 		if (!page) return;
 		if (page.saveStatus === 'failed') {
-			page.saveStatus = page.dirty ? 'dirty' : 'idle';
+			page.saveStatus = 'idle';
 			page.error = null;
 		}
 	}
@@ -149,15 +120,15 @@ export function createPageBuffers() {
 		pagesByKey,
 		hasUnsavedEditorContent,
 		emptyPage,
+		isDirty,
 		get,
 		setPage,
 		deletePage,
 		ensure,
-		markDirty,
-		markClean,
 		updateLocalContent,
 		setLocalContent,
 		clearLocalContent,
+		reconcileEditorContent,
 		promoteKey,
 		clearFailedFlag,
 		reset,

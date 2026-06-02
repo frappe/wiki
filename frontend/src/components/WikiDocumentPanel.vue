@@ -68,7 +68,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 			</div>
 		</div>
 
@@ -205,16 +205,24 @@ watch(
 	{ immediate: true },
 );
 
-function onEditorDirtyChange(dirty, docKey = wikiDoc.doc?.doc_key) {
-	if (!docKey) return;
-	if (dirty) draftStore.markPageDirty(docKey);
-	else draftStore.markPageClean(docKey);
-}
-
-function onLocalContent(content, docKey = wikiDoc.doc?.doc_key) {
+function onEditorContentChange(
+	content,
+	docKey = wikiDoc.doc?.doc_key,
+	options = {},
+) {
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title);
+	draftStore.recordEditorContent(docKey, content, title, options);
+}
+
+function onEditorContentReady(
+	content,
+	savedContent,
+	docKey = wikiDoc.doc?.doc_key,
+) {
+	if (!docKey) return;
+	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
+	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
 }
 
 async function loadCrPage() {
@@ -293,7 +301,7 @@ watch(
 	{ immediate: true },
 );
 
-// Save state for the editor lives on the workspace store entry keyed by
+// Save state lives on the workspace store entry keyed by
 // the published doc's CR overlay key. Until the user saves once, no entry
 // exists and we report 'idle'.
 const pageSaveStatus = computed(() => {
@@ -302,9 +310,8 @@ const pageSaveStatus = computed(() => {
 	return draftStore.pagesByKey[docKey]?.saveStatus || 'idle';
 });
 const isSaving = computed(() => pageSaveStatus.value === 'saving');
-// Canonical saved content the editor reconciles against. Falls back to
-// editorContent so the first edit isn't seen as dirty before any save
-// has happened.
+// Confirmed content the editor normalizes before handing both snapshots back
+// to the store. Falls back to editorContent before an overlay entry exists.
 const savedContent = computed(() => {
 	const stored = activePage.value?.content;
 	if (stored != null) return stored;

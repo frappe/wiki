@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saving="isSaving" :save-status="pageSaveStatus" :saved-content="savedContent" @save="saveContent" @dirty-change="onEditorDirtyChange" @local-content="onLocalContent" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -244,16 +244,16 @@ watch(
 	},
 );
 
-function onEditorDirtyChange(dirty, docKey = props.docKey) {
-	if (!docKey) return;
-	if (dirty) draftStore.markPageDirty(docKey);
-	else draftStore.markPageClean(docKey);
-}
-
-function onLocalContent(content, docKey = props.docKey) {
+function onEditorContentChange(content, docKey = props.docKey, options = {}) {
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title);
+	draftStore.recordEditorContent(docKey, content, title, options);
+}
+
+function onEditorContentReady(content, savedContent, docKey = props.docKey) {
+	if (!docKey) return;
+	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
+	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
 }
 
 watch(
@@ -321,16 +321,13 @@ const editorContent = computed(() => {
 	return crPage.value?.content || '';
 });
 
-// Save state is now owned by the workspace store. The editor reads
-// pageSaveStatus and only marks itself clean when it sees 'saved' for the
-// content it just submitted.
+// Save state is owned by the workspace store.
 const pageSaveStatus = computed(
 	() => draftStore.pagesByKey[props.docKey]?.saveStatus || 'idle',
 );
 const isSaving = computed(() => pageSaveStatus.value === 'saving');
-// Canonical saved content from the store. The editor reconciles its dirty
-// flag against this rather than tracking what it last submitted, so
-// concurrent saves can't mark the wrong payload clean.
+// The editor normalizes this confirmed snapshot before handing it back to
+// the store for comparison.
 const savedContent = computed(
 	() => draftStore.pagesByKey[props.docKey]?.content ?? '',
 );

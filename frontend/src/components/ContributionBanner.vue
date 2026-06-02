@@ -208,21 +208,19 @@ const userStore = useUserStore();
 // yet) also counts: without this guard a user could type and submit
 // within the 10s autosave window, sending the previous content. Reorder
 // counts as pending too via mergeDisabled.
-const hasUnsyncedWork = computed(
-	() =>
-		draftStore.hasPendingMutations ||
-		draftStore.hasFailedMutations ||
-		draftStore.hasUnsavedEditorContent,
-);
+const hasUnsyncedWork = computed(() => Boolean(draftStore.finalizationBlocker));
 const submitDisabled = computed(() => hasUnsyncedWork.value);
 const submitButtonTitle = computed(() => {
-	if (draftStore.hasFailedMutations) {
+	if (draftStore.finalizationBlocker === 'conflict') {
+		return __('Reload latest before submitting');
+	}
+	if (draftStore.finalizationBlocker === 'failed') {
 		return __('Resolve failed changes before submitting');
 	}
-	if (draftStore.hasPendingMutations) {
+	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before submitting');
 	}
-	if (draftStore.hasUnsavedEditorContent) {
+	if (draftStore.finalizationBlocker === 'unsaved') {
 		return __('Save your changes before submitting');
 	}
 	return '';
@@ -318,11 +316,17 @@ const canShowMerge = computed(() => {
 });
 
 const mergeButtonTitle = computed(() => {
-	if (draftStore.hasFailedMutations) {
+	if (draftStore.finalizationBlocker === 'conflict') {
+		return __('Reload latest before merging');
+	}
+	if (draftStore.finalizationBlocker === 'failed') {
 		return __('Resolve failed changes before merging');
 	}
-	if (draftStore.hasPendingMutations) {
+	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before merging');
+	}
+	if (draftStore.finalizationBlocker === 'unsaved') {
+		return __('Save your changes before merging');
 	}
 	if (props.mergeDisabled) {
 		return __('Please wait for reordering to finish before merging');
