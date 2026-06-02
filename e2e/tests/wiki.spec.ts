@@ -146,7 +146,7 @@ test.describe('Wiki Editor', () => {
 			'button:has-text("Create First Page")',
 		);
 		const newPageButton = page.locator('button[title="New Page"]');
-		await expect(createFirstPage.or(newPageButton)).toBeVisible({
+		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 
