@@ -47,11 +47,25 @@ async function createAndPublishPage(
 	}
 
 	await page.getByLabel('Title').fill(title);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	const createDialog = page.getByRole('dialog');
+	await createDialog.getByRole('button', { name: 'Save' }).click();
+	await expect(createDialog).toBeHidden();
+	await expect(page.locator('.dialog-overlay')).toBeHidden();
 	await page.waitForLoadState('networkidle');
 
-	await page.locator('aside').getByText(title, { exact: true }).click();
-	await page.waitForURL(/\/draft\/[^/?#]+/);
+	const pageTitleInput = page.getByRole('textbox', { name: 'Page title' });
+	const openedCreatedPage = await pageTitleInput
+		.inputValue({ timeout: 2000 })
+		.then((value) => value === title)
+		.catch(() => false);
+	if (!openedCreatedPage) {
+		await page.locator('aside').getByText(title, { exact: true }).click();
+	}
+	await expect(pageTitleInput).toHaveValue(title, { timeout: 10000 });
+	await page.waitForFunction(() => {
+		const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
+		return match && !decodeURIComponent(match[1]).startsWith('tmp_');
+	});
 	const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
 	expect(draftMatch).toBeTruthy();
 	const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
@@ -71,11 +85,12 @@ async function createAndPublishPage(
 	await editor.click();
 	await page.waitForTimeout(500);
 
-	await page.click('button:has-text("Save")');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await page.waitForLoadState('networkidle');
-	await page.waitForTimeout(2000);
 
-	await page.getByRole('button', { name: 'Submit for Review' }).click();
+	const submitButton = page.getByRole('button', { name: 'Submit for Review' });
+	await expect(submitButton).toBeEnabled({ timeout: 10000 });
+	await submitButton.click();
 	await page.getByRole('button', { name: 'Submit' }).click();
 	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 		timeout: 10000,

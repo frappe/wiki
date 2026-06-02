@@ -511,14 +511,21 @@ function normalizeMarkdown(content) {
 	}
 }
 
-function emitContentChange(content, options = {}) {
+function getMarkdown() {
+	const markdown = editor.value?.getMarkdown();
+	return markdown === undefined ? undefined : normalizeMarkdown(markdown);
+}
+
+function emitContentChange(options = {}) {
+	const content = getMarkdown();
+	if (content === undefined) return;
 	emit('content-change', content, props.documentKey, options);
 }
 
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
-	const currentContent = editor.value?.getMarkdown();
+	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emit(
 		'content-ready',
@@ -534,9 +541,9 @@ function handleContentChange() {
 		autosaveTimer = null;
 	}
 
-	const currentContent = editor.value?.getMarkdown();
+	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
-	emitContentChange(currentContent);
+	emitContentChange();
 
 	if (currentContent === normalizeMarkdown(props.savedContent)) return;
 
@@ -552,9 +559,9 @@ async function autoSave() {
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
-	const currentContent = editor.value.getMarkdown();
+	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
-	emitContentChange(currentContent);
+	emitContentChange();
 	if (currentContent === normalizeMarkdown(props.savedContent)) return;
 
 	emit('save', currentContent);
@@ -577,9 +584,9 @@ function saveToDB() {
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
 
 	// Get markdown from the editor
-	const markdown = editor.value.getMarkdown();
+	const markdown = getMarkdown();
 	if (markdown !== undefined) {
-		emitContentChange(markdown);
+		emitContentChange();
 		if (markdown !== normalizeMarkdown(props.savedContent)) {
 			emit('save', markdown);
 		}
@@ -587,10 +594,6 @@ function saveToDB() {
 	} else {
 		toast.error('Could not get content from editor');
 	}
-}
-
-function getMarkdown() {
-	return editor.value?.getMarkdown();
 }
 
 watch(
@@ -637,10 +640,7 @@ onUnmounted(() => {
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 	}
-	const latest = editor.value?.getMarkdown();
-	if (latest !== undefined) {
-		emitContentChange(latest, { persistImmediately: true });
-	}
+	emitContentChange({ persistImmediately: true });
 	if (editor.value) {
 		editor.value.destroy();
 	}
