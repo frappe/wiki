@@ -90,8 +90,10 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouteQuery } from '@vueuse/router';
-import { ListView, Badge, Tabs, Button, LoadingIndicator, createListResource } from 'frappe-ui';
+import { ListView, Badge, Tabs, Button, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
+
+usePageMeta(() => ({ title: `${__('Change Requests')} | Frappe Wiki` }));
 
 const tabQuery = useRouteQuery('tab', 'my');
 const userStore = useUserStore();
