@@ -320,6 +320,59 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		transport.markIdle();
 	}
 
+	// Apply a fetched CR page snapshot to its buffer. A dirty buffer keeps the
+	// user's local content and only refreshes the server-confirmed baseline.
+	function applyFetchedPage(docKey, result) {
+		const localPage = pageBuffers.get(docKey);
+		if (pageBuffers.isDirty(localPage)) {
+			if (!localPage.title) localPage.title = result?.title || '';
+			localPage.route = result?.route || '';
+			localPage.content = result?.content || '';
+			localPage.isPublished = result?.is_published !== false;
+			return localPage;
+		}
+		return pageBuffers.setPage(docKey, {
+			docKey,
+			title: result?.title || '',
+			route: result?.route || '',
+			content: result?.content || '',
+			localContent: null,
+			isPublished: result?.is_published !== false,
+			saveStatus: 'idle',
+			error: null,
+		});
+	}
+
+	// Background revalidation for the stale-while-revalidate path in
+	// loadCrPage. De-duplicated per doc key; the fresh snapshot is dropped if
+	// the buffer picked up local edits or an in-flight save while we fetched,
+	// so we never clobber work the user did in the meantime.
+	const pageRevalidations = new Map();
+	function revalidateCrPage(docKey) {
+		if (pageRevalidations.has(docKey)) return pageRevalidations.get(docKey);
+		const requestCr = crName.value;
+		const promise = (async () => {
+			try {
+				const result = await transport.fetchPage(requestCr, docKey);
+				// The CR changed (merge/archive reset) or the buffer picked up
+				// local edits / an in-flight save while we fetched — drop the
+				// snapshot rather than resurrect or clobber state.
+				if (crName.value !== requestCr) return;
+				const page = pageBuffers.get(docKey);
+				if (!page || pageBuffers.isDirty(page) || page.saveStatus !== 'idle') {
+					return;
+				}
+				applyFetchedPage(docKey, result);
+			} catch (_err) {
+				// Best-effort refresh — the cached buffer stays usable.
+			} finally {
+				pageRevalidations.delete(docKey);
+			}
+		})();
+		pageRevalidations.set(docKey, promise);
+		return promise;
+	}
+
 	// Load a single CR page into pagesByKey. Tmp pages live entirely on
 	// the client until their create syncs; we never call get_cr_page
 	// with a tmp key (the backend would 404).
@@ -338,24 +391,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			return localPage;
 		}
 		if (!crName.value) return null;
-		const result = await transport.fetchPage(crName.value, docKey);
-		if (pageBuffers.isDirty(localPage)) {
-			if (!localPage.title) localPage.title = result?.title || '';
-			localPage.route = result?.route || '';
-			localPage.content = result?.content || '';
-			localPage.isPublished = result?.is_published !== false;
+		// Stale-while-revalidate: a clean, already-fetched buffer renders
+		// immediately; the server copy refreshes it in the background.
+		if (localPage && localPage.content != null) {
+			revalidateCrPage(docKey);
 			return localPage;
 		}
-		return pageBuffers.setPage(docKey, {
-			docKey,
-			title: result?.title || '',
-			route: result?.route || '',
-			content: result?.content || '',
-			localContent: null,
-			isPublished: result?.is_published !== false,
-			saveStatus: 'idle',
-			error: null,
-		});
+		const result = await transport.fetchPage(crName.value, docKey);
+		return applyFetchedPage(docKey, result);
 	}
 
 	function updateLocalPageContent(docKey, content, title = null) {
