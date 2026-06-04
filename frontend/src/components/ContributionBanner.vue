@@ -360,7 +360,7 @@ const menuOptions = computed(() => {
 	}
 	if (canShowArchive.value) {
 		options.push({
-			label: __('Archive'),
+			label: __('Discard Changes'),
 			icon: 'archive',
 			onClick: () => emit('withdraw'),
 		});
