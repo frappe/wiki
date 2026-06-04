@@ -144,7 +144,9 @@ import {
 	Dropdown,
 	FormControl,
 	createDocumentResource,
+	getCachedDocumentResource,
 	toast,
+	usePageMeta,
 } from 'frappe-ui';
 import { computed, ref, shallowRef, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
@@ -310,6 +312,17 @@ const displayPublished = computed(() => {
 
 const displayRoute = computed(() => {
 	return activePage.value?.route || currentCrPage.value?.route || wikiDoc.value.doc?.route || '';
+});
+
+// Browser tab title: "{page} | {space}". Returning undefined while the doc
+// is still loading keeps the previous title instead of flashing a blank one.
+usePageMeta(() => {
+	const title = displayTitle.value;
+	if (!title) return;
+	const space = props.spaceId
+		? getCachedDocumentResource('Wiki Space', props.spaceId)
+		: null;
+	return { title: [title, space?.doc?.space_name].filter(Boolean).join(' | ') };
 });
 
 watch(

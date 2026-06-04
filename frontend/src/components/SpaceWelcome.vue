@@ -11,5 +11,17 @@
 </template>
 
 <script setup>
+import { getCachedDocumentResource, usePageMeta } from 'frappe-ui';
+import { useRoute } from 'vue-router';
 import LucideFileText from '~icons/lucide/file-text';
+
+const route = useRoute();
+
+// SpaceDetails (the parent layout) creates the Wiki Space document resource,
+// so this is always a cache read — never a fetch.
+usePageMeta(() => {
+	const space = getCachedDocumentResource('Wiki Space', route.params.spaceId);
+	if (!space?.doc) return;
+	return { title: `${space.doc.space_name} | Frappe Wiki` };
+});
 </script>

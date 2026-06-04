@@ -125,7 +125,9 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	getCachedDocumentResource,
 	toast,
+	usePageMeta,
 } from 'frappe-ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -165,6 +167,17 @@ const loadFailed = ref(false);
 // Guards against a slow response for a page we've already navigated away
 // from overwriting the page the user is now looking at.
 let loadToken = 0;
+
+// Browser tab title: "{draft page} | {space}". Returning undefined while the
+// draft is still loading keeps the previous title instead of flashing a blank one.
+usePageMeta(() => {
+	const title = crPage.value?.title;
+	if (!title) return;
+	const space = props.spaceId
+		? getCachedDocumentResource('Wiki Space', props.spaceId)
+		: null;
+	return { title: [title, space?.doc?.space_name].filter(Boolean).join(' | ') };
+});
 
 // Read the page through the workspace store. Tmp pages live entirely on the
 // client; the store returns them from pagesByKey without hitting the

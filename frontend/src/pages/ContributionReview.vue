@@ -276,7 +276,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast } from 'frappe-ui';
+import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
@@ -317,6 +317,11 @@ const changeRequest = createDocumentResource({
 	doctype: 'Wiki Change Request',
 	name: props.changeRequestId,
 	auto: true,
+});
+
+usePageMeta(() => {
+	if (!changeRequest.doc) return;
+	return { title: `${changeRequest.doc.title} | Frappe Wiki` };
 });
 
 const changes = createResource({
