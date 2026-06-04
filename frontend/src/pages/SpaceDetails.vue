@@ -404,7 +404,12 @@ async function cloneSpace(close) {
 // Tree, page drafts, and pending mutations live in the draft workspace store.
 // We hydrate it on space load and after merge/archive transitions; routine
 // edits update the store optimistically without a server round-trip.
-const treeData = computed(() => draftStore.treeAsLegacy);
+// `treeAsLegacy` is an empty-but-truthy object before hydration, so gate on
+// `hasLoadedTree` — otherwise the sidebar flashes "No pages yet" instead of
+// the loading skeleton while the tree is being fetched.
+const treeData = computed(() =>
+	draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null,
+);
 
 const changeTypeMap = computed(() => {
 	const map = new Map();

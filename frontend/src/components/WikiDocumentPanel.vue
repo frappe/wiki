@@ -69,6 +69,18 @@
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+				<!-- Editor body skeleton while the CR page overlay loads -->
+				<div v-else class="space-y-4 animate-pulse">
+					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+					<div class="h-4 w-full rounded bg-surface-gray-3" />
+					<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
+					<div class="h-4 w-full rounded bg-surface-gray-3" />
+					<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
+					<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
+					<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
+					<div class="h-4 w-full rounded bg-surface-gray-3" />
+					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+				</div>
 			</div>
 		</div>
 

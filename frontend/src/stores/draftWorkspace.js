@@ -43,6 +43,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const spaceId = ref(null);
 	const changesByKey = reactive({});
 	const isHydrating = ref(false);
+	// False until the first server tree lands (and after reset). Lets the UI
+	// show a skeleton instead of mistaking the pre-hydration empty tree for a
+	// space with no pages.
+	const hasLoadedTree = ref(false);
 	let hydratePromise = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
@@ -152,6 +156,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	function applyServerTree(serverTree) {
 		treeModel.applyServerTree(serverTree);
+		hasLoadedTree.value = true;
 		if (typeof serverTree?.operation_version === 'number') {
 			transport.recordServerVersion(crName.value, serverTree.operation_version);
 		}
@@ -166,6 +171,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	function reset() {
 		spaceId.value = null;
+		hasLoadedTree.value = false;
 		treeModel.reset();
 		pageBuffers.reset();
 		resolver.reset();
@@ -862,6 +868,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		operationVersion: transport.operationVersion,
 		sync: transport.sync,
 		isHydrating,
+		hasLoadedTree,
 		tempKeyResolutions: resolver.tempKeyResolutions,
 		// getters
 		isEnabled,
