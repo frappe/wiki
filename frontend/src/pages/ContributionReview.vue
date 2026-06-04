@@ -46,7 +46,7 @@
 
 			<div v-else-if="canWithdraw" class="flex items-center gap-2">
 				<Button variant="outline" :loading="withdrawResource.loading" @click="handleWithdraw">
-					{{ __('Archive') }}
+					{{ __('Discard Changes') }}
 				</Button>
 			</div>
 		</div>
