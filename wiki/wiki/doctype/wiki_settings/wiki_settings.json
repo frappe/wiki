@@ -10,6 +10,7 @@
   "default_wiki_space",
   "table_of_contents_section",
   "enable_table_of_contents",
+  "auto_convert_images_to_webp",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
@@ -57,6 +58,13 @@
    "fieldname": "enable_table_of_contents",
    "fieldtype": "Check",
    "label": "Enable Table of Contents"
+  },
+  {
+   "default": "1",
+   "description": "Automatically convert uploaded PNG/JPEG images to WebP to reduce page size.",
+   "fieldname": "auto_convert_images_to_webp",
+   "fieldtype": "Check",
+   "label": "Convert Uploaded Images to WebP"
   },
   {
    "fieldname": "feedback_section",

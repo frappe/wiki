@@ -1,17 +1,28 @@
 <template>
     <NodeViewWrapper class="wiki-image-wrapper" :class="{ 'is-selected': selected }">
         <div class="wiki-image-container">
-            <img
-                :src="node.attrs.src"
-                :alt="node.attrs.alt || ''"
-                :title="node.attrs.title || ''"
-                :width="node.attrs.width || undefined"
-                :height="node.attrs.height || undefined"
-                class="wiki-image"
-                @click="selectNode"
-            />
+            <div class="wiki-image-frame">
+                <img
+                    :src="node.attrs.src"
+                    :alt="node.attrs.alt || ''"
+                    :title="node.attrs.title || ''"
+                    :width="node.attrs.width || undefined"
+                    :height="node.attrs.height || undefined"
+                    class="wiki-image"
+                    :class="{ 'is-loading': node.attrs.loading }"
+                    @click="selectNode"
+                />
+                <!-- Upload / optimization progress overlay -->
+                <div v-if="node.attrs.loading" class="wiki-image-loading-overlay">
+                    <span class="wiki-image-spinner" />
+                    <span class="wiki-image-loading-text">Uploading…</span>
+                </div>
+            </div>
+            <div v-if="node.attrs.error" class="wiki-image-error">
+                Upload failed: {{ node.attrs.error }}
+            </div>
             <input
-                v-if="editor.isEditable || node.attrs.caption"
+                v-if="(editor.isEditable || node.attrs.caption) && !node.attrs.error"
                 ref="captionInput"
                 v-model="caption"
                 type="text"
@@ -122,12 +133,59 @@ function handleKeydown(event) {
     margin: 0;
 }
 
+.wiki-image-frame {
+    position: relative;
+    display: inline-flex;
+    max-width: 100%;
+}
+
 .wiki-image {
     max-width: 100%;
     height: auto;
     border-radius: 0.375rem;
     cursor: pointer;
     margin: 0;
+}
+
+.wiki-image.is-loading {
+    filter: brightness(0.7);
+}
+
+.wiki-image-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    background: rgba(17, 17, 17, 0.35);
+    color: #fff;
+    font-size: 0.8125rem;
+}
+
+.wiki-image-spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: wiki-image-spin 0.7s linear infinite;
+}
+
+@keyframes wiki-image-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.wiki-image-error {
+    width: 100%;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--ink-red-5, #dc2626);
+    padding: 0.5rem 0;
 }
 
 .wiki-image-caption-input {
