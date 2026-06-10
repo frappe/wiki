@@ -112,6 +112,21 @@ export const WikiImage = Node.create({
 			height: {
 				default: null,
 			},
+			// Transient editor-only state for the upload/optimization lifecycle.
+			// `rendered: false` keeps these out of the serialized HTML, and
+			// renderMarkdown ignores them, so they never persist to content.
+			loading: {
+				default: false,
+				rendered: false,
+			},
+			uploadId: {
+				default: null,
+				rendered: false,
+			},
+			error: {
+				default: null,
+				rendered: false,
+			},
 		};
 	},
 
@@ -150,6 +165,13 @@ export const WikiImage = Node.create({
 	// ![alt](src "title")
 	// *caption*
 	renderMarkdown: (node) => {
+		// Skip images still uploading/optimizing — their `src` is a transient
+		// base64 preview that must never be written to saved content. Once the
+		// upload resolves, `loading` clears and the node re-serializes normally.
+		if (node.attrs?.loading) {
+			return '';
+		}
+
 		const src = node.attrs?.src ?? '';
 		const alt = node.attrs?.alt ?? '';
 		const title = node.attrs?.title ?? '';
