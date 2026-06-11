@@ -87,8 +87,9 @@
     </div>
 
     {{ include_script("syntax_highlighting.bundle.js") }}
-    <script src="/assets/wiki/js/code-blocks.js"></script>
-    <script src="/assets/wiki/js/image-viewer.js"></script>
+    <script src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
+    <script src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
+    <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
 </body>
 {% block scripts %} {% endblock %}
 </html>

@@ -50,6 +50,7 @@ import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
+import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import {
 	SlashCommands,
 	filterCommands,
@@ -211,6 +212,56 @@ async function insertAndUploadImage(file) {
 }
 
 /**
+ * Patch the attributes of the in-flight PDF node identified by uploadId.
+ */
+function updatePdfNode(uploadId, attrs) {
+	const ed = editor.value;
+	if (!ed) return;
+	const { state, view } = ed;
+	let target = null;
+	state.doc.descendants((node, pos) => {
+		if (node.type.name === 'pdfBlock' && node.attrs.uploadId === uploadId) {
+			target = { node, pos };
+			return false;
+		}
+	});
+	if (!target) return;
+	const tr = state.tr.setNodeMarkup(target.pos, undefined, {
+		...target.node.attrs,
+		...attrs,
+	});
+	view.dispatch(tr);
+}
+
+/**
+ * Insert a PDF card immediately with a loading state, upload it in the
+ * background, then swap in the final URL (or surface an error).
+ */
+async function insertAndUploadPdf(file) {
+	const ed = editor.value;
+	if (!ed) return;
+
+	const uploadId = `upload-${Date.now()}-${Math.random()
+		.toString(36)
+		.slice(2, 9)}`;
+
+	ed.chain()
+		.focus()
+		.setPdf({ filename: file.name, uploadId, loading: true })
+		.run();
+
+	try {
+		const url = await uploadFile(file);
+		updatePdfNode(uploadId, { src: url, loading: false, error: null });
+	} catch (error) {
+		updatePdfNode(uploadId, {
+			loading: false,
+			error: error?.message || 'Failed to upload PDF',
+		});
+	}
+}
+
+/**
  * Handle paste events to upload images and parse markdown text
  */
 function handlePaste(_view, event) {
@@ -259,15 +310,31 @@ function handleDrop(_view, event) {
 	for (const file of files) {
 		const isImage = file.type.includes('image');
 		const isVideo = file.type.includes('video');
+		const isPdf =
+			file.type === 'application/pdf' ||
+			file.name?.toLowerCase().endsWith('.pdf');
 
 		if (isImage) {
 			insertAndUploadImage(file);
 		} else if (isVideo && editor.value) {
 			editor.value.commands.uploadVideo(file);
+		} else if (isPdf) {
+			insertAndUploadPdf(file);
 		}
 	}
 
 	return true;
+}
+
+/**
+ * Handle PDF upload events from the toolbar / slash command (which open a file
+ * picker and dispatch the chosen file through this custom event).
+ */
+function handlePdfUploadEvent(event) {
+	const file = event.detail?.file;
+	if (file) {
+		insertAndUploadPdf(file);
+	}
 }
 
 /**
@@ -531,6 +598,7 @@ function initEditor() {
 			// Custom extensions
 			CalloutBlock,
 			IframeBlock,
+			PdfBlock,
 			VideoBlock.configure({
 				uploadFunction: uploadFile,
 			}),
@@ -682,6 +750,8 @@ onMounted(() => {
 		'wiki-editor-upload-image',
 		handleSlashImageUploadEvent,
 	);
+	// Listen for PDF upload events (toolbar + slash command)
+	document.addEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
 });
 
 onUnmounted(() => {
@@ -690,6 +760,7 @@ onUnmounted(() => {
 		'wiki-editor-upload-image',
 		handleSlashImageUploadEvent,
 	);
+	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
 	// Hide any open link popup
 	hideLinkPopup();
 	// Clean up window reference

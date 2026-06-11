@@ -33,10 +33,12 @@
     "idb-keyval": "^6.2.0",
     "lowlight": "^3.3.0",
     "lucide-vue-next": "^0.468.0",
+    "pdfjs-dist": "4.10.38",
     "pinia": "^3.0.4",
     "socket.io-client": "^4.7.2",
     "tippy.js": "^6.3.7",
     "vue": "^3.5.13",
+    "vue-pdf-embed": "^2.1.4",
     "vue-router": "^4.5.0",
     "vuedraggable": "^4.1.0"
   },
