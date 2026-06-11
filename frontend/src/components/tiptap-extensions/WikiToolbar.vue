@@ -166,6 +166,15 @@
                 <VideoIcon class="icon" />
             </button>
 
+            <!-- PDF -->
+            <button
+                class="toolbar-btn"
+                @click="editor.chain().focus().selectAndUploadPdf().run()"
+                title="Insert PDF"
+            >
+                <FileTextIcon class="icon" />
+            </button>
+
             <div class="toolbar-separator"></div>
 
             <!-- Undo/Redo -->
@@ -194,6 +203,7 @@ import {
 	LucideBold as BoldIcon,
 	LucideSquareCode as CodeBlockIcon,
 	LucideCode as CodeIcon,
+	LucideFileText as FileTextIcon,
 	LucideHeading1 as H1Icon,
 	LucideHeading2 as H2Icon,
 	LucideHeading3 as H3Icon,

@@ -172,6 +172,15 @@ def _is_video_url(url: str) -> bool:
 	return clean_url.endswith(VIDEO_EXTENSIONS)
 
 
+def _is_pdf_url(url: str) -> bool:
+	"""Return True when URL points to a PDF file."""
+	if not url:
+		return False
+
+	clean_url = str(url).split("?", 1)[0].split("#", 1)[0].lower()
+	return clean_url.endswith(".pdf")
+
+
 SCRIPT_TAG_PATTERN = re.compile(r"(?is)<script\b[^>]*>.*?</script>|</?script\b[^>]*>")
 
 
@@ -236,6 +245,88 @@ def _replace_video_placeholders(html: str, videos: list[dict], placeholder_prefi
 		video_html = _generate_video_html(video["url"], video["alt"], video["title"])
 		html = html.replace(f"<p>{placeholder}</p>", video_html)
 		html = html.replace(placeholder, video_html)
+	return html
+
+
+# Inline SVG icons for the PDF card (lucide: file-text, maximize-2, download).
+_PDF_ICON_SVG = (
+	'<svg class="wiki-pdf-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18"'
+	' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+	' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+	'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>'
+	'<path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/>'
+	'<path d="M16 17H8"/></svg>'
+)
+_PDF_OPEN_ICON_SVG = (
+	'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"'
+	' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+	' stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/>'
+	'<polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/>'
+	'<line x1="3" x2="10" y1="21" y2="14"/></svg>'
+)
+_PDF_DOWNLOAD_ICON_SVG = (
+	'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"'
+	' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+	' stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2'
+	' 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15"'
+	' y2="3"/></svg>'
+)
+
+
+def _generate_pdf_html(url: str, filename: str = "") -> str:
+	"""Generate the PDF embed card. The first-page thumbnail and the full-screen
+	viewer are hydrated client-side by wiki/public/js/pdf-viewer.js (PDF.js)."""
+	safe_name = _remove_script_tags(filename) or "Document.pdf"
+	return (
+		f'<div class="wiki-pdf-embed" data-type="pdf-block" data-src="{url}"'
+		f' data-filename="{safe_name}">'
+		f'<div class="wiki-pdf-card">'
+		f'<div class="wiki-pdf-header">'
+		f"{_PDF_ICON_SVG}"
+		f'<span class="wiki-pdf-name">{safe_name}</span>'
+		f'<span class="wiki-pdf-pages" data-role="pages"></span>'
+		f'<span class="wiki-pdf-actions">'
+		f'<button type="button" class="wiki-pdf-action" data-role="open"'
+		f' title="Open viewer" aria-label="Open viewer">{_PDF_OPEN_ICON_SVG}</button>'
+		f'<a class="wiki-pdf-action" href="{url}" download target="_blank" rel="noopener"'
+		f' title="Download" aria-label="Download">{_PDF_DOWNLOAD_ICON_SVG}</a>'
+		f"</span>"
+		f"</div>"
+		f'<div class="wiki-pdf-scroll" data-role="scroll"></div>'
+		f'<noscript><a class="wiki-pdf-noscript" href="{url}">Open {safe_name}</a></noscript>'
+		f"</div>"
+		f"</div>"
+	)
+
+
+def _process_pdfs_with_placeholders(content: str) -> tuple[str, list[dict], str]:
+	"""
+	Replace full-line PDF markdown with placeholders so PDFs render as block cards.
+	Reuses the video full-line image-syntax pattern; videos are extracted first, so
+	only PDF URLs remain to match here.
+	"""
+	pdfs = []
+	placeholder_prefix = "WIKIPDFPLACEHOLDER"
+
+	def replacer(match):
+		url = match.group("url") or ""
+		if not _is_pdf_url(url):
+			return match.group(0)
+
+		idx = len(pdfs)
+		pdfs.append({"url": url, "filename": match.group("alt") or ""})
+		return f"\n\n{placeholder_prefix}{idx}END\n\n"
+
+	return VIDEO_MARKDOWN_PATTERN.sub(replacer, content), pdfs, placeholder_prefix
+
+
+def _replace_pdf_placeholders(html: str, pdfs: list[dict], placeholder_prefix: str) -> str:
+	"""Replace PDF placeholders with block PDF card HTML."""
+	for idx, pdf in enumerate(pdfs):
+		placeholder = f"{placeholder_prefix}{idx}END"
+		pdf_html = _generate_pdf_html(pdf["url"], pdf["filename"])
+		html = html.replace(f"<p>{placeholder}</p>", pdf_html)
+		html = html.replace(placeholder, pdf_html)
 	return html
 
 
@@ -338,6 +429,8 @@ def _build_markdown() -> MarkdownIt:
 				f'<source src="{src}" />'
 				"</video></div>"
 			)
+		if _is_pdf_url(src):
+			return _generate_pdf_html(src, alt)
 		s = f'<img src="{src}" alt="{alt}"'
 		if title:
 			s += f' title="{title}"'
@@ -397,6 +490,7 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	processed_content = _escape_table_inline_code_pipes(processed_content)
 	processed_content, callouts, callout_prefix = _process_callouts_with_placeholders(processed_content)
 	processed_content, videos, video_prefix = _process_videos_with_placeholders(processed_content)
+	processed_content, pdfs, pdf_prefix = _process_pdfs_with_placeholders(processed_content)
 
 	env: dict = {}
 	tokens = md.parse(processed_content, env)
@@ -405,6 +499,7 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 
 	html = _replace_callout_placeholders(html, callouts, callout_prefix, md.render)
 	html = _replace_video_placeholders(html, videos, video_prefix)
+	html = _replace_pdf_placeholders(html, pdfs, pdf_prefix)
 
 	if _TABLE_CODE_PIPE_SENTINEL in html:
 		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
