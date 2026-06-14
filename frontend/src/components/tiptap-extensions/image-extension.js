@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import ImageNodeView from './ImageNodeView.vue';
+import { isPdfUrl } from './pdf-block.js';
 import { isVideoUrl } from './video-block.js';
 
 // Markdown image regex: ![alt](src "title")
@@ -52,7 +53,7 @@ const imageCaptionTokenizer = {
 
 		const [imageRaw, alt, hrefRaw, title] = imageMatch;
 		const href = (hrefRaw || '').trim();
-		if (isVideoUrl(href)) {
+		if (isVideoUrl(href) || isPdfUrl(href)) {
 			return undefined;
 		}
 		let caption = null;
