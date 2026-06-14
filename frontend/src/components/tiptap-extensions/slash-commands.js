@@ -123,6 +123,14 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'PDF',
+		description: 'Upload and embed a PDF document',
+		icon: 'file-text',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).selectAndUploadPdf().run();
+		},
+	},
+	{
 		title: 'Embed',
 		description:
 			'Embed YouTube, Vimeo, Loom, Google Docs, Cloudflare/Bunny Stream, and more',
