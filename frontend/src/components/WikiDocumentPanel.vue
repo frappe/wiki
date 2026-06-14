@@ -343,21 +343,11 @@ const pageSaveStatus = computed(() => {
 });
 const isSaving = computed(() => pageSaveStatus.value === 'saving');
 // Confirmed content the editor normalizes before handing both snapshots back
-// to the store. This is the *saved* baseline, so it deliberately mirrors
-// `editorContent` MINUS the `localContent` branch — it must never reflect the
-// editor's unsaved local snapshot. Pulling in `localContent` here couples
-// `savedContent` to the reconcile output it feeds, which forms an infinite
-// `watch(savedContent) → emitContentReady → reconcile → localContent →
-// editorContent → savedContent` loop whenever the editor's serialized content
-// differs from the normalized saved content (e.g. a PDF embed), freezing the tab.
+// to the store. Falls back to editorContent before an overlay entry exists.
 const savedContent = computed(() => {
-	if (activePage.value?.content != null) {
-		return activePage.value.content;
-	}
-	if (currentCrPage.value?.content != null) {
-		return currentCrPage.value.content;
-	}
-	return wikiDoc.value.doc?.content || '';
+	const stored = activePage.value?.content;
+	if (stored != null) return stored;
+	return editorContent.value;
 });
 
 const editorKey = computed(() => {

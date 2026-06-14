@@ -178,7 +178,15 @@ export const PdfBlock = Node.create({
 			return '';
 		}
 		const filename = node.attrs?.filename || '';
-		return `![${filename}](${src})\n\n`;
+		// No trailing "\n\n": the markdown serializer already inserts a blank-line
+		// block separator between block nodes. Appending our own here doubles the
+		// gap, and the PreserveBlankLines extension then re-parses the extra blanks
+		// into empty paragraphs that add *another* separator on the next
+		// serialize→parse cycle — so the gap between two consecutive embeds grows
+		// without bound. That non-idempotent round-trip drives the editor's
+		// content-reconcile loop forever and freezes the tab (see image-extension,
+		// which is idempotent precisely because it omits the trailing newlines).
+		return `![${filename}](${src})`;
 	},
 });
 
