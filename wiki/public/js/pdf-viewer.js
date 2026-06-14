@@ -10,8 +10,13 @@
  * are re-hydrated after SPA navigation swaps #wiki-content.
  */
 (function () {
-	const PDFJS_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.min.mjs';
-	const WORKER_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.worker.min.mjs';
+	// Vendored as `.js` (not `.mjs`) on purpose: nginx in Frappe production has no
+	// MIME mapping for `.mjs` and serves it as application/octet-stream, which the
+	// browser refuses to execute as a module (strict MIME checking). `.js` is
+	// reliably served as text/javascript, and dynamic import() keys off the MIME
+	// type, not the extension, so these still load as ES modules.
+	const PDFJS_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.min.js';
+	const WORKER_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.worker.min.js';
 
 	let pdfjsPromise = null;
 	const docCache = new Map();
