@@ -59,6 +59,12 @@ class WikiChangeRequest(Document):
 	pass
 
 
+def on_doctype_update():
+	# Draft lookup and change-request listings filter by (wiki_space, status);
+	# see _find_existing_draft and list_change_requests below.
+	frappe.db.add_index("Wiki Change Request", ["wiki_space", "status"])
+
+
 @frappe.whitelist()
 def get_change_request(name: str) -> dict[str, Any]:
 	cr = frappe.get_doc("Wiki Change Request", name)
