@@ -371,7 +371,11 @@ export const IframeBlock = Node.create({
 		if (attrs.allow) parts.push(`allow="${escapeAttr(attrs.allow)}"`);
 		parts.push(`frameborder="${escapeAttr(attrs.frameborder || '0')}"`);
 		if (attrs.allowfullscreen) parts.push('allowfullscreen');
-		return `<iframe ${parts.join(' ')}></iframe>\n\n`;
+		// No trailing "\n\n": the serializer already inserts a blank-line block
+		// separator, and doubling it makes the markdown round-trip grow blank
+		// lines without bound between consecutive embeds, which freezes the
+		// editor in an infinite reconcile loop. See pdf-block.js for details.
+		return `<iframe ${parts.join(' ')}></iframe>`;
 	},
 });
 
