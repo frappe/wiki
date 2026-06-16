@@ -702,12 +702,15 @@ def _bootstrap_main_revision(wiki_space: str) -> Document:
 	that a plain Wiki User can't create; run it as Administrator so a Read-tier
 	contributor can still raise the first Change Request on a brand-new space.
 	"""
+	# Caller has already verified the user can read the space (Phase 4 read gate).
+	# We only elevate to seed the very first revision, and always restore the
+	# original user in `finally`.
 	original_user = frappe.session.user
 	try:
-		frappe.set_user("Administrator")
+		frappe.set_user("Administrator")  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
 		return create_revision_from_live_tree(wiki_space, message="Initial main")
 	finally:
-		frappe.set_user(original_user)
+		frappe.set_user(original_user)  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
 
 
 @frappe.whitelist()

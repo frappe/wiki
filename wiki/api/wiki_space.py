@@ -12,7 +12,7 @@ def get_space_roles(space_id: str) -> list[dict]:
 
 
 @frappe.whitelist()
-def update_space_roles(space_id: str, roles) -> list[dict]:
+def update_space_roles(space_id: str, roles: list | str) -> list[dict]:
 	"""Replace a Wiki Space's access-control role rows.
 
 	Restricted to users who can write the space (managers, or Write-tier users
