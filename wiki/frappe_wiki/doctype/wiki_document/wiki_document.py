@@ -75,7 +75,6 @@ class WikiDocument(NestedSet):
 		content: DF.Code | None
 		doc_key: DF.Data | None
 		is_group: DF.Check
-		is_private: DF.Check
 		is_published: DF.Check
 		lft: DF.Int
 		old_parent: DF.Link | None
@@ -85,6 +84,7 @@ class WikiDocument(NestedSet):
 		slug: DF.Data | None
 		sort_order: DF.Int
 		title: DF.Data
+		wiki_space: DF.Link | None
 	# end: auto-generated types
 
 	def validate(self):
@@ -235,16 +235,27 @@ class WikiDocument(NestedSet):
 			return ""
 		return f"/wiki/spaces/{wiki_space.name}/page/{self.name}"
 
+	def check_space_access(self, ptype="read", user=None):
+		"""Gate content access by the owning Wiki Space's role configuration.
+
+		On failure we raise a 404 (DoesNotExistError) rather than PermissionError
+		so we don't leak the existence of restricted pages to unauthorized users
+		(especially anonymous Guests).
+		"""
+		from wiki.permissions import can_read_space, can_write_space
+
+		space = self.wiki_space or (self.get_wiki_space() or {}).get("name")
+		if not space:
+			# Orphan documents stay readable by all (preserves chromeless pages).
+			return
+
+		allowed = can_write_space(space, user) if ptype == "write" else can_read_space(space, user)
+		if not allowed:
+			frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
 	def check_guest_access(self):
-		"""
-		Check if the current user has permission to view this document.
-		Raises PermissionError if access is denied.
-		"""
-		if self.is_private and frappe.session.user == "Guest":
-			frappe.throw(
-				frappe._("You must be logged in to view this page"),
-				frappe.PermissionError,
-			)
+		"""Backwards-compatible alias: gate read access via the space's role config."""
+		self.check_space_access("read")
 
 	def check_published(self):
 		if not self.is_published:
@@ -318,7 +329,7 @@ class WikiDocument(NestedSet):
 
 	def get_web_context(self) -> dict:
 		"""Get all context needed to render this Wiki Document."""
-		self.check_guest_access()
+		self.check_space_access("read")
 		self.check_published()
 		wiki_space = self.get_wiki_space()
 
@@ -473,7 +484,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		# Return plain markdown for AI agents and other markdown-aware clients
 		accept = frappe.request.headers.get("Accept", "")
 		if "text/markdown" in accept:
-			doc.check_guest_access()
+			doc.check_space_access("read")
 			doc.check_published()
 			response = Response()
 			response.data = doc.content or ""
@@ -594,10 +605,10 @@ def download_pdf(route: str):
 		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
 
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
-	doc.check_guest_access()
+	doc.check_space_access("read")
 	doc.check_published()
 
-	# Guests can't print by default; we've already authorized them above via check_guest_access.
+	# Guests can't print by default; we've already authorized them above via check_space_access.
 	frappe.local.flags.ignore_print_permissions = True
 	try:
 		pdf_file = get_print(
@@ -617,8 +628,34 @@ def download_pdf(route: str):
 
 
 def on_wiki_document_update(doc, method):
-	"""Sync desk edits to the revision system so CRs stay aligned with the live tree."""
+	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
+	stamp_wiki_space(doc)
 	_sync_document_to_revision(doc)
+
+
+def stamp_wiki_space(doc):
+	"""Denormalize the owning Wiki Space onto a single document.
+
+	Covers normal desk edits, clones, and merge-created documents (all of which
+	insert/save and trigger on_update). Reorders use raw db.set_value and are
+	re-stamped separately via stamp_wiki_space_subtree.
+	"""
+	from wiki.api.wiki_space import _get_wiki_space_for_document
+
+	space_name = _get_wiki_space_for_document(doc.name)
+	if doc.get("wiki_space") != space_name:
+		frappe.db.set_value("Wiki Document", doc.name, "wiki_space", space_name, update_modified=False)
+
+
+def stamp_wiki_space_subtree(root_doc_name):
+	"""Re-stamp wiki_space on a document and all its descendants (after a move)."""
+	from wiki.api.wiki_space import _get_wiki_space_for_document
+
+	space_name = _get_wiki_space_for_document(root_doc_name)
+	names = [root_doc_name, *get_descendants_of("Wiki Document", root_doc_name, ignore_permissions=True)]
+	for name in names:
+		frappe.db.set_value("Wiki Document", name, "wiki_space", space_name, update_modified=False)
+	return space_name
 
 
 def on_wiki_document_trash(doc, method):

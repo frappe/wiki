@@ -157,6 +157,56 @@
                             {{ __('Clone') }}
                         </Button>
                     </div>
+                    <div class="p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
+                        <p class="text-sm font-medium text-ink-gray-9">
+                            {{ __('Access Control') }}
+                        </p>
+                        <p class="text-xs text-ink-gray-5 mt-0.5">
+                            {{ __('Leave empty for open access to all logged-in users. Add the Guest role for public/anonymous access.') }}
+                        </p>
+                        <div class="mt-3 space-y-2">
+                            <div
+                                v-for="(row, idx) in roleRows"
+                                :key="idx"
+                                class="flex items-center gap-2"
+                            >
+                                <span class="flex-1 text-sm text-ink-gray-8">{{ row.role }}</span>
+                                <Badge size="sm" :theme="row.permission_level === 'Write' ? 'green' : 'gray'">
+                                    {{ row.permission_level }}
+                                </Badge>
+                                <Button variant="ghost" size="sm" icon="x" @click="removeRole(idx)" />
+                            </div>
+                            <p v-if="!roleRows.length" class="text-xs text-ink-gray-5">
+                                {{ __('No roles configured (open to all logged-in users).') }}
+                            </p>
+                        </div>
+                        <div class="mt-3 flex items-end gap-2">
+                            <FormControl
+                                class="flex-1"
+                                type="select"
+                                :label="__('Role')"
+                                :options="roleOptions"
+                                v-model="newRole.role"
+                            />
+                            <FormControl
+                                type="select"
+                                :label="__('Access')"
+                                :options="['Read', 'Write']"
+                                v-model="newRole.permission_level"
+                            />
+                            <Button variant="subtle" @click="addRole">{{ __('Add') }}</Button>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <Button
+                                variant="solid"
+                                size="sm"
+                                :loading="savingRoles"
+                                @click="saveRoles"
+                            >
+                                {{ __('Save Roles') }}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </template>
             <template #actions="{ close }">
@@ -238,14 +288,17 @@
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useUserStore } from '@/stores/user';
 import {
+	Badge,
 	Button,
 	Dialog,
 	FormControl,
 	Switch,
 	createDocumentResource,
+	createListResource,
+	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
@@ -310,16 +363,72 @@ const space = createDocumentResource({
 	},
 });
 
+// --- Access control (roles) editor ---
+const roleRows = ref([]);
+const newRole = reactive({ role: '', permission_level: 'Read' });
+
 watch(
 	() => space.doc,
 	(doc) => {
 		if (doc) {
 			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
 			isPublished.value = Boolean(doc.is_published);
+			roleRows.value = (doc.roles || []).map((row) => ({
+				role: row.role,
+				permission_level: row.permission_level,
+			}));
 		}
 	},
 	{ immediate: true },
 );
+const savingRoles = ref(false);
+
+const allRoles = createListResource({
+	doctype: 'Role',
+	fields: ['name'],
+	filters: [['disabled', '=', 0]],
+	pageLength: 0,
+	auto: true,
+});
+const roleOptions = computed(() => (allRoles.data || []).map((r) => r.name).sort());
+
+function addRole() {
+	if (!newRole.role) return;
+	if (roleRows.value.some((r) => r.role === newRole.role)) {
+		// Upgrade the existing row's level instead of duplicating it.
+		roleRows.value = roleRows.value.map((r) =>
+			r.role === newRole.role ? { ...r, permission_level: newRole.permission_level } : r,
+		);
+	} else {
+		roleRows.value.push({ role: newRole.role, permission_level: newRole.permission_level });
+	}
+	newRole.role = '';
+	newRole.permission_level = 'Read';
+}
+
+function removeRole(idx) {
+	roleRows.value.splice(idx, 1);
+}
+
+const updateRolesResource = createResource({
+	url: 'wiki.api.wiki_space.update_space_roles',
+});
+
+async function saveRoles() {
+	savingRoles.value = true;
+	try {
+		await updateRolesResource.submit({
+			space_id: props.spaceId,
+			roles: roleRows.value,
+		});
+		await space.reload();
+		toast.success(__('Access control updated'));
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Failed to update access control'));
+	} finally {
+		savingRoles.value = false;
+	}
+}
 
 async function updateFeedbackSetting(value) {
 	updatingFeedbackSetting.value = true;

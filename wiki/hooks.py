@@ -88,13 +88,17 @@ after_install = "wiki.install.after_install"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Wiki Space": "wiki.permissions.wiki_space_query_conditions",
+	"Wiki Document": "wiki.permissions.wiki_document_query_conditions",
+	"Wiki Change Request": "wiki.permissions.wiki_cr_query_conditions",
+}
+
+has_permission = {
+	"Wiki Space": "wiki.permissions.wiki_space_has_permission",
+	"Wiki Document": "wiki.permissions.wiki_document_has_permission",
+	"Wiki Change Request": "wiki.permissions.wiki_cr_has_permission",
+}
 
 # DocType Class
 # ---------------

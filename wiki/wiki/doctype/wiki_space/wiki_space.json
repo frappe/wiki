@@ -26,6 +26,9 @@
   "dark_mode_logo",
   "section_break_fhui",
   "navbar_items",
+  "access_control_tab",
+  "access_control_section",
+  "roles",
   "version_3_tab",
   "root_group",
   "main_revision"
@@ -103,6 +106,22 @@
   {
    "fieldname": "section_break_z5nn",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "access_control_tab",
+   "fieldtype": "Tab Break",
+   "label": "Access Control"
+  },
+  {
+   "fieldname": "access_control_section",
+   "fieldtype": "Section Break",
+   "description": "Leave empty for open access to all logged-in users. Add the <b>Guest</b> role for public/anonymous access."
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "options": "Wiki Space Role"
   },
   {
    "fieldname": "version_3_tab",
