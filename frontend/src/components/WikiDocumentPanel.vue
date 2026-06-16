@@ -13,7 +13,6 @@
 								@blur="saveTitleIfChanged"
 								@keydown.enter="$event.target.blur()"
 							/>
-							<LucideLock v-if="wikiDoc.doc.is_private" class="size-4 text-ink-gray-5 shrink-0" :title="__('Private')" />
 						</div>
 						<div
 							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
@@ -150,7 +149,6 @@ import {
 } from 'frappe-ui';
 import { computed, ref, shallowRef, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
-import LucideLock from '~icons/lucide/lock';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucidePencil from '~icons/lucide/pencil';
 import WikiEditor from './WikiEditor.vue';

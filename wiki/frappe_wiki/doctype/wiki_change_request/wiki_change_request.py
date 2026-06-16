@@ -77,6 +77,17 @@ def _is_manager_or_approver(user: str | None = None) -> bool:
 	return bool(roles.intersection({"Wiki Manager", "Wiki Approver", "System Manager"}))
 
 
+def _can_merge(wiki_space: str | None, user: str | None = None) -> bool:
+	"""Whether the current user may merge Change Requests into this space.
+
+	Managers always can; otherwise the user needs Write-level access on the
+	owning Wiki Space (an open space falls back to the global Wiki Approver).
+	"""
+	from wiki.permissions import can_write_space
+
+	return can_write_space(wiki_space, user)
+
+
 def touch_change_request(name: str) -> None:
 	frappe.db.set_value(
 		"Wiki Change Request",
@@ -395,6 +406,11 @@ def has_revision_changes(base_revision: str | None, head_revision: str | None) -
 
 @frappe.whitelist()
 def get_or_create_draft_change_request(wiki_space: str, title: str | None = None) -> dict[str, Any]:
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(wiki_space):
+		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
 	cr = _find_existing_draft(wiki_space)
 	if cr:
 		if _is_stale_empty_draft(cr, wiki_space):
@@ -650,10 +666,16 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 @frappe.whitelist()
 def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(wiki_space):
+		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
-		space.check_permission("write")
-		main_revision = create_revision_from_live_tree(wiki_space, message="Initial main")
+		# Seed the first revision with elevated privileges so a Read-tier
+		# contributor (allowed to raise CRs) can bootstrap a fresh space.
+		main_revision = _bootstrap_main_revision(wiki_space)
 		frappe.db.set_value("Wiki Space", wiki_space, "main_revision", main_revision.name)
 		space.main_revision = main_revision.name
 
@@ -671,6 +693,21 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", cr.name)
 	return cr
+
+
+def _bootstrap_main_revision(wiki_space: str) -> Document:
+	"""Create a fresh space's initial main revision with manager privileges.
+
+	The revision-creation path inserts Wiki Revision / Wiki Revision Item docs
+	that a plain Wiki User can't create; run it as Administrator so a Read-tier
+	contributor can still raise the first Change Request on a brand-new space.
+	"""
+	original_user = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		return create_revision_from_live_tree(wiki_space, message="Initial main")
+	finally:
+		frappe.set_user(original_user)
 
 
 @frappe.whitelist()
@@ -1109,10 +1146,13 @@ def review_action(name: str, reviewer: str, status: str, comment: str | None = N
 
 @frappe.whitelist()
 def merge_change_request(name: str) -> str:
-	if not _is_manager_or_approver():
-		frappe.throw(_("Only Wiki Managers or Approvers can merge change requests."), frappe.PermissionError)
-
 	cr = frappe.get_doc("Wiki Change Request", name)
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to merge change requests in this space."),
+			frappe.PermissionError,
+		)
+
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
 
 	if cr.base_revision == space.main_revision:
@@ -1123,8 +1163,12 @@ def merge_change_request(name: str) -> str:
 @frappe.whitelist()
 def get_merge_conflicts(name: str) -> list[dict[str, Any]]:
 	"""Return open merge conflicts for a change request."""
-	if not _is_manager_or_approver():
-		frappe.throw(_("Only Wiki Managers or Approvers can view merge conflicts."), frappe.PermissionError)
+	cr_space = frappe.db.get_value("Wiki Change Request", name, "wiki_space")
+	if not _can_merge(cr_space):
+		frappe.throw(
+			_("You do not have permission to view merge conflicts in this space."),
+			frappe.PermissionError,
+		)
 
 	conflicts = frappe.get_all(
 		"Wiki Merge Conflict",
@@ -1158,9 +1202,6 @@ def get_merge_conflicts(name: str) -> list[dict[str, Any]]:
 @frappe.whitelist()
 def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 	"""Resolve a single merge conflict by choosing 'ours' or 'theirs'."""
-	if not _is_manager_or_approver():
-		frappe.throw(_("Only Wiki Managers or Approvers can resolve conflicts."), frappe.PermissionError)
-
 	if resolution not in ("ours", "theirs"):
 		frappe.throw(_("Resolution must be 'ours' or 'theirs'."), frappe.ValidationError)
 
@@ -1168,6 +1209,12 @@ def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 
 	# Validate the parent change request is in an allowed state
 	cr = frappe.get_doc("Wiki Change Request", conflict.change_request)
+
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to resolve conflicts in this space."),
+			frappe.PermissionError,
+		)
 	if cr.status in ("Merged", "Archived"):
 		frappe.throw(_("Cannot resolve conflicts for a finalized Change Request."), frappe.ValidationError)
 
@@ -1189,10 +1236,13 @@ def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 @frappe.whitelist()
 def retry_merge_after_resolution(name: str) -> str:
 	"""Retry a merge after all conflicts have been resolved."""
-	if not _is_manager_or_approver():
-		frappe.throw(_("Only Wiki Managers or Approvers can merge."), frappe.PermissionError)
-
 	cr = frappe.get_doc("Wiki Change Request", name)
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to merge in this space."),
+			frappe.PermissionError,
+		)
+
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
 
 	# Verify all conflicts are resolved

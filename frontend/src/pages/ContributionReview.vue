@@ -274,7 +274,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
@@ -360,11 +360,28 @@ const withdrawResource = createResource({
 
 const userStore = useUserStore();
 const crStore = useChangeRequestStore();
-const isManager = computed(() => userStore.isWikiManager);
 const isOwner = computed(() => changeRequest.doc?.owner === userStore.data?.name);
 
+// Merge ability is governed per-space by the role config (managers always qualify).
+// Enforcement stays server-side; this only controls whether the Merge UI shows.
+const capabilities = ref({ can_read: false, can_write: false });
+const capabilitiesResource = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		capabilities.value = data;
+	},
+});
+
+watch(
+	() => changeRequest.doc?.wiki_space,
+	(space) => {
+		if (space) capabilitiesResource.submit({ space });
+	},
+	{ immediate: true },
+);
+
 const canReview = computed(() => {
-	return isManager.value && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
+	return capabilities.value.can_write && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
 });
 
 const canWithdraw = computed(() => {

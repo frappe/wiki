@@ -7,6 +7,21 @@ CONVERTIBLE_IMAGE_EXTENSIONS = (".png", ".jpeg", ".jpg")
 
 
 @frappe.whitelist()
+def get_space_capabilities(space: str) -> dict:
+	"""Return the current user's read/write capabilities for a Wiki Space.
+
+	Used by the SPA to show/hide the Merge action. Enforcement always remains
+	server-side in the permission hooks and Change Request controller.
+	"""
+	from wiki.permissions import can_read_space, can_write_space
+
+	return {
+		"can_read": can_read_space(space),
+		"can_write": can_write_space(space),
+	}
+
+
+@frappe.whitelist()
 def get_user_info() -> dict:
 	"""Get basic information about the logged-in user."""
 	if frappe.session.user == "Guest":
