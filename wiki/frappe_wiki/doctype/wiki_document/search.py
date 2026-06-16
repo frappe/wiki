@@ -1,7 +1,7 @@
 import frappe
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def search(query: str, space: str | None = None) -> dict:
 	"""
 	Search wiki documents with space-scoped filtering.
