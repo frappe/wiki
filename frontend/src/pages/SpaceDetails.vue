@@ -64,7 +64,7 @@
             </div>
 
             <div
-                class="absolute top-0 right-0 w-1 h-full cursor-col-resize z-10"
+                class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
                 :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
                 @mousedown="startResize"
             />
@@ -85,139 +85,15 @@
             </div>
         </main>
 
-        <Dialog v-model="showSettingsDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
-                    {{ __('Space Settings') }}
-                </h3>
-            </template>
-            <template #body-content>
-                <div class="space-y-4 py-2">
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Published') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Make this wiki space publicly accessible') }}
-                            </p>
-                        </div>
-                        <Switch
-                            v-model="isPublished"
-                            :disabled="updatingPublishSetting"
-                            @update:modelValue="updatePublishSetting"
-                        />
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Enable Feedback Collection') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Show a feedback widget on wiki pages to collect user reactions') }}
-                            </p>
-                        </div>
-                        <Switch
-                            v-model="enableFeedbackCollection"
-                            :disabled="updatingFeedbackSetting"
-                            @update:modelValue="updateFeedbackSetting"
-                        />
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Bulk Update Routes') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Change the base route for this space and all its pages') }}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            @click="openUpdateRoutesDialog"
-                        >
-                            {{ __('Update') }}
-                        </Button>
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Clone Space') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Create a new space with the same structure') }}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            @click="openCloneSpaceDialog"
-                        >
-                            {{ __('Clone') }}
-                        </Button>
-                    </div>
-                    <div class="p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <p class="text-sm font-medium text-ink-gray-9">
-                            {{ __('Access Control') }}
-                        </p>
-                        <p class="text-xs text-ink-gray-5 mt-0.5">
-                            {{ __('Leave empty for open access to all logged-in users. Add the Guest role for public/anonymous access.') }}
-                        </p>
-                        <div class="mt-3 space-y-2">
-                            <div
-                                v-for="(row, idx) in roleRows"
-                                :key="idx"
-                                class="flex items-center gap-2"
-                            >
-                                <span class="flex-1 text-sm text-ink-gray-8">{{ row.role }}</span>
-                                <Badge size="sm" :theme="row.permission_level === 'Write' ? 'green' : 'gray'">
-                                    {{ row.permission_level }}
-                                </Badge>
-                                <Button v-if="canManageAccess" variant="ghost" size="sm" icon="x" @click="removeRole(idx)" />
-                            </div>
-                            <p v-if="!roleRows.length" class="text-xs text-ink-gray-5">
-                                {{ __('No roles configured (open to all logged-in users).') }}
-                            </p>
-                        </div>
-                        <template v-if="canManageAccess">
-                            <div class="mt-3 flex items-end gap-2">
-                                <FormControl
-                                    class="flex-1"
-                                    type="select"
-                                    :label="__('Role')"
-                                    :options="roleOptions"
-                                    v-model="newRole.role"
-                                />
-                                <FormControl
-                                    type="select"
-                                    :label="__('Access')"
-                                    :options="['Read', 'Write']"
-                                    v-model="newRole.permission_level"
-                                />
-                                <Button variant="subtle" @click="addRole">{{ __('Add') }}</Button>
-                            </div>
-                            <div class="mt-3 flex justify-end">
-                                <Button
-                                    variant="solid"
-                                    size="sm"
-                                    :loading="savingRoles"
-                                    @click="saveRoles"
-                                >
-                                    {{ __('Save Roles') }}
-                                </Button>
-                            </div>
-                        </template>
-                        <p v-else class="mt-3 text-xs text-ink-gray-5">
-                            {{ __('Only space admins can change access control.') }}
-                        </p>
-                    </div>
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end">
-                    <Button variant="outline" @click="close">{{ __('Close') }}</Button>
-                </div>
+        <Dialog v-model="showSettingsDialog" :options="{ size: '4xl' }">
+            <template #body>
+                <SpaceSettings
+                    :space="space"
+                    :space-id="spaceId"
+                    @close="showSettingsDialog = false"
+                    @open-update-routes="openUpdateRoutesDialog"
+                    @open-clone="openCloneSpaceDialog"
+                />
             </template>
         </Dialog>
 
@@ -293,19 +169,16 @@
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useUserStore } from '@/stores/user';
 import {
-	Badge,
 	Button,
 	Dialog,
 	FormControl,
-	Switch,
 	createDocumentResource,
-	createListResource,
-	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -344,12 +217,6 @@ const updatingRoutes = ref(false);
 const cloneRoute = ref('');
 const cloningSpace = ref(false);
 
-const enableFeedbackCollection = ref(false);
-const updatingFeedbackSetting = ref(false);
-
-const isPublished = ref(true);
-const updatingPublishSetting = ref(false);
-
 const sidebarRef = ref(null);
 const { sidebarWidth, sidebarResizing, startResize } =
 	useSidebarResize(sidebarRef);
@@ -367,112 +234,6 @@ const space = createDocumentResource({
 		cloneWikiSpace: 'clone_wiki_space_in_background',
 	},
 });
-
-// --- Access control (roles) editor ---
-const roleRows = ref([]);
-const newRole = reactive({ role: '', permission_level: 'Read' });
-
-// Only users who can write the space may edit its access control (mirrors the
-// server-side check in update_space_roles). Read-tier users see it read-only.
-const canManageAccess = ref(false);
-const spaceCapabilities = createResource({
-	url: 'wiki.api.get_space_capabilities',
-	onSuccess: (data) => {
-		canManageAccess.value = Boolean(data?.can_write);
-	},
-});
-
-watch(
-	() => space.doc,
-	(doc) => {
-		if (doc) {
-			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
-			isPublished.value = Boolean(doc.is_published);
-			roleRows.value = (doc.roles || []).map((row) => ({
-				role: row.role,
-				permission_level: row.permission_level,
-			}));
-			spaceCapabilities.submit({ space: props.spaceId });
-		}
-	},
-	{ immediate: true },
-);
-const savingRoles = ref(false);
-
-const allRoles = createListResource({
-	doctype: 'Role',
-	fields: ['name'],
-	filters: [['disabled', '=', 0]],
-	pageLength: 0,
-	auto: true,
-});
-const roleOptions = computed(() => (allRoles.data || []).map((r) => r.name).sort());
-
-function addRole() {
-	if (!newRole.role) return;
-	if (roleRows.value.some((r) => r.role === newRole.role)) {
-		// Upgrade the existing row's level instead of duplicating it.
-		roleRows.value = roleRows.value.map((r) =>
-			r.role === newRole.role ? { ...r, permission_level: newRole.permission_level } : r,
-		);
-	} else {
-		roleRows.value.push({ role: newRole.role, permission_level: newRole.permission_level });
-	}
-	newRole.role = '';
-	newRole.permission_level = 'Read';
-}
-
-function removeRole(idx) {
-	roleRows.value.splice(idx, 1);
-}
-
-const updateRolesResource = createResource({
-	url: 'wiki.api.wiki_space.update_space_roles',
-});
-
-async function saveRoles() {
-	savingRoles.value = true;
-	try {
-		await updateRolesResource.submit({
-			space_id: props.spaceId,
-			roles: roleRows.value,
-		});
-		await space.reload();
-		toast.success(__('Access control updated'));
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Failed to update access control'));
-	} finally {
-		savingRoles.value = false;
-	}
-}
-
-async function updateFeedbackSetting(value) {
-	updatingFeedbackSetting.value = true;
-	try {
-		await space.setValue.submit({
-			enable_feedback_collection: value ? 1 : 0,
-		});
-	} catch (error) {
-		console.error('Failed to update feedback setting:', error);
-		enableFeedbackCollection.value = !value;
-	} finally {
-		updatingFeedbackSetting.value = false;
-	}
-}
-
-async function updatePublishSetting(value) {
-	updatingPublishSetting.value = true;
-	try {
-		await space.setValue.submit({
-			is_published: value ? 1 : 0,
-		});
-	} catch (error) {
-		console.error('Failed to update publish setting:', error);
-		isPublished.value = !value;
-	} finally {
-		updatingPublishSetting.value = false;
-	}
-}
 
 function openUpdateRoutesDialog() {
 	newRoute.value = space.doc?.route || '';
