@@ -8,12 +8,14 @@ A space with no role rows still means "open to all logged-in users" in the
 backend (kept as a safety fallback), but we now seed explicit rows so the
 Permissions table reflects reality:
 
-  - published space   -> ``Guest`` Read (public) + ``All`` Read (logged-in)
+  - published space   -> ``Guest`` Read (public)
   - unpublished space -> ``All`` Read (logged-in only)
 
-``Guest`` alone is not enough for a public space: ``frappe.get_roles()`` never
-returns ``Guest`` for a logged-in user, so a Guest-only read list would lock
-them out -- hence the paired ``All`` row. Managers (``System Manager`` /
+``frappe.get_roles()`` returns ``Guest`` for every user -- anonymous *and*
+logged-in -- so a ``Guest`` Read row makes a space readable by everyone; only
+the anonymous Guest user lacks the ``All`` role, so ``All`` Read means
+"logged-in only". This matches the convention seeded by the earlier
+``backfill_space_access`` patch. Managers (``System Manager`` /
 ``Wiki Manager``) bypass these rows entirely, so no manager row is seeded.
 
 Spaces that already have role rows -- admin-configured or seeded by the earlier
@@ -31,9 +33,8 @@ def execute():
 		if frappe.db.exists("Wiki Space Role", {"parent": space.name, "parenttype": "Wiki Space"}):
 			continue
 
-		roles = ["Guest", "All"] if space.is_published else ["All"]
-		for idx, role in enumerate(roles, start=1):
-			_add_read_role(space.name, role, idx)
+		role = "Guest" if space.is_published else "All"
+		_add_read_role(space.name, role, 1)
 
 	frappe.db.commit()
 
