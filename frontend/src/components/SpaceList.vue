@@ -225,6 +225,13 @@ const handleCreateSpace = () => {
   return spaces.insert.submit({
     space_name: newSpace.space_name,
     route: newSpace.route,
+    // New spaces are published by default, so start them as public read
+    // (Guest) + logged-in read (All); admins can refine this in
+    // Space Settings → Permissions.
+    roles: [
+      { role: "Guest", permission_level: "Read" },
+      { role: "All", permission_level: "Read" },
+    ],
   });
 };
 </script>
