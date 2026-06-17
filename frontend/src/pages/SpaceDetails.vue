@@ -174,38 +174,43 @@
                                 <Badge size="sm" :theme="row.permission_level === 'Write' ? 'green' : 'gray'">
                                     {{ row.permission_level }}
                                 </Badge>
-                                <Button variant="ghost" size="sm" icon="x" @click="removeRole(idx)" />
+                                <Button v-if="canManageAccess" variant="ghost" size="sm" icon="x" @click="removeRole(idx)" />
                             </div>
                             <p v-if="!roleRows.length" class="text-xs text-ink-gray-5">
                                 {{ __('No roles configured (open to all logged-in users).') }}
                             </p>
                         </div>
-                        <div class="mt-3 flex items-end gap-2">
-                            <FormControl
-                                class="flex-1"
-                                type="select"
-                                :label="__('Role')"
-                                :options="roleOptions"
-                                v-model="newRole.role"
-                            />
-                            <FormControl
-                                type="select"
-                                :label="__('Access')"
-                                :options="['Read', 'Write']"
-                                v-model="newRole.permission_level"
-                            />
-                            <Button variant="subtle" @click="addRole">{{ __('Add') }}</Button>
-                        </div>
-                        <div class="mt-3 flex justify-end">
-                            <Button
-                                variant="solid"
-                                size="sm"
-                                :loading="savingRoles"
-                                @click="saveRoles"
-                            >
-                                {{ __('Save Roles') }}
-                            </Button>
-                        </div>
+                        <template v-if="canManageAccess">
+                            <div class="mt-3 flex items-end gap-2">
+                                <FormControl
+                                    class="flex-1"
+                                    type="select"
+                                    :label="__('Role')"
+                                    :options="roleOptions"
+                                    v-model="newRole.role"
+                                />
+                                <FormControl
+                                    type="select"
+                                    :label="__('Access')"
+                                    :options="['Read', 'Write']"
+                                    v-model="newRole.permission_level"
+                                />
+                                <Button variant="subtle" @click="addRole">{{ __('Add') }}</Button>
+                            </div>
+                            <div class="mt-3 flex justify-end">
+                                <Button
+                                    variant="solid"
+                                    size="sm"
+                                    :loading="savingRoles"
+                                    @click="saveRoles"
+                                >
+                                    {{ __('Save Roles') }}
+                                </Button>
+                            </div>
+                        </template>
+                        <p v-else class="mt-3 text-xs text-ink-gray-5">
+                            {{ __('Only space admins can change access control.') }}
+                        </p>
                     </div>
                 </div>
             </template>
@@ -367,6 +372,16 @@ const space = createDocumentResource({
 const roleRows = ref([]);
 const newRole = reactive({ role: '', permission_level: 'Read' });
 
+// Only users who can write the space may edit its access control (mirrors the
+// server-side check in update_space_roles). Read-tier users see it read-only.
+const canManageAccess = ref(false);
+const spaceCapabilities = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		canManageAccess.value = Boolean(data?.can_write);
+	},
+});
+
 watch(
 	() => space.doc,
 	(doc) => {
@@ -377,6 +392,7 @@ watch(
 				role: row.role,
 				permission_level: row.permission_level,
 			}));
+			spaceCapabilities.submit({ space: props.spaceId });
 		}
 	},
 	{ immediate: true },
