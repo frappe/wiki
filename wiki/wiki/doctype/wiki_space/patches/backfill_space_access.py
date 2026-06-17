@@ -37,14 +37,12 @@ def execute():
 			continue
 
 		# 1. Denormalize wiki_space across the whole subtree.
-		frappe.db.sql(
-			"""
-			UPDATE `tabWiki Document`
-			SET wiki_space = %(space)s
-			WHERE lft >= %(lft)s AND rgt <= %(rgt)s
-			""",
-			{"space": space.name, "lft": bounds.lft, "rgt": bounds.rgt},
-		)
+		wiki_document = frappe.qb.DocType("Wiki Document")
+		(
+			frappe.qb.update(wiki_document)
+			.set(wiki_document.wiki_space, space.name)
+			.where((wiki_document.lft >= bounds.lft) & (wiki_document.rgt <= bounds.rgt))
+		).run()
 
 		# 2. Guest-flag migration — only seed spaces an admin hasn't configured.
 		if not has_is_private:
