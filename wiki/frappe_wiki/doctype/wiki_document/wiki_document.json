@@ -12,7 +12,7 @@
 		"doc_key",
 		"column_break_sfff",
 		"is_published",
-		"is_private",
+		"wiki_space",
 		"is_external_link",
 		"external_url",
 		"section_break_eooe",
@@ -126,10 +126,13 @@
 			"fieldtype": "Section Break"
 		},
 		{
-			"default": "0",
-			"fieldname": "is_private",
-			"fieldtype": "Check",
-			"label": "Is Private?"
+			"fieldname": "wiki_space",
+			"fieldtype": "Link",
+			"label": "Wiki Space",
+			"options": "Wiki Space",
+			"read_only": 1,
+			"no_copy": 1,
+			"search_index": 1
 		},
 		{
 			"default": "0",

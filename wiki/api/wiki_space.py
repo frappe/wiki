@@ -4,6 +4,40 @@ from frappe.utils.nestedset import get_descendants_of
 
 
 @frappe.whitelist()
+def get_space_roles(space_id: str) -> list[dict]:
+	"""Return the configured access-control role rows for a Wiki Space."""
+	space = frappe.get_cached_doc("Wiki Space", space_id)
+	space.check_permission("read")
+	return [{"role": row.role, "permission_level": row.permission_level} for row in space.roles]
+
+
+@frappe.whitelist()
+def update_space_roles(space_id: str, roles: list | str) -> list[dict]:
+	"""Replace a Wiki Space's access-control role rows.
+
+	Restricted to users who can write the space (managers, or Write-tier users
+	of a configured space).
+	"""
+	if isinstance(roles, str):
+		roles = frappe.parse_json(roles)
+
+	space = frappe.get_doc("Wiki Space", space_id)
+	space.check_permission("write")
+
+	space.set("roles", [])
+	for row in roles or []:
+		role = (row.get("role") or "").strip()
+		if not role:
+			continue
+		space.append(
+			"roles",
+			{"role": role, "permission_level": row.get("permission_level") or "Read"},
+		)
+	space.save()
+	return [{"role": row.role, "permission_level": row.permission_level} for row in space.roles]
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)
@@ -97,6 +131,12 @@ def reorder_wiki_documents(
 		# For simple reorders, sort_order is sufficient
 		if parent_changed:
 			rebuild_wiki_tree()
+			# A move can change the owning space; re-stamp the moved subtree.
+			from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+				stamp_wiki_space_subtree,
+			)
+
+			stamp_wiki_space_subtree(doc_name)
 	finally:
 		frappe.flags.in_reorder_wiki_documents = False
 
