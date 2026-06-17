@@ -696,21 +696,15 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 
 def _bootstrap_main_revision(wiki_space: str) -> Document:
-	"""Create a fresh space's initial main revision with manager privileges.
+	"""Create a fresh space's initial main revision with elevated privileges.
 
 	The revision-creation path inserts Wiki Revision / Wiki Revision Item docs
-	that a plain Wiki User can't create; run it as Administrator so a Read-tier
-	contributor can still raise the first Change Request on a brand-new space.
+	that a plain Wiki User can't create. The caller has already verified the
+	user can *read* the space (Phase 4 read gate), so we seed the first revision
+	with `ignore_permissions` — keeping the real `created_by` and the current
+	session intact (no `set_user`).
 	"""
-	# Caller has already verified the user can read the space (Phase 4 read gate).
-	# We only elevate to seed the very first revision, and always restore the
-	# original user in `finally`.
-	original_user = frappe.session.user
-	try:
-		frappe.set_user("Administrator")  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
-		return create_revision_from_live_tree(wiki_space, message="Initial main")
-	finally:
-		frappe.set_user(original_user)  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
+	return create_revision_from_live_tree(wiki_space, message="Initial main", ignore_permissions=True)
 
 
 @frappe.whitelist()
