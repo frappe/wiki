@@ -90,6 +90,7 @@ Settled semantics:
 1. **Space list/switcher** — auto-filtered, **no change**.
 2. **Roles editor** — surface the `roles` table in the space settings view (Desk form works automatically; SPA gets a small grid on the Wiki Space doc resource). Remove any page-level `is_private` toggle.
    - *As-built:* the SPA grid lives in the **Space Settings** dialog in `SpaceDetails.vue` (add/remove rows; role picker from a `Role` list resource; Read/Write select). It saves via two new whitelisted methods in `wiki/api/wiki_space.py`: `get_space_roles(space_id)` and `update_space_roles(space_id, roles)` — the latter `check_permission("write")`s the space (so only managers / Write-tier users edit access). Client `set_value` is **not** used (unreliable for child tables). The page-level Private toggle (`WikiDocumentSettings.vue`) and the lock icon (`WikiDocumentPanel.vue`) were removed.
+   - *Polish:* the editor controls (Add/Remove/Save) are gated client-side behind `get_space_capabilities.can_write` (`canManageAccess`), so a Read-tier user who opens Space Settings sees the configured rows **read-only** with an "Only space admins can change access control." hint instead of controls that would 403 on save. Enforcement stays server-side in `update_space_roles`.
 3. **Merge button UX** — add `wiki.api.get_space_capabilities(space)` → `{can_read, can_write}` (thin wrapper over the helpers); disable/hide Merge in `ContributionReview.vue` when `!can_write`. Enforcement stays server-side.
    - *As-built:* `canReview` in `ContributionReview.vue` now derives from `capabilities.can_write` (fetched via a `watch` on `changeRequest.doc.wiki_space`), replacing the old `isManager` check — so space Write-tier users get the Merge UI too, while managers still qualify (`can_write_space` returns True for them).
 
@@ -138,7 +139,7 @@ Verified phase-by-phase on **wiki.localhost** via a temporary `bench execute` ha
 
 **Migration (`bench migrate`):** patch stamped 7001 docs, left 48 orphans `NULL`, added 349 `Guest`-Read rows (no `All` rows on this dataset — its only private docs are orphans outside any space), and left admin-configured spaces untouched. Re-running `bench migrate` is idempotent (counts unchanged).
 
-**Test suites (all pass):** `test_wiki_change_request` (67), `test_wiki_document` (27 integration + 41 unit), `test_wiki_space` (5). `yarn build` clean.
+**Test suites (all pass):** `test_permissions` (27 — dedicated regression matrix for the helpers + hook entry points + role-editor API, replacing the removed bench harness), `test_wiki_change_request` (67), `test_wiki_document` (27 integration + 41 unit), `test_wiki_space` (5). `yarn build` clean; `ruff`/`pre-commit` clean.
 
 **Not yet run:** the end-to-end HTTP/browser matrix below (left for an agent-browser pass).
 
