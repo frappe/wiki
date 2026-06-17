@@ -300,7 +300,6 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 			"route",
 			"is_group",
 			"is_published",
-			"is_private",
 			"is_external_link",
 			"external_url",
 			"content",
@@ -327,7 +326,6 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 		new_doc.route = _clone_route(doc.get("route"), space.route, new_space.route)
 		new_doc.is_group = doc.get("is_group")
 		new_doc.is_published = doc.get("is_published")
-		new_doc.is_private = doc.get("is_private")
 		new_doc.is_external_link = doc.get("is_external_link")
 		new_doc.external_url = doc.get("external_url")
 		new_doc.content = doc.get("content")

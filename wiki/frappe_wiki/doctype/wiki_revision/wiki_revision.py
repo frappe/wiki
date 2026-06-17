@@ -23,6 +23,7 @@ def create_revision_from_live_tree(
 	parent_revision: str | None = None,
 	is_working: int = 0,
 	is_merge: int = 0,
+	ignore_permissions: bool = False,
 ) -> Document:
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	root = frappe.get_doc("Wiki Document", space.root_group)
@@ -71,7 +72,7 @@ def create_revision_from_live_tree(
 	revision.is_working = 1 if is_working else 0
 	revision.created_by = frappe.session.user
 	revision.created_at = now_datetime()
-	revision.insert()
+	revision.insert(ignore_permissions=ignore_permissions)
 
 	for doc in docs:
 		content = doc.get("content") or ""
@@ -90,7 +91,7 @@ def create_revision_from_live_tree(
 		item.order_index = doc.get("sort_order") or 0
 		item.content_blob = content_blob
 		item.is_deleted = 0
-		item.insert()
+		item.insert(ignore_permissions=ignore_permissions)
 
 	recompute_revision_hashes(revision.name)
 	return revision

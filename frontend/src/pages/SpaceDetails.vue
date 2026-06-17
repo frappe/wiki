@@ -64,7 +64,7 @@
             </div>
 
             <div
-                class="absolute top-0 right-0 w-1 h-full cursor-col-resize z-10"
+                class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
                 :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
                 @mousedown="startResize"
             />
@@ -85,84 +85,15 @@
             </div>
         </main>
 
-        <Dialog v-model="showSettingsDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
-                    {{ __('Space Settings') }}
-                </h3>
-            </template>
-            <template #body-content>
-                <div class="space-y-4 py-2">
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Published') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Make this wiki space publicly accessible') }}
-                            </p>
-                        </div>
-                        <Switch
-                            v-model="isPublished"
-                            :disabled="updatingPublishSetting"
-                            @update:modelValue="updatePublishSetting"
-                        />
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Enable Feedback Collection') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Show a feedback widget on wiki pages to collect user reactions') }}
-                            </p>
-                        </div>
-                        <Switch
-                            v-model="enableFeedbackCollection"
-                            :disabled="updatingFeedbackSetting"
-                            @update:modelValue="updateFeedbackSetting"
-                        />
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Bulk Update Routes') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Change the base route for this space and all its pages') }}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            @click="openUpdateRoutesDialog"
-                        >
-                            {{ __('Update') }}
-                        </Button>
-                    </div>
-                    <div class="flex items-center justify-between p-3 rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-                        <div class="flex-1 mr-4">
-                            <p class="text-sm font-medium text-ink-gray-9">
-                                {{ __('Clone Space') }}
-                            </p>
-                            <p class="text-xs text-ink-gray-5 mt-0.5">
-                                {{ __('Create a new space with the same structure') }}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            @click="openCloneSpaceDialog"
-                        >
-                            {{ __('Clone') }}
-                        </Button>
-                    </div>
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end">
-                    <Button variant="outline" @click="close">{{ __('Close') }}</Button>
-                </div>
+        <Dialog v-model="showSettingsDialog" :options="{ size: '4xl' }">
+            <template #body>
+                <SpaceSettings
+                    :space="space"
+                    :space-id="spaceId"
+                    @close="showSettingsDialog = false"
+                    @open-update-routes="openUpdateRoutesDialog"
+                    @open-clone="openCloneSpaceDialog"
+                />
             </template>
         </Dialog>
 
@@ -241,13 +172,13 @@ import {
 	Button,
 	Dialog,
 	FormControl,
-	Switch,
 	createDocumentResource,
 	toast,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -286,12 +217,6 @@ const updatingRoutes = ref(false);
 const cloneRoute = ref('');
 const cloningSpace = ref(false);
 
-const enableFeedbackCollection = ref(false);
-const updatingFeedbackSetting = ref(false);
-
-const isPublished = ref(true);
-const updatingPublishSetting = ref(false);
-
 const sidebarRef = ref(null);
 const { sidebarWidth, sidebarResizing, startResize } =
 	useSidebarResize(sidebarRef);
@@ -309,45 +234,6 @@ const space = createDocumentResource({
 		cloneWikiSpace: 'clone_wiki_space_in_background',
 	},
 });
-
-watch(
-	() => space.doc,
-	(doc) => {
-		if (doc) {
-			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
-			isPublished.value = Boolean(doc.is_published);
-		}
-	},
-	{ immediate: true },
-);
-
-async function updateFeedbackSetting(value) {
-	updatingFeedbackSetting.value = true;
-	try {
-		await space.setValue.submit({
-			enable_feedback_collection: value ? 1 : 0,
-		});
-	} catch (error) {
-		console.error('Failed to update feedback setting:', error);
-		enableFeedbackCollection.value = !value;
-	} finally {
-		updatingFeedbackSetting.value = false;
-	}
-}
-
-async function updatePublishSetting(value) {
-	updatingPublishSetting.value = true;
-	try {
-		await space.setValue.submit({
-			is_published: value ? 1 : 0,
-		});
-	} catch (error) {
-		console.error('Failed to update publish setting:', error);
-		isPublished.value = !value;
-	} finally {
-		updatingPublishSetting.value = false;
-	}
-}
 
 function openUpdateRoutesDialog() {
 	newRoute.value = space.doc?.route || '';
