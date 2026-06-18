@@ -237,8 +237,15 @@ onMounted(renderPreview);
 		'Liberation Mono', monospace;
 	font-size: 0.8125rem;
 	line-height: 1.6;
-	outline: none;
 	tab-size: 2;
+}
+
+/* Kill the global form focus ring (a blue box-shadow from @tailwindcss/forms);
+   the pane already reads as focused via the caret + active editing. */
+.mermaid-block-code:focus,
+.mermaid-block-code:focus-visible {
+	outline: none;
+	box-shadow: none;
 }
 
 .mermaid-block-code::placeholder {
