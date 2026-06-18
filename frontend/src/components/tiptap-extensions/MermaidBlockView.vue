@@ -1,6 +1,8 @@
 <script setup>
 import { NodeViewWrapper } from '@tiptap/vue-3';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useStorage, watchDebounced } from '@vueuse/core';
+import { Network, Trash2 } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
 import { getMermaid } from './mermaid-loader.js';
 
 const props = defineProps({
@@ -10,14 +12,39 @@ const props = defineProps({
 	selected: { type: Boolean, default: false },
 });
 
+// Unique, collision-free render ids without Date.now()/Math.random() (which
+// can collide on rapid keystrokes). One stable instance id per mounted block,
+// plus a monotonically increasing render counter.
+let instanceSeq = 0;
+const instanceId = `mermaid-editor-${++instanceSeq}`;
+let renderVersion = 0;
+
 const code = computed(() => props.node.attrs.code || '');
-const renderedSvg = ref('');
+
+// Keep the LAST successfully-rendered SVG on screen even while the current
+// source is mid-edit / invalid, so the preview never flickers to blank.
+const lastGoodSvg = ref('');
 const errorMessage = ref('');
 const isRendering = ref(false);
-let renderVersion = 0;
+
+// Theme is the same signal the rest of the SPA uses (see Sidebar.vue /
+// DiffViewer.vue): a `wiki-theme` localStorage ref mirrored to <html data-theme>.
+const userTheme = useStorage('wiki-theme', 'dark');
+const mermaidTheme = computed(() =>
+	userTheme.value === 'dark' ? 'dark' : 'default',
+);
 
 function updateCode(event) {
 	props.updateAttributes({ code: event.target.value });
+}
+
+function cleanErrorMessage(error) {
+	const message = error?.message || String(error || '');
+	// Mermaid prefixes parse errors with a noisy multi-line banner; keep the
+	// first meaningful line so the inline hint stays compact.
+	return (
+		message.split('\n').find((line) => line.trim()) || 'Invalid Mermaid syntax.'
+	);
 }
 
 async function renderPreview() {
@@ -25,23 +52,32 @@ async function renderPreview() {
 	const version = ++renderVersion;
 
 	if (!source) {
-		renderedSvg.value = '';
+		lastGoodSvg.value = '';
 		errorMessage.value = '';
+		isRendering.value = false;
 		return;
 	}
 
 	isRendering.value = true;
 	try {
 		const mermaid = await getMermaid();
-		const id = `wiki-mermaid-editor-${Date.now()}-${version}`;
-		const result = await mermaid.render(id, source);
 		if (version !== renderVersion) return;
-		renderedSvg.value = result.svg;
+
+		mermaid.initialize({
+			startOnLoad: false,
+			securityLevel: 'strict',
+			theme: mermaidTheme.value,
+		});
+
+		const { svg } = await mermaid.render(`${instanceId}-${version}`, source);
+		if (version !== renderVersion) return;
+
+		lastGoodSvg.value = svg;
 		errorMessage.value = '';
 	} catch (error) {
 		if (version !== renderVersion) return;
-		renderedSvg.value = '';
-		errorMessage.value = error?.message || 'Unable to render Mermaid diagram.';
+		// Keep the last good render visible; just surface the error inline.
+		errorMessage.value = cleanErrorMessage(error);
 	} finally {
 		if (version === renderVersion) {
 			isRendering.value = false;
@@ -49,121 +85,177 @@ async function renderPreview() {
 	}
 }
 
-watch(
-	() => code.value,
-	() => nextTick(renderPreview),
-	{ immediate: true },
-);
+// Debounce edits so we don't re-render on every keystroke, but re-render
+// immediately when the theme flips.
+watchDebounced(code, renderPreview, { debounce: 300, maxWait: 1000 });
+watch(mermaidTheme, renderPreview);
 
 onMounted(renderPreview);
 </script>
 
 <template>
 	<NodeViewWrapper
-		class="mermaid-block-wrapper"
+		class="mermaid-block"
 		:class="{ 'is-selected': selected }"
 		contenteditable="false"
 	>
-		<div class="mermaid-block-toolbar">
-			<span class="mermaid-block-label">Mermaid</span>
-			<button type="button" class="mermaid-block-remove" @click="deleteNode()">
-				Remove
+		<div class="mermaid-block-header">
+			<span class="mermaid-block-title">
+				<Network class="mermaid-block-title-icon" />
+				Mermaid diagram
+			</span>
+			<button
+				type="button"
+				class="mermaid-block-delete"
+				title="Remove diagram"
+				@click="deleteNode()"
+			>
+				<Trash2 class="mermaid-block-delete-icon" />
 			</button>
 		</div>
+
 		<div class="mermaid-block-body">
-			<textarea
-				class="mermaid-block-editor"
-				:value="code"
-				spellcheck="false"
-				@input="updateCode"
-			/>
-			<div class="mermaid-block-preview" aria-live="polite">
-				<div v-if="isRendering" class="mermaid-block-empty">Rendering...</div>
-				<div
-					v-else-if="renderedSvg"
-					class="mermaid-block-svg"
-					v-html="renderedSvg"
+			<div class="mermaid-block-pane mermaid-block-code-pane">
+				<textarea
+					class="mermaid-block-code"
+					:value="code"
+					spellcheck="false"
+					placeholder="flowchart TD&#10;  A[Start] --> B[End]"
+					@input="updateCode"
 				/>
-				<div v-else-if="errorMessage" class="mermaid-block-error">
+			</div>
+
+			<div class="mermaid-block-pane mermaid-block-preview-pane">
+				<div class="mermaid-block-preview" aria-live="polite">
+					<div
+						v-if="lastGoodSvg"
+						class="mermaid-block-svg"
+						v-html="lastGoodSvg"
+					/>
+					<div v-else-if="isRendering" class="mermaid-block-placeholder">
+						Rendering…
+					</div>
+					<div v-else class="mermaid-block-placeholder">
+						Start typing Mermaid to preview your diagram.
+					</div>
+				</div>
+				<div v-if="errorMessage" class="mermaid-block-error" role="alert">
 					{{ errorMessage }}
 				</div>
-				<div v-else class="mermaid-block-empty">Enter Mermaid code.</div>
 			</div>
 		</div>
 	</NodeViewWrapper>
 </template>
 
 <style scoped>
-.mermaid-block-wrapper {
+.mermaid-block {
 	margin: 0.75rem 0;
-	border: 1px solid var(--outline-gray-2, #e5e7eb);
-	border-radius: 8px;
-	background: var(--surface-white, #ffffff);
+	border: 1px solid var(--outline-gray-2);
+	border-radius: 0.5rem;
+	background: var(--surface-white);
 	overflow: hidden;
-	transition: outline-color 0.2s ease;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.mermaid-block-wrapper.is-selected {
-	outline: 2px solid rgba(59, 130, 246, 0.5);
+.mermaid-block.is-selected {
+	border-color: var(--outline-gray-3);
+	box-shadow: 0 0 0 2px var(--outline-gray-2);
 }
 
-.mermaid-block-toolbar {
+.mermaid-block-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.75rem;
 	padding: 0.5rem 0.75rem;
-	border-bottom: 1px solid var(--outline-gray-1, #f3f4f6);
-	background: var(--surface-gray-1, #f9fafb);
+	border-bottom: 1px solid var(--outline-gray-2);
+	background: var(--surface-gray-1);
 }
 
-.mermaid-block-label {
+.mermaid-block-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
 	font-size: 0.75rem;
 	font-weight: 600;
-	color: var(--ink-gray-6, #4b5563);
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	color: var(--ink-gray-7);
 }
 
-.mermaid-block-remove {
-	border: 0;
+.mermaid-block-title-icon {
+	width: 0.875rem;
+	height: 0.875rem;
+}
+
+.mermaid-block-delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	border: none;
+	border-radius: 0.375rem;
 	background: transparent;
-	color: var(--ink-gray-5, #6b7280);
-	font-size: 0.75rem;
+	color: var(--ink-gray-6);
 	cursor: pointer;
 }
 
-.mermaid-block-remove:hover {
-	color: var(--ink-red-6, #b91c1c);
+.mermaid-block-delete:hover {
+	background: var(--surface-gray-3);
+	color: var(--ink-red-5, #dc2626);
+}
+
+.mermaid-block-delete-icon {
+	width: 1rem;
+	height: 1rem;
 }
 
 .mermaid-block-body {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	min-height: 14rem;
+	min-height: 13rem;
 }
 
-.mermaid-block-editor {
+.mermaid-block-pane {
+	min-width: 0;
+}
+
+.mermaid-block-code-pane {
+	border-right: 1px solid var(--outline-gray-2);
+	background: var(--surface-gray-1);
+}
+
+.mermaid-block-code {
 	width: 100%;
-	min-height: 14rem;
+	height: 100%;
+	min-height: 13rem;
 	padding: 0.875rem 1rem;
 	border: 0;
-	border-right: 1px solid var(--outline-gray-1, #f3f4f6);
-	resize: vertical;
-	background: var(--surface-gray-1, #f9fafb);
-	color: var(--ink-gray-9, #111827);
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+	resize: none;
+	background: transparent;
+	color: var(--ink-gray-9);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', monospace;
 	font-size: 0.8125rem;
-	line-height: 1.55;
+	line-height: 1.6;
 	outline: none;
+	tab-size: 2;
+}
+
+.mermaid-block-code::placeholder {
+	color: var(--ink-gray-4);
+}
+
+.mermaid-block-preview-pane {
+	display: flex;
+	flex-direction: column;
+	min-height: 13rem;
 }
 
 .mermaid-block-preview {
+	flex: 1;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 0;
-	min-height: 14rem;
 	padding: 1rem;
 	overflow: auto;
 }
@@ -177,15 +269,23 @@ onMounted(renderPreview);
 	height: auto;
 }
 
-.mermaid-block-empty,
-.mermaid-block-error {
+.mermaid-block-placeholder {
 	font-size: 0.8125rem;
-	color: var(--ink-gray-5, #6b7280);
+	color: var(--ink-gray-5);
 	text-align: center;
+	padding: 0 1rem;
 }
 
 .mermaid-block-error {
+	padding: 0.5rem 0.75rem;
+	border-top: 1px solid var(--outline-gray-2);
+	background: var(--surface-red-1, #fef2f2);
 	color: var(--ink-red-6, #b91c1c);
+	font-size: 0.75rem;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
 }
 
 @media (max-width: 768px) {
@@ -193,9 +293,9 @@ onMounted(renderPreview);
 		grid-template-columns: 1fr;
 	}
 
-	.mermaid-block-editor {
+	.mermaid-block-code-pane {
 		border-right: 0;
-		border-bottom: 1px solid var(--outline-gray-1, #f3f4f6);
+		border-bottom: 1px solid var(--outline-gray-2);
 	}
 }
 </style>
