@@ -115,6 +115,29 @@ test.describe('Mermaid diagrams', () => {
 		expect(md2).toBe(md1);
 	});
 
+	test('renders multiple diagrams independently without colliding', async ({
+		page,
+	}) => {
+		await createDraftAndOpenEditor(page, `mermaid-multi-${Date.now()}`);
+
+		const twoDiagrams =
+			'```mermaid\nflowchart TD\n  A[Start] --> B[End]\n```\n\n' +
+			'```mermaid\ngraph LR\n  X --> Y --> Z\n```\n';
+		await page.evaluate((md) => {
+			window.wikiEditor.commands.setContent(md, { contentType: 'markdown' });
+		}, twoDiagrams);
+
+		// Both blocks must render their own SVG — a shared render id used to make
+		// one diagram render glitchy while the other stayed blank.
+		const svgs = page.locator('.mermaid-block-svg svg');
+		await expect(svgs).toHaveCount(2, { timeout: 10000 });
+
+		const ids = await svgs.evaluateAll((nodes) =>
+			nodes.map((n) => (n as SVGElement).id),
+		);
+		expect(new Set(ids).size).toBe(2); // distinct render ids
+	});
+
 	test('renders the diagram as inline SVG on the public page', async ({
 		page,
 		request,

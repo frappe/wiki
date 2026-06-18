@@ -20,8 +20,15 @@
     }
     if (!source) return;
 
-    const { svg } = await mermaid.render(`wiki-mermaid-${++renderSeq}`, source);
-    el.innerHTML = svg;
+    const id = `wiki-mermaid-${++renderSeq}`;
+    try {
+      const { svg } = await mermaid.render(id, source);
+      el.innerHTML = svg;
+    } finally {
+      // mermaid.render() leaves its temporary "d<id>" container on <body> when
+      // the source is invalid (the error "bomb"); drop it so it never lingers.
+      document.getElementById(`d${id}`)?.remove();
+    }
     el.setAttribute("data-processed", "true");
   }
 
@@ -80,11 +87,14 @@
     for (const el of rendered) {
       const source = el.getAttribute("data-mermaid-src");
       if (!source) continue;
+      const id = `wiki-mermaid-${++renderSeq}`;
       try {
-        const { svg } = await mermaid.render(`wiki-mermaid-${++renderSeq}`, source);
+        const { svg } = await mermaid.render(id, source);
         el.innerHTML = svg;
       } catch (error) {
         console.error("Failed to re-render Mermaid diagram:", error);
+      } finally {
+        document.getElementById(`d${id}`)?.remove();
       }
     }
   }
