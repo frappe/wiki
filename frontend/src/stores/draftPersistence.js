@@ -44,6 +44,23 @@ export async function clearDraft(crName, docKey) {
 	}
 }
 
+// Delete every persisted draft for the given CR. Used when a change request
+// is discarded or merged so its drafts can't be restored on the next hydrate
+// (`clearDraft` is per-doc and needs a docKey we don't always have here).
+export async function clearDraftsForCr(crName) {
+	if (!crName) return;
+	const wanted = `${PREFIX}${crName}:`;
+	try {
+		const allKeys = await keys(wikiDraftStore);
+		const matches = allKeys.filter(
+			(k) => typeof k === 'string' && k.startsWith(wanted),
+		);
+		await Promise.all(matches.map((k) => del(k, wikiDraftStore)));
+	} catch (err) {
+		console.warn('[draftPersistence] clearDraftsForCr failed', err);
+	}
+}
+
 // Read every persisted draft for the given CR. Returns an array of
 // `{ docKey, content, title, savedAt }`. Used by `hydrate` to restore
 // dirty editor state after a refresh.

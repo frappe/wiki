@@ -371,10 +371,14 @@ async function handleSubmitChangeRequest() {
 }
 
 async function handleArchiveChangeRequest() {
+	const crName = crStore.currentChangeRequest?.name;
 	try {
 		await crStore.archiveChangeRequest();
 		toast.success(__('Change request archived'));
 		crStore.currentChangeRequest = null;
+		// Drop the local-first drafts too, or hydrate restores the discarded
+		// content from IndexedDB (and autosave re-creates the change request).
+		await draftStore.discardPersistedDraftsForCr(crName);
 		draftStore.reset();
 		await draftStore.hydrate(props.spaceId);
 	} catch (error) {
@@ -403,10 +407,14 @@ async function handleMergeChangeRequest() {
 		return;
 	}
 	const docKey = currentDraftKey.value;
+	const crName = crStore.currentChangeRequest?.name;
 	try {
 		await crStore.mergeChangeRequest();
 		toast.success(__('Change request merged'));
 		crStore.currentChangeRequest = null;
+		// The CR's drafts are now merged into the published doc — clear them so a
+		// stale local copy can't resurrect after the merge.
+		await draftStore.discardPersistedDraftsForCr(crName);
 		draftStore.reset();
 		await draftStore.hydrate(props.spaceId);
 

@@ -533,6 +533,10 @@ async function handleWithdraw() {
 	try {
 		await withdrawResource.submit({ name: props.changeRequestId });
 		toast.success(__('Change request archived'));
+		// Clear the local-first drafts for this CR so its content can't be
+		// restored from IndexedDB after it's been discarded.
+		const { clearDraftsForCr } = await import('@/stores/draftPersistence');
+		await clearDraftsForCr(props.changeRequestId);
 		changeRequest.reload();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error archiving change request'));
