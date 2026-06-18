@@ -1,7 +1,7 @@
 # Mermaid Diagrams in Wiki Documents
 
 Date: 2026-06-18
-Status: **Planned** (spec only). Design below reflects decisions made during planning (see [Decisions](#decisions)); to be reconciled and a Verification section added after implementation.
+Status: **Implemented on top of [PR #627](https://github.com/frappe/wiki/pull/627)** (by adamwu7), pending in-app verification. Rather than build from scratch, we adopted that PR's solid infrastructure and refactored the weak parts to this spec. See [Reconciliation](#reconciliation--what-changed-vs-the-plan) for deviations from the original plan below.
 
 ## Goal
 
@@ -168,6 +168,17 @@ Diagram source is untrusted user input rendered as SVG in other readers' browser
 - **Theme-switch live re-render** on the public reader — does the public reader support runtime light/dark toggle, or only initial? Re-render only if it does.
 - **Max source size / pathological diagrams** — cap source length and/or guard render time to avoid a huge diagram hanging the tab? (Mermaid has some internal limits; confirm.)
 - **Caption support** on the Mermaid node (mirror image/PDF caption) — Phase 2.
+
+## Reconciliation — what changed vs the plan
+
+Implemented by building on PR #627 (cherry-picked adamwu7's 3 commits onto our branch, preserving authorship) and refactoring to this spec. Deviations from the original plan above:
+
+- **Library loading — global UMD script, not a Vite `import('mermaid')`.** The PR loads the vendored Mermaid as a global `window.mermaid` script (injected on demand) in **both** the editor and the public reader, via a shared loader (`wiki/public/js/mermaid-loader.js`, bridged into the editor by `frontend/src/.../mermaid-loader.js`). This is **better than the planned node_modules import**: Mermaid (~3.3 MB UMD) never enters the Vite bundle (no `mermaid` npm dep added), there's a single vendored copy, and it **sidesteps the spec's #1 risk** — the ESM build's runtime chunk-splitting — by using the self-contained UMD build. Adopted as-is.
+- **Read-mode markup — `<pre class="mermaid">`, not a `<template>` container.** The PR emits `<pre class="mermaid">{escaped source}</pre>` and hydrates it with `mermaid.run({ nodes })`. This is simpler than the planned `<template>`+`<noscript>` and degrades gracefully (no-JS shows the raw source in the `<pre>`). Source is HTML-escaped server-side; client renders under `securityLevel:'strict'`. Kept the PR's approach; added a server-side escaping regression test.
+- **`markdown.py` interception ported to markdown-it.** The PR targeted the old Mistune `WikiRenderer.block_code`; develop migrated to **markdown-it-py** 66 commits later. Re-implemented the `lang == "mermaid"` branch in the markdown-it `fence` rule (`_render_codeblock_html`) — same `<pre class="mermaid">` output, so the PR's test still passes.
+- **Editor UX rewritten to this spec** (the PR's was weak): debounced render (300 ms) instead of per-keystroke; `mermaid` validates via render-catch and we **keep the last good SVG** on error (no flicker to blank); compact inline error; **light/dark theme sync** via the SPA's `wiki-theme` ref; stable collision-free render ids (no `Date.now()`); frappe-ui-token styling.
+- **Hardening the PR missed:** the new public JS is **cache-busted** via `get_asset_hash` in `layout.html` (the PDF feature's lesson — avoids 12 h stale-cache bugs on deploy); the vendored bundle is `.js` (not `.mjs`), avoiding the production nginx MIME trap. Added the XSS/escaping and non-mermaid-fence regression tests.
+- **Per-diagram lazy render (IntersectionObserver) not adopted.** The PR gates the *library load* on a page actually containing `.mermaid` (so diagram-free pages never fetch Mermaid — the key win), then renders all diagrams via `mermaid.run`. Render-on-visible remains a possible optimization for very diagram-heavy pages (Phase 2).
 
 ## Phase 2 (future, not in this spec)
 
