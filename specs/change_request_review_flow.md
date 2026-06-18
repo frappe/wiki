@@ -64,89 +64,78 @@ Grounded references for why each phase exists. From the current `wiki/frappe_wik
 
 ---
 
-## Phase 1 — Schema cleanup
+## Delivery plan — tracer bullets
 
-1. **Delete child doctypes** `Wiki CR Reviewer` and `Wiki CR Participant` (`wiki/frappe_wiki/doctype/wiki_cr_reviewer/`, `wiki_cr_participant/`).
-2. **`wiki_change_request.json`:**
-   - Remove `reviewers`, `participants` from `field_order` and the two table fields + `section_break_participants`.
-   - `status` options: `Draft\nIn Review\nChanges Requested\nApproved\nRejected\nMerged\nArchived` (drop `Open`, add `Rejected`).
-   - Add review-decision fields (quick access for UI; full history lives in the timeline — see Phase 2.4):
-     - `review_comment` — Small Text, read-only.
-     - `reviewed_by` — Link → `User`, read-only.
-     - `reviewed_at` — Datetime, read-only.
-     - `rejected_at` — Datetime, read-only.
-3. Regenerate the auto-typed block in `wiki_change_request.py` (via `bench`); drop the `WikiCRReviewer` / `WikiCRParticipant` imports.
+The work is sliced **vertically**, not by layer. Each bullet pierces every layer (DB schema → whitelisted endpoint → Vue UI → visible behavior) and ends in something exercisable on wiki.localhost, so the architecture gets feedback early. The layer-grouped breakdown this replaces would not have shown a working flow until the very end.
 
-**Exit:** `bench migrate` succeeds; no references to the deleted doctypes remain (`grep -r "CR Reviewer\|CR Participant\|cr_reviewer\|cr_participant"`).
+Commit after each bullet. The reference detail (field names, endpoint contracts, file/line anchors) lives inline under each bullet.
 
-## Phase 2 — Backend: review actions, guards, assignment, notifications
+### Bullet 1 — Walking skeleton: the self-serve happy path
+**Slice:** `Draft → submit → In Review → Approve & Merge → Merged`, for an author merging their own CR (no second person, no assignment).
 
-### 2.1 Status + edit guards (the 🔴 fixes)
-- Add helper `_assert_status(cr, allowed: set[str])` and `_assert_editable(cr)` (editable = `{"Draft", "Changes Requested"}`).
-- Call `_assert_editable` at the top of every mutating CR endpoint: `apply_cr_operations`, `create_cr_page`, `update_cr_page`, `move_cr_page`, `reorder_cr_children`, `delete_cr_page`.
-- `merge_change_request`: require `status == "Approved"` (throw otherwise) and reject if already `Merged`/`Rejected`/`Archived`.
+- **Schema:**
+  - **Delete child doctypes** `Wiki CR Reviewer` and `Wiki CR Participant` (`wiki/frappe_wiki/doctype/wiki_cr_reviewer/`, `wiki_cr_participant/`).
+  - **`wiki_change_request.json`:** remove `reviewers`, `participants` from `field_order` + the two table fields + `section_break_participants`; `status` options `Draft\nIn Review\nChanges Requested\nApproved\nRejected\nMerged\nArchived` (drop `Open`, add `Rejected`); add review-decision fields (quick access; full history is the timeline — Bullet 5): `review_comment` (Small Text, read-only), `reviewed_by` (Link → `User`, read-only), `reviewed_at` (Datetime, read-only), `rejected_at` (Datetime, read-only).
+  - Regenerate the auto-typed block in `wiki_change_request.py` (via `bench`); drop the `WikiCRReviewer` / `WikiCRParticipant` imports.
+- **Backend:**
+  - Helpers `_assert_status(cr, allowed: set[str])` and `_assert_editable(cr)` (editable = `{"Draft", "Changes Requested"}`). Call `_assert_editable` at the top of every mutating CR endpoint: `apply_cr_operations`, `create_cr_page`, `update_cr_page`, `move_cr_page`, `reorder_cr_children`, `delete_cr_page`.
+  - `submit_change_request(name)` — replaces `request_review` (no reviewer arg). Require `status in {Draft, Changes Requested}` **and** `has_revision_changes(base, head)` (server-side, not just the UI gate). Set `In Review`.
+  - `approve_change_request(name)` — require `can_write_space(cr.wiki_space)` + `In Review`. Set `Approved`, stamp `reviewed_by`/`reviewed_at`, post a **timeline comment** (`cr.add_comment("Comment", text)`).
+  - `merge_change_request` — require `status == "Approved"` (throw otherwise) and reject if already `Merged`/`Rejected`/`Archived`.
+- **Frontend:** one primary **Approve & Merge** button in the review header (confirm dialog → `approve_change_request` then `merge_change_request` in sequence; on conflict, existing conflict-resolution flow takes over and the CR is left `Approved`). Wire submit with no reviewer arg; delete the always-`reviewers=[]` call (`SpaceDetails.vue:360`).
 
-### 2.2 Replace `review_action` with three explicit, guarded endpoints
-Delete `review_action` and `request_review`'s reviewer-table logic. New whitelisted functions, each: `cr = frappe.get_doc(...)`, **require `can_write_space(cr.wiki_space)`** (reviewer must be a space writer), require source status, set target status + the Phase-1 fields, drop a **timeline comment**, and **notify the author** (2.4).
+**Validates:** the new state machine, edit-locking, the merge gate, and that the reviewer/participant tables can be dropped without breaking submit.
+**Exit:** `bench migrate` succeeds; no references to the deleted doctypes remain (`grep -r "CR Reviewer\|CR Participant\|cr_reviewer\|cr_participant"`); the full self-serve lifecycle runs on wiki.localhost.
 
-- `submit_change_request(name)` — replaces `request_review`. Require `status in {Draft, Changes Requested}` **and** `has_revision_changes(base, head)` (server-side, not just the UI gate). Set `In Review`. (No reviewer arg.)
-- `approve_change_request(name)` — require `In Review`. Set `Approved`, stamp `reviewed_by`/`reviewed_at`.
-- `request_changes(name, comment)` — require `In Review` (or `Approved`). `comment` required (throw if blank). Set `Changes Requested`, store `review_comment`, stamp reviewer fields.
-- `reject_change_request(name, comment)` — require `In Review` (or `Approved`). `comment` required. Set `Rejected`, stamp `reviewed_by`/`reviewed_at`/`rejected_at`, store `review_comment`. **Terminal.**
-- `withdraw_change_request(name)` — **author/owner only** (`cr.owner == frappe.session.user`, managers also allowed). Require `In Review`. Set back to `Draft` (re-opens editing). No comment.
-- **Approve & Merge** needs no new endpoint: the UI calls `approve_change_request` then `merge_change_request` in sequence (after the confirm dialog). If the merge surfaces conflicts, the existing conflict-resolution flow takes over and the CR is left `Approved`.
+### Bullet 2 — Reviewer feedback round-trip
+**Slice:** reviewer **Request Changes** (comment) → `Changes Requested` → **author sees the comment** → edits → resubmits.
 
-### 2.3 Assignment = Frappe native
-- No code needed to *store* reviewers. Assignment is `_assign` (ToDo), created via `frappe.desk.form.assign_to.add` (manual assign button — optional, Phase 3) or by an **Assignment Rule** on `Wiki Change Request` (admin-configured, no code).
-- Frappe's assignment already emails/notifies the assignee on assign — this is our "reviewer was asked" notification, for free.
-- "Assigned to me" querying uses the standard `_assign like %{user}%` filter (Phase 3).
+- **Backend:** `request_changes(name, comment)` — require `can_write_space` + status `In Review` (or `Approved`); `comment` required (throw if blank). Set `Changes Requested`, store `review_comment`, stamp reviewer fields, post timeline comment.
+- **Frontend:** three-dots **Request Changes** dialog (reuse the existing reject-dialog pattern, `ContributionReview.vue:241`); surface the latest `review_comment` + `reviewed_by` in **`ContributionBanner.vue`** when status is `Changes Requested` (🔴 fix — it currently shows only a hardcoded string at `:388`); resubmit reuses Bullet 1's submit.
 
-### 2.4 Notifications to the author
-- On approve / request changes / reject / merge, notify the CR **owner** (the author) via `frappe.publish_realtime` + a Frappe Notification Log entry (`frappe.desk.doctype.notification_log`). Keep it small and synchronous; no email templates for v1.
-- Each decision also posts a **timeline comment** on the CR (`cr.add_comment("Comment", text)`) so history is auditable and survives even though we only keep the *latest* decision in the quick-access fields.
+**Validates:** the author↔reviewer loop, the feedback-visibility fix, and that `Changes Requested` correctly re-opens editing.
 
+### Bullet 3 — Complete the state machine
+**Slice:** **Reject** (terminal) and **Withdraw** (author pulls `In Review` back to `Draft`).
+
+- **Backend:** `reject_change_request(name, comment)` — `can_write_space` + status `In Review` (or `Approved`); `comment` required. Set `Rejected`, stamp `reviewed_by`/`reviewed_at`/`rejected_at`, store `review_comment`, post timeline comment. **Terminal.** `withdraw_change_request(name)` — author/owner only (`cr.owner == frappe.session.user`; managers also allowed), require `In Review`, set back to `Draft`, no comment.
+- **Frontend:** Reject dialog (comment required); red terminal **Rejected** banner config (shows reason + who) in `ContributionBanner.vue`; Withdraw button for the author; `Rejected` status badge (red/gray).
+- Rename `handleApprove()` → `handleMerge()`; add `handleApproveAndMerge()`, `handleApprove()` (decision only), `handleRequestChanges()`, `handleReject()`, `handleWithdraw()`.
+
+**Validates:** every transition in the settled diagram is now reachable from the UI; Withdraw re-opens editing.
 **Exit:** unit tests in `test_wiki_change_request.py` rewritten for the new endpoints; a non-writer calling any review endpoint gets `PermissionError`; mutating an `In Review` CR throws; merging a non-`Approved` CR throws.
 
-## Phase 3 — Rich, assignment-driven list (`Contributions.vue`)
+### Bullet 4 — Native assignment + the two-person path
+**Slice:** a reviewer who isn't the author finds an assigned CR, **Approves** (decision only), and someone **Merges** the now-`Approved` CR.
 
-Replace the manager-only "Pending Reviews" tab with assignment-aware tabs:
+- **Backend:** no storage code — assignment is `_assign` (ToDo), created via `frappe.desk.form.assign_to.add` or an **Assignment Rule** on `Wiki Change Request` (admin-configured, no code). Frappe's assign already emails/notifies the assignee — our "reviewer was asked" notification, for free. `approve_change_request` and the plain merge already exist from Bullet 1.
+- **Frontend (`Contributions.vue`):** replace the manager-only "Pending Reviews" tab with assignment-aware tabs — **My Change Requests** (`owner == me`, unchanged), **Assigned to me** (`_assign like %{user}%`; any space writer, empty-state when nothing assigned), **All in review** *(managers only)*, `status in [In Review, Approved]`. Status badges gain `Rejected`; author rows in `Changes Requested` keep routing to `SpaceDetails`. Add an **Assign** affordance (uses `assign_to.add`) on the list and review page — the only assignment UI we build; rules do the rest. In `ContributionReview.vue`: standalone **Approve** (no merge) in three-dots + primary **Merge** on `Approved` (for when a *different* person approved); three-dots still offers Request Changes / Reject.
 
-- **My Change Requests** — `owner == me` (unchanged).
-- **Assigned to me** — `_assign` contains me (any space writer, not just managers). This is the reviewer's inbox. Visible to everyone; empty-state when nothing is assigned.
-- **All in review** *(managers only)* — `status in [In Review, Approved]`, for oversight + manual triage.
+**Validates:** the spec's biggest architectural bet — Frappe's native `_assign`/ToDo replaces the custom reviewer table for discovery, the reviewer inbox, and the assign notification.
 
-Row → opens `ChangeRequestReview`. Status badges gain `Rejected` (red/gray). Author rows in `Changes Requested` keep routing to `SpaceDetails` to revise. Add an **Assign** affordance (uses `assign_to.add`) so a manager/author can hand a CR to a reviewer from the list or the review page — this is the only assignment UI we build; rules do the rest.
+### Bullet 5 — Notifications (thin cross-cut)
+**Slice:** the author gets a realtime ping + Notification Log entry on approve / request-changes / reject / merge.
 
-## Phase 4 — Review page (`ContributionReview.vue`)
+- `frappe.publish_realtime` + a Frappe Notification Log entry (`frappe.desk.doctype.notification_log`) to the CR **owner**. Small and synchronous; no email templates for v1.
+- The per-decision **timeline comment** is *not* deferred here — it ships with each endpoint in Bullets 1–3. This bullet is only the realtime/notification-log plumbing.
 
-- **Reviewer actions** (writer, `can_write`), gated on status:
-  - `In Review`: primary button **Approve & Merge** (confirmation dialog → approve then merge in one step). Three-dots menu: **Approve** (approve only, no merge), **Request Changes**, **Reject**.
-  - `Approved`: primary button **Merge** (plain merge; for when a *different* person approved). Three-dots still offers **Request Changes** / **Reject**.
-  - Request Changes / Reject each open a dialog requiring a comment (reuse the existing reject-dialog pattern, `:241`). Approve & Merge / Merge use a simple "Are you sure?" confirm.
-- **Merge** runs only when `Approved` (and conflicts resolved — existing conflict UI stays). **Approve & Merge** approves first, which satisfies that gate.
-- **Author actions** (owner): `In Review` → **Withdraw** (back to `Draft`); `Draft`/`Changes Requested` → **Discard** (→ `Archived`) as today.
-- Rename `handleApprove()` → `handleMerge()`; add `handleApproveAndMerge()`, `handleApprove()` (decision only), `handleRequestChanges()`, `handleReject()`, `handleWithdraw()`.
-- **Surface feedback to the author (🔴 fix):** show the latest `review_comment` + `reviewed_by` + decision in **`ContributionBanner.vue`** when status is `Changes Requested` or `Rejected` (it currently shows only a hardcoded string at `:388`). The author lands on `SpaceDetails`, so the banner is where the comment must appear.
-- Add a `Rejected` banner config (red, terminal, shows the reject reason + who).
+**Validates:** notification plumbing end-to-end.
 
-## Phase 5 — Preview (how it will actually look in the docs)
+### Bullet 6 — Preview (rendered, == production)
+**Slice:** a reviewer/author sees the **rendered** proposed page, not just a markdown diff.
 
-Reviewers (and authors) can see the **rendered** proposed page, not just a markdown diff.
+- **Backend:** reuse `get_cr_tree(name)` + `get_cr_page(name, doc_key)` (both already return head-revision content). Add `get_cr_preview_context(name, doc_key)` only if the live renderer needs extra page chrome.
+- **Frontend routes** (read-only, rendered with the **same pipeline as the live reader** `WikiDocumentPanel.vue`, so preview == production): `/change-requests/:id/preview` (whole proposed tree post-merge) and `/change-requests/:id/preview/:docKey` (single page). Entry points: a **Preview** button in the `ContributionReview` header, and a per-change Diff/Preview toggle next to each change row. Read-only, available in any status.
 
-- **Backend:** reuse existing `get_cr_tree(name)` + `get_cr_page(name, doc_key)` (both already return the head-revision content). No new endpoint needed for per-page preview; add `get_cr_preview_context(name, doc_key)` only if the live renderer needs extra page chrome.
-- **Frontend routes** (read-only, render with the **same component/markdown pipeline as the live reader** `WikiDocumentPanel.vue`, so preview == production):
-  - `/change-requests/:id/preview` — browse the whole proposed space tree as it will look post-merge.
-  - `/change-requests/:id/preview/:docKey` — a single proposed page rendered.
-- **Entry points:**
-  - A **Preview** button in the `ContributionReview` header (opens whole-space preview).
-  - A per-change **Preview** action next to each change row's diff (opens that page's rendered preview), so a reviewer toggles between *Diff* and *Preview* per change.
-- Preview is strictly read-only and available in any status (handy for the author too).
+**Validates:** the second architectural bet — preview == production via the shared render pipeline. Cleanly separable, so it rides last among the feature slices.
 
-## Phase 6 — Cleanup & tests
-
-- Remove dead frontend: `reviewers`-based code paths, `submitForReview(reviewers)` arg, `review_action` resource → new resources.
-- `e2e/tests/change-request-flow.spec.ts`: extend to cover submit → assign → approve → merge, and submit → request changes → revise → resubmit, and submit → reject (terminal).
+### Bullet 7 — Harden & finish
+- Remove remaining dead frontend: `reviewers`-based code paths, `submitForReview(reviewers)` arg, `review_action` resource → new resources.
+- `e2e/tests/change-request-flow.spec.ts`: cover submit → assign → approve → merge, submit → request changes → revise → resubmit, and submit → reject (terminal).
 - Verify on wiki.localhost; reconcile this spec with as-built notes per the house format.
+
+### Ordering note
+The two architectural bets — native `_assign` (Bullet 4) and preview == production (Bullet 6) — are placed mid/late because the self-serve happy path (Bullet 1) needs neither, and a demoable spine early has its own value. If de-risking the framework bets sooner matters more, pull Bullet 4 to position 2.
 
 ---
 
