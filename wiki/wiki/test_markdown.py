@@ -48,6 +48,27 @@ class TestMarkdownRenderer(unittest.TestCase):
 		self.assertIn("A[Start] --&gt; B{Done?}", result)
 		self.assertNotIn("<code", result)
 
+	def test_mermaid_source_is_html_escaped(self):
+		"""Mermaid source is untrusted; it must be escaped, never emitted as raw HTML.
+
+		Client-side rendering runs under securityLevel:'strict', but the server must
+		still escape so a malicious diagram can't inject markup into the page.
+		"""
+		md = '```mermaid\nflowchart TD\n  A["<script>alert(1)</script>"]\n```\n'
+		result = render_markdown(md)
+
+		self.assertIn('<pre class="mermaid">', result)
+		self.assertNotIn("<script>alert(1)</script>", result)
+		self.assertIn("&lt;script&gt;", result)
+
+	def test_non_mermaid_fence_still_highlights_as_code(self):
+		"""A regular fenced block must remain a normal code block, not a diagram."""
+		md = "```python\nprint('hello')\n```\n"
+		result = render_markdown(md)
+
+		self.assertIn('<pre><code class="language-python">', result)
+		self.assertNotIn('class="mermaid"', result)
+
 
 class TestHeadingSlugGeneration(unittest.TestCase):
 	"""Tests for heading ID/slug generation."""
