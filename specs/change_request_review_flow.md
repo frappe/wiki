@@ -101,6 +101,11 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 
 **Validates:** the author↔reviewer loop, the feedback-visibility fix, and that `Changes Requested` correctly re-opens editing.
 
+**As-built (2026-06-19):** ✅ Done.
+- Backend: `request_changes(name, comment)` — strips + requires `comment`, `can_write_space`, status `In Review`/`Approved`; sets `Changes Requested`, stores `review_comment`, stamps `reviewed_by`/`reviewed_at`, posts a timeline comment. Editing re-opens automatically (`Changes Requested` is in the editable set from Bullet 1).
+- Frontend: three-dots **Request Changes** menu + dialog in `ContributionReview.vue` (`handleRequestChanges` → `request_changes`, required-feedback toast guard). `ContributionBanner.vue` now renders the real `review_comment` (+ `reviewed_by`) on `Changes Requested` instead of the hardcoded string. Resubmit reuses Bullet 1's submit.
+- Tests: `request_changes` status/comment, comment-required, reopen-editing (locked In Review → editable after), and writer-only permission. 74 tests pass; `yarn build` clean.
+
 ### Bullet 3 — Complete the state machine
 **Slice:** **Reject** (terminal) and **Withdraw** (author pulls `In Review` back to `Draft`).
 
