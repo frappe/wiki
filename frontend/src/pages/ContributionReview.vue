@@ -57,7 +57,7 @@
 
 			<div v-else-if="canWithdraw" class="flex items-center gap-2">
 				<Button variant="outline" :loading="withdrawResource.loading" @click="handleWithdraw">
-					{{ __('Discard Changes') }}
+					{{ __('Withdraw') }}
 				</Button>
 			</div>
 		</div>
@@ -288,6 +288,39 @@
 				</div>
 			</template>
 		</Dialog>
+
+		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
+			<template #body-title>
+				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
+			</template>
+			<template #body-content>
+				<div class="space-y-4">
+					<p class="text-ink-gray-7">
+						{{ __('Rejecting is final — this change request cannot be merged. Please explain why it is being rejected.') }}
+					</p>
+					<FormControl
+						v-model="rejectComment"
+						type="textarea"
+						:label="__('Reason')"
+						:placeholder="__('Enter the reason for rejection...')"
+						:rows="4"
+					/>
+				</div>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						theme="red"
+						:loading="rejectResource.loading"
+						@click="handleReject(close)"
+					>
+						{{ __('Reject') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
 	</div>
 </template>
 
@@ -317,6 +350,8 @@ const props = defineProps({
 const showApproveMergeDialog = ref(false);
 const showRequestChangesDialog = ref(false);
 const requestChangesComment = ref('');
+const showRejectDialog = ref(false);
+const rejectComment = ref('');
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
 
@@ -377,8 +412,12 @@ const requestChangesResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_changes',
 });
 
+const rejectResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.reject_change_request',
+});
+
 const withdrawResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.archive_change_request',
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.withdraw_change_request',
 });
 
 const userStore = useUserStore();
@@ -407,12 +446,15 @@ const canReview = computed(() => {
 	return capabilities.value.can_write && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
 });
 
+// Withdraw pulls an in-review CR back to Draft for the author to keep editing.
+// Once Changes Requested the CR is already editable, so there is nothing to
+// withdraw — the author just edits and resubmits.
 const canWithdraw = computed(() => {
-	return isOwner.value && ['In Review', 'Changes Requested'].includes(changeRequest.doc?.status);
+	return isOwner.value && changeRequest.doc?.status === 'In Review';
 });
 
 // Secondary reviewer decisions live in the three-dots menu so the header keeps a
-// single primary action. Reject lands here in a later slice.
+// single primary action.
 const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const options = [];
@@ -422,6 +464,13 @@ const reviewMenuOptions = computed(() => {
 			icon: 'message-square',
 			onClick: () => {
 				showRequestChangesDialog.value = true;
+			},
+		});
+		options.push({
+			label: __('Reject'),
+			icon: 'x-circle',
+			onClick: () => {
+				showRejectDialog.value = true;
 			},
 		});
 	}
@@ -575,13 +624,33 @@ async function handleResolveAndMerge() {
 	}
 }
 
+async function handleReject(close) {
+	if (!rejectComment.value.trim()) {
+		toast.warning(__('Please provide a reason'));
+		return;
+	}
+	try {
+		await rejectResource.submit({
+			name: props.changeRequestId,
+			comment: rejectComment.value.trim(),
+		});
+		toast.success(__('Change request rejected'));
+		rejectComment.value = '';
+		close?.();
+		changeRequest.reload();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error rejecting change request'));
+	}
+}
+
+// Withdraw returns an in-review CR to Draft, re-opening it for editing.
 async function handleWithdraw() {
 	try {
 		await withdrawResource.submit({ name: props.changeRequestId });
-		toast.success(__('Change request archived'));
+		toast.success(__('Change request withdrawn'));
 		changeRequest.reload();
 	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error archiving change request'));
+		toast.error(error.messages?.[0] || __('Error withdrawing change request'));
 	}
 }
 
@@ -592,6 +661,7 @@ function getStatusTheme(status) {
 		case 'Changes Requested': return 'red';
 		case 'Approved': return 'green';
 		case 'Merged': return 'green';
+		case 'Rejected': return 'red';
 		case 'Archived': return 'gray';
 		default: return 'gray';
 	}

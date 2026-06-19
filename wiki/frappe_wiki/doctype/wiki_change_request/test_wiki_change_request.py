@@ -23,6 +23,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	merge_change_request,
 	merge_content_three_way,
 	move_cr_page,
+	reject_change_request,
 	reorder_cr_children,
 	request_changes,
 	resolve_merge_conflict,
@@ -30,6 +31,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	submit_change_request,
 	update_change_request,
 	update_cr_page,
+	withdraw_change_request,
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
@@ -434,6 +436,100 @@ class TestWikiChangeRequest(FrappeTestCase):
 		try:
 			with self.assertRaises(frappe.PermissionError):
 				request_changes(cr.name, "no access")
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_reject_sets_terminal_status_and_comment(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11h")
+		submit_change_request(cr.name)
+
+		reject_change_request(cr.name, "Out of scope")
+
+		cr_doc = frappe.get_doc("Wiki Change Request", cr.name)
+		self.assertEqual(cr_doc.status, "Rejected")
+		self.assertEqual(cr_doc.review_comment, "Out of scope")
+		self.assertEqual(cr_doc.reviewed_by, frappe.session.user)
+		self.assertIsNotNone(cr_doc.reviewed_at)
+		self.assertIsNotNone(cr_doc.rejected_at)
+
+	def test_reject_requires_comment(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11i")
+		submit_change_request(cr.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			reject_change_request(cr.name, "   ")
+
+	def test_reject_is_terminal(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11j")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		submit_change_request(cr.name)
+		reject_change_request(cr.name, "no")
+
+		# A rejected CR cannot be edited, resubmitted, or merged.
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(cr.name, root_key, "Page", content="x")
+		with self.assertRaises(frappe.ValidationError):
+			submit_change_request(cr.name)
+		with self.assertRaises(frappe.ValidationError):
+			merge_change_request(cr.name)
+
+	def test_reject_requires_write_access(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11k")
+		submit_change_request(cr.name)
+
+		non_writer = create_user("cr-reject-non-writer@example.com", "Wiki User")
+		frappe.set_user(non_writer.name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				reject_change_request(cr.name, "no access")
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_withdraw_returns_in_review_cr_to_draft(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11l")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		submit_change_request(cr.name)
+
+		# Locked while In Review ...
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(cr.name, root_key, "Blocked", content="no")
+
+		withdraw_change_request(cr.name)
+
+		# ... back to Draft and editable again.
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
+		create_cr_page(cr.name, root_key, "Revised", content="ok")
+
+	def test_withdraw_requires_in_review(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11m")
+
+		# Draft cannot be withdrawn (nothing to pull back).
+		with self.assertRaises(frappe.ValidationError):
+			withdraw_change_request(cr.name)
+
+	def test_withdraw_author_or_manager_only(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11n")
+		submit_change_request(cr.name)
+
+		other = create_user("cr-withdraw-other@example.com", "Wiki User")
+		frappe.set_user(other.name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				withdraw_change_request(cr.name)
 		finally:
 			frappe.set_user("Administrator")
 
