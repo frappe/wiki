@@ -142,6 +142,11 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 
 **Validates:** notification plumbing end-to-end.
 
+**As-built (2026-06-19):** ✅ Done.
+- Backend: `_notify_cr_owner(cr, subject)` helper — `frappe.publish_realtime("wiki_change_request_update", ..., user=cr.owner, after_commit=True)` + a best-effort `Notification Log` entry (type `Alert`, `try/except` so a notification hiccup never rolls back the decision). No-op when the actor is the author (a self-serve approve & merge shouldn't notify yourself). Wired into `approve_change_request`, `request_changes`, `reject_change_request`, and `_finalize_merge` (the single chokepoint for both fast-forward and three-way merge). The per-decision timeline comments already shipped in Bullets 1–3, as planned.
+- Frontend: a global socket listener in `App.vue` (`wiki_change_request_update` → `toast.info(subject)`), torn down on unmount. The durable copy is the Notification Log; the toast is just the live nudge.
+- Tests: reviewer-decision-notifies-owner (Notification Log created for the author when a *different* user approves), self-serve-does-not-self-notify. 83 tests pass; `yarn build` clean.
+
 ### Bullet 6 — Preview (rendered, == production)
 **Slice:** a reviewer/author sees the **rendered** proposed page, not just a markdown diff.
 
