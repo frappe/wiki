@@ -21,42 +21,51 @@
 				</div>
 			</div>
 
-			<div v-if="canReview" class="flex items-center gap-2">
-				<Button
-					v-if="hasConflicts"
-					variant="solid"
-					:disabled="!allResolved"
-					:loading="resolvingMerge"
-					@click="handleResolveAndMerge"
-				>
-					{{ __('Resolve & Merge') }}
-				</Button>
-				<Button
-					v-else-if="changeRequest.doc?.status === 'Approved'"
-					variant="solid"
-					:loading="mergeResource.loading"
-					@click="handleMerge"
-				>
-					{{ __('Merge') }}
-				</Button>
-				<Button
-					v-else
-					variant="solid"
-					:loading="approveResource.loading || mergeResource.loading"
-					@click="showApproveMergeDialog = true"
-				>
-					{{ __('Approve & Merge') }}
+			<div class="flex items-center gap-2">
+				<Button variant="outline" icon-left="eye" @click="openPreview">
+					{{ __('Preview') }}
 				</Button>
 
-				<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
-					<Button variant="ghost" :title="__('More actions')">
-						<LucideMoreVertical class="size-4" />
+				<template v-if="canReview">
+					<Button
+						v-if="hasConflicts"
+						variant="solid"
+						:disabled="!allResolved"
+						:loading="resolvingMerge"
+						@click="handleResolveAndMerge"
+					>
+						{{ __('Resolve & Merge') }}
 					</Button>
-				</Dropdown>
-			</div>
+					<Button
+						v-else-if="changeRequest.doc?.status === 'Approved'"
+						variant="solid"
+						:loading="mergeResource.loading"
+						@click="handleMerge"
+					>
+						{{ __('Merge') }}
+					</Button>
+					<Button
+						v-else
+						variant="solid"
+						:loading="approveResource.loading || mergeResource.loading"
+						@click="showApproveMergeDialog = true"
+					>
+						{{ __('Approve & Merge') }}
+					</Button>
 
-			<div v-else-if="canWithdraw" class="flex items-center gap-2">
-				<Button variant="outline" :loading="withdrawResource.loading" @click="handleWithdraw">
+					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
+						<Button variant="ghost" :title="__('More actions')">
+							<LucideMoreVertical class="size-4" />
+						</Button>
+					</Dropdown>
+				</template>
+
+				<Button
+					v-else-if="canWithdraw"
+					variant="outline"
+					:loading="withdrawResource.loading"
+					@click="handleWithdraw"
+				>
 					{{ __('Withdraw') }}
 				</Button>
 			</div>
@@ -210,17 +219,45 @@
 							</div>
 
 							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
+								<div class="flex items-center justify-end gap-1 px-4 pt-3">
+									<Button
+										size="sm"
+										:variant="viewModeFor(change.doc_key) === 'diff' ? 'subtle' : 'ghost'"
+										@click.stop="setViewMode(change.doc_key, 'diff')"
+									>
+										{{ __('Diff') }}
+									</Button>
+									<Button
+										size="sm"
+										:variant="viewModeFor(change.doc_key) === 'preview' ? 'subtle' : 'ghost'"
+										@click.stop="setViewMode(change.doc_key, 'preview')"
+									>
+										{{ __('Preview') }}
+									</Button>
+								</div>
 								<div class="p-4 relative z-0 isolate">
-									<DiffViewer
-										v-if="diffsByDocKey[change.doc_key]"
-										:old-content="diffsByDocKey[change.doc_key]?.base?.content || ''"
-										:new-content="diffsByDocKey[change.doc_key]?.head?.content || ''"
-										:file-name="change.title || change.doc_key"
-										language="markdown"
-									/>
-									<div v-else class="flex items-center justify-center py-8">
-										<LoadingIndicator class="size-6" />
-									</div>
+									<template v-if="viewModeFor(change.doc_key) === 'preview'">
+										<div
+											v-if="previewsByDocKey[change.doc_key]"
+											class="wiki-rendered prose prose-sm max-w-none"
+											v-html="previewsByDocKey[change.doc_key].rendered_content"
+										/>
+										<div v-else class="flex items-center justify-center py-8">
+											<LoadingIndicator class="size-6" />
+										</div>
+									</template>
+									<template v-else>
+										<DiffViewer
+											v-if="diffsByDocKey[change.doc_key]"
+											:old-content="diffsByDocKey[change.doc_key]?.base?.content || ''"
+											:new-content="diffsByDocKey[change.doc_key]?.head?.content || ''"
+											:file-name="change.title || change.doc_key"
+											language="markdown"
+										/>
+										<div v-else class="flex items-center justify-center py-8">
+											<LoadingIndicator class="size-6" />
+										</div>
+									</template>
 								</div>
 							</div>
 						</div>
@@ -358,6 +395,11 @@ const rejectComment = ref('');
 const showAssignDialog = ref(false);
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
+// Per-row Diff/Preview toggle. Preview renders the proposed page through the
+// same pipeline as the live reader (get_cr_preview_context), so it matches
+// production rather than showing a markdown diff.
+const viewModeByDocKey = reactive({});
+const previewsByDocKey = reactive({});
 
 // Conflict resolution state
 const hasConflicts = ref(false);
@@ -390,6 +432,10 @@ const changes = createResource({
 
 const diffResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
+});
+
+const previewResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_preview_context',
 });
 
 const mergeResource = createResource({
@@ -526,6 +572,29 @@ async function fetchConflicts() {
 		hasConflicts.value = conflicts.value.length > 0;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error loading conflicts'));
+	}
+}
+
+function openPreview() {
+	router.push({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId } });
+}
+
+function viewModeFor(docKey) {
+	return viewModeByDocKey[docKey] || 'diff';
+}
+
+async function setViewMode(docKey, mode) {
+	viewModeByDocKey[docKey] = mode;
+	if (mode === 'preview' && !previewsByDocKey[docKey]) {
+		try {
+			previewsByDocKey[docKey] = await previewResource.submit({
+				name: props.changeRequestId,
+				doc_key: docKey,
+			});
+		} catch (error) {
+			viewModeByDocKey[docKey] = 'diff';
+			toast.error(error.messages?.[0] || __('Could not render preview'));
+		}
 	}
 }
 

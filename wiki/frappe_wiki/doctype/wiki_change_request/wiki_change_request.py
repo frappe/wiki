@@ -718,6 +718,34 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 
 @frappe.whitelist()
+def get_cr_preview_context(name: str, doc_key: str) -> dict[str, Any]:
+	"""Render a CR's proposed page exactly as the live reader would.
+
+	Preview == production: the head-revision markdown goes through the same
+	`render_markdown_with_toc` pipeline `Wiki Document.get_web_context` uses, so
+	a reviewer sees the real rendered page rather than a markdown diff. Permission
+	and base-revision fallback are inherited from `get_cr_page`.
+	"""
+	from wiki.wiki.markdown import render_markdown_with_toc
+
+	page = get_cr_page(name, doc_key)
+
+	rendered_content, toc_headings = render_markdown_with_toc(page.get("content") or "")
+	if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
+		toc_headings = []
+
+	return {
+		"doc_key": page.get("doc_key"),
+		"title": page.get("title"),
+		"route": page.get("route"),
+		"is_group": page.get("is_group"),
+		"is_published": page.get("is_published"),
+		"rendered_content": rendered_content,
+		"toc_headings": toc_headings,
+	}
+
+
+@frappe.whitelist()
 def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
 	from wiki.permissions import can_read_space
 
