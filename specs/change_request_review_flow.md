@@ -1,7 +1,7 @@
 # Change Request Review Flow — Revamp
 
 Date: 2026-06-18
-Status: **Draft / proposed.** Not yet implemented. Supersedes the half-built reviewer/participant model in `Wiki Change Request`.
+Status: **Implemented (2026-06-19).** All seven tracer bullets shipped; see the per-bullet as-built notes. Supersedes the half-built reviewer/participant model in `Wiki Change Request`.
 
 ## Goal
 
@@ -166,6 +166,12 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 - `e2e/tests/change-request-flow.spec.ts`: cover submit → assign → approve → merge, submit → request changes → revise → resubmit, and submit → reject (terminal).
 - Verify on wiki.localhost; reconcile this spec with as-built notes per the house format.
 
+**As-built (2026-06-19):** ✅ Done.
+- 🔎 **Dead-code sweep:** the dead frontend paths the bullet anticipated (`review_action`, `request_review`, `reviewers` child-table code, `submitForReview(reviewers)` arg, `CR Reviewer`/`CR Participant`) were already removed during Bullets 1–4; a fresh sweep of `frontend/src/` found zero remaining references. Every surviving "reviewer" string belongs to the new native-`_assign` flow (`AssignDialog.vue`, the three-dots "Assign reviewer", the "Assigned to me" tab).
+- 🔴 **Hardening gap found & fixed:** the space-editor banner's one-click **Merge** (managers, on a `Draft`/`Changes Requested` CR — `ContributionBanner.vue`) still called `merge_change_request` directly, which Bullet 1 had tightened to require `Approved` — so one-click publish from the editor was broken. Per the settled state machine ("Approve & Merge — the normal path for a writer/manager merging their own CR"), the editor button now walks the CR up the machine in one click: new store action `approveAndMergeChangeRequest()` runs **submit → approve → merge** (skipping steps already satisfied, e.g. an already-`Approved` CR goes straight to merge); `SpaceDetails.handleMergeChangeRequest` calls it and, on a merge-conflict `ValidationError`, routes to the review page where the conflict-resolution UI lives. `isMerging` now also reflects the approve step.
+- e2e: rewrote `change-request-flow.spec.ts` for the new flow — the removed `request_review` calls became `submit_change_request`; the review-page self-serve merges now drive the **Approve & Merge** confirm dialog; the API-driven multi-CR test approves before clicking the plain **Merge**; the reorder test runs submit → approve → merge. Added the three required scenarios: **two-person** (submit → `assign_to.add` + ToDo assertion → three-dots **Approve** → primary **Merge**), **request changes → revise → resubmit** (asserts the reviewer feedback surfaces in the author's editor banner and the page re-opens for editing), and **reject is terminal** (no approve/merge affordances remain; a server-side merge attempt throws).
+- Verified on wiki.localhost: `yarn build` clean; 84 Python unit tests pass; all 8 e2e cases (1 setup + 7) in `change-request-flow.spec.ts` pass.
+
 ### Ordering note
 The two architectural bets — native `_assign` (Bullet 4) and preview == production (Bullet 6) — are placed mid/late because the self-serve happy path (Bullet 1) needs neither, and a demoable spine early has its own value. If de-risking the framework bets sooner matters more, pull Bullet 4 to position 2.
 
@@ -173,4 +179,4 @@ The two architectural bets — native `_assign` (Bullet 4) and preview == produc
 
 ## Open questions
 
-- For `Rejected`, do we want an author **"Reopen"** (→ `Draft`) action, or is Archive-and-start-over fine? (Not assumed; leaning Archive-and-start-over for v1.)
+- For `Rejected`, do we want an author **"Reopen"** (→ `Draft`) action, or is Archive-and-start-over fine? **Resolved (v1):** not built — archive-and-start-over, as leaned. Revisit only if writers ask for it.
