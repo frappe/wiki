@@ -533,6 +533,43 @@ class TestWikiChangeRequest(FrappeTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	def test_reviewer_decision_notifies_owner(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11o")
+		submit_change_request(cr.name)
+		owner = frappe.db.get_value("Wiki Change Request", cr.name, "owner")
+
+		reviewer = create_user("cr-notify-reviewer@example.com", "Wiki Manager")
+		frappe.set_user(reviewer.name)
+		try:
+			approve_change_request(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertTrue(
+			frappe.db.exists(
+				"Notification Log",
+				{"for_user": owner, "document_type": "Wiki Change Request", "document_name": cr.name},
+			)
+		)
+
+	def test_self_serve_decision_does_not_self_notify(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11p")
+		submit_change_request(cr.name)
+
+		# Owner approves their own CR (self-serve) — no notification to self.
+		approve_change_request(cr.name)
+
+		self.assertFalse(
+			frappe.db.exists(
+				"Notification Log",
+				{"for_user": frappe.session.user, "document_name": cr.name},
+			)
+		)
+
 	def test_merge_content_non_overlapping_changes(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="line1\nline2\nline3\n")

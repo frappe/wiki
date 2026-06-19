@@ -109,6 +109,38 @@ def _assert_editable(cr: Document) -> None:
 		)
 
 
+def _notify_cr_owner(cr: Document, subject: str) -> None:
+	"""Ping the CR author about a reviewer decision or merge.
+
+	A realtime event (the custom frontend listens) plus a Notification Log
+	entry so the signal survives a page reload. No-op when the actor is the
+	author — a self-serve approve & merge shouldn't notify yourself. The
+	Notification Log write is best-effort: a notification hiccup must never
+	roll back the decision it accompanies.
+	"""
+	if cr.owner == frappe.session.user:
+		return
+
+	frappe.publish_realtime(
+		"wiki_change_request_update",
+		{"name": cr.name, "status": cr.status, "subject": subject},
+		user=cr.owner,
+		after_commit=True,
+	)
+
+	try:
+		notification = frappe.new_doc("Notification Log")
+		notification.for_user = cr.owner
+		notification.from_user = frappe.session.user
+		notification.type = "Alert"
+		notification.document_type = "Wiki Change Request"
+		notification.document_name = cr.name
+		notification.subject = subject
+		notification.insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error("Failed to create Wiki Change Request notification")
+
+
 def touch_change_request(name: str) -> None:
 	frappe.db.set_value(
 		"Wiki Change Request",
@@ -1133,6 +1165,7 @@ def approve_change_request(name: str) -> None:
 	cr.reviewed_at = now_datetime()
 	cr.save()
 	cr.add_comment("Comment", _("Approved this change request."))
+	_notify_cr_owner(cr, _("Your change request “{0}” was approved.").format(cr.title))
 
 
 @frappe.whitelist()
@@ -1160,6 +1193,7 @@ def request_changes(name: str, comment: str) -> None:
 	cr.reviewed_at = now_datetime()
 	cr.save()
 	cr.add_comment("Comment", _("Requested changes: {0}").format(comment))
+	_notify_cr_owner(cr, _("Changes were requested on your change request “{0}”.").format(cr.title))
 
 
 @frappe.whitelist()
@@ -1189,6 +1223,7 @@ def reject_change_request(name: str, comment: str) -> None:
 	cr.rejected_at = now_datetime()
 	cr.save()
 	cr.add_comment("Comment", _("Rejected this change request: {0}").format(comment))
+	_notify_cr_owner(cr, _("Your change request “{0}” was rejected.").format(cr.title))
 
 
 @frappe.whitelist()
@@ -1845,6 +1880,7 @@ def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	cr.merged_by = frappe.session.user
 	cr.merged_at = now_datetime()
 	cr.save()
+	_notify_cr_owner(cr, _("Your change request “{0}” was merged.").format(cr.title))
 
 
 def normalize_item(item: dict[str, Any] | None) -> dict[str, Any] | None:
