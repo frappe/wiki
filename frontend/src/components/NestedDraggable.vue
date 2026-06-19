@@ -134,7 +134,7 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
 import LucideChevronRight from '~icons/lucide/chevron-right';
 import LucideFilePlus from '~icons/lucide/file-plus';
@@ -190,6 +190,20 @@ const emit = defineEmits([
 	'drag-state-change',
 ]);
 const router = useRouter();
+const route = useRoute();
+
+// Selecting a page from the sidebar shouldn't pile up history, and the bare
+// space landing ("select a page") shouldn't become a back target. When we are
+// already inside this space, replace instead of push so browser-back returns
+// to wherever the user entered the space from rather than ping-ponging
+// between pages and the landing.
+function navigateToTreePage(to) {
+	if (route.params.spaceId === props.spaceId) {
+		router.replace(to);
+	} else {
+		router.push(to);
+	}
+}
 const draftStore = useDraftWorkspaceStore();
 
 const localItems = ref([...props.items]);
@@ -234,14 +248,14 @@ function handleRowClick(element) {
 	}
 
 	if (element.document_name) {
-		router.push({
+		navigateToTreePage({
 			name: 'SpacePage',
 			params: { spaceId: props.spaceId, pageId: element.document_name },
 		});
 		return;
 	}
 
-	router.push({
+	navigateToTreePage({
 		name: 'DraftChangeRequest',
 		params: { spaceId: props.spaceId, docKey: element.doc_key },
 	});
