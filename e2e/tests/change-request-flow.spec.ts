@@ -1,9 +1,110 @@
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 import { callMethod, getList } from '../helpers/frappe';
 
 interface WikiDocumentRoute {
 	route: string;
 	doc_key: string;
+}
+
+const CR_METHOD =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
+
+/**
+ * Self-serve publish from the review page: the primary "Approve & Merge"
+ * button opens a confirm dialog whose action button is also "Approve & Merge".
+ */
+async function approveAndMergeFromReview(page: Page) {
+	await page
+		.getByRole('button', { name: 'Approve & Merge', exact: true })
+		.click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Approve & Merge', exact: true })
+		.click();
+	await expect(page.locator('text=Change request merged').first()).toBeVisible({
+		timeout: 15000,
+	});
+}
+
+/** Open the three-dots review menu and click one of its items. */
+async function clickReviewMenuItem(page: Page, name: string) {
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name }).click();
+}
+
+/**
+ * Create a fresh space with a single draft page. Returns identifiers the
+ * caller needs to navigate back to the space and address the page.
+ */
+async function createSpaceWithDraftPage(page: Page, label: string) {
+	await page.goto('/wiki/spaces');
+	await page.waitForLoadState('networkidle');
+
+	await page.getByRole('button', { name: 'New Space' }).click();
+	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
+
+	const timestamp = Date.now();
+	const spaceName = `${label} ${timestamp}`;
+	const spaceRoute = `${label.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`;
+	const pageTitle = `${label
+		.toLowerCase()
+		.replace(/\s+/g, '-')}-page-${timestamp}`;
+
+	await page.getByLabel('Space Name').fill(spaceName);
+	await page.getByLabel('Route').fill(spaceRoute);
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Create' })
+		.click();
+	await page.waitForLoadState('networkidle');
+	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	const spaceUrl = page.url();
+
+	const createFirstPage = page.getByRole('button', {
+		name: 'Create First Page',
+	});
+	const newPageButton = page.getByRole('button', { name: 'New Page' });
+	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await createFirstPage.click();
+	} else {
+		await newPageButton.click();
+	}
+	await page.getByLabel('Title').fill(pageTitle);
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await page.waitForTimeout(500);
+
+	await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+	await page.waitForURL(/\/draft\/[^/?#]+/);
+
+	return { spaceUrl, spaceName, pageTitle };
+}
+
+/** Set the open editor's content via the exposed wikiEditor and save. */
+async function setEditorContentAndSave(page: Page, content: string) {
+	const editor = page.locator('.ProseMirror, [contenteditable="true"]').first();
+	await expect(editor).toBeVisible({ timeout: 10000 });
+	await page.waitForFunction(() => window.wikiEditor !== undefined, {
+		timeout: 10000,
+	});
+	await page.evaluate((c) => {
+		window.wikiEditor.commands.setContent(c, { contentType: 'markdown' });
+	}, content);
+	await editor.click();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await page.waitForTimeout(500);
+}
+
+/** Submit the current draft for review; returns the change-request name. */
+async function submitForReviewFromEditor(page: Page) {
+	await page.getByRole('button', { name: 'Submit for Review' }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Submit', exact: true })
+		.click();
+	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		timeout: 10000,
+	});
+	return decodeURIComponent(page.url().split('/').pop() as string);
 }
 
 test.describe('Change Request Flow', () => {
@@ -86,10 +187,7 @@ test.describe('Change Request Flow', () => {
 			timeout: 10000,
 		});
 
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await approveAndMergeFromReview(page);
 
 		// Verify merged content on live route
 		const routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {
@@ -129,10 +227,7 @@ test.describe('Change Request Flow', () => {
 			timeout: 10000,
 		});
 
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await approveAndMergeFromReview(page);
 
 		// Verify updated content on live route
 		const updatedRoutes = await getList<WikiDocumentRoute>(
@@ -221,20 +316,24 @@ test.describe('Change Request Flow', () => {
 		const submitChangeRequestForSpace = async () => {
 			const draftChangeRequest = await callMethod<{ name: string }>(
 				request,
-				'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
+				`${CR_METHOD}.get_or_create_draft_change_request`,
 				{ wiki_space: spaceId },
 			);
-			await callMethod(
-				request,
-				'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_review',
-				{ name: draftChangeRequest.name, reviewers: [] },
-			);
+			await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+				name: draftChangeRequest.name,
+			});
 			return `/wiki/change-requests/${draftChangeRequest.name}`;
 		};
 
+		// Approve via API (the two-person split), then exercise the plain Merge
+		// button that the review page shows once a CR is Approved.
 		const mergeChangeRequest = async (url: string) => {
+			const name = url.split('/').pop() as string;
+			await callMethod(request, `${CR_METHOD}.approve_change_request`, {
+				name,
+			});
 			await page.goto(url);
-			await page.getByRole('button', { name: 'Merge' }).click();
+			await page.getByRole('button', { name: 'Merge', exact: true }).click();
 			await expect(
 				page.locator('text=Change request merged').first(),
 			).toBeVisible({ timeout: 15000 });
@@ -374,16 +473,15 @@ test.describe('Change Request Flow', () => {
 			);
 		}
 
-		await callMethod(
-			request,
-			'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_review',
-			{ name: initialDraft.name, reviewers: [] },
-		);
-		await callMethod(
-			request,
-			'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',
-			{ name: initialDraft.name },
-		);
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: initialDraft.name,
+		});
+		await callMethod(request, `${CR_METHOD}.approve_change_request`, {
+			name: initialDraft.name,
+		});
+		await callMethod(request, `${CR_METHOD}.merge_change_request`, {
+			name: initialDraft.name,
+		});
 
 		// Start a new change request and reorder pages inside the group
 		const draftResponsePromise = page.waitForResponse((response) => {
@@ -496,11 +594,9 @@ test.describe('Change Request Flow', () => {
 		);
 
 		// Submit for review and verify reordered badge in review list
-		await callMethod(
-			request,
-			'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_review',
-			{ name: draftChangeRequest.name, reviewers: [] },
-		);
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: draftChangeRequest.name,
+		});
 		await page.goto(`/wiki/change-requests/${draftChangeRequest.name}`);
 		await page.waitForLoadState('networkidle');
 
@@ -578,7 +674,9 @@ test.describe('Change Request Flow', () => {
 		await page.getByRole('button', { name: 'Save' }).click();
 		await page.waitForTimeout(500);
 
-		// Merge directly from within the space editor (manager can merge Draft CRs)
+		// One-click self-serve publish from the editor: the Merge button walks
+		// the CR through submit -> approve -> merge under the hood (a manager
+		// merging their own draft needs no second person).
 		const mergeButton = page.getByRole('button', { name: 'Merge' });
 		await expect(mergeButton).toBeVisible({ timeout: 10000 });
 		await mergeButton.click();
@@ -596,5 +694,129 @@ test.describe('Change Request Flow', () => {
 		await expect(page.getByText(pageContent)).toBeVisible({
 			timeout: 10000,
 		});
+	});
+
+	test('two-person path: submit -> assign -> approve -> merge', async ({
+		page,
+		request,
+	}) => {
+		const content = `Two-person content ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Two Person');
+		await setEditorContentAndSave(page, content);
+		const crName = await submitForReviewFromEditor(page);
+
+		// Assign a reviewer via the same endpoint the AssignDialog calls. Native
+		// _assign/ToDo is the whole reviewer-discovery mechanism (no custom table).
+		await callMethod(request, 'frappe.desk.form.assign_to.add', {
+			doctype: 'Wiki Change Request',
+			name: crName,
+			assign_to: ['Administrator'],
+		});
+		const todos = await getList(request, 'ToDo', {
+			filters: {
+				reference_type: 'Wiki Change Request',
+				reference_name: crName,
+				allocated_to: 'Administrator',
+				status: 'Open',
+			},
+			limit: 1,
+		});
+		expect(todos.length).toBe(1);
+
+		// Approve as a decision only (two-person split) — no merge yet.
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await clickReviewMenuItem(page, 'Approve');
+		await expect(page.getByText('Approved', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
+
+		// Now the plain Merge button is available for the already-Approved CR.
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+
+		const merged = await getList<{ status: string }>(
+			request,
+			'Wiki Change Request',
+			{ fields: ['status'], filters: { name: crName }, limit: 1 },
+		);
+		expect(merged[0]?.status).toBe('Merged');
+	});
+
+	test('request changes -> revise -> resubmit', async ({ page }) => {
+		const content = `Request-changes content ${Date.now()}`;
+		const feedback = `Please expand the intro ${Date.now()}`;
+		const { spaceUrl, pageTitle } = await createSpaceWithDraftPage(
+			page,
+			'CR Request Changes',
+		);
+		await setEditorContentAndSave(page, content);
+		await submitForReviewFromEditor(page);
+
+		// Reviewer requests changes with required feedback.
+		await clickReviewMenuItem(page, 'Request Changes');
+		const rcDialog = page.getByRole('dialog');
+		await rcDialog.getByRole('textbox').fill(feedback);
+		await rcDialog
+			.getByRole('button', { name: 'Request Changes', exact: true })
+			.click();
+		await expect(
+			page.getByText('Changes Requested', { exact: true }),
+		).toBeVisible({ timeout: 10000 });
+
+		// Author returns to the editor; the banner surfaces the reviewer feedback
+		// and the page is editable again.
+		await page.goto(spaceUrl);
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByText(feedback)).toBeVisible({ timeout: 10000 });
+
+		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		await page.waitForURL(/\/draft\/[^/?#]+/);
+		await setEditorContentAndSave(page, `${content}\n\nRevised paragraph.`);
+
+		// Resubmit: the CR goes back into review.
+		await submitForReviewFromEditor(page);
+		await expect(page.getByText('In Review', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
+	});
+
+	test('reject is terminal', async ({ page, request }) => {
+		const content = `Reject content ${Date.now()}`;
+		const reason = `Out of scope ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Reject');
+		await setEditorContentAndSave(page, content);
+		const crName = await submitForReviewFromEditor(page);
+
+		await clickReviewMenuItem(page, 'Reject');
+		const rejectDialog = page.getByRole('dialog');
+		await rejectDialog.getByRole('textbox').fill(reason);
+		await rejectDialog
+			.getByRole('button', { name: 'Reject', exact: true })
+			.click();
+		await expect(page.getByText('Rejected', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
+
+		// Terminal: no merge/approve actions remain, and a merge attempt is
+		// rejected server-side.
+		await expect(
+			page.getByRole('button', { name: 'Approve & Merge', exact: true }),
+		).toHaveCount(0);
+		await expect(
+			page.getByRole('button', { name: 'Merge', exact: true }),
+		).toHaveCount(0);
+
+		let mergeThrew = false;
+		try {
+			await callMethod(request, `${CR_METHOD}.merge_change_request`, {
+				name: crName,
+			});
+		} catch {
+			mergeThrew = true;
+		}
+		expect(mergeThrew).toBe(true);
 	});
 });
