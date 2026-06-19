@@ -38,7 +38,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 	});
 
 	const submitReviewResource = createResource({
-		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_review',
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.submit_change_request',
 		onSuccess() {
 			refreshChangeRequest();
 		},
@@ -131,11 +131,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return loadChangesPromise;
 	}
 
-	async function submitForReview(reviewers = []) {
+	async function submitForReview() {
 		if (!currentChangeRequest.value) return null;
 		await submitReviewResource.submit({
 			name: currentChangeRequest.value.name,
-			reviewers,
 		});
 		return currentChangeRequest.value;
 	}
