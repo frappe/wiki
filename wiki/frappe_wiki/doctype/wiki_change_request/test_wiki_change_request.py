@@ -207,6 +207,55 @@ class TestWikiChangeRequest(FrappeTestCase):
 		item1 = get_revision_item(cr.head_revision, page1_key)
 		self.assertEqual(item1.parent_key, group_key)
 
+	def test_diff_reorder_reports_location_and_position(self):
+		"""A reorder is classified as such and carries before/after position so the
+		review UI can show a structural move instead of an empty content diff."""
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="Page 1")
+		page2 = create_test_wiki_document(space.root_group, title="Page 2")
+		cr = create_change_request(space.name, "CR reorder location")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page1_key = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		page2_key = frappe.get_value("Wiki Document", page2.name, "doc_key")
+
+		reorder_cr_children(cr.name, root_key, [page2_key, page1_key])
+
+		summary = diff_change_request(cr.name, scope="summary")
+		change_types = {c["doc_key"]: c["change_type"] for c in summary}
+		self.assertEqual(change_types.get(page2_key), "reordered")
+
+		page_diff = diff_change_request(cr.name, scope="page", doc_key=page2_key)
+		location = page_diff["location"]
+		# Page 2 moved from second position to first.
+		self.assertEqual(location["base"]["position"], 2)
+		self.assertEqual(location["head"]["position"], 1)
+		self.assertEqual(location["base"]["total"], 2)
+		self.assertIsInstance(location["base"]["path"], list)
+
+	def test_diff_skips_order_index_churn_with_unchanged_position(self):
+		"""Reordering renumbers every sibling, but pages that didn't actually move
+		(same position) must not show up as spurious 'reordered' changes."""
+		space = create_test_wiki_space()
+		page1 = create_test_wiki_document(space.root_group, title="Stay 1")
+		page2 = create_test_wiki_document(space.root_group, title="Stay 2")
+		cr = create_change_request(space.name, "CR order churn")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page1_key = frappe.get_value("Wiki Document", page1.name, "doc_key")
+		page2_key = frappe.get_value("Wiki Document", page2.name, "doc_key")
+
+		# Keep the same order but force page 2's order_index to a different integer,
+		# mimicking the renumbering churn without any real position change.
+		reorder_cr_children(cr.name, root_key, [page1_key, page2_key])
+		head_item = get_revision_item(cr.head_revision, page2_key)
+		frappe.db.set_value("Wiki Revision Item", head_item.name, "order_index", 99)
+
+		summary = diff_change_request(cr.name, scope="summary")
+		changed_keys = {c["doc_key"] for c in summary}
+		self.assertNotIn(page2_key, changed_keys)
+		self.assertNotIn(page1_key, changed_keys)
+
 	def test_merge_without_conflicts_updates_live_tree(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")

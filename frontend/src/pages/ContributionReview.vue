@@ -12,12 +12,18 @@
 							{{ changeRequest.doc.status }}
 						</Badge>
 					</div>
-					<p class="text-sm text-ink-gray-5 mt-0.5">
-						{{ changeRequest.doc.wiki_space }}
-						<span v-if="changeRequest.doc.owner">
-							&middot; {{ __('by') }} {{ changeRequest.doc.owner }}
-						</span>
-					</p>
+					<div class="flex items-center gap-3 mt-0.5">
+						<p class="text-sm text-ink-gray-5">
+							{{ changeRequest.doc.wiki_space }}
+							<span v-if="changeRequest.doc.owner">
+								&middot; {{ __('by') }} {{ changeRequest.doc.owner }}
+							</span>
+						</p>
+						<div v-if="assignees" class="flex items-center gap-1.5 text-sm text-ink-gray-5">
+							<span>&middot;</span>
+							<AssigneeAvatars :assign="assignees" />
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -47,10 +53,10 @@
 					<Button
 						v-else
 						variant="solid"
-						:loading="approveResource.loading || mergeResource.loading"
-						@click="showApproveMergeDialog = true"
+						:loading="approveResource.loading"
+						@click="handleApprove"
 					>
-						{{ __('Approve & Merge') }}
+						{{ __('Approve') }}
 					</Button>
 
 					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
@@ -219,6 +225,29 @@
 							</div>
 
 							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
+								<!-- A reorder is a structural move, not a content edit, so show where
+								     the page sat vs. where it sits now instead of an empty content diff. -->
+								<template v-if="change.change_type === 'reordered'">
+									<div v-if="diffsByDocKey[change.doc_key]" class="flex items-center gap-3 flex-wrap p-4 text-sm">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-6">
+											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.base, change.title) }}</span>
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.base)" variant="subtle" theme="gray" size="sm">
+												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
+											</Badge>
+										</div>
+										<LucideArrowRight class="size-4 text-ink-gray-4 shrink-0" />
+										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
+											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
+												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
+											</Badge>
+										</div>
+									</div>
+									<div v-else class="flex items-center justify-center py-8">
+										<LoadingIndicator class="size-6" />
+									</div>
+								</template>
+								<template v-else>
 								<div class="flex items-center justify-end gap-1 px-4 pt-3">
 									<Button
 										size="sm"
@@ -238,10 +267,30 @@
 								<div class="p-4 relative z-0 isolate">
 									<template v-if="viewModeFor(change.doc_key) === 'preview'">
 										<div
-											v-if="previewsByDocKey[change.doc_key]"
-											class="wiki-rendered prose prose-sm max-w-none"
-											v-html="previewsByDocKey[change.doc_key].rendered_content"
-										/>
+											v-if="diffsByDocKey[change.doc_key]"
+											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
+										>
+											<section class="bg-surface-white min-w-0">
+												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
+													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
+													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
+												</header>
+												<div class="px-4 py-4">
+													<p v-if="!diffsByDocKey[change.doc_key].base" class="text-sm text-ink-gray-5 italic">
+														{{ __('No published version yet.') }}
+													</p>
+													<WikiContentViewer v-else :content="diffsByDocKey[change.doc_key].base?.content || ''" />
+												</div>
+											</section>
+											<section class="bg-surface-white min-w-0">
+												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
+													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
+												</header>
+												<div class="px-4 py-4">
+													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />
+												</div>
+											</section>
+										</div>
 										<div v-else class="flex items-center justify-center py-8">
 											<LoadingIndicator class="size-6" />
 										</div>
@@ -259,6 +308,7 @@
 										</div>
 									</template>
 								</div>
+								</template>
 							</div>
 						</div>
 					</div>
@@ -359,7 +409,11 @@
 			</template>
 		</Dialog>
 
-		<AssignDialog v-model="showAssignDialog" :change-request-id="props.changeRequestId" />
+		<AssignDialog
+			v-model="showAssignDialog"
+			:change-request-id="props.changeRequestId"
+			@assigned="assigneesResource.reload()"
+		/>
 	</div>
 </template>
 
@@ -372,10 +426,13 @@ import { useUserStore } from '@/stores/user';
 const router = useRouter();
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
+import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import AssignDialog from '@/components/AssignDialog.vue';
+import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
+import LucideArrowRight from '~icons/lucide/arrow-right';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 
 const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
@@ -395,11 +452,10 @@ const rejectComment = ref('');
 const showAssignDialog = ref(false);
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
-// Per-row Diff/Preview toggle. Preview renders the proposed page through the
-// same pipeline as the live reader (get_cr_preview_context), so it matches
-// production rather than showing a markdown diff.
+// Per-row Diff/Preview toggle. Preview renders the base/head markdown through a
+// read-only WikiContentViewer (the same TipTap config as the editor), so it
+// matches what readers see rather than showing a markdown diff.
 const viewModeByDocKey = reactive({});
-const previewsByDocKey = reactive({});
 
 // Conflict resolution state
 const hasConflicts = ref(false);
@@ -430,12 +486,21 @@ const changes = createResource({
 	auto: true,
 });
 
+// `_assign` is a native column that `frappe.client.get` (the document resource)
+// strips out, so it is fetched separately to surface the current assignees.
+const assigneesResource = createResource({
+	url: 'frappe.client.get_value',
+	params: {
+		doctype: 'Wiki Change Request',
+		filters: { name: props.changeRequestId },
+		fieldname: '_assign',
+	},
+	auto: true,
+});
+const assignees = computed(() => assigneesResource.data?._assign || '');
+
 const diffResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
-});
-
-const previewResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_preview_context',
 });
 
 const mergeResource = createResource({
@@ -509,13 +574,16 @@ const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const options = [];
 	const status = changeRequest.doc?.status;
-	// Approve-only (no merge) is the two-person path: a reviewer approves, then
-	// someone else merges the now-Approved CR via the primary button.
+	// The header primary button is Approve-only (the two-person path: approve now,
+	// merge later via the Merge button). The combined self-serve Approve & Merge
+	// lives here in the menu for reviewers who want to publish in one step.
 	if (status === 'In Review') {
 		options.push({
-			label: __('Approve'),
+			label: __('Approve & Merge'),
 			icon: 'check-circle',
-			onClick: handleApprove,
+			onClick: () => {
+				showApproveMergeDialog.value = true;
+			},
 		});
 	}
 	if (['In Review', 'Approved'].includes(status)) {
@@ -579,30 +647,41 @@ function openPreview() {
 	router.push({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId } });
 }
 
-// Always return to the change-requests list rather than router.back(): the
-// review and preview pages push onto each other, so history-based back can
-// ping-pong between them instead of leaving the flow.
+// Go back to wherever the user actually came from — the originating list tab
+// (with its query preserved), the space editor, etc. Real history back avoids
+// the review<->preview ping-pong because the Preview screen also pops rather
+// than pushing. Fall back to the list only when opened directly (no history).
+function goBackInFlow(fallback) {
+	if (window.history.state?.back) {
+		router.back();
+	} else {
+		router.push(fallback);
+	}
+}
+
 function goBack() {
-	router.push({ name: 'ChangeRequests' });
+	goBackInFlow({ name: 'ChangeRequests' });
+}
+
+// Reorder display: a breadcrumb of ancestor titles ending in the page itself.
+function locationPath(location, title) {
+	const segments = [...(location?.path || []), title].filter(Boolean);
+	return segments.join('  /  ');
+}
+
+function positionLabel(location) {
+	if (!location || !location.position) return '';
+	return `${__('Position')} ${location.position} / ${location.total}`;
 }
 
 function viewModeFor(docKey) {
 	return viewModeByDocKey[docKey] || 'diff';
 }
 
-async function setViewMode(docKey, mode) {
+function setViewMode(docKey, mode) {
+	// Both Diff and Preview read from the already-loaded page diff (base/head
+	// markdown), so switching is purely a view toggle.
 	viewModeByDocKey[docKey] = mode;
-	if (mode === 'preview' && !previewsByDocKey[docKey]) {
-		try {
-			previewsByDocKey[docKey] = await previewResource.submit({
-				name: props.changeRequestId,
-				doc_key: docKey,
-			});
-		} catch (error) {
-			viewModeByDocKey[docKey] = 'diff';
-			toast.error(error.messages?.[0] || __('Could not render preview'));
-		}
-	}
 }
 
 async function toggleChange(docKey) {

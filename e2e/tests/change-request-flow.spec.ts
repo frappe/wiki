@@ -10,13 +10,12 @@ const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
- * Self-serve publish from the review page: the primary "Approve & Merge"
- * button opens a confirm dialog whose action button is also "Approve & Merge".
+ * Self-serve publish from the review page: the combined "Approve & Merge" now
+ * lives in the three-dots menu (the header primary button is Approve-only). It
+ * opens a confirm dialog whose action button is also "Approve & Merge".
  */
 async function approveAndMergeFromReview(page: Page) {
-	await page
-		.getByRole('button', { name: 'Approve & Merge', exact: true })
-		.click();
+	await clickReviewMenuItem(page, 'Approve & Merge');
 	await page
 		.getByRole('dialog')
 		.getByRole('button', { name: 'Approve & Merge', exact: true })
@@ -607,6 +606,19 @@ test.describe('Change Request Flow', () => {
 		await expect(
 			changeCard.getByText('Reordered', { exact: true }),
 		).toBeVisible();
+
+		// Expanding a reorder shows a structural before/after (its position changed)
+		// rather than the content Diff/Preview toggle, which is meaningless here.
+		await changeCard.getByText(movedTitle, { exact: true }).click();
+		await expect(changeCard.getByRole('button', { name: 'Diff' })).toHaveCount(
+			0,
+		);
+		await expect(
+			changeCard.getByRole('button', { name: 'Preview' }),
+		).toHaveCount(0);
+		await expect(
+			changeCard.getByText(/Position \d+ \/ \d+/).first(),
+		).toBeVisible();
 	});
 
 	test('should navigate to published page after merging from space editor', async ({
@@ -723,10 +735,16 @@ test.describe('Change Request Flow', () => {
 		});
 		expect(todos.length).toBe(1);
 
-		// Approve as a decision only (two-person split) — no merge yet.
+		// Approve as a decision only (two-person split) — no merge yet. Approve is
+		// now the header primary action; merge happens afterwards.
 		await page.reload();
 		await page.waitForLoadState('networkidle');
-		await clickReviewMenuItem(page, 'Approve');
+
+		// The header must reflect the native _assign that frappe.client.get (the
+		// document resource) omits — otherwise the assignee avatars never render.
+		await expect(page.getByTestId('assignee-avatars').first()).toBeVisible();
+
+		await page.getByRole('button', { name: 'Approve', exact: true }).click();
 		await expect(page.getByText('Approved', { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
@@ -803,10 +821,13 @@ test.describe('Change Request Flow', () => {
 		// Terminal: no merge/approve actions remain, and a merge attempt is
 		// rejected server-side.
 		await expect(
-			page.getByRole('button', { name: 'Approve & Merge', exact: true }),
+			page.getByRole('button', { name: 'Approve', exact: true }),
 		).toHaveCount(0);
 		await expect(
 			page.getByRole('button', { name: 'Merge', exact: true }),
+		).toHaveCount(0);
+		await expect(
+			page.getByRole('button', { name: 'More actions' }),
 		).toHaveCount(0);
 
 		let mergeThrew = false;
@@ -818,5 +839,59 @@ test.describe('Change Request Flow', () => {
 			mergeThrew = true;
 		}
 		expect(mergeThrew).toBe(true);
+	});
+
+	test('assigning from the list opens the dialog without navigating', async ({
+		page,
+	}) => {
+		const content = `Assign nav content ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Assign Nav');
+		await setEditorContentAndSave(page, content);
+		await submitForReviewFromEditor(page);
+
+		// The manager inbox renders an Assign action on every in-review row.
+		await page.goto('/wiki/change-requests?tab=all');
+		await page.waitForLoadState('networkidle');
+
+		const assignButton = page.getByRole('button', { name: 'Assign' }).first();
+		await expect(assignButton).toBeVisible({ timeout: 10000 });
+
+		// Each row is a <router-link> (an <a>). Clicking Assign must not bubble
+		// into the anchor navigation — the classic @click.stop-without-.prevent
+		// regression where stopPropagation halts JS bubbling but the browser
+		// still follows the row's href to the CR detail page.
+		await assignButton.click();
+
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+		await expect(page).toHaveURL(/\/wiki\/change-requests(\?.*)?$/);
+	});
+
+	test('back from review/preview returns to the originating tab', async ({
+		page,
+	}) => {
+		const content = `Nav back content ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Nav Back');
+		await setEditorContentAndSave(page, content);
+		const crName = await submitForReviewFromEditor(page);
+
+		// Enter the CR from a specific tab (not the default 'my').
+		await page.goto('/wiki/change-requests?tab=all');
+		await page.waitForLoadState('networkidle');
+		await page.locator(`a[href*="${crName}"]`).first().click();
+		await expect(page).toHaveURL(
+			new RegExp(`/wiki/change-requests/${crName}$`),
+		);
+
+		// Review -> Preview -> back to review must not loop.
+		await page.getByRole('button', { name: 'Preview' }).first().click();
+		await expect(page).toHaveURL(/\/preview/);
+		await page.getByRole('button', { name: 'Back to review' }).click();
+		await expect(page).toHaveURL(
+			new RegExp(`/wiki/change-requests/${crName}$`),
+		);
+
+		// Back from review lands on the originating tab, query preserved.
+		await page.getByRole('button', { name: 'Back', exact: true }).click();
+		await expect(page).toHaveURL(/\/wiki\/change-requests\?tab=all/);
 	});
 });

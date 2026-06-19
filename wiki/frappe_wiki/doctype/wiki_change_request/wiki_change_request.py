@@ -1048,6 +1048,68 @@ def apply_cr_operations(
 	}
 
 
+def _node_location(item_map: dict[str, dict[str, Any]], doc_key: str) -> dict[str, Any] | None:
+	"""Ancestor-title path and 1-based sibling position for a node.
+
+	Used to render a reorder as "where it sat" → "where it sits now" rather than
+	a meaningless content diff. Returns `None` if the node isn't in this map.
+	"""
+	item = item_map.get(doc_key)
+	if not item:
+		return None
+
+	# Walk parent links up to the root, collecting ancestor titles. The space's
+	# root group (the top-level node with no parent of its own) is structural, not
+	# a real breadcrumb segment, so it is left out.
+	titles: list[str] = []
+	seen: set[str] = set()
+	cursor = item
+	while cursor.get("parent_key") and cursor["parent_key"] not in seen:
+		seen.add(cursor.get("doc_key"))
+		parent = item_map.get(cursor["parent_key"])
+		if not parent or not parent.get("parent_key"):
+			break
+		titles.append(parent.get("title") or _("Untitled"))
+		cursor = parent
+	titles.reverse()
+
+	# Rank among non-deleted siblings sharing the same parent, ordered as shown.
+	siblings = [
+		it
+		for it in item_map.values()
+		if it.get("parent_key") == item.get("parent_key") and not it.get("is_deleted")
+	]
+	siblings.sort(key=lambda it: it.get("order_index") if it.get("order_index") is not None else 0)
+	position = next(
+		(idx + 1 for idx, it in enumerate(siblings) if it.get("doc_key") == doc_key),
+		None,
+	)
+
+	return {"path": titles, "position": position, "total": len(siblings)}
+
+
+def _sibling_position_map(item_map: dict[str, dict[str, Any]]) -> dict[str, int]:
+	"""1-based position of each non-deleted node among its siblings.
+
+	Lets reorder detection compare *actual position* rather than the raw
+	`order_index` integer, which gets renumbered for every sibling whenever any
+	one of them moves — flagging untouched pages as "reordered" by accident.
+	"""
+	by_parent: dict[str | None, list[tuple[str, int]]] = {}
+	for key, item in item_map.items():
+		if item.get("is_deleted"):
+			continue
+		order = item.get("order_index") if item.get("order_index") is not None else 0
+		by_parent.setdefault(item.get("parent_key"), []).append((key, order))
+
+	positions: dict[str, int] = {}
+	for siblings in by_parent.values():
+		siblings.sort(key=lambda pair: pair[1])
+		for index, (key, _order) in enumerate(siblings):
+			positions[key] = index + 1
+	return positions
+
+
 @frappe.whitelist()
 def diff_change_request(name: str, scope: str = "summary", doc_key: str | None = None):
 	cr = frappe.get_doc("Wiki Change Request", name)
@@ -1082,9 +1144,17 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			head_contents = get_contents_for_items({doc_key: head_items.get(doc_key)})
 		base = normalize(base_items.get(doc_key), base_contents.get(doc_key, ""))
 		head = normalize(head_items.get(doc_key), head_contents.get(doc_key, ""))
-		return {"doc_key": doc_key, "base": base, "head": head}
+		# Location (ancestor path + sibling position) so a pure reorder can be
+		# shown as a structural before/after instead of an empty content diff.
+		location = {
+			"base": _node_location(base_items, doc_key),
+			"head": _node_location(head_items, doc_key),
+		}
+		return {"doc_key": doc_key, "base": base, "head": head, "location": location}
 
 	changes = []
+	base_positions = _sibling_position_map(base_items)
+	head_positions = _sibling_position_map(head_items)
 	all_keys = set(base_items) | set(head_items)
 	for key in all_keys:
 		base = normalize(base_items.get(key))
@@ -1123,7 +1193,6 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			continue
 		if base != head:
 			change_type = "modified"
-			order_changed = base.get("order_index") != head.get("order_index")
 			metadata_fields = ["title", "slug", "route", "is_group", "is_published", "parent_key"]
 			metadata_changed = any(base.get(field) != head.get(field) for field in metadata_fields)
 			content_changed = base.get("content_hash") != head.get("content_hash")
@@ -1131,7 +1200,14 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 				base_blob = (base_items.get(key) or {}).get("content_blob")
 				head_blob = (head_items.get(key) or {}).get("content_blob")
 				content_changed = base_blob != head_blob
-			if order_changed and not metadata_changed and not content_changed:
+			# Compare actual sibling position, not the raw order_index: a reorder
+			# renumbers every sibling, so order_index alone falsely flags pages
+			# that never moved.
+			position_changed = base_positions.get(key) != head_positions.get(key)
+			if not metadata_changed and not content_changed:
+				# Order-index churn with no real position change is noise — skip it.
+				if not position_changed:
+					continue
 				change_type = "reordered"
 			changes.append(
 				{
