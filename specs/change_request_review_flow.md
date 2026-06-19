@@ -116,6 +116,11 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 **Validates:** every transition in the settled diagram is now reachable from the UI; Withdraw re-opens editing.
 **Exit:** unit tests in `test_wiki_change_request.py` rewritten for the new endpoints; a non-writer calling any review endpoint gets `PermissionError`; mutating an `In Review` CR throws; merging a non-`Approved` CR throws.
 
+**As-built (2026-06-19):** ✅ Done.
+- Backend: `reject_change_request(name, comment)` — strips + requires `comment`, `can_write_space`, status `In Review`/`Approved`; sets terminal `Rejected`, stores `review_comment`, stamps `reviewed_by`/`reviewed_at`/`rejected_at`, posts a timeline comment. `withdraw_change_request(name)` — owner-or-manager only (`cr.owner == frappe.session.user or _is_manager()`), require `In Review`, set back to `Draft` (re-opening editing via Bullet 1's editable set); no comment. No schema change — the review-decision fields already shipped in Bullet 1.
+- Frontend: `ContributionReview.vue` — **Reject** added to the three-dots menu + a comment-required Reject dialog (`handleReject` → `reject_change_request`); `Rejected` status badge theme (red). `withdrawResource` retargeted from `archive_change_request` to `withdraw_change_request`; the author button (shown only for `In Review` owners) relabeled **Withdraw** (`handleWithdraw` → Draft). `ContributionBanner.vue` — terminal red `Rejected` banner config, and `bannerDescription` now surfaces the real `review_comment` (+ `reviewed_by`) on both `Changes Requested` and `Rejected`. The editor-context "Discard Changes" → `archive_change_request` flow (`SpaceDetails.vue` `@withdraw`) is untouched.
+- Tests: reject terminal-status/comment, reject-requires-comment, reject-is-terminal (edit/resubmit/merge all throw), reject writer-only; withdraw In Review → Draft + reopen-editing, withdraw-requires-In-Review, withdraw owner-or-manager-only. 81 tests pass; `yarn build` clean.
+
 ### Bullet 4 — Native assignment + the two-person path
 **Slice:** a reviewer who isn't the author finds an assigned CR, **Approves** (decision only), and someone **Merges** the now-`Approved` CR.
 
