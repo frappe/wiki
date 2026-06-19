@@ -149,10 +149,20 @@ watch(activeDocKey, (docKey) => loadPage(docKey), { immediate: true });
 
 function selectPage(docKey) {
 	if (docKey === props.docKey) return;
-	router.push({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId, docKey } });
+	// Replace, not push: flipping between previewed pages is a filter, not a
+	// navigation step, so Back should still return to the review (not walk back
+	// through every page that was previewed).
+	router.replace({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId, docKey } });
 }
 
+// Pop history so we land back on the review we came from; this is what stops the
+// review<->preview back-button loop. Fall back to the review route if the
+// preview was opened directly (no in-app history).
 function goBack() {
-	router.push({ name: 'ChangeRequestReview', params: { changeRequestId: props.changeRequestId } });
+	if (window.history.state?.back) {
+		router.back();
+	} else {
+		router.push({ name: 'ChangeRequestReview', params: { changeRequestId: props.changeRequestId } });
+	}
 }
 </script>

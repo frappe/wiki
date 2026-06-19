@@ -28,8 +28,12 @@
 							<div v-else-if="column.key === 'modified'" class="text-ink-gray-5 text-sm">
 								{{ formatDate(row.modified) }}
 							</div>
-							<div v-else-if="column.key === 'assign'">
-								<Button variant="ghost" size="sm" icon-left="user-plus" @click.stop="openAssign(row)">
+							<div v-else-if="column.key === 'assign'" class="flex items-center justify-end gap-2">
+								<AssigneeAvatars v-if="row._assign" :assign="row._assign" />
+								<!-- Rows are router-links (an <a>); .stop alone halts JS bubbling but
+								     the browser still follows the anchor href, so .prevent is required
+								     to keep the Assign click from navigating to the CR. -->
+								<Button variant="ghost" size="sm" icon-left="user-plus" @click.stop.prevent="openAssign(row)">
 									{{ __('Assign') }}
 								</Button>
 							</div>
@@ -66,6 +70,7 @@ import { useRouteQuery } from '@vueuse/router';
 import { ListView, Badge, Tabs, Button, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
 import AssignDialog from '@/components/AssignDialog.vue';
+import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 
 usePageMeta(() => ({ title: `${__('Change Requests')} | Frappe Wiki` }));
 
@@ -109,7 +114,7 @@ const myChangeRequests = createListResource({
 // Reviewer inbox driven by Frappe's native assignment (`_assign` / ToDo).
 const assignedToMe = createListResource({
 	doctype: 'Wiki Change Request',
-	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified'],
+	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
 	filters: { _assign: ['like', `%${userStore.user}%`], status: ['in', ['In Review', 'Approved']] },
 	orderBy: 'modified desc',
 	pageLength: 25,
@@ -118,7 +123,7 @@ const assignedToMe = createListResource({
 
 const allInReview = createListResource({
 	doctype: 'Wiki Change Request',
-	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified'],
+	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
 	filters: { status: ['in', ['In Review', 'Approved']] },
 	orderBy: 'modified desc',
 	pageLength: 25,
@@ -138,7 +143,7 @@ const reviewColumns = [
 	{ label: __('Space'), key: 'space_name', width: 1.5 },
 	{ label: __('Status'), key: 'status', width: 1 },
 	{ label: __('Submitted'), key: 'modified', width: 1.5 },
-	{ label: '', key: 'assign', width: 0.8, align: 'right' },
+	{ label: __('Assignees'), key: 'assign', width: 1.5, align: 'right' },
 ];
 
 const reviewRowRoute = (row) => ({ name: 'ChangeRequestReview', params: { changeRequestId: row.name } });
