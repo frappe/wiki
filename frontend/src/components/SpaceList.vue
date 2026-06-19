@@ -55,7 +55,8 @@
             size="sm"
             :label="item ? __('Published') : __('Unpublished')"
           />
-          <div v-else-if="column.key === 'actions'" class="flex justify-end">
+          <div v-else-if="column.key === 'route'" class="flex items-center gap-2 min-w-0">
+            <span class="truncate">{{ item }}</span>
             <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
                  from following the row href, so .prevent is required too. -->
             <Button
@@ -191,12 +192,6 @@ const columns = [
     label: __("Route"),
     key: "route",
     width: 2,
-  },
-  {
-    label: "",
-    key: "actions",
-    width: 1,
-    align: "right",
   },
 ];
 
