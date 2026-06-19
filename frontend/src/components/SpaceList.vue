@@ -22,7 +22,23 @@
     </div>
 
     <div class="flex-1 overflow-auto">
+      <!-- Skeleton on cold load so the empty state never flashes before the
+           first page of spaces arrives. -->
+      <div v-if="spaces.list.loading && !spaces.data?.length" class="flex flex-col">
+        <div
+          v-for="n in 8"
+          :key="n"
+          class="grid grid-cols-[2fr_1fr_2fr_3fr] items-center gap-4 px-2 h-12 border-b border-outline-gray-1"
+        >
+          <div class="h-3.5 w-2/3 rounded bg-surface-gray-3 animate-pulse" />
+          <div class="h-5 w-20 rounded-full bg-surface-gray-3 animate-pulse" />
+          <div class="h-3.5 w-1/2 rounded bg-surface-gray-3 animate-pulse" />
+          <div class="h-7 w-16 rounded bg-surface-gray-3 animate-pulse" />
+        </div>
+      </div>
+
       <ListView
+        v-else
         :columns="columns"
         :rows="spaces.data || []"
         :options="{
@@ -55,8 +71,7 @@
             size="sm"
             :label="item ? __('Published') : __('Unpublished')"
           />
-          <div v-else-if="column.key === 'route'" class="flex items-center gap-2 min-w-0">
-            <span class="truncate">{{ item }}</span>
+          <div v-else-if="column.key === 'view'" class="flex items-center">
             <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
                  from following the row href, so .prevent is required too. -->
             <Button
@@ -192,6 +207,14 @@ const columns = [
     label: __("Route"),
     key: "route",
     width: 2,
+  },
+  {
+    // Wide last column, left-aligned: keeps the View buttons in one straight
+    // column that starts right after the route rather than hugging the far edge.
+    label: "",
+    key: "view",
+    width: 3,
+    align: "left",
   },
 ];
 
