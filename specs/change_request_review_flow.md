@@ -129,6 +129,11 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 
 **Validates:** the spec's biggest architectural bet — Frappe's native `_assign`/ToDo replaces the custom reviewer table for discovery, the reviewer inbox, and the assign notification.
 
+**As-built (2026-06-19):** ✅ Done.
+- Backend: none — assignment is Frappe's native `_assign`/ToDo via `frappe.desk.form.assign_to.add` (which already notifies the assignee). `approve_change_request` + plain merge shipped in Bullet 1.
+- Frontend: new `AssignDialog.vue` — a multi-select user Autocomplete that calls `assign_to.add` on `Wiki Change Request`; reused on both surfaces. `Contributions.vue` rebuilt around assignment-aware tabs — **My Change Requests** (`owner == me`), **Assigned to me** (`_assign like %{user}%`, status `In Review`/`Approved`, any space writer, empty-state when nothing assigned), **All in review** *(managers only)*. The per-tab ListView duplication was collapsed into a single panel driven by `panelFor(key)`; review tabs carry a per-row **Assign** button; status theme gained `Rejected`. `ContributionReview.vue` — standalone **Approve** (decision only, no merge) added to the three-dots for the two-person path (primary **Merge** on `Approved` already existed); **Assign reviewer** added to the three-dots; three-dots still offers Request Changes / Reject.
+- `yarn build` clean. e2e coverage for the two-person path is sequenced into Bullet 7 per the plan.
+
 ### Bullet 5 — Notifications (thin cross-cut)
 **Slice:** the author gets a realtime ping + Notification Log entry on approve / request-changes / reject / merge.
 
