@@ -155,6 +155,12 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 
 **Validates:** the second architectural bet — preview == production via the shared render pipeline. Cleanly separable, so it rides last among the feature slices.
 
+**As-built (2026-06-19):** ✅ Done.
+- 🔎 **Reality check:** the spec assumed the live reader was the Vue `WikiDocumentPanel.vue`, but that component is the **tiptap editor**; the production reader is **server-rendered** (Python/Jinja) — markdown → HTML happens in `wiki/wiki/markdown.py::render_markdown_with_toc`, surfaced by `Wiki Document.get_web_context`. There is no client-side markdown renderer. So "preview == production" is achieved by reusing that exact Python pipeline, not a Vue component.
+- Backend: `get_cr_preview_context(name, doc_key)` — delegates to `get_cr_page` (permission + base-revision fallback) for the head-revision markdown, then runs it through `render_markdown_with_toc` (honouring the `enable_table_of_contents` setting), returning `rendered_content` + `toc_headings` exactly like `get_web_context`.
+- Frontend: new route `/change-requests/:changeRequestId/preview/:docKey?` → `ChangeRequestPreview.vue` (sidebar tree from `get_cr_tree` with per-node change dots; main pane `v-html`s the rendered HTML in a `prose prose-sm` container). Content-presentation styles (callouts, code, images, tables, pdf cards) lifted from the reader's `main.css` into a shared `src/wiki-rendered.css` scoped to `.wiki-rendered`, so both surfaces match production. Entry points: a **Preview** button in the `ContributionReview` header (any status) and a per-change **Diff/Preview** toggle that renders each page inline via `get_cr_preview_context`. Known limitation: JS-driven reader extras (image lightbox, PDF modal) are reader-only and not wired into preview — static rendering only.
+- Tests: `get_cr_preview_context` renders markdown to HTML (`<h2>`/`<strong>` present, raw `##` absent). 84 tests pass; `yarn build` clean.
+
 ### Bullet 7 — Harden & finish
 - Remove remaining dead frontend: `reviewers`-based code paths, `submitForReview(reviewers)` arg, `review_action` resource → new resources.
 - `e2e/tests/change-request-flow.spec.ts`: cover submit → assign → approve → merge, submit → request changes → revise → resubmit, and submit → reject (terminal).
