@@ -1,15 +1,15 @@
 <template>
-	<div class="flex flex-col gap-4 p-4 h-full overflow-hidden">
-		<div class="flex items-center justify-between shrink-0">
+	<div class="flex flex-col h-full overflow-hidden">
+		<div class="flex items-center justify-between shrink-0 px-5 pt-5 pb-3">
 			<h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
 		</div>
 
 		<Tabs v-model="activeTabIndex" :tabs="tabs">
 			<template #tab-panel="{ tab }">
-				<div v-if="panelFor(tab.key).resource.list.loading && !panelFor(tab.key).resource.data?.length" class="flex items-center justify-center flex-1">
+				<div v-if="panelFor(tab.key).resource.list.loading && !panelFor(tab.key).resource.data?.length" class="flex items-center justify-center flex-1 py-16">
 					<LoadingIndicator class="size-8" />
 				</div>
-				<div v-else class="flex-1 overflow-auto">
+				<div v-else class="flex-1 overflow-auto px-5 pt-4 pb-5">
 					<ListView
 						:columns="panelFor(tab.key).columns"
 						:rows="panelFor(tab.key).resource.data || []"
@@ -39,7 +39,7 @@
 						</template>
 					</ListView>
 
-					<div v-if="panelFor(tab.key).resource.hasNextPage" class="flex px-2 py-2">
+					<div v-if="panelFor(tab.key).resource.hasNextPage" class="flex pt-3">
 						<Button
 							@click="() => panelFor(tab.key).resource.next()"
 							:loading="panelFor(tab.key).resource.list.loading"
