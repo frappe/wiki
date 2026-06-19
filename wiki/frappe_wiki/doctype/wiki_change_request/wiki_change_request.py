@@ -35,9 +35,6 @@ class WikiChangeRequest(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		from wiki.frappe_wiki.doctype.wiki_cr_participant.wiki_cr_participant import WikiCRParticipant
-		from wiki.frappe_wiki.doctype.wiki_cr_reviewer.wiki_cr_reviewer import WikiCRReviewer
-
 		archived_at: DF.Datetime | None
 		base_revision: DF.Link
 		description: DF.SmallText | None
@@ -47,10 +44,12 @@ class WikiChangeRequest(Document):
 		merged_by: DF.Link | None
 		operation_version: DF.Int
 		outdated: DF.Check
-		participants: DF.Table[WikiCRParticipant]
-		reviewers: DF.Table[WikiCRReviewer]
+		rejected_at: DF.Datetime | None
+		review_comment: DF.SmallText | None
+		reviewed_at: DF.Datetime | None
+		reviewed_by: DF.Link | None
 		status: DF.Literal[
-			"Draft", "Open", "In Review", "Changes Requested", "Approved", "Merged", "Archived"
+			"Draft", "In Review", "Changes Requested", "Approved", "Rejected", "Merged", "Archived"
 		]
 		title: DF.Data
 		wiki_space: DF.Link
@@ -72,11 +71,6 @@ def get_change_request(name: str) -> dict[str, Any]:
 	return cr.as_dict()
 
 
-def _is_manager_or_approver(user: str | None = None) -> bool:
-	roles = set(frappe.get_roles(user or frappe.session.user))
-	return bool(roles.intersection({"Wiki Manager", "Wiki Approver", "System Manager"}))
-
-
 def _can_merge(wiki_space: str | None, user: str | None = None) -> bool:
 	"""Whether the current user may merge Change Requests into this space.
 
@@ -86,6 +80,33 @@ def _can_merge(wiki_space: str | None, user: str | None = None) -> bool:
 	from wiki.permissions import can_write_space
 
 	return can_write_space(wiki_space, user)
+
+
+# Statuses in which the CR head revision may still be mutated by its author.
+_EDITABLE_STATUSES = {"Draft", "Changes Requested"}
+
+
+def _assert_status(cr: Document, allowed: set[str]) -> None:
+	"""Guard a transition against the CR's current status."""
+	if cr.status not in allowed:
+		frappe.throw(
+			_("This change request is {0} and cannot be changed.").format(cr.status),
+			frappe.ValidationError,
+		)
+
+
+def _assert_editable(cr: Document) -> None:
+	"""Block any head-revision mutation once the CR has left an editable state.
+
+	A CR is only editable while it is a `Draft` or has `Changes Requested`.
+	Once it is `In Review` / `Approved` / `Merged` / `Rejected` the content is
+	frozen so a reviewer never sees a moving target.
+	"""
+	if cr.status not in _EDITABLE_STATUSES:
+		frappe.throw(
+			_("This change request is {0} and is locked for editing.").format(cr.status),
+			frappe.ValidationError,
+		)
 
 
 def touch_change_request(name: str) -> None:
@@ -722,6 +743,7 @@ def create_cr_page(
 ) -> str:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 	new_key = _create_cr_item(
 		cr,
 		parent_key=parent_key,
@@ -744,6 +766,7 @@ def create_cr_page(
 def update_cr_page(name: str, doc_key: str, fields: dict[str, Any]) -> None:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 	_update_cr_item(cr, doc_key, fields)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -754,6 +777,7 @@ def update_cr_page(name: str, doc_key: str, fields: dict[str, Any]) -> None:
 def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: int | None = None) -> None:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 	_move_cr_item(cr, doc_key, new_parent_key, order_index=new_order_index)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -764,6 +788,7 @@ def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: 
 def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str]) -> None:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 	_reorder_cr_children(cr, parent_key, ordered_doc_keys)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -774,6 +799,7 @@ def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str])
 def delete_cr_page(name: str, doc_key: str) -> None:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 	_delete_cr_item(cr, doc_key)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -896,6 +922,7 @@ def apply_cr_operations(
 
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
+	_assert_editable(cr)
 
 	current_version = int(cr.operation_version or 0)
 	if base_version is not None:
@@ -1072,73 +1099,40 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 
 
 @frappe.whitelist()
-def request_review(name: str, reviewers: list[str]) -> None:
+def submit_change_request(name: str) -> None:
+	"""Send a Draft / Changes-Requested CR into review.
+
+	The author submits their own work; no reviewer is picked here (reviewer
+	discovery is native assignment, see the review-flow spec). We re-check
+	server-side that the CR actually has changes — the UI gate is not enough.
+	"""
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("write")
-	unique_reviewers = []
-	seen = set()
-	for reviewer in reviewers or []:
-		if reviewer and reviewer not in seen:
-			unique_reviewers.append(reviewer)
-			seen.add(reviewer)
+	_assert_status(cr, {"Draft", "Changes Requested"})
 
-	cr.reviewers = []
-	for reviewer in unique_reviewers:
-		cr.append(
-			"reviewers",
-			{
-				"reviewer": reviewer,
-				"status": "Requested",
-			},
-		)
+	if not has_revision_changes(cr.base_revision, cr.head_revision):
+		frappe.throw(_("There are no changes to submit for review."), frappe.ValidationError)
 
 	cr.status = "In Review"
 	cr.save()
 
 
 @frappe.whitelist()
-def review_action(name: str, reviewer: str, status: str, comment: str | None = None) -> None:
-	if reviewer != frappe.session.user and not _is_manager_or_approver():
-		frappe.throw(_("You can only submit a review as yourself."), frappe.PermissionError)
-
+def approve_change_request(name: str) -> None:
+	"""Approve an in-review CR. Does not publish — merge is a separate action."""
 	cr = frappe.get_doc("Wiki Change Request", name)
-	row = None
-	for reviewer_row in cr.reviewers or []:
-		if reviewer_row.reviewer == reviewer:
-			row = reviewer_row
-			break
-
-	if not row:
-		row = cr.append(
-			"reviewers",
-			{
-				"reviewer": reviewer,
-				"status": status,
-			},
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to review change requests in this space."),
+			frappe.PermissionError,
 		)
+	_assert_status(cr, {"In Review"})
 
-	row.status = status
-	row.reviewed_at = now_datetime()
-	if comment is not None:
-		row.comment = comment
-
-	# recompute CR status
-	approved = 0
-	changes_requested = 0
-	for reviewer_row in cr.reviewers or []:
-		if reviewer_row.status == "Approved":
-			approved += 1
-		elif reviewer_row.status == "Changes Requested":
-			changes_requested += 1
-
-	if changes_requested:
-		cr.status = "Changes Requested"
-	elif approved and approved == len(cr.reviewers):
-		cr.status = "Approved"
-	else:
-		cr.status = "In Review"
-
+	cr.status = "Approved"
+	cr.reviewed_by = frappe.session.user
+	cr.reviewed_at = now_datetime()
 	cr.save()
+	cr.add_comment("Comment", _("Approved this change request."))
 
 
 @frappe.whitelist()
@@ -1149,6 +1143,10 @@ def merge_change_request(name: str) -> str:
 			_("You do not have permission to merge change requests in this space."),
 			frappe.PermissionError,
 		)
+
+	# Merge requires an explicit Approved decision; reject anything already
+	# finalized so a re-fired request can't re-merge or revive a closed CR.
+	_assert_status(cr, {"Approved"})
 
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
 

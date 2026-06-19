@@ -22,9 +22,6 @@
 			</div>
 
 			<div v-if="canReview" class="flex items-center gap-2">
-				<Button @click="showRejectDialog = true">
-					{{ __('Request Changes') }}
-				</Button>
 				<Button
 					v-if="hasConflicts"
 					variant="solid"
@@ -35,12 +32,20 @@
 					{{ __('Resolve & Merge') }}
 				</Button>
 				<Button
-					v-else
+					v-else-if="changeRequest.doc?.status === 'Approved'"
 					variant="solid"
 					:loading="mergeResource.loading"
-					@click="handleApprove"
+					@click="handleMerge"
 				>
 					{{ __('Merge') }}
+				</Button>
+				<Button
+					v-else
+					variant="solid"
+					:loading="approveResource.loading || mergeResource.loading"
+					@click="showApproveMergeDialog = true"
+				>
+					{{ __('Approve & Merge') }}
 				</Button>
 			</div>
 
@@ -52,22 +57,6 @@
 		</div>
 
 		<div class="flex-1 overflow-auto p-4">
-			<div
-				v-if="reviewNote"
-				class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg"
-			>
-				<div class="flex items-start gap-3">
-					<LucideAlertCircle class="size-5 text-red-500 shrink-0 mt-0.5" />
-					<div>
-						<p class="font-medium text-red-800">{{ __('Changes Requested') }}</p>
-						<p class="text-sm text-red-700 mt-1">{{ reviewNote.comment }}</p>
-						<p class="text-xs text-red-600 mt-2">
-							{{ __('Reviewed by') }} {{ reviewNote.reviewer }} {{ __('on') }} {{ formatDate(reviewNote.reviewed_at) }}
-						</p>
-					</div>
-				</div>
-			</div>
-
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
@@ -238,34 +227,24 @@
 			</div>
 		</div>
 
-		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
+		<Dialog v-model="showApproveMergeDialog" :options="{ size: 'md' }">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
+				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
 			</template>
 			<template #body-content>
-				<div class="space-y-4">
-					<p class="text-ink-gray-7">
-						{{ __('Please provide feedback explaining what needs to change.') }}
-					</p>
-					<FormControl
-						v-model="rejectComment"
-						type="textarea"
-						:label="__('Feedback')"
-						:placeholder="__('Enter your feedback...')"
-						:rows="4"
-					/>
-				</div>
+				<p class="text-ink-gray-7">
+					{{ __('This will approve the change request and immediately merge it into the live wiki. This cannot be undone. Are you sure?') }}
+				</p>
 			</template>
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button
 						variant="solid"
-						theme="red"
-						:loading="rejectResource.loading"
-						@click="handleReject(close)"
+						:loading="approveResource.loading || mergeResource.loading"
+						@click="handleApproveAndMerge(close)"
 					>
-						{{ __('Request Changes') }}
+						{{ __('Approve & Merge') }}
 					</Button>
 				</div>
 			</template>
@@ -283,7 +262,6 @@ const router = useRouter();
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 
@@ -296,8 +274,7 @@ const props = defineProps({
 	},
 });
 
-const showRejectDialog = ref(false);
-const rejectComment = ref('');
+const showApproveMergeDialog = ref(false);
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
 
@@ -350,8 +327,8 @@ const retryResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.retry_merge_after_resolution',
 });
 
-const rejectResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.review_action',
+const approveResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
 });
 
 const withdrawResource = createResource({
@@ -386,19 +363,6 @@ const canReview = computed(() => {
 
 const canWithdraw = computed(() => {
 	return isOwner.value && ['In Review', 'Changes Requested'].includes(changeRequest.doc?.status);
-});
-
-const reviewNote = computed(() => {
-	if (changeRequest.doc?.status !== 'Changes Requested') return null;
-	const reviewer = (changeRequest.doc?.reviewers || []).find(
-		(row) => row.status === 'Changes Requested' && row.comment,
-	);
-	if (!reviewer) return null;
-	return {
-		comment: reviewer.comment,
-		reviewer: reviewer.reviewer,
-		reviewed_at: reviewer.reviewed_at,
-	};
 });
 
 function setResolution(conflictName, value) {
@@ -452,7 +416,9 @@ async function toggleChange(docKey) {
 	}
 }
 
-async function handleApprove() {
+// Merge an already-Approved CR. On a merge-conflict ValidationError the CR
+// stays Approved and the conflict-resolution flow takes over.
+async function mergeNow() {
 	try {
 		await mergeResource.submit({ name: props.changeRequestId });
 		toast.success(__('Change request merged'));
@@ -461,6 +427,7 @@ async function handleApprove() {
 		}
 		changeRequest.reload();
 		await changes.submit({ name: props.changeRequestId, scope: 'summary' });
+		return true;
 	} catch (error) {
 		const msg = error.messages?.[0] || '';
 		if (error.exc_type === 'ValidationError') {
@@ -471,7 +438,26 @@ async function handleApprove() {
 		} else {
 			toast.error(msg || __('Error merging change request'));
 		}
+		return false;
 	}
+}
+
+async function handleMerge() {
+	await mergeNow();
+}
+
+// Self-serve path: approve, then immediately merge. If approve fails we never
+// attempt the merge; if the merge conflicts the CR is left Approved.
+async function handleApproveAndMerge(close) {
+	try {
+		await approveResource.submit({ name: props.changeRequestId });
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error approving change request'));
+		return;
+	}
+	changeRequest.reload();
+	close?.();
+	await mergeNow();
 }
 
 async function handleResolveAndMerge() {
@@ -507,28 +493,6 @@ async function handleResolveAndMerge() {
 	}
 }
 
-async function handleReject(close) {
-	if (!rejectComment.value.trim()) {
-		toast.warning(__('Please provide feedback'));
-		return;
-	}
-
-	try {
-		await rejectResource.submit({
-			name: props.changeRequestId,
-			reviewer: userStore.data?.name,
-			status: 'Changes Requested',
-			comment: rejectComment.value.trim(),
-		});
-		toast.success(__('Requested changes'));
-		rejectComment.value = '';
-		close();
-		changeRequest.reload();
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error requesting changes'));
-	}
-}
-
 async function handleWithdraw() {
 	try {
 		await withdrawResource.submit({ name: props.changeRequestId });
@@ -560,15 +524,4 @@ function getConflictTheme(type) {
 	}
 }
 
-function formatDate(dateStr) {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	return date.toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	});
-}
 </script>
