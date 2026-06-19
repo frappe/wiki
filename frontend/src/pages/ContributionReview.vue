@@ -2,7 +2,7 @@
 	<div class="flex flex-col h-full">
 		<div class="flex items-center justify-between p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
 			<div class="flex items-center gap-4">
-				<Button variant="ghost" icon-left="arrow-left" @click="router.back()">
+				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc">
@@ -577,6 +577,13 @@ async function fetchConflicts() {
 
 function openPreview() {
 	router.push({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId } });
+}
+
+// Always return to the change-requests list rather than router.back(): the
+// review and preview pages push onto each other, so history-based back can
+// ping-pong between them instead of leaving the flow.
+function goBack() {
+	router.push({ name: 'ChangeRequests' });
 }
 
 function viewModeFor(docKey) {
