@@ -1,5 +1,22 @@
-import { APIRequestContext } from '@playwright/test';
+import { APIRequestContext, type Page, expect } from '@playwright/test';
 import { createDoc, deleteDoc, getDoc, getList } from './frappe';
+
+/**
+ * Publish the change request currently open on the review page. The header
+ * primary action is Approve-only; the combined "Approve & Merge" lives in the
+ * three-dots menu and opens a confirm dialog. Waits for the merged toast.
+ */
+export async function publishChangeRequestFromReview(page: Page) {
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Approve & Merge' }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Approve & Merge', exact: true })
+		.click();
+	await expect(page.locator('text=Change request merged').first()).toBeVisible({
+		timeout: 15000,
+	});
+}
 
 /**
  * Wiki Space document interface.
