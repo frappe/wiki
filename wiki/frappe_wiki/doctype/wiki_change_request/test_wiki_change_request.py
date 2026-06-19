@@ -24,6 +24,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	merge_content_three_way,
 	move_cr_page,
 	reorder_cr_children,
+	request_changes,
 	resolve_merge_conflict,
 	retry_merge_after_resolution,
 	submit_change_request,
@@ -382,6 +383,57 @@ class TestWikiChangeRequest(FrappeTestCase):
 		try:
 			with self.assertRaises(frappe.PermissionError):
 				approve_change_request(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_request_changes_sets_status_and_comment(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11d")
+		submit_change_request(cr.name)
+
+		request_changes(cr.name, "Please fix the title")
+
+		cr_doc = frappe.get_doc("Wiki Change Request", cr.name)
+		self.assertEqual(cr_doc.status, "Changes Requested")
+		self.assertEqual(cr_doc.review_comment, "Please fix the title")
+		self.assertEqual(cr_doc.reviewed_by, frappe.session.user)
+
+	def test_request_changes_requires_comment(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11e")
+		submit_change_request(cr.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			request_changes(cr.name, "   ")
+
+	def test_changes_requested_reopens_editing(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11f")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		submit_change_request(cr.name)
+
+		# Locked while In Review ...
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(cr.name, root_key, "Blocked Page", content="no")
+
+		# ... and editable again once changes are requested.
+		request_changes(cr.name, "needs work")
+		create_cr_page(cr.name, root_key, "Revised Page", content="ok")
+
+	def test_request_changes_requires_write_access(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11g")
+		submit_change_request(cr.name)
+
+		non_writer = create_user("cr-rc-non-writer@example.com", "Wiki User")
+		frappe.set_user(non_writer.name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				request_changes(cr.name, "no access")
 		finally:
 			frappe.set_user("Administrator")
 

@@ -414,5 +414,17 @@ const bannerConfig = computed(
 const bannerClass = computed(() => bannerConfig.value.class);
 const bannerIcon = computed(() => bannerConfig.value.icon);
 const bannerTitle = computed(() => bannerConfig.value.title);
-const bannerDescription = computed(() => bannerConfig.value.description);
+
+// On Changes Requested, show the reviewer's actual feedback instead of a
+// generic prompt — this is the only place the author sees why their CR
+// bounced back (the comment is stored on the CR by `request_changes`).
+const bannerDescription = computed(() => {
+	const cr = crStore.currentChangeRequest;
+	if (changeRequestStatus.value === 'Changes Requested' && cr?.review_comment) {
+		return cr.reviewed_by
+			? __('{0} — {1}', [cr.review_comment, cr.reviewed_by])
+			: cr.review_comment;
+	}
+	return bannerConfig.value.description;
+});
 </script>

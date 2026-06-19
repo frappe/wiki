@@ -47,6 +47,12 @@
 				>
 					{{ __('Approve & Merge') }}
 				</Button>
+
+				<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
+					<Button variant="ghost" :title="__('More actions')">
+						<LucideMoreVertical class="size-4" />
+					</Button>
+				</Dropdown>
 			</div>
 
 			<div v-else-if="canWithdraw" class="flex items-center gap-2">
@@ -249,13 +255,46 @@
 				</div>
 			</template>
 		</Dialog>
+
+		<Dialog v-model="showRequestChangesDialog" :options="{ size: 'md' }">
+			<template #body-title>
+				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
+			</template>
+			<template #body-content>
+				<div class="space-y-4">
+					<p class="text-ink-gray-7">
+						{{ __('Please provide feedback explaining what needs to change. This is sent back to the author.') }}
+					</p>
+					<FormControl
+						v-model="requestChangesComment"
+						type="textarea"
+						:label="__('Feedback')"
+						:placeholder="__('Enter your feedback...')"
+						:rows="4"
+					/>
+				</div>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						theme="red"
+						:loading="requestChangesResource.loading"
+						@click="handleRequestChanges(close)"
+					>
+						{{ __('Request Changes') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
 	</div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
+import { createDocumentResource, createResource, Button, Badge, Dialog, Dropdown, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
@@ -263,6 +302,7 @@ import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 
 const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
@@ -275,6 +315,8 @@ const props = defineProps({
 });
 
 const showApproveMergeDialog = ref(false);
+const showRequestChangesDialog = ref(false);
+const requestChangesComment = ref('');
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
 
@@ -331,6 +373,10 @@ const approveResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
 });
 
+const requestChangesResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_changes',
+});
+
 const withdrawResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.archive_change_request',
 });
@@ -363,6 +409,23 @@ const canReview = computed(() => {
 
 const canWithdraw = computed(() => {
 	return isOwner.value && ['In Review', 'Changes Requested'].includes(changeRequest.doc?.status);
+});
+
+// Secondary reviewer decisions live in the three-dots menu so the header keeps a
+// single primary action. Reject lands here in a later slice.
+const reviewMenuOptions = computed(() => {
+	if (hasConflicts.value) return [];
+	const options = [];
+	if (['In Review', 'Approved'].includes(changeRequest.doc?.status)) {
+		options.push({
+			label: __('Request Changes'),
+			icon: 'message-square',
+			onClick: () => {
+				showRequestChangesDialog.value = true;
+			},
+		});
+	}
+	return options;
 });
 
 function setResolution(conflictName, value) {
@@ -458,6 +521,25 @@ async function handleApproveAndMerge(close) {
 	changeRequest.reload();
 	close?.();
 	await mergeNow();
+}
+
+async function handleRequestChanges(close) {
+	if (!requestChangesComment.value.trim()) {
+		toast.warning(__('Please provide feedback'));
+		return;
+	}
+	try {
+		await requestChangesResource.submit({
+			name: props.changeRequestId,
+			comment: requestChangesComment.value.trim(),
+		});
+		toast.success(__('Requested changes'));
+		requestChangesComment.value = '';
+		close?.();
+		changeRequest.reload();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error requesting changes'));
+	}
 }
 
 async function handleResolveAndMerge() {

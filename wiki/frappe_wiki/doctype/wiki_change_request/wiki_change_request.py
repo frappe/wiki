@@ -1136,6 +1136,33 @@ def approve_change_request(name: str) -> None:
 
 
 @frappe.whitelist()
+def request_changes(name: str, comment: str) -> None:
+	"""Send an in-review (or approved) CR back to the author with feedback.
+
+	The comment is required — it is the author's only signal for what to fix —
+	and is stored on the CR so the author's banner can surface it.
+	"""
+	comment = (comment or "").strip()
+	if not comment:
+		frappe.throw(_("Please provide feedback explaining what needs to change."), frappe.ValidationError)
+
+	cr = frappe.get_doc("Wiki Change Request", name)
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to review change requests in this space."),
+			frappe.PermissionError,
+		)
+	_assert_status(cr, {"In Review", "Approved"})
+
+	cr.status = "Changes Requested"
+	cr.review_comment = comment
+	cr.reviewed_by = frappe.session.user
+	cr.reviewed_at = now_datetime()
+	cr.save()
+	cr.add_comment("Comment", _("Requested changes: {0}").format(comment))
+
+
+@frappe.whitelist()
 def merge_change_request(name: str) -> str:
 	cr = frappe.get_doc("Wiki Change Request", name)
 	if not _can_merge(cr.wiki_space):
