@@ -1163,6 +1163,56 @@ def request_changes(name: str, comment: str) -> None:
 
 
 @frappe.whitelist()
+def reject_change_request(name: str, comment: str) -> None:
+	"""Reject an in-review (or approved) CR. Terminal — it will not be merged.
+
+	Like `request_changes` a comment is required (it is the rejection reason the
+	author reads), but unlike it `Rejected` is a dead end: the author cannot
+	resubmit, only archive-and-start-over.
+	"""
+	comment = (comment or "").strip()
+	if not comment:
+		frappe.throw(_("Please provide a reason for rejecting this change request."), frappe.ValidationError)
+
+	cr = frappe.get_doc("Wiki Change Request", name)
+	if not _can_merge(cr.wiki_space):
+		frappe.throw(
+			_("You do not have permission to review change requests in this space."),
+			frappe.PermissionError,
+		)
+	_assert_status(cr, {"In Review", "Approved"})
+
+	cr.status = "Rejected"
+	cr.review_comment = comment
+	cr.reviewed_by = frappe.session.user
+	cr.reviewed_at = now_datetime()
+	cr.rejected_at = now_datetime()
+	cr.save()
+	cr.add_comment("Comment", _("Rejected this change request: {0}").format(comment))
+
+
+@frappe.whitelist()
+def withdraw_change_request(name: str) -> None:
+	"""Author pulls an in-review CR back to Draft, re-opening it for editing.
+
+	Author (owner) only; managers may also withdraw. No comment — this is the
+	author retracting their own submission, not a reviewer decision.
+	"""
+	from wiki.permissions import _is_manager
+
+	cr = frappe.get_doc("Wiki Change Request", name)
+	if cr.owner != frappe.session.user and not _is_manager():
+		frappe.throw(
+			_("Only the author can withdraw this change request."),
+			frappe.PermissionError,
+		)
+	_assert_status(cr, {"In Review"})
+
+	cr.status = "Draft"
+	cr.save()
+
+
+@frappe.whitelist()
 def merge_change_request(name: str) -> str:
 	cr = frappe.get_doc("Wiki Change Request", name)
 	if not _can_merge(cr.wiki_space):
