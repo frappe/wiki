@@ -87,6 +87,12 @@ Commit after each bullet. The reference detail (field names, endpoint contracts,
 **Validates:** the new state machine, edit-locking, the merge gate, and that the reviewer/participant tables can be dropped without breaking submit.
 **Exit:** `bench migrate` succeeds; no references to the deleted doctypes remain (`grep -r "CR Reviewer\|CR Participant\|cr_reviewer\|cr_participant"`); the full self-serve lifecycle runs on wiki.localhost.
 
+**As-built (2026-06-19):** ✅ Done.
+- Deleted `Wiki CR Reviewer` / `Wiki CR Participant`; DB tables dropped by post-model-sync patch `drop_reviewer_participant_tables`. `status` options updated (dropped `Open`, added `Rejected`); added `review_comment` / `reviewed_by` / `reviewed_at` / `rejected_at`.
+- Backend: `_assert_status` / `_assert_editable` (editable = `{Draft, Changes Requested}`) guard all six CR mutators (`apply_cr_operations` + the five legacy RPCs). Added `submit_change_request` (replaces `request_review`; server-side `has_revision_changes` gate) and `approve_change_request` (writer-only, stamps reviewer fields, posts timeline comment). `merge_change_request` now requires `status == "Approved"`. Removed `request_review` / `review_action` and the now-dead `_is_manager_or_approver`.
+- Frontend: store `submitForReview()` → `submit_change_request` (no reviewer arg); `ContributionReview.vue` primary **Approve & Merge** button + confirm dialog (`handleApproveAndMerge` → approve then `mergeNow`), `handleApprove` renamed `handleMerge` (shown when already `Approved`). Removed the `review_action`-backed Request Changes dialog and the `reviewers`-based `reviewNote` (return in Bullets 2–3).
+- Tests: rewrote the three obsolete reviewer tests into submit / approve→merge / merge-gate / edit-lock / approve-permission cases; merge-machinery tests route through an `_approve_and_merge` helper. `bench migrate` green; 70 tests pass; `yarn build` clean.
+
 ### Bullet 2 — Reviewer feedback round-trip
 **Slice:** reviewer **Request Changes** (comment) → `Changes Requested` → **author sees the comment** → edits → resubmits.
 
