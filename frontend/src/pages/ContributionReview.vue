@@ -321,6 +321,8 @@
 				</div>
 			</template>
 		</Dialog>
+
+		<AssignDialog v-model="showAssignDialog" :change-request-id="props.changeRequestId" />
 	</div>
 </template>
 
@@ -333,6 +335,7 @@ import { useUserStore } from '@/stores/user';
 const router = useRouter();
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
+import AssignDialog from '@/components/AssignDialog.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
@@ -352,6 +355,7 @@ const showRequestChangesDialog = ref(false);
 const requestChangesComment = ref('');
 const showRejectDialog = ref(false);
 const rejectComment = ref('');
+const showAssignDialog = ref(false);
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
 
@@ -458,7 +462,17 @@ const canWithdraw = computed(() => {
 const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const options = [];
-	if (['In Review', 'Approved'].includes(changeRequest.doc?.status)) {
+	const status = changeRequest.doc?.status;
+	// Approve-only (no merge) is the two-person path: a reviewer approves, then
+	// someone else merges the now-Approved CR via the primary button.
+	if (status === 'In Review') {
+		options.push({
+			label: __('Approve'),
+			icon: 'check-circle',
+			onClick: handleApprove,
+		});
+	}
+	if (['In Review', 'Approved'].includes(status)) {
 		options.push({
 			label: __('Request Changes'),
 			icon: 'message-square',
@@ -471,6 +485,13 @@ const reviewMenuOptions = computed(() => {
 			icon: 'x-circle',
 			onClick: () => {
 				showRejectDialog.value = true;
+			},
+		});
+		options.push({
+			label: __('Assign reviewer'),
+			icon: 'user-plus',
+			onClick: () => {
+				showAssignDialog.value = true;
 			},
 		});
 	}
@@ -556,6 +577,18 @@ async function mergeNow() {
 
 async function handleMerge() {
 	await mergeNow();
+}
+
+// Approve without merging — leaves the CR Approved for a different person to
+// merge (the two-person path). Distinct from Approve & Merge (self-serve).
+async function handleApprove() {
+	try {
+		await approveResource.submit({ name: props.changeRequestId });
+		toast.success(__('Change request approved'));
+		changeRequest.reload();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error approving change request'));
+	}
 }
 
 // Self-serve path: approve, then immediately merge. If approve fails we never
