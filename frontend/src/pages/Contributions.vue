@@ -25,8 +25,14 @@
 							<div v-else-if="column.key === 'owner'" class="text-ink-gray-6">
 								{{ row.owner }}
 							</div>
-							<div v-else-if="column.key === 'modified'" class="text-ink-gray-5 text-sm">
-								{{ formatDate(row.modified) }}
+							<div
+								v-else-if="column.key === 'modified'"
+								class="flex items-center gap-1.5 text-ink-gray-5 text-sm"
+								:class="{ 'justify-end': column.align === 'right' }"
+								:title="formatDateTime(row.modified)"
+							>
+								<FeatherIcon name="clock" class="size-3.5 shrink-0 text-ink-gray-4" />
+								<span class="truncate">{{ formatDate(row.modified) }}</span>
 							</div>
 							<div v-else-if="column.key === 'assign'" class="flex items-center justify-end gap-2">
 								<AssigneeAvatars v-if="row._assign" :assign="row._assign" />
@@ -67,7 +73,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRouteQuery } from '@vueuse/router';
-import { ListView, Badge, Tabs, Button, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
+import { ListView, Badge, Tabs, Button, FeatherIcon, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
 import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
@@ -88,11 +94,14 @@ const myChangeRequestColumns = [
 
 const reviewColumns = [
 	{ label: __('Title'), key: 'title', width: 2 },
-	{ label: __('Author'), key: 'owner', width: 1.5 },
-	{ label: __('Space'), key: 'space_name', width: 1.5 },
-	{ label: __('Status'), key: 'status', width: 1 },
-	{ label: __('Submitted'), key: 'modified', width: 1.5 },
-	{ label: __('Assignees'), key: 'assign', width: 1.5, align: 'right' },
+	{ label: __('Author'), key: 'owner', width: 1 },
+	{ label: __('Space'), key: 'space_name', width: 2 },
+	{ label: __('Status'), key: 'status', width: '8rem' },
+	{ label: __('Assignees'), key: 'assign', width: '6rem', align: 'right' },
+	// Submitted is a compact, clock-marked date column anchored to the end; the
+	// header text is dropped (the icon is the cue) and the full timestamp is on
+	// hover, since the date alone is enough at a glance.
+	{ label: '', key: 'modified', width: '7.5rem', align: 'right' },
 ];
 
 const reviewRowRoute = (row) => ({ name: 'ChangeRequestReview', params: { changeRequestId: row.name } });
@@ -247,8 +256,16 @@ function getStatusTheme(status) {
 
 function formatDate(dateStr) {
 	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	return date.toLocaleDateString(undefined, {
+	return new Date(dateStr).toLocaleDateString(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+	});
+}
+
+function formatDateTime(dateStr) {
+	if (!dateStr) return '';
+	return new Date(dateStr).toLocaleString(undefined, {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric',
