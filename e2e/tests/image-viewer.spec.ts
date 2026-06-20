@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -95,10 +96,7 @@ async function createAndPublishPage(
 	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 		timeout: 10000,
 	});
-	await page.getByRole('button', { name: 'Merge' }).click();
-	await expect(page.locator('text=Change request merged').first()).toBeVisible({
-		timeout: 15000,
-	});
+	await publishChangeRequestFromReview(page);
 
 	const routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {
 		fields: ['route', 'doc_key'],

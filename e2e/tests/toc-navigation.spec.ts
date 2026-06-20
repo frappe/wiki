@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -164,13 +165,7 @@ Epsilon content here.`;
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		// Handle both "Merge" and "Resolve & Merge" buttons (conflicts may auto-resolve)
-		const mergeButton = page.getByRole('button', { name: /Merge/ });
-		await expect(mergeButton).toBeVisible({ timeout: 10000 });
-		await mergeButton.click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Open public view for the first page
 		const routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {

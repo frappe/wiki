@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 /**
  * Tests for the external link feature in wiki.
@@ -85,10 +86,7 @@ test.describe('External Links', () => {
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Navigate back to space to verify the external link is in the tree after merge
 		if (spaceHref) {
@@ -187,10 +185,7 @@ test.describe('External Links', () => {
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Navigate back to space and click on the page to get public view
 		if (spaceHref) {

@@ -538,9 +538,12 @@ test.describe('Local-first draft workspace', () => {
 			is_group: 0,
 			is_published: 1,
 		});
-		await callMethod(request, `${CR_METHOD_PREFIX}.request_review`, {
+		await callMethod(request, `${CR_METHOD_PREFIX}.submit_change_request`, {
 			name: initialDraft.name,
-			reviewers: [],
+		});
+		// Merge requires an explicit Approved decision, so approve first.
+		await callMethod(request, `${CR_METHOD_PREFIX}.approve_change_request`, {
+			name: initialDraft.name,
 		});
 		await callMethod(request, `${CR_METHOD_PREFIX}.merge_change_request`, {
 			name: initialDraft.name,
