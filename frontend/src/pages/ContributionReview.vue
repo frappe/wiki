@@ -605,6 +605,16 @@ const reviewMenuOptions = computed(() => {
 			},
 		});
 	}
+	// The standalone Withdraw button is only shown to authors who can't review;
+	// surface the same action here so an author who *can* review (e.g. a manager
+	// reviewing their own CR) can still pull it back to Draft from the menu.
+	if (canWithdraw.value) {
+		options.push({
+			label: __('Withdraw'),
+			icon: 'rotate-ccw',
+			onClick: handleWithdraw,
+		});
+	}
 	return options;
 });
 
