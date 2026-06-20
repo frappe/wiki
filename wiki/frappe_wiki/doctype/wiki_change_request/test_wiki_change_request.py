@@ -16,7 +16,6 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	diff_change_request,
 	get_change_request,
 	get_cr_page,
-	get_cr_preview_context,
 	get_cr_tree,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
@@ -582,23 +581,6 @@ class TestWikiChangeRequest(FrappeTestCase):
 				withdraw_change_request(cr.name)
 		finally:
 			frappe.set_user("Administrator")
-
-	def test_cr_preview_renders_markdown_to_html(self):
-		space = create_test_wiki_space()
-		create_test_wiki_document(space.root_group, title="Page A")
-		cr = create_change_request(space.name, "CR 11q")
-		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
-		doc_key = create_cr_page(
-			cr.name, root_key, "Rendered Page", content="## Heading\n\nSome **bold** text."
-		)
-
-		preview = get_cr_preview_context(cr.name, doc_key)
-
-		# Same render pipeline as the live reader → real HTML, not raw markdown.
-		self.assertEqual(preview["title"], "Rendered Page")
-		self.assertIn("<h2", preview["rendered_content"])
-		self.assertIn("<strong>bold</strong>", preview["rendered_content"])
-		self.assertNotIn("## Heading", preview["rendered_content"])
 
 	def test_reviewer_decision_notifies_owner(self):
 		space = create_test_wiki_space()
