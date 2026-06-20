@@ -28,10 +28,6 @@
 			</div>
 
 			<div class="flex items-center gap-2">
-				<Button variant="outline" icon-left="eye" @click="openPreview">
-					{{ __('Preview') }}
-				</Button>
-
 				<template v-if="canReview">
 					<Button
 						v-if="hasConflicts"
@@ -609,6 +605,16 @@ const reviewMenuOptions = computed(() => {
 			},
 		});
 	}
+	// The standalone Withdraw button is only shown to authors who can't review;
+	// surface the same action here so an author who *can* review (e.g. a manager
+	// reviewing their own CR) can still pull it back to Draft from the menu.
+	if (canWithdraw.value) {
+		options.push({
+			label: __('Withdraw'),
+			icon: 'rotate-ccw',
+			onClick: handleWithdraw,
+		});
+	}
 	return options;
 });
 
@@ -643,14 +649,9 @@ async function fetchConflicts() {
 	}
 }
 
-function openPreview() {
-	router.push({ name: 'ChangeRequestPreview', params: { changeRequestId: props.changeRequestId } });
-}
-
 // Go back to wherever the user actually came from — the originating list tab
-// (with its query preserved), the space editor, etc. Real history back avoids
-// the review<->preview ping-pong because the Preview screen also pops rather
-// than pushing. Fall back to the list only when opened directly (no history).
+// (with its query preserved), the space editor, etc. Fall back to the list only
+// when opened directly (no history).
 function goBackInFlow(fallback) {
 	if (window.history.state?.back) {
 		router.back();
