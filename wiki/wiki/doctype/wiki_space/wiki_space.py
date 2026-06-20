@@ -51,10 +51,35 @@ class WikiSpace(Document):
 
 	def validate(self):
 		self.remove_leading_slash_from_route()
+		self.validate_git_synced_immutable()
 
 	def remove_leading_slash_from_route(self):
 		if self.route and self.route.startswith("/"):
 			self.route = self.route[1 : len(self.route)]
+
+	def validate_git_synced_immutable(self):
+		"""git_synced is a creation-time decision — it cannot be toggled later."""
+		if self.is_new():
+			return
+		previous = frappe.db.get_value("Wiki Space", self.name, "git_synced")
+		if previous is not None and int(previous) != int(self.git_synced or 0):
+			frappe.throw(_("Git Sync cannot be toggled after a space is created."))
+
+	@frappe.whitelist()
+	def sync_now(self) -> dict:
+		"""Enqueue a one-way sync from the configured GitHub repo."""
+		if not self.git_synced:
+			frappe.throw(_("This Wiki Space is not git-synced."))
+
+		frappe.enqueue(
+			"wiki.wiki.git_sync.sync_space",
+			queue="long",
+			job_name=f"wiki_git_sync:{self.name}",
+			space_name=self.name,
+			token=None,
+		)
+		frappe.db.set_value("Wiki Space", self.name, "last_sync_status", "Pending", update_modified=False)
+		return {"status": "queued"}
 
 	def create_root_group(self):
 		if not self.root_group:

@@ -67,6 +67,13 @@ The end-to-end skeleton. Mark a space git-synced, point it at a **public** repo 
 
 **Why first:** validates the riskiest seam (external-driven merge apply) + the entire read-only model with zero auth investment.
 
+**Split (spec-loop):** TB1 was carved into two iterations because it spans far more than one demoable slice.
+
+- **TB1a — backend skeleton (DONE).** Data fields + sync engine + `sync_now` trigger + unit tests. The riskiest seam, demoable via console/portal.
+  - *As built:* Added a "Git Sync" tab to `Wiki Space` (`git_synced` immutable-after-insert + read-only desk fields: `repo_full_name`, `branch`, `docs_subdir`, `last_sync_status`, `last_synced_commit_sha`, `last_sync_time`, `last_sync_error`) and a read-only `source_path` to `Wiki Document`. New engine `wiki/wiki/git_sync.py`: module-level `_fetch_head_sha`/`_fetch_tree`/`_fetch_blob` (monkeypatched in tests), `build_nodes()` structure inference (folder→group, `.md`→leaf, `README.md`/`index.md`→folder landing, repo-root landing→root group, H1-or-humanized title, alphabetical `sort_order`), and `_sync_to_live()` which snapshots the live tree, synthesizes a **target Wiki Revision** keyed by `doc_key` (reused per `source_path`), and drives the existing `_apply_merge_changes_only` under `frappe.flags.in_apply_merge_revision`, then stamps `source_path` back onto live docs. Head-SHA short-circuit gives idempotent no-op syncs. `Wiki Space.sync_now()` enqueues `wiki.wiki.git_sync.sync_space` on the `long` queue. 9 unit tests (mock GitHub HTTP) cover inference, add/update/delete/path-change, `source_path`/`doc_key` stability, no-op, immutability. Demoed live against the public `BuildWithHussain/giki` repo → read-only tree rendered in the SPA.
+  - *Deviations / notes for next iter:* (1) Identity is strictly `(wiki_space, source_path)`, so a file **path change is a delete+add**, not a tree move (intentional). (2) Blob contents are fetched for every `.md` (the "only changed SHAs" optimization is deferred — needs per-file git-blob-sha persistence). (3) On engine exception the error is recorded to `last_sync_error` and swallowed (no re-raise / partial-apply rollback yet) — TB5 hardens this with the sync log. (4) Engine fields are settable on insert via API even though desk-read-only; TB1b's create dialog supplies them.
+- **TB1b — read-only enforcement + create-space UI (PENDING).** Backend CR-blocking in the 4 listed entry points + permission deny; frontend read-only across `SpaceDetails.vue`/`WikiEditor.vue`/`WikiDocumentList.vue`/`NestedDraggable.vue`/`useTreeDialogs.js`; "Git synced — read only" badge + repo link + "Sync now"; create-space dialog switch. The still-editable editor + CR draft banner observed in the TB1a demo are exactly what this removes.
+
 ### TB2 — Edit on GitHub
 
 Thin add-on over TB1's fields. In the page header / three-dots menu of `frontend/src/components/WikiDocumentPanel.vue` (shown only when `space.git_synced` and the doc has a `source_path`), an action opening the source file in GitHub's editor in a new tab:
@@ -131,7 +138,8 @@ Push-driven sync so users don't click. Whitelisted `allow_guest` `wiki.api.githu
 
 The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a one-line outcome.
 
-- [ ] TB1 — Walking skeleton: read-only synced space from a public repo (manual sync)
+- [x] TB1a — Backend skeleton: Git Sync fields + `git_sync.py` engine + `sync_now`; synced read-only tree from public repo, 9 unit tests, demoed on `BuildWithHussain/giki`.
+- [ ] TB1b — Read-only enforcement (backend CR-block + permission deny) + frontend read-only + create-space "Git synced" dialog.
 - [ ] TB2 — Edit on GitHub
 - [ ] TB3 — `.wiki.json` structure override
 - [ ] TB4 — GitHub App connection + repo picker (private repos)
