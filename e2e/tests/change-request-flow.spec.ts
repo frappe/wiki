@@ -937,22 +937,25 @@ test.describe('Change Request Flow', () => {
 		expect(routerErrors).toEqual([]);
 	});
 
-	test('preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
+	test('inline preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
 		page,
 	}) => {
-		// A fenced Python block — the preview must render it through the same
+		// A fenced Python block — the inline Preview must render it through the same
 		// read-only TipTap viewer the editor uses, which highlights via lowlight.
 		const code = '```python\nimport os\nprint(os.getcwd())\n```';
-		await createSpaceWithDraftPage(page, 'CR Preview Highlight');
+		const { pageTitle } = await createSpaceWithDraftPage(
+			page,
+			'CR Preview Highlight',
+		);
 		await setEditorContentAndSave(page, code);
 		await submitForReviewFromEditor(page);
 
-		// Open the preview from the review header.
+		// Expand the changed page row and switch its inline view to Preview.
+		await page.getByText(pageTitle, { exact: true }).first().click();
 		await page
 			.getByRole('button', { name: 'Preview', exact: true })
 			.first()
 			.click();
-		await page.waitForURL(/\/preview/, { timeout: 10000 });
 
 		// lowlight wraps tokens in `hljs-*` spans; raw server HTML (the old
 		// v-html path) produces none. Their presence proves the TipTap viewer ran.
@@ -966,9 +969,7 @@ test.describe('Change Request Flow', () => {
 		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
 	});
 
-	test('back from review/preview returns to the originating tab', async ({
-		page,
-	}) => {
+	test('back from review returns to the originating tab', async ({ page }) => {
 		const content = `Nav back content ${Date.now()}`;
 		await createSpaceWithDraftPage(page, 'CR Nav Back');
 		await setEditorContentAndSave(page, content);
@@ -982,16 +983,26 @@ test.describe('Change Request Flow', () => {
 			new RegExp(`/wiki/change-requests/${crName}$`),
 		);
 
-		// Review -> Preview -> back to review must not loop.
-		await page.getByRole('button', { name: 'Preview' }).first().click();
-		await expect(page).toHaveURL(/\/preview/);
-		await page.getByRole('button', { name: 'Back to review' }).click();
-		await expect(page).toHaveURL(
-			new RegExp(`/wiki/change-requests/${crName}$`),
-		);
-
 		// Back from review lands on the originating tab, query preserved.
 		await page.getByRole('button', { name: 'Back', exact: true }).click();
 		await expect(page).toHaveURL(/\/wiki\/change-requests\?tab=all/);
+	});
+
+	test('author can withdraw an in-review CR back to Draft from the menu', async ({
+		page,
+	}) => {
+		const content = `Withdraw content ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Withdraw');
+		await setEditorContentAndSave(page, content);
+		await submitForReviewFromEditor(page);
+
+		// The author here can also review, so Withdraw lives in the three-dots menu
+		// alongside the reviewer decisions rather than as a standalone button.
+		await clickReviewMenuItem(page, 'Withdraw');
+
+		// The CR drops back to Draft, re-opening it for editing.
+		await expect(page.getByText('Draft', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 	});
 });
