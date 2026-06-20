@@ -2,10 +2,14 @@
   let renderSeq = 0;
   let themeObserverAttached = false;
 
-  function currentTheme() {
-    return document.documentElement.getAttribute("data-theme") === "dark"
-      ? "dark"
-      : "default";
+  // Theme tokens are resolved live from the page's Frappe UI variables (see
+  // mermaid-loader.js), so this single config renders correctly in light/dark.
+  function applyTheme(mermaid) {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      ...window.wikiMermaidThemeConfig(),
+    });
   }
 
   // mermaid.render() replaces the element's content with the rendered SVG, so the
@@ -47,13 +51,9 @@
 
     try {
       const mermaid = await window.wikiGetMermaid();
-      // Always render in the theme that's active right now, not whatever the
+      // Always render with the theme that's active right now, not whatever the
       // theme happened to be when mermaid was first initialized.
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: "strict",
-        theme: currentTheme(),
-      });
+      applyTheme(mermaid);
       for (const el of diagrams) {
         try {
           await renderInto(mermaid, el);
@@ -79,11 +79,7 @@
     if (!rendered.length) return;
 
     const mermaid = window.mermaid;
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: currentTheme(),
-    });
+    applyTheme(mermaid);
     for (const el of rendered) {
       const source = el.getAttribute("data-mermaid-src");
       if (!source) continue;
@@ -103,9 +99,11 @@
     if (themeObserverAttached) return;
     themeObserverAttached = true;
 
-    let lastTheme = currentTheme();
+    const readTheme = () =>
+      document.documentElement.getAttribute("data-theme") || "light";
+    let lastTheme = readTheme();
     const observer = new MutationObserver(() => {
-      const theme = currentTheme();
+      const theme = readTheme();
       if (theme !== lastTheme) {
         lastTheme = theme;
         rerenderForTheme();
