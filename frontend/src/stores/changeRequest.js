@@ -38,7 +38,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 	});
 
 	const submitReviewResource = createResource({
-		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_review',
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.submit_change_request',
 		onSuccess() {
 			refreshChangeRequest();
 		},
@@ -53,6 +53,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 
 	const mergeChangeRequestResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',
+	});
+
+	const approveChangeRequestResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
 	});
 
 	const createPageResource = createResource({
@@ -131,11 +135,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return loadChangesPromise;
 	}
 
-	async function submitForReview(reviewers = []) {
+	async function submitForReview() {
 		if (!currentChangeRequest.value) return null;
 		await submitReviewResource.submit({
 			name: currentChangeRequest.value.name,
-			reviewers,
 		});
 		return currentChangeRequest.value;
 	}
@@ -156,11 +159,39 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return currentChangeRequest.value;
 	}
 
+	// One-click self-serve publish from the editor. Merge now requires an
+	// Approved CR, so we walk the CR up the state machine first: submit a
+	// Draft / Changes-Requested CR into review, approve it, then merge. An
+	// already-Approved CR (e.g. someone else approved it) skips straight to
+	// the merge. The merge step may still throw on a conflict — the caller
+	// hands those off to the review page's conflict UI.
+	async function approveAndMergeChangeRequest() {
+		if (!currentChangeRequest.value) return null;
+		const name = currentChangeRequest.value.name;
+
+		if (
+			['Draft', 'Changes Requested'].includes(currentChangeRequest.value.status)
+		) {
+			await submitReviewResource.submit({ name });
+			await refreshChangeRequest();
+		}
+		if (currentChangeRequest.value.status === 'In Review') {
+			await approveChangeRequestResource.submit({ name });
+			await refreshChangeRequest();
+		}
+		await mergeChangeRequestResource.submit({ name });
+		return currentChangeRequest.value;
+	}
+
 	const changes = computed(() => changesResource.data || []);
 	const changeCount = computed(() => changes.value.length);
 	const isSubmitting = computed(() => submitReviewResource.loading);
 	const isArchiving = computed(() => archiveChangeRequestResource.loading);
-	const isMerging = computed(() => mergeChangeRequestResource.loading);
+	const isMerging = computed(
+		() =>
+			mergeChangeRequestResource.loading ||
+			approveChangeRequestResource.loading,
+	);
 	const isCreatingPage = computed(() => createPageResource.loading);
 	const isUpdatingPage = computed(() => updatePageResource.loading);
 	const isDeletingPage = computed(() => deletePageResource.loading);
@@ -273,6 +304,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		submitForReview,
 		archiveChangeRequest,
 		mergeChangeRequest,
+		approveAndMergeChangeRequest,
 		createPage,
 		updatePage,
 		deletePage,

@@ -97,6 +97,12 @@ async function createPublishedTestPage(
 		throw new Error('Change request ID not found in URL');
 	}
 	const changeRequestId = decodeURIComponent(crMatch[1]);
+	// Merge requires an explicit Approved decision, so approve first.
+	await callMethod(
+		request,
+		'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
+		{ name: changeRequestId },
+	);
 	await callMethod(
 		request,
 		'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',

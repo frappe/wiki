@@ -23,6 +23,12 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/change-requests/:changeRequestId/preview/:docKey?',
+		name: 'ChangeRequestPreview',
+		component: () => import('@/pages/ChangeRequestPreview.vue'),
+		props: true,
+	},
+	{
 		path: '/contributions',
 		redirect: { name: 'ChangeRequests' },
 	},
