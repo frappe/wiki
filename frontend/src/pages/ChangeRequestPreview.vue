@@ -10,9 +10,6 @@
 						<h1 class="text-xl font-semibold text-ink-gray-9">{{ cr.doc.title }}</h1>
 						<Badge variant="subtle" theme="blue" size="sm">{{ __('Preview') }}</Badge>
 					</div>
-					<p class="text-sm text-ink-gray-5 mt-0.5">
-						{{ __('Rendered preview of the proposed pages — exactly as they will publish.') }}
-					</p>
 				</div>
 			</div>
 		</div>
