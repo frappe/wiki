@@ -1,14 +1,7 @@
 <template>
 <Sidebar
 	v-model:collapsed="isSidebarCollapsed"
-	:header="{
-		title: __('Frappe Wiki'),
-		logo: '/assets/wiki/images/wiki-logo.png',
-		menuItems: [
-			{ label: __('Toggle Theme'), icon: themeIcon, onClick: toggleTheme },
-			{ label: __('Log out'), icon: LucideLogOut, onClick: logout },
-		],
-	}"
+	:header="header"
 	:sections="sections"
 />
 </template>
@@ -25,10 +18,12 @@ import LucideRocket from "~icons/lucide/rocket";
 import LucideGitBranch from "~icons/lucide/git-branch";
 import LucideLogOut from "~icons/lucide/log-out";
 import { useSessionStore } from "@/stores/session";
+import { useUserStore } from "@/stores/user";
 
 const route = useRoute();
 const router = useRouter();
 const sessionStore = useSessionStore();
+const userStore = useUserStore();
 
 const userTheme = useStorage("wiki-theme", "dark");
 
@@ -37,6 +32,16 @@ const themeIcon = computed(() => {
 });
 
 const isSidebarCollapsed  = useStorage("is-sidebar-collapsed", false);
+
+const header = computed(() => ({
+	title: __("Frappe Wiki"),
+	subtitle: userStore.data?.full_name,
+	logo: "/assets/wiki/images/wiki-logo.png",
+	menuItems: [
+		{ label: __("Toggle Theme"), icon: themeIcon, onClick: toggleTheme },
+		{ label: __("Log out"), icon: LucideLogOut, onClick: logout },
+	],
+}));
 
 const navItems = [
 	{ label: __("Spaces"), icon: LucideRocket, to: { name: "SpaceList" } },
