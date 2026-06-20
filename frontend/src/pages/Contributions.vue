@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouteQuery } from '@vueuse/router';
 import { ListView, Badge, Tabs, Button, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
@@ -77,58 +77,7 @@ usePageMeta(() => ({ title: `${__('Change Requests')} | Frappe Wiki` }));
 const tabQuery = useRouteQuery('tab', 'my');
 const userStore = useUserStore();
 const isManager = computed(() => userStore.isWikiManager);
-
-const activeTabIndex = computed({
-	get() {
-		const idx = tabs.value.findIndex(t => t.key === tabQuery.value);
-		return idx >= 0 ? idx : 0;
-	},
-	set(idx) {
-		const tab = tabs.value[idx];
-		if (tab) {
-			tabQuery.value = tab.key;
-		}
-	},
-});
-
-const tabs = computed(() => {
-	const items = [
-		{ key: 'my', label: __('My Change Requests') },
-		{ key: 'assigned', label: __('Assigned to me') },
-	];
-	if (isManager.value) {
-		items.push({ key: 'all', label: __('All in review') });
-	}
-	return items;
-});
-
-const myChangeRequests = createListResource({
-	doctype: 'Wiki Change Request',
-	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'modified', 'archived_at', 'merged_at'],
-	filters: { owner: ['=', userStore.user] },
-	orderBy: 'modified desc',
-	pageLength: 25,
-	auto: true,
-});
-
-// Reviewer inbox driven by Frappe's native assignment (`_assign` / ToDo).
-const assignedToMe = createListResource({
-	doctype: 'Wiki Change Request',
-	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
-	filters: { _assign: ['like', `%${userStore.user}%`], status: ['in', ['In Review', 'Approved']] },
-	orderBy: 'modified desc',
-	pageLength: 25,
-	auto: true,
-});
-
-const allInReview = createListResource({
-	doctype: 'Wiki Change Request',
-	fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
-	filters: { status: ['in', ['In Review', 'Approved']] },
-	orderBy: 'modified desc',
-	pageLength: 25,
-	auto: computed(() => isManager.value),
-});
+const currentUser = computed(() => userStore.data?.name);
 
 const myChangeRequestColumns = [
 	{ label: __('Title'), key: 'title', width: 2 },
@@ -148,47 +97,123 @@ const reviewColumns = [
 
 const reviewRowRoute = (row) => ({ name: 'ChangeRequestReview', params: { changeRequestId: row.name } });
 
-const myChangeRequestOptions = {
-	selectable: false,
-	showTooltip: true,
-	resizeColumn: false,
-	getRowRoute: getRowRoute,
-	emptyState: {
-		title: __('No Change Requests'),
-		description: __('You have not created any change requests yet. Edit a wiki page to get started.'),
-	},
-};
+function getRowRoute(row) {
+	if (row.status === 'Draft' || row.status === 'Changes Requested') {
+		return { name: 'SpaceDetails', params: { spaceId: row.wiki_space } };
+	}
+	return { name: 'ChangeRequestReview', params: { changeRequestId: row.name } };
+}
 
-const assignedOptions = {
-	selectable: false,
-	showTooltip: true,
-	resizeColumn: false,
-	getRowRoute: reviewRowRoute,
-	emptyState: {
-		title: __('Nothing assigned to you'),
-		description: __('Change requests assigned to you for review will appear here.'),
-	},
-};
+function listOptions(emptyState, rowRoute) {
+	return {
+		selectable: false,
+		showTooltip: true,
+		resizeColumn: false,
+		getRowRoute: rowRoute,
+		emptyState,
+	};
+}
 
-const allOptions = {
-	selectable: false,
-	showTooltip: true,
-	resizeColumn: false,
-	getRowRoute: reviewRowRoute,
-	emptyState: {
-		title: __('No change requests in review'),
-		description: __('There are no change requests waiting for review.'),
+// Each tab is a self-contained descriptor: the server-side filter, the columns
+// to render, and its empty state. `filters` is a getter (not a frozen object)
+// so the session user is read at fetch time and can never leak in as
+// `undefined` — the bug this tab structure previously shipped with.
+const tabDefs = computed(() => {
+	const defs = [
+		{
+			key: 'my',
+			label: __('My Change Requests'),
+			fields: ['name', 'title', 'wiki_space.space_name', 'status', 'modified', 'archived_at', 'merged_at'],
+			filters: () => ({ owner: ['=', currentUser.value] }),
+			columns: myChangeRequestColumns,
+			options: listOptions({
+				title: __('No Change Requests'),
+				description: __('You have not created any change requests yet. Edit a wiki page to get started.'),
+			}, getRowRoute),
+		},
+		{
+			key: 'assigned',
+			label: __('Assigned to me'),
+			fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
+			filters: () => ({ _assign: ['like', `%${currentUser.value}%`], status: ['in', ['In Review', 'Approved']] }),
+			columns: reviewColumns,
+			options: listOptions({
+				title: __('Nothing assigned to you'),
+				description: __('Change requests assigned to you for review will appear here.'),
+			}, reviewRowRoute),
+		},
+	];
+	if (isManager.value) {
+		defs.push({
+			key: 'all',
+			label: __('All in review'),
+			fields: ['name', 'title', 'wiki_space.space_name', 'status', 'owner', 'modified', '_assign'],
+			filters: () => ({ status: ['in', ['In Review', 'Approved']] }),
+			columns: reviewColumns,
+			options: listOptions({
+				title: __('No change requests in review'),
+				description: __('There are no change requests waiting for review.'),
+			}, reviewRowRoute),
+		});
+	}
+	return defs;
+});
+
+const tabs = computed(() => tabDefs.value.map((d) => ({ key: d.key, label: d.label })));
+
+const activeTabIndex = computed({
+	get() {
+		const idx = tabs.value.findIndex((t) => t.key === tabQuery.value);
+		return idx >= 0 ? idx : 0;
 	},
-};
+	set(idx) {
+		const tab = tabs.value[idx];
+		if (tab) {
+			tabQuery.value = tab.key;
+		}
+	},
+});
+
+const activeKey = computed(() => tabDefs.value[activeTabIndex.value]?.key);
+
+// One list resource per tab, built lazily on first access. The resource `auto`
+// flag is evaluated once at creation (not reactive), so fetching is driven
+// explicitly by the watcher below rather than by `auto`.
+const resources = {};
+
+function entryFor(key) {
+	const def = tabDefs.value.find((d) => d.key === key);
+	if (!def) return null;
+	if (!resources[key]) {
+		resources[key] = createListResource({
+			doctype: 'Wiki Change Request',
+			fields: def.fields,
+			filters: def.filters(),
+			orderBy: 'modified desc',
+			pageLength: 25,
+			auto: false,
+		});
+	}
+	return { def, resource: resources[key] };
+}
+
+// Lazy load: fetch a tab's list only the first time it becomes active, and
+// re-apply its filter at fetch time so the current user is always fresh.
+watch(
+	activeKey,
+	(key) => {
+		const entry = key ? entryFor(key) : null;
+		if (entry && !entry.resource.list.fetched) {
+			entry.resource.update({ filters: entry.def.filters() });
+			entry.resource.reload();
+		}
+	},
+	{ immediate: true },
+);
 
 function panelFor(key) {
-	if (key === 'assigned') {
-		return { resource: assignedToMe, columns: reviewColumns, options: assignedOptions };
-	}
-	if (key === 'all') {
-		return { resource: allInReview, columns: reviewColumns, options: allOptions };
-	}
-	return { resource: myChangeRequests, columns: myChangeRequestColumns, options: myChangeRequestOptions };
+	const entry = entryFor(key) || entryFor(tabDefs.value[0].key);
+	return { resource: entry.resource, columns: entry.def.columns, options: entry.def.options };
 }
 
 const showAssignDialog = ref(false);
@@ -200,8 +225,9 @@ function openAssign(row) {
 }
 
 function onAssigned() {
-	assignedToMe.reload();
-	if (isManager.value) allInReview.reload();
+	// Refresh only the inboxes that have actually been opened (and thus exist).
+	resources['assigned']?.reload();
+	resources['all']?.reload();
 }
 
 function getStatusTheme(status) {
@@ -215,13 +241,6 @@ function getStatusTheme(status) {
 		case 'Archived': return 'gray';
 		default: return 'gray';
 	}
-}
-
-function getRowRoute(row) {
-	if (row.status === 'Draft' || row.status === 'Changes Requested') {
-		return { name: 'SpaceDetails', params: { spaceId: row.wiki_space } };
-	}
-	return { name: 'ChangeRequestReview', params: { changeRequestId: row.name } };
 }
 
 function formatDate(dateStr) {

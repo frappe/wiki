@@ -866,6 +866,43 @@ test.describe('Change Request Flow', () => {
 		await expect(page).toHaveURL(/\/wiki\/change-requests(\?.*)?$/);
 	});
 
+	test('assigned-to-me tab lists CRs assigned to the current user', async ({
+		page,
+		request,
+	}) => {
+		const content = `Assigned inbox content ${Date.now()}`;
+		await createSpaceWithDraftPage(page, 'CR Assigned Inbox');
+		await setEditorContentAndSave(page, content);
+		const crName = await submitForReviewFromEditor(page);
+
+		// Assign the CR to the session user (Administrator) via the same native
+		// _assign/ToDo endpoint the AssignDialog uses.
+		await callMethod(request, 'frappe.desk.form.assign_to.add', {
+			doctype: 'Wiki Change Request',
+			name: crName,
+			assign_to: ['Administrator'],
+		});
+
+		const [cr] = await getList<{ title: string }>(
+			request,
+			'Wiki Change Request',
+			{ fields: ['title'], filters: { name: crName }, limit: 1 },
+		);
+		expect(cr?.title).toBeTruthy();
+
+		// Regression: the tab filters on `_assign LIKE %currentUser%`, but the
+		// filter referenced a non-existent store property (userStore.user ->
+		// undefined), producing `%undefined%` which matched nothing. The CR we
+		// just assigned to ourselves must appear in this inbox.
+		await page.goto('/wiki/change-requests?tab=assigned');
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByText(cr.title, { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
+		await expect(page.getByText('Nothing assigned to you')).toHaveCount(0);
+	});
+
 	test('back from review/preview returns to the originating tab', async ({
 		page,
 	}) => {
