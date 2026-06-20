@@ -1,6 +1,7 @@
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
 	clearDraft as clearPersistedDraft,
+	clearDraftsForCr as clearPersistedDraftsForCr,
 	loadDraftsForCr,
 	saveDraft as savePersistedDraft,
 } from '@/stores/draftPersistence';
@@ -79,6 +80,22 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (!changeRequestName || !docKey) return;
 		cancelDraftPersist(changeRequestName, docKey);
 		clearPersistedDraft(changeRequestName, docKey);
+	}
+
+	// Drop every persisted draft for a change request — used when the CR is
+	// discarded or merged so its drafts can't be restored on the next hydrate.
+	// Also cancels any pending debounced writes for the CR so an in-flight
+	// timer can't re-create an entry right after we clear IndexedDB.
+	function discardPersistedDraftsForCr(changeRequestName) {
+		if (!changeRequestName) return;
+		const prefix = `${changeRequestName}:`;
+		for (const key of [...draftPersistTimers.keys()]) {
+			if (key.startsWith(prefix)) {
+				clearTimeout(draftPersistTimers.get(key));
+				draftPersistTimers.delete(key);
+			}
+		}
+		return clearPersistedDraftsForCr(changeRequestName);
 	}
 
 	// Keep IndexedDB writes behind the store-owned snapshot. The editor reports
@@ -930,6 +947,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		updateLocalPageContent,
 		findNode: treeModel.findNode,
 		reset,
+		discardPersistedDraftsForCr,
 		ensureCr,
 		scheduleSummaryRefresh,
 		resolveDocKey: resolver.resolveDocKey,

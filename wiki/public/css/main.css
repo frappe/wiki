@@ -118,6 +118,40 @@
   line-height: 1.6;
 }
 
+/* ---------- Mermaid diagram (public) ----------
+   The diagram ships as <pre class="mermaid"> and inherits the code-block look
+   from `.prose pre`. Once mermaid-renderer.js hydrates it (data-processed), it
+   isn't code any more — present it as a centered figure: the diagram floats on
+   a soft surface with breathing room, not crammed top-left in a code box. */
+.prose pre.mermaid[data-processed] {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  margin: 1.5rem 0;
+  background-color: var(--surface-gray-1) !important;
+  border: 1px solid var(--outline-gray-2);
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  white-space: normal;
+  /* Drop the inherited <pre> monospace/line-height so the SVG measures cleanly. */
+  font-family: inherit;
+  line-height: normal;
+}
+
+.prose pre.mermaid[data-processed] svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Pre-hydration / no-JS: the raw source is showing — keep it a readable,
+   left-aligned monospace block rather than a centered figure. */
+.prose pre.mermaid:not([data-processed]) {
+  display: block;
+  white-space: pre;
+  color: var(--ink-gray-6);
+}
+
 /* Inline code styling */
 .prose :not(pre) > code {
   background-color: var(--surface-gray-2);
