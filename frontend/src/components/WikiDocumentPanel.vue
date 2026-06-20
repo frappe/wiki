@@ -68,7 +68,7 @@
 						</span>
 					</Button>
 					<Dropdown :options="menuOptions">
-						<Button variant="outline">
+						<Button variant="outline" :title="__('More actions')">
 							<LucideMoreVertical class="size-4" />
 						</Button>
 					</Dropdown>
@@ -142,6 +142,7 @@
 </template>
 
 <script setup>
+import { buildGithubEditUrl } from '@/lib/github';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
@@ -389,6 +390,22 @@ const editorKey = computed(() => {
 	return null;
 });
 
+// "Edit on GitHub" target for a synced page — built from the space's repo/branch
+// and the document's source_path. Null for non-synced spaces or folder-only
+// groups (no editable source file). The space resource is the one SpaceDetails
+// already loaded, so this reads from cache.
+const githubEditUrl = computed(() => {
+	const space = props.spaceId
+		? getCachedDocumentResource('Wiki Space', props.spaceId)
+		: null;
+	if (!space?.doc?.git_synced) return null;
+	return buildGithubEditUrl({
+		repoFullName: space.doc.repo_full_name,
+		branch: space.doc.branch,
+		sourcePath: wikiDoc.value.doc?.source_path,
+	});
+});
+
 const menuOptions = computed(() => {
 	// Read-only spaces can't change publish state — only offer the desk link.
 	const options = props.readonly
@@ -400,6 +417,13 @@ const menuOptions = computed(() => {
 					onClick: togglePublish,
 				},
 			];
+	if (githubEditUrl.value) {
+		options.push({
+			label: __('Edit on GitHub'),
+			icon: 'github',
+			onClick: () => window.open(githubEditUrl.value, '_blank', 'noopener'),
+		});
+	}
 	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
 		options.push({
 			label: __('View in Desk'),

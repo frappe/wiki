@@ -161,7 +161,10 @@ def build_nodes(
 				"is_group": 1,
 				"dir": folder,
 				"parent_dir": "/".join(folder.split("/")[:-1]),
-				"source_path": full(folder),
+				# A group's source_path is its landing file (README.md/index.md) when
+				# one exists, so "Edit on GitHub" (TB2) opens the actual editable file;
+				# folders with no landing keep the directory path (nothing to edit).
+				"source_path": landing["path"] if landing else full(folder),
 				"landing_path": landing["path"] if landing else None,
 				"title": _extract_title(content) or _humanize(seg),
 				"content": content,

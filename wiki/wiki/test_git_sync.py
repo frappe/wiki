@@ -68,12 +68,18 @@ class TestGitSyncInference(FrappeTestCase):
 		nodes, root_content, root_landing = build_nodes("acme/docs", repo.tree(), "docs")
 
 		by_path = {n["source_path"]: n for n in nodes}
-		# Folder "guides" is a group whose content comes from its README landing.
-		self.assertEqual(by_path["docs/guides"]["is_group"], 1)
-		self.assertEqual(by_path["docs/guides"]["title"], "Guides")
-		self.assertIn("landing", by_path["docs/guides"]["content"])
-		# README is NOT emitted as a standalone page.
-		self.assertNotIn("docs/guides/README.md", by_path)
+		# Folder "guides" is a group whose content comes from its README landing;
+		# its source_path points at that README so "Edit on GitHub" (TB2) opens an
+		# editable file rather than a directory.
+		guides = by_path["docs/guides/README.md"]
+		self.assertEqual(guides["is_group"], 1)
+		self.assertEqual(guides["dir"], "guides")
+		self.assertEqual(guides["title"], "Guides")
+		self.assertIn("landing", guides["content"])
+		# README is folded into the group, not emitted as a standalone leaf page.
+		self.assertFalse(
+			any(n["source_path"] == "docs/guides/README.md" and not n["is_group"] for n in nodes)
+		)
 		# Leaf pages keep their H1 as title.
 		self.assertEqual(by_path["docs/intro.md"]["title"], "Introduction")
 		self.assertEqual(by_path["docs/guides/setup.md"]["is_group"], 0)
@@ -137,6 +143,27 @@ class TestGitSyncApply(FrappeTestCase):
 		space.reload()
 		self.assertEqual(space.last_sync_status, "Success")
 		self.assertEqual(space.last_synced_commit_sha, "sha1")
+
+	def test_group_landing_source_path_points_at_readme(self):
+		# A group with a README landing stamps the README path as its source_path,
+		# so the frontend can build an "Edit on GitHub" link to the editable file.
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/guides/README.md": "# Guides\nlanding",
+				"docs/guides/setup.md": "# Setup",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		docs = self._tree(space)
+		guides = next(d for d in docs if d.is_group and d.title == "Guides")
+		self.assertEqual(guides.source_path, "docs/guides/README.md")
+		# The leaf keeps its own file path and nests under the group.
+		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
+		self.assertEqual(setup.parent_wiki_document, guides.name)
 
 	def test_source_path_and_doc_key_stable_across_resync(self):
 		space = _make_synced_space()

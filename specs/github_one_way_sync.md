@@ -90,6 +90,10 @@ Group landing pages point at their `README.md`/`index.md`. Built purely from exi
 
 - **Tests / demo:** unit for URL construction (incl. group landing, nested paths); browser (agent-browser) asserts the menu item appears on a synced page and links to the right URL.
 
+*As built:* New pure helper `frontend/src/lib/github.js` — `buildGithubEditUrl({repoFullName, branch, sourcePath})` (returns `null` unless `sourcePath` ends in `.md`/`.mdx`) + `isEditableSourcePath`. `WikiDocumentPanel.vue` computes `githubEditUrl` from the cached `Wiki Space` resource (`getCachedDocumentResource`, the same one `SpaceDetails` loaded) + the open doc's `source_path`, and pushes an **"Edit on GitHub"** item (GitHub icon, opens `https://github.com/{repo}/edit/{branch}/{source_path}` in a new tab) into `menuOptions` whenever the URL resolves. The three-dots `Dropdown` trigger gained `:title="More actions"` for a stable a11y/e2e handle (mirrors `ContributionBanner`/`ContributionReview`). **Engine deviation reconciled:** TB1a stamped a group's `source_path` as its *folder* path, but the spec's URL plugs `source_path` straight in and wants group landings to point at their `README.md`/`index.md`. So `build_nodes` now stamps a group's `source_path` as its landing file when one exists (folder path only when there's no landing → no editable source → item hidden). Backend unit `test_group_landing_source_path_points_at_readme` + updated `test_build_nodes_classifies_folders_files_and_landings` (temp-revert verified both fail). New e2e `e2e/tests/git-sync-edit-on-github.spec.ts` seeds a synced space + nested-path page, opens the menu, stubs `window.open`, and asserts the exact URL. Demoed live on `BuildWithHussain/giki` → `https://github.com/BuildWithHussain/giki/edit/main/giki/github_integration_README.md`.
+
+*Deviations / notes:* (1) The root group / repo-root landing never renders as a page panel, so it gets no "Edit on GitHub" (intentional — it's the space container). (2) Changing a group's `source_path` to its landing path is a one-time re-sync churn for pre-existing synced spaces (the group's old folder-path identity → delete+add via the merge applier's reparent-before-delete); harmless for the beta. (3) No JS unit runner exists (no vitest), so "URL construction" is covered by the backend `source_path` unit tests (group landing) + the e2e exact-URL assertion (nested path).
+
 ### TB3 — `.wiki.json` structure override
 
 Let a repo control nav order & titles instead of alphabetical inference. In the engine, if `.wiki.json` exists at repo root, parse `docs_dir` + `nav` (ordered, possibly nested) and drive `parent_wiki_document` chain + `sort_order` + titles from it; absent → TB1 inference unchanged.
@@ -145,7 +149,7 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] TB1a — Backend skeleton: Git Sync fields + `git_sync.py` engine + `sync_now`; synced read-only tree from public repo, 9 unit tests, demoed on `BuildWithHussain/giki`.
 - [x] TB1b-i — Backend read-only enforcement: `assert_space_writable`/`is_git_synced_space` helpers wired into the 4 CR/reorder entry points + `wiki_document_has_permission` write-deny; 6 unit tests (temp-revert verified).
 - [x] TB1b-ii — Frontend read-only: `isGitSynced` render path in SpaceDetails (non-CR `get_wiki_tree`, synced banner + repo link + Sync now), `readonly` threaded through list/tree/panel/editor, create-space "Git synced" dialog; e2e spec (temp-revert verified).
-- [ ] TB2 — Edit on GitHub
+- [x] TB2 — Edit on GitHub: `buildGithubEditUrl` helper + "Edit on GitHub" menu item in `WikiDocumentPanel`; group `source_path` now points at its README/index landing; backend unit tests + e2e (temp-revert verified), demoed on `BuildWithHussain/giki`.
 - [ ] TB3 — `.wiki.json` structure override
 - [ ] TB4 — GitHub App connection + repo picker (private repos)
 - [ ] TB5 — Sync log & status panel
