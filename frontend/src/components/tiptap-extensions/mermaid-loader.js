@@ -30,3 +30,10 @@ export async function getMermaid() {
 	const wikiGetMermaid = await loadSharedMermaidLoader();
 	return wikiGetMermaid({ assetUrl: MERMAID_ASSET_URL });
 }
+
+// Mermaid theme config derived from the live Frappe UI tokens (defined in the
+// shared loader asset). Ensures the editor preview matches the published page.
+export async function getMermaidThemeConfig() {
+	await loadSharedMermaidLoader();
+	return window.wikiMermaidThemeConfig();
+}

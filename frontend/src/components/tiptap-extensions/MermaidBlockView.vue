@@ -15,7 +15,7 @@ import { NodeViewWrapper } from '@tiptap/vue-3';
 import { useStorage, watchDebounced } from '@vueuse/core';
 import { CircleHelp, Network, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
-import { getMermaid } from './mermaid-loader.js';
+import { getMermaid, getMermaidThemeConfig } from './mermaid-loader.js';
 
 const props = defineProps({
 	node: { type: Object, required: true },
@@ -41,10 +41,9 @@ const isRendering = ref(false);
 
 // Theme is the same signal the rest of the SPA uses (see Sidebar.vue /
 // DiffViewer.vue): a `wiki-theme` localStorage ref mirrored to <html data-theme>.
+// We re-render on flips so the diagram picks up the freshly-resolved Frappe UI
+// tokens (the theme itself comes from getMermaidThemeConfig(), not this value).
 const userTheme = useStorage('wiki-theme', 'dark');
-const mermaidTheme = computed(() =>
-	userTheme.value === 'dark' ? 'dark' : 'default',
-);
 
 function updateCode(event) {
 	props.updateAttributes({ code: event.target.value });
@@ -74,12 +73,13 @@ async function renderPreview() {
 	const renderId = `${instanceId}-${version}`;
 	try {
 		const mermaid = await getMermaid();
+		const themeConfig = await getMermaidThemeConfig();
 		if (version !== renderVersion) return;
 
 		mermaid.initialize({
 			startOnLoad: false,
 			securityLevel: 'strict',
-			theme: mermaidTheme.value,
+			...themeConfig,
 		});
 
 		const { svg } = await mermaid.render(renderId, source);
@@ -105,7 +105,7 @@ async function renderPreview() {
 // Debounce edits so we don't re-render on every keystroke, but re-render
 // immediately when the theme flips.
 watchDebounced(code, renderPreview, { debounce: 300, maxWait: 1000 });
-watch(mermaidTheme, renderPreview);
+watch(userTheme, renderPreview);
 
 onMounted(renderPreview);
 </script>
