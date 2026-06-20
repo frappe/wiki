@@ -937,6 +937,35 @@ test.describe('Change Request Flow', () => {
 		expect(routerErrors).toEqual([]);
 	});
 
+	test('preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
+		page,
+	}) => {
+		// A fenced Python block — the preview must render it through the same
+		// read-only TipTap viewer the editor uses, which highlights via lowlight.
+		const code = '```python\nimport os\nprint(os.getcwd())\n```';
+		await createSpaceWithDraftPage(page, 'CR Preview Highlight');
+		await setEditorContentAndSave(page, code);
+		await submitForReviewFromEditor(page);
+
+		// Open the preview from the review header.
+		await page
+			.getByRole('button', { name: 'Preview', exact: true })
+			.first()
+			.click();
+		await page.waitForURL(/\/preview/, { timeout: 10000 });
+
+		// lowlight wraps tokens in `hljs-*` spans; raw server HTML (the old
+		// v-html path) produces none. Their presence proves the TipTap viewer ran.
+		await expect(page.locator('pre code')).toContainText('import os');
+		await expect(
+			page.locator('pre code span[class*="hljs-"]').first(),
+		).toBeVisible({ timeout: 10000 });
+
+		// The language picker is an editing affordance — it must not leak into the
+		// read-only preview.
+		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
+	});
+
 	test('back from review/preview returns to the originating tab', async ({
 		page,
 	}) => {
