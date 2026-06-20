@@ -1,0 +1,156 @@
+/* Rendered-content styling lifted from the live reader's stylesheet
+   (wiki/public/css/main.css) so change-request preview == production.
+   Scoped under .wiki-rendered; base typography comes from `prose`. */
+.wiki-rendered a {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	word-break: break-word;
+}
+.wiki-rendered a:hover {
+	color: var(--ink-gray-7);
+}
+.wiki-rendered pre {
+	position: relative;
+	padding: 0;
+	margin: 1.5rem 0;
+	border-radius: 0.5rem;
+	background-color: var(--surface-gray-1) !important;
+	border: 1px solid var(--outline-gray-2);
+}
+.wiki-rendered pre code {
+	display: block;
+	padding: 1rem 1.25rem;
+	overflow-x: auto;
+	border-radius: 0.5rem;
+	background-color: var(--surface-gray-1) !important;
+	color: var(--ink-gray-9);
+	font-size: 0.875rem;
+	line-height: 1.6;
+}
+.wiki-rendered :not(pre) > code {
+	background-color: var(--surface-gray-2);
+	color: var(--ink-gray-9);
+	padding: 0.125rem 0.375rem;
+	border-radius: 0.25rem;
+	font-size: 0.875em;
+	font-weight: 500;
+}
+.wiki-rendered :not(pre) > code::before,
+.wiki-rendered :not(pre) > code::after {
+	content: none;
+}
+.wiki-rendered img {
+	max-width: 100%;
+	height: auto;
+	border: 1px solid var(--ink-gray-3);
+	border-radius: 0.375rem;
+}
+.wiki-rendered img + em {
+	display: block;
+	margin-top: 0.25rem;
+	font-size: 0.875rem;
+	color: var(--ink-gray-6);
+	text-align: center;
+}
+.wiki-rendered table {
+	table-layout: fixed;
+	width: 100%;
+}
+.wiki-rendered th,
+.wiki-rendered td {
+	padding: 0.5rem;
+	border: 1px solid var(--outline-gray-2);
+}
+.wiki-rendered th {
+	background-color: var(--surface-gray-2);
+	font-weight: 600;
+}
+
+/* Callouts */
+.wiki-rendered .callout {
+	margin: 1rem 0;
+	padding: 0.875rem 1rem;
+	border-radius: 0.375rem;
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0.75rem;
+	align-items: start;
+}
+.wiki-rendered .callout-icon {
+	display: flex;
+	align-items: center;
+	padding-top: 0.125rem;
+}
+.wiki-rendered .callout-icon svg {
+	width: 1rem;
+	height: 1rem;
+}
+.wiki-rendered .callout-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.wiki-rendered .callout-title {
+	font-weight: 500;
+	font-size: 0.875rem;
+	color: var(--ink-gray-9);
+}
+.wiki-rendered .callout-content {
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: var(--ink-gray-7);
+}
+.wiki-rendered .callout-content > *:first-child {
+	margin-top: 0;
+}
+.wiki-rendered .callout-content > *:last-child {
+	margin-bottom: 0;
+}
+.wiki-rendered .callout-note {
+	background-color: var(--surface-blue-2);
+}
+.wiki-rendered .callout-note .callout-icon {
+	color: var(--ink-blue-3);
+}
+.wiki-rendered .callout-tip {
+	background-color: var(--surface-green-2);
+}
+.wiki-rendered .callout-tip .callout-icon {
+	color: var(--ink-green-3);
+}
+.wiki-rendered .callout-caution {
+	background-color: var(--surface-amber-2);
+}
+.wiki-rendered .callout-caution .callout-icon {
+	color: var(--ink-amber-3);
+}
+.wiki-rendered .callout-danger {
+	background-color: var(--surface-red-2);
+}
+.wiki-rendered .callout-danger .callout-icon {
+	color: var(--ink-red-3);
+}
+
+/* PDF embed card (static; interactive viewer JS is reader-only) */
+.wiki-rendered .wiki-pdf-embed {
+	margin: 1.5rem 0;
+}
+.wiki-rendered .wiki-pdf-card {
+	border: 1px solid var(--outline-gray-2);
+	border-radius: 0.5rem;
+	overflow: hidden;
+	background: var(--surface-white);
+}
+.wiki-rendered .wiki-pdf-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.625rem 0.75rem;
+	border-bottom: 1px solid var(--outline-gray-2);
+	background: var(--surface-gray-1);
+}
+.wiki-rendered .wiki-pdf-name {
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--ink-gray-9);
+}

@@ -407,14 +407,14 @@ async function handleMergeChangeRequest() {
 		return;
 	}
 	const docKey = currentDraftKey.value;
-	const crName = crStore.currentChangeRequest?.name;
+	const changeRequestName = crStore.currentChangeRequest?.name;
 	try {
-		await crStore.mergeChangeRequest();
+		await crStore.approveAndMergeChangeRequest();
 		toast.success(__('Change request merged'));
 		crStore.currentChangeRequest = null;
 		// The CR's drafts are now merged into the published doc — clear them so a
 		// stale local copy can't resurrect after the merge.
-		await draftStore.discardPersistedDraftsForCr(crName);
+		await draftStore.discardPersistedDraftsForCr(changeRequestName);
 		draftStore.reset();
 		await draftStore.hydrate(props.spaceId);
 
@@ -428,6 +428,16 @@ async function handleMergeChangeRequest() {
 			}
 		}
 	} catch (error) {
+		// A merge conflict leaves the CR Approved; the conflict-resolution UI
+		// lives on the review page, so send the author there to resolve it.
+		if (error.exc_type === 'ValidationError' && changeRequestName) {
+			toast.error(error.messages?.[0] || __('Merge conflict — resolve it to continue'));
+			router.push({
+				name: 'ChangeRequestReview',
+				params: { changeRequestId: changeRequestName },
+			});
+			return;
+		}
 		toast.error(error.messages?.[0] || __('Error merging change request'));
 	}
 }
