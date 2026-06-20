@@ -42,6 +42,7 @@
                     :tree-data="treeData"
                     :change-type-map="changeTypeMap"
                     :space-id="spaceId"
+                    :readonly="isGitSynced"
                     :root-node="treeData.root_group || ''"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
@@ -71,7 +72,39 @@
         </aside>
 
         <main class="flex-1 flex flex-col bg-surface-white min-w-0">
+            <div
+                v-if="isGitSynced"
+                class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
+            >
+                <div class="flex items-center gap-3 min-w-0">
+                    <LucideGithub class="size-5 shrink-0 text-ink-gray-7" />
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-medium text-ink-gray-8">{{ __('Git synced — read only') }}</p>
+                            <Badge variant="subtle" theme="gray" size="sm">
+                                {{ space.doc?.last_sync_status || __('Pending') }}
+                            </Badge>
+                        </div>
+                        <a
+                            v-if="space.doc?.repo_full_name"
+                            :href="`https://github.com/${space.doc.repo_full_name}`"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-xs text-ink-gray-5 hover:text-ink-gray-7 truncate block"
+                        >
+                            {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
+                        </a>
+                    </div>
+                </div>
+                <Button variant="outline" size="sm" :loading="syncing" @click="syncNow">
+                    <template #prefix>
+                        <LucideRefreshCw class="size-4" />
+                    </template>
+                    {{ __('Sync now') }}
+                </Button>
+            </div>
             <ContributionBanner
+                v-else
                 :mergeDisabled="isTreeReordering"
                 @submit="handleSubmitChangeRequest"
                 @withdraw="handleArchiveChangeRequest"
@@ -80,6 +113,7 @@
             <div class="flex-1 overflow-auto">
                 <router-view
                     :space-id="spaceId"
+                    :readonly="isGitSynced"
                     @refresh="refreshTree"
                 />
             </div>
@@ -169,14 +203,18 @@
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useUserStore } from '@/stores/user';
 import {
+	Badge,
 	Button,
 	Dialog,
 	FormControl,
 	createDocumentResource,
+	createResource,
 	toast,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import LucideGithub from '~icons/lucide/github';
+import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
@@ -232,8 +270,70 @@ const space = createDocumentResource({
 	whitelistedMethods: {
 		updateRoutes: 'update_routes',
 		cloneWikiSpace: 'clone_wiki_space_in_background',
+		syncNow: 'sync_now',
 	},
 });
+
+// Git-synced spaces are read-only: the repo owns the content, so there is no
+// change request and no editing. We source the sidebar tree from the published
+// live tree instead of a CR.
+const isGitSynced = computed(() => Boolean(space.doc?.git_synced));
+
+const readonlyTreeResource = createResource({
+	url: 'wiki.api.wiki_space.get_wiki_tree',
+});
+
+// Adapt get_wiki_tree's (name-keyed) shape into the snake_case shape the tree
+// components consume. The Wiki Document `name` doubles as both the navigation
+// target (document_name) and the row key (doc_key) here — synced trees have no
+// CR overlay, so the internal doc_key is never needed.
+function adaptReadonlyNode(node) {
+	return {
+		doc_key: node.name,
+		document_name: node.name,
+		title: node.title,
+		route: node.route,
+		is_group: !!node.is_group,
+		is_published: node.is_published !== false,
+		is_external_link: false,
+		external_url: null,
+		children: (node.children || []).map(adaptReadonlyNode),
+	};
+}
+
+const readonlyTreeData = computed(() => {
+	const data = readonlyTreeResource.data;
+	if (!data) return null;
+	return {
+		root_group: data.root_group || '',
+		children: (data.children || []).map(adaptReadonlyNode),
+	};
+});
+
+const syncing = ref(false);
+async function loadReadonlyTree() {
+	await readonlyTreeResource.submit({ space_id: props.spaceId });
+}
+
+async function syncNow() {
+	syncing.value = true;
+	try {
+		await space.syncNow.submit();
+		toast.success(__('Sync started — pulling the latest from GitHub'));
+		// The sync runs on the long queue; give it a moment, then refresh the
+		// tree so the user sees the result without a manual reload.
+		setTimeout(async () => {
+			try {
+				await Promise.all([space.reload(), loadReadonlyTree()]);
+			} finally {
+				syncing.value = false;
+			}
+		}, 4000);
+	} catch (error) {
+		syncing.value = false;
+		toast.error(error.messages?.[0] || __('Could not start sync'));
+	}
+}
 
 function openUpdateRoutesDialog() {
 	newRoute.value = space.doc?.route || '';
@@ -293,9 +393,10 @@ async function cloneSpace(close) {
 // `treeAsLegacy` is an empty-but-truthy object before hydration, so gate on
 // `hasLoadedTree` — otherwise the sidebar flashes "No pages yet" instead of
 // the loading skeleton while the tree is being fetched.
-const treeData = computed(() =>
-	draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null,
-);
+const treeData = computed(() => {
+	if (isGitSynced.value) return readonlyTreeData.value;
+	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
+});
 
 const changeTypeMap = computed(() => {
 	const map = new Map();
@@ -309,6 +410,9 @@ watch(
 	[() => space.doc, () => crStore.isChangeRequestMode],
 	async ([doc, isMode], oldValues) => {
 		if (!doc || !isMode) return;
+		// Synced spaces never open a change request — they hydrate the
+		// read-only tree path below instead.
+		if (doc.git_synced) return;
 
 		const [oldDoc] = oldValues || [];
 		if (doc !== oldDoc) {
@@ -321,7 +425,26 @@ watch(
 	{ immediate: true },
 );
 
+// Read-only tree hydration for git-synced spaces. Loads the published live
+// tree (no CR) and, for a never-synced space (e.g. just created), kicks off the
+// first sync so its content appears without a manual click.
+watch(
+	() => space.doc,
+	async (doc) => {
+		if (!doc || !doc.git_synced) return;
+		await loadReadonlyTree();
+		if (!doc.last_sync_time && !['Running', 'Pending'].includes(doc.last_sync_status)) {
+			syncNow();
+		}
+	},
+	{ immediate: true },
+);
+
 async function refreshTree() {
+	if (isGitSynced.value) {
+		await loadReadonlyTree();
+		return;
+	}
 	if (!crStore.currentChangeRequest?.name) {
 		return;
 	}

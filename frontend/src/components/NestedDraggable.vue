@@ -9,6 +9,7 @@
         ghost-class="dragging-ghost"
         drag-class="dragging-item"
         handle=".drag-handle"
+        :disabled="readonly"
         :animation="150"
         @start="onDragStart"
         @end="onDragEnd"
@@ -23,14 +24,15 @@
                     @click="handleRowClick(element)"
                 >
                     <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                        <button 
+                        <button
+                            v-if="!readonly"
                             class="drag-handle p-0.5 hover:bg-surface-gray-3 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
                             @click.stop
                         >
                             <LucideGripVertical class="size-4 text-ink-gray-4" />
                         </button>
 
-                        <button 
+                        <button
                             v-if="element.is_group" 
                             class="p-0.5 hover:bg-surface-gray-3 rounded"
                             @click.stop="toggleExpanded(element.doc_key)"
@@ -76,7 +78,7 @@
 						</Badge>
                     </div>
 
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                    <div v-if="!readonly" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
                         <Dropdown :options="getDropdownOptions(element)">
                             <Button variant="ghost" size="sm">
                                 <LucideMoreHorizontal class="size-4" />
@@ -92,6 +94,7 @@
                         :level="level + 1"
                         :parent-name="element.doc_key"
                         :space-id="spaceId"
+                        :readonly="readonly"
                         :selected-page-id="selectedPageId"
                         :selected-draft-key="selectedDraftKey"
                         @create="(parent, isGroup) => emit('create', parent, isGroup)"
@@ -104,7 +107,7 @@
                     />
                     <!-- Empty group actions -->
                     <div
-                        v-if="!element.children || element.children.length === 0"
+                        v-if="!readonly && (!element.children || element.children.length === 0)"
                         class="flex items-center gap-2 py-2 text-ink-gray-5"
                         :style="{ paddingLeft: `${level * 12 + 60}px` }"
                     >
@@ -169,6 +172,12 @@ const props = defineProps({
 	spaceId: {
 		type: String,
 		default: null,
+	},
+	// Read-only spaces (git-synced) render the tree for browsing only: no
+	// drag-reorder, no row actions, no add-page/group affordances.
+	readonly: {
+		type: Boolean,
+		default: false,
 	},
 	selectedPageId: {
 		type: String,

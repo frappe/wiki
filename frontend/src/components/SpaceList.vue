@@ -130,6 +130,28 @@
             :description="__('The URL path for this wiki space (e.g., /my-wiki-space)')"
           />
 
+          <FormControl
+            type="checkbox"
+            :label="__('Git synced (read-only, content lives in a GitHub repo)')"
+            v-model="newSpace.git_synced"
+          />
+
+          <template v-if="newSpace.git_synced">
+            <FormControl
+              type="text"
+              :label="__('Repository')"
+              v-model="newSpace.repo_full_name"
+              :placeholder="__('owner/repo')"
+              :description="__('Public GitHub repository, e.g. frappe/wiki')"
+            />
+            <FormControl
+              type="text"
+              :label="__('Branch')"
+              v-model="newSpace.branch"
+              :placeholder="__('main')"
+            />
+          </template>
+
           <ErrorMessage :message="spaces.insert.error" />
         </div>
       </template>
@@ -165,6 +187,9 @@ const searchQuery = ref("");
 const newSpace = reactive({
   space_name: "",
   route: "",
+  git_synced: false,
+  repo_full_name: "",
+  branch: "",
 });
 
 function slugify(text) {
@@ -236,8 +261,13 @@ const spaces = createListResource({
       showCreateDialog.value = false;
       newSpace.space_name = "";
       newSpace.route = "";
+      newSpace.git_synced = false;
+      newSpace.repo_full_name = "";
+      newSpace.branch = "";
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
+      // Synced spaces kick off their first sync automatically on the space
+      // detail page (see SpaceDetails), so just navigate there.
       router.push({ name: "SpaceDetails", params: { spaceId: doc.name } });
     },
   },
@@ -265,14 +295,25 @@ const handleCreateSpace = () => {
   if (!newSpace.route) {
     return Promise.reject(new Error("Route is required"));
   }
+  if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
+    return Promise.reject(new Error("Repository is required for a git-synced space"));
+  }
 
-  return spaces.insert.submit({
+  const payload = {
     space_name: newSpace.space_name,
     route: newSpace.route,
     // New spaces are published by default, so start them as public read.
     // Guest covers everyone (anonymous + logged-in); admins can refine this
     // in Space Settings → Permissions.
     roles: [{ role: "Guest", permission_level: "Read" }],
-  });
+  };
+
+  if (newSpace.git_synced) {
+    payload.git_synced = 1;
+    payload.repo_full_name = newSpace.repo_full_name.trim();
+    payload.branch = newSpace.branch.trim() || "main";
+  }
+
+  return spaces.insert.submit(payload);
 };
 </script>

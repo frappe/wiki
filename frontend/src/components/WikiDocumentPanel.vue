@@ -8,6 +8,7 @@
 							<input
 								type="text"
 								v-model="editableTitle"
+								:readonly="readonly"
 								class="text-2xl font-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
 								:placeholder="__('Page title')"
 								@blur="saveTitleIfChanged"
@@ -15,6 +16,13 @@
 							/>
 						</div>
 						<div
+							v-if="readonly"
+							class="flex items-center gap-1 text-sm text-ink-gray-5"
+						>
+							<span class="font-mono truncate">/{{ displayRoute }}</span>
+						</div>
+						<div
+							v-else
 							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
 							@click="openRouteDialog"
 						>
@@ -28,7 +36,7 @@
 							<Badge v-else variant="subtle" theme="orange" size="sm">
 								{{ __('Not Published') }}
 							</Badge>
-							<Badge v-if="hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+							<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
 								{{ __('Has Draft Changes') }}
 							</Badge>
 						</div>
@@ -47,6 +55,7 @@
 						{{ __('View Page') }}
 					</Button>
 					<Button
+						v-if="!readonly"
 						variant="solid"
 						:loading="isSaving"
 						@click="saveFromHeader"
@@ -67,7 +76,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 				<!-- Editor body skeleton while the CR page overlay loads -->
 				<div v-else class="space-y-4 animate-pulse">
 					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
@@ -164,6 +173,12 @@ const props = defineProps({
 		type: String,
 		required: false,
 	},
+	// Git-synced space: the page is owned by the repo. Render it for reading
+	// only — no change request, no editing affordances, no save path.
+	readonly: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const emit = defineEmits(['refresh']);
@@ -210,6 +225,9 @@ watch(
 watch(
 	[() => crStore.currentChangeRequest?.name, () => wikiDoc.value.doc?.doc_key],
 	async ([crName, docKey], [oldCrName]) => {
+		// Read-only (git-synced) pages render straight from the published doc —
+		// no change request overlay, so skip the CR-page load entirely.
+		if (props.readonly) return;
 		if (docKey) {
 			await loadCrPage();
 		} else {
@@ -229,6 +247,7 @@ function onEditorContentChange(
 	docKey = wikiDoc.value.doc?.doc_key,
 	options = {},
 ) {
+	if (props.readonly) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.recordEditorContent(docKey, content, title, options);
@@ -239,6 +258,7 @@ function onEditorContentReady(
 	savedContent,
 	docKey = wikiDoc.value.doc?.doc_key,
 ) {
+	if (props.readonly) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
@@ -349,6 +369,11 @@ const savedContent = computed(() => {
 });
 
 const editorKey = computed(() => {
+	// Read-only pages have no CR overlay to wait for: mount the viewer as soon
+	// as the published doc for this page is loaded.
+	if (props.readonly) {
+		return wikiDoc.value.doc?.name === props.pageId ? props.pageId : null;
+	}
 	// Gate on the loaded overlay matching the current doc — NOT on
 	// `isLoadingCrPage`. A background revalidation (after a save / title /
 	// route / publish edit) flips that flag without changing the page, and
@@ -365,13 +390,16 @@ const editorKey = computed(() => {
 });
 
 const menuOptions = computed(() => {
-	const options = [
-		{
-			label: displayPublished.value ? __('Unpublish') : __('Publish'),
-			icon: 'upload-cloud',
-			onClick: togglePublish,
-		},
-	];
+	// Read-only spaces can't change publish state — only offer the desk link.
+	const options = props.readonly
+		? []
+		: [
+				{
+					label: displayPublished.value ? __('Unpublish') : __('Publish'),
+					icon: 'upload-cloud',
+					onClick: togglePublish,
+				},
+			];
 	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
 		options.push({
 			label: __('View in Desk'),
@@ -387,6 +415,7 @@ const menuOptions = computed(() => {
 });
 
 async function saveTitleIfChanged() {
+	if (props.readonly) return;
 	const newTitle = editableTitle.value.trim();
 	if (!newTitle || newTitle === displayTitle.value) return;
 	if (!wikiDoc.value.doc?.doc_key) return;
@@ -444,6 +473,7 @@ function saveFromHeader() {
 }
 
 async function saveContent(content) {
+	if (props.readonly) return;
 	if (!wikiDoc.value.doc?.doc_key) {
 		toast.error(__('No active change request'));
 		return;
