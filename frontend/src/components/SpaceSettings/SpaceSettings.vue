@@ -32,6 +32,13 @@
 						{{ activeTab?.label }}
 					</h2>
 					<Badge
+						v-if="selectedTab === 'permissions'"
+						theme="orange"
+						size="sm"
+					>
+						{{ __('Beta') }}
+					</Badge>
+					<Badge
 						v-if="selectedTab === 'permissions' && permissionsDirty"
 						theme="orange"
 						size="sm"
