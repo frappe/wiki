@@ -105,6 +105,10 @@ Let a repo control nav order & titles instead of alphabetical inference. In the 
 
 - **Tests / demo:** unit for config parse + ordering/nesting and the inference fallback; browser (agent-browser) syncs a repo with `.wiki.json` and asserts sidebar order/titles.
 
+*As built:* Engine-only addition in `wiki/wiki/git_sync.py`. `load_wiki_config(repo, tree, token)` finds `.wiki.json` at the repo root in the already-fetched tree, fetches+parses it, and **raises** on malformed JSON / non-object (surfaced via the sync error rather than silently falling back). `build_nodes_from_config(repo, tree, config, docs_subdir, token)` walks the ordered `nav` (single-key dicts: `{"Title": "path.md"}` → leaf, `{"Title": [children]}` → group), resolving leaf paths under `config.docs_dir` (falls back to the space's `docs_subdir`). It emits the **same node shape** as `build_nodes`, so `_sync_to_live` needs zero changes: hierarchy rides on synthetic `dir`/`parent_dir` keys (the nav title-chain), and nav order rides on a zero-padded monotonic `seg` counter that the existing alphabetical sibling-sort reproduces as document order. Titles come straight from `nav` (overriding H1/humanize). `sync_space` calls `build_nodes_from_config` when `.wiki.json` carries a `nav`, else the TB1 inference path unchanged. 7 unit tests (parse present/absent/malformed, order+titles+nesting, missing-file skip, `docs_dir` override, plus a full sync-to-live test asserting live `sort_order`/titles/parenting with a deliberately non-alphabetical nav); the sync-level test is temp-revert verified.
+
+*Deviations / notes:* (1) `nav` is treated as **authoritative** — only files it lists are synced; repo files absent from `nav` are ignored, and a nav entry whose file is missing from the tree is skipped (no empty page). (2) A nav **group** is file-less: its identity is the synthetic `\.wiki.json#<title-chain>` source_path (stable while the title-chain is stable), so it carries **no** "Edit on GitHub" link and no landing content (group landings under nav are a possible later enhancement; folder-inference groups still get their README/index landing). (3) `config.docs_dir` overrides the space's `docs_subdir` for path resolution when present. (4) Browser demo deferred — the live `BuildWithHussain/giki` repo has no `.wiki.json` and creating/pushing to an external repo is out of scope here; the config path is covered by the unit suite end-to-end through the live tree.
+
 ### TB4 — GitHub App connection + repo picker (private repos)
 
 Swap the token source from "none/public" to a real GitHub App, unlocking private repos and the connect-and-pick UX the user wants.
@@ -150,7 +154,7 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] TB1b-i — Backend read-only enforcement: `assert_space_writable`/`is_git_synced_space` helpers wired into the 4 CR/reorder entry points + `wiki_document_has_permission` write-deny; 6 unit tests (temp-revert verified).
 - [x] TB1b-ii — Frontend read-only: `isGitSynced` render path in SpaceDetails (non-CR `get_wiki_tree`, synced banner + repo link + Sync now), `readonly` threaded through list/tree/panel/editor, create-space "Git synced" dialog; e2e spec (temp-revert verified).
 - [x] TB2 — Edit on GitHub: `buildGithubEditUrl` helper + "Edit on GitHub" menu item in `WikiDocumentPanel`; group `source_path` now points at its README/index landing; backend unit tests + e2e (temp-revert verified), demoed on `BuildWithHussain/giki`.
-- [ ] TB3 — `.wiki.json` structure override
+- [x] TB3 — `.wiki.json` structure override: `load_wiki_config` + `build_nodes_from_config` drive nav order/nesting/titles (same node shape → zero `_sync_to_live` changes); inference fallback intact; 7 unit tests (temp-revert verified).
 - [ ] TB4 — GitHub App connection + repo picker (private repos)
 - [ ] TB5 — Sync log & status panel
 - [ ] TB6 — Real-time webhook sync

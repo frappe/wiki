@@ -15,6 +15,7 @@ real auth (TB4) can be slotted in without touching the merge logic.
 from __future__ import annotations
 
 import base64
+import json
 import re
 from collections import defaultdict
 from typing import Any
@@ -38,6 +39,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
 LANDING_BASENAMES = ("readme.md", "index.md", "readme.mdx", "index.mdx")
+WIKI_CONFIG_PATH = ".wiki.json"
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
 
@@ -193,6 +195,116 @@ def build_nodes(
 	root_landing_path = root_landing["path"] if root_landing else None
 
 	return nodes, root_content, root_landing_path
+
+
+# --------------------------------------------------------------------------- #
+# .wiki.json structure override
+# --------------------------------------------------------------------------- #
+def load_wiki_config(
+	repo: str, tree_entries: list[dict[str, Any]], token: str | None = None
+) -> dict[str, Any] | None:
+	"""Return the parsed ``.wiki.json`` from the repo root, or ``None`` if absent.
+
+	A malformed config is surfaced (raises) rather than silently ignored, so the
+	sync records a clear error instead of falling back to inference unexpectedly.
+	"""
+	sha = next(
+		(e.get("sha") for e in tree_entries if e.get("type") == "blob" and e.get("path") == WIKI_CONFIG_PATH),
+		None,
+	)
+	if not sha:
+		return None
+	raw = _fetch_blob(repo, sha, token)
+	try:
+		config = json.loads(raw or "{}")
+	except json.JSONDecodeError as exc:
+		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_PATH, exc))
+	if not isinstance(config, dict):
+		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_PATH))
+	return config
+
+
+def build_nodes_from_config(
+	repo: str,
+	tree_entries: list[dict[str, Any]],
+	config: dict[str, Any],
+	docs_subdir: str | None = None,
+	token: str | None = None,
+) -> tuple[list[dict[str, Any]], str | None, str | None]:
+	"""Drive structure from an explicit ``.wiki.json`` ``nav`` instead of inference.
+
+	``nav`` is an ordered list of single-key dicts: ``{"Title": "path.md"}`` is a
+	leaf page, ``{"Title": [ ...children... ]}`` is a group. Paths resolve under
+	``docs_dir`` (config) or the space's ``docs_subdir``. Hierarchy, order, and
+	titles all come from the config; page bodies still come from the repo files.
+
+	Only files referenced in ``nav`` are synced; anything else in the repo is
+	ignored (the config is treated as authoritative). A nav entry whose file is
+	missing from the tree is skipped.
+	"""
+	docs_dir = (config.get("docs_dir") or docs_subdir or "").strip("/")
+	nav = config.get("nav") or []
+	sha_by_path = {e.get("path"): e.get("sha") for e in tree_entries if e.get("type") == "blob"}
+
+	def full(rel: str) -> str:
+		rel = (rel or "").strip("/")
+		return f"{docs_dir}/{rel}" if docs_dir else rel
+
+	nodes: list[dict[str, Any]] = []
+	# A monotonic counter rendered as a zero-padded seg: the existing alphabetical
+	# sibling sort in _sync_to_live then reproduces nav (document) order for free.
+	order = [0]
+
+	def next_seg() -> str:
+		seg = f"{order[0]:06d}"
+		order[0] += 1
+		return seg
+
+	def walk(entries: list[Any], parent_dir: str) -> None:
+		if not isinstance(entries, list):
+			return
+		for entry in entries:
+			if not isinstance(entry, dict):
+				continue
+			for title, value in entry.items():
+				seg = next_seg()
+				if isinstance(value, list):
+					dir_key = f"{parent_dir}/{title}" if parent_dir else title
+					nodes.append(
+						{
+							"is_group": 1,
+							"dir": dir_key,
+							"parent_dir": parent_dir,
+							# No file backs a nav group, so its identity is the (stable)
+							# nav title-chain; it carries no editable source.
+							"source_path": f"{WIKI_CONFIG_PATH}#{dir_key}",
+							"landing_path": None,
+							"title": title,
+							"content": "",
+							"seg": seg,
+						}
+					)
+					walk(value, dir_key)
+				else:
+					path = full(value)
+					blob_sha = sha_by_path.get(path)
+					if not blob_sha:
+						continue
+					nodes.append(
+						{
+							"is_group": 0,
+							"dir": parent_dir,
+							"parent_dir": parent_dir,
+							"source_path": path,
+							"landing_path": None,
+							"title": title,
+							"content": _fetch_blob(repo, blob_sha, token),
+							"seg": seg,
+						}
+					)
+
+	walk(nav, "")
+	return nodes, None, None
 
 
 # --------------------------------------------------------------------------- #
@@ -355,7 +467,15 @@ def sync_space(space_name: str, token: str | None = None) -> None:
 			return
 
 		tree = _fetch_tree(space.repo_full_name, head_sha, token)
-		nodes, root_content, _root_landing = build_nodes(space.repo_full_name, tree, space.docs_subdir, token)
+		config = load_wiki_config(space.repo_full_name, tree, token)
+		if config and config.get("nav"):
+			nodes, root_content, _root_landing = build_nodes_from_config(
+				space.repo_full_name, tree, config, space.docs_subdir, token
+			)
+		else:
+			nodes, root_content, _root_landing = build_nodes(
+				space.repo_full_name, tree, space.docs_subdir, token
+			)
 		_sync_to_live(space, nodes, root_content)
 		_record_success(space_name, head_sha)
 	except Exception:

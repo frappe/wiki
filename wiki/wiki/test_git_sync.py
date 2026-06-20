@@ -1,11 +1,18 @@
 # Copyright (c) 2026, Frappe and Contributors
 # See license.txt
 
+import json
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from wiki.wiki import git_sync
-from wiki.wiki.git_sync import build_nodes, sync_space
+from wiki.wiki.git_sync import (
+	build_nodes,
+	build_nodes_from_config,
+	load_wiki_config,
+	sync_space,
+)
 
 
 def _make_synced_space(repo="acme/docs", branch="main", docs_subdir=""):
@@ -102,6 +109,83 @@ class TestGitSyncInference(FrappeTestCase):
 		self.assertEqual(root_landing, "README.md")
 		self.assertIn("welcome", root_content)
 		self.assertEqual([n["source_path"] for n in nodes], ["page.md"])
+
+
+class TestGitSyncConfig(FrappeTestCase):
+	"""`.wiki.json` drives hierarchy, order, and titles instead of inference."""
+
+	def _repo_with_config(self, config):
+		files = {
+			git_sync.WIKI_CONFIG_PATH: json.dumps(config),
+			"docs/intro.md": "# Heading In File\nbody",
+			"docs/guides/setup.md": "# Setup In File\nsteps",
+			"docs/guides/deep.md": "# Deep\nstuff",
+		}
+		repo = _FakeRepo(files)
+		repo.install(self)
+		return repo
+
+	def test_load_wiki_config_absent_returns_none(self):
+		repo = _FakeRepo({"docs/intro.md": "# Intro"})
+		repo.install(self)
+		self.assertIsNone(load_wiki_config("acme/docs", repo.tree()))
+
+	def test_load_wiki_config_parses_root_file(self):
+		config = {"docs_dir": "docs", "nav": [{"Intro": "intro.md"}]}
+		repo = self._repo_with_config(config)
+		self.assertEqual(load_wiki_config("acme/docs", repo.tree()), config)
+
+	def test_load_wiki_config_raises_on_malformed_json(self):
+		repo = _FakeRepo({git_sync.WIKI_CONFIG_PATH: "{not json"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree())
+
+	def test_config_drives_order_titles_and_nesting(self):
+		config = {
+			"docs_dir": "docs",
+			"nav": [
+				{"Intro": "intro.md"},
+				{"Guides": [{"Setup": "guides/setup.md"}, {"Deep Dive": "guides/deep.md"}]},
+			],
+		}
+		repo = self._repo_with_config(config)
+		nodes, root_content, root_landing = build_nodes_from_config(
+			"acme/docs", repo.tree(), config, docs_subdir="docs"
+		)
+		self.assertIsNone(root_content)
+		self.assertIsNone(root_landing)
+
+		by_path = {n["source_path"]: n for n in nodes}
+		# Titles come from nav, NOT the files' H1.
+		self.assertEqual(by_path["docs/intro.md"]["title"], "Intro")
+		self.assertEqual(by_path["docs/guides/setup.md"]["title"], "Setup")
+		self.assertEqual(by_path["docs/guides/deep.md"]["title"], "Deep Dive")
+
+		# "Guides" is a group with a synthetic, file-less identity.
+		guides = next(n for n in nodes if n["is_group"])
+		self.assertEqual(guides["title"], "Guides")
+		self.assertEqual(guides["dir"], "Guides")
+		# Children nest under the group's dir key.
+		self.assertEqual(by_path["docs/guides/setup.md"]["parent_dir"], "Guides")
+
+		# seg is a zero-padded counter in nav order; the apply step's alphabetical
+		# sibling sort then reproduces document order.
+		self.assertLess(by_path["docs/intro.md"]["seg"], guides["seg"])
+		self.assertLess(by_path["docs/guides/setup.md"]["seg"], by_path["docs/guides/deep.md"]["seg"])
+
+	def test_config_skips_missing_files(self):
+		config = {"docs_dir": "docs", "nav": [{"Ghost": "nope.md"}, {"Intro": "intro.md"}]}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		paths = {n["source_path"] for n in nodes}
+		self.assertNotIn("docs/nope.md", paths)
+		self.assertIn("docs/intro.md", paths)
+
+	def test_config_docs_dir_overrides_space_subdir(self):
+		config = {"docs_dir": "docs", "nav": [{"Intro": "intro.md"}]}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="ignored")
+		self.assertEqual(nodes[0]["source_path"], "docs/intro.md")
 
 
 class TestGitSyncApply(FrappeTestCase):
@@ -226,6 +310,43 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertEqual(a_before.doc_key, a_after.doc_key)
 		self.assertEqual(a_before.name, a_after.name)
 		self.assertIn("A updated", frappe.db.get_value("Wiki Document", a_after.name, "content"))
+
+	def test_wiki_config_drives_live_tree_order_and_titles(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		# Nav lists "zebra" before "apple" — inference would sort alphabetically,
+		# so the live order proves the config (not the filename) wins.
+		config = {
+			"docs_dir": "docs",
+			"nav": [
+				{"Zebra": "zebra.md"},
+				{"Apple": "apple.md"},
+				{"Guides": [{"Setup": "guides/setup.md"}]},
+			],
+		}
+		repo = _FakeRepo(
+			{
+				git_sync.WIKI_CONFIG_PATH: json.dumps(config),
+				"docs/zebra.md": "# Ignored H1",
+				"docs/apple.md": "# Also Ignored",
+				"docs/guides/setup.md": "# Setup",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		docs = self._tree(space)
+		top_level = [d for d in docs if d.parent_wiki_document == space.root_group]
+		top_level.sort(key=lambda d: frappe.db.get_value("Wiki Document", d.name, "sort_order") or 0)
+		self.assertEqual([d.title for d in top_level], ["Zebra", "Apple", "Guides"])
+
+		# Title comes from nav, not the file H1.
+		zebra = next(d for d in docs if d.source_path == "docs/zebra.md")
+		self.assertEqual(zebra.title, "Zebra")
+		# Leaf nests under the nav group.
+		guides = next(d for d in docs if d.is_group and d.title == "Guides")
+		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
+		self.assertEqual(setup.parent_wiki_document, guides.name)
 
 	def test_noop_sync_when_head_sha_unchanged(self):
 		space = _make_synced_space()
