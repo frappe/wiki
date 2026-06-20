@@ -123,7 +123,9 @@ const tabDefs = computed(() => {
 		{
 			key: 'my',
 			label: __('My Change Requests'),
-			fields: ['name', 'title', 'wiki_space.space_name', 'status', 'modified', 'archived_at', 'merged_at'],
+			// `wiki_space` (the link id) is needed for the row route to the space
+			// editor; `wiki_space.space_name` only yields the display name.
+			fields: ['name', 'title', 'wiki_space', 'wiki_space.space_name', 'status', 'modified', 'archived_at', 'merged_at'],
 			filters: () => ({ owner: ['=', currentUser.value] }),
 			columns: myChangeRequestColumns,
 			options: listOptions({
