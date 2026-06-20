@@ -399,6 +399,12 @@ const BANNER_CONFIG = {
 		title: __('Merged'),
 		description: __('Your changes have been merged'),
 	},
+	Rejected: {
+		class: 'bg-red-50 border-b border-red-200 text-red-800',
+		icon: LucideXCircle,
+		title: __('Rejected'),
+		description: __('This change request was rejected and will not be merged'),
+	},
 };
 
 const DEFAULT_BANNER = {
@@ -414,5 +420,21 @@ const bannerConfig = computed(
 const bannerClass = computed(() => bannerConfig.value.class);
 const bannerIcon = computed(() => bannerConfig.value.icon);
 const bannerTitle = computed(() => bannerConfig.value.title);
-const bannerDescription = computed(() => bannerConfig.value.description);
+
+// On Changes Requested / Rejected, show the reviewer's actual feedback instead
+// of a generic prompt — this is the only place the author sees why their CR
+// bounced back (the comment is stored on the CR by `request_changes` /
+// `reject_change_request`).
+const bannerDescription = computed(() => {
+	const cr = crStore.currentChangeRequest;
+	const showsReviewComment = ['Changes Requested', 'Rejected'].includes(
+		changeRequestStatus.value,
+	);
+	if (showsReviewComment && cr?.review_comment) {
+		return cr.reviewed_by
+			? __('{0} — {1}', [cr.review_comment, cr.reviewed_by])
+			: cr.review_comment;
+	}
+	return bannerConfig.value.description;
+});
 </script>

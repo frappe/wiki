@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -80,10 +81,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Create an unpublished page
 			await page.goto(spaceUrl);
@@ -230,10 +228,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Open first page in public view
 			const routes = await getList<WikiDocumentRoute>(
@@ -370,10 +365,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Open public view for the first page
 			const routes = await getList<WikiDocumentRoute>(

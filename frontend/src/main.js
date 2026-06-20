@@ -23,6 +23,7 @@ import {
 } from 'frappe-ui';
 
 import './index.css';
+import './wiki-editor-content.css';
 
 const globalComponents = {
 	Button,
