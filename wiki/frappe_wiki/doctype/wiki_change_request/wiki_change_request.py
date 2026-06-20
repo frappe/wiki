@@ -740,6 +740,9 @@ def get_cr_preview_context(name: str, doc_key: str) -> dict[str, Any]:
 		"route": page.get("route"),
 		"is_group": page.get("is_group"),
 		"is_published": page.get("is_published"),
+		# Raw markdown so the SPA can render through the same read-only TipTap
+		# viewer the editor/reader use (lowlight highlighting, callouts, etc.).
+		"content": page.get("content"),
 		"rendered_content": rendered_content,
 		"toc_headings": toc_headings,
 	}

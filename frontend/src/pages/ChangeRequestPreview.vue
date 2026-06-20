@@ -41,16 +41,15 @@
 			</aside>
 
 			<main class="flex-1 overflow-auto">
-				<div class="max-w-3xl mx-auto px-6 py-8">
+				<div class="px-8 py-6">
 					<div v-if="previewResource.loading" class="flex items-center justify-center py-16">
 						<LoadingIndicator class="size-8" />
 					</div>
 					<template v-else-if="currentPage">
-						<h1 class="text-3xl font-semibold text-ink-gray-9 mb-6">{{ currentPage.title }}</h1>
-						<div v-if="currentPage.is_group && !currentPage.rendered_content" class="text-ink-gray-5">
+						<div v-if="currentPage.is_group && !currentPage.content" class="text-ink-gray-5">
 							{{ __('This is a group with no content of its own.') }}
 						</div>
-						<div v-else class="wiki-rendered prose prose-sm max-w-none" v-html="currentPage.rendered_content" />
+						<WikiContentViewer v-else :content="currentPage.content || ''" />
 					</template>
 					<div v-else class="text-center text-ink-gray-5 py-16">
 						{{ __('Select a page from the left to preview it.') }}
@@ -67,6 +66,7 @@ import { useRouter } from 'vue-router';
 import { createDocumentResource, createResource, Badge, Button, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import LucideFolder from '~icons/lucide/folder';
 import LucideFileText from '~icons/lucide/file-text';
+import WikiContentViewer from '@/components/WikiContentViewer.vue';
 
 const props = defineProps({
 	changeRequestId: { type: String, required: true },
