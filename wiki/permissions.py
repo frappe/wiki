@@ -13,9 +13,33 @@ and ``Wiki Manager`` always have full access.
 """
 
 import frappe
+from frappe import _
 
 MANAGER_ROLES = {"System Manager", "Wiki Manager"}
 WRITE_PTYPES = {"write", "create", "delete", "submit", "cancel", "amend"}
+
+
+def is_git_synced_space(space) -> bool:
+	"""True if the space mirrors a GitHub repo (content is read-only in the wiki)."""
+	name = _resolve_space_name(space)
+	if not name:
+		return False
+	return bool(frappe.get_cached_value("Wiki Space", name, "git_synced"))
+
+
+def assert_space_writable(space) -> None:
+	"""Block content mutations on a git-synced space (the repo is the source of truth).
+
+	The sync engine itself bypasses this by running under
+	``frappe.flags.in_apply_merge_revision``.
+	"""
+	if frappe.flags.in_apply_merge_revision:
+		return
+	if is_git_synced_space(space):
+		frappe.throw(
+			_("This wiki space is synced from GitHub and is read-only."),
+			frappe.PermissionError,
+		)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +194,10 @@ def wiki_document_has_permission(doc, ptype, user=None):
 		return True
 
 	if ptype in WRITE_PTYPES:
+		# A git-synced space is read-only; only the sync engine (running under
+		# in_apply_merge_revision) may write its documents.
+		if not frappe.flags.in_apply_merge_revision and is_git_synced_space(space):
+			return False
 		return can_write_space(space, user)
 	return can_read_space(space, user)
 

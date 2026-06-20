@@ -241,3 +241,85 @@ class TestGitSyncSpaceControls(FrappeTestCase):
 		space.route = f"plain-{frappe.generate_hash(length=6)}"
 		space.insert()
 		self.assertRaises(frappe.ValidationError, space.sync_now)
+
+
+class TestGitSyncReadOnly(FrappeTestCase):
+	"""A git-synced space is read-only: every content-mutation entry point is blocked,
+	while the sync engine (in_apply_merge_revision) still gets through."""
+
+	def tearDown(self):
+		frappe.flags.in_apply_merge_revision = False
+		frappe.db.rollback()
+
+	def _plain_space(self):
+		space = frappe.new_doc("Wiki Space")
+		space.space_name = "Plain"
+		space.route = f"plain-{frappe.generate_hash(length=6)}"
+		space.insert()
+		return space
+
+	def test_assert_space_writable_blocks_synced_space(self):
+		from wiki.permissions import assert_space_writable
+
+		synced = _make_synced_space()
+		self.assertRaises(frappe.PermissionError, assert_space_writable, synced.name)
+
+		# The sync engine itself is exempt.
+		frappe.flags.in_apply_merge_revision = True
+		assert_space_writable(synced.name)  # must not raise
+
+	def test_assert_space_writable_allows_plain_space(self):
+		from wiki.permissions import assert_space_writable
+
+		assert_space_writable(self._plain_space().name)  # must not raise
+
+	def test_create_change_request_blocked_on_synced_space(self):
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+			create_change_request,
+		)
+
+		synced = _make_synced_space()
+		self.assertRaises(frappe.PermissionError, create_change_request, synced.name, "Nope")
+
+	def test_get_or_create_draft_blocked_on_synced_space(self):
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+			get_or_create_draft_change_request,
+		)
+
+		synced = _make_synced_space()
+		self.assertRaises(frappe.PermissionError, get_or_create_draft_change_request, synced.name)
+
+	def test_reorder_blocked_on_synced_space(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		synced = _make_synced_space()
+		self.assertRaises(
+			frappe.PermissionError,
+			reorder_wiki_documents,
+			synced.root_group,
+			None,
+			0,
+			"[]",
+		)
+
+	def test_document_write_permission_denied_then_allowed_under_merge(self):
+		from wiki.permissions import wiki_document_has_permission
+
+		synced = _make_synced_space()
+		doc = frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": "Page",
+				"route": f"{synced.route}/page",
+				"content": "# Page",
+				"parent_wiki_document": synced.root_group,
+				"wiki_space": synced.name,
+			}
+		).insert(ignore_permissions=True)
+
+		self.assertTrue(wiki_document_has_permission(doc, "read", "Administrator"))
+		self.assertFalse(wiki_document_has_permission(doc, "write", "Administrator"))
+
+		# The sync engine writes documents under in_apply_merge_revision.
+		frappe.flags.in_apply_merge_revision = True
+		self.assertTrue(wiki_document_has_permission(doc, "write", "Administrator"))

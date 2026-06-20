@@ -108,9 +108,13 @@ def reorder_wiki_documents(
 	"""
 	import json
 
+	from wiki.permissions import assert_space_writable
+
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
+
+	assert_space_writable(_get_wiki_space_for_document(doc.name))
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):

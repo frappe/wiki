@@ -459,10 +459,12 @@ def has_revision_changes(base_revision: str | None, head_revision: str | None) -
 
 @frappe.whitelist()
 def get_or_create_draft_change_request(wiki_space: str, title: str | None = None) -> dict[str, Any]:
-	from wiki.permissions import can_read_space
+	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	assert_space_writable(wiki_space)
 
 	cr = _find_existing_draft(wiki_space)
 	if cr:
@@ -719,10 +721,12 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 @frappe.whitelist()
 def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
-	from wiki.permissions import can_read_space
+	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	assert_space_writable(wiki_space)
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
@@ -955,6 +959,10 @@ def apply_cr_operations(
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_assert_editable(cr)
+
+	from wiki.permissions import assert_space_writable
+
+	assert_space_writable(cr.wiki_space)
 
 	current_version = int(cr.operation_version or 0)
 	if base_version is not None:
