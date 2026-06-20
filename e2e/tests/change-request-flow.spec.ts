@@ -903,6 +903,40 @@ test.describe('Change Request Flow', () => {
 		await expect(page.getByText('Nothing assigned to you')).toHaveCount(0);
 	});
 
+	test('my-change-requests tab renders draft rows without a router param error', async ({
+		page,
+	}) => {
+		const content = `My-tab draft content ${Date.now()}`;
+		// A Draft CR owned by the current user — no submit, so it stays Draft and
+		// lands in the "My Change Requests" tab.
+		await createSpaceWithDraftPage(page, 'CR My Tab');
+		await setEditorContentAndSave(page, content);
+
+		// A Draft row routes to the space editor, which needs the `wiki_space`
+		// link id. If only `wiki_space.space_name` is selected, the route resolves
+		// with spaceId=undefined and vue-router throws "Missing required param".
+		const routerErrors: string[] = [];
+		const collect = (text: string) => {
+			if (text.includes('Missing required param')) routerErrors.push(text);
+		};
+		page.on('pageerror', (e) => collect(e.message));
+		page.on('console', (m) => {
+			if (m.type() === 'error') collect(m.text());
+		});
+
+		await page.goto('/wiki/change-requests?tab=my');
+		await page.waitForLoadState('networkidle');
+
+		// The draft must render as a row linking to its space (not the empty state
+		// and not a broken render).
+		await expect(page.locator('a[href*="/spaces/"]').first()).toBeVisible({
+			timeout: 10000,
+		});
+		await expect(page.getByText('No Change Requests')).toHaveCount(0);
+
+		expect(routerErrors).toEqual([]);
+	});
+
 	test('back from review/preview returns to the originating tab', async ({
 		page,
 	}) => {
