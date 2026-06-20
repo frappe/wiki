@@ -22,7 +22,13 @@ const props = defineProps({
 	updateAttributes: { type: Function, required: true },
 	deleteNode: { type: Function, required: true },
 	selected: { type: Boolean, default: false },
+	editor: { type: Object, required: true },
 });
+
+// In a read-only render (e.g. the change-request preview / published viewer)
+// we drop the split-pane editing chrome and show only the rendered diagram,
+// presented as a centered figure like the public page.
+const isReadOnly = computed(() => !props.editor.isEditable);
 
 // Unique, collision-free render ids without Date.now()/Math.random() (which
 // can collide on rapid keystrokes). One stable instance id per mounted block
@@ -112,6 +118,21 @@ onMounted(renderPreview);
 
 <template>
 	<NodeViewWrapper
+		v-if="isReadOnly"
+		class="mermaid-figure"
+		contenteditable="false"
+	>
+		<div v-if="lastGoodSvg" class="mermaid-figure-svg" v-html="lastGoodSvg" />
+		<div v-else-if="isRendering" class="mermaid-figure-placeholder">
+			Rendering…
+		</div>
+		<div v-else class="mermaid-figure-error">
+			{{ errorMessage || 'Unable to render this diagram.' }}
+		</div>
+	</NodeViewWrapper>
+
+	<NodeViewWrapper
+		v-else
 		class="mermaid-block"
 		:class="{ 'is-selected': selected }"
 		contenteditable="false"
@@ -176,6 +197,39 @@ onMounted(renderPreview);
 </template>
 
 <style scoped>
+/* Read-only render (CR preview / published viewer): a centered figure on a
+   soft surface, mirroring the public page's .prose pre.mermaid styling. */
+.mermaid-figure {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 2rem 1.5rem;
+	margin: 1.5rem 0;
+	background: var(--surface-gray-1);
+	border: 1px solid var(--outline-gray-2);
+	border-radius: 0.75rem;
+	overflow-x: auto;
+}
+
+.mermaid-figure-svg {
+	max-width: 100%;
+}
+
+.mermaid-figure-svg :deep(svg) {
+	max-width: 100%;
+	height: auto;
+}
+
+.mermaid-figure-placeholder {
+	font-size: 0.8125rem;
+	color: var(--ink-gray-5);
+}
+
+.mermaid-figure-error {
+	font-size: 0.8125rem;
+	color: var(--ink-red-6, #b91c1c);
+}
+
 .mermaid-block {
 	margin: 0.75rem 0;
 	border: 1px solid var(--outline-gray-2);

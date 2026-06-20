@@ -16,6 +16,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
+import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
@@ -67,6 +68,7 @@ onMounted(() => {
 			WikiCodeBlock.configure({ lowlight }),
 			CalloutBlock,
 			IframeBlock,
+			MermaidBlock,
 			PdfBlock,
 			VideoBlock.configure({ uploadFunction: () => {} }),
 		],
