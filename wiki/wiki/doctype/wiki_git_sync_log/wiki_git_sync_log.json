@@ -6,6 +6,7 @@
  "field_order": [
   "wiki_space",
   "status",
+  "trigger",
   "commit_sha",
   "column_break_meta",
   "started_at",
@@ -38,6 +39,16 @@
    "in_standard_filter": 1,
    "label": "Status",
    "options": "Running\nSuccess\nNo Change\nError",
+   "read_only": 1
+  },
+  {
+   "default": "Manual",
+   "fieldname": "trigger",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Trigger",
+   "options": "Manual\nWebhook\nScheduled",
    "read_only": 1
   },
   {

@@ -483,13 +483,17 @@ def _diff_counts(
 # --------------------------------------------------------------------------- #
 # Entry point (enqueued by Wiki Space.sync_now)
 # --------------------------------------------------------------------------- #
-def sync_space(space_name: str, token: str | None = None) -> None:
-	"""Sync one git-synced Wiki Space from its GitHub repo. Safe to enqueue."""
+def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual") -> None:
+	"""Sync one git-synced Wiki Space from its GitHub repo. Safe to enqueue.
+
+	``trigger`` records what kicked the run (``Manual`` button vs ``Webhook`` push)
+	so the sync log surfaces real-time delivery.
+	"""
 	space = frappe.get_doc("Wiki Space", space_name)
 	if not space.git_synced:
 		return
 
-	log_name = _start_sync_log(space_name)
+	log_name = _start_sync_log(space_name, trigger)
 
 	if not space.repo_full_name or not space.branch:
 		message = _("Repository and branch are required for git sync.")
@@ -564,10 +568,11 @@ def _record_error(space_name: str, error: str) -> None:
 # --------------------------------------------------------------------------- #
 # Sync log (one row per run, observable in the Git Sync panel)
 # --------------------------------------------------------------------------- #
-def _start_sync_log(space_name: str) -> str:
+def _start_sync_log(space_name: str, trigger: str = "Manual") -> str:
 	log = frappe.new_doc("Wiki Git Sync Log")
 	log.wiki_space = space_name
 	log.status = "Running"
+	log.trigger = trigger
 	log.started_at = now_datetime()
 	log.insert(ignore_permissions=True)
 	return log.name

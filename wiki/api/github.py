@@ -20,6 +20,9 @@ server-side to mint a short-lived token for private repos.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import secrets
 import time
 from typing import Any
@@ -234,3 +237,74 @@ def my_installations() -> list[dict[str, Any]]:
 @frappe.whitelist()
 def my_repositories(installation_id: str | int) -> list[dict[str, Any]]:
 	return repositories(installation_id, _require_user_token())
+
+
+# --------------------------------------------------------------------------- #
+# Push webhook — real-time sync (auto-configured by the App installation)
+# --------------------------------------------------------------------------- #
+def _verify_signature(body: bytes, signature: str | None, secret: str | None) -> bool:
+	"""Constant-time check of GitHub's ``X-Hub-Signature-256`` (HMAC-SHA256)."""
+	if not signature or not secret:
+		return False
+	expected = "sha256=" + hmac.new(secret.encode(), body or b"", hashlib.sha256).hexdigest()
+	return hmac.compare_digest(expected, signature)
+
+
+def _branch_from_ref(ref: str | None) -> str | None:
+	"""``refs/heads/main`` → ``main``; tags and other refs return ``None``."""
+	prefix = "refs/heads/"
+	if ref and ref.startswith(prefix):
+		return ref[len(prefix) :]
+	return None
+
+
+def _spaces_for_push(repo_full_name: str | None, branch: str | None) -> list[str]:
+	"""Git-synced Wiki Spaces tracking this exact repo + branch."""
+	if not repo_full_name or not branch:
+		return []
+	return frappe.get_all(
+		"Wiki Space",
+		filters={"git_synced": 1, "repo_full_name": repo_full_name, "branch": branch},
+		pluck="name",
+	)
+
+
+def _dispatch_webhook(body: bytes, signature: str | None, event: str | None) -> dict[str, Any]:
+	"""Verify the signature, then enqueue a sync per matching space on ``push``.
+
+	Pure routing logic (no request access) so it's unit-testable: returns the
+	spaces it enqueued, or how the delivery was ignored. Non-``push`` events are
+	accepted-and-ignored; an invalid signature raises ``PermissionError``.
+	"""
+	secret = _settings().get_password("github_webhook_secret", raise_exception=False)
+	if not _verify_signature(body, signature, secret):
+		frappe.throw(_("Invalid webhook signature."), frappe.PermissionError)
+
+	if event == "ping":
+		return {"ok": True, "event": "ping"}
+	if event != "push":
+		return {"ignored": event}
+
+	payload = json.loads(body or b"{}")
+	repo_full_name = (payload.get("repository") or {}).get("full_name")
+	branch = _branch_from_ref(payload.get("ref"))
+	spaces = _spaces_for_push(repo_full_name, branch)
+	for space_name in spaces:
+		frappe.enqueue(
+			"wiki.wiki.git_sync.sync_space",
+			queue="long",
+			job_name=f"wiki_git_sync:{space_name}",
+			space_name=space_name,
+			token=None,
+			trigger="Webhook",
+		)
+	return {"synced_spaces": spaces, "branch": branch}
+
+
+@frappe.whitelist(allow_guest=True)
+def webhook() -> dict[str, Any]:
+	"""GitHub push-event receiver. Payload URL: ``/api/method/wiki.api.github.webhook``."""
+	body = frappe.request.get_data() or b""
+	signature = frappe.get_request_header("X-Hub-Signature-256")
+	event = frappe.get_request_header("X-GitHub-Event")
+	return _dispatch_webhook(body, signature, event)

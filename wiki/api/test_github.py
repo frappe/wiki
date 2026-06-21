@@ -1,6 +1,10 @@
 # Copyright (c) 2026, Frappe and Contributors
 # See license.txt
 
+import hashlib
+import hmac
+import json
+
 import frappe
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -235,3 +239,95 @@ class TestGithubAuth(FrappeTestCase):
 		github.requests = _FakeRequests(get=_get)
 		github.my_installations()
 		self.assertEqual(captured["auth"], "Bearer gho_cached")
+
+
+class TestGithubWebhook(FrappeTestCase):
+	"""Push webhook: signature gate + branch-matched routing to git-synced spaces."""
+
+	WEBHOOK_SECRET = "shhh-webhook"
+
+	def setUp(self):
+		settings = frappe.get_doc("Wiki Settings")
+		settings.github_webhook_secret = self.WEBHOOK_SECRET
+		settings.save()
+		frappe.clear_cache(doctype="Wiki Settings")
+		self._real_enqueue = frappe.enqueue
+		self.enqueued = []
+		frappe.enqueue = lambda *args, **kwargs: self.enqueued.append((args, kwargs))
+
+	def tearDown(self):
+		frappe.enqueue = self._real_enqueue
+		frappe.db.rollback()
+		frappe.clear_cache(doctype="Wiki Settings")
+
+	def _synced_space(self, repo="acme/docs", branch="main"):
+		space = frappe.new_doc("Wiki Space")
+		space.space_name = "Synced"
+		space.route = f"synced-{frappe.generate_hash(length=6)}"
+		space.git_synced = 1
+		space.repo_full_name = repo
+		space.branch = branch
+		space.insert()
+		return space
+
+	def _sign(self, body: bytes, secret: str | None = None) -> str:
+		secret = self.WEBHOOK_SECRET if secret is None else secret
+		return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+	def _push_body(self, repo="acme/docs", ref="refs/heads/main") -> bytes:
+		return json.dumps({"repository": {"full_name": repo}, "ref": ref}).encode()
+
+	# ----- signature verification ----- #
+
+	def test_verify_signature_valid(self):
+		body = b'{"hello": "world"}'
+		self.assertTrue(github._verify_signature(body, self._sign(body), self.WEBHOOK_SECRET))
+
+	def test_verify_signature_invalid(self):
+		body = b'{"hello": "world"}'
+		self.assertFalse(github._verify_signature(body, self._sign(b"tampered"), self.WEBHOOK_SECRET))
+
+	def test_verify_signature_missing(self):
+		self.assertFalse(github._verify_signature(b"{}", None, self.WEBHOOK_SECRET))
+		self.assertFalse(github._verify_signature(b"{}", "sha256=abc", None))
+
+	# ----- dispatch / routing ----- #
+
+	def test_invalid_signature_is_rejected(self):
+		body = self._push_body()
+		self.assertRaises(frappe.PermissionError, github._dispatch_webhook, body, "sha256=wrong", "push")
+		self.assertEqual(self.enqueued, [])
+
+	def test_push_enqueues_only_branch_matched_space(self):
+		main_space = self._synced_space(branch="main")
+		self._synced_space(branch="develop")  # same repo, other branch — must be skipped
+
+		body = self._push_body(ref="refs/heads/main")
+		result = github._dispatch_webhook(body, self._sign(body), "push")
+
+		self.assertEqual(result["synced_spaces"], [main_space.name])
+		self.assertEqual(result["branch"], "main")
+		self.assertEqual(len(self.enqueued), 1)
+		_args, kwargs = self.enqueued[0]
+		self.assertEqual(kwargs["space_name"], main_space.name)
+		self.assertEqual(kwargs["trigger"], "Webhook")
+
+	def test_non_push_event_is_ignored(self):
+		self._synced_space(branch="main")
+		body = self._push_body()
+		result = github._dispatch_webhook(body, self._sign(body), "issues")
+		self.assertEqual(result, {"ignored": "issues"})
+		self.assertEqual(self.enqueued, [])
+
+	def test_ping_event_acknowledged(self):
+		body = b"{}"
+		result = github._dispatch_webhook(body, self._sign(body), "ping")
+		self.assertTrue(result["ok"])
+		self.assertEqual(self.enqueued, [])
+
+	def test_tag_push_matches_no_space(self):
+		self._synced_space(branch="main")
+		body = self._push_body(ref="refs/tags/v1.0")
+		result = github._dispatch_webhook(body, self._sign(body), "push")
+		self.assertEqual(result["synced_spaces"], [])
+		self.assertEqual(self.enqueued, [])

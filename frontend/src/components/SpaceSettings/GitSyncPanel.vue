@@ -45,6 +45,32 @@
 			</div>
 		</div>
 
+		<!-- Webhook: real-time push sync -->
+		<div
+			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
+		>
+			<p class="text-sm font-medium text-ink-gray-9">
+				{{ __('Real-time Sync') }}
+			</p>
+			<p class="mt-0.5 text-xs text-ink-gray-5">
+				{{ __('Pushes to the repository sync automatically via this webhook URL:') }}
+			</p>
+			<div class="mt-2 flex items-center gap-2">
+				<code
+					class="flex-1 min-w-0 truncate rounded bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
+				>
+					{{ webhookUrl }}
+				</code>
+				<Button
+					size="sm"
+					variant="subtle"
+					icon="copy"
+					:title="__('Copy webhook URL')"
+					@click="copyWebhookUrl"
+				/>
+			</div>
+		</div>
+
 		<!-- Run history -->
 		<div class="rounded-lg border border-outline-gray-2 bg-surface-gray-1">
 			<div class="flex items-center justify-between border-b border-outline-gray-2 p-3">
@@ -70,6 +96,14 @@
 						<div class="flex items-center gap-2">
 							<Badge :theme="statusTheme(row.status)" size="sm" variant="subtle">
 								{{ row.status }}
+							</Badge>
+							<Badge
+								v-if="row.trigger === 'Webhook'"
+								theme="blue"
+								size="sm"
+								variant="subtle"
+							>
+								{{ __('Webhook') }}
 							</Badge>
 							<span class="truncate text-xs text-ink-gray-5">
 								{{ formatDateTime(row.started_at || row.creation) }}
@@ -124,11 +158,25 @@ const branch = computed(() => props.space.doc?.branch || '');
 const lastSyncStatus = computed(() => props.space.doc?.last_sync_status || '');
 const lastSyncTime = computed(() => props.space.doc?.last_sync_time || '');
 
+const webhookUrl = computed(
+	() => `${window.location.origin}/api/method/wiki.api.github.webhook`,
+);
+
+async function copyWebhookUrl() {
+	try {
+		await navigator.clipboard.writeText(webhookUrl.value);
+		toast.success(__('Webhook URL copied'));
+	} catch {
+		toast.error(__('Could not copy URL'));
+	}
+}
+
 const logs = createListResource({
 	doctype: 'Wiki Git Sync Log',
 	fields: [
 		'name',
 		'status',
+		'trigger',
 		'commit_sha',
 		'started_at',
 		'finished_at',
