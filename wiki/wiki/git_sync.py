@@ -28,6 +28,8 @@ from frappe.website.utils import cleanup_page_name
 
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	_apply_merge_changes_only,
+	_classify_changes,
+	_find_changed_keys,
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
@@ -317,8 +319,14 @@ def _blob_content(item: dict[str, Any]) -> str:
 	return frappe.db.get_value("Wiki Content Blob", blob, "content") or ""
 
 
-def _sync_to_live(space: frappe.Document, nodes: list[dict[str, Any]], root_content: str | None) -> None:
-	"""Build a target revision from inferred nodes and apply it to the live tree."""
+def _sync_to_live(
+	space: frappe.Document, nodes: list[dict[str, Any]], root_content: str | None
+) -> dict[str, int]:
+	"""Build a target revision from inferred nodes and apply it to the live tree.
+
+	Returns the change counts (``created``/``updated``/``deleted``/``moved``) the
+	apply produced, so the caller can record them on the sync log.
+	"""
 	live_revision = create_revision_from_live_tree(
 		space.name, message="git-sync: live snapshot", ignore_permissions=True
 	)
@@ -431,6 +439,8 @@ def _sync_to_live(space: frappe.Document, nodes: list[dict[str, Any]], root_cont
 
 	recompute_revision_hashes(target.name)
 
+	counts = _diff_counts(prev_items, get_revision_item_map(target.name))
+
 	frappe.flags.in_apply_merge_revision = True
 	try:
 		_apply_merge_changes_only(space, target, prev_items)
@@ -445,6 +455,30 @@ def _sync_to_live(space: frappe.Document, nodes: list[dict[str, Any]], root_cont
 				"Wiki Document", name, "source_path", node["source_path"], update_modified=False
 			)
 
+	return counts
+
+
+def _diff_counts(
+	prev_items: dict[str, dict[str, Any]], new_items: dict[str, dict[str, Any]]
+) -> dict[str, int]:
+	"""Classify the prev→target delta into created/updated/deleted/moved counts.
+
+	Reuses the merge applier's own classification so the numbers match what it
+	actually applies. A re-parented page (changed ``parent_key``) is a *move*; any
+	other structural or content edit is an *update*.
+	"""
+	changed = _find_changed_keys(prev_items, new_items)
+	content_only, structural, added, deleted = _classify_changes(prev_items, new_items, changed)
+	moved = {
+		k for k in structural if (prev_items.get(k) or {}).get("parent_key") != new_items[k].get("parent_key")
+	}
+	return {
+		"created": len(added),
+		"updated": len(content_only) + len(structural) - len(moved),
+		"deleted": len(deleted),
+		"moved": len(moved),
+	}
+
 
 # --------------------------------------------------------------------------- #
 # Entry point (enqueued by Wiki Space.sync_now)
@@ -454,8 +488,13 @@ def sync_space(space_name: str, token: str | None = None) -> None:
 	space = frappe.get_doc("Wiki Space", space_name)
 	if not space.git_synced:
 		return
+
+	log_name = _start_sync_log(space_name)
+
 	if not space.repo_full_name or not space.branch:
-		_record_error(space_name, _("Repository and branch are required for git sync."))
+		message = _("Repository and branch are required for git sync.")
+		_record_error(space_name, message)
+		_finalize_sync_log(log_name, "Error", error=message)
 		return
 
 	frappe.db.set_value("Wiki Space", space_name, "last_sync_status", "Running", update_modified=False)
@@ -470,6 +509,7 @@ def sync_space(space_name: str, token: str | None = None) -> None:
 		head_sha = _fetch_head_sha(space.repo_full_name, space.branch, token)
 		if head_sha and head_sha == space.last_synced_commit_sha:
 			_record_success(space_name, head_sha)
+			_finalize_sync_log(log_name, "No Change", commit_sha=head_sha)
 			return
 
 		tree = _fetch_tree(space.repo_full_name, head_sha, token)
@@ -482,13 +522,16 @@ def sync_space(space_name: str, token: str | None = None) -> None:
 			nodes, root_content, _root_landing = build_nodes(
 				space.repo_full_name, tree, space.docs_subdir, token
 			)
-		_sync_to_live(space, nodes, root_content)
+		counts = _sync_to_live(space, nodes, root_content)
 		_record_success(space_name, head_sha)
+		_finalize_sync_log(log_name, "Success", commit_sha=head_sha, counts=counts)
 	except Exception:
-		# Error visibility is enough for the walking skeleton; TB5 adds a proper
-		# sync log and partial-failure rollback.
+		# Error visibility is enough for the walking skeleton; partial-failure
+		# rollback is still deferred.
 		frappe.log_error(title=f"Wiki Git Sync failed: {space_name}")
-		_record_error(space_name, frappe.get_traceback(with_context=False))
+		error = frappe.get_traceback(with_context=False)
+		_record_error(space_name, error)
+		_finalize_sync_log(log_name, "Error", error=error)
 
 
 def _record_success(space_name: str, commit_sha: str) -> None:
@@ -513,6 +556,43 @@ def _record_error(space_name: str, error: str) -> None:
 			"last_sync_status": "Error",
 			"last_sync_time": now_datetime(),
 			"last_sync_error": (error or "")[:5000],
+		},
+		update_modified=False,
+	)
+
+
+# --------------------------------------------------------------------------- #
+# Sync log (one row per run, observable in the Git Sync panel)
+# --------------------------------------------------------------------------- #
+def _start_sync_log(space_name: str) -> str:
+	log = frappe.new_doc("Wiki Git Sync Log")
+	log.wiki_space = space_name
+	log.status = "Running"
+	log.started_at = now_datetime()
+	log.insert(ignore_permissions=True)
+	return log.name
+
+
+def _finalize_sync_log(
+	log_name: str,
+	status: str,
+	commit_sha: str | None = None,
+	counts: dict[str, int] | None = None,
+	error: str | None = None,
+) -> None:
+	counts = counts or {}
+	frappe.db.set_value(
+		"Wiki Git Sync Log",
+		log_name,
+		{
+			"status": status,
+			"finished_at": now_datetime(),
+			"commit_sha": commit_sha,
+			"created_count": counts.get("created", 0),
+			"updated_count": counts.get("updated", 0),
+			"deleted_count": counts.get("deleted", 0),
+			"moved_count": counts.get("moved", 0),
+			"error": (error or "")[:5000] or None,
 		},
 		update_modified=False,
 	)

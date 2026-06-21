@@ -408,6 +408,90 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertEqual(revisions_before, revisions_after)
 
 
+class TestGitSyncLog(FrappeTestCase):
+	"""Every sync run writes one observable Wiki Git Sync Log row with counts."""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _logs(self, space_name):
+		return frappe.get_all(
+			"Wiki Git Sync Log",
+			filters={"wiki_space": space_name},
+			fields=[
+				"name",
+				"status",
+				"commit_sha",
+				"started_at",
+				"finished_at",
+				"created_count",
+				"updated_count",
+				"deleted_count",
+				"moved_count",
+			],
+			order_by="creation asc",
+		)
+
+	def test_first_sync_logs_success_with_created_counts(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/intro.md": "# Intro", "docs/guides/setup.md": "# Setup"}, head_sha="sha1")
+		repo.install(self)
+		sync_space(space.name)
+
+		logs = self._logs(space.name)
+		self.assertEqual(len(logs), 1)
+		log = logs[0]
+		self.assertEqual(log.status, "Success")
+		self.assertEqual(log.commit_sha, "sha1")
+		self.assertIsNotNone(log.finished_at)
+		# intro.md, the guides group, and guides/setup.md are all created.
+		self.assertEqual(log.created_count, 3)
+		self.assertEqual(log.deleted_count, 0)
+		self.assertEqual(log.moved_count, 0)
+
+	def test_noop_sync_logs_no_change(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/intro.md": "# Intro"}, head_sha="sha1")
+		repo.install(self)
+		sync_space(space.name)
+		sync_space(space.name)  # same head SHA → short-circuit
+
+		logs = self._logs(space.name)
+		self.assertEqual([log.status for log in logs], ["Success", "No Change"])
+		self.assertEqual(logs[1].created_count, 0)
+		self.assertEqual(logs[1].commit_sha, "sha1")
+
+	def test_resync_logs_created_and_deleted_counts(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/a.md": "# A", "docs/b.md": "# B"}, head_sha="sha1")
+		repo.install(self)
+		sync_space(space.name)
+
+		# Add c.md, drop b.md, edit a.md.
+		repo.files = {"docs/a.md": "# A edited", "docs/c.md": "# C"}
+		repo.head_sha = "sha2"
+		repo.install(self)
+		sync_space(space.name)
+
+		log = self._logs(space.name)[-1]
+		self.assertEqual(log.status, "Success")
+		self.assertEqual(log.created_count, 1)  # c.md
+		self.assertEqual(log.deleted_count, 1)  # b.md
+		self.assertEqual(log.updated_count, 1)  # a.md content edit
+
+	def test_missing_repo_logs_error(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, {"repo_full_name": "", "branch": ""})
+		sync_space(space.name)
+
+		logs = self._logs(space.name)
+		self.assertEqual(len(logs), 1)
+		self.assertEqual(logs[0].status, "Error")
+
+
 class TestGitSyncSpaceControls(FrappeTestCase):
 	def tearDown(self):
 		frappe.db.rollback()
