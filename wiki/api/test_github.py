@@ -60,8 +60,9 @@ class _FakeRequests:
 		self.get_calls.append((url, headers))
 		return self._get(url, headers)
 
-	def post(self, url, headers=None, timeout=None):
+	def post(self, url, headers=None, data=None, timeout=None):
 		self.post_calls.append((url, headers))
+		self.last_post_data = data
 		return self._post(url, headers)
 
 
@@ -75,11 +76,15 @@ class TestGithubAuth(FrappeTestCase):
 		frappe.db.rollback()
 		frappe.clear_cache(doctype="Wiki Settings")
 
-	def _configure_app(self, app_id="123456", private_key=None):
+	def _configure_app(self, app_id="123456", private_key=None, client_id=None, client_secret=None):
 		settings = frappe.get_doc("Wiki Settings")
 		settings.github_app_id = app_id
 		if private_key is not None:
 			settings.github_app_private_key = private_key
+		if client_id is not None:
+			settings.github_app_client_id = client_id
+		if client_secret is not None:
+			settings.github_app_client_secret = client_secret
 		settings.save()
 		frappe.clear_cache(doctype="Wiki Settings")
 
@@ -160,3 +165,73 @@ class TestGithubAuth(FrappeTestCase):
 		self.assertEqual(result[-1]["full_name"], "acme/last")
 		self.assertFalse(result[-1]["private"])
 		self.assertEqual(result[-1]["default_branch"], "develop")
+
+	# ----- connect-account OAuth (TB4b) ----- #
+
+	def test_oauth_state_round_trips_and_is_single_use(self):
+		state = github.new_oauth_state()
+		# Valid once, then consumed.
+		self.assertTrue(github.verify_oauth_state(state))
+		self.assertFalse(github.verify_oauth_state(state))
+		# Unknown / empty states are rejected.
+		self.assertFalse(github.verify_oauth_state("not-a-real-state"))
+		self.assertFalse(github.verify_oauth_state(None))
+
+	def test_authorize_url_carries_client_id_state_redirect(self):
+		self._configure_app(client_id="Iv1.abc123")
+		url = github.build_authorize_url("state-xyz", "https://wiki.test/github/redirect")
+		self.assertTrue(url.startswith(github.OAUTH_AUTHORIZE_URL))
+		self.assertIn("client_id=Iv1.abc123", url)
+		self.assertIn("state=state-xyz", url)
+		self.assertIn("redirect_uri=https%3A%2F%2Fwiki.test%2Fgithub%2Fredirect", url)
+
+	def test_exchange_oauth_code_posts_credentials_and_returns_token(self):
+		self._configure_app(client_id="Iv1.abc123", client_secret="shhh-secret")
+
+		def _post(url, headers):
+			return _FakeResponse({"access_token": "gho_usertoken", "token_type": "bearer"})
+
+		fake = _FakeRequests(post=_post)
+		github.requests = fake
+
+		token = github.exchange_oauth_code("the-code", "https://wiki.test/github/redirect")
+		self.assertEqual(token, "gho_usertoken")
+		url, _headers = fake.post_calls[0]
+		self.assertEqual(url, github.OAUTH_TOKEN_URL)
+		# Client id/secret + code travel in the POST body, not the URL.
+		self.assertEqual(fake.last_post_data["client_id"], "Iv1.abc123")
+		self.assertEqual(fake.last_post_data["client_secret"], "shhh-secret")
+		self.assertEqual(fake.last_post_data["code"], "the-code")
+
+	def test_exchange_oauth_code_throws_on_error_payload(self):
+		self._configure_app(client_id="Iv1.abc123", client_secret="shhh-secret")
+
+		def _post(url, headers):
+			return _FakeResponse({"error": "bad_verification_code", "error_description": "expired"})
+
+		github.requests = _FakeRequests(post=_post)
+		self.assertRaises(frappe.ValidationError, github.exchange_oauth_code, "x", "y")
+
+	def test_user_token_cache_round_trip_and_my_wrappers_require_it(self):
+		user = frappe.session.user
+		frappe.cache().delete_value(github._user_token_key(user))
+
+		# Not connected → wrappers refuse.
+		self.assertFalse(github.is_connected())
+		self.assertRaises(frappe.PermissionError, github.my_installations)
+
+		github.store_user_token(user, "gho_cached")
+		self.addCleanup(frappe.cache().delete_value, github._user_token_key(user))
+		self.assertTrue(github.is_connected())
+		self.assertEqual(github.get_user_token(), "gho_cached")
+
+		# The whitelisted wrapper forwards the cached token to the lister.
+		captured = {}
+
+		def _get(url, headers):
+			captured["auth"] = headers["Authorization"]
+			return _FakeResponse({"installations": []})
+
+		github.requests = _FakeRequests(get=_get)
+		github.my_installations()
+		self.assertEqual(captured["auth"], "Bearer gho_cached")

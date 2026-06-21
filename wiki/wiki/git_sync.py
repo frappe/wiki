@@ -461,6 +461,12 @@ def sync_space(space_name: str, token: str | None = None) -> None:
 	frappe.db.set_value("Wiki Space", space_name, "last_sync_status", "Running", update_modified=False)
 
 	try:
+		# Private repos: mint a short-lived installation token on demand (never stored).
+		if token is None and space.github_installation_id:
+			from wiki.api.github import installation_access_token
+
+			token = installation_access_token(space.github_installation_id)
+
 		head_sha = _fetch_head_sha(space.repo_full_name, space.branch, token)
 		if head_sha and head_sha == space.last_synced_commit_sha:
 			_record_success(space_name, head_sha)

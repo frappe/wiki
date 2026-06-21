@@ -137,19 +137,58 @@
           />
 
           <template v-if="newSpace.git_synced">
-            <FormControl
-              type="text"
-              :label="__('Repository')"
-              v-model="newSpace.repo_full_name"
-              :placeholder="__('owner/repo')"
-              :description="__('Public GitHub repository, e.g. frappe/wiki')"
-            />
-            <FormControl
-              type="text"
-              :label="__('Branch')"
-              v-model="newSpace.branch"
-              :placeholder="__('main')"
-            />
+            <!-- Not connected yet: kick off the GitHub App connect-account flow. -->
+            <div
+              v-if="!githubConnected.data"
+              class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+            >
+              <p class="text-p-sm text-ink-gray-6">
+                {{ __('Connect your GitHub account to pick a repository (private repos supported).') }}
+              </p>
+              <Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
+                <template #prefix>
+                  <LucideGithub class="h-4 w-4" />
+                </template>
+                {{ __('Connect GitHub') }}
+              </Button>
+              <ErrorMessage :message="githubConnected.error" />
+            </div>
+
+            <!-- Connected: installation → repository → branch picker. -->
+            <template v-else>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __('GitHub Account') }}</span>
+                <Autocomplete
+                  v-model="selectedInstallation"
+                  :options="installationOptions"
+                  :placeholder="
+                    installationsResource.loading
+                      ? __('Loading accounts...')
+                      : __('Select an account or organization')
+                  "
+                />
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-ink-gray-5">{{ __('Repository') }}</span>
+                <Autocomplete
+                  v-model="selectedRepo"
+                  :options="repoOptions"
+                  :disabled="!selectedInstallation"
+                  :placeholder="
+                    repositoriesResource.loading
+                      ? __('Loading repositories...')
+                      : __('Select a repository')
+                  "
+                />
+              </div>
+              <FormControl
+                type="text"
+                :label="__('Branch')"
+                v-model="newSpace.branch"
+                :placeholder="__('main')"
+              />
+              <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
+            </template>
           </template>
 
           <ErrorMessage :message="spaces.insert.error" />
@@ -165,6 +204,8 @@ import { useRouter } from "vue-router";
 import {
   ListView,
   createListResource,
+  createResource,
+  Autocomplete,
   Button,
   Dialog,
   FormControl,
@@ -174,6 +215,7 @@ import {
 } from "frappe-ui";
 import LucidePlus from "~icons/lucide/plus";
 import LucideSearch from "~icons/lucide/search";
+import LucideGithub from "~icons/lucide/github";
 import { useUserStore } from "@/stores/user";
 
 const router = useRouter();
@@ -188,8 +230,94 @@ const newSpace = reactive({
   space_name: "",
   route: "",
   git_synced: false,
+  github_installation_id: "",
   repo_full_name: "",
   branch: "",
+});
+
+// GitHub App connect + repo picker (TB4b). The connect-account OAuth round-trip
+// runs in a popup against `/github/authorize`; we poll `is_connected` until the
+// user's token is cached server-side, then list their installations and repos.
+const githubConnected = createResource({ url: "wiki.api.github.is_connected" });
+const installationsResource = createResource({ url: "wiki.api.github.my_installations" });
+const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
+
+const selectedInstallation = ref(null);
+const selectedRepo = ref(null);
+
+const installationOptions = computed(() =>
+  (installationsResource.data || []).map((i) => ({
+    label: i.account_type ? `${i.account} (${i.account_type})` : i.account,
+    value: String(i.id),
+  })),
+);
+
+const repoOptions = computed(() =>
+  (repositoriesResource.data || []).map((r) => ({
+    label: r.private ? `${r.full_name} 🔒` : r.full_name,
+    value: r.full_name,
+    default_branch: r.default_branch,
+  })),
+);
+
+// When the dialog reveals the Git-sync section, learn whether we're already
+// connected (and if so, load the account list straight away).
+watch(
+  () => newSpace.git_synced,
+  (synced) => {
+    if (synced) {
+      githubConnected.fetch().then(() => {
+        if (githubConnected.data) installationsResource.fetch();
+      });
+    }
+  },
+);
+
+let connectPoll = null;
+function stopConnectPoll() {
+  if (connectPoll) {
+    clearInterval(connectPoll);
+    connectPoll = null;
+  }
+}
+
+function connectGithub() {
+  const popup = window.open(
+    "/github/authorize",
+    "github-connect",
+    "popup,width=720,height=760",
+  );
+  githubConnected.loading = true;
+  stopConnectPoll();
+  connectPoll = setInterval(async () => {
+    if (popup && popup.closed && !githubConnected.data) {
+      stopConnectPoll();
+      githubConnected.loading = false;
+      return;
+    }
+    await githubConnected.reload();
+    if (githubConnected.data) {
+      stopConnectPoll();
+      popup?.close();
+      installationsResource.fetch();
+    }
+  }, 1500);
+}
+
+// Picking an account resets the repo and lists that installation's repos.
+watch(selectedInstallation, (installation) => {
+  selectedRepo.value = null;
+  newSpace.repo_full_name = "";
+  newSpace.github_installation_id = installation?.value || "";
+  if (installation?.value) {
+    repositoriesResource.fetch({ installation_id: installation.value });
+  }
+});
+
+// Picking a repo fills the repo name and defaults the branch to its default.
+watch(selectedRepo, (repo) => {
+  newSpace.repo_full_name = repo?.value || "";
+  if (repo?.default_branch) newSpace.branch = repo.default_branch;
 });
 
 function slugify(text) {
@@ -262,8 +390,11 @@ const spaces = createListResource({
       newSpace.space_name = "";
       newSpace.route = "";
       newSpace.git_synced = false;
+      newSpace.github_installation_id = "";
       newSpace.repo_full_name = "";
       newSpace.branch = "";
+      selectedInstallation.value = null;
+      selectedRepo.value = null;
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
@@ -296,7 +427,7 @@ const handleCreateSpace = () => {
     return Promise.reject(new Error("Route is required"));
   }
   if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
-    return Promise.reject(new Error("Repository is required for a git-synced space"));
+    return Promise.reject(new Error("Pick a repository for a git-synced space"));
   }
 
   const payload = {
@@ -312,6 +443,9 @@ const handleCreateSpace = () => {
     payload.git_synced = 1;
     payload.repo_full_name = newSpace.repo_full_name.trim();
     payload.branch = newSpace.branch.trim() || "main";
+    if (newSpace.github_installation_id) {
+      payload.github_installation_id = newSpace.github_installation_id;
+    }
   }
 
   return spaces.insert.submit(payload);

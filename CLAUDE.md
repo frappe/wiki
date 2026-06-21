@@ -10,6 +10,10 @@ Always load and user frappe-app-dev skills.
 
 Unless mentioned, the site is wiki.localhost with Administrator/admin credentials.
 
+## Planning / Spec-ing
+
+Use Tracer bullets comes from the Pragmatic Programmer. When building systems, you want to write code that gets you feedback as quickly as possible. Tracer bullets are small slices of functionality that go through all layers of the system, allowing you to test and validate your approach early. This helps in identifying potential issues and ensures that the overall architecture is sound before investing significant time in development.
+
 ## Implementation Guidelines
 
 * Create a new branch before working on a new feature/spec (branch name patterns: feat/, fix/, just like conventional commit pre-fixes)

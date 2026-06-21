@@ -37,6 +37,7 @@
   "repo_full_name",
   "branch",
   "docs_subdir",
+  "github_installation_id",
   "git_sync_status_column",
   "last_sync_status",
   "last_synced_commit_sha",
@@ -212,6 +213,13 @@
    "fieldname": "docs_subdir",
    "fieldtype": "Data",
    "label": "Docs Subdirectory",
+   "read_only": 1
+  },
+  {
+   "description": "GitHub App installation that grants access to the repo. Set via the connect-and-pick flow; lets the engine mint a token for private repos.",
+   "fieldname": "github_installation_id",
+   "fieldtype": "Data",
+   "label": "GitHub Installation ID",
    "read_only": 1
   },
   {

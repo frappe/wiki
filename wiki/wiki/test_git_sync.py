@@ -249,6 +249,41 @@ class TestGitSyncApply(FrappeTestCase):
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
 
+	def test_private_repo_mints_installation_token_from_id(self):
+		# With a github_installation_id and no explicit token, the engine mints a
+		# short-lived installation token and threads it through the GitHub calls.
+		space = _make_synced_space()
+		frappe.db.set_value(
+			"Wiki Space", space.name, {"docs_subdir": "docs", "github_installation_id": "777"}
+		)
+		repo = _FakeRepo({"docs/intro.md": "# Intro\nbody"})
+		repo.install(self)
+
+		from wiki.api import github as github_api
+
+		minted_for = {}
+
+		def _fake_minter(installation_id):
+			minted_for["id"] = installation_id
+			return "ghs_minted"
+
+		orig_minter = github_api.installation_access_token
+		github_api.installation_access_token = _fake_minter
+		self.addCleanup(setattr, github_api, "installation_access_token", orig_minter)
+
+		captured = {}
+		git_sync._fetch_head_sha = lambda r, b, token=None: (
+			captured.__setitem__("token", token),
+			repo.head_sha,
+		)[1]
+
+		sync_space(space.name)
+
+		self.assertEqual(minted_for["id"], "777")
+		self.assertEqual(captured["token"], "ghs_minted")
+		space.reload()
+		self.assertEqual(space.last_sync_status, "Success")
+
 	def test_source_path_and_doc_key_stable_across_resync(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
