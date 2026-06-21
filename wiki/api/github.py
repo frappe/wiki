@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import secrets
 import time
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import frappe
 import jwt
@@ -212,6 +213,98 @@ def exchange_oauth_code(code: str, redirect_uri: str) -> str:
 			)
 		)
 	return token
+
+
+# --------------------------------------------------------------------------- #
+# App Manifest flow — one-click App creation (the press/giki model)
+# --------------------------------------------------------------------------- #
+# GitHub creates the App from a POSTed manifest, then redirects back with a
+# short-lived `code` that converts to the App's id/secrets/private key — so the
+# admin never hand-creates the App or pastes five credentials.
+MANIFEST_CREATE_URL = "https://github.com/settings/apps/new"
+MANIFEST_ORG_CREATE_URL = "https://github.com/organizations/{org}/settings/apps/new"
+
+
+def manifest_create_url(org: str | None = None) -> str:
+	"""The GitHub form endpoint the manifest POSTs to (personal vs. org account)."""
+	return MANIFEST_ORG_CREATE_URL.format(org=org) if org else MANIFEST_CREATE_URL
+
+
+def is_public_host(url: str) -> bool:
+	"""Whether GitHub could reach this URL over the public Internet.
+
+	GitHub rejects an App manifest whose webhook URL isn't publicly reachable
+	(e.g. ``wiki.localhost`` on a dev box), so we drop the webhook from the
+	manifest for non-public hosts and let the admin set it later.
+	"""
+	host = (urlparse(url).hostname or "").lower()
+	if not host or host == "localhost" or host.endswith((".localhost", ".local")):
+		return False
+	try:
+		return ipaddress.ip_address(host).is_global
+	except ValueError:
+		return True  # a domain name (not a bare IP) → assume public
+
+
+def build_app_manifest(
+	name: str,
+	homepage_url: str,
+	redirect_url: str,
+	callback_url: str,
+	webhook_url: str | None = None,
+) -> dict[str, Any]:
+	"""Build the GitHub App manifest for one-way (read-only) repo sync.
+
+	Permissions are the minimum the sync engine needs — read `contents` (file
+	bodies + the git tree) and `metadata` — and the App subscribes to `push`
+	so TB6's webhook fires. ``redirect_url`` is where GitHub returns the
+	manifest code; ``callback_url`` is TB4b's user-OAuth callback. ``webhook_url``
+	is omitted when ``None`` — GitHub refuses manifests pointing at an
+	unreachable hook host, so dev sites create the App without one.
+	"""
+	manifest = {
+		"name": name,
+		"url": homepage_url,
+		"redirect_url": redirect_url,
+		"callback_urls": [callback_url],
+		"public": False,
+		"default_permissions": {"contents": "read", "metadata": "read"},
+		"default_events": ["push"],
+	}
+	if webhook_url:
+		manifest["hook_attributes"] = {"url": webhook_url, "active": True}
+	return manifest
+
+
+def convert_app_manifest(code: str) -> dict[str, Any]:
+	"""Exchange a temporary manifest ``code`` for the new App's config.
+
+	The conversion endpoint needs no auth — the single-use code (valid ~1h) is
+	itself the secret. The response carries ``id``, ``client_id``,
+	``client_secret``, ``webhook_secret``, ``pem`` (private key) and ``html_url``.
+	"""
+	resp = requests.post(
+		f"{GITHUB_API}/app-manifests/{code}/conversions",
+		headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": API_VERSION},
+		timeout=30,
+	)
+	resp.raise_for_status()
+	return resp.json()
+
+
+def store_app_credentials(config: dict[str, Any]) -> None:
+	"""Persist a converted App's credentials into the Wiki Settings singleton."""
+	settings = frappe.get_doc("Wiki Settings")
+	settings.github_app_id = str(config.get("id") or "")
+	settings.github_app_client_id = config.get("client_id") or ""
+	settings.github_app_client_secret = config.get("client_secret") or ""
+	settings.github_app_private_key = config.get("pem") or ""
+	settings.github_webhook_secret = config.get("webhook_secret") or ""
+	html_url = config.get("html_url")
+	if html_url:
+		settings.github_app_public_link = f"{html_url}/installations/new"
+	settings.save(ignore_permissions=True)
+	frappe.clear_cache(doctype="Wiki Settings")
 
 
 def _require_user_token() -> str:

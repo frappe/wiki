@@ -241,6 +241,107 @@ class TestGithubAuth(FrappeTestCase):
 		self.assertEqual(captured["auth"], "Bearer gho_cached")
 
 
+class TestGithubAppManifest(FrappeTestCase):
+	"""TB7 — one-click App creation via GitHub's manifest flow."""
+
+	def setUp(self):
+		self._real_requests = github.requests
+
+	def tearDown(self):
+		github.requests = self._real_requests
+		frappe.db.rollback()
+		frappe.clear_cache(doctype="Wiki Settings")
+
+	def test_build_app_manifest_for_readonly_sync(self):
+		manifest = github.build_app_manifest(
+			name="Wiki Sync (wiki.test)",
+			homepage_url="https://wiki.test",
+			redirect_url="https://wiki.test/github/manifest_redirect",
+			callback_url="https://wiki.test/github/redirect",
+			webhook_url="https://wiki.test/api/method/wiki.api.github.webhook",
+		)
+		# Minimum permissions for one-way sync: read contents + metadata only.
+		self.assertEqual(manifest["default_permissions"], {"contents": "read", "metadata": "read"})
+		self.assertEqual(manifest["default_events"], ["push"])
+		self.assertFalse(manifest["public"])
+		self.assertEqual(manifest["redirect_url"], "https://wiki.test/github/manifest_redirect")
+		self.assertEqual(manifest["callback_urls"], ["https://wiki.test/github/redirect"])
+		self.assertEqual(
+			manifest["hook_attributes"]["url"],
+			"https://wiki.test/api/method/wiki.api.github.webhook",
+		)
+		self.assertEqual(manifest["name"], "Wiki Sync (wiki.test)")
+		self.assertEqual(manifest["url"], "https://wiki.test")
+
+	def test_manifest_omits_webhook_for_unreachable_host(self):
+		# GitHub rejects a manifest whose hook host isn't public, so dev sites
+		# (localhost) must create the App without a webhook.
+		self.assertFalse(github.is_public_host("https://wiki.localhost"))
+		self.assertFalse(github.is_public_host("http://127.0.0.1:8000"))
+		self.assertTrue(github.is_public_host("https://docs.frappe.io"))
+
+		manifest = github.build_app_manifest(
+			name="Wiki Sync",
+			homepage_url="https://wiki.localhost",
+			redirect_url="https://wiki.localhost/github/manifest_redirect",
+			callback_url="https://wiki.localhost/github/redirect",
+			webhook_url=None,
+		)
+		self.assertNotIn("hook_attributes", manifest)
+
+	def test_manifest_create_url_personal_vs_org(self):
+		self.assertEqual(github.manifest_create_url(), github.MANIFEST_CREATE_URL)
+		self.assertEqual(
+			github.manifest_create_url("acme"),
+			"https://github.com/organizations/acme/settings/apps/new",
+		)
+
+	def test_convert_app_manifest_posts_to_conversions(self):
+		config = {
+			"id": 778899,
+			"client_id": "Iv1.manifest",
+			"client_secret": "manifestsecret",
+			"webhook_secret": "hookshhh",
+			"pem": "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----\n",
+			"html_url": "https://github.com/apps/wiki-sync",
+		}
+
+		def _post(url, headers):
+			return _FakeResponse(config)
+
+		fake = _FakeRequests(post=_post)
+		github.requests = fake
+
+		result = github.convert_app_manifest("temp-code")
+		self.assertEqual(result, config)
+		url, _headers = fake.post_calls[0]
+		self.assertEqual(url, f"{github.GITHUB_API}/app-manifests/temp-code/conversions")
+
+	def test_store_app_credentials_writes_all_fields(self):
+		github.store_app_credentials(
+			{
+				"id": 778899,
+				"client_id": "Iv1.manifest",
+				"client_secret": "manifestsecret",
+				"webhook_secret": "hookshhh",
+				"pem": "-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----\n",
+				"html_url": "https://github.com/apps/wiki-sync",
+			}
+		)
+		settings = frappe.get_doc("Wiki Settings")
+		self.assertEqual(settings.github_app_id, "778899")
+		self.assertEqual(settings.github_app_client_id, "Iv1.manifest")
+		# Public link is derived from the App's html_url.
+		self.assertEqual(
+			settings.github_app_public_link,
+			"https://github.com/apps/wiki-sync/installations/new",
+		)
+		# Secrets are encrypted at rest — read them back through get_password.
+		self.assertEqual(settings.get_password("github_app_client_secret"), "manifestsecret")
+		self.assertEqual(settings.get_password("github_webhook_secret"), "hookshhh")
+		self.assertIn("BEGIN RSA PRIVATE KEY", settings.get_password("github_app_private_key"))
+
+
 class TestGithubWebhook(FrappeTestCase):
 	"""Push webhook: signature gate + branch-matched routing to git-synced spaces."""
 
