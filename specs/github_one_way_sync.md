@@ -149,6 +149,20 @@ Push-driven sync so users don't click. Whitelisted `allow_guest` `wiki.api.githu
 
 *Deviations / notes:* (1) The payload URL is the standard whitelisted-method path `/api/method/wiki.api.github.webhook`; no `website_route_rules`/`hooks.py` entry is needed (the `allow_guest` whitelist already exposes it — spec mention superseded). (2) Auto-configuration of the webhook at App-install time isn't wired; the admin pastes the URL shown in the panel (or it rides the App's default webhook). (3) Live push→sync browser demo deferred — needs a configured GitHub App + webhook delivery to this dev host; the signature gate + branch routing are covered end-to-end by the unit suite, and the panel webhook-URL surface is in the built frontend.
 
+### TB7 — "Create GitHub App" button (manifest auto-creation flow)
+
+Remove the manual five-credential paste from TB4a. Instead of an admin hand-creating a GitHub App and copying App ID / client id / client secret / private key / webhook secret into Wiki Settings, a one-click **GitHub App Manifest flow** (the press/giki model) creates the App and writes all the credentials back automatically.
+
+The flow (no auth required for the conversion — the temporary code *is* the secret):
+
+1. **Create** — admin clicks **Create GitHub App** on the Wiki Settings desk form → opens `/github/new_app`, which builds a JSON **manifest** (pre-filled name + this site's homepage, `redirect_url` = `/github/manifest_redirect`, `callback_urls` = `[/github/redirect]`, `hook_attributes.url` = the webhook endpoint, `default_permissions: {contents: read, metadata: read}`, `default_events: [push]`, `public: false`) and renders an **auto-submitting form** POSTing `manifest` to `https://github.com/settings/apps/new?state=<csrf>` (org variant when `?org=` is passed). Reuses TB4b's single-use `new_oauth_state`/`verify_oauth_state` for CSRF.
+2. GitHub asks the admin to confirm/rename, creates the App, and redirects to `/github/manifest_redirect?code=<temp>&state=<csrf>`.
+3. **Convert** — `manifest_redirect` verifies the state and `POST`s `https://api.github.com/app-manifests/{code}/conversions`, which returns `id`, `client_id`, `client_secret`, `webhook_secret`, `pem`, `html_url`. `store_app_credentials` writes them into the `Wiki Settings` GitHub App fields (`pem` → `github_app_private_key`, `html_url` + `/installations/new` → `github_app_public_link`), then redirects to the settings form with a "GitHub App created" message.
+
+The admin still **installs** the freshly-created App on their repos (TB4b's connect-and-pick flow) — this bullet only automates *App creation + credential capture*. Manual paste stays possible (fields are untouched); this is the fast path.
+
+- **Tests / demo:** unit for manifest construction (read-only `contents`, `push` event, correct redirect/callback/hook URLs, org vs personal POST target), conversion POST (URL + parsed config), and credential storage (all five fields + derived public link land in Wiki Settings); browser (agent-browser) clicks the button and asserts the redirect to GitHub's app-creation screen carries the manifest.
+
 ## Verification (whole feature, after the bullets land)
 
 1. `bench build` after frontend edits (rebuild from `frontend/`).
@@ -177,3 +191,4 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] TB4b — OAuth connect + repo picker + engine token threading: `wiki/api/github.py` user OAuth round-trip + whitelisted picker wrappers, `www/github/{authorize,redirect}` portal endpoints, `github_installation_id` on Wiki Space + engine token mint, create-dialog connect-and-pick UI; 6 new unit tests, connect prompt demoed live.
 - [x] TB5 — Sync log & status panel: new `Wiki Git Sync Log` doctype (one row/run with created/updated/deleted/moved counts via `_diff_counts`) + `GitSyncPanel.vue` (repo/last-sync/Sync now + run history) under a conditional Git Sync settings tab; 4 unit tests (temp-revert verified), demoed on `BuildWithHussain/giki`.
 - [x] TB6 — Real-time webhook sync: `allow_guest` `wiki.api.github.webhook` → signature-gated, request-free `_dispatch_webhook` routes `push` events to branch-matched git-synced spaces (`trigger="Webhook"`); `trigger` field on the sync log + Webhook badge + copyable webhook URL in `GitSyncPanel.vue`; 7 unit tests.
+- [ ] TB7 — "Create GitHub App" button: GitHub App Manifest auto-creation flow (`new_app` → confirm → `manifest_redirect` converts + stores credentials), replacing TB4a's manual five-credential paste; desk button on Wiki Settings.
