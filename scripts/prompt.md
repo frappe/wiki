@@ -67,12 +67,42 @@ Body: key decisions, files changed summary, and any note for the next iteration.
 
 ## PULL REQUEST (CLAUDE.md convention)
 
-A **single** PR for this branch against `develop`:
+A **single** PR for this branch against `develop`. Keep the description **stupid simple**, using the
+feature format `## Why?` `## What?` `## How?`, and reference the spec.
 
-- If no PR exists yet for this branch, open one: `gh pr create --base develop`. Keep the description
-  **stupid simple**, using the feature format `## Why?` `## What?` `## How?`, and reference the spec.
-- If a PR already exists, just push — the new commit updates it. Optionally refresh the PR body's
-  checklist to mirror `## Progress`.
+**Use these exact commands. Do NOT use `gh pr edit` — it fails on a deprecated Projects GraphQL
+field. Update the body via the REST API instead.**
+
+```bash
+# Resolve repo + check whether a PR already exists for the current branch
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+BRANCH=$(git branch --show-current)
+PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number')
+
+# Write the body to a file (Why/What/How + Progress checklist mirror)
+cat > /tmp/pr-body.md <<'EOF'
+## Why?
+...
+## What?
+...
+## How?
+...
+EOF
+
+if [ -z "$PR" ]; then
+  # First time: create the PR (gh pr create is fine)
+  gh pr create --base develop --head "$BRANCH" \
+    --title "feat(git-sync): one-way GitHub → Wiki sync" \
+    --body-file /tmp/pr-body.md
+else
+  # PR exists: update the body via REST (NOT gh pr edit)
+  gh api -X PATCH "repos/$REPO/pulls/$PR" -F body=@/tmp/pr-body.md
+fi
+```
+
+After the first bullet the PR exists, so every later iteration just pushes and runs the REST
+`PATCH` to refresh the body's `## Progress` checklist. `gh pr create`, `gh pr list`, and `gh pr view`
+are safe; only `gh pr edit` is broken.
 
 ## NOTIFY
 
