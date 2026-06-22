@@ -228,6 +228,27 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertEqual(space.last_sync_status, "Success")
 		self.assertEqual(space.last_synced_commit_sha, "sha1")
 
+	def test_deeply_nested_long_route_syncs(self):
+		# A deep repo tree builds a route from the full ancestor chain that
+		# exceeds the default 140-char Data limit; the route field is widened
+		# so the sync doesn't blow up with CharacterLengthExceededError.
+		space = _make_synced_space()
+		deep_path = (
+			"sop/obstetrics-gynaecology/obstetrics-gynaecology-reference/"
+			"responsibilities-and-job-description/"
+			"prophylactic-antibiotics-and-anticoagulation.md"
+		)
+		repo = _FakeRepo({deep_path: "# Prophylactic Antibiotics And Anticoagulation\nbody"})
+		repo.install(self)
+
+		sync_space(space.name)
+
+		space.reload()
+		self.assertEqual(space.last_sync_status, "Success", space.last_sync_error)
+		leaf = next(d for d in self._tree(space) if d.source_path == deep_path)
+		route = frappe.db.get_value("Wiki Document", leaf.name, "route")
+		self.assertGreater(len(route), 140)  # would have truncated/thrown before the fix
+
 	def test_group_landing_source_path_points_at_readme(self):
 		# A group with a README landing stamps the README path as its source_path,
 		# so the frontend can build an "Edit on GitHub" link to the editable file.

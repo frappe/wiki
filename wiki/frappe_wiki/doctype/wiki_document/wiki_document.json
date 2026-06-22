@@ -83,6 +83,7 @@
 			"in_list_view": 1,
 			"in_standard_filter": 1,
 			"label": "Route",
+			"length": 500,
 			"search_index": 1
 		},
 		{
@@ -110,6 +111,7 @@
 			"fieldname": "source_path",
 			"fieldtype": "Data",
 			"label": "Source Path",
+			"length": 500,
 			"read_only": 1,
 			"no_copy": 1
 		},

@@ -49,7 +49,8 @@
 		{
 			"fieldname": "route",
 			"fieldtype": "Data",
-			"label": "Route"
+			"label": "Route",
+			"length": 500
 		},
 		{
 			"fieldname": "column_break_meta",
