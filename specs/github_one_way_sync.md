@@ -168,6 +168,24 @@ The admin still **installs** the freshly-created App on their repos (TB4b's conn
 
 *Deviations / notes:* (1) **Webhook host gate** — per GitHub's manifest docs `hook_attributes.url` is *Required* and must be a **public** host: it rejects `wiki.localhost` (*"isn't reachable over the public Internet"*) and also rejects a missing hook (*"Hook url cannot be blank"*). So `is_public_host(url)` switches the hook: public hosts get a live `hook_attributes` (active) + `default_events:[push]` for TB6; non-public hosts get an **inactive RFC-2606 placeholder** (`PLACEHOLDER_HOOK_URL = https://example.com/...`, `active:false`, no events) so the manifest still validates. On localhost the admin syncs via "Sync now" and repoints the hook + enables `push` from the App's settings (URL surfaced in `GitSyncPanel.vue`) once deployed publicly. (2) The button lives on the **desk** Wiki Settings form (where the App is configured), not the SPA — no `yarn build` needed. (3) Live `wiki.localhost` demo creates the App fine *after* the webhook-host fix; the full create→convert→store round-trip past GitHub's screen needs a public host, so it's covered end-to-end by the unit suite. (4) Manual five-credential paste (TB4a) still works untouched — this is the one-click fast path on top.
 
+### TB8 — Import repo images (→ Frappe File, WebP, rewritten links) [PLANNED]
+
+Today the engine syncs only `.md`/`.mdx` blobs verbatim, so a page that references a repo image (`![](./images/x.png)`, `assets/x.png`, `../img/y.png`) renders a **dead link** — the image bytes never enter the wiki. This bullet imports those images as Frappe `File`s (optionally WebP-converted via the existing pipeline) and rewrites the Markdown to point at the stored files, keeping the sync strictly one-way.
+
+**Settled scope / decisions:**
+
+- **Which references.** Markdown image syntax `![alt](src)` where `src` is **repo-relative** (not `http(s)://`, not already `/files/…`, not a `data:` URI). Resolve `src` against the **source file's directory** (handle `./`, `../`, normalize) → a repo path; look it up in the already-fetched recursive tree for its blob SHA. Absolute/external URLs are left untouched. (`<img src>` HTML and `.mdx` imports are a later enhancement.)
+- **Fetch.** Reuse the tree we already pull; add a binary blob fetch (base64 without the `utf-8` decode) alongside `_fetch_blob`. Only fetch image SHAs we haven't already imported.
+- **Store.** One Frappe `File` per (space, repo-image-path) keyed by **blob SHA** so re-syncs are idempotent — unchanged image SHA ⇒ reuse the existing File, no new upload, no content churn. Deterministic file naming derived from the blob SHA. Files are attached to the synced `Wiki Document` (`attached_to_doctype`/`name`) so deletion/cleanup is tractable (unlike the editor's orphan-upload path).
+- **WebP.** When `auto_convert_images_to_webp` is on, run the bytes through the existing converter (`wiki.api.convert_file_to_webp`, refactored to accept bytes or a freshly-created File) so synced images get the same optimization as uploaded ones. SVG/GIF/already-WebP pass through unconverted.
+- **Rewrite.** Replace each imported `src` in the Markdown `content` with the resulting `/files/…` URL **before** `get_or_create_content_blob` (in `build_nodes`/`build_nodes_from_config`), so the deduped content blob already carries final URLs. The rewritten URL must be **stable** across syncs (SHA-derived) or every sync would re-hash content and churn the tree.
+- **Privacy decision (must resolve before build).** Wiki uploads are **public** (`/files/…`). A **private** repo's images would then be world-readable by URL even if the space itself is access-controlled. Options: (a) v1 public files + a clear caveat; (b) private files (`/private/files/…`) served through a Wiki permission check. Leaning (b) for synced spaces, but it's the one open question.
+- **Out of scope (v1):** non-image assets (PDFs, etc.), images referenced only from HTML/JS, and garbage-collecting Files when a page stops referencing an image (track for a fast-follow).
+
+**Tracer-bullet split (anticipated):** TB8a — backend: detect+resolve+fetch+store+WebP+rewrite in the engine, with unit tests (relative-path resolution incl. `../`, SHA-idempotent re-import, external-URL passthrough, WebP-on/off, content-stability across re-sync). TB8b — privacy/serving (private files + permission-gated route) + the live browser demo (synced page renders the imported image).
+
+**Why after TB7:** the connect→create→sync flow is now solid; images are the most visible remaining gap for real docs repos (e.g. `frappe_docs`). This revisits the "repo image/asset import" item previously deferred in *Deferred / out of scope*.
+
 ## Verification (whole feature, after the bullets land)
 
 1. `bench build` after frontend edits (rebuild from `frontend/`).
@@ -180,7 +198,7 @@ The admin still **installs** the freshly-created App on their repos (TB4b's conn
 
 - 2-way sync / PR write-back (the POC's other half) — explicitly not wanted now.
 - Scheduler poller (cron fallback) — fast follow; the webhook (TB6) covers real-time sync.
-- Repo image/asset import into Frappe Files (v1: leave relative/external URLs as-is) — revisit.
+- Repo image/asset import into Frappe Files (v1: leave relative/external URLs as-is) — **now specced as TB8.**
 - GitHub App auto-creation via manifest flow is optional; manual App credentials are acceptable for v1.
 
 ## Progress
@@ -196,4 +214,6 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] TB4b — OAuth connect + repo picker + engine token threading: `wiki/api/github.py` user OAuth round-trip + whitelisted picker wrappers, `www/github/{authorize,redirect}` portal endpoints, `github_installation_id` on Wiki Space + engine token mint, create-dialog connect-and-pick UI; 6 new unit tests, connect prompt demoed live.
 - [x] TB5 — Sync log & status panel: new `Wiki Git Sync Log` doctype (one row/run with created/updated/deleted/moved counts via `_diff_counts`) + `GitSyncPanel.vue` (repo/last-sync/Sync now + run history) under a conditional Git Sync settings tab; 4 unit tests (temp-revert verified), demoed on `BuildWithHussain/giki`.
 - [x] TB6 — Real-time webhook sync: `allow_guest` `wiki.api.github.webhook` → signature-gated, request-free `_dispatch_webhook` routes `push` events to branch-matched git-synced spaces (`trigger="Webhook"`); `trigger` field on the sync log + Webhook badge + copyable webhook URL in `GitSyncPanel.vue`; 7 unit tests.
-- [x] TB7 — "Create GitHub App" button: GitHub App Manifest auto-creation flow (`new_app` → confirm → `manifest_redirect` converts + stores credentials) + desk button on Wiki Settings; webhook dropped from the manifest on non-public hosts (GitHub rejects unreachable hook URLs); 5 unit tests.
+- [x] TB7 — "Create GitHub App" button: GitHub App Manifest auto-creation flow (`new_app` → confirm → `manifest_redirect` converts + stores credentials) + desk button on Wiki Settings; inactive placeholder hook on non-public hosts (GitHub requires a reachable hook URL); 6 unit tests.
+- [x] Hardening (post-TB7): widened `route`/`source_path` fields for deep trees; ignore dot-dirs (`.github`) + optional "Docs folder" input; unique routes via path-based slug + suffix dedup (fixes `validate_unique_route_for_leaves` on title collisions); persist the GitHub user token in `Wiki GitHub Connection` (+ refresh-token renewal) so connect is one-time per user.
+- [ ] TB8 — Import repo images → Frappe File (+ WebP) + rewritten links (SHA-idempotent); privacy of private-repo images is the open question. **Specced, not started.**
