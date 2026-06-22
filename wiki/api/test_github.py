@@ -344,6 +344,8 @@ class TestGithubAppManifest(FrappeTestCase):
 		self.assertEqual(settings.get_password("github_app_client_secret"), "manifestsecret")
 		self.assertEqual(settings.get_password("github_webhook_secret"), "hookshhh")
 		self.assertIn("BEGIN RSA PRIVATE KEY", settings.get_password("github_app_private_key"))
+		# The picker reads the install link back to offer "Install GitHub App".
+		self.assertEqual(github.app_install_url(), "https://github.com/apps/wiki-sync/installations/new")
 
 
 class TestGithubWebhook(FrappeTestCase):

@@ -156,38 +156,57 @@
 
             <!-- Connected: installation → repository → branch picker. -->
             <template v-else>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs text-ink-gray-5">{{ __('GitHub Account') }}</span>
-                <Autocomplete
-                  v-model="selectedInstallation"
-                  :options="installationOptions"
-                  :placeholder="
-                    installationsResource.loading
-                      ? __('Loading accounts...')
-                      : __('Select an account or organization')
-                  "
-                />
+              <!-- Connected but the App isn't installed anywhere yet: offer install. -->
+              <div
+                v-if="!installationsResource.loading && installationOptions.length === 0"
+                class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+              >
+                <p class="text-p-sm text-ink-gray-6">
+                  {{ __('The GitHub App is not installed on any account yet. Install it on the account and repositories you want to sync.') }}
+                </p>
+                <Button variant="subtle" :loading="installationsResource.loading" @click="installApp">
+                  <template #prefix>
+                    <LucideGithub class="h-4 w-4" />
+                  </template>
+                  {{ __('Install GitHub App') }}
+                </Button>
+                <ErrorMessage :message="appInstallUrl.error" />
               </div>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs text-ink-gray-5">{{ __('Repository') }}</span>
-                <Autocomplete
-                  v-model="selectedRepo"
-                  :options="repoOptions"
-                  :disabled="!selectedInstallation"
-                  :placeholder="
-                    repositoriesResource.loading
-                      ? __('Loading repositories...')
-                      : __('Select a repository')
-                  "
+
+              <template v-else>
+                <div class="flex flex-col gap-1">
+                  <span class="text-xs text-ink-gray-5">{{ __('GitHub Account') }}</span>
+                  <Autocomplete
+                    v-model="selectedInstallation"
+                    :options="installationOptions"
+                    :placeholder="
+                      installationsResource.loading
+                        ? __('Loading accounts...')
+                        : __('Select an account or organization')
+                    "
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="text-xs text-ink-gray-5">{{ __('Repository') }}</span>
+                  <Autocomplete
+                    v-model="selectedRepo"
+                    :options="repoOptions"
+                    :disabled="!selectedInstallation"
+                    :placeholder="
+                      repositoriesResource.loading
+                        ? __('Loading repositories...')
+                        : __('Select a repository')
+                    "
+                  />
+                </div>
+                <FormControl
+                  type="text"
+                  :label="__('Branch')"
+                  v-model="newSpace.branch"
+                  :placeholder="__('main')"
                 />
-              </div>
-              <FormControl
-                type="text"
-                :label="__('Branch')"
-                v-model="newSpace.branch"
-                :placeholder="__('main')"
-              />
-              <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
+                <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
+              </template>
             </template>
           </template>
 
@@ -241,6 +260,7 @@ const newSpace = reactive({
 const githubConnected = createResource({ url: "wiki.api.github.is_connected" });
 const installationsResource = createResource({ url: "wiki.api.github.my_installations" });
 const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
+const appInstallUrl = createResource({ url: "wiki.api.github.app_install_url" });
 
 const selectedInstallation = ref(null);
 const selectedRepo = ref(null);
@@ -266,12 +286,36 @@ watch(
   () => newSpace.git_synced,
   (synced) => {
     if (synced) {
+      appInstallUrl.fetch();
       githubConnected.fetch().then(() => {
         if (githubConnected.data) installationsResource.fetch();
       });
     }
   },
 );
+
+// The App install also happens in a popup; poll installations until it appears.
+function installApp() {
+  const url = appInstallUrl.data;
+  if (!url) {
+    appInstallUrl.fetch();
+    return;
+  }
+  const popup = window.open(url, "github-install", "popup,width=720,height=760");
+  stopConnectPoll();
+  connectPoll = setInterval(async () => {
+    if (popup && popup.closed) {
+      stopConnectPoll();
+      installationsResource.reload();
+      return;
+    }
+    await installationsResource.reload();
+    if ((installationsResource.data || []).length > 0) {
+      stopConnectPoll();
+      popup?.close();
+    }
+  }, 1500);
+}
 
 let connectPoll = null;
 function stopConnectPoll() {

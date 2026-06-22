@@ -343,6 +343,12 @@ def my_repositories(installation_id: str | int) -> list[dict[str, Any]]:
 	return repositories(installation_id, _require_user_token())
 
 
+@frappe.whitelist()
+def app_install_url() -> str | None:
+	"""Public link to install the configured App (so it shows up as an installation)."""
+	return _settings().github_app_public_link or None
+
+
 # --------------------------------------------------------------------------- #
 # Push webhook — real-time sync (auto-configured by the App installation)
 # --------------------------------------------------------------------------- #
