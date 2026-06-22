@@ -192,6 +192,38 @@ Today the engine syncs only `.md`/`.mdx` blobs verbatim, so a page that referenc
 
 *Deviations / notes for TB8b:* (1) **Files attach to the Wiki Space, not the Wiki Document** — at content-rewrite time (inside `build_nodes`, before the merge applier creates docs) the target document doesn't exist yet, and rewrite-before-blob is required for content stability. The space always exists; per-page File attachment + GC is deferred (GC was already out-of-scope v1). (2) Public files only (the resolved privacy decision); private-repo image exposure is the documented caveat. (3) `<img src>` HTML, `.mdx` imports, and non-image assets (PDFs etc.) remain out of scope. (4) Live browser demo (synced page renders the imported image) is TB8b. (5) Same image SHA across two different spaces yields the same `gitimg-<sha>` base name → Frappe disambiguates the second on-disk file; each space's own URL stays stable (looked up per space), so per-space content blobs don't churn.
 
+### TB9 — Strip YAML front matter (+ use its `title`) [PLANNED]
+
+Real docs repos (Docusaurus, Hugo, Jekyll, mkdocs/`frappe_docs`) prefix most `.md`/`.mdx` files with a YAML **front matter** block:
+
+```markdown
+---
+title: Getting Started
+sidebar_position: 2
+description: …
+---
+
+# (often no H1 at all)
+body…
+```
+
+Today the engine stores this verbatim, so two things break: (1) the block **renders as garbage** — a text line immediately followed by `---` is a Markdown **setext H2**, so `title: Getting Started\n---` shows up as a giant heading at the top of every page; (2) pages that rely on front matter for their name (no H1) fall back to the humanized filename instead of the intended title. This bullet strips the block before render and consumes its `title`.
+
+**Settled scope / decisions:**
+
+- **Detect.** A front matter block is a `---` (or `﻿`-BOM-prefixed `---`) on the **very first line**, its YAML body, and a closing `---`/`...` line. Only the **leading** block counts — a `---` thematic break later in the body is untouched. CRLF tolerated.
+- **Strip.** Remove the block (and the blank line after it) from `content` **before** `get_or_create_content_blob` and before image rewrite (TB8a), so the deduped blob carries clean body only. Stable across re-syncs (deterministic strip).
+- **Title precedence (inference path only).** front-matter `title` → first `# H1` → humanized filename. So `_extract_title` is computed against the **stripped body**, with the front-matter `title` taking precedence when present. In the **`.wiki.json` nav path (TB3)** the nav title stays **authoritative** (front matter never overrides it), but the body is **still stripped**.
+- **Parse safely.** Parse with `yaml.safe_load` (PyYAML ships with Frappe). **Malformed** front matter (unparseable YAML, or a non-mapping result) is left **intact** and yields no title override — surface the bad file rather than silently eating content or crashing the whole sync.
+- **`title` coercion.** Use front-matter `title` only when it's a non-empty scalar (string/number); a list/dict/`null` is ignored (→ falls through to H1/filename).
+- **Out of scope (this bullet):** consuming `sidebar_position`/`nav_order`/`weight` for ordering (sibling order stays alphabetical / nav-driven — see *Deferred*); `description`/`tags`/any other field; TOML (`+++`) or JSON front matter.
+
+**Where it lands.** New pure helper in `wiki/wiki/git_sync.py`: `strip_front_matter(raw) -> (body, meta)` (returns `(raw, {})` when no leading block or on parse failure). `build_nodes`' `content_of` strips first, then image-rewrites the body; the node's `title` becomes `meta.get("title") or _extract_title(body) or _humanize(...)`. `build_nodes_from_config` strips the leaf body (nav title unchanged). No new fields, no schema change — purely a content/title transform in the existing fetch path.
+
+- **Tests / demo:** unit — strip leading block (content has no `---`/`title:`); front-matter `title` wins over H1; H1 fallback when no FM title; humanized-filename fallback when neither; malformed YAML left intact + no crash; no-front-matter content unchanged (regression); a mid-body `---` not stripped; nav path keeps nav title but strips body; front-matter `title` flows through to the live `Wiki Document.title` end-to-end (sync-level). Browser/demo (agent-browser): sync a repo whose pages carry front matter → pages render clean (no stray heading) and are titled from `title`.
+
+**Why now:** the most common real-world docs repos are front-matter-heavy; without this, every synced page from such a repo shows a broken heading and mis-titled nav — the next most visible gap after images (TB8a).
+
 ## Verification (whole feature, after the bullets land)
 
 1. `bench build` after frontend edits (rebuild from `frontend/`).
@@ -206,6 +238,7 @@ Today the engine syncs only `.md`/`.mdx` blobs verbatim, so a page that referenc
 - Scheduler poller (cron fallback) — fast follow; the webhook (TB6) covers real-time sync.
 - Repo image/asset import into Frappe Files (v1: leave relative/external URLs as-is) — **now specced as TB8.**
 - GitHub App auto-creation via manifest flow is optional; manual App credentials are acceptable for v1.
+- Front-matter ordering fields (`sidebar_position`/`nav_order`/`weight`) — TB9 strips front matter and uses `title` only; sibling order stays alphabetical / `.wiki.json`-nav-driven. A possible fast-follow.
 
 ## Progress
 
@@ -224,3 +257,4 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] Hardening (post-TB7): widened `route`/`source_path` fields for deep trees; ignore dot-dirs (`.github`) + optional "Docs folder" input; unique routes via path-based slug + suffix dedup (fixes `validate_unique_route_for_leaves` on title collisions); persist the GitHub user token in `Wiki GitHub Connection` (+ refresh-token renewal) so connect is one-time per user.
 - [x] TB8a — Backend image import: `_fetch_blob_bytes` + `_is_repo_relative_image` + `_import_repo_image` (one Frappe File per (space, blob SHA), attached to the space, optional WebP) + `_rewrite_image_links` (resolve `./`/`../` against source dir, rewrite before content-blob); `space` threaded through `build_nodes`/`build_nodes_from_config`; 6 unit tests (4 temp-revert verified). Privacy resolved: **public files + caveat** (private-repo images world-readable by URL — documented limitation).
 - [ ] TB8b — Privacy/serving (private files + permission-gated route, deferred) + live browser demo (synced page renders the imported image). **Not started.**
+- [ ] TB9 — Strip YAML front matter before render + use its `title` (precedence: FM `title` → H1 → humanized filename); malformed FM left intact; nav title stays authoritative; ordering fields deferred. **Specced, not started.**
