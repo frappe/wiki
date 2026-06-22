@@ -287,7 +287,9 @@ class TestGithubAppManifest(FrappeTestCase):
 			callback_url="https://wiki.localhost/github/redirect",
 			webhook_url=None,
 		)
+		# Events require a reachable hook, so both are dropped together.
 		self.assertNotIn("hook_attributes", manifest)
+		self.assertNotIn("default_events", manifest)
 
 	def test_manifest_create_url_personal_vs_org(self):
 		self.assertEqual(github.manifest_create_url(), github.MANIFEST_CREATE_URL)

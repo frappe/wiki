@@ -258,9 +258,12 @@ def build_app_manifest(
 	Permissions are the minimum the sync engine needs — read `contents` (file
 	bodies + the git tree) and `metadata` — and the App subscribes to `push`
 	so TB6's webhook fires. ``redirect_url`` is where GitHub returns the
-	manifest code; ``callback_url`` is TB4b's user-OAuth callback. ``webhook_url``
-	is omitted when ``None`` — GitHub refuses manifests pointing at an
-	unreachable hook host, so dev sites create the App without one.
+	manifest code; ``callback_url`` is TB4b's user-OAuth callback.
+
+	When ``webhook_url`` is ``None`` (a non-public host GitHub can't reach) both
+	the hook *and* the ``push`` subscription are dropped — GitHub rejects a
+	manifest that subscribes to events without a reachable hook URL, so dev
+	sites create a webhook-less App and sync manually.
 	"""
 	manifest = {
 		"name": name,
@@ -269,10 +272,10 @@ def build_app_manifest(
 		"callback_urls": [callback_url],
 		"public": False,
 		"default_permissions": {"contents": "read", "metadata": "read"},
-		"default_events": ["push"],
 	}
 	if webhook_url:
 		manifest["hook_attributes"] = {"url": webhook_url, "active": True}
+		manifest["default_events"] = ["push"]
 	return manifest
 
 
