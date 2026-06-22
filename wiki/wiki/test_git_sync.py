@@ -12,6 +12,7 @@ from wiki.wiki.git_sync import (
 	build_nodes,
 	build_nodes_from_config,
 	load_wiki_config,
+	strip_front_matter,
 	sync_space,
 )
 
@@ -768,3 +769,104 @@ class TestGitSyncImages(FrappeTestCase):
 		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
 		self.assertRegex(content, r"/files/gitimg-[^)]+\.png")
 		self.assertNotIn(".webp", content)
+
+
+class TestGitSyncFrontMatter(FrappeTestCase):
+	"""TB9 — leading YAML front matter is stripped before render; its `title` is used."""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _page(self, nodes, path):
+		return next(n for n in nodes if n["source_path"] == path)
+
+	def test_strip_front_matter_returns_body_and_meta(self):
+		body, meta = strip_front_matter("---\ntitle: Hello\nsidebar_position: 2\n---\n# Heading\nbody")
+		self.assertEqual(meta["title"], "Hello")
+		self.assertEqual(meta["sidebar_position"], 2)
+		self.assertEqual(body, "# Heading\nbody")
+
+	def test_strip_handles_crlf_and_bom(self):
+		body, meta = strip_front_matter("﻿---\r\ntitle: Hi\r\n---\r\nbody")
+		self.assertEqual(meta["title"], "Hi")
+		self.assertEqual(body, "body")
+
+	def test_no_front_matter_left_unchanged(self):
+		raw = "# Heading\njust content\n"
+		self.assertEqual(strip_front_matter(raw), (raw, {}))
+
+	def test_malformed_yaml_left_intact(self):
+		# Unparseable YAML must not crash or eat content — return it verbatim.
+		raw = "---\ntitle: : : oops\n\t- bad\n---\nbody"
+		body, meta = strip_front_matter(raw)
+		self.assertEqual(body, raw)
+		self.assertEqual(meta, {})
+
+	def test_leading_thematic_break_not_front_matter(self):
+		# A leading "---" whose block parses to a non-mapping (plain string) is a
+		# thematic break, not front matter → left intact.
+		raw = "---\njust a paragraph\n---\nmore"
+		body, meta = strip_front_matter(raw)
+		self.assertEqual(body, raw)
+		self.assertEqual(meta, {})
+
+	def test_mid_body_thematic_break_untouched(self):
+		body, _ = strip_front_matter("---\ntitle: T\n---\nintro\n\n---\n\noutro")
+		self.assertEqual(body, "intro\n\n---\n\noutro")
+
+	def test_build_nodes_strips_block_and_uses_title(self):
+		repo = _FakeRepo({"docs/intro.md": "---\ntitle: Getting Started\n---\nbody only"})
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs")
+		node = self._page(nodes, "docs/intro.md")
+		# Title comes from front matter; the block never reaches the stored content.
+		self.assertEqual(node["title"], "Getting Started")
+		self.assertEqual(node["content"], "body only")
+		self.assertNotIn("---", node["content"])
+		self.assertNotIn("title:", node["content"])
+
+	def test_h1_fallback_when_no_front_matter_title(self):
+		# Front matter present but no `title` key → fall back to the H1.
+		repo = _FakeRepo({"docs/intro.md": "---\nsidebar_position: 1\n---\n# Real Heading\nbody"})
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs")
+		node = self._page(nodes, "docs/intro.md")
+		self.assertEqual(node["title"], "Real Heading")
+		self.assertEqual(node["content"], "# Real Heading\nbody")
+
+	def test_humanized_filename_fallback(self):
+		# Front matter title non-scalar (list) and no H1 → humanized filename.
+		repo = _FakeRepo({"docs/getting-started.md": "---\ntitle:\n  - a\n  - b\n---\nbody"})
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs")
+		node = self._page(nodes, "docs/getting-started.md")
+		self.assertEqual(node["title"], "Getting Started")
+
+	def test_config_nav_title_wins_but_body_stripped(self):
+		config = {"docs_dir": "docs", "nav": [{"Nav Title": "intro.md"}]}
+		files = {
+			git_sync.WIKI_CONFIG_PATH: json.dumps(config),
+			"docs/intro.md": "---\ntitle: FM Title\n---\n# H1\nbody",
+		}
+		repo = _FakeRepo(files)
+		repo.install(self)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		node = self._page(nodes, "docs/intro.md")
+		self.assertEqual(node["title"], "Nav Title")  # nav is authoritative
+		self.assertEqual(node["content"], "# H1\nbody")  # but body is still stripped
+
+	def test_front_matter_title_flows_to_live_document(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/intro.md": "---\ntitle: Getting Started\n---\njust body"})
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		doc = frappe.get_all(
+			"Wiki Document",
+			fields=["title", "content"],
+			filters=[["source_path", "=", "docs/intro.md"], ["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+		)[0]
+		self.assertEqual(doc.title, "Getting Started")
+		self.assertNotIn("---", doc.content)

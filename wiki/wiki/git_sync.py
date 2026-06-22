@@ -23,6 +23,7 @@ from typing import Any
 
 import frappe
 import requests
+import yaml
 from frappe import _
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
@@ -46,6 +47,10 @@ WIKI_CONFIG_PATH = ".wiki.json"
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif")
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
+# Leading YAML front matter: "---" on the very first line (optional BOM), the
+# YAML body, then a closing "---" or "..." line. Non-greedy so it stops at the
+# first closing delimiter; a "---" thematic break later in the body is untouched.
+FRONT_MATTER_PATTERN = re.compile(r"^﻿?---[ \t]*\r?\n(.*?)\r?\n(?:---|\.\.\.)[ \t]*\r?\n?", re.DOTALL)
 # Markdown image: ![alt](src "optional title"). Groups: 1=prefix "![alt](",
 # 2=src (optionally <>-wrapped), 3=optional title, 4=closing ")".
 MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
@@ -226,6 +231,38 @@ def _humanize(name: str) -> str:
 	return name.replace("-", " ").replace("_", " ").strip().title()
 
 
+def strip_front_matter(raw: str) -> tuple[str, dict[str, Any]]:
+	"""Split a leading YAML front matter block off the Markdown body.
+
+	Returns ``(body, meta)``. Docs repos (Docusaurus/Hugo/Jekyll/mkdocs) prefix
+	files with a ``---``-delimited YAML block that otherwise renders as a stray
+	setext heading. Malformed front matter (unparseable YAML or a non-mapping
+	result — e.g. a leading ``---`` that's really a thematic break) is left
+	**intact**: ``(raw, {})`` — surface the odd file rather than eat content.
+	"""
+	if not raw:
+		return raw, {}
+	match = FRONT_MATTER_PATTERN.match(raw)
+	if not match:
+		return raw, {}
+	try:
+		meta = yaml.safe_load(match.group(1))
+	except yaml.YAMLError:
+		return raw, {}
+	if not isinstance(meta, dict):
+		return raw, {}
+	return raw[match.end() :], meta
+
+
+def _front_matter_title(meta: dict[str, Any]) -> str | None:
+	"""The front matter ``title`` when it's a usable scalar, else ``None``."""
+	title = meta.get("title")
+	# bool is an int subclass; a YAML `true` title is meaningless here.
+	if isinstance(title, str | int | float) and not isinstance(title, bool):
+		return str(title).strip() or None
+	return None
+
+
 def build_nodes(
 	repo: str,
 	tree_entries: list[dict[str, Any]],
@@ -280,15 +317,17 @@ def build_nodes(
 	def full(rel: str) -> str:
 		return f"{prefix}/{rel}" if prefix else rel
 
-	def content_of(f: dict[str, Any]) -> str:
-		raw = _fetch_blob(repo, f["sha"], token)
-		return _rewrite_image_links(raw, f["path"], repo, sha_by_path, space, token)
+	def content_of(f: dict[str, Any]) -> tuple[str, str | None]:
+		"""Return ``(body, front_matter_title)`` — body stripped of front matter and image-rewritten."""
+		body, meta = strip_front_matter(_fetch_blob(repo, f["sha"], token))
+		body = _rewrite_image_links(body, f["path"], repo, sha_by_path, space, token)
+		return body, _front_matter_title(meta)
 
 	nodes: list[dict[str, Any]] = []
 
 	for folder in sorted(dirs):
 		landing = landings.get(folder)
-		content = content_of(landing) if landing else ""
+		content, fm_title = content_of(landing) if landing else ("", None)
 		seg = folder.split("/")[-1]
 		nodes.append(
 			{
@@ -300,7 +339,8 @@ def build_nodes(
 				# folders with no landing keep the directory path (nothing to edit).
 				"source_path": landing["path"] if landing else full(folder),
 				"landing_path": landing["path"] if landing else None,
-				"title": _extract_title(content) or _humanize(seg),
+				# Title precedence: front-matter title → first H1 → humanized name.
+				"title": fm_title or _extract_title(content) or _humanize(seg),
 				# Slug from the (unique) path segment, not the title — two pages
 				# sharing an H1 would otherwise collide on route.
 				"slug": seg,
@@ -310,7 +350,7 @@ def build_nodes(
 		)
 
 	for f in pages:
-		content = content_of(f)
+		content, fm_title = content_of(f)
 		seg = f["rel"].split("/")[-1]
 		nodes.append(
 			{
@@ -319,7 +359,7 @@ def build_nodes(
 				"parent_dir": f["dir_rel"],
 				"source_path": f["path"],
 				"landing_path": None,
-				"title": _extract_title(content) or _humanize(seg.rsplit(".", 1)[0]),
+				"title": fm_title or _extract_title(content) or _humanize(seg.rsplit(".", 1)[0]),
 				"slug": seg.rsplit(".", 1)[0],
 				"content": content,
 				"seg": seg,
@@ -327,7 +367,8 @@ def build_nodes(
 		)
 
 	root_landing = landings.get("")
-	root_content = content_of(root_landing) if root_landing else None
+	# Root group keeps its own title (from the live snapshot); only its body matters here.
+	root_content = content_of(root_landing)[0] if root_landing else None
 	root_landing_path = root_landing["path"] if root_landing else None
 
 	return nodes, root_content, root_landing_path
@@ -427,6 +468,8 @@ def build_nodes_from_config(
 					blob_sha = sha_by_path.get(path)
 					if not blob_sha:
 						continue
+					# Nav title is authoritative here, but the body is still stripped.
+					body, _meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
 					nodes.append(
 						{
 							"is_group": 0,
@@ -435,9 +478,7 @@ def build_nodes_from_config(
 							"source_path": path,
 							"landing_path": None,
 							"title": title,
-							"content": _rewrite_image_links(
-								_fetch_blob(repo, blob_sha, token), path, repo, sha_by_path, space, token
-							),
+							"content": _rewrite_image_links(body, path, repo, sha_by_path, space, token),
 							"seg": seg,
 						}
 					)
