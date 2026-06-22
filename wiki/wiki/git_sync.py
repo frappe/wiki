@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import json
+import posixpath
 import re
 from collections import defaultdict
 from typing import Any
@@ -42,8 +43,12 @@ GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
 LANDING_BASENAMES = ("readme.md", "index.md", "readme.mdx", "index.mdx")
 WIKI_CONFIG_PATH = ".wiki.json"
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif")
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
+# Markdown image: ![alt](src "optional title"). Groups: 1=prefix "![alt](",
+# 2=src (optionally <>-wrapped), 3=optional title, 4=closing ")".
+MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
 
 
 # --------------------------------------------------------------------------- #
@@ -89,6 +94,123 @@ def _fetch_blob(repo: str, sha: str, token: str | None = None) -> str:
 	return data.get("content") or ""
 
 
+def _fetch_blob_bytes(repo: str, sha: str, token: str | None = None) -> bytes:
+	"""Fetch a raw (binary) blob — for images, which must not be utf-8 decoded."""
+	resp = requests.get(
+		f"{GITHUB_API}/repos/{repo}/git/blobs/{sha}",
+		headers=_github_headers(token),
+		timeout=30,
+	)
+	resp.raise_for_status()
+	data = resp.json()
+	if data.get("encoding") == "base64":
+		return base64.b64decode(data.get("content") or "")
+	return (data.get("content") or "").encode("utf-8")
+
+
+# --------------------------------------------------------------------------- #
+# Repo image import (→ Frappe File, optional WebP, rewritten links)
+# --------------------------------------------------------------------------- #
+def _is_repo_relative_image(src: str) -> bool:
+	"""True only for a repo-relative image src we should import.
+
+	External URLs (``http(s)://``, protocol-relative), ``data:`` URIs, in-page
+	anchors, and already-stored ``/files/`` URLs are left untouched.
+	"""
+	if not src:
+		return False
+	low = src.lower()
+	if low.startswith(("http://", "https://", "//", "data:", "mailto:", "/files/", "/private/files/", "#")):
+		return False
+	return "://" not in src
+
+
+def _import_repo_image(
+	space: frappe.Document, repo_path: str, sha: str, repo: str, token: str | None = None
+) -> str | None:
+	"""Import one repo image as a Frappe File, returning its ``/files/…`` URL.
+
+	Idempotent per (space, blob SHA): the File is named ``gitimg-<sha>.<ext>`` and
+	attached to the Wiki Space, so an unchanged image SHA reuses the existing File
+	(no re-upload, no content churn). WebP conversion runs when the setting is on.
+	"""
+	ext = ("." + repo_path.rsplit(".", 1)[1].lower()) if "." in repo_path else ""
+	stem = f"gitimg-{sha}"
+	existing = frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": "Wiki Space",
+			"attached_to_name": space.name,
+			"file_name": ["like", f"{stem}.%"],
+		},
+		fields=["file_url"],
+		limit=1,
+	)
+	if existing:
+		return existing[0].file_url
+
+	image_bytes = _fetch_blob_bytes(repo, sha, token)
+	file_doc = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": f"{stem}{ext}",
+			"attached_to_doctype": "Wiki Space",
+			"attached_to_name": space.name,
+			"is_private": 0,
+			"content": image_bytes,
+		}
+	).insert(ignore_permissions=True)
+
+	from wiki.api import CONVERTIBLE_IMAGE_EXTENSIONS, convert_file_to_webp
+
+	if ext in CONVERTIBLE_IMAGE_EXTENSIONS and frappe.get_cached_value(
+		"Wiki Settings", "Wiki Settings", "auto_convert_images_to_webp"
+	):
+		return convert_file_to_webp(file_doc) or file_doc.file_url
+	return file_doc.file_url
+
+
+def _rewrite_image_links(
+	content: str,
+	source_path: str,
+	repo: str,
+	sha_by_path: dict[str, str],
+	space: frappe.Document | None,
+	token: str | None = None,
+) -> str:
+	"""Rewrite repo-relative Markdown image links to imported ``/files/…`` URLs.
+
+	Each ``![alt](src)`` whose ``src`` resolves (relative to the source file's
+	directory) to an image blob in the repo tree is imported and the link
+	rewritten in place — *before* the content is hashed into a blob, so the
+	deduped blob already carries final, stable URLs. ``space=None`` (pure
+	inference, no sync target) is a no-op.
+	"""
+	if not content or not space or not source_path:
+		return content
+
+	base_dir = posixpath.dirname(source_path)
+
+	def repl(match: re.Match) -> str:
+		raw = match.group(2)
+		src = raw.strip("<>").strip()
+		if not _is_repo_relative_image(src):
+			return match.group(0)
+		resolved = posixpath.normpath(posixpath.join(base_dir, src))
+		# A "../" that climbs above the repo root can't be in the tree.
+		if resolved.startswith("..") or not resolved.lower().endswith(IMAGE_EXTENSIONS):
+			return match.group(0)
+		blob_sha = sha_by_path.get(resolved)
+		if not blob_sha:
+			return match.group(0)
+		url = _import_repo_image(space, resolved, blob_sha, repo, token)
+		if not url:
+			return match.group(0)
+		return f"{match.group(1)}{url}{match.group(3) or ''}{match.group(4)}"
+
+	return MD_IMAGE_PATTERN.sub(repl, content)
+
+
 # --------------------------------------------------------------------------- #
 # Structure inference
 # --------------------------------------------------------------------------- #
@@ -109,6 +231,7 @@ def build_nodes(
 	tree_entries: list[dict[str, Any]],
 	docs_subdir: str | None,
 	token: str | None = None,
+	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
 	"""Infer a page tree from a flat GitHub tree listing.
 
@@ -152,11 +275,14 @@ def build_nodes(
 			f["dir_rel"] = dir_rel
 			pages.append(f)
 
+	sha_by_path = {e.get("path"): e.get("sha") for e in tree_entries if e.get("type") == "blob"}
+
 	def full(rel: str) -> str:
 		return f"{prefix}/{rel}" if prefix else rel
 
 	def content_of(f: dict[str, Any]) -> str:
-		return _fetch_blob(repo, f["sha"], token)
+		raw = _fetch_blob(repo, f["sha"], token)
+		return _rewrite_image_links(raw, f["path"], repo, sha_by_path, space, token)
 
 	nodes: list[dict[str, Any]] = []
 
@@ -240,6 +366,7 @@ def build_nodes_from_config(
 	config: dict[str, Any],
 	docs_subdir: str | None = None,
 	token: str | None = None,
+	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
 	"""Drive structure from an explicit ``.wiki.json`` ``nav`` instead of inference.
 
@@ -308,7 +435,9 @@ def build_nodes_from_config(
 							"source_path": path,
 							"landing_path": None,
 							"title": title,
-							"content": _fetch_blob(repo, blob_sha, token),
+							"content": _rewrite_image_links(
+								_fetch_blob(repo, blob_sha, token), path, repo, sha_by_path, space, token
+							),
 							"seg": seg,
 						}
 					)
@@ -537,11 +666,11 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 		config = load_wiki_config(space.repo_full_name, tree, token)
 		if config and config.get("nav"):
 			nodes, root_content, _root_landing = build_nodes_from_config(
-				space.repo_full_name, tree, config, space.docs_subdir, token
+				space.repo_full_name, tree, config, space.docs_subdir, token, space=space
 			)
 		else:
 			nodes, root_content, _root_landing = build_nodes(
-				space.repo_full_name, tree, space.docs_subdir, token
+				space.repo_full_name, tree, space.docs_subdir, token, space=space
 			)
 		counts = _sync_to_live(space, nodes, root_content)
 		_record_success(space_name, head_sha)

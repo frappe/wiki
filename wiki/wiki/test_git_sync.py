@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Frappe and Contributors
 # See license.txt
 
+import hashlib
 import json
 
 import frappe
@@ -39,6 +40,16 @@ class _FakeRepo:
 		self.files = dict(files)
 		self.head_sha = head_sha
 
+	@staticmethod
+	def _blob_sha(path):
+		# Slash-free hex, mirroring real GitHub's 40-char blob SHA. (A "blob:{path}"
+		# sha would carry "/" that Frappe strips from File names, masking the
+		# per-SHA idempotency check.) Stateless so reassigning `files` stays valid.
+		return "blob" + hashlib.sha1(path.encode()).hexdigest()
+
+	def _path_for(self, sha):
+		return next(p for p in self.files if self._blob_sha(p) == sha)
+
 	def tree(self):
 		entries = []
 		seen_dirs = set()
@@ -49,17 +60,22 @@ class _FakeRepo:
 				if d not in seen_dirs:
 					seen_dirs.add(d)
 					entries.append({"path": d, "type": "tree", "sha": f"tree:{d}"})
-			entries.append({"path": path, "type": "blob", "sha": f"blob:{path}"})
+			entries.append({"path": path, "type": "blob", "sha": self._blob_sha(path)})
 		return entries
 
 	def blob(self, sha):
-		path = sha.split("blob:", 1)[1]
-		return self.files[path]
+		val = self.files[self._path_for(sha)]
+		return val.decode() if isinstance(val, bytes) else val
+
+	def blob_bytes(self, sha):
+		val = self.files[self._path_for(sha)]
+		return val if isinstance(val, bytes) else val.encode()
 
 	def install(self, monkeypatch_target):
 		git_sync._fetch_head_sha = lambda repo, branch, token=None: self.head_sha
 		git_sync._fetch_tree = lambda repo, ref, token=None: self.tree()
 		git_sync._fetch_blob = lambda repo, sha, token=None: self.blob(sha)
+		git_sync._fetch_blob_bytes = lambda repo, sha, token=None: self.blob_bytes(sha)
 
 
 class TestGitSyncInference(FrappeTestCase):
@@ -647,3 +663,108 @@ class TestGitSyncReadOnly(FrappeTestCase):
 		# The sync engine writes documents under in_apply_merge_revision.
 		frappe.flags.in_apply_merge_revision = True
 		self.assertTrue(wiki_document_has_permission(doc, "write", "Administrator"))
+
+
+# A minimal 1x1 valid PNG so PIL-backed WebP conversion has real bytes to open.
+_PNG_1x1 = (
+	b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+	b"\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00"
+	b"\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+class TestGitSyncImages(FrappeTestCase):
+	"""TB8a — repo-relative Markdown images are imported as Frappe Files and links rewritten."""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _set_webp(self, enabled):
+		frappe.db.set_single_value("Wiki Settings", "auto_convert_images_to_webp", 1 if enabled else 0)
+
+	def _files_for(self, space):
+		return frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": "Wiki Space", "attached_to_name": space.name},
+			fields=["name", "file_name", "file_url"],
+		)
+
+	def test_relative_image_imported_and_link_rewritten(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo(
+			{
+				"docs/guides/setup.md": "# Setup\n![logo](../img/logo.png)\nbody",
+				"docs/img/logo.png": _PNG_1x1,
+			}
+		)
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+
+		setup = next(n for n in nodes if n["source_path"] == "docs/guides/setup.md")
+		self.assertNotIn("../img/logo.png", setup["content"])
+		self.assertRegex(setup["content"], r"!\[logo\]\(/files/gitimg-[^)]+\)")
+
+		files = self._files_for(space)
+		self.assertEqual(len(files), 1)
+		self.assertTrue(files[0].file_name.startswith("gitimg-"))
+
+	def test_external_and_absolute_urls_untouched(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		md = "# P\n![a](https://x.test/a.png) ![b](/files/already.png) ![c](data:image/png;base64,zz)"
+		repo = _FakeRepo({"docs/p.md": md})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertEqual(content, md)
+		self.assertEqual(self._files_for(space), [])
+
+	def test_missing_image_left_untouched(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo({"docs/p.md": "# P\n![gone](./gone.png)"})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertIn("./gone.png", content)
+		self.assertEqual(self._files_for(space), [])
+
+	def test_reimport_is_sha_idempotent(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo({"docs/p.md": "# P\n![logo](img/logo.png)", "docs/img/logo.png": _PNG_1x1})
+		repo.install(self)
+
+		first = build_nodes("acme/docs", repo.tree(), "docs", space=space)[0]
+		second = build_nodes("acme/docs", repo.tree(), "docs", space=space)[0]
+
+		# Same image SHA → one File reused, identical rewritten URL (no content churn).
+		self.assertEqual(len(self._files_for(space)), 1)
+		c1 = next(n for n in first if n["source_path"] == "docs/p.md")["content"]
+		c2 = next(n for n in second if n["source_path"] == "docs/p.md")["content"]
+		self.assertEqual(c1, c2)
+
+	def test_webp_conversion_when_enabled(self):
+		self._set_webp(True)
+		space = _make_synced_space()
+		repo = _FakeRepo({"docs/p.md": "# P\n![logo](img/logo.png)", "docs/img/logo.png": _PNG_1x1})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(content, r"/files/gitimg-[^)]+\.webp")
+
+	def test_no_webp_keeps_original_extension(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo({"docs/p.md": "# P\n![logo](img/logo.png)", "docs/img/logo.png": _PNG_1x1})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(content, r"/files/gitimg-[^)]+\.png")
+		self.assertNotIn(".webp", content)
