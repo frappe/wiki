@@ -219,6 +219,13 @@
                   v-model="newSpace.branch"
                   :placeholder="__('main')"
                 />
+                <FormControl
+                  type="text"
+                  :label="__('Docs folder (optional)')"
+                  v-model="newSpace.docs_subdir"
+                  :placeholder="__('e.g. docs — leave blank to scan the whole repo')"
+                  :description="__('Limit the sync to a folder. Dot-directories like .github are always ignored.')"
+                />
                 <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
               </template>
             </template>
@@ -265,6 +272,7 @@ const newSpace = reactive({
   github_installation_id: "",
   repo_full_name: "",
   branch: "",
+  docs_subdir: "",
 });
 
 // GitHub App connect + repo picker (TB4b). The connect-account OAuth round-trip
@@ -451,6 +459,7 @@ const spaces = createListResource({
       newSpace.github_installation_id = "";
       newSpace.repo_full_name = "";
       newSpace.branch = "";
+      newSpace.docs_subdir = "";
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
@@ -499,6 +508,9 @@ const handleCreateSpace = () => {
     payload.git_synced = 1;
     payload.repo_full_name = newSpace.repo_full_name.trim();
     payload.branch = newSpace.branch.trim() || "main";
+    if (newSpace.docs_subdir.trim()) {
+      payload.docs_subdir = newSpace.docs_subdir.trim();
+    }
     if (newSpace.github_installation_id) {
       payload.github_installation_id = newSpace.github_installation_id;
     }

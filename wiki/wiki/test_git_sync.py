@@ -94,6 +94,21 @@ class TestGitSyncInference(FrappeTestCase):
 		self.assertIsNone(root_content)
 		self.assertIsNone(root_landing)
 
+	def test_build_nodes_ignores_dot_directories(self):
+		# A whole-repo scan (no docs_subdir) must skip .github plumbing such as
+		# issue templates and only surface real docs.
+		files = {
+			"intro.md": "# Intro",
+			".github/ISSUE_TEMPLATE/bug_report.md": "# Bug",
+			".github/PULL_REQUEST_TEMPLATE.md": "# PR",
+		}
+		repo = _FakeRepo(files)
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "")
+		paths = {n["source_path"] for n in nodes}
+		self.assertIn("intro.md", paths)
+		self.assertFalse(any(".github" in (p or "") for p in paths))
+
 	def test_build_nodes_falls_back_to_humanized_filename(self):
 		files = {"docs/getting-started.md": "no heading here"}
 		repo = _FakeRepo(files)

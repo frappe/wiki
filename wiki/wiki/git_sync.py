@@ -132,6 +132,10 @@ def build_nodes(
 			rel = path
 		if not rel.lower().endswith(MARKDOWN_EXTENSIONS):
 			continue
+		# Skip dot-directories/files (.github, .vscode, …) — repo plumbing such as
+		# issue/PR templates and workflows is never wiki content.
+		if any(seg.startswith(".") for seg in rel.split("/")):
+			continue
 		md_files.append({"path": path, "rel": rel, "sha": entry.get("sha")})
 
 	dirs: set[str] = set()
