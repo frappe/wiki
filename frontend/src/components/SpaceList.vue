@@ -174,30 +174,44 @@
               </div>
 
               <template v-else>
+                <!-- Native <select>: frappe-ui Autocomplete/Select portal their
+                     dropdown, which the modal Dialog blocks (pointer-events:none). -->
                 <div class="flex flex-col gap-1">
                   <span class="text-xs text-ink-gray-5">{{ __('GitHub Account') }}</span>
-                  <Autocomplete
-                    v-model="selectedInstallation"
-                    :options="installationOptions"
-                    :placeholder="
-                      installationsResource.loading
-                        ? __('Loading accounts...')
-                        : __('Select an account or organization')
-                    "
-                  />
+                  <select
+                    v-model="newSpace.github_installation_id"
+                    class="form-input w-full rounded bg-surface-gray-2 text-base text-ink-gray-8"
+                  >
+                    <option value="" disabled>
+                      {{
+                        installationsResource.loading
+                          ? __('Loading accounts...')
+                          : __('Select an account or organization')
+                      }}
+                    </option>
+                    <option v-for="opt in installationOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
                 </div>
                 <div class="flex flex-col gap-1">
                   <span class="text-xs text-ink-gray-5">{{ __('Repository') }}</span>
-                  <Autocomplete
-                    v-model="selectedRepo"
-                    :options="repoOptions"
-                    :disabled="!selectedInstallation"
-                    :placeholder="
-                      repositoriesResource.loading
-                        ? __('Loading repositories...')
-                        : __('Select a repository')
-                    "
-                  />
+                  <select
+                    v-model="newSpace.repo_full_name"
+                    :disabled="!newSpace.github_installation_id || repositoriesResource.loading"
+                    class="form-input w-full rounded bg-surface-gray-2 text-base text-ink-gray-8"
+                  >
+                    <option value="" disabled>
+                      {{
+                        repositoriesResource.loading
+                          ? __('Loading repositories...')
+                          : __('Select a repository')
+                      }}
+                    </option>
+                    <option v-for="opt in repoOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
                 </div>
                 <FormControl
                   type="text"
@@ -224,7 +238,6 @@ import {
   ListView,
   createListResource,
   createResource,
-  Autocomplete,
   Button,
   Dialog,
   FormControl,
@@ -261,9 +274,6 @@ const githubConnected = createResource({ url: "wiki.api.github.is_connected" });
 const installationsResource = createResource({ url: "wiki.api.github.my_installations" });
 const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
 const appInstallUrl = createResource({ url: "wiki.api.github.app_install_url" });
-
-const selectedInstallation = ref(null);
-const selectedRepo = ref(null);
 
 const installationOptions = computed(() =>
   (installationsResource.data || []).map((i) => ({
@@ -349,20 +359,24 @@ function connectGithub() {
 }
 
 // Picking an account resets the repo and lists that installation's repos.
-watch(selectedInstallation, (installation) => {
-  selectedRepo.value = null;
-  newSpace.repo_full_name = "";
-  newSpace.github_installation_id = installation?.value || "";
-  if (installation?.value) {
-    repositoriesResource.fetch({ installation_id: installation.value });
-  }
-});
+watch(
+  () => newSpace.github_installation_id,
+  (installationId) => {
+    newSpace.repo_full_name = "";
+    if (installationId) {
+      repositoriesResource.fetch({ installation_id: installationId });
+    }
+  },
+);
 
-// Picking a repo fills the repo name and defaults the branch to its default.
-watch(selectedRepo, (repo) => {
-  newSpace.repo_full_name = repo?.value || "";
-  if (repo?.default_branch) newSpace.branch = repo.default_branch;
-});
+// Picking a repo defaults the branch to that repo's default branch.
+watch(
+  () => newSpace.repo_full_name,
+  (fullName) => {
+    const repo = repoOptions.value.find((r) => r.value === fullName);
+    if (repo?.default_branch) newSpace.branch = repo.default_branch;
+  },
+);
 
 function slugify(text) {
   return text
@@ -437,8 +451,6 @@ const spaces = createListResource({
       newSpace.github_installation_id = "";
       newSpace.repo_full_name = "";
       newSpace.branch = "";
-      selectedInstallation.value = null;
-      selectedRepo.value = null;
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
