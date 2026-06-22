@@ -224,6 +224,11 @@ def exchange_oauth_code(code: str, redirect_uri: str) -> str:
 MANIFEST_CREATE_URL = "https://github.com/settings/apps/new"
 MANIFEST_ORG_CREATE_URL = "https://github.com/organizations/{org}/settings/apps/new"
 
+# GitHub *requires* a public hook URL in a manifest and rejects localhost/private
+# hosts, so on a non-public site we register this reserved (RFC 2606) placeholder
+# with the webhook inactive — the admin repoints it once deployed publicly.
+PLACEHOLDER_HOOK_URL = "https://example.com/github-webhook-placeholder"
+
 
 def manifest_create_url(org: str | None = None) -> str:
 	"""The GitHub form endpoint the manifest POSTs to (personal vs. org account)."""
@@ -256,14 +261,15 @@ def build_app_manifest(
 	"""Build the GitHub App manifest for one-way (read-only) repo sync.
 
 	Permissions are the minimum the sync engine needs — read `contents` (file
-	bodies + the git tree) and `metadata` — and the App subscribes to `push`
-	so TB6's webhook fires. ``redirect_url`` is where GitHub returns the
-	manifest code; ``callback_url`` is TB4b's user-OAuth callback.
+	bodies + the git tree) and `metadata`. ``redirect_url`` is where GitHub
+	returns the manifest code; ``callback_url`` is TB4b's user-OAuth callback.
 
-	When ``webhook_url`` is ``None`` (a non-public host GitHub can't reach) both
-	the hook *and* the ``push`` subscription are dropped — GitHub rejects a
-	manifest that subscribes to events without a reachable hook URL, so dev
-	sites create a webhook-less App and sync manually.
+	``hook_attributes.url`` is **required** by GitHub and must be a public host.
+	When ``webhook_url`` is set (a public site) the App gets a live webhook
+	subscribed to ``push`` for TB6 real-time sync. When ``None`` (localhost /
+	private host) we register an **inactive placeholder** hook so the manifest
+	still validates — the admin repoints it and enables ``push`` once deployed
+	publicly, and syncs via "Sync now" meanwhile.
 	"""
 	manifest = {
 		"name": name,
@@ -276,6 +282,8 @@ def build_app_manifest(
 	if webhook_url:
 		manifest["hook_attributes"] = {"url": webhook_url, "active": True}
 		manifest["default_events"] = ["push"]
+	else:
+		manifest["hook_attributes"] = {"url": PLACEHOLDER_HOOK_URL, "active": False}
 	return manifest
 
 

@@ -270,12 +270,13 @@ class TestGithubAppManifest(FrappeTestCase):
 			manifest["hook_attributes"]["url"],
 			"https://wiki.test/api/method/wiki.api.github.webhook",
 		)
+		self.assertTrue(manifest["hook_attributes"]["active"])
 		self.assertEqual(manifest["name"], "Wiki Sync (wiki.test)")
 		self.assertEqual(manifest["url"], "https://wiki.test")
 
-	def test_manifest_omits_webhook_for_unreachable_host(self):
-		# GitHub rejects a manifest whose hook host isn't public, so dev sites
-		# (localhost) must create the App without a webhook.
+	def test_manifest_uses_inactive_placeholder_for_unreachable_host(self):
+		# GitHub requires hook_attributes.url and rejects non-public hosts, so on
+		# localhost the manifest registers an inactive placeholder hook (no events).
 		self.assertFalse(github.is_public_host("https://wiki.localhost"))
 		self.assertFalse(github.is_public_host("http://127.0.0.1:8000"))
 		self.assertTrue(github.is_public_host("https://docs.frappe.io"))
@@ -287,8 +288,9 @@ class TestGithubAppManifest(FrappeTestCase):
 			callback_url="https://wiki.localhost/github/redirect",
 			webhook_url=None,
 		)
-		# Events require a reachable hook, so both are dropped together.
-		self.assertNotIn("hook_attributes", manifest)
+		self.assertEqual(manifest["hook_attributes"]["url"], github.PLACEHOLDER_HOOK_URL)
+		self.assertFalse(manifest["hook_attributes"]["active"])
+		# No event subscription on an inactive placeholder hook.
 		self.assertNotIn("default_events", manifest)
 
 	def test_manifest_create_url_personal_vs_org(self):
