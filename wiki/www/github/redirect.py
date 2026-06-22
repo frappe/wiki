@@ -29,8 +29,10 @@ def get_context(context):
 	if not args.get("code") or not github.verify_oauth_state(args.get("state")):
 		frappe.throw(_("Invalid or expired GitHub authorization. Please try connecting again."))
 
-	token = github.exchange_oauth_code(args.get("code"), get_url("/github/redirect"))
-	github.store_user_token(frappe.session.user, token)
+	payload = github.exchange_oauth_code(args.get("code"), get_url("/github/redirect"))
+	github.store_user_token(frappe.session.user, payload)
+	# GitHub redirects here via GET, which Frappe does not auto-commit.
+	frappe.db.commit()
 
 	frappe.local.flags.redirect_location = "/wiki?github_connected=1"
 	raise frappe.Redirect

@@ -198,8 +198,8 @@ class TestGithubAuth(FrappeTestCase):
 		fake = _FakeRequests(post=_post)
 		github.requests = fake
 
-		token = github.exchange_oauth_code("the-code", "https://wiki.test/github/redirect")
-		self.assertEqual(token, "gho_usertoken")
+		payload = github.exchange_oauth_code("the-code", "https://wiki.test/github/redirect")
+		self.assertEqual(payload["access_token"], "gho_usertoken")
 		url, _headers = fake.post_calls[0]
 		self.assertEqual(url, github.OAUTH_TOKEN_URL)
 		# Client id/secret + code travel in the POST body, not the URL.
@@ -219,12 +219,15 @@ class TestGithubAuth(FrappeTestCase):
 	def test_user_token_cache_round_trip_and_my_wrappers_require_it(self):
 		user = frappe.session.user
 		frappe.cache().delete_value(github._user_token_key(user))
+		# Clean slate: ignore any real persisted connection for this user (rolled back).
+		if frappe.db.exists(github.CONNECTION_DOCTYPE, user):
+			frappe.delete_doc(github.CONNECTION_DOCTYPE, user, ignore_permissions=True, force=True)
 
 		# Not connected → wrappers refuse.
 		self.assertFalse(github.is_connected())
 		self.assertRaises(frappe.PermissionError, github.my_installations)
 
-		github.store_user_token(user, "gho_cached")
+		github.store_user_token(user, {"access_token": "gho_cached"})
 		self.addCleanup(frappe.cache().delete_value, github._user_token_key(user))
 		self.assertTrue(github.is_connected())
 		self.assertEqual(github.get_user_token(), "gho_cached")
@@ -239,6 +242,56 @@ class TestGithubAuth(FrappeTestCase):
 		github.requests = _FakeRequests(get=_get)
 		github.my_installations()
 		self.assertEqual(captured["auth"], "Bearer gho_cached")
+
+	def _reset_connection(self, user):
+		if frappe.db.exists(github.CONNECTION_DOCTYPE, user):
+			frappe.delete_doc(github.CONNECTION_DOCTYPE, user, ignore_permissions=True, force=True)
+		frappe.cache().delete_value(github._user_token_key(user))
+		self.addCleanup(frappe.cache().delete_value, github._user_token_key(user))
+
+	def test_token_persists_across_cache_eviction(self):
+		# The whole point of the DocType: surviving a bench restart (cache loss)
+		# so the user doesn't have to reconnect.
+		user = frappe.session.user
+		self._reset_connection(user)
+
+		github.store_user_token(user, {"access_token": "gho_persist"})  # non-expiring
+		frappe.cache().delete_value(github._user_token_key(user))  # simulate restart
+
+		self.assertEqual(github.get_user_token(user), "gho_persist")  # served from DB
+
+	def test_expired_token_is_refreshed_from_persistence(self):
+		user = frappe.session.user
+		self._reset_connection(user)
+		self._configure_app(client_id="Iv1.abc", client_secret="secret")
+
+		github.store_user_token(
+			user,
+			{
+				"access_token": "gho_old",
+				"refresh_token": "ghr_refresh",
+				"expires_in": -10,  # already expired
+				"refresh_token_expires_in": 15552000,
+			},
+		)
+		frappe.cache().delete_value(github._user_token_key(user))  # force the DB path
+
+		def _post(url, headers):
+			return _FakeResponse(
+				{
+					"access_token": "gho_new",
+					"refresh_token": "ghr_new",
+					"expires_in": 28800,
+					"refresh_token_expires_in": 15552000,
+				}
+			)
+
+		fake = _FakeRequests(post=_post)
+		github.requests = fake
+
+		self.assertEqual(github.get_user_token(user), "gho_new")
+		self.assertEqual(fake.last_post_data["grant_type"], "refresh_token")
+		self.assertEqual(fake.last_post_data["refresh_token"], "ghr_refresh")
 
 
 class TestGithubAppManifest(FrappeTestCase):

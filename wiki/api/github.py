@@ -33,6 +33,7 @@ import frappe
 import jwt
 import requests
 from frappe import _
+from frappe.utils import add_to_date, get_datetime, now_datetime
 
 GITHUB_API = "https://api.github.com"
 API_VERSION = "2022-11-28"
@@ -141,6 +142,9 @@ def repositories(installation_id: str | int, token: str) -> list[dict[str, Any]]
 # --------------------------------------------------------------------------- #
 # Connect-account OAuth (user-to-server) — sources the per-user OAuth token
 # --------------------------------------------------------------------------- #
+CONNECTION_DOCTYPE = "Wiki GitHub Connection"
+
+
 def _user_token_key(user: str) -> str:
 	return f"github_user_token:{user}"
 
@@ -149,13 +153,103 @@ def _oauth_state_key(state: str) -> str:
 	return f"github_oauth_state:{state}"
 
 
-def store_user_token(user: str, token: str) -> None:
-	frappe.cache().set_value(_user_token_key(user), token, expires_in_sec=_USER_TOKEN_TTL)
+def _token_expiry(expires_in: Any) -> Any:
+	"""Absolute expiry datetime from GitHub's ``*_in`` seconds (None = no expiry)."""
+	if not expires_in:
+		return None
+	return add_to_date(now_datetime(), seconds=int(expires_in))
+
+
+def _token_valid(expires_at: Any) -> bool:
+	"""A null expiry means the token never expires; else require 60s of headroom."""
+	if not expires_at:
+		return True
+	return get_datetime(expires_at) > add_to_date(now_datetime(), seconds=60)
+
+
+def _cache_user_token(user: str, token: str, expires_at: Any) -> None:
+	ttl = _USER_TOKEN_TTL
+	if expires_at:
+		secs = int((get_datetime(expires_at) - now_datetime()).total_seconds())
+		ttl = max(60, min(ttl, secs))
+	frappe.cache().set_value(_user_token_key(user), token, expires_in_sec=ttl)
+
+
+def store_user_token(user: str, payload: dict[str, Any]) -> None:
+	"""Persist a user's OAuth token (access + refresh + expiry) durably + in cache.
+
+	``payload`` is GitHub's token response. The token is kept in a per-user
+	``Wiki GitHub Connection`` so it survives cache eviction / bench restarts —
+	the cache is just a fast path. Refreshing tokens (``refresh_token`` present)
+	are renewed on demand in :func:`get_user_token`, so the connect-account
+	round-trip is a one-time step per user.
+	"""
+	access = payload.get("access_token")
+	if not access:
+		return
+	expires_at = _token_expiry(payload.get("expires_in"))
+
+	doc = (
+		frappe.get_doc(CONNECTION_DOCTYPE, user)
+		if frappe.db.exists(CONNECTION_DOCTYPE, user)
+		else frappe.new_doc(CONNECTION_DOCTYPE)
+	)
+	doc.user = user
+	doc.access_token = access
+	doc.refresh_token = payload.get("refresh_token")
+	doc.expires_at = expires_at
+	doc.refresh_token_expires_at = _token_expiry(payload.get("refresh_token_expires_in"))
+	doc.save(ignore_permissions=True)
+
+	_cache_user_token(user, access, expires_at)
+
+
+def _refresh_user_token(doc) -> str | None:
+	"""Use a stored refresh token to mint a fresh access token (or None)."""
+	refresh = doc.get_password("refresh_token", raise_exception=False)
+	if not refresh or not _token_valid(doc.refresh_token_expires_at):
+		return None
+
+	settings = _settings()
+	client_id = settings.github_app_client_id
+	client_secret = settings.get_password("github_app_client_secret", raise_exception=False)
+	if not client_id or not client_secret:
+		return None
+
+	resp = requests.post(
+		OAUTH_TOKEN_URL,
+		headers={"Accept": "application/json"},
+		data={
+			"client_id": client_id,
+			"client_secret": client_secret,
+			"grant_type": "refresh_token",
+			"refresh_token": refresh,
+		},
+		timeout=30,
+	)
+	resp.raise_for_status()
+	payload = resp.json()
+	if not payload.get("access_token"):
+		return None
+	store_user_token(doc.user, payload)
+	return payload["access_token"]
 
 
 def get_user_token(user: str | None = None) -> str | None:
 	user = user or frappe.session.user
-	return frappe.cache().get_value(_user_token_key(user))
+	cached = frappe.cache().get_value(_user_token_key(user))
+	if cached:
+		return cached
+
+	if not frappe.db.exists(CONNECTION_DOCTYPE, user):
+		return None
+	doc = frappe.get_doc(CONNECTION_DOCTYPE, user)
+
+	access = doc.get_password("access_token", raise_exception=False)
+	if access and _token_valid(doc.expires_at):
+		_cache_user_token(user, access, doc.expires_at)
+		return access
+	return _refresh_user_token(doc)
 
 
 def new_oauth_state() -> str:
@@ -184,8 +278,13 @@ def build_authorize_url(state: str, redirect_uri: str) -> str:
 	return f"{OAUTH_AUTHORIZE_URL}?{params}"
 
 
-def exchange_oauth_code(code: str, redirect_uri: str) -> str:
-	"""Exchange an OAuth callback code for a user-to-server access token."""
+def exchange_oauth_code(code: str, redirect_uri: str) -> dict[str, Any]:
+	"""Exchange an OAuth callback code for the full user-to-server token payload.
+
+	Returns GitHub's token response (``access_token`` plus, when the App expires
+	user tokens, ``refresh_token``/``expires_in``/``refresh_token_expires_in``)
+	so the caller can persist a renewable connection.
+	"""
 	settings = _settings()
 	client_id = settings.github_app_client_id
 	client_secret = settings.get_password("github_app_client_secret", raise_exception=False)
@@ -205,14 +304,13 @@ def exchange_oauth_code(code: str, redirect_uri: str) -> str:
 	)
 	resp.raise_for_status()
 	payload = resp.json()
-	token = payload.get("access_token")
-	if not token:
+	if not payload.get("access_token"):
 		frappe.throw(
 			_("GitHub did not return an access token: {0}").format(
 				payload.get("error_description") or payload.get("error") or "unknown error"
 			)
 		)
-	return token
+	return payload
 
 
 # --------------------------------------------------------------------------- #
