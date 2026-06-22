@@ -33,6 +33,9 @@ def get_context(context):
 
 	config = github.convert_app_manifest(args.get("code"))
 	github.store_app_credentials(config)
+	# GitHub redirects here via GET, which Frappe does not auto-commit — without
+	# this the freshly-stored credentials roll back at the end of the request.
+	frappe.db.commit()
 
 	frappe.local.flags.redirect_location = "/app/wiki-settings?github_app_created=1"
 	raise frappe.Redirect
