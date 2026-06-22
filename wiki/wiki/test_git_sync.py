@@ -264,6 +264,27 @@ class TestGitSyncApply(FrappeTestCase):
 		route = frappe.db.get_value("Wiki Document", leaf.name, "route")
 		self.assertGreater(len(route), 140)  # would have truncated/thrown before the fix
 
+	def test_colliding_slugs_get_unique_routes(self):
+		# Two files in one folder that slugify identically (and share an H1) must
+		# not collide on route — path-based slug + numeric-suffix dedup keep the
+		# whole sync from failing on validate_unique_route_for_leaves.
+		space = _make_synced_space()
+		repo = _FakeRepo(
+			{
+				"api/foo-bar.md": "# Controls\na",
+				"api/foo_bar.md": "# Controls\nb",  # underscore → same slug as above
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		space.reload()
+		self.assertEqual(space.last_sync_status, "Success", space.last_sync_error)
+		leaves = [d for d in self._tree(space) if not d.is_group and d.source_path]
+		routes = [frappe.db.get_value("Wiki Document", d.name, "route") for d in leaves]
+		self.assertEqual(len(routes), 2)
+		self.assertEqual(len(set(routes)), 2)  # unique despite identical slugs
+
 	def test_group_landing_source_path_points_at_readme(self):
 		# A group with a README landing stamps the README path as its source_path,
 		# so the frontend can build an "Edit on GitHub" link to the editable file.

@@ -175,6 +175,9 @@ def build_nodes(
 				"source_path": landing["path"] if landing else full(folder),
 				"landing_path": landing["path"] if landing else None,
 				"title": _extract_title(content) or _humanize(seg),
+				# Slug from the (unique) path segment, not the title — two pages
+				# sharing an H1 would otherwise collide on route.
+				"slug": seg,
 				"content": content,
 				"seg": seg,
 			}
@@ -191,6 +194,7 @@ def build_nodes(
 				"source_path": f["path"],
 				"landing_path": None,
 				"title": _extract_title(content) or _humanize(seg.rsplit(".", 1)[0]),
+				"slug": seg.rsplit(".", 1)[0],
 				"content": content,
 				"seg": seg,
 			}
@@ -364,20 +368,29 @@ def _sync_to_live(
 	# Routes computed top-down so a re-sync of unchanged content is a true no-op.
 	slug_for: dict[str, str] = {}
 	route_for: dict[str, str] = {root_doc_key: space.route}
+	used_routes: set[str] = {space.route}
 
 	def resolve_route(node: dict[str, Any]) -> str:
 		key = node["doc_key"]
 		if key in route_for:
 			return route_for[key]
-		slug = cleanup_page_name(node["title"]).replace("_", "-")
+		slug = cleanup_page_name(node.get("slug") or node["title"]).replace("_", "-") or "page"
 		parent_key = node["parent_key"]
 		parent_route = space.route if parent_key == root_doc_key else resolve_route(node_by_key[parent_key])
-		route = f"{parent_route}/{slug}"
+		# Guarantee a unique route: deduplicate with a numeric suffix so one
+		# collision (same slug under a parent) can't fail the whole sync.
+		base = f"{parent_route}/{slug}"
+		route, n = base, 2
+		while route in used_routes:
+			route = f"{base}-{n}"
+			n += 1
+		used_routes.add(route)
 		slug_for[key] = slug
 		route_for[key] = route
 		return route
 
-	for node in nodes:
+	# Stable order (by source_path) → suffix assignment is reproducible across syncs.
+	for node in sorted(nodes, key=lambda n: n["source_path"]):
 		resolve_route(node)
 
 	siblings: dict[str, list[dict[str, Any]]] = defaultdict(list)
