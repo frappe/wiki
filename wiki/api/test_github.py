@@ -157,7 +157,10 @@ class TestGithubAuth(FrappeTestCase):
 		page2 = [{"full_name": "acme/last", "private": False, "default_branch": "develop"}]
 
 		def _get(url, headers):
-			payload = page1 if "page=1" in url else page2
+			# Match the page param with its "&" prefix: a bare "page=1" is also a
+			# substring of "per_page=100", which would pin every page to page1 and
+			# loop repositories() forever.
+			payload = page1 if "&page=1" in url else page2
 			return _FakeResponse({"repositories": payload})
 
 		fake = _FakeRequests(get=_get)
