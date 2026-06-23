@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Frappe and contributors
 # For license information, please see license.txt
 
+import frappe
 from frappe.model.document import Document
 
 
@@ -28,3 +29,9 @@ class WikiRevisionItem(Document):
 	# end: auto-generated types
 
 	pass
+
+
+def on_doctype_update():
+	# Page lookups filter on (revision, doc_key); without this index the query
+	# full-scans the table, which is slow once revisions accumulate (1M+ rows on docs.frappe.io).
+	frappe.db.add_index("Wiki Revision Item", ["revision", "doc_key"])
