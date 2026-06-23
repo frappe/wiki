@@ -32,7 +32,7 @@ def get_context(context):
 	payload = github.exchange_oauth_code(args.get("code"), get_url("/github/redirect"))
 	github.store_user_token(frappe.session.user, payload)
 	# GitHub redirects here via GET, which Frappe does not auto-commit.
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep
 
 	frappe.local.flags.redirect_location = "/wiki?github_connected=1"
 	raise frappe.Redirect

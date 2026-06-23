@@ -395,7 +395,7 @@ def load_wiki_config(
 	try:
 		config = json.loads(raw or "{}")
 	except json.JSONDecodeError as exc:
-		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_PATH, exc))
+		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_PATH, str(exc)))
 	if not isinstance(config, dict):
 		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_PATH))
 	return config

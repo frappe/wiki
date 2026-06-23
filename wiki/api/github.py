@@ -509,7 +509,9 @@ def _dispatch_webhook(body: bytes, signature: str | None, event: str | None) -> 
 	return {"synced_spaces": spaces, "branch": branch}
 
 
-@frappe.whitelist(allow_guest=True)
+# Guest access is required: GitHub posts webhooks unauthenticated. The body is
+# verified against the App's HMAC-SHA256 secret in _dispatch_webhook before any work.
+@frappe.whitelist(allow_guest=True)  # nosemgrep
 def webhook() -> dict[str, Any]:
 	"""GitHub push-event receiver. Payload URL: ``/api/method/wiki.api.github.webhook``."""
 	body = frappe.request.get_data() or b""
