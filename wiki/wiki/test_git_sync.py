@@ -227,6 +227,57 @@ class TestGitSyncConfig(FrappeTestCase):
 		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
 		self.assertEqual(nodes[0]["source_path"], "docs/intro.md")
 
+	# --- Starlight-shaped sidebar: bare paths, {label,items}, autogenerate ---
+
+	def test_bare_path_leaf_infers_title(self):
+		# A bare string entry is a leaf whose title is inferred from its H1.
+		config = {"sidebar": ["intro.md", "guides/setup.md"]}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		by_path = {n["source_path"]: n for n in nodes}
+		self.assertEqual(by_path["docs/intro.md"]["title"], "Heading In File")
+		self.assertEqual(by_path["docs/guides/setup.md"]["title"], "Setup In File")
+
+	def test_explicit_label_and_items_shapes(self):
+		# {label, page} leaf (label authoritative) and {label, items} group.
+		config = {
+			"sidebar": [
+				{"label": "Intro", "page": "intro.md"},
+				{"label": "Guides", "items": ["guides/setup.md"]},
+			]
+		}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		by_path = {n["source_path"]: n for n in nodes}
+		self.assertEqual(by_path["docs/intro.md"]["title"], "Intro")  # label wins
+		group = next(n for n in nodes if n["is_group"])
+		self.assertEqual(group["title"], "Guides")
+		# The bare child of the group infers its own title from H1.
+		setup = by_path["docs/guides/setup.md"]
+		self.assertEqual(setup["parent_dir"], group["dir"])
+		self.assertEqual(setup["title"], "Setup In File")
+
+	def test_autogenerate_labeled_group(self):
+		# autogenerate fills a named group from a folder via the inference engine.
+		config = {"sidebar": [{"label": "Reference", "autogenerate": {"directory": "guides"}}]}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		group = next(n for n in nodes if n["is_group"] and n["title"] == "Reference")
+		children = {n["source_path"] for n in nodes if n["parent_dir"] == group["dir"]}
+		self.assertEqual(children, {"docs/guides/setup.md", "docs/guides/deep.md"})
+
+	def test_autogenerate_inline_after_pinned_entry(self):
+		# A pinned leaf, then an unlabeled autogenerate splicing the folder inline.
+		config = {"sidebar": ["intro.md", {"autogenerate": {"directory": "guides"}}]}
+		repo = self._repo_with_config(config)
+		nodes, _, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		by_path = {n["source_path"]: n for n in nodes}
+		# guides files splice at the root (no wrapping group) …
+		self.assertEqual(by_path["docs/guides/setup.md"]["parent_dir"], "")
+		# … and the pinned intro sorts before them.
+		self.assertLess(by_path["docs/intro.md"]["seg"], by_path["docs/guides/setup.md"]["seg"])
+		self.assertLess(by_path["docs/intro.md"]["seg"], by_path["docs/guides/deep.md"]["seg"])
+
 
 class TestGitSyncApply(FrappeTestCase):
 	def tearDown(self):
@@ -463,6 +514,28 @@ class TestGitSyncApply(FrappeTestCase):
 		guides = next(d for d in docs if d.is_group and d.title == "Guides")
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
+
+	def test_autogenerate_syncs_folder_into_group(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		config = {"sidebar": [{"label": "Reference", "autogenerate": {"directory": "api"}}]}
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.json": json.dumps(config),
+				"docs/api/README.md": "# API Home\nlanding",
+				"docs/api/auth.md": "# Auth",
+				"docs/api/users.md": "# Users",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		docs = self._tree(space)
+		group = next(d for d in docs if d.is_group and d.title == "Reference")
+		# The folder's README becomes the group's landing (Edit-on-GitHub source).
+		self.assertEqual(group.source_path, "docs/api/README.md")
+		children = {d.source_path for d in docs if d.parent_wiki_document == group.name}
+		self.assertEqual(children, {"docs/api/auth.md", "docs/api/users.md"})
 
 	def test_noop_sync_when_head_sha_unchanged(self):
 		space = _make_synced_space()

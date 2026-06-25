@@ -490,17 +490,24 @@ def build_nodes_from_config(
 	token: str | None = None,
 	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
-	"""Drive structure from an explicit ``.wiki.json`` ``sidebar`` instead of inference.
+	"""Drive structure from an explicit ``.wiki.json`` ``sidebar`` (Astro Starlight-shaped).
 
-	``sidebar`` is an ordered list of single-key dicts: ``{"Title": "path.md"}`` is
-	a leaf page, ``{"Title": [ ...children... ]}`` is a group. Paths are relative to
-	the docs folder (``docs_subdir``) — the same folder the config itself lives in.
-	Hierarchy, order, and titles all come from the config; page bodies still come
-	from the repo files.
+	``sidebar`` is an ordered list; each entry is one of:
 
-	Only files referenced in ``sidebar`` are synced; anything else in the repo is
-	ignored (the config is treated as authoritative). A sidebar entry whose file is
-	missing from the tree is skipped.
+	* ``"intro.md"`` — a **bare path** leaf; its title is inferred (front matter →
+	  H1 → humanized filename), exactly like the inference path.
+	* ``{"label": "Intro", "page": "intro.md"}`` — an explicit leaf; ``label`` is
+	  authoritative. (``{"Intro": "intro.md"}`` single-key form is accepted too.)
+	* ``{"label": "Guides", "items": [ ... ]}`` — a group. (``{"Guides": [ ... ]}``
+	  single-key form is accepted too.)
+	* ``{"label": "Reference", "autogenerate": {"directory": "reference"}}`` —
+	  **autogenerate** a subtree from a folder via the inference engine. With a
+	  ``label`` the folder's contents nest under that group (the folder's
+	  ``README``/``index`` becomes the group's landing); without one they splice
+	  inline at this position. Curated entries and ``autogenerate`` can be mixed.
+
+	Paths are relative to the docs folder (``docs_subdir``) — the same folder the
+	config lives in. Only referenced files are synced; a missing file is skipped.
 	"""
 	prefix = (docs_subdir or "").strip("/")
 	sidebar = config.get("sidebar") or []
@@ -511,8 +518,8 @@ def build_nodes_from_config(
 		return f"{prefix}/{rel}" if prefix else rel
 
 	nodes: list[dict[str, Any]] = []
-	# A monotonic counter rendered as a zero-padded seg: the existing alphabetical
-	# sibling sort in _sync_to_live then reproduces sidebar (document) order for free.
+	# A monotonic counter rendered as a zero-padded seg: the existing sibling sort
+	# in _sync_to_live then reproduces sidebar (document) order for free.
 	order = [0]
 
 	def next_seg() -> str:
@@ -520,53 +527,122 @@ def build_nodes_from_config(
 		order[0] += 1
 		return seg
 
+	def add_leaf(path: str | None, parent_dir: str, label: str | None = None) -> None:
+		full_path = full(path or "")
+		blob_sha = sha_by_path.get(full_path)
+		if not blob_sha:
+			return
+		# An explicit/single-key label is authoritative; a bare path infers its
+		# title (and the body is still stripped + image-rewritten + publish-gated).
+		body, meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
+		base = full_path.split("/")[-1].rsplit(".", 1)[0]
+		nodes.append(
+			{
+				"is_group": 0,
+				"dir": parent_dir,
+				"parent_dir": parent_dir,
+				"source_path": full_path,
+				"landing_path": None,
+				"title": label or _front_matter_title(meta) or _extract_title(body) or _humanize(base),
+				"slug": _front_matter_slug(meta) or base,
+				"content": _rewrite_image_links(body, full_path, repo, sha_by_path, space, token),
+				"is_published": _published_flag(meta),
+				"order": None,
+				"seg": next_seg(),
+			}
+		)
+
+	def add_group(label: str, parent_dir: str) -> str:
+		dir_key = f"{parent_dir}/{label}" if parent_dir else label
+		nodes.append(
+			{
+				"is_group": 1,
+				"dir": dir_key,
+				"parent_dir": parent_dir,
+				# No file backs a sidebar group, so its identity is the (stable)
+				# sidebar title-chain; it carries no editable source.
+				"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+				"landing_path": None,
+				"title": label,
+				"slug": label,
+				"content": "",
+				"is_published": 1,
+				"order": None,
+				"seg": next_seg(),
+			}
+		)
+		return dir_key
+
+	def add_autogenerate(directory: str | None, parent_dir: str, label: str | None) -> None:
+		sub_prefix = full(directory or "")
+		inf_nodes, inf_root_content, inf_root_landing = build_nodes(
+			repo, tree_entries, sub_prefix, token, space
+		)
+		if label:
+			dir_key = f"{parent_dir}/{label}" if parent_dir else label
+			nodes.append(
+				{
+					"is_group": 1,
+					"dir": dir_key,
+					"parent_dir": parent_dir,
+					# Reuse the folder's README/index landing so the group gets
+					# landing content + an "Edit on GitHub" target.
+					"source_path": inf_root_landing or f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+					"landing_path": inf_root_landing,
+					"title": label,
+					"slug": label,
+					"content": inf_root_content or "",
+					"is_published": 1,
+					"order": None,
+					"seg": next_seg(),
+				}
+			)
+			attach_dir = dir_key
+		else:
+			attach_dir = parent_dir
+
+		# Re-key the inferred dirs under a unique namespace so they can't collide
+		# with the sidebar's title-chain dir keys, then attach them at attach_dir.
+		ns = f"auto::{sub_prefix}"
+		for node in inf_nodes:
+			orig_parent = node["parent_dir"]
+			node["parent_dir"] = attach_dir if orig_parent == "" else f"{ns}::{orig_parent}"
+			node["dir"] = node["parent_dir"] if not node["is_group"] else f"{ns}::{node['dir']}"
+
+		if not label:
+			# Inline splice: the folder's top-level items interleave with the
+			# surrounding sidebar entries, so give them counter segs in inferred
+			# order (front-matter order, then filename) and drop the FM order key.
+			top = [n for n in inf_nodes if n["parent_dir"] == attach_dir]
+			top.sort(key=lambda n: (n.get("order") is None, n.get("order") or 0, n["seg"].lower()))
+			for node in top:
+				node["order"] = None
+				node["seg"] = next_seg()
+
+		nodes.extend(inf_nodes)
+
 	def walk(entries: list[Any], parent_dir: str) -> None:
 		if not isinstance(entries, list):
 			return
 		for entry in entries:
-			if not isinstance(entry, dict):
-				continue
-			for title, value in entry.items():
-				seg = next_seg()
-				if isinstance(value, list):
-					dir_key = f"{parent_dir}/{title}" if parent_dir else title
-					nodes.append(
-						{
-							"is_group": 1,
-							"dir": dir_key,
-							"parent_dir": parent_dir,
-							# No file backs a sidebar group, so its identity is the (stable)
-							# sidebar title-chain; it carries no editable source.
-							"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
-							"landing_path": None,
-							"title": title,
-							"content": "",
-							"is_published": 1,
-							"seg": seg,
-						}
-					)
-					walk(value, dir_key)
-				else:
-					path = full(value)
-					blob_sha = sha_by_path.get(path)
-					if not blob_sha:
-						continue
-					# Nav title is authoritative here, but the body is still stripped
-					# and front-matter `is_published`/`draft` is still honoured.
-					body, meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
-					nodes.append(
-						{
-							"is_group": 0,
-							"dir": parent_dir,
-							"parent_dir": parent_dir,
-							"source_path": path,
-							"landing_path": None,
-							"title": title,
-							"content": _rewrite_image_links(body, path, repo, sha_by_path, space, token),
-							"is_published": _published_flag(meta),
-							"seg": seg,
-						}
-					)
+			if isinstance(entry, str):
+				add_leaf(entry, parent_dir)
+			elif isinstance(entry, dict):
+				if isinstance(entry.get("autogenerate"), dict):
+					add_autogenerate(entry["autogenerate"].get("directory"), parent_dir, entry.get("label"))
+				elif isinstance(entry.get("items"), list):
+					# A labelled group nests its items; a label-less one splices inline.
+					child_dir = add_group(entry["label"], parent_dir) if entry.get("label") else parent_dir
+					walk(entry["items"], child_dir)
+				elif entry.get("page") or entry.get("path"):
+					add_leaf(entry.get("page") or entry.get("path"), parent_dir, label=entry.get("label"))
+				elif len(entry) == 1:
+					# Legacy single-key sugar: {"Title": "path.md"} or {"Title": [..]}.
+					((key, value),) = entry.items()
+					if isinstance(value, list):
+						walk(value, add_group(key, parent_dir))
+					elif isinstance(value, str):
+						add_leaf(value, parent_dir, label=key)
 
 	walk(sidebar, "")
 	return nodes, None, None

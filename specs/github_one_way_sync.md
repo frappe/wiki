@@ -100,10 +100,17 @@ Group landing pages point at their `README.md`/`index.md`. Built purely from exi
 Let a repo control sidebar order & titles instead of alphabetical inference. In the engine, if `.wiki.json` exists **inside the docs folder** (`{docs_subdir}/.wiki.json`, or the repo root when no docs folder is set), parse its `sidebar` (ordered, possibly nested) and drive `parent_wiki_document` chain + `sort_order` + titles from it; absent → TB1 inference unchanged. Paths are relative to the docs folder (no `docs_dir` key — the space already supplies it).
 
 ```json
-{ "sidebar": [ {"Intro": "intro.md"}, {"Guides": [{"Setup": "guides/setup.md"}]} ] }
+{
+  "sidebar": [
+    "intro.md",
+    { "label": "Getting Started", "page": "getting-started.md" },
+    { "label": "Guides", "items": ["guides/install.md", "guides/config.md"] },
+    { "label": "Reference", "autogenerate": { "directory": "reference" } }
+  ]
+}
 ```
 
-> **Note (polish):** the config moved *inside the docs folder* and `nav` was renamed `sidebar`; the redundant `docs_dir` key was dropped (the space's "Docs folder" is authoritative). Earlier iterations placed `.wiki.json` at the repo root with a `docs_dir`/`nav` shape.
+> **Note (polish):** the config moved *inside the docs folder*, `nav` was renamed `sidebar`, and the redundant `docs_dir` key was dropped (the space's "Docs folder" is authoritative). The `sidebar` schema is now **Astro Starlight-shaped**: a bare `"path.md"` (title inferred), `{label, page}` (explicit leaf), `{label, items}` (group), or `{label?, autogenerate: {directory}}` (fill a subtree via the inference engine — a labelled `autogenerate` nests under that group and reuses the folder's `README`/`index` as its landing; an unlabelled one splices inline). The old single-key forms (`{"Intro": "intro.md"}`, `{"Guides": [...]}`) are still accepted as sugar. Earlier iterations placed `.wiki.json` at the repo root with a `docs_dir`/`nav` shape.
 
 - **Tests / demo:** unit for config parse + ordering/nesting and the inference fallback; browser (agent-browser) syncs a repo with `.wiki.json` and asserts sidebar order/titles.
 
@@ -263,4 +270,5 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] TB8a — Backend image import: `_fetch_blob_bytes` + `_is_repo_relative_image` + `_import_repo_image` (one Frappe File per (space, blob SHA), attached to the space, optional WebP) + `_rewrite_image_links` (resolve `./`/`../` against source dir, rewrite before content-blob); `space` threaded through `build_nodes`/`build_nodes_from_config`; 6 unit tests (4 temp-revert verified). Privacy resolved: **public files + caveat** (private-repo images world-readable by URL — documented limitation).
 - [ ] TB8b — Privacy/serving (private files + permission-gated route, deferred) + live browser demo (synced page renders the imported image). **Not started.**
 - [x] Polish pass: create dialog ("Synced from GitHub?", Docs folder defaults to `docs`); synced banner (repo name as title + "Synced from GitHub", no "read only"); silent guarded first-sync (no duplicate toasts); frappe-ui-styled task-list checkboxes; "GitHub Sync" settings tab; linkable commit SHA + "Sync in progress" status label. Front-matter `is_published`/`published`/`draft`, `slug` override, and ordering (`sidebar_position`/`nav_order`/`weight`/`order`) now honoured in the inference path; 5 unit tests (temp-revert verified).
+- [x] `.wiki.json` reshaped (Starlight-inspired): config moved inside the docs folder, `nav` → `sidebar`, `docs_dir` dropped. `sidebar` accepts bare `"path.md"`, `{label, page}`, `{label, items}`, and `{label?, autogenerate: {directory}}` (curated + inferred can be mixed); legacy single-key forms still parse. 11 unit + sync tests.
 - [x] TB9 — Strip YAML front matter before render + use its `title`: `strip_front_matter` + `_front_matter_title` in the engine; title precedence FM `title` → H1 → humanized filename (inference path); nav title stays authoritative; malformed/non-mapping/mid-body `---` left intact; 11 unit tests (7 temp-revert verified).
