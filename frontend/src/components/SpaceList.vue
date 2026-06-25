@@ -595,7 +595,7 @@ const handleCreateSpace = () => {
     return;
   }
   if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
-    formError.value = __("Pick a repository for a git-synced space.");
+    formError.value = __("Please pick a GitHub repository");
     return;
   }
 
