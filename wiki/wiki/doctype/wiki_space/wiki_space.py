@@ -77,15 +77,19 @@ class WikiSpace(Document):
 				doc_names = get_descendants_of("Wiki Document", self.root_group, ignore_permissions=True)
 				doc_names.append(self.root_group)
 			# Defensive: catch any document pointing at the space but outside the tree.
-			doc_names += frappe.get_all("Wiki Document", filters={"wiki_space": self.name}, pluck="name")
+			doc_names += frappe.get_all(
+				"Wiki Document", filters={"wiki_space": self.name}, pluck="name", limit=0
+			)
 			for name in dict.fromkeys(doc_names):
 				if frappe.db.exists("Wiki Document", name):
 					frappe.delete_doc("Wiki Document", name, force=True, ignore_permissions=True)
 
-			revisions = frappe.get_all("Wiki Revision", filters={"wiki_space": self.name}, pluck="name")
+			revisions = frappe.get_all(
+				"Wiki Revision", filters={"wiki_space": self.name}, pluck="name", limit=0
+			)
 			if revisions:
 				items = frappe.get_all(
-					"Wiki Revision Item", filters={"revision": ["in", revisions]}, pluck="name"
+					"Wiki Revision Item", filters={"revision": ["in", revisions]}, pluck="name", limit=0
 				)
 				for item in items:
 					frappe.delete_doc("Wiki Revision Item", item, force=True, ignore_permissions=True)
@@ -93,7 +97,7 @@ class WikiSpace(Document):
 					frappe.delete_doc("Wiki Revision", revision, force=True, ignore_permissions=True)
 
 			for doctype in ("Wiki Git Sync Log", "Wiki Change Request"):
-				for name in frappe.get_all(doctype, filters={"wiki_space": self.name}, pluck="name"):
+				for name in frappe.get_all(doctype, filters={"wiki_space": self.name}, pluck="name", limit=0):
 					frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
 		finally:
 			frappe.flags.in_apply_merge_revision = previous_flag

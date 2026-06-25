@@ -476,6 +476,7 @@ def _spaces_for_push(repo_full_name: str | None, branch: str | None) -> list[str
 		"Wiki Space",
 		filters={"git_synced": 1, "repo_full_name": repo_full_name, "branch": branch},
 		pluck="name",
+		limit=0,
 	)
 
 

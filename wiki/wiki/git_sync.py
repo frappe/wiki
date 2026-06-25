@@ -86,7 +86,15 @@ def _fetch_tree(repo: str, ref: str, token: str | None = None) -> list[dict[str,
 		timeout=30,
 	)
 	resp.raise_for_status()
-	return resp.json().get("tree", [])
+	data = resp.json()
+	if data.get("truncated"):
+		frappe.throw(
+			_(
+				"Repository tree for {0} is too large (>100,000 entries) and was truncated by GitHub."
+				" Narrow the sync to a sub-directory via the 'Docs Subdirectory' field."
+			).format(repo)
+		)
+	return data.get("tree", [])
 
 
 def _fetch_blob(repo: str, sha: str, token: str | None = None) -> str:
@@ -717,6 +725,7 @@ def _sync_to_live(
 		"Wiki Document",
 		fields=["name", "doc_key", "source_path"],
 		filters=[["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+		limit=0,
 	)
 	src_to_key = {d.source_path: d.doc_key for d in live_docs if d.source_path}
 
