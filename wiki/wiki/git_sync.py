@@ -995,6 +995,10 @@ def _publish_sync_status(space_name: str, status: str, after_commit: bool = True
 	Terminal states emit ``after_commit`` so a client that reloads on the event
 	reads the freshly-committed doc.
 	"""
+	# Intentionally site-wide (no room): any user viewing the space — and
+	# webhook-triggered syncs that carry no client/user context — must receive it.
+	# The payload is non-sensitive (just the space name + status).
+	# nosemgrep: frappe-semgrep-rules.rules.frappe-realtime-pick-room
 	frappe.publish_realtime(
 		"wiki_git_sync_update",
 		{"space": space_name, "status": status},
