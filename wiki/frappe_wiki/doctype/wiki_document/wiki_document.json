@@ -15,6 +15,7 @@
 		"wiki_space",
 		"is_external_link",
 		"external_url",
+		"source_path",
 		"section_break_eooe",
 		"content",
 		"section_break_j5x7",
@@ -82,6 +83,7 @@
 			"in_list_view": 1,
 			"in_standard_filter": 1,
 			"label": "Route",
+			"length": 500,
 			"search_index": 1
 		},
 		{
@@ -103,6 +105,15 @@
 			"fieldtype": "Code",
 			"label": "Content",
 			"options": "Markdown"
+		},
+		{
+			"description": "Repo-relative path of the source file when this page is git-synced. Identity for cross-sync matching is (wiki_space, source_path).",
+			"fieldname": "source_path",
+			"fieldtype": "Data",
+			"label": "Source Path",
+			"length": 500,
+			"read_only": 1,
+			"no_copy": 1
 		},
 		{
 			"default": "0",

@@ -1,8 +1,10 @@
 <template>
     <div class="wiki-editor-container">
         <div v-if="editor">
-            <WikiToolbar :editor="editor" @uploadImage="handleImageUpload" />
-            <WikiBubbleMenu :editor="editor" />
+            <template v-if="!readonly">
+                <WikiToolbar :editor="editor" @uploadImage="handleImageUpload" />
+                <WikiBubbleMenu :editor="editor" />
+            </template>
             <EditorContent :editor="editor" />
         </div>
         <div v-else class="wiki-editor-loading">
@@ -99,6 +101,13 @@ const props = defineProps({
 	savedContent: {
 		type: String,
 		default: '',
+	},
+	// Render the document for reading only: no toolbar/bubble menu, the
+	// ProseMirror view is non-editable, and every save path short-circuits.
+	// Used for git-synced spaces whose content is owned by the repo.
+	readonly: {
+		type: Boolean,
+		default: false,
 	},
 });
 
@@ -611,12 +620,14 @@ function initEditor() {
 		],
 		content: props.content || '',
 		contentType: 'markdown',
+		editable: !props.readonly,
 		editorProps: {
 			handlePaste,
 			handleDrop,
 			attributes: {
 				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content is-editable',
+					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content' +
+					(props.readonly ? '' : ' is-editable'),
 			},
 		},
 		onUpdate: () => {
@@ -697,6 +708,8 @@ async function autoSave() {
 }
 
 function saveToDB() {
+	// Read-only documents (git-synced spaces) never write back.
+	if (props.readonly) return;
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
@@ -737,6 +750,7 @@ defineExpose({
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
 onKeyStroke('s', (e) => {
+	if (props.readonly) return;
 	if (e.metaKey || e.ctrlKey) {
 		e.preventDefault();
 		saveToDB();

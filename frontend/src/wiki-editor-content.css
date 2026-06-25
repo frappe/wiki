@@ -166,6 +166,86 @@
     cursor: col-resize;
 }
 
+/* Task lists (checkboxes) — TipTap renders <ul data-type="taskList"> with a
+   native <input type="checkbox"> per item. Drop the inherited bullet/indent and
+   restyle the checkbox to match frappe-ui's Checkbox. Theme tokens are used
+   throughout so it adapts to dark mode without separate overrides. */
+.wiki-editor-content ul[data-type='taskList'] {
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.wiki-editor-content ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+}
+
+.wiki-editor-content ul[data-type='taskList'] li > label {
+    flex: 0 0 auto;
+    /* Nudge the box onto the first text line. */
+    margin-top: 0.2rem;
+    user-select: none;
+}
+
+.wiki-editor-content ul[data-type='taskList'] li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.wiki-editor-content ul[data-type='taskList'] li > div > p {
+    margin: 0;
+}
+
+.wiki-editor-content ul[data-type='taskList'] input[type='checkbox'] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: 1px solid var(--outline-gray-3, #c7c7c7);
+    border-radius: 0.25rem;
+    background-color: var(--surface-white, #ffffff);
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.wiki-editor-content ul[data-type='taskList'] input[type='checkbox']:hover {
+    border-color: var(--outline-gray-4, #9a9a9a);
+}
+
+.wiki-editor-content ul[data-type='taskList'] input[type='checkbox']:checked {
+    background-color: var(--surface-gray-7, #383838);
+    border-color: var(--surface-gray-7, #383838);
+}
+
+/* Checkmark drawn as a rotated border so it inherits theme colors. */
+.wiki-editor-content ul[data-type='taskList'] input[type='checkbox']:checked::after {
+    content: '';
+    position: absolute;
+    left: 4.5px;
+    top: 1.5px;
+    width: 4px;
+    height: 8px;
+    border: solid var(--surface-white, #ffffff);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Read-only viewer renders the box disabled — keep it looking static. */
+.wiki-editor-content ul[data-type='taskList'] input[type='checkbox']:disabled {
+    cursor: default;
+}
+
+.wiki-editor-content ul[data-type='taskList'] li[data-checked='true'] > div {
+    color: var(--ink-gray-5, #6b7280);
+    text-decoration: line-through;
+}
+
 /* Horizontal rule */
 .wiki-editor-content hr {
     border: none;

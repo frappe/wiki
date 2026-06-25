@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<div class="flex items-center justify-end mb-4">
+		<div v-if="!readonly" class="flex items-center justify-end mb-4">
 			<div class="flex gap-2">
 				<Button :title="__('New Group')" icon="folder-plus" variant="subtle" @click="openCreateDialog(rootNode, true)" />
 				<Button :title="__('New Page')" icon="file-plus" variant="subtle" @click="openCreateDialog(rootNode, false)" />
@@ -16,13 +16,16 @@
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
 			<LucideFileText class="size-12 text-ink-gray-4 mb-4" />
 			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
-			<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
-			<Button variant="solid" @click="openCreateDialog(rootNode, false)">
-				<template #prefix>
-					<LucideFilePlus class="size-4" />
-				</template>
-				{{ __('Create First Page') }}
-			</Button>
+			<template v-if="!readonly">
+				<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
+				<Button variant="solid" @click="openCreateDialog(rootNode, false)">
+					<template #prefix>
+						<LucideFilePlus class="size-4" />
+					</template>
+					{{ __('Create First Page') }}
+				</Button>
+			</template>
+			<p v-else class="text-sm text-ink-gray-5">{{ __('No pages have synced from the repository yet') }}</p>
 		</div>
 
 		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden">
@@ -33,6 +36,7 @@
 				:level="0"
 				:parent-name="rootNode"
 				:space-id="spaceId"
+				:readonly="readonly"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
 				@create="openCreateDialog"
@@ -209,6 +213,12 @@ const props = defineProps({
 		// internally when this is empty, so it's safe to pass through.
 		type: String,
 		default: '',
+	},
+	// Git-synced spaces render the tree read-only — no create/reorder/row
+	// actions. The dialogs below stay mounted but are never opened.
+	readonly: {
+		type: Boolean,
+		default: false,
 	},
 	selectedPageId: {
 		type: String,

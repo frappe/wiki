@@ -61,6 +61,11 @@
 					:space-id="spaceId"
 					@update:dirty="permissionsDirty = $event"
 				/>
+				<GitSyncPanel
+					v-else-if="selectedTab === 'git-sync'"
+					:space="space"
+					:space-id="spaceId"
+				/>
 			</div>
 		</div>
 	</div>
@@ -70,9 +75,10 @@
 import { Badge, Button } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import GeneralPanel from './GeneralPanel.vue';
+import GitSyncPanel from './GitSyncPanel.vue';
 import PermissionsPanel from './PermissionsPanel.vue';
 
-defineProps({
+const props = defineProps({
 	space: {
 		type: Object,
 		required: true,
@@ -85,14 +91,21 @@ defineProps({
 
 defineEmits(['close', 'open-update-routes', 'open-clone']);
 
-const tabs = [
-	{ label: __('General'), value: 'general', icon: 'settings' },
-	{ label: __('Permissions'), value: 'permissions', icon: 'lock' },
-];
+const tabs = computed(() => {
+	const items = [
+		{ label: __('General'), value: 'general', icon: 'settings' },
+		{ label: __('Permissions'), value: 'permissions', icon: 'lock' },
+	];
+	// GitHub Sync settings only apply to git-synced spaces.
+	if (props.space.doc?.git_synced) {
+		items.push({ label: __('GitHub Sync'), value: 'git-sync', icon: 'github' });
+	}
+	return items;
+});
 
 const selectedTab = ref('general');
 const permissionsDirty = ref(false);
 const activeTab = computed(() =>
-	tabs.find((tab) => tab.value === selectedTab.value),
+	tabs.value.find((tab) => tab.value === selectedTab.value),
 );
 </script>

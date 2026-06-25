@@ -194,7 +194,9 @@ export async function getList<T = Record<string, unknown>>(
 	if (options.filters) {
 		params.set('filters', JSON.stringify(options.filters));
 	}
-	if (options.limit) {
+	if (options.limit !== undefined) {
+		// 0 means "no limit" in Frappe — without this, the REST default of 20
+		// silently truncates large result sets.
 		params.set('limit_page_length', options.limit.toString());
 	}
 	if (options.orderBy) {
