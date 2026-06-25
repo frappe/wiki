@@ -80,6 +80,16 @@ async function renderPreview() {
 	try {
 		const mermaid = await getMermaid();
 		const themeConfig = await getMermaidThemeConfig();
+		// Mermaid sizes nodes from the label's measured width; measuring before the
+		// web font loads sizes against a narrower fallback and the real font then
+		// overflows (the last glyph clips). Wait for fonts so sizing is accurate.
+		if (document.fonts?.ready) {
+			try {
+				await document.fonts.ready;
+			} catch {
+				/* fonts API unavailable — render anyway */
+			}
+		}
 		if (version !== renderVersion) return;
 
 		mermaid.initialize({
