@@ -46,7 +46,15 @@ class WikiGitHubWebhookLog(Document):
 		if not _verify_signature(self.payload.encode(), self.signature, secret):
 			frappe.throw(_("Invalid webhook signature."), frappe.PermissionError)
 
-		payload = frappe.parse_json(self.payload)
+		# Body is signature-verified (so genuinely from GitHub), but guard the parse
+		# anyway: a corrupt body must still persist as an audit row rather than 500
+		# and send GitHub into a retry loop. A non-dict payload simply has no fields.
+		try:
+			payload = frappe.parse_json(self.payload)
+		except Exception:
+			payload = {}
+		if not isinstance(payload, dict):
+			payload = {}
 		self.github_installation_id = str((payload.get("installation") or {}).get("id") or "") or None
 		repo = payload.get("repository") or {}
 		self.repository = repo.get("full_name") or repo.get("name")

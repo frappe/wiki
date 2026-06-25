@@ -893,6 +893,7 @@ def _sync_to_live(
 			"Wiki Document",
 			filters={"doc_key": ["in", [node["doc_key"] for node in nodes]]},
 			fields=["name", "doc_key"],
+			limit=0,
 		)
 	}
 	for node in nodes:
