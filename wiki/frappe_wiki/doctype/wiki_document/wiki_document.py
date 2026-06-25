@@ -446,30 +446,22 @@ class WikiDocumentRenderer(BaseRenderer):
 		if self.path == "wiki" or self.path.startswith("wiki/"):
 			return False
 
-		document = frappe.db.get_value(
+		# Prefer a published content page at this route. A root README/index is
+		# routed at the space route itself, so this also serves /<space>/ — winning
+		# over the same-route root group, which only redirects to its first child.
+		leaf = frappe.db.get_value(
 			"Wiki Document",
-			{"route": self.path},
-			["name", "is_group", "is_published", "is_external_link", "is_landing"],
-			as_dict=True,
+			{"route": self.path, "is_group": 0, "is_published": 1, "is_external_link": 0},
+			"name",
 		)
-		if document and document.is_published and not document.is_external_link:
-			# Leaves render directly; a group renders in place only when flagged as a
-			# landing (a git-synced README/index promoted onto it — set by the sync
-			# engine). Unflagged groups redirect to their first child, so normal
-			# spaces are unaffected.
-			if not document.is_group or document.is_landing:
-				self.wiki_doc_name = document.name
-				return True
+		if leaf:
+			self.wiki_doc_name = leaf
+			return True
 
-		# Get root group - either from a group document or from a Wiki Space route
-		root_group = None
-		if document and document.is_group:
-			root_group = document.name
-		else:
-			# Check if this is a Wiki Space route
-			root_group = frappe.db.get_value(
-				"Wiki Space", {"route": self.path, "is_published": 1}, "root_group"
-			)
+		# A group / Wiki Space route with no page of its own: redirect to first child.
+		root_group = frappe.db.get_value(
+			"Wiki Document", {"route": self.path, "is_group": 1}, "name"
+		) or frappe.db.get_value("Wiki Space", {"route": self.path, "is_published": 1}, "root_group")
 
 		# Redirect to first published child document if available
 		if root_group:

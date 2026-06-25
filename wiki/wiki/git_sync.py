@@ -561,10 +561,9 @@ def build_nodes_from_config(
 		return f"{prefix}/{rel}" if prefix else rel
 
 	nodes: list[dict[str, Any]] = []
-	# A root-level README/index is the space's landing (served at the space route),
-	# not a standalone ``/index`` page — mirrors the inference path. Holder so the
-	# nested add_leaf can set it.
-	root_landing: dict[str, str | None] = {"content": None, "path": None}
+	# Guards the single root landing: the first root-level README/index is served
+	# at the space route; any later one falls back to a normal page (no collision).
+	landing_taken = [False]
 	# A monotonic counter rendered as a zero-padded seg: the existing sibling sort
 	# in _sync_to_live then reproduces sidebar (document) order for free.
 	order = [0]
@@ -583,11 +582,15 @@ def build_nodes_from_config(
 		# title (and the body is still stripped + image-rewritten + publish-gated).
 		body, meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
 		base = full_path.split("/")[-1].rsplit(".", 1)[0]
-		# A root-level README/index lands at the space route, not /<...>/index.
-		if parent_dir == "" and full_path.split("/")[-1].lower() in LANDING_BASENAMES:
-			root_landing["content"] = _rewrite_image_links(body, full_path, repo, sha_by_path, space, token)
-			root_landing["path"] = full_path
-			return
+		# A root-level README/index stays a normal page but is routed at the space
+		# root (/<space>/, not /<space>/index) — purely a routing tweak.
+		is_landing = (
+			not landing_taken[0]
+			and parent_dir == ""
+			and full_path.split("/")[-1].lower() in LANDING_BASENAMES
+		)
+		if is_landing:
+			landing_taken[0] = True
 		nodes.append(
 			{
 				"is_group": 0,
@@ -595,6 +598,7 @@ def build_nodes_from_config(
 				"parent_dir": parent_dir,
 				"source_path": full_path,
 				"landing_path": None,
+				"landing": is_landing,
 				"title": label or _front_matter_title(meta) or _extract_title(body) or _humanize(base),
 				"slug": _front_matter_slug(meta) or base,
 				"content": _rewrite_image_links(body, full_path, repo, sha_by_path, space, token),
@@ -697,7 +701,7 @@ def build_nodes_from_config(
 						add_leaf(value, parent_dir, label=key)
 
 	walk(sidebar, "")
-	return nodes, root_landing["content"], root_landing["path"]
+	return nodes, None, None
 
 
 # --------------------------------------------------------------------------- #
@@ -736,7 +740,10 @@ def _sync_to_live(
 		filters=[["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
 		limit=0,
 	)
-	src_to_key = {d.source_path: d.doc_key for d in live_docs if d.source_path}
+	# Exclude the root group: it's structural, and a node must never adopt its
+	# doc_key via a shared source_path (that key is pre-seeded in route_for and
+	# would skip slug/route assignment).
+	src_to_key = {d.source_path: d.doc_key for d in live_docs if d.source_path and d.doc_key != root_doc_key}
 
 	# Stable identity: reuse the doc_key already bound to this source_path.
 	group_key_by_dir: dict[str, str] = {}
@@ -761,6 +768,13 @@ def _sync_to_live(
 		key = node["doc_key"]
 		if key in route_for:
 			return route_for[key]
+		# A root landing leaf (README/index) is served at the space route itself —
+		# /<space>/, not /<space>/index — while staying a normal sidebar page.
+		if node.get("landing"):
+			slug_for[key] = cleanup_page_name(node.get("slug") or node["title"]).replace("_", "-") or "page"
+			route_for[key] = space.route
+			used_routes.add(space.route)
+			return space.route
 		slug = cleanup_page_name(node.get("slug") or node["title"]).replace("_", "-") or "page"
 		parent_key = node["parent_key"]
 		parent_route = space.route if parent_key == root_doc_key else resolve_route(node_by_key[parent_key])
@@ -884,29 +898,9 @@ def _sync_to_live(
 	for node in nodes:
 		name = key_to_name.get(node["doc_key"])
 		if name:
-			# is_landing flags a group that carries its own README/index content, so
-			# the renderer shows it in place instead of redirecting to a child.
 			frappe.db.set_value(
-				"Wiki Document",
-				name,
-				{
-					"source_path": node["source_path"],
-					"is_landing": 1 if node["is_group"] and node.get("landing_path") else 0,
-				},
-				update_modified=False,
+				"Wiki Document", name, "source_path", node["source_path"], update_modified=False
 			)
-	# A root README/index makes the root group a real landing page served at the
-	# space route: flag it, publish it, title it from the landing, and stamp its
-	# source so "Edit on GitHub" resolves. (Without a landing the root stays a
-	# structural, unpublished container that redirects to its first child.)
-	if root_source_path:
-		updates = {"source_path": root_source_path, "is_published": 1, "is_landing": 1}
-		title = _extract_title(root_content or "")
-		if title:
-			updates["title"] = title
-		frappe.db.set_value("Wiki Document", space.root_group, updates, update_modified=False)
-	else:
-		frappe.db.set_value("Wiki Document", space.root_group, "is_landing", 0, update_modified=False)
 
 	return counts
 

@@ -213,9 +213,9 @@ class TestGitSyncConfig(FrappeTestCase):
 		self.assertLess(by_path["docs/intro.md"]["seg"], guides["seg"])
 		self.assertLess(by_path["docs/guides/setup.md"]["seg"], by_path["docs/guides/deep.md"]["seg"])
 
-	def test_config_root_index_becomes_landing_not_a_page(self):
-		# A root-level README/index referenced in the sidebar lands at the space
-		# route (root_content), not as a standalone /<space>/index leaf.
+	def test_config_root_index_is_a_landing_leaf(self):
+		# A root-level README/index stays a normal leaf (so it shows in the sidebar)
+		# but is flagged to route at the space root rather than /<space>/index.
 		config = {"sidebar": [{"Home": "index.md"}, {"Intro": "intro.md"}]}
 		files = {
 			"docs/.wiki.json": json.dumps(config),
@@ -224,14 +224,13 @@ class TestGitSyncConfig(FrappeTestCase):
 		}
 		repo = _FakeRepo(files)
 		repo.install(self)
-		nodes, root_content, root_landing = build_nodes_from_config(
-			"acme/docs", repo.tree(), config, docs_subdir="docs"
-		)
-		self.assertIn("welcome", root_content)
-		self.assertEqual(root_landing, "docs/index.md")
-		# index.md is absorbed into the landing — no standalone node for it.
-		self.assertNotIn("docs/index.md", {n["source_path"] for n in nodes})
-		self.assertIn("docs/intro.md", {n["source_path"] for n in nodes})
+		nodes, root_content, _ = build_nodes_from_config("acme/docs", repo.tree(), config, docs_subdir="docs")
+		self.assertIsNone(root_content)
+		by_path = {n["source_path"]: n for n in nodes}
+		home = by_path["docs/index.md"]
+		self.assertFalse(home["is_group"])
+		self.assertTrue(home["landing"])
+		self.assertFalse(by_path["docs/intro.md"].get("landing"))
 
 	def test_config_skips_missing_files(self):
 		config = {"sidebar": [{"Ghost": "nope.md"}, {"Intro": "intro.md"}]}
@@ -398,31 +397,32 @@ class TestGitSyncApply(FrappeTestCase):
 		docs = self._tree(space)
 		guides = next(d for d in docs if d.is_group and d.title == "Guides")
 		self.assertEqual(guides.source_path, "docs/guides/README.md")
-		# Flagged a landing so the renderer shows it in place (not redirect-to-child).
-		self.assertEqual(frappe.db.get_value("Wiki Document", guides.name, "is_landing"), 1)
 		# The leaf keeps its own file path and nests under the group.
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
-		self.assertEqual(frappe.db.get_value("Wiki Document", setup.name, "is_landing"), 0)
 
-	def test_root_readme_lands_on_root_group(self):
-		# A docs-root README becomes the space landing: the root group is flagged,
-		# published, and served at the space route — not a standalone /readme leaf.
+	def test_root_readme_routes_at_space_route(self):
+		# A docs-root README stays a normal sidebar page but is served at the space
+		# route (/<space>/), not /<space>/index.
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
-		repo = _FakeRepo({"docs/README.md": "# Home\nwelcome", "docs/intro.md": "# Intro"})
+		config = {"sidebar": [{"Home": "README.md"}, {"Intro": "intro.md"}]}
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.json": json.dumps(config),
+				"docs/README.md": "# Home\nwelcome",
+				"docs/intro.md": "# Intro",
+			}
+		)
 		repo.install(self)
 		sync_space(space.name)
 
-		root = frappe.get_doc("Wiki Document", space.root_group)
-		self.assertEqual(root.is_landing, 1)
-		self.assertEqual(root.is_published, 1)
-		self.assertEqual(root.route, space.route)
-		self.assertEqual(root.source_path, "docs/README.md")
-		# No standalone leaf for the landing file.
-		leaf_sources = {d.source_path for d in self._tree(space) if not d.is_group}
-		self.assertNotIn("docs/README.md", leaf_sources)
-		self.assertIn("docs/intro.md", leaf_sources)
+		docs = self._tree(space)
+		home = next(d for d in docs if d.source_path == "docs/README.md")
+		self.assertFalse(home.is_group)  # still a page — shows in the sidebar
+		self.assertEqual(home.parent_wiki_document, space.root_group)
+		# served at /<space>/, not /<space>/readme
+		self.assertEqual(frappe.db.get_value("Wiki Document", home.name, "route"), space.route)
 
 	def test_private_repo_mints_installation_token_from_id(self):
 		# With a github_installation_id and no explicit token, the engine mints a
