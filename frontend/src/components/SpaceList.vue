@@ -137,28 +137,37 @@
           />
 
           <template v-if="newSpace.git_synced">
-            <!-- Not connected yet: kick off the GitHub App connect-account flow. -->
+            <!-- Checking the connection + loading the account list right after the
+                 box is ticked: keep the user informed instead of flashing UI. -->
             <div
-              v-if="!githubConnected.data"
-              class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+              v-if="githubConnected.loading || installationsResource.loading"
+              class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
             >
-              <p class="text-p-sm text-ink-gray-6">
-                {{ __('Connect your GitHub account to pick a repository (private repos supported).') }}
-              </p>
-              <Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
-                <template #prefix>
-                  <LucideGithub class="h-4 w-4" />
-                </template>
-                {{ __('Connect GitHub') }}
-              </Button>
-              <ErrorMessage :message="githubConnected.error" />
+              <LucideLoader2 class="h-4 w-4 animate-spin text-ink-gray-5" />
+              <span class="text-p-sm text-ink-gray-6">{{ __('Connecting to GitHub…') }}</span>
             </div>
 
-            <!-- Connected: installation → repository → branch picker. -->
             <template v-else>
+              <!-- Not connected yet: kick off the GitHub App connect-account flow. -->
+              <div
+                v-if="!githubConnected.data"
+                class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+              >
+                <p class="text-p-sm text-ink-gray-6">
+                  {{ __('Connect your GitHub account to pick a repository (private repos supported).') }}
+                </p>
+                <Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
+                  <template #prefix>
+                    <LucideGithub class="h-4 w-4" />
+                  </template>
+                  {{ __('Connect GitHub') }}
+                </Button>
+                <ErrorMessage :message="githubConnected.error" />
+              </div>
+
               <!-- Connected but the App isn't installed anywhere yet: offer install. -->
               <div
-                v-if="!installationsResource.loading && installationOptions.length === 0"
+                v-else-if="installationOptions.length === 0"
                 class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
               >
                 <p class="text-p-sm text-ink-gray-6">
@@ -185,36 +194,47 @@
                   :placeholder="__('Select an account or organization')"
                 />
 
-                <Autocomplete
-                  v-if="newSpace.github_installation_id"
-                  :label="__('Repository')"
-                  remote
-                  :options="repoOptions"
-                  v-model="newSpace.repo_full_name"
-                  :loading="repos.loading"
-                  :has-more="repos.hasMore"
-                  :placeholder="__('Search repositories…')"
-                  @search="(q) => loadRepos({ search: q, reset: true })"
-                  @load-more="loadRepos()"
-                />
+                <!-- First repo page after an account is chosen: spinner so the repo
+                     field never appears empty with no hint that it's loading. -->
+                <div
+                  v-if="reposInitialLoading"
+                  class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
+                >
+                  <LucideLoader2 class="h-4 w-4 animate-spin text-ink-gray-5" />
+                  <span class="text-p-sm text-ink-gray-6">{{ __('Loading repositories…') }}</span>
+                </div>
 
-                <Autocomplete
-                  v-if="newSpace.repo_full_name"
-                  :label="__('Branch')"
-                  :options="branchOptions"
-                  v-model="newSpace.branch"
-                  :loading="branches.loading"
-                  :placeholder="__('main')"
-                />
+                <template v-else-if="newSpace.github_installation_id">
+                  <Autocomplete
+                    :label="__('Repository')"
+                    remote
+                    :options="repoOptions"
+                    v-model="newSpace.repo_full_name"
+                    :loading="repos.loading"
+                    :has-more="repos.hasMore"
+                    :placeholder="__('Search repositories…')"
+                    @search="(q) => loadRepos({ search: q, reset: true })"
+                    @load-more="loadRepos()"
+                  />
 
-                <FormControl
-                  v-if="newSpace.branch"
-                  type="text"
-                  :label="__('Docs folder')"
-                  v-model="newSpace.docs_subdir"
-                  :placeholder="__('docs')"
-                  :description="__('Folder in the repo to sync. Supports nested paths like docs/guide.')"
-                />
+                  <Autocomplete
+                    v-if="newSpace.repo_full_name"
+                    :label="__('Branch')"
+                    :options="branchOptions"
+                    v-model="newSpace.branch"
+                    :loading="branches.loading"
+                    :placeholder="__('main')"
+                  />
+
+                  <FormControl
+                    v-if="newSpace.branch"
+                    type="text"
+                    :label="__('Docs folder')"
+                    v-model="newSpace.docs_subdir"
+                    :placeholder="__('docs')"
+                    :description="__('Folder in the repo to sync. Supports nested paths like docs/guide.')"
+                  />
+                </template>
                 <ErrorMessage :message="installationsResource.error || repos.error || branches.error" />
               </template>
             </template>
@@ -244,6 +264,7 @@ import {
 import LucidePlus from "~icons/lucide/plus";
 import LucideSearch from "~icons/lucide/search";
 import LucideGithub from "~icons/lucide/github";
+import LucideLoader2 from "~icons/lucide/loader-2";
 import { useUserStore } from "@/stores/user";
 import Autocomplete from "@/components/Autocomplete.vue";
 
@@ -274,7 +295,13 @@ const installationsResource = createResource({
   // A single account is the common case — pick it automatically so the form
   // collapses to repo-first (the account step hides when there's nothing to choose).
   onSuccess: (data) => {
-    if ((data || []).length === 1) newSpace.github_installation_id = String(data[0].id);
+    if ((data || []).length === 1) {
+      // Bridge the gap to the first repo page so the spinner stays up instead of
+      // flashing an empty repo field before loadRepos() (via the watch) kicks in.
+      repos.loadedOnce = false;
+      repos.loading = true;
+      newSpace.github_installation_id = String(data[0].id);
+    }
   },
 });
 const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
@@ -291,7 +318,21 @@ const installationOptions = computed(() =>
 // Repos are paged from the server (a search/load-more list, not loaded all at
 // once) so big orgs don't stall the dialog. `loadRepos` accumulates pages and
 // resets when the search term changes.
-const repos = reactive({ list: [], page: 1, search: "", hasMore: false, loading: false, error: null });
+const repos = reactive({
+  list: [],
+  page: 1,
+  search: "",
+  hasMore: false,
+  loading: false,
+  loadedOnce: false,
+  error: null,
+});
+
+// Show the big "Loading repositories…" spinner only on the first load for an
+// account — later searches keep the field visible and use its in-dropdown hint.
+const reposInitialLoading = computed(
+  () => !!newSpace.github_installation_id && repos.loading && !repos.loadedOnce,
+);
 
 async function loadRepos({ search, reset = false } = {}) {
   if (!newSpace.github_installation_id) return;
@@ -316,6 +357,7 @@ async function loadRepos({ search, reset = false } = {}) {
     repos.error = error;
   } finally {
     repos.loading = false;
+    repos.loadedOnce = true;
   }
 }
 
@@ -419,6 +461,7 @@ watch(
   (installationId) => {
     newSpace.repo_full_name = "";
     newSpace.branch = "";
+    repos.loadedOnce = false;
     if (installationId) loadRepos({ search: "", reset: true });
   },
 );
@@ -509,6 +552,7 @@ const spaces = createListResource({
       newSpace.branch = "";
       newSpace.docs_subdir = "docs";
       repos.list = [];
+      repos.loadedOnce = false;
       branches.list = [];
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
