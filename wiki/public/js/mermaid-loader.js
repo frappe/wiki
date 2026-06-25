@@ -31,6 +31,13 @@
     return {
       theme: "base",
       fontFamily: bodyFont,
+      // Render node labels as SVG <text>, not HTML <foreignObject>. The HTML
+      // label path measures the text in a detached div and frequently sizes the
+      // foreignObject a few px too narrow, clipping the last glyph ("Load
+      // Balance|r"). SVG text is sized from the rendered glyph box, so it never
+      // clips and stays styled by our theme tokens.
+      htmlLabels: false,
+      flowchart: { htmlLabels: false, useMaxWidth: true },
       themeVariables: {
         fontFamily: bodyFont,
         fontSize: "14px",
