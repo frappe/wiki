@@ -179,7 +179,6 @@ class TestWikiSpaceMigration(FrappeTestCase):
 		self.assertEqual(page_one_doc.sort_order, 0)
 		self.assertEqual(page_two_doc.parent_wiki_document, group_name)
 		self.assertEqual(page_two_doc.sort_order, 1)
-		self.assertEqual(page_two_doc.is_private, 1)
 
 		space.migrate_to_v3()
 		second_descendants = get_descendants_of("Wiki Document", space.root_group, ignore_permissions=True)
@@ -231,7 +230,6 @@ class TestWikiSpaceMigration(FrappeTestCase):
 				"route": page_one.route,
 				"is_group": 0,
 				"is_published": 0,
-				"is_private": 1,
 				"content": "stale",
 				"parent_wiki_document": group_doc.name,
 				"sort_order": 99,
@@ -244,7 +242,6 @@ class TestWikiSpaceMigration(FrappeTestCase):
 		self.assertEqual(stale_doc.title, page_one.title)
 		self.assertEqual(stale_doc.content, page_one.content)
 		self.assertEqual(stale_doc.is_published, page_one.published)
-		self.assertEqual(stale_doc.is_private, 0)
 		self.assertEqual(stale_doc.sort_order, 0)
 
 		page_two_name = frappe.db.get_value("Wiki Document", {"route": page_two.route, "is_group": 0}, "name")
@@ -290,7 +287,6 @@ class TestWikiSpaceMigration(FrappeTestCase):
 				"route": page.route,
 				"is_group": 0,
 				"is_published": 0,
-				"is_private": 0,
 				"content": "old content",
 			}
 		).insert()
@@ -300,7 +296,6 @@ class TestWikiSpaceMigration(FrappeTestCase):
 		existing_doc.reload()
 		self.assertEqual(existing_doc.title, page.title)
 		self.assertEqual(existing_doc.content, page.content)
-		self.assertEqual(existing_doc.is_private, 1)
 		self.assertEqual(existing_doc.is_published, page.published)
 		self.assertEqual(frappe.db.count("Wiki Document", {"route": page.route, "is_group": 0}), 1)
 

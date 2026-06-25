@@ -39,11 +39,19 @@ test.describe('Markdown Line Breaks', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
-		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		const pageTitleInput = page.getByRole('textbox', { name: 'Page title' });
+		const openedCreatedPage = await pageTitleInput
+			.inputValue({ timeout: 2000 })
+			.then((value) => value === pageTitle)
+			.catch(() => false);
+		if (!openedCreatedPage) {
+			await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		}
+		await expect(pageTitleInput).toHaveValue(pageTitle, { timeout: 10000 });
 
 		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 		await expect(editor).toBeVisible({ timeout: 10000 });
@@ -251,7 +259,7 @@ test.describe('Markdown Line Breaks', () => {
 		}, inputMarkdown);
 
 		// Save the draft
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 

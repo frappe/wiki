@@ -2,7 +2,7 @@
 	<div class="flex flex-col h-full">
 		<div class="flex items-center justify-between p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
 			<div class="flex items-center gap-4">
-				<Button variant="ghost" icon-left="arrow-left" @click="router.back()">
+				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc">
@@ -12,62 +12,68 @@
 							{{ changeRequest.doc.status }}
 						</Badge>
 					</div>
-					<p class="text-sm text-ink-gray-5 mt-0.5">
-						{{ changeRequest.doc.wiki_space }}
-						<span v-if="changeRequest.doc.owner">
-							&middot; {{ __('by') }} {{ changeRequest.doc.owner }}
-						</span>
-					</p>
+					<div class="flex items-center gap-3 mt-0.5">
+						<p class="text-sm text-ink-gray-5">
+							{{ changeRequest.doc.wiki_space }}
+							<span v-if="changeRequest.doc.owner">
+								&middot; {{ __('by') }} {{ changeRequest.doc.owner }}
+							</span>
+						</p>
+						<div v-if="assignees" class="flex items-center gap-1.5 text-sm text-ink-gray-5">
+							<span>&middot;</span>
+							<AssigneeAvatars :assign="assignees" />
+						</div>
+					</div>
 				</div>
 			</div>
 
-			<div v-if="canReview" class="flex items-center gap-2">
-				<Button @click="showRejectDialog = true">
-					{{ __('Request Changes') }}
-				</Button>
-				<Button
-					v-if="hasConflicts"
-					variant="solid"
-					:disabled="!allResolved"
-					:loading="resolvingMerge"
-					@click="handleResolveAndMerge"
-				>
-					{{ __('Resolve & Merge') }}
-				</Button>
-				<Button
-					v-else
-					variant="solid"
-					:loading="mergeResource.loading"
-					@click="handleApprove"
-				>
-					{{ __('Merge') }}
-				</Button>
-			</div>
+			<div class="flex items-center gap-2">
+				<template v-if="canReview">
+					<Button
+						v-if="hasConflicts"
+						variant="solid"
+						:disabled="!allResolved"
+						:loading="resolvingMerge"
+						@click="handleResolveAndMerge"
+					>
+						{{ __('Resolve & Merge') }}
+					</Button>
+					<Button
+						v-else-if="changeRequest.doc?.status === 'Approved'"
+						variant="solid"
+						:loading="mergeResource.loading"
+						@click="handleMerge"
+					>
+						{{ __('Merge') }}
+					</Button>
+					<Button
+						v-else
+						variant="solid"
+						:loading="approveResource.loading"
+						@click="handleApprove"
+					>
+						{{ __('Approve') }}
+					</Button>
 
-			<div v-else-if="canWithdraw" class="flex items-center gap-2">
-				<Button variant="outline" :loading="withdrawResource.loading" @click="handleWithdraw">
-					{{ __('Archive') }}
+					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
+						<Button variant="ghost" :title="__('More actions')">
+							<LucideMoreVertical class="size-4" />
+						</Button>
+					</Dropdown>
+				</template>
+
+				<Button
+					v-else-if="canWithdraw"
+					variant="outline"
+					:loading="withdrawResource.loading"
+					@click="handleWithdraw"
+				>
+					{{ __('Withdraw') }}
 				</Button>
 			</div>
 		</div>
 
 		<div class="flex-1 overflow-auto p-4">
-			<div
-				v-if="reviewNote"
-				class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg"
-			>
-				<div class="flex items-start gap-3">
-					<LucideAlertCircle class="size-5 text-red-500 shrink-0 mt-0.5" />
-					<div>
-						<p class="font-medium text-red-800">{{ __('Changes Requested') }}</p>
-						<p class="text-sm text-red-700 mt-1">{{ reviewNote.comment }}</p>
-						<p class="text-xs text-red-600 mt-2">
-							{{ __('Reviewed by') }} {{ reviewNote.reviewer }} {{ __('on') }} {{ formatDate(reviewNote.reviewed_at) }}
-						</p>
-					</div>
-				</div>
-			</div>
-
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
@@ -215,18 +221,90 @@
 							</div>
 
 							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
-								<div class="p-4 relative z-0 isolate">
-									<DiffViewer
-										v-if="diffsByDocKey[change.doc_key]"
-										:old-content="diffsByDocKey[change.doc_key]?.base?.content || ''"
-										:new-content="diffsByDocKey[change.doc_key]?.head?.content || ''"
-										:file-name="change.title || change.doc_key"
-										language="markdown"
-									/>
+								<!-- A reorder is a structural move, not a content edit, so show where
+								     the page sat vs. where it sits now instead of an empty content diff. -->
+								<template v-if="change.change_type === 'reordered'">
+									<div v-if="diffsByDocKey[change.doc_key]" class="flex items-center gap-3 flex-wrap p-4 text-sm">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-6">
+											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.base, change.title) }}</span>
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.base)" variant="subtle" theme="gray" size="sm">
+												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
+											</Badge>
+										</div>
+										<LucideArrowRight class="size-4 text-ink-gray-4 shrink-0" />
+										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
+											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
+												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
+											</Badge>
+										</div>
+									</div>
 									<div v-else class="flex items-center justify-center py-8">
 										<LoadingIndicator class="size-6" />
 									</div>
+								</template>
+								<template v-else>
+								<div class="flex items-center justify-end gap-1 px-4 pt-3">
+									<Button
+										size="sm"
+										:variant="viewModeFor(change.doc_key) === 'diff' ? 'subtle' : 'ghost'"
+										@click.stop="setViewMode(change.doc_key, 'diff')"
+									>
+										{{ __('Diff') }}
+									</Button>
+									<Button
+										size="sm"
+										:variant="viewModeFor(change.doc_key) === 'preview' ? 'subtle' : 'ghost'"
+										@click.stop="setViewMode(change.doc_key, 'preview')"
+									>
+										{{ __('Preview') }}
+									</Button>
 								</div>
+								<div class="p-4 relative z-0 isolate">
+									<template v-if="viewModeFor(change.doc_key) === 'preview'">
+										<div
+											v-if="diffsByDocKey[change.doc_key]"
+											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
+										>
+											<section class="bg-surface-white min-w-0">
+												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
+													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
+													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
+												</header>
+												<div class="px-4 py-4">
+													<p v-if="!diffsByDocKey[change.doc_key].base" class="text-sm text-ink-gray-5 italic">
+														{{ __('No published version yet.') }}
+													</p>
+													<WikiContentViewer v-else :content="diffsByDocKey[change.doc_key].base?.content || ''" />
+												</div>
+											</section>
+											<section class="bg-surface-white min-w-0">
+												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
+													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
+												</header>
+												<div class="px-4 py-4">
+													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />
+												</div>
+											</section>
+										</div>
+										<div v-else class="flex items-center justify-center py-8">
+											<LoadingIndicator class="size-6" />
+										</div>
+									</template>
+									<template v-else>
+										<DiffViewer
+											v-if="diffsByDocKey[change.doc_key]"
+											:old-content="diffsByDocKey[change.doc_key]?.base?.content || ''"
+											:new-content="diffsByDocKey[change.doc_key]?.head?.content || ''"
+											:file-name="change.title || change.doc_key"
+											language="markdown"
+										/>
+										<div v-else class="flex items-center justify-center py-8">
+											<LoadingIndicator class="size-6" />
+										</div>
+									</template>
+								</div>
+								</template>
 							</div>
 						</div>
 					</div>
@@ -238,17 +316,40 @@
 			</div>
 		</div>
 
-		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
+		<Dialog v-model="showApproveMergeDialog" :options="{ size: 'md' }">
+			<template #body-title>
+				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
+			</template>
+			<template #body-content>
+				<p class="text-ink-gray-7">
+					{{ __('This will approve the change request and immediately merge it into the live wiki. This cannot be undone. Are you sure?') }}
+				</p>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						:loading="approveResource.loading || mergeResource.loading"
+						@click="handleApproveAndMerge(close)"
+					>
+						{{ __('Approve & Merge') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
+
+		<Dialog v-model="showRequestChangesDialog" :options="{ size: 'md' }">
 			<template #body-title>
 				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
 			</template>
 			<template #body-content>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
-						{{ __('Please provide feedback explaining what needs to change.') }}
+						{{ __('Please provide feedback explaining what needs to change. This is sent back to the author.') }}
 					</p>
 					<FormControl
-						v-model="rejectComment"
+						v-model="requestChangesComment"
 						type="textarea"
 						:label="__('Feedback')"
 						:placeholder="__('Enter your feedback...')"
@@ -262,29 +363,72 @@
 					<Button
 						variant="solid"
 						theme="red"
-						:loading="rejectResource.loading"
-						@click="handleReject(close)"
+						:loading="requestChangesResource.loading"
+						@click="handleRequestChanges(close)"
 					>
 						{{ __('Request Changes') }}
 					</Button>
 				</div>
 			</template>
 		</Dialog>
+
+		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
+			<template #body-title>
+				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
+			</template>
+			<template #body-content>
+				<div class="space-y-4">
+					<p class="text-ink-gray-7">
+						{{ __('Rejecting is final — this change request cannot be merged. Please explain why it is being rejected.') }}
+					</p>
+					<FormControl
+						v-model="rejectComment"
+						type="textarea"
+						:label="__('Reason')"
+						:placeholder="__('Enter the reason for rejection...')"
+						:rows="4"
+					/>
+				</div>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						theme="red"
+						:loading="rejectResource.loading"
+						@click="handleReject(close)"
+					>
+						{{ __('Reject') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
+
+		<AssignDialog
+			v-model="showAssignDialog"
+			:change-request-id="props.changeRequestId"
+			@assigned="assigneesResource.reload()"
+		/>
 	</div>
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { createDocumentResource, createResource, Button, Badge, Dialog, FormControl, LoadingIndicator, toast } from 'frappe-ui';
+import { createDocumentResource, createResource, Button, Badge, Dialog, Dropdown, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import DiffViewer from '@/components/DiffViewer.vue';
+import WikiContentViewer from '@/components/WikiContentViewer.vue';
+import AssignDialog from '@/components/AssignDialog.vue';
+import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import LucideChevronDown from '~icons/lucide/chevron-down';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
 import LucideAlertTriangle from '~icons/lucide/alert-triangle';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
+import LucideArrowRight from '~icons/lucide/arrow-right';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 
 const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
@@ -296,10 +440,18 @@ const props = defineProps({
 	},
 });
 
+const showApproveMergeDialog = ref(false);
+const showRequestChangesDialog = ref(false);
+const requestChangesComment = ref('');
 const showRejectDialog = ref(false);
 const rejectComment = ref('');
+const showAssignDialog = ref(false);
 const expandedChanges = reactive(new Set());
 const diffsByDocKey = reactive({});
+// Per-row Diff/Preview toggle. Preview renders the base/head markdown through a
+// read-only WikiContentViewer (the same TipTap config as the editor), so it
+// matches what readers see rather than showing a markdown diff.
+const viewModeByDocKey = reactive({});
 
 // Conflict resolution state
 const hasConflicts = ref(false);
@@ -319,11 +471,29 @@ const changeRequest = createDocumentResource({
 	auto: true,
 });
 
+usePageMeta(() => {
+	if (!changeRequest.doc) return;
+	return { title: `${changeRequest.doc.title} | Frappe Wiki` };
+});
+
 const changes = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
 	params: { name: props.changeRequestId, scope: 'summary' },
 	auto: true,
 });
+
+// `_assign` is a native column that `frappe.client.get` (the document resource)
+// strips out, so it is fetched separately to surface the current assignees.
+const assigneesResource = createResource({
+	url: 'frappe.client.get_value',
+	params: {
+		doctype: 'Wiki Change Request',
+		filters: { name: props.changeRequestId },
+		fieldname: '_assign',
+	},
+	auto: true,
+});
+const assignees = computed(() => assigneesResource.data?._assign || '');
 
 const diffResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
@@ -345,38 +515,107 @@ const retryResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.retry_merge_after_resolution',
 });
 
+const approveResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
+});
+
+const requestChangesResource = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.request_changes',
+});
+
 const rejectResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.review_action',
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.reject_change_request',
 });
 
 const withdrawResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.archive_change_request',
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.withdraw_change_request',
 });
 
 const userStore = useUserStore();
 const crStore = useChangeRequestStore();
-const isManager = computed(() => userStore.isWikiManager);
 const isOwner = computed(() => changeRequest.doc?.owner === userStore.data?.name);
 
+// Merge ability is governed per-space by the role config (managers always qualify).
+// Enforcement stays server-side; this only controls whether the Merge UI shows.
+const capabilities = ref({ can_read: false, can_write: false });
+const capabilitiesResource = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		capabilities.value = data;
+	},
+});
+
+watch(
+	() => changeRequest.doc?.wiki_space,
+	(space) => {
+		if (space) capabilitiesResource.submit({ space });
+	},
+	{ immediate: true },
+);
+
 const canReview = computed(() => {
-	return isManager.value && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
+	return capabilities.value.can_write && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
 });
 
+// Withdraw pulls an in-review CR back to Draft for the author to keep editing.
+// Once Changes Requested the CR is already editable, so there is nothing to
+// withdraw — the author just edits and resubmits.
 const canWithdraw = computed(() => {
-	return isOwner.value && ['In Review', 'Changes Requested'].includes(changeRequest.doc?.status);
+	return isOwner.value && changeRequest.doc?.status === 'In Review';
 });
 
-const reviewNote = computed(() => {
-	if (changeRequest.doc?.status !== 'Changes Requested') return null;
-	const reviewer = (changeRequest.doc?.reviewers || []).find(
-		(row) => row.status === 'Changes Requested' && row.comment,
-	);
-	if (!reviewer) return null;
-	return {
-		comment: reviewer.comment,
-		reviewer: reviewer.reviewer,
-		reviewed_at: reviewer.reviewed_at,
-	};
+// Secondary reviewer decisions live in the three-dots menu so the header keeps a
+// single primary action.
+const reviewMenuOptions = computed(() => {
+	if (hasConflicts.value) return [];
+	const options = [];
+	const status = changeRequest.doc?.status;
+	// The header primary button is Approve-only (the two-person path: approve now,
+	// merge later via the Merge button). The combined self-serve Approve & Merge
+	// lives here in the menu for reviewers who want to publish in one step.
+	if (status === 'In Review') {
+		options.push({
+			label: __('Approve & Merge'),
+			icon: 'check-circle',
+			onClick: () => {
+				showApproveMergeDialog.value = true;
+			},
+		});
+	}
+	if (['In Review', 'Approved'].includes(status)) {
+		options.push({
+			label: __('Request Changes'),
+			icon: 'message-square',
+			onClick: () => {
+				showRequestChangesDialog.value = true;
+			},
+		});
+		options.push({
+			label: __('Reject'),
+			icon: 'x-circle',
+			onClick: () => {
+				showRejectDialog.value = true;
+			},
+		});
+		options.push({
+			label: __('Assign reviewer'),
+			icon: 'user-plus',
+			onClick: () => {
+				showAssignDialog.value = true;
+			},
+		});
+	}
+	// The standalone Withdraw button is only shown to authors who can't review;
+	// surface the same action here so an author who *can* review (e.g. a manager
+	// reviewing their own CR) can still pull it back to Draft from the menu.
+	if (canWithdraw.value) {
+		options.push({
+			label: __('Withdraw'),
+			icon: 'rotate-ccw',
+			onClick: handleWithdraw,
+		});
+	}
+	return options;
 });
 
 function setResolution(conflictName, value) {
@@ -410,6 +649,42 @@ async function fetchConflicts() {
 	}
 }
 
+// Go back to wherever the user actually came from — the originating list tab
+// (with its query preserved), the space editor, etc. Fall back to the list only
+// when opened directly (no history).
+function goBackInFlow(fallback) {
+	if (window.history.state?.back) {
+		router.back();
+	} else {
+		router.push(fallback);
+	}
+}
+
+function goBack() {
+	goBackInFlow({ name: 'ChangeRequests' });
+}
+
+// Reorder display: a breadcrumb of ancestor titles ending in the page itself.
+function locationPath(location, title) {
+	const segments = [...(location?.path || []), title].filter(Boolean);
+	return segments.join('  /  ');
+}
+
+function positionLabel(location) {
+	if (!location || !location.position) return '';
+	return `${__('Position')} ${location.position} / ${location.total}`;
+}
+
+function viewModeFor(docKey) {
+	return viewModeByDocKey[docKey] || 'diff';
+}
+
+function setViewMode(docKey, mode) {
+	// Both Diff and Preview read from the already-loaded page diff (base/head
+	// markdown), so switching is purely a view toggle.
+	viewModeByDocKey[docKey] = mode;
+}
+
 async function toggleChange(docKey) {
 	if (expandedChanges.has(docKey)) {
 		expandedChanges.delete(docKey);
@@ -430,7 +705,9 @@ async function toggleChange(docKey) {
 	}
 }
 
-async function handleApprove() {
+// Merge an already-Approved CR. On a merge-conflict ValidationError the CR
+// stays Approved and the conflict-resolution flow takes over.
+async function mergeNow() {
 	try {
 		await mergeResource.submit({ name: props.changeRequestId });
 		toast.success(__('Change request merged'));
@@ -439,6 +716,7 @@ async function handleApprove() {
 		}
 		changeRequest.reload();
 		await changes.submit({ name: props.changeRequestId, scope: 'summary' });
+		return true;
 	} catch (error) {
 		const msg = error.messages?.[0] || '';
 		if (error.exc_type === 'ValidationError') {
@@ -449,6 +727,56 @@ async function handleApprove() {
 		} else {
 			toast.error(msg || __('Error merging change request'));
 		}
+		return false;
+	}
+}
+
+async function handleMerge() {
+	await mergeNow();
+}
+
+// Approve without merging — leaves the CR Approved for a different person to
+// merge (the two-person path). Distinct from Approve & Merge (self-serve).
+async function handleApprove() {
+	try {
+		await approveResource.submit({ name: props.changeRequestId });
+		toast.success(__('Change request approved'));
+		changeRequest.reload();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error approving change request'));
+	}
+}
+
+// Self-serve path: approve, then immediately merge. If approve fails we never
+// attempt the merge; if the merge conflicts the CR is left Approved.
+async function handleApproveAndMerge(close) {
+	try {
+		await approveResource.submit({ name: props.changeRequestId });
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error approving change request'));
+		return;
+	}
+	changeRequest.reload();
+	close?.();
+	await mergeNow();
+}
+
+async function handleRequestChanges(close) {
+	if (!requestChangesComment.value.trim()) {
+		toast.warning(__('Please provide feedback'));
+		return;
+	}
+	try {
+		await requestChangesResource.submit({
+			name: props.changeRequestId,
+			comment: requestChangesComment.value.trim(),
+		});
+		toast.success(__('Requested changes'));
+		requestChangesComment.value = '';
+		close?.();
+		changeRequest.reload();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error requesting changes'));
 	}
 }
 
@@ -487,33 +815,35 @@ async function handleResolveAndMerge() {
 
 async function handleReject(close) {
 	if (!rejectComment.value.trim()) {
-		toast.warning(__('Please provide feedback'));
+		toast.warning(__('Please provide a reason'));
 		return;
 	}
-
 	try {
 		await rejectResource.submit({
 			name: props.changeRequestId,
-			reviewer: userStore.data?.name,
-			status: 'Changes Requested',
 			comment: rejectComment.value.trim(),
 		});
-		toast.success(__('Requested changes'));
+		toast.success(__('Change request rejected'));
 		rejectComment.value = '';
-		close();
+		close?.();
 		changeRequest.reload();
 	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error requesting changes'));
+		toast.error(error.messages?.[0] || __('Error rejecting change request'));
 	}
 }
 
+// Withdraw returns an in-review CR to Draft, re-opening it for editing.
 async function handleWithdraw() {
 	try {
 		await withdrawResource.submit({ name: props.changeRequestId });
-		toast.success(__('Change request archived'));
+		toast.success(__('Change request withdrawn'));
+		// Clear the local-first drafts for this CR so its content can't be
+		// restored from IndexedDB after it's been discarded.
+		const { clearDraftsForCr } = await import('@/stores/draftPersistence');
+		await clearDraftsForCr(props.changeRequestId);
 		changeRequest.reload();
 	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error archiving change request'));
+		toast.error(error.messages?.[0] || __('Error withdrawing change request'));
 	}
 }
 
@@ -524,6 +854,7 @@ function getStatusTheme(status) {
 		case 'Changes Requested': return 'red';
 		case 'Approved': return 'green';
 		case 'Merged': return 'green';
+		case 'Rejected': return 'red';
 		case 'Archived': return 'gray';
 		default: return 'gray';
 	}
@@ -538,15 +869,4 @@ function getConflictTheme(type) {
 	}
 }
 
-function formatDate(dateStr) {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	return date.toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	});
-}
 </script>

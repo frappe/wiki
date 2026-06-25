@@ -63,10 +63,7 @@ async function createDraftAndOpenEditor(
 	}
 
 	await page.getByLabel('Title').fill(title);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Save Draft' })
-		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await page.waitForLoadState('networkidle');
 
 	await page.locator('aside').getByText(title, { exact: true }).click();

@@ -22,7 +22,23 @@
     </div>
 
     <div class="flex-1 overflow-auto">
+      <!-- Skeleton on cold load so the empty state never flashes before the
+           first page of spaces arrives. -->
+      <div v-if="spaces.list.loading && !spaces.data?.length" class="flex flex-col">
+        <div
+          v-for="n in 8"
+          :key="n"
+          class="grid grid-cols-[2fr_1fr_2fr_3fr] items-center gap-4 px-2 h-12 border-b border-outline-gray-1"
+        >
+          <div class="h-3.5 w-2/3 rounded bg-surface-gray-3 animate-pulse" />
+          <div class="h-5 w-20 rounded-full bg-surface-gray-3 animate-pulse" />
+          <div class="h-3.5 w-1/2 rounded bg-surface-gray-3 animate-pulse" />
+          <div class="h-7 w-16 rounded bg-surface-gray-3 animate-pulse" />
+        </div>
+      </div>
+
       <ListView
+        v-else
         :columns="columns"
         :rows="spaces.data || []"
         :options="{
@@ -47,7 +63,7 @@
         }"
         row-key="name"
       >
-        <template #cell="{ item, column }">
+        <template #cell="{ item, column, row }">
           <Badge
             v-if="column.key === 'is_published'"
             variant="subtle"
@@ -55,6 +71,19 @@
             size="sm"
             :label="item ? __('Published') : __('Unpublished')"
           />
+          <div v-else-if="column.key === 'view'" class="flex items-center">
+            <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
+                 from following the row href, so .prevent is required too. -->
+            <Button
+              v-if="row.is_published"
+              variant="ghost"
+              size="sm"
+              icon-left="external-link"
+              @click.stop.prevent="viewSpace(row)"
+            >
+              {{ __('View') }}
+            </Button>
+          </div>
           <span v-else>{{ item }}</span>
         </template>
       </ListView>
@@ -179,7 +208,22 @@ const columns = [
     key: "route",
     width: 2,
   },
+  {
+    // Wide last column, left-aligned: keeps the View buttons in one straight
+    // column that starts right after the route rather than hugging the far edge.
+    label: "",
+    key: "view",
+    width: 3,
+    align: "left",
+  },
 ];
+
+// Open the space's public-facing reader. The reader lives at the site root
+// (`/<route>`), outside the `/wiki` editor SPA, so it can't go through the
+// router — a new tab keeps the editor session intact.
+function viewSpace(row) {
+  window.open(`/${row.route}`, "_blank", "noopener");
+}
 
 const spaces = createListResource({
   doctype: "Wiki Space",
@@ -225,6 +269,10 @@ const handleCreateSpace = () => {
   return spaces.insert.submit({
     space_name: newSpace.space_name,
     route: newSpace.route,
+    // New spaces are published by default, so start them as public read.
+    // Guest covers everyone (anonymous + logged-in); admins can refine this
+    // in Space Settings → Permissions.
+    roles: [{ role: "Guest", permission_level: "Read" }],
   });
 };
 </script>

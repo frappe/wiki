@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@floating-ui/dom": "^1.6.0",
-    "@pierre/diffs": "^1.0.8",
+    "@pierre/diffs": "^1.2.11",
     "@tiptap/core": "^3.19.0",
     "@tiptap/extension-code-block": "^3.19.0",
     "@tiptap/extension-code-block-lowlight": "^3.19.0",
@@ -30,12 +30,15 @@
     "feather-icons": "^4.29.2",
     "frappe-ui": "^0.1.235",
     "highlight.js": "^11.11.1",
+    "idb-keyval": "^6.2.0",
     "lowlight": "^3.3.0",
     "lucide-vue-next": "^0.468.0",
+    "pdfjs-dist": "4.10.38",
     "pinia": "^3.0.4",
     "socket.io-client": "^4.7.2",
     "tippy.js": "^6.3.7",
     "vue": "^3.5.13",
+    "vue-pdf-embed": "^2.1.4",
     "vue-router": "^4.5.0",
     "vuedraggable": "^4.1.0"
   },
@@ -48,6 +51,8 @@
     "vite": "^5.4.10"
   },
   "resolutions": {
+    "shiki": "^3.23.0",
+    "@shikijs/themes": "^3.23.0",
     "prosemirror-model": "^1.24.1",
     "prosemirror-state": "^1.4.3",
     "prosemirror-view": "^1.33.0",

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -84,10 +85,10 @@ test.describe('Wiki Editor', () => {
 		const pageTitle = `Test Page ${Date.now()}`;
 		await titleInput.fill(pageTitle);
 
-		// Click Save Draft button in dialog (use role to be more specific)
+		// Click Save button in dialog (use role to be more specific)
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -116,15 +117,15 @@ test.describe('Wiki Editor', () => {
 		// Should have sidebar with space management buttons
 		await expect(page.locator('aside')).toBeVisible();
 
-		// Wait for the tree to load (CR mode requires async init)
-		// Should have either "Create First Page" (empty space) or icon buttons for New Group/Page
+		// Wait for the tree to load (CR mode requires async init).
+		// On an empty space, both the toolbar "New Page" button and the
+		// empty-state "Create First Page" button render — `.or().first()`
+		// tolerates either without tripping strict-mode on two matches.
 		const createFirstPage = page.locator(
 			'button:has-text("Create First Page")',
 		);
 		const newPageButton = page.locator('button[title="New Page"]');
-
-		// Use a combined locator with sufficient timeout for CR tree loading
-		await expect(createFirstPage.or(newPageButton)).toBeVisible({
+		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 	});
@@ -146,7 +147,7 @@ test.describe('Wiki Editor', () => {
 			'button:has-text("Create First Page")',
 		);
 		const newPageButton = page.locator('button[title="New Page"]');
-		await expect(createFirstPage.or(newPageButton)).toBeVisible({
+		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 
@@ -161,7 +162,7 @@ test.describe('Wiki Editor', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -175,7 +176,7 @@ test.describe('Wiki Editor', () => {
 		).toBeVisible({ timeout: 10000 });
 
 		// Verify save draft button is present (indicates edit mode)
-		await expect(page.locator('button:has-text("Save Draft")')).toBeVisible();
+		await expect(page.locator('button:has-text("Save")')).toBeVisible();
 	});
 
 	test('should publish page and view it on public route', async ({
@@ -211,7 +212,7 @@ test.describe('Wiki Editor', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -232,7 +233,7 @@ test.describe('Wiki Editor', () => {
 		await page.keyboard.type(pageContent);
 
 		// Save the draft
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge
@@ -241,10 +242,7 @@ test.describe('Wiki Editor', () => {
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Verify the public page shows the content we added
 		const routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {

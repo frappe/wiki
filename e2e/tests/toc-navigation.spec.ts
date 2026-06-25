@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -55,7 +56,7 @@ test.describe('TOC Navigation', () => {
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -99,7 +100,7 @@ Beta sub content.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
@@ -109,7 +110,7 @@ Beta sub content.`;
 		await page.getByLabel('Title').fill(secondPageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -154,7 +155,7 @@ Epsilon content here.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save Draft")');
+		await page.click('button:has-text("Save")');
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
@@ -164,13 +165,7 @@ Epsilon content here.`;
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		// Handle both "Merge" and "Resolve & Merge" buttons (conflicts may auto-resolve)
-		const mergeButton = page.getByRole('button', { name: /Merge/ });
-		await expect(mergeButton).toBeVisible({ timeout: 10000 });
-		await mergeButton.click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Open public view for the first page
 		const routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {

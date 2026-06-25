@@ -2,6 +2,7 @@
   <node-view-wrapper>
     <div class="group/code relative">
       <div
+        v-if="editor.isEditable"
         class="absolute top-2 right-2 w-32 z-10 opacity-0 pointer-events-none transition-opacity duration-150 ease-in-out group-hover/code:opacity-100 group-hover/code:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"
         contenteditable="false"
       >

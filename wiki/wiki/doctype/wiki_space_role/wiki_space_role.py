@@ -4,5 +4,5 @@
 from frappe.model.document import Document
 
 
-class WikiCRReviewer(Document):
+class WikiSpaceRole(Document):
 	pass
