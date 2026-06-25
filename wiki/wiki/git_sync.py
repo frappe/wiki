@@ -43,7 +43,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
 LANDING_BASENAMES = ("readme.md", "index.md", "readme.mdx", "index.mdx")
-WIKI_CONFIG_PATH = ".wiki.json"
+WIKI_CONFIG_FILENAME = ".wiki.json"
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif")
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
@@ -454,15 +454,20 @@ def build_nodes(
 # .wiki.json structure override
 # --------------------------------------------------------------------------- #
 def load_wiki_config(
-	repo: str, tree_entries: list[dict[str, Any]], token: str | None = None
+	repo: str, tree_entries: list[dict[str, Any]], docs_subdir: str | None = None, token: str | None = None
 ) -> dict[str, Any] | None:
-	"""Return the parsed ``.wiki.json`` from the repo root, or ``None`` if absent.
+	"""Return the parsed ``.wiki.json`` from inside the docs folder, or ``None``.
 
-	A malformed config is surfaced (raises) rather than silently ignored, so the
-	sync records a clear error instead of falling back to inference unexpectedly.
+	The config lives *in the docs folder* (``{docs_subdir}/.wiki.json``, or the
+	repo root when no docs folder is set) — the docs folder is the root of the
+	wiki's content, so its ``sidebar`` paths are relative to it. A malformed
+	config is surfaced (raises) rather than silently ignored, so the sync records
+	a clear error instead of falling back to inference unexpectedly.
 	"""
+	prefix = (docs_subdir or "").strip("/")
+	config_path = f"{prefix}/{WIKI_CONFIG_FILENAME}" if prefix else WIKI_CONFIG_FILENAME
 	sha = next(
-		(e.get("sha") for e in tree_entries if e.get("type") == "blob" and e.get("path") == WIKI_CONFIG_PATH),
+		(e.get("sha") for e in tree_entries if e.get("type") == "blob" and e.get("path") == config_path),
 		None,
 	)
 	if not sha:
@@ -471,9 +476,9 @@ def load_wiki_config(
 	try:
 		config = json.loads(raw or "{}")
 	except json.JSONDecodeError as exc:
-		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_PATH, str(exc)))
+		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_FILENAME, str(exc)))
 	if not isinstance(config, dict):
-		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_PATH))
+		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_FILENAME))
 	return config
 
 
@@ -485,28 +490,29 @@ def build_nodes_from_config(
 	token: str | None = None,
 	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
-	"""Drive structure from an explicit ``.wiki.json`` ``nav`` instead of inference.
+	"""Drive structure from an explicit ``.wiki.json`` ``sidebar`` instead of inference.
 
-	``nav`` is an ordered list of single-key dicts: ``{"Title": "path.md"}`` is a
-	leaf page, ``{"Title": [ ...children... ]}`` is a group. Paths resolve under
-	``docs_dir`` (config) or the space's ``docs_subdir``. Hierarchy, order, and
-	titles all come from the config; page bodies still come from the repo files.
+	``sidebar`` is an ordered list of single-key dicts: ``{"Title": "path.md"}`` is
+	a leaf page, ``{"Title": [ ...children... ]}`` is a group. Paths are relative to
+	the docs folder (``docs_subdir``) — the same folder the config itself lives in.
+	Hierarchy, order, and titles all come from the config; page bodies still come
+	from the repo files.
 
-	Only files referenced in ``nav`` are synced; anything else in the repo is
-	ignored (the config is treated as authoritative). A nav entry whose file is
+	Only files referenced in ``sidebar`` are synced; anything else in the repo is
+	ignored (the config is treated as authoritative). A sidebar entry whose file is
 	missing from the tree is skipped.
 	"""
-	docs_dir = (config.get("docs_dir") or docs_subdir or "").strip("/")
-	nav = config.get("nav") or []
+	prefix = (docs_subdir or "").strip("/")
+	sidebar = config.get("sidebar") or []
 	sha_by_path = {e.get("path"): e.get("sha") for e in tree_entries if e.get("type") == "blob"}
 
 	def full(rel: str) -> str:
 		rel = (rel or "").strip("/")
-		return f"{docs_dir}/{rel}" if docs_dir else rel
+		return f"{prefix}/{rel}" if prefix else rel
 
 	nodes: list[dict[str, Any]] = []
 	# A monotonic counter rendered as a zero-padded seg: the existing alphabetical
-	# sibling sort in _sync_to_live then reproduces nav (document) order for free.
+	# sibling sort in _sync_to_live then reproduces sidebar (document) order for free.
 	order = [0]
 
 	def next_seg() -> str:
@@ -529,9 +535,9 @@ def build_nodes_from_config(
 							"is_group": 1,
 							"dir": dir_key,
 							"parent_dir": parent_dir,
-							# No file backs a nav group, so its identity is the (stable)
-							# nav title-chain; it carries no editable source.
-							"source_path": f"{WIKI_CONFIG_PATH}#{dir_key}",
+							# No file backs a sidebar group, so its identity is the (stable)
+							# sidebar title-chain; it carries no editable source.
+							"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
 							"landing_path": None,
 							"title": title,
 							"content": "",
@@ -562,7 +568,7 @@ def build_nodes_from_config(
 						}
 					)
 
-	walk(nav, "")
+	walk(sidebar, "")
 	return nodes, None, None
 
 
@@ -801,8 +807,8 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 			return
 
 		tree = _fetch_tree(space.repo_full_name, head_sha, token)
-		config = load_wiki_config(space.repo_full_name, tree, token)
-		if config and config.get("nav"):
+		config = load_wiki_config(space.repo_full_name, tree, space.docs_subdir, token)
+		if config and config.get("sidebar"):
 			nodes, root_content, _root_landing = build_nodes_from_config(
 				space.repo_full_name, tree, config, space.docs_subdir, token, space=space
 			)

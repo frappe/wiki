@@ -97,12 +97,13 @@ Group landing pages point at their `README.md`/`index.md`. Built purely from exi
 
 ### TB3 — `.wiki.json` structure override
 
-Let a repo control nav order & titles instead of alphabetical inference. In the engine, if `.wiki.json` exists at repo root, parse `docs_dir` + `nav` (ordered, possibly nested) and drive `parent_wiki_document` chain + `sort_order` + titles from it; absent → TB1 inference unchanged.
+Let a repo control sidebar order & titles instead of alphabetical inference. In the engine, if `.wiki.json` exists **inside the docs folder** (`{docs_subdir}/.wiki.json`, or the repo root when no docs folder is set), parse its `sidebar` (ordered, possibly nested) and drive `parent_wiki_document` chain + `sort_order` + titles from it; absent → TB1 inference unchanged. Paths are relative to the docs folder (no `docs_dir` key — the space already supplies it).
 
 ```json
-{ "docs_dir": "docs", "title": "My Docs",
-  "nav": [ {"Intro": "intro.md"}, {"Guides": [{"Setup": "guides/setup.md"}]} ] }
+{ "sidebar": [ {"Intro": "intro.md"}, {"Guides": [{"Setup": "guides/setup.md"}]} ] }
 ```
+
+> **Note (polish):** the config moved *inside the docs folder* and `nav` was renamed `sidebar`; the redundant `docs_dir` key was dropped (the space's "Docs folder" is authoritative). Earlier iterations placed `.wiki.json` at the repo root with a `docs_dir`/`nav` shape.
 
 - **Tests / demo:** unit for config parse + ordering/nesting and the inference fallback; browser (agent-browser) syncs a repo with `.wiki.json` and asserts sidebar order/titles.
 
