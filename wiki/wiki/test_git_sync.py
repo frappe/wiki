@@ -515,6 +515,27 @@ class TestGitSyncApply(FrappeTestCase):
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
 
+	def test_sync_stores_loaded_config_on_space(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		config = {"sidebar": [{"Intro": "intro.md"}]}
+		repo = _FakeRepo({"docs/.wiki.json": json.dumps(config), "docs/intro.md": "# Intro"})
+		repo.install(self)
+		sync_space(space.name)
+
+		stored = frappe.db.get_value("Wiki Space", space.name, "wiki_config")
+		self.assertEqual(json.loads(stored), config)
+
+	def test_sync_clears_config_when_absent(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		frappe.db.set_value("Wiki Space", space.name, "wiki_config", '{"stale": true}')
+		repo = _FakeRepo({"docs/intro.md": "# Intro"})  # no .wiki.json
+		repo.install(self)
+		sync_space(space.name)
+
+		self.assertFalse(frappe.db.get_value("Wiki Space", space.name, "wiki_config"))
+
 	def test_autogenerate_syncs_folder_into_group(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")

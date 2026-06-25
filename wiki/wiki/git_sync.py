@@ -884,6 +884,7 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 
 		tree = _fetch_tree(space.repo_full_name, head_sha, token)
 		config = load_wiki_config(space.repo_full_name, tree, space.docs_subdir, token)
+		_record_config(space_name, config)
 		if config and config.get("sidebar"):
 			nodes, root_content, _root_landing = build_nodes_from_config(
 				space.repo_full_name, tree, config, space.docs_subdir, token, space=space
@@ -914,6 +915,17 @@ def _record_success(space_name: str, commit_sha: str) -> None:
 			"last_sync_time": now_datetime(),
 			"last_sync_error": None,
 		},
+		update_modified=False,
+	)
+
+
+def _record_config(space_name: str, config: dict[str, Any] | None) -> None:
+	"""Persist the latest loaded ``.wiki.json`` (pretty-printed) for the settings preview."""
+	frappe.db.set_value(
+		"Wiki Space",
+		space_name,
+		"wiki_config",
+		frappe.as_json(config, indent=2) if config else "",
 		update_modified=False,
 	)
 

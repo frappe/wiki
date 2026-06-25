@@ -42,7 +42,8 @@
   "last_sync_status",
   "last_synced_commit_sha",
   "last_sync_time",
-  "last_sync_error"
+  "last_sync_error",
+  "wiki_config"
  ],
  "fields": [
   {
@@ -250,6 +251,14 @@
    "fieldtype": "Small Text",
    "label": "Last Sync Error",
    "read_only": 1
+  },
+  {
+   "fieldname": "wiki_config",
+   "fieldtype": "Code",
+   "label": "Wiki Config (.wiki.json)",
+   "options": "JSON",
+   "read_only": 1,
+   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred)."
   }
  ],
  "index_web_pages_for_search": 1,

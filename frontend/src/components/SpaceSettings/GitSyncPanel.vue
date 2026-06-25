@@ -145,12 +145,24 @@
 				{{ __('No sync runs yet') }}
 			</p>
 		</div>
+
+		<!-- Loaded .wiki.json preview (collapsed by default) -->
+		<CollapsibleSection :title="__('Configuration (.wiki.json)')">
+			<pre
+				v-if="wikiConfig"
+				class="max-h-80 overflow-auto whitespace-pre rounded bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
+			>{{ wikiConfig }}</pre>
+			<p v-else class="text-xs text-ink-gray-5">
+				{{ __('No .wiki.json in the repo — the page tree is inferred from the docs folder.') }}
+			</p>
+		</CollapsibleSection>
 	</div>
 </template>
 
 <script setup>
 import { Badge, Button, createListResource, toast } from 'frappe-ui';
 import { computed, ref } from 'vue';
+import CollapsibleSection from '../CollapsibleSection.vue';
 
 const props = defineProps({
 	space: {
@@ -167,6 +179,7 @@ const repoFullName = computed(() => props.space.doc?.repo_full_name || '');
 const branch = computed(() => props.space.doc?.branch || '');
 const lastSyncStatus = computed(() => props.space.doc?.last_sync_status || '');
 const lastSyncTime = computed(() => props.space.doc?.last_sync_time || '');
+const wikiConfig = computed(() => props.space.doc?.wiki_config || '');
 
 const webhookUrl = computed(
 	() => `${window.location.origin}/api/method/wiki.api.github.webhook`,
