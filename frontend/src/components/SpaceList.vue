@@ -240,7 +240,7 @@
             </template>
           </template>
 
-          <ErrorMessage :message="spaces.insert.error" />
+          <ErrorMessage :message="formError || spaces.insert.error" />
         </div>
       </template>
     </Dialog>
@@ -275,6 +275,7 @@ const isManager = computed(() => userStore.isWikiManager);
 const showCreateDialog = ref(false);
 const routeManuallyEdited = ref(false);
 const searchQuery = ref("");
+const formError = ref("");
 
 const newSpace = reactive({
   space_name: "",
@@ -474,6 +475,7 @@ watch(
     const repo = repoOptions.value.find((r) => r.value === fullName);
     newSpace.branch = repo?.default_branch || "";
     loadBranches(fullName);
+    if (fullName) formError.value = "";
   },
 );
 
@@ -500,6 +502,7 @@ function handleRouteInput(value) {
     routeManuallyEdited.value = true;
   }
   newSpace.route = value;
+  if (value) formError.value = "";
 }
 
 const columns = [
@@ -554,6 +557,7 @@ const spaces = createListResource({
       repos.list = [];
       repos.loadedOnce = false;
       branches.list = [];
+      formError.value = "";
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
@@ -582,11 +586,17 @@ watch(searchQuery, (value) => {
 });
 
 const handleCreateSpace = () => {
+  // Surface validation through the dialog's ErrorMessage rather than a rejected
+  // promise (which only ends up in the console). The dialog stays open either
+  // way — it closes only on insert success.
+  formError.value = "";
   if (!newSpace.route) {
-    return Promise.reject(new Error("Route is required"));
+    formError.value = __("Route is required.");
+    return;
   }
   if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
-    return Promise.reject(new Error("Pick a repository for a git-synced space"));
+    formError.value = __("Pick a repository for a git-synced space.");
+    return;
   }
 
   const payload = {
