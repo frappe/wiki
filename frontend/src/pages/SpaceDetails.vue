@@ -223,6 +223,7 @@ import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import WikiDocumentList from '../components/WikiDocumentList.vue';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
+import { useSocket } from '../socket';
 
 const props = defineProps({
 	spaceId: {
@@ -246,6 +247,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
 	delete window.__draftStore;
+	syncPollCancelled = true;
 });
 
 const isManager = computed(() => userStore.isWikiManager);
@@ -332,25 +334,58 @@ async function loadReadonlyTree() {
 	await readonlyTreeResource.submit({ space_id: props.spaceId });
 }
 
+// Cancels an in-flight poll when the user navigates away mid-sync.
+let syncPollCancelled = false;
+
+// The sync runs on the long queue, so poll the doc until it reports a terminal
+// status — refreshing the tree each tick so pages (and the in-progress state)
+// update as soon as the sync lands, however long it takes.
+async function pollSyncUntilDone({ tries = 30, interval = 2000 } = {}) {
+	for (let i = 0; i < tries && !syncPollCancelled; i++) {
+		await new Promise((resolve) => setTimeout(resolve, interval));
+		if (syncPollCancelled) return;
+		await Promise.all([space.reload(), loadReadonlyTree()]);
+		const status = space.doc?.last_sync_status;
+		if (status === 'Success' || status === 'Error') return;
+	}
+}
+
 async function syncNow({ silent = false } = {}) {
 	syncing.value = true;
+	syncPollCancelled = false;
 	try {
 		await space.syncNow.submit();
 		if (!silent) toast.success(__('Sync started — pulling the latest from GitHub'));
-		// The sync runs on the long queue; give it a moment, then refresh the
-		// tree so the user sees the result without a manual reload.
-		setTimeout(async () => {
-			try {
-				await Promise.all([space.reload(), loadReadonlyTree()]);
-			} finally {
-				syncing.value = false;
-			}
-		}, 4000);
+		// Realtime (below) normally resolves this first; the poll is the fallback
+		// for when the socket isn't connected.
+		await pollSyncUntilDone();
 	} catch (error) {
-		syncing.value = false;
 		toast.error(error.messages?.[0] || __('Could not start sync'));
+	} finally {
+		syncing.value = false;
 	}
 }
+
+// Live sync updates from the background job (broadcast site-wide by
+// wiki.wiki.git_sync._publish_sync_status) — reflect progress instantly and
+// refresh the tree on completion, without waiting on the poll fallback. Also
+// covers webhook-triggered syncs, which never go through syncNow() here.
+function onSyncRealtime(data) {
+	if (!data || data.space !== props.spaceId) return;
+	if (space.doc) space.doc.last_sync_status = data.status;
+	if (data.status === 'Success' || data.status === 'Error') {
+		syncPollCancelled = true;
+		syncing.value = false;
+		Promise.all([space.reload(), loadReadonlyTree()]);
+	}
+}
+
+onMounted(() => {
+	useSocket()?.on('wiki_git_sync_update', onSyncRealtime);
+});
+onBeforeUnmount(() => {
+	useSocket()?.off('wiki_git_sync_update', onSyncRealtime);
+});
 
 function openUpdateRoutesDialog() {
 	newRoute.value = space.doc?.route || '';

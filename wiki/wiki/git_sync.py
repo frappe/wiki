@@ -926,6 +926,9 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 		return
 
 	frappe.db.set_value("Wiki Space", space_name, "last_sync_status", "Running", update_modified=False)
+	# Emit immediately (not after_commit) so anyone viewing the space sees the
+	# in-progress state right away rather than at job end.
+	_publish_sync_status(space_name, "Running", after_commit=False)
 
 	try:
 		# Private repos: mint a short-lived installation token on demand (never stored).
@@ -963,6 +966,19 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 		_finalize_sync_log(log_name, "Error", error=error)
 
 
+def _publish_sync_status(space_name: str, status: str, after_commit: bool = True) -> None:
+	"""Broadcast a sync state change so open clients update live (no polling).
+
+	Terminal states emit ``after_commit`` so a client that reloads on the event
+	reads the freshly-committed doc.
+	"""
+	frappe.publish_realtime(
+		"wiki_git_sync_update",
+		{"space": space_name, "status": status},
+		after_commit=after_commit,
+	)
+
+
 def _record_success(space_name: str, commit_sha: str) -> None:
 	frappe.db.set_value(
 		"Wiki Space",
@@ -975,6 +991,7 @@ def _record_success(space_name: str, commit_sha: str) -> None:
 		},
 		update_modified=False,
 	)
+	_publish_sync_status(space_name, "Success")
 
 
 def _record_config(space_name: str, config: dict[str, Any] | None) -> None:
@@ -999,6 +1016,7 @@ def _record_error(space_name: str, error: str) -> None:
 		},
 		update_modified=False,
 	)
+	_publish_sync_status(space_name, "Error")
 
 
 # --------------------------------------------------------------------------- #
