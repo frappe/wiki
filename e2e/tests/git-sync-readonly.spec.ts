@@ -11,7 +11,7 @@ import {
  *
  * We seed a synced space + a published page directly via the API (bypassing the
  * GitHub fetch) and set last_sync_time so SpaceDetails does not auto-kick a real
- * sync. The SPA should then show the "Git synced — read only" banner, source the
+ * sync. The SPA should then show the "Synced from GitHub" banner, source the
  * sidebar from the live tree, hide every mutation affordance, and open the page
  * in a non-editable viewer.
  */
@@ -60,13 +60,11 @@ test.describe('Git-synced space (read-only)', () => {
 		await page.goto(`/wiki/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
-		// Synced banner: badge + repo link + Sync now.
-		await expect(page.getByText('Git synced — read only')).toBeVisible({
-			timeout: 10000,
-		});
+		// Synced banner: repo link (title) + "Synced from GitHub" subtitle + Sync now.
 		await expect(
 			page.locator(`a[href="https://github.com/${REPO}"]`),
-		).toBeVisible();
+		).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText('Synced from GitHub')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 
 		// No create / mutation affordances in the sidebar.

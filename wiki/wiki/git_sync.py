@@ -263,6 +263,45 @@ def _front_matter_title(meta: dict[str, Any]) -> str | None:
 	return None
 
 
+_FALSY_FRONT_MATTER = {"false", "no", "0", "off", "n"}
+
+
+def _coerce_bool(value: Any) -> bool | None:
+	"""Best-effort YAML scalar → bool, or ``None`` when it isn't a usable scalar."""
+	if isinstance(value, bool):
+		return value
+	if isinstance(value, int | float):
+		return bool(value)
+	if isinstance(value, str):
+		return value.strip().lower() not in _FALSY_FRONT_MATTER
+	return None
+
+
+def _front_matter_published(meta: dict[str, Any]) -> bool | None:
+	"""Publish state from front matter, or ``None`` when unspecified.
+
+	``is_published``/``published`` map straight through; ``draft`` is the inverse
+	(a draft page is unpublished). An absent (or unparseable) key returns ``None``
+	so the node keeps the default — published.
+	"""
+	for key in ("is_published", "published"):
+		if key in meta:
+			coerced = _coerce_bool(meta[key])
+			if coerced is not None:
+				return coerced
+	if "draft" in meta:
+		coerced = _coerce_bool(meta["draft"])
+		if coerced is not None:
+			return not coerced
+	return None
+
+
+def _published_flag(meta: dict[str, Any]) -> int:
+	"""1/0 for a node's ``is_published``; defaults to published when unspecified."""
+	published = _front_matter_published(meta)
+	return 1 if published is None or published else 0
+
+
 def build_nodes(
 	repo: str,
 	tree_entries: list[dict[str, Any]],
@@ -317,17 +356,17 @@ def build_nodes(
 	def full(rel: str) -> str:
 		return f"{prefix}/{rel}" if prefix else rel
 
-	def content_of(f: dict[str, Any]) -> tuple[str, str | None]:
-		"""Return ``(body, front_matter_title)`` — body stripped of front matter and image-rewritten."""
+	def content_of(f: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+		"""Return ``(body, front_matter_meta)`` — body stripped of front matter and image-rewritten."""
 		body, meta = strip_front_matter(_fetch_blob(repo, f["sha"], token))
 		body = _rewrite_image_links(body, f["path"], repo, sha_by_path, space, token)
-		return body, _front_matter_title(meta)
+		return body, meta
 
 	nodes: list[dict[str, Any]] = []
 
 	for folder in sorted(dirs):
 		landing = landings.get(folder)
-		content, fm_title = content_of(landing) if landing else ("", None)
+		content, meta = content_of(landing) if landing else ("", {})
 		seg = folder.split("/")[-1]
 		nodes.append(
 			{
@@ -340,17 +379,18 @@ def build_nodes(
 				"source_path": landing["path"] if landing else full(folder),
 				"landing_path": landing["path"] if landing else None,
 				# Title precedence: front-matter title → first H1 → humanized name.
-				"title": fm_title or _extract_title(content) or _humanize(seg),
+				"title": _front_matter_title(meta) or _extract_title(content) or _humanize(seg),
 				# Slug from the (unique) path segment, not the title — two pages
 				# sharing an H1 would otherwise collide on route.
 				"slug": seg,
 				"content": content,
+				"is_published": _published_flag(meta),
 				"seg": seg,
 			}
 		)
 
 	for f in pages:
-		content, fm_title = content_of(f)
+		content, meta = content_of(f)
 		seg = f["rel"].split("/")[-1]
 		nodes.append(
 			{
@@ -359,9 +399,12 @@ def build_nodes(
 				"parent_dir": f["dir_rel"],
 				"source_path": f["path"],
 				"landing_path": None,
-				"title": fm_title or _extract_title(content) or _humanize(seg.rsplit(".", 1)[0]),
+				"title": _front_matter_title(meta)
+				or _extract_title(content)
+				or _humanize(seg.rsplit(".", 1)[0]),
 				"slug": seg.rsplit(".", 1)[0],
 				"content": content,
+				"is_published": _published_flag(meta),
 				"seg": seg,
 			}
 		)
@@ -459,6 +502,7 @@ def build_nodes_from_config(
 							"landing_path": None,
 							"title": title,
 							"content": "",
+							"is_published": 1,
 							"seg": seg,
 						}
 					)
@@ -468,8 +512,9 @@ def build_nodes_from_config(
 					blob_sha = sha_by_path.get(path)
 					if not blob_sha:
 						continue
-					# Nav title is authoritative here, but the body is still stripped.
-					body, _meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
+					# Nav title is authoritative here, but the body is still stripped
+					# and front-matter `is_published`/`draft` is still honoured.
+					body, meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
 					nodes.append(
 						{
 							"is_group": 0,
@@ -479,6 +524,7 @@ def build_nodes_from_config(
 							"landing_path": None,
 							"title": title,
 							"content": _rewrite_image_links(body, path, repo, sha_by_path, space, token),
+							"is_published": _published_flag(meta),
 							"seg": seg,
 						}
 					)
@@ -618,7 +664,7 @@ def _sync_to_live(
 			slug_for[key],
 			route_for[key],
 			node["is_group"],
-			1,
+			node.get("is_published", 1),
 			node["parent_key"],
 			node["sort_order"],
 			node["content"],

@@ -919,3 +919,40 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 		)[0]
 		self.assertEqual(doc.title, "Getting Started")
 		self.assertNotIn("---", doc.content)
+
+	def test_front_matter_is_published_flag(self):
+		# `published: false` (and `draft: true`) mark a node unpublished; a node
+		# with no publish key — or none at all — stays published.
+		files = {
+			"docs/public.md": "# Public",
+			"docs/hidden.md": "---\npublished: false\n---\n# Hidden",
+			"docs/draft.md": "---\ndraft: true\n---\n# Draft",
+			"docs/explicit.md": "---\nis_published: true\n---\n# Explicit",
+		}
+		repo = _FakeRepo(files)
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs")
+		by_path = {n["source_path"]: n for n in nodes}
+		self.assertEqual(by_path["docs/public.md"]["is_published"], 1)
+		self.assertEqual(by_path["docs/hidden.md"]["is_published"], 0)
+		self.assertEqual(by_path["docs/draft.md"]["is_published"], 0)
+		self.assertEqual(by_path["docs/explicit.md"]["is_published"], 1)
+
+	def test_front_matter_unpublished_flows_to_live_document(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/hidden.md": "---\npublished: false\n---\n# Hidden\nbody"})
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		doc = frappe.get_all(
+			"Wiki Document",
+			fields=["is_published"],
+			filters=[
+				["source_path", "=", "docs/hidden.md"],
+				["lft", ">=", root_lft],
+				["rgt", "<=", root_rgt],
+			],
+		)[0]
+		self.assertEqual(doc.is_published, 0)

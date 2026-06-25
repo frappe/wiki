@@ -79,24 +79,27 @@
                 <div class="flex items-center gap-3 min-w-0">
                     <LucideGithub class="size-5 shrink-0 text-ink-gray-7" />
                     <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <p class="text-sm font-medium text-ink-gray-8">{{ __('Git synced — read only') }}</p>
-                            <Badge variant="subtle" theme="gray" size="sm">
-                                {{ space.doc?.last_sync_status || __('Pending') }}
-                            </Badge>
-                        </div>
                         <a
                             v-if="space.doc?.repo_full_name"
                             :href="`https://github.com/${space.doc.repo_full_name}`"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-xs text-ink-gray-5 hover:text-ink-gray-7 truncate block"
+                            class="text-sm font-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
                         >
                             {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
                         </a>
+                        <p v-else class="text-sm font-medium text-ink-gray-8 truncate">
+                            {{ space.doc?.space_name || spaceId }}
+                        </p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
+                            <Badge variant="subtle" theme="gray" size="sm">
+                                {{ space.doc?.last_sync_status || __('Pending') }}
+                            </Badge>
+                        </div>
                     </div>
                 </div>
-                <Button variant="outline" size="sm" :loading="syncing" @click="syncNow">
+                <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
                     <template #prefix>
                         <LucideRefreshCw class="size-4" />
                     </template>
@@ -311,15 +314,18 @@ const readonlyTreeData = computed(() => {
 });
 
 const syncing = ref(false);
+// Guards the auto first-sync so the watch can't enqueue it (and toast) twice
+// while space.doc re-renders before last_sync_status lands.
+const firstSyncKicked = ref(false);
 async function loadReadonlyTree() {
 	await readonlyTreeResource.submit({ space_id: props.spaceId });
 }
 
-async function syncNow() {
+async function syncNow({ silent = false } = {}) {
 	syncing.value = true;
 	try {
 		await space.syncNow.submit();
-		toast.success(__('Sync started — pulling the latest from GitHub'));
+		if (!silent) toast.success(__('Sync started — pulling the latest from GitHub'));
 		// The sync runs on the long queue; give it a moment, then refresh the
 		// tree so the user sees the result without a manual reload.
 		setTimeout(async () => {
@@ -433,8 +439,16 @@ watch(
 	async (doc) => {
 		if (!doc || !doc.git_synced) return;
 		await loadReadonlyTree();
-		if (!doc.last_sync_time && !['Running', 'Pending'].includes(doc.last_sync_status)) {
-			syncNow();
+		// First-ever sync of a freshly-created space: kick it once, silently —
+		// the "created successfully" toast already covers the action, and the
+		// status badge reflects progress. The guard stops a double-enqueue.
+		if (
+			!firstSyncKicked.value &&
+			!doc.last_sync_time &&
+			!['Running', 'Pending', 'Success'].includes(doc.last_sync_status)
+		) {
+			firstSyncKicked.value = true;
+			syncNow({ silent: true });
 		}
 	},
 	{ immediate: true },

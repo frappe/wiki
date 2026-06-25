@@ -132,7 +132,7 @@
 
           <FormControl
             type="checkbox"
-            :label="__('Git synced (read-only, content lives in a GitHub repo)')"
+            :label="__('Synced from GitHub?')"
             v-model="newSpace.git_synced"
           />
 
@@ -221,10 +221,10 @@
                 />
                 <FormControl
                   type="text"
-                  :label="__('Docs folder (optional)')"
+                  :label="__('Docs folder')"
                   v-model="newSpace.docs_subdir"
-                  :placeholder="__('e.g. docs — leave blank to scan the whole repo')"
-                  :description="__('Limit the sync to a folder. Dot-directories like .github are always ignored.')"
+                  :placeholder="__('docs')"
+                  :description="__('Folder in the repo to sync. Supports nested paths like docs/guide.')"
                 />
                 <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
               </template>
@@ -272,7 +272,7 @@ const newSpace = reactive({
   github_installation_id: "",
   repo_full_name: "",
   branch: "",
-  docs_subdir: "",
+  docs_subdir: "docs",
 });
 
 // GitHub App connect + repo picker (TB4b). The connect-account OAuth round-trip
@@ -459,7 +459,7 @@ const spaces = createListResource({
       newSpace.github_installation_id = "";
       newSpace.repo_full_name = "";
       newSpace.branch = "";
-      newSpace.docs_subdir = "";
+      newSpace.docs_subdir = "docs";
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
