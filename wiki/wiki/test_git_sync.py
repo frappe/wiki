@@ -956,3 +956,53 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 			],
 		)[0]
 		self.assertEqual(doc.is_published, 0)
+
+	def test_front_matter_slug_overrides_filename(self):
+		# A front-matter `slug` sets the node slug (→ route) instead of the filename.
+		repo = _FakeRepo({"docs/getting-started.md": "---\nslug: intro\n---\n# Getting Started"})
+		repo.install(self)
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs")
+		self.assertEqual(self._page(nodes, "docs/getting-started.md")["slug"], "intro")
+
+	def test_front_matter_slug_flows_to_route(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/getting-started.md": "---\nslug: intro\n---\n# Getting Started"})
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		doc = frappe.get_all(
+			"Wiki Document",
+			fields=["route"],
+			filters=[
+				["source_path", "=", "docs/getting-started.md"],
+				["lft", ">=", root_lft],
+				["rgt", "<=", root_rgt],
+			],
+		)[0]
+		self.assertTrue(doc.route.endswith("/intro"), doc.route)
+
+	def test_front_matter_ordering_sorts_siblings(self):
+		# Lower `sidebar_position` sorts earlier; a file with no order falls back to
+		# alphabetical *after* the explicitly-ordered ones.
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/a.md": "---\nsidebar_position: 2\n---\n# A",
+				"docs/b.md": "---\nsidebar_position: 1\n---\n# B",
+				"docs/c.md": "# C",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		docs = frappe.get_all(
+			"Wiki Document",
+			fields=["source_path", "sort_order"],
+			filters=[["lft", ">", root_lft], ["rgt", "<", root_rgt]],
+			order_by="sort_order asc",
+		)
+		self.assertEqual([d.source_path for d in docs], ["docs/b.md", "docs/a.md", "docs/c.md"])

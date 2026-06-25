@@ -242,7 +242,7 @@ Today the engine stores this verbatim, so two things break: (1) the block **rend
 - Scheduler poller (cron fallback) — fast follow; the webhook (TB6) covers real-time sync.
 - Repo image/asset import into Frappe Files (v1: leave relative/external URLs as-is) — **now specced as TB8.**
 - GitHub App auto-creation via manifest flow is optional; manual App credentials are acceptable for v1.
-- Front-matter ordering fields (`sidebar_position`/`nav_order`/`weight`) — TB9 strips front matter and uses `title` only; sibling order stays alphabetical / `.wiki.json`-nav-driven. A possible fast-follow.
+- ~~Front-matter ordering fields (`sidebar_position`/`nav_order`/`weight`)~~ — **done in polish.** The inference path now honours `sidebar_position`/`nav_order`/`weight`/`order` (lower = earlier; unordered files fall back to alphabetical after the ordered ones) and a front-matter `slug` override. `.wiki.json` nav stays authoritative for order.
 
 ## Progress
 
@@ -261,4 +261,5 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] Hardening (post-TB7): widened `route`/`source_path` fields for deep trees; ignore dot-dirs (`.github`) + optional "Docs folder" input; unique routes via path-based slug + suffix dedup (fixes `validate_unique_route_for_leaves` on title collisions); persist the GitHub user token in `Wiki GitHub Connection` (+ refresh-token renewal) so connect is one-time per user.
 - [x] TB8a — Backend image import: `_fetch_blob_bytes` + `_is_repo_relative_image` + `_import_repo_image` (one Frappe File per (space, blob SHA), attached to the space, optional WebP) + `_rewrite_image_links` (resolve `./`/`../` against source dir, rewrite before content-blob); `space` threaded through `build_nodes`/`build_nodes_from_config`; 6 unit tests (4 temp-revert verified). Privacy resolved: **public files + caveat** (private-repo images world-readable by URL — documented limitation).
 - [ ] TB8b — Privacy/serving (private files + permission-gated route, deferred) + live browser demo (synced page renders the imported image). **Not started.**
+- [x] Polish pass: create dialog ("Synced from GitHub?", Docs folder defaults to `docs`); synced banner (repo name as title + "Synced from GitHub", no "read only"); silent guarded first-sync (no duplicate toasts); frappe-ui-styled task-list checkboxes; "GitHub Sync" settings tab; linkable commit SHA + "Sync in progress" status label. Front-matter `is_published`/`published`/`draft`, `slug` override, and ordering (`sidebar_position`/`nav_order`/`weight`/`order`) now honoured in the inference path; 5 unit tests (temp-revert verified).
 - [x] TB9 — Strip YAML front matter before render + use its `title`: `strip_front_matter` + `_front_matter_title` in the engine; title precedence FM `title` → H1 → humanized filename (inference path); nav title stays authoritative; malformed/non-mapping/mid-body `---` left intact; 11 unit tests (7 temp-revert verified).

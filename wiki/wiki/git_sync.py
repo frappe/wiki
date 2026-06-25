@@ -302,6 +302,37 @@ def _published_flag(meta: dict[str, Any]) -> int:
 	return 1 if published is None or published else 0
 
 
+def _front_matter_slug(meta: dict[str, Any]) -> str | None:
+	"""The front matter ``slug`` when it's a usable scalar, else ``None``."""
+	slug = meta.get("slug")
+	if isinstance(slug, str | int | float) and not isinstance(slug, bool):
+		return str(slug).strip() or None
+	return None
+
+
+# Common ordering keys across Docusaurus (`sidebar_position`), Jekyll (`nav_order`)
+# and Hugo (`weight`). All share the same direction: a lower number sorts earlier.
+_ORDER_KEYS = ("sidebar_position", "nav_order", "weight", "order")
+
+
+def _front_matter_order(meta: dict[str, Any]) -> float | None:
+	"""Numeric sibling-order from front matter, or ``None`` when unspecified."""
+	for key in _ORDER_KEYS:
+		if key not in meta:
+			continue
+		value = meta[key]
+		if isinstance(value, bool):
+			continue
+		if isinstance(value, int | float):
+			return float(value)
+		if isinstance(value, str):
+			try:
+				return float(value.strip())
+			except ValueError:
+				continue
+	return None
+
+
 def build_nodes(
 	repo: str,
 	tree_entries: list[dict[str, Any]],
@@ -380,11 +411,12 @@ def build_nodes(
 				"landing_path": landing["path"] if landing else None,
 				# Title precedence: front-matter title → first H1 → humanized name.
 				"title": _front_matter_title(meta) or _extract_title(content) or _humanize(seg),
-				# Slug from the (unique) path segment, not the title — two pages
-				# sharing an H1 would otherwise collide on route.
-				"slug": seg,
+				# Slug from front-matter override, else the (unique) path segment —
+				# not the title, since two pages sharing an H1 would collide on route.
+				"slug": _front_matter_slug(meta) or seg,
 				"content": content,
 				"is_published": _published_flag(meta),
+				"order": _front_matter_order(meta),
 				"seg": seg,
 			}
 		)
@@ -402,9 +434,10 @@ def build_nodes(
 				"title": _front_matter_title(meta)
 				or _extract_title(content)
 				or _humanize(seg.rsplit(".", 1)[0]),
-				"slug": seg.rsplit(".", 1)[0],
+				"slug": _front_matter_slug(meta) or seg.rsplit(".", 1)[0],
 				"content": content,
 				"is_published": _published_flag(meta),
+				"order": _front_matter_order(meta),
 				"seg": seg,
 			}
 		)
@@ -609,11 +642,20 @@ def _sync_to_live(
 	for node in sorted(nodes, key=lambda n: n["source_path"]):
 		resolve_route(node)
 
+	# Sibling order: nodes with an explicit front-matter order come first, sorted
+	# by that number; the rest fall back to alphabetical (the `.wiki.json` nav path
+	# carries no order, so its zero-padded `seg` counter drives order as before).
+	def _order_key(node: dict[str, Any]) -> tuple[int, float, str]:
+		order = node.get("order")
+		if order is None:
+			return (1, 0.0, node["seg"].lower())
+		return (0, order, node["seg"].lower())
+
 	siblings: dict[str, list[dict[str, Any]]] = defaultdict(list)
 	for node in nodes:
 		siblings[node["parent_key"]].append(node)
 	for group in siblings.values():
-		group.sort(key=lambda n: n["seg"].lower())
+		group.sort(key=_order_key)
 		for index, node in enumerate(group):
 			node["sort_order"] = index
 
