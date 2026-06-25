@@ -536,6 +536,47 @@ class TestGitSyncApply(FrappeTestCase):
 
 		self.assertFalse(frappe.db.get_value("Wiki Space", space.name, "wiki_config"))
 
+	def test_internal_page_links_rewritten_to_routes(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/home.md": (
+					"# Home\n"
+					"- [Install](getting-started/install.md)\n"
+					"- [Anchor](getting-started/install.md#step-2)\n"
+					"- [External](https://example.com)\n"
+					"- [In-page](#section)\n"
+					"- [Missing](nope.md)\n"
+				),
+				"docs/getting-started/install.md": "# Install",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+
+		def _doc(source_path, fields):
+			return frappe.get_all(
+				"Wiki Document",
+				fields=fields,
+				filters=[["source_path", "=", source_path], ["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+			)[0]
+
+		install_route = _doc("docs/getting-started/install.md", ["route"]).route
+		content = _doc("docs/home.md", ["content"]).content
+
+		# Repo-relative .md links become absolute wiki routes (fragment preserved).
+		self.assertIn(f"](/{install_route})", content)
+		self.assertIn(f"](/{install_route}#step-2)", content)
+		# External links, in-page anchors, and links to non-synced files are untouched.
+		self.assertIn("](https://example.com)", content)
+		self.assertIn("](#section)", content)
+		self.assertIn("](nope.md)", content)
+		# The raw ".md" target must not survive as a real internal link.
+		self.assertNotIn("](getting-started/install.md)", content)
+
 	def test_autogenerate_syncs_folder_into_group(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")

@@ -54,6 +54,9 @@ FRONT_MATTER_PATTERN = re.compile(r"^﻿?---[ \t]*\r?\n(.*?)\r?\n(?:---|\.\.\.)[
 # Markdown image: ![alt](src "optional title"). Groups: 1=prefix "![alt](",
 # 2=src (optionally <>-wrapped), 3=optional title, 4=closing ")".
 MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
+# Markdown link: [text](url "title"). Same groups as the image pattern, but the
+# negative lookbehind on "!" excludes images (already handled separately).
+MD_LINK_PATTERN = re.compile(r"(?<!!)(\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
 
 
 # --------------------------------------------------------------------------- #
@@ -116,8 +119,8 @@ def _fetch_blob_bytes(repo: str, sha: str, token: str | None = None) -> bytes:
 # --------------------------------------------------------------------------- #
 # Repo image import (→ Frappe File, optional WebP, rewritten links)
 # --------------------------------------------------------------------------- #
-def _is_repo_relative_image(src: str) -> bool:
-	"""True only for a repo-relative image src we should import.
+def _is_repo_relative(src: str) -> bool:
+	"""True only for a repo-relative path (image src or page link) we should rewrite.
 
 	External URLs (``http(s)://``, protocol-relative), ``data:`` URIs, in-page
 	anchors, and already-stored ``/files/`` URLs are left untouched.
@@ -199,7 +202,7 @@ def _rewrite_image_links(
 	def repl(match: re.Match) -> str:
 		raw = match.group(2)
 		src = raw.strip("<>").strip()
-		if not _is_repo_relative_image(src):
+		if not _is_repo_relative(src):
 			return match.group(0)
 		resolved = posixpath.normpath(posixpath.join(base_dir, src))
 		# A "../" that climbs above the repo root can't be in the tree.
@@ -214,6 +217,38 @@ def _rewrite_image_links(
 		return f"{match.group(1)}{url}{match.group(3) or ''}{match.group(4)}"
 
 	return MD_IMAGE_PATTERN.sub(repl, content)
+
+
+def _rewrite_internal_links(content: str, source_path: str, src_to_route: dict[str, str]) -> str:
+	"""Rewrite repo-relative Markdown page links to their live wiki routes.
+
+	``[text](getting-started/install.md)`` on ``docs/index.md`` becomes
+	``[text](/my-space/getting-started/install)`` — resolved relative to the source
+	file's directory and looked up in the ``source_path → route`` map built once all
+	routes are known. A trailing ``#fragment`` is preserved. External links, in-page
+	anchors, and links to non-synced files are left untouched.
+	"""
+	if not content or not source_path:
+		return content
+
+	base_dir = posixpath.dirname(source_path)
+
+	def repl(match: re.Match) -> str:
+		raw = match.group(2)
+		url = raw.strip("<>").strip()
+		if not _is_repo_relative(url):
+			return match.group(0)
+		path_part, _, fragment = url.partition("#")
+		if not path_part:
+			return match.group(0)
+		resolved = posixpath.normpath(posixpath.join(base_dir, path_part))
+		route = src_to_route.get(resolved)
+		if not route:
+			return match.group(0)
+		new_url = f"/{route}" + (f"#{fragment}" if fragment else "")
+		return f"{match.group(1)}{new_url}{match.group(3) or ''}{match.group(4)}"
+
+	return MD_LINK_PATTERN.sub(repl, content)
 
 
 # --------------------------------------------------------------------------- #
@@ -659,7 +694,10 @@ def _blob_content(item: dict[str, Any]) -> str:
 
 
 def _sync_to_live(
-	space: frappe.Document, nodes: list[dict[str, Any]], root_content: str | None
+	space: frappe.Document,
+	nodes: list[dict[str, Any]],
+	root_content: str | None,
+	root_source_path: str | None = None,
 ) -> dict[str, int]:
 	"""Build a target revision from inferred nodes and apply it to the live tree.
 
@@ -723,6 +761,17 @@ def _sync_to_live(
 	# Stable order (by source_path) → suffix assignment is reproducible across syncs.
 	for node in sorted(nodes, key=lambda n: n["source_path"]):
 		resolve_route(node)
+
+	# Now that every route is known, rewrite repo-relative page links (e.g.
+	# `[x](other.md)`) to their live wiki routes so they resolve in the reader.
+	# Deterministic routes ⇒ the rewrite is stable across re-syncs (no churn).
+	src_to_route = {node["source_path"]: route_for[node["doc_key"]] for node in nodes}
+	if root_source_path:
+		src_to_route[root_source_path] = space.route
+	for node in nodes:
+		node["content"] = _rewrite_internal_links(node["content"], node["source_path"], src_to_route)
+	if root_content and root_source_path:
+		root_content = _rewrite_internal_links(root_content, root_source_path, src_to_route)
 
 	# Sibling order: nodes with an explicit front-matter order come first, sorted
 	# by that number; the rest fall back to alphabetical (the `.wiki.json` nav path
@@ -893,7 +942,7 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 			nodes, root_content, _root_landing = build_nodes(
 				space.repo_full_name, tree, space.docs_subdir, token, space=space
 			)
-		counts = _sync_to_live(space, nodes, root_content)
+		counts = _sync_to_live(space, nodes, root_content, _root_landing)
 		_record_success(space_name, head_sha)
 		_finalize_sync_log(log_name, "Success", commit_sha=head_sha, counts=counts)
 	except Exception:
