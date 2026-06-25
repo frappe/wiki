@@ -35,45 +35,52 @@
         class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-gray-4"
       />
 
-      <div
-        v-if="isOpen"
-        ref="list"
-        class="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
-        @scroll="onScroll"
-      >
-        <button
-          v-for="(opt, i) in displayedOptions"
-          :key="opt.value"
-          type="button"
-          class="flex w-full items-center px-3 py-1.5 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
-          :class="{ 'bg-surface-gray-2': i === highlighted }"
-          @mousedown.prevent="select(opt)"
-          @mousemove="highlighted = i"
+      <!-- Teleported to <body> so the list isn't clipped by the dialog's
+           `overflow-hidden` / transformed panel. The dialog sets
+           `body { pointer-events: none }` for modals, so the menu re-enables
+           itself with `pointer-events: auto`. `.stop` on pointer/mouse-down keeps
+           reka-ui's outside-click detector from closing the dialog on a pick. -->
+      <Teleport to="body">
+        <div
+          v-if="isOpen"
+          ref="list"
+          class="fixed z-[9999] max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+          :style="menuStyle"
+          @scroll="onScroll"
+          @pointerdown.stop
+          @mousedown.stop
         >
-          {{ opt.label }}
-        </button>
+          <button
+            v-for="(opt, i) in displayedOptions"
+            :key="opt.value"
+            type="button"
+            class="flex w-full items-center px-3 py-1.5 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
+            :class="{ 'bg-surface-gray-2': i === highlighted }"
+            @mousedown.prevent="select(opt)"
+            @mousemove="highlighted = i"
+          >
+            {{ opt.label }}
+          </button>
 
-        <div
-          v-if="loading"
-          class="px-3 py-1.5 text-p-sm text-ink-gray-5"
-        >
-          {{ __('Loading…') }}
+          <div v-if="loading" class="px-3 py-1.5 text-p-sm text-ink-gray-5">
+            {{ __('Loading…') }}
+          </div>
+          <div
+            v-else-if="!displayedOptions.length"
+            class="px-3 py-1.5 text-p-sm text-ink-gray-5"
+          >
+            {{ __('No matches') }}
+          </div>
+          <button
+            v-else-if="hasMore"
+            type="button"
+            class="w-full px-3 py-1.5 text-left text-p-sm text-ink-gray-6 hover:bg-surface-gray-2"
+            @mousedown.prevent="$emit('load-more')"
+          >
+            {{ __('Load more…') }}
+          </button>
         </div>
-        <div
-          v-else-if="!displayedOptions.length"
-          class="px-3 py-1.5 text-p-sm text-ink-gray-5"
-        >
-          {{ __('No matches') }}
-        </div>
-        <button
-          v-else-if="hasMore"
-          type="button"
-          class="w-full px-3 py-1.5 text-left text-p-sm text-ink-gray-6 hover:bg-surface-gray-2"
-          @mousedown.prevent="$emit('load-more')"
-        >
-          {{ __('Load more…') }}
-        </button>
-      </div>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -102,6 +109,7 @@ const list = ref(null);
 const isOpen = ref(false);
 const query = ref("");
 const highlighted = ref(0);
+const menuStyle = ref({});
 
 const selectedLabel = computed(() => {
   const match = props.options.find((o) => o.value === props.modelValue);
@@ -122,10 +130,29 @@ function resetScroll() {
   });
 }
 
+// Anchor the fixed dropdown to the input on every open / scroll / resize.
+function positionMenu() {
+  const el = input.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  menuStyle.value = {
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    // body is pointer-events:none under a modal; re-enable just the menu.
+    pointerEvents: "auto",
+  };
+}
+
+function reposition() {
+  if (isOpen.value) positionMenu();
+}
+
 function open() {
   if (props.disabled) return;
   isOpen.value = true;
   highlighted.value = 0;
+  nextTick(positionMenu);
   resetScroll();
 }
 
@@ -179,8 +206,14 @@ function onClickOutside(event) {
   if (root.value && !root.value.contains(event.target)) close();
 }
 document.addEventListener("mousedown", onClickOutside);
+// Capture phase so scrolling *inside* the dialog body (not just the window)
+// keeps the fixed dropdown glued to the input.
+window.addEventListener("scroll", reposition, true);
+window.addEventListener("resize", reposition);
 onBeforeUnmount(() => {
   document.removeEventListener("mousedown", onClickOutside);
+  window.removeEventListener("scroll", reposition, true);
+  window.removeEventListener("resize", reposition);
   clearTimeout(searchTimer);
 });
 
