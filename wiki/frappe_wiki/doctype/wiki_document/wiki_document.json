@@ -22,6 +22,7 @@
 		"lft",
 		"rgt",
 		"is_group",
+		"is_landing",
 		"old_parent",
 		"parent_wiki_document",
 		"sort_order"
@@ -55,6 +56,15 @@
 			"fieldname": "is_group",
 			"fieldtype": "Check",
 			"label": "Is Group"
+		},
+		{
+			"default": "0",
+			"fieldname": "is_landing",
+			"fieldtype": "Check",
+			"label": "Is Landing Page",
+			"description": "A group that renders its own content (a git-synced README/index landing) at its route instead of redirecting to its first child.",
+			"read_only": 1,
+			"no_copy": 1
 		},
 		{
 			"fieldname": "old_parent",

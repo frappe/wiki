@@ -884,19 +884,29 @@ def _sync_to_live(
 	for node in nodes:
 		name = key_to_name.get(node["doc_key"])
 		if name:
+			# is_landing flags a group that carries its own README/index content, so
+			# the renderer shows it in place instead of redirecting to a child.
 			frappe.db.set_value(
-				"Wiki Document", name, "source_path", node["source_path"], update_modified=False
+				"Wiki Document",
+				name,
+				{
+					"source_path": node["source_path"],
+					"is_landing": 1 if node["is_group"] and node.get("landing_path") else 0,
+				},
+				update_modified=False,
 			)
 	# A root README/index makes the root group a real landing page served at the
-	# space route: publish it, title it from the landing, and stamp its source so
-	# "Edit on GitHub" resolves. (Without a landing the root stays a structural,
-	# unpublished container that redirects to its first child.)
+	# space route: flag it, publish it, title it from the landing, and stamp its
+	# source so "Edit on GitHub" resolves. (Without a landing the root stays a
+	# structural, unpublished container that redirects to its first child.)
 	if root_source_path:
-		updates = {"source_path": root_source_path, "is_published": 1}
+		updates = {"source_path": root_source_path, "is_published": 1, "is_landing": 1}
 		title = _extract_title(root_content or "")
 		if title:
 			updates["title"] = title
 		frappe.db.set_value("Wiki Document", space.root_group, updates, update_modified=False)
+	else:
+		frappe.db.set_value("Wiki Document", space.root_group, "is_landing", 0, update_modified=False)
 
 	return counts
 

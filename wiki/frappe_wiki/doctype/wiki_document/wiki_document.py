@@ -449,15 +449,15 @@ class WikiDocumentRenderer(BaseRenderer):
 		document = frappe.db.get_value(
 			"Wiki Document",
 			{"route": self.path},
-			["name", "is_group", "is_published", "is_external_link", "content"],
+			["name", "is_group", "is_published", "is_external_link", "is_landing"],
 			as_dict=True,
 		)
 		if document and document.is_published and not document.is_external_link:
-			# Leaves always render; a group renders in place only when it carries its
-			# own landing content (a synced README/index), otherwise it falls through
-			# to the redirect-to-first-child below.
-			has_landing = bool(document.content) and document.content != "[root_group]"
-			if not document.is_group or has_landing:
+			# Leaves render directly; a group renders in place only when flagged as a
+			# landing (a git-synced README/index promoted onto it — set by the sync
+			# engine). Unflagged groups redirect to their first child, so normal
+			# spaces are unaffected.
+			if not document.is_group or document.is_landing:
 				self.wiki_doc_name = document.name
 				return True
 

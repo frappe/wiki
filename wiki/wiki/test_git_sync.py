@@ -398,9 +398,31 @@ class TestGitSyncApply(FrappeTestCase):
 		docs = self._tree(space)
 		guides = next(d for d in docs if d.is_group and d.title == "Guides")
 		self.assertEqual(guides.source_path, "docs/guides/README.md")
+		# Flagged a landing so the renderer shows it in place (not redirect-to-child).
+		self.assertEqual(frappe.db.get_value("Wiki Document", guides.name, "is_landing"), 1)
 		# The leaf keeps its own file path and nests under the group.
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
+		self.assertEqual(frappe.db.get_value("Wiki Document", setup.name, "is_landing"), 0)
+
+	def test_root_readme_lands_on_root_group(self):
+		# A docs-root README becomes the space landing: the root group is flagged,
+		# published, and served at the space route — not a standalone /readme leaf.
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/README.md": "# Home\nwelcome", "docs/intro.md": "# Intro"})
+		repo.install(self)
+		sync_space(space.name)
+
+		root = frappe.get_doc("Wiki Document", space.root_group)
+		self.assertEqual(root.is_landing, 1)
+		self.assertEqual(root.is_published, 1)
+		self.assertEqual(root.route, space.route)
+		self.assertEqual(root.source_path, "docs/README.md")
+		# No standalone leaf for the landing file.
+		leaf_sources = {d.source_path for d in self._tree(space) if not d.is_group}
+		self.assertNotIn("docs/README.md", leaf_sources)
+		self.assertIn("docs/intro.md", leaf_sources)
 
 	def test_private_repo_mints_installation_token_from_id(self):
 		# With a github_installation_id and no explicit token, the engine mints a
