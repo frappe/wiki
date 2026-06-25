@@ -561,6 +561,10 @@ def build_nodes_from_config(
 		return f"{prefix}/{rel}" if prefix else rel
 
 	nodes: list[dict[str, Any]] = []
+	# A root-level README/index is the space's landing (served at the space route),
+	# not a standalone ``/index`` page — mirrors the inference path. Holder so the
+	# nested add_leaf can set it.
+	root_landing: dict[str, str | None] = {"content": None, "path": None}
 	# A monotonic counter rendered as a zero-padded seg: the existing sibling sort
 	# in _sync_to_live then reproduces sidebar (document) order for free.
 	order = [0]
@@ -579,6 +583,11 @@ def build_nodes_from_config(
 		# title (and the body is still stripped + image-rewritten + publish-gated).
 		body, meta = strip_front_matter(_fetch_blob(repo, blob_sha, token))
 		base = full_path.split("/")[-1].rsplit(".", 1)[0]
+		# A root-level README/index lands at the space route, not /<...>/index.
+		if parent_dir == "" and full_path.split("/")[-1].lower() in LANDING_BASENAMES:
+			root_landing["content"] = _rewrite_image_links(body, full_path, repo, sha_by_path, space, token)
+			root_landing["path"] = full_path
+			return
 		nodes.append(
 			{
 				"is_group": 0,
@@ -688,7 +697,7 @@ def build_nodes_from_config(
 						add_leaf(value, parent_dir, label=key)
 
 	walk(sidebar, "")
-	return nodes, None, None
+	return nodes, root_landing["content"], root_landing["path"]
 
 
 # --------------------------------------------------------------------------- #
@@ -878,6 +887,16 @@ def _sync_to_live(
 			frappe.db.set_value(
 				"Wiki Document", name, "source_path", node["source_path"], update_modified=False
 			)
+	# A root README/index makes the root group a real landing page served at the
+	# space route: publish it, title it from the landing, and stamp its source so
+	# "Edit on GitHub" resolves. (Without a landing the root stays a structural,
+	# unpublished container that redirects to its first child.)
+	if root_source_path:
+		updates = {"source_path": root_source_path, "is_published": 1}
+		title = _extract_title(root_content or "")
+		if title:
+			updates["title"] = title
+		frappe.db.set_value("Wiki Document", space.root_group, updates, update_modified=False)
 
 	return counts
 

@@ -213,6 +213,26 @@ class TestGitSyncConfig(FrappeTestCase):
 		self.assertLess(by_path["docs/intro.md"]["seg"], guides["seg"])
 		self.assertLess(by_path["docs/guides/setup.md"]["seg"], by_path["docs/guides/deep.md"]["seg"])
 
+	def test_config_root_index_becomes_landing_not_a_page(self):
+		# A root-level README/index referenced in the sidebar lands at the space
+		# route (root_content), not as a standalone /<space>/index leaf.
+		config = {"sidebar": [{"Home": "index.md"}, {"Intro": "intro.md"}]}
+		files = {
+			"docs/.wiki.json": json.dumps(config),
+			"docs/index.md": "# Documentation Home\nwelcome",
+			"docs/intro.md": "# Intro\nbody",
+		}
+		repo = _FakeRepo(files)
+		repo.install(self)
+		nodes, root_content, root_landing = build_nodes_from_config(
+			"acme/docs", repo.tree(), config, docs_subdir="docs"
+		)
+		self.assertIn("welcome", root_content)
+		self.assertEqual(root_landing, "docs/index.md")
+		# index.md is absorbed into the landing — no standalone node for it.
+		self.assertNotIn("docs/index.md", {n["source_path"] for n in nodes})
+		self.assertIn("docs/intro.md", {n["source_path"] for n in nodes})
+
 	def test_config_skips_missing_files(self):
 		config = {"sidebar": [{"Ghost": "nope.md"}, {"Intro": "intro.md"}]}
 		repo = self._repo_with_config(config)
