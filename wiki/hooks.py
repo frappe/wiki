@@ -120,6 +120,12 @@ doc_events = {
 	},
 }
 
+# Auto-prune the webhook delivery log (Frappe's daily log-clearing runs each
+# doctype's `clear_old_logs`).
+default_log_clearing_doctypes = {
+	"Wiki GitHub Webhook Log": 30,
+}
+
 # Scheduled Tasks
 # ---------------
 

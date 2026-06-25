@@ -490,43 +490,63 @@ class TestGithubWebhook(FrappeTestCase):
 		self.assertFalse(github._verify_signature(b"{}", None, self.WEBHOOK_SECRET))
 		self.assertFalse(github._verify_signature(b"{}", "sha256=abc", None))
 
-	# ----- dispatch / routing ----- #
+	# ----- delivery log + routing ----- #
+
+	def _deliver(self, body: bytes, signature: str, event: str):
+		"""Mirror the webhook endpoint: persist the delivery, then dispatch it."""
+		log = frappe.get_doc(
+			{
+				"doctype": "Wiki GitHub Webhook Log",
+				"name": f"delivery-{frappe.generate_hash(length=8)}",
+				"event": event,
+				"signature": signature,
+				"payload": body.decode(),
+			}
+		)
+		log.insert(ignore_permissions=True)
+		log.handle_events()
+		return log
 
 	def test_invalid_signature_is_rejected(self):
 		body = self._push_body()
-		self.assertRaises(frappe.PermissionError, github._dispatch_webhook, body, "sha256=wrong", "push")
+		self.assertRaises(frappe.PermissionError, self._deliver, body, "sha256=wrong", "push")
 		self.assertEqual(self.enqueued, [])
+		# A forged delivery must not be persisted.
+		self.assertEqual(frappe.db.count("Wiki GitHub Webhook Log"), 0)
 
 	def test_push_enqueues_only_branch_matched_space(self):
 		main_space = self._synced_space(branch="main")
 		self._synced_space(branch="develop")  # same repo, other branch — must be skipped
 
 		body = self._push_body(ref="refs/heads/main")
-		result = github._dispatch_webhook(body, self._sign(body), "push")
+		log = self._deliver(body, self._sign(body), "push")
 
-		self.assertEqual(result["synced_spaces"], [main_space.name])
-		self.assertEqual(result["branch"], "main")
+		self.assertEqual(log.branch, "main")
+		self.assertEqual(log.git_reference_type, "branch")
+		self.assertEqual(log.synced_spaces, main_space.name)
 		self.assertEqual(len(self.enqueued), 1)
 		_args, kwargs = self.enqueued[0]
 		self.assertEqual(kwargs["space_name"], main_space.name)
 		self.assertEqual(kwargs["trigger"], "Webhook")
 
-	def test_non_push_event_is_ignored(self):
+	def test_non_push_event_is_logged_but_ignored(self):
 		self._synced_space(branch="main")
 		body = self._push_body()
-		result = github._dispatch_webhook(body, self._sign(body), "issues")
-		self.assertEqual(result, {"ignored": "issues"})
+		log = self._deliver(body, self._sign(body), "issues")
+		# Logged for audit, but no sync side effects.
+		self.assertTrue(frappe.db.exists("Wiki GitHub Webhook Log", log.name))
+		self.assertFalse(log.synced_spaces)
 		self.assertEqual(self.enqueued, [])
 
 	def test_ping_event_acknowledged(self):
-		body = b"{}"
-		result = github._dispatch_webhook(body, self._sign(body), "ping")
-		self.assertTrue(result["ok"])
+		log = self._deliver(b"{}", self._sign(b"{}"), "ping")
+		self.assertTrue(frappe.db.exists("Wiki GitHub Webhook Log", log.name))
 		self.assertEqual(self.enqueued, [])
 
 	def test_tag_push_matches_no_space(self):
 		self._synced_space(branch="main")
 		body = self._push_body(ref="refs/tags/v1.0")
-		result = github._dispatch_webhook(body, self._sign(body), "push")
-		self.assertEqual(result["synced_spaces"], [])
+		log = self._deliver(body, self._sign(body), "push")
+		self.assertEqual(log.git_reference_type, "tag")
+		self.assertFalse(log.synced_spaces)
 		self.assertEqual(self.enqueued, [])
