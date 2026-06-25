@@ -149,29 +149,65 @@ class TestGithubAuth(FrappeTestCase):
 		self.assertEqual(result[0]["account"], "acme")
 		self.assertEqual(result[0]["account_type"], "Organization")
 
-	def test_repositories_parsed_and_paginated(self):
-		# First page is full (100) → engine must fetch a second page.
-		page1 = [
-			{"full_name": f"acme/repo{i}", "private": True, "default_branch": "main"} for i in range(100)
+	def test_repositories_returns_single_page_with_has_more(self):
+		# A full page signals there's more to fetch; the picker pages on demand
+		# rather than walking every page up front (the slow path we removed).
+		full_page = [
+			{"full_name": f"acme/repo{i}", "private": True, "default_branch": "main"}
+			for i in range(github.REPO_PAGE_SIZE)
 		]
-		page2 = [{"full_name": "acme/last", "private": False, "default_branch": "develop"}]
+		fake = _FakeRequests(get=lambda url, headers: _FakeResponse({"repositories": full_page}))
+		github.requests = fake
+
+		result = github.repositories(42, "user-oauth-token", page=1)
+
+		self.assertEqual(len(fake.get_calls), 1)  # one page, not the whole list
+		self.assertTrue(result["has_more"])
+		self.assertEqual(len(result["repositories"]), github.REPO_PAGE_SIZE)
+		self.assertIn(f"per_page={github.REPO_PAGE_SIZE}", fake.get_calls[0][0])
+
+	def test_repositories_last_page_reports_no_more(self):
+		short_page = [{"full_name": "acme/last", "private": False, "default_branch": "develop"}]
+		fake = _FakeRequests(get=lambda url, headers: _FakeResponse({"repositories": short_page}))
+		github.requests = fake
+
+		result = github.repositories(42, "user-oauth-token", page=2)
+
+		self.assertFalse(result["has_more"])
+		self.assertEqual(result["repositories"][0]["full_name"], "acme/last")
+		self.assertEqual(result["repositories"][0]["default_branch"], "develop")
+
+	def test_repositories_search_uses_scoped_search_api(self):
+		self._configure_app(private_key=_rsa_keypair()[0])
 
 		def _get(url, headers):
-			# Match the page param with its "&" prefix: a bare "page=1" is also a
-			# substring of "per_page=100", which would pin every page to page1 and
-			# loop repositories() forever.
-			payload = page1 if "&page=1" in url else page2
-			return _FakeResponse({"repositories": payload})
+			if "/app/installations/42" in url:
+				return _FakeResponse({"account": {"login": "acme", "type": "Organization"}})
+			# Search endpoint hit with the org-scoped query.
+			self.assertIn("/search/repositories", url)
+			self.assertIn("org%3Aacme", url)
+			self.assertIn("docs+in%3Aname", url)
+			return _FakeResponse(
+				{
+					"total_count": 100,
+					"items": [{"full_name": "acme/docs", "private": True, "default_branch": "main"}],
+				}
+			)
 
-		fake = _FakeRequests(get=_get)
+		github.requests = _FakeRequests(get=_get)
+		result = github.repositories(42, "user-oauth-token", search="docs", page=1)
+
+		self.assertTrue(result["has_more"])  # 100 > page*30
+		self.assertEqual(result["repositories"][0]["full_name"], "acme/docs")
+
+	def test_repo_branches_lists_names(self):
+		fake = _FakeRequests(get=lambda url, headers: _FakeResponse([{"name": "main"}, {"name": "develop"}]))
 		github.requests = fake
-		result = github.repositories(42, "user-oauth-token")
 
-		self.assertEqual(len(result), 101)
-		self.assertEqual(len(fake.get_calls), 2)  # paginated
-		self.assertEqual(result[-1]["full_name"], "acme/last")
-		self.assertFalse(result[-1]["private"])
-		self.assertEqual(result[-1]["default_branch"], "develop")
+		result = github.repo_branches("acme/docs", "user-oauth-token")
+
+		self.assertEqual(result, ["main", "develop"])
+		self.assertIn("/repos/acme/docs/branches", fake.get_calls[0][0])
 
 	# ----- connect-account OAuth (TB4b) ----- #
 

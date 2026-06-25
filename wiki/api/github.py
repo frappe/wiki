@@ -113,30 +113,88 @@ def installations(token: str) -> list[dict[str, Any]]:
 	return result
 
 
-def repositories(installation_id: str | int, token: str) -> list[dict[str, Any]]:
-	"""List repos the user can access through a given installation (paginated)."""
-	result = []
-	page = 1
-	while True:
+REPO_PAGE_SIZE = 30
+
+
+def _repo_brief(repo: dict[str, Any]) -> dict[str, Any]:
+	return {
+		"full_name": repo.get("full_name"),
+		"private": repo.get("private"),
+		"default_branch": repo.get("default_branch"),
+	}
+
+
+def _installation_account(installation_id: str | int) -> tuple[str | None, str | None]:
+	"""``(login, type)`` of the account an installation belongs to.
+
+	Used to scope repo *search* to the right owner; reads App-scoped metadata, so
+	it signs with the App JWT rather than the user token.
+	"""
+	resp = requests.get(
+		f"{GITHUB_API}/app/installations/{installation_id}",
+		headers=_headers(_app_jwt()),
+		timeout=30,
+	)
+	resp.raise_for_status()
+	account = resp.json().get("account") or {}
+	return account.get("login"), account.get("type")
+
+
+def repositories(
+	installation_id: str | int,
+	token: str,
+	search: str | None = None,
+	page: int = 1,
+) -> dict[str, Any]:
+	"""One page of repos for the picker — ``{"repositories": [...], "has_more": bool}``.
+
+	Browsing lists the installation's own repos. Searching can't use that endpoint
+	(it has no name filter), so it falls back to GitHub's search API scoped to the
+	installation's account — fast even for orgs with thousands of repos, where
+	eagerly walking every page was the bottleneck.
+	"""
+	page = max(int(page or 1), 1)
+	search = (search or "").strip()
+
+	if search:
+		login, account_type = _installation_account(installation_id)
+		scope = "org" if (account_type or "").lower() == "organization" else "user"
+		query = f"{search} in:name fork:true {scope}:{login}"
+		params = urlencode({"q": query, "per_page": REPO_PAGE_SIZE, "page": page})
 		resp = requests.get(
-			f"{GITHUB_API}/user/installations/{installation_id}/repositories" f"?per_page=100&page={page}",
+			f"{GITHUB_API}/search/repositories?{params}",
+			headers=_headers(token),
+			timeout=30,
+		)
+		resp.raise_for_status()
+		data = resp.json()
+		repos = [_repo_brief(r) for r in data.get("items", [])]
+		has_more = page * REPO_PAGE_SIZE < int(data.get("total_count", 0))
+	else:
+		params = urlencode({"per_page": REPO_PAGE_SIZE, "page": page})
+		resp = requests.get(
+			f"{GITHUB_API}/user/installations/{installation_id}/repositories?{params}",
 			headers=_headers(token),
 			timeout=30,
 		)
 		resp.raise_for_status()
 		batch = resp.json().get("repositories", [])
-		for repo in batch:
-			result.append(
-				{
-					"full_name": repo.get("full_name"),
-					"private": repo.get("private"),
-					"default_branch": repo.get("default_branch"),
-				}
-			)
-		if len(batch) < 100:
-			break
-		page += 1
-	return result
+		repos = [_repo_brief(r) for r in batch]
+		has_more = len(batch) == REPO_PAGE_SIZE
+
+	return {"repositories": repos, "has_more": has_more}
+
+
+def repo_branches(repo_full_name: str, token: str) -> list[str]:
+	"""Branch names for a repo (first 100 — covers virtually every repo)."""
+	params = urlencode({"per_page": 100})
+	resp = requests.get(
+		f"{GITHUB_API}/repos/{repo_full_name}/branches?{params}",
+		headers=_headers(token),
+		timeout=30,
+	)
+	resp.raise_for_status()
+	return [b.get("name") for b in resp.json() if b.get("name")]
 
 
 # --------------------------------------------------------------------------- #
@@ -439,8 +497,13 @@ def my_installations() -> list[dict[str, Any]]:
 
 
 @frappe.whitelist()
-def my_repositories(installation_id: str | int) -> list[dict[str, Any]]:
-	return repositories(installation_id, _require_user_token())
+def my_repositories(installation_id: str | int, search: str | None = None, page: int = 1) -> dict[str, Any]:
+	return repositories(installation_id, _require_user_token(), search=search, page=page)
+
+
+@frappe.whitelist()
+def my_repo_branches(repo_full_name: str) -> list[str]:
+	return repo_branches(repo_full_name, _require_user_token())
 
 
 @frappe.whitelist()

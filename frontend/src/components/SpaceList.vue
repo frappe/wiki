@@ -174,59 +174,48 @@
               </div>
 
               <template v-else>
-                <!-- Native <select>: frappe-ui Autocomplete/Select portal their
-                     dropdown, which the modal Dialog blocks (pointer-events:none). -->
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs text-ink-gray-5">{{ __('GitHub Account') }}</span>
-                  <select
-                    v-model="newSpace.github_installation_id"
-                    class="form-input w-full rounded bg-surface-gray-2 text-base text-ink-gray-8"
-                  >
-                    <option value="" disabled>
-                      {{
-                        installationsResource.loading
-                          ? __('Loading accounts...')
-                          : __('Select an account or organization')
-                      }}
-                    </option>
-                    <option v-for="opt in installationOptions" :key="opt.value" :value="opt.value">
-                      {{ opt.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <span class="text-xs text-ink-gray-5">{{ __('Repository') }}</span>
-                  <select
-                    v-model="newSpace.repo_full_name"
-                    :disabled="!newSpace.github_installation_id || repositoriesResource.loading"
-                    class="form-input w-full rounded bg-surface-gray-2 text-base text-ink-gray-8"
-                  >
-                    <option value="" disabled>
-                      {{
-                        repositoriesResource.loading
-                          ? __('Loading repositories...')
-                          : __('Select a repository')
-                      }}
-                    </option>
-                    <option v-for="opt in repoOptions" :key="opt.value" :value="opt.value">
-                      {{ opt.label }}
-                    </option>
-                  </select>
-                </div>
-                <FormControl
-                  type="text"
+                <!-- Reveal one step at a time: account → repo → branch → folder.
+                     A single account is auto-selected, so the picker collapses to
+                     repo-first in the common case. -->
+                <Autocomplete
+                  v-if="installationOptions.length > 1"
+                  :label="__('GitHub Account')"
+                  :options="installationOptions"
+                  v-model="newSpace.github_installation_id"
+                  :placeholder="__('Select an account or organization')"
+                />
+
+                <Autocomplete
+                  v-if="newSpace.github_installation_id"
+                  :label="__('Repository')"
+                  remote
+                  :options="repoOptions"
+                  v-model="newSpace.repo_full_name"
+                  :loading="repos.loading"
+                  :has-more="repos.hasMore"
+                  :placeholder="__('Search repositories…')"
+                  @search="(q) => loadRepos({ search: q, reset: true })"
+                  @load-more="loadRepos()"
+                />
+
+                <Autocomplete
+                  v-if="newSpace.repo_full_name"
                   :label="__('Branch')"
+                  :options="branchOptions"
                   v-model="newSpace.branch"
+                  :loading="branches.loading"
                   :placeholder="__('main')"
                 />
+
                 <FormControl
+                  v-if="newSpace.branch"
                   type="text"
                   :label="__('Docs folder')"
                   v-model="newSpace.docs_subdir"
                   :placeholder="__('docs')"
                   :description="__('Folder in the repo to sync. Supports nested paths like docs/guide.')"
                 />
-                <ErrorMessage :message="installationsResource.error || repositoriesResource.error" />
+                <ErrorMessage :message="installationsResource.error || repos.error || branches.error" />
               </template>
             </template>
           </template>
@@ -256,6 +245,7 @@ import LucidePlus from "~icons/lucide/plus";
 import LucideSearch from "~icons/lucide/search";
 import LucideGithub from "~icons/lucide/github";
 import { useUserStore } from "@/stores/user";
+import Autocomplete from "@/components/Autocomplete.vue";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -279,8 +269,16 @@ const newSpace = reactive({
 // runs in a popup against `/github/authorize`; we poll `is_connected` until the
 // user's token is cached server-side, then list their installations and repos.
 const githubConnected = createResource({ url: "wiki.api.github.is_connected" });
-const installationsResource = createResource({ url: "wiki.api.github.my_installations" });
+const installationsResource = createResource({
+  url: "wiki.api.github.my_installations",
+  // A single account is the common case — pick it automatically so the form
+  // collapses to repo-first (the account step hides when there's nothing to choose).
+  onSuccess: (data) => {
+    if ((data || []).length === 1) newSpace.github_installation_id = String(data[0].id);
+  },
+});
 const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
+const branchesResource = createResource({ url: "wiki.api.github.my_repo_branches" });
 const appInstallUrl = createResource({ url: "wiki.api.github.app_install_url" });
 
 const installationOptions = computed(() =>
@@ -290,13 +288,62 @@ const installationOptions = computed(() =>
   })),
 );
 
+// Repos are paged from the server (a search/load-more list, not loaded all at
+// once) so big orgs don't stall the dialog. `loadRepos` accumulates pages and
+// resets when the search term changes.
+const repos = reactive({ list: [], page: 1, search: "", hasMore: false, loading: false, error: null });
+
+async function loadRepos({ search, reset = false } = {}) {
+  if (!newSpace.github_installation_id) return;
+  if (search !== undefined) repos.search = search;
+  if (reset) {
+    repos.page = 1;
+    repos.list = [];
+  }
+  repos.loading = true;
+  repos.error = null;
+  try {
+    const res = await repositoriesResource.submit({
+      installation_id: newSpace.github_installation_id,
+      search: repos.search,
+      page: repos.page,
+    });
+    const batch = res?.repositories || [];
+    repos.list = repos.page === 1 ? batch : [...repos.list, ...batch];
+    repos.hasMore = !!res?.has_more;
+    if (repos.hasMore) repos.page += 1;
+  } catch (error) {
+    repos.error = error;
+  } finally {
+    repos.loading = false;
+  }
+}
+
 const repoOptions = computed(() =>
-  (repositoriesResource.data || []).map((r) => ({
+  repos.list.map((r) => ({
     label: r.private ? `${r.full_name} 🔒` : r.full_name,
     value: r.full_name,
     default_branch: r.default_branch,
   })),
 );
+
+const branches = reactive({ list: [], loading: false, error: null });
+
+async function loadBranches(fullName) {
+  branches.list = [];
+  if (!fullName) return;
+  branches.loading = true;
+  branches.error = null;
+  try {
+    branches.list = (await branchesResource.submit({ repo_full_name: fullName })) || [];
+  } catch (error) {
+    branches.error = error;
+  } finally {
+    branches.loading = false;
+  }
+}
+
+const branchOptions = computed(() => branches.list.map((b) => ({ label: b, value: b })));
 
 // When the dialog reveals the Git-sync section, learn whether we're already
 // connected (and if so, load the account list straight away).
@@ -366,23 +413,24 @@ function connectGithub() {
   }, 1500);
 }
 
-// Picking an account resets the repo and lists that installation's repos.
+// Picking an account resets the downstream choices and loads its first repo page.
 watch(
   () => newSpace.github_installation_id,
   (installationId) => {
     newSpace.repo_full_name = "";
-    if (installationId) {
-      repositoriesResource.fetch({ installation_id: installationId });
-    }
+    newSpace.branch = "";
+    if (installationId) loadRepos({ search: "", reset: true });
   },
 );
 
-// Picking a repo defaults the branch to that repo's default branch.
+// Picking a repo defaults the branch to that repo's default branch and loads
+// the rest of its branches for the selector.
 watch(
   () => newSpace.repo_full_name,
   (fullName) => {
     const repo = repoOptions.value.find((r) => r.value === fullName);
-    if (repo?.default_branch) newSpace.branch = repo.default_branch;
+    newSpace.branch = repo?.default_branch || "";
+    loadBranches(fullName);
   },
 );
 
@@ -460,6 +508,8 @@ const spaces = createListResource({
       newSpace.repo_full_name = "";
       newSpace.branch = "";
       newSpace.docs_subdir = "docs";
+      repos.list = [];
+      branches.list = [];
       routeManuallyEdited.value = false;
       toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
       // Synced spaces kick off their first sync automatically on the space
