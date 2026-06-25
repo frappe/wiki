@@ -38,7 +38,7 @@
       <div
         v-if="isOpen"
         ref="list"
-        class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+        class="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
         @scroll="onScroll"
       >
         <button
@@ -79,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import LucideChevronDown from "~icons/lucide/chevron-down";
 
 const props = defineProps({
@@ -114,10 +114,19 @@ const displayedOptions = computed(() => {
   return props.options.filter((o) => String(o.label).toLowerCase().includes(q));
 });
 
+// Always start the list at the top — otherwise it can open scrolled a partial
+// row down, clipping the first option.
+function resetScroll() {
+  nextTick(() => {
+    if (list.value) list.value.scrollTop = 0;
+  });
+}
+
 function open() {
   if (props.disabled) return;
   isOpen.value = true;
   highlighted.value = 0;
+  resetScroll();
 }
 
 function close() {
@@ -130,6 +139,7 @@ function onInput(event) {
   query.value = event.target.value;
   isOpen.value = true;
   highlighted.value = 0;
+  resetScroll();
   if (props.remote) {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => emit("search", query.value), 300);
