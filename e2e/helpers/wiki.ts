@@ -2,6 +2,32 @@ import { APIRequestContext, type Page, expect } from '@playwright/test';
 import { createDoc, deleteDoc, getDoc, getList } from './frappe';
 
 /**
+ * Tear down every Wiki Space with the given (test-unique) route.
+ *
+ * `Wiki Space` cascades its documents, revisions and root group on delete (see
+ * its `on_trash`), so a single atomic `deleteDoc` removes the whole space —
+ * important for a git-synced space, which is read-only and otherwise lingers as
+ * the newest entry in the `/wiki` list (ordered by creation desc), trapping
+ * later specs whose helpers author into the first space (no "New Page" button).
+ *
+ * Resolving by route rather than the create response means a space the server
+ * created but whose response the client never saw — a `createDoc` that timed
+ * out, or a Playwright retry that created a second space — is still cleaned up.
+ */
+export async function cleanupWikiSpacesByRoute(
+	request: APIRequestContext,
+	route: string,
+): Promise<void> {
+	const found = await getList<{ name: string }>(request, 'Wiki Space', {
+		fields: ['name'],
+		filters: { route },
+		limit: 0,
+	}).catch(() => []);
+	for (const space of found)
+		await deleteDoc(request, 'Wiki Space', space.name).catch(() => {});
+}
+
+/**
  * Publish the change request currently open on the review page. The header
  * primary action is Approve-only; the combined "Approve & Merge" lives in the
  * three-dots menu and opens a confirm dialog. Waits for the merged toast.

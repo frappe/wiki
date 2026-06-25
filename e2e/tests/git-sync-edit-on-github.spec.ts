@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createDoc, deleteDoc } from '../helpers/frappe';
-import type { WikiDocument, WikiSpace } from '../helpers/wiki';
+import { createDoc } from '../helpers/frappe';
+import {
+	type WikiDocument,
+	type WikiSpace,
+	cleanupWikiSpacesByRoute,
+} from '../helpers/wiki';
 
 /**
  * TB2 — "Edit on GitHub" on a synced page.
@@ -15,21 +19,18 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 	const REPO = 'frappe/wiki';
 	const BRANCH = 'main';
 
-	let spaceName: string;
-	const pageNames: string[] = [];
+	let route: string;
 
 	test.afterEach(async ({ request }) => {
-		for (const name of pageNames)
-			await deleteDoc(request, 'Wiki Document', name).catch(() => {});
-		if (spaceName)
-			await deleteDoc(request, 'Wiki Space', spaceName).catch(() => {});
+		if (route) await cleanupWikiSpacesByRoute(request, route);
+		route = '';
 	});
 
 	test('menu item opens the source file in GitHub editor', async ({
 		page,
 		request,
 	}) => {
-		const route = `git-sync-edit-${Date.now()}`;
+		route = `git-sync-edit-${Date.now()}`;
 		const space = await createDoc<WikiSpace & { root_group: string }>(
 			request,
 			'Wiki Space',
@@ -44,12 +45,11 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 				last_sync_time: '2026-01-01 00:00:00',
 			},
 		);
-		spaceName = space.name;
 
 		// A nested leaf page with a repo-relative source_path.
 		const leafSourcePath = 'docs/guides/setup.md';
 		const leafTitle = `Setup ${Date.now()}`;
-		const leaf = await createDoc<WikiDocument>(request, 'Wiki Document', {
+		await createDoc<WikiDocument>(request, 'Wiki Document', {
 			title: leafTitle,
 			route: `${route}/setup`,
 			content: '# Setup\n\nFrom the repo.',
@@ -58,7 +58,6 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 			is_published: true,
 			source_path: leafSourcePath,
 		});
-		pageNames.push(leaf.name);
 
 		await page.goto(`/wiki/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');

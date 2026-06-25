@@ -583,6 +583,55 @@ class TestGitSyncSpaceControls(FrappeTestCase):
 		space.insert()
 		self.assertRaises(frappe.ValidationError, space.sync_now)
 
+	def test_sync_now_requires_write_permission(self):
+		"""A reader without write access can't trigger a sync (whitelisted doc
+		methods only enforce read by default)."""
+		space = _make_synced_space()
+
+		email = f"git-sync-reader-{frappe.generate_hash(length=6)}@example.com"
+		user = frappe.get_doc(
+			{"doctype": "User", "email": email, "first_name": "Reader", "send_welcome_email": 0}
+		).insert(ignore_permissions=True)
+
+		frappe.set_user(user.name)
+		try:
+			self.assertRaises(frappe.PermissionError, space.sync_now)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_space_deletion_cascades_content(self):
+		"""Deleting a space tears down its documents, revisions and root group —
+		without the on_trash cascade these links raise LinkExistsError."""
+		space = _make_synced_space()
+		leaf = frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": "Leaf",
+				"route": f"{space.route}/leaf",
+				"content": "# Leaf",
+				"parent_wiki_document": space.root_group,
+				"wiki_space": space.name,
+			}
+		).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": "Nested",
+				"route": f"{space.route}/leaf/nested",
+				"content": "# Nested",
+				"parent_wiki_document": leaf.name,
+				"wiki_space": space.name,
+			}
+		).insert(ignore_permissions=True)
+
+		space_name, root = space.name, space.root_group
+		frappe.delete_doc("Wiki Space", space_name)  # no force: relies on on_trash
+
+		self.assertFalse(frappe.db.exists("Wiki Space", space_name))
+		self.assertFalse(frappe.db.exists("Wiki Document", root))
+		self.assertEqual(frappe.get_all("Wiki Document", filters={"wiki_space": space_name}), [])
+		self.assertEqual(frappe.get_all("Wiki Revision", filters={"wiki_space": space_name}), [])
+
 
 class TestGitSyncReadOnly(FrappeTestCase):
 	"""A git-synced space is read-only: every content-mutation entry point is blocked,

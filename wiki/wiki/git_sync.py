@@ -635,8 +635,17 @@ def _sync_to_live(
 		frappe.flags.in_apply_merge_revision = False
 
 	# Wiki Revision Item carries no source_path, so stamp it back onto live docs.
+	# Resolve every doc_key → name in one query rather than one lookup per node.
+	key_to_name = {
+		d.doc_key: d.name
+		for d in frappe.get_all(
+			"Wiki Document",
+			filters={"doc_key": ["in", [node["doc_key"] for node in nodes]]},
+			fields=["name", "doc_key"],
+		)
+	}
 	for node in nodes:
-		name = frappe.db.get_value("Wiki Document", {"doc_key": node["doc_key"]}, "name")
+		name = key_to_name.get(node["doc_key"])
 		if name:
 			frappe.db.set_value(
 				"Wiki Document", name, "source_path", node["source_path"], update_modified=False

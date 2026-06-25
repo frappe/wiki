@@ -412,6 +412,8 @@ def store_app_credentials(config: dict[str, Any]) -> None:
 	html_url = config.get("html_url")
 	if html_url:
 		settings.github_app_public_link = f"{html_url}/installations/new"
+	# Permission bypass is safe: the only caller (the App-manifest redirect)
+	# verifies `has_permission("Wiki Settings", "write")` before reaching here.
 	settings.save(ignore_permissions=True)
 	frappe.clear_cache(doctype="Wiki Settings")
 

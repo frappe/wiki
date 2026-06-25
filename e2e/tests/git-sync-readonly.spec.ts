@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createDoc, deleteDoc } from '../helpers/frappe';
-import { type WikiSpace, createTestWikiDocument } from '../helpers/wiki';
+import { createDoc } from '../helpers/frappe';
+import {
+	type WikiSpace,
+	cleanupWikiSpacesByRoute,
+	createTestWikiDocument,
+} from '../helpers/wiki';
 
 /**
  * TB1b-ii — a git-synced Wiki Space renders read-only in the authoring SPA.
@@ -15,21 +19,18 @@ test.describe('Git-synced space (read-only)', () => {
 	const REPO = 'frappe/wiki';
 	const BRANCH = 'main';
 
-	let spaceName: string;
-	let pageName: string;
+	let route: string;
 
 	test.afterEach(async ({ request }) => {
-		if (pageName)
-			await deleteDoc(request, 'Wiki Document', pageName).catch(() => {});
-		if (spaceName)
-			await deleteDoc(request, 'Wiki Space', spaceName).catch(() => {});
+		if (route) await cleanupWikiSpacesByRoute(request, route);
+		route = '';
 	});
 
 	test('renders read-only with no editing affordances', async ({
 		page,
 		request,
 	}) => {
-		const route = `git-sync-ro-${Date.now()}`;
+		route = `git-sync-ro-${Date.now()}`;
 		// last_sync_time is set so SpaceDetails treats the space as already
 		// synced and skips the auto initial-sync (which would hit GitHub).
 		const space = await createDoc<WikiSpace & { root_group: string }>(
@@ -46,17 +47,15 @@ test.describe('Git-synced space (read-only)', () => {
 				last_sync_time: '2026-01-01 00:00:00',
 			},
 		);
-		spaceName = space.name;
 
 		const pageTitle = `Synced Page ${Date.now()}`;
-		const pageDoc = await createTestWikiDocument(request, {
+		await createTestWikiDocument(request, {
 			title: pageTitle,
 			content: '# Synced Heading\n\nThis content comes from the repo.',
 			wiki_space: space.name,
 			parent_wiki_document: space.root_group,
 			is_published: true,
 		});
-		pageName = pageDoc.name;
 
 		await page.goto(`/wiki/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
