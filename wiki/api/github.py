@@ -545,11 +545,18 @@ def webhook() -> dict[str, Any]:
 	delivery id) for audit/debug; the doc verifies the signature on insert and
 	then dispatches its side effects (a branch ``push`` enqueues a sync).
 	"""
+	delivery = frappe.get_request_header("X-GitHub-Delivery")
+	# Idempotent on replay: GitHub re-sends the same delivery id after a 5xx, so a
+	# duplicate must ack 200 (not DuplicateEntryError → 500 → retry loop) and not
+	# re-dispatch.
+	if delivery and frappe.db.exists("Wiki GitHub Webhook Log", delivery):
+		return {"delivery": delivery, "duplicate": True}
+
 	body = frappe.request.get_data() or b""
 	log = frappe.get_doc(
 		{
 			"doctype": "Wiki GitHub Webhook Log",
-			"name": frappe.get_request_header("X-GitHub-Delivery"),
+			"name": delivery,
 			"event": frappe.get_request_header("X-GitHub-Event"),
 			"signature": frappe.get_request_header("X-Hub-Signature-256"),
 			"payload": body.decode("utf-8"),

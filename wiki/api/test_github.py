@@ -550,3 +550,38 @@ class TestGithubWebhook(FrappeTestCase):
 		self.assertEqual(log.git_reference_type, "tag")
 		self.assertFalse(log.synced_spaces)
 		self.assertEqual(self.enqueued, [])
+
+	def _call_webhook(self, body: bytes, signature: str, event: str, delivery: str):
+		"""Drive the actual endpoint with a stubbed request (and a no-op commit)."""
+		headers = {
+			"X-GitHub-Delivery": delivery,
+			"X-GitHub-Event": event,
+			"X-Hub-Signature-256": signature,
+		}
+		real_header, real_request = github.frappe.get_request_header, getattr(frappe.local, "request", None)
+		real_commit = frappe.db.commit
+		github.frappe.get_request_header = lambda key, default=None: headers.get(key, default)
+		frappe.local.request = type("R", (), {"get_data": staticmethod(lambda: body)})()
+		frappe.db.commit = lambda *a, **k: None
+		try:
+			return github.webhook()
+		finally:
+			github.frappe.get_request_header = real_header
+			frappe.local.request = real_request
+			frappe.db.commit = real_commit
+
+	def test_duplicate_delivery_is_idempotent(self):
+		# GitHub re-sends the same delivery id after a 5xx; the replay must ack
+		# without a DuplicateEntryError, a second log row, or a re-enqueue.
+		space = self._synced_space(branch="main")
+		body = self._push_body(ref="refs/heads/main")
+		sig = self._sign(body)
+
+		first = self._call_webhook(body, sig, "push", "dup-1")
+		self.assertEqual(first["synced_spaces"], space.name)
+		self.assertEqual(len(self.enqueued), 1)
+
+		second = self._call_webhook(body, sig, "push", "dup-1")
+		self.assertTrue(second["duplicate"])
+		self.assertEqual(len(self.enqueued), 1)  # not re-enqueued
+		self.assertEqual(frappe.db.count("Wiki GitHub Webhook Log", {"name": "dup-1"}), 1)
