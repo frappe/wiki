@@ -96,9 +96,9 @@ const tabs = computed(() => {
 		{ label: __('General'), value: 'general', icon: 'settings' },
 		{ label: __('Permissions'), value: 'permissions', icon: 'lock' },
 	];
-	// Git Sync settings only apply to git-synced spaces.
+	// GitHub Sync settings only apply to git-synced spaces.
 	if (props.space.doc?.git_synced) {
-		items.push({ label: __('Git Sync'), value: 'git-sync', icon: 'github' });
+		items.push({ label: __('GitHub Sync'), value: 'git-sync', icon: 'github' });
 	}
 	return items;
 });

@@ -94,7 +94,7 @@
                         <div class="flex items-center gap-2 mt-0.5">
                             <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
                             <Badge variant="subtle" theme="gray" size="sm">
-                                {{ space.doc?.last_sync_status || __('Pending') }}
+                                {{ syncStatusLabel(space.doc?.last_sync_status) }}
                             </Badge>
                         </div>
                     </div>
@@ -281,6 +281,17 @@ const space = createDocumentResource({
 // change request and no editing. We source the sidebar tree from the published
 // live tree instead of a CR.
 const isGitSynced = computed(() => Boolean(space.doc?.git_synced));
+
+// "Pending"/"Running" are transient internal states; show one friendly label.
+function syncStatusLabel(status) {
+	return (
+		{ Pending: __('Sync in progress'), Running: __('Sync in progress') }[
+			status
+		] ||
+		status ||
+		__('Sync in progress')
+	);
+}
 
 const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',

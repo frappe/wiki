@@ -23,7 +23,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<Badge :theme="statusTheme(lastSyncStatus)" size="sm" variant="subtle">
-					{{ lastSyncStatus || __('Pending') }}
+					{{ statusLabel(lastSyncStatus) }}
 				</Badge>
 				<Button variant="solid" size="sm" :loading="syncing" @click="syncNow">
 					{{ __('Sync now') }}
@@ -95,7 +95,7 @@
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
 							<Badge :theme="statusTheme(row.status)" size="sm" variant="subtle">
-								{{ row.status }}
+								{{ statusLabel(row.status) }}
 							</Badge>
 							<Badge
 								v-if="row.trigger === 'Webhook'"
@@ -123,8 +123,18 @@
 							{{ firstLine(row.error) }}
 						</p>
 					</div>
+					<a
+						v-if="row.commit_sha && repoFullName"
+						:href="`https://github.com/${repoFullName}/commit/${row.commit_sha}`"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="shrink-0 text-xs text-ink-gray-5 underline hover:text-ink-gray-7"
+						:title="__('View commit on GitHub')"
+					>
+						<code>{{ row.commit_sha.slice(0, 7) }}</code>
+					</a>
 					<code
-						v-if="row.commit_sha"
+						v-else-if="row.commit_sha"
 						class="shrink-0 text-xs text-ink-gray-5"
 					>
 						{{ row.commit_sha.slice(0, 7) }}
@@ -224,6 +234,18 @@ function statusTheme(status) {
 			Pending: 'blue',
 			'No Change': 'gray',
 		}[status] || 'gray'
+	);
+}
+
+// "Pending"/"Running" are transient internal states; surface a single,
+// human-readable label. Other statuses (Success/Error/No Change) read fine.
+function statusLabel(status) {
+	return (
+		{ Pending: __('Sync in progress'), Running: __('Sync in progress') }[
+			status
+		] ||
+		status ||
+		__('Sync in progress')
 	);
 }
 
