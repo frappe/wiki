@@ -90,9 +90,11 @@ Resolved the Phase-1 open questions with the user: **global nav becomes a top ap
 - ✅ **Create Space dialog audited at 375px** (agent-browser): frappe-ui's `Dialog` already centers, fits the viewport with margins, stacks fields, and uses a full-width action — no padding/full-height override needed (CRM pattern #7). Row actions ("View"/"Assign") left inline; they fit within the horizontal-scroll table, so the optional "collapse under row" wasn't necessary for v1.
 - ✅ Extended the mobile e2e with a **list-view smoke**: Spaces + Change Requests render with no page-level horizontal overflow (tables scroll inside their own box) and rows navigate. All 3 mobile specs green.
 
-### Phase 3 — Editor toolbar that doesn't overflow
-- `WikiToolbar.vue`: on mobile make the row `overflow-x: auto` (`-webkit-overflow-scrolling: touch`, `flex-wrap: nowrap`, hidden scrollbar); keep sticky-top. Bump `.toolbar-btn` to 44×44px under the mobile media query. Verify the headings dropdown (`position: absolute`) doesn't clip inside the scroll container — switch to a floating-ui/tippy popover on mobile if it does.
-- Optionally adopt CRM's **collapse-into-dropdown** pattern (#5) for the least-used buttons if horizontal scroll feels cramped.
+### Phase 3 — Editor toolbar that doesn't overflow — ✅ Done (2026-06-26)
+- ✅ `WikiToolbar.vue`: on mobile (`@media (max-width: 767px)`) the row is `overflow-x: auto` (`-webkit-overflow-scrolling: touch`, scrollbar hidden, `.toolbar-group > * { flex-shrink: 0 }` so controls keep size and overflow) and stays sticky-top. `.toolbar-btn` bumped to 44×44px.
+- ✅ Headings dropdown clipping: confirmed `overflow-x: auto` forces `overflow-y: auto`, which would clip the absolute menu. Fixed by switching the menu to **`position: fixed`** on mobile, pinned off the trigger's `getBoundingClientRect()` (computed on open) — escapes the scroll container, no floating-ui/tippy dependency needed. Verified via agent-browser: menu renders fully within the viewport.
+- Collapse-into-dropdown (#5) not needed — horizontal scroll feels fine.
+- Verified at 375px (agent-browser): toolbar `scrollWidth` 965 vs `clientWidth` 310 (scrolls), 44px buttons, headings menu un-clipped. e2e asserts the toolbar is horizontally scrollable.
 **Tracer result:** every formatting action is reachable and tappable on a phone.
 
 ### Phase 4 — Editor touch polish
