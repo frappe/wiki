@@ -83,10 +83,12 @@ Resolved the Phase-1 open questions with the user: **global nav becomes a top ap
 - ✅ Build green. Mobile Playwright project (`Pixel 7`, chromium) + lean tracer spec added (see Testing). **Live e2e not yet run** — local bench was down at implementation time.
 **Tracer result:** the content/editor area fills the screen on a phone; you can read pages and type.
 
-### Phase 2 — List & nav surfaces
-- `SpaceList.vue` / `Contributions.vue`: mobile-first margins (`px-3 sm:px-5`), let `ListView` tables scroll horizontally (CRM pattern #6). Stack the `SpaceList` header so search and "New Space" don't collide (search full-width; "New Space" as an icon button or below). Consider collapsing row actions ("View"/"Assign") under the row on mobile.
-- Audit `Create Space` and other `Dialog`s for mobile padding (`px-4 sm:px-6`) and full-height behavior (CRM pattern #7).
-- `ContributionReview.vue`: confirm the existing `lg:grid-cols-2` diff stacks cleanly and the review actions are tappable.
+### Phase 2 — List & nav surfaces — ✅ Done (2026-06-26)
+- ✅ `SpaceList.vue`: mobile-first padding (`p-3 sm:p-4`); header stacks on mobile (`flex-col sm:flex-row`) so search goes full-width and **"New Space" collapses to an icon button** (label `hidden sm:inline`, `:title` kept for a11y). `ListView` wrapped in `min-w-[600px] sm:min-w-0` inside the existing `overflow-auto` so the table scrolls horizontally and stays readable instead of compressing (CRM pattern #6).
+- ✅ `Contributions.vue`: mobile-first margins (`px-3 sm:px-5`); review tables wrapped in `min-w-[720px] sm:min-w-0` for the same horizontal-scroll behavior.
+- ✅ `ContributionReview.vue`: confirmed the diff is `lg:grid-cols-2` (stacks below `lg`, good). Made the **header stack on mobile** (`flex-col sm:flex-row`) so a long CR title can't push the Approve/Merge actions off-screen. (The inline `grid-cols-2` at the conflict checkboxes is just two short checkboxes — fine at 375px, left as-is.)
+- ✅ **Create Space dialog audited at 375px** (agent-browser): frappe-ui's `Dialog` already centers, fits the viewport with margins, stacks fields, and uses a full-width action — no padding/full-height override needed (CRM pattern #7). Row actions ("View"/"Assign") left inline; they fit within the horizontal-scroll table, so the optional "collapse under row" wasn't necessary for v1.
+- ✅ Extended the mobile e2e with a **list-view smoke**: Spaces + Change Requests render with no page-level horizontal overflow (tables scroll inside their own box) and rows navigate. All 3 mobile specs green.
 
 ### Phase 3 — Editor toolbar that doesn't overflow
 - `WikiToolbar.vue`: on mobile make the row `overflow-x: auto` (`-webkit-overflow-scrolling: touch`, `flex-wrap: nowrap`, hidden scrollbar); keep sticky-top. Bump `.toolbar-btn` to 44×44px under the mobile media query. Verify the headings dropdown (`position: absolute`) doesn't clip inside the scroll container — switch to a floating-ui/tippy popover on mobile if it does.
