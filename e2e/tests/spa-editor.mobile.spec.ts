@@ -105,6 +105,15 @@ test.describe('Mobile SPA', () => {
 		await editor.click();
 		await page.keyboard.type('Typed on a phone.');
 		await expect(editor).toContainText('Typed on a phone.');
+
+		// Phase 3: the toolbar must not hide its right-hand actions on a phone —
+		// it overflows and scrolls horizontally instead of wrapping or clipping.
+		const toolbar = page.locator('.wiki-toolbar');
+		await expect(toolbar).toBeVisible();
+		const toolbarScrolls = await toolbar.evaluate(
+			(el) => el.scrollWidth > el.clientWidth,
+		);
+		expect(toolbarScrolls).toBe(true);
 	});
 
 	// Phase 2: list surfaces stay usable on a phone — headers stack instead of
