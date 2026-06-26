@@ -9,7 +9,7 @@
         ghost-class="dragging-ghost"
         drag-class="dragging-item"
         handle=".drag-handle"
-        :disabled="readonly"
+        :disabled="readonly || searchActive"
         :animation="150"
         @start="onDragStart"
         @end="onDragEnd"
@@ -25,7 +25,7 @@
                 >
                     <div class="flex items-center gap-1.5 flex-1 min-w-0">
                         <button
-                            v-if="!readonly"
+                            v-if="!readonly && !searchActive"
                             class="drag-handle p-0.5 hover:bg-surface-gray-3 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
                             @click.stop
                         >
@@ -48,12 +48,15 @@
                         <LucideLink v-else-if="element.is_external_link" class="size-4 text-ink-gray-5 flex-shrink-0" />
                         <LucideFileText v-else class="size-4 text-ink-gray-5 flex-shrink-0" />
 
-                        <span
-                            class="text-sm truncate flex-1 min-w-0"
-                            :class="getTitleClass(element)"
-                        >
-                            {{ element.title }}
-                        </span>
+                        <div class="flex flex-col flex-1 min-w-0">
+                            <span class="text-sm truncate" :class="getTitleClass(element)">
+                                <template v-for="(seg, i) in titleParts(element)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+                            </span>
+                            <!-- Why it matched, when the route hit but the title didn't. -->
+                            <span v-if="routeParts(element)" class="text-xs text-ink-gray-4 truncate">
+                                <template v-for="(seg, i) in routeParts(element)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+                            </span>
+                        </div>
 
 						<Badge v-if="element.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
 							{{ __('Sync failed') }}
@@ -97,6 +100,9 @@
                         :parent-name="element.doc_key"
                         :space-id="spaceId"
                         :readonly="readonly"
+                        :search-active="searchActive"
+                        :expanded-override="expandedOverride"
+                        :score-map="scoreMap"
                         :selected-page-id="selectedPageId"
                         :selected-draft-key="selectedDraftKey"
                         @create="(parent, isGroup) => emit('create', parent, isGroup)"
@@ -135,6 +141,7 @@
 </template>
 
 <script setup>
+import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, toast } from 'frappe-ui';
@@ -180,6 +187,20 @@ const props = defineProps({
 	readonly: {
 		type: Boolean,
 		default: false,
+	},
+	// While a tree search is active we render a pruned tree with drag disabled
+	// and every ancestor-of-a-match force-expanded.
+	searchActive: {
+		type: Boolean,
+		default: false,
+	},
+	expandedOverride: {
+		type: Object, // Set<doc_key> | null
+		default: null,
+	},
+	scoreMap: {
+		type: Object, // Map<doc_key, fuzzysort result> | null
+		default: null,
 	},
 	selectedPageId: {
 		type: String,
@@ -235,10 +256,33 @@ const storageKey = computed(
 const expandedNodes = useStorage(storageKey, {});
 
 function isExpanded(name) {
+	// During search, force-open ancestors of matches without touching the
+	// user's saved expand state — clearing the query restores their tree.
+	if (props.expandedOverride) {
+		return props.expandedOverride.has(name);
+	}
 	return expandedNodes.value[name] === true;
 }
 
+// fuzzysort multi-key result is array-like: [0] = title key, [1] = route key.
+// Render as escaped { text, matched } segments (never an HTML string) — see
+// highlightSegments. titleParts always returns an array (plain title when no
+// match); routeParts only when the route matched but the title didn't.
+function titleParts(element) {
+	const result = props.scoreMap?.get(element.doc_key)?.[0];
+	return highlightSegments(result) || [{ text: element.title, matched: false }];
+}
+
+function routeParts(element) {
+	if (highlightSegments(props.scoreMap?.get(element.doc_key)?.[0])) return null;
+	return highlightSegments(props.scoreMap?.get(element.doc_key)?.[1]);
+}
+
 function toggleExpanded(name) {
+	// While searching, groups are force-expanded via expandedOverride; writing
+	// to expandedNodes here would silently corrupt the user's saved layout
+	// (no visible change now, but restore-on-clear would show it). So no-op.
+	if (props.searchActive) return;
 	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 
