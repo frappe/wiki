@@ -70,15 +70,17 @@ The layout is a fixed desktop row that never adapts. There is **effectively zero
 Thin vertical slices, foundation first, each independently committable and verifiable at a 375px viewport.
 
 ### Phase 0 — Mobile foundation (no visible change) — ✅ Done (2026-06-26)
-- ✅ Added `composables/useMobile.js` exporting a **reactive** `isMobile` (`useMediaQuery('(max-width: 767px)')` from `@vueuse/core`) and a shared `mobileNavOpen = ref(false)`, both module-level singletons (one source of truth; CRM pattern #1, improved). Surfaced via a `useMobile()` accessor to match the repo's composable convention.
+- ✅ Added `composables/useMobile.js` exporting a **reactive** `isMobile` (`useMediaQuery('(max-width: 767px)')` from `@vueuse/core`), a module-level singleton (one source of truth; CRM pattern #1, improved). Surfaced via a `useMobile()` accessor to match the repo's composable convention. (The planned `mobileNavOpen` ref was dropped in Phase 1 — global nav became a top bar, not a drawer, and the tree-drawer state lives locally in `SpaceDetails`.)
 - ✅ Added `viewport-fit=cover` to the viewport meta in `frontend/index.html` (CRM pattern #8).
 - Build verified green; no visible change, as intended.
 
-### Phase 1 — Navigation drawers (unblocks everything)
-- Build a small reusable `components/MobileDrawer.vue` wrapping `reka-ui`'s `DialogRoot`/`DialogPortal`/`DialogOverlay`/`DialogContent` with a `side` prop and a `translate-x` slide-in transition (focus-trap, scroll-lock, ESC, ARIA come from the primitives). Both drawers below use it.
-- **Global nav** (`MainLayout.vue`): on mobile, render the frappe-ui `<Sidebar>` inside `MobileDrawer` toggled by `mobileNavOpen`; content goes full-width. (CRM pattern #2/#3, on reka-ui instead of headlessui.)
-- **Space tree** (`SpaceDetails.vue`): on mobile, drop the inline px width + `col-resize` handle; render the `<aside>` inside `MobileDrawer`, toggled from the space header. Auto-close on page selection and backdrop tap (CRM pattern #3).
-- Add a **mobile header bar** with the hamburger toggle(s). Decide one clear entry point for each drawer (global nav vs. tree) — see Open Questions.
+### Phase 1 — Navigation drawers (unblocks everything) — ✅ Done (2026-06-26)
+Resolved the Phase-1 open questions with the user: **global nav becomes a top app bar** (not a drawer) and we **adopt the `#app-header` teleport now**. Because the global nav is tiny (logo + 2 links + theme/logout), folding it into the top bar leaves a **single** drawer (the space tree) — which also dissolves the "two hamburgers" question.
+- ✅ Built `components/MobileDrawer.vue` on `reka-ui`'s `DialogRoot`/`DialogPortal`/`DialogOverlay`/`DialogContent` with a `side` prop. Slide-in is done with **CSS keyframes keyed off reka's `data-state`** (not a plain transition, which wouldn't run on initial mount) — so no `tailwindcss-animate` dependency. Focus-trap/scroll-lock/ESC/ARIA come from the primitives.
+- ✅ **Global nav → `components/MobileTopNav.vue`**: on mobile `MainLayout` renders it (top) instead of the frappe-ui `<Sidebar>` (left); content goes full-width. The logo opens a `Dropdown` (Spaces / Change Requests / Toggle Theme / Log out). It hosts the `#app-header` teleport target (CRM pattern #4).
+- ✅ **Space tree** (`SpaceDetails.vue`): on mobile the inline px width + `col-resize` handle are dropped (`v-if="!isMobile"`); the tree renders inside `MobileDrawer`. Extracted `components/SpaceTreePanel.vue` so the **same** tree markup serves both the desktop aside and the mobile drawer (no duplication). The tree-toggle + space name teleport into `#app-header`. Auto-closes on page navigation (watch on route params) and on leaving the mobile breakpoint; backdrop/ESC close via the primitives.
+- ✅ Extracted `composables/useTheme.js` so the top nav and the desktop `Sidebar` share one theme toggle.
+- ✅ Build green. Mobile Playwright project (`Pixel 7`, chromium) + lean tracer spec added (see Testing). **Live e2e not yet run** — local bench was down at implementation time.
 **Tracer result:** the content/editor area fills the screen on a phone; you can read pages and type.
 
 ### Phase 2 — List & nav surfaces
@@ -121,7 +123,7 @@ Per CLAUDE.md (regression tests + e2e for workflows):
 
 ## Open Questions
 
-- **Drawer entry points:** two drawers (global nav + space tree) on a phone — two separate hamburgers, or fold global nav into the tree drawer? CRM has only one sidebar, so this is Wiki-specific. Resolve at Phase 1.
-- **Adopt CRM's header-teleport (`#app-header`) abstraction now, or keep per-page inline headers?** Teleport is cleaner long-term but is a refactor; decide at Phase 1 vs. defer.
+- ~~**Drawer entry points:** two drawers...~~ **Resolved (Phase 1):** global nav became a **top app bar** (logo → dropdown), so there is only **one** drawer (the space tree). No competing hamburgers.
+- ~~**Adopt CRM's header-teleport (`#app-header`) abstraction now...**~~ **Resolved (Phase 1):** adopted now. `MobileTopNav` hosts `#app-header`; `SpaceDetails` teleports its contextual header (tree toggle + space name) into it.
 - **Headings dropdown** inside a horizontally-scrolling toolbar — keep CSS-absolute or switch to a floating-ui popover? Decide at Phase 3.
 - **Bubble menu reliability** on mobile browsers — confirm at Phase 4; fall back to toolbar + slash if the native selection UI makes it unusable.
