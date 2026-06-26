@@ -70,6 +70,34 @@ export function filterTree(children, query) {
 	return { keep, expand, score, children: prune(children, keep) };
 }
 
+// Split a fuzzysort result into { text, matched } segments for rendering.
+// Returns plain data (never an HTML string) so titles/routes containing markup
+// render as escaped text via Vue, not live HTML — fuzzysort's own highlight()
+// does NOT escape, so feeding it to v-html would be an XSS hole. Returns null
+// when this key didn't actually match (no indexes).
+export function highlightSegments(result) {
+	const target = result?.target;
+	const indexes = result?.indexes;
+	if (!target || !indexes?.length) return null;
+
+	const matched = new Set(indexes);
+	const segments = [];
+	let text = target[0];
+	let isMatched = matched.has(0);
+	for (let i = 1; i < target.length; i++) {
+		const m = matched.has(i);
+		if (m === isMatched) {
+			text += target[i];
+		} else {
+			segments.push({ text, matched: isMatched });
+			text = target[i];
+			isMatched = m;
+		}
+	}
+	segments.push({ text, matched: isMatched });
+	return segments;
+}
+
 // Flatten to every node paired with its ancestor keys, so a match can pull its
 // parent groups back into the pruned tree.
 function flatten(children, ancestorKeys = [], out = []) {

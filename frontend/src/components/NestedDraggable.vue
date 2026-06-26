@@ -50,15 +50,12 @@
 
                         <div class="flex flex-col flex-1 min-w-0">
                             <span class="text-sm truncate" :class="getTitleClass(element)">
-                                <span v-if="titleHighlight(element)" v-html="titleHighlight(element)" />
-                                <template v-else>{{ element.title }}</template>
+                                <template v-for="(seg, i) in titleParts(element)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
                             </span>
                             <!-- Why it matched, when the route hit but the title didn't. -->
-                            <span
-                                v-if="routeOnlyHighlight(element)"
-                                class="text-xs text-ink-gray-4 truncate"
-                                v-html="routeOnlyHighlight(element)"
-                            />
+                            <span v-if="routeParts(element)" class="text-xs text-ink-gray-4 truncate">
+                                <template v-for="(seg, i) in routeParts(element)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+                            </span>
                         </div>
 
 						<Badge v-if="element.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
@@ -144,6 +141,7 @@
 </template>
 
 <script setup>
+import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, toast } from 'frappe-ui';
@@ -266,28 +264,25 @@ function isExpanded(name) {
 	return expandedNodes.value[name] === true;
 }
 
-const HIGHLIGHT_OPEN =
-	'<mark class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">';
-const HIGHLIGHT_CLOSE = '</mark>';
-
 // fuzzysort multi-key result is array-like: [0] = title key, [1] = route key.
-// A key that didn't match yields an empty highlight string, which is our signal
-// to fall back (plain title) or surface the route as "why it matched".
-function highlightKey(element, keyIndex) {
-	const result = props.scoreMap?.get(element.doc_key)?.[keyIndex];
-	return result?.highlight(HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE) || null;
+// Render as escaped { text, matched } segments (never an HTML string) — see
+// highlightSegments. titleParts always returns an array (plain title when no
+// match); routeParts only when the route matched but the title didn't.
+function titleParts(element) {
+	const result = props.scoreMap?.get(element.doc_key)?.[0];
+	return highlightSegments(result) || [{ text: element.title, matched: false }];
 }
 
-function titleHighlight(element) {
-	return highlightKey(element, 0);
-}
-
-function routeOnlyHighlight(element) {
-	if (titleHighlight(element)) return null; // title match already shown inline
-	return highlightKey(element, 1);
+function routeParts(element) {
+	if (highlightSegments(props.scoreMap?.get(element.doc_key)?.[0])) return null;
+	return highlightSegments(props.scoreMap?.get(element.doc_key)?.[1]);
 }
 
 function toggleExpanded(name) {
+	// While searching, groups are force-expanded via expandedOverride; writing
+	// to expandedNodes here would silently corrupt the user's saved layout
+	// (no visible change now, but restore-on-clear would show it). So no-op.
+	if (props.searchActive) return;
 	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 

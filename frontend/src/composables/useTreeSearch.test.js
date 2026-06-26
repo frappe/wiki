@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { filterTree } from './useTreeSearch.js';
+import fuzzysort from 'fuzzysort';
+import { filterTree, highlightSegments } from './useTreeSearch.js';
 
 // A small two-level tree: a group "Guides" with two pages, and a top-level page.
 function sampleTree() {
@@ -150,4 +151,31 @@ test('no matches yields an empty keep set', () => {
 test('matching a group title keeps the group itself', () => {
 	const { keep } = filterTree(sampleTree(), 'Guides');
 	assert.ok(keep.has('g1'));
+});
+
+test('highlightSegments keeps markup as literal text (no HTML injection)', () => {
+	// A wiki author could title a page with markup; segments must carry it as
+	// plain text so Vue escapes it, never as an HTML string for v-html.
+	const result = fuzzysort.go('cli', ['<img src=x onerror=alert(1)> CLI'])[0];
+	const segs = highlightSegments(result);
+
+	// Reassembled text equals the original target exactly — nothing parsed away.
+	assert.equal(
+		segs.map((s) => s.text).join(''),
+		'<img src=x onerror=alert(1)> CLI',
+	);
+	// Only the query chars are marked; the markup sits in a plain segment.
+	assert.equal(
+		segs
+			.filter((s) => s.matched)
+			.map((s) => s.text)
+			.join(''),
+		'CLI',
+	);
+	assert.ok(segs.some((s) => !s.matched && s.text.includes('<img')));
+});
+
+test('highlightSegments returns null when the key did not match', () => {
+	assert.equal(highlightSegments(null), null);
+	assert.equal(highlightSegments({ target: '', indexes: [] }), null);
 });
