@@ -121,6 +121,20 @@
     table-layout: fixed;
 }
 
+/* On a phone a multi-column table can't fit; let it scroll horizontally
+   instead of breaking the layout (Phase 5 — graceful degradation). Columns
+   size to content (table-layout: auto) so the scroll is meaningful. */
+@media (max-width: 767px) {
+    .wiki-editor-content table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        table-layout: auto;
+        width: max-content;
+        max-width: 100%;
+    }
+}
+
 .wiki-editor-content th,
 .wiki-editor-content td {
     border: 1px solid var(--outline-gray-2, #e5e7eb);

@@ -78,7 +78,9 @@
 						</Badge>
                     </div>
 
-                    <div v-if="!readonly" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                    <!-- Hover-reveal on desktop; always visible on touch (no hover)
+                         so row actions stay reachable on a phone. -->
+                    <div v-if="!readonly" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity" @click.stop>
                         <Dropdown :options="getDropdownOptions(element)">
                             <Button variant="ghost" size="sm">
                                 <LucideMoreHorizontal class="size-4" />
