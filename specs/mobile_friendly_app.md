@@ -21,7 +21,7 @@ Settled during planning (with the user):
 - **Mirror Frappe CRM's mobile architecture.** CRM (same stack: Vue 3 + frappe-ui + Tailwind) already solves this; we copy its proven patterns rather than invent. See the reference section below.
 - **Breakpoint → `< 768px` is "mobile"** (Tailwind `md`; matches CRM's `isMobileView`). Use mobile-first Tailwind (`px-3 sm:px-5`) in templates and `@media (max-width: 767px)` in plain CSS.
 - **Mobile detection → a reactive composable.** CRM uses a non-reactive `computed(() => window.innerWidth < 768)`; we improve on it with `@vueuse/core` (already a dependency) so it reacts to rotation/resize. Single source of truth.
-- **Sidebars → off-canvas drawers on mobile** (CRM's `MobileSidebar` pattern), toggled by a hamburger, auto-closing on navigation. CRM uses `@headlessui/vue` for this; Wiki does **not** have that dep, so build a lightweight drawer (fixed overlay + CSS transform transition) rather than adding a dependency.
+- **Sidebars → off-canvas drawers on mobile** (CRM's `MobileSidebar` pattern), toggled by a hamburger, auto-closing on navigation. CRM builds its drawer on `@headlessui/vue`; **we use `reka-ui`'s `Dialog*` primitives instead** — `reka-ui@2.6.1` is already installed (a frappe-ui dependency) and is the library frappe-ui itself is migrating to, so we align with it rather than the legacy headlessui transitive dep. reka-ui has no literal `Sidebar`/`Drawer` component, so we compose the drawer from `DialogRoot`/`DialogPortal`/`DialogOverlay`/`DialogContent` (which give us focus-trap, scroll-lock, ESC, and ARIA) plus our own slide-in `translate-x` transition — the same way CRM uses headlessui's `Dialog`, and the same approach shadcn-vue's Sidebar block takes.
 - **Editor toolbar on mobile → horizontal-scroll top toolbar** (keep `WikiToolbar.vue` docked at top, let it scroll). Not a keyboard-docked bottom bar.
 - **List views on mobile → keep frappe-ui `ListView`, horizontal scroll + mobile-first margins** (exactly what CRM does — it does *not* convert tables to cards). A card layout is an optional later enhancement, not v1.
 - **Touch targets → 44×44px minimum on mobile** for all interactive controls. Desktop sizes unchanged.
@@ -61,7 +61,7 @@ The layout is a fixed desktop row that never adapts. There is **effectively zero
 - **Pages:** `Spaces.vue`→`SpaceList.vue`, `Contributions.vue`, `ContributionReview.vue`, `SpaceDetails.vue` (tree aside + `<main>` hosting `WikiDocumentPanel.vue` → `WikiEditor.vue`).
 - **Editor:** TipTap v3. `WikiEditor.vue` builds it; `WikiToolbar.vue` (top toolbar), `WikiBubbleMenu.vue` (selection menu), `slash-commands.js` + `SlashCommandsList.vue` (`/` menu). Content CSS: `frontend/src/wiki-editor-content.css` (global via `main.js`); toolbar/bubble CSS is `scoped`.
 - **Tree:** `SpaceDetails.vue` aside → `WikiDocumentList.vue` (uses `NestedDraggable.vue`).
-- **Deps:** `@vueuse/core` present (use it for the media query). **No `@headlessui/vue`** (build the drawer ourselves). frappe-ui provides `ListView`, `Dialog`, `Button`, `Dropdown`, `Sidebar`.
+- **Deps:** `@vueuse/core` present (use it for the media query). `reka-ui@2.6.1`, `radix-vue@1.7.4`, and `@headlessui/vue@1.7.14` are all available **transitively via frappe-ui** — we deliberately build the drawer on `reka-ui` (frappe-ui's forward direction), not on the legacy headlessui. frappe-ui itself provides `ListView`, `Dialog`, `Button`, `Dropdown`, `Sidebar`.
 - **Viewport meta** present in `frontend/index.html` (lacks `viewport-fit=cover` that CRM adds).
 - **Tests:** one `Desktop Chrome` Playwright project; no mobile viewport. Project memory (`project_e2e_local_job_meltdown`): git-sync e2e specs flood the local bench queue — keep new mobile specs lean.
 
@@ -74,8 +74,9 @@ Thin vertical slices, foundation first, each independently committable and verif
 - Add `viewport-fit=cover` to the viewport meta in `frontend/index.html` (CRM pattern #8).
 
 ### Phase 1 — Navigation drawers (unblocks everything)
-- **Global nav** (`MainLayout.vue`): on mobile, render the frappe-ui `<Sidebar>` as a lightweight off-canvas drawer (fixed overlay + `translate-x` transition) toggled by `mobileNavOpen`; content goes full-width. (CRM pattern #2/#3, minus the headlessui dep.)
-- **Space tree** (`SpaceDetails.vue`): on mobile, drop the inline px width + `col-resize` handle; render the `<aside>` as a slide-in drawer with backdrop, toggled from the space header. Auto-close on page selection and backdrop tap (CRM pattern #3).
+- Build a small reusable `components/MobileDrawer.vue` wrapping `reka-ui`'s `DialogRoot`/`DialogPortal`/`DialogOverlay`/`DialogContent` with a `side` prop and a `translate-x` slide-in transition (focus-trap, scroll-lock, ESC, ARIA come from the primitives). Both drawers below use it.
+- **Global nav** (`MainLayout.vue`): on mobile, render the frappe-ui `<Sidebar>` inside `MobileDrawer` toggled by `mobileNavOpen`; content goes full-width. (CRM pattern #2/#3, on reka-ui instead of headlessui.)
+- **Space tree** (`SpaceDetails.vue`): on mobile, drop the inline px width + `col-resize` handle; render the `<aside>` inside `MobileDrawer`, toggled from the space header. Auto-close on page selection and backdrop tap (CRM pattern #3).
 - Add a **mobile header bar** with the hamburger toggle(s). Decide one clear entry point for each drawer (global nav vs. tree) — see Open Questions.
 **Tracer result:** the content/editor area fills the screen on a phone; you can read pages and type.
 
