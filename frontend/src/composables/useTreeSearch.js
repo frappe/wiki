@@ -28,6 +28,15 @@ export function useTreeSearch(treeData) {
 	};
 }
 
+// Drop weak matches (fuzzysort scores 0..1, 1 = perfect). We threshold each key
+// separately: titles get a lenient cut so a near-prefix like "stat" still finds
+// "Getting Started", while routes get a strict cut because they're long — a
+// short query like "cli" scatter-matches "c…l…i" across ".../installation",
+// which we want to ignore. Strong slug matches (e.g. "auth-tokens") still clear
+// the route bar.
+const TITLE_THRESHOLD = 0.3;
+const ROUTE_THRESHOLD = 0.5;
+
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
 // blank (meaning "not searching, render the full tree"), otherwise the pruned
 // children plus the keep/expand/score sets the renderer needs.
@@ -36,9 +45,14 @@ export function filterTree(children, query) {
 	if (!q) return null;
 
 	// Match title OR route; fuzzysort ranks each row by its best key.
-	const hits = fuzzysort.go(q, flatten(children), {
-		keys: ['node.title', 'node.route'],
-	});
+	const hits = fuzzysort
+		.go(q, flatten(children), {
+			keys: ['node.title', 'node.route'],
+		})
+		.filter(
+			(hit) =>
+				hit[0].score >= TITLE_THRESHOLD || hit[1].score >= ROUTE_THRESHOLD,
+		);
 
 	const keep = new Set(); // doc_keys that survive the prune
 	const expand = new Set(); // group doc_keys to force-open

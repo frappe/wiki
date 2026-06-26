@@ -70,10 +70,75 @@ test('matches the route even when the title does not', () => {
 	);
 });
 
-test('fuzzy (non-contiguous) query still matches', () => {
-	// "athn" is a subsequence of "Authentication".
-	const { keep } = filterTree(sampleTree(), 'athn');
+test('a strong (prefix) fuzzy query still matches', () => {
+	const { keep } = filterTree(sampleTree(), 'authen');
 	assert.ok(keep.has('p2'));
+});
+
+// Mirrors the reported space (Getting Started / Guides·Advanced / Reference·CLI).
+function prodTree() {
+	return [
+		{
+			doc_key: 'gGS',
+			title: 'Getting Started',
+			route: 'once/getting-started',
+			is_group: true,
+			children: [
+				{
+					doc_key: 'pInstall',
+					title: 'Install It',
+					route: 'once/getting-started/installation',
+					children: [],
+				},
+			],
+		},
+		{
+			doc_key: 'gAdv',
+			title: 'Advanced',
+			route: 'once/guides/advanced',
+			is_group: true,
+			children: [
+				{
+					doc_key: 'pTrouble',
+					title: 'Troubleshooting',
+					route: 'once/guides/advanced/troubleshooting',
+					children: [],
+				},
+			],
+		},
+		{
+			doc_key: 'gCLI',
+			title: 'CLI',
+			route: 'once/reference/cli',
+			is_group: true,
+			children: [
+				{
+					doc_key: 'pCLICmd',
+					title: 'CLI Commands',
+					route: 'once/reference/cli/cli-commands',
+					children: [],
+				},
+			],
+		},
+	];
+}
+
+test('"cli" surfaces the CLI pages and drops route-scatter junk', () => {
+	const { keep } = filterTree(prodTree(), 'cli');
+	assert.ok(keep.has('pCLICmd'), 'CLI Commands kept');
+	assert.ok(keep.has('gCLI'), 'CLI group kept');
+	// Both matched "cli" only as a scattered subsequence of their long routes
+	// (c…l…i across ".../installation"), title score 0 — must be dropped.
+	assert.ok(!keep.has('pInstall'), 'Install It (route-scatter only) dropped');
+	assert.ok(
+		!keep.has('pTrouble'),
+		'Troubleshooting (route-scatter only) dropped',
+	);
+});
+
+test('"stat" still finds "Getting Started" (lenient title threshold)', () => {
+	const { keep } = filterTree(prodTree(), 'stat');
+	assert.ok(keep.has('gGS'), 'near-prefix "stat" matches "Getting Started"');
 });
 
 test('no matches yields an empty keep set', () => {
