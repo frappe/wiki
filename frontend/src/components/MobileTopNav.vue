@@ -3,19 +3,21 @@
 		class="flex h-14 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-white px-3"
 		:style="{ paddingTop: 'env(safe-area-inset-top)' }"
 	>
-		<!-- Logo doubles as the global-nav entry point (CRM has one sidebar;
-		     our global nav is tiny, so it folds into this menu). -->
+		<!-- Hamburger is the global-nav entry point (CRM has one sidebar; our
+		     global nav is tiny, so it folds into this menu). A hamburger reads
+		     as "menu" far better than the logo did. -->
 		<Dropdown :options="appMenuOptions">
 			<button
-				class="-ml-1 flex size-11 items-center justify-center rounded"
+				class="flex size-11 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-3"
 				:title="__('Menu')"
+				aria-label="Menu"
 			>
-				<img :src="logoUrl" alt="Frappe Wiki" class="size-7" />
+				<LucideMenu class="size-5" />
 			</button>
 		</Dropdown>
 
-		<!-- Pages teleport their contextual header (e.g. the space-tree toggle
-		     and title) here; empty on pages that declare none. -->
+		<!-- Pages teleport their title / contextual controls (e.g. the space-tree
+		     toggle and name) here, so the bar reads "[≡] Page Title". -->
 		<div id="app-header" class="flex min-w-0 flex-1 items-center gap-2"></div>
 	</header>
 </template>
@@ -24,16 +26,13 @@
 import { Dropdown } from 'frappe-ui';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import LucideMenu from '~icons/lucide/menu';
 import { useSessionStore } from '@/stores/session';
 import { useTheme } from '../composables/useTheme';
 
 const router = useRouter();
 const sessionStore = useSessionStore();
 const { userTheme, toggleTheme } = useTheme();
-
-// Runtime string (not a bundled asset) — resolved by the Frappe server, the
-// same way the desktop Sidebar references it.
-const logoUrl = '/assets/wiki/images/wiki-logo.png';
 
 const appMenuOptions = computed(() => [
 	{

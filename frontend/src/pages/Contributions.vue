@@ -1,12 +1,16 @@
 <template>
 	<div class="flex flex-col h-full overflow-hidden">
-		<div class="flex items-center justify-between shrink-0 px-3 pt-4 pb-3 sm:px-5 sm:pt-5">
+		<!-- On mobile the title lives in the top nav; the inline header is hidden. -->
+		<Teleport v-if="isMobile" to="#app-header">
+			<h2 class="truncate text-base font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
+		</Teleport>
+		<div class="hidden sm:flex items-center justify-between shrink-0 px-3 pt-4 pb-3 sm:px-5 sm:pt-5">
 			<h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
 		</div>
 
 		<!-- Mobile: a tab strip is cramped at 375px, so switch tabs with a select. -->
 		<template v-if="isMobile">
-			<div class="px-3 pb-3 shrink-0">
+			<div class="px-3 pt-3 pb-3 shrink-0">
 				<FormControl
 					type="select"
 					:options="tabSelectOptions"
