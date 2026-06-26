@@ -3,13 +3,16 @@
 		class="flex h-14 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-white px-3"
 		:style="{ paddingTop: 'env(safe-area-inset-top)' }"
 	>
-		<!-- Brand on the left (home). -->
+		<!-- Brand on the left (home). Hidden on pages that supply their own
+		     leading control (e.g. the space tree toggle), so it shows only on
+		     the list views. -->
 		<button
-			class="flex size-9 shrink-0 items-center justify-center"
+			v-if="!mobileHasLeadingControl"
+			class="flex size-11 shrink-0 items-center justify-center rounded"
 			:title="__('Frappe Wiki')"
 			@click="router.push({ name: 'SpaceList' })"
 		>
-			<img :src="logoUrl" alt="Frappe Wiki" class="size-7" />
+			<img :src="logoUrl" alt="Frappe Wiki" class="size-6" />
 		</button>
 
 		<!-- Pages teleport their title / contextual controls (e.g. the space-tree
@@ -37,8 +40,10 @@ import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideMenu from '~icons/lucide/menu';
 import { useSessionStore } from '@/stores/session';
+import { useMobile } from '../composables/useMobile';
 import { useTheme } from '../composables/useTheme';
 
+const { mobileHasLeadingControl } = useMobile();
 const router = useRouter();
 const sessionStore = useSessionStore();
 const { userTheme, toggleTheme, initTheme } = useTheme();

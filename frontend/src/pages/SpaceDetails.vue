@@ -52,14 +52,16 @@
             />
         </MobileDrawer>
 
-        <!-- Mobile: contextual header in the top nav (tree toggle + space name) -->
+        <!-- Mobile: contextual header in the top nav (tree toggle + space name).
+             The toggle matches the nav's logo/menu buttons (44px). -->
         <Teleport v-if="isMobile" to="#app-header">
-            <Button
-                variant="ghost"
-                icon="sidebar"
+            <button
+                class="flex size-11 shrink-0 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-3"
                 :title="__('Pages')"
                 @click="mobileTreeOpen = true"
-            />
+            >
+                <LucidePanelLeft class="size-5" />
+            </button>
             <span class="truncate text-base font-semibold text-ink-gray-9">
                 {{ space.doc?.space_name || spaceId }}
             </span>
@@ -211,6 +213,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LucideGithub from '~icons/lucide/github';
+import LucidePanelLeft from '~icons/lucide/panel-left';
 import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
@@ -240,10 +243,14 @@ const userStore = useUserStore();
 // drag-and-drop sequences.
 onMounted(() => {
 	window.__draftStore = draftStore;
+	// This page supplies the leading control (tree toggle) in the mobile top
+	// nav, so the nav hides its logo while we're here.
+	mobileHasLeadingControl.value = true;
 });
 onBeforeUnmount(() => {
 	delete window.__draftStore;
 	syncPollCancelled = true;
+	mobileHasLeadingControl.value = false;
 });
 
 const isManager = computed(() => userStore.isWikiManager);
@@ -264,7 +271,7 @@ const isTreeReordering = ref(false);
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
-const { isMobile } = useMobile();
+const { isMobile, mobileHasLeadingControl } = useMobile();
 const mobileTreeOpen = ref(false);
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
