@@ -9,7 +9,7 @@
         ghost-class="dragging-ghost"
         drag-class="dragging-item"
         handle=".drag-handle"
-        :disabled="readonly"
+        :disabled="readonly || searchActive"
         :animation="150"
         @start="onDragStart"
         @end="onDragEnd"
@@ -25,7 +25,7 @@
                 >
                     <div class="flex items-center gap-1.5 flex-1 min-w-0">
                         <button
-                            v-if="!readonly"
+                            v-if="!readonly && !searchActive"
                             class="drag-handle p-0.5 hover:bg-surface-gray-3 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
                             @click.stop
                         >
@@ -48,12 +48,18 @@
                         <LucideLink v-else-if="element.is_external_link" class="size-4 text-ink-gray-5 flex-shrink-0" />
                         <LucideFileText v-else class="size-4 text-ink-gray-5 flex-shrink-0" />
 
-                        <span
-                            class="text-sm truncate flex-1 min-w-0"
-                            :class="getTitleClass(element)"
-                        >
-                            {{ element.title }}
-                        </span>
+                        <div class="flex flex-col flex-1 min-w-0">
+                            <span class="text-sm truncate" :class="getTitleClass(element)">
+                                <span v-if="titleHighlight(element)" v-html="titleHighlight(element)" />
+                                <template v-else>{{ element.title }}</template>
+                            </span>
+                            <!-- Why it matched, when the route hit but the title didn't. -->
+                            <span
+                                v-if="routeOnlyHighlight(element)"
+                                class="text-xs text-ink-gray-4 truncate"
+                                v-html="routeOnlyHighlight(element)"
+                            />
+                        </div>
 
 						<Badge v-if="element.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
 							{{ __('Sync failed') }}
@@ -97,6 +103,9 @@
                         :parent-name="element.doc_key"
                         :space-id="spaceId"
                         :readonly="readonly"
+                        :search-active="searchActive"
+                        :expanded-override="expandedOverride"
+                        :score-map="scoreMap"
                         :selected-page-id="selectedPageId"
                         :selected-draft-key="selectedDraftKey"
                         @create="(parent, isGroup) => emit('create', parent, isGroup)"
@@ -181,6 +190,20 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// While a tree search is active we render a pruned tree with drag disabled
+	// and every ancestor-of-a-match force-expanded.
+	searchActive: {
+		type: Boolean,
+		default: false,
+	},
+	expandedOverride: {
+		type: Object, // Set<doc_key> | null
+		default: null,
+	},
+	scoreMap: {
+		type: Object, // Map<doc_key, fuzzysort result> | null
+		default: null,
+	},
 	selectedPageId: {
 		type: String,
 		default: null,
@@ -235,7 +258,33 @@ const storageKey = computed(
 const expandedNodes = useStorage(storageKey, {});
 
 function isExpanded(name) {
+	// During search, force-open ancestors of matches without touching the
+	// user's saved expand state — clearing the query restores their tree.
+	if (props.expandedOverride) {
+		return props.expandedOverride.has(name);
+	}
 	return expandedNodes.value[name] === true;
+}
+
+const HIGHLIGHT_OPEN =
+	'<mark class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">';
+const HIGHLIGHT_CLOSE = '</mark>';
+
+// fuzzysort multi-key result is array-like: [0] = title key, [1] = route key.
+// A key that didn't match yields an empty highlight string, which is our signal
+// to fall back (plain title) or surface the route as "why it matched".
+function highlightKey(element, keyIndex) {
+	const result = props.scoreMap?.get(element.doc_key)?.[keyIndex];
+	return result?.highlight(HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE) || null;
+}
+
+function titleHighlight(element) {
+	return highlightKey(element, 0);
+}
+
+function routeOnlyHighlight(element) {
+	if (titleHighlight(element)) return null; // title match already shown inline
+	return highlightKey(element, 1);
 }
 
 function toggleExpanded(name) {

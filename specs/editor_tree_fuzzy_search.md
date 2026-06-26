@@ -1,7 +1,7 @@
 # Editor Tree Fuzzy Search
 
 Date: 2026-06-26
-Status: **Draft / not started**
+Status: **Implemented** (2026-06-26). Unit tests green (`useTreeSearch.test.js`, 6/6); build clean. The Playwright spec `e2e/tests/tree-search.spec.ts` is written but **not yet run** — it needs a running bench (the local server was down at build time). See [Verification](#verification).
 
 ## Goal
 
@@ -143,7 +143,10 @@ Navigation, icons, badges, dialogs — **all unchanged**. `handleRowClick` alrea
 2. Debounce needed at all? Default: no, add only if laggy.
 3. On clear, should focus return to the tree / last-selected row, or stay in the search box? Default: stay in box (cheapest), revisit if it feels off.
 
-## Verification (to fill in after build)
+## Verification
 
-- Manual on wiki.localhost: large space, search partial/fuzzy title → correct ranked matches, click navigates.
-- `yarn build` clean, Biome clean.
+- **Unit** (`frontend/src/composables/useTreeSearch.test.js`, `node --test`, 6/6 pass): blank query → no filtering; title match keeps page + ancestor group and prunes siblings; route-only match (`auth-tokens`) surfaces a page whose title doesn't match; fuzzy/non-contiguous query (`athn` → "Authentication"); no-match → empty keep set; group-title match keeps the group.
+- **Build**: `yarn build` clean.
+- **E2E** (`e2e/tests/tree-search.spec.ts`): written, seeds a space via API and drives the search box (title filter + auto-expand, route-only match, no-match empty state, clear-restores). **Not yet executed** — bench server was down. Run with the bench up:
+  `BASE_URL=http://wiki.localhost:8000 yarn test:e2e e2e/tests/tree-search.spec.ts`
+- **Manual** (pending): large space on wiki.localhost — fuzzy title/route search → matches in context, click navigates.

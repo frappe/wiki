@@ -1,7 +1,18 @@
 <template>
 	<div>
-		<div v-if="!readonly" class="flex items-center justify-end mb-4">
-			<div class="flex gap-2">
+		<div class="flex items-center gap-2 mb-4">
+			<FormControl v-if="treeData.children && treeData.children.length > 0" class="flex-1" type="text"
+				v-model="searchQuery" :placeholder="__('Search pages...')" @keydown.esc="searchQuery = ''">
+				<template #prefix>
+					<LucideSearch class="size-4 text-ink-gray-4" />
+				</template>
+				<template v-if="searchQuery" #suffix>
+					<button class="flex" :title="__('Clear search')" @click="searchQuery = ''">
+						<LucideX class="size-4 text-ink-gray-5 hover:text-ink-gray-7" />
+					</button>
+				</template>
+			</FormControl>
+			<div v-if="!readonly" class="flex gap-2 ml-auto">
 				<Button :title="__('New Group')" icon="folder-plus" variant="subtle" @click="openCreateDialog(rootNode, true)" />
 				<Button :title="__('New Page')" icon="file-plus" variant="subtle" @click="openCreateDialog(rootNode, false)" />
 				<Button :title="__('External Link')" variant="subtle" @click="openExternalLinkDialog(rootNode)">
@@ -12,7 +23,14 @@
 			</div>
 		</div>
 
-		<div v-if="!treeData.children || treeData.children.length === 0"
+		<div v-if="isSearching && !hasResults"
+			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
+			<LucideSearch class="size-12 text-ink-gray-4 mb-4" />
+			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
+			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
+		</div>
+
+		<div v-else-if="!treeData.children || treeData.children.length === 0"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
 			<LucideFileText class="size-12 text-ink-gray-4 mb-4" />
 			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
@@ -31,12 +49,15 @@
 		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden">
 			<NestedDraggable
 				:key="treeKey"
-				:items="treeData.children"
+				:items="treeForRender.children"
 				:change-type-map="changeTypeMap"
 				:level="0"
 				:parent-name="rootNode"
 				:space-id="spaceId"
 				:readonly="readonly"
+				:search-active="isSearching"
+				:expanded-override="expandedOverride"
+				:score-map="scoreMap"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
 				@create="openCreateDialog"
@@ -184,6 +205,7 @@
 
 <script setup>
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
+import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { FormControl } from 'frappe-ui';
@@ -192,6 +214,8 @@ import LucideAlertTriangle from '~icons/lucide/alert-triangle';
 import LucideFilePlus from '~icons/lucide/file-plus';
 import LucideFileText from '~icons/lucide/file-text';
 import LucideLink from '~icons/lucide/link';
+import LucideSearch from '~icons/lucide/search';
+import LucideX from '~icons/lucide/x';
 import NestedDraggable from './NestedDraggable.vue';
 
 const props = defineProps({
@@ -246,6 +270,16 @@ const treeKey = computed(() => {
 
 const draftStore = useDraftWorkspaceStore();
 const expandedNodes = useStorage('wiki-tree-expanded-nodes', {});
+
+// Client-side fuzzy filter over the in-memory tree (title + route).
+const {
+	query: searchQuery,
+	isSearching,
+	treeForRender,
+	hasResults,
+	expandedOverride,
+	scoreMap,
+} = useTreeSearch(toRef(props, 'treeData'));
 
 const {
 	showCreateDialog,
