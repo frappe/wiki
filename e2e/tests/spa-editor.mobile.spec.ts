@@ -151,4 +151,30 @@ test.describe('Mobile SPA', () => {
 		).toBeVisible();
 		expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
 	});
+
+	// Regression: Settings opens from inside the tree drawer. The drawer must
+	// close first, or the settings dialog stacks behind it and the drawer's
+	// backdrop swallows the dialog's outside-click.
+	test('Settings opens on top of the tree drawer, not behind it', async ({
+		page,
+		request,
+	}) => {
+		const spaceRoute = `mobile-settings-${Date.now()}`;
+		createdRoutes.push(spaceRoute);
+		const space = await createTestWikiSpace(request, { route: spaceRoute });
+
+		await page.setViewportSize(PHONE);
+		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.waitForLoadState('networkidle');
+
+		// Open the tree drawer, then Settings from inside it.
+		await page.locator('#app-header').getByTitle('Pages').click();
+		const drawer = page.locator('.drawer-content');
+		await expect(drawer).toBeVisible();
+		await drawer.getByTitle('Settings').click();
+
+		// Drawer closes; the settings dialog is the only modal left.
+		await expect(drawer).toBeHidden();
+		await expect(page.getByText('Permissions', { exact: true })).toBeVisible();
+	});
 });

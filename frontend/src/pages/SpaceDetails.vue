@@ -19,7 +19,7 @@
                 :selected-draft-key="currentDraftKey"
                 @refresh="refreshTree"
                 @reorder-state-change="handleReorderStateChange"
-                @open-settings="showSettingsDialog = true"
+                @open-settings="openSettings"
             />
             <div
                 class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
@@ -48,7 +48,7 @@
                 :selected-draft-key="currentDraftKey"
                 @refresh="refreshTree"
                 @reorder-state-change="handleReorderStateChange"
-                @open-settings="showSettingsDialog = true"
+                @open-settings="openSettings"
             />
         </MobileDrawer>
 
@@ -272,6 +272,14 @@ const mobileTreeOpen = ref(false);
 watch([currentPageId, currentDraftKey, isMobile], () => {
 	mobileTreeOpen.value = false;
 });
+
+// Settings opens from inside the tree drawer; close the drawer first so the
+// settings dialog isn't stacked behind it (and the drawer's backdrop can't
+// swallow the dialog's outside-click).
+function openSettings() {
+	mobileTreeOpen.value = false;
+	showSettingsDialog.value = true;
+}
 
 const space = createDocumentResource({
 	doctype: 'Wiki Space',
