@@ -1,7 +1,7 @@
 # Mobile-Friendly Wiki (App-Wide)
 
 Date: 2026-06-26
-Status: **Planned.** Audit complete; design below reflects decisions made during planning (see [Decisions](#decisions)). Not yet implemented. (Originally scoped to the editor only; broadened to the whole SPA per follow-up, and grounded in the patterns Frappe CRM already ships — see [Reference: how Frappe CRM does it](#reference-how-frappe-crm-does-it).)
+Status: **Implemented (Phases 0–5 done, 2026-06-26).** All tracer phases shipped and verified at a 375px viewport (build green, agent-browser smoke, mobile Playwright project passing). Design below reflects decisions made during planning (see [Decisions](#decisions)). (Originally scoped to the editor only; broadened to the whole SPA per follow-up, and grounded in the patterns Frappe CRM already ships — see [Reference: how Frappe CRM does it](#reference-how-frappe-crm-does-it).) Follow-ups beyond the original plan: Change Requests tab→select on mobile, and a fluid two-row Contribution banner.
 
 ## Goal
 
@@ -103,9 +103,9 @@ Resolved the Phase-1 open questions with the user: **global nav becomes a top ap
 - ✅ **(Follow-up) `ContributionBanner.vue` made fluid on mobile**: stacks into rows (`flex-col sm:flex-row`) with info above actions, and the actions `flex-wrap`, so the title/description no longer squish into a narrow vertical column and Merge/Submit stay tappable. Verified at 375px.
 - Note: real keyboard-overlap feel remains a manual-smoke item (popper's `viewport` boundary uses the layout viewport, not the visual viewport).
 
-### Phase 5 — Graceful degradation (the non-goals)
-- **Tables:** wrap rendered tables in `overflow-x: auto` on mobile so wide tables scroll instead of breaking layout. No mobile table-editing UX.
-- **Tree drag-reorder** (`NestedDraggable.vue`): desktop affordance; acceptable if awkward/disabled on mobile. Confirm tapping a row still navigates. No touch DnD this pass.
+### Phase 5 — Graceful degradation (the non-goals) — ✅ Done (2026-06-26)
+- ✅ **Tables:** on mobile the rendered table (`.wiki-editor-content table`) becomes a horizontally-scrollable block (`display:block; overflow-x:auto; table-layout:auto; width:max-content; max-width:100%`) — covers both the editor and the read-only HTML preview (no `.tableWrapper` needed). Verified at 375px: a 6-col table scrolled (scrollWidth 492 vs clientWidth 262) with **page overflow 0** (scrolls inside its box, doesn't break layout). No mobile table-editing UX.
+- ✅ **Tree drag-reorder** (`NestedDraggable.vue`): drag is handle-only and the grip is `opacity-0 group-hover` → hidden on touch (no hover), so touch DnD is effectively disabled (as intended). Confirmed `handleRowClick` navigates on tap. **Fixed a side gap:** the per-row actions dropdown was *also* hover-only and thus unreachable on a phone — now `max-md:opacity-100` so it's always visible on mobile (verified: ⋮ shows on tree rows at 375px).
 
 ## Non-Goals
 
