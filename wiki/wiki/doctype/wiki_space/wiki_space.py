@@ -9,7 +9,7 @@ RESERVED_ROUTE = "wiki"
 
 def is_reserved_route(route: str) -> bool:
 	"""Routes under the `/wiki` namespace collide with the editor SPA and can't be served publicly."""
-	route = (route or "").strip().strip("/")
+	route = (route or "").strip().strip("/").lower()
 	return route == RESERVED_ROUTE or route.startswith(RESERVED_ROUTE + "/")
 
 
@@ -125,7 +125,7 @@ class WikiSpace(Document):
 				).format(RESERVED_ROUTE),
 				frappe.ValidationError,
 			)
-      
+
 	def validate_git_synced_immutable(self):
 		"""git_synced is a creation-time decision — it cannot be toggled later."""
 		if self.is_new():
