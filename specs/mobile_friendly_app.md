@@ -69,9 +69,10 @@ The layout is a fixed desktop row that never adapts. There is **effectively zero
 
 Thin vertical slices, foundation first, each independently committable and verifiable at a 375px viewport.
 
-### Phase 0 — Mobile foundation (no visible change)
-- Add `composables/useMobile.js` exporting a **reactive** `isMobile` (`useMediaQuery('(max-width: 767px)')` from `@vueuse/core`) and a shared `mobileNavOpen = ref(false)`. One source of truth (CRM pattern #1, improved).
-- Add `viewport-fit=cover` to the viewport meta in `frontend/index.html` (CRM pattern #8).
+### Phase 0 — Mobile foundation (no visible change) — ✅ Done (2026-06-26)
+- ✅ Added `composables/useMobile.js` exporting a **reactive** `isMobile` (`useMediaQuery('(max-width: 767px)')` from `@vueuse/core`) and a shared `mobileNavOpen = ref(false)`, both module-level singletons (one source of truth; CRM pattern #1, improved). Surfaced via a `useMobile()` accessor to match the repo's composable convention.
+- ✅ Added `viewport-fit=cover` to the viewport meta in `frontend/index.html` (CRM pattern #8).
+- Build verified green; no visible change, as intended.
 
 ### Phase 1 — Navigation drawers (unblocks everything)
 - Build a small reusable `components/MobileDrawer.vue` wrapping `reka-ui`'s `DialogRoot`/`DialogPortal`/`DialogOverlay`/`DialogContent` with a `side` prop and a `translate-x` slide-in transition (focus-trap, scroll-lock, ESC, ARIA come from the primitives). Both drawers below use it.
