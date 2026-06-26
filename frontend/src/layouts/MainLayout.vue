@@ -1,9 +1,16 @@
 <template>
-	<div class="flex h-screen w-full flex-row shadow">
+	<div
+		class="flex h-screen w-full"
+		:class="isMobile ? 'flex-col' : 'flex-row shadow'"
+	>
 		<template v-if="isLoading"></template>
 		<template v-else-if="hasAccess">
-			<Sidebar />
-			<div class="flex-1 h-full min-w-0">
+			<MobileTopNav v-if="isMobile" />
+			<Sidebar v-else />
+			<div
+				class="min-w-0"
+				:class="isMobile ? 'flex-1 min-h-0' : 'flex-1 h-full'"
+			>
 				<slot></slot>
 			</div>
 		</template>
@@ -42,8 +49,11 @@
 <script setup>
 import { computed } from 'vue';
 import Sidebar from '../components/Sidebar.vue';
+import MobileTopNav from '../components/MobileTopNav.vue';
+import { useMobile } from '../composables/useMobile';
 import { useUserStore } from '@/stores/user';
 
+const { isMobile } = useMobile();
 const userStore = useUserStore();
 
 const isLoading = computed(() => userStore.isLoading);

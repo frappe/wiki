@@ -146,6 +146,7 @@ import {
 	Quote,
 	Strikethrough,
 } from 'lucide-vue-next';
+import { useMobile } from '@/composables/useMobile';
 
 const props = defineProps({
 	editor: {
@@ -154,7 +155,15 @@ const props = defineProps({
 	},
 });
 
+const { isMobile } = useMobile();
+
 function shouldShowBubbleMenu({ editor, state }) {
+	// On a phone the bubble menu (13 buttons) overflows the screen and fights the
+	// OS text-selection toolbar. The sticky horizontally-scrolling toolbar plus
+	// the slash menu cover every action, so we drop the bubble menu on mobile and
+	// make those the primary paths (spec Phase 4 decision).
+	if (isMobile.value) return false;
+
 	const selection = state.selection;
 
 	// Bubble menu is only for inline text formatting, not media/node selections.

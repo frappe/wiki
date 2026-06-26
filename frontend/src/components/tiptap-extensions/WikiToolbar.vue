@@ -13,7 +13,7 @@
                         <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                     </svg>
                 </button>
-                <div v-show="showHeadingsDropdown" class="toolbar-dropdown-menu">
+                <div v-show="showHeadingsDropdown" class="toolbar-dropdown-menu" :style="dropdownStyle">
                     <button
                         v-for="level in [1, 2, 3, 4, 5, 6]"
                         :key="level"
@@ -166,6 +166,15 @@
                 <VideoIcon class="icon" />
             </button>
 
+            <!-- PDF -->
+            <button
+                class="toolbar-btn"
+                @click="editor.chain().focus().selectAndUploadPdf().run()"
+                title="Insert PDF"
+            >
+                <FileTextIcon class="icon" />
+            </button>
+
             <div class="toolbar-separator"></div>
 
             <!-- Undo/Redo -->
@@ -194,6 +203,7 @@ import {
 	LucideBold as BoldIcon,
 	LucideSquareCode as CodeBlockIcon,
 	LucideCode as CodeIcon,
+	LucideFileText as FileTextIcon,
 	LucideHeading1 as H1Icon,
 	LucideHeading2 as H2Icon,
 	LucideHeading3 as H3Icon,
@@ -215,7 +225,10 @@ import {
 	LucideVideo as VideoIcon,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useMobile } from '@/composables/useMobile';
 import WikiTableDropdown from './WikiTableDropdown.vue';
+
+const { isMobile } = useMobile();
 
 const props = defineProps({
 	editor: {
@@ -229,6 +242,11 @@ const emit = defineEmits(['uploadImage']);
 const showHeadingsDropdown = ref(false);
 const headingsDropdown = ref(null);
 const imageInput = ref(null);
+
+// On mobile the toolbar scrolls horizontally (overflow-x), which clips an
+// absolutely-positioned menu. Pin it with position:fixed off the trigger's rect
+// so it escapes the scroll container. Empty on desktop → CSS absolute applies.
+const dropdownStyle = ref({});
 
 const headingIcons = {
 	1: H1Icon,
@@ -251,6 +269,19 @@ const currentHeadingIcon = computed(() => {
 
 function toggleHeadingsDropdown() {
 	showHeadingsDropdown.value = !showHeadingsDropdown.value;
+	if (showHeadingsDropdown.value && isMobile.value) {
+		const trigger = headingsDropdown.value?.querySelector('.dropdown-trigger');
+		const rect = trigger?.getBoundingClientRect();
+		if (rect) {
+			dropdownStyle.value = {
+				position: 'fixed',
+				top: `${rect.bottom + 4}px`,
+				left: `${rect.left}px`,
+			};
+		}
+	} else {
+		dropdownStyle.value = {};
+	}
 }
 
 function setHeading(level) {
@@ -425,5 +456,32 @@ onUnmounted(() => {
 
 .hidden {
     display: none;
+}
+
+/* On a phone the ~20 buttons can't fit; let the row scroll horizontally
+   (keeping it sticky-top) instead of hiding the right-hand actions. */
+@media (max-width: 767px) {
+    .wiki-toolbar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+    }
+    .wiki-toolbar::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+    /* Keep every control at its full size and let them overflow to scroll,
+       rather than compressing to fit. */
+    .toolbar-group > * {
+        flex-shrink: 0;
+    }
+    /* 44x44 minimum touch target. */
+    .toolbar-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+    .toolbar-btn .icon {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
 }
 </style>

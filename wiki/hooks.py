@@ -24,7 +24,7 @@ export_python_type_annotations = True
 sqlite_search = ["wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search.WikiSQLiteSearch"]
 
 
-jinja = {"methods": ["wiki.utils.get_tailwindcss_hash"]}
+jinja = {"methods": ["wiki.utils.get_tailwindcss_hash", "wiki.utils.get_asset_hash"]}
 
 # Includes in <head>
 # ------------------
@@ -88,13 +88,17 @@ after_install = "wiki.install.after_install"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Wiki Space": "wiki.permissions.wiki_space_query_conditions",
+	"Wiki Document": "wiki.permissions.wiki_document_query_conditions",
+	"Wiki Change Request": "wiki.permissions.wiki_cr_query_conditions",
+}
+
+has_permission = {
+	"Wiki Space": "wiki.permissions.wiki_space_has_permission",
+	"Wiki Document": "wiki.permissions.wiki_document_has_permission",
+	"Wiki Change Request": "wiki.permissions.wiki_cr_has_permission",
+}
 
 # DocType Class
 # ---------------
@@ -114,6 +118,12 @@ doc_events = {
 		"on_update": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_update",
 		"on_trash": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_trash",
 	},
+}
+
+# Auto-prune the webhook delivery log (Frappe's daily log-clearing runs each
+# doctype's `clear_old_logs`).
+default_log_clearing_doctypes = {
+	"Wiki GitHub Webhook Log": 30,
 }
 
 # Scheduled Tasks

@@ -26,9 +26,24 @@
   "dark_mode_logo",
   "section_break_fhui",
   "navbar_items",
+  "access_control_tab",
+  "access_control_section",
+  "roles",
   "version_3_tab",
   "root_group",
-  "main_revision"
+  "main_revision",
+  "git_sync_tab",
+  "git_synced",
+  "repo_full_name",
+  "branch",
+  "docs_subdir",
+  "github_installation_id",
+  "git_sync_status_column",
+  "last_sync_status",
+  "last_synced_commit_sha",
+  "last_sync_time",
+  "last_sync_error",
+  "wiki_config"
  ],
  "fields": [
   {
@@ -105,6 +120,22 @@
    "fieldtype": "Section Break"
   },
   {
+   "fieldname": "access_control_tab",
+   "fieldtype": "Tab Break",
+   "label": "Access Control"
+  },
+  {
+   "fieldname": "access_control_section",
+   "fieldtype": "Section Break",
+   "description": "Leave empty for open access to all logged-in users. Add the <b>Guest</b> role for public/anonymous access."
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "options": "Wiki Space Role"
+  },
+  {
    "fieldname": "version_3_tab",
    "fieldtype": "Tab Break",
    "label": "Version 3"
@@ -151,6 +182,83 @@
    "fieldtype": "Int",
    "label": "Switcher Order",
    "non_negative": 1
+  },
+  {
+   "fieldname": "git_sync_tab",
+   "fieldtype": "Tab Break",
+   "label": "Git Sync"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, this space is synced one-way from a GitHub repository and is read-only in the wiki. Immutable after creation.",
+   "fieldname": "git_synced",
+   "fieldtype": "Check",
+   "label": "Git Synced?",
+   "read_only": 1
+  },
+  {
+   "description": "GitHub repository, e.g. frappe/wiki",
+   "fieldname": "repo_full_name",
+   "fieldtype": "Data",
+   "label": "Repository",
+   "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "read_only": 1
+  },
+  {
+   "description": "Optional sub-folder in the repo to sync (e.g. docs). Leave empty to sync from the repo root.",
+   "fieldname": "docs_subdir",
+   "fieldtype": "Data",
+   "label": "Docs Subdirectory",
+   "read_only": 1
+  },
+  {
+   "description": "GitHub App installation that grants access to the repo. Set via the connect-and-pick flow; lets the engine mint a token for private repos.",
+   "fieldname": "github_installation_id",
+   "fieldtype": "Data",
+   "label": "GitHub Installation ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "git_sync_status_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_sync_status",
+   "fieldtype": "Select",
+   "label": "Last Sync Status",
+   "options": "\nPending\nRunning\nSuccess\nError",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_synced_commit_sha",
+   "fieldtype": "Data",
+   "label": "Last Synced Commit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_time",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_error",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "wiki_config",
+   "fieldtype": "Code",
+   "label": "Wiki Config (.wiki.json)",
+   "options": "JSON",
+   "read_only": 1,
+   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred)."
   }
  ],
  "index_web_pages_for_search": 1,

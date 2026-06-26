@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -50,7 +51,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(publishedPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -71,7 +72,7 @@ test.describe('Public Sidebar', () => {
 			await page.keyboard.type('This is published content.');
 
 			// Save the draft
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Submit for review and merge the page
@@ -80,10 +81,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Create an unpublished page
 			await page.goto(spaceUrl);
@@ -100,7 +98,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(unpublishedPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -113,7 +111,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('This is unpublished content.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Open public page for published content
@@ -186,7 +184,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -202,7 +200,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('First SPA nav test page.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			const secondPageTitle = `spa-nav-second-${Date.now()}`;
@@ -210,7 +208,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -221,7 +219,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('Second SPA nav test page.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Merge both pages
@@ -230,10 +228,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Open first page in public view
 			const routes = await getList<WikiDocumentRoute>(
@@ -323,7 +318,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -340,7 +335,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('First page content here.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Create second page in the same change request
@@ -349,7 +344,7 @@ test.describe('Public Sidebar', () => {
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -361,7 +356,7 @@ test.describe('Public Sidebar', () => {
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
 			await page.keyboard.type('Second page different content.');
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 
 			// Submit for review and merge both pages
@@ -370,10 +365,7 @@ test.describe('Public Sidebar', () => {
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Open public view for the first page
 			const routes = await getList<WikiDocumentRoute>(

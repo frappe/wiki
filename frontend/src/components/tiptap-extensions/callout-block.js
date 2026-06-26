@@ -131,7 +131,14 @@ export const CalloutBlock = Node.create({
 
 		tokenize(src, tokens, lexer) {
 			// Match :::type[title]\ncontent\n::: or :::type\ncontent\n:::
-			const match = /^:::(\w+)(?:\[([^\]]*)\])?\n([\s\S]*?)\n:::/.exec(src);
+			// Consume any blank lines that follow the closing fence so they
+			// aren't re-parsed into phantom empty paragraphs. Without this, a
+			// callout followed by another block accumulates two extra newlines
+			// on every markdown round-trip (the serializer's block separator
+			// plus PreserveBlankLines), so getMarkdown() never stabilises and
+			// the content grows on each save.
+			const match =
+				/^:::(\w+)(?:\[([^\]]*)\])?\n([\s\S]*?)\n:::[ \t]*(?:\n+|$)/.exec(src);
 
 			if (!match) {
 				return undefined;

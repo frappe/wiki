@@ -49,6 +49,21 @@ export default defineConfig({
 				...devices['Desktop Chrome'],
 				storageState: authFile,
 			},
+			// Mobile SPA specs run in the dedicated `mobile` project below.
+			testIgnore: /\.mobile\.spec\.ts$/,
+			dependencies: ['setup'],
+		},
+		// Mobile SPA project - phone viewport for the responsive app shell.
+		// Pixel 7 keeps us on chromium (no extra webkit install) with touch +
+		// isMobile. Scoped to *.mobile.spec.ts to keep the run lean (project
+		// memory: e2e flooding the local job queue).
+		{
+			name: 'mobile',
+			use: {
+				...devices['Pixel 7'],
+				storageState: authFile,
+			},
+			testMatch: /\.mobile\.spec\.ts$/,
 			dependencies: ['setup'],
 		},
 	],

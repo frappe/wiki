@@ -49,7 +49,8 @@
 		{
 			"fieldname": "route",
 			"fieldtype": "Data",
-			"label": "Route"
+			"label": "Route",
+			"length": 500
 		},
 		{
 			"fieldname": "column_break_meta",
@@ -102,7 +103,7 @@
 		}
 	],
 	"links": [],
-	"modified": "2026-02-17 11:54:37.644118",
+	"modified": "2026-06-21 00:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Revision Item",

@@ -31,7 +31,6 @@ def create_test_wiki_document(test_case, title, **kwargs):
 		"parent_wiki_document": kwargs.get("parent"),
 		"is_group": kwargs.get("is_group", False),
 		"is_published": kwargs.get("is_published", True),
-		"is_private": kwargs.get("is_private", False),
 		"sort_order": kwargs.get("sort_order", 0),
 		"slug": kwargs.get("slug"),
 		"is_external_link": kwargs.get("is_external_link", False),
@@ -56,6 +55,8 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 		"switcher_order": kwargs.get("switcher_order", 0),
 	}
 	doc = frappe.get_doc(fields)
+	for role, level in kwargs.get("roles", []):
+		doc.append("roles", {"role": role, "permission_level": level})
 	doc.insert(ignore_permissions=True)
 	test_case.test_spaces.append(doc.name)
 	# Track auto-created root_group for cleanup
@@ -1241,7 +1242,14 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 			content="# Public Page\n\nThis page should download.",
 			slug="downloadable-page",
 		)
-		create_test_wiki_space(self, "PDF Public Space", "pdf-public-space", root_group.name)
+		# Public space: the Guest role grants anonymous read access.
+		create_test_wiki_space(
+			self,
+			"PDF Public Space",
+			"pdf-public-space",
+			root_group.name,
+			roles=[("Guest", "Read")],
+		)
 
 		frappe.set_user("Guest")
 		frappe.local.response = frappe._dict()
@@ -1260,19 +1268,20 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertEqual(frappe.local.response.filename, "downloadable-page.pdf")
 
 	def test_download_pdf_blocks_private_page_for_guest(self):
+		# A space with no role rows is open to logged-in users only; an anonymous
+		# Guest is denied and gets a 404 (existence is not leaked).
 		root_group = create_test_wiki_document(self, "Root PDF Private", is_group=True)
 		page = create_test_wiki_document(
 			self,
 			"Private Download Page",
 			parent=root_group.name,
-			is_private=True,
 			slug="private-download-page",
 		)
 		create_test_wiki_space(self, "PDF Private Space", "pdf-private-space", root_group.name)
 
 		frappe.set_user("Guest")
 
-		with self.assertRaises(frappe.PermissionError):
+		with self.assertRaises(frappe.DoesNotExistError):
 			download_pdf(route=page.route)
 
 	def test_before_print_renders_markdown_content(self):
@@ -1329,7 +1338,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			slug=self._unique("page"),
 			content=markdown_content,
 		)
-		create_test_wiki_space(self, "MD Test Space", route, root_group.name)
+		create_test_wiki_space(self, "MD Test Space", route, root_group.name, roles=[("Guest", "Read")])
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
@@ -1354,7 +1363,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			slug=self._unique("page"),
 			content="# Some content",
 		)
-		create_test_wiki_space(self, "HTML Test Space", route, root_group.name)
+		create_test_wiki_space(self, "HTML Test Space", route, root_group.name, roles=[("Guest", "Read")])
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(
@@ -1378,7 +1387,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			slug=self._unique("page"),
 			content="# Secret content",
 		)
-		create_test_wiki_space(self, "Unpub MD Space", route, root_group.name)
+		create_test_wiki_space(self, "Unpub MD Space", route, root_group.name, roles=[("Guest", "Read")])
 
 		# Unpublish after creation since validation prevents inserting unpublished pages
 		frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
@@ -1404,7 +1413,7 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 			slug=self._unique("page"),
 			content="# Unicode: éèê",
 		)
-		create_test_wiki_space(self, "Charset Space", route, root_group.name)
+		create_test_wiki_space(self, "Charset Space", route, root_group.name, roles=[("Guest", "Read")])
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		response = _make_request(

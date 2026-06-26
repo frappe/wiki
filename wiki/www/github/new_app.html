@@ -1,0 +1,7 @@
+<!-- Auto-submits the App manifest to GitHub; the user lands on GitHub's create-app screen. -->
+<form id="github-app-manifest" method="post" action="{{ action }}?state={{ state }}">
+	<input type="hidden" name="manifest" value='{{ manifest }}'>
+	<noscript><button type="submit">Create GitHub App</button></noscript>
+</form>
+<div>Redirecting to GitHub to create your app&hellip;</div>
+<script>document.getElementById("github-app-manifest").submit();</script>

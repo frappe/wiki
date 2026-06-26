@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 
 interface WikiDocument {
 	name: string;
@@ -40,7 +41,7 @@ test.describe('Link Persistence Tests', () => {
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')
-			.getByRole('button', { name: 'Save Draft' })
+			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
@@ -82,7 +83,7 @@ test.describe('Link Persistence Tests', () => {
 		await expect(editorLink).toHaveText('Example Website');
 
 		// Save the draft
-		const saveButton = page.locator('button:has-text("Save Draft")');
+		const saveButton = page.locator('button:has-text("Save")');
 		await saveButton.click();
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000); // Wait for DB commit
@@ -101,10 +102,7 @@ test.describe('Link Persistence Tests', () => {
 		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 			timeout: 10000,
 		});
-		await page.getByRole('button', { name: 'Merge' }).click();
-		await expect(
-			page.locator('text=Change request merged').first(),
-		).toBeVisible({ timeout: 15000 });
+		await publishChangeRequestFromReview(page);
 
 		// Verify content was saved correctly via API - links should be in markdown format
 		// This tests that the renderMarkdown fix is working correctly

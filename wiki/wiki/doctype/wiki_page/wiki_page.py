@@ -24,7 +24,6 @@ class WikiPage(WebsiteGenerator):
 		wiki_document.route = self.route
 		wiki_document.is_group = 0
 		wiki_document.is_published = self.published
-		wiki_document.is_private = not self.allow_guest
 
 		if parent_wiki_document is not None:
 			wiki_document.parent_wiki_document = parent_wiki_document

@@ -71,6 +71,14 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Mermaid',
+		description: 'Add a Mermaid diagram',
+		icon: 'mermaid',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setMermaid({}).run();
+		},
+	},
+	{
 		title: 'Blockquote',
 		description: 'Add a blockquote',
 		icon: 'quote',
@@ -120,6 +128,14 @@ export const SLASH_COMMANDS = [
 		icon: 'video',
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).selectAndUploadVideo().run();
+		},
+	},
+	{
+		title: 'PDF',
+		description: 'Upload and embed a PDF document',
+		icon: 'file-text',
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).selectAndUploadPdf().run();
 		},
 	},
 	{
