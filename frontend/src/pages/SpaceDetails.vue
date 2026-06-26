@@ -1,75 +1,69 @@
 <template>
     <div class="flex h-full">
+        <!-- Desktop: inline resizable tree -->
         <aside
+            v-if="!isMobile"
             ref="sidebarRef"
             class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
             :style="{ width: `${sidebarWidth}px` }"
         >
-            <!-- Header -->
-            <div class="p-4 border-b border-outline-gray-2">
-                <div class="flex items-center justify-between mb-3">
-                    <Button
-                        variant="ghost"
-                        icon-left="arrow-left"
-                        :route="{ name: 'SpaceList' }"
-                    >
-                        {{ __('Back to Spaces') }}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        icon="settings"
-                        :title="__('Settings')"
-                        @click="showSettingsDialog = true"
-                    />
-                </div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-lg font-semibold text-ink-gray-9">
-                        {{ space.doc?.space_name || spaceId }}
-                    </h1>
-                    <Button
-                        v-if="space.doc?.route"
-                        variant="ghost"
-                        icon="external-link"
-                        :title="__('View Space')"
-                        :link="'/' + space.doc?.route"
-                    />
-                </div>
-                <p class="text-sm text-ink-gray-5 mt-0.5">{{ space.doc?.route }}</p>
-            </div>
-
-            <div v-if="space.doc && treeData" class="flex-1 overflow-auto p-2">
-                <WikiDocumentList
-                    :tree-data="treeData"
-                    :change-type-map="changeTypeMap"
-                    :space-id="spaceId"
-                    :readonly="isGitSynced"
-                    :root-node="treeData.root_group || ''"
-                    :selected-page-id="currentPageId"
-                    :selected-draft-key="currentDraftKey"
-                    @refresh="refreshTree"
-                    @reorder-state-change="handleReorderStateChange"
-                />
-            </div>
-            <div v-else class="flex-1 overflow-auto p-2">
-                <!-- Sidebar tree skeleton -->
-                <div class="space-y-1 animate-pulse">
-                    <div v-for="i in 8" :key="i" class="flex items-center gap-2 px-2 py-1.5 rounded">
-                        <div class="size-4 rounded bg-surface-gray-3 shrink-0" />
-                        <div class="h-3.5 rounded bg-surface-gray-3" :style="{ width: `${60 + (i % 3) * 25}%` }" />
-                    </div>
-                    <div v-for="i in 4" :key="'nested-' + i" class="flex items-center gap-2 px-2 py-1.5 rounded ml-6">
-                        <div class="size-4 rounded bg-surface-gray-3 shrink-0" />
-                        <div class="h-3.5 rounded bg-surface-gray-3" :style="{ width: `${50 + (i % 2) * 30}%` }" />
-                    </div>
-                </div>
-            </div>
-
+            <SpaceTreePanel
+                :space-id="spaceId"
+                :space-name="space.doc?.space_name"
+                :space-route="space.doc?.route"
+                :space-loaded="!!space.doc"
+                :tree-data="treeData"
+                :change-type-map="changeTypeMap"
+                :readonly="isGitSynced"
+                :selected-page-id="currentPageId"
+                :selected-draft-key="currentDraftKey"
+                @refresh="refreshTree"
+                @reorder-state-change="handleReorderStateChange"
+                @open-settings="showSettingsDialog = true"
+            />
             <div
                 class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
                 :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
                 @mousedown="startResize"
             />
         </aside>
+
+        <!-- Mobile: same tree in an off-canvas drawer -->
+        <MobileDrawer
+            v-else
+            :open="mobileTreeOpen"
+            side="left"
+            :title="__('Pages')"
+            @update:open="mobileTreeOpen = $event"
+        >
+            <SpaceTreePanel
+                :space-id="spaceId"
+                :space-name="space.doc?.space_name"
+                :space-route="space.doc?.route"
+                :space-loaded="!!space.doc"
+                :tree-data="treeData"
+                :change-type-map="changeTypeMap"
+                :readonly="isGitSynced"
+                :selected-page-id="currentPageId"
+                :selected-draft-key="currentDraftKey"
+                @refresh="refreshTree"
+                @reorder-state-change="handleReorderStateChange"
+                @open-settings="showSettingsDialog = true"
+            />
+        </MobileDrawer>
+
+        <!-- Mobile: contextual header in the top nav (tree toggle + space name) -->
+        <Teleport v-if="isMobile" to="#app-header">
+            <Button
+                variant="ghost"
+                icon="sidebar"
+                :title="__('Pages')"
+                @click="mobileTreeOpen = true"
+            />
+            <span class="truncate text-base font-semibold text-ink-gray-9">
+                {{ space.doc?.space_name || spaceId }}
+            </span>
+        </Teleport>
 
         <main class="flex-1 flex flex-col bg-surface-white min-w-0">
             <div
@@ -219,8 +213,10 @@ import { useRoute, useRouter } from 'vue-router';
 import LucideGithub from '~icons/lucide/github';
 import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
-import WikiDocumentList from '../components/WikiDocumentList.vue';
+import SpaceTreePanel from '../components/SpaceTreePanel.vue';
+import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSocket } from '../socket';
@@ -267,6 +263,15 @@ const isTreeReordering = ref(false);
 
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
+
+const { isMobile } = useMobile();
+const mobileTreeOpen = ref(false);
+
+// Close the tree drawer once a page is opened from it, and whenever we leave the
+// mobile breakpoint, so it can't get stuck open behind the desktop layout.
+watch([currentPageId, currentDraftKey, isMobile], () => {
+	mobileTreeOpen.value = false;
+});
 
 const space = createDocumentResource({
 	doctype: 'Wiki Space',
