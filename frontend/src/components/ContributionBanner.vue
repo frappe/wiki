@@ -1,18 +1,18 @@
 <template>
 	<div
 		v-if="crStore.isChangeRequestMode"
-		class="contribution-banner px-4 py-3 flex items-center justify-between gap-4"
+		class="contribution-banner px-3 py-3 sm:px-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
 		:class="bannerClass"
 	>
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-3 min-w-0">
 			<component :is="bannerIcon" class="size-5 shrink-0" />
-			<div>
+			<div class="min-w-0">
 				<p class="text-sm font-medium">{{ bannerTitle }}</p>
 				<p class="text-xs opacity-80">{{ bannerDescription }}</p>
 			</div>
 		</div>
 
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 flex-wrap">
 			<Badge
 				v-if="syncStateLabel"
 				variant="subtle"

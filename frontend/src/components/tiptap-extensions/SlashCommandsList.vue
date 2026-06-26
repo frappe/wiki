@@ -199,4 +199,11 @@ defineExpose({
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
 }
+
+/* Roomier rows for touch on a phone. */
+@media (max-width: 767px) {
+    .slash-command-item {
+        min-height: 44px;
+    }
+}
 </style>
