@@ -1,35 +1,43 @@
 import { expect, test } from '@playwright/test';
-import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
+import { cleanupWikiSpacesByRoute, createTestWikiSpace } from '../helpers/wiki';
 
 /**
- * Phase 1 (mobile-friendly SPA) tracer + regression guard.
- *
- * The bug we guard against: on a phone the desktop sidebar(s) ate the screen
- * and the editor collapsed to a sliver. After the drawer/top-nav work the
- * editor must fill the width and the space tree must be reachable via a drawer.
- *
- * Kept deliberately to a single test (project memory: e2e flooding the local
- * job queue). Setup creates the space + page at a desktop viewport, then we
- * drop to a 375px phone viewport for the actual assertions.
+ * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
+ * viewport. Kept lean (project memory: e2e flooding the local job queue).
  */
 
 const PHONE = { width: 375, height: 667 };
 const DESKTOP = { width: 1100, height: 900 };
 
-test.describe('Mobile SPA editor', () => {
-	let spaceRoute = '';
+/** Page-level horizontal overflow in px (tables scroll inside their own
+ * container, so the page itself must not gain a horizontal scrollbar). */
+async function pageOverflow(page: import('@playwright/test').Page) {
+	return page.evaluate(
+		() =>
+			document.documentElement.scrollWidth -
+			document.documentElement.clientWidth,
+	);
+}
+
+test.describe('Mobile SPA', () => {
+	const createdRoutes: string[] = [];
 
 	test.afterEach(async ({ request }) => {
-		if (spaceRoute) {
-			await cleanupWikiSpacesByRoute(request, spaceRoute).catch(() => {});
+		while (createdRoutes.length) {
+			const route = createdRoutes.pop() as string;
+			await cleanupWikiSpacesByRoute(request, route).catch(() => {});
 		}
 	});
 
+	// Phase 1: the bug we guard against is the editor collapsing to a sliver
+	// because the desktop sidebars ate the screen. The tree must live in a
+	// drawer and the editor must fill the width.
 	test('tree opens in a drawer and the editor fills the screen at 375px', async ({
 		page,
 	}) => {
 		const stamp = Date.now();
-		spaceRoute = `mobile-spa-${stamp}`;
+		const spaceRoute = `mobile-spa-${stamp}`;
+		createdRoutes.push(spaceRoute);
 		const pageTitle = `Mobile Page ${stamp}`;
 
 		// --- Setup at desktop: create a space with one page ---
@@ -97,5 +105,41 @@ test.describe('Mobile SPA editor', () => {
 		await editor.click();
 		await page.keyboard.type('Typed on a phone.');
 		await expect(editor).toContainText('Typed on a phone.');
+	});
+
+	// Phase 2: list surfaces stay usable on a phone — headers stack instead of
+	// colliding, tables scroll inside their own box (no page-level overflow),
+	// and rows still navigate.
+	test('Spaces and Change Requests render without page overflow; rows navigate', async ({
+		page,
+		request,
+	}) => {
+		const spaceRoute = `mobile-list-${Date.now()}`;
+		createdRoutes.push(spaceRoute);
+		await createTestWikiSpace(request, { route: spaceRoute });
+
+		await page.setViewportSize(PHONE);
+		await page.goto('/wiki/spaces');
+		await page.waitForLoadState('networkidle');
+
+		await expect(
+			page.getByRole('heading', { name: 'Wiki Spaces' }),
+		).toBeVisible();
+		// The header stacks and the table scrolls inside its container, so the
+		// page itself must not gain a horizontal scrollbar.
+		expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+
+		// The created space shows as a row and the row navigates to its editor.
+		const row = page.getByText(spaceRoute, { exact: true }).first();
+		await expect(row).toBeVisible();
+		await row.click();
+		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+
+		await page.goto('/wiki/change-requests');
+		await page.waitForLoadState('networkidle');
+		await expect(
+			page.getByRole('heading', { name: 'Change Requests' }),
+		).toBeVisible();
+		expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
 	});
 });

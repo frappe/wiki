@@ -1,6 +1,6 @@
 <template>
 	<div class="flex flex-col h-full overflow-hidden">
-		<div class="flex items-center justify-between shrink-0 px-5 pt-5 pb-3">
+		<div class="flex items-center justify-between shrink-0 px-3 pt-4 pb-3 sm:px-5 sm:pt-5">
 			<h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
 		</div>
 
@@ -9,7 +9,10 @@
 				<div v-if="panelFor(tab.key).resource.list.loading && !panelFor(tab.key).resource.data?.length" class="flex items-center justify-center flex-1 py-16">
 					<LoadingIndicator class="size-8" />
 				</div>
-				<div v-else class="flex-1 overflow-auto px-5 pt-4 pb-5">
+				<div v-else class="flex-1 overflow-auto px-3 pt-4 pb-4 sm:px-5 sm:pb-5">
+					<!-- Keep the table a table on mobile; scroll it sideways (CRM
+					     pattern) so the wider review columns stay readable. -->
+					<div class="min-w-[720px] sm:min-w-0">
 					<ListView
 						:columns="panelFor(tab.key).columns"
 						:rows="panelFor(tab.key).resource.data || []"
@@ -48,6 +51,7 @@
 							</div>
 						</template>
 					</ListView>
+					</div>
 
 					<div v-if="panelFor(tab.key).resource.hasNextPage" class="flex pt-3">
 						<Button

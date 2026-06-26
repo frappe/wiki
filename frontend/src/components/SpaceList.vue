@@ -1,9 +1,10 @@
 <template>
-  <div class="flex flex-col gap-4 p-4 h-full">
-    <div class="flex items-center justify-between">
+  <div class="flex flex-col gap-4 p-3 sm:p-4 h-full">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
       <div class="flex items-center gap-2">
         <FormControl
+          class="flex-1 sm:flex-none sm:w-64"
           type="text"
           v-model="searchQuery"
           :placeholder="__('Search spaces...')"
@@ -12,11 +13,16 @@
             <LucideSearch class="h-4 w-4 text-ink-gray-4" />
           </template>
         </FormControl>
-        <Button v-if="isManager" variant="solid" @click="showCreateDialog = true">
+        <Button
+          v-if="isManager"
+          variant="solid"
+          :title="__('New Space')"
+          @click="showCreateDialog = true"
+        >
           <template #prefix>
             <LucidePlus class="h-4 w-4" />
           </template>
-          {{ __('New Space') }}
+          <span class="hidden sm:inline">{{ __('New Space') }}</span>
         </Button>
       </div>
     </div>
@@ -37,8 +43,10 @@
         </div>
       </div>
 
+      <!-- Tables stay tables on mobile and scroll horizontally (CRM pattern):
+           the min-width keeps columns readable instead of compressing to mush. -->
+      <div v-else class="min-w-[600px] sm:min-w-0">
       <ListView
-        v-else
         :columns="columns"
         :rows="spaces.data || []"
         :options="{
@@ -87,6 +95,7 @@
           <span v-else>{{ item }}</span>
         </template>
       </ListView>
+      </div>
 
       <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
         <Button

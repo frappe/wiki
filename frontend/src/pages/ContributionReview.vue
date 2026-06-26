@@ -1,6 +1,6 @@
 <template>
 	<div class="flex flex-col h-full">
-		<div class="flex items-center justify-between p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
 			<div class="flex items-center gap-4">
 				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
