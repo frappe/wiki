@@ -97,9 +97,11 @@ Resolved the Phase-1 open questions with the user: **global nav becomes a top ap
 - Verified at 375px (agent-browser): toolbar `scrollWidth` 965 vs `clientWidth` 310 (scrolls), 44px buttons, headings menu un-clipped. e2e asserts the toolbar is horizontally scrollable.
 **Tracer result:** every formatting action is reachable and tappable on a phone.
 
-### Phase 4 — Editor touch polish
-- Bubble menu (`WikiBubbleMenu.vue`): 44px targets on mobile; verify it shows on touch selection and bias placement away from the OS selection UI. If unreliable on mobile, accept toolbar + slash as primary paths.
-- Slash menu: ensure the tippy popup flips above the caret when the keyboard covers the bottom (add viewport boundary + `flip`, mirroring the bubble menu's modifiers); 44px row height in `SlashCommandsList.vue`.
+### Phase 4 — Editor touch polish — ✅ Done (2026-06-26)
+- ✅ Bubble menu (`WikiBubbleMenu.vue`): **disabled on mobile** (`shouldShowBubbleMenu` returns false when `isMobile`). Rationale (the spec's "fall back" branch): its ~13 buttons overflow a 375px screen and fight the OS text-selection toolbar; the sticky scrolling toolbar + slash menu already cover every action. Verified via agent-browser — with a non-empty selection on mobile, no `.wiki-bubble-menu` is created.
+- ✅ Slash menu: added `popperOptions` to the tippy popup — `flip` (`fallbackPlacements: ['top-start','bottom-start']`) + `preventOverflow` (`boundary: 'viewport'`), mirroring the bubble menu, so it flips above the caret when the keyboard covers the bottom. `.slash-command-item` gets `min-height: 44px` on mobile (verified ~52px rows).
+- ✅ **(Follow-up) `ContributionBanner.vue` made fluid on mobile**: stacks into rows (`flex-col sm:flex-row`) with info above actions, and the actions `flex-wrap`, so the title/description no longer squish into a narrow vertical column and Merge/Submit stay tappable. Verified at 375px.
+- Note: real keyboard-overlap feel remains a manual-smoke item (popper's `viewport` boundary uses the layout viewport, not the visual viewport).
 
 ### Phase 5 — Graceful degradation (the non-goals)
 - **Tables:** wrap rendered tables in `overflow-x: auto` on mobile so wide tables scroll instead of breaking layout. No mobile table-editing UX.
