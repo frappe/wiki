@@ -4,64 +4,31 @@
 			<h2 class="text-xl font-semibold text-ink-gray-9">{{ __('Change Requests') }}</h2>
 		</div>
 
-		<Tabs v-model="activeTabIndex" :tabs="tabs">
-			<template #tab-panel="{ tab }">
-				<div v-if="panelFor(tab.key).resource.list.loading && !panelFor(tab.key).resource.data?.length" class="flex items-center justify-center flex-1 py-16">
-					<LoadingIndicator class="size-8" />
-				</div>
-				<div v-else class="flex-1 overflow-auto px-3 pt-4 pb-4 sm:px-5 sm:pb-5">
-					<!-- Keep the table a table on mobile; scroll it sideways (CRM
-					     pattern) so the wider review columns stay readable. -->
-					<div class="min-w-[720px] sm:min-w-0">
-					<ListView
-						:columns="panelFor(tab.key).columns"
-						:rows="panelFor(tab.key).resource.data || []"
-						:options="panelFor(tab.key).options"
-						row-key="name"
-					>
-						<template #cell="{ column, row }">
-							<div v-if="column.key === 'status'">
-								<Badge :variant="'subtle'" :theme="getStatusTheme(row.status)" size="sm">
-									{{ row.status }}
-								</Badge>
-							</div>
-							<div v-else-if="column.key === 'owner'" class="text-ink-gray-6">
-								{{ row.owner }}
-							</div>
-							<div
-								v-else-if="column.key === 'modified'"
-								class="flex items-center gap-1.5 text-ink-gray-5 text-sm"
-								:class="{ 'justify-end': column.align === 'right' }"
-								:title="formatDateTime(row.modified)"
-							>
-								<FeatherIcon name="clock" class="size-3.5 shrink-0 text-ink-gray-4" />
-								<span class="truncate">{{ formatDate(row.modified) }}</span>
-							</div>
-							<div v-else-if="column.key === 'assign'" class="flex items-center justify-end gap-2">
-								<AssigneeAvatars v-if="row._assign" :assign="row._assign" />
-								<!-- Rows are router-links (an <a>); .stop alone halts JS bubbling but
-								     the browser still follows the anchor href, so .prevent is required
-								     to keep the Assign click from navigating to the CR. -->
-								<Button variant="ghost" size="sm" icon-left="user-plus" @click.stop.prevent="openAssign(row)">
-									{{ __('Assign') }}
-								</Button>
-							</div>
-							<div v-else>
-								{{ row[column.key] }}
-							</div>
-						</template>
-					</ListView>
-					</div>
+		<!-- Mobile: a tab strip is cramped at 375px, so switch tabs with a select. -->
+		<template v-if="isMobile">
+			<div class="px-3 pb-3 shrink-0">
+				<FormControl
+					type="select"
+					:options="tabSelectOptions"
+					v-model="activeTabKey"
+				/>
+			</div>
+			<ContributionsPanel
+				:resource="panelFor(activeKey).resource"
+				:columns="panelFor(activeKey).columns"
+				:options="panelFor(activeKey).options"
+				@assign="openAssign"
+			/>
+		</template>
 
-					<div v-if="panelFor(tab.key).resource.hasNextPage" class="flex pt-3">
-						<Button
-							@click="() => panelFor(tab.key).resource.next()"
-							:loading="panelFor(tab.key).resource.list.loading"
-							:label="__('Load more')"
-							icon-left="refresh-cw"
-						/>
-					</div>
-				</div>
+		<Tabs v-else v-model="activeTabIndex" :tabs="tabs">
+			<template #tab-panel="{ tab }">
+				<ContributionsPanel
+					:resource="panelFor(tab.key).resource"
+					:columns="panelFor(tab.key).columns"
+					:options="panelFor(tab.key).options"
+					@assign="openAssign"
+				/>
 			</template>
 		</Tabs>
 
@@ -77,10 +44,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRouteQuery } from '@vueuse/router';
-import { ListView, Badge, Tabs, Button, FeatherIcon, LoadingIndicator, createListResource, usePageMeta } from 'frappe-ui';
+import { Tabs, FormControl, createListResource, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
+import { useMobile } from '@/composables/useMobile';
 import AssignDialog from '@/components/AssignDialog.vue';
-import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
+import ContributionsPanel from '@/components/ContributionsPanel.vue';
+
+const { isMobile } = useMobile();
 
 usePageMeta(() => ({ title: `${__('Change Requests')} | Frappe Wiki` }));
 
@@ -191,6 +161,17 @@ const activeTabIndex = computed({
 
 const activeKey = computed(() => tabDefs.value[activeTabIndex.value]?.key);
 
+// Mobile select mirrors the desktop tab strip; both drive `tabQuery`.
+const tabSelectOptions = computed(() =>
+	tabs.value.map((t) => ({ label: t.label, value: t.key })),
+);
+const activeTabKey = computed({
+	get: () => activeKey.value,
+	set: (key) => {
+		if (key) tabQuery.value = key;
+	},
+});
+
 // One list resource per tab, built lazily on first access. The resource `auto`
 // flag is evaluated once at creation (not reactive), so fetching is driven
 // explicitly by the watcher below rather than by `auto`.
@@ -243,38 +224,5 @@ function onAssigned() {
 	// Refresh only the inboxes that have actually been opened (and thus exist).
 	resources['assigned']?.reload();
 	resources['all']?.reload();
-}
-
-function getStatusTheme(status) {
-	switch (status) {
-		case 'Draft': return 'blue';
-		case 'In Review': return 'orange';
-		case 'Changes Requested': return 'red';
-		case 'Approved': return 'green';
-		case 'Merged': return 'green';
-		case 'Rejected': return 'red';
-		case 'Archived': return 'gray';
-		default: return 'gray';
-	}
-}
-
-function formatDate(dateStr) {
-	if (!dateStr) return '';
-	return new Date(dateStr).toLocaleDateString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-	});
-}
-
-function formatDateTime(dateStr) {
-	if (!dateStr) return '';
-	return new Date(dateStr).toLocaleString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	});
 }
 </script>
