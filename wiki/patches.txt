@@ -20,3 +20,4 @@ execute:frappe.db.set_single_value('Wiki Settings', 'auto_convert_images_to_webp
 wiki.wiki.doctype.wiki_space.patches.backfill_space_access
 wiki.wiki.doctype.wiki_space.patches.seed_space_roles_from_published
 wiki.frappe_wiki.doctype.wiki_change_request.patches.drop_reviewer_participant_tables
+wiki.wiki.doctype.wiki_space.patches.rename_reserved_wiki_routes
