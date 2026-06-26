@@ -492,6 +492,23 @@ function createSlashCommandsSuggestion() {
 						theme: 'none',
 						arrow: false,
 						offset: [0, 4],
+						// Flip above the caret when there's no room below (e.g. the
+						// on-screen keyboard covers the lower viewport on mobile), and
+						// keep the menu within the viewport. Mirrors the bubble menu.
+						popperOptions: {
+							modifiers: [
+								{
+									name: 'flip',
+									options: {
+										fallbackPlacements: ['top-start', 'bottom-start'],
+									},
+								},
+								{
+									name: 'preventOverflow',
+									options: { boundary: 'viewport', padding: 8 },
+								},
+							],
+						},
 					})[0];
 				},
 
