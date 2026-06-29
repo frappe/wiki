@@ -52,6 +52,10 @@
 						v-else-if="selectedTab === 'code'"
 						:settings="settings"
 					/>
+					<GitHubAppPanel
+						v-else-if="selectedTab === 'github'"
+						:settings="settings"
+					/>
 				</template>
 			</div>
 		</div>
@@ -64,6 +68,7 @@ import { computed, ref } from 'vue';
 import CodePanel from './CodePanel.vue';
 import FeedbackPanel from './FeedbackPanel.vue';
 import GeneralPanel from './GeneralPanel.vue';
+import GitHubAppPanel from './GitHubAppPanel.vue';
 
 const props = defineProps({
 	initialTab: {
@@ -86,6 +91,7 @@ const tabs = [
 	{ label: __('General'), value: 'general', icon: 'settings' },
 	{ label: __('Feedback'), value: 'feedback', icon: 'message-square' },
 	{ label: __('Header & Robots'), value: 'code', icon: 'code' },
+	{ label: __('GitHub App'), value: 'github', icon: 'github' },
 ];
 
 const selectedTab = ref(
