@@ -38,6 +38,27 @@ def update_space_roles(space_id: str, roles: list | str) -> list[dict]:
 
 
 @frappe.whitelist()
+def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
+	"""Toggle whether a Wiki Space accepts contributions (Change Requests).
+
+	Restricted to users who can write the space (managers, or Write-tier users of
+	a configured space), mirroring access-control changes. Rejected on git-synced
+	spaces, which are read-only — contributions can't happen there regardless.
+	"""
+	from wiki.permissions import assert_space_writable
+
+	allow = frappe.parse_json(allow) if isinstance(allow, str) else allow
+	value = 1 if allow else 0
+
+	space = frappe.get_doc("Wiki Space", space_id)
+	space.check_permission("write")
+	assert_space_writable(space)
+	space.allow_contributions = value
+	space.save()
+	return bool(value)
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)

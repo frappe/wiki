@@ -114,6 +114,33 @@ def can_write_space(space, user=None) -> bool:
 	return any(role in user_roles for role, level in levels.items() if level == "Write")
 
 
+def _space_accepts_contributions(space) -> bool:
+	"""Whether a space lets Read-tier users propose changes (raise CRs).
+
+	Missing/NULL is treated as enabled so spaces created before this toggle (and
+	rows not yet backfilled) keep accepting contributions.
+	"""
+	name = _resolve_space_name(space)
+	if not name:
+		return True
+	value = frappe.get_cached_value("Wiki Space", name, "allow_contributions")
+	return value is None or bool(value)
+
+
+def can_contribute_to_space(space, user=None) -> bool:
+	"""Whether the user may propose changes (raise/edit Change Requests).
+
+	Write-tier users (and managers) can always contribute. Read-tier users can
+	contribute only while the space accepts contributions.
+	"""
+	user = user or frappe.session.user
+	if not can_read_space(space, user):
+		return False
+	if can_write_space(space, user):
+		return True
+	return _space_accepts_contributions(space)
+
+
 def _accessible_space_names(user=None) -> set:
 	"""Spaces a user may read: open spaces (no role rows) plus restricted spaces
 	with a role row whose role the user holds. Guests get only the latter."""
@@ -217,6 +244,10 @@ def wiki_cr_has_permission(doc, ptype, user=None):
 			return _is_manager(user)
 		return True
 
-	# Reading a CR and editing/saving it (proposing changes) both require space
-	# Read. Merging is gated separately by can_write_space in the CR controller.
+	# Reading a CR requires space Read. Editing/saving it (proposing changes)
+	# additionally requires the space to accept contributions (Write-tier users
+	# bypass that). Merging is gated separately by can_write_space in the CR
+	# controller.
+	if ptype in WRITE_PTYPES:
+		return can_contribute_to_space(space, user)
 	return can_read_space(space, user)
