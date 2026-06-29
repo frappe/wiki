@@ -197,6 +197,14 @@
    "role": "Wiki Approver",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Wiki Manager",
+   "share": 1,
+   "write": 1
   }
  ],
  "quick_entry": 1,

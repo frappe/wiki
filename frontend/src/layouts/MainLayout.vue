@@ -43,19 +43,51 @@
 				</p>
 			</div>
 		</div>
+
+		<Dialog v-model="showWikiSettings" :options="{ size: '4xl' }">
+			<template #body>
+				<WikiSettings
+					:initial-tab="initialTab"
+					@close="showWikiSettings = false"
+				/>
+			</template>
+		</Dialog>
 	</div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { Dialog } from 'frappe-ui';
+import { computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import Sidebar from '../components/Sidebar.vue';
 import MobileTopNav from '../components/MobileTopNav.vue';
+import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
 import { useMobile } from '../composables/useMobile';
+import { useWikiSettings } from '../composables/useWikiSettings';
 import { useUserStore } from '@/stores/user';
 
 const { isMobile } = useMobile();
 const userStore = useUserStore();
+const route = useRoute();
+const router = useRouter();
+const { showWikiSettings, initialTab, open } = useWikiSettings();
 
 const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
+
+// The GitHub-App manifest flow redirects back here with ?github_app_created=1.
+// Re-open the settings dialog on the GitHub tab and strip the query param. This
+// watches (rather than runs once on mount) because the app mounts before the
+// router resolves the initial route, so the query isn't populated yet at mount.
+watch(
+	() => route.query.github_app_created,
+	(created) => {
+		if (!created) return;
+		open('github');
+		const query = { ...route.query };
+		delete query.github_app_created;
+		router.replace({ query });
+	},
+	{ immediate: true },
+);
 </script>

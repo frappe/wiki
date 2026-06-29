@@ -585,3 +585,70 @@ class TestGithubWebhook(FrappeTestCase):
 		self.assertTrue(second["duplicate"])
 		self.assertEqual(len(self.enqueued), 1)  # not re-enqueued
 		self.assertEqual(frappe.db.count("Wiki GitHub Webhook Log", {"name": "dup-1"}), 1)
+
+
+class TestGithubAppConfigApi(FrappeTestCase):
+	"""The SPA-facing GitHub App config endpoints (presence flags + write-only secrets)."""
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+		frappe.clear_cache(doctype="Wiki Settings")
+
+	def _set_fields(self, **fields):
+		settings = frappe.get_doc("Wiki Settings")
+		for key, value in fields.items():
+			setattr(settings, key, value)
+		settings.save()
+		frappe.clear_cache(doctype="Wiki Settings")
+
+	def test_get_app_config_reports_presence_without_leaking_secrets(self):
+		self._set_fields(
+			github_app_id="42",
+			github_app_client_id="Iv1.abc",
+			github_app_public_link="https://github.com/apps/x/installations/new",
+			github_app_client_secret="supersecret",
+			github_app_private_key="-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----\n",
+			github_webhook_secret="hooksecret",
+		)
+		config = github.get_app_config()
+		self.assertEqual(config["app_id"], "42")
+		self.assertEqual(config["client_id"], "Iv1.abc")
+		self.assertTrue(config["has_client_secret"])
+		self.assertTrue(config["has_private_key"])
+		self.assertTrue(config["has_webhook_secret"])
+		# No secret value leaks into the payload.
+		serialized = json.dumps(config)
+		self.assertNotIn("supersecret", serialized)
+		self.assertNotIn("hooksecret", serialized)
+		self.assertNotIn("BEGIN RSA PRIVATE KEY", serialized)
+
+	def test_get_app_config_unconfigured_reports_absent(self):
+		self._set_fields(
+			github_app_client_secret="",
+			github_app_private_key="",
+			github_webhook_secret="",
+		)
+		config = github.get_app_config()
+		self.assertFalse(config["has_client_secret"])
+		self.assertFalse(config["has_private_key"])
+		self.assertFalse(config["has_webhook_secret"])
+
+	def test_save_app_credentials_writes_only_nonempty(self):
+		self._set_fields(github_app_client_secret="original", github_webhook_secret="orig-hook")
+		# Blank fields must leave the existing secrets untouched.
+		github.save_app_credentials(client_secret="updated", private_key="", webhook_secret="")
+		frappe.clear_cache(doctype="Wiki Settings")
+		settings = frappe.get_doc("Wiki Settings")
+		self.assertEqual(settings.get_password("github_app_client_secret"), "updated")
+		self.assertEqual(settings.get_password("github_webhook_secret"), "orig-hook")
+
+	def test_get_app_config_requires_read_permission(self):
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			github.get_app_config()
+
+	def test_save_app_credentials_requires_write_permission(self):
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			github.save_app_credentials(client_secret="nope")

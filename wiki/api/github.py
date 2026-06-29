@@ -511,6 +511,51 @@ def app_install_url() -> str | None:
 	return _settings().github_app_public_link or None
 
 
+@frappe.whitelist()
+def get_app_config() -> dict[str, Any]:
+	"""Non-secret GitHub App config + secret-presence flags for the settings UI.
+
+	Password fields never round-trip through the normal doc API, so the frontend
+	can't otherwise tell whether a secret is configured. We return booleans (never
+	the values) so the panel can show "configured" vs "not set".
+	"""
+	if not frappe.has_permission("Wiki Settings", "read"):
+		frappe.throw(_("Not permitted to read Wiki Settings."), frappe.PermissionError)
+	settings = _settings()
+	return {
+		"app_id": settings.github_app_id,
+		"client_id": settings.github_app_client_id,
+		"public_link": settings.github_app_public_link,
+		"has_client_secret": bool(settings.get_password("github_app_client_secret", raise_exception=False)),
+		"has_private_key": bool(settings.get_password("github_app_private_key", raise_exception=False)),
+		"has_webhook_secret": bool(settings.get_password("github_webhook_secret", raise_exception=False)),
+	}
+
+
+@frappe.whitelist()
+def save_app_credentials(
+	client_secret: str | None = None,
+	private_key: str | None = None,
+	webhook_secret: str | None = None,
+) -> None:
+	"""Write-only update of the GitHub App secrets from the settings UI.
+
+	Only overwrites a secret when a non-empty value is supplied; a blank field
+	leaves the stored secret untouched, so the panel never needs to read it back.
+	"""
+	if not frappe.has_permission("Wiki Settings", "write"):
+		frappe.throw(_("Not permitted to configure the GitHub App."), frappe.PermissionError)
+	settings = frappe.get_doc("Wiki Settings")
+	if client_secret:
+		settings.github_app_client_secret = client_secret
+	if private_key:
+		settings.github_app_private_key = private_key
+	if webhook_secret:
+		settings.github_webhook_secret = webhook_secret
+	settings.save()
+	frappe.clear_cache(doctype="Wiki Settings")
+
+
 # --------------------------------------------------------------------------- #
 # Push webhook — real-time sync (auto-configured by the App installation)
 # --------------------------------------------------------------------------- #

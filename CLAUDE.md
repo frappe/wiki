@@ -22,6 +22,10 @@ Use Tracer bullets comes from the Pragmatic Programmer. When building systems, y
 * Commit the spec before the development commits
 * Use comments only when necessary to explain "why?" not "how?", how must be clear from the code itself
 
+## Frontend / Backend Sync
+
+* Whenever a new field is added to a backend DocType that is surfaced in the frontend (e.g. settings panels), it must also be handled in the corresponding frontend component so the two stay in sync. This is a convention/reminder only — there is no automatic syncing mechanism; the frontend enumerates fields explicitly.
+
 ## Regression tests
 
 * When we fix a bug, add at the very least a Unit test, and verify before/after by temp revert of fix to make sure the test tests what is intended
