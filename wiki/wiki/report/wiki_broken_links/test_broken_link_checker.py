@@ -8,7 +8,9 @@ from frappe.tests.utils import FrappeTestCase
 
 from wiki.wiki.report.wiki_broken_links.wiki_broken_links import execute, get_broken_links
 
-WORKING_EXTERNAL_URL = "https://frappe.io"
+# RFC 2606 reserved domain: always resolves, never flakes in CI (unlike a real
+# site, which can intermittently be unreachable and get mis-flagged as broken).
+WORKING_EXTERNAL_URL = "https://example.com"
 BROKEN_EXTERNAL_URL = "https://frappewiki.notavalidtld"
 BROKEN_IMG_URL = "https://img.notavalidtld/failed.jpeg"
 WORKING_INTERNAL_URL = "/api/method/ping"
