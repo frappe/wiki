@@ -37,5 +37,5 @@ def get_context(context):
 	# this the freshly-stored credentials roll back at the end of the request.
 	frappe.db.commit()  # nosemgrep
 
-	frappe.local.flags.redirect_location = "/app/wiki-settings?github_app_created=1"
+	frappe.local.flags.redirect_location = "/wiki?github_app_created=1"
 	raise frappe.Redirect
