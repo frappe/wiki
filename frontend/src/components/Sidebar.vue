@@ -15,14 +15,17 @@ import { useStorage } from "@vueuse/core";
 import LucideRocket from "~icons/lucide/rocket";
 import LucideGitBranch from "~icons/lucide/git-branch";
 import LucideLogOut from "~icons/lucide/log-out";
+import LucideSettings from "~icons/lucide/settings";
 import { useSessionStore } from "@/stores/session";
 import { useUserStore } from "@/stores/user";
 import { useTheme } from "../composables/useTheme";
+import { useWikiSettings } from "../composables/useWikiSettings";
 
 const route = useRoute();
 const router = useRouter();
 const sessionStore = useSessionStore();
 const userStore = useUserStore();
+const { open: openWikiSettings } = useWikiSettings();
 
 const { themeIcon, toggleTheme, initTheme } = useTheme();
 
@@ -33,6 +36,9 @@ const header = computed(() => ({
 	subtitle: userStore.data?.full_name,
 	logo: "/assets/wiki/images/wiki-logo.png",
 	menuItems: [
+		...(userStore.isWikiManager
+			? [{ label: __("Settings"), icon: LucideSettings, onClick: () => openWikiSettings() }]
+			: []),
 		{ label: __("Toggle Theme"), icon: themeIcon, onClick: toggleTheme },
 		{ label: __("Log out"), icon: LucideLogOut, onClick: logout },
 	],
