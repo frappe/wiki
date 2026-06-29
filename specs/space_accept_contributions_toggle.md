@@ -1,7 +1,12 @@
 # Per-Space "Accept Contributions" Toggle
 
 Date: 2026-06-29
-Status: **Planned**
+Status: **Implemented & verified** on wiki.localhost (2026-06-29). All 6 phases
+landed; `wiki.test_permissions` (34 tests) and
+`wiki.frappe_wiki.doctype.wiki_change_request.test_wiki_change_request` (85
+tests) pass. The reader `can_edit` flip was verified for Guest vs manager with
+the toggle on/off; the new enforcement tests were confirmed to fail on a
+temp-reverted toggle before restoring.
 
 ## Goal
 
