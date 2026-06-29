@@ -9,22 +9,7 @@
 			</p>
 			<textarea
 				v-model="headHtml"
-				rows="6"
-				spellcheck="false"
-				class="w-full rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3 font-mono text-xs text-ink-gray-9 focus:border-outline-gray-3 focus:outline-none"
-			/>
-		</div>
-
-		<div class="flex flex-col gap-1.5">
-			<label class="text-sm font-medium text-ink-gray-9">
-				{{ __('JavaScript') }}
-			</label>
-			<p class="text-xs text-ink-gray-5">
-				{{ __('Custom JavaScript included on all public wiki pages') }}
-			</p>
-			<textarea
-				v-model="javascript"
-				rows="6"
+				rows="8"
 				spellcheck="false"
 				class="w-full rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3 font-mono text-xs text-ink-gray-9 focus:border-outline-gray-3 focus:outline-none"
 			/>
@@ -58,7 +43,6 @@ const props = defineProps({
 });
 
 const headHtml = ref('');
-const javascript = ref('');
 const saving = ref(false);
 
 watch(
@@ -66,27 +50,21 @@ watch(
 	(doc) => {
 		if (doc) {
 			headHtml.value = doc.head_html || '';
-			javascript.value = doc.javascript || '';
 		}
 	},
 	{ immediate: true },
 );
 
 const isDirty = computed(
-	() =>
-		headHtml.value !== (props.settings.doc?.head_html || '') ||
-		javascript.value !== (props.settings.doc?.javascript || ''),
+	() => headHtml.value !== (props.settings.doc?.head_html || ''),
 );
 
 async function save() {
 	saving.value = true;
 	try {
-		await props.settings.setValue.submit({
-			head_html: headHtml.value,
-			javascript: javascript.value,
-		});
+		await props.settings.setValue.submit({ head_html: headHtml.value });
 	} catch (error) {
-		console.error('Failed to save header/robots settings:', error);
+		console.error('Failed to save header HTML:', error);
 	} finally {
 		saving.value = false;
 	}

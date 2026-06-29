@@ -38,7 +38,7 @@ test.describe('Global Wiki Settings', () => {
 			'General',
 			'Feedback',
 			'Header & Robots',
-			'GitHub App',
+			'GitHub Sync',
 		]) {
 			await expect(
 				dialog.getByRole('button', { name: tab, exact: true }),

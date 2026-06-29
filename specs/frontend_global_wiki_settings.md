@@ -45,15 +45,21 @@ importing the CRM/LMS settings shell, for visual + code consistency.
 `Wiki Settings` (`wiki/wiki/doctype/wiki_settings/wiki_settings.json`), grouped by
 its existing Tab Breaks:
 
-- **General:** `default_wiki_space` (Autocomplete, options via `get_all_spaces`),
-  `enable_table_of_contents` (Check), `auto_convert_images_to_webp` (Check)
+- **General:** `enable_table_of_contents` (Check), `auto_convert_images_to_webp`
+  (Check)
 - **Feedback:** `enable_feedback` (Check), `feedback_submission_limit`
-  (Int, depends on `enable_feedback`), `ask_for_contact_details` (Check)
-- **Header / Robots:** `head_html` (Code/HTML), `javascript` (Code/JS)
-- **GitHub App:** `github_app_id`, `github_app_client_id`,
+  (Int, depends on `enable_feedback`)
+- **Header & Robots:** `head_html` (Code/HTML)
+- **GitHub Sync:** `github_app_id`, `github_app_client_id`,
   `github_app_public_link` (Data — round-trip normally) +
   `github_app_client_secret`, `github_app_private_key`, `github_webhook_secret`
   (**Password — do NOT round-trip via the doc API**)
+
+Deliberately **not** surfaced — dead `Wiki Settings` fields with no runtime
+consumer in v3: `default_wiki_space` (only ever written by an old sidebar
+migration patch), `ask_for_contact_details`, and `javascript` (only `head_html`
+is actually injected, via `wiki_document.py` → `templates/wiki/layout.html`).
+The DocType still carries these columns; removing them is a separate cleanup.
 
 ## Implementation (tracer-bullet phases)
 

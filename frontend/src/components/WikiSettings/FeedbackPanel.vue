@@ -9,15 +9,6 @@
 			"
 		/>
 
-		<SettingToggle
-			:settings="settings"
-			fieldname="ask_for_contact_details"
-			:title="__('Ask for Contact Details')"
-			:description="
-				__('Ask visitors for their email when submitting feedback')
-			"
-		/>
-
 		<div
 			v-if="settings.doc?.enable_feedback"
 			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"

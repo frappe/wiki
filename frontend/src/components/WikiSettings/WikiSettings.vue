@@ -91,7 +91,7 @@ const tabs = [
 	{ label: __('General'), value: 'general', icon: 'settings' },
 	{ label: __('Feedback'), value: 'feedback', icon: 'message-square' },
 	{ label: __('Header & Robots'), value: 'code', icon: 'code' },
-	{ label: __('GitHub App'), value: 'github', icon: 'github' },
+	{ label: __('GitHub Sync'), value: 'github', icon: 'github' },
 ];
 
 const selectedTab = ref(
