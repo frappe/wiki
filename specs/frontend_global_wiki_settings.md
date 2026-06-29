@@ -1,7 +1,13 @@
 # Global Wiki Settings in the Frontend
 
 Date: 2026-06-29
-Status: **Planned**
+Status: **Implemented**
+
+> Reconciliation: implemented on `feat/frontend-wiki-settings` across all five
+> phases. One deviation from the plan: the dialog is opened on the GitHub-return
+> path via a reactive query watcher in `MainLayout.vue` (not `onMounted`) because
+> the app mounts before the router resolves the initial route. A small reusable
+> `SettingToggle.vue` was added to share the switch-row layout/save across panels.
 
 ## Goal
 
