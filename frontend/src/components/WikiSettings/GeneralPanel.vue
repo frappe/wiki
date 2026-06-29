@@ -10,7 +10,7 @@
 		<SettingToggle
 			:settings="settings"
 			fieldname="auto_convert_images_to_webp"
-			:title="__('Convert Uploaded Images to WebP')"
+			:title="__('Auto Convert Image to WebP')"
 			:description="
 				__('Automatically convert uploaded PNG/JPEG images to WebP to reduce page size')
 			"
