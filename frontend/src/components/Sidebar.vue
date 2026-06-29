@@ -39,7 +39,7 @@ const header = computed(() => ({
 		...(userStore.isWikiManager
 			? [{ label: __("Settings"), icon: LucideSettings, onClick: () => openWikiSettings() }]
 			: []),
-		{ label: __("Toggle Theme"), icon: themeIcon, onClick: toggleTheme },
+		{ label: __("Toggle Theme"), icon: themeIcon.value, onClick: toggleTheme },
 		{ label: __("Log out"), icon: LucideLogOut, onClick: logout },
 	],
 }));
