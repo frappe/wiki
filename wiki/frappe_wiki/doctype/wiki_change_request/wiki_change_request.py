@@ -82,6 +82,21 @@ def _can_merge(wiki_space: str | None, user: str | None = None) -> bool:
 	return can_write_space(wiki_space, user)
 
 
+def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None) -> None:
+	"""Block a Read-tier user from raising CRs when the space has them turned off.
+
+	Write-tier users (and managers) may always contribute. The caller has already
+	verified read access.
+	"""
+	from wiki.permissions import can_contribute_space
+
+	if not can_contribute_space(wiki_space, user):
+		frappe.throw(
+			_("This wiki space is not accepting contributions."),
+			frappe.PermissionError,
+		)
+
+
 # Statuses in which the CR head revision may still be mutated by its author.
 _EDITABLE_STATUSES = {"Draft", "Changes Requested"}
 
@@ -464,6 +479,7 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
 
+	_assert_space_accepts_contributions(wiki_space)
 	assert_space_writable(wiki_space)
 
 	cr = _find_existing_draft(wiki_space)
@@ -726,6 +742,7 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
 
+	_assert_space_accepts_contributions(wiki_space)
 	assert_space_writable(wiki_space)
 
 	space = frappe.get_doc("Wiki Space", wiki_space)

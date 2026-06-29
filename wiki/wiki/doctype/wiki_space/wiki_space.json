@@ -29,6 +29,8 @@
   "access_control_tab",
   "access_control_section",
   "roles",
+  "contributions_section",
+  "allow_contributions",
   "version_3_tab",
   "root_group",
   "main_revision",
@@ -134,6 +136,18 @@
    "fieldtype": "Table",
    "label": "Roles",
    "options": "Wiki Space Role"
+  },
+  {
+   "fieldname": "contributions_section",
+   "fieldtype": "Section Break",
+   "label": "Contributions"
+  },
+  {
+   "default": "1",
+   "description": "Allow readers to propose edits via Change Requests. Users with write/merge access can always edit, even when this is off.",
+   "fieldname": "allow_contributions",
+   "fieldtype": "Check",
+   "label": "Accept Contributions"
   },
   {
    "fieldname": "version_3_tab",

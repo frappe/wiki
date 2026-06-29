@@ -235,6 +235,19 @@ class WikiDocument(NestedSet):
 			return ""
 		return f"/wiki/spaces/{wiki_space.name}/page/{self.name}"
 
+	def _can_show_edit(self, wiki_space_doc, user=None) -> bool:
+		"""Whether to render the reader's Edit button for the current user.
+
+		Shown when the space accepts contributions (anyone, including anonymous
+		visitors who then hit the login redirect — unchanged) or when the user has
+		write/merge access (managers always see Edit even with contributions off).
+		"""
+		from wiki.permissions import can_write_space
+
+		if wiki_space_doc.allow_contributions:
+			return True
+		return can_write_space(wiki_space_doc.name, user)
+
 	def check_space_access(self, ptype="read", user=None):
 		"""Gate content access by the owning Wiki Space's role configuration.
 
@@ -362,6 +375,7 @@ class WikiDocument(NestedSet):
 			"last_updated": pretty_date(self.modified),
 			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
+			"can_edit": False,
 		}
 
 		if not wiki_space:
@@ -373,6 +387,7 @@ class WikiDocument(NestedSet):
 		context.update(
 			{
 				"wiki_space": wiki_space_doc,
+				"can_edit": self._can_show_edit(wiki_space_doc),
 				"wiki_spaces_for_switcher": frappe.get_all(
 					"Wiki Space",
 					fields=["name", "space_name", "route", "light_mode_logo", "app_switcher_logo"],
