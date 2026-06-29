@@ -44,6 +44,14 @@
 						v-if="selectedTab === 'general'"
 						:settings="settings"
 					/>
+					<FeedbackPanel
+						v-else-if="selectedTab === 'feedback'"
+						:settings="settings"
+					/>
+					<CodePanel
+						v-else-if="selectedTab === 'code'"
+						:settings="settings"
+					/>
 				</template>
 			</div>
 		</div>
@@ -53,6 +61,8 @@
 <script setup>
 import { Button, LoadingIndicator, createDocumentResource } from 'frappe-ui';
 import { computed, ref } from 'vue';
+import CodePanel from './CodePanel.vue';
+import FeedbackPanel from './FeedbackPanel.vue';
 import GeneralPanel from './GeneralPanel.vue';
 
 const props = defineProps({
@@ -72,7 +82,11 @@ const settings = createDocumentResource({
 	auto: true,
 });
 
-const tabs = [{ label: __('General'), value: 'general', icon: 'settings' }];
+const tabs = [
+	{ label: __('General'), value: 'general', icon: 'settings' },
+	{ label: __('Feedback'), value: 'feedback', icon: 'message-square' },
+	{ label: __('Header & Robots'), value: 'code', icon: 'code' },
+];
 
 const selectedTab = ref(
 	tabs.some((tab) => tab.value === props.initialTab)
