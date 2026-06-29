@@ -14,7 +14,7 @@ from frappe.tests import IntegrationTestCase
 from wiki.permissions import (
 	_accessible_space_names,
 	_is_manager,
-	can_contribute_space,
+	can_contribute_to_space,
 	can_read_space,
 	can_write_space,
 	wiki_cr_has_permission,
@@ -234,29 +234,29 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 		self.assertTrue(wiki_cr_has_permission(doc, "write", self.reader))
 		self.assertFalse(wiki_cr_has_permission(doc, "read", self.outsider))
 
-	# --- can_contribute_space (Accept Contributions toggle) -------------
+	# --- can_contribute_to_space (Accept Contributions toggle) -------------
 
 	def test_contributions_on_lets_reader_contribute(self):
 		_set_contributions(self.restricted, True)
-		self.assertTrue(can_contribute_space(self.restricted, self.reader))
+		self.assertTrue(can_contribute_to_space(self.restricted, self.reader))
 
 	def test_contributions_off_blocks_reader(self):
 		_set_contributions(self.restricted, False)
-		self.assertFalse(can_contribute_space(self.restricted, self.reader))
+		self.assertFalse(can_contribute_to_space(self.restricted, self.reader))
 
 	def test_contributions_off_still_allows_writer_and_manager(self):
 		_set_contributions(self.restricted, False)
-		self.assertTrue(can_contribute_space(self.restricted, self.writer))
-		self.assertTrue(can_contribute_space(self.restricted, self.manager))
+		self.assertTrue(can_contribute_to_space(self.restricted, self.writer))
+		self.assertTrue(can_contribute_to_space(self.restricted, self.manager))
 
 	def test_contributions_never_grant_access_without_read(self):
 		_set_contributions(self.restricted, True)
-		self.assertFalse(can_contribute_space(self.restricted, self.outsider))
+		self.assertFalse(can_contribute_to_space(self.restricted, self.outsider))
 
 	def test_new_space_defaults_to_accepting(self):
 		# The doctype default keeps contributions on unless explicitly disabled.
 		self.assertEqual(frappe.db.get_value("Wiki Space", self.restricted, "allow_contributions"), 1)
-		self.assertTrue(can_contribute_space(self.restricted, self.reader))
+		self.assertTrue(can_contribute_to_space(self.restricted, self.reader))
 
 	def test_cr_write_blocked_for_reader_when_contributions_off(self):
 		_set_contributions(self.restricted, False)

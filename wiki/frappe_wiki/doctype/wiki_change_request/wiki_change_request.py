@@ -88,9 +88,9 @@ def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None
 	Write-tier users (and managers) may always contribute. The caller has already
 	verified read access.
 	"""
-	from wiki.permissions import can_contribute_space
+	from wiki.permissions import can_contribute_to_space
 
-	if not can_contribute_space(wiki_space, user):
+	if not can_contribute_to_space(wiki_space, user):
 		frappe.throw(
 			_("This wiki space is not accepting contributions."),
 			frappe.PermissionError,

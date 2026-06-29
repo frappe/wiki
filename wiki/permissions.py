@@ -127,7 +127,7 @@ def _space_accepts_contributions(space) -> bool:
 	return value is None or bool(value)
 
 
-def can_contribute_space(space, user=None) -> bool:
+def can_contribute_to_space(space, user=None) -> bool:
 	"""Whether the user may propose changes (raise/edit Change Requests).
 
 	Write-tier users (and managers) can always contribute. Read-tier users can
@@ -249,5 +249,5 @@ def wiki_cr_has_permission(doc, ptype, user=None):
 	# bypass that). Merging is gated separately by can_write_space in the CR
 	# controller.
 	if ptype in WRITE_PTYPES:
-		return can_contribute_space(space, user)
+		return can_contribute_to_space(space, user)
 	return can_read_space(space, user)

@@ -14,12 +14,12 @@ def get_space_capabilities(space: str) -> dict:
 	always remains server-side in the permission hooks and Change Request
 	controller.
 	"""
-	from wiki.permissions import can_contribute_space, can_read_space, can_write_space
+	from wiki.permissions import can_contribute_to_space, can_read_space, can_write_space
 
 	return {
 		"can_read": can_read_space(space),
 		"can_write": can_write_space(space),
-		"can_contribute": can_contribute_space(space),
+		"can_contribute": can_contribute_to_space(space),
 	}
 
 

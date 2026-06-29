@@ -59,9 +59,9 @@ requires read access (Guests can't actually raise CRs on open spaces, as today).
 - `permissions.py`:
   - `_space_accepts_contributions(space)` — reads the flag; **None/missing ⇒ True**
     (backward compatible).
-  - `can_contribute_space(space, user)` — `can_read_space` and
+  - `can_contribute_to_space(space, user)` — `can_read_space` and
     (`can_write_space` or `_space_accepts_contributions`).
-  - `wiki_cr_has_permission`: route **write** ptypes through `can_contribute_space`
+  - `wiki_cr_has_permission`: route **write** ptypes through `can_contribute_to_space`
     (single choke point covering `cr.insert()` and all CR page mutations); reads
     stay on `can_read_space`.
 - `wiki_change_request.py`: in `create_change_request` and
@@ -89,7 +89,7 @@ requires read access (Guests can't actually raise CRs on open spaces, as today).
   `set_space_contributions`. Coerce null → on for legacy rows.
 
 ### Phase 6 — Tests
-- `test_permissions.py`: `can_contribute_space` matrix (manager / write-tier /
+- `test_permissions.py`: `can_contribute_to_space` matrix (manager / write-tier /
   read-tier × toggle on/off) and that CR creation is blocked for a read-tier user
   when the toggle is off but allowed for a write-tier user.
 
