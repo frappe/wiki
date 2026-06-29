@@ -29,6 +29,10 @@ Use Tracer bullets comes from the Pragmatic Programmer. When building systems, y
 
 ## Pull Requests
 
+* The canonical repo is `frappe/wiki` (git remote `upstream`). **Ignore the fork (`origin`) entirely.**
+    * Branch off `upstream/develop` (run `git fetch upstream develop` first), not local/fork develop — the fork's develop is often stale and inflates the diff.
+    * Push the feature branch to `upstream` (frappe/wiki) and raise the PR there: `gh pr create --repo frappe/wiki --base develop ...`. Set `gh repo set-default frappe/wiki` so this is the default.
+    * Before raising, sanity-check the diff is only your files: `git diff --stat upstream/develop..<branch>`. A huge diff means you based on or targeted the wrong (fork) develop — fix the base before opening the PR.
 * Raise PR always against the develop branch
 * Keep pull request descriptions stupid simple
 * Some formats:
