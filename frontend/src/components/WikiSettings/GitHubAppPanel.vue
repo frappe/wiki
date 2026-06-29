@@ -1,7 +1,10 @@
 <template>
 	<div class="flex flex-col gap-5">
-		<!-- Intro + one-click create -->
-		<div class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3">
+		<!-- Intro + one-click create — only while the App isn't configured yet. -->
+		<div
+			v-if="!isConfigured"
+			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
+		>
 			<p class="text-sm font-medium text-ink-gray-9">{{ __('GitHub Sync') }}</p>
 			<p class="mt-0.5 text-xs text-ink-gray-5">
 				{{
@@ -158,6 +161,15 @@ const clientSecret = ref('');
 const webhookSecret = ref('');
 const privateKey = ref('');
 const savingSecrets = ref(false);
+
+// "Create GitHub App" creates a brand-new App, so only offer it before one is
+// set up — once an App ID + Client ID are stored, creating another would orphan
+// the existing one.
+const isConfigured = computed(() =>
+	Boolean(
+		props.settings.doc?.github_app_id && props.settings.doc?.github_app_client_id,
+	),
+);
 
 const hasClientSecret = computed(() => Boolean(appConfig.data?.has_client_secret));
 const hasWebhookSecret = computed(() => Boolean(appConfig.data?.has_webhook_secret));
