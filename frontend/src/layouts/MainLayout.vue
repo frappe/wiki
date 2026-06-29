@@ -57,7 +57,7 @@
 
 <script setup>
 import { Dialog } from 'frappe-ui';
-import { computed, onMounted } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Sidebar from '../components/Sidebar.vue';
 import MobileTopNav from '../components/MobileTopNav.vue';
@@ -76,13 +76,18 @@ const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.
-// Re-open the settings dialog on the GitHub tab and strip the query param.
-onMounted(() => {
-	if (route.query.github_app_created) {
+// Re-open the settings dialog on the GitHub tab and strip the query param. This
+// watches (rather than runs once on mount) because the app mounts before the
+// router resolves the initial route, so the query isn't populated yet at mount.
+watch(
+	() => route.query.github_app_created,
+	(created) => {
+		if (!created) return;
 		open('github');
 		const query = { ...route.query };
 		delete query.github_app_created;
 		router.replace({ query });
-	}
-});
+	},
+	{ immediate: true },
+);
 </script>
