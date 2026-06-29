@@ -15,10 +15,9 @@ def execute():
 	if not frappe.db.has_column("Wiki Space", "allow_contributions"):
 		return
 
-	frappe.db.sql(
-		"""
-		update `tabWiki Space`
-		set allow_contributions = 1
-		where allow_contributions is null
-		"""
-	)
+	wiki_space = frappe.qb.DocType("Wiki Space")
+	(
+		frappe.qb.update(wiki_space)
+		.set(wiki_space.allow_contributions, 1)
+		.where(wiki_space.allow_contributions.isnull())
+	).run()
