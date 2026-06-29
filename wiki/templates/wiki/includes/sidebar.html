@@ -22,7 +22,7 @@
             <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
             {% endif %}
             <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-none text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
             </div>
             <div class="ml-2">
                 <svg class="size-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +59,7 @@
             <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
             {% endif %}
             <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-none text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
             </div>
         </div>
         {% endif %}
