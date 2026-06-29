@@ -337,3 +337,28 @@ class TestSpaceRolesAPI(IntegrationTestCase):
 		)
 		rows = get_space_roles(self.space)
 		self.assertEqual([r["role"] for r in rows], [READER_ROLE])
+
+	def test_set_space_contributions_updates_flag_for_manager(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.set_user(self.manager)
+		set_space_contributions(self.space, 0)
+		self.assertEqual(frappe.db.get_value("Wiki Space", self.space, "allow_contributions"), 0)
+		set_space_contributions(self.space, 1)
+		self.assertEqual(frappe.db.get_value("Wiki Space", self.space, "allow_contributions"), 1)
+
+	def test_set_space_contributions_denied_for_read_tier_user(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			set_space_contributions(self.space, 0)
+
+	def test_set_space_contributions_blocked_on_git_synced_space(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.db.set_value("Wiki Space", self.space, "git_synced", 1)
+		frappe.clear_document_cache("Wiki Space", self.space)
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			set_space_contributions(self.space, 0)

@@ -242,9 +242,11 @@ class WikiDocument(NestedSet):
 		visitors who then hit the login redirect — unchanged) or when the user has
 		write/merge access (managers always see Edit even with contributions off).
 		"""
-		from wiki.permissions import can_write_space
+		from wiki.permissions import _space_accepts_contributions, can_write_space
 
-		if wiki_space_doc.allow_contributions:
+		# Mirror the backend's contribution gate exactly (it treats a missing/NULL
+		# flag as enabled) so the button and the CR endpoints never disagree.
+		if _space_accepts_contributions(wiki_space_doc):
 			return True
 		return can_write_space(wiki_space_doc.name, user)
 

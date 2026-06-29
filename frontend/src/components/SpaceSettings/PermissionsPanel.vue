@@ -127,10 +127,13 @@
 				<p class="mt-0.5 text-xs text-ink-gray-5">
 					{{ __('Let readers propose edits via change requests. Users with write access can always edit.') }}
 				</p>
+				<p v-if="isGitSynced" class="mt-0.5 text-xs text-ink-gray-5">
+					{{ __('Synced spaces are read-only, so contributions are always off.') }}
+				</p>
 			</div>
 			<Switch
 				v-model="allowContributions"
-				:disabled="!canManageAccess || savingContributions"
+				:disabled="!canManageAccess || savingContributions || isGitSynced"
 				@update:modelValue="updateContributions"
 			/>
 		</div>
@@ -183,6 +186,8 @@ const savingRoles = ref(false);
 // Legacy spaces (created before this toggle) have a null column; treat as on.
 const allowContributions = ref(true);
 const savingContributions = ref(false);
+// Git-synced spaces are read-only; the toggle is moot and the server rejects it.
+const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
 
 // Inline (non-teleported) role picker state — see template note.
 const roleQuery = ref('');
