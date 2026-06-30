@@ -513,8 +513,12 @@ function getFirstPage(nodes) {
 // On the bare space route (welcome screen) open a page automatically: the
 // remembered page if it still exists, otherwise the tree's first page. Replace
 // rather than push so the back button returns to the spaces list, not here.
+// `autoOpening` guards the async gap before route.name flips to 'SpacePage':
+// without it, a treeData update mid-navigation (e.g. a git-synced background
+// sync) could fire a second replace and override the in-flight one.
+let autoOpening = false;
 function autoOpenPage() {
-	if (route.name !== 'SpaceDetails') return;
+	if (autoOpening || route.name !== 'SpaceDetails') return;
 	const tree = treeData.value;
 	if (!tree) return;
 
@@ -525,10 +529,15 @@ function autoOpenPage() {
 			: null) || getFirstPage(tree.children);
 
 	if (target) {
-		router.replace({
-			name: 'SpacePage',
-			params: { spaceId: props.spaceId, pageId: target },
-		});
+		autoOpening = true;
+		router
+			.replace({
+				name: 'SpacePage',
+				params: { spaceId: props.spaceId, pageId: target },
+			})
+			.finally(() => {
+				autoOpening = false;
+			});
 	}
 }
 

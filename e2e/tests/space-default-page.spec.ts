@@ -79,9 +79,14 @@ test.describe('Space default page', () => {
 			timeout: 15000,
 		});
 
-		// Open Beta directly — this records it as the last opened page.
+		// Open Beta directly — this records it as the last opened page. Wait on
+		// the rendered title (the page-title input) rather than networkidle: it's
+		// the "page mounted" signal the persist watcher rides on, and avoids
+		// networkidle's flaky 500ms-quiet wait on slow CI.
 		await page.goto(`/wiki/spaces/${space.name}/page/${beta.name}`);
-		await page.waitForLoadState('networkidle');
+		await expect(page.getByPlaceholder('Page title')).toHaveValue('Beta Page', {
+			timeout: 15000,
+		});
 
 		// Re-entering the bare space route now reopens Beta, not Alpha.
 		await page.goto(`/wiki/spaces/${space.name}`);
