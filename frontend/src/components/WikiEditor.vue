@@ -1,11 +1,12 @@
 <template>
     <div class="wiki-editor-container">
         <div v-if="editor">
-            <template v-if="!readonly">
-                <WikiToolbar :editor="editor" @uploadImage="handleImageUpload" />
-                <WikiBubbleMenu :editor="editor" />
-            </template>
+            <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
             <EditorContent :editor="editor" />
+            <!-- After EditorContent so the ProseMirror DOM is attached when the
+                 bubble menu mounts; it derives its flip boundary from the editor's
+                 scroll ancestor, which must be reachable at that point. -->
+            <WikiBubbleMenu v-if="!readonly" :editor="editor" />
         </div>
         <div v-else class="wiki-editor-loading">
             Loading editor...

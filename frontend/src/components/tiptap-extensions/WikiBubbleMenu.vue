@@ -3,28 +3,8 @@
         v-if="editor"
         :editor="editor"
         :should-show="shouldShowBubbleMenu"
-        :tippy-options="{
-            duration: 100,
-            maxWidth: 'none',
-            zIndex: 50,
-            popperOptions: {
-                modifiers: [
-                    {
-                        name: 'preventOverflow',
-                        options: {
-                            boundary: 'viewport',
-                            padding: 8
-                        }
-                    },
-                    {
-                        name: 'flip',
-                        options: {
-                            fallbackPlacements: ['top', 'bottom', 'right']
-                        }
-                    }
-                ]
-            }
-        }"
+        :options="floatingOptions"
+        :append-to="appendToBody"
         class="wiki-bubble-menu"
     >
         <div class="bubble-menu-buttons">
@@ -157,6 +137,61 @@ const props = defineProps({
 
 const { isMobile } = useMobile();
 
+// Sticky toolbar height (WikiToolbar measures ~49px); pad a little above it so the
+// flip boundary clears the toolbar band with room to spare.
+const TOOLBAR_HEIGHT = 56;
+
+const appendToBody = () => document.body;
+
+// Nearest scrollable ancestor of the editor. The sticky toolbar pins to the top
+// of this element, so it's the boundary Floating UI must measure against.
+function getScrollParent(node) {
+	let el = node?.parentElement;
+	while (el) {
+		const overflowY = getComputedStyle(el).overflowY;
+		if (overflowY === 'auto' || overflowY === 'scroll') return el;
+		el = el.parentElement;
+	}
+	return null;
+}
+
+// Resolve (and cache) the scroll ancestor lazily. The ProseMirror DOM isn't
+// attached when this component mounts, so resolving at setup time yields null —
+// instead we resolve on first position compute, by which point it's in the tree.
+let cachedBoundary = null;
+function resolveScrollBoundary() {
+	if (!cachedBoundary || !cachedBoundary.isConnected) {
+		cachedBoundary = getScrollParent(props.editor?.view?.dom);
+	}
+	return cachedBoundary;
+}
+
+// This BubbleMenu is positioned by Floating UI (not tippy), so config goes through
+// `options`, not `tippy-options`. By default flip measures against the viewport,
+// which never sees the sticky toolbar — so a selection just under the toolbar
+// places the menu on top of it and never flips. We pin the flip/shift boundary to
+// the scroll container (whose top edge is the toolbar) and pad that top by the
+// toolbar's height, so such a selection overflows upward and flips the menu below.
+// flip/shift are Floating UI "derivable" options (functions) so the boundary is
+// resolved at compute time, not at mount.
+const floatingOptions = {
+	strategy: 'fixed',
+	placement: 'top',
+	offset: 8,
+	flip: () => {
+		const boundary = resolveScrollBoundary();
+		return {
+			fallbackPlacements: ['bottom'],
+			padding: { top: TOOLBAR_HEIGHT, bottom: 8 },
+			...(boundary ? { boundary } : {}),
+		};
+	},
+	shift: () => {
+		const boundary = resolveScrollBoundary();
+		return { padding: 8, ...(boundary ? { boundary } : {}) };
+	},
+};
+
 function shouldShowBubbleMenu({ editor, state }) {
 	// On a phone the bubble menu (13 buttons) overflows the screen and fights the
 	// OS text-selection toolbar. The sticky horizontally-scrolling toolbar plus
@@ -184,6 +219,8 @@ function toggleLink() {
 <style scoped>
 .wiki-bubble-menu {
     display: flex;
+    /* Appended to <body>, so it must clear the editor chrome and sidebar. */
+    z-index: 60;
 }
 
 .bubble-menu-buttons {
