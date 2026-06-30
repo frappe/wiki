@@ -210,6 +210,7 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
+import { useStorage } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LucideGithub from '~icons/lucide/github';
@@ -469,6 +470,71 @@ const treeData = computed(() => {
 	if (isGitSynced.value) return readonlyTreeData.value;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
+
+// Remember the last page opened in this space (per-space, like the tree's
+// expanded-nodes state) so re-entering the space reopens it instead of the
+// "Select a page" welcome screen. We track saved pages only (document_name);
+// unsaved drafts fall back to the first page.
+const lastOpenedPageKey = computed(() => `wiki-last-page-${props.spaceId}`);
+const lastOpenedPage = useStorage(lastOpenedPageKey, null);
+
+// `immediate` so a direct load onto a page URL (e.g. a bookmark) is remembered
+// too, not only in-app navigations that change `currentPageId`.
+watch(
+	currentPageId,
+	(pageId) => {
+		if (pageId) lastOpenedPage.value = pageId;
+	},
+	{ immediate: true },
+);
+
+function findNodeByDocumentName(nodes, name) {
+	if (!nodes) return null;
+	for (const node of nodes) {
+		if (node.document_name === name) return node;
+		const found = findNodeByDocumentName(node.children, name);
+		if (found) return found;
+	}
+	return null;
+}
+
+function getFirstPage(nodes) {
+	if (!nodes) return null;
+	for (const node of nodes) {
+		if (!node.is_group && node.document_name) return node.document_name;
+		if (node.is_group) {
+			const found = getFirstPage(node.children);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+// On the bare space route (welcome screen) open a page automatically: the
+// remembered page if it still exists, otherwise the tree's first page. Replace
+// rather than push so the back button returns to the spaces list, not here.
+function autoOpenPage() {
+	if (route.name !== 'SpaceDetails') return;
+	const tree = treeData.value;
+	if (!tree) return;
+
+	const remembered = lastOpenedPage.value;
+	const target =
+		(remembered && findNodeByDocumentName(tree.children, remembered)
+			? remembered
+			: null) || getFirstPage(tree.children);
+
+	if (target) {
+		router.replace({
+			name: 'SpacePage',
+			params: { spaceId: props.spaceId, pageId: target },
+		});
+	}
+}
+
+// treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
+// as it — and the route — settle.
+watch([treeData, () => route.name], autoOpenPage, { immediate: true });
 
 const changeTypeMap = computed(() => {
 	const map = new Map();
