@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { type APIRequestContext, expect, test } from '@playwright/test';
 import { updateDoc } from '../helpers/frappe';
 import {
 	type WikiDocument,
@@ -107,5 +107,106 @@ test.describe('Space default page', () => {
 		// No page was opened — URL is still the bare space route.
 		await expect(page).toHaveURL(new RegExp(`/spaces/${emptySpace.name}$`));
 		await expect(page.locator('text=Select a page')).toBeVisible();
+	});
+});
+
+/**
+ * Regression: switching between spaces *in-app* (without a full reload) must
+ * open the new space's page, never the previous space's. SpaceDetails is reused
+ * across /spaces/:spaceId and the draft store is a global singleton, so the
+ * previous space's tree lingers during the switch — auto-open used to navigate
+ * into that stale tree's page. The earlier tests miss this because they enter
+ * each space with a fresh page.goto().
+ */
+test.describe('Space default page — in-app space switch', () => {
+	const ts = Date.now();
+	const routeA = `switch-a-${ts}`;
+	const routeB = `switch-b-${ts}`;
+	const nameB = `Bravo Space ${ts}`;
+	let spaceA: WikiSpace;
+	let spaceB: WikiSpace;
+	let aFirst: WikiDocument;
+	let bFirst: WikiDocument;
+
+	async function buildSpace(
+		request: APIRequestContext,
+		route: string,
+		spaceName: string,
+		pagePrefix: string,
+	): Promise<{ space: WikiSpace; firstPage: WikiDocument }> {
+		const space = await createTestWikiSpace(request, {
+			route,
+			is_published: true,
+		});
+		await updateDoc(request, 'Wiki Space', space.name, {
+			space_name: spaceName,
+		});
+		const rootGroup = await createTestWikiDocument(request, {
+			title: `${pagePrefix} Root`,
+			route: `${route}/root`,
+			is_group: true,
+			is_published: true,
+		});
+		await updateDoc(request, 'Wiki Space', space.name, {
+			root_group: rootGroup.name,
+		});
+		const firstPage = await createTestWikiDocument(request, {
+			title: `${pagePrefix} One`,
+			route: `${route}/one`,
+			is_published: true,
+			parent_wiki_document: rootGroup.name,
+		});
+		await createTestWikiDocument(request, {
+			title: `${pagePrefix} Two`,
+			route: `${route}/two`,
+			is_published: true,
+			parent_wiki_document: rootGroup.name,
+		});
+		return { space, firstPage };
+	}
+
+	test.beforeAll(async ({ request }) => {
+		({ space: spaceA, firstPage: aFirst } = await buildSpace(
+			request,
+			routeA,
+			`Alpha Space ${ts}`,
+			'Alpha',
+		));
+		({ space: spaceB, firstPage: bFirst } = await buildSpace(
+			request,
+			routeB,
+			nameB,
+			'Bravo',
+		));
+	});
+
+	test.afterAll(async ({ request }) => {
+		await cleanupWikiSpacesByRoute(request, routeA);
+		await cleanupWikiSpacesByRoute(request, routeB);
+	});
+
+	test('opens the switched-to space page, not the previous space page', async ({
+		page,
+	}) => {
+		// Enter space A — it auto-opens A's first page and hydrates the singleton
+		// draft store for A.
+		await page.goto(`/wiki/spaces/${spaceA.name}`);
+		await page.waitForURL(`**/spaces/${spaceA.name}/page/${aFirst.name}`, {
+			timeout: 15000,
+		});
+
+		// Switch to space B entirely in-app: back to the list, then into B. No
+		// full reload, so the store still holds A's tree at the moment B mounts.
+		await page.getByText('Back to Spaces').click();
+		await page.waitForURL(/\/spaces$/, { timeout: 15000 });
+		// Target the row by its href (router-link) — robust to how the row text
+		// is rendered — and click it for a client-side nav into B.
+		await page.locator(`a[href="/wiki/spaces/${spaceB.name}"]`).first().click();
+
+		// B must open *B's* first page — not A's page from the stale tree.
+		await page.waitForURL(`**/spaces/${spaceB.name}/page/${bFirst.name}`, {
+			timeout: 15000,
+		});
+		expect(page.url()).not.toContain(`/page/${aFirst.name}`);
 	});
 });

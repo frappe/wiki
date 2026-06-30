@@ -210,7 +210,6 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
-import { useStorage } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LucideGithub from '~icons/lucide/github';
@@ -320,6 +319,12 @@ const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
 });
 
+// The space the loaded readonly tree belongs to. This component is reused across
+// spaces (the router keeps one SpaceDetails for /spaces/:spaceId), so the
+// resource holds the previous space's tree until the new one loads — track the
+// owner so `treeData` can reject a stale cross-space tree.
+const readonlyTreeSpaceId = ref(null);
+
 // Adapt get_wiki_tree's (name-keyed) shape into the snake_case shape the tree
 // components consume. The Wiki Document `name` doubles as both the navigation
 // target (document_name) and the row key (doc_key) here — synced trees have no
@@ -352,7 +357,9 @@ const syncing = ref(false);
 // while space.doc re-renders before last_sync_status lands.
 const firstSyncKicked = ref(false);
 async function loadReadonlyTree() {
-	await readonlyTreeResource.submit({ space_id: props.spaceId });
+	const target = props.spaceId;
+	await readonlyTreeResource.submit({ space_id: target });
+	readonlyTreeSpaceId.value = target;
 }
 
 // Cancels an in-flight poll when the user navigates away mid-sync.
@@ -467,23 +474,36 @@ async function cloneSpace(close) {
 // `hasLoadedTree` — otherwise the sidebar flashes "No pages yet" instead of
 // the loading skeleton while the tree is being fetched.
 const treeData = computed(() => {
-	if (isGitSynced.value) return readonlyTreeData.value;
+	// Both sources outlive a space switch: the readonly resource keeps the old
+	// space's tree until the new fetch lands, and draftStore is a global
+	// singleton still hydrated for the previous space. Returning a stale tree
+	// here makes auto-open navigate into the wrong space's page, so gate each on
+	// belonging to the current space.
+	if (isGitSynced.value) {
+		return readonlyTreeSpaceId.value === props.spaceId
+			? readonlyTreeData.value
+			: null;
+	}
+	if (draftStore.spaceId !== props.spaceId) return null;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
 
 // Remember the last page opened in this space (per-space, like the tree's
 // expanded-nodes state) so re-entering the space reopens it instead of the
 // "Select a page" welcome screen. We track saved pages only (document_name);
-// unsaved drafts fall back to the first page.
-const lastOpenedPageKey = computed(() => `wiki-last-page-${props.spaceId}`);
-const lastOpenedPage = useStorage(lastOpenedPageKey, null);
+// unsaved drafts fall back to the first page. Read/write localStorage directly
+// keyed on the *live* spaceId — a reactive useStorage key can write the old
+// space's value into the new space's key during a switch.
+function lastPageKey() {
+	return `wiki-last-page-${props.spaceId}`;
+}
 
 // `immediate` so a direct load onto a page URL (e.g. a bookmark) is remembered
 // too, not only in-app navigations that change `currentPageId`.
 watch(
 	currentPageId,
 	(pageId) => {
-		if (pageId) lastOpenedPage.value = pageId;
+		if (pageId) localStorage.setItem(lastPageKey(), pageId);
 	},
 	{ immediate: true },
 );
@@ -522,7 +542,7 @@ function autoOpenPage() {
 	const tree = treeData.value;
 	if (!tree) return;
 
-	const remembered = lastOpenedPage.value;
+	const remembered = localStorage.getItem(lastPageKey());
 	const target =
 		(remembered && findNodeByDocumentName(tree.children, remembered)
 			? remembered
