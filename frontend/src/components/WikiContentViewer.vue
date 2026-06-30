@@ -9,7 +9,6 @@ import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
-import { StarterKit } from '@tiptap/starter-kit';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { common, createLowlight } from 'lowlight';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -21,6 +20,7 @@ import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // A read-only render of wiki markdown through the same TipTap extensions the
 // editor uses, so previews match what readers see — lowlight syntax
@@ -48,10 +48,7 @@ onMounted(() => {
 	editor.value = new Editor({
 		editable: false,
 		extensions: [
-			StarterKit.configure({
-				codeBlock: false, // WikiCodeBlock (lowlight) instead
-				link: false, // WikiLink instead
-			}),
+			wikiStarterKit(),
 			WikiLink.configure({
 				openOnClick: true,
 				HTMLAttributes: { rel: 'noopener noreferrer' },
