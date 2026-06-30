@@ -144,7 +144,9 @@ const TOOLBAR_HEIGHT = 56;
 const appendToBody = () => document.body;
 
 // Nearest scrollable ancestor of the editor. The sticky toolbar pins to the top
-// of this element, so it's the boundary Floating UI must measure against.
+// of this element, so it's the boundary Floating UI must measure against. Falls
+// back to <body> (a valid, always-connected boundary) when none is found, so the
+// resolved value caches once instead of re-walking the tree on every compute.
 function getScrollParent(node) {
 	let el = node?.parentElement;
 	while (el) {
@@ -152,12 +154,12 @@ function getScrollParent(node) {
 		if (overflowY === 'auto' || overflowY === 'scroll') return el;
 		el = el.parentElement;
 	}
-	return null;
+	return document.body;
 }
 
 // Resolve (and cache) the scroll ancestor lazily. The ProseMirror DOM isn't
-// attached when this component mounts, so resolving at setup time yields null —
-// instead we resolve on first position compute, by which point it's in the tree.
+// attached when this component mounts, so we resolve on first position compute
+// (a selection, always post-mount) by which point it's in the tree.
 let cachedBoundary = null;
 function resolveScrollBoundary() {
 	if (!cachedBoundary || !cachedBoundary.isConnected) {
@@ -178,18 +180,12 @@ const floatingOptions = {
 	strategy: 'fixed',
 	placement: 'top',
 	offset: 8,
-	flip: () => {
-		const boundary = resolveScrollBoundary();
-		return {
-			fallbackPlacements: ['bottom'],
-			padding: { top: TOOLBAR_HEIGHT, bottom: 8 },
-			...(boundary ? { boundary } : {}),
-		};
-	},
-	shift: () => {
-		const boundary = resolveScrollBoundary();
-		return { padding: 8, ...(boundary ? { boundary } : {}) };
-	},
+	flip: () => ({
+		fallbackPlacements: ['bottom'],
+		padding: { top: TOOLBAR_HEIGHT, bottom: 8 },
+		boundary: resolveScrollBoundary(),
+	}),
+	shift: () => ({ padding: 8, boundary: resolveScrollBoundary() }),
 };
 
 function shouldShowBubbleMenu({ editor, state }) {
