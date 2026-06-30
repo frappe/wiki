@@ -319,6 +319,12 @@ const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
 });
 
+// The space the loaded readonly tree belongs to. This component is reused across
+// spaces (the router keeps one SpaceDetails for /spaces/:spaceId), so the
+// resource holds the previous space's tree until the new one loads — track the
+// owner so `treeData` can reject a stale cross-space tree.
+const readonlyTreeSpaceId = ref(null);
+
 // Adapt get_wiki_tree's (name-keyed) shape into the snake_case shape the tree
 // components consume. The Wiki Document `name` doubles as both the navigation
 // target (document_name) and the row key (doc_key) here — synced trees have no
@@ -351,7 +357,9 @@ const syncing = ref(false);
 // while space.doc re-renders before last_sync_status lands.
 const firstSyncKicked = ref(false);
 async function loadReadonlyTree() {
-	await readonlyTreeResource.submit({ space_id: props.spaceId });
+	const target = props.spaceId;
+	await readonlyTreeResource.submit({ space_id: target });
+	readonlyTreeSpaceId.value = target;
 }
 
 // Cancels an in-flight poll when the user navigates away mid-sync.
@@ -466,9 +474,96 @@ async function cloneSpace(close) {
 // `hasLoadedTree` — otherwise the sidebar flashes "No pages yet" instead of
 // the loading skeleton while the tree is being fetched.
 const treeData = computed(() => {
-	if (isGitSynced.value) return readonlyTreeData.value;
+	// Both sources outlive a space switch: the readonly resource keeps the old
+	// space's tree until the new fetch lands, and draftStore is a global
+	// singleton still hydrated for the previous space. Returning a stale tree
+	// here makes auto-open navigate into the wrong space's page, so gate each on
+	// belonging to the current space.
+	if (isGitSynced.value) {
+		return readonlyTreeSpaceId.value === props.spaceId
+			? readonlyTreeData.value
+			: null;
+	}
+	if (draftStore.spaceId !== props.spaceId) return null;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
+
+// Remember the last page opened in this space (per-space, like the tree's
+// expanded-nodes state) so re-entering the space reopens it instead of the
+// "Select a page" welcome screen. We track saved pages only (document_name);
+// unsaved drafts fall back to the first page. Read/write localStorage directly
+// keyed on the *live* spaceId — a reactive useStorage key can write the old
+// space's value into the new space's key during a switch.
+function lastPageKey() {
+	return `wiki-last-page-${props.spaceId}`;
+}
+
+// `immediate` so a direct load onto a page URL (e.g. a bookmark) is remembered
+// too, not only in-app navigations that change `currentPageId`.
+watch(
+	currentPageId,
+	(pageId) => {
+		if (pageId) localStorage.setItem(lastPageKey(), pageId);
+	},
+	{ immediate: true },
+);
+
+function findNodeByDocumentName(nodes, name) {
+	if (!nodes) return null;
+	for (const node of nodes) {
+		if (node.document_name === name) return node;
+		const found = findNodeByDocumentName(node.children, name);
+		if (found) return found;
+	}
+	return null;
+}
+
+function getFirstPage(nodes) {
+	if (!nodes) return null;
+	for (const node of nodes) {
+		if (!node.is_group && node.document_name) return node.document_name;
+		if (node.is_group) {
+			const found = getFirstPage(node.children);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+// On the bare space route (welcome screen) open a page automatically: the
+// remembered page if it still exists, otherwise the tree's first page. Replace
+// rather than push so the back button returns to the spaces list, not here.
+// `autoOpening` guards the async gap before route.name flips to 'SpacePage':
+// without it, a treeData update mid-navigation (e.g. a git-synced background
+// sync) could fire a second replace and override the in-flight one.
+let autoOpening = false;
+function autoOpenPage() {
+	if (autoOpening || route.name !== 'SpaceDetails') return;
+	const tree = treeData.value;
+	if (!tree) return;
+
+	const remembered = localStorage.getItem(lastPageKey());
+	const target =
+		(remembered && findNodeByDocumentName(tree.children, remembered)
+			? remembered
+			: null) || getFirstPage(tree.children);
+
+	if (target) {
+		autoOpening = true;
+		router
+			.replace({
+				name: 'SpacePage',
+				params: { spaceId: props.spaceId, pageId: target },
+			})
+			.finally(() => {
+				autoOpening = false;
+			});
+	}
+}
+
+// treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
+// as it — and the route — settle.
+watch([treeData, () => route.name], autoOpenPage, { immediate: true });
 
 const changeTypeMap = computed(() => {
 	const map = new Map();
