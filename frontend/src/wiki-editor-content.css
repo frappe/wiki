@@ -40,7 +40,7 @@
 .wiki-tiptap-editor {
 	flex: 1;
 	min-height: 500px;
-	background-color: var(--surface-white, #ffffff);
+	background-color: var(--surface-base, #ffffff);
 	position: relative;
 	margin-top: 1rem;
 	max-width: 100ch;
@@ -225,7 +225,7 @@
 	margin: 0;
 	border: 1px solid var(--outline-gray-3, #c7c7c7);
 	border-radius: 0.25rem;
-	background-color: var(--surface-white, #ffffff);
+	background-color: var(--surface-base, #ffffff);
 	cursor: pointer;
 	position: relative;
 	transition: background-color 0.1s ease, border-color 0.1s ease;
@@ -236,8 +236,8 @@
 }
 
 .wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked {
-	background-color: var(--surface-gray-7, #383838);
-	border-color: var(--surface-gray-7, #383838);
+	background-color: var(--surface-gray-10, #383838);
+	border-color: var(--surface-gray-10, #383838);
 }
 
 /* Checkmark drawn as a rotated border so it inherits theme colors. */
@@ -250,7 +250,7 @@
 	top: 1.5px;
 	width: 4px;
 	height: 8px;
-	border: solid var(--surface-white, #ffffff);
+	border: solid var(--surface-base, #ffffff);
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }

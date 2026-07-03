@@ -26,14 +26,14 @@
 		<div v-if="isSearching && !hasResults"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
 			<LucideSearch class="size-12 text-ink-gray-4 mb-4" />
-			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
+			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
 			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
 		</div>
 
 		<div v-else-if="!treeData.children || treeData.children.length === 0"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
 			<LucideFileText class="size-12 text-ink-gray-4 mb-4" />
-			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
+			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
 			<template v-if="!readonly">
 				<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
 				<Button variant="solid" @click="openCreateDialog(rootNode, false)">
@@ -71,7 +71,7 @@
 
 		<Dialog v-model="showCreateDialog">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ createIsGroup ? __('Create New Group') : __('Create New Page') }}
 				</h3>
 			</template>
@@ -93,7 +93,7 @@
 
 		<Dialog v-model="showDeleteDialog">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Delete') }} "{{ deleteNode?.title }}"
 				</h3>
 			</template>
@@ -132,7 +132,7 @@
 
 		<Dialog v-model="showRenameDialog">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ renameNode?.is_group ? __('Rename Group') : __('Change Title') }}
 				</h3>
 			</template>
@@ -155,7 +155,7 @@
 
 		<Dialog v-model="showExternalLinkDialog">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Add External Link') }}
 				</h3>
 			</template>
@@ -179,7 +179,7 @@
 
 		<Dialog v-model="showEditExternalLinkDialog">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Edit External Link') }}
 				</h3>
 			</template>

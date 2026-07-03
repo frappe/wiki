@@ -3,10 +3,10 @@
     <!-- On mobile the title lives in the top nav (next to the hamburger); on
          desktop it stays inline. -->
     <Teleport v-if="isMobile" to="#app-header">
-      <h2 class="truncate text-base font-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
+      <h2 class="truncate text-base-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
     </Teleport>
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h2 class="hidden sm:block text-xl font-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
+      <h2 class="hidden sm:block text-2xl-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
       <div class="flex items-center gap-2">
         <FormControl
           class="flex-1 sm:flex-none sm:w-64"

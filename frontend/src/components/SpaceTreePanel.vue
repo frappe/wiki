@@ -18,7 +18,7 @@
 				/>
 			</div>
 			<div class="flex items-center gap-2">
-				<h1 class="text-lg font-semibold text-ink-gray-9">
+				<h1 class="text-lg-semibold text-ink-gray-9">
 					{{ spaceName || spaceId }}
 				</h1>
 				<Button

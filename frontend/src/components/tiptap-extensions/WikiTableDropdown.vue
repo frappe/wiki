@@ -11,7 +11,7 @@
         </button>
         <div
             v-show="open"
-            class="absolute top-full left-0 mt-1 p-1 min-w-[200px] max-h-[400px] overflow-y-auto bg-surface-white border border-outline-gray-2 rounded-lg shadow-md z-50"
+            class="absolute top-full left-0 mt-1 p-1 min-w-[200px] max-h-[400px] overflow-y-auto bg-surface-base border border-outline-gray-2 rounded-lg shadow-md z-50"
         >
             <button
                 class="flex items-center gap-2 w-full px-3 py-2 border-0 rounded-md bg-transparent text-ink-gray-7 text-sm text-left cursor-pointer transition-all duration-150 hover:bg-surface-gray-2"
@@ -29,7 +29,7 @@
                         class="flex items-center gap-2 w-full px-3 py-2 border-0 rounded-md bg-transparent text-sm text-left cursor-pointer transition-all duration-150"
                      :class="[
                                 item.danger
-                                    ? 'text-ink-red-4 hover:bg-surface-gray-2'
+                                    ? 'text-ink-red-8 hover:bg-surface-gray-2'
                                     : 'text-ink-gray-7 hover:bg-surface-gray-2',
                                 { 'opacity-40 pointer-events-none': item.disabled() }
                             ]"

@@ -44,7 +44,7 @@
         <div
           v-if="isOpen"
           ref="list"
-          class="fixed z-[9999] max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+          class="fixed z-[9999] max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
           :style="menuStyle"
           @scroll="onScroll"
           @pointerdown.stop

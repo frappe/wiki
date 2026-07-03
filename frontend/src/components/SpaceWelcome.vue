@@ -4,7 +4,7 @@
          the "Select a page" empty state. -->
     <div v-if="isSyncing" class="flex flex-col items-center justify-center h-full py-16">
         <LucideLoader2 class="size-12 text-ink-gray-4 mb-6 animate-spin" />
-        <h2 class="text-xl font-medium text-ink-gray-7 mb-2">
+        <h2 class="text-2xl-medium text-ink-gray-7 mb-2">
             {{ __('Sync in progress') }}
         </h2>
         <p class="text-ink-gray-5 text-center max-w-md">
@@ -14,7 +14,7 @@
 
     <div v-else class="flex flex-col items-center justify-center h-full py-16">
         <LucideFileText class="size-16 text-ink-gray-3 mb-6" />
-        <h2 class="text-xl font-medium text-ink-gray-7 mb-2">
+        <h2 class="text-2xl-medium text-ink-gray-7 mb-2">
             {{ __('Select a page') }}
         </h2>
         <p class="text-ink-gray-5 text-center max-w-md">

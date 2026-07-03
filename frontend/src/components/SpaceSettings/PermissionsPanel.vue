@@ -18,7 +18,7 @@
 				/>
 				<div
 					v-if="showRoleList"
-					class="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-modal p-1 shadow-lg"
+					class="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-elevation-2 p-1 shadow-lg"
 				>
 					<div
 						v-if="allRoles.loading"
@@ -121,7 +121,7 @@
 			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
 			<div class="mr-4 flex-1">
-				<p class="text-sm font-medium text-ink-gray-9">
+				<p class="text-sm-medium text-ink-gray-9">
 					{{ __('Accept Contributions') }}
 				</p>
 				<p class="mt-0.5 text-xs text-ink-gray-5">

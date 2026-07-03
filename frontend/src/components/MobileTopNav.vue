@@ -1,6 +1,6 @@
 <template>
 	<header
-		class="flex h-14 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-white px-3"
+		class="flex h-14 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-base px-3"
 		:style="{ paddingTop: 'env(safe-area-inset-top)' }"
 	>
 		<!-- Brand on the left (home). Hidden on pages that supply their own

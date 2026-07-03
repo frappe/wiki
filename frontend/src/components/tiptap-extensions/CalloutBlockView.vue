@@ -340,7 +340,7 @@ const dropdownOptions = computed(() => [
     >
         <div class="flex items-center gap-2">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
-            <span class="flex-1 font-medium text-sm leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
+            <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
             <Dropdown :options="dropdownOptions" placement="bottom-end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <LucideMoreHorizontal class="size-3.5" />
@@ -461,7 +461,7 @@ const dropdownOptions = computed(() => [
     padding: 0.375rem 0.5rem;
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.375rem;
-    background-color: var(--surface-white, #ffffff);
+    background-color: var(--surface-base, #ffffff);
     min-height: 2.5rem;
     color: var(--ink-gray-7, #4b5563);
 }
@@ -476,7 +476,7 @@ const dropdownOptions = computed(() => [
 }
 
 .callout-block-wrapper :deep(.callout-sub-editor-content a) {
-    color: var(--ink-blue-3, #2563eb);
+    color: var(--ink-blue-6, #2563eb);
     text-decoration: underline;
 }
 
@@ -485,27 +485,27 @@ const dropdownOptions = computed(() => [
     background-color: var(--surface-blue-2, #dbeafe);
 }
 .callout-note .callout-icon {
-    color: var(--ink-blue-3, #2563eb);
+    color: var(--ink-blue-6, #2563eb);
 }
 
 .callout-tip {
     background-color: var(--surface-green-2, #dcfce7);
 }
 .callout-tip .callout-icon {
-    color: var(--ink-green-3, #16a34a);
+    color: var(--ink-green-6, #16a34a);
 }
 
 .callout-caution {
     background-color: var(--surface-amber-2, #fef3c7);
 }
 .callout-caution .callout-icon {
-    color: var(--ink-amber-3, #d97706);
+    color: var(--ink-amber-6, #d97706);
 }
 
 .callout-danger {
     background-color: var(--surface-red-2, #fecaca);
 }
 .callout-danger .callout-icon {
-    color: var(--ink-red-3, #dc2626);
+    color: var(--ink-red-6, #dc2626);
 }
 </style>

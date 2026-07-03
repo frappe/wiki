@@ -62,12 +62,12 @@
             >
                 <LucidePanelLeft class="size-5" />
             </button>
-            <span class="truncate text-base font-semibold text-ink-gray-9">
+            <span class="truncate text-base-semibold text-ink-gray-9">
                 {{ space.doc?.space_name || spaceId }}
             </span>
         </Teleport>
 
-        <main class="flex-1 flex flex-col bg-surface-white min-w-0">
+        <main class="flex-1 flex flex-col bg-surface-base min-w-0">
             <div
                 v-if="isGitSynced"
                 class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
@@ -80,11 +80,11 @@
                             :href="`https://github.com/${space.doc.repo_full_name}`"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-sm font-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
+                            class="text-sm-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
                         >
                             {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
                         </a>
-                        <p v-else class="text-sm font-medium text-ink-gray-8 truncate">
+                        <p v-else class="text-sm-medium text-ink-gray-8 truncate">
                             {{ space.doc?.space_name || spaceId }}
                         </p>
                         <div class="flex items-center gap-2 mt-0.5">
@@ -132,7 +132,7 @@
 
         <Dialog v-model="showUpdateRoutesDialog">
             <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Update Wiki Space Routes') }}
                 </h3>
             </template>
@@ -168,7 +168,7 @@
 
         <Dialog v-model="showCloneSpaceDialog">
             <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Clone Wiki Space') }}
                 </h3>
             </template>

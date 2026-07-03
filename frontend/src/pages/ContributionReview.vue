@@ -1,13 +1,13 @@
 <template>
 	<div class="flex flex-col h-full">
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-outline-gray-2 bg-surface-base shrink-0">
 			<div class="flex items-center gap-4">
 				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc">
 					<div class="flex items-center gap-2">
-						<h1 class="text-xl font-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+						<h1 class="text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 						<Badge :variant="'subtle'" :theme="getStatusTheme(changeRequest.doc.status)" size="sm">
 							{{ changeRequest.doc.status }}
 						</Badge>
@@ -86,7 +86,7 @@
 						<p class="text-sm text-amber-700 mt-1">
 							{{ __('The following documents have conflicting changes. Choose which version to keep for each conflict.') }}
 						</p>
-						<p class="text-sm text-amber-600 mt-2 font-medium">
+						<p class="text-sm-medium text-amber-600 mt-2">
 							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
 						</p>
 					</div>
@@ -96,7 +96,7 @@
 			<div class="space-y-4">
 				<!-- Conflict list (replaces changes list when conflicts exist) -->
 				<template v-if="hasConflicts">
-					<h3 class="text-lg font-medium text-ink-gray-8">
+					<h3 class="text-lg-medium text-ink-gray-8">
 						{{ __('Conflicts') }} ({{ conflicts.length }})
 					</h3>
 
@@ -170,7 +170,7 @@
 
 				<!-- Normal changes list -->
 				<template v-else>
-					<h3 class="text-lg font-medium text-ink-gray-8">
+					<h3 class="text-lg-medium text-ink-gray-8">
 						{{ __('Changes') }} ({{ changes.data?.length || 0 }})
 					</h3>
 
@@ -266,9 +266,9 @@
 											v-if="diffsByDocKey[change.doc_key]"
 											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
 										>
-											<section class="bg-surface-white min-w-0">
+											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
+													<span class="text-xs-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
 													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
 												</header>
 												<div class="px-4 py-4">
@@ -278,9 +278,9 @@
 													<WikiContentViewer v-else :content="diffsByDocKey[change.doc_key].base?.content || ''" />
 												</div>
 											</section>
-											<section class="bg-surface-white min-w-0">
+											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
+													<span class="text-xs-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
 												</header>
 												<div class="px-4 py-4">
 													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />
@@ -318,7 +318,7 @@
 
 		<Dialog v-model="showApproveMergeDialog" :options="{ size: 'md' }">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
 			</template>
 			<template #body-content>
 				<p class="text-ink-gray-7">
@@ -341,7 +341,7 @@
 
 		<Dialog v-model="showRequestChangesDialog" :options="{ size: 'md' }">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
 			</template>
 			<template #body-content>
 				<div class="space-y-4">
@@ -374,7 +374,7 @@
 
 		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
 			</template>
 			<template #body-content>
 				<div class="space-y-4">

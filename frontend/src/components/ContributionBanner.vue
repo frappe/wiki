@@ -7,7 +7,7 @@
 		<div class="flex items-center gap-3 min-w-0">
 			<component :is="bannerIcon" class="size-5 shrink-0" />
 			<div class="min-w-0">
-				<p class="text-sm font-medium">{{ bannerTitle }}</p>
+				<p class="text-sm-medium">{{ bannerTitle }}</p>
 				<p class="text-xs opacity-80">{{ bannerDescription }}</p>
 			</div>
 		</div>
@@ -58,7 +58,7 @@
 			</template>
 
 			<template v-else-if="changeRequestStatus === 'Approved'">
-				<span class="text-sm font-medium text-green-700">
+				<span class="text-sm-medium text-green-700">
 					{{ __('Approved! Ready to merge.') }}
 				</span>
 				<Button
@@ -84,7 +84,7 @@
 			<template #body-title>
 				<div class="flex items-center gap-2">
 					<LucideGitBranch class="size-5 text-ink-gray-5" />
-					<h3 class="text-xl font-semibold text-ink-gray-9">
+					<h3 class="text-2xl-semibold text-ink-gray-9">
 						{{ __('Pending Changes') }}
 					</h3>
 				</div>
@@ -145,7 +145,7 @@
 			<template #body-title>
 				<div class="flex items-center gap-2">
 					<LucideGitBranch class="size-5 text-ink-gray-5" />
-					<h3 class="text-xl font-semibold text-ink-gray-9">
+					<h3 class="text-2xl-semibold text-ink-gray-9">
 						{{ __('Submit for Review') }}
 					</h3>
 				</div>

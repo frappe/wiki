@@ -336,7 +336,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     padding: 0.5rem;
-    background-color: var(--surface-white, #ffffff);
+    background-color: var(--surface-base, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-bottom: none;
     border-radius: 0.5rem 0.5rem 0 0;
@@ -416,7 +416,7 @@ onUnmounted(() => {
     left: 0;
     margin-top: 0.25rem;
     padding: 0.25rem;
-    background-color: var(--surface-white, #ffffff);
+    background-color: var(--surface-base, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);

@@ -32,7 +32,7 @@
 						/>
 					</svg>
 				</div>
-				<h2 class="text-xl font-semibold text-gray-700 mb-2">
+				<h2 class="text-2xl-semibold text-gray-700 mb-2">
 					{{ __('Access Denied') }}
 				</h2>
 				<p class="text-gray-500">

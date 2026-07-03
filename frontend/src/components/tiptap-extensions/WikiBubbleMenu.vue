@@ -223,7 +223,7 @@ function toggleLink() {
     display: flex;
     align-items: center;
     gap: 0.125rem;
-    background: var(--surface-white, #ffffff);
+    background: var(--surface-base, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
     padding: 0.25rem;

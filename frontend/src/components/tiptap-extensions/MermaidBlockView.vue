@@ -244,7 +244,7 @@ onMounted(renderPreview);
 	margin: 0.75rem 0;
 	border: 1px solid var(--outline-gray-2);
 	border-radius: 0.5rem;
-	background: var(--surface-white);
+	background: var(--surface-base);
 	overflow: hidden;
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }

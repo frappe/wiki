@@ -127,7 +127,7 @@ defineExpose({
 
 <style scoped>
 .slash-commands-list {
-    background: var(--surface-white, #ffffff);
+    background: var(--surface-base, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
     box-shadow:
@@ -195,7 +195,7 @@ defineExpose({
     text-align: center;
     color: var(--ink-gray-5, #6b7280);
     font-size: 0.875rem;
-    background: var(--surface-white, #ffffff);
+    background: var(--surface-base, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
 }

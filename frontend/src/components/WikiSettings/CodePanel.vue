@@ -1,7 +1,7 @@
 <template>
 	<div class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1.5">
-			<label class="text-sm font-medium text-ink-gray-9">
+			<label class="text-sm-medium text-ink-gray-9">
 				{{ __('<head> HTML') }}
 			</label>
 			<p class="text-xs text-ink-gray-5">

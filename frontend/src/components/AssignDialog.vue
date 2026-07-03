@@ -1,7 +1,7 @@
 <template>
 	<Dialog v-model="show" :options="{ size: 'md' }">
 		<template #body-title>
-			<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Assign Reviewer') }}</h3>
+			<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Assign Reviewer') }}</h3>
 		</template>
 		<template #body-content>
 			<div class="space-y-4">

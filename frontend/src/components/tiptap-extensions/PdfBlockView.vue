@@ -179,7 +179,7 @@ function closeViewer() {
 	border: 1px solid var(--outline-gray-2, #e5e7eb);
 	border-radius: 0.5rem;
 	overflow: hidden;
-	background: var(--surface-white, #ffffff);
+	background: var(--surface-base, #ffffff);
 }
 
 .wiki-pdf-wrapper.is-selected .wiki-pdf-card {

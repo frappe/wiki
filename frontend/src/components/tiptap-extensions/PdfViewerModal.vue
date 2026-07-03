@@ -134,7 +134,7 @@ body.wiki-pdf-modal-open {
 	justify-content: space-between;
 	gap: 1rem;
 	padding: 0.625rem 1rem;
-	background: var(--surface-white, #ffffff);
+	background: var(--surface-base, #ffffff);
 	border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
 	flex-shrink: 0;
 }

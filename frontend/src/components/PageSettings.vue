@@ -1,7 +1,7 @@
 <template>
 	<Dialog v-model="show" :options="{ size: '2xl' }">
 		<template #body-title>
-			<h3 class="text-xl font-semibold text-ink-gray-9">
+			<h3 class="text-2xl-semibold text-ink-gray-9">
 				{{ __('Page Settings') }}
 			</h3>
 		</template>
@@ -100,7 +100,7 @@
 							<span class="truncate text-xs text-ink-gray-4">
 								{{ previewRoute }}
 							</span>
-							<span class="line-clamp-1 text-sm font-medium text-ink-gray-9">
+							<span class="line-clamp-1 text-sm-medium text-ink-gray-9">
 								{{ previewTitle }}
 							</span>
 							<span

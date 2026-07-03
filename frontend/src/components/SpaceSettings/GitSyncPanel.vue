@@ -5,7 +5,7 @@
 			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
 			<div class="mr-4 flex-1 min-w-0">
-				<p class="text-sm font-medium text-ink-gray-9">
+				<p class="text-sm-medium text-ink-gray-9">
 					{{ __('Repository') }}
 				</p>
 				<a
@@ -36,7 +36,7 @@
 			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
 			<div class="mr-4 flex-1">
-				<p class="text-sm font-medium text-ink-gray-9">
+				<p class="text-sm-medium text-ink-gray-9">
 					{{ __('Last Synced') }}
 				</p>
 				<p class="mt-0.5 text-xs text-ink-gray-5">
@@ -49,7 +49,7 @@
 		<div
 			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
-			<p class="text-sm font-medium text-ink-gray-9">
+			<p class="text-sm-medium text-ink-gray-9">
 				{{ __('Real-time Sync') }}
 			</p>
 			<p class="mt-0.5 text-xs text-ink-gray-5">
@@ -74,7 +74,7 @@
 		<!-- Run history -->
 		<div class="rounded-lg border border-outline-gray-2 bg-surface-gray-1">
 			<div class="flex items-center justify-between border-b border-outline-gray-2 p-3">
-				<p class="text-sm font-medium text-ink-gray-9">
+				<p class="text-sm-medium text-ink-gray-9">
 					{{ __('Sync History') }}
 				</p>
 				<Button
@@ -117,7 +117,7 @@
 						</p>
 						<p
 							v-else-if="row.status === 'Error' && row.error"
-							class="mt-1 truncate text-xs text-ink-red-4"
+							class="mt-1 truncate text-xs text-ink-red-8"
 							:title="row.error"
 						>
 							{{ firstLine(row.error) }}

@@ -4,7 +4,7 @@
 		<div
 			class="flex w-52 shrink-0 flex-col gap-4 border-r border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
-			<span class="px-2 pt-1 text-lg font-semibold text-ink-gray-9">
+			<span class="px-2 pt-1 text-lg-semibold text-ink-gray-9">
 				{{ __('Settings') }}
 			</span>
 			<div class="flex flex-col gap-1">
@@ -23,12 +23,12 @@
 		</div>
 
 		<!-- Active panel -->
-		<div class="flex flex-1 flex-col overflow-hidden bg-surface-white">
+		<div class="flex flex-1 flex-col overflow-hidden bg-surface-base">
 			<div
 				class="flex items-center justify-between border-b border-outline-gray-2 px-6 py-4"
 			>
 				<div class="flex items-center gap-2">
-					<h2 class="text-xl font-semibold text-ink-gray-9">
+					<h2 class="text-2xl-semibold text-ink-gray-9">
 						{{ activeTab?.label }}
 					</h2>
 					<Badge

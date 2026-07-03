@@ -3,7 +3,7 @@
 		class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 	>
 		<div class="mr-4 flex-1">
-			<p class="text-sm font-medium text-ink-gray-9">{{ title }}</p>
+			<p class="text-sm-medium text-ink-gray-9">{{ title }}</p>
 			<p v-if="description" class="mt-0.5 text-xs text-ink-gray-5">
 				{{ description }}
 			</p>

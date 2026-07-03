@@ -1,7 +1,7 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 bg-surface-white shrink-0 border-b-2 border-b-gray-500/20">
+			<div class="flex items-center justify-between p-6 pb-4 bg-surface-base shrink-0 border-b-2 border-b-gray-500/20">
 				<div class="flex items-center gap-2 min-w-0 flex-1">
 					<div class="flex flex-col gap-1 min-w-0 flex-1">
 						<div class="flex items-center gap-2">
@@ -9,7 +9,7 @@
 								type="text"
 								v-model="editableTitle"
 								:readonly="readonly"
-								class="text-2xl font-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
+								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
 								:placeholder="__('Page title')"
 								@blur="saveTitleIfChanged"
 								@keydown.enter="$event.target.blur()"
@@ -119,7 +119,7 @@
 		</div>
 		<Dialog v-model="showRouteDialog" :options="{ size: 'sm' }">
 			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
 			</template>
 			<template #body-content>
 				<FormControl

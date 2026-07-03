@@ -5,7 +5,7 @@
 			v-if="!isConfigured"
 			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
 		>
-			<p class="text-sm font-medium text-ink-gray-9">{{ __('GitHub Sync') }}</p>
+			<p class="text-sm-medium text-ink-gray-9">{{ __('GitHub Sync') }}</p>
 			<p class="mt-0.5 text-xs text-ink-gray-5">
 				{{
 					__('Configure a GitHub App so Wiki Spaces can sync from GitHub repositories, including private ones. Access tokens are minted on demand from the App private key — no per-space secrets are stored.')
@@ -23,7 +23,7 @@
 
 		<!-- Manual configuration (non-secret Data fields) -->
 		<div class="flex flex-col gap-3">
-			<p class="text-sm font-medium text-ink-gray-9">
+			<p class="text-sm-medium text-ink-gray-9">
 				{{ __('App Configuration') }}
 			</p>
 			<FormControl v-model="appId" type="text" :label="__('App ID')" />
@@ -57,14 +57,14 @@
 
 		<!-- Secrets (write-only) -->
 		<div class="flex flex-col gap-3">
-			<p class="text-sm font-medium text-ink-gray-9">{{ __('Secrets') }}</p>
+			<p class="text-sm-medium text-ink-gray-9">{{ __('Secrets') }}</p>
 			<p class="-mt-2 text-xs text-ink-gray-5">
 				{{ __('Stored secrets are never shown. Leave a field blank to keep its current value.') }}
 			</p>
 
 			<div class="flex flex-col gap-1.5">
 				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
+					<label class="text-sm-medium text-ink-gray-9">
 						{{ __('Client Secret') }}
 					</label>
 					<Badge :theme="hasClientSecret ? 'green' : 'gray'" size="sm">
@@ -80,7 +80,7 @@
 
 			<div class="flex flex-col gap-1.5">
 				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
+					<label class="text-sm-medium text-ink-gray-9">
 						{{ __('Webhook Secret') }}
 					</label>
 					<Badge :theme="hasWebhookSecret ? 'green' : 'gray'" size="sm">
@@ -96,7 +96,7 @@
 
 			<div class="flex flex-col gap-1.5">
 				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
+					<label class="text-sm-medium text-ink-gray-9">
 						{{ __('Private Key') }}
 					</label>
 					<Badge :theme="hasPrivateKey ? 'green' : 'gray'" size="sm">

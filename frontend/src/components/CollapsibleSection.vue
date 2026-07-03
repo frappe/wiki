@@ -6,7 +6,7 @@
 			:aria-expanded="open"
 			@click="open = !open"
 		>
-			<span class="text-sm font-medium text-ink-gray-9">{{ title }}</span>
+			<span class="text-sm-medium text-ink-gray-9">{{ title }}</span>
 			<LucideChevronDown
 				class="size-4 shrink-0 text-ink-gray-5 transition-transform"
 				:class="{ '-rotate-180': open }"
