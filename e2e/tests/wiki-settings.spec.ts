@@ -33,7 +33,8 @@ test.describe('Global Wiki Settings', () => {
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await expect(dialog.getByText('Wiki Settings')).toBeVisible();
 
-		// All four tabs are present.
+		// All four tabs are present. The settings nav is a real ARIA tablist
+		// (frappe-ui SettingsDialog is built on reka-ui Tabs).
 		for (const tab of [
 			'General',
 			'Feedback',
@@ -41,12 +42,12 @@ test.describe('Global Wiki Settings', () => {
 			'GitHub Sync',
 		]) {
 			await expect(
-				dialog.getByRole('button', { name: tab, exact: true }),
+				dialog.getByRole('tab', { name: tab, exact: true }),
 			).toBeVisible();
 		}
 
 		// Toggle "Enable Table of Contents" on the General tab.
-		await dialog.getByRole('button', { name: 'General', exact: true }).click();
+		await dialog.getByRole('tab', { name: 'General', exact: true }).click();
 		const tocSwitch = dialog.getByRole('switch').first();
 		await expect(tocSwitch).toBeVisible();
 		await tocSwitch.click();
@@ -82,7 +83,7 @@ test.describe('Global Wiki Settings', () => {
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await expect(
-			dialog.getByRole('button', { name: 'General', exact: true }),
+			dialog.getByRole('tab', { name: 'General', exact: true }),
 		).toBeVisible();
 	});
 });

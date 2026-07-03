@@ -44,20 +44,12 @@
 			</div>
 		</div>
 
-		<Dialog v-model:open="showWikiSettings" size="4xl" bare>
-			<template #default>
-				<WikiSettings
-					:initial-tab="initialTab"
-					@close="showWikiSettings = false"
-				/>
-			</template>
-		</Dialog>
+		<WikiSettings v-model="showWikiSettings" :initial-tab="initialTab" />
 	</div>
 </template>
 
 <script setup>
 import { useUserStore } from '@/stores/user';
-import { Dialog } from 'frappe-ui';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MobileTopNav from '../components/MobileTopNav.vue';

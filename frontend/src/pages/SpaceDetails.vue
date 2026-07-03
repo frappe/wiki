@@ -118,17 +118,13 @@
             </div>
         </main>
 
-        <Dialog v-model:open="showSettingsDialog" size="4xl" bare>
-            <template #default>
-                <SpaceSettings
-                    :space="space"
-                    :space-id="spaceId"
-                    @close="showSettingsDialog = false"
-                    @open-update-routes="openUpdateRoutesDialog"
-                    @open-clone="openCloneSpaceDialog"
-                />
-            </template>
-        </Dialog>
+        <SpaceSettings
+            v-model="showSettingsDialog"
+            :space="space"
+            :space-id="spaceId"
+            @open-update-routes="openUpdateRoutesDialog"
+            @open-clone="openCloneSpaceDialog"
+        />
 
         <Dialog v-model:open="showUpdateRoutesDialog">
             <template #title>
