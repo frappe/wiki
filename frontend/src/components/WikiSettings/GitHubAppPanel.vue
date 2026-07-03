@@ -167,12 +167,17 @@ const savingSecrets = ref(false);
 // the existing one.
 const isConfigured = computed(() =>
 	Boolean(
-		props.settings.doc?.github_app_id && props.settings.doc?.github_app_client_id,
+		props.settings.doc?.github_app_id &&
+			props.settings.doc?.github_app_client_id,
 	),
 );
 
-const hasClientSecret = computed(() => Boolean(appConfig.data?.has_client_secret));
-const hasWebhookSecret = computed(() => Boolean(appConfig.data?.has_webhook_secret));
+const hasClientSecret = computed(() =>
+	Boolean(appConfig.data?.has_client_secret),
+);
+const hasWebhookSecret = computed(() =>
+	Boolean(appConfig.data?.has_webhook_secret),
+);
 const hasPrivateKey = computed(() => Boolean(appConfig.data?.has_private_key));
 
 watch(

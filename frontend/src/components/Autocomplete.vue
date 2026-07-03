@@ -86,143 +86,143 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
-import LucideChevronDown from "~icons/lucide/chevron-down";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import LucideChevronDown from '~icons/lucide/chevron-down';
 
 const props = defineProps({
-  modelValue: { type: [String, Number], default: "" },
-  options: { type: Array, default: () => [] },
-  label: { type: String, default: "" },
-  placeholder: { type: String, default: "" },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
-  hasMore: { type: Boolean, default: false },
-  // remote: parent owns filtering (server-side search + paging).
-  remote: { type: Boolean, default: false },
+	modelValue: { type: [String, Number], default: '' },
+	options: { type: Array, default: () => [] },
+	label: { type: String, default: '' },
+	placeholder: { type: String, default: '' },
+	disabled: { type: Boolean, default: false },
+	loading: { type: Boolean, default: false },
+	hasMore: { type: Boolean, default: false },
+	// remote: parent owns filtering (server-side search + paging).
+	remote: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["update:modelValue", "search", "load-more"]);
+const emit = defineEmits(['update:modelValue', 'search', 'load-more']);
 
 const root = ref(null);
 const input = ref(null);
 const list = ref(null);
 const isOpen = ref(false);
-const query = ref("");
+const query = ref('');
 const highlighted = ref(0);
 const menuStyle = ref({});
 
 const selectedLabel = computed(() => {
-  const match = props.options.find((o) => o.value === props.modelValue);
-  return match ? match.label : props.modelValue ? String(props.modelValue) : "";
+	const match = props.options.find((o) => o.value === props.modelValue);
+	return match ? match.label : props.modelValue ? String(props.modelValue) : '';
 });
 
 const displayedOptions = computed(() => {
-  if (props.remote || !query.value) return props.options;
-  const q = query.value.toLowerCase();
-  return props.options.filter((o) => String(o.label).toLowerCase().includes(q));
+	if (props.remote || !query.value) return props.options;
+	const q = query.value.toLowerCase();
+	return props.options.filter((o) => String(o.label).toLowerCase().includes(q));
 });
 
 // Always start the list at the top — otherwise it can open scrolled a partial
 // row down, clipping the first option.
 function resetScroll() {
-  nextTick(() => {
-    if (list.value) list.value.scrollTop = 0;
-  });
+	nextTick(() => {
+		if (list.value) list.value.scrollTop = 0;
+	});
 }
 
 // Anchor the fixed dropdown to the input on every open / scroll / resize.
 function positionMenu() {
-  const el = input.value;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  menuStyle.value = {
-    top: `${rect.bottom + 4}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
-    // body is pointer-events:none under a modal; re-enable just the menu.
-    pointerEvents: "auto",
-  };
+	const el = input.value;
+	if (!el) return;
+	const rect = el.getBoundingClientRect();
+	menuStyle.value = {
+		top: `${rect.bottom + 4}px`,
+		left: `${rect.left}px`,
+		width: `${rect.width}px`,
+		// body is pointer-events:none under a modal; re-enable just the menu.
+		pointerEvents: 'auto',
+	};
 }
 
 function reposition() {
-  if (isOpen.value) positionMenu();
+	if (isOpen.value) positionMenu();
 }
 
 function open() {
-  if (props.disabled) return;
-  isOpen.value = true;
-  highlighted.value = 0;
-  nextTick(positionMenu);
-  resetScroll();
+	if (props.disabled) return;
+	isOpen.value = true;
+	highlighted.value = 0;
+	nextTick(positionMenu);
+	resetScroll();
 }
 
 function close() {
-  isOpen.value = false;
-  query.value = "";
+	isOpen.value = false;
+	query.value = '';
 }
 
 let searchTimer = null;
 function onInput(event) {
-  query.value = event.target.value;
-  isOpen.value = true;
-  highlighted.value = 0;
-  resetScroll();
-  if (props.remote) {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => emit("search", query.value), 300);
-  }
+	query.value = event.target.value;
+	isOpen.value = true;
+	highlighted.value = 0;
+	resetScroll();
+	if (props.remote) {
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => emit('search', query.value), 300);
+	}
 }
 
 function select(opt) {
-  emit("update:modelValue", opt.value);
-  close();
-  input.value?.blur();
+	emit('update:modelValue', opt.value);
+	close();
+	input.value?.blur();
 }
 
 function move(delta) {
-  if (!isOpen.value) {
-    open();
-    return;
-  }
-  const count = displayedOptions.value.length;
-  if (!count) return;
-  highlighted.value = (highlighted.value + delta + count) % count;
+	if (!isOpen.value) {
+		open();
+		return;
+	}
+	const count = displayedOptions.value.length;
+	if (!count) return;
+	highlighted.value = (highlighted.value + delta + count) % count;
 }
 
 function selectHighlighted() {
-  const opt = displayedOptions.value[highlighted.value];
-  if (opt) select(opt);
+	const opt = displayedOptions.value[highlighted.value];
+	if (opt) select(opt);
 }
 
 function onScroll() {
-  const el = list.value;
-  if (!el || !props.hasMore || props.loading) return;
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
-    emit("load-more");
-  }
+	const el = list.value;
+	if (!el || !props.hasMore || props.loading) return;
+	if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+		emit('load-more');
+	}
 }
 
 function onClickOutside(event) {
-  if (root.value && !root.value.contains(event.target)) close();
+	if (root.value && !root.value.contains(event.target)) close();
 }
-document.addEventListener("mousedown", onClickOutside);
+document.addEventListener('mousedown', onClickOutside);
 // Capture phase so scrolling *inside* the dialog body (not just the window)
 // keeps the fixed dropdown glued to the input.
-window.addEventListener("scroll", reposition, true);
-window.addEventListener("resize", reposition);
+window.addEventListener('scroll', reposition, true);
+window.addEventListener('resize', reposition);
 onBeforeUnmount(() => {
-  document.removeEventListener("mousedown", onClickOutside);
-  window.removeEventListener("scroll", reposition, true);
-  window.removeEventListener("resize", reposition);
-  clearTimeout(searchTimer);
+	document.removeEventListener('mousedown', onClickOutside);
+	window.removeEventListener('scroll', reposition, true);
+	window.removeEventListener('resize', reposition);
+	clearTimeout(searchTimer);
 });
 
 // If the selection is cleared elsewhere (e.g. account change resets the repo),
 // drop any stale typed query so the placeholder shows again.
 watch(
-  () => props.modelValue,
-  (value) => {
-    if (!value) query.value = "";
-  },
+	() => props.modelValue,
+	(value) => {
+		if (!value) query.value = '';
+	},
 );
 </script>

@@ -270,26 +270,26 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from "vue";
-import { useRouter } from "vue-router";
+import Autocomplete from '@/components/Autocomplete.vue';
+import { useMobile } from '@/composables/useMobile';
+import { useUserStore } from '@/stores/user';
 import {
-  ListView,
-  createListResource,
-  createResource,
-  Button,
-  Dialog,
-  FormControl,
-  ErrorMessage,
-  Badge,
-  toast
-} from "frappe-ui";
-import LucidePlus from "~icons/lucide/plus";
-import LucideSearch from "~icons/lucide/search";
-import LucideGithub from "~icons/lucide/github";
-import LucideLoader2 from "~icons/lucide/loader-2";
-import { useUserStore } from "@/stores/user";
-import { useMobile } from "@/composables/useMobile";
-import Autocomplete from "@/components/Autocomplete.vue";
+	Badge,
+	Button,
+	Dialog,
+	ErrorMessage,
+	FormControl,
+	ListView,
+	createListResource,
+	createResource,
+	toast,
+} from 'frappe-ui';
+import { computed, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import LucideGithub from '~icons/lucide/github';
+import LucideLoader2 from '~icons/lucide/loader-2';
+import LucidePlus from '~icons/lucide/plus';
+import LucideSearch from '~icons/lucide/search';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -298,352 +298,367 @@ const isManager = computed(() => userStore.isWikiManager);
 
 const showCreateDialog = ref(false);
 const routeManuallyEdited = ref(false);
-const searchQuery = ref("");
-const formError = ref("");
+const searchQuery = ref('');
+const formError = ref('');
 
 const newSpace = reactive({
-  space_name: "",
-  route: "",
-  git_synced: false,
-  github_installation_id: "",
-  repo_full_name: "",
-  branch: "",
-  docs_subdir: "docs",
+	space_name: '',
+	route: '',
+	git_synced: false,
+	github_installation_id: '',
+	repo_full_name: '',
+	branch: '',
+	docs_subdir: 'docs',
 });
 
 // GitHub App connect + repo picker (TB4b). The connect-account OAuth round-trip
 // runs in a popup against `/github/authorize`; we poll `is_connected` until the
 // user's token is cached server-side, then list their installations and repos.
-const githubConnected = createResource({ url: "wiki.api.github.is_connected" });
+const githubConnected = createResource({ url: 'wiki.api.github.is_connected' });
 const installationsResource = createResource({
-  url: "wiki.api.github.my_installations",
-  // A single account is the common case — pick it automatically so the form
-  // collapses to repo-first (the account step hides when there's nothing to choose).
-  onSuccess: (data) => {
-    if ((data || []).length === 1) {
-      // Bridge the gap to the first repo page so the spinner stays up instead of
-      // flashing an empty repo field before loadRepos() (via the watch) kicks in.
-      repos.loadedOnce = false;
-      repos.loading = true;
-      newSpace.github_installation_id = String(data[0].id);
-    }
-  },
+	url: 'wiki.api.github.my_installations',
+	// A single account is the common case — pick it automatically so the form
+	// collapses to repo-first (the account step hides when there's nothing to choose).
+	onSuccess: (data) => {
+		if ((data || []).length === 1) {
+			// Bridge the gap to the first repo page so the spinner stays up instead of
+			// flashing an empty repo field before loadRepos() (via the watch) kicks in.
+			repos.loadedOnce = false;
+			repos.loading = true;
+			newSpace.github_installation_id = String(data[0].id);
+		}
+	},
 });
-const repositoriesResource = createResource({ url: "wiki.api.github.my_repositories" });
-const branchesResource = createResource({ url: "wiki.api.github.my_repo_branches" });
-const appInstallUrl = createResource({ url: "wiki.api.github.app_install_url" });
+const repositoriesResource = createResource({
+	url: 'wiki.api.github.my_repositories',
+});
+const branchesResource = createResource({
+	url: 'wiki.api.github.my_repo_branches',
+});
+const appInstallUrl = createResource({
+	url: 'wiki.api.github.app_install_url',
+});
 
 const installationOptions = computed(() =>
-  (installationsResource.data || []).map((i) => ({
-    label: i.account_type ? `${i.account} (${i.account_type})` : i.account,
-    value: String(i.id),
-  })),
+	(installationsResource.data || []).map((i) => ({
+		label: i.account_type ? `${i.account} (${i.account_type})` : i.account,
+		value: String(i.id),
+	})),
 );
 
 // Repos are paged from the server (a search/load-more list, not loaded all at
 // once) so big orgs don't stall the dialog. `loadRepos` accumulates pages and
 // resets when the search term changes.
 const repos = reactive({
-  list: [],
-  page: 1,
-  search: "",
-  hasMore: false,
-  loading: false,
-  loadedOnce: false,
-  error: null,
+	list: [],
+	page: 1,
+	search: '',
+	hasMore: false,
+	loading: false,
+	loadedOnce: false,
+	error: null,
 });
 
 // Show the big "Loading repositories…" spinner only on the first load for an
 // account — later searches keep the field visible and use its in-dropdown hint.
 const reposInitialLoading = computed(
-  () => !!newSpace.github_installation_id && repos.loading && !repos.loadedOnce,
+	() => !!newSpace.github_installation_id && repos.loading && !repos.loadedOnce,
 );
 
 async function loadRepos({ search, reset = false } = {}) {
-  if (!newSpace.github_installation_id) return;
-  if (search !== undefined) repos.search = search;
-  if (reset) {
-    repos.page = 1;
-    repos.list = [];
-  }
-  repos.loading = true;
-  repos.error = null;
-  try {
-    const res = await repositoriesResource.submit({
-      installation_id: newSpace.github_installation_id,
-      search: repos.search,
-      page: repos.page,
-    });
-    const batch = res?.repositories || [];
-    repos.list = repos.page === 1 ? batch : [...repos.list, ...batch];
-    repos.hasMore = !!res?.has_more;
-    if (repos.hasMore) repos.page += 1;
-  } catch (error) {
-    repos.error = error;
-  } finally {
-    repos.loading = false;
-    repos.loadedOnce = true;
-  }
+	if (!newSpace.github_installation_id) return;
+	if (search !== undefined) repos.search = search;
+	if (reset) {
+		repos.page = 1;
+		repos.list = [];
+	}
+	repos.loading = true;
+	repos.error = null;
+	try {
+		const res = await repositoriesResource.submit({
+			installation_id: newSpace.github_installation_id,
+			search: repos.search,
+			page: repos.page,
+		});
+		const batch = res?.repositories || [];
+		repos.list = repos.page === 1 ? batch : [...repos.list, ...batch];
+		repos.hasMore = !!res?.has_more;
+		if (repos.hasMore) repos.page += 1;
+	} catch (error) {
+		repos.error = error;
+	} finally {
+		repos.loading = false;
+		repos.loadedOnce = true;
+	}
 }
 
 const repoOptions = computed(() =>
-  repos.list.map((r) => ({
-    label: r.private ? `${r.full_name} 🔒` : r.full_name,
-    value: r.full_name,
-    default_branch: r.default_branch,
-  })),
+	repos.list.map((r) => ({
+		label: r.private ? `${r.full_name} 🔒` : r.full_name,
+		value: r.full_name,
+		default_branch: r.default_branch,
+	})),
 );
 
 const branches = reactive({ list: [], loading: false, error: null });
 
 async function loadBranches(fullName) {
-  branches.list = [];
-  if (!fullName) return;
-  branches.loading = true;
-  branches.error = null;
-  try {
-    branches.list = (await branchesResource.submit({ repo_full_name: fullName })) || [];
-  } catch (error) {
-    branches.error = error;
-  } finally {
-    branches.loading = false;
-  }
+	branches.list = [];
+	if (!fullName) return;
+	branches.loading = true;
+	branches.error = null;
+	try {
+		branches.list =
+			(await branchesResource.submit({ repo_full_name: fullName })) || [];
+	} catch (error) {
+		branches.error = error;
+	} finally {
+		branches.loading = false;
+	}
 }
 
-const branchOptions = computed(() => branches.list.map((b) => ({ label: b, value: b })));
+const branchOptions = computed(() =>
+	branches.list.map((b) => ({ label: b, value: b })),
+);
 
 // When the dialog reveals the Git-sync section, learn whether we're already
 // connected (and if so, load the account list straight away).
 watch(
-  () => newSpace.git_synced,
-  (synced) => {
-    if (synced) {
-      appInstallUrl.fetch();
-      githubConnected.fetch().then(() => {
-        if (githubConnected.data) installationsResource.fetch();
-      });
-    }
-  },
+	() => newSpace.git_synced,
+	(synced) => {
+		if (synced) {
+			appInstallUrl.fetch();
+			githubConnected.fetch().then(() => {
+				if (githubConnected.data) installationsResource.fetch();
+			});
+		}
+	},
 );
 
 // The App install also happens in a popup; poll installations until it appears.
 function installApp() {
-  const url = appInstallUrl.data;
-  if (!url) {
-    appInstallUrl.fetch();
-    return;
-  }
-  const popup = window.open(url, "github-install", "popup,width=720,height=760");
-  stopConnectPoll();
-  connectPoll = setInterval(async () => {
-    if (popup && popup.closed) {
-      stopConnectPoll();
-      installationsResource.reload();
-      return;
-    }
-    await installationsResource.reload();
-    if ((installationsResource.data || []).length > 0) {
-      stopConnectPoll();
-      popup?.close();
-    }
-  }, 1500);
+	const url = appInstallUrl.data;
+	if (!url) {
+		appInstallUrl.fetch();
+		return;
+	}
+	const popup = window.open(
+		url,
+		'github-install',
+		'popup,width=720,height=760',
+	);
+	stopConnectPoll();
+	connectPoll = setInterval(async () => {
+		if (popup && popup.closed) {
+			stopConnectPoll();
+			installationsResource.reload();
+			return;
+		}
+		await installationsResource.reload();
+		if ((installationsResource.data || []).length > 0) {
+			stopConnectPoll();
+			popup?.close();
+		}
+	}, 1500);
 }
 
 let connectPoll = null;
 function stopConnectPoll() {
-  if (connectPoll) {
-    clearInterval(connectPoll);
-    connectPoll = null;
-  }
+	if (connectPoll) {
+		clearInterval(connectPoll);
+		connectPoll = null;
+	}
 }
 
 function connectGithub() {
-  const popup = window.open(
-    "/github/authorize",
-    "github-connect",
-    "popup,width=720,height=760",
-  );
-  githubConnected.loading = true;
-  stopConnectPoll();
-  connectPoll = setInterval(async () => {
-    if (popup && popup.closed && !githubConnected.data) {
-      stopConnectPoll();
-      githubConnected.loading = false;
-      return;
-    }
-    await githubConnected.reload();
-    if (githubConnected.data) {
-      stopConnectPoll();
-      popup?.close();
-      installationsResource.fetch();
-    }
-  }, 1500);
+	const popup = window.open(
+		'/github/authorize',
+		'github-connect',
+		'popup,width=720,height=760',
+	);
+	githubConnected.loading = true;
+	stopConnectPoll();
+	connectPoll = setInterval(async () => {
+		if (popup && popup.closed && !githubConnected.data) {
+			stopConnectPoll();
+			githubConnected.loading = false;
+			return;
+		}
+		await githubConnected.reload();
+		if (githubConnected.data) {
+			stopConnectPoll();
+			popup?.close();
+			installationsResource.fetch();
+		}
+	}, 1500);
 }
 
 // Picking an account resets the downstream choices and loads its first repo page.
 watch(
-  () => newSpace.github_installation_id,
-  (installationId) => {
-    newSpace.repo_full_name = "";
-    newSpace.branch = "";
-    repos.loadedOnce = false;
-    if (installationId) loadRepos({ search: "", reset: true });
-  },
+	() => newSpace.github_installation_id,
+	(installationId) => {
+		newSpace.repo_full_name = '';
+		newSpace.branch = '';
+		repos.loadedOnce = false;
+		if (installationId) loadRepos({ search: '', reset: true });
+	},
 );
 
 // Picking a repo defaults the branch to that repo's default branch and loads
 // the rest of its branches for the selector.
 watch(
-  () => newSpace.repo_full_name,
-  (fullName) => {
-    const repo = repoOptions.value.find((r) => r.value === fullName);
-    newSpace.branch = repo?.default_branch || "";
-    loadBranches(fullName);
-    if (fullName) formError.value = "";
-  },
+	() => newSpace.repo_full_name,
+	(fullName) => {
+		const repo = repoOptions.value.find((r) => r.value === fullName);
+		newSpace.branch = repo?.default_branch || '';
+		loadBranches(fullName);
+		if (fullName) formError.value = '';
+	},
 );
 
 function slugify(text) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+	return text
+		.toLowerCase()
+		.trim()
+		.replace(/[^\w\s-]/g, '')
+		.replace(/[\s_-]+/g, '-')
+		.replace(/^-+|-+$/g, '');
 }
 
 watch(
-  () => newSpace.space_name,
-  (newName) => {
-    if (!routeManuallyEdited.value) {
-      newSpace.route = slugify(newName);
-    }
-  }
+	() => newSpace.space_name,
+	(newName) => {
+		if (!routeManuallyEdited.value) {
+			newSpace.route = slugify(newName);
+		}
+	},
 );
 
 function handleRouteInput(value) {
-  if (value !== slugify(newSpace.space_name)) {
-    routeManuallyEdited.value = true;
-  }
-  newSpace.route = value;
-  if (value) formError.value = "";
+	if (value !== slugify(newSpace.space_name)) {
+		routeManuallyEdited.value = true;
+	}
+	newSpace.route = value;
+	if (value) formError.value = '';
 }
 
 const columns = [
-  {
-    label: __("Name"),
-    key: "space_name",
-    width: 2,
-  },
-  {
-    label: __("Status"),
-    key: "is_published",
-    width: 1,
-  },
-  {
-    label: __("Route"),
-    key: "route",
-    width: 2,
-  },
-  {
-    // Wide last column, left-aligned: keeps the View buttons in one straight
-    // column that starts right after the route rather than hugging the far edge.
-    label: "",
-    key: "view",
-    width: 3,
-    align: "left",
-  },
+	{
+		label: __('Name'),
+		key: 'space_name',
+		width: 2,
+	},
+	{
+		label: __('Status'),
+		key: 'is_published',
+		width: 1,
+	},
+	{
+		label: __('Route'),
+		key: 'route',
+		width: 2,
+	},
+	{
+		// Wide last column, left-aligned: keeps the View buttons in one straight
+		// column that starts right after the route rather than hugging the far edge.
+		label: '',
+		key: 'view',
+		width: 3,
+		align: 'left',
+	},
 ];
 
 // Open the space's public-facing reader. The reader lives at the site root
 // (`/<route>`), outside the `/wiki` editor SPA, so it can't go through the
 // router — a new tab keeps the editor session intact.
 function viewSpace(row) {
-  window.open(`/${row.route}`, "_blank", "noopener");
+	window.open(`/${row.route}`, '_blank', 'noopener');
 }
 
 const spaces = createListResource({
-  doctype: "Wiki Space",
-  fields: ["name", "space_name", "route", "root_group", "is_published"],
-  orderBy: "creation desc",
-  pageLength: 25,
-  auto: true,
-  insert: {
-    onSuccess: (doc) => {
-      showCreateDialog.value = false;
-      newSpace.space_name = "";
-      newSpace.route = "";
-      newSpace.git_synced = false;
-      newSpace.github_installation_id = "";
-      newSpace.repo_full_name = "";
-      newSpace.branch = "";
-      newSpace.docs_subdir = "docs";
-      repos.list = [];
-      repos.loadedOnce = false;
-      branches.list = [];
-      formError.value = "";
-      routeManuallyEdited.value = false;
-      toast.success(__('Wiki Space "{0}" created successfully.', [doc.space_name]));
-      // Synced spaces kick off their first sync automatically on the space
-      // detail page (see SpaceDetails), so just navigate there.
-      router.push({ name: "SpaceDetails", params: { spaceId: doc.name } });
-    },
-  },
+	doctype: 'Wiki Space',
+	fields: ['name', 'space_name', 'route', 'root_group', 'is_published'],
+	orderBy: 'creation desc',
+	pageLength: 25,
+	auto: true,
+	insert: {
+		onSuccess: (doc) => {
+			showCreateDialog.value = false;
+			newSpace.space_name = '';
+			newSpace.route = '';
+			newSpace.git_synced = false;
+			newSpace.github_installation_id = '';
+			newSpace.repo_full_name = '';
+			newSpace.branch = '';
+			newSpace.docs_subdir = 'docs';
+			repos.list = [];
+			repos.loadedOnce = false;
+			branches.list = [];
+			formError.value = '';
+			routeManuallyEdited.value = false;
+			toast.success(
+				__('Wiki Space "{0}" created successfully.', [doc.space_name]),
+			);
+			// Synced spaces kick off their first sync automatically on the space
+			// detail page (see SpaceDetails), so just navigate there.
+			router.push({ name: 'SpaceDetails', params: { spaceId: doc.name } });
+		},
+	},
 });
 
 let searchDebounceTimer = null;
 watch(searchQuery, (value) => {
-  clearTimeout(searchDebounceTimer);
-  searchDebounceTimer = setTimeout(() => {
-    spaces.update({
-      filters: {},
-      orFilters: value
-        ? [
-            ["space_name", "like", `%${value}%`],
-            ["route", "like", `%${value}%`],
-          ]
-        : [],
-      start: 0,
-    });
-    spaces.reload();
-  }, 300);
+	clearTimeout(searchDebounceTimer);
+	searchDebounceTimer = setTimeout(() => {
+		spaces.update({
+			filters: {},
+			orFilters: value
+				? [
+						['space_name', 'like', `%${value}%`],
+						['route', 'like', `%${value}%`],
+					]
+				: [],
+			start: 0,
+		});
+		spaces.reload();
+	}, 300);
 });
 
 const handleCreateSpace = () => {
-  // Surface validation through the dialog's ErrorMessage rather than a rejected
-  // promise (which only ends up in the console). The dialog stays open either
-  // way — it closes only on insert success.
-  formError.value = "";
-  if (!newSpace.route) {
-    formError.value = __("Route is required.");
-    return;
-  }
-  if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
-    formError.value = __("Please pick a GitHub repository");
-    return;
-  }
+	// Surface validation through the dialog's ErrorMessage rather than a rejected
+	// promise (which only ends up in the console). The dialog stays open either
+	// way — it closes only on insert success.
+	formError.value = '';
+	if (!newSpace.route) {
+		formError.value = __('Route is required.');
+		return;
+	}
+	if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
+		formError.value = __('Please pick a GitHub repository');
+		return;
+	}
 
-  const payload = {
-    space_name: newSpace.space_name,
-    route: newSpace.route,
-    // New spaces are published by default, so start them as public read.
-    // Guest covers everyone (anonymous + logged-in); admins can refine this
-    // in Space Settings → Permissions.
-    roles: [{ role: "Guest", permission_level: "Read" }],
-  };
+	const payload = {
+		space_name: newSpace.space_name,
+		route: newSpace.route,
+		// New spaces are published by default, so start them as public read.
+		// Guest covers everyone (anonymous + logged-in); admins can refine this
+		// in Space Settings → Permissions.
+		roles: [{ role: 'Guest', permission_level: 'Read' }],
+	};
 
-  if (newSpace.git_synced) {
-    payload.git_synced = 1;
-    payload.repo_full_name = newSpace.repo_full_name.trim();
-    payload.branch = newSpace.branch.trim() || "main";
-    if (newSpace.docs_subdir.trim()) {
-      payload.docs_subdir = newSpace.docs_subdir.trim();
-    }
-    if (newSpace.github_installation_id) {
-      payload.github_installation_id = newSpace.github_installation_id;
-    }
-  }
+	if (newSpace.git_synced) {
+		payload.git_synced = 1;
+		payload.repo_full_name = newSpace.repo_full_name.trim();
+		payload.branch = newSpace.branch.trim() || 'main';
+		if (newSpace.docs_subdir.trim()) {
+			payload.docs_subdir = newSpace.docs_subdir.trim();
+		}
+		if (newSpace.github_installation_id) {
+			payload.github_installation_id = newSpace.github_installation_id;
+		}
+	}
 
-  return spaces.insert.submit(payload);
+	return spaces.insert.submit(payload);
 };
 </script>

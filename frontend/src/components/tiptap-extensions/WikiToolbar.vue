@@ -199,6 +199,7 @@
 </template>
 
 <script setup>
+import { useMobile } from '@/composables/useMobile';
 import {
 	LucideBold as BoldIcon,
 	LucideSquareCode as CodeBlockIcon,
@@ -225,7 +226,6 @@ import {
 	LucideVideo as VideoIcon,
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useMobile } from '@/composables/useMobile';
 import WikiTableDropdown from './WikiTableDropdown.vue';
 
 const { isMobile } = useMobile();

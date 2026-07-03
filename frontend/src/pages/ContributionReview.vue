@@ -414,24 +414,41 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { createDocumentResource, createResource, Button, Badge, Dialog, Dropdown, FormControl, LoadingIndicator, toast, usePageMeta } from 'frappe-ui';
 import { useUserStore } from '@/stores/user';
+import {
+	Badge,
+	Button,
+	Dialog,
+	Dropdown,
+	FormControl,
+	LoadingIndicator,
+	createDocumentResource,
+	createResource,
+	toast,
+	usePageMeta,
+} from 'frappe-ui';
+import { computed, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
-import { useChangeRequestStore } from '@/stores/changeRequest';
-import DiffViewer from '@/components/DiffViewer.vue';
-import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
-import LucideChevronDown from '~icons/lucide/chevron-down';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucideArrowRight from '~icons/lucide/arrow-right';
+import DiffViewer from '@/components/DiffViewer.vue';
+import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useChangeRequestStore } from '@/stores/changeRequest';
+import LucideAlertTriangle from '~icons/lucide/alert-triangle';
+import LucideArrowRight from '~icons/lucide/arrow-right';
+import LucideChevronDown from '~icons/lucide/chevron-down';
+import LucideMoreVertical from '~icons/lucide/more-vertical';
 
-const { getChangeIcon, getChangeIconClass, getChangeTheme, getChangeLabel, getChangeDescription } = useChangeTypeDisplay();
+const {
+	getChangeIcon,
+	getChangeIconClass,
+	getChangeTheme,
+	getChangeLabel,
+	getChangeDescription,
+} = useChangeTypeDisplay();
 
 const props = defineProps({
 	changeRequestId: {
@@ -460,10 +477,16 @@ const resolutions = reactive({});
 const expandedConflicts = reactive(new Set());
 const resolvingMerge = ref(false);
 
-const resolvedCount = computed(() =>
-	Object.values(resolutions).filter((v) => v === 'ours' || v === 'theirs').length,
+const resolvedCount = computed(
+	() =>
+		Object.values(resolutions).filter((v) => v === 'ours' || v === 'theirs')
+			.length,
 );
-const allResolved = computed(() => conflicts.value.length > 0 && resolvedCount.value === conflicts.value.length);
+const allResolved = computed(
+	() =>
+		conflicts.value.length > 0 &&
+		resolvedCount.value === conflicts.value.length,
+);
 
 const changeRequest = createDocumentResource({
 	doctype: 'Wiki Change Request',
@@ -533,7 +556,9 @@ const withdrawResource = createResource({
 
 const userStore = useUserStore();
 const crStore = useChangeRequestStore();
-const isOwner = computed(() => changeRequest.doc?.owner === userStore.data?.name);
+const isOwner = computed(
+	() => changeRequest.doc?.owner === userStore.data?.name,
+);
 
 // Merge ability is governed per-space by the role config (managers always qualify).
 // Enforcement stays server-side; this only controls whether the Merge UI shows.
@@ -554,7 +579,10 @@ watch(
 );
 
 const canReview = computed(() => {
-	return capabilities.value.can_write && ['In Review', 'Approved'].includes(changeRequest.doc?.status);
+	return (
+		capabilities.value.can_write &&
+		['In Review', 'Approved'].includes(changeRequest.doc?.status)
+	);
 });
 
 // Withdraw pulls an in-review CR back to Draft for the author to keep editing.
@@ -636,7 +664,9 @@ function toggleConflict(conflictName) {
 
 async function fetchConflicts() {
 	try {
-		const result = await conflictsResource.submit({ name: props.changeRequestId });
+		const result = await conflictsResource.submit({
+			name: props.changeRequestId,
+		});
 		conflicts.value = result || [];
 		// Default all resolutions to 'theirs' (Keep Your Changes)
 		for (const key in resolutions) delete resolutions[key];
@@ -849,24 +879,35 @@ async function handleWithdraw() {
 
 function getStatusTheme(status) {
 	switch (status) {
-		case 'Draft': return 'blue';
-		case 'In Review': return 'orange';
-		case 'Changes Requested': return 'red';
-		case 'Approved': return 'green';
-		case 'Merged': return 'green';
-		case 'Rejected': return 'red';
-		case 'Archived': return 'gray';
-		default: return 'gray';
+		case 'Draft':
+			return 'blue';
+		case 'In Review':
+			return 'orange';
+		case 'Changes Requested':
+			return 'red';
+		case 'Approved':
+			return 'green';
+		case 'Merged':
+			return 'green';
+		case 'Rejected':
+			return 'red';
+		case 'Archived':
+			return 'gray';
+		default:
+			return 'gray';
 	}
 }
 
 function getConflictTheme(type) {
 	switch (type) {
-		case 'content': return 'blue';
-		case 'meta': return 'orange';
-		case 'tree': return 'red';
-		default: return 'gray';
+		case 'content':
+			return 'blue';
+		case 'meta':
+			return 'orange';
+		case 'tree':
+			return 'red';
+		default:
+			return 'gray';
 	}
 }
-
 </script>

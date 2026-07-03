@@ -110,6 +110,7 @@
 </template>
 
 <script setup>
+import { useMobile } from '@/composables/useMobile';
 import { NodeSelection } from '@tiptap/pm/state';
 import { BubbleMenu } from '@tiptap/vue-3/menus';
 import {
@@ -126,7 +127,6 @@ import {
 	Quote,
 	Strikethrough,
 } from 'lucide-vue-next';
-import { useMobile } from '@/composables/useMobile';
 
 const props = defineProps({
 	editor: {

@@ -35,12 +35,12 @@
 </template>
 
 <script setup>
+import { useSessionStore } from '@/stores/session';
+import { useUserStore } from '@/stores/user';
 import { Dropdown } from 'frappe-ui';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideMenu from '~icons/lucide/menu';
-import { useSessionStore } from '@/stores/session';
-import { useUserStore } from '@/stores/user';
 import { useMobile } from '../composables/useMobile';
 import { useTheme } from '../composables/useTheme';
 import { useWikiSettings } from '../composables/useWikiSettings';

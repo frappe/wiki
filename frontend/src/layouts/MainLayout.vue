@@ -56,15 +56,15 @@
 </template>
 
 <script setup>
+import { useUserStore } from '@/stores/user';
 import { Dialog } from 'frappe-ui';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Sidebar from '../components/Sidebar.vue';
 import MobileTopNav from '../components/MobileTopNav.vue';
+import Sidebar from '../components/Sidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
 import { useMobile } from '../composables/useMobile';
 import { useWikiSettings } from '../composables/useWikiSettings';
-import { useUserStore } from '@/stores/user';
 
 const { isMobile } = useMobile();
 const userStore = useUserStore();

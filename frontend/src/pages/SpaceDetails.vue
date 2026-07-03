@@ -221,8 +221,8 @@ import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
 import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
-import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSocket } from '../socket';
+import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 
 const props = defineProps({
 	spaceId: {
@@ -383,7 +383,8 @@ async function syncNow({ silent = false } = {}) {
 	syncPollCancelled = false;
 	try {
 		await space.syncNow.submit();
-		if (!silent) toast.success(__('Sync started — pulling the latest from GitHub'));
+		if (!silent)
+			toast.success(__('Sync started — pulling the latest from GitHub'));
 		// Realtime (below) normally resolves this first; the poll is the fallback
 		// for when the socket isn't connected.
 		await pollSyncUntilDone();
@@ -729,7 +730,9 @@ async function handleMergeChangeRequest() {
 		// A merge conflict leaves the CR Approved; the conflict-resolution UI
 		// lives on the review page, so send the author there to resolve it.
 		if (error.exc_type === 'ValidationError' && changeRequestName) {
-			toast.error(error.messages?.[0] || __('Merge conflict — resolve it to continue'));
+			toast.error(
+				error.messages?.[0] || __('Merge conflict — resolve it to continue'),
+			);
 			router.push({
 				name: 'ChangeRequestReview',
 				params: { changeRequestId: changeRequestName },

@@ -229,9 +229,7 @@ watch(
 
 // Stable serialization so row order doesn't register as a change.
 function serialize(rows) {
-	return JSON.stringify(
-		[...rows].sort((a, b) => a.role.localeCompare(b.role)),
-	);
+	return JSON.stringify([...rows].sort((a, b) => a.role.localeCompare(b.role)));
 }
 
 const isDirty = computed(
@@ -276,7 +274,8 @@ function closeRoleListSoon() {
 
 // Exact, still-available role currently in the field — gates the Add button.
 const matchedRole = computed(
-	() => roleOptions.value.find((name) => name === roleQuery.value.trim()) || null,
+	() =>
+		roleOptions.value.find((name) => name === roleQuery.value.trim()) || null,
 );
 
 function pickRole(role) {
@@ -318,9 +317,7 @@ async function updateContributions(value) {
 			allow: value ? 1 : 0,
 		});
 		toast.success(
-			value
-				? __('Contributions enabled')
-				: __('Contributions disabled'),
+			value ? __('Contributions enabled') : __('Contributions disabled'),
 		);
 	} catch (error) {
 		allowContributions.value = !value;

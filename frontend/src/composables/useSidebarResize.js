@@ -8,7 +8,7 @@ const SNAP_THRESHOLD = 10;
 export function useSidebarResize(sidebarRef) {
 	const storedWidth = localStorage.getItem('wiki-sidebar-width');
 	const sidebarWidth = ref(
-		storedWidth ? parseInt(storedWidth) : DEFAULT_SIDEBAR_WIDTH,
+		storedWidth ? Number.parseInt(storedWidth) : DEFAULT_SIDEBAR_WIDTH,
 	);
 	const sidebarResizing = ref(false);
 

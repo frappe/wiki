@@ -20,27 +20,28 @@
 </template>
 
 <script>
-import { NodeViewContent, nodeViewProps, NodeViewWrapper } from '@tiptap/vue-3'
-import { Combobox } from 'frappe-ui'
+import { NodeViewContent, NodeViewWrapper, nodeViewProps } from '@tiptap/vue-3';
+import { Combobox } from 'frappe-ui';
 
 export default {
-  components: {
-    NodeViewWrapper,
-    NodeViewContent,
-    Combobox,
-  },
-  props: nodeViewProps,
-  computed: {
-    languages() {
-      let supportedLanguages = this.extension.options.lowlight.listLanguages()
-      return supportedLanguages
-        .map((language) => ({
-          label: language,
-          value: language,
-        }))
-        .concat([{ label: 'html', value: 'html' }])
-        .sort((a, b) => a.label.localeCompare(b.label))
-    },
-  },
-}
+	components: {
+		NodeViewWrapper,
+		NodeViewContent,
+		Combobox,
+	},
+	props: nodeViewProps,
+	computed: {
+		languages() {
+			const supportedLanguages =
+				this.extension.options.lowlight.listLanguages();
+			return supportedLanguages
+				.map((language) => ({
+					label: language,
+					value: language,
+				}))
+				.concat([{ label: 'html', value: 'html' }])
+				.sort((a, b) => a.label.localeCompare(b.label));
+		},
+	},
+};
 </script>
