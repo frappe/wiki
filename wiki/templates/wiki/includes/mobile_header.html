@@ -230,6 +230,12 @@
                 // Auto-expand parents of current page
                 this.expandCurrentPageParents();
 
+                // Keep the tree in sync when navigation happens client-side
+                this.$watch('$store.navigation.currentRoute', (route) => {
+                    this.currentRoute = route;
+                    this.expandCurrentPageParents();
+                });
+
                 // Add global event listeners for drag
                 document.addEventListener('mousemove', this.onDrag.bind(this));
                 document.addEventListener('mouseup', this.endDrag.bind(this));
@@ -265,6 +271,13 @@
             toggleSidebar() {
                 this.sidebarOpen = !this.sidebarOpen;
                 document.body.style.overflow = this.sidebarOpen ? 'hidden' : '';
+                if (this.sidebarOpen) {
+                    // Drawer content is only measurable once it is visible
+                    this.$nextTick(() => {
+                        const el = this.$root.querySelector(`[data-route="${this.currentRoute}"]`);
+                        el?.scrollIntoView({ block: 'nearest' });
+                    });
+                }
             },
 
             closeSidebar() {
@@ -332,11 +345,12 @@
                 if (!this.currentRoute) return;
 
                 this.$nextTick(() => {
-                    const currentPageElement = document.querySelector(`[data-route="${this.currentRoute}"]`);
+                    // Scoped to $root so we don't match the desktop sidebar's copy of the tree
+                    const currentPageElement = this.$root.querySelector(`[data-route="${this.currentRoute}"]`);
                     if (!currentPageElement) return;
 
                     let parentElement = currentPageElement.parentElement;
-                    while (parentElement) {
+                    while (parentElement && parentElement !== this.$root) {
                         if (parentElement.classList.contains('wiki-children')) {
                             const parentItem = parentElement.parentElement;
                             if (parentItem) {
