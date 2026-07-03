@@ -138,6 +138,7 @@
 				</div>
 			</template>
 		</Dialog>
+		<PageSettings v-if="wikiDoc.doc" v-model="showPageSettingsDialog" :doc-resource="wikiDoc" />
 	</div>
 </template>
 
@@ -161,6 +162,7 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import LucideExternalLink from '~icons/lucide/external-link';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucidePencil from '~icons/lucide/pencil';
+import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
@@ -188,6 +190,7 @@ const editableTitle = ref('');
 const editableRoute = ref('');
 const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
+const showPageSettingsDialog = ref(false);
 
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
@@ -415,6 +418,13 @@ const menuOptions = computed(() => {
 					label: displayPublished.value ? __('Unpublish') : __('Publish'),
 					icon: 'upload-cloud',
 					onClick: togglePublish,
+				},
+				{
+					label: __('Page settings'),
+					icon: 'settings',
+					onClick: () => {
+						showPageSettingsDialog.value = true;
+					},
 				},
 			];
 	if (githubEditUrl.value) {

@@ -1,6 +1,8 @@
 # Copyright (c) 2025, Frappe and Contributors
 # See license.txt
 
+import json
+import re
 import unittest
 from threading import Thread
 from types import SimpleNamespace
@@ -350,6 +352,253 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Expected order: Zebra (order 1), Alpha (order 2), Beta (order 2), Gamma (order 3)
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
+
+
+class TestGetWebContextMetaTags(WikiDocumentTestBase):
+	"""
+	Unit tests for the metatags/canonical_url emission in get_web_context().
+	Covers the meta_title/meta_description/meta_image fields and their
+	fallbacks when unset.
+	"""
+
+	def test_metatags_use_explicit_meta_fields_when_set(self):
+		"""When meta_title/description/image are set, metatags should reflect them."""
+		root_group = create_test_wiki_document(self, "Root Meta Group", is_group=True)
+		doc = create_test_wiki_document(self, "Meta Doc", parent=root_group.name, slug="meta-doc")
+		create_test_wiki_space(self, "Meta Space", "meta-space", root_group.name)
+
+		doc.meta_title = "Custom Meta Title"
+		doc.meta_description = "Custom meta description for SEO."
+		doc.meta_image = "/files/meta-preview.png"
+		doc.save()
+		doc.reload()
+
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Custom Meta Title")
+		self.assertEqual(metatags["description"], "Custom meta description for SEO.")
+		self.assertEqual(metatags["og:title"], "Custom Meta Title")
+		self.assertEqual(metatags["og:image"], frappe.utils.get_url("/files/meta-preview.png"))
+		self.assertEqual(metatags["twitter:card"], "summary_large_image")
+		self.assertEqual(metatags["og:site_name"], "Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+	def test_metatags_fall_back_to_title_when_meta_fields_unset(self):
+		"""With no meta_title/description/image, metatags should fall back sensibly."""
+		root_group = create_test_wiki_document(self, "Root Meta Fallback Group", is_group=True)
+		doc = create_test_wiki_document(
+			self, "Fallback Meta Doc", parent=root_group.name, slug="fallback-meta-doc"
+		)
+		create_test_wiki_space(self, "Fallback Meta Space", "fallback-meta-space", root_group.name)
+
+		doc.reload()
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Fallback Meta Doc")
+		self.assertNotIn("description", metatags)
+		self.assertNotIn("image", metatags)
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+		self.assertEqual(metatags["og:site_name"], "Fallback Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+
+class TestRenderedPageMetaTags(WikiDocumentTestBase):
+	"""
+	Integration tests that render the public page HTML and assert the
+	og/twitter/canonical tags emitted by get_web_context() actually show up
+	in the served head markup.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def test_rendered_head_contains_meta_tags_for_published_doc(self):
+		# Create the space first (auto-creates root_group) so the doc's route
+		# picks up the space prefix, matching TestSetRoute's pattern.
+		route = self._unique("meta-render")
+		space = create_test_wiki_space(self, "Meta Render Space", route, None, roles=[("Guest", "Read")])
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-doc"),
+		)
+
+		doc.meta_title = "Rendered Meta Title"
+		doc.meta_description = "Rendered meta description."
+		doc.meta_image = "/files/rendered-preview.png"
+		doc.save()
+		doc.reload()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'property="og:title"\s*content="Rendered Meta Title"')
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+	def test_rendered_head_omits_image_tags_when_no_meta_image(self):
+		route = self._unique("meta-render-fallback")
+		space = create_test_wiki_space(
+			self, "Meta Render Fallback Space", route, None, roles=[("Guest", "Read")]
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Fallback Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-fallback-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
+		self.assertNotIn('property="og:image"', html)
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+
+class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
+	"""
+	Unit tests for the BreadcrumbList JSON-LD emission in get_web_context().
+	Ancestor groups are non-clickable in the reader sidebar (toggle buttons,
+	not links), so per Google's structured-data rules they're dropped from
+	the trail rather than emitted without a URL -- only the space and the
+	current page appear.
+	"""
+
+	def test_breadcrumbs_include_space_and_current_page_only(self):
+		"""Nested space -> group -> group -> page collapses to [space, page]."""
+		space = create_test_wiki_space(self, "Breadcrumb Space", "breadcrumb-space", None)
+		group = create_test_wiki_document(self, "Breadcrumb Group", parent=space.root_group, is_group=True)
+		subgroup = create_test_wiki_document(self, "Breadcrumb Subgroup", parent=group.name, is_group=True)
+		doc = create_test_wiki_document(self, "Breadcrumb Doc", parent=subgroup.name, slug="breadcrumb-doc")
+		doc.reload()
+
+		context = doc.get_web_context()
+		breadcrumbs = json.loads(context["breadcrumbs"])
+
+		self.assertEqual(breadcrumbs["@context"], "https://schema.org")
+		self.assertEqual(breadcrumbs["@type"], "BreadcrumbList")
+
+		items = breadcrumbs["itemListElement"]
+		self.assertEqual(len(items), 2)
+
+		self.assertEqual(items[0]["@type"], "ListItem")
+		self.assertEqual(items[0]["position"], 1)
+		self.assertEqual(items[0]["name"], "Breadcrumb Space")
+		self.assertEqual(items[0]["item"], frappe.utils.get_url("/breadcrumb-space"))
+
+		self.assertEqual(items[1]["@type"], "ListItem")
+		self.assertEqual(items[1]["position"], 2)
+		self.assertEqual(items[1]["name"], "Breadcrumb Doc")
+		self.assertEqual(items[1]["item"], frappe.utils.get_url("/" + doc.route))
+
+		# Intermediate group names must not leak into the trail.
+		names = [item["name"] for item in items]
+		self.assertNotIn("Breadcrumb Group", names)
+		self.assertNotIn("Breadcrumb Subgroup", names)
+
+	def test_breadcrumbs_absent_for_orphan_document(self):
+		"""Documents with no wiki_space (chromeless/orphan) get no breadcrumbs."""
+		orphan = create_test_wiki_document(self, "Orphan Breadcrumb Doc")
+		orphan.reload()
+
+		context = orphan.get_web_context()
+
+		self.assertIsNone(context["breadcrumbs"])
+
+	def test_breadcrumbs_escape_script_breaking_titles(self):
+		"""No raw "<" may reach the serialized JSON, since the template embeds
+		it inside a <script> element. Frappe's save-time sanitization already
+		strips tags from Data fields, so force a hostile title in memory to
+		exercise the serialization-layer escape directly."""
+		space = create_test_wiki_space(self, "Escape Space", "breadcrumb-escape-space", None)
+		doc = create_test_wiki_document(self, "Sneaky Doc", parent=space.root_group, slug="sneaky")
+		doc.reload()
+		doc.title = "Sneaky </script><script>alert(1)</script>"
+
+		serialized = doc.get_web_context()["breadcrumbs"]
+
+		self.assertNotIn("<", serialized)
+		parsed = json.loads(serialized)
+		self.assertEqual(parsed["itemListElement"][-1]["name"], "Sneaky </script><script>alert(1)</script>")
+
+
+class TestRenderedPageBreadcrumbs(WikiDocumentTestBase):
+	"""
+	Integration tests that render the public page HTML and assert the
+	BreadcrumbList JSON-LD script emitted by get_web_context() actually
+	shows up in the served head markup as valid, parseable JSON.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _extract_json_ld(self, html):
+		match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+		self.assertIsNotNone(match, "BreadcrumbList JSON-LD script not found in rendered head")
+		return json.loads(match.group(1))
+
+	def test_rendered_head_contains_breadcrumb_list(self):
+		route = self._unique("breadcrumb-render")
+		space = create_test_wiki_space(
+			self, "Breadcrumb Render Space", route, None, roles=[("Guest", "Read")]
+		)
+		group = create_test_wiki_document(
+			self, "Breadcrumb Render Group", parent=space.root_group, is_group=True
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Breadcrumb Render Doc",
+			parent=group.name,
+			slug=self._unique("breadcrumb-render-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		breadcrumbs = self._extract_json_ld(html)
+		self.assertEqual(breadcrumbs["@type"], "BreadcrumbList")
+
+		items = breadcrumbs["itemListElement"]
+		self.assertEqual(items[-1]["name"], "Breadcrumb Render Doc")
+		self.assertEqual(items[0]["name"], "Breadcrumb Render Space")
+		# The request thread patches the site to wiki.localhost, so compare by
+		# suffix rather than exact host (matches the canonical_url regex checks
+		# in TestRenderedPageMetaTags above).
+		self.assertTrue(items[0]["item"].endswith("/" + route))
 
 
 class TestMarkdownCallouts(unittest.TestCase):

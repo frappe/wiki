@@ -2,7 +2,7 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
 
 {% block title %}
-    {{ doc.title }}
+    {{ metatags.title if metatags and metatags.title else doc.title }}
 {% endblock %}
 
 {% block head %}
