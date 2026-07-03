@@ -11,7 +11,7 @@ import { Link } from '@tiptap/extension-link';
 import { Markdown } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Editor, EditorContent, NodeViewWrapper } from '@tiptap/vue-3';
-import { Button, Dialog, Dropdown, Input, TextInput } from 'frappe-ui';
+import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
 import {
 	computed,
 	nextTick,
@@ -407,10 +407,10 @@ const dropdownOptions = computed(() => [
         </div>
 
         <!-- Title Edit Dialog -->
-        <Dialog v-model="showTitleDialog" :options="{ title: 'Edit Callout Title' }">
-            <template #body-content>
+        <Dialog v-model:open="showTitleDialog" title="Edit Callout Title">
+            <template #default>
                 <div class="space-y-4">
-                    <Input
+                    <TextInput
                         v-model="editingTitle"
                         label="Title"
                         placeholder="Leave empty for default title"

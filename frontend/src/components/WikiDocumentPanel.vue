@@ -117,11 +117,11 @@
 				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
 			</div>
 		</div>
-		<Dialog v-model="showRouteDialog" :options="{ size: 'sm' }">
-			<template #body-title>
+		<Dialog v-model:open="showRouteDialog" size="sm">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<FormControl
 					v-model="editableRoute"
 					:label="__('Route')"

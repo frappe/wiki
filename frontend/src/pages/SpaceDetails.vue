@@ -118,8 +118,8 @@
             </div>
         </main>
 
-        <Dialog v-model="showSettingsDialog" :options="{ size: '4xl' }">
-            <template #body>
+        <Dialog v-model:open="showSettingsDialog" size="4xl" bare>
+            <template #default>
                 <SpaceSettings
                     :space="space"
                     :space-id="spaceId"
@@ -130,13 +130,13 @@
             </template>
         </Dialog>
 
-        <Dialog v-model="showUpdateRoutesDialog">
-            <template #body-title>
+        <Dialog v-model:open="showUpdateRoutesDialog">
+            <template #title>
                 <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Update Wiki Space Routes') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"
@@ -166,13 +166,13 @@
             </template>
         </Dialog>
 
-        <Dialog v-model="showCloneSpaceDialog">
-            <template #body-title>
+        <Dialog v-model:open="showCloneSpaceDialog">
+            <template #title>
                 <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Clone Wiki Space') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"

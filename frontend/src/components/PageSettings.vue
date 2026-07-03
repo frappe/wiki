@@ -1,11 +1,11 @@
 <template>
-	<Dialog v-model="show" :options="{ size: '2xl' }">
-		<template #body-title>
+	<Dialog v-model:open="show" size="2xl">
+		<template #title>
 			<h3 class="text-2xl-semibold text-ink-gray-9">
 				{{ __('Page Settings') }}
 			</h3>
 		</template>
-		<template #body-content>
+		<template #default>
 			<div class="flex flex-col gap-5 sm:flex-row">
 				<div class="flex flex-1 flex-col gap-4">
 					<FormControl

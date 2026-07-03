@@ -1,9 +1,9 @@
 <template>
-	<Dialog v-model="show" :options="{ size: 'md' }">
-		<template #body-title>
+	<Dialog v-model:open="show" size="md">
+		<template #title>
 			<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Assign Reviewer') }}</h3>
 		</template>
-		<template #body-content>
+		<template #default>
 			<div class="space-y-4">
 				<p class="text-ink-gray-7">
 					{{ __('Assign this change request to a reviewer. They will be notified and it will appear in their "Assigned to me" list.') }}

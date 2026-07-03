@@ -44,8 +44,8 @@
 			</div>
 		</div>
 
-		<Dialog v-model="showWikiSettings" :options="{ size: '4xl' }">
-			<template #body>
+		<Dialog v-model:open="showWikiSettings" size="4xl" bare>
+			<template #default>
 				<WikiSettings
 					:initial-tab="initialTab"
 					@close="showWikiSettings = false"

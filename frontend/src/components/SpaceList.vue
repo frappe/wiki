@@ -121,20 +121,18 @@
     </div>
 
     <Dialog
-      v-model="showCreateDialog"
-      :options="{
-        title: __('Create Wiki Space'),
-        size: 'lg',
-        actions: [
-          {
-            label: __('Create'),
-            variant: 'solid',
-            onClick: handleCreateSpace,
-          },
-        ],
-      }"
+      v-model:open="showCreateDialog"
+      :title="__('Create Wiki Space')"
+      size="lg"
+      :actions="[
+        {
+          label: __('Create'),
+          variant: 'solid',
+          onClick: handleCreateSpace,
+        },
+      ]"
     >
-      <template #body-content>
+      <template #default>
         <div class="flex flex-col gap-4">
           <FormControl
             type="text"

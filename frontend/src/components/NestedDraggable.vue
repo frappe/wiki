@@ -449,7 +449,7 @@ function getDropdownOptions(element) {
 	if (!hasChildren) {
 		options.push({
 			group: __('Danger'),
-			items: [
+			options: [
 				{
 					label: __('Delete'),
 					icon: 'trash-2',

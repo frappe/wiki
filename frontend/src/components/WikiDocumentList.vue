@@ -69,13 +69,13 @@
 			/>
 		</div>
 
-		<Dialog v-model="showCreateDialog">
-			<template #body-title>
+		<Dialog v-model:open="showCreateDialog">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ createIsGroup ? __('Create New Group') : __('Create New Page') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="createTitle" :label="__('Title')" type="text"
 						:placeholder="createIsGroup ? __('Enter group name') : __('Enter page title')" autofocus />
@@ -91,13 +91,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showDeleteDialog">
-			<template #body-title>
+		<Dialog v-model:open="showDeleteDialog">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Delete') }} "{{ deleteNode?.title }}"
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Are you sure you want to delete this') }}
@@ -130,13 +130,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRenameDialog">
-			<template #body-title>
+		<Dialog v-model:open="showRenameDialog">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ renameNode?.is_group ? __('Rename Group') : __('Change Title') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="renameTitle" :label="renameNode?.is_group ? __('Name') : __('Title')" type="text"
 						:placeholder="renameNode?.is_group ? __('Enter group name') : __('Enter page title')" autofocus />
@@ -153,13 +153,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showExternalLinkDialog">
-			<template #body-title>
+		<Dialog v-model:open="showExternalLinkDialog">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Add External Link') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="externalLinkTitle" :label="__('Title')" type="text"
 						:placeholder="__('Enter link title')" autofocus />
@@ -177,13 +177,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showEditExternalLinkDialog">
-			<template #body-title>
+		<Dialog v-model:open="showEditExternalLinkDialog">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Edit External Link') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="editExternalLinkTitle" :label="__('Title')" type="text"
 						:placeholder="__('Enter link title')" autofocus />

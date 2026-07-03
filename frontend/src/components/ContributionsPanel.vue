@@ -31,7 +31,7 @@
 							:class="{ 'justify-end': column.align === 'right' }"
 							:title="formatDateTime(row.modified)"
 						>
-							<FeatherIcon name="clock" class="size-3.5 shrink-0 text-ink-gray-4" />
+							<LucideClock class="size-3.5 shrink-0 text-ink-gray-4" />
 							<span class="truncate">{{ formatDate(row.modified) }}</span>
 						</div>
 						<div
@@ -72,13 +72,8 @@
 
 <script setup>
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
-import {
-	Badge,
-	Button,
-	FeatherIcon,
-	ListView,
-	LoadingIndicator,
-} from 'frappe-ui';
+import { Badge, Button, ListView, LoadingIndicator } from 'frappe-ui';
+import LucideClock from '~icons/lucide/clock';
 
 defineProps({
 	resource: { type: Object, required: true },

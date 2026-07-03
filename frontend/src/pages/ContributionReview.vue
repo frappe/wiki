@@ -316,11 +316,11 @@
 			</div>
 		</div>
 
-		<Dialog v-model="showApproveMergeDialog" :options="{ size: 'md' }">
-			<template #body-title>
+		<Dialog v-model:open="showApproveMergeDialog" size="md">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<p class="text-ink-gray-7">
 					{{ __('This will approve the change request and immediately merge it into the live wiki. This cannot be undone. Are you sure?') }}
 				</p>
@@ -339,11 +339,11 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRequestChangesDialog" :options="{ size: 'md' }">
-			<template #body-title>
+		<Dialog v-model:open="showRequestChangesDialog" size="md">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Please provide feedback explaining what needs to change. This is sent back to the author.') }}
@@ -372,11 +372,11 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
-			<template #body-title>
+		<Dialog v-model:open="showRejectDialog" size="md">
+			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Rejecting is final — this change request cannot be merged. Please explain why it is being rejected.') }}

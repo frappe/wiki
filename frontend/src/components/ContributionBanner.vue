@@ -80,8 +80,8 @@
 			</Dropdown>
 		</div>
 
-		<Dialog v-model="showChangesDialog" :options="{ size: 'lg' }">
-			<template #body-title>
+		<Dialog v-model:open="showChangesDialog" size="lg">
+			<template #title>
 				<div class="flex items-center gap-2">
 					<LucideGitBranch class="size-5 text-ink-gray-5" />
 					<h3 class="text-2xl-semibold text-ink-gray-9">
@@ -89,7 +89,7 @@
 					</h3>
 				</div>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-3 max-h-[60vh] overflow-y-auto">
 					<div
 						v-for="change in crStore.changes"
@@ -141,8 +141,8 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showSubmitConfirmDialog" :options="{ size: 'sm' }">
-			<template #body-title>
+		<Dialog v-model:open="showSubmitConfirmDialog" size="sm">
+			<template #title>
 				<div class="flex items-center gap-2">
 					<LucideGitBranch class="size-5 text-ink-gray-5" />
 					<h3 class="text-2xl-semibold text-ink-gray-9">
@@ -150,7 +150,7 @@
 					</h3>
 				</div>
 			</template>
-			<template #body-content>
+			<template #default>
 				<p class="text-ink-gray-7">
 					{{ __('Are you sure you want to submit your changes for review?') }}
 				</p>
