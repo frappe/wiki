@@ -10,6 +10,7 @@ from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
+from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
@@ -695,6 +696,7 @@ def on_wiki_document_update(doc, method):
 	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
 	stamp_wiki_space(doc)
 	_sync_document_to_revision(doc)
+	_clear_stale_website_cache(doc)
 
 
 def stamp_wiki_space(doc):
@@ -725,6 +727,34 @@ def stamp_wiki_space_subtree(root_doc_name):
 def on_wiki_document_trash(doc, method):
 	"""Sync desk deletions to the revision system."""
 	_sync_document_to_revision(doc)
+	_clear_stale_website_cache(doc, deleted=True)
+
+
+def _clear_stale_website_cache(doc, deleted=False):
+	"""Invalidate Frappe's website caches for this document's routes.
+
+	Frappe remembers every guest URL that 404'd (the ``website_404`` cache) and
+	short-circuits all later requests to it, so a page published or renamed
+	after its URL was ever visited keeps returning 404 until the cache is
+	invalidated. ``clear_website_cache`` drops the whole ``website_404`` map
+	along with the routing caches for the given path.
+
+	The immediate clear serves the current process; the after-commit clear
+	closes the race where another worker re-caches a 404 from pre-commit DB
+	state between our clear and the transaction commit.
+	"""
+	route_affecting_fields = ("route", "is_published", "is_external_link")
+	if not deleted and not any(doc.has_value_changed(f) for f in route_affecting_fields):
+		return
+
+	before = doc.get_doc_before_save()
+	routes = {doc.route, before.route if before else None} - {None, ""}
+	if not routes:
+		return
+
+	for route in routes:
+		clear_website_cache(route)
+	frappe.db.after_commit.add(lambda routes=routes: [clear_website_cache(route) for route in routes])
 
 
 def _sync_document_to_revision(doc):

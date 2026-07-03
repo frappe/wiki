@@ -3,6 +3,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.website.utils import clear_cache as clear_website_cache
 
 _CHILD_ROW_META_FIELDS = {
 	"name",
@@ -253,6 +254,12 @@ class WikiSpace(Document):
 		# Update space route
 		self.route = new_route
 		self.save()
+
+		# Document routes were rewritten with raw SQL (no per-doc hooks), so drop
+		# the website caches wholesale — stale website_404 entries would otherwise
+		# keep serving 404s for the renamed URLs.
+		clear_website_cache()
+		frappe.db.after_commit.add(clear_website_cache)
 
 		return {"updated_count": updated_count}
 

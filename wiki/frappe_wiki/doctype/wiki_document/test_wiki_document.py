@@ -13,6 +13,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	WikiDocumentRenderer,
 	download_pdf,
 	process_navbar_items,
 )
@@ -1675,3 +1676,111 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		content_type = response.headers.get("Content-Type", "")
 		self.assertIn("charset=utf-8", content_type)
+
+
+class TestStale404CacheInvalidation(WikiDocumentTestBase):
+	"""
+	Regression tests for GH-684: Frappe caches every guest URL that 404s
+	(the ``website_404`` cache) and short-circuits later requests to it, so a
+	page published or renamed after its URL was visited kept returning 404
+	until the cache was cleared manually. Wiki Document writes must invalidate
+	that cache.
+	"""
+
+	def setUp(self):
+		self._original_request = getattr(frappe.local, "request", None)
+		frappe.cache.delete_value("website_404")
+
+	def tearDown(self):
+		if self._original_request is not None:
+			frappe.local.request = self._original_request
+		elif hasattr(frappe.local, "request"):
+			del frappe.local.request
+		super().tearDown()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _poison_404_cache(self, route):
+		"""Simulate NotFoundPage caching a guest 404 hit for this URL."""
+		from werkzeug.test import EnvironBuilder
+		from werkzeug.wrappers import Request
+
+		builder = EnvironBuilder(path=f"/{route}", base_url=frappe.utils.get_url())
+		frappe.local.request = Request(builder.get_environ())
+		frappe.cache.hset("website_404", frappe.local.request.url, True)
+
+	def _resolve(self, route):
+		"""Resolve a route the way a web request would, with 404 caching active."""
+		from frappe.website.path_resolver import PathResolver
+
+		with patch("frappe.website.path_resolver.can_cache", return_value=True):
+			return PathResolver(route).resolve()[1]
+
+	def _create_space(self, prefix):
+		route = self._unique(prefix)
+		space = create_test_wiki_space(self, f"Space {route}", route, None, roles=[("Guest", "Read")])
+		return space, route
+
+	def test_publishing_new_page_clears_cached_404(self):
+		from frappe.website.page_renderers.not_found_page import NotFoundPage
+
+		space, space_route = self._create_space("cache-684")
+		slug = self._unique("page")
+		route = f"{space_route}/{slug}"
+
+		self._poison_404_cache(route)
+		self.assertIsInstance(self._resolve(route), NotFoundPage)
+
+		create_test_wiki_document(self, "Cache Test Page", parent=space.root_group, slug=slug)
+
+		self.assertIsInstance(self._resolve(route), WikiDocumentRenderer)
+
+	def test_route_change_clears_cached_404_for_new_route(self):
+		from frappe.website.page_renderers.not_found_page import NotFoundPage
+
+		space, space_route = self._create_space("cache-684-mv")
+		doc = create_test_wiki_document(self, "Move Me", parent=space.root_group, slug=self._unique("old"))
+		new_slug = self._unique("new")
+		new_route = f"{space_route}/{new_slug}"
+
+		self._poison_404_cache(new_route)
+		self.assertIsInstance(self._resolve(new_route), NotFoundPage)
+
+		doc.slug = new_slug
+		doc.route = new_route
+		doc.save()
+
+		self.assertIsInstance(self._resolve(new_route), WikiDocumentRenderer)
+
+	def test_publish_toggle_clears_cached_404(self):
+		space, space_route = self._create_space("cache-684-pub")
+		slug = self._unique("draft")
+		doc = create_test_wiki_document(
+			self, "Draft Page", parent=space.root_group, slug=slug, is_published=False
+		)
+		route = f"{space_route}/{slug}"
+
+		self._poison_404_cache(route)
+
+		doc.is_published = 1
+		doc.save()
+
+		self.assertIsInstance(self._resolve(route), WikiDocumentRenderer)
+
+	def test_space_route_rename_clears_cached_404(self):
+		space, space_route = self._create_space("cache-684-sp")
+		slug = self._unique("page")
+		doc = create_test_wiki_document(self, "Space Rename Page", parent=space.root_group, slug=slug)
+
+		new_space_route = self._unique("cache-684-renamed")
+		new_route = f"{new_space_route}/{slug}"
+
+		self._poison_404_cache(new_route)
+
+		space.reload()
+		space.update_routes(new_space_route)
+
+		doc.reload()
+		self.assertEqual(doc.route, new_route)
+		self.assertIsInstance(self._resolve(new_route), WikiDocumentRenderer)
