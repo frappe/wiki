@@ -1190,7 +1190,16 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			continue
 		if base != head:
 			change_type = "modified"
-			metadata_fields = ["title", "slug", "route", "is_group", "is_published", "parent_key"]
+			metadata_fields = [
+				"title",
+				"slug",
+				"route",
+				"is_group",
+				"is_published",
+				"parent_key",
+				"is_external_link",
+				"external_url",
+			]
 			metadata_changed = any(base.get(field) != head.get(field) for field in metadata_fields)
 			content_changed = base.get("content_hash") != head.get("content_hash")
 			if base.get("content_hash") is None and head.get("content_hash") is None:
