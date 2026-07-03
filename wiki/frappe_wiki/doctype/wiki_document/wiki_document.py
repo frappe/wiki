@@ -1,6 +1,7 @@
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 
+import json
 from urllib.parse import urlparse
 
 import frappe
@@ -382,6 +383,7 @@ class WikiDocument(NestedSet):
 			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
+			"breadcrumbs": None,
 		}
 
 		metatags = {
@@ -419,10 +421,42 @@ class WikiDocument(NestedSet):
 				"nested_tree": nested_tree,
 				"prev_doc": adjacent_docs["prev"],
 				"next_doc": adjacent_docs["next"],
+				# Escape "<" so user-supplied titles can't close the
+				# <script> element the template embeds this JSON into.
+				"breadcrumbs": json.dumps(self.get_breadcrumb_list(wiki_space)).replace("<", "\\u003c"),
 			}
 		)
 
 		return context
+
+	def get_breadcrumb_list(self, wiki_space: dict) -> dict:
+		"""Build a BreadcrumbList JSON-LD payload mirroring the visible reader UI.
+
+		The reader sidebar renders ancestor groups as non-clickable toggle
+		buttons (see sidebar_tree.html) -- they never resolve to a served URL.
+		Per Google's breadcrumb structured-data rules every item but the last
+		needs an `item` URL, so those unlinkable ancestor groups are dropped
+		from the trail entirely rather than emitted without one.
+		"""
+		space_item = {
+			"@type": "ListItem",
+			"position": 1,
+			"name": wiki_space.get("space_name") or wiki_space["name"],
+			"item": frappe.utils.get_url("/" + wiki_space["route"]),
+		}
+		current_item = {
+			"@type": "ListItem",
+			"position": 2,
+			"name": self.title,
+		}
+		if self.route:
+			current_item["item"] = frappe.utils.get_url("/" + self.route)
+
+		return {
+			"@context": "https://schema.org",
+			"@type": "BreadcrumbList",
+			"itemListElement": [space_item, current_item],
+		}
 
 	def before_print(self, print_settings=None):
 		"""Render markdown content so the print format can drop it in as HTML."""

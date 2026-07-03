@@ -1,8 +1,9 @@
 # Page Settings Dialog + Meta (SEO) Fields
 
 Date: 2026-07-03
-Status: **Phases 1–4 implemented & verified** (2026-07-03) on wiki.localhost,
-including e2e playwright coverage. Branch: `feat/meta-fields`.
+Status: **Phases 1–5 implemented & verified** (2026-07-03) on wiki.localhost,
+including e2e playwright coverage and BreadcrumbList JSON-LD. Branch:
+`feat/meta-fields`.
 
 ## Goal
 
@@ -110,10 +111,22 @@ context.metatags = MetaTags(self.route, context).tags
   `canonical_url = frappe.utils.get_url('/' + route)` from context.
 - `<title>` switches to `metatags.title` so meta_title overrides it too.
 
-Out of scope (phase-2 backlog): sitemap.xml per space, JSON-LD Article,
+Out of scope (phase-2 backlog): sitemap.xml per space, TechArticle JSON-LD,
 space-level meta defaults (default og image / title suffix), auto-description
 from content excerpt, per-page robots field, folding legacy `head_html` into
-structured settings.
+structured settings, generated OG-image endpoint (tailwindcss.com pattern:
+`og:image = /api/og?path=...` renders a branded card per page — checked
+2026-07-03; note Tailwind docs ship meta tags only, zero JSON-LD).
+
+### Phase 5 — BreadcrumbList JSON-LD (added 2026-07-03)
+
+Emit a `BreadcrumbList` JSON-LD script in the public page head, built from
+the doc's tree ancestors (space root → groups → page). Per Google's
+breadcrumb structured-data rules, every item except the last needs an `item`
+URL — intermediate tree nodes that don't resolve to a served URL are
+dropped from the trail rather than emitted without a link. Structured data
+should mirror what the visible reader UI presents. Unit-tested with
+temp-revert verification like the metatags block.
 
 ## Page Settings dialog (SPA)
 
@@ -215,3 +228,14 @@ structured settings.
   leftover `Wiki Document`). Image-upload coverage intentionally left out
   (optional per scope; text-field coverage already exercises the dialog's
   save/persist/render path end to end).
+- 2026-07-03: Phase 5 done — BreadcrumbList JSON-LD in the public head.
+  Trail is [space, page]: sidebar groups are non-clickable toggles with no
+  served URL, so intermediate groups are dropped per Google's item-URL rule;
+  the space item links the space root route, which 301s to the space's
+  default page (verified live). `json.dumps` output escapes `<` as unicode escape (`\u003c`)
+  so hostile titles can't close the embedding `<script>` element
+  (regression-tested with an in-memory hostile title, since Frappe's
+  save-time sanitization already strips tags from stored Data fields).
+  4 new tests (2 context-level, 1 rendered + parse, 1 escape), temp-revert
+  verified: 3 fail with emission stubbed, restore → module green (35+41).
+  Live JSON-LD verified parseable on a real nested page.

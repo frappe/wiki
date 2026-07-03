@@ -13,6 +13,9 @@
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">
     {% endif %}
+    {% if breadcrumbs %}
+    <script type="application/ld+json">{{ breadcrumbs | safe }}</script>
+    {% endif %}
 
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css?v={{get_tailwindcss_hash()}}">
     <link rel="stylesheet" href="/assets/wiki/css/hljs-github-light.css">
