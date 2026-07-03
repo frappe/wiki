@@ -76,7 +76,7 @@
 			</div>
 
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 				<!-- Editor body skeleton while the CR page overlay loads -->
 				<div v-else class="space-y-4 animate-pulse">
 					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
@@ -233,6 +233,9 @@ watch(
 		// no change request overlay, so skip the CR-page load entirely.
 		if (props.readonly) return;
 		if (docKey) {
+			// Navigation cancels the previous page's debounced autosave;
+			// flush its buffer now. Failures surface via the sync pill.
+			draftStore.flushDirtyPages(docKey).catch(() => {});
 			await loadCrPage();
 		} else {
 			currentCrPage.value = null;
@@ -319,7 +322,12 @@ const editorContent = computed(() => {
 });
 
 const displayTitle = computed(() => {
-	return activePage.value?.title || currentCrPage.value?.title || wikiDoc.value.doc?.title || '';
+	return (
+		activePage.value?.title ||
+		currentCrPage.value?.title ||
+		wikiDoc.value.doc?.title ||
+		''
+	);
 });
 
 const displayPublished = computed(() => {
@@ -333,7 +341,12 @@ const displayPublished = computed(() => {
 });
 
 const displayRoute = computed(() => {
-	return activePage.value?.route || currentCrPage.value?.route || wikiDoc.value.doc?.route || '';
+	return (
+		activePage.value?.route ||
+		currentCrPage.value?.route ||
+		wikiDoc.value.doc?.route ||
+		''
+	);
 });
 
 // Browser tab title: "{page} | {space}". Returning undefined while the doc
@@ -504,6 +517,19 @@ function openPage() {
 
 function saveFromHeader() {
 	editorRef.value?.saveToDB();
+}
+
+// Drain dirty buffers for pages other than the one on screen; the open
+// page's saves go through the editor instead.
+async function flushOtherDirtyPages() {
+	if (props.readonly) return;
+	const failures = await draftStore.flushDirtyPages(wikiDoc.value.doc?.doc_key);
+	if (failures.length) {
+		const error = failures[0];
+		toast.error(
+			error?.messages?.[0] || error?.message || __('Error saving draft'),
+		);
+	}
 }
 
 async function saveContent(content) {

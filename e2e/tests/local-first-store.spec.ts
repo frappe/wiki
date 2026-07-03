@@ -354,7 +354,7 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('navigating away from dirty content keeps Submit disabled and restores the local buffer', async ({
+	test('navigating away from dirty content auto-saves it and re-enables Submit', async ({
 		page,
 		request,
 	}) => {
@@ -423,17 +423,15 @@ test.describe('Local-first draft workspace', () => {
 		await editor.click();
 		await expect(submitButton).toBeDisabled();
 
+		// Navigating away flushes the dirty buffer to the server.
 		await page.locator('aside').getByText(secondTitle, { exact: true }).click();
-		await expect(submitButton).toBeDisabled();
-
-		await page.locator('aside').getByText(firstTitle, { exact: true }).click();
-		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
-		await expect(submitButton).toBeDisabled();
-
-		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
+		await expect(submitButton).toBeEnabled();
+
+		await page.locator('aside').getByText(firstTitle, { exact: true }).click();
+		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
 		await expect(submitButton).toBeEnabled();
 	});
 
