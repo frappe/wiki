@@ -7,6 +7,9 @@
                  bubble menu mounts; it derives its flip boundary from the editor's
                  scroll ancestor, which must be reachable at that point. -->
             <WikiBubbleMenu v-if="!readonly" :editor="editor" />
+            <!-- Floating row/column/cell controls shown while the selection is
+                 inside a table; replaces the old WikiTableDropdown actions. -->
+            <EditorTableMenu v-if="!readonly" :editor="editor" />
         </div>
         <div v-else class="wiki-editor-loading">
             Loading editor...
@@ -43,6 +46,7 @@ import { common, createLowlight } from 'lowlight';
 import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 
+import { EditorTableMenu } from 'frappe-ui/editor';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';

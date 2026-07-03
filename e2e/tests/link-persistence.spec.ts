@@ -68,7 +68,7 @@ test.describe('Link Persistence Tests', () => {
 		await page.waitForTimeout(300);
 
 		// Use toolbar button to add link
-		await page.click('button[title="Insert Link"]');
+		await page.click('button[aria-label="Link"]');
 
 		// Wait for link popup input
 		const linkInput = page.getByPlaceholder('https://example.com');
