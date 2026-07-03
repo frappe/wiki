@@ -112,7 +112,12 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['save', 'content-change', 'content-ready']);
+const emit = defineEmits([
+	'save',
+	'save-all',
+	'content-change',
+	'content-ready',
+]);
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
@@ -206,10 +211,7 @@ async function insertAndUploadImage(file) {
 		preview = '';
 	}
 
-	ed.chain()
-		.focus()
-		.setImage({ src: preview, uploadId, loading: true })
-		.run();
+	ed.chain().focus().setImage({ src: preview, uploadId, loading: true }).run();
 
 	try {
 		const url = await uploadFile(file);
@@ -745,6 +747,8 @@ function saveToDB() {
 		if (markdown !== normalizeMarkdown(props.savedContent)) {
 			emit('save', markdown);
 		}
+		// "Save" means all of the user's work, not just this page.
+		emit('save-all');
 		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 	} else {
 		toast.error('Could not get content from editor');

@@ -33,6 +33,12 @@ export function createPageBuffers() {
 		return false;
 	});
 
+	function dirtyPages() {
+		return Object.keys(pagesByKey)
+			.map((key) => pagesByKey[key])
+			.filter((page) => isDirty(page));
+	}
+
 	function get(docKey) {
 		return pagesByKey[docKey] || null;
 	}
@@ -119,6 +125,7 @@ export function createPageBuffers() {
 	return {
 		pagesByKey,
 		hasUnsavedEditorContent,
+		dirtyPages,
 		emptyPage,
 		isDirty,
 		get,

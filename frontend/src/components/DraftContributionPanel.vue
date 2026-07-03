@@ -50,7 +50,7 @@
 			</div>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 			</div>
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
@@ -245,6 +245,8 @@ onMounted(async () => {
 	if (props.spaceId) {
 		await draftStore.hydrate(props.spaceId);
 	}
+	// Restored IndexedDB drafts may belong to pages never revisited.
+	draftStore.flushDirtyPages(props.docKey).catch(() => {});
 	await loadCrPage();
 });
 
@@ -252,10 +254,25 @@ watch(
 	() => props.docKey,
 	async (newId) => {
 		if (newId) {
+			// Navigation cancels the previous page's debounced autosave;
+			// flush its buffer now. Failures surface via the sync pill.
+			draftStore.flushDirtyPages(newId).catch(() => {});
 			await loadCrPage();
 		}
 	},
 );
+
+// Drain dirty buffers for pages other than the one on screen; the open
+// page's saves go through the editor instead.
+async function flushOtherDirtyPages() {
+	const failures = await draftStore.flushDirtyPages(props.docKey);
+	if (failures.length) {
+		const error = failures[0];
+		toast.error(
+			error?.messages?.[0] || error?.message || __('Error saving draft'),
+		);
+	}
+}
 
 function onEditorContentChange(content, docKey = props.docKey, options = {}) {
 	if (!docKey) return;
