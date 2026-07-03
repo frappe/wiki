@@ -8,7 +8,9 @@ every revision is flagged for lazy recomputation.
 """
 
 import frappe
+from frappe.query_builder import DocType
 
 
 def execute():
-	frappe.db.sql("UPDATE `tabWiki Revision` SET hashes_stale = 1")
+	WikiRevision = DocType("Wiki Revision")
+	frappe.qb.update(WikiRevision).set(WikiRevision.hashes_stale, 1).run()
