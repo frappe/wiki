@@ -352,6 +352,131 @@ class TestGetWebContext(WikiDocumentTestBase):
 		self.assertEqual(filtered_spaces, expected_order)
 
 
+class TestGetWebContextMetaTags(WikiDocumentTestBase):
+	"""
+	Unit tests for the metatags/canonical_url emission in get_web_context().
+	Covers the meta_title/meta_description/meta_image fields and their
+	fallbacks when unset.
+	"""
+
+	def test_metatags_use_explicit_meta_fields_when_set(self):
+		"""When meta_title/description/image are set, metatags should reflect them."""
+		root_group = create_test_wiki_document(self, "Root Meta Group", is_group=True)
+		doc = create_test_wiki_document(self, "Meta Doc", parent=root_group.name, slug="meta-doc")
+		create_test_wiki_space(self, "Meta Space", "meta-space", root_group.name)
+
+		doc.meta_title = "Custom Meta Title"
+		doc.meta_description = "Custom meta description for SEO."
+		doc.meta_image = "/files/meta-preview.png"
+		doc.save()
+		doc.reload()
+
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Custom Meta Title")
+		self.assertEqual(metatags["description"], "Custom meta description for SEO.")
+		self.assertEqual(metatags["og:title"], "Custom Meta Title")
+		self.assertEqual(metatags["og:image"], frappe.utils.get_url("/files/meta-preview.png"))
+		self.assertEqual(metatags["twitter:card"], "summary_large_image")
+		self.assertEqual(metatags["og:site_name"], "Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+	def test_metatags_fall_back_to_title_when_meta_fields_unset(self):
+		"""With no meta_title/description/image, metatags should fall back sensibly."""
+		root_group = create_test_wiki_document(self, "Root Meta Fallback Group", is_group=True)
+		doc = create_test_wiki_document(
+			self, "Fallback Meta Doc", parent=root_group.name, slug="fallback-meta-doc"
+		)
+		create_test_wiki_space(self, "Fallback Meta Space", "fallback-meta-space", root_group.name)
+
+		doc.reload()
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Fallback Meta Doc")
+		self.assertNotIn("description", metatags)
+		self.assertNotIn("image", metatags)
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+		self.assertEqual(metatags["og:site_name"], "Fallback Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+
+class TestRenderedPageMetaTags(WikiDocumentTestBase):
+	"""
+	Integration tests that render the public page HTML and assert the
+	og/twitter/canonical tags emitted by get_web_context() actually show up
+	in the served head markup.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def test_rendered_head_contains_meta_tags_for_published_doc(self):
+		# Create the space first (auto-creates root_group) so the doc's route
+		# picks up the space prefix, matching TestSetRoute's pattern.
+		route = self._unique("meta-render")
+		space = create_test_wiki_space(self, "Meta Render Space", route, None, roles=[("Guest", "Read")])
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-doc"),
+		)
+
+		doc.meta_title = "Rendered Meta Title"
+		doc.meta_description = "Rendered meta description."
+		doc.meta_image = "/files/rendered-preview.png"
+		doc.save()
+		doc.reload()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'property="og:title"\s*content="Rendered Meta Title"')
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+	def test_rendered_head_omits_image_tags_when_no_meta_image(self):
+		route = self._unique("meta-render-fallback")
+		space = create_test_wiki_space(
+			self, "Meta Render Fallback Space", route, None, roles=[("Guest", "Read")]
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Fallback Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-fallback-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
+		self.assertNotIn('property="og:image"', html)
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+
 class TestMarkdownCallouts(unittest.TestCase):
 	"""
 	Unit tests for the markdown callout/aside rendering.

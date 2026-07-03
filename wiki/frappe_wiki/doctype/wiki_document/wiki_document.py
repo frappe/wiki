@@ -9,6 +9,7 @@ from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
+from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -77,6 +78,9 @@ class WikiDocument(NestedSet):
 		is_group: DF.Check
 		is_published: DF.Check
 		lft: DF.Int
+		meta_description: DF.SmallText | None
+		meta_image: DF.AttachImage | None
+		meta_title: DF.Data | None
 		old_parent: DF.Link | None
 		parent_wiki_document: DF.Link | None
 		rgt: DF.Int
@@ -379,6 +383,18 @@ class WikiDocument(NestedSet):
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
 		}
+
+		metatags = {
+			"title": self.meta_title or self.title,
+			"og:site_name": wiki_space.get("space_name") if wiki_space else None,
+		}
+		if self.meta_description:
+			metatags["description"] = self.meta_description
+		if self.meta_image:
+			metatags["image"] = self.meta_image
+		context["metatags"] = {key: value for key, value in metatags.items() if value}
+		context["metatags"] = MetaTags(self.route, context).tags
+		context["canonical_url"] = frappe.utils.get_url("/" + self.route) if self.route else None
 
 		if not wiki_space:
 			return context
