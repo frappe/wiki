@@ -19,8 +19,10 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	workers: 1, // Single worker for Frappe session management
-	// Use multiple reporters in CI for both inline annotations and HTML artifacts
-	reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'html',
+	// CI shards the run across machines: blob reports from each shard are
+	// merged into one HTML report by the merge-reports job; the github
+	// reporter still annotates failures inline per shard.
+	reporter: process.env.CI ? [['github'], ['blob']] : 'html',
 	timeout: 60000, // 60s per test
 
 	expect: {
