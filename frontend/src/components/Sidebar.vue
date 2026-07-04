@@ -31,7 +31,7 @@ import {
 import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
 import { useStorage } from '@vueuse/core';
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LucideGitBranch from '~icons/lucide/git-branch';
 import LucideLogOut from '~icons/lucide/log-out';
@@ -46,7 +46,7 @@ const sessionStore = useSessionStore();
 const userStore = useUserStore();
 const { open: openWikiSettings } = useWikiSettings();
 
-const { themeIcon, toggleTheme, initTheme } = useTheme();
+const { themeIcon, toggleTheme } = useTheme();
 
 const isSidebarCollapsed = useStorage('is-sidebar-collapsed', false);
 
@@ -72,10 +72,6 @@ const navItems = [
 		to: { name: 'ChangeRequests' },
 	},
 ];
-
-onMounted(() => {
-	initTheme();
-});
 
 function logout() {
 	sessionStore.logout.submit();

@@ -79,7 +79,7 @@ test.describe('Mobile SPA', () => {
 
 		// Desktop inline tree must be gone; the contextual header lives in the
 		// top nav with a tree toggle.
-		const treeToggle = page.locator('#app-header').getByTitle('Pages');
+		const treeToggle = page.getByRole('button', { name: 'Pages' });
 		await expect(treeToggle).toBeVisible();
 
 		// Open the off-canvas tree drawer and pick the page.
@@ -168,7 +168,7 @@ test.describe('Mobile SPA', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.
-		await page.locator('#app-header').getByTitle('Pages').click();
+		await page.getByRole('button', { name: 'Pages' }).click();
 		const drawer = page.locator('.drawer-content');
 		await expect(drawer).toBeVisible();
 		await drawer.getByTitle('Settings').click();

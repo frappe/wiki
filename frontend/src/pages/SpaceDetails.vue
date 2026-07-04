@@ -52,20 +52,24 @@
             />
         </MobileDrawer>
 
-        <!-- Mobile: contextual header in the top nav (tree toggle + space name).
-             The toggle matches the nav's logo/menu buttons (44px). -->
-        <Teleport v-if="isMobile" to="#app-header">
-            <button
-                class="flex size-11 shrink-0 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-3"
-                :title="__('Pages')"
-                @click="mobileTreeOpen = true"
-            >
-                <LucidePanelLeft class="size-5" />
-            </button>
-            <span class="truncate text-base-semibold text-ink-gray-9">
-                {{ space.doc?.space_name || spaceId }}
-            </span>
-        </Teleport>
+        <!-- Mobile: contextual header in the shell's PageHeaderTarget
+             (tree toggle on the left, centered space name). -->
+        <PageHeaderMobile
+            v-if="isMobile"
+            :title="space.doc?.space_name || spaceId"
+        >
+            <template #left>
+                <Button
+                    variant="ghost"
+                    :label="__('Pages')"
+                    @click="mobileTreeOpen = true"
+                >
+                    <template #icon>
+                        <LucidePanelLeft class="size-4" />
+                    </template>
+                </Button>
+            </template>
+        </PageHeaderMobile>
 
         <main class="flex-1 flex flex-col bg-surface-base min-w-0">
             <div
@@ -202,6 +206,7 @@ import {
 	Button,
 	Dialog,
 	FormControl,
+	PageHeaderMobile,
 	createDocumentResource,
 	createResource,
 	toast,
@@ -239,14 +244,10 @@ const userStore = useUserStore();
 // drag-and-drop sequences.
 onMounted(() => {
 	window.__draftStore = draftStore;
-	// This page supplies the leading control (tree toggle) in the mobile top
-	// nav, so the nav hides its logo while we're here.
-	mobileHasLeadingControl.value = true;
 });
 onBeforeUnmount(() => {
 	delete window.__draftStore;
 	syncPollCancelled = true;
-	mobileHasLeadingControl.value = false;
 });
 
 const isManager = computed(() => userStore.isWikiManager);
@@ -267,7 +268,7 @@ const isTreeReordering = ref(false);
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
-const { isMobile, mobileHasLeadingControl } = useMobile();
+const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the

@@ -1,13 +1,15 @@
 <template>
 	<div class="flex flex-col h-full">
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-outline-gray-2 bg-surface-base shrink-0">
-			<div class="flex items-center gap-4">
+		<!-- Renders into the shell's PageHeaderTarget on all breakpoints (the
+		     action cluster needs the full row even on a phone). -->
+		<PageHeader>
+			<div class="flex min-w-0 items-center gap-4">
 				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
-				<div v-if="changeRequest.doc">
+				<div v-if="changeRequest.doc" class="min-w-0">
 					<div class="flex items-center gap-2">
-						<h1 class="text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+						<h1 class="truncate text-lg-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 						<Badge :variant="'subtle'" :theme="getStatusTheme(changeRequest.doc.status)" size="sm">
 							{{ changeRequest.doc.status }}
 						</Badge>
@@ -71,7 +73,7 @@
 					{{ __('Withdraw') }}
 				</Button>
 			</div>
-		</div>
+		</PageHeader>
 
 		<div class="flex-1 overflow-auto p-4">
 			<!-- Conflict resolution banner -->
@@ -422,6 +424,7 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	PageHeader,
 	createDocumentResource,
 	createResource,
 	toast,

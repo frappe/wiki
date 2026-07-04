@@ -1,15 +1,27 @@
 <template>
   <div class="flex flex-col gap-4 p-3 sm:p-4 h-full">
-    <!-- On mobile the title lives in the top nav (next to the hamburger); on
-         desktop it stays inline. -->
-    <Teleport v-if="isMobile" to="#app-header">
-      <h2 class="truncate text-base-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
-    </Teleport>
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h2 class="hidden sm:block text-2xl-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
+    <!-- Header renders into the shell's PageHeaderTarget (pinned above the
+         page): centered-title mobile variant with the app menu, or the
+         desktop strip with search + New Space. -->
+    <PageHeaderMobile v-if="isMobile" :title="__('Wiki Spaces')">
+      <template #right>
+        <div class="flex items-center gap-1">
+          <Button
+            v-if="isManager"
+            variant="ghost"
+            icon="lucide-plus"
+            :label="__('New Space')"
+            @click="showCreateDialog = true"
+          />
+          <MobileAppMenu />
+        </div>
+      </template>
+    </PageHeaderMobile>
+    <PageHeader v-else>
+      <h2 class="text-lg-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
       <div class="flex items-center gap-2">
         <FormControl
-          class="flex-1 sm:flex-none sm:w-64"
+          class="w-64"
           type="text"
           v-model="searchQuery"
           :placeholder="__('Search spaces...')"
@@ -18,17 +30,8 @@
             <LucideSearch class="h-4 w-4 text-ink-gray-4" />
           </template>
         </FormControl>
-        <!-- Square icon button on mobile (a labelled button looks cramped next
-             to the full-width search); labelled on desktop. -->
         <Button
-          v-if="isManager && isMobile"
-          variant="solid"
-          icon="plus"
-          :title="__('New Space')"
-          @click="showCreateDialog = true"
-        />
-        <Button
-          v-else-if="isManager"
+          v-if="isManager"
           variant="solid"
           @click="showCreateDialog = true"
         >
@@ -38,7 +41,18 @@
           {{ __('New Space') }}
         </Button>
       </div>
-    </div>
+    </PageHeader>
+    <!-- Mobile keeps an inline search row (the centered header has no room). -->
+    <FormControl
+      v-if="isMobile"
+      type="text"
+      v-model="searchQuery"
+      :placeholder="__('Search spaces...')"
+    >
+      <template #prefix>
+        <LucideSearch class="h-4 w-4 text-ink-gray-4" />
+      </template>
+    </FormControl>
 
     <div class="flex-1 overflow-auto">
       <!-- Skeleton on cold load so the empty state never flashes before the
@@ -269,6 +283,7 @@
 
 <script setup>
 import Autocomplete from '@/components/Autocomplete.vue';
+import MobileAppMenu from '@/components/MobileAppMenu.vue';
 import { useMobile } from '@/composables/useMobile';
 import { useUserStore } from '@/stores/user';
 import {
@@ -278,6 +293,8 @@ import {
 	ErrorMessage,
 	FormControl,
 	ListView,
+	PageHeader,
+	PageHeaderMobile,
 	createListResource,
 	createResource,
 	toast,
