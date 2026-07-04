@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./font.css";
+@import "./frappe-ui-tokens.css";
 @import "./theme.css";
 @plugin '@tailwindcss/typography';
 
@@ -443,7 +444,7 @@ body.image-viewer-open {
   border: 1px solid var(--outline-gray-2);
   border-radius: 0.5rem;
   overflow: hidden;
-  background: var(--surface-white);
+  background: var(--surface-base);
 }
 
 .wiki-pdf-header {
@@ -560,7 +561,7 @@ body.wiki-pdf-modal-open {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.625rem 1rem;
-  background: var(--surface-white);
+  background: var(--surface-base);
   border-bottom: 1px solid var(--outline-gray-2);
   flex-shrink: 0;
 }

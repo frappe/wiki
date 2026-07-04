@@ -35,7 +35,7 @@
              x-transition:leave-start="opacity-100 scale-100 translate-y-0"
              x-transition:leave-end="opacity-0 scale-95 -translate-y-4"
              @click.stop
-             class="w-full max-w-2xl bg-[var(--surface-white)] rounded-xl shadow-2xl border border-[var(--outline-gray-1)] overflow-hidden">
+             class="w-full max-w-2xl bg-[var(--surface-base)] rounded-xl shadow-2xl border border-[var(--outline-gray-1)] overflow-hidden">
 
             <!-- Search Input -->
             <div class="flex items-center gap-3 px-4 py-3 border-b border-[var(--outline-gray-1)]">
@@ -90,7 +90,7 @@
                                    @keydown.enter.prevent="navigateTo(result.route)"
                                    :class="selectedIndex === index ? 'bg-[var(--surface-gray-2)]' : ''"
                                    class="flex flex-col gap-1 px-4 py-3 hover:bg-[var(--surface-gray-2)] transition-colors cursor-pointer">
-                                    <span class="text-sm font-medium text-[var(--ink-gray-9)]" x-html="result.title"></span>
+                                    <span class="text-sm-medium text-[var(--ink-gray-9)]" x-html="result.title"></span>
                                     <span class="text-xs text-[var(--ink-gray-5)] line-clamp-2" x-html="result.content"></span>
                                 </a>
                             </li>

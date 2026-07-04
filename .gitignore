@@ -15,6 +15,7 @@ __pycache__/
 wiki/public/frontend/
 wiki/www/wiki.html
 wiki/public/css/tailwind.css
+wiki/public/css/frappe-ui-tokens.css
 playwright-report/
 test-results/
 e2e/.auth/

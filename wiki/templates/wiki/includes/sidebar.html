@@ -1,7 +1,7 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 {% from "templates/wiki/macros/buttons.html" import ghost_button_full, icon_button, render_icon %}
 
-<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-0 h-screen"
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-sidebar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-0 h-screen"
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
@@ -16,13 +16,13 @@
                 aria-haspopup="menu"
                 :aria-expanded="spaceSwitcherOpen"
                 class="flex h-12 w-full items-center rounded-md py-2 px-2 duration-300 ease-in-out"
-                :class="spaceSwitcherOpen ? 'bg-[var(--surface-white)] shadow-sm' : 'hover:bg-[var(--surface-gray-3)]'"
+                :class="spaceSwitcherOpen ? 'bg-[var(--surface-base)] shadow-sm' : 'hover:bg-[var(--surface-gray-3)]'"
                 title="Switch wiki space">
             {% if wiki_space.app_switcher_logo %}
             <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
             {% endif %}
             <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+                <div class="text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
             </div>
             <div class="ml-2">
                 <svg class="size-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +40,7 @@
              x-transition:leave="transition ease-in duration-75"
              x-transition:leave-start="opacity-100 scale-100"
              x-transition:leave-end="opacity-0 scale-95"
-             class="fixed top-[57px] left-2 w-[17rem] bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+             class="fixed top-[57px] left-2 w-[17rem] bg-[var(--surface-base)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
             {% for space in wiki_spaces_for_switcher %}
             <a href="/{{ space.route }}"
                class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
@@ -59,7 +59,7 @@
             <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
             {% endif %}
             <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
+                <div class="text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
             </div>
         </div>
         {% endif %}
@@ -298,7 +298,7 @@
                 };
 
                 let html = '<nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar"><div>';
-                html += '<h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>';
+                html += '<h3 class="text-sm-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>';
                 html += '<ul class="space-y-2">';
                 headings.forEach(heading => {
                     const paddingLeft = (heading.level - 2) * 0.75;
@@ -330,8 +330,8 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                                 </svg>
                                 <div class="flex flex-col gap-1 min-w-0">
-                                    <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Previous Page</span>
-                                    <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate">${prevDoc.title}</span>
+                                    <span class="text-xs-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Previous Page</span>
+                                    <span class="text-sm-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate">${prevDoc.title}</span>
                                 </div>
                             </a>`;
                     }
@@ -344,8 +344,8 @@
                                @mouseenter="$store.navigation.prefetch('${nextDoc.route}')"
                                class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden ${mlClass}">
                                 <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
-                                    <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Next Page</span>
-                                    <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate text-right">${nextDoc.title}</span>
+                                    <span class="text-xs-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Next Page</span>
+                                    <span class="text-sm-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate text-right">${nextDoc.title}</span>
                                 </div>
                                 <svg class="w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
