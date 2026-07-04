@@ -18,6 +18,8 @@ from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
+WIKI_TREE_CACHE_KEY = "wiki_public_tree"
+
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
 	"github.com": "github",
@@ -306,8 +308,7 @@ class WikiDocument(NestedSet):
 		if not root_group:
 			return [], {"prev": None, "next": None}
 
-		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
-		nested_tree = build_nested_wiki_tree(descendants)
+		nested_tree = get_public_wiki_tree(root_group)
 		adjacent_docs = get_adjacent_documents(nested_tree, self.route)
 
 		return nested_tree, adjacent_docs
@@ -531,15 +532,12 @@ class WikiDocumentRenderer(BaseRenderer):
 			"Wiki Document", {"route": self.path, "is_group": 1}, "name"
 		) or frappe.db.get_value("Wiki Space", {"route": self.path, "is_published": 1}, "root_group")
 
-		# Redirect to first published child document if available
+		# Redirect to the first page in sidebar order (sort_order at each level),
+		# so the space URL lands on the same document the sidebar shows first.
 		if root_group:
-			child_docs = get_descendants_of(
-				"Wiki Document", root_group, order_by="lft asc, sort_order desc", ignore_permissions=True
-			)
-			for child_name in child_docs:
-				child_doc = frappe.get_cached_doc("Wiki Document", child_name)
-				if not child_doc.is_group and child_doc.is_published:
-					frappe.redirect("/" + child_doc.route)
+			first_page = get_first_published_page(root_group)
+			if first_page:
+				frappe.redirect("/" + first_page["route"])
 
 		return False
 
@@ -641,6 +639,49 @@ def build_nested_wiki_tree(documents: list[str]):
 	return remove_empty_groups(root_nodes)
 
 
+def get_public_wiki_tree(root_group: str) -> list:
+	"""Return the published sidebar tree for a root group, cached in Redis.
+
+	The cache is invalidated on any Wiki Document change (see
+	clear_wiki_tree_cache), so a hit always reflects the committed tree.
+	"""
+	tree = frappe.cache().hget(WIKI_TREE_CACHE_KEY, root_group)
+	if tree is None:
+		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
+		tree = build_nested_wiki_tree(descendants)
+		frappe.cache().hset(WIKI_TREE_CACHE_KEY, root_group, tree)
+	return tree
+
+
+def get_first_published_page(root_group: str) -> dict | None:
+	"""First non-group, non-external page in sidebar order — the document a
+	space URL should land on. Walks the same tree the sidebar renders, so the
+	two can't disagree."""
+
+	def find_first(nodes):
+		for node in nodes:
+			if not node["is_group"] and not node.get("is_external_link"):
+				return node
+			found = find_first(node["children"])
+			if found:
+				return found
+		return None
+
+	return find_first(get_public_wiki_tree(root_group))
+
+
+def clear_wiki_tree_cache():
+	"""Drop all cached sidebar trees.
+
+	Cleared wholesale rather than per space: a move can pull a subtree from one
+	space into another, staling both trees while the document only knows its
+	new space. Cleared again after commit to close the race where another
+	worker re-caches from pre-commit DB state.
+	"""
+	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
+	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+
+
 @frappe.whitelist()
 def get_breadcrumbs(name: str) -> dict:
 	"""Get the breadcrumb trail for a Wiki Document including space info."""
@@ -697,6 +738,7 @@ def on_wiki_document_update(doc, method):
 	stamp_wiki_space(doc)
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
+	clear_wiki_tree_cache()
 
 
 def stamp_wiki_space(doc):
@@ -728,6 +770,7 @@ def on_wiki_document_trash(doc, method):
 	"""Sync desk deletions to the revision system."""
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
+	clear_wiki_tree_cache()
 
 
 def _clear_stale_website_cache(doc, deleted=False):
