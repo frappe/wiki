@@ -1985,11 +1985,16 @@ def _apply_merge_changes_only(
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	"""Update CR status after successful merge."""
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	cr.status = "Merged"
 	cr.merge_revision = merge_revision.name
 	cr.merged_by = frappe.session.user
 	cr.merged_at = now_datetime()
 	cr.save()
+
+	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 	_notify_cr_owner(cr, _("Your change request “{0}” was merged.").format(cr.title))
 
 
@@ -2296,11 +2301,16 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 
 def apply_merge_revision(space: Document, revision: Document) -> None:
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	frappe.flags.in_apply_merge_revision = True
 	try:
 		_apply_merge_revision(space, revision)
 	finally:
 		frappe.flags.in_apply_merge_revision = False
+
+	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 
 
 def _apply_merge_revision(space: Document, revision: Document) -> None:

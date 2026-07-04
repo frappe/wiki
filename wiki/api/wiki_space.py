@@ -165,6 +165,11 @@ def reorder_wiki_documents(
 	finally:
 		frappe.flags.in_reorder_wiki_documents = False
 
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+	# Reorders bypass on_update (raw sort_order writes), so bust the tree cache here.
+	clear_wiki_tree_cache()
+
 	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
 
 	return {"is_contribution": False}
