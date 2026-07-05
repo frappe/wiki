@@ -2,8 +2,10 @@
 
 <header class="hidden lg:flex items-center gap-4 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-white)] sticky top-0 z-30 h-[53px]"
         x-data>
-    {# Spacer to push everything to the right #}
-    <div class="flex-1"></div>
+
+    <div class="flex items-center gap-2">
+     {# Spacer to push everything to the right #}
+   {# <div class="flex-1"></div> #}
 
     {# Text navigation links (items without icons) #}
     {% for item in navbar_items %}
@@ -15,12 +17,18 @@
         </a>
         {% endif %}
     {% endfor %}
+    </div>
+
+<div class="flex-1 flex justify-center px-8">
 
     <button @click="$dispatch('open-search')"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--surface-gray-2)] ring-1 ring-inset ring-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] transition-colors duration-200 cursor-pointer">
+            class="inline-flex items-center gap-1 px-2 py-1 w-50 rounded-full bg-[var(--surface-gray-2)] ring-1 ring-inset ring-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] transition-colors duration-200 cursor-pointer">
         {{ render_icon("search", "-ml-0.5 w-4 h-4 text-[var(--ink-gray-5)]") }}
         <kbd class="text-xs/4 text-[var(--ink-gray-4)] font-sans" x-text="navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'">⌘K</kbd>
     </button>
+    </div>
+
+<div class="flex items-center justify-end gap-2">
 
     {# Separator before toggle (only if there are text links) #}
     {% set has_text_items = namespace(value=false) %}
@@ -70,4 +78,5 @@
         </a>
         {% endif %}
     {% endfor %}
+    </div>
 </header>
