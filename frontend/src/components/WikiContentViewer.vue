@@ -61,7 +61,7 @@ onMounted(() => {
 			Markdown.configure({ markedOptions: { breaks: true } }),
 			PreserveBlankLines,
 			WikiImage.configure({ inline: false, allowBase64: true }),
-			Table.configure({ resizable: false }),
+			Table.configure({ resizable: false, renderWrapper: true }),
 			TableRow,
 			TableCell,
 			TableHeader,
@@ -79,7 +79,7 @@ onMounted(() => {
 		editorProps: {
 			attributes: {
 				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content',
+					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content',
 			},
 		},
 	});
