@@ -47,10 +47,10 @@ const emit = defineEmits(['uploadImage']);
 
 const imageInput = ref(null);
 
-// Atoms exist only for items whose command lives in frappe-ui's kits; wiki's
-// own extensions (task list via @tiptap/extension-list, lowlight code block,
-// PDF block, file-input image upload) get hand-rolled MenuItem objects with
-// the same shape.
+// Atoms exist only for items whose command lives in frappe-ui's kits; the
+// rest (task list via @tiptap/extension-list, code block, PDF block,
+// file-input image upload) get hand-rolled MenuItem objects with the same
+// shape.
 const TaskListItem = {
 	icon: 'lucide-list-checks',
 	label: 'Task List',

@@ -42,11 +42,9 @@ import { Markdown } from '@tiptap/markdown';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
-import { common, createLowlight } from 'lowlight';
 import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
-import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 
-import { EditorTableMenu } from 'frappe-ui/editor';
+import { CodeBlock, EditorTableMenu } from 'frappe-ui/editor';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
@@ -125,9 +123,6 @@ const emit = defineEmits([
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
-
-// Create lowlight instance for syntax highlighting
-const lowlight = createLowlight(common);
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -623,9 +618,7 @@ function initEditor() {
 			Placeholder.configure({
 				placeholder: 'Type "/" for commands, or start writing...',
 			}),
-			WikiCodeBlock.configure({
-				lowlight,
-			}),
+			CodeBlock,
 			// Custom extensions
 			CalloutBlock,
 			IframeBlock,

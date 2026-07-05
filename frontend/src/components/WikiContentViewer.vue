@@ -15,10 +15,9 @@ import {
 } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Editor, EditorContent } from '@tiptap/vue-3';
-import { common, createLowlight } from 'lowlight';
+import { CodeBlock } from 'frappe-ui/editor';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
-import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
@@ -35,7 +34,6 @@ const props = defineProps({
 	content: { type: String, default: '' },
 });
 
-const lowlight = createLowlight(common);
 const editor = ref(null);
 
 // Mirror of WikiEditor's blank-line preservation so spacing matches the editor.
@@ -67,7 +65,7 @@ onMounted(() => {
 			TableHeader,
 			TaskList,
 			TaskItem.configure({ nested: true }),
-			WikiCodeBlock.configure({ lowlight }),
+			CodeBlock,
 			CalloutBlock,
 			IframeBlock,
 			MermaidBlock,
