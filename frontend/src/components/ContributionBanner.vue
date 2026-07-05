@@ -283,7 +283,9 @@ async function onReloadLatest() {
 		await draftStore.reloadFromServer();
 	} catch (error) {
 		toast.error(
-			error.messages?.[0] || error.message || __('Could not reload from server'),
+			error.messages?.[0] ||
+				error.message ||
+				__('Could not reload from server'),
 		);
 	} finally {
 		reloading.value = false;

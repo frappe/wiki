@@ -8,14 +8,14 @@
  * equivalent in wiki/public/js/pdf-viewer.js.
  */
 
-import { onMounted, onUnmounted, ref } from 'vue';
-import VuePdfEmbed from 'vue-pdf-embed';
 import {
 	LucideDownload,
 	LucideMinus,
 	LucidePlus,
 	LucideX,
 } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref } from 'vue';
+import VuePdfEmbed from 'vue-pdf-embed';
 
 const props = defineProps({
 	src: {

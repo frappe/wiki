@@ -7,17 +7,22 @@
 <script setup>
 import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
-import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import {
+	Table,
+	TableCell,
+	TableHeader,
+	TableRow,
+} from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { common, createLowlight } from 'lowlight';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
+import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
-import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
+import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
@@ -84,7 +89,9 @@ watch(
 	() => props.content,
 	(content) => {
 		if (editor.value) {
-			editor.value.commands.setContent(content || '', { contentType: 'markdown' });
+			editor.value.commands.setContent(content || '', {
+				contentType: 'markdown',
+			});
 		}
 	},
 );

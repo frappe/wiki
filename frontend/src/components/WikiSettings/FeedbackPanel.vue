@@ -58,7 +58,7 @@ watch(
 );
 
 async function updateLimit() {
-	const val = Math.max(0, parseInt(submissionLimit.value, 10) || 0);
+	const val = Math.max(0, Number.parseInt(submissionLimit.value, 10) || 0);
 	submissionLimit.value = val;
 	if (val === props.settings.doc?.feedback_submission_limit) return;
 	updating.value = true;

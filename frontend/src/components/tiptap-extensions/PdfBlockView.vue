@@ -8,15 +8,15 @@
  * (loading / error) set by WikiEditor's insertAndUploadPdf.
  */
 
-import { computed, ref } from 'vue';
 import { NodeViewWrapper } from '@tiptap/vue-3';
-import VuePdfEmbed from 'vue-pdf-embed';
 import {
 	LucideDownload,
 	LucideFileText,
 	LucideMaximize2,
 	LucideTrash2,
 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import VuePdfEmbed from 'vue-pdf-embed';
 import PdfViewerModal from './PdfViewerModal.vue';
 
 const props = defineProps({

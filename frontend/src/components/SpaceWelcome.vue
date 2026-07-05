@@ -24,8 +24,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { getCachedDocumentResource, usePageMeta } from 'frappe-ui';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import LucideFileText from '~icons/lucide/file-text';
 import LucideLoader2 from '~icons/lucide/loader-2';

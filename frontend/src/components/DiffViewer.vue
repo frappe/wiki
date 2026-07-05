@@ -3,9 +3,9 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue';
-import { useStorage } from '@vueuse/core';
 import { FileDiff } from '@pierre/diffs';
+import { useStorage } from '@vueuse/core';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const THEMES = {
 	dark: 'github-dark',
@@ -13,7 +13,9 @@ const THEMES = {
 };
 
 const userTheme = useStorage('wiki-theme', 'dark');
-const themeType = computed(() => userTheme.value === 'dark' ? 'dark' : 'light');
+const themeType = computed(() =>
+	userTheme.value === 'dark' ? 'dark' : 'light',
+);
 
 const props = defineProps({
 	oldContent: {
@@ -42,7 +44,9 @@ const wrapper = ref(null);
 let diffInstance = null;
 
 function normalizeContent(content) {
-	const normalized = (content || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+	const normalized = (content || '')
+		.replace(/\r\n/g, '\n')
+		.replace(/\r/g, '\n');
 	if (!normalized) {
 		return '';
 	}
@@ -80,7 +84,14 @@ function renderDiff() {
 onMounted(renderDiff);
 
 watch(
-	() => [props.oldContent, props.newContent, props.fileName, props.language, props.diffStyle, themeType.value],
+	() => [
+		props.oldContent,
+		props.newContent,
+		props.fileName,
+		props.language,
+		props.diffStyle,
+		themeType.value,
+	],
 	() => {
 		renderDiff();
 	},

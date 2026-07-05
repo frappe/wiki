@@ -71,8 +71,14 @@
 </template>
 
 <script setup>
-import { Badge, Button, FeatherIcon, ListView, LoadingIndicator } from 'frappe-ui';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
+import {
+	Badge,
+	Button,
+	FeatherIcon,
+	ListView,
+	LoadingIndicator,
+} from 'frappe-ui';
 
 defineProps({
 	resource: { type: Object, required: true },
