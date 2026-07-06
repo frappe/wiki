@@ -145,11 +145,13 @@ class TestBrokenLinkStatusClassification(FrappeTestCase):
 	"""Regression tests for issue #575: valid third-party links flagged as broken.
 
 	Sites behind bot protection / auth walls answer with 401/403/405/429 to a bare
-	python-requests call. Only 404 and 5xx responses reliably mean a link is dead.
+	python-requests call. Only 404, 410, and 5xx responses reliably mean a link
+	is dead.
 	"""
 
-	def test_only_404_and_5xx_are_dead(self):
-		for code in (404, 500, 502, 503, 599):
+	def test_missing_and_server_error_codes_are_dead(self):
+		# 410 Gone is a permanent removal and must stay reported (issue #575 review).
+		for code in (404, 410, 500, 502, 503, 599):
 			self.assertTrue(is_dead_status(code), f"{code} should be dead")
 
 	def test_bot_protection_and_ok_codes_are_not_dead(self):
@@ -177,3 +179,28 @@ class TestBrokenLinkStatusClassification(FrappeTestCase):
 		with patch.object(wiki_broken_links.requests, "head", return_value=response) as mock_head:
 			wiki_broken_links.get_request_status_code("https://en.wikipedia.org/wiki/Incoterms")
 		self.assertEqual(mock_head.call_args.kwargs["headers"]["User-Agent"], BROWSER_USER_AGENT)
+
+	def test_head_falls_back_to_get_when_inconclusive(self):
+		# A HEAD blocked with 403/405 is retried with GET, which may succeed.
+		head = MagicMock(status_code=405)
+		get = MagicMock(status_code=200)
+		with (
+			patch.object(wiki_broken_links.requests, "head", return_value=head),
+			patch.object(wiki_broken_links.requests, "get", return_value=get) as mock_get,
+		):
+			status = wiki_broken_links.get_request_status_code("https://blocks-head.example")
+		mock_get.assert_called_once()
+		self.assertEqual(status, 200)
+
+	def test_dead_head_is_not_masked_by_bot_blocked_get(self):
+		# A definitively dead HEAD (404/410/5xx) must be trusted as-is; falling
+		# back to a bot-blocked GET (403) would otherwise hide the broken link.
+		head = MagicMock(status_code=404)
+		with (
+			patch.object(wiki_broken_links.requests, "head", return_value=head),
+			patch.object(wiki_broken_links.requests, "get") as mock_get,
+		):
+			status = wiki_broken_links.get_request_status_code("https://gone.example")
+		mock_get.assert_not_called()
+		self.assertEqual(status, 404)
+		self.assertTrue(is_dead_status(status))

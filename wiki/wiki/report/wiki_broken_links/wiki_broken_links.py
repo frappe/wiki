@@ -148,19 +148,21 @@ def is_broken_link(url: str) -> bool:
 
 
 def is_dead_status(status_code: int) -> bool:
-	# Only "Not Found" and server errors reliably mean a link is dead. Codes like
-	# 401/403/405/429 usually indicate auth walls or bot protection on pages that
-	# are otherwise valid, so they must not be treated as broken.
-	return status_code == 404 or 500 <= status_code <= 599
+	# 404 Not Found and 410 Gone mean the page is definitively missing, and 5xx
+	# means the server is failing. Codes like 401/403/405/429 usually indicate
+	# auth walls or bot protection on pages that are otherwise valid, so they
+	# must not be treated as broken.
+	return status_code in (404, 410) or 500 <= status_code <= 599
 
 
 def get_request_status_code(url: str) -> int:
 	headers = {"User-Agent": BROWSER_USER_AGENT}
-	# Try HEAD first (faster), fall back to GET if HEAD fails
-	# Many sites block HEAD requests or return 403/405
+	# Try HEAD first (faster). Many sites block HEAD or answer it with 403/405,
+	# so retry with GET only when HEAD was inconclusive. A HEAD that already
+	# reports the link dead (404/410/5xx) is trusted as-is, otherwise a
+	# bot-blocked GET could mask a genuinely broken link.
 	response = requests.head(url, headers=headers, verify=False, timeout=5, allow_redirects=True)
-	if response.status_code >= 400:
-		# HEAD failed, try GET request
+	if response.status_code >= 400 and not is_dead_status(response.status_code):
 		response = requests.get(
 			url, headers=headers, verify=False, timeout=5, allow_redirects=True, stream=True
 		)
