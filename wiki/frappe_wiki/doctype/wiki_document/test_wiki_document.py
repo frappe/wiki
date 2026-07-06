@@ -1968,13 +1968,47 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 		page.is_published = 0
 		page.save()
 
+		def index_row_count():
+			rows = search.sql(
+				"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+				(f"Wiki Document:{page.name}",),
+				read_only=True,
+			)
+			return rows[0]["c"]
+
+		# Removal is deferred until the transaction commits, so the row must
+		# survive a save that could still roll back.
+		self.assertEqual(index_row_count(), 1)
+
+		# Run the post-commit callbacks without committing (keeps test isolation).
+		frappe.db.after_commit.run()
+
 		# No queue processing in between: the index row must already be gone.
+		self.assertEqual(index_row_count(), 0)
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertNotIn(page.name, [r["name"] for r in result["results"]])
+
+	def test_unpublish_index_removal_discarded_on_rollback(self):
+		root = create_test_wiki_document(self, "Root RollbackDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Rollback Page", parent=root.name, content="rollbackterm_search"
+		)
+		create_test_wiki_space(self, "Rollback Space", "unpub-rollback-gate", root.name)
+
+		search = self._build_index()
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		# The save never commits: the page stays published in the database, so
+		# its index row must survive too.
+		frappe.db.rollback()
+
 		rows = search.sql(
 			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
 			(f"Wiki Document:{page.name}",),
 			read_only=True,
 		)
-		self.assertEqual(rows[0]["c"], 0)
-
-		result = wiki_search("unpubdoc_searchterm")
-		self.assertNotIn(page.name, [r["name"] for r in result["results"]])
+		self.assertEqual(rows[0]["c"], 1)
