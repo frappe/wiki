@@ -1912,7 +1912,10 @@ def _apply_merge_changes_only(
 		)
 		blob_contents = {blob["name"]: blob.get("content") or "" for blob in blobs}
 
-	# Content-only fast path: direct DB update, skip doc.save() validation
+	# Content-only fast path: direct DB update, skip doc.save() validation.
+	# Raw set_value skips the on_update hook that queues search re-indexing,
+	# so queue the touched documents explicitly.
+	content_updated_names = []
 	for doc_key in content_only_keys:
 		if doc_key not in key_to_name:
 			continue
@@ -1920,6 +1923,12 @@ def _apply_merge_changes_only(
 		content_blob = item.get("content_blob")
 		content = blob_contents.get(content_blob, "") if content_blob else ""
 		frappe.db.set_value("Wiki Document", key_to_name[doc_key], "content", content)
+		content_updated_names.append(key_to_name[doc_key])
+
+	if content_updated_names:
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
+
+		enqueue_reindex(content_updated_names)
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys

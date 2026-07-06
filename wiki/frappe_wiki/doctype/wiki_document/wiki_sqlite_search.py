@@ -87,3 +87,45 @@ class WikiSQLiteSearch(SQLiteSearch):
 		"""Get the root wiki space for a document"""
 		wiki_doc = frappe.get_doc("Wiki Document", docname)
 		return wiki_doc.get_root_group() or docname
+
+
+def enqueue_reindex(docnames: list[str]):
+	"""Queue Wiki Documents for search re-indexing.
+
+	Merge fast paths write content with raw ``frappe.db.set_value``, which
+	skips the framework's on_update hook that normally queues the re-index —
+	without this, the search index keeps serving the pre-merge content.
+	"""
+	search = WikiSQLiteSearch()
+	if not (search.is_search_enabled() and search.index_exists()):
+		return
+
+	try:
+		for docname in docnames:
+			search.add_to_queue(f"Wiki Document:{docname}")
+	except Exception:
+		frappe.log_error(
+			title="Wiki Search Reindex Queue Error",
+			message=f"Failed to queue Wiki Documents for re-indexing: {docnames}",
+		)
+
+
+def remove_doc_from_index(docname: str):
+	"""Remove a Wiki Document from the search index immediately.
+
+	The framework's index update path only *queues* a re-index (drained by a
+	5-minute scheduler job, 30 docs per run), so an unpublished page would keep
+	surfacing in search until the queue catches up. Unpublishing must take
+	effect right away, so we delete the row synchronously.
+	"""
+	search = WikiSQLiteSearch()
+	if not (search.is_search_enabled() and search.index_exists()):
+		return
+
+	try:
+		search.remove_doc("Wiki Document", docname)
+	except Exception:
+		frappe.log_error(
+			title="Wiki Search Index Removal Error",
+			message=f"Failed to remove Wiki Document {docname} from the search index",
+		)
