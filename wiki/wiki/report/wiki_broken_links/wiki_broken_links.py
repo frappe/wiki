@@ -127,23 +127,42 @@ def is_hash_link(url: str) -> bool:
 	return url.startswith("#")
 
 
+# Sent with every check so sites don't reject us as a bot. The default
+# python-requests User-Agent is widely blocked, which made valid third-party
+# links respond with 403/405/429 and get mis-flagged as broken.
+BROWSER_USER_AGENT = (
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+	"(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+
 def is_broken_link(url: str) -> bool:
 	try:
 		status_code = get_request_status_code(url)
-		if status_code >= 400:
-			return True
 	except Exception:
+		# Host unreachable (DNS failure, refused/reset connection, timeout):
+		# the link can't be loaded at all, so treat it as broken.
 		return True
 
-	return False
+	return is_dead_status(status_code)
+
+
+def is_dead_status(status_code: int) -> bool:
+	# Only "Not Found" and server errors reliably mean a link is dead. Codes like
+	# 401/403/405/429 usually indicate auth walls or bot protection on pages that
+	# are otherwise valid, so they must not be treated as broken.
+	return status_code == 404 or 500 <= status_code <= 599
 
 
 def get_request_status_code(url: str) -> int:
+	headers = {"User-Agent": BROWSER_USER_AGENT}
 	# Try HEAD first (faster), fall back to GET if HEAD fails
 	# Many sites block HEAD requests or return 403/405
-	response = requests.head(url, verify=False, timeout=5, allow_redirects=True)
+	response = requests.head(url, headers=headers, verify=False, timeout=5, allow_redirects=True)
 	if response.status_code >= 400:
 		# HEAD failed, try GET request
-		response = requests.get(url, verify=False, timeout=5, allow_redirects=True, stream=True)
+		response = requests.get(
+			url, headers=headers, verify=False, timeout=5, allow_redirects=True, stream=True
+		)
 		response.close()  # Close connection immediately, we only need status code
 	return response.status_code
