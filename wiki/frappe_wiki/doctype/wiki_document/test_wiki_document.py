@@ -1908,3 +1908,73 @@ class TestWikiTreeCache(WikiDocumentTestBase):
 		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
 		tree = get_public_wiki_tree(root.name)
 		self.assertEqual([n["title"] for n in tree], ["Reorder B", "Reorder A"])
+
+
+class TestSearchPublishGating(WikiDocumentTestBase):
+	"""
+	Search must mirror page-render visibility: no hits from unpublished
+	spaces, and unpublishing a page must drop it from results immediately
+	(not after the 5-minute index queue catches up).
+	"""
+
+	def _build_index(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+		return search
+
+	def test_search_hides_docs_in_unpublished_space(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		visible_root = create_test_wiki_document(self, "Root PubSpace", is_group=True)
+		create_test_wiki_space(self, "Published Space", "pub-space-gate", visible_root.name)
+		visible_page = create_test_wiki_document(
+			self, "Visible Page", parent=visible_root.name, content="spacegate_searchterm"
+		)
+
+		hidden_root = create_test_wiki_document(self, "Root UnpubSpace", is_group=True)
+		create_test_wiki_space(
+			self, "Unpublished Space", "unpub-space-gate", hidden_root.name, is_published=False
+		)
+		hidden_page = create_test_wiki_document(
+			self, "Hidden Page", parent=hidden_root.name, content="spacegate_searchterm"
+		)
+
+		self._build_index()
+
+		result = wiki_search("spacegate_searchterm")
+		result_names = [r["name"] for r in result["results"]]
+
+		self.assertIn(visible_page.name, result_names)
+		self.assertNotIn(hidden_page.name, result_names)
+
+	def test_unpublish_drops_doc_from_search_immediately(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		root = create_test_wiki_document(self, "Root UnpubDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Soon Unpublished", parent=root.name, content="unpubdoc_searchterm"
+		)
+		create_test_wiki_space(self, "UnpubDoc Space", "unpub-doc-gate", root.name)
+
+		search = self._build_index()
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertIn(page.name, [r["name"] for r in result["results"]])
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		# No queue processing in between: the index row must already be gone.
+		rows = search.sql(
+			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+			(f"Wiki Document:{page.name}",),
+			read_only=True,
+		)
+		self.assertEqual(rows[0]["c"], 0)
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertNotIn(page.name, [r["name"] for r in result["results"]])

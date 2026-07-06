@@ -739,6 +739,14 @@ def on_wiki_document_update(doc, method):
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
 	clear_wiki_tree_cache()
+	_drop_from_search_index_on_unpublish(doc)
+
+
+def _drop_from_search_index_on_unpublish(doc):
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_doc_from_index
+
+	if doc.has_value_changed("is_published") and not doc.is_published:
+		remove_doc_from_index(doc.name)
 
 
 def stamp_wiki_space(doc):
