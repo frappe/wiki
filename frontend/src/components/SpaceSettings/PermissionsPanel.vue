@@ -117,26 +117,17 @@
 		</p>
 
 		<!-- Accept contributions -->
-		<div
-			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
+		<SettingsRow
+			class="border-t border-outline-gray-1"
+			:title="__('Accept Contributions')"
+			:description="contributionsDescription"
 		>
-			<div class="mr-4 flex-1">
-				<p class="text-sm-medium text-ink-gray-9">
-					{{ __('Accept Contributions') }}
-				</p>
-				<p class="mt-0.5 text-xs text-ink-gray-5">
-					{{ __('Let readers propose edits via change requests. Users with write access can always edit.') }}
-				</p>
-				<p v-if="isGitSynced" class="mt-0.5 text-xs text-ink-gray-5">
-					{{ __('Synced spaces are read-only, so contributions are always off.') }}
-				</p>
-			</div>
 			<Switch
 				v-model="allowContributions"
 				:disabled="!canManageAccess || savingContributions || isGitSynced"
 				@update:modelValue="updateContributions"
 			/>
-		</div>
+		</SettingsRow>
 
 		<!-- Primary Save, below the message, aligned right -->
 		<div v-if="canManageAccess" class="flex justify-end">
@@ -159,6 +150,7 @@ import {
 	Button,
 	FormControl,
 	Select,
+	SettingsRow,
 	Switch,
 	createListResource,
 	createResource,
@@ -188,6 +180,15 @@ const allowContributions = ref(true);
 const savingContributions = ref(false);
 // Git-synced spaces are read-only; the toggle is moot and the server rejects it.
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
+
+const contributionsDescription = computed(() => {
+	const base = __(
+		'Let readers propose edits via change requests. Users with write access can always edit.',
+	);
+	return isGitSynced.value
+		? `${base} ${__('Synced spaces are read-only, so contributions are always off.')}`
+		: base;
+});
 
 // Inline (non-teleported) role picker state — see template note.
 const roleQuery = ref('');

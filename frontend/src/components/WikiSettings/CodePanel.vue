@@ -1,19 +1,13 @@
 <template>
-	<div class="flex flex-col gap-4">
-		<div class="flex flex-col gap-1.5">
-			<label class="text-sm-medium text-ink-gray-9">
-				{{ __('<head> HTML') }}
-			</label>
-			<p class="text-xs text-ink-gray-5">
-				{{ __('Injected into the <head> of all public wiki pages') }}
-			</p>
-			<textarea
-				v-model="headHtml"
-				rows="8"
-				spellcheck="false"
-				class="w-full rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3 font-mono text-xs text-ink-gray-9 focus:border-outline-gray-3 focus:outline-none"
-			/>
-		</div>
+	<div class="flex flex-col gap-6">
+		<Textarea
+			v-model="headHtml"
+			:label="__('<head> HTML')"
+			:description="__('Injected into the <head> of all public wiki pages')"
+			:rows="8"
+			spellcheck="false"
+			class="[&_textarea]:font-mono"
+		/>
 
 		<div class="flex items-center justify-end gap-2">
 			<Badge v-if="isDirty" theme="orange" size="sm">
@@ -32,7 +26,7 @@
 </template>
 
 <script setup>
-import { Badge, Button } from 'frappe-ui';
+import { Badge, Button, Textarea } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({

@@ -1,5 +1,5 @@
 <template>
-	<div class="flex flex-col gap-4">
+	<div class="divide-y divide-outline-gray-1">
 		<SettingToggle
 			:settings="settings"
 			fieldname="enable_table_of_contents"
