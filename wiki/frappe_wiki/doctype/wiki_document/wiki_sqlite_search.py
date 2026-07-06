@@ -89,6 +89,27 @@ class WikiSQLiteSearch(SQLiteSearch):
 		return wiki_doc.get_root_group() or docname
 
 
+def enqueue_reindex(docnames: list[str]):
+	"""Queue Wiki Documents for search re-indexing.
+
+	Merge fast paths write content with raw ``frappe.db.set_value``, which
+	skips the framework's on_update hook that normally queues the re-index —
+	without this, the search index keeps serving the pre-merge content.
+	"""
+	search = WikiSQLiteSearch()
+	if not (search.is_search_enabled() and search.index_exists()):
+		return
+
+	try:
+		for docname in docnames:
+			search.add_to_queue(f"Wiki Document:{docname}")
+	except Exception:
+		frappe.log_error(
+			title="Wiki Search Reindex Queue Error",
+			message=f"Failed to queue Wiki Documents for re-indexing: {docnames}",
+		)
+
+
 def remove_doc_from_index(docname: str):
 	"""Remove a Wiki Document from the search index immediately.
 
