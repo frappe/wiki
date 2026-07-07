@@ -154,11 +154,13 @@ import {
 	Dropdown,
 	FormControl,
 	createDocumentResource,
+	createResource,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
 import { computed, ref, shallowRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import LucideExternalLink from '~icons/lucide/external-link';
 import LucideMoreVertical from '~icons/lucide/more-vertical';
 import LucidePencil from '~icons/lucide/pencil';
@@ -192,9 +194,27 @@ const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 const showPageSettingsDialog = ref(false);
 
+const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+
+// Gate the "View history" entry point on contribute capability — history is an
+// editor tool, not a reader feature (mirrors the backend endpoint's gate).
+const canContribute = ref(false);
+const capabilitiesResource = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		canContribute.value = Boolean(data?.can_contribute);
+	},
+});
+watch(
+	() => props.spaceId,
+	(space) => {
+		if (space) capabilitiesResource.submit({ space });
+	},
+	{ immediate: true },
+);
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -440,6 +460,17 @@ const menuOptions = computed(() => {
 					},
 				},
 			];
+	if (canContribute.value && props.spaceId && wikiDoc.value.doc?.name) {
+		options.push({
+			label: __('View history'),
+			icon: 'clock',
+			onClick: () =>
+				router.push({
+					name: 'PageHistory',
+					params: { spaceId: props.spaceId, pageId: wikiDoc.value.doc.name },
+				}),
+		});
+	}
 	if (githubEditUrl.value) {
 		options.push({
 			label: __('Edit on GitHub'),
