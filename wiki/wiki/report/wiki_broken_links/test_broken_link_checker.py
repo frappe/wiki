@@ -137,6 +137,35 @@ class TestWikiBrokenLinkChecker(FrappeTestCase):
 		self.assertIn(BROKEN_EXTERNAL_URL, broken_links)
 		self.assertIn(BROKEN_INTERNAL_URL, broken_links)
 
+	def test_published_only_excludes_unpublished(self):
+		# self.test_wiki_document is unpublished (is_published defaults to 0)
+		_, data = execute({"published_only": 1})
+		doc_names = [d["wiki_document"] for d in data]
+		self.assertNotIn(self.test_wiki_document.name, doc_names)
+
+	def test_published_pages_still_reported(self):
+		published_doc = frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"content": TEST_MD_WITH_BROKEN_LINK,
+				"title": "Published Wiki Document",
+				"parent_wiki_document": self.root_group.name,
+				"is_published": 1,
+			}
+		).insert()
+
+		_, data = execute({"published_only": 1})
+		test_data = [d for d in data if d["wiki_document"] == published_doc.name]
+		self.assertEqual(len(test_data), 1)
+		self.assertEqual(test_data[0]["broken_link"], BROKEN_EXTERNAL_URL)
+
+	def test_published_only_disabled_includes_unpublished(self):
+		# Toggling the filter off must surface broken links on unpublished pages
+		_, data = execute({"published_only": 0})
+		test_data = [d for d in data if d["wiki_document"] == self.test_wiki_document.name]
+		self.assertEqual(len(test_data), 1)
+		self.assertEqual(test_data[0]["broken_link"], BROKEN_EXTERNAL_URL)
+
 	def tearDown(self):
 		frappe.db.rollback()
 
