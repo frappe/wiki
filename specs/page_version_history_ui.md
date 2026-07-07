@@ -1,10 +1,15 @@
 # Page Version History UI
 
 Date: 2026-07-07
-Status: **In progress.** Addresses issue [#622](https://github.com/frappe/wiki/issues/622) ("UI for Version History"). Backend revision *data model* already exists (v3); this spec adds the **read endpoints** and the **history browser UI** for a single page.
+Status: **Implemented.** Addresses issue [#622](https://github.com/frappe/wiki/issues/622) ("UI for Version History"). Backend revision *data model* already exists (v3); this spec adds the **read endpoints** and the **history browser UI** for a single page.
 
 ### Progress log
 - 2026-07-07 — Spec committed. Starting tracer-bullet slice 1 (list end-to-end).
+- 2026-07-07 — All slices shipped:
+  - Backend `wiki/frappe_wiki/doctype/wiki_revision/history.py` — `get_page_history` + `diff_page_revisions`, editor-gated on `can_contribute_to_space`. Timeline reconstructed from the time-ordered published snapshot set (never a `parent_revision` walk).
+  - Indexes: composite `wiki_space_published_history` on `Wiki Revision` (via `on_doctype_update`) and `search_index` on `Wiki Revision Item.doc_key`. `EXPLAIN` confirms the history query is index-covered (no filesort). **Gotcha:** `on_doctype_update` only runs when the doctype re-syncs, so `wiki_revision.json`'s `modified` was bumped to force the re-sync on migrate (existing sites won't create the index otherwise).
+  - Frontend: `PageHistory.vue` (master–detail, change-type badges, CR links, author avatars, relative time, split/unified diff toggle, empty/loading/error states), nested route `PageHistory`, and a contribute-gated "View history" kebab item in `WikiDocumentPanel.vue`.
+  - Tests: 7 backend unit tests (`test_wiki_revision.py`, incl. the concurrent-merge guard, verified by temp-revert) + 1 Playwright e2e (`e2e/tests/page-version-history.spec.ts`). All green.
 
 ## Goal
 
