@@ -50,6 +50,12 @@ const routes = [
 				props: true,
 			},
 			{
+				path: 'page/:pageId/history',
+				name: 'PageHistory',
+				component: () => import('@/components/PageHistory.vue'),
+				props: true,
+			},
+			{
 				path: 'draft/:docKey',
 				name: 'DraftChangeRequest',
 				component: () => import('@/components/DraftContributionPanel.vue'),

@@ -16,6 +16,19 @@ class WikiRevision(Document):
 	pass
 
 
+def on_doctype_update():
+	# The per-page history query filters published snapshots of a space and sorts
+	# them by time: WHERE wiki_space = X AND is_working = 0 AND is_overlay = 0
+	# ORDER BY created_at. The leftmost three columns are equality predicates and
+	# `created_at` covers both the range and the sort, so the whole query is
+	# index-served (no filesort). See history.py / the version-history spec.
+	frappe.db.add_index(
+		"Wiki Revision",
+		["wiki_space", "is_working", "is_overlay", "created_at"],
+		index_name="wiki_space_published_history",
+	)
+
+
 def create_revision_from_live_tree(
 	wiki_space: str,
 	message: str | None = None,
