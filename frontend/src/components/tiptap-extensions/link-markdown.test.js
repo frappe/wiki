@@ -45,13 +45,12 @@ function serialize(starterKit) {
 }
 
 // Pins the root cause: StarterKit's default Underline mark serializes to `++…++`,
-// which leaks onto pasted links as `++[text](url)++`. Documents *why* the shared
-// wikiStarterKit disables underline. See issue #667.
+// which leaks onto pasted links. Documents *why* the shared wikiStarterKit
+// disables underline. The exact nesting (`++[text](url)++` vs `[++text++](url)`)
+// has shifted across @tiptap/markdown releases, so only the corruption marker
+// is asserted. See issue #667.
 test('default StarterKit corrupts a pasted underlined link with ++', () => {
-	assert.equal(
-		serialize(StarterKit.configure({ link: false })),
-		'++[Frappe](https://frappe.io)++',
-	);
+	assert.match(serialize(StarterKit.configure({ link: false })), /\+\+/);
 });
 
 // Regression: WikiEditor.vue and WikiContentViewer.vue both build their

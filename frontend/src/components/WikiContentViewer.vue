@@ -1,6 +1,8 @@
 <template>
-	<div v-if="editor" class="wiki-editor-container">
-		<EditorContent :editor="editor" />
+	<div class="wiki-editor-container">
+		<!-- Typography comes from EditorContent's own `prose prose-v3` defaults;
+		     wiki-editor-content only hooks wiki-specific rules. -->
+		<EditorContent :editor="editor" class="wiki-editor-content" />
 	</div>
 </template>
 
@@ -13,10 +15,13 @@ import {
 	TableHeader,
 	TableRow,
 } from '@tiptap/extension-table';
-import { Markdown } from '@tiptap/markdown';
-import { Editor, EditorContent } from '@tiptap/vue-3';
-import { CodeBlock } from 'frappe-ui/editor';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+	CodeBlock,
+	EditorContent,
+	Markdown,
+	useEditor,
+} from 'frappe-ui/editor';
+import { ref, watch } from 'vue';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
@@ -34,8 +39,6 @@ const props = defineProps({
 	content: { type: String, default: '' },
 });
 
-const editor = ref(null);
-
 // Mirror of WikiEditor's blank-line preservation so spacing matches the editor.
 const PreserveBlankLines = Extension.create({
 	name: 'preserveBlankLines',
@@ -47,54 +50,41 @@ const PreserveBlankLines = Extension.create({
 	},
 });
 
-onMounted(() => {
-	editor.value = new Editor({
-		editable: false,
-		extensions: [
-			wikiStarterKit(),
-			WikiLink.configure({
-				openOnClick: true,
-				HTMLAttributes: { rel: 'noopener noreferrer' },
-			}),
-			Markdown.configure({ markedOptions: { breaks: true } }),
-			PreserveBlankLines,
-			WikiImage.configure({ inline: false, allowBase64: true }),
-			Table.configure({ resizable: false, renderWrapper: true }),
-			TableRow,
-			TableCell,
-			TableHeader,
-			TaskList,
-			TaskItem.configure({ nested: true }),
-			CodeBlock,
-			CalloutBlock,
-			IframeBlock,
-			MermaidBlock,
-			PdfBlock,
-			VideoBlock.configure({ uploadFunction: () => {} }),
-		],
-		content: props.content || '',
-		contentType: 'markdown',
-		editorProps: {
-			attributes: {
-				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content',
-			},
-		},
-	});
-});
-
+// Writable mirror of the prop — useEditor owns its content ref bidirectionally
+// and syncs the document when this changes.
+const content = ref(props.content || '');
 watch(
 	() => props.content,
-	(content) => {
-		if (editor.value) {
-			editor.value.commands.setContent(content || '', {
-				contentType: 'markdown',
-			});
-		}
+	(value) => {
+		content.value = value || '';
 	},
 );
 
-onBeforeUnmount(() => {
-	editor.value?.destroy();
+const editor = useEditor({
+	content,
+	format: 'markdown',
+	editable: false,
+	extensions: [
+		wikiStarterKit(),
+		WikiLink.configure({
+			openOnClick: true,
+			HTMLAttributes: { rel: 'noopener noreferrer' },
+		}),
+		Markdown.configure({ markedOptions: { breaks: true } }),
+		PreserveBlankLines,
+		WikiImage.configure({ inline: false, allowBase64: true }),
+		Table.configure({ resizable: false, renderWrapper: true }),
+		TableRow,
+		TableCell,
+		TableHeader,
+		TaskList,
+		TaskItem.configure({ nested: true }),
+		CodeBlock,
+		CalloutBlock,
+		IframeBlock,
+		MermaidBlock,
+		PdfBlock,
+		VideoBlock.configure({ uploadFunction: () => {} }),
+	],
 });
 </script>

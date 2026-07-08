@@ -8,10 +8,10 @@
  */
 
 import { Link } from '@tiptap/extension-link';
-import { Markdown } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Editor, EditorContent, NodeViewWrapper } from '@tiptap/vue-3';
 import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
+import { Markdown } from 'frappe-ui/editor';
 import {
 	computed,
 	nextTick,

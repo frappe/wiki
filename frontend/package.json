@@ -25,7 +25,7 @@
 		"@tiptap/vue-3": "^3.26.0",
 		"@vueuse/core": "^14.1.0",
 		"@vueuse/router": "^14.2.1",
-		"frappe-ui": "1.0.0-beta.20",
+		"frappe-ui": "frappe/frappe-ui#021ef6683168ccde476fb843e4f07b0deb63c16d",
 		"fuzzysort": "^3.1.0",
 		"idb-keyval": "^6.2.0",
 		"lucide-vue-next": "^0.468.0",

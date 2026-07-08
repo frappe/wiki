@@ -1,3 +1,8 @@
 @import "./assets/Inter/inter.css";
 @import "frappe-ui/style.css";
+/* Editor baseline (task lists, table wrapper, TOC node, resize cursor).
+   Imported explicitly: relying on frappe-ui/editor's side-effect import
+   lets rollup assign the CSS to whichever async chunk it likes, and editor
+   pages can end up without it. */
+@import "frappe-ui/editor-style.css";
 @import "./wiki-rendered.css";

@@ -1,8 +1,8 @@
 <template>
     <div class="wiki-editor-container">
-        <div v-if="editor">
+        <div>
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
-            <EditorContent :editor="editor" />
+            <EditorContent :editor="editor" :class="contentClass" />
             <!-- After EditorContent so the ProseMirror DOM is attached when the
                  bubble menu mounts; it derives its flip boundary from the editor's
                  scroll ancestor, which must be reachable at that point. -->
@@ -10,9 +10,6 @@
             <!-- Floating row/column/cell controls shown while the selection is
                  inside a table; replaces the old WikiTableDropdown actions. -->
             <EditorTableMenu v-if="!readonly" :editor="editor" />
-        </div>
-        <div v-else class="wiki-editor-loading">
-            Loading editor...
         </div>
 
         <!-- Hidden file input for slash command image upload -->
@@ -38,13 +35,26 @@ import {
 	TableRow,
 } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { Markdown } from '@tiptap/markdown';
-import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
-import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+	createApp,
+	h,
+	onBeforeUnmount,
+	onMounted,
+	onUnmounted,
+	ref,
+	shallowRef,
+	watch,
+} from 'vue';
 
-import { CodeBlock, EditorTableMenu } from 'frappe-ui/editor';
+import {
+	CodeBlock,
+	EditorContent,
+	EditorTableMenu,
+	Markdown,
+	useEditor,
+} from 'frappe-ui/editor';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
@@ -126,9 +136,6 @@ let autosaveTimer = null;
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
-
-// Editor instance
-const editor = ref(null);
 
 // Refs for file input and link popup
 const slashImageInput = ref(null);
@@ -577,80 +584,92 @@ function createSlashCommandsSuggestion() {
 	};
 }
 
-/**
- * Initialize the editor
- */
-function initEditor() {
-	editor.value = new Editor({
-		extensions: [
-			wikiStarterKit({ paragraph: false }),
-			WikiParagraph,
-			// Custom link extension with Cmd+K support
-			WikiLink.configure({
-				openOnClick: false,
-				HTMLAttributes: {
-					rel: 'noopener noreferrer',
-				},
-				onOpenLinkEditor: showLinkPopup,
-			}),
-			Markdown.configure({
-				markedOptions: {
-					breaks: true,
-				},
-			}),
-			PreserveBlankLines,
-			// Custom image extension with caption support
-			WikiImage.configure({
-				inline: false,
-				allowBase64: true,
-			}),
-			Table.configure({
-				resizable: true,
-				renderWrapper: true,
-			}),
-			TableRow,
-			TableCell,
-			TableHeader,
-			TaskList,
-			TaskItem.configure({
-				nested: true,
-			}),
-			Placeholder.configure({
-				placeholder: 'Type "/" for commands, or start writing...',
-			}),
-			CodeBlock,
-			// Custom extensions
-			CalloutBlock,
-			IframeBlock,
-			MermaidBlock,
-			PdfBlock,
-			VideoBlock.configure({
-				uploadFunction: uploadFile,
-			}),
-			// Slash commands
-			SlashCommands.configure({
-				suggestion: createSlashCommandsSuggestion(),
-			}),
-		],
-		content: props.content || '',
-		contentType: 'markdown',
-		editable: !props.readonly,
-		editorProps: {
-			handlePaste,
-			handleDrop,
-			attributes: {
-				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content' +
-					(props.readonly ? '' : ' is-editable'),
-			},
-		},
-		onUpdate: () => {
-			handleContentChange();
-		},
-	});
+// Final flush of unsaved work. Registered before useEditor() on purpose:
+// both hook onBeforeUnmount, they run in registration order, and useEditor's
+// hook destroys the editor — this one must read it while it's still alive.
+onBeforeUnmount(() => {
+	if (autosaveTimer) {
+		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
+	}
+	emitContentChange({ persistImmediately: true });
+});
 
-	emitContentReady();
-}
+// Seeds the editor and receives serialized markdown on every update; the
+// save flow reads normalized markdown from the editor directly instead.
+const editorContent = shallowRef(props.content || '');
+
+const editor = useEditor({
+	content: editorContent,
+	format: 'markdown',
+	editable: () => !props.readonly,
+	extensions: [
+		wikiStarterKit({ paragraph: false }),
+		WikiParagraph,
+		// Custom link extension with Cmd+K support
+		WikiLink.configure({
+			openOnClick: false,
+			HTMLAttributes: {
+				rel: 'noopener noreferrer',
+			},
+			onOpenLinkEditor: showLinkPopup,
+		}),
+		Markdown.configure({
+			markedOptions: {
+				breaks: true,
+			},
+		}),
+		PreserveBlankLines,
+		// Custom image extension with caption support
+		WikiImage.configure({
+			inline: false,
+			allowBase64: true,
+		}),
+		Table.configure({
+			resizable: true,
+			renderWrapper: true,
+		}),
+		TableRow,
+		TableCell,
+		TableHeader,
+		TaskList,
+		TaskItem.configure({
+			nested: true,
+		}),
+		Placeholder.configure({
+			placeholder: 'Type "/" for commands, or start writing...',
+		}),
+		CodeBlock,
+		// Custom extensions
+		CalloutBlock,
+		IframeBlock,
+		MermaidBlock,
+		PdfBlock,
+		VideoBlock.configure({
+			uploadFunction: uploadFile,
+		}),
+		// Slash commands
+		SlashCommands.configure({
+			suggestion: createSlashCommandsSuggestion(),
+		}),
+	],
+	onUpdate: handleContentChange,
+});
+
+// useEditor doesn't take editorProps; set them on the created instance.
+editor.value.setOptions({
+	editorProps: {
+		handlePaste,
+		handleDrop,
+	},
+});
+
+// Typography comes from EditorContent's own `prose prose-v3` defaults; these
+// classes only hook wiki-specific rules in wiki-editor-content.css.
+const contentClass = [
+	'wiki-editor-content',
+	props.readonly ? '' : 'is-editable',
+];
 
 function normalizeMarkdown(content) {
 	const markdown = content ?? '';
@@ -774,7 +793,7 @@ onKeyStroke('s', (e) => {
 });
 
 onMounted(() => {
-	initEditor();
+	emitContentReady();
 	// Expose editor on window for E2E testing
 	window.wikiEditor = editor.value;
 	// Listen for slash command image upload events
@@ -797,14 +816,6 @@ onUnmounted(() => {
 	hideLinkPopup();
 	// Clean up window reference
 	delete window.wikiEditor;
-
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-	}
-	emitContentChange({ persistImmediately: true });
-	if (editor.value) {
-		editor.value.destroy();
-	}
 });
 </script>
 
