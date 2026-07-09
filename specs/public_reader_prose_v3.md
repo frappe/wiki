@@ -40,3 +40,4 @@ Out of scope: hljs theme parity (frappe-ui's code-block CSS is scoped to `.Prose
 ## Progress log
 
 - 2026-07-09: Spec written after researching frappe-ui docs wiring (`tailwind.config.js` preset + safelist) and the reader pipeline.
+- 2026-07-09: Implemented ✅. Generator emits 793 lines of real `.prose`/`.prose-v3` rules; main.css hand-written typography (~130 lines) deleted; `@tailwindcss/typography` v4 plugin + root devDep dropped. One reader-specific addition beyond the plan: server markdown renders task lists as `ul.contains-task-list` (not the editor's `ul[data-type=taskList]`), so a small main.css rule hides the list markers to match. Verified: public page light + dark screenshots (headings/lists/inline-code pill/blockquote/tables/task lists all match the editor), public-pages + TOC + mermaid-public e2e green.

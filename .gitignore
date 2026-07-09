@@ -16,6 +16,7 @@ wiki/public/frontend/
 wiki/www/wiki.html
 wiki/public/css/tailwind.css
 wiki/public/css/frappe-ui-tokens.css
+wiki/public/css/frappe-ui-prose.css
 playwright-report/
 test-results/
 e2e/.auth/

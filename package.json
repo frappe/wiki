@@ -9,14 +9,13 @@
   "devDependencies": {
     "@biomejs/biome": "1.4.1",
     "@playwright/test": "^1.49.0",
-    "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.0.0"
   },
   "scripts": {
     "postinstall": "cd frontend && yarn install",
     "dev": "cd frontend && yarn dev",
     "build": "yarn tailwind:build && cd frontend && yarn build",
-    "theme:generate": "node scripts/generate-public-theme.mjs",
+    "theme:generate": "node scripts/generate-public-theme.mjs && node scripts/generate-public-prose.mjs",
     "tailwind:watch": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css --watch",
     "tailwind:build": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css",
     "test:e2e": "playwright test",

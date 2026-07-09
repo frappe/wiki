@@ -78,7 +78,8 @@
 
 
         <!-- Page Content -->
-        <div class="prose prose-sm max-w-none scroll-smooth" id="wiki-content">
+        <!-- prose prose-v3 mirrors the SPA editor's EditorContent defaults -->
+        <div class="prose prose-v3 max-w-none scroll-smooth" id="wiki-content">
             {{ rendered_content | safe }}
         </div>
 

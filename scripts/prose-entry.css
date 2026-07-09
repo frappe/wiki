@@ -1,0 +1,3 @@
+/* Entry for generate-public-prose.mjs: only the components layer, where
+   @tailwindcss/typography registers the prose classes. */
+@tailwind components;
