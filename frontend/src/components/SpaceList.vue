@@ -128,9 +128,16 @@
                     {{ __('View') }}
                   </Button>
                 </div>
-                <span v-else class="truncate" :title="row[col.key]">{{
-                  row[col.key]
-                }}</span>
+                <!-- Cells don't inherit an ink color from the List family, so an
+                     explicit token is required or the text goes black in dark mode.
+                     Primary column gets gray-9, the rest gray-7 (ListView convention). -->
+                <span
+                  v-else
+                  class="truncate"
+                  :class="col.key === 'space_name' ? 'text-ink-gray-9' : 'text-ink-gray-7'"
+                  :title="row[col.key]"
+                  >{{ row[col.key] }}</span
+                >
               </ListCell>
             </ListRow>
           </ListRows>
