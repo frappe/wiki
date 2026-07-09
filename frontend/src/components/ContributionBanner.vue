@@ -58,7 +58,7 @@
 			</template>
 
 			<template v-else-if="changeRequestStatus === 'Approved'">
-				<span class="text-sm-medium text-green-700">
+				<span class="text-sm-medium text-ink-green-7">
 					{{ __('Approved! Ready to merge.') }}
 				</span>
 				<Button
@@ -116,7 +116,7 @@
 								{{ getChangeDescription(change.change_type, change.is_group, change.is_external_link) }}
 							</p>
 							<p v-if="change.is_external_link && change.external_url" class="text-sm text-ink-gray-5 mt-0.5 truncate">
-								<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+								<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-ink-blue-link hover:underline">
 									{{ change.external_url }}
 								</a>
 							</p>
@@ -372,37 +372,37 @@ const menuOptions = computed(() => {
 
 const BANNER_CONFIG = {
 	Draft: {
-		class: 'bg-gray-50 border-b border-gray-200 text-gray-800',
+		class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
 		icon: LucideGitBranch,
 		title: __('Change Request Draft'),
 		description: __('Your changes are saved as a draft change request'),
 	},
 	'In Review': {
-		class: 'bg-amber-50 border-b border-amber-200 text-amber-800',
+		class: 'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
 		icon: LucideClock,
 		title: __('In Review'),
 		description: __('Your change request is being reviewed'),
 	},
 	'Changes Requested': {
-		class: 'bg-red-50 border-b border-red-200 text-red-800',
+		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
 		icon: LucideXCircle,
 		title: __('Changes Requested'),
 		description: __('Please review the feedback and update your changes'),
 	},
 	Approved: {
-		class: 'bg-green-50 border-b border-green-200 text-green-800',
+		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: LucideCheckCircle,
 		title: __('Approved'),
 		description: __('Approved and ready to merge'),
 	},
 	Merged: {
-		class: 'bg-green-50 border-b border-green-200 text-green-800',
+		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: LucideCheckCircle,
 		title: __('Merged'),
 		description: __('Your changes have been merged'),
 	},
 	Rejected: {
-		class: 'bg-red-50 border-b border-red-200 text-red-800',
+		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
 		icon: LucideXCircle,
 		title: __('Rejected'),
 		description: __('This change request was rejected and will not be merged'),
@@ -410,7 +410,7 @@ const BANNER_CONFIG = {
 };
 
 const DEFAULT_BANNER = {
-	class: 'bg-gray-50 border-b border-gray-200 text-gray-800',
+	class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
 	icon: LucideAlertCircle,
 	title: __('Change Request'),
 	description: '',

@@ -62,7 +62,7 @@
 					>
 						<span class="flex items-center gap-2">
 							{{ __('Save') }}
-							<kbd class="inline-flex items-center gap-1 rounded bg-white/25 px-1.5 py-0.5 text-[11px] font-medium opacity-80">
+							<kbd class="inline-flex items-center gap-1 rounded bg-white-overlay-200 px-1.5 py-0.5 text-[11px] font-medium opacity-80">
 								<span class="text-sm">{{ isMac ? '⌘' : 'Ctrl+' }}</span><span>S</span>
 							</kbd>
 						</span>

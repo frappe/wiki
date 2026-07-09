@@ -79,16 +79,16 @@
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
-				class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg"
+				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-lg"
 			>
 				<div class="flex items-start gap-3">
-					<LucideAlertTriangle class="size-5 text-amber-500 shrink-0 mt-0.5" />
+					<LucideAlertTriangle class="size-5 text-ink-amber-6 shrink-0 mt-0.5" />
 					<div>
-						<p class="font-medium text-amber-800">{{ __('Merge Conflicts') }}</p>
-						<p class="text-sm text-amber-700 mt-1">
+						<p class="font-medium text-ink-amber-8">{{ __('Merge Conflicts') }}</p>
+						<p class="text-sm text-ink-amber-7 mt-1">
 							{{ __('The following documents have conflicting changes. Choose which version to keep for each conflict.') }}
 						</p>
-						<p class="text-sm-medium text-amber-600 mt-2">
+						<p class="text-sm-medium text-ink-amber-6 mt-2">
 							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
 						</p>
 					</div>
@@ -107,14 +107,14 @@
 							v-for="conflict in conflicts"
 							:key="conflict.name"
 							class="border border-outline-gray-2 rounded-lg overflow-hidden"
-							:class="{ 'border-amber-300': !resolutions[conflict.name] }"
+							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
 							<div
 								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-amber-100 text-amber-600">
+									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-6">
 										<LucideAlertTriangle class="size-4" />
 									</div>
 									<div>
@@ -210,7 +210,7 @@
 											{{ getChangeDescription(change.change_type, change.is_group, change.is_external_link) }}
 										</p>
 										<p v-if="change.is_external_link && change.external_url" class="text-sm text-ink-gray-5 mt-0.5">
-											<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+											<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-ink-blue-link hover:underline">
 												{{ change.external_url }}
 											</a>
 										</p>
@@ -270,7 +270,7 @@
 										>
 											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
+													<span class="text-xs-medium text-ink-gray-5">{{ __('Current') }}</span>
 													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
 												</header>
 												<div class="px-4 py-4">
@@ -282,7 +282,7 @@
 											</section>
 											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
+													<span class="text-xs-medium text-ink-gray-5">{{ __('Proposed') }}</span>
 												</header>
 												<div class="px-4 py-4">
 													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />

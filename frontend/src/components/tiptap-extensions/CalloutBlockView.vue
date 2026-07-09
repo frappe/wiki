@@ -402,7 +402,7 @@ const dropdownOptions = computed(() => [
             </template>
             <div v-else class="callout-content-text text-ink-gray-7">
                 <span v-if="node.attrs.content" v-html="renderedContent"></span>
-                <span v-else class="text-gray-400">Double-click to edit...</span>
+                <span v-else class="text-ink-gray-4">Double-click to edit...</span>
             </div>
         </div>
 
@@ -416,7 +416,7 @@ const dropdownOptions = computed(() => [
                         placeholder="Leave empty for default title"
                         @keydown.enter="saveTitle"
                     />
-                    <p class="text-sm text-gray-500">
+                    <p class="text-sm text-ink-gray-5">
                         Default title: {{ defaultTitles[normalizedType] }}
                     </p>
                 </div>
