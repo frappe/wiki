@@ -63,7 +63,7 @@
 							<span
 								v-if="isUploadingImage"
 								class="lucide-loader-2 h-5 w-5 animate-spin" aria-hidden="true" />
-							<spanPlus v-else class="lucide-image h-5 w-5" aria-hidden="true" />
+							<span v-else class="lucide-image-plus h-5 w-5" aria-hidden="true" />
 							<span>{{ isUploadingImage ? __('Uploading...') : __('Upload image') }}</span>
 						</button>
 						<p class="text-xs text-ink-gray-4">

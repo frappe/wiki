@@ -129,7 +129,7 @@
                             class="flex items-center gap-1.5 text-xs hover:text-ink-gray-7 hover:bg-surface-gray-2 px-2 py-1 rounded transition-colors"
                             @click="emit('create', element.doc_key, true)"
                         >
-                            <spanPlus class="lucide-folder size-3.5" aria-hidden="true" />
+                            <span class="lucide-folder-plus size-3.5" aria-hidden="true" />
                             <span>{{ __('Add Group') }}</span>
                         </button>
                     </div>
