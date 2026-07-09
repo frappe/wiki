@@ -70,58 +70,71 @@
         </div>
       </div>
 
+      <!-- The List family owns geometry only; empty states are app-authored. -->
+      <div
+        v-else-if="!(spaces.data || []).length"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <p class="text-lg-medium text-ink-gray-7">
+          {{ searchQuery ? __('No spaces found') : __('No Wiki Spaces') }}
+        </p>
+        <p class="mt-1 max-w-sm text-p-sm text-ink-gray-5">
+          {{
+            searchQuery
+              ? __('No wiki spaces matched your search')
+              : isManager
+                ? __('Create your first wiki space to get started')
+                : __('No wiki spaces available')
+          }}
+        </p>
+        <Button
+          v-if="isManager && !searchQuery"
+          class="mt-4"
+          variant="solid"
+          :label="__('New Space')"
+          @click="showCreateDialog = true"
+        />
+      </div>
+
       <!-- Tables stay tables on mobile and scroll horizontally (CRM pattern):
            the min-width keeps columns readable instead of compressing to mush. -->
       <div v-else class="min-w-[600px] sm:min-w-0">
-      <ListView
-        :columns="columns"
-        :rows="spaces.data || []"
-        :options="{
-          selectable: false,
-          showTooltip: true,
-          resizeColumn: false,
-          getRowRoute: (row) => ({ name: 'SpaceDetails', params: { spaceId: row.name } }),
-          emptyState: searchQuery
-            ? {
-                title: __('No spaces found'),
-                description: __('No wiki spaces matched your search'),
-              }
-            : {
-                title: __('No Wiki Spaces'),
-                description: isManager ? __('Create your first wiki space to get started') : __('No wiki spaces available'),
-                button: isManager ? {
-                  label: __('New Space'),
-                  variant: 'solid',
-                  onClick: () => (showCreateDialog = true),
-                } : undefined,
-              },
-        }"
-        row-key="name"
-      >
-        <template #cell="{ item, column, row }">
-          <Badge
-            v-if="column.key === 'is_published'"
-            variant="subtle"
-            :theme="item ? 'green' : 'orange'"
-            size="sm"
-            :label="item ? __('Published') : __('Unpublished')"
-          />
-          <div v-else-if="column.key === 'view'" class="flex items-center">
-            <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
-                 from following the row href, so .prevent is required too. -->
-            <Button
-              v-if="row.is_published"
-              variant="ghost"
-              size="sm"
-              icon-left="external-link"
-              @click.stop.prevent="viewSpace(row)"
-            >
-              {{ __('View') }}
-            </Button>
-          </div>
-          <span v-else>{{ item }}</span>
-        </template>
-      </ListView>
+        <List :columns="tracks">
+          <ListHeader>
+            <ListHeaderCell v-for="col in columns" :key="col.key">
+              {{ col.label }}
+            </ListHeaderCell>
+          </ListHeader>
+          <ListRows :items="spaces.data || []" row-key="name" v-slot="{ item: row }">
+            <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
+              <ListCell v-for="col in columns" :key="col.key">
+                <Badge
+                  v-if="col.key === 'is_published'"
+                  variant="subtle"
+                  :theme="row.is_published ? 'green' : 'orange'"
+                  size="sm"
+                  :label="row.is_published ? __('Published') : __('Unpublished')"
+                />
+                <div v-else-if="col.key === 'view'" class="flex items-center">
+                  <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
+                       from following the row href, so .prevent is required too. -->
+                  <Button
+                    v-if="row.is_published"
+                    variant="ghost"
+                    size="sm"
+                    icon-left="external-link"
+                    @click.stop.prevent="viewSpace(row)"
+                  >
+                    {{ __('View') }}
+                  </Button>
+                </div>
+                <span v-else class="truncate" :title="row[col.key]">{{
+                  row[col.key]
+                }}</span>
+              </ListCell>
+            </ListRow>
+          </ListRows>
+        </List>
       </div>
 
       <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
@@ -292,13 +305,20 @@ import {
 	Dialog,
 	ErrorMessage,
 	FormControl,
-	ListView,
 	PageHeader,
 	PageHeaderMobile,
 	createListResource,
 	createResource,
 	toast,
 } from 'frappe-ui';
+import {
+	List,
+	ListCell,
+	ListHeader,
+	ListHeaderCell,
+	ListRow,
+	ListRows,
+} from 'frappe-ui/list';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideGithub from '~icons/lucide/github';
@@ -582,6 +602,11 @@ const columns = [
 		align: 'left',
 	},
 ];
+
+// Numeric width = fr weight, translated into the List grid template.
+const tracks = columns.map((col) =>
+	typeof col.width === 'number' ? `minmax(0,${col.width}fr)` : col.width,
+);
 
 // Open the space's public-facing reader. The reader lives at the site root
 // (`/<route>`), outside the `/wiki` editor SPA, so it can't go through the

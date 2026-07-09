@@ -5,4 +5,6 @@
    lets rollup assign the CSS to whichever async chunk it likes, and editor
    pages can end up without it. */
 @import "frappe-ui/editor-style.css";
+/* List family structural styles — same explicit-import rationale as above. */
+@import "frappe-ui/list-style.css";
 @import "./wiki-rendered.css";
