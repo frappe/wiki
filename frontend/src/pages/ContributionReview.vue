@@ -59,7 +59,7 @@
 
 					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
 						<Button variant="ghost" :title="__('More actions')">
-							<LucideMoreVertical class="size-4" />
+							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</template>
@@ -82,7 +82,7 @@
 				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-lg"
 			>
 				<div class="flex items-start gap-3">
-					<LucideAlertTriangle class="size-5 text-ink-amber-6 shrink-0 mt-0.5" />
+					<span class="lucide-alert-triangle size-5 text-ink-amber-6 shrink-0 mt-0.5" aria-hidden="true" />
 					<div>
 						<p class="font-medium text-ink-amber-8">{{ __('Merge Conflicts') }}</p>
 						<p class="text-sm text-ink-amber-7 mt-1">
@@ -115,7 +115,7 @@
 							>
 								<div class="flex items-center gap-3">
 									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-6">
-										<LucideAlertTriangle class="size-4" />
+										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
@@ -136,10 +136,9 @@
 										</div>
 									</div>
 								</div>
-								<LucideChevronDown
-									class="size-5 text-ink-gray-4 transition-transform"
-									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }"
-								/>
+								<span
+									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
+									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }" aria-hidden="true" />
 							</div>
 
 							<div v-if="expandedConflicts.has(conflict.name)" class="border-t border-outline-gray-2">
@@ -195,7 +194,7 @@
 										class="flex items-center justify-center size-8 rounded-full shrink-0"
 										:class="getChangeIconClass(change.change_type)"
 									>
-										<component :is="getChangeIcon(change.change_type)" class="size-4" />
+										<span :class="getChangeIcon(change.change_type)" class="size-4" aria-hidden="true" />
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
@@ -216,10 +215,9 @@
 										</p>
 									</div>
 								</div>
-								<LucideChevronDown
-									class="size-5 text-ink-gray-4 transition-transform"
-									:class="{ 'rotate-180': expandedChanges.has(change.doc_key) }"
-								/>
+								<span
+									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
+									:class="{ 'rotate-180': expandedChanges.has(change.doc_key) }" aria-hidden="true" />
 							</div>
 
 							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
@@ -233,7 +231,7 @@
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
 											</Badge>
 										</div>
-										<LucideArrowRight class="size-4 text-ink-gray-4 shrink-0" />
+										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
 										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
 											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
@@ -440,10 +438,6 @@ import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
-import LucideArrowRight from '~icons/lucide/arrow-right';
-import LucideChevronDown from '~icons/lucide/chevron-down';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
 
 const {
 	getChangeIcon,

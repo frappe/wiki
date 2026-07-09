@@ -35,10 +35,9 @@
 							<div
 								class="absolute inset-0 flex items-center justify-center gap-2 bg-black-overlay-400 opacity-0 transition-opacity group-hover:opacity-100"
 							>
-								<LucideLoader2
+								<span
 									v-if="isUploadingImage"
-									class="h-5 w-5 animate-spin text-white"
-								/>
+									class="lucide-loader-2 h-5 w-5 animate-spin text-white" aria-hidden="true" />
 								<template v-else>
 									<Button size="sm" variant="solid" @click="pickImage">
 										{{ __('Replace') }}
@@ -61,11 +60,10 @@
 							:disabled="isUploadingImage"
 							@click="pickImage"
 						>
-							<LucideLoader2
+							<span
 								v-if="isUploadingImage"
-								class="h-5 w-5 animate-spin"
-							/>
-							<LucideImagePlus v-else class="h-5 w-5" />
+								class="lucide-loader-2 h-5 w-5 animate-spin" aria-hidden="true" />
+							<spanPlus v-else class="lucide-image h-5 w-5" aria-hidden="true" />
 							<span>{{ isUploadingImage ? __('Uploading...') : __('Upload image') }}</span>
 						</button>
 						<p class="text-xs text-ink-gray-4">
@@ -94,7 +92,7 @@
 								alt=""
 								class="h-full w-full object-cover"
 							/>
-							<LucideImage v-else class="h-7 w-7 text-ink-gray-3" />
+							<span v-else class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" />
 						</div>
 						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
 							<span class="truncate text-xs text-ink-gray-4">
@@ -138,9 +136,6 @@
 <script setup>
 import { Button, Dialog, FormControl, toast, useFileUpload } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
-import LucideImage from '~icons/lucide/image';
-import LucideImagePlus from '~icons/lucide/image-plus';
-import LucideLoader2 from '~icons/lucide/loader-2';
 
 const props = defineProps({
 	// The document resource from createDocumentResource({ doctype: 'Wiki

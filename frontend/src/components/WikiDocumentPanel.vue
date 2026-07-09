@@ -27,7 +27,7 @@
 							@click="openRouteDialog"
 						>
 							<span class="font-mono truncate">/{{ displayRoute }}</span>
-							<LucidePencil class="size-3 shrink-0 opacity-0 group-hover/route:opacity-100" />
+							<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 						</div>
 						<div class="flex items-center gap-2 mt-1">
 							<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
@@ -50,7 +50,7 @@
 						@click="openPage"
 					>
 						<template #prefix>
-							<LucideExternalLink class="size-4" />
+							<span class="lucide-external-link size-4" aria-hidden="true" />
 						</template>
 						{{ __('View Page') }}
 					</Button>
@@ -69,7 +69,7 @@
 					</Button>
 					<Dropdown :options="menuOptions">
 						<Button variant="outline" :title="__('More actions')">
-							<LucideMoreVertical class="size-4" />
+							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</div>
@@ -159,9 +159,6 @@ import {
 	usePageMeta,
 } from 'frappe-ui';
 import { computed, ref, shallowRef, watch } from 'vue';
-import LucideExternalLink from '~icons/lucide/external-link';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucidePencil from '~icons/lucide/pencil';
 import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 

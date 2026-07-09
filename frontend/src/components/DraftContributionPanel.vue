@@ -17,7 +17,7 @@
 							@click="openRouteDialog"
 						>
 							<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
-							<LucidePencil class="size-3 shrink-0 opacity-0 group-hover/route:opacity-100" />
+							<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 						</div>
 						<div class="flex items-center gap-2 mt-1">
 							<Badge variant="subtle" theme="blue" size="sm">
@@ -37,13 +37,13 @@
 						@click="saveFromHeader"
 					>
 						<template #prefix>
-							<LucideSave class="size-4" />
+							<span class="lucide-save size-4" aria-hidden="true" />
 						</template>
 						{{ __('Save') }}
 					</Button>
 					<Dropdown :options="menuOptions">
 						<Button variant="outline">
-							<LucideMoreVertical class="size-4" />
+							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</div>
@@ -55,7 +55,7 @@
 
 			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
 				<div class="text-center">
-					<LucideFolder class="size-12 mx-auto mb-4 text-ink-gray-4" />
+					<span class="lucide-folder size-12 mx-auto mb-4 text-ink-gray-4" aria-hidden="true" />
 					<p>{{ __('This is a draft group.') }}</p>
 					<p class="text-sm">{{ __('Groups organize pages but have no content.') }}</p>
 				</div>
@@ -87,7 +87,7 @@
 
 		<div v-else class="h-full flex items-center justify-center text-ink-gray-5">
 			<div class="text-center">
-				<LucideAlertCircle class="size-12 mx-auto mb-4 text-ink-gray-4" />
+				<span class="lucide-alert-circle size-12 mx-auto mb-4 text-ink-gray-4" aria-hidden="true" />
 				<p>{{ __('Draft not found') }}</p>
 			</div>
 		</div>
@@ -131,11 +131,6 @@ import {
 } from 'frappe-ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideFolder from '~icons/lucide/folder';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideSave from '~icons/lucide/save';
 import WikiEditor from './WikiEditor.vue';
 
 const props = defineProps({

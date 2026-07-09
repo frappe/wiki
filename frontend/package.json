@@ -28,7 +28,6 @@
 		"frappe-ui": "frappe/frappe-ui#021ef6683168ccde476fb843e4f07b0deb63c16d",
 		"fuzzysort": "^3.1.0",
 		"idb-keyval": "^6.2.0",
-		"lucide-vue-next": "^0.468.0",
 		"pdfjs-dist": "4.10.38",
 		"pinia": "^3.0.4",
 		"socket.io-client": "^4.7.2",

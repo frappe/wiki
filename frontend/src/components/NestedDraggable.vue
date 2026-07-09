@@ -29,7 +29,7 @@
                             class="drag-handle p-0.5 hover:bg-surface-gray-3 rounded cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
                             @click.stop
                         >
-                            <LucideGripVertical class="size-4 text-ink-gray-4" />
+                            <span class="lucide-grip-vertical size-4 text-ink-gray-4" aria-hidden="true" />
                         </button>
 
                         <button
@@ -37,16 +37,15 @@
                             class="p-0.5 hover:bg-surface-gray-3 rounded"
                             @click.stop="toggleExpanded(element.doc_key)"
                         >
-                            <LucideChevronRight 
-                                class="size-4 text-ink-gray-5 transition-transform duration-200" 
-                                :class="{ 'rotate-90': isExpanded(element.doc_key) }"
-                            />
+                            <span 
+                                class="lucide-chevron-right size-4 text-ink-gray-5 transition-transform duration-200" 
+                                :class="{ 'rotate-90': isExpanded(element.doc_key) }" aria-hidden="true" />
                         </button>
                         <div v-else class="w-4" />
 
-                        <LucideFolder v-if="element.is_group" class="size-4 text-ink-gray-5 flex-shrink-0" />
-                        <LucideLink v-else-if="element.is_external_link" class="size-4 text-ink-gray-5 flex-shrink-0" />
-                        <LucideFileText v-else class="size-4 text-ink-gray-5 flex-shrink-0" />
+                        <span v-if="element.is_group" class="lucide-folder size-4 text-ink-gray-5 flex-shrink-0" aria-hidden="true" />
+                        <span v-else-if="element.is_external_link" class="lucide-link size-4 text-ink-gray-5 flex-shrink-0" aria-hidden="true" />
+                        <span v-else class="lucide-file-text size-4 text-ink-gray-5 flex-shrink-0" aria-hidden="true" />
 
                         <div class="flex flex-col flex-1 min-w-0">
                             <span class="text-sm truncate" :class="getTitleClass(element)">
@@ -86,7 +85,7 @@
                     <div v-if="!readonly" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity" @click.stop>
                         <Dropdown :options="getDropdownOptions(element)">
                             <Button variant="ghost" size="sm">
-                                <LucideMoreHorizontal class="size-4" />
+                                <span class="lucide-more-horizontal size-4" aria-hidden="true" />
                             </Button>
                         </Dropdown>
                     </div>
@@ -123,14 +122,14 @@
                             class="flex items-center gap-1.5 text-xs hover:text-ink-gray-7 hover:bg-surface-gray-2 px-2 py-1 rounded transition-colors"
                             @click="emit('create', element.doc_key, false)"
                         >
-                            <LucideFilePlus class="size-3.5" />
+                            <span class="lucide-file-plus size-3.5" aria-hidden="true" />
                             <span>{{ __('Add Page') }}</span>
                         </button>
                         <button
                             class="flex items-center gap-1.5 text-xs hover:text-ink-gray-7 hover:bg-surface-gray-2 px-2 py-1 rounded transition-colors"
                             @click="emit('create', element.doc_key, true)"
                         >
-                            <LucideFolderPlus class="size-3.5" />
+                            <spanPlus class="lucide-folder size-3.5" aria-hidden="true" />
                             <span>{{ __('Add Group') }}</span>
                         </button>
                     </div>
@@ -148,14 +147,6 @@ import { Badge, Button, Dropdown, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
-import LucideChevronRight from '~icons/lucide/chevron-right';
-import LucideFilePlus from '~icons/lucide/file-plus';
-import LucideFileText from '~icons/lucide/file-text';
-import LucideFolder from '~icons/lucide/folder';
-import LucideFolderPlus from '~icons/lucide/folder-plus';
-import LucideGripVertical from '~icons/lucide/grip-vertical';
-import LucideLink from '~icons/lucide/link';
-import LucideMoreHorizontal from '~icons/lucide/more-horizontal';
 
 defineOptions({
 	name: 'NestedDraggable',

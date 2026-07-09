@@ -1,7 +1,5 @@
 import { useStorage } from '@vueuse/core';
 import { computed } from 'vue';
-import LucideMoon from '~icons/lucide/moon';
-import LucideSun from '~icons/lucide/sun';
 
 // Module-level so desktop Sidebar and mobile top nav share one theme value.
 const userTheme = useStorage('wiki-theme', 'dark');
@@ -12,7 +10,7 @@ function applyTheme(theme) {
 
 export function useTheme() {
 	const themeIcon = computed(() =>
-		userTheme.value === 'dark' ? LucideSun : LucideMoon,
+		userTheme.value === 'dark' ? 'lucide-sun' : 'lucide-moon',
 	);
 
 	function toggleTheme() {

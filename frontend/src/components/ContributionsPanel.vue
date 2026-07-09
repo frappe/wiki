@@ -56,7 +56,7 @@
 										class="flex items-center gap-1.5 text-sm text-ink-gray-5"
 										:title="formatDateTime(row.modified)"
 									>
-										<LucideClock class="size-3.5 shrink-0 text-ink-gray-4" />
+										<span class="lucide-clock size-3.5 shrink-0 text-ink-gray-4" aria-hidden="true" />
 										<span class="truncate">{{ formatDate(row.modified) }}</span>
 									</div>
 									<div
@@ -110,7 +110,6 @@ import {
 	ListRows,
 } from 'frappe-ui/list';
 import { computed } from 'vue';
-import LucideClock from '~icons/lucide/clock';
 
 const props = defineProps({
 	resource: { type: Object, required: true },

@@ -33,10 +33,6 @@ import { useUserStore } from '@/stores/user';
 import { useStorage } from '@vueuse/core';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import LucideGitBranch from '~icons/lucide/git-branch';
-import LucideLogOut from '~icons/lucide/log-out';
-import LucideRocket from '~icons/lucide/rocket';
-import LucideSettings from '~icons/lucide/settings';
 import { useTheme } from '../composables/useTheme';
 import { useWikiSettings } from '../composables/useWikiSettings';
 
@@ -55,20 +51,20 @@ const headerMenuItems = computed(() => [
 		? [
 				{
 					label: __('Settings'),
-					icon: LucideSettings,
+					icon: 'lucide-settings',
 					onClick: () => openWikiSettings(),
 				},
 			]
 		: []),
 	{ label: __('Toggle Theme'), icon: themeIcon.value, onClick: toggleTheme },
-	{ label: __('Log out'), icon: LucideLogOut, onClick: logout },
+	{ label: __('Log out'), icon: 'lucide-log-out', onClick: logout },
 ]);
 
 const navItems = [
-	{ label: __('Spaces'), icon: LucideRocket, to: { name: 'SpaceList' } },
+	{ label: __('Spaces'), icon: 'lucide-rocket', to: { name: 'SpaceList' } },
 	{
 		label: __('Change Requests'),
-		icon: LucideGitBranch,
+		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
 	},
 ];

@@ -9,12 +9,6 @@
  */
 
 import { NodeViewWrapper } from '@tiptap/vue-3';
-import {
-	LucideDownload,
-	LucideFileText,
-	LucideMaximize2,
-	LucideTrash2,
-} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import VuePdfEmbed from 'vue-pdf-embed';
 import PdfViewerModal from './PdfViewerModal.vue';
@@ -79,7 +73,7 @@ function closeViewer() {
 		<!-- Loading state -->
 		<div v-if="loading" class="wiki-pdf-card is-loading">
 			<div class="wiki-pdf-header">
-				<LucideFileText class="wiki-pdf-icon" :size="18" />
+				<span class="lucide-file-text size-[18px] wiki-pdf-icon" aria-hidden="true" />
 				<span class="wiki-pdf-name">{{ filename }}</span>
 			</div>
 			<div class="wiki-pdf-loading-body">
@@ -91,7 +85,7 @@ function closeViewer() {
 		<!-- Error state -->
 		<div v-else-if="error" class="wiki-pdf-card is-error">
 			<div class="wiki-pdf-header">
-				<LucideFileText class="wiki-pdf-icon" :size="18" />
+				<span class="lucide-file-text size-[18px] wiki-pdf-icon" aria-hidden="true" />
 				<span class="wiki-pdf-name">{{ filename }}</span>
 				<button
 					v-if="editor.isEditable"
@@ -100,7 +94,7 @@ function closeViewer() {
 					title="Remove"
 					@click="deleteNode"
 				>
-					<LucideTrash2 :size="16" />
+					<span class="lucide-trash-2 size-4" aria-hidden="true" />
 				</button>
 			</div>
 			<div class="wiki-pdf-error-body">Upload failed: {{ error }}</div>
@@ -109,7 +103,7 @@ function closeViewer() {
 		<!-- Loaded state -->
 		<div v-else class="wiki-pdf-card">
 			<div class="wiki-pdf-header">
-				<LucideFileText class="wiki-pdf-icon" :size="18" />
+				<span class="lucide-file-text size-[18px] wiki-pdf-icon" aria-hidden="true" />
 				<span class="wiki-pdf-name">{{ filename }}</span>
 				<span v-if="pageCount" class="wiki-pdf-pages"
 					>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span
@@ -121,7 +115,7 @@ function closeViewer() {
 						title="Open viewer"
 						@click="openViewer"
 					>
-						<LucideMaximize2 :size="16" />
+						<span class="lucide-maximize-2 size-4" aria-hidden="true" />
 					</button>
 					<a
 						:href="src"
@@ -131,7 +125,7 @@ function closeViewer() {
 						class="wiki-pdf-action"
 						title="Download"
 					>
-						<LucideDownload :size="16" />
+						<span class="lucide-download size-4" aria-hidden="true" />
 					</a>
 					<button
 						v-if="editor.isEditable"
@@ -140,7 +134,7 @@ function closeViewer() {
 						title="Remove"
 						@click="deleteNode"
 					>
-						<LucideTrash2 :size="16" />
+						<span class="lucide-trash-2 size-4" aria-hidden="true" />
 					</button>
 				</div>
 			</div>
@@ -154,7 +148,7 @@ function closeViewer() {
 					@rendering-failed="onThumbError"
 				/>
 				<div v-if="thumbError" class="wiki-pdf-thumb-fallback">
-					<LucideFileText :size="40" />
+					<span class="lucide-file-text size-10" aria-hidden="true" />
 					<span>Preview unavailable</span>
 				</div>
 			</div>

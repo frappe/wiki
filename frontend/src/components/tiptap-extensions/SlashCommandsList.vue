@@ -8,7 +8,7 @@
             @mouseenter="selectedIndex = index"
         >
             <div class="slash-command-icon">
-                <component :is="getIcon(item.icon)" :size="18" :stroke-width="1.5" />
+                <span :class="getIcon(item.icon)" class="size-[18px]" aria-hidden="true" />
             </div>
             <div class="slash-command-content">
                 <div class="slash-command-title">{{ item.title }}</div>
@@ -20,28 +20,6 @@
 </template>
 
 <script setup>
-import {
-	AlertOctagon,
-	AlertTriangle,
-	AppWindow,
-	Code,
-	FileText,
-	Heading1,
-	Heading2,
-	Heading3,
-	HelpCircle,
-	Image,
-	Info,
-	Lightbulb,
-	List,
-	ListChecks,
-	ListOrdered,
-	Minus,
-	Network,
-	Quote,
-	Table,
-	Video,
-} from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -57,31 +35,33 @@ const props = defineProps({
 
 const selectedIndex = ref(0);
 
-// Icon mapping
+// Command icon slug -> lucide CSS class (rendered as a masked span; see the
+// frappe-ui icon convention). Slugs that predate lucide renames map to the
+// current names (alert-triangle -> triangle-alert, etc.).
 const iconMap = {
-	'heading-1': Heading1,
-	'heading-2': Heading2,
-	'heading-3': Heading3,
-	list: List,
-	'list-ordered': ListOrdered,
-	'list-checks': ListChecks,
-	code: Code,
-	mermaid: Network,
-	quote: Quote,
-	minus: Minus,
-	table: Table,
-	image: Image,
-	video: Video,
-	'file-text': FileText,
-	embed: AppWindow,
-	info: Info,
-	lightbulb: Lightbulb,
-	'alert-triangle': AlertTriangle,
-	'alert-octagon': AlertOctagon,
+	'heading-1': 'lucide-heading-1',
+	'heading-2': 'lucide-heading-2',
+	'heading-3': 'lucide-heading-3',
+	list: 'lucide-list',
+	'list-ordered': 'lucide-list-ordered',
+	'list-checks': 'lucide-list-checks',
+	code: 'lucide-code',
+	mermaid: 'lucide-network',
+	quote: 'lucide-quote',
+	minus: 'lucide-minus',
+	table: 'lucide-table',
+	image: 'lucide-image',
+	video: 'lucide-video',
+	'file-text': 'lucide-file-text',
+	embed: 'lucide-app-window',
+	info: 'lucide-info',
+	lightbulb: 'lucide-lightbulb',
+	'alert-triangle': 'lucide-triangle-alert',
+	'alert-octagon': 'lucide-octagon-alert',
 };
 
 function getIcon(iconName) {
-	return iconMap[iconName] || HelpCircle;
+	return iconMap[iconName] || 'lucide-circle-help';
 }
 
 function selectItem(index) {

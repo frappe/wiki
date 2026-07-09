@@ -8,12 +8,6 @@
  * equivalent in wiki/public/js/pdf-viewer.js.
  */
 
-import {
-	LucideDownload,
-	LucideMinus,
-	LucidePlus,
-	LucideX,
-} from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref } from 'vue';
 import VuePdfEmbed from 'vue-pdf-embed';
 
@@ -71,7 +65,7 @@ onUnmounted(() => {
 						title="Zoom out"
 						@click="zoomOut"
 					>
-						<LucideMinus :size="16" />
+						<span class="lucide-minus size-4" aria-hidden="true" />
 					</button>
 					<span class="wiki-pdf-modal-zoom">{{ Math.round(scale * 100) }}%</span>
 					<button
@@ -80,7 +74,7 @@ onUnmounted(() => {
 						title="Zoom in"
 						@click="zoomIn"
 					>
-						<LucidePlus :size="16" />
+						<span class="lucide-plus size-4" aria-hidden="true" />
 					</button>
 					<a
 						:href="src"
@@ -90,7 +84,7 @@ onUnmounted(() => {
 						class="wiki-pdf-modal-btn"
 						title="Download"
 					>
-						<LucideDownload :size="16" />
+						<span class="lucide-download size-4" aria-hidden="true" />
 					</a>
 					<button
 						type="button"
@@ -98,7 +92,7 @@ onUnmounted(() => {
 						title="Close (Esc)"
 						@click="emit('close')"
 					>
-						<LucideX :size="16" />
+						<span class="lucide-x size-4" aria-hidden="true" />
 					</button>
 				</div>
 			</div>

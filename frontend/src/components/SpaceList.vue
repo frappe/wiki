@@ -27,7 +27,7 @@
           :placeholder="__('Search spaces...')"
         >
           <template #prefix>
-            <LucideSearch class="h-4 w-4 text-ink-gray-4" />
+            <span class="lucide-search h-4 w-4 text-ink-gray-4" aria-hidden="true" />
           </template>
         </FormControl>
         <Button
@@ -36,7 +36,7 @@
           @click="showCreateDialog = true"
         >
           <template #prefix>
-            <LucidePlus class="h-4 w-4" />
+            <span class="lucide-plus h-4 w-4" aria-hidden="true" />
           </template>
           {{ __('New Space') }}
         </Button>
@@ -50,7 +50,7 @@
       :placeholder="__('Search spaces...')"
     >
       <template #prefix>
-        <LucideSearch class="h-4 w-4 text-ink-gray-4" />
+        <span class="lucide-search h-4 w-4 text-ink-gray-4" aria-hidden="true" />
       </template>
     </FormControl>
 
@@ -190,7 +190,7 @@
               v-if="githubConnected.loading || installationsResource.loading"
               class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
             >
-              <LucideLoader2 class="h-4 w-4 animate-spin text-ink-gray-5" />
+              <span class="lucide-loader-2 h-4 w-4 animate-spin text-ink-gray-5" aria-hidden="true" />
               <span class="text-p-sm text-ink-gray-6">{{ __('Connecting to GitHub…') }}</span>
             </div>
 
@@ -205,7 +205,7 @@
                 </p>
                 <Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
                   <template #prefix>
-                    <LucideGithub class="h-4 w-4" />
+                    <span class="lucide-github h-4 w-4" aria-hidden="true" />
                   </template>
                   {{ __('Connect GitHub') }}
                 </Button>
@@ -222,7 +222,7 @@
                 </p>
                 <Button variant="subtle" :loading="installationsResource.loading" @click="installApp">
                   <template #prefix>
-                    <LucideGithub class="h-4 w-4" />
+                    <span class="lucide-github h-4 w-4" aria-hidden="true" />
                   </template>
                   {{ __('Install GitHub App') }}
                 </Button>
@@ -247,7 +247,7 @@
                   v-if="reposInitialLoading"
                   class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
                 >
-                  <LucideLoader2 class="h-4 w-4 animate-spin text-ink-gray-5" />
+                  <span class="lucide-loader-2 h-4 w-4 animate-spin text-ink-gray-5" aria-hidden="true" />
                   <span class="text-p-sm text-ink-gray-6">{{ __('Loading repositories…') }}</span>
                 </div>
 
@@ -321,10 +321,6 @@ import {
 } from 'frappe-ui/list';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import LucideGithub from '~icons/lucide/github';
-import LucideLoader2 from '~icons/lucide/loader-2';
-import LucidePlus from '~icons/lucide/plus';
-import LucideSearch from '~icons/lucide/search';
 
 const router = useRouter();
 const userStore = useUserStore();

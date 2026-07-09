@@ -13,7 +13,6 @@ function nextMermaidInstanceId() {
 <script setup>
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { useStorage, watchDebounced } from '@vueuse/core';
-import { CircleHelp, Network, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { getMermaid, getMermaidThemeConfig } from './mermaid-loader.js';
 
@@ -149,7 +148,7 @@ onMounted(renderPreview);
 	>
 		<div class="mermaid-block-header">
 			<span class="mermaid-block-title">
-				<Network class="mermaid-block-title-icon" />
+				<span class="lucide-network mermaid-block-title-icon" aria-hidden="true" />
 				Mermaid diagram
 			</span>
 			<div class="mermaid-block-actions">
@@ -160,7 +159,7 @@ onMounted(renderPreview);
 					rel="noopener noreferrer"
 					title="Learn about Mermaid"
 				>
-					<CircleHelp class="mermaid-block-action-icon" />
+					<span class="lucide-circle-help mermaid-block-action-icon" aria-hidden="true" />
 				</a>
 				<button
 					type="button"
@@ -168,7 +167,7 @@ onMounted(renderPreview);
 					title="Remove diagram"
 					@click="deleteNode()"
 				>
-					<Trash2 class="mermaid-block-action-icon" />
+					<span class="lucide-trash-2 mermaid-block-action-icon" aria-hidden="true" />
 				</button>
 			</div>
 		</div>

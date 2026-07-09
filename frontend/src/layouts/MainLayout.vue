@@ -13,10 +13,9 @@
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
-								<LucideRocket
-									class="size-6"
-									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'"
-								/>
+								<span
+									class="lucide-rocket size-6"
+									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
 							</template>
 						</MobileNavItem>
 						<MobileNavItem
@@ -25,10 +24,9 @@
 							:active="route.name === 'ChangeRequests'"
 						>
 							<template #default="{ active }">
-								<LucideGitBranch
-									class="size-6"
-									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'"
-								/>
+								<span
+									class="lucide-git-branch size-6"
+									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
 							</template>
 						</MobileNavItem>
 					</MobileNav>
@@ -83,8 +81,6 @@ import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
 import { computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import LucideGitBranch from '~icons/lucide/git-branch';
-import LucideRocket from '~icons/lucide/rocket';
 import Sidebar from '../components/Sidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
 import { useMobile } from '../composables/useMobile';

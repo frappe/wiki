@@ -65,7 +65,7 @@
                     @click="mobileTreeOpen = true"
                 >
                     <template #icon>
-                        <LucidePanelLeft class="size-4" />
+                        <span class="lucide-panel-left size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -77,7 +77,7 @@
                 class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
             >
                 <div class="flex items-center gap-3 min-w-0">
-                    <LucideGithub class="size-5 shrink-0 text-ink-gray-7" />
+                    <span class="lucide-github size-5 shrink-0 text-ink-gray-7" aria-hidden="true" />
                     <div class="min-w-0">
                         <a
                             v-if="space.doc?.repo_full_name"
@@ -101,7 +101,7 @@
                 </div>
                 <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
                     <template #prefix>
-                        <LucideRefreshCw class="size-4" />
+                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
                     </template>
                     {{ __('Sync now') }}
                 </Button>
@@ -213,9 +213,6 @@ import {
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import LucideGithub from '~icons/lucide/github';
-import LucidePanelLeft from '~icons/lucide/panel-left';
-import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';

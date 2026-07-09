@@ -31,9 +31,8 @@
         @keydown.enter.prevent="selectHighlighted"
         @keydown.esc.prevent="close"
       />
-      <LucideChevronDown
-        class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-gray-4"
-      />
+      <span
+        class="lucide-chevron-down pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-gray-4" aria-hidden="true" />
 
       <!-- Teleported to <body> so the list isn't clipped by the dialog's
            `overflow-hidden` / transformed panel. The dialog sets
@@ -87,7 +86,6 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import LucideChevronDown from '~icons/lucide/chevron-down';
 
 const props = defineProps({
 	modelValue: { type: [String, Number], default: '' },

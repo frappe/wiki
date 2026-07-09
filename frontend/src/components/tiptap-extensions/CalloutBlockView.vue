@@ -20,15 +20,6 @@ import {
 	ref,
 	shallowRef,
 } from 'vue';
-import LucideCheck from '~icons/lucide/check';
-import LucideInfo from '~icons/lucide/info';
-import LucideLightbulb from '~icons/lucide/lightbulb';
-import LucideLink from '~icons/lucide/link';
-import LucideMoreHorizontal from '~icons/lucide/more-horizontal';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideShieldAlert from '~icons/lucide/shield-alert';
-import LucideTriangleAlert from '~icons/lucide/triangle-alert';
-import LucideX from '~icons/lucide/x';
 
 const props = defineProps({
 	node: {
@@ -294,7 +285,7 @@ function changeType(newType) {
 const dropdownOptions = computed(() => [
 	{
 		label: 'Edit Title',
-		icon: LucidePencil,
+		icon: 'lucide-pencil',
 		onClick: openTitleDialog,
 	},
 	{
@@ -308,22 +299,22 @@ const dropdownOptions = computed(() => [
 		items: [
 			{
 				label: 'Note',
-				icon: LucideInfo,
+				icon: 'lucide-info',
 				onClick: () => changeType('note'),
 			},
 			{
 				label: 'Tip',
-				icon: LucideLightbulb,
+				icon: 'lucide-lightbulb',
 				onClick: () => changeType('tip'),
 			},
 			{
 				label: 'Caution',
-				icon: LucideTriangleAlert,
+				icon: 'lucide-triangle-alert',
 				onClick: () => changeType('caution'),
 			},
 			{
 				label: 'Danger',
-				icon: LucideShieldAlert,
+				icon: 'lucide-shield-alert',
 				onClick: () => changeType('danger'),
 			},
 		],
@@ -343,7 +334,7 @@ const dropdownOptions = computed(() => [
             <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
             <Dropdown :options="dropdownOptions" placement="bottom-end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
-                    <LucideMoreHorizontal class="size-3.5" />
+                    <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
                 </Button>
             </Dropdown>
         </div>
@@ -373,7 +364,7 @@ const dropdownOptions = computed(() => [
                         :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('link') }"
                         title="Link"
                     >
-                        <LucideLink class="size-3.5" />
+                        <span class="lucide-link size-3.5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -390,10 +381,10 @@ const dropdownOptions = computed(() => [
                         @keydown.escape.stop="cancelLink"
                     />
                     <button @mousedown.prevent="confirmLink" class="toolbar-btn" title="Apply">
-                        <LucideCheck class="size-3.5" />
+                        <span class="lucide-check size-3.5" aria-hidden="true" />
                     </button>
                     <button @mousedown.prevent="cancelLink" class="toolbar-btn" title="Cancel">
-                        <LucideX class="size-3.5" />
+                        <span class="lucide-x size-3.5" aria-hidden="true" />
                     </button>
                 </div>
 

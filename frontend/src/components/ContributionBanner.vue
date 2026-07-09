@@ -5,7 +5,7 @@
 		:class="bannerClass"
 	>
 		<div class="flex items-center gap-3 min-w-0">
-			<component :is="bannerIcon" class="size-5 shrink-0" />
+			<span :class="bannerIcon" class="size-5 shrink-0" aria-hidden="true" />
 			<div class="min-w-0">
 				<p class="text-sm-medium">{{ bannerTitle }}</p>
 				<p class="text-xs opacity-80">{{ bannerDescription }}</p>
@@ -75,7 +75,7 @@
 
 			<Dropdown v-if="menuOptions.length > 0" :options="menuOptions">
 				<Button variant="outline" size="sm" :title="__('More actions')">
-					<LucideMoreVertical class="size-4" />
+					<span class="lucide-more-vertical size-4" aria-hidden="true" />
 				</Button>
 			</Dropdown>
 		</div>
@@ -83,7 +83,7 @@
 		<Dialog v-model:open="showChangesDialog" size="lg">
 			<template #title>
 				<div class="flex items-center gap-2">
-					<LucideGitBranch class="size-5 text-ink-gray-5" />
+					<span class="lucide-git-branch size-5 text-ink-gray-5" aria-hidden="true" />
 					<h3 class="text-2xl-semibold text-ink-gray-9">
 						{{ __('Pending Changes') }}
 					</h3>
@@ -100,7 +100,7 @@
 							class="flex items-center justify-center size-8 rounded-full shrink-0"
 							:class="getChangeIconClass(change.change_type)"
 						>
-							<component :is="getChangeIcon(change.change_type)" class="size-4" />
+							<span :class="getChangeIcon(change.change_type)" class="size-4" aria-hidden="true" />
 						</div>
 
 						<div class="flex-1 min-w-0">
@@ -123,9 +123,9 @@
 						</div>
 
 						<div class="flex items-center gap-1 text-ink-gray-4 shrink-0">
-							<LucideFolder v-if="change.is_group" class="size-4" />
-							<LucideLink v-else-if="change.is_external_link" class="size-4" />
-							<LucideFileText v-else class="size-4" />
+							<span v-if="change.is_group" class="lucide-folder size-4" aria-hidden="true" />
+							<span v-else-if="change.is_external_link" class="lucide-link size-4" aria-hidden="true" />
+							<span v-else class="lucide-file-text size-4" aria-hidden="true" />
 						</div>
 					</div>
 
@@ -144,7 +144,7 @@
 		<Dialog v-model:open="showSubmitConfirmDialog" size="sm">
 			<template #title>
 				<div class="flex items-center gap-2">
-					<LucideGitBranch class="size-5 text-ink-gray-5" />
+					<span class="lucide-git-branch size-5 text-ink-gray-5" aria-hidden="true" />
 					<h3 class="text-2xl-semibold text-ink-gray-9">
 						{{ __('Submit for Review') }}
 					</h3>
@@ -181,15 +181,6 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
 import { computed, ref } from 'vue';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideCheckCircle from '~icons/lucide/check-circle';
-import LucideClock from '~icons/lucide/clock';
-import LucideFileText from '~icons/lucide/file-text';
-import LucideFolder from '~icons/lucide/folder';
-import LucideGitBranch from '~icons/lucide/git-branch';
-import LucideLink from '~icons/lucide/link';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucideXCircle from '~icons/lucide/x-circle';
 
 const {
 	getChangeIcon,
@@ -373,37 +364,37 @@ const menuOptions = computed(() => {
 const BANNER_CONFIG = {
 	Draft: {
 		class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
-		icon: LucideGitBranch,
+		icon: 'lucide-git-branch',
 		title: __('Change Request Draft'),
 		description: __('Your changes are saved as a draft change request'),
 	},
 	'In Review': {
 		class: 'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
-		icon: LucideClock,
+		icon: 'lucide-clock',
 		title: __('In Review'),
 		description: __('Your change request is being reviewed'),
 	},
 	'Changes Requested': {
 		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
-		icon: LucideXCircle,
+		icon: 'lucide-x-circle',
 		title: __('Changes Requested'),
 		description: __('Please review the feedback and update your changes'),
 	},
 	Approved: {
 		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
-		icon: LucideCheckCircle,
+		icon: 'lucide-check-circle',
 		title: __('Approved'),
 		description: __('Approved and ready to merge'),
 	},
 	Merged: {
 		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
-		icon: LucideCheckCircle,
+		icon: 'lucide-check-circle',
 		title: __('Merged'),
 		description: __('Your changes have been merged'),
 	},
 	Rejected: {
 		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
-		icon: LucideXCircle,
+		icon: 'lucide-x-circle',
 		title: __('Rejected'),
 		description: __('This change request was rejected and will not be merged'),
 	},
@@ -411,7 +402,7 @@ const BANNER_CONFIG = {
 
 const DEFAULT_BANNER = {
 	class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
-	icon: LucideAlertCircle,
+	icon: 'lucide-alert-circle',
 	title: __('Change Request'),
 	description: '',
 };

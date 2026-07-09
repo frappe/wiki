@@ -4,11 +4,11 @@
 			<FormControl v-if="treeData.children && treeData.children.length > 0" class="flex-1" type="text"
 				v-model="searchQuery" :placeholder="__('Search pages...')" @keydown.esc="searchQuery = ''">
 				<template #prefix>
-					<LucideSearch class="size-4 text-ink-gray-4" />
+					<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
 				</template>
 				<template v-if="searchQuery" #suffix>
 					<button class="flex" :title="__('Clear search')" @click="searchQuery = ''">
-						<LucideX class="size-4 text-ink-gray-5 hover:text-ink-gray-7" />
+						<span class="lucide-x size-4 text-ink-gray-5 hover:text-ink-gray-7" aria-hidden="true" />
 					</button>
 				</template>
 			</FormControl>
@@ -17,7 +17,7 @@
 				<Button :title="__('New Page')" icon="file-plus" variant="subtle" @click="openCreateDialog(rootNode, false)" />
 				<Button :title="__('External Link')" variant="subtle" @click="openExternalLinkDialog(rootNode)">
 					<template #icon>
-						<LucideLink class="size-4" />
+						<span class="lucide-link size-4" aria-hidden="true" />
 					</template>
 				</Button>
 			</div>
@@ -25,20 +25,20 @@
 
 		<div v-if="isSearching && !hasResults"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
-			<LucideSearch class="size-12 text-ink-gray-4 mb-4" />
+			<span class="lucide-search size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
 			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
 			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
 		</div>
 
 		<div v-else-if="!treeData.children || treeData.children.length === 0"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
-			<LucideFileText class="size-12 text-ink-gray-4 mb-4" />
+			<span class="lucide-file-text size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
 			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
 			<template v-if="!readonly">
 				<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
 				<Button variant="solid" @click="openCreateDialog(rootNode, false)">
 					<template #prefix>
-						<LucideFilePlus class="size-4" />
+						<span class="lucide-file-plus size-4" aria-hidden="true" />
 					</template>
 					{{ __('Create First Page') }}
 				</Button>
@@ -106,7 +106,7 @@
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-lg p-4">
 						<div class="flex items-start gap-3">
-							<LucideAlertTriangle class="size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" />
+							<span class="lucide-alert-triangle size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
 							<div>
 								<p class="font-medium text-ink-orange-4">{{ __('Warning') }}</p>
 								<p class="text-sm text-ink-orange-3 mt-1">
@@ -210,12 +210,6 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
-import LucideFilePlus from '~icons/lucide/file-plus';
-import LucideFileText from '~icons/lucide/file-text';
-import LucideLink from '~icons/lucide/link';
-import LucideSearch from '~icons/lucide/search';
-import LucideX from '~icons/lucide/x';
 import NestedDraggable from './NestedDraggable.vue';
 
 const props = defineProps({
