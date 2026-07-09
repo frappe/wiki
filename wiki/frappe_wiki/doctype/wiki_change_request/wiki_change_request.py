@@ -1912,7 +1912,10 @@ def _apply_merge_changes_only(
 		)
 		blob_contents = {blob["name"]: blob.get("content") or "" for blob in blobs}
 
-	# Content-only fast path: direct DB update, skip doc.save() validation
+	# Content-only fast path: direct DB update, skip doc.save() validation.
+	# Raw set_value skips the on_update hook that queues search re-indexing,
+	# so queue the touched documents explicitly.
+	content_updated_names = []
 	for doc_key in content_only_keys:
 		if doc_key not in key_to_name:
 			continue
@@ -1920,6 +1923,12 @@ def _apply_merge_changes_only(
 		content_blob = item.get("content_blob")
 		content = blob_contents.get(content_blob, "") if content_blob else ""
 		frappe.db.set_value("Wiki Document", key_to_name[doc_key], "content", content)
+		content_updated_names.append(key_to_name[doc_key])
+
+	if content_updated_names:
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
+
+		enqueue_reindex(content_updated_names)
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys
@@ -1985,11 +1994,16 @@ def _apply_merge_changes_only(
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	"""Update CR status after successful merge."""
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	cr.status = "Merged"
 	cr.merge_revision = merge_revision.name
 	cr.merged_by = frappe.session.user
 	cr.merged_at = now_datetime()
 	cr.save()
+
+	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 	_notify_cr_owner(cr, _("Your change request “{0}” was merged.").format(cr.title))
 
 
@@ -2296,11 +2310,16 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 
 def apply_merge_revision(space: Document, revision: Document) -> None:
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	frappe.flags.in_apply_merge_revision = True
 	try:
 		_apply_merge_revision(space, revision)
 	finally:
 		frappe.flags.in_apply_merge_revision = False
+
+	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 
 
 def _apply_merge_revision(space: Document, revision: Document) -> None:

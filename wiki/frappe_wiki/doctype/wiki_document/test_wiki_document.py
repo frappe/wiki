@@ -1784,3 +1784,231 @@ class TestStale404CacheInvalidation(WikiDocumentTestBase):
 		doc.reload()
 		self.assertEqual(doc.route, new_route)
 		self.assertIsInstance(self._resolve(new_route), WikiDocumentRenderer)
+
+
+class TestSpaceUrlFirstPage(WikiDocumentTestBase):
+	"""The space URL must land on the first page in sidebar order (sort_order),
+	not the first descendant in NestedSet (lft) order."""
+
+	def test_first_page_follows_sidebar_sort_order_not_lft(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage Root", is_group=True)
+		# Created first, so it has the lower lft — but reordered last in the sidebar.
+		created_first = create_test_wiki_document(
+			self, "Created First", parent=root.name, slug="fp-created-first"
+		)
+		sidebar_first = create_test_wiki_document(
+			self, "Sidebar First", parent=root.name, slug="fp-sidebar-first"
+		)
+		create_test_wiki_space(self, "FirstPage Space", "fp-space", root.name)
+		# Raw sort_order writes, exactly like reorder_wiki_documents does.
+		frappe.db.set_value("Wiki Document", sidebar_first.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", created_first.name, "sort_order", 1)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], sidebar_first.route)
+
+	def test_first_page_descends_into_first_group(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage GRoot", is_group=True)
+		later = create_test_wiki_document(self, "Later Page", parent=root.name, slug="fpg-later")
+		group = create_test_wiki_document(
+			self, "First Group", parent=root.name, is_group=True, slug="fpg-group"
+		)
+		nested = create_test_wiki_document(self, "Nested Page", parent=group.name, slug="fpg-nested")
+		create_test_wiki_space(self, "FirstPage GSpace", "fpg-space", root.name)
+		frappe.db.set_value("Wiki Document", group.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], nested.route)
+
+	def test_first_page_skips_unpublished_and_external(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage SRoot", is_group=True)
+		create_test_wiki_document(
+			self, "Unpublished", parent=root.name, sort_order=0, slug="fps-unpub", is_published=False
+		)
+		create_test_wiki_document(
+			self,
+			"External",
+			parent=root.name,
+			sort_order=1,
+			slug="fps-ext",
+			is_external_link=True,
+			external_url="https://example.com",
+		)
+		page = create_test_wiki_document(self, "Real Page", parent=root.name, sort_order=2, slug="fps-real")
+		create_test_wiki_space(self, "FirstPage SSpace", "fps-space", root.name)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], page.route)
+
+	def test_space_route_redirects_to_first_sidebar_page(self):
+		root = create_test_wiki_document(self, "FirstPage RRoot", is_group=True)
+		later = create_test_wiki_document(self, "Redirect Later", parent=root.name, slug="fpr-later")
+		target = create_test_wiki_document(self, "Redirect Target", parent=root.name, slug="fpr-target")
+		create_test_wiki_space(self, "FirstPage RSpace", "fpr-space", root.name)
+		frappe.db.set_value("Wiki Document", target.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
+
+		renderer = WikiDocumentRenderer(path="fpr-space")
+		with self.assertRaises(frappe.Redirect):
+			renderer.can_render()
+		self.assertEqual(frappe.local.flags.redirect_location, "/" + target.route)
+
+
+class TestWikiTreeCache(WikiDocumentTestBase):
+	def test_tree_is_cached_and_busted_on_document_update(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_TREE_CACHE_KEY,
+			get_public_wiki_tree,
+		)
+
+		root = create_test_wiki_document(self, "TreeCache Root", is_group=True)
+		page = create_test_wiki_document(self, "TreeCache Page", parent=root.name, slug="tc-page")
+		create_test_wiki_space(self, "TreeCache Space", "tc-space", root.name)
+
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["title"], "TreeCache Page")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+
+		page.title = "TreeCache Page Renamed"
+		page.save()
+
+		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["title"], "TreeCache Page Renamed")
+
+	def test_tree_cache_busted_on_reorder(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_TREE_CACHE_KEY,
+			get_public_wiki_tree,
+		)
+
+		root = create_test_wiki_document(self, "TreeCache RRoot", is_group=True)
+		page_a = create_test_wiki_document(self, "Reorder A", parent=root.name, sort_order=0, slug="tcr-a")
+		page_b = create_test_wiki_document(self, "Reorder B", parent=root.name, sort_order=1, slug="tcr-b")
+		create_test_wiki_space(self, "TreeCache RSpace", "tcr-space", root.name)
+
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual([n["title"] for n in tree], ["Reorder A", "Reorder B"])
+
+		reorder_wiki_documents(
+			doc_name=page_b.name,
+			new_parent=root.name,
+			new_index=0,
+			siblings=json.dumps([page_b.name, page_a.name]),
+		)
+
+		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual([n["title"] for n in tree], ["Reorder B", "Reorder A"])
+
+
+class TestSearchPublishGating(WikiDocumentTestBase):
+	"""
+	Search must mirror page-render visibility: no hits from unpublished
+	spaces, and unpublishing a page must drop it from results immediately
+	(not after the 5-minute index queue catches up).
+	"""
+
+	def _build_index(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+		return search
+
+	def test_search_hides_docs_in_unpublished_space(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		visible_root = create_test_wiki_document(self, "Root PubSpace", is_group=True)
+		create_test_wiki_space(self, "Published Space", "pub-space-gate", visible_root.name)
+		visible_page = create_test_wiki_document(
+			self, "Visible Page", parent=visible_root.name, content="spacegate_searchterm"
+		)
+
+		hidden_root = create_test_wiki_document(self, "Root UnpubSpace", is_group=True)
+		create_test_wiki_space(
+			self, "Unpublished Space", "unpub-space-gate", hidden_root.name, is_published=False
+		)
+		hidden_page = create_test_wiki_document(
+			self, "Hidden Page", parent=hidden_root.name, content="spacegate_searchterm"
+		)
+
+		self._build_index()
+
+		result = wiki_search("spacegate_searchterm")
+		result_names = [r["name"] for r in result["results"]]
+
+		self.assertIn(visible_page.name, result_names)
+		self.assertNotIn(hidden_page.name, result_names)
+
+	def test_unpublish_drops_doc_from_search_immediately(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		root = create_test_wiki_document(self, "Root UnpubDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Soon Unpublished", parent=root.name, content="unpubdoc_searchterm"
+		)
+		create_test_wiki_space(self, "UnpubDoc Space", "unpub-doc-gate", root.name)
+
+		search = self._build_index()
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertIn(page.name, [r["name"] for r in result["results"]])
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		def index_row_count():
+			rows = search.sql(
+				"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+				(f"Wiki Document:{page.name}",),
+				read_only=True,
+			)
+			return rows[0]["c"]
+
+		# Removal is deferred until the transaction commits, so the row must
+		# survive a save that could still roll back.
+		self.assertEqual(index_row_count(), 1)
+
+		# Run the post-commit callbacks without committing (keeps test isolation).
+		frappe.db.after_commit.run()
+
+		# No queue processing in between: the index row must already be gone.
+		self.assertEqual(index_row_count(), 0)
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertNotIn(page.name, [r["name"] for r in result["results"]])
+
+	def test_unpublish_index_removal_discarded_on_rollback(self):
+		root = create_test_wiki_document(self, "Root RollbackDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Rollback Page", parent=root.name, content="rollbackterm_search"
+		)
+		create_test_wiki_space(self, "Rollback Space", "unpub-rollback-gate", root.name)
+
+		search = self._build_index()
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		# The save never commits: the page stays published in the database, so
+		# its index row must survive too.
+		frappe.db.rollback()
+
+		rows = search.sql(
+			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+			(f"Wiki Document:{page.name}",),
+			read_only=True,
+		)
+		self.assertEqual(rows[0]["c"], 1)
