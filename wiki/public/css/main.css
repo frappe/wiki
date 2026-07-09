@@ -7,6 +7,11 @@
    share one typography source. Replaces @tailwindcss/typography here (the
    v4 plugin would emit a second, conflicting `.prose`). */
 @import "./frappe-ui-prose.css";
+/* Generated alongside frappe-ui-prose.css — frappe-ui's editor code-block
+   shell + GitHub light/dark hljs theme, rescoped from .ProseMirror to .prose.
+   The reader highlights with client-side hljs, so the same .hljs-* selectors
+   apply. Replaces the old hljs-github-light.css (light-only) stylesheet. */
+@import "./frappe-ui-code.css";
 
 @utility no-scrollbar {
   @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
@@ -20,25 +25,11 @@
   font-family: var(--font-sans);
 }
 
-/* Code block styling - Light theme */
+/* Code block shell + hljs theme come from frappe-ui-code.css; the reader
+   only anchors its own toolbar overlay and scrolls long lines. */
 .prose pre {
   position: relative;
-  padding: 0;
-  margin: 1.5rem 0;
-  border-radius: 0.5rem;
-  background-color: var(--surface-gray-1) !important;
-  border: 1px solid var(--outline-gray-2);
-}
-
-.prose pre code {
-  display: block;
-  padding: 1rem 1.25rem;
   overflow-x: auto;
-  border-radius: 0.5rem;
-  background-color: var(--surface-gray-1) !important;
-  color: var(--ink-gray-9);
-  font-size: 0.875rem;
-  line-height: 1.6;
 }
 
 /* ---------- Mermaid diagram (public) ----------

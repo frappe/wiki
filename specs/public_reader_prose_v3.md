@@ -29,7 +29,9 @@ Same pattern for typography, except **zero reimplementation**: run the *real* Ta
 2. `wiki/public/css/main.css` — import the generated file; delete the hand-written prose typography (var mapping block, `.prose-sm` sizes/headings/margins, `.prose a` underline rules, inline-code pill rules). Keep reader-specific chrome: code-block shell + toolbar, mermaid figure, callouts, heading anchors, lightbox, image caption, table borders, PDF card.
 3. `wiki/templates/wiki/document.html` — content div `prose prose-sm` → `prose prose-v3` (mirrors EditorContent's default classes).
 
-Out of scope: hljs theme parity (frappe-ui's code-block CSS is scoped to `.ProseMirror`; reader keeps `hljs-github-light.css` and its own shell), reader font-size tuning (prose-v3's 15px default is the out-of-box look, same as the editor).
+4. Code blocks (added on user follow-up): the generator also rewrites frappe-ui's `CodeBlockComponent.css` (pre shell + GitHub light/dark hljs theme) from its `.ProseMirror` scope to `.prose` and emits `wiki/public/css/frappe-ui-code.css` (gitignored). Works because the reader also highlights with client-side hljs — same `.hljs-*` classes. Replaces the reader's hand-written pre shell and the light-only `hljs-github-light.css` (deleted, `<link>` removed from layout.html) — dark mode previously kept light syntax colors. Reader keeps only `position: relative` (toolbar anchor) + `overflow-x: auto` on `pre`, and its own toolbar/lang-badge/mermaid-figure chrome.
+
+Out of scope: reader font-size tuning (prose-v3's 15px default is the out-of-box look, same as the editor); the editor's line-number gutter (markup lives in frappe-ui's Vue node view, not reproducible with CSS alone).
 
 ## Verification
 
@@ -40,4 +42,5 @@ Out of scope: hljs theme parity (frappe-ui's code-block CSS is scoped to `.Prose
 ## Progress log
 
 - 2026-07-09: Spec written after researching frappe-ui docs wiring (`tailwind.config.js` preset + safelist) and the reader pipeline.
+- 2026-07-09: Code-block parity ✅ (change 4): generated `frappe-ui-code.css` via `.ProseMirror`→`.prose` scope rewrite; dark-mode syntax colors now correct on public pages; public-pages + mermaid-public + publish-flow e2e green.
 - 2026-07-09: Implemented ✅. Generator emits 793 lines of real `.prose`/`.prose-v3` rules; main.css hand-written typography (~130 lines) deleted; `@tailwindcss/typography` v4 plugin + root devDep dropped. One reader-specific addition beyond the plan: server markdown renders task lists as `ul.contains-task-list` (not the editor's `ul[data-type=taskList]`), so a small main.css rule hides the list markers to match. Verified: public page light + dark screenshots (headings/lists/inline-code pill/blockquote/tables/task lists all match the editor), public-pages + TOC + mermaid-public e2e green.

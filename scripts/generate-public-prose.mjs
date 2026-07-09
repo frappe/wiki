@@ -21,13 +21,18 @@
  * main.css's Tailwind v4 pipeline as plain CSS).
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tailwindBin = join(root, 'frontend/node_modules/.bin/tailwindcss');
 const outFile = join(root, 'wiki/public/css/frappe-ui-prose.css');
+const codeBlockSrc = join(
+	root,
+	'frontend/node_modules/frappe-ui/src/molecules/editor/extensions/code-block/CodeBlockComponent.css',
+);
+const codeOutFile = join(root, 'wiki/public/css/frappe-ui-code.css');
 
 if (!existsSync(tailwindBin)) {
 	console.error(
@@ -50,3 +55,19 @@ execFileSync(
 );
 
 console.log('generate-public-prose: wrote wiki/public/css/frappe-ui-prose.css');
+
+// Code blocks: frappe-ui's editor CodeBlock ships its pre shell + the GitHub
+// light/dark highlight.js theme as plain CSS scoped to `.ProseMirror`. The
+// reader highlights with client-side hljs too (same `.hljs-*` classes), so a
+// scope rewrite to `.prose` gives the public page the exact editor look.
+const codeCss = readFileSync(codeBlockSrc, 'utf8').replaceAll(
+	'.ProseMirror',
+	'.prose',
+);
+writeFileSync(
+	codeOutFile,
+	`/* Generated from frappe-ui CodeBlockComponent.css (scope .ProseMirror → .prose)
+   by scripts/generate-public-prose.mjs — do not edit. */
+${codeCss}`,
+);
+console.log('generate-public-prose: wrote wiki/public/css/frappe-ui-code.css');
