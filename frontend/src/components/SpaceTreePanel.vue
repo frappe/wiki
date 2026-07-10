@@ -47,15 +47,15 @@
 		</div>
 		<div v-else class="flex-1 overflow-auto p-2">
 			<!-- Sidebar tree skeleton -->
-			<div class="space-y-1 animate-pulse">
+			<div class="space-y-1">
 				<div
 					v-for="i in 8"
 					:key="i"
 					class="flex items-center gap-2 px-2 py-1.5 rounded"
 				>
-					<div class="size-4 rounded bg-surface-gray-3 shrink-0" />
-					<div
-						class="h-3.5 rounded bg-surface-gray-3"
+					<Skeleton class="size-4 rounded shrink-0" />
+					<Skeleton
+						class="h-3.5 rounded"
 						:style="{ width: `${60 + (i % 3) * 25}%` }"
 					/>
 				</div>
@@ -64,9 +64,9 @@
 					:key="'nested-' + i"
 					class="flex items-center gap-2 px-2 py-1.5 rounded ml-6"
 				>
-					<div class="size-4 rounded bg-surface-gray-3 shrink-0" />
-					<div
-						class="h-3.5 rounded bg-surface-gray-3"
+					<Skeleton class="size-4 rounded shrink-0" />
+					<Skeleton
+						class="h-3.5 rounded"
 						:style="{ width: `${50 + (i % 2) * 30}%` }"
 					/>
 				</div>
@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { Button } from 'frappe-ui';
+import { Button, Skeleton } from 'frappe-ui';
 import WikiDocumentList from './WikiDocumentList.vue';
 
 defineProps({

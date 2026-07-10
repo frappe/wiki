@@ -63,10 +63,10 @@
           :key="n"
           class="grid grid-cols-[2fr_1fr_2fr_3fr] items-center gap-4 px-2 h-12 border-b border-outline-gray-1"
         >
-          <div class="h-3.5 w-2/3 rounded bg-surface-gray-3 animate-pulse" />
-          <div class="h-5 w-20 rounded-full bg-surface-gray-3 animate-pulse" />
-          <div class="h-3.5 w-1/2 rounded bg-surface-gray-3 animate-pulse" />
-          <div class="h-7 w-16 rounded bg-surface-gray-3 animate-pulse" />
+          <Skeleton class="h-3.5 w-2/3 rounded" />
+          <Skeleton class="h-5 w-20 rounded-full" />
+          <Skeleton class="h-3.5 w-1/2 rounded" />
+          <Skeleton class="h-7 w-16 rounded" />
         </div>
       </div>
 
@@ -313,6 +313,7 @@ import {
 	FormControl,
 	PageHeader,
 	PageHeaderMobile,
+	Skeleton,
 	createListResource,
 	createResource,
 	toast,

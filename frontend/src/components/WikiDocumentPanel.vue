@@ -78,43 +78,43 @@
 			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 				<!-- Editor body skeleton while the CR page overlay loads -->
-				<div v-else class="space-y-4 animate-pulse">
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-					<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+				<div v-else class="space-y-4">
+					<Skeleton class="h-4 w-3/4 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-5/6 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-2/3 rounded" />
+					<Skeleton class="h-4 w-full rounded mt-6" />
+					<Skeleton class="h-4 w-4/5 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-3/4 rounded" />
 				</div>
 			</div>
 		</div>
 
 		<!-- Content skeleton -->
-		<div v-else class="h-full flex flex-col animate-pulse">
+		<div v-else class="h-full flex flex-col">
 			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
 				<div class="flex items-center gap-2">
-					<div class="h-7 w-48 rounded bg-surface-gray-3" />
-					<div class="h-5 w-16 rounded-full bg-surface-gray-3" />
+					<Skeleton class="h-7 w-48 rounded" />
+					<Skeleton class="h-5 w-16 rounded-full" />
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-8 w-24 rounded bg-surface-gray-3" />
-					<div class="h-8 w-28 rounded bg-surface-gray-3" />
-					<div class="size-8 rounded bg-surface-gray-3" />
+					<Skeleton class="h-8 w-24 rounded" />
+					<Skeleton class="h-8 w-28 rounded" />
+					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
 			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-				<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+				<Skeleton class="h-4 w-3/4 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-5/6 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-2/3 rounded" />
+				<Skeleton class="h-4 w-full rounded mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-3/4 rounded" />
 			</div>
 		</div>
 		<Dialog v-model:open="showRouteDialog" size="sm">
@@ -153,6 +153,7 @@ import {
 	Dialog,
 	Dropdown,
 	FormControl,
+	Skeleton,
 	createDocumentResource,
 	getCachedDocumentResource,
 	toast,

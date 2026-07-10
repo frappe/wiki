@@ -62,26 +62,26 @@
 			</div>
 		</div>
 
-		<div v-else-if="!loadFailed" class="h-full flex flex-col animate-pulse">
+		<div v-else-if="!loadFailed" class="h-full flex flex-col">
 			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
 				<div class="flex items-center gap-2">
-					<div class="h-7 w-48 rounded bg-surface-gray-3" />
-					<div class="h-5 w-14 rounded-full bg-surface-gray-3" />
+					<Skeleton class="h-7 w-48 rounded" />
+					<Skeleton class="h-5 w-14 rounded-full" />
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-8 w-28 rounded bg-surface-gray-3" />
-					<div class="size-8 rounded bg-surface-gray-3" />
+					<Skeleton class="h-8 w-28 rounded" />
+					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
 			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-				<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
+				<Skeleton class="h-4 w-3/4 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-5/6 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-2/3 rounded" />
+				<Skeleton class="h-4 w-full rounded mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
 			</div>
 		</div>
 
@@ -125,6 +125,7 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	Skeleton,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
