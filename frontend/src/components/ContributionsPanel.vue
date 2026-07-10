@@ -20,10 +20,10 @@
 				</p>
 			</div>
 			<template v-else>
-				<!-- Keep the table a table on mobile; scroll it sideways (CRM pattern)
-				     so the wider review columns stay readable. -->
+				<!-- Keep the table a table on mobile; scroll it sideways so the
+				     wider review columns stay readable. -->
 				<div class="min-w-[720px] sm:min-w-0">
-					<List :columns="tracks">
+					<List :columns="tracks" :row-height="40">
 						<ListHeader>
 							<ListHeaderCell
 								v-for="col in columns"
@@ -77,8 +77,7 @@
 										</Button>
 									</div>
 									<!-- Cells don't inherit an ink color from the List family, so an
-									     explicit token is required or the text goes black in dark mode.
-									     Primary column gets gray-9, the rest gray-7 (ListView convention). -->
+									     explicit token is required or the text goes black in dark mode. -->
 									<div
 										v-else
 										class="truncate"
@@ -129,8 +128,7 @@ const emit = defineEmits(['assign']);
 
 const rows = computed(() => props.resource.data || []);
 
-// Column descriptors keep the old ListView shape (numeric width = fr weight,
-// string width = fixed track); translate them into grid tracks for List.
+// Numeric width = fr weight, string width = fixed track.
 const tracks = computed(() =>
 	props.columns.map((col) =>
 		typeof col.width === 'number' ? `minmax(0,${col.width}fr)` : col.width,

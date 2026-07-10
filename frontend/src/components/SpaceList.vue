@@ -96,10 +96,10 @@
         />
       </div>
 
-      <!-- Tables stay tables on mobile and scroll horizontally (CRM pattern):
-           the min-width keeps columns readable instead of compressing to mush. -->
+      <!-- Tables stay tables on mobile and scroll horizontally: the min-width
+           keeps columns readable instead of compressing to mush. -->
       <div v-else class="min-w-[600px] sm:min-w-0">
-        <List :columns="tracks">
+        <List :columns="tracks" :row-height="40">
           <ListHeader>
             <ListHeaderCell v-for="col in columns" :key="col.key">
               {{ col.label }}
@@ -129,8 +129,7 @@
                   </Button>
                 </div>
                 <!-- Cells don't inherit an ink color from the List family, so an
-                     explicit token is required or the text goes black in dark mode.
-                     Primary column gets gray-9, the rest gray-7 (ListView convention). -->
+                     explicit token is required or the text goes black in dark mode. -->
                 <span
                   v-else
                   class="truncate"
