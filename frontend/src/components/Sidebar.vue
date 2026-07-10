@@ -1,22 +1,24 @@
 <template>
 	<Sidebar v-model:collapsed="isSidebarCollapsed">
-		<SidebarHeader
-			:title="__('Frappe Wiki')"
-			:subtitle="userStore.data?.full_name"
-			logo="/assets/wiki/images/wiki-logo.png"
-			:menu-items="headerMenuItems"
-		/>
-		<nav class="mt-2 flex flex-1 flex-col gap-0.5 overflow-y-auto">
-			<SidebarItem
-				v-for="item in navItems"
-				:key="item.label"
-				:label="item.label"
-				:icon="item.icon"
-				:to="item.to"
-				:active="route.path.startsWith(router.resolve(item.to).path)"
+		<div class="flex h-full flex-col p-2">
+			<SidebarHeader
+				:title="__('Frappe Wiki')"
+				:subtitle="userStore.data?.full_name"
+				logo="/assets/wiki/images/wiki-logo.png"
+				:menu-items="headerMenuItems"
 			/>
-		</nav>
-		<SidebarCollapseToggle class="mt-auto" />
+			<nav class="mt-2 flex flex-1 flex-col gap-0.5 overflow-y-auto">
+				<SidebarItem
+					v-for="item in navItems"
+					:key="item.label"
+					:label="item.label"
+					:icon="item.icon"
+					:to="item.to"
+					:active="route.path.startsWith(router.resolve(item.to).path)"
+				/>
+			</nav>
+			<SidebarCollapseToggle class="mt-auto" />
+		</div>
 	</Sidebar>
 </template>
 
