@@ -24,6 +24,7 @@
 				<SettingsHeader :title="__('General')" />
 				<SettingsBody>
 					<GeneralPanel
+						class="pt-6"
 						:space="space"
 						@open-update-routes="$emit('open-update-routes')"
 						@open-clone="$emit('open-clone')"
@@ -46,6 +47,7 @@
 				</SettingsHeader>
 				<SettingsBody>
 					<PermissionsPanel
+						class="pt-6"
 						:space="space"
 						:space-id="spaceId"
 						@update:dirty="permissionsDirty = $event"
@@ -55,7 +57,7 @@
 			<SettingsPanel v-if="space.doc?.git_synced" value="git-sync">
 				<SettingsHeader :title="__('GitHub Sync')" />
 				<SettingsBody>
-					<GitSyncPanel :space="space" :space-id="spaceId" />
+					<GitSyncPanel class="pt-6" :space="space" :space-id="spaceId" />
 				</SettingsBody>
 			</SettingsPanel>
 		</SettingsContent>

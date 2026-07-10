@@ -29,7 +29,12 @@
 					>
 						<LoadingIndicator class="size-5 text-ink-gray-5" />
 					</div>
-					<component v-else :is="tab.component" :settings="settings" />
+					<component
+						v-else
+						:is="tab.component"
+						:settings="settings"
+						class="pt-6"
+					/>
 				</SettingsBody>
 			</SettingsPanel>
 		</SettingsContent>
