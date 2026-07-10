@@ -8,6 +8,7 @@
  * (loading / error) set by WikiEditor's insertAndUploadPdf.
  */
 
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { computed, ref } from 'vue';
 import VuePdfEmbed from 'vue-pdf-embed';
@@ -36,6 +37,7 @@ const props = defineProps({
 	},
 });
 
+const isEditable = useNodeViewEditable(props.editor);
 const src = computed(() => props.node.attrs.src || '');
 const filename = computed(() => props.node.attrs.filename || 'Document.pdf');
 const loading = computed(() => !!props.node.attrs.loading);
@@ -88,7 +90,7 @@ function closeViewer() {
 				<span class="lucide-file-text size-[18px] wiki-pdf-icon" aria-hidden="true" />
 				<span class="wiki-pdf-name">{{ filename }}</span>
 				<button
-					v-if="editor.isEditable"
+					v-if="isEditable"
 					type="button"
 					class="wiki-pdf-action"
 					title="Remove"
@@ -128,7 +130,7 @@ function closeViewer() {
 						<span class="lucide-download size-4" aria-hidden="true" />
 					</a>
 					<button
-						v-if="editor.isEditable"
+						v-if="isEditable"
 						type="button"
 						class="wiki-pdf-action"
 						title="Remove"

@@ -11,6 +11,7 @@ function nextMermaidInstanceId() {
 </script>
 
 <script setup>
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { useStorage, watchDebounced } from '@vueuse/core';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -27,7 +28,8 @@ const props = defineProps({
 // In a read-only render (e.g. the change-request preview / published viewer)
 // we drop the split-pane editing chrome and show only the rendered diagram,
 // presented as a centered figure like the public page.
-const isReadOnly = computed(() => !props.editor.isEditable);
+const isEditable = useNodeViewEditable(props.editor);
+const isReadOnly = computed(() => !isEditable.value);
 
 // Unique, collision-free render ids without Date.now()/Math.random() (which
 // can collide on rapid keystrokes). One stable instance id per mounted block
