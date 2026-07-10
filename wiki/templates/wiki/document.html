@@ -91,10 +91,10 @@
                 <a href="/{{ prev_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo('{{ prev_doc.route }}')"
                    @mouseenter="$store.navigation.prefetch('{{ prev_doc.route }}')"
-                   class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
+                   class="group sm:flex-1 flex items-center gap-3 p-2 rounded-md border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
                     {{ render_icon("chevron-left", "w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0") }}
                     <div class="flex flex-col gap-1 min-w-0">
-                        <span class="text-xs-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Previous Page</span>
+                        <span class="text-xs-medium text-[var(--ink-gray-4)]">Previous Page</span>
                         <span class="text-sm-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate">{{ prev_doc.title }}</span>
                     </div>
                 </a>
@@ -104,9 +104,9 @@
                 <a href="/{{ next_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo('{{ next_doc.route }}')"
                    @mouseenter="$store.navigation.prefetch('{{ next_doc.route }}')"
-                   class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden {{ 'sm:ml-auto' if not prev_doc else '' }}">
+                   class="group sm:flex-1 flex items-center gap-3 p-2 rounded-md border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden {{ 'sm:ml-auto' if not prev_doc else '' }}">
                     <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
-                        <span class="text-xs-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Next Page</span>
+                        <span class="text-xs-medium text-[var(--ink-gray-4)]">Next Page</span>
                         <span class="text-sm-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate text-right">{{ next_doc.title }}</span>
                     </div>
                     {{ render_icon("chevron-right", "w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0") }}
