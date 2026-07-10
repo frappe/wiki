@@ -71,6 +71,32 @@
 	text-decoration: line-through;
 }
 
+/* Task list checkboxes — restyled to match the frappe-ui Checkbox component
+   (sm size). The editor kit's own rule uses a static gray.900 fill that breaks
+   in dark mode; these tokens follow the theme. The @tailwindcss/forms base and
+   the preset's dark-mode check glyph handle the rest. */
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"] {
+	width: 0.875rem;
+	height: 0.875rem;
+	border-radius: var(--radius-sm, 4px);
+	border-color: var(--outline-gray-4);
+	background-color: var(--surface-base);
+	color: var(--ink-gray-9);
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:hover {
+	border-color: var(--outline-gray-7);
+	box-shadow: var(--elevation-sm);
+}
+
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked {
+	background-color: currentColor;
+	border-color: transparent;
+}
+
 /* Image styling */
 .wiki-editor-content img {
 	max-width: 100%;
