@@ -70,11 +70,11 @@ test.describe('Slash command menu', () => {
 			page.locator('.slash-commands-empty', { hasText: 'No commands found' }),
 		).toHaveCount(0);
 
-		// Full list, not a filtered subset: spot-check items from both ends.
+		// Full list, not a filtered subset: spot-check items from both ends,
+		// plus the group headers (Gameplan-style sections).
 		await expect(menu.getByText('Heading 1', { exact: true })).toBeVisible();
-		await expect(
-			menu.getByText('Danger Callout', { exact: true }),
-		).toBeVisible();
+		await expect(menu.getByText('Danger', { exact: true })).toBeVisible();
+		await expect(menu.getByText('Callouts', { exact: true })).toBeVisible();
 	});
 
 	test('typing filters the list and Enter inserts the block', async ({
