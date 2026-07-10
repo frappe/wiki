@@ -19,7 +19,11 @@ import {
 	denormalizeNode,
 	normalizeNode,
 } from './draftWorkspace/treeModel';
-import { errorMessage, slugify } from './draftWorkspace/utils';
+import {
+	errorMessage,
+	restoredDraftBuffer,
+	slugify,
+} from './draftWorkspace/utils';
 
 // Local-first workspace store. Owns optimistic UI state for the active change
 // request. Sync flushes through the batched `apply_cr_operations` endpoint
@@ -253,7 +257,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				if (!docKey || content == null) return;
 				// Only restore for keys that still exist server-side. tmp_*
 				// orphans (lost creates) are out of scope for this v1.
-				if (resolver.isTempKey(docKey) || !treeModel.findNode(docKey)) return;
+				const node = treeModel.findNode(docKey);
+				if (resolver.isTempKey(docKey) || !node) return;
 
 				// Verify against the server copy before restoring. A persisted
 				// draft that matches the server has no real unsaved changes —
@@ -280,16 +285,16 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 				const page = pageBuffers.get(docKey);
 				if (!page) {
-					pageBuffers.setPage(docKey, {
+					pageBuffers.setPage(
 						docKey,
-						title: title || '',
-						route: '',
-						content: serverContent,
-						localContent: content,
-						isPublished: true,
-						saveStatus: 'idle',
-						error: null,
-					});
+						restoredDraftBuffer({
+							docKey,
+							title,
+							content: serverContent,
+							localContent: content,
+							node,
+						}),
+					);
 				} else {
 					page.localContent = content;
 					if (title) page.title = title;
