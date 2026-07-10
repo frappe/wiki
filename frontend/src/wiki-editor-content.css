@@ -41,14 +41,12 @@
 	outline: none;
 }
 
-/* Editing-surface chrome (bounding box + min height + padding). Only the
-   editor opts in via `.is-editable`; the read-only viewer omits it so previews
-   fill the available space without a bounding box. */
+/* Editing surface: no bounding box — the flush toolbar divider above and the
+   centered column provide the structure. Horizontal padding comes from the
+   column wrapper in WikiEditor.vue. */
 .wiki-editor-content.is-editable {
 	min-height: 480px;
-	padding: 1.5rem;
-	border: 1px solid var(--outline-gray-2, #e5e7eb);
-	border-radius: 0 0 0.5rem 0.5rem;
+	padding: 1.5rem 0;
 }
 
 /* Table column resize handle (frappe-ui styles cells/selection but not the

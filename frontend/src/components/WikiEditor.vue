@@ -2,7 +2,10 @@
     <div class="wiki-editor-container">
         <div>
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
-            <EditorContent :editor="editor" :class="contentClass" />
+            <div class="mx-auto w-full max-w-[770px] px-6">
+                <slot name="title" />
+                <EditorContent :editor="editor" :class="contentClass" />
+            </div>
             <!-- After EditorContent so the ProseMirror DOM is attached when the
                  bubble menu mounts; it derives its flip boundary from the editor's
                  scroll ancestor, which must be reachable at that point. -->

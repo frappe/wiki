@@ -133,11 +133,9 @@ function handleImageSelect(event) {
 .wiki-toolbar {
     display: flex;
     align-items: center;
-    padding: 0.5rem;
+    padding: 0.375rem 1.25rem;
     background-color: var(--surface-base, #ffffff);
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-bottom: none;
-    border-radius: 0.5rem 0.5rem 0 0;
+    border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
     position: sticky;
     top: 0;
     z-index: 40;

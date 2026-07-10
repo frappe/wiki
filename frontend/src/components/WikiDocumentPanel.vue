@@ -45,32 +45,35 @@
 				</div>
 			</div>
 
-			<div class="flex-1 overflow-auto px-6 pb-6">
-				<div class="pt-5 pb-2">
-					<input
-						type="text"
-						v-model="editableTitle"
-						:readonly="readonly"
-						class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-						:placeholder="__('Page title')"
-						@blur="saveTitleIfChanged"
-						@keydown.enter="$event.target.blur()"
-					/>
-					<div class="mt-1.5 flex items-center gap-2">
-						<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-							{{ __('Published') }}
-						</Badge>
-						<Badge v-else variant="subtle" theme="orange" size="sm">
-							{{ __('Not Published') }}
-						</Badge>
-						<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-							{{ __('Has Draft Changes') }}
-						</Badge>
-					</div>
-				</div>
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+			<div class="flex-1 overflow-auto pb-10">
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<template #title>
+						<div class="pt-8">
+							<input
+								type="text"
+								v-model="editableTitle"
+								:readonly="readonly"
+								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
+								:placeholder="__('Page title')"
+								@blur="saveTitleIfChanged"
+								@keydown.enter="$event.target.blur()"
+							/>
+							<div class="mt-1.5 flex items-center gap-2">
+								<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+									{{ __('Published') }}
+								</Badge>
+								<Badge v-else variant="subtle" theme="orange" size="sm">
+									{{ __('Not Published') }}
+								</Badge>
+								<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+									{{ __('Has Draft Changes') }}
+								</Badge>
+							</div>
+						</div>
+					</template>
+				</WikiEditor>
 				<!-- Editor body skeleton while the CR page overlay loads -->
-				<div v-else class="space-y-4">
+				<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
 					<Skeleton class="h-4 w-3/4 rounded" />
 					<Skeleton class="h-4 w-full rounded" />
 					<Skeleton class="h-4 w-5/6 rounded" />
@@ -94,7 +97,7 @@
 					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
-			<div class="flex-1 px-6 pb-6 pt-5 space-y-4">
+			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
 				<Skeleton class="h-8 w-64 rounded" />
 				<Skeleton class="h-5 w-24 rounded-full" />
 				<Skeleton class="h-4 w-3/4 rounded" />
