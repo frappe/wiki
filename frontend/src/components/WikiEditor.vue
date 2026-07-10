@@ -67,6 +67,7 @@ import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import {
+	SLASH_COMMANDS,
 	SlashCommands,
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
@@ -458,6 +459,10 @@ function hideLinkPopup() {
 function createSlashCommandsSuggestion() {
 	return {
 		items: ({ query }) => filterCommands(query),
+		// Suggestion dispatches onStart with `initialItems` and only delivers the
+		// real list in a follow-up onUpdate; without this the menu opens on a bare
+		// "/" showing "No commands found" until the first character is typed.
+		initialItems: SLASH_COMMANDS,
 		render: () => {
 			let component;
 			let popup;
@@ -477,16 +482,15 @@ function createSlashCommandsSuggestion() {
 						app: null,
 					};
 
-					// Mount the SlashCommandsList component directly
-					import('vue').then(({ createApp }) => {
-						if (isDestroyed) return;
-						const app = createApp(SlashCommandsList, {
-							items: props.items,
-							command: props.command,
-						});
-						component.app = app;
-						component.vm = app.mount(container);
+					// Mount synchronously: onUpdate fires right after onStart with the
+					// fetched items, and it skips re-rendering while `component.app` is
+					// null — an async mount here would swallow that first update.
+					const app = createApp(SlashCommandsList, {
+						items: props.items,
+						command: props.command,
 					});
+					component.app = app;
+					component.vm = app.mount(container);
 
 					// Create tippy popup with no default styling
 					popup = tippy('body', {
@@ -526,19 +530,13 @@ function createSlashCommandsSuggestion() {
 
 					// Re-render with new items
 					if (component?.app) {
-						import('vue').then(({ createApp }) => {
-							if (isDestroyed) return;
-							// Unmount old app
-							component.app.unmount();
-							const container = component.element;
-							// Create new app with updated props
-							const app = createApp(SlashCommandsList, {
-								items: props.items,
-								command: props.command,
-							});
-							component.app = app;
-							component.vm = app.mount(container);
+						component.app.unmount();
+						const app = createApp(SlashCommandsList, {
+							items: props.items,
+							command: props.command,
 						});
+						component.app = app;
+						component.vm = app.mount(component.element);
 					}
 
 					if (popup) {
