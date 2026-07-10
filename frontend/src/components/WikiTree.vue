@@ -320,17 +320,17 @@ function getDropdownOptions(node) {
 		options.push(
 			...[
 				{
-					label: __('Add Page'),
+					label: __('New Page'),
 					icon: 'file-plus',
 					onClick: () => emit('create', node.doc_key, false),
 				},
 				{
-					label: __('Add Group'),
+					label: __('New Group'),
 					icon: 'folder-plus',
 					onClick: () => emit('create', node.doc_key, true),
 				},
 				{
-					label: __('Add External Link'),
+					label: __('External Link'),
 					icon: 'link',
 					onClick: () => emit('external-link', node.doc_key),
 				},

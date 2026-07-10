@@ -12,15 +12,9 @@
 					</button>
 				</template>
 			</FormControl>
-			<div v-if="!readonly" class="flex gap-2 ml-auto">
-				<Button :title="__('New Group')" icon="folder-plus" variant="subtle" @click="openCreateDialog(rootNode, true)" />
-				<Button :title="__('New Page')" icon="file-plus" variant="subtle" @click="openCreateDialog(rootNode, false)" />
-				<Button :title="__('External Link')" variant="subtle" @click="openExternalLinkDialog(rootNode)">
-					<template #icon>
-						<span class="lucide-link size-4" aria-hidden="true" />
-					</template>
-				</Button>
-			</div>
+			<Dropdown v-if="!readonly" class="ml-auto" :options="addOptions">
+				<Button :title="__('Add')" icon="plus" variant="subtle" />
+			</Dropdown>
 		</div>
 
 		<div v-if="isSearching && !hasResults"
@@ -206,7 +200,7 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { FormControl } from 'frappe-ui';
+import { Dropdown, FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import WikiTree from './WikiTree.vue';
 
@@ -297,6 +291,24 @@ const {
 	openEditExternalLinkDialog,
 	updateExternalLink,
 } = useTreeDialogs(toRef(props, 'spaceId'), expandedNodes);
+
+const addOptions = [
+	{
+		label: __('New Page'),
+		icon: 'file-plus',
+		onClick: () => openCreateDialog(props.rootNode, false),
+	},
+	{
+		label: __('New Group'),
+		icon: 'folder-plus',
+		onClick: () => openCreateDialog(props.rootNode, true),
+	},
+	{
+		label: __('External Link'),
+		icon: 'link',
+		onClick: () => openExternalLinkDialog(props.rootNode),
+	},
+];
 
 // Reorder is owned by the draft workspace store: drag events mutate the
 // store's tree synchronously and the store debounces the backend sync. We
