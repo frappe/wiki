@@ -1,38 +1,38 @@
 <template>
 	<div class="flex h-full min-h-0 flex-col">
-		<!-- Header -->
-		<div class="p-4 border-b border-outline-gray-2">
-			<div class="flex items-center justify-between mb-3">
-				<Button
-					variant="ghost"
-					icon-left="arrow-left"
-					:route="{ name: 'SpaceList' }"
-				>
-					{{ __('Back to Spaces') }}
-				</Button>
-				<Button
-					variant="ghost"
-					icon="settings"
-					:title="__('Settings')"
-					@click="emit('open-settings')"
-				/>
-			</div>
-			<div class="flex items-center gap-2">
-				<h1 class="text-lg-semibold text-ink-gray-9">
+		<!-- Header: fixed 48px region so its bottom border lines up with the
+		     main column's banner/header bars. -->
+		<div class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2">
+			<Button
+				variant="ghost"
+				icon="arrow-left"
+				:title="__('Back to Spaces')"
+				:route="{ name: 'SpaceList' }"
+			/>
+			<div class="min-w-0 flex-1">
+				<div class="truncate text-base-medium leading-none text-ink-gray-8">
 					{{ spaceName || spaceId }}
-				</h1>
-				<Button
-					v-if="spaceRoute"
-					variant="ghost"
-					icon="external-link"
-					:title="__('View Space')"
-					:link="'/' + spaceRoute"
-				/>
+				</div>
+				<div class="mt-0.5 truncate text-sm leading-none text-ink-gray-6">
+					{{ spaceRoute }}
+				</div>
 			</div>
-			<p class="text-sm text-ink-gray-5 mt-0.5">{{ spaceRoute }}</p>
+			<Button
+				v-if="spaceRoute"
+				variant="ghost"
+				icon="external-link"
+				:title="__('View Space')"
+				:link="'/' + spaceRoute"
+			/>
+			<Button
+				variant="ghost"
+				icon="settings"
+				:title="__('Settings')"
+				@click="emit('open-settings')"
+			/>
 		</div>
 
-		<div v-if="spaceLoaded && treeData" class="flex-1 overflow-auto p-2">
+		<div v-if="spaceLoaded && treeData" class="flex-1 overflow-auto px-2 pt-2 pb-10">
 			<WikiDocumentList
 				:tree-data="treeData"
 				:change-type-map="changeTypeMap"

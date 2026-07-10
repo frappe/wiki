@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<div class="flex items-center gap-2 mb-4">
+		<div class="flex items-center gap-2 mb-3">
 			<FormControl v-if="treeData.children && treeData.children.length > 0" class="flex-1" type="text"
 				v-model="searchQuery" :placeholder="__('Search pages...')" @keydown.esc="searchQuery = ''">
 				<template #prefix>
@@ -40,7 +40,7 @@
 			<p v-else class="text-sm text-ink-gray-5">{{ __('No pages have synced from the repository yet') }}</p>
 		</div>
 
-		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden p-1">
+		<div v-else>
 			<WikiTree
 				:items="treeForRender.children"
 				:change-type-map="changeTypeMap"
