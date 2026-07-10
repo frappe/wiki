@@ -74,10 +74,10 @@
         <main class="flex-1 flex flex-col bg-surface-base min-w-0">
             <div
                 v-if="isGitSynced"
-                class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
+                class="min-h-12 px-3 sm:px-5 py-1.5 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
             >
                 <div class="flex items-center gap-3 min-w-0">
-                    <span class="lucide-github size-5 shrink-0 text-ink-gray-7" aria-hidden="true" />
+                    <span class="lucide-github size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
                     <div class="min-w-0">
                         <a
                             v-if="space.doc?.repo_full_name"

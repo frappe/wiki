@@ -1,11 +1,11 @@
 <template>
 	<div
 		v-if="crStore.isChangeRequestMode"
-		class="contribution-banner px-3 py-3 sm:px-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+		class="contribution-banner min-h-12 px-3 py-2 sm:px-5 sm:py-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
 		:class="bannerClass"
 	>
 		<div class="flex items-center gap-3 min-w-0">
-			<span :class="bannerIcon" class="size-5 shrink-0" aria-hidden="true" />
+			<span :class="bannerIcon" class="size-4 shrink-0" aria-hidden="true" />
 			<div class="min-w-0">
 				<p class="text-sm-medium">{{ bannerTitle }}</p>
 				<p v-if="bannerDescription" class="text-xs opacity-80">{{ bannerDescription }}</p>

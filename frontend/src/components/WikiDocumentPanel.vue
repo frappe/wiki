@@ -1,52 +1,26 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 bg-surface-base shrink-0 border-b-2 border-b-gray-500/20">
-				<div class="flex items-center gap-2 min-w-0 flex-1">
-					<div class="flex flex-col gap-1 min-w-0 flex-1">
-						<div class="flex items-center gap-2">
-							<input
-								type="text"
-								v-model="editableTitle"
-								:readonly="readonly"
-								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-								:placeholder="__('Page title')"
-								@blur="saveTitleIfChanged"
-								@keydown.enter="$event.target.blur()"
-							/>
-						</div>
-						<div
-							v-if="readonly"
-							class="flex items-center gap-1 text-sm text-ink-gray-5"
-						>
-							<span class="font-mono truncate">/{{ displayRoute }}</span>
-						</div>
-						<div
-							v-else
-							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-							@click="openRouteDialog"
-						>
-							<span class="font-mono truncate">/{{ displayRoute }}</span>
-							<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-						</div>
-						<div class="flex items-center gap-2 mt-1">
-							<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-								{{ __('Published') }}
-							</Badge>
-							<Badge v-else variant="subtle" theme="orange" size="sm">
-								{{ __('Not Published') }}
-							</Badge>
-							<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-								{{ __('Has Draft Changes') }}
-							</Badge>
-						</div>
-					</div>
+			<div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
+				<div
+					v-if="readonly"
+					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5"
+				>
+					<span class="font-mono truncate">/{{ displayRoute }}</span>
+				</div>
+				<div
+					v-else
+					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
+					@click="openRouteDialog"
+				>
+					<span class="font-mono truncate">/{{ displayRoute }}</span>
+					<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex shrink-0 items-center gap-2">
 					<Button
 						v-if="wikiDoc.doc?.is_published"
-						variant="outline"
+						variant="ghost"
 						@click="openPage"
 					>
 						<template #prefix>
@@ -58,24 +32,42 @@
 						v-if="!readonly"
 						variant="solid"
 						:loading="isSaving"
+						:title="isMac ? '⌘S' : 'Ctrl+S'"
 						@click="saveFromHeader"
 					>
-						<span class="flex items-center gap-2">
-							{{ __('Save') }}
-							<kbd class="inline-flex items-center gap-1 rounded bg-white-overlay-200 px-1.5 py-0.5 text-[11px] font-medium opacity-80">
-								<span class="text-sm">{{ isMac ? '⌘' : 'Ctrl+' }}</span><span>S</span>
-							</kbd>
-						</span>
+						{{ __('Save') }}
 					</Button>
 					<Dropdown :options="menuOptions">
-						<Button variant="outline" :title="__('More actions')">
+						<Button variant="ghost" :title="__('More actions')">
 							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</div>
 			</div>
 
-			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
+			<div class="flex-1 overflow-auto px-6 pb-6">
+				<div class="pt-5 pb-2">
+					<input
+						type="text"
+						v-model="editableTitle"
+						:readonly="readonly"
+						class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
+						:placeholder="__('Page title')"
+						@blur="saveTitleIfChanged"
+						@keydown.enter="$event.target.blur()"
+					/>
+					<div class="mt-1.5 flex items-center gap-2">
+						<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+							{{ __('Published') }}
+						</Badge>
+						<Badge v-else variant="subtle" theme="orange" size="sm">
+							{{ __('Not Published') }}
+						</Badge>
+						<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+							{{ __('Has Draft Changes') }}
+						</Badge>
+					</div>
+				</div>
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
 				<!-- Editor body skeleton while the CR page overlay loads -->
 				<div v-else class="space-y-4">
@@ -94,18 +86,17 @@
 
 		<!-- Content skeleton -->
 		<div v-else class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
-				<div class="flex items-center gap-2">
-					<Skeleton class="h-7 w-48 rounded" />
-					<Skeleton class="h-5 w-16 rounded-full" />
-				</div>
+			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
+				<Skeleton class="h-4 w-40 rounded" />
 				<div class="flex items-center gap-2">
 					<Skeleton class="h-8 w-24 rounded" />
-					<Skeleton class="h-8 w-28 rounded" />
+					<Skeleton class="h-8 w-16 rounded" />
 					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
-			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
+			<div class="flex-1 px-6 pb-6 pt-5 space-y-4">
+				<Skeleton class="h-8 w-64 rounded" />
+				<Skeleton class="h-5 w-24 rounded-full" />
 				<Skeleton class="h-4 w-3/4 rounded" />
 				<Skeleton class="h-4 w-full rounded" />
 				<Skeleton class="h-4 w-5/6 rounded" />
