@@ -15,10 +15,7 @@
 
 		<!-- Manual configuration (non-secret Data fields) -->
 		<section>
-			<h3 class="text-base font-semibold text-ink-gray-8">
-				{{ __('App Configuration') }}
-			</h3>
-			<div class="mt-4 flex flex-col gap-4">
+			<div class="flex flex-col gap-4">
 				<FormControl v-model="appId" type="text" :label="__('App ID')" />
 				<FormControl
 					v-model="clientId"
