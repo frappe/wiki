@@ -221,6 +221,7 @@ import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
+import { toPublished } from '../stores/draftWorkspace/utils';
 
 const props = defineProps({
 	spaceId: {
@@ -330,7 +331,7 @@ function adaptReadonlyNode(node) {
 		title: node.title,
 		route: node.route,
 		is_group: !!node.is_group,
-		is_published: node.is_published !== false,
+		is_published: toPublished(node.is_published),
 		is_external_link: false,
 		external_url: null,
 		children: (node.children || []).map(adaptReadonlyNode),

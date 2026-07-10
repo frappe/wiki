@@ -23,6 +23,7 @@ import {
 	errorMessage,
 	restoredDraftBuffer,
 	slugify,
+	toPublished,
 } from './draftWorkspace/utils';
 
 // Local-first workspace store. Owns optimistic UI state for the active change
@@ -350,7 +351,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (!localPage.title) localPage.title = result?.title || '';
 			localPage.route = result?.route || '';
 			localPage.content = result?.content || '';
-			localPage.isPublished = result?.is_published !== false;
+			localPage.isPublished = toPublished(result?.is_published);
 			return localPage;
 		}
 		return pageBuffers.setPage(docKey, {
@@ -359,7 +360,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			route: result?.route || '',
 			content: result?.content || '',
 			localContent: null,
-			isPublished: result?.is_published !== false,
+			isPublished: toPublished(result?.is_published),
 			saveStatus: 'idle',
 			error: null,
 		});
