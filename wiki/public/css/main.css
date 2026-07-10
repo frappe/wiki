@@ -357,8 +357,40 @@ body.image-viewer-open {
   padding-inline-start: 0.5em;
 }
 
+/* Checkboxes mirror the frappe-ui Checkbox component (sm). The public bundle
+   has no @tailwindcss/forms base, so restyle the native input from scratch:
+   appearance-none box + the forms-plugin check glyph, swapped to a dark glyph
+   on the near-white checked fill in dark mode (same as the frappe-ui preset). */
 .prose li.task-list-item > input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
   margin-right: 0.5em;
+  vertical-align: -0.125em;
+  border: 1px solid var(--outline-gray-4);
+  border-radius: var(--radius-sm, 4px);
+  background-color: var(--surface-base);
+  color: var(--ink-gray-9);
+}
+
+.prose li.task-list-item > input[type="checkbox"]:checked {
+  background-color: currentColor;
+  border-color: transparent;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+[data-theme='dark'] .prose li.task-list-item > input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%230F0F0F' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+}
+
+/* Completed items strike through, same as the editor's data-checked rule */
+.prose li.task-list-item:has(> input[type="checkbox"]:checked) {
+  color: var(--ink-gray-5);
+  text-decoration: line-through;
 }
 
 /* Table styling - matching Frappe UI prose tables */
