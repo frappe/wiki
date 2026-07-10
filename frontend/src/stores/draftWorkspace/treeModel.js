@@ -24,7 +24,7 @@ export function normalizeNode(serverNode, parentKey = null) {
 }
 
 // Convert a DraftNode back to the snake_case shape existing components consume
-// (NestedDraggable, WikiDocumentList, etc.). Lets us migrate incrementally.
+// (WikiTree, WikiDocumentList, etc.). Lets us migrate incrementally.
 export function denormalizeNode(node) {
 	return {
 		doc_key: node.docKey,

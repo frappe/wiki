@@ -288,7 +288,7 @@ test.describe('Change Request Flow', () => {
 
 		const addPageToGroup = async (groupTitle: string, pageTitle: string) => {
 			const groupItem = page
-				.locator('aside .draggable-item', { hasText: groupTitle })
+				.locator('aside [role="treeitem"]', { hasText: groupTitle })
 				.first();
 			await groupItem.hover();
 			// Click the three-dot menu button (in the row, not in nested content)
@@ -582,7 +582,7 @@ test.describe('Change Request Flow', () => {
 
 		const movedTitle = pageTitles[1];
 		const movedRow = page
-			.locator('aside .draggable-item > div.flex')
+			.locator('aside [data-slot="row"]')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
 		await expect(

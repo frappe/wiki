@@ -46,12 +46,10 @@
 			<p v-else class="text-sm text-ink-gray-5">{{ __('No pages have synced from the repository yet') }}</p>
 		</div>
 
-		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden">
-			<NestedDraggable
-				:key="treeKey"
+		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden p-1">
+			<WikiTree
 				:items="treeForRender.children"
 				:change-type-map="changeTypeMap"
-				:level="0"
 				:parent-name="rootNode"
 				:space-id="spaceId"
 				:readonly="readonly"
@@ -210,7 +208,7 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
-import NestedDraggable from './NestedDraggable.vue';
+import WikiTree from './WikiTree.vue';
 
 const props = defineProps({
 	treeData: {
@@ -249,21 +247,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['reorder-state-change']);
-const treeKey = computed(() => {
-	const getNodeIds = (nodes) => {
-		if (!nodes) return '';
-		const keys = nodes.map((n) => n.doc_key).sort();
-		const childKeys = nodes
-			.filter((n) => n.children?.length)
-			.map((n) => n.doc_key + ':' + getNodeIds(n.children))
-			.sort();
-		return keys.join(',') + '|' + childKeys.join(';');
-	};
-	return getNodeIds(props.treeData?.children);
-});
 
 const draftStore = useDraftWorkspaceStore();
-const expandedNodes = useStorage('wiki-tree-expanded-nodes', {});
+// Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
+// parent group after a create is actually visible in the tree.
+const expandedNodes = useStorage(
+	computed(() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`),
+	{},
+);
 
 // Client-side fuzzy filter over the in-memory tree (title + route).
 const {

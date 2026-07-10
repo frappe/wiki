@@ -698,8 +698,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	// Apply a drag locally, then queue a debounced backend sync. The
-	// legacy view is rebuilt from `tree`, so mutating tree here is what
-	// makes the drag persist after vuedraggable's local splice.
+	// tree view rebuilds from `tree`, so mutating it here is what makes
+	// the drag persist.
 	function moveNode({ docKey, newParentKey, newIndex }) {
 		const node = treeModel.findNode(docKey);
 		if (!node) return;
