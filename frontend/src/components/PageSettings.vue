@@ -81,7 +81,7 @@
 				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
 					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
 					<div
-						class="flex flex-1 flex-col overflow-hidden rounded-md border border-outline-gray-2"
+						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
 					>
 						<div
 							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"

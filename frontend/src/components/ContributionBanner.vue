@@ -8,7 +8,7 @@
 			<span :class="bannerIcon" class="size-5 shrink-0" aria-hidden="true" />
 			<div class="min-w-0">
 				<p class="text-sm-medium">{{ bannerTitle }}</p>
-				<p class="text-xs opacity-80">{{ bannerDescription }}</p>
+				<p v-if="bannerDescription" class="text-xs opacity-80">{{ bannerDescription }}</p>
 			</div>
 		</div>
 
@@ -366,7 +366,7 @@ const BANNER_CONFIG = {
 		class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
 		icon: 'lucide-git-branch',
 		title: __('Change Request Draft'),
-		description: __('Your changes are saved as a draft change request'),
+		description: '',
 	},
 	'In Review': {
 		class: 'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
