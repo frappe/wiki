@@ -50,6 +50,7 @@
 		"prosemirror-model": "^1.25.9",
 		"prosemirror-state": "^1.4.4",
 		"prosemirror-view": "^1.41.8",
-		"prosemirror-transform": "^1.10.4"
+		"prosemirror-transform": "^1.10.4",
+		"reka-ui": "^2.10.1"
 	}
 }

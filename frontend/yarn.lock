@@ -1496,16 +1496,6 @@
     "@vueuse/shared" "10.9.0"
     vue-demi ">=0.14.7"
 
-"@vueuse/core@^12.5.0":
-  version "12.8.2"
-  resolved "https://registry.npmjs.org/@vueuse/core/-/core-12.8.2.tgz"
-  integrity sha512-HbvCmZdzAu3VGi/pWYm5Ut+Kd9mn1ZHnn4L5G8kOQTPs/IwIAmJoBrmYk2ckLArgMXZj0AW3n5CAejLUO+PhdQ==
-  dependencies:
-    "@types/web-bluetooth" "^0.0.21"
-    "@vueuse/metadata" "12.8.2"
-    "@vueuse/shared" "12.8.2"
-    vue "^3.5.13"
-
 "@vueuse/core@^14.1.0":
   version "14.1.0"
   resolved "https://registry.npmjs.org/@vueuse/core/-/core-14.1.0.tgz"
@@ -1519,11 +1509,6 @@
   version "10.9.0"
   resolved "https://registry.npmjs.org/@vueuse/metadata/-/metadata-10.9.0.tgz"
   integrity sha512-iddNbg3yZM0X7qFY2sAotomgdHK7YJ6sKUvQqbvwnf7TmaVPxS4EJydcNsVejNdS8iWCtDk+fYXr7E32nyTnGA==
-
-"@vueuse/metadata@12.8.2":
-  version "12.8.2"
-  resolved "https://registry.npmjs.org/@vueuse/metadata/-/metadata-12.8.2.tgz"
-  integrity sha512-rAyLGEuoBJ/Il5AmFHiziCPdQzRt88VxR+Y/A/QhJ1EWtWqPBBAxTAFaSkviwEuOEZNtW8pvkPgoCZQ+HxqW1A==
 
 "@vueuse/metadata@14.1.0":
   version "14.1.0"
@@ -1544,13 +1529,6 @@
   dependencies:
     vue-demi ">=0.14.7"
 
-"@vueuse/shared@12.8.2", "@vueuse/shared@^12.5.0":
-  version "12.8.2"
-  resolved "https://registry.npmjs.org/@vueuse/shared/-/shared-12.8.2.tgz"
-  integrity sha512-dznP38YzxZoNloI0qpEfpkms8knDtaoQ6Y/sfS0L7Yki4zh40LFHEhur0odJC6xTHG5dxWVPiUWBXn+wCG2s5w==
-  dependencies:
-    vue "^3.5.13"
-
 "@vueuse/shared@14.1.0":
   version "14.1.0"
   resolved "https://registry.npmjs.org/@vueuse/shared/-/shared-14.1.0.tgz"
@@ -1560,6 +1538,11 @@
   version "14.2.1"
   resolved "https://registry.npmjs.org/@vueuse/shared/-/shared-14.2.1.tgz"
   integrity sha512-shTJncjV9JTI4oVNyF1FQonetYAiTBd+Qj7cY89SWbXSkx7gyhrgtEdF2ZAVWS1S3SHlaROO6F2IesJxQEkZBw==
+
+"@vueuse/shared@^14.1.0":
+  version "14.3.0"
+  resolved "https://registry.yarnpkg.com/@vueuse/shared/-/shared-14.3.0.tgz#a3e7e6391f9ed7f363cbb28c32c4a278efaacbd0"
+  integrity sha512-bZpge9eSXwa4ToSiqJ7j6KRwhAsneMFoSz3LMWKQDkqimm3D/tbFlrklrs/IOqC8tEcYmXQZJ6N0UrjhBirVCg==
 
 acorn@^8.14.0, acorn@^8.14.1, acorn@^8.15.0:
   version "8.15.0"
@@ -1888,10 +1871,10 @@ defaults@^1.0.3:
   dependencies:
     clone "^1.0.2"
 
-defu@^6.1.4:
-  version "6.1.4"
-  resolved "https://registry.npmjs.org/defu/-/defu-6.1.4.tgz"
-  integrity sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==
+defu@^6.1.5:
+  version "6.1.7"
+  resolved "https://registry.yarnpkg.com/defu/-/defu-6.1.7.tgz#72543567c8e9f97ff13ce402b6dbe09ac5ae4d23"
+  integrity sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==
 
 dequal@^2.0.0:
   version "2.0.3"
@@ -3151,20 +3134,20 @@ regex@^6.0.1:
   dependencies:
     regex-utilities "^2.3.0"
 
-reka-ui@^2.5.0:
-  version "2.6.1"
-  resolved "https://registry.npmjs.org/reka-ui/-/reka-ui-2.6.1.tgz"
-  integrity sha512-XK7cJDQoNuGXfCNzBBo/81Yg/OgjPwvbabnlzXG2VsdSgNsT6iIkuPBPr+C0Shs+3bb0x0lbPvgQAhMSCKm5Ww==
+reka-ui@^2.10.1, reka-ui@^2.5.0:
+  version "2.10.1"
+  resolved "https://registry.yarnpkg.com/reka-ui/-/reka-ui-2.10.1.tgz#af51db13cf753668385639900f0e01e99c386f44"
+  integrity sha512-drcOQ4rQtDYAcGCsyQBqQg8QQ+H3B+zDaMJU0h8KPEPMa7g9BHu3zcOi4OB39XJSWizceFoNO0Z9tctSGLOXqg==
   dependencies:
     "@floating-ui/dom" "^1.6.13"
     "@floating-ui/vue" "^1.1.6"
     "@internationalized/date" "^3.5.0"
     "@internationalized/number" "^3.5.0"
     "@tanstack/vue-virtual" "^3.12.0"
-    "@vueuse/core" "^12.5.0"
-    "@vueuse/shared" "^12.5.0"
+    "@vueuse/core" "^14.1.0"
+    "@vueuse/shared" "^14.1.0"
     aria-hidden "^1.2.4"
-    defu "^6.1.4"
+    defu "^6.1.5"
     ohash "^2.0.11"
 
 resolve@^1.1.7:
