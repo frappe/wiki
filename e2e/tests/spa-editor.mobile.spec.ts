@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { cleanupWikiSpacesByRoute, createTestWikiSpace } from '../helpers/wiki';
+import {
+	cleanupWikiSpacesByRoute,
+	clickSidebarAddOption,
+	createTestWikiSpace,
+} from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -63,7 +67,7 @@ test.describe('Mobile SPA', () => {
 		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await createFirstPage.click();
 		} else {
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 		}
 		await page.getByLabel('Title').fill(pageTitle);
 		await page

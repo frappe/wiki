@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 interface WikiDocumentRoute {
 	route: string;
 	doc_key: string;
@@ -43,21 +46,11 @@ test.describe('Public Wiki Pages', () => {
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 			// Create a new page with multiple headings
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
 
 			const pageTitle = `toc-test-page-${Date.now()}`;
 
 			// Click create button
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			// Fill in page title
 			await page.getByLabel('Title').fill(pageTitle);
@@ -245,20 +238,9 @@ That is all.`;
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
-
 			const pageTitle = `anchor-test-page-${Date.now()}`;
 
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			await page.getByLabel('Title').fill(pageTitle);
 			await page

@@ -5,6 +5,7 @@ import {
 	createTestWikiSpace,
 	deleteTestWikiDocument,
 	deleteTestWikiSpace,
+	openNewPageDialog,
 } from '../helpers/wiki';
 
 /**
@@ -50,14 +51,7 @@ async function createDraftAndOpenEditor(
 	await spaceLink.click();
 	await page.waitForLoadState('networkidle');
 
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	const newPageButton = page.locator('button[title="New Page"]');
-
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();

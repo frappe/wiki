@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openNewPageDialog } from '../helpers/wiki';
 
 test.describe('Callout Rich Text Editing', () => {
 	/**
@@ -16,16 +17,7 @@ test.describe('Callout Rich Text Editing', () => {
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
-
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page

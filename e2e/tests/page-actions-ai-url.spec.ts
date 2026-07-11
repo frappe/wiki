@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	clickSidebarAddOption,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -56,7 +59,7 @@ test.describe('Page actions – AI link URL', () => {
 		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await createFirstPage.click();
 		} else {
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 		}
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
@@ -92,7 +95,7 @@ test.describe('Page actions – AI link URL', () => {
 
 		// --- Create and fill the second page ---
 		const secondPageTitle = `ai-url-second-${Date.now()}`;
-		await page.locator('button[title="New Page"]').click();
+		await clickSidebarAddOption(page, 'New Page');
 		await page.getByLabel('Title').fill(secondPageTitle);
 		await page
 			.getByRole('dialog')

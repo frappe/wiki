@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	clickSidebarAddOption,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 /**
  * Tests for the external link feature in wiki.
@@ -22,9 +25,7 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Click the External Link button in the toolbar
-		const externalLinkButton = page.locator('button[title="External Link"]');
-		await expect(externalLinkButton).toBeVisible({ timeout: 5000 });
-		await externalLinkButton.click();
+		await clickSidebarAddOption(page, 'External Link');
 
 		// Fill in the external link dialog
 		const externalLinkTitle = `external-link-${Date.now()}`;
@@ -65,9 +66,7 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Create an external link
-		const externalLinkButton = page.locator('button[title="External Link"]');
-		await expect(externalLinkButton).toBeVisible({ timeout: 5000 });
-		await externalLinkButton.click();
+		await clickSidebarAddOption(page, 'External Link');
 
 		const externalLinkTitle = `merged-external-link-${Date.now()}`;
 		const externalLinkUrl = 'https://frappe.io/docs';
@@ -141,9 +140,7 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Create an external link
-		const externalLinkButton = page.locator('button[title="External Link"]');
-		await expect(externalLinkButton).toBeVisible({ timeout: 5000 });
-		await externalLinkButton.click();
+		await clickSidebarAddOption(page, 'External Link');
 
 		const externalLinkTitle = `public-external-link-${Date.now()}`;
 		const externalLinkUrl = 'https://docs.frappe.io';
@@ -157,8 +154,7 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Also create a regular page so we can access the public view
-		const newPageButton = page.locator('button[title="New Page"]');
-		await newPageButton.click();
+		await clickSidebarAddOption(page, 'New Page');
 
 		const pageTitle = `test-page-${Date.now()}`;
 		await page.getByLabel('Title').fill(pageTitle);
