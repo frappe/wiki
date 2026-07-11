@@ -278,7 +278,7 @@ test.describe('Change Request Flow', () => {
 			await groupItem.hover();
 			// Click the three-dot menu button (in the row, not in nested content)
 			await groupItem.locator('> div').first().locator('button').last().click();
-			await page.getByRole('menuitem', { name: 'Add Page' }).click();
+			await page.getByRole('menuitem', { name: 'New Page' }).click();
 			await page.getByRole('dialog').getByLabel('Title').fill(pageTitle);
 			await page
 				.getByRole('dialog')
