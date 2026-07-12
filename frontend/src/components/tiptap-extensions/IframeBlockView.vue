@@ -14,7 +14,7 @@ import {
 	isAllowedIframeSrc,
 	matchProvider,
 	normalizeEmbedUrl,
-} from './iframe-block.js';
+} from './iframe-embed.js';
 
 const props = defineProps({
 	node: { type: Object, required: true },

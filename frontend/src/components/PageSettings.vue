@@ -1,0 +1,242 @@
+<template>
+	<Dialog v-model="show" :options="{ size: '2xl' }">
+		<template #body-title>
+			<h3 class="text-xl font-semibold text-ink-gray-9">
+				{{ __('Page Settings') }}
+			</h3>
+		</template>
+		<template #body-content>
+			<div class="flex flex-col gap-5 sm:flex-row">
+				<div class="flex flex-1 flex-col gap-4">
+					<FormControl
+						type="text"
+						:label="__('Meta Title')"
+						v-model="metaTitle"
+						:placeholder="currentTitle"
+						:description="__('Leave empty to use the page title')"
+					/>
+					<FormControl
+						type="textarea"
+						:label="__('Meta Description')"
+						v-model="metaDescription"
+						:placeholder="__('A short summary shown in search results and link previews')"
+						:rows="3"
+						:description="descriptionHint"
+					/>
+					<div class="flex flex-col gap-1.5">
+						<label class="text-sm text-ink-gray-5">
+							{{ __('Meta Image') }}
+						</label>
+						<div
+							v-if="metaImage"
+							class="group relative overflow-hidden rounded-md border border-outline-gray-2"
+						>
+							<img :src="metaImage" alt="" class="h-32 w-full object-cover" />
+							<div
+								class="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+							>
+								<LucideLoader2
+									v-if="isUploadingImage"
+									class="h-5 w-5 animate-spin text-white"
+								/>
+								<template v-else>
+									<Button size="sm" variant="solid" @click="pickImage">
+										{{ __('Replace') }}
+									</Button>
+									<Button
+										size="sm"
+										variant="subtle"
+										theme="red"
+										@click="removeImage"
+									>
+										{{ __('Remove') }}
+									</Button>
+								</template>
+							</div>
+						</div>
+						<button
+							v-else
+							type="button"
+							class="flex flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 py-6 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
+							:disabled="isUploadingImage"
+							@click="pickImage"
+						>
+							<LucideLoader2
+								v-if="isUploadingImage"
+								class="h-5 w-5 animate-spin"
+							/>
+							<LucideImagePlus v-else class="h-5 w-5" />
+							<span>{{ isUploadingImage ? __('Uploading...') : __('Upload image') }}</span>
+						</button>
+						<p class="text-xs text-ink-gray-4">
+							{{ __('Recommended size: 1200×630px') }}
+						</p>
+						<input
+							ref="imageInput"
+							type="file"
+							accept="image/*"
+							class="hidden"
+							@change="handleImageChange"
+						/>
+					</div>
+				</div>
+				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
+					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
+					<div
+						class="flex flex-1 flex-col overflow-hidden rounded-md border border-outline-gray-2"
+					>
+						<div
+							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
+						>
+							<img
+								v-if="metaImage"
+								:src="metaImage"
+								alt=""
+								class="h-full w-full object-cover"
+							/>
+							<LucideImage v-else class="h-7 w-7 text-ink-gray-3" />
+						</div>
+						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
+							<span class="truncate text-xs text-ink-gray-4">
+								{{ previewRoute }}
+							</span>
+							<span class="line-clamp-1 text-sm font-medium text-ink-gray-9">
+								{{ previewTitle }}
+							</span>
+							<span
+								v-if="previewDescription"
+								class="line-clamp-3 text-xs leading-4 text-ink-gray-6"
+							>
+								{{ previewDescription }}
+							</span>
+							<span v-else class="text-xs italic leading-4 text-ink-gray-3">
+								{{ __('No description set') }}
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</template>
+		<template #actions="{ close }">
+			<div class="flex justify-end gap-2">
+				<Button variant="outline" @click="close">
+					{{ __('Cancel') }}
+				</Button>
+				<Button
+					variant="solid"
+					:disabled="!isDirty || docResource.setValue.loading"
+					:loading="docResource.setValue.loading"
+					@click="saveSettings"
+				>
+					{{ __('Save') }}
+				</Button>
+			</div>
+		</template>
+	</Dialog>
+</template>
+
+<script setup>
+import { Button, Dialog, FormControl, toast, useFileUpload } from 'frappe-ui';
+import { computed, ref, watch } from 'vue';
+import LucideImage from '~icons/lucide/image';
+import LucideImagePlus from '~icons/lucide/image-plus';
+import LucideLoader2 from '~icons/lucide/loader-2';
+
+const props = defineProps({
+	// The document resource from createDocumentResource({ doctype: 'Wiki
+	// Document', name }) — already loaded by WikiDocumentPanel, reused here
+	// so opening Page Settings doesn't trigger a second fetch of the doc.
+	docResource: {
+		type: Object,
+		required: true,
+	},
+});
+
+const show = defineModel({ type: Boolean, default: false });
+
+const metaTitle = ref('');
+const metaDescription = ref('');
+const metaImage = ref('');
+const isUploadingImage = ref(false);
+const imageInput = ref(null);
+
+const fileUploader = useFileUpload();
+
+const currentTitle = computed(() => props.docResource.doc?.title || '');
+
+const descriptionHint = computed(() => {
+	return __('Recommended: 150-160 characters ({0} so far)', [
+		metaDescription.value.length,
+	]);
+});
+
+const previewRoute = computed(() => props.docResource.doc?.route || '');
+const previewTitle = computed(() => metaTitle.value || currentTitle.value);
+const previewDescription = computed(() => metaDescription.value);
+
+const isDirty = computed(() => {
+	const doc = props.docResource.doc;
+	if (!doc) return false;
+	return (
+		metaTitle.value !== (doc.meta_title || '') ||
+		metaDescription.value !== (doc.meta_description || '') ||
+		metaImage.value !== (doc.meta_image || '')
+	);
+});
+
+// Reset form from the doc every time the dialog opens, so stale edits from a
+// cancelled session never leak into the next open.
+watch(show, (isOpen) => {
+	if (!isOpen) return;
+	const doc = props.docResource.doc;
+	metaTitle.value = doc?.meta_title || '';
+	metaDescription.value = doc?.meta_description || '';
+	metaImage.value = doc?.meta_image || '';
+});
+
+function pickImage() {
+	imageInput.value?.click();
+}
+
+function removeImage() {
+	metaImage.value = '';
+}
+
+async function handleImageChange(event) {
+	const file = event.target.files?.[0];
+	// Reset the input so re-selecting the same file still fires `change`.
+	event.target.value = '';
+	if (!file) return;
+
+	isUploadingImage.value = true;
+	try {
+		const result = await fileUploader.upload(file, {
+			private: false,
+			// Hit our handler directly (not via upload_file's `method`
+			// delegation, which would recurse). It converts PNG/JPEG to WebP
+			// when the Wiki Setting is enabled, returning the optimized
+			// file_url.
+			upload_endpoint: '/api/method/wiki.api.upload_wiki_asset',
+		});
+		metaImage.value = result.file_url;
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Failed to upload image'));
+	} finally {
+		isUploadingImage.value = false;
+	}
+}
+
+async function saveSettings() {
+	try {
+		await props.docResource.setValue.submit({
+			meta_title: metaTitle.value,
+			meta_description: metaDescription.value,
+			meta_image: metaImage.value,
+		});
+		toast.success(__('Page settings saved'));
+		show.value = false;
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error saving page settings'));
+	}
+}
+</script>

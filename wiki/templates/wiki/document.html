@@ -2,7 +2,7 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
 
 {% block title %}
-    {{ doc.title }}
+    {{ metatags.title if metatags and metatags.title else doc.title }}
 {% endblock %}
 
 {% block head %}
@@ -49,9 +49,11 @@
             {% else %}
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
-                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
                     {{ download_action_item() }}
+                    {% if can_edit %}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                    {% endif %}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                 {{ dropdown_end() }}
@@ -61,9 +63,11 @@
 
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
-                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
                         {{ download_action_item() }}
+                        {% if can_edit %}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                        {% endif %}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                     {{ dropdown_end() }}

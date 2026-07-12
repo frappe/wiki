@@ -50,39 +50,72 @@ import { ChevronDown, LucideTable as TableIcon } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
-    editor: { type: Object, required: true },
+	editor: { type: Object, required: true },
 });
 
 const open = ref(false);
 const dropdownRef = ref(null);
 
 const tableActions = computed(() => [
-    { divider: true },
-    { label: 'Add Column Before', command: 'addColumnBefore', disabled: () => !props.editor.can().addColumnBefore() },
-    { label: 'Add Column After', command: 'addColumnAfter', disabled: () => !props.editor.can().addColumnAfter() },
-    { label: 'Delete Column', command: 'deleteColumn', disabled: () => !props.editor.can().deleteColumn() },
-     { divider: true },
-    { label: 'Add Row Before', command: 'addRowBefore', disabled: () => !props.editor.can().addRowBefore() },
-    { label: 'Add Row After', command: 'addRowAfter', disabled: () => !props.editor.can().addRowAfter() },
-    { label: 'Delete Row', command: 'deleteRow', disabled: () => !props.editor.can().deleteRow() },
-     { divider: true },
-    { label: 'Delete Table', command: 'deleteTable', danger: true, disabled: () => !props.editor.can().deleteTable() },
+	{ divider: true },
+	{
+		label: 'Add Column Before',
+		command: 'addColumnBefore',
+		disabled: () => !props.editor.can().addColumnBefore(),
+	},
+	{
+		label: 'Add Column After',
+		command: 'addColumnAfter',
+		disabled: () => !props.editor.can().addColumnAfter(),
+	},
+	{
+		label: 'Delete Column',
+		command: 'deleteColumn',
+		disabled: () => !props.editor.can().deleteColumn(),
+	},
+	{ divider: true },
+	{
+		label: 'Add Row Before',
+		command: 'addRowBefore',
+		disabled: () => !props.editor.can().addRowBefore(),
+	},
+	{
+		label: 'Add Row After',
+		command: 'addRowAfter',
+		disabled: () => !props.editor.can().addRowAfter(),
+	},
+	{
+		label: 'Delete Row',
+		command: 'deleteRow',
+		disabled: () => !props.editor.can().deleteRow(),
+	},
+	{ divider: true },
+	{
+		label: 'Delete Table',
+		command: 'deleteTable',
+		danger: true,
+		disabled: () => !props.editor.can().deleteTable(),
+	},
 ]);
 
 function insertTable() {
-    props.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-    open.value = false;
+	props.editor
+		.chain()
+		.focus()
+		.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+		.run();
+	open.value = false;
 }
 
 function runAction(command) {
-    props.editor.chain().focus()[command]().run();
-    open.value = false;
+	props.editor.chain().focus()[command]().run();
+	open.value = false;
 }
 
 function handleClickOutside(event) {
-    if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-        open.value = false;
-    }
+	if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+		open.value = false;
+	}
 }
 
 onMounted(() => document.addEventListener('click', handleClickOutside));

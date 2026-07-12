@@ -14,12 +14,18 @@ from frappe.tests import IntegrationTestCase
 from wiki.permissions import (
 	_accessible_space_names,
 	_is_manager,
+	can_contribute_to_space,
 	can_read_space,
 	can_write_space,
 	wiki_cr_has_permission,
 	wiki_document_has_permission,
 	wiki_space_has_permission,
 )
+
+
+def _set_contributions(space: str, allow: bool) -> None:
+	frappe.db.set_value("Wiki Space", space, "allow_contributions", 1 if allow else 0)
+
 
 READER_ROLE = "_Test WSAC Reader"
 WRITER_ROLE = "_Test WSAC Writer"
@@ -221,11 +227,55 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 
 	def test_cr_has_permission_is_governed_by_space_read(self):
 		doc = frappe.get_doc({"doctype": "Wiki Change Request", "wiki_space": self.restricted})
-		# Reading and editing (proposing) a CR both require space Read; merge is
+		# Reading a CR requires space Read; editing (proposing) additionally
+		# requires the space to accept contributions (on by default). Merge is
 		# gated separately in the controller.
 		self.assertTrue(wiki_cr_has_permission(doc, "read", self.reader))
 		self.assertTrue(wiki_cr_has_permission(doc, "write", self.reader))
 		self.assertFalse(wiki_cr_has_permission(doc, "read", self.outsider))
+
+	# --- can_contribute_to_space (Accept Contributions toggle) -------------
+
+	def test_contributions_on_lets_reader_contribute(self):
+		_set_contributions(self.restricted, True)
+		self.assertTrue(can_contribute_to_space(self.restricted, self.reader))
+
+	def test_contributions_off_blocks_reader(self):
+		_set_contributions(self.restricted, False)
+		self.assertFalse(can_contribute_to_space(self.restricted, self.reader))
+
+	def test_contributions_off_still_allows_writer_and_manager(self):
+		_set_contributions(self.restricted, False)
+		self.assertTrue(can_contribute_to_space(self.restricted, self.writer))
+		self.assertTrue(can_contribute_to_space(self.restricted, self.manager))
+
+	def test_contributions_never_grant_access_without_read(self):
+		_set_contributions(self.restricted, True)
+		self.assertFalse(can_contribute_to_space(self.restricted, self.outsider))
+
+	def test_new_space_defaults_to_accepting(self):
+		# The doctype default keeps contributions on unless explicitly disabled.
+		self.assertEqual(frappe.db.get_value("Wiki Space", self.restricted, "allow_contributions"), 1)
+		self.assertTrue(can_contribute_to_space(self.restricted, self.reader))
+
+	def test_cr_write_blocked_for_reader_when_contributions_off(self):
+		_set_contributions(self.restricted, False)
+		doc = frappe.get_doc({"doctype": "Wiki Change Request", "wiki_space": self.restricted})
+		# Reads still allowed; writes (proposing) blocked for Read-tier, allowed
+		# for Write-tier even with contributions off.
+		self.assertTrue(wiki_cr_has_permission(doc, "read", self.reader))
+		self.assertFalse(wiki_cr_has_permission(doc, "write", self.reader))
+		self.assertTrue(wiki_cr_has_permission(doc, "write", self.writer))
+
+	def test_create_change_request_blocked_for_reader_when_off(self):
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+			create_change_request,
+		)
+
+		_set_contributions(self.restricted, False)
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			create_change_request(self.restricted, "Reader proposal")
 
 
 class TestSpaceRolesAPI(IntegrationTestCase):
@@ -287,3 +337,28 @@ class TestSpaceRolesAPI(IntegrationTestCase):
 		)
 		rows = get_space_roles(self.space)
 		self.assertEqual([r["role"] for r in rows], [READER_ROLE])
+
+	def test_set_space_contributions_updates_flag_for_manager(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.set_user(self.manager)
+		set_space_contributions(self.space, 0)
+		self.assertEqual(frappe.db.get_value("Wiki Space", self.space, "allow_contributions"), 0)
+		set_space_contributions(self.space, 1)
+		self.assertEqual(frappe.db.get_value("Wiki Space", self.space, "allow_contributions"), 1)
+
+	def test_set_space_contributions_denied_for_read_tier_user(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			set_space_contributions(self.space, 0)
+
+	def test_set_space_contributions_blocked_on_git_synced_space(self):
+		from wiki.api.wiki_space import set_space_contributions
+
+		frappe.db.set_value("Wiki Space", self.space, "git_synced", 1)
+		frappe.clear_document_cache("Wiki Space", self.space)
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			set_space_contributions(self.space, 0)

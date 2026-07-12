@@ -758,6 +758,22 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		);
 	}
 
+	// Save every divergent buffer, not just the page on screen; pages left
+	// mid-autosave would otherwise gate submit/merge. `exceptDocKey` skips
+	// the open editor's page — its saves stay editor-canonicalized.
+	async function flushDirtyPages(exceptDocKey = null) {
+		if (!crName.value) return [];
+		const dirty = pageBuffers
+			.dirtyPages()
+			.filter((page) => page.docKey !== exceptDocKey);
+		const results = await Promise.allSettled(
+			dirty.map((page) =>
+				saveContent(page.docKey, page.localContent, page.title || null),
+			),
+		);
+		return results.filter((r) => r.status === 'rejected').map((r) => r.reason);
+	}
+
 	async function doSaveContent(docKey, content, title) {
 		const page = pageBuffers.ensure(docKey, {
 			title: title || '',
@@ -957,6 +973,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		deleteNode,
 		moveNode,
 		saveContent,
+		flushDirtyPages,
 		recordEditorContent,
 		reconcileEditorContent,
 		// queue helpers (used by upcoming mutation actions)

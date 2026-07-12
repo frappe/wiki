@@ -1,11 +1,12 @@
 <template>
     <div class="wiki-editor-container">
         <div v-if="editor">
-            <template v-if="!readonly">
-                <WikiToolbar :editor="editor" @uploadImage="handleImageUpload" />
-                <WikiBubbleMenu :editor="editor" />
-            </template>
+            <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
             <EditorContent :editor="editor" />
+            <!-- After EditorContent so the ProseMirror DOM is attached when the
+                 bubble menu mounts; it derives its flip boundary from the editor's
+                 scroll ancestor, which must be reachable at that point. -->
+            <WikiBubbleMenu v-if="!readonly" :editor="editor" />
         </div>
         <div v-else class="wiki-editor-loading">
             Loading editor...
@@ -35,7 +36,6 @@ import {
 } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
-import { StarterKit } from '@tiptap/starter-kit';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
@@ -59,6 +59,7 @@ import {
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
@@ -111,7 +112,12 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['save', 'content-change', 'content-ready']);
+const emit = defineEmits([
+	'save',
+	'save-all',
+	'content-change',
+	'content-ready',
+]);
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
@@ -205,10 +211,7 @@ async function insertAndUploadImage(file) {
 		preview = '';
 	}
 
-	ed.chain()
-		.focus()
-		.setImage({ src: preview, uploadId, loading: true })
-		.run();
+	ed.chain().focus().setImage({ src: preview, uploadId, loading: true }).run();
 
 	try {
 		const url = await uploadFile(file);
@@ -581,11 +584,7 @@ function createSlashCommandsSuggestion() {
 function initEditor() {
 	editor.value = new Editor({
 		extensions: [
-			StarterKit.configure({
-				codeBlock: false, // We use CodeBlockLowlight instead
-				link: false, // We use our custom WikiLink
-				paragraph: false, // We use WikiParagraph for blank line support
-			}),
+			wikiStarterKit({ paragraph: false }),
 			WikiParagraph,
 			// Custom link extension with Cmd+K support
 			WikiLink.configure({
@@ -748,6 +747,8 @@ function saveToDB() {
 		if (markdown !== normalizeMarkdown(props.savedContent)) {
 			emit('save', markdown);
 		}
+		// "Save" means all of the user's work, not just this page.
+		emit('save-all');
 		document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
 	} else {
 		toast.error('Could not get content from editor');

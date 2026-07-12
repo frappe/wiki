@@ -1,6 +1,8 @@
 # Copyright (c) 2025, Frappe and Contributors
 # See license.txt
 
+import json
+import re
 import unittest
 from threading import Thread
 from types import SimpleNamespace
@@ -11,6 +13,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	WikiDocumentRenderer,
 	download_pdf,
 	process_navbar_items,
 )
@@ -350,6 +353,253 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Expected order: Zebra (order 1), Alpha (order 2), Beta (order 2), Gamma (order 3)
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
+
+
+class TestGetWebContextMetaTags(WikiDocumentTestBase):
+	"""
+	Unit tests for the metatags/canonical_url emission in get_web_context().
+	Covers the meta_title/meta_description/meta_image fields and their
+	fallbacks when unset.
+	"""
+
+	def test_metatags_use_explicit_meta_fields_when_set(self):
+		"""When meta_title/description/image are set, metatags should reflect them."""
+		root_group = create_test_wiki_document(self, "Root Meta Group", is_group=True)
+		doc = create_test_wiki_document(self, "Meta Doc", parent=root_group.name, slug="meta-doc")
+		create_test_wiki_space(self, "Meta Space", "meta-space", root_group.name)
+
+		doc.meta_title = "Custom Meta Title"
+		doc.meta_description = "Custom meta description for SEO."
+		doc.meta_image = "/files/meta-preview.png"
+		doc.save()
+		doc.reload()
+
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Custom Meta Title")
+		self.assertEqual(metatags["description"], "Custom meta description for SEO.")
+		self.assertEqual(metatags["og:title"], "Custom Meta Title")
+		self.assertEqual(metatags["og:image"], frappe.utils.get_url("/files/meta-preview.png"))
+		self.assertEqual(metatags["twitter:card"], "summary_large_image")
+		self.assertEqual(metatags["og:site_name"], "Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+	def test_metatags_fall_back_to_title_when_meta_fields_unset(self):
+		"""With no meta_title/description/image, metatags should fall back sensibly."""
+		root_group = create_test_wiki_document(self, "Root Meta Fallback Group", is_group=True)
+		doc = create_test_wiki_document(
+			self, "Fallback Meta Doc", parent=root_group.name, slug="fallback-meta-doc"
+		)
+		create_test_wiki_space(self, "Fallback Meta Space", "fallback-meta-space", root_group.name)
+
+		doc.reload()
+		context = doc.get_web_context()
+		metatags = context["metatags"]
+
+		self.assertEqual(metatags["title"], "Fallback Meta Doc")
+		self.assertNotIn("description", metatags)
+		self.assertNotIn("image", metatags)
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+		self.assertEqual(metatags["og:site_name"], "Fallback Meta Space")
+
+		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
+
+
+class TestRenderedPageMetaTags(WikiDocumentTestBase):
+	"""
+	Integration tests that render the public page HTML and assert the
+	og/twitter/canonical tags emitted by get_web_context() actually show up
+	in the served head markup.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def test_rendered_head_contains_meta_tags_for_published_doc(self):
+		# Create the space first (auto-creates root_group) so the doc's route
+		# picks up the space prefix, matching TestSetRoute's pattern.
+		route = self._unique("meta-render")
+		space = create_test_wiki_space(self, "Meta Render Space", route, None, roles=[("Guest", "Read")])
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-doc"),
+		)
+
+		doc.meta_title = "Rendered Meta Title"
+		doc.meta_description = "Rendered meta description."
+		doc.meta_image = "/files/rendered-preview.png"
+		doc.save()
+		doc.reload()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'property="og:title"\s*content="Rendered Meta Title"')
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+	def test_rendered_head_omits_image_tags_when_no_meta_image(self):
+		route = self._unique("meta-render-fallback")
+		space = create_test_wiki_space(
+			self, "Meta Render Fallback Space", route, None, roles=[("Guest", "Read")]
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render Fallback Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-fallback-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
+		self.assertNotIn('property="og:image"', html)
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+
+class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
+	"""
+	Unit tests for the BreadcrumbList JSON-LD emission in get_web_context().
+	Ancestor groups are non-clickable in the reader sidebar (toggle buttons,
+	not links), so per Google's structured-data rules they're dropped from
+	the trail rather than emitted without a URL -- only the space and the
+	current page appear.
+	"""
+
+	def test_breadcrumbs_include_space_and_current_page_only(self):
+		"""Nested space -> group -> group -> page collapses to [space, page]."""
+		space = create_test_wiki_space(self, "Breadcrumb Space", "breadcrumb-space", None)
+		group = create_test_wiki_document(self, "Breadcrumb Group", parent=space.root_group, is_group=True)
+		subgroup = create_test_wiki_document(self, "Breadcrumb Subgroup", parent=group.name, is_group=True)
+		doc = create_test_wiki_document(self, "Breadcrumb Doc", parent=subgroup.name, slug="breadcrumb-doc")
+		doc.reload()
+
+		context = doc.get_web_context()
+		breadcrumbs = json.loads(context["breadcrumbs"])
+
+		self.assertEqual(breadcrumbs["@context"], "https://schema.org")
+		self.assertEqual(breadcrumbs["@type"], "BreadcrumbList")
+
+		items = breadcrumbs["itemListElement"]
+		self.assertEqual(len(items), 2)
+
+		self.assertEqual(items[0]["@type"], "ListItem")
+		self.assertEqual(items[0]["position"], 1)
+		self.assertEqual(items[0]["name"], "Breadcrumb Space")
+		self.assertEqual(items[0]["item"], frappe.utils.get_url("/breadcrumb-space"))
+
+		self.assertEqual(items[1]["@type"], "ListItem")
+		self.assertEqual(items[1]["position"], 2)
+		self.assertEqual(items[1]["name"], "Breadcrumb Doc")
+		self.assertEqual(items[1]["item"], frappe.utils.get_url("/" + doc.route))
+
+		# Intermediate group names must not leak into the trail.
+		names = [item["name"] for item in items]
+		self.assertNotIn("Breadcrumb Group", names)
+		self.assertNotIn("Breadcrumb Subgroup", names)
+
+	def test_breadcrumbs_absent_for_orphan_document(self):
+		"""Documents with no wiki_space (chromeless/orphan) get no breadcrumbs."""
+		orphan = create_test_wiki_document(self, "Orphan Breadcrumb Doc")
+		orphan.reload()
+
+		context = orphan.get_web_context()
+
+		self.assertIsNone(context["breadcrumbs"])
+
+	def test_breadcrumbs_escape_script_breaking_titles(self):
+		"""No raw "<" may reach the serialized JSON, since the template embeds
+		it inside a <script> element. Frappe's save-time sanitization already
+		strips tags from Data fields, so force a hostile title in memory to
+		exercise the serialization-layer escape directly."""
+		space = create_test_wiki_space(self, "Escape Space", "breadcrumb-escape-space", None)
+		doc = create_test_wiki_document(self, "Sneaky Doc", parent=space.root_group, slug="sneaky")
+		doc.reload()
+		doc.title = "Sneaky </script><script>alert(1)</script>"
+
+		serialized = doc.get_web_context()["breadcrumbs"]
+
+		self.assertNotIn("<", serialized)
+		parsed = json.loads(serialized)
+		self.assertEqual(parsed["itemListElement"][-1]["name"], "Sneaky </script><script>alert(1)</script>")
+
+
+class TestRenderedPageBreadcrumbs(WikiDocumentTestBase):
+	"""
+	Integration tests that render the public page HTML and assert the
+	BreadcrumbList JSON-LD script emitted by get_web_context() actually
+	shows up in the served head markup as valid, parseable JSON.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _extract_json_ld(self, html):
+		match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+		self.assertIsNotNone(match, "BreadcrumbList JSON-LD script not found in rendered head")
+		return json.loads(match.group(1))
+
+	def test_rendered_head_contains_breadcrumb_list(self):
+		route = self._unique("breadcrumb-render")
+		space = create_test_wiki_space(
+			self, "Breadcrumb Render Space", route, None, roles=[("Guest", "Read")]
+		)
+		group = create_test_wiki_document(
+			self, "Breadcrumb Render Group", parent=space.root_group, is_group=True
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Breadcrumb Render Doc",
+			parent=group.name,
+			slug=self._unique("breadcrumb-render-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
+		breadcrumbs = self._extract_json_ld(html)
+		self.assertEqual(breadcrumbs["@type"], "BreadcrumbList")
+
+		items = breadcrumbs["itemListElement"]
+		self.assertEqual(items[-1]["name"], "Breadcrumb Render Doc")
+		self.assertEqual(items[0]["name"], "Breadcrumb Render Space")
+		# The request thread patches the site to wiki.localhost, so compare by
+		# suffix rather than exact host (matches the canonical_url regex checks
+		# in TestRenderedPageMetaTags above).
+		self.assertTrue(items[0]["item"].endswith("/" + route))
 
 
 class TestMarkdownCallouts(unittest.TestCase):
@@ -1426,3 +1676,339 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		content_type = response.headers.get("Content-Type", "")
 		self.assertIn("charset=utf-8", content_type)
+
+
+class TestStale404CacheInvalidation(WikiDocumentTestBase):
+	"""
+	Regression tests for GH-684: Frappe caches every guest URL that 404s
+	(the ``website_404`` cache) and short-circuits later requests to it, so a
+	page published or renamed after its URL was visited kept returning 404
+	until the cache was cleared manually. Wiki Document writes must invalidate
+	that cache.
+	"""
+
+	def setUp(self):
+		self._original_request = getattr(frappe.local, "request", None)
+		frappe.cache.delete_value("website_404")
+
+	def tearDown(self):
+		if self._original_request is not None:
+			frappe.local.request = self._original_request
+		elif hasattr(frappe.local, "request"):
+			del frappe.local.request
+		super().tearDown()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _poison_404_cache(self, route):
+		"""Simulate NotFoundPage caching a guest 404 hit for this URL."""
+		from werkzeug.test import EnvironBuilder
+		from werkzeug.wrappers import Request
+
+		builder = EnvironBuilder(path=f"/{route}", base_url=frappe.utils.get_url())
+		frappe.local.request = Request(builder.get_environ())
+		frappe.cache.hset("website_404", frappe.local.request.url, True)
+
+	def _resolve(self, route):
+		"""Resolve a route the way a web request would, with 404 caching active."""
+		from frappe.website.path_resolver import PathResolver
+
+		with patch("frappe.website.path_resolver.can_cache", return_value=True):
+			return PathResolver(route).resolve()[1]
+
+	def _create_space(self, prefix):
+		route = self._unique(prefix)
+		space = create_test_wiki_space(self, f"Space {route}", route, None, roles=[("Guest", "Read")])
+		return space, route
+
+	def test_publishing_new_page_clears_cached_404(self):
+		from frappe.website.page_renderers.not_found_page import NotFoundPage
+
+		space, space_route = self._create_space("cache-684")
+		slug = self._unique("page")
+		route = f"{space_route}/{slug}"
+
+		self._poison_404_cache(route)
+		self.assertIsInstance(self._resolve(route), NotFoundPage)
+
+		create_test_wiki_document(self, "Cache Test Page", parent=space.root_group, slug=slug)
+
+		self.assertIsInstance(self._resolve(route), WikiDocumentRenderer)
+
+	def test_route_change_clears_cached_404_for_new_route(self):
+		from frappe.website.page_renderers.not_found_page import NotFoundPage
+
+		space, space_route = self._create_space("cache-684-mv")
+		doc = create_test_wiki_document(self, "Move Me", parent=space.root_group, slug=self._unique("old"))
+		new_slug = self._unique("new")
+		new_route = f"{space_route}/{new_slug}"
+
+		self._poison_404_cache(new_route)
+		self.assertIsInstance(self._resolve(new_route), NotFoundPage)
+
+		doc.slug = new_slug
+		doc.route = new_route
+		doc.save()
+
+		self.assertIsInstance(self._resolve(new_route), WikiDocumentRenderer)
+
+	def test_publish_toggle_clears_cached_404(self):
+		space, space_route = self._create_space("cache-684-pub")
+		slug = self._unique("draft")
+		doc = create_test_wiki_document(
+			self, "Draft Page", parent=space.root_group, slug=slug, is_published=False
+		)
+		route = f"{space_route}/{slug}"
+
+		self._poison_404_cache(route)
+
+		doc.is_published = 1
+		doc.save()
+
+		self.assertIsInstance(self._resolve(route), WikiDocumentRenderer)
+
+	def test_space_route_rename_clears_cached_404(self):
+		space, space_route = self._create_space("cache-684-sp")
+		slug = self._unique("page")
+		doc = create_test_wiki_document(self, "Space Rename Page", parent=space.root_group, slug=slug)
+
+		new_space_route = self._unique("cache-684-renamed")
+		new_route = f"{new_space_route}/{slug}"
+
+		self._poison_404_cache(new_route)
+
+		space.reload()
+		space.update_routes(new_space_route)
+
+		doc.reload()
+		self.assertEqual(doc.route, new_route)
+		self.assertIsInstance(self._resolve(new_route), WikiDocumentRenderer)
+
+
+class TestSpaceUrlFirstPage(WikiDocumentTestBase):
+	"""The space URL must land on the first page in sidebar order (sort_order),
+	not the first descendant in NestedSet (lft) order."""
+
+	def test_first_page_follows_sidebar_sort_order_not_lft(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage Root", is_group=True)
+		# Created first, so it has the lower lft — but reordered last in the sidebar.
+		created_first = create_test_wiki_document(
+			self, "Created First", parent=root.name, slug="fp-created-first"
+		)
+		sidebar_first = create_test_wiki_document(
+			self, "Sidebar First", parent=root.name, slug="fp-sidebar-first"
+		)
+		create_test_wiki_space(self, "FirstPage Space", "fp-space", root.name)
+		# Raw sort_order writes, exactly like reorder_wiki_documents does.
+		frappe.db.set_value("Wiki Document", sidebar_first.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", created_first.name, "sort_order", 1)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], sidebar_first.route)
+
+	def test_first_page_descends_into_first_group(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage GRoot", is_group=True)
+		later = create_test_wiki_document(self, "Later Page", parent=root.name, slug="fpg-later")
+		group = create_test_wiki_document(
+			self, "First Group", parent=root.name, is_group=True, slug="fpg-group"
+		)
+		nested = create_test_wiki_document(self, "Nested Page", parent=group.name, slug="fpg-nested")
+		create_test_wiki_space(self, "FirstPage GSpace", "fpg-space", root.name)
+		frappe.db.set_value("Wiki Document", group.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], nested.route)
+
+	def test_first_page_skips_unpublished_and_external(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_first_published_page
+
+		root = create_test_wiki_document(self, "FirstPage SRoot", is_group=True)
+		create_test_wiki_document(
+			self, "Unpublished", parent=root.name, sort_order=0, slug="fps-unpub", is_published=False
+		)
+		create_test_wiki_document(
+			self,
+			"External",
+			parent=root.name,
+			sort_order=1,
+			slug="fps-ext",
+			is_external_link=True,
+			external_url="https://example.com",
+		)
+		page = create_test_wiki_document(self, "Real Page", parent=root.name, sort_order=2, slug="fps-real")
+		create_test_wiki_space(self, "FirstPage SSpace", "fps-space", root.name)
+
+		first = get_first_published_page(root.name)
+		self.assertEqual(first["route"], page.route)
+
+	def test_space_route_redirects_to_first_sidebar_page(self):
+		root = create_test_wiki_document(self, "FirstPage RRoot", is_group=True)
+		later = create_test_wiki_document(self, "Redirect Later", parent=root.name, slug="fpr-later")
+		target = create_test_wiki_document(self, "Redirect Target", parent=root.name, slug="fpr-target")
+		create_test_wiki_space(self, "FirstPage RSpace", "fpr-space", root.name)
+		frappe.db.set_value("Wiki Document", target.name, "sort_order", 0)
+		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
+
+		renderer = WikiDocumentRenderer(path="fpr-space")
+		with self.assertRaises(frappe.Redirect):
+			renderer.can_render()
+		self.assertEqual(frappe.local.flags.redirect_location, "/" + target.route)
+
+
+class TestWikiTreeCache(WikiDocumentTestBase):
+	def test_tree_is_cached_and_busted_on_document_update(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_TREE_CACHE_KEY,
+			get_public_wiki_tree,
+		)
+
+		root = create_test_wiki_document(self, "TreeCache Root", is_group=True)
+		page = create_test_wiki_document(self, "TreeCache Page", parent=root.name, slug="tc-page")
+		create_test_wiki_space(self, "TreeCache Space", "tc-space", root.name)
+
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["title"], "TreeCache Page")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+
+		page.title = "TreeCache Page Renamed"
+		page.save()
+
+		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["title"], "TreeCache Page Renamed")
+
+	def test_tree_cache_busted_on_reorder(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_TREE_CACHE_KEY,
+			get_public_wiki_tree,
+		)
+
+		root = create_test_wiki_document(self, "TreeCache RRoot", is_group=True)
+		page_a = create_test_wiki_document(self, "Reorder A", parent=root.name, sort_order=0, slug="tcr-a")
+		page_b = create_test_wiki_document(self, "Reorder B", parent=root.name, sort_order=1, slug="tcr-b")
+		create_test_wiki_space(self, "TreeCache RSpace", "tcr-space", root.name)
+
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual([n["title"] for n in tree], ["Reorder A", "Reorder B"])
+
+		reorder_wiki_documents(
+			doc_name=page_b.name,
+			new_parent=root.name,
+			new_index=0,
+			siblings=json.dumps([page_b.name, page_a.name]),
+		)
+
+		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual([n["title"] for n in tree], ["Reorder B", "Reorder A"])
+
+
+class TestSearchPublishGating(WikiDocumentTestBase):
+	"""
+	Search must mirror page-render visibility: no hits from unpublished
+	spaces, and unpublishing a page must drop it from results immediately
+	(not after the 5-minute index queue catches up).
+	"""
+
+	def _build_index(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+		return search
+
+	def test_search_hides_docs_in_unpublished_space(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		visible_root = create_test_wiki_document(self, "Root PubSpace", is_group=True)
+		create_test_wiki_space(self, "Published Space", "pub-space-gate", visible_root.name)
+		visible_page = create_test_wiki_document(
+			self, "Visible Page", parent=visible_root.name, content="spacegate_searchterm"
+		)
+
+		hidden_root = create_test_wiki_document(self, "Root UnpubSpace", is_group=True)
+		create_test_wiki_space(
+			self, "Unpublished Space", "unpub-space-gate", hidden_root.name, is_published=False
+		)
+		hidden_page = create_test_wiki_document(
+			self, "Hidden Page", parent=hidden_root.name, content="spacegate_searchterm"
+		)
+
+		self._build_index()
+
+		result = wiki_search("spacegate_searchterm")
+		result_names = [r["name"] for r in result["results"]]
+
+		self.assertIn(visible_page.name, result_names)
+		self.assertNotIn(hidden_page.name, result_names)
+
+	def test_unpublish_drops_doc_from_search_immediately(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		root = create_test_wiki_document(self, "Root UnpubDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Soon Unpublished", parent=root.name, content="unpubdoc_searchterm"
+		)
+		create_test_wiki_space(self, "UnpubDoc Space", "unpub-doc-gate", root.name)
+
+		search = self._build_index()
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertIn(page.name, [r["name"] for r in result["results"]])
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		def index_row_count():
+			rows = search.sql(
+				"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+				(f"Wiki Document:{page.name}",),
+				read_only=True,
+			)
+			return rows[0]["c"]
+
+		# Removal is deferred until the transaction commits, so the row must
+		# survive a save that could still roll back.
+		self.assertEqual(index_row_count(), 1)
+
+		# Run the post-commit callbacks without committing (keeps test isolation).
+		frappe.db.after_commit.run()
+
+		# No queue processing in between: the index row must already be gone.
+		self.assertEqual(index_row_count(), 0)
+
+		result = wiki_search("unpubdoc_searchterm")
+		self.assertNotIn(page.name, [r["name"] for r in result["results"]])
+
+	def test_unpublish_index_removal_discarded_on_rollback(self):
+		root = create_test_wiki_document(self, "Root RollbackDoc", is_group=True)
+		page = create_test_wiki_document(
+			self, "Rollback Page", parent=root.name, content="rollbackterm_search"
+		)
+		create_test_wiki_space(self, "Rollback Space", "unpub-rollback-gate", root.name)
+
+		search = self._build_index()
+
+		page.reload()
+		page.is_published = 0
+		page.save()
+
+		# The save never commits: the page stays published in the database, so
+		# its index row must survive too.
+		frappe.db.rollback()
+
+		rows = search.sql(
+			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+			(f"Wiki Document:{page.name}",),
+			read_only=True,
+		)
+		self.assertEqual(rows[0]["c"], 1)

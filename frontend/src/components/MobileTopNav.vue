@@ -35,17 +35,21 @@
 </template>
 
 <script setup>
+import { useSessionStore } from '@/stores/session';
+import { useUserStore } from '@/stores/user';
 import { Dropdown } from 'frappe-ui';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import LucideMenu from '~icons/lucide/menu';
-import { useSessionStore } from '@/stores/session';
 import { useMobile } from '../composables/useMobile';
 import { useTheme } from '../composables/useTheme';
+import { useWikiSettings } from '../composables/useWikiSettings';
 
 const { mobileHasLeadingControl } = useMobile();
 const router = useRouter();
 const sessionStore = useSessionStore();
+const userStore = useUserStore();
+const { open: openWikiSettings } = useWikiSettings();
 const { userTheme, toggleTheme, initTheme } = useTheme();
 
 // On mobile the desktop Sidebar never mounts, so apply the saved theme here —
@@ -67,6 +71,15 @@ const appMenuOptions = computed(() => [
 		icon: 'git-branch',
 		onClick: () => router.push({ name: 'ChangeRequests' }),
 	},
+	...(userStore.isWikiManager
+		? [
+				{
+					label: __('Settings'),
+					icon: 'settings',
+					onClick: () => openWikiSettings(),
+				},
+			]
+		: []),
 	{
 		label: __('Toggle Theme'),
 		icon: userTheme.value === 'dark' ? 'sun' : 'moon',

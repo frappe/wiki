@@ -10,14 +10,16 @@ CONVERTIBLE_IMAGE_EXTENSIONS = (".png", ".jpeg", ".jpg")
 def get_space_capabilities(space: str) -> dict:
 	"""Return the current user's read/write capabilities for a Wiki Space.
 
-	Used by the SPA to show/hide the Merge action. Enforcement always remains
-	server-side in the permission hooks and Change Request controller.
+	Used by the SPA to show/hide the Merge and contribute actions. Enforcement
+	always remains server-side in the permission hooks and Change Request
+	controller.
 	"""
-	from wiki.permissions import can_read_space, can_write_space
+	from wiki.permissions import can_contribute_to_space, can_read_space, can_write_space
 
 	return {
 		"can_read": can_read_space(space),
 		"can_write": can_write_space(space),
+		"can_contribute": can_contribute_to_space(space),
 	}
 
 

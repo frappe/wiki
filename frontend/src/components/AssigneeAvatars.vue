@@ -20,8 +20,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { Avatar, Tooltip } from 'frappe-ui';
+import { computed } from 'vue';
 
 const props = defineProps({
 	// Frappe's native `_assign` field — a JSON-encoded array of user ids.

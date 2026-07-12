@@ -97,7 +97,8 @@
 {% endmacro %}
 
 {% macro dropdown_item(text="", icon="", href="", href_expr="", target="_blank") %}
-    <a {% if href_expr %}:href="{{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
+    {# href_expr reads window.location, which is not reactive: recompute on click so SPA nav gets the current URL, not the load-time one #}
+    <a {% if href_expr %}:href="{{ href_expr }}" @click="$el.href = {{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
        {% if target %}target="{{ target }}"{% endif %}
        class="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)] transition-colors duration-200">
         {% if icon %}{{ render_icon(icon) }}{% endif %}
@@ -127,16 +128,30 @@
        {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown()") }}
    {{ dropdown_end() }}
 #}
-{% macro page_actions_dropdown(edit_href="", edit_text="Edit") %}
+{% macro page_actions_dropdown(edit_href="", edit_text="Edit", show_edit=True) %}
     <div class="relative inline-flex" x-data="{ open: false }" @click.outside="open = false">
         <!-- Split button group -->
         <div class="inline-flex rounded-lg border border-[var(--outline-gray-2)] overflow-hidden">
+            {% if show_edit %}
             <!-- Edit button (navigates to edit page) -->
             <a href="{{ edit_href }}"
                class="wiki-edit-link inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
                 {{ render_icon("edit", "w-4 h-4") }}
                 <span>{{ edit_text }}</span>
             </a>
+            {% else %}
+            <!-- Contributions off: Copy as Markdown is the primary action -->
+            <button @click="copyMarkdown()"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                <template x-if="!copied">
+                    {{ render_icon("clipboard", "w-4 h-4") }}
+                </template>
+                <template x-if="copied">
+                    {{ render_icon("check", "w-4 h-4 text-green-600") }}
+                </template>
+                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+            </button>
+            {% endif %}
             <!-- Dropdown toggle button -->
             <button @click="open = !open"
                     class="inline-flex items-center px-2 py-1.5 text-[var(--ink-gray-5)] bg-[var(--surface-white)] hover:bg-[var(--surface-gray-1)] border-l border-[var(--outline-gray-2)] transition-colors duration-200 cursor-pointer">
@@ -195,7 +210,8 @@
         </div>
     </button>
     {% else %}
-    <a {% if href_expr %}:href="{{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
+    {# href_expr reads window.location, which is not reactive: recompute on click so SPA nav gets the current URL, not the load-time one #}
+    <a {% if href_expr %}:href="{{ href_expr }}" @click="$el.href = {{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
        {% if target %}target="{{ target }}" rel="noopener noreferrer"{% endif %}
        class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
         {% if icon %}

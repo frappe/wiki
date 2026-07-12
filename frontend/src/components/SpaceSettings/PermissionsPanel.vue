@@ -116,6 +116,28 @@
 			{{ __('Only space admins can change access control.') }}
 		</p>
 
+		<!-- Accept contributions -->
+		<div
+			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
+		>
+			<div class="mr-4 flex-1">
+				<p class="text-sm font-medium text-ink-gray-9">
+					{{ __('Accept Contributions') }}
+				</p>
+				<p class="mt-0.5 text-xs text-ink-gray-5">
+					{{ __('Let readers propose edits via change requests. Users with write access can always edit.') }}
+				</p>
+				<p v-if="isGitSynced" class="mt-0.5 text-xs text-ink-gray-5">
+					{{ __('Synced spaces are read-only, so contributions are always off.') }}
+				</p>
+			</div>
+			<Switch
+				v-model="allowContributions"
+				:disabled="!canManageAccess || savingContributions || isGitSynced"
+				@update:modelValue="updateContributions"
+			/>
+		</div>
+
 		<!-- Primary Save, below the message, aligned right -->
 		<div v-if="canManageAccess" class="flex justify-end">
 			<Button
@@ -137,6 +159,7 @@ import {
 	Button,
 	FormControl,
 	Select,
+	Switch,
 	createListResource,
 	createResource,
 	toast,
@@ -159,6 +182,12 @@ const emit = defineEmits(['update:dirty']);
 const roleRows = ref([]);
 const savedRoles = ref([]);
 const savingRoles = ref(false);
+
+// Legacy spaces (created before this toggle) have a null column; treat as on.
+const allowContributions = ref(true);
+const savingContributions = ref(false);
+// Git-synced spaces are read-only; the toggle is moot and the server rejects it.
+const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
 
 // Inline (non-teleported) role picker state — see template note.
 const roleQuery = ref('');
@@ -188,6 +217,10 @@ watch(
 		if (doc) {
 			roleRows.value = snapshot(doc.roles || []);
 			savedRoles.value = snapshot(doc.roles || []);
+			allowContributions.value =
+				doc.allow_contributions == null
+					? true
+					: Boolean(doc.allow_contributions);
 			spaceCapabilities.submit({ space: props.spaceId });
 		}
 	},
@@ -196,9 +229,7 @@ watch(
 
 // Stable serialization so row order doesn't register as a change.
 function serialize(rows) {
-	return JSON.stringify(
-		[...rows].sort((a, b) => a.role.localeCompare(b.role)),
-	);
+	return JSON.stringify([...rows].sort((a, b) => a.role.localeCompare(b.role)));
 }
 
 const isDirty = computed(
@@ -243,7 +274,8 @@ function closeRoleListSoon() {
 
 // Exact, still-available role currently in the field — gates the Add button.
 const matchedRole = computed(
-	() => roleOptions.value.find((name) => name === roleQuery.value.trim()) || null,
+	() =>
+		roleOptions.value.find((name) => name === roleQuery.value.trim()) || null,
 );
 
 function pickRole(role) {
@@ -272,6 +304,30 @@ function removeRole(idx) {
 const updateRolesResource = createResource({
 	url: 'wiki.api.wiki_space.update_space_roles',
 });
+
+const contributionsResource = createResource({
+	url: 'wiki.api.wiki_space.set_space_contributions',
+});
+
+async function updateContributions(value) {
+	savingContributions.value = true;
+	try {
+		await contributionsResource.submit({
+			space_id: props.spaceId,
+			allow: value ? 1 : 0,
+		});
+		toast.success(
+			value ? __('Contributions enabled') : __('Contributions disabled'),
+		);
+	} catch (error) {
+		allowContributions.value = !value;
+		toast.error(
+			error.messages?.[0] || __('Failed to update contributions setting'),
+		);
+	} finally {
+		savingContributions.value = false;
+	}
+}
 
 async function saveRoles() {
 	savingRoles.value = true;

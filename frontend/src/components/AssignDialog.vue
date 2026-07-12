@@ -33,8 +33,15 @@
 </template>
 
 <script setup>
+import {
+	Autocomplete,
+	Button,
+	Dialog,
+	createListResource,
+	createResource,
+	toast,
+} from 'frappe-ui';
 import { computed, ref } from 'vue';
-import { Autocomplete, Button, Dialog, createListResource, createResource, toast } from 'frappe-ui';
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },

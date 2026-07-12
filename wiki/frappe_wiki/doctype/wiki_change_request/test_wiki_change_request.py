@@ -19,6 +19,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_cr_tree,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
+	has_revision_changes,
 	list_change_requests,
 	merge_change_request,
 	merge_content_three_way,
@@ -271,6 +272,33 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(cr_doc.status, "Merged")
 		self.assertIsNotNone(cr_doc.merge_revision)
 
+	def test_content_only_merge_queues_search_reindex(self):
+		"""Content-only merges write via raw db.set_value, which skips the
+		on_update hook — the merge must queue the re-index itself, or search
+		keeps serving the pre-merge content."""
+		from frappe.search.sqlite_search import index_docs_in_queue
+
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Search Page", content="staletermv1zzz")
+
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+
+		cr = create_change_request(space.name, "CR Search Reindex")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "freshtermv2zzz"})
+		_approve_and_merge(cr.name)
+
+		index_docs_in_queue()
+
+		stale_names = [r["name"] for r in search.search("staletermv1zzz")["results"]]
+		fresh_names = [r["name"] for r in search.search("freshtermv2zzz")["results"]]
+		self.assertNotIn(page.name, stale_names)
+		self.assertIn(page.name, fresh_names)
+
 	def test_merge_deletes_wiki_document_when_marked_deleted(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page to Delete", content="content")
@@ -387,6 +415,37 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			submit_change_request(cr.name)
+
+	def test_title_only_change_is_submittable_and_merges(self):
+		"""A title-only rename must count as a change (frappe/wiki#681)."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Old Title")
+		cr = create_change_request(space.name, "CR title only")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"title": "New Title"})
+
+		self.assertTrue(has_revision_changes(cr.base_revision, cr.head_revision))
+		changes = diff_change_request(cr.name)
+		self.assertEqual([c["doc_key"] for c in changes], [page_key])
+
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "title"), "New Title")
+
+	def test_metadata_only_changes_are_detected(self):
+		"""is_published / external_url edits alone must register as changes."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+
+		cr = create_change_request(space.name, "CR unpublish only")
+		update_cr_page(cr.name, page_key, {"is_published": 0})
+
+		self.assertTrue(has_revision_changes(cr.base_revision, cr.head_revision))
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [page_key])
 
 	def test_approve_then_merge_self_serve(self):
 		space = create_test_wiki_space()
