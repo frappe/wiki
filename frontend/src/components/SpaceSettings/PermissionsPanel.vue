@@ -242,7 +242,7 @@ const allRoles = createListResource({
 	doctype: 'Role',
 	fields: ['name'],
 	filters: [['disabled', '=', 0]],
-	pageLength: 0,
+	pageLength: 1000,
 	auto: true,
 });
 const roleOptions = computed(() => {
