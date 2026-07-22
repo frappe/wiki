@@ -11,185 +11,26 @@
 import { Node, mergeAttributes, nodePasteRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import IframeBlockView from './IframeBlockView.vue';
+import {
+	EMBED_HTML_PASTE_RE_G,
+	EMBED_URL_PASTE_RE,
+	escapeAttr,
+	iframeAttrsFromHtml,
+	isAllowedIframeSrc,
+	normalizeEmbedUrl,
+	parseIframeAttrs,
+} from './iframe-embed.js';
 
-export const IFRAME_PROVIDERS = [
-	{
-		name: 'youtube',
-		hosts: ['youtube.com', 'youtube-nocookie.com', 'youtu.be'],
-	},
-	{ name: 'vimeo', hosts: ['vimeo.com', 'player.vimeo.com'] },
-	{ name: 'loom', hosts: ['loom.com'] },
-	{ name: 'codepen', hosts: ['codepen.io'] },
-	{ name: 'codesandbox', hosts: ['codesandbox.io'] },
-	{ name: 'figma', hosts: ['figma.com'] },
-	{ name: 'framer', hosts: ['framer.com'] },
-	{ name: 'miro', hosts: ['miro.com'] },
-	{ name: 'google', hosts: ['docs.google.com', 'drive.google.com'] },
-	{
-		name: 'cloudflare-stream',
-		hosts: ['cloudflarestream.com', 'videodelivery.net'],
-	},
-	{
-		name: 'bunny-stream',
-		hosts: ['mediadelivery.net', 'bunnycdn.com'],
-	},
-	{ name: 'aparat', hosts: ['aparat.com'] },
-	{ name: 'github-gist', hosts: ['gist.github.com'] },
-];
-
-function hostOf(url) {
-	try {
-		return new URL(url).hostname.toLowerCase();
-	} catch {
-		return null;
-	}
-}
-
-export function matchProvider(url) {
-	const host = hostOf(url);
-	if (!host) return null;
-	for (const provider of IFRAME_PROVIDERS) {
-		if (provider.hosts.some((h) => host === h || host.endsWith(`.${h}`))) {
-			return provider.name;
-		}
-	}
-	return null;
-}
-
-export function isAllowedIframeSrc(url) {
-	return matchProvider(url) !== null;
-}
-
-/**
- * Convert user-friendly URLs (watch pages, share links) into the provider's
- * embed URL. Pasting a plain youtube.com/watch?v=X should Just Work.
- */
-export function normalizeEmbedUrl(url) {
-	if (!url) return '';
-	const input = String(url).trim();
-	let u;
-	try {
-		u = new URL(input);
-	} catch {
-		return input;
-	}
-	const host = u.hostname.toLowerCase().replace(/^www\./, '');
-
-	if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
-		if (u.pathname === '/watch' && u.searchParams.get('v')) {
-			return `https://www.youtube.com/embed/${u.searchParams.get('v')}`;
-		}
-		if (u.pathname.startsWith('/shorts/')) {
-			return `https://www.youtube.com/embed/${u.pathname.slice(
-				'/shorts/'.length,
-			)}`;
-		}
-		return input;
-	}
-	if (host === 'youtu.be') {
-		const id = u.pathname.slice(1);
-		return id ? `https://www.youtube.com/embed/${id}` : input;
-	}
-	if (host === 'vimeo.com') {
-		const id = u.pathname.match(/^\/(\d+)/)?.[1];
-		if (id) return `https://player.vimeo.com/video/${id}`;
-	}
-	if (host === 'loom.com' && u.pathname.startsWith('/share/')) {
-		return `https://www.loom.com/embed/${u.pathname.slice('/share/'.length)}`;
-	}
-
-	// Google Drive: /file/d/<id>/view[?…] → /file/d/<id>/preview
-	if (host === 'drive.google.com') {
-		const id = u.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)/)?.[1];
-		if (id) return `https://drive.google.com/file/d/${id}/preview`;
-	}
-
-	// Google Docs / Sheets / Slides: /<kind>/d/<id>/edit|pub → /preview or /embed
-	if (host === 'docs.google.com') {
-		const m = u.pathname.match(
-			/^\/(document|spreadsheets|presentation)\/d\/([A-Za-z0-9_-]+)(\/(edit|pub|view))?/,
-		);
-		if (m) {
-			const kind = m[1];
-			const id = m[2];
-			const action = kind === 'presentation' ? 'embed' : 'preview';
-			return `https://docs.google.com/${kind}/d/${id}/${action}`;
-		}
-	}
-
-	// Cloudflare Stream: customer-*.cloudflarestream.com/<uid>/watch
-	if (host.endsWith('.cloudflarestream.com')) {
-		const id = u.pathname.match(/^\/([a-f0-9]{32})\/watch$/)?.[1];
-		if (id) return `https://iframe.videodelivery.net/${id}`;
-	}
-
-	// Bunny Stream share URLs → player.mediadelivery.net/embed
-	if (
-		host === 'iframe.mediadelivery.net' ||
-		host === 'video.bunnycdn.com' ||
-		host === 'player.mediadelivery.net'
-	) {
-		const match = u.pathname.match(/^\/play\/([A-Za-z0-9]+\/[A-Za-z0-9-]+)$/);
-		if (match) return `https://player.mediadelivery.net/embed/${match[1]}`;
-	}
-
-	// Aparat: /v/<hash> → /video/video/embed/videohash/<hash>/vt/frame
-	if (host === 'aparat.com') {
-		const id = u.pathname.match(/^\/v\/([^/?&]+)\/?$/)?.[1];
-		if (id) {
-			return `https://www.aparat.com/video/video/embed/videohash/${id}/vt/frame`;
-		}
-	}
-
-	return input;
-}
-
-/**
- * Regex matching a paste whose *entire content* is a URL on an allowlisted
- * host. Anchored to the full text so pasting a URL inline inside a sentence
- * doesn't trigger replacement — only paste-alone embeds.
- */
-const EMBED_HOSTS_RE = IFRAME_PROVIDERS.flatMap((p) => p.hosts)
-	.map((h) => h.replace(/\./g, '\\.'))
-	.join('|');
-const EMBED_URL_PASTE_RE = new RegExp(
-	`^\\s*(https?://(?:[\\w-]+\\.)*(?:${EMBED_HOSTS_RE})/\\S+)\\s*$`,
-);
-const EMBED_HTML_PASTE_RE = /^\s*<iframe\b([^>]*)>\s*(?:<\/iframe>)?\s*$/i;
-
-/**
- * Parse a raw <iframe …> tag string into the attrs shape iframeBlock stores.
- * Returns null if the src isn't on the allowlist.
- */
-export function iframeAttrsFromHtml(html) {
-	const match = EMBED_HTML_PASTE_RE.exec(html);
-	if (!match) return null;
-	const parsed = parseIframeAttrs(match[1]);
-	if (!isAllowedIframeSrc(parsed.src)) return null;
-	return {
-		src: parsed.src,
-		width: parsed.width || null,
-		height: parsed.height || null,
-		title: parsed.title || null,
-		allow: parsed.allow || null,
-		allowfullscreen: 'allowfullscreen' in parsed,
-		frameborder: parsed.frameborder || null,
-	};
-}
-
-function parseIframeAttrs(attrString) {
-	const attrs = {};
-	const re =
-		/([a-zA-Z_:][\w:.\-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?/g;
-	for (const m of attrString.matchAll(re)) {
-		attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? '';
-	}
-	return attrs;
-}
-
-function escapeAttr(value) {
-	return String(value).replace(/"/g, '&quot;');
-}
+// Pure embed-parsing helpers (providers, URL normalization, attr parsing) now
+// live in ./iframe-embed.js so they can be unit-tested without this Vue/TipTap
+// module. Re-export them for existing importers.
+export {
+	IFRAME_PROVIDERS,
+	iframeAttrsFromHtml,
+	isAllowedIframeSrc,
+	matchProvider,
+	normalizeEmbedUrl,
+} from './iframe-embed.js';
 
 export const IframeBlock = Node.create({
 	name: 'iframeBlock',
@@ -286,7 +127,7 @@ export const IframeBlock = Node.create({
 				},
 			}),
 			nodePasteRule({
-				find: EMBED_HTML_PASTE_RE,
+				find: EMBED_HTML_PASTE_RE_G,
 				type: this.type,
 				getAttributes: (match) => iframeAttrsFromHtml(match[0]) || false,
 			}),
@@ -371,7 +212,11 @@ export const IframeBlock = Node.create({
 		if (attrs.allow) parts.push(`allow="${escapeAttr(attrs.allow)}"`);
 		parts.push(`frameborder="${escapeAttr(attrs.frameborder || '0')}"`);
 		if (attrs.allowfullscreen) parts.push('allowfullscreen');
-		return `<iframe ${parts.join(' ')}></iframe>\n\n`;
+		// No trailing "\n\n": the serializer already inserts a blank-line block
+		// separator, and doubling it makes the markdown round-trip grow blank
+		// lines without bound between consecutive embeds, which freezes the
+		// editor in an infinite reconcile loop. See pdf-block.js for details.
+		return `<iframe ${parts.join(' ')}></iframe>`;
 	},
 });
 

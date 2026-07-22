@@ -198,7 +198,11 @@ export const VideoBlock = Node.create({
 	renderMarkdown(node) {
 		const alt = node.attrs.alt || '';
 		const src = node.attrs.src || '';
-		return `![${alt}](${src})\n\n`;
+		// No trailing "\n\n": the serializer already inserts a blank-line block
+		// separator, and doubling it makes the markdown round-trip grow blank
+		// lines without bound between consecutive embeds, which freezes the
+		// editor in an infinite reconcile loop. See pdf-block.js for details.
+		return `![${alt}](${src})`;
 	},
 });
 

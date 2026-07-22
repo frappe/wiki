@@ -23,6 +23,7 @@ def create_revision_from_live_tree(
 	parent_revision: str | None = None,
 	is_working: int = 0,
 	is_merge: int = 0,
+	ignore_permissions: bool = False,
 ) -> Document:
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	root = frappe.get_doc("Wiki Document", space.root_group)
@@ -71,7 +72,7 @@ def create_revision_from_live_tree(
 	revision.is_working = 1 if is_working else 0
 	revision.created_by = frappe.session.user
 	revision.created_at = now_datetime()
-	revision.insert()
+	revision.insert(ignore_permissions=ignore_permissions)
 
 	for doc in docs:
 		content = doc.get("content") or ""
@@ -90,7 +91,7 @@ def create_revision_from_live_tree(
 		item.order_index = doc.get("sort_order") or 0
 		item.content_blob = content_blob
 		item.is_deleted = 0
-		item.insert()
+		item.insert(ignore_permissions=ignore_permissions)
 
 	recompute_revision_hashes(revision.name)
 	return revision
@@ -211,7 +212,20 @@ def recompute_revision_hashes(revision: str) -> None:
 	else:
 		items = frappe.get_all(
 			"Wiki Revision Item",
-			fields=["doc_key", "parent_key", "order_index", "slug", "content_blob", "is_deleted"],
+			fields=[
+				"doc_key",
+				"parent_key",
+				"order_index",
+				"slug",
+				"title",
+				"route",
+				"is_group",
+				"is_published",
+				"is_external_link",
+				"external_url",
+				"content_blob",
+				"is_deleted",
+			],
 			filters={"revision": revision},
 		)
 		blob_names = {item["content_blob"] for item in items if item.get("content_blob")}
@@ -238,6 +252,12 @@ def recompute_revision_hashes(revision: str) -> None:
 					item.get("parent_key") or "",
 					str(item.get("order_index") or 0),
 					item.get("slug") or "",
+					item.get("title") or "",
+					item.get("route") or "",
+					str(int(item.get("is_group") or 0)),
+					str(int(item.get("is_published") or 0)),
+					str(int(item.get("is_external_link") or 0)),
+					item.get("external_url") or "",
 				]
 			)
 		)
@@ -251,9 +271,8 @@ def recompute_revision_hashes(revision: str) -> None:
 		"tree_hash": tree_hash,
 		"content_hash": content_hash,
 		"doc_count": len([item for item in items if not item.get("is_deleted")]),
+		"hashes_stale": 0,
 	}
-	if is_overlay:
-		update_fields["hashes_stale"] = 0
 
 	frappe.db.set_value("Wiki Revision", revision, update_fields)
 

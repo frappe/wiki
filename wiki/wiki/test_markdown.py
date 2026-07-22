@@ -38,6 +38,37 @@ class TestMarkdownRenderer(unittest.TestCase):
 		result = render_markdown(md)
 		self.assertIn("<pre><code>yarn install\nyarn dev\n</code></pre>", result)
 
+	def test_mermaid_code_block_renders_as_diagram_container(self):
+		"""Mermaid fenced code blocks should render as diagram containers."""
+		md = "```mermaid\nflowchart TD\n  A[Start] --> B{Done?}\n```\n"
+		result = render_markdown(md)
+
+		self.assertIn('<pre class="mermaid">', result)
+		self.assertIn("flowchart TD", result)
+		self.assertIn("A[Start] --&gt; B{Done?}", result)
+		self.assertNotIn("<code", result)
+
+	def test_mermaid_source_is_html_escaped(self):
+		"""Mermaid source is untrusted; it must be escaped, never emitted as raw HTML.
+
+		Client-side rendering runs under securityLevel:'strict', but the server must
+		still escape so a malicious diagram can't inject markup into the page.
+		"""
+		md = '```mermaid\nflowchart TD\n  A["<script>alert(1)</script>"]\n```\n'
+		result = render_markdown(md)
+
+		self.assertIn('<pre class="mermaid">', result)
+		self.assertNotIn("<script>alert(1)</script>", result)
+		self.assertIn("&lt;script&gt;", result)
+
+	def test_non_mermaid_fence_still_highlights_as_code(self):
+		"""A regular fenced block must remain a normal code block, not a diagram."""
+		md = "```python\nprint('hello')\n```\n"
+		result = render_markdown(md)
+
+		self.assertIn('<pre><code class="language-python">', result)
+		self.assertNotIn('class="mermaid"', result)
+
 
 class TestHeadingSlugGeneration(unittest.TestCase):
 	"""Tests for heading ID/slug generation."""
@@ -411,6 +442,47 @@ class TestImageUrlSpaceEncoding(unittest.TestCase):
 		# Should not double-encode %20 to %2520
 		self.assertIn('<img src="/files/my%20image.png"', result)
 		self.assertNotIn("%2520", result)
+
+
+class TestImageUrlWithParens(unittest.TestCase):
+	"""Frappe uploads commonly produce names like `image (14).png`. CommonMark
+	allows one level of balanced parens in URLs, so the parser handles them
+	natively; only literal spaces still need pre-encoding."""
+
+	def test_image_with_literal_parens(self):
+		content = "![](/files/image (14).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png)</p>", result)
+
+	def test_image_with_encoded_space_and_literal_parens(self):
+		"""The form Frappe actually emits: space encoded, parens literal."""
+		content = "![](/files/image%20(14).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png)</p>", result)
+
+	def test_image_with_parens_and_alt_and_title(self):
+		content = '![logo](/files/image (24).png "App Logo")'
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(24).png"', result)
+		self.assertIn('alt="logo"', result)
+		self.assertIn('title="App Logo"', result)
+
+	def test_image_with_parens_inline_in_paragraph(self):
+		"""Image embedded in a sentence still renders as an inline image."""
+		content = "See ![](/files/image (14).png) for context."
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertNotIn(".png) for", result)
+		self.assertIn("See ", result)
+		self.assertIn(" for context.", result)
+
+	def test_multiple_images_with_parens(self):
+		content = "![](/files/image (14).png)\n\nSome text.\n\n![](/files/image (15).png)"
+		result = render_markdown(content)
+		self.assertIn('<img src="/files/image%20(14).png"', result)
+		self.assertIn('<img src="/files/image%20(15).png"', result)
 
 
 class TestRawHTMLRendering(unittest.TestCase):

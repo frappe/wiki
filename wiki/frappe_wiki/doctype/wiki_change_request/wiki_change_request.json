@@ -19,9 +19,13 @@
 		"merged_by",
 		"merged_at",
 		"archived_at",
-		"section_break_participants",
-		"reviewers",
-		"participants"
+		"operation_version",
+		"section_break_review",
+		"reviewed_by",
+		"reviewed_at",
+		"rejected_at",
+		"column_break_review",
+		"review_comment"
 	],
 	"fields": [
 		{
@@ -49,7 +53,7 @@
 			"fieldtype": "Select",
 			"in_list_view": 1,
 			"label": "Status",
-			"options": "Draft\nOpen\nIn Review\nChanges Requested\nApproved\nMerged\nArchived",
+			"options": "Draft\nIn Review\nChanges Requested\nApproved\nRejected\nMerged\nArchived",
 			"reqd": 1
 		},
 		{
@@ -114,25 +118,51 @@
 			"read_only": 1
 		},
 		{
-			"fieldname": "section_break_participants",
+			"default": "0",
+			"fieldname": "operation_version",
+			"fieldtype": "Int",
+			"hidden": 1,
+			"label": "Operation Version",
+			"non_negative": 1,
+			"read_only": 1
+		},
+		{
+			"fieldname": "section_break_review",
 			"fieldtype": "Section Break",
-			"label": "Participants"
+			"label": "Review"
 		},
 		{
-			"fieldname": "reviewers",
-			"fieldtype": "Table",
-			"label": "Reviewers",
-			"options": "Wiki CR Reviewer"
+			"fieldname": "reviewed_by",
+			"fieldtype": "Link",
+			"label": "Reviewed By",
+			"options": "User",
+			"read_only": 1
 		},
 		{
-			"fieldname": "participants",
-			"fieldtype": "Table",
-			"label": "Participants",
-			"options": "Wiki CR Participant"
+			"fieldname": "reviewed_at",
+			"fieldtype": "Datetime",
+			"label": "Reviewed At",
+			"read_only": 1
+		},
+		{
+			"fieldname": "rejected_at",
+			"fieldtype": "Datetime",
+			"label": "Rejected At",
+			"read_only": 1
+		},
+		{
+			"fieldname": "column_break_review",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "review_comment",
+			"fieldtype": "Small Text",
+			"label": "Review Comment",
+			"read_only": 1
 		}
 	],
 	"links": [],
-	"modified": "2026-03-25 11:20:11.515569",
+	"modified": "2026-06-14 11:20:11.515569",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Change Request",

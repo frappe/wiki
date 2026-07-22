@@ -5,9 +5,9 @@
 
         <!-- Reaction Buttons (pill-shaped toggle group) -->
         {% set reactions = [
-            {"type": "Good", "mouth": '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>'},
+            {"type": "Bad", "mouth": '<path d="M16 16s-1.5-2-4-2-4 2-4 2"/>'},
             {"type": "Ok", "mouth": '<line x1="8" y1="15" x2="16" y2="15"/>'},
-            {"type": "Bad", "mouth": '<path d="M16 16s-1.5-2-4-2-4 2-4 2"/>'}
+            {"type": "Good", "mouth": '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>'}
         ] %}
         <fieldset class="inline-flex rounded-full bg-[var(--surface-gray-2)] p-0.5" role="radiogroup" aria-label="Feedback rating">
             {% for reaction in reactions %}

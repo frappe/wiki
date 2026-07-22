@@ -3,6 +3,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.website.utils import clear_cache as clear_website_cache
 
 _CHILD_ROW_META_FIELDS = {
 	"name",
@@ -51,10 +52,89 @@ class WikiSpace(Document):
 
 	def validate(self):
 		self.remove_leading_slash_from_route()
+		self.validate_git_synced_immutable()
+
+	def on_trash(self):
+		self.delete_linked_content()
+
+	def delete_linked_content(self):
+		"""Remove everything that links back to this space so it can be deleted.
+
+		Wiki Documents (the whole tree under the root group), their Wiki Revisions
+		and Revision Items, plus sync logs and change requests all carry a Link to
+		the space, so without this a space with any content raises ``LinkExistsError``.
+		Document deletion is run under ``in_apply_merge_revision`` so the on-trash
+		revision sync doesn't regenerate revisions while we tear them down.
+		"""
+		from frappe.utils.nestedset import get_descendants_of
+
+		previous_flag = frappe.flags.in_apply_merge_revision
+		frappe.flags.in_apply_merge_revision = True
+		try:
+			doc_names = []
+			if self.root_group and frappe.db.exists("Wiki Document", self.root_group):
+				# Leaf-first (descendants before the root group) so the nested set
+				# never blocks on a node that still has children.
+				doc_names = get_descendants_of("Wiki Document", self.root_group, ignore_permissions=True)
+				doc_names.append(self.root_group)
+			# Defensive: catch any document pointing at the space but outside the tree.
+			doc_names += frappe.get_all(
+				"Wiki Document", filters={"wiki_space": self.name}, pluck="name", limit=0
+			)
+			for name in dict.fromkeys(doc_names):
+				if frappe.db.exists("Wiki Document", name):
+					frappe.delete_doc("Wiki Document", name, force=True, ignore_permissions=True)
+
+			revisions = frappe.get_all(
+				"Wiki Revision", filters={"wiki_space": self.name}, pluck="name", limit=0
+			)
+			if revisions:
+				items = frappe.get_all(
+					"Wiki Revision Item", filters={"revision": ["in", revisions]}, pluck="name", limit=0
+				)
+				for item in items:
+					frappe.delete_doc("Wiki Revision Item", item, force=True, ignore_permissions=True)
+				for revision in revisions:
+					frappe.delete_doc("Wiki Revision", revision, force=True, ignore_permissions=True)
+
+			for doctype in ("Wiki Git Sync Log", "Wiki Change Request"):
+				for name in frappe.get_all(doctype, filters={"wiki_space": self.name}, pluck="name", limit=0):
+					frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
+		finally:
+			frappe.flags.in_apply_merge_revision = previous_flag
 
 	def remove_leading_slash_from_route(self):
 		if self.route and self.route.startswith("/"):
 			self.route = self.route[1 : len(self.route)]
+
+	def validate_git_synced_immutable(self):
+		"""git_synced is a creation-time decision — it cannot be toggled later."""
+		if self.is_new():
+			return
+		previous = frappe.db.get_value("Wiki Space", self.name, "git_synced")
+		if previous is not None and int(previous) != int(self.git_synced or 0):
+			frappe.throw(_("Git Sync cannot be toggled after a space is created."))
+
+	@frappe.whitelist()
+	def sync_now(self) -> dict:
+		"""Enqueue a one-way sync from the configured GitHub repo."""
+		# A whitelisted doc method only enforces read by default; triggering a
+		# sync hits the GitHub API and rewrites the live tree, so gate it on
+		# write access to the space (managers / space writers only).
+		self.check_permission("write")
+
+		if not self.git_synced:
+			frappe.throw(_("This Wiki Space is not git-synced."))
+
+		frappe.enqueue(
+			"wiki.wiki.git_sync.sync_space",
+			queue="long",
+			job_name=f"wiki_git_sync:{self.name}",
+			space_name=self.name,
+			token=None,
+		)
+		frappe.db.set_value("Wiki Space", self.name, "last_sync_status", "Pending", update_modified=False)
+		return {"status": "queued"}
 
 	def create_root_group(self):
 		if not self.root_group:
@@ -74,12 +154,10 @@ class WikiSpace(Document):
 	@frappe.whitelist()
 	def migrate_to_v3(self):
 		frappe.only_for("Wiki Manager")
-		if self.root_group:
-			return  # Migration already done
-
-		self.create_root_group()
-		self.save()
-		self.reload()
+		if not self.root_group:
+			self.create_root_group()
+			self.save()
+			self.reload()
 
 		sidebar = self.wiki_sidebars
 		if not sidebar:
@@ -102,41 +180,45 @@ class WikiSpace(Document):
 		return groups, group_order
 
 	def _create_group_with_pages(self, group_label, items, sort_order):
-		"""Create a group Wiki Document and its child page documents"""
-		group_doc = frappe.get_doc(
+		"""Create or update a group Wiki Document and sync its child page documents."""
+		group_route = f"{self.route}/{frappe.scrub(group_label).replace('_', '-')}"
+		existing_name = frappe.db.get_value(
+			"Wiki Document",
 			{
-				"doctype": "Wiki Document",
-				"title": group_label,
-				"route": f"{self.route}/{frappe.scrub(group_label).replace('_', '-')}",
+				"route": group_route,
 				"is_group": 1,
-				"is_published": 1,
-				"content": "",
 				"parent_wiki_document": self.root_group,
-				"sort_order": sort_order,
-			}
+			},
+			"name",
 		)
-		group_doc.insert(ignore_permissions=True)
+		if existing_name:
+			group_doc = frappe.get_doc("Wiki Document", existing_name)
+		else:
+			group_doc = frappe.new_doc("Wiki Document")
+
+		group_doc.title = group_label
+		group_doc.route = group_route
+		group_doc.is_group = 1
+		group_doc.is_published = 1
+		group_doc.content = ""
+		group_doc.parent_wiki_document = self.root_group
+		group_doc.sort_order = sort_order
+
+		if existing_name:
+			group_doc.save(ignore_permissions=True)
+		else:
+			group_doc.insert(ignore_permissions=True)
 
 		for page_sort_order, item in enumerate(items):
 			self._create_page_document(item.wiki_page, group_doc.name, page_sort_order)
 
 	def _create_page_document(self, wiki_page_name, parent_group, sort_order):
-		"""Create a leaf Wiki Document from a Wiki Page"""
+		"""Create or update a leaf Wiki Document from a Wiki Page."""
 		wiki_page = frappe.get_cached_doc("Wiki Page", wiki_page_name)
-		leaf_doc = frappe.get_doc(
-			{
-				"doctype": "Wiki Document",
-				"title": wiki_page.title,
-				"route": wiki_page.route,
-				"is_group": 0,
-				"is_published": wiki_page.published,
-				"is_private": not wiki_page.allow_guest,
-				"content": wiki_page.content,
-				"parent_wiki_document": parent_group,
-				"sort_order": sort_order,
-			}
+		wiki_page._migrate_to_wiki_document(
+			parent_wiki_document=parent_group,
+			sort_order=sort_order,
 		)
-		leaf_doc.insert(ignore_permissions=True)
 
 	@frappe.whitelist()
 	def update_routes(self, new_route: str) -> dict:
@@ -172,6 +254,12 @@ class WikiSpace(Document):
 		# Update space route
 		self.route = new_route
 		self.save()
+
+		# Document routes were rewritten with raw SQL (no per-doc hooks), so drop
+		# the website caches wholesale — stale website_404 entries would otherwise
+		# keep serving 404s for the renamed URLs.
+		clear_website_cache()
+		frappe.db.after_commit.add(clear_website_cache)
 
 		return {"updated_count": updated_count}
 
@@ -298,7 +386,6 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 			"route",
 			"is_group",
 			"is_published",
-			"is_private",
 			"is_external_link",
 			"external_url",
 			"content",
@@ -325,7 +412,6 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 		new_doc.route = _clone_route(doc.get("route"), space.route, new_space.route)
 		new_doc.is_group = doc.get("is_group")
 		new_doc.is_published = doc.get("is_published")
-		new_doc.is_private = doc.get("is_private")
 		new_doc.is_external_link = doc.get("is_external_link")
 		new_doc.external_url = doc.get("external_url")
 		new_doc.content = doc.get("content")

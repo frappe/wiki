@@ -25,6 +25,7 @@ import {
 	AlertTriangle,
 	AppWindow,
 	Code,
+	FileText,
 	Heading1,
 	Heading2,
 	Heading3,
@@ -36,6 +37,7 @@ import {
 	ListChecks,
 	ListOrdered,
 	Minus,
+	Network,
 	Quote,
 	Table,
 	Video,
@@ -64,11 +66,13 @@ const iconMap = {
 	'list-ordered': ListOrdered,
 	'list-checks': ListChecks,
 	code: Code,
+	mermaid: Network,
 	quote: Quote,
 	minus: Minus,
 	table: Table,
 	image: Image,
 	video: Video,
+	'file-text': FileText,
 	embed: AppWindow,
 	info: Info,
 	lightbulb: Lightbulb,
@@ -194,5 +198,12 @@ defineExpose({
     background: var(--surface-white, #ffffff);
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.5rem;
+}
+
+/* Roomier rows for touch on a phone. */
+@media (max-width: 767px) {
+    .slash-command-item {
+        min-height: 44px;
+    }
 }
 </style>

@@ -1,10 +1,16 @@
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import ImageNodeView from './ImageNodeView.vue';
+import { isPdfUrl } from './pdf-block.js';
 import { isVideoUrl } from './video-block.js';
 
 // Markdown image regex: ![alt](src "title")
-const inputRegex = /(?:^|\s)(!\[(.+|:?)]\((\S+)(?:(?:\s+)["'](\S+)["'])?\))$/;
+// The src allows spaces and one level of balanced parens so Frappe filenames
+// like `/files/CleanShot 2026-05-27 at 00.06.09@2x.png` or `/files/image (24).png`
+// round-trip correctly. The src group is non-greedy so the optional title
+// (quoted, whitespace-separated) is still split off rather than swallowed.
+const inputRegex =
+	/(?:^|\s)(!\[([^\]]*)]\(((?:[^()"]|\([^()"]*\))+?)(?:\s+["']([^"']+)["'])?\))$/;
 
 /**
  * Custom Image extension with caption support
@@ -31,7 +37,13 @@ const imageCaptionTokenizer = {
 
 	tokenize(src, tokens, lexer) {
 		// Match: ![alt](src) or ![alt](src "title") optionally followed by \n*caption*
-		const imagePattern = /^!\[([^\]]*)\]\(([^)"]+)(?:\s+"([^"]*)")?\)/;
+		// The URL allows spaces and one level of balanced parens so Frappe
+		// filenames like `/files/CleanShot 2026-05-27 at 00.06.09@2x.png` or
+		// `/files/image (24).png` survive (otherwise spaces / inner `)` break it).
+		// The URL group is non-greedy so a trailing quoted title is still split
+		// off instead of being absorbed into the src.
+		const imagePattern =
+			/^!\[([^\]]*)\]\(((?:[^()"]|\([^()"]*\))+?)(?:\s+"([^"]*)")?\)/;
 		const captionPattern = /^\n\*([^*]+)\*/;
 
 		const imageMatch = imagePattern.exec(src);
@@ -39,8 +51,9 @@ const imageCaptionTokenizer = {
 			return undefined;
 		}
 
-		const [imageRaw, alt, href, title] = imageMatch;
-		if (isVideoUrl(href)) {
+		const [imageRaw, alt, hrefRaw, title] = imageMatch;
+		const href = (hrefRaw || '').trim();
+		if (isVideoUrl(href) || isPdfUrl(href)) {
 			return undefined;
 		}
 		let caption = null;
@@ -100,6 +113,21 @@ export const WikiImage = Node.create({
 			height: {
 				default: null,
 			},
+			// Transient editor-only state for the upload/optimization lifecycle.
+			// `rendered: false` keeps these out of the serialized HTML, and
+			// renderMarkdown ignores them, so they never persist to content.
+			loading: {
+				default: false,
+				rendered: false,
+			},
+			uploadId: {
+				default: null,
+				rendered: false,
+			},
+			error: {
+				default: null,
+				rendered: false,
+			},
 		};
 	},
 
@@ -138,6 +166,13 @@ export const WikiImage = Node.create({
 	// ![alt](src "title")
 	// *caption*
 	renderMarkdown: (node) => {
+		// Skip images still uploading/optimizing — their `src` is a transient
+		// base64 preview that must never be written to saved content. Once the
+		// upload resolves, `loading` clears and the node re-serializes normally.
+		if (node.attrs?.loading) {
+			return '';
+		}
+
 		const src = node.attrs?.src ?? '';
 		const alt = node.attrs?.alt ?? '';
 		const title = node.attrs?.title ?? '';

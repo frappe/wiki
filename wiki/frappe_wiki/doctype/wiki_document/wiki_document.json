@@ -12,9 +12,14 @@
 		"doc_key",
 		"column_break_sfff",
 		"is_published",
-		"is_private",
+		"wiki_space",
 		"is_external_link",
 		"external_url",
+		"source_path",
+		"meta_tags_section",
+		"meta_title",
+		"meta_description",
+		"meta_image",
 		"section_break_eooe",
 		"content",
 		"section_break_j5x7",
@@ -37,7 +42,8 @@
 			"hidden": 1,
 			"label": "Left",
 			"no_copy": 1,
-			"read_only": 1
+			"read_only": 1,
+			"search_index": 1
 		},
 		{
 			"fieldname": "rgt",
@@ -45,7 +51,8 @@
 			"hidden": 1,
 			"label": "Right",
 			"no_copy": 1,
-			"read_only": 1
+			"read_only": 1,
+			"search_index": 1
 		},
 		{
 			"default": "0",
@@ -79,7 +86,9 @@
 			"fieldtype": "Data",
 			"in_list_view": 1,
 			"in_standard_filter": 1,
-			"label": "Route"
+			"label": "Route",
+			"length": 500,
+			"search_index": 1
 		},
 		{
 			"fieldname": "slug",
@@ -100,6 +109,15 @@
 			"fieldtype": "Code",
 			"label": "Content",
 			"options": "Markdown"
+		},
+		{
+			"description": "Repo-relative path of the source file when this page is git-synced. Identity for cross-sync matching is (wiki_space, source_path).",
+			"fieldname": "source_path",
+			"fieldtype": "Data",
+			"label": "Source Path",
+			"length": 500,
+			"read_only": 1,
+			"no_copy": 1
 		},
 		{
 			"default": "0",
@@ -123,10 +141,13 @@
 			"fieldtype": "Section Break"
 		},
 		{
-			"default": "0",
-			"fieldname": "is_private",
-			"fieldtype": "Check",
-			"label": "Is Private?"
+			"fieldname": "wiki_space",
+			"fieldtype": "Link",
+			"label": "Wiki Space",
+			"options": "Wiki Space",
+			"read_only": 1,
+			"no_copy": 1,
+			"search_index": 1
 		},
 		{
 			"default": "0",
@@ -140,6 +161,30 @@
 			"fieldtype": "Data",
 			"label": "External URL",
 			"options": "URL"
+		},
+		{
+			"collapsible": 1,
+			"fieldname": "meta_tags_section",
+			"fieldtype": "Section Break",
+			"label": "Meta Tags"
+		},
+		{
+			"description": "Leave empty to use the page title",
+			"fieldname": "meta_title",
+			"fieldtype": "Data",
+			"label": "Meta Title"
+		},
+		{
+			"description": "Recommended: 150-160 characters",
+			"fieldname": "meta_description",
+			"fieldtype": "Small Text",
+			"label": "Meta Description"
+		},
+		{
+			"description": "Recommended size: 1200x630px",
+			"fieldname": "meta_image",
+			"fieldtype": "Attach Image",
+			"label": "Meta Image"
 		}
 	],
 	"grid_page_length": 50,
@@ -147,7 +192,7 @@
 	"is_tree": 1,
 	"links": [],
 	"make_attachments_public": 1,
-	"modified": "2026-02-03 17:21:03.384026",
+	"modified": "2026-07-03 12:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Document",

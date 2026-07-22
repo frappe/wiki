@@ -1,8 +1,8 @@
 {% extends "templates/wiki/layout.html" %}
-{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, dropdown_end %}
+{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
 
 {% block title %}
-{{ doc.title }}
+    {{ metatags.title if metatags and metatags.title else doc.title }}
 {% endblock %}
 
 {% block head %}
@@ -14,17 +14,28 @@
     <!-- Main Content Area -->
     <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
         <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[80ch]"
-            :class="{ 'opacity-50': $store.navigation.loading, 'xl:!max-w-[100ch]': $store.sidebar?.isCollapsed }">
-            <!-- Page Header -->
-            <header class="py-6 mb-6 border-b border-[var(--outline-gray-1)]">
-                {% if hide_chrome %}
-                {# Orphan document: Simple header with just copy button #}
-                <div class="flex items-center justify-between gap-4">
-                    <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}
-                    </h1>
-
+             :class="{ 'opacity-50': $store.navigation.loading, 'xl:!max-w-[100ch]': $store.sidebar?.isCollapsed }">
+        <!-- Page Header -->
+        <header class="py-6 mb-6 border-b border-[var(--outline-gray-1)]">
+            {% if hide_chrome %}
+            {# Orphan document: Simple header with just copy button #}
+            <div class="flex items-center justify-between gap-4">
+                <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
+                <div class="flex items-center gap-2">
+                    <button @click="downloadPage()"
+                            :disabled="downloadInProgress"
+                            :aria-busy="downloadInProgress"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                        <template x-if="!downloadInProgress">
+                            {{ render_icon("download", "w-4 h-4") }}
+                        </template>
+                        <template x-if="downloadInProgress">
+                            {{ render_icon("loader", "w-4 h-4 animate-spin") }}
+                        </template>
+                        <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
+                    </button>
                     <button @click="copyMarkdown()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
                         <template x-if="!copied">
                             {{ render_icon("clipboard", "w-4 h-4") }}
                         </template>
@@ -34,19 +45,21 @@
                         <span x-text="copied ? 'Copied!' : 'Copy'"></span>
                     </button>
                 </div>
+            </div>
 
-                <!-- <p>DEBUG: {{ test }}</p> -->
-
-                {% if published_by and published_on %}
-                <p id="wiki-published-by" class="mt-2 text-sm text-[var(--ink-gray-5)]" title="{{ published_on_iso }}">
-                    {{ _("Published by {0} on {1}").format(published_by, published_on) }}
-                </p>
-                {% endif %}
-                {% else %}
-                <!-- Mobile: Edit above title -->
-                <div class="flex justify-start mb-4 sm:hidden">
-                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+            {% if published_by and published_on %}
+            <p id="wiki-published-by" class="mt-2 text-sm text-[var(--ink-gray-5)]" title="{{ published_on_iso }}">
+                {{ _("Published by {0} on {1}").format(published_by, published_on) }}
+            </p>
+            {% endif %}
+            {% else %}
+            <!-- Mobile: Edit above title -->
+            <div class="flex justify-start mb-4 sm:hidden">
+                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
+                    {{ download_action_item() }}
+                    {% if can_edit %}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                    {% endif %}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                     {{ dropdown_end() }}
@@ -55,17 +68,18 @@
                     <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}
                     </h1>
 
-                    <!-- Desktop: Edit beside title -->
-                    <div class="hidden sm:block">
-                        {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                <!-- Desktop: Edit beside title -->
+                <div class="hidden sm:block">
+                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
+                        {{ download_action_item() }}
+                        {% if can_edit %}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                        {% endif %}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                         {{ dropdown_end() }}
                     </div>
                 </div>
-
-                <!-- <p>DEBUG: {{ test }}</p> -->
 
                 {% if published_by and published_on %}
                 <p id="wiki-published-by" class="mt-2 text-sm text-[var(--ink-gray-5)]" title="{{ published_on_iso }}">
@@ -144,10 +158,11 @@
             markdown: {{ raw_markdown | tojson }}
         });
 
-    // Combined component for wiki document page (wikiDocument + tocScrollSpy)
-    Alpine.data('wikiPage', () => ({
-        // wikiDocument properties
-        copied: false,
+        // Combined component for wiki document page (wikiDocument + tocScrollSpy)
+        Alpine.data('wikiPage', () => ({
+            // wikiDocument properties
+            copied: false,
+            downloadInProgress: false,
 
         get markdown() {
             return this.$store.pageContent?.markdown || '';
@@ -164,18 +179,52 @@
             });
         },
 
-        getAIUrl(provider) {
-            const pageUrl = window.location.href;
-            const prompt = `I'm currently browsing this web page: ${pageUrl}\n\nPlease answer any questions I have based on the content of this page.`;
-            const encodedPrompt = encodeURIComponent(prompt);
-            const urls = {
-                'claude': `https://claude.ai/new?q=${encodedPrompt}`,
-                'openai': `https://chatgpt.com/?q=${encodedPrompt}`,
-                't3': `https://t3.chat/new?q=${encodedPrompt}`,
-                'perplexity': `https://www.perplexity.ai/search?q=${encodedPrompt}`
-            };
-            return urls[provider] || '#';
-        },
+            async downloadPage() {
+                if (this.downloadInProgress) return;
+                this.downloadInProgress = true;
+
+                // Read the route fresh each click — SPA navigation updates window.location
+                // via history.pushState, so this stays in sync with the visible page.
+                const route = window.location.pathname.replace(/^\/+/, '');
+                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?route=${encodeURIComponent(route)}`;
+
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        throw new Error(`Failed to download PDF: ${response.status}`);
+                    }
+
+                    const objectUrl = URL.createObjectURL(await response.blob());
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = `${route.split('/').pop() || 'wiki-document'}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                } catch (err) {
+                    console.error('Failed to download PDF:', err);
+                    window.frappe?.show_alert?.({
+                        message: __('Unable to download this page right now.'),
+                        indicator: 'red'
+                    });
+                } finally {
+                    this.downloadInProgress = false;
+                }
+            },
+
+            getAIUrl(provider) {
+                const pageUrl = window.location.href;
+                const prompt = `I'm currently browsing this web page: ${pageUrl}\n\nPlease answer any questions I have based on the content of this page.`;
+                const encodedPrompt = encodeURIComponent(prompt);
+                const urls = {
+                    'claude': `https://claude.ai/new?q=${encodedPrompt}`,
+                    'openai': `https://chatgpt.com/?q=${encodedPrompt}`,
+                    't3': `https://t3.chat/new?q=${encodedPrompt}`,
+                    'perplexity': `https://www.perplexity.ai/search?q=${encodedPrompt}`
+                };
+                return urls[provider] || '#';
+            },
 
         // tocScrollSpy properties - works with server-rendered TOC
         headingIds: [],

@@ -1,9 +1,11 @@
-import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { toast } from 'frappe-ui';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-export function useTreeDialogs(spaceId, expandedNodes, emit) {
-	const crStore = useChangeRequestStore();
+export function useTreeDialogs(spaceId, expandedNodes) {
+	const draftStore = useDraftWorkspaceStore();
+	const router = useRouter();
 
 	const showCreateDialog = ref(false);
 	const createTitle = ref('');
@@ -28,6 +30,11 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 	const editExternalLinkUrl = ref('');
 	const editExternalLinkNode = ref(null);
 
+	const isCreating = ref(false);
+	const isRenaming = ref(false);
+	const isDeleting = ref(false);
+	const isUpdatingExternalLink = ref(false);
+
 	function openCreateDialog(parentKey, isGroup) {
 		createParent.value = parentKey;
 		createIsGroup.value = isGroup;
@@ -49,64 +56,63 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 		showDeleteDialog.value = true;
 	}
 
+	// Local-first create: store inserts a temp node into the tree immediately,
+	// the dialog closes right away, and the backend call runs in the
+	// background. Failure is surfaced through the store's mutation queue.
 	async function createDocument(close) {
-		if (!createTitle.value.trim()) {
+		const title = createTitle.value.trim();
+		if (!title) {
 			toast.warning(__('Title is required'));
 			return;
 		}
 
+		const parentKey = createParent.value;
+		const isGroup = createIsGroup.value;
+
+		if (parentKey) expandedNodes.value[parentKey] = true;
+		close();
+
+		isCreating.value = true;
 		try {
-			if (!(await crStore.ensureChangeRequest(spaceId.value))) {
-				toast.error(__('Could not create change request'));
-				return;
+			const { tempKey, promise } = draftStore.createNode({
+				parentKey,
+				title,
+				isGroup,
+			});
+			// Open the new page for editing immediately. The DraftContributionPanel
+			// reads its content from pagesByKey (seeded by createNode), and the
+			// route remaps from tmp_* to the real key once the create syncs.
+			// Groups have no editable content, so skip navigation for those.
+			if (!isGroup && spaceId.value) {
+				router.push({
+					name: 'DraftChangeRequest',
+					params: { spaceId: spaceId.value, docKey: tempKey },
+				});
 			}
-
-			await crStore.createPage(
-				crStore.currentChangeRequest.name,
-				createParent.value,
-				createTitle.value.trim(),
-				'',
-				createIsGroup.value,
-			);
-
-			toast.success(
-				createIsGroup.value
-					? __('Group draft created')
-					: __('Page draft created'),
-			);
-
-			if (createParent.value) {
-				expandedNodes.value[createParent.value] = true;
-			}
-
-			await crStore.loadChanges();
-			emit('refresh');
-			close();
+			await promise;
 		} catch (error) {
 			console.error('Error creating page:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
+		} finally {
+			isCreating.value = false;
 		}
 	}
 
 	async function deleteDocument(close) {
-		try {
-			if (!(await crStore.ensureChangeRequest(spaceId.value))) {
-				toast.error(__('Could not create change request'));
-				return;
-			}
-
-			await crStore.deletePage(
-				crStore.currentChangeRequest.name,
-				deleteNode.value.doc_key,
-			);
-
-			toast.success(__('Delete saved as draft'));
-			await crStore.loadChanges();
-			emit('refresh');
+		const docKey = deleteNode.value?.doc_key;
+		if (!docKey) {
 			close();
+			return;
+		}
+		close();
+		isDeleting.value = true;
+		try {
+			await draftStore.deleteNode(docKey);
 		} catch (error) {
 			console.error('Error creating delete draft:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
+		} finally {
+			isDeleting.value = false;
 		}
 	}
 
@@ -117,32 +123,24 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 	}
 
 	async function renameDocument(close) {
-		if (!renameTitle.value.trim()) {
+		const title = renameTitle.value.trim();
+		if (!title) {
 			toast.warning(__('Name is required'));
 			return;
 		}
-
-		try {
-			if (!(await crStore.ensureChangeRequest(spaceId.value))) {
-				toast.error(__('Could not create change request'));
-				return;
-			}
-
-			await crStore.updatePage(
-				crStore.currentChangeRequest.name,
-				renameNode.value.doc_key,
-				{
-					title: renameTitle.value.trim(),
-				},
-			);
-			toast.success(
-				renameNode.value?.is_group ? __('Group renamed') : __('Title updated'),
-			);
-			await crStore.loadChanges();
-			emit('refresh');
+		const docKey = renameNode.value?.doc_key;
+		if (!docKey) {
 			close();
+			return;
+		}
+		close();
+		isRenaming.value = true;
+		try {
+			await draftStore.renameNode(docKey, title);
 		} catch (error) {
 			toast.error(error.messages?.[0] || __('Error updating title'));
+		} finally {
+			isRenaming.value = false;
 		}
 	}
 
@@ -154,44 +152,35 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 	}
 
 	async function createExternalLink(close) {
-		if (!externalLinkTitle.value.trim()) {
+		const title = externalLinkTitle.value.trim();
+		const url = externalLinkUrl.value.trim();
+		if (!title) {
 			toast.warning(__('Title is required'));
 			return;
 		}
-
-		if (!externalLinkUrl.value.trim()) {
+		if (!url) {
 			toast.warning(__('URL is required'));
 			return;
 		}
 
+		const parentKey = externalLinkParent.value;
+		if (parentKey) expandedNodes.value[parentKey] = true;
+		close();
+
+		isCreating.value = true;
 		try {
-			if (!(await crStore.ensureChangeRequest(spaceId.value))) {
-				toast.error(__('Could not create change request'));
-				return;
-			}
-
-			await crStore.createPage(
-				crStore.currentChangeRequest.name,
-				externalLinkParent.value,
-				externalLinkTitle.value.trim(),
-				'',
-				false,
-				true,
-				externalLinkUrl.value.trim(),
-			);
-
-			toast.success(__('External link draft created'));
-
-			if (externalLinkParent.value) {
-				expandedNodes.value[externalLinkParent.value] = true;
-			}
-
-			await crStore.loadChanges();
-			emit('refresh');
-			close();
+			const { promise } = draftStore.createNode({
+				parentKey,
+				title,
+				isExternalLink: true,
+				externalUrl: url,
+			});
+			await promise;
 		} catch (error) {
 			console.error('Error creating external link:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
+		} finally {
+			isCreating.value = false;
 		}
 	}
 
@@ -203,38 +192,33 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 	}
 
 	async function updateExternalLink(close) {
-		if (!editExternalLinkTitle.value.trim()) {
+		const title = editExternalLinkTitle.value.trim();
+		const url = editExternalLinkUrl.value.trim();
+		if (!title) {
 			toast.warning(__('Title is required'));
 			return;
 		}
-
-		if (!editExternalLinkUrl.value.trim()) {
+		if (!url) {
 			toast.warning(__('URL is required'));
 			return;
 		}
-
-		try {
-			if (!(await crStore.ensureChangeRequest(spaceId.value))) {
-				toast.error(__('Could not create change request'));
-				return;
-			}
-
-			await crStore.updatePage(
-				crStore.currentChangeRequest.name,
-				editExternalLinkNode.value.doc_key,
-				{
-					title: editExternalLinkTitle.value.trim(),
-					external_url: editExternalLinkUrl.value.trim(),
-				},
-			);
-
-			toast.success(__('External link updated'));
-			await crStore.loadChanges();
-			emit('refresh');
+		const docKey = editExternalLinkNode.value?.doc_key;
+		if (!docKey) {
 			close();
+			return;
+		}
+		close();
+		isUpdatingExternalLink.value = true;
+		try {
+			await draftStore.updateNode(docKey, {
+				title,
+				external_url: url,
+			});
 		} catch (error) {
 			console.error('Error updating external link:', error);
 			toast.error(error.messages?.[0] || __('Error updating external link'));
+		} finally {
+			isUpdatingExternalLink.value = false;
 		}
 	}
 
@@ -254,6 +238,10 @@ export function useTreeDialogs(spaceId, expandedNodes, emit) {
 		showEditExternalLinkDialog,
 		editExternalLinkTitle,
 		editExternalLinkUrl,
+		isCreating,
+		isRenaming,
+		isDeleting,
+		isUpdatingExternalLink,
 		openCreateDialog,
 		openDeleteDialog,
 		createDocument,

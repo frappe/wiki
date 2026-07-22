@@ -1,16 +1,24 @@
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 
+import json
 from urllib.parse import urlparse
 
 import frappe
 from frappe import _
 from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
+from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
+from frappe.website.utils import clear_cache as clear_website_cache
+from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
-from wiki.wiki.markdown import render_markdown_with_toc
+from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
+
+WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
+
+WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -72,9 +80,11 @@ class WikiDocument(NestedSet):
 		content: DF.Code | None
 		doc_key: DF.Data | None
 		is_group: DF.Check
-		is_private: DF.Check
 		is_published: DF.Check
 		lft: DF.Int
+		meta_description: DF.SmallText | None
+		meta_image: DF.AttachImage | None
+		meta_title: DF.Data | None
 		old_parent: DF.Link | None
 		parent_wiki_document: DF.Link | None
 		rgt: DF.Int
@@ -82,6 +92,7 @@ class WikiDocument(NestedSet):
 		slug: DF.Data | None
 		sort_order: DF.Int
 		title: DF.Data
+		wiki_space: DF.Link | None
 	# end: auto-generated types
 
 	def validate(self):
@@ -232,16 +243,42 @@ class WikiDocument(NestedSet):
 			return ""
 		return f"/wiki/spaces/{wiki_space.name}/page/{self.name}"
 
+	def _can_show_edit(self, wiki_space_doc, user=None) -> bool:
+		"""Whether to render the reader's Edit button for the current user.
+
+		Shown when the space accepts contributions (anyone, including anonymous
+		visitors who then hit the login redirect — unchanged) or when the user has
+		write/merge access (managers always see Edit even with contributions off).
+		"""
+		from wiki.permissions import _space_accepts_contributions, can_write_space
+
+		# Mirror the backend's contribution gate exactly (it treats a missing/NULL
+		# flag as enabled) so the button and the CR endpoints never disagree.
+		if _space_accepts_contributions(wiki_space_doc):
+			return True
+		return can_write_space(wiki_space_doc.name, user)
+
+	def check_space_access(self, ptype="read", user=None):
+		"""Gate content access by the owning Wiki Space's role configuration.
+
+		On failure we raise a 404 (DoesNotExistError) rather than PermissionError
+		so we don't leak the existence of restricted pages to unauthorized users
+		(especially anonymous Guests).
+		"""
+		from wiki.permissions import can_read_space, can_write_space
+
+		space = self.wiki_space or (self.get_wiki_space() or {}).get("name")
+		if not space:
+			# Orphan documents stay readable by all (preserves chromeless pages).
+			return
+
+		allowed = can_write_space(space, user) if ptype == "write" else can_read_space(space, user)
+		if not allowed:
+			frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
 	def check_guest_access(self):
-		"""
-		Check if the current user has permission to view this document.
-		Raises PermissionError if access is denied.
-		"""
-		if self.is_private and frappe.session.user == "Guest":
-			frappe.throw(
-				frappe._("You must be logged in to view this page"),
-				frappe.PermissionError,
-			)
+		"""Backwards-compatible alias: gate read access via the space's role config."""
+		self.check_space_access("read")
 
 	def check_published(self):
 		if not self.is_published:
@@ -271,8 +308,7 @@ class WikiDocument(NestedSet):
 		if not root_group:
 			return [], {"prev": None, "next": None}
 
-		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
-		nested_tree = build_nested_wiki_tree(descendants)
+		nested_tree = get_public_wiki_tree(root_group)
 		adjacent_docs = get_adjacent_documents(nested_tree, self.route)
 
 		return nested_tree, adjacent_docs
@@ -315,8 +351,7 @@ class WikiDocument(NestedSet):
 
 	def get_web_context(self) -> dict:
 		"""Get all context needed to render this Wiki Document."""
-		print("DEBUG get_web_context called for:", self.name)
-		self.check_guest_access()
+		self.check_space_access("read")
 		self.check_published()
 		wiki_space = self.get_wiki_space()
 
@@ -347,13 +382,26 @@ class WikiDocument(NestedSet):
 			"next_doc": None,
 			"edit_link": self.get_edit_link(),
 			"last_updated": pretty_date(self.modified),
-			"last_updated_on": frappe.utils.format_datetime(self.modified),
+			"last_updated_on": self.get_formatted("modified"),
 			"published_by": frappe.utils.get_fullname(self.owner),
 			"published_on": frappe.utils.formatdate(self.creation, "MM/dd/yyyy"),
 			"published_on_iso": frappe.utils.get_datetime(self.creation).isoformat(),
 			"hide_chrome": not wiki_space,
-			"test": "This is a test value to verify context is passed correctly",
+			"can_edit": False,
+			"breadcrumbs": None,
 		}
+
+		metatags = {
+			"title": self.meta_title or self.title,
+			"og:site_name": wiki_space.get("space_name") if wiki_space else None,
+		}
+		if self.meta_description:
+			metatags["description"] = self.meta_description
+		if self.meta_image:
+			metatags["image"] = self.meta_image
+		context["metatags"] = {key: value for key, value in metatags.items() if value}
+		context["metatags"] = MetaTags(self.route, context).tags
+		context["canonical_url"] = frappe.utils.get_url("/" + self.route) if self.route else None
 
 		if not wiki_space:
 			return context
@@ -364,6 +412,7 @@ class WikiDocument(NestedSet):
 		context.update(
 			{
 				"wiki_space": wiki_space_doc,
+				"can_edit": self._can_show_edit(wiki_space_doc),
 				"wiki_spaces_for_switcher": frappe.get_all(
 					"Wiki Space",
 					fields=["name", "space_name", "route", "light_mode_logo", "app_switcher_logo"],
@@ -377,10 +426,46 @@ class WikiDocument(NestedSet):
 				"nested_tree": nested_tree,
 				"prev_doc": adjacent_docs["prev"],
 				"next_doc": adjacent_docs["next"],
+				# Escape "<" so user-supplied titles can't close the
+				# <script> element the template embeds this JSON into.
+				"breadcrumbs": json.dumps(self.get_breadcrumb_list(wiki_space)).replace("<", "\\u003c"),
 			}
 		)
 
 		return context
+
+	def get_breadcrumb_list(self, wiki_space: dict) -> dict:
+		"""Build a BreadcrumbList JSON-LD payload mirroring the visible reader UI.
+
+		The reader sidebar renders ancestor groups as non-clickable toggle
+		buttons (see sidebar_tree.html) -- they never resolve to a served URL.
+		Per Google's breadcrumb structured-data rules every item but the last
+		needs an `item` URL, so those unlinkable ancestor groups are dropped
+		from the trail entirely rather than emitted without one.
+		"""
+		space_item = {
+			"@type": "ListItem",
+			"position": 1,
+			"name": wiki_space.get("space_name") or wiki_space["name"],
+			"item": frappe.utils.get_url("/" + wiki_space["route"]),
+		}
+		current_item = {
+			"@type": "ListItem",
+			"position": 2,
+			"name": self.title,
+		}
+		if self.route:
+			current_item["item"] = frappe.utils.get_url("/" + self.route)
+
+		return {
+			"@context": "https://schema.org",
+			"@type": "BreadcrumbList",
+			"itemListElement": [space_item, current_item],
+		}
+
+	def before_print(self, print_settings=None):
+		"""Render markdown content so the print format can drop it in as HTML."""
+		self.rendered_content_for_pdf = render_markdown(self.content or "")
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -433,35 +518,29 @@ class WikiDocumentRenderer(BaseRenderer):
 		if self.path == "wiki" or self.path.startswith("wiki/"):
 			return False
 
-		document = frappe.db.get_value(
+		# Prefer a published content page at this route. A root README/index is
+		# routed at the space route itself, so this also serves /<space>/ — winning
+		# over the same-route root group, which only redirects to its first child.
+		leaf = frappe.db.get_value(
 			"Wiki Document",
-			{"route": self.path},
-			["name", "is_group", "is_published", "is_external_link"],
-			as_dict=True,
+			{"route": self.path, "is_group": 0, "is_published": 1, "is_external_link": 0},
+			"name",
 		)
-		if document and not document.is_group and document.is_published and not document.is_external_link:
-			self.wiki_doc_name = document.name
+		if leaf:
+			self.wiki_doc_name = leaf
 			return True
 
-		# Get root group - either from a group document or from a Wiki Space route
-		root_group = None
-		if document and document.is_group:
-			root_group = document.name
-		else:
-			# Check if this is a Wiki Space route
-			root_group = frappe.db.get_value(
-				"Wiki Space", {"route": self.path, "is_published": 1}, "root_group"
-			)
+		# A group / Wiki Space route with no page of its own: redirect to first child.
+		root_group = frappe.db.get_value(
+			"Wiki Document", {"route": self.path, "is_group": 1}, "name"
+		) or frappe.db.get_value("Wiki Space", {"route": self.path, "is_published": 1}, "root_group")
 
-		# Redirect to first published child document if available
+		# Redirect to the first page in sidebar order (sort_order at each level),
+		# so the space URL lands on the same document the sidebar shows first.
 		if root_group:
-			child_docs = get_descendants_of(
-				"Wiki Document", root_group, order_by="lft asc, sort_order desc", ignore_permissions=True
-			)
-			for child_name in child_docs:
-				child_doc = frappe.get_cached_doc("Wiki Document", child_name)
-				if not child_doc.is_group and child_doc.is_published:
-					frappe.redirect("/" + child_doc.route)
+			first_page = get_first_published_page(root_group)
+			if first_page:
+				frappe.redirect("/" + first_page["route"])
 
 		return False
 
@@ -471,7 +550,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		# Return plain markdown for AI agents and other markdown-aware clients
 		accept = frappe.request.headers.get("Accept", "")
 		if "text/markdown" in accept:
-			doc.check_guest_access()
+			doc.check_space_access("read")
 			doc.check_published()
 			response = Response()
 			response.data = doc.content or ""
@@ -563,6 +642,49 @@ def build_nested_wiki_tree(documents: list[str]):
 	return remove_empty_groups(root_nodes)
 
 
+def get_public_wiki_tree(root_group: str) -> list:
+	"""Return the published sidebar tree for a root group, cached in Redis.
+
+	The cache is invalidated on any Wiki Document change (see
+	clear_wiki_tree_cache), so a hit always reflects the committed tree.
+	"""
+	tree = frappe.cache().hget(WIKI_TREE_CACHE_KEY, root_group)
+	if tree is None:
+		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
+		tree = build_nested_wiki_tree(descendants)
+		frappe.cache().hset(WIKI_TREE_CACHE_KEY, root_group, tree)
+	return tree
+
+
+def get_first_published_page(root_group: str) -> dict | None:
+	"""First non-group, non-external page in sidebar order — the document a
+	space URL should land on. Walks the same tree the sidebar renders, so the
+	two can't disagree."""
+
+	def find_first(nodes):
+		for node in nodes:
+			if not node["is_group"] and not node.get("is_external_link"):
+				return node
+			found = find_first(node["children"])
+			if found:
+				return found
+		return None
+
+	return find_first(get_public_wiki_tree(root_group))
+
+
+def clear_wiki_tree_cache():
+	"""Drop all cached sidebar trees.
+
+	Cleared wholesale rather than per space: a move can pull a subtree from one
+	space into another, staling both trees while the document only knows its
+	new space. Cleared again after commit to close the race where another
+	worker re-caches from pre-commit DB state.
+	"""
+	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
+	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+
+
 @frappe.whitelist()
 def get_breadcrumbs(name: str) -> dict:
 	"""Get the breadcrumb trail for a Wiki Document including space info."""
@@ -583,14 +705,114 @@ def get_page_data(route: str) -> dict:
 	return doc.get_web_context()
 
 
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_pdf(route: str):
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_group": 0, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_space_access("read")
+	doc.check_published()
+
+	# Guests can't print by default; we've already authorized them above via check_space_access.
+	frappe.local.flags.ignore_print_permissions = True
+	try:
+		pdf_file = get_print(
+			doctype="Wiki Document",
+			print_format=WIKI_DOCUMENT_PRINT_FORMAT,
+			doc=doc,
+			as_pdf=True,
+			no_letterhead=1,
+		)
+	finally:
+		frappe.local.flags.ignore_print_permissions = False
+
+	frappe.local.response.filename = f"{doc.slug or doc.name}.pdf"
+	frappe.local.response.filecontent = pdf_file
+	frappe.local.response.content_type = "application/pdf"
+	frappe.local.response.type = "download"
+
+
 def on_wiki_document_update(doc, method):
-	"""Sync desk edits to the revision system so CRs stay aligned with the live tree."""
+	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
+	stamp_wiki_space(doc)
 	_sync_document_to_revision(doc)
+	_clear_stale_website_cache(doc)
+	clear_wiki_tree_cache()
+	_drop_from_search_index_on_unpublish(doc)
+
+
+def _drop_from_search_index_on_unpublish(doc):
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_doc_from_index
+
+	if doc.has_value_changed("is_published") and not doc.is_published:
+		# The index lives in a separate SQLite file, outside this transaction.
+		# Deferring until after commit keeps the row when the save rolls back;
+		# on rollback the callback queue is discarded.
+		docname = doc.name
+		frappe.db.after_commit.add(lambda: remove_doc_from_index(docname))
+
+
+def stamp_wiki_space(doc):
+	"""Denormalize the owning Wiki Space onto a single document.
+
+	Covers normal desk edits, clones, and merge-created documents (all of which
+	insert/save and trigger on_update). Reorders use raw db.set_value and are
+	re-stamped separately via stamp_wiki_space_subtree.
+	"""
+	from wiki.api.wiki_space import _get_wiki_space_for_document
+
+	space_name = _get_wiki_space_for_document(doc.name)
+	if doc.get("wiki_space") != space_name:
+		frappe.db.set_value("Wiki Document", doc.name, "wiki_space", space_name, update_modified=False)
+
+
+def stamp_wiki_space_subtree(root_doc_name):
+	"""Re-stamp wiki_space on a document and all its descendants (after a move)."""
+	from wiki.api.wiki_space import _get_wiki_space_for_document
+
+	space_name = _get_wiki_space_for_document(root_doc_name)
+	names = [root_doc_name, *get_descendants_of("Wiki Document", root_doc_name, ignore_permissions=True)]
+	for name in names:
+		frappe.db.set_value("Wiki Document", name, "wiki_space", space_name, update_modified=False)
+	return space_name
 
 
 def on_wiki_document_trash(doc, method):
 	"""Sync desk deletions to the revision system."""
 	_sync_document_to_revision(doc)
+	_clear_stale_website_cache(doc, deleted=True)
+	clear_wiki_tree_cache()
+
+
+def _clear_stale_website_cache(doc, deleted=False):
+	"""Invalidate Frappe's website caches for this document's routes.
+
+	Frappe remembers every guest URL that 404'd (the ``website_404`` cache) and
+	short-circuits all later requests to it, so a page published or renamed
+	after its URL was ever visited keeps returning 404 until the cache is
+	invalidated. ``clear_website_cache`` drops the whole ``website_404`` map
+	along with the routing caches for the given path.
+
+	The immediate clear serves the current process; the after-commit clear
+	closes the race where another worker re-caches a 404 from pre-commit DB
+	state between our clear and the transaction commit.
+	"""
+	route_affecting_fields = ("route", "is_published", "is_external_link")
+	if not deleted and not any(doc.has_value_changed(f) for f in route_affecting_fields):
+		return
+
+	before = doc.get_doc_before_save()
+	routes = {doc.route, before.route if before else None} - {None, ""}
+	if not routes:
+		return
+
+	for route in routes:
+		clear_website_cache(route)
+	frappe.db.after_commit.add(lambda routes=routes: [clear_website_cache(route) for route in routes])
 
 
 def _sync_document_to_revision(doc):

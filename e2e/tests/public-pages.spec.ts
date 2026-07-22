@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { publishChangeRequestFromReview } from '../helpers/wiki';
 interface WikiDocumentRoute {
 	route: string;
 	doc_key: string;
@@ -62,7 +63,7 @@ test.describe('Public Wiki Pages', () => {
 			await page.getByLabel('Title').fill(pageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -125,7 +126,7 @@ That is all.`;
 			await page.waitForTimeout(500);
 
 			// Save the draft
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 			// Wait for save to complete in database
 			await page.waitForTimeout(2000);
@@ -136,10 +137,7 @@ That is all.`;
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			// Open public page in new tab
 			const routes = await getList<WikiDocumentRoute>(
@@ -158,9 +156,6 @@ That is all.`;
 			await publicPage.waitForLoadState('networkidle');
 			// Set viewport for TOC visibility (lg breakpoint = 1024px)
 			await publicPage.setViewportSize({ width: 1100, height: 900 });
-
-			// Debug: Log the public page URL
-			console.log('Public page URL:', publicPage.url());
 
 			// Verify the page content has headings
 			await expect(
@@ -268,7 +263,7 @@ That is all.`;
 			await page.getByLabel('Title').fill(pageTitle);
 			await page
 				.getByRole('dialog')
-				.getByRole('button', { name: 'Save Draft' })
+				.getByRole('button', { name: 'Save' })
 				.click();
 			await page.waitForLoadState('networkidle');
 
@@ -309,7 +304,7 @@ End.`;
 			await editor.click();
 			await page.waitForTimeout(500);
 
-			await page.click('button:has-text("Save Draft")');
+			await page.click('button:has-text("Save")');
 			await page.waitForLoadState('networkidle');
 			await page.waitForTimeout(2000);
 
@@ -318,10 +313,7 @@ End.`;
 			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
 				timeout: 10000,
 			});
-			await page.getByRole('button', { name: 'Merge' }).click();
-			await expect(
-				page.locator('text=Change request merged').first(),
-			).toBeVisible({ timeout: 15000 });
+			await publishChangeRequestFromReview(page);
 
 			const routes = await getList<WikiDocumentRoute>(
 				request,
