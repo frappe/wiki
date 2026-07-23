@@ -16,10 +16,17 @@
   {% endif %}
   {% endfor %}
 
-  <a href="https://frappe.stevesbbs.com/wiki/spaces/p9jtivk5bk" target="_blank" rel="noopener noreferrer"
+  {% if wiki_space %}
+  <a href="/wiki/spaces/{{ wiki_space.name }}?new=page"
     class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
     Add Article
   </a>
+
+  <a href="/wiki/spaces/{{ wiki_space.name }}?new=group"
+    class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+    Add Group
+  </a>
+  {% endif %}
 
   <a href="https://stevesbbs.com/anythingllm/login" target="_blank" rel="noopener noreferrer"
     class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] ring-1 ring-inset ring-[var(--outline-gray-2)] rounded-full transition-colors duration-200 no-underline">
