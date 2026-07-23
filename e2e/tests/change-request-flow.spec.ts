@@ -621,7 +621,7 @@ test.describe('Change Request Flow', () => {
 		).toBeVisible();
 	});
 
-	test('should navigate to published page after merging from space editor', async ({
+	test('should publish and navigate to the published page from the editor header, without a separate Save click', async ({
 		page,
 		request,
 	}) => {
@@ -683,15 +683,14 @@ test.describe('Change Request Flow', () => {
 			});
 		}, pageContent);
 		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
-		await page.waitForTimeout(500);
 
-		// One-click self-serve publish from the editor: the Merge button walks
-		// the CR through submit -> approve -> merge under the hood (a manager
-		// merging their own draft needs no second person).
-		const mergeButton = page.getByRole('button', { name: 'Merge' });
-		await expect(mergeButton).toBeVisible({ timeout: 10000 });
-		await mergeButton.click();
+		// One-click self-serve publish straight from the editor header: no
+		// separate Save click needed — Publish flushes the editor content, then
+		// walks the CR through submit -> approve -> merge under the hood (a
+		// manager merging their own draft needs no second person).
+		const publishButton = page.getByRole('button', { name: 'Publish' });
+		await expect(publishButton).toBeVisible({ timeout: 10000 });
+		await publishButton.click();
 		await expect(
 			page.locator('text=Change request merged').first(),
 		).toBeVisible({ timeout: 15000 });

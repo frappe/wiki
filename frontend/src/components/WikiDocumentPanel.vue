@@ -56,7 +56,7 @@
 					</Button>
 					<Button
 						v-if="!readonly"
-						variant="solid"
+						:variant="canPublish ? 'outline' : 'solid'"
 						:loading="isSaving"
 						@click="saveFromHeader"
 					>
@@ -66,6 +66,15 @@
 								<span class="text-sm">{{ isMac ? '⌘' : 'Ctrl+' }}</span><span>S</span>
 							</kbd>
 						</span>
+					</Button>
+					<Button
+						v-if="!readonly && canPublish"
+						variant="solid"
+						:loading="isPublishing || crStore.isMerging"
+						:title="__('Save and publish straight to the live page')"
+						@click="publishFromHeader"
+					>
+						{{ __('Publish') }}
 					</Button>
 					<Dropdown :options="menuOptions">
 						<Button variant="outline" :title="__('More actions')">
@@ -143,6 +152,7 @@
 </template>
 
 <script setup>
+import { useSpaceCapabilities } from '@/composables/useSpaceCapabilities';
 import { buildGithubEditUrl } from '@/lib/github';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -184,17 +194,20 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['refresh']);
+const emit = defineEmits(['refresh', 'publish']);
 const editorRef = ref(null);
 const editableTitle = ref('');
 const editableRoute = ref('');
 const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
+const isPublishing = ref(false);
 const showPageSettingsDialog = ref(false);
 
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+const { capabilities } = useSpaceCapabilities(() => props.spaceId);
+const canPublish = computed(() => capabilities.value.can_write);
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -517,6 +530,24 @@ function openPage() {
 
 function saveFromHeader() {
 	editorRef.value?.saveToDB();
+}
+
+// One-click publish: flush the current editor content and any other dirty
+// pages, then hand off to the parent to merge the change request and
+// navigate straight to the live page — no separate Save step required.
+async function publishFromHeader() {
+	if (props.readonly) return;
+	isPublishing.value = true;
+	try {
+		const markdown = editorRef.value?.getMarkdown();
+		if (markdown !== undefined) {
+			await saveContent(markdown);
+		}
+		await flushOtherDirtyPages();
+		emit('publish');
+	} finally {
+		isPublishing.value = false;
+	}
 }
 
 // Drain dirty buffers for pages other than the one on screen; the open

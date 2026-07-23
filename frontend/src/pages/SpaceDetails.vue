@@ -114,6 +114,7 @@
                     :space-id="spaceId"
                     :readonly="isGitSynced"
                     @refresh="refreshTree"
+                    @publish="handleMergeChangeRequest"
                 />
             </div>
         </main>

@@ -43,7 +43,7 @@
 					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
-					{{ __('Merge') }}
+					{{ __('Publish') }}
 				</Button>
 				<Button
 					v-if="crStore.changeCount > 0"
@@ -59,7 +59,7 @@
 
 			<template v-else-if="changeRequestStatus === 'Approved'">
 				<span class="text-sm font-medium text-green-700">
-					{{ __('Approved! Ready to merge.') }}
+					{{ __('Approved! Ready to publish.') }}
 				</span>
 				<Button
 					v-if="canShowMerge"
@@ -69,7 +69,7 @@
 					:title="mergeButtonTitle"
 					@click="$emit('merge')"
 				>
-					{{ __('Merge') }}
+					{{ __('Publish') }}
 				</Button>
 			</template>
 
@@ -176,9 +176,9 @@
 
 <script setup>
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useSpaceCapabilities } from '@/composables/useSpaceCapabilities';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
-import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import LucideAlertCircle from '~icons/lucide/alert-circle';
@@ -200,7 +200,9 @@ const {
 } = useChangeTypeDisplay();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
-const userStore = useUserStore();
+const { capabilities } = useSpaceCapabilities(
+	() => crStore.currentChangeRequest?.wiki_space,
+);
 
 // Submit / merge are blocked while local mutations are still syncing or
 // failed — submitting a stale backend CR would silently drop the user's
@@ -314,24 +316,24 @@ function confirmSubmit(closeDialog) {
 }
 
 const canShowMerge = computed(() => {
-	return userStore.isWikiManager && crStore.changeCount > 0;
+	return capabilities.value.can_write && crStore.changeCount > 0;
 });
 
 const mergeButtonTitle = computed(() => {
 	if (draftStore.finalizationBlocker === 'conflict') {
-		return __('Reload latest before merging');
+		return __('Reload latest before publishing');
 	}
 	if (draftStore.finalizationBlocker === 'failed') {
-		return __('Resolve failed changes before merging');
+		return __('Resolve failed changes before publishing');
 	}
 	if (draftStore.finalizationBlocker === 'pending') {
-		return __('Wait for pending changes to sync before merging');
+		return __('Wait for pending changes to sync before publishing');
 	}
 	if (draftStore.finalizationBlocker === 'unsaved') {
-		return __('Save your changes before merging');
+		return __('Save your changes before publishing');
 	}
 	if (props.mergeDisabled) {
-		return __('Please wait for reordering to finish before merging');
+		return __('Please wait for reordering to finish before publishing');
 	}
 	return '';
 });
@@ -393,19 +395,19 @@ const BANNER_CONFIG = {
 		class: 'bg-green-50 border-b border-green-200 text-green-800',
 		icon: LucideCheckCircle,
 		title: __('Approved'),
-		description: __('Approved and ready to merge'),
+		description: __('Approved and ready to publish'),
 	},
 	Merged: {
 		class: 'bg-green-50 border-b border-green-200 text-green-800',
 		icon: LucideCheckCircle,
-		title: __('Merged'),
-		description: __('Your changes have been merged'),
+		title: __('Published'),
+		description: __('Your changes have been published'),
 	},
 	Rejected: {
 		class: 'bg-red-50 border-b border-red-200 text-red-800',
 		icon: LucideXCircle,
 		title: __('Rejected'),
-		description: __('This change request was rejected and will not be merged'),
+		description: __('This change request was rejected and will not be published'),
 	},
 };
 
