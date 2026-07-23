@@ -696,7 +696,7 @@ function findNodeByDocKey(nodes, docKey) {
 	return null;
 }
 
-async function handleMergeChangeRequest() {
+async function handleMergeChangeRequest(docKeyOverride) {
 	if (isTreeReordering.value) {
 		toast.error(__('Please wait for reordering to finish before merging'));
 		return;
@@ -706,7 +706,12 @@ async function handleMergeChangeRequest() {
 		toast.error(blockerMessage);
 		return;
 	}
-	const docKey = currentDraftKey.value;
+	// A freshly-created page's URL still shows the tmp_* key until a
+	// separate watcher swaps it for the real one — that swap can lose the
+	// race with one-click Publish. The caller resolves the real key itself
+	// (DraftContributionPanel.vue) and passes it here instead of trusting
+	// the route param snapshot.
+	const docKey = docKeyOverride || currentDraftKey.value;
 	const changeRequestName = crStore.currentChangeRequest?.name;
 	try {
 		await crStore.approveAndMergeChangeRequest();

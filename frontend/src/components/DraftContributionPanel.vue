@@ -443,7 +443,12 @@ async function publishFromHeader() {
 			await saveContent(markdown);
 		}
 		await flushOtherDirtyPages();
-		emit('publish');
+		// A brand-new page's docKey is a tmp_* placeholder until its create
+		// resolves; the URL swap to the real key happens via a separate
+		// watcher that may not have caught up yet. Resolve it explicitly so
+		// the parent's post-merge tree lookup doesn't race that swap.
+		const realDocKey = await draftStore.resolveDocKey(props.docKey);
+		emit('publish', realDocKey || props.docKey);
 	} finally {
 		isPublishing.value = false;
 	}
