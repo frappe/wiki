@@ -686,16 +686,6 @@ async function handleArchiveChangeRequest() {
 	}
 }
 
-function findNodeByDocKey(nodes, docKey) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (node.doc_key === docKey) return node;
-		const found = findNodeByDocKey(node.children, docKey);
-		if (found) return found;
-	}
-	return null;
-}
-
 async function handleMergeChangeRequest(docKeyOverride) {
 	if (isTreeReordering.value) {
 		toast.error(__('Please wait for reordering to finish before merging'));
@@ -724,11 +714,16 @@ async function handleMergeChangeRequest(docKeyOverride) {
 		await draftStore.hydrate(props.spaceId);
 
 		if (docKey) {
-			const node = findNodeByDocKey(treeData.value?.children, docKey);
-			if (node?.document_name) {
+			// Fetched directly from the server rather than read off `treeData`:
+			// the tree is a reactive projection with its own load/hydrate
+			// gating, and depending on it here made the post-merge navigation
+			// vulnerable to staleness. This hits the CR-page endpoint directly
+			// for exactly the field we need.
+			const info = await draftStore.getMergedPageInfo(docKey);
+			if (info?.document_name) {
 				router.push({
 					name: 'SpacePage',
-					params: { spaceId: props.spaceId, pageId: node.document_name },
+					params: { spaceId: props.spaceId, pageId: info.document_name },
 				});
 			}
 		}

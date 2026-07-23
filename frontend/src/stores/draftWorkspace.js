@@ -390,6 +390,21 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return promise;
 	}
 
+	// Fetch a CR page's raw server payload without touching pageBuffers —
+	// used right after a merge to resolve the published `document_name` for
+	// navigation. `loadCrPage`/`applyFetchedPage` discard that field since
+	// the editor buffer has no use for it; this bypasses the buffer cache
+	// entirely so a stale/absent local entry (post-reset) can't shadow it.
+	async function getMergedPageInfo(docKey) {
+		if (!docKey || resolver.isTempKey(docKey) || !crName.value) return null;
+		try {
+			return await transport.fetchPage(crName.value, docKey);
+		} catch (err) {
+			console.error('Error fetching merged page info:', err);
+			return null;
+		}
+	}
+
 	// Load a single CR page into pagesByKey. Tmp pages live entirely on
 	// the client until their create syncs; we never call get_cr_page
 	// with a tmp key (the backend would 404).
@@ -960,6 +975,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		reloadChanges,
 		reloadFromServer,
 		loadCrPage,
+		getMergedPageInfo,
 		updateLocalPageContent,
 		findNode: treeModel.findNode,
 		reset,
