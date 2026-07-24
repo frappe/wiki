@@ -1,4 +1,4 @@
-import { APIRequestContext, type Page, expect } from '@playwright/test';
+import { type APIRequestContext, type Page, expect } from '@playwright/test';
 import { createDoc, deleteDoc, getDoc, getList } from './frappe';
 
 /**
@@ -42,6 +42,32 @@ export async function publishChangeRequestFromReview(page: Page) {
 	await expect(page.locator('text=Change request merged').first()).toBeVisible({
 		timeout: 15000,
 	});
+}
+
+/**
+ * The sidebar create actions live behind a single plus button ("Add") that
+ * opens a dropdown of New Page / New Group / External Link. Opens the menu
+ * and clicks the given option.
+ */
+export async function clickSidebarAddOption(
+	page: Page,
+	option: 'New Page' | 'New Group' | 'External Link',
+) {
+	await page.locator('button[title="Add"]').click();
+	await page.getByRole('menuitem', { name: option }).click();
+}
+
+/**
+ * Start creating a page from the sidebar, handling both the empty-space CTA
+ * ("Create First Page") and the Add dropdown. Leaves the create dialog open.
+ */
+export async function openNewPageDialog(page: Page) {
+	const createFirstPage = page.locator('button:has-text("Create First Page")');
+	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await createFirstPage.click();
+	} else {
+		await clickSidebarAddOption(page, 'New Page');
+	}
 }
 
 /**

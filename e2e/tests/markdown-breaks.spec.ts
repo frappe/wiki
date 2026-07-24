@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { openNewPageDialog } from '../helpers/wiki';
 
 interface WikiDocument {
 	name: string;
@@ -25,16 +26,7 @@ test.describe('Markdown Line Breaks', () => {
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
-
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page

@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
 import { callMethod, getList } from '../helpers/frappe';
+import { clickSidebarAddOption, openNewPageDialog } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -59,15 +60,7 @@ async function createSpaceWithDraftPage(page: Page, label: string) {
 	await expect(page).toHaveURL(/\/wiki\/spaces\//);
 	const spaceUrl = page.url();
 
-	const createFirstPage = page.getByRole('button', {
-		name: 'Create First Page',
-	});
-	const newPageButton = page.getByRole('button', { name: 'New Page' });
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(pageTitle);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await page.waitForTimeout(500);
@@ -138,16 +131,8 @@ test.describe('Change Request Flow', () => {
 		const spaceUrl = page.url();
 
 		// Create a new page draft
-		const createFirstPage = page.getByRole('button', {
-			name: 'Create First Page',
-		});
-		const newPageButton = page.getByRole('button', { name: 'New Page' });
 
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -275,7 +260,7 @@ test.describe('Change Request Flow', () => {
 		const spaceId = spaceUrl.split('/wiki/spaces/')[1];
 
 		const createGroup = async (title: string) => {
-			await page.locator('button[title="New Group"]').click();
+			await clickSidebarAddOption(page, 'New Group');
 			await page.getByRole('dialog').getByLabel('Title').fill(title);
 			await page
 				.getByRole('dialog')
@@ -288,12 +273,12 @@ test.describe('Change Request Flow', () => {
 
 		const addPageToGroup = async (groupTitle: string, pageTitle: string) => {
 			const groupItem = page
-				.locator('aside .draggable-item', { hasText: groupTitle })
+				.locator('aside [role="treeitem"]', { hasText: groupTitle })
 				.first();
 			await groupItem.hover();
 			// Click the three-dot menu button (in the row, not in nested content)
 			await groupItem.locator('> div').first().locator('button').last().click();
-			await page.getByRole('menuitem', { name: 'Add Page' }).click();
+			await page.getByRole('menuitem', { name: 'New Page' }).click();
 			await page.getByRole('dialog').getByLabel('Title').fill(pageTitle);
 			await page
 				.getByRole('dialog')
@@ -582,7 +567,7 @@ test.describe('Change Request Flow', () => {
 
 		const movedTitle = pageTitles[1];
 		const movedRow = page
-			.locator('aside .draggable-item > div.flex')
+			.locator('aside [data-slot="row"]')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
 		await expect(
@@ -647,16 +632,8 @@ test.describe('Change Request Flow', () => {
 		await expect(page).toHaveURL(/\/wiki\/spaces\//);
 
 		// Create a new page draft
-		const createFirstPage = page.getByRole('button', {
-			name: 'Create First Page',
-		});
-		const newPageButton = page.getByRole('button', { name: 'New Page' });
 
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page

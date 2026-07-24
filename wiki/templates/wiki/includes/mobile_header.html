@@ -4,7 +4,7 @@
 <!-- Mobile Navigation Container - Only visible on smaller screens -->
 <div class="sticky top-0 z-30 lg:hidden" x-data="mobileNav()" data-testid="mobile-nav">
     <!-- Mobile Header -->
-    <header class="bg-[var(--surface-white)] border-b border-[var(--outline-gray-1)]" data-testid="mobile-header">
+    <header class="bg-[var(--surface-base)] border-b border-[var(--outline-gray-1)]" data-testid="mobile-header">
         <div class="flex items-center justify-between px-4 py-3">
             <!-- Left: Logo and Menu Toggle -->
             <div class="flex items-center gap-3">
@@ -118,7 +118,7 @@
          x-transition:leave-start="translate-y-0"
          x-transition:leave-end="translate-y-full"
          :style="isDragging ? `transform: translateY(${Math.max(0, dragOffset)}px); transition: none;` : ''"
-         class="fixed left-0 right-0 bottom-0 max-h-[85vh] bg-[var(--surface-modal)] z-50 flex flex-col rounded-t-2xl shadow-xl"
+         class="fixed left-0 right-0 bottom-0 max-h-[85vh] bg-[var(--surface-elevation-2)] z-50 flex flex-col rounded-t-2xl shadow-xl"
          data-testid="mobile-bottom-sheet"
          x-cloak>
 
@@ -136,7 +136,7 @@
                 {% if wiki_space.app_switcher_logo %}
                 <img class="size-7 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
                 {% endif %}
-                <h3 class="text-lg font-semibold text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</h3>
+                <h3 class="text-lg-semibold text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</h3>
                 {% if wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
                 <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
                         class="p-1.5 rounded hover:bg-[var(--surface-gray-2)] transition-colors duration-200 flex-shrink-0"
@@ -182,7 +182,7 @@
 
         {% if navbar_items %}
         <!-- Navbar Links -->
-        <div class="p-3 border-t border-[var(--outline-gray-1)] bg-[var(--surface-white)]">
+        <div class="p-3 border-t border-[var(--outline-gray-1)] bg-[var(--surface-base)]">
             <div class="flex flex-wrap items-center gap-2">
                 {% for item in navbar_items %}
                     {% if item.icon %}

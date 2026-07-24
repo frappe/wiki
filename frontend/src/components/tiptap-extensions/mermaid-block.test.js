@@ -23,7 +23,10 @@ test('renders mermaid blocks back to fenced markdown', () => {
 });
 
 test('exposes a slash command for inserting mermaid diagrams', () => {
-	assert.ok(SLASH_COMMANDS.some((command) => command.title === 'Mermaid'));
+	const diagram = SLASH_COMMANDS.find((command) => command.title === 'Diagram');
+	assert.ok(diagram);
+	// "/mermaid" must keep finding it for longtime users.
+	assert.ok(diagram.keywords.includes('mermaid'));
 });
 
 test('loads mermaid through the shared public loader', async () => {

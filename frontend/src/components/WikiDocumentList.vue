@@ -1,44 +1,38 @@
 <template>
 	<div>
-		<div class="flex items-center gap-2 mb-4">
+		<div class="flex items-center gap-2 mb-3">
 			<FormControl v-if="treeData.children && treeData.children.length > 0" class="flex-1" type="text"
 				v-model="searchQuery" :placeholder="__('Search pages...')" @keydown.esc="searchQuery = ''">
 				<template #prefix>
-					<LucideSearch class="size-4 text-ink-gray-4" />
+					<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
 				</template>
 				<template v-if="searchQuery" #suffix>
 					<button class="flex" :title="__('Clear search')" @click="searchQuery = ''">
-						<LucideX class="size-4 text-ink-gray-5 hover:text-ink-gray-7" />
+						<span class="lucide-x size-4 text-ink-gray-5 hover:text-ink-gray-7" aria-hidden="true" />
 					</button>
 				</template>
 			</FormControl>
-			<div v-if="!readonly" class="flex gap-2 ml-auto">
-				<Button :title="__('New Group')" icon="folder-plus" variant="subtle" @click="openCreateDialog(rootNode, true)" />
-				<Button :title="__('New Page')" icon="file-plus" variant="subtle" @click="openCreateDialog(rootNode, false)" />
-				<Button :title="__('External Link')" variant="subtle" @click="openExternalLinkDialog(rootNode)">
-					<template #icon>
-						<LucideLink class="size-4" />
-					</template>
-				</Button>
-			</div>
+			<Dropdown v-if="!readonly" class="ml-auto" :options="addOptions">
+				<Button :title="__('Add')" icon="plus" variant="subtle" />
+			</Dropdown>
 		</div>
 
 		<div v-if="isSearching && !hasResults"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
-			<LucideSearch class="size-12 text-ink-gray-4 mb-4" />
-			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
+			<span class="lucide-search size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
+			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
 			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
 		</div>
 
 		<div v-else-if="!treeData.children || treeData.children.length === 0"
 			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
-			<LucideFileText class="size-12 text-ink-gray-4 mb-4" />
-			<h3 class="text-lg font-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
+			<span class="lucide-file-text size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
+			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
 			<template v-if="!readonly">
 				<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
 				<Button variant="solid" @click="openCreateDialog(rootNode, false)">
 					<template #prefix>
-						<LucideFilePlus class="size-4" />
+						<span class="lucide-file-plus size-4" aria-hidden="true" />
 					</template>
 					{{ __('Create First Page') }}
 				</Button>
@@ -46,12 +40,10 @@
 			<p v-else class="text-sm text-ink-gray-5">{{ __('No pages have synced from the repository yet') }}</p>
 		</div>
 
-		<div v-else class="border border-outline-gray-2 rounded-lg overflow-hidden">
-			<NestedDraggable
-				:key="treeKey"
+		<div v-else>
+			<WikiTree
 				:items="treeForRender.children"
 				:change-type-map="changeTypeMap"
-				:level="0"
 				:parent-name="rootNode"
 				:space-id="spaceId"
 				:readonly="readonly"
@@ -69,13 +61,13 @@
 			/>
 		</div>
 
-		<Dialog v-model="showCreateDialog">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+		<Dialog v-model:open="showCreateDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ createIsGroup ? __('Create New Group') : __('Create New Page') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="createTitle" :label="__('Title')" type="text"
 						:placeholder="createIsGroup ? __('Enter group name') : __('Enter page title')" autofocus />
@@ -91,13 +83,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showDeleteDialog">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+		<Dialog v-model:open="showDeleteDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Delete') }} "{{ deleteNode?.title }}"
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Are you sure you want to delete this') }}
@@ -106,7 +98,7 @@
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-lg p-4">
 						<div class="flex items-start gap-3">
-							<LucideAlertTriangle class="size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" />
+							<span class="lucide-alert-triangle size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
 							<div>
 								<p class="font-medium text-ink-orange-4">{{ __('Warning') }}</p>
 								<p class="text-sm text-ink-orange-3 mt-1">
@@ -130,13 +122,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRenameDialog">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+		<Dialog v-model:open="showRenameDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ renameNode?.is_group ? __('Rename Group') : __('Change Title') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="renameTitle" :label="renameNode?.is_group ? __('Name') : __('Title')" type="text"
 						:placeholder="renameNode?.is_group ? __('Enter group name') : __('Enter page title')" autofocus />
@@ -153,13 +145,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showExternalLinkDialog">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+		<Dialog v-model:open="showExternalLinkDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Add External Link') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="externalLinkTitle" :label="__('Title')" type="text"
 						:placeholder="__('Enter link title')" autofocus />
@@ -177,13 +169,13 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showEditExternalLinkDialog">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">
+		<Dialog v-model:open="showEditExternalLinkDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
 					{{ __('Edit External Link') }}
 				</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<FormControl v-model="editExternalLinkTitle" :label="__('Title')" type="text"
 						:placeholder="__('Enter link title')" autofocus />
@@ -208,15 +200,9 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { FormControl } from 'frappe-ui';
+import { Dropdown, FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
-import LucideFilePlus from '~icons/lucide/file-plus';
-import LucideFileText from '~icons/lucide/file-text';
-import LucideLink from '~icons/lucide/link';
-import LucideSearch from '~icons/lucide/search';
-import LucideX from '~icons/lucide/x';
-import NestedDraggable from './NestedDraggable.vue';
+import WikiTree from './WikiTree.vue';
 
 const props = defineProps({
 	treeData: {
@@ -255,21 +241,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['reorder-state-change']);
-const treeKey = computed(() => {
-	const getNodeIds = (nodes) => {
-		if (!nodes) return '';
-		const keys = nodes.map((n) => n.doc_key).sort();
-		const childKeys = nodes
-			.filter((n) => n.children?.length)
-			.map((n) => n.doc_key + ':' + getNodeIds(n.children))
-			.sort();
-		return keys.join(',') + '|' + childKeys.join(';');
-	};
-	return getNodeIds(props.treeData?.children);
-});
 
 const draftStore = useDraftWorkspaceStore();
-const expandedNodes = useStorage('wiki-tree-expanded-nodes', {});
+// Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
+// parent group after a create is actually visible in the tree.
+const expandedNodes = useStorage(
+	computed(() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`),
+	{},
+);
 
 // Client-side fuzzy filter over the in-memory tree (title + route).
 const {
@@ -312,6 +291,24 @@ const {
 	openEditExternalLinkDialog,
 	updateExternalLink,
 } = useTreeDialogs(toRef(props, 'spaceId'), expandedNodes);
+
+const addOptions = [
+	{
+		label: __('New Page'),
+		icon: 'file-plus',
+		onClick: () => openCreateDialog(props.rootNode, false),
+	},
+	{
+		label: __('New Group'),
+		icon: 'folder-plus',
+		onClick: () => openCreateDialog(props.rootNode, true),
+	},
+	{
+		label: __('External Link'),
+		icon: 'link',
+		onClick: () => openExternalLinkDialog(props.rootNode),
+	},
+];
 
 // Reorder is owned by the draft workspace store: drag events mutate the
 // store's tree synchronously and the store debounces the backend sync. We

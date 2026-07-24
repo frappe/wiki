@@ -1,11 +1,11 @@
 <template>
-	<Dialog v-model="show" :options="{ size: '2xl' }">
-		<template #body-title>
-			<h3 class="text-xl font-semibold text-ink-gray-9">
+	<Dialog v-model:open="show" size="2xl">
+		<template #title>
+			<h3 class="text-2xl-semibold text-ink-gray-9">
 				{{ __('Page Settings') }}
 			</h3>
 		</template>
-		<template #body-content>
+		<template #default>
 			<div class="flex flex-col gap-5 sm:flex-row">
 				<div class="flex flex-1 flex-col gap-4">
 					<FormControl
@@ -33,12 +33,11 @@
 						>
 							<img :src="metaImage" alt="" class="h-32 w-full object-cover" />
 							<div
-								class="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+								class="absolute inset-0 flex items-center justify-center gap-2 bg-black-overlay-400 opacity-0 transition-opacity group-hover:opacity-100"
 							>
-								<LucideLoader2
+								<span
 									v-if="isUploadingImage"
-									class="h-5 w-5 animate-spin text-white"
-								/>
+									class="lucide-loader-2 h-5 w-5 animate-spin text-white" aria-hidden="true" />
 								<template v-else>
 									<Button size="sm" variant="solid" @click="pickImage">
 										{{ __('Replace') }}
@@ -61,11 +60,10 @@
 							:disabled="isUploadingImage"
 							@click="pickImage"
 						>
-							<LucideLoader2
+							<span
 								v-if="isUploadingImage"
-								class="h-5 w-5 animate-spin"
-							/>
-							<LucideImagePlus v-else class="h-5 w-5" />
+								class="lucide-loader-2 h-5 w-5 animate-spin" aria-hidden="true" />
+							<span v-else class="lucide-image-plus h-5 w-5" aria-hidden="true" />
 							<span>{{ isUploadingImage ? __('Uploading...') : __('Upload image') }}</span>
 						</button>
 						<p class="text-xs text-ink-gray-4">
@@ -83,7 +81,7 @@
 				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
 					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
 					<div
-						class="flex flex-1 flex-col overflow-hidden rounded-md border border-outline-gray-2"
+						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
 					>
 						<div
 							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
@@ -94,13 +92,13 @@
 								alt=""
 								class="h-full w-full object-cover"
 							/>
-							<LucideImage v-else class="h-7 w-7 text-ink-gray-3" />
+							<span v-else class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" />
 						</div>
 						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
 							<span class="truncate text-xs text-ink-gray-4">
 								{{ previewRoute }}
 							</span>
-							<span class="line-clamp-1 text-sm font-medium text-ink-gray-9">
+							<span class="line-clamp-1 text-sm-medium text-ink-gray-9">
 								{{ previewTitle }}
 							</span>
 							<span
@@ -138,9 +136,6 @@
 <script setup>
 import { Button, Dialog, FormControl, toast, useFileUpload } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
-import LucideImage from '~icons/lucide/image';
-import LucideImagePlus from '~icons/lucide/image-plus';
-import LucideLoader2 from '~icons/lucide/loader-2';
 
 const props = defineProps({
 	// The document resource from createDocumentResource({ doctype: 'Wiki

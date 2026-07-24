@@ -22,14 +22,14 @@
                 Upload failed: {{ node.attrs.error }}
             </div>
             <input
-                v-if="(editor.isEditable || node.attrs.caption) && !node.attrs.error"
+                v-if="(isEditable || node.attrs.caption) && !node.attrs.error"
                 ref="captionInput"
                 v-model="caption"
                 type="text"
                 class="wiki-image-caption-input"
                 :class="{ 'has-caption': !!caption }"
                 placeholder="Add caption..."
-                :disabled="!editor.isEditable"
+                :disabled="!isEditable"
                 @input="updateCaption"
                 @keydown="handleKeydown"
             />
@@ -38,6 +38,7 @@
 </template>
 
 <script setup>
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { ref, watch } from 'vue';
 
@@ -64,6 +65,7 @@ const props = defineProps({
 	},
 });
 
+const isEditable = useNodeViewEditable(props.editor);
 const captionInput = ref(null);
 const caption = ref(props.node.attrs.caption || '');
 

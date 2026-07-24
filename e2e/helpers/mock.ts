@@ -1,4 +1,4 @@
-import { Page, Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 
 /**
  * Helpers to intercept Frappe whitelisted method calls in E2E tests.

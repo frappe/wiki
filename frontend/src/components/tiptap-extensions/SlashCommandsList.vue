@@ -1,48 +1,47 @@
 <template>
-    <div class="slash-commands-list" v-if="items.length > 0">
-        <button
-            v-for="(item, index) in items"
-            :key="item.title"
-            :class="['slash-command-item', { 'is-selected': index === selectedIndex }]"
-            @click="selectItem(index)"
-            @mouseenter="selectedIndex = index"
+    <!-- Mirrors frappe-ui's slash menu (SuggestionList + EditorPopover classes)
+         so the wiki editor matches Gameplan: compact rows, section headers per
+         consecutive `group` run, icon + title only. -->
+    <div
+        class="slash-commands-list relative max-h-[300px] min-w-48 overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base shadow-2xl"
+    >
+        <template v-if="items.length">
+            <template
+                v-for="(group, groupIndex) in groupedItems"
+                :key="group.label ?? groupIndex"
+            >
+                <div
+                    v-if="group.label"
+                    class="flex h-7 items-center px-2 text-sm-medium text-ink-gray-4"
+                >
+                    {{ group.label }}
+                </div>
+                <button
+                    v-for="{ item, index } in group.entries"
+                    :key="item.title"
+                    :ref="(el) => setItemRef(el, index)"
+                    type="button"
+                    class="flex h-11 w-full items-center whitespace-nowrap rounded px-2 py-1.5 text-sm text-ink-gray-9 sm:h-7"
+                    :class="index === selectedIndex ? 'bg-surface-gray-2' : ''"
+                    @click="selectItem(index)"
+                    @mouseover="selectedIndex = index"
+                >
+                    <span :class="item.icon" class="mr-2 h-4 w-4" aria-hidden="true" />
+                    <span>{{ item.title }}</span>
+                </button>
+            </template>
+        </template>
+        <div
+            v-else
+            class="slash-commands-empty px-3 py-1.5 text-sm text-ink-gray-5"
         >
-            <div class="slash-command-icon">
-                <component :is="getIcon(item.icon)" :size="18" :stroke-width="1.5" />
-            </div>
-            <div class="slash-command-content">
-                <div class="slash-command-title">{{ item.title }}</div>
-                <div class="slash-command-description">{{ item.description }}</div>
-            </div>
-        </button>
+            No commands found
+        </div>
     </div>
-    <div class="slash-commands-empty" v-else>No commands found</div>
 </template>
 
 <script setup>
-import {
-	AlertOctagon,
-	AlertTriangle,
-	AppWindow,
-	Code,
-	FileText,
-	Heading1,
-	Heading2,
-	Heading3,
-	HelpCircle,
-	Image,
-	Info,
-	Lightbulb,
-	List,
-	ListChecks,
-	ListOrdered,
-	Minus,
-	Network,
-	Quote,
-	Table,
-	Video,
-} from 'lucide-vue-next';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUpdate, ref, watch } from 'vue';
 
 const props = defineProps({
 	items: {
@@ -56,32 +55,29 @@ const props = defineProps({
 });
 
 const selectedIndex = ref(0);
+const itemRefs = ref([]);
 
-// Icon mapping
-const iconMap = {
-	'heading-1': Heading1,
-	'heading-2': Heading2,
-	'heading-3': Heading3,
-	list: List,
-	'list-ordered': ListOrdered,
-	'list-checks': ListChecks,
-	code: Code,
-	mermaid: Network,
-	quote: Quote,
-	minus: Minus,
-	table: Table,
-	image: Image,
-	video: Video,
-	'file-text': FileText,
-	embed: AppWindow,
-	info: Info,
-	lightbulb: Lightbulb,
-	'alert-triangle': AlertTriangle,
-	'alert-octagon': AlertOctagon,
-};
+// Display-only grouping: consecutive runs of `item.group` share one header,
+// keeping each item's ORIGINAL index so flat keyboard selection maps 1:1.
+// filterCommands preserves source order, so groups stay adjacent and empty
+// groups never appear. (Same idiom as frappe-ui's SuggestionList.)
+const groupedItems = computed(() => {
+	const groups = [];
+	props.items.forEach((item, index) => {
+		const label = typeof item.group === 'string' ? item.group : undefined;
+		const last = groups[groups.length - 1];
+		if (last && last.label === label) last.entries.push({ item, index });
+		else groups.push({ label, entries: [{ item, index }] });
+	});
+	return groups;
+});
 
-function getIcon(iconName) {
-	return iconMap[iconName] || HelpCircle;
+onBeforeUpdate(() => {
+	itemRefs.value = [];
+});
+
+function setItemRef(el, index) {
+	if (el instanceof HTMLElement) itemRefs.value[index] = el;
 }
 
 function selectItem(index) {
@@ -91,16 +87,24 @@ function selectItem(index) {
 	}
 }
 
+function scrollSelectedIntoView() {
+	nextTick(() => {
+		itemRefs.value[selectedIndex.value]?.scrollIntoView({ block: 'nearest' });
+	});
+}
+
 function onKeyDown(event) {
 	if (event.key === 'ArrowUp') {
 		event.preventDefault();
 		selectedIndex.value =
 			(selectedIndex.value - 1 + props.items.length) % props.items.length;
+		scrollSelectedIntoView();
 		return true;
 	}
 	if (event.key === 'ArrowDown') {
 		event.preventDefault();
 		selectedIndex.value = (selectedIndex.value + 1) % props.items.length;
+		scrollSelectedIntoView();
 		return true;
 	}
 	if (event.key === 'Enter') {
@@ -124,86 +128,3 @@ defineExpose({
 	onKeyDown,
 });
 </script>
-
-<style scoped>
-.slash-commands-list {
-    background: var(--surface-white, #ffffff);
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.5rem;
-    box-shadow:
-        0 4px 6px -1px rgb(0 0 0 / 0.1),
-        0 2px 4px -2px rgb(0 0 0 / 0.1);
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 0.25rem;
-    min-width: 240px;
-}
-
-.slash-command-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: transparent;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.15s ease;
-}
-
-.slash-command-item:hover,
-.slash-command-item.is-selected {
-    background-color: var(--surface-gray-2, #f3f4f6);
-}
-
-.slash-command-icon {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-gray-1, #f9fafb);
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.375rem;
-    color: var(--ink-gray-6, #4b5563);
-}
-
-.slash-command-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.slash-command-title {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--ink-gray-9, #111827);
-}
-
-.slash-command-description {
-    font-size: 0.75rem;
-    color: var(--ink-gray-5, #6b7280);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.slash-commands-empty {
-    padding: 1rem;
-    text-align: center;
-    color: var(--ink-gray-5, #6b7280);
-    font-size: 0.875rem;
-    background: var(--surface-white, #ffffff);
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.5rem;
-}
-
-/* Roomier rows for touch on a phone. */
-@media (max-width: 767px) {
-    .slash-command-item {
-        min-height: 44px;
-    }
-}
-</style>

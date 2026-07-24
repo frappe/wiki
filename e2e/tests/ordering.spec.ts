@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { callMethod, updateDoc } from '../helpers/frappe';
-import { createTestWikiDocument, createTestWikiSpace } from '../helpers/wiki';
+import {
+	clickSidebarAddOption,
+	createTestWikiDocument,
+	createTestWikiSpace,
+} from '../helpers/wiki';
 
 /**
  * E2E tests for wiki document ordering functionality.
@@ -78,9 +82,7 @@ test.describe('Wiki Document Ordering', () => {
 		expect(initialOrder).toEqual(['Q1', 'Q2', 'Q3', 'Q4', 'Q5']);
 
 		// Create a new folder Q6 via UI
-		const newGroupButton = page.locator('button[title="New Group"]');
-		await expect(newGroupButton).toBeVisible({ timeout: 5000 });
-		await newGroupButton.click();
+		await clickSidebarAddOption(page, 'New Group');
 
 		// Fill in the title
 		await page.getByLabel('Title').fill('Q6');

@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocument {
 	name: string;
@@ -25,18 +28,10 @@ test.describe('Link Persistence Tests', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Create a new page
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
 
 		const pageTitle = `link-save-test-${Date.now()}`;
 
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -68,7 +63,7 @@ test.describe('Link Persistence Tests', () => {
 		await page.waitForTimeout(300);
 
 		// Use toolbar button to add link
-		await page.click('button[title="Insert Link"]');
+		await page.click('button[aria-label="Link"]');
 
 		// Wait for link popup input
 		const linkInput = page.getByPlaceholder('https://example.com');

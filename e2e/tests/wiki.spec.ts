@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -51,7 +54,9 @@ test.describe('Wiki Editor', () => {
 
 		// Verify the space was created: check URL changed and space name visible in heading
 		await expect(page).toHaveURL(/\/wiki\/spaces\//, { timeout: 10000 });
-		await expect(page.getByRole('heading', { name: spaceName })).toBeVisible();
+		await expect(
+			page.locator('aside').getByText(spaceName, { exact: true }),
+		).toBeVisible();
 	});
 
 	test('should navigate to space and create a wiki page', async ({ page }) => {
@@ -69,15 +74,8 @@ test.describe('Wiki Editor', () => {
 		// Should be in the space detail view with sidebar
 		await expect(page.locator('aside')).toBeVisible();
 
-		// Look for add/create page button in sidebar
-		// "New Page" is an icon-only button with title attribute, not text content
-		const addButton = page
-			.locator('button:has-text("Create First Page"), button[title="New Page"]')
-			.first();
-		await expect(addButton).toBeVisible({
-			timeout: 10000,
-		});
-		await addButton.click();
+		// Open the create dialog — empty-space CTA or the Add dropdown.
+		await openNewPageDialog(page);
 
 		// Fill in the page title dialog
 		const titleInput = page.getByLabel('Title');
@@ -118,14 +116,14 @@ test.describe('Wiki Editor', () => {
 		await expect(page.locator('aside')).toBeVisible();
 
 		// Wait for the tree to load (CR mode requires async init).
-		// On an empty space, both the toolbar "New Page" button and the
-		// empty-state "Create First Page" button render — `.or().first()`
-		// tolerates either without tripping strict-mode on two matches.
+		// On an empty space the empty-state "Create First Page" CTA renders
+		// instead of the sidebar Add dropdown — `.or().first()` tolerates
+		// either without tripping strict-mode on two matches.
 		const createFirstPage = page.locator(
 			'button:has-text("Create First Page")',
 		);
-		const newPageButton = page.locator('button[title="New Page"]');
-		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
+		const addButton = page.locator('button[title="Add"]');
+		await expect(createFirstPage.or(addButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 	});
@@ -142,22 +140,18 @@ test.describe('Wiki Editor', () => {
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		// Wait for sidebar to load - either "Create First Page" or "New Page" icon button
+		// Wait for sidebar to load - either the empty-state CTA or the Add menu
 		const createFirstPage = page.locator(
 			'button:has-text("Create First Page")',
 		);
-		const newPageButton = page.locator('button[title="New Page"]');
-		await expect(createFirstPage.or(newPageButton).first()).toBeVisible({
+		const addButton = page.locator('button[title="Add"]');
+		await expect(createFirstPage.or(addButton).first()).toBeVisible({
 			timeout: 10000,
 		});
 
 		// Always create a new page so we know exactly what to click
 		const pageTitle = `Test Page ${Date.now()}`;
-		if (await createFirstPage.isVisible().catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -193,20 +187,11 @@ test.describe('Wiki Editor', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Create a new page with specific title and content
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
-
 		const pageTitle = `e2e-cr-page-${Date.now()}`;
 		const pageContent = `This is test content created by E2E tests at ${new Date().toISOString()}`;
 
 		// Click create button (either "Create First Page" or "New Page")
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		// Fill in page title
 		await page.getByLabel('Title').fill(pageTitle);

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import { type Page, expect, test } from '@playwright/test';
 import { deleteDoc, getList, updateDoc } from '../helpers/frappe';
+import { openNewPageDialog } from '../helpers/wiki';
 
 /**
  * E2E coverage for automatic WebP image optimization.
@@ -91,13 +92,7 @@ async function openNewPageInEditor(page: Page, title: string): Promise<void> {
 	await spaceLink.click();
 	await page.waitForLoadState('networkidle');
 
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	const newPageButton = page.locator('button[title="New Page"]');
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 
 	await page.getByLabel('Title').fill(title);
 	const createDialog = page.getByRole('dialog');

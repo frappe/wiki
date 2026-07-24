@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { cleanupWikiSpacesByRoute, createTestWikiSpace } from '../helpers/wiki';
+import {
+	cleanupWikiSpacesByRoute,
+	clickSidebarAddOption,
+	createTestWikiSpace,
+} from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -63,7 +67,7 @@ test.describe('Mobile SPA', () => {
 		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await createFirstPage.click();
 		} else {
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 		}
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -79,7 +83,7 @@ test.describe('Mobile SPA', () => {
 
 		// Desktop inline tree must be gone; the contextual header lives in the
 		// top nav with a tree toggle.
-		const treeToggle = page.locator('#app-header').getByTitle('Pages');
+		const treeToggle = page.getByRole('button', { name: 'Pages' });
 		await expect(treeToggle).toBeVisible();
 
 		// Open the off-canvas tree drawer and pick the page.
@@ -168,7 +172,7 @@ test.describe('Mobile SPA', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.
-		await page.locator('#app-header').getByTitle('Pages').click();
+		await page.getByRole('button', { name: 'Pages' }).click();
 		const drawer = page.locator('.drawer-content');
 		await expect(drawer).toBeVisible();
 		await drawer.getByTitle('Settings').click();

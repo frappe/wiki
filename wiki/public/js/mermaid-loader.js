@@ -3,22 +3,42 @@
 
   // Build a Mermaid theme config from the live Frappe UI design tokens so
   // diagrams match the wiki's look instead of Mermaid's stock palette. We read
-  // the *computed* token values (hex) every time: the tokens flip automatically
-  // with `<html data-theme>`, so the same `base` + themeVariables mapping renders
+  // the *computed* token values every time: the tokens flip automatically with
+  // `<html data-theme>`, so the same `base` + themeVariables mapping renders
   // correctly in both light and dark — no separate "dark"/"default" branch.
   //
-  // Mermaid only allows themeVariables on the `base` theme, and its color engine
-  // accepts hex (not CSS var() refs or named colors), which is exactly what the
-  // Frappe UI gray tokens resolve to.
+  // Mermaid only allows themeVariables on the `base` theme, and its color
+  // engine (khroma) parses hex/rgb — NOT oklch, which is what the v1 Frappe UI
+  // tokens resolve to. Normalize by painting a 1x1 canvas pixel and reading it
+  // back: the fillStyle *getter* round-trip is not enough (Chromium serializes
+  // CSS Color 4 values back in their own notation), but pixel data is always
+  // numeric RGBA.
+  const colorCanvas = document.createElement("canvas");
+  colorCanvas.width = colorCanvas.height = 1;
+  const colorCanvasCtx = colorCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
+  function normalizeColor(value, fallback) {
+    if (!value) return fallback;
+    colorCanvasCtx.clearRect(0, 0, 1, 1);
+    colorCanvasCtx.fillStyle = "#000";
+    colorCanvasCtx.fillStyle = value;
+    colorCanvasCtx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = colorCanvasCtx.getImageData(0, 0, 1, 1).data;
+    if (a === 0) return fallback;
+    if (a === 255) return "rgb(" + r + ", " + g + ", " + b + ")";
+    return "rgba(" + r + ", " + g + ", " + b + ", " + (a / 255).toFixed(3) + ")";
+  }
+
   function wikiMermaidThemeConfig() {
     const root = getComputedStyle(document.documentElement);
     const token = (name, fallback) =>
-      root.getPropertyValue(name).trim() || fallback;
+      normalizeColor(root.getPropertyValue(name).trim(), fallback);
 
     const inkGray9 = token("--ink-gray-9", "#171717");
     const inkGray8 = token("--ink-gray-8", "#383838");
     const inkGray5 = token("--ink-gray-5", "#7c7c7c");
-    const surfaceWhite = token("--surface-white", "#ffffff");
+    const surfaceBase = token("--surface-base", "#ffffff");
     const surfaceGray1 = token("--surface-gray-1", "#f8f8f8");
     const surfaceGray2 = token("--surface-gray-2", "#f3f3f3");
     const surfaceGray3 = token("--surface-gray-3", "#ededed");
@@ -52,7 +72,7 @@
         secondaryColor: surfaceGray3,
         tertiaryColor: surfaceGray1,
 
-        background: surfaceWhite,
+        background: surfaceBase,
         titleColor: inkGray9,
         textColor: inkGray9,
 
@@ -60,7 +80,7 @@
         // legible over the figure's soft surface.
         lineColor: inkGray5,
         defaultLinkColor: inkGray5,
-        edgeLabelBackground: surfaceWhite,
+        edgeLabelBackground: surfaceBase,
 
         // Subgraph clusters.
         clusterBkg: surfaceGray1,

@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	clickSidebarAddOption,
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -42,16 +46,8 @@ test.describe('TOC Navigation', () => {
 
 		// Create first page with specific headings
 		const firstPageTitle = `toc-nav-first-${Date.now()}`;
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
 
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
@@ -106,7 +102,7 @@ Beta sub content.`;
 
 		// Create second page with different headings
 		const secondPageTitle = `toc-nav-second-${Date.now()}`;
-		await page.locator('button[title="New Page"]').click();
+		await clickSidebarAddOption(page, 'New Page');
 		await page.getByLabel('Title').fill(secondPageTitle);
 		await page
 			.getByRole('dialog')

@@ -52,39 +52,43 @@
             />
         </MobileDrawer>
 
-        <!-- Mobile: contextual header in the top nav (tree toggle + space name).
-             The toggle matches the nav's logo/menu buttons (44px). -->
-        <Teleport v-if="isMobile" to="#app-header">
-            <button
-                class="flex size-11 shrink-0 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-3"
-                :title="__('Pages')"
-                @click="mobileTreeOpen = true"
-            >
-                <LucidePanelLeft class="size-5" />
-            </button>
-            <span class="truncate text-base font-semibold text-ink-gray-9">
-                {{ space.doc?.space_name || spaceId }}
-            </span>
-        </Teleport>
+        <!-- Mobile: contextual header in the shell's PageHeaderTarget
+             (tree toggle on the left, centered space name). -->
+        <PageHeaderMobile
+            v-if="isMobile"
+            :title="space.doc?.space_name || spaceId"
+        >
+            <template #left>
+                <Button
+                    variant="ghost"
+                    :label="__('Pages')"
+                    @click="mobileTreeOpen = true"
+                >
+                    <template #icon>
+                        <span class="lucide-panel-left size-4" aria-hidden="true" />
+                    </template>
+                </Button>
+            </template>
+        </PageHeaderMobile>
 
-        <main class="flex-1 flex flex-col bg-surface-white min-w-0">
+        <main class="flex-1 flex flex-col bg-surface-base min-w-0">
             <div
                 v-if="isGitSynced"
-                class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
+                class="min-h-12 px-3 sm:px-5 py-1.5 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
             >
                 <div class="flex items-center gap-3 min-w-0">
-                    <LucideGithub class="size-5 shrink-0 text-ink-gray-7" />
+                    <span class="lucide-github size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
                     <div class="min-w-0">
                         <a
                             v-if="space.doc?.repo_full_name"
                             :href="`https://github.com/${space.doc.repo_full_name}`"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="text-sm font-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
+                            class="text-sm-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
                         >
                             {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
                         </a>
-                        <p v-else class="text-sm font-medium text-ink-gray-8 truncate">
+                        <p v-else class="text-sm-medium text-ink-gray-8 truncate">
                             {{ space.doc?.space_name || spaceId }}
                         </p>
                         <div class="flex items-center gap-2 mt-0.5">
@@ -97,7 +101,7 @@
                 </div>
                 <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
                     <template #prefix>
-                        <LucideRefreshCw class="size-4" />
+                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
                     </template>
                     {{ __('Sync now') }}
                 </Button>
@@ -118,25 +122,21 @@
             </div>
         </main>
 
-        <Dialog v-model="showSettingsDialog" :options="{ size: '4xl' }">
-            <template #body>
-                <SpaceSettings
-                    :space="space"
-                    :space-id="spaceId"
-                    @close="showSettingsDialog = false"
-                    @open-update-routes="openUpdateRoutesDialog"
-                    @open-clone="openCloneSpaceDialog"
-                />
-            </template>
-        </Dialog>
+        <SpaceSettings
+            v-model="showSettingsDialog"
+            :space="space"
+            :space-id="spaceId"
+            @open-update-routes="openUpdateRoutesDialog"
+            @open-clone="openCloneSpaceDialog"
+        />
 
-        <Dialog v-model="showUpdateRoutesDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+        <Dialog v-model:open="showUpdateRoutesDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Update Wiki Space Routes') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"
@@ -166,13 +166,13 @@
             </template>
         </Dialog>
 
-        <Dialog v-model="showCloneSpaceDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+        <Dialog v-model:open="showCloneSpaceDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Clone Wiki Space') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"
@@ -206,15 +206,13 @@ import {
 	Button,
 	Dialog,
 	FormControl,
+	PageHeaderMobile,
 	createDocumentResource,
 	createResource,
 	toast,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import LucideGithub from '~icons/lucide/github';
-import LucidePanelLeft from '~icons/lucide/panel-left';
-import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
@@ -223,6 +221,7 @@ import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
+import { toPublished } from '../stores/draftWorkspace/utils';
 
 const props = defineProps({
 	spaceId: {
@@ -243,14 +242,10 @@ const userStore = useUserStore();
 // drag-and-drop sequences.
 onMounted(() => {
 	window.__draftStore = draftStore;
-	// This page supplies the leading control (tree toggle) in the mobile top
-	// nav, so the nav hides its logo while we're here.
-	mobileHasLeadingControl.value = true;
 });
 onBeforeUnmount(() => {
 	delete window.__draftStore;
 	syncPollCancelled = true;
-	mobileHasLeadingControl.value = false;
 });
 
 const isManager = computed(() => userStore.isWikiManager);
@@ -271,7 +266,7 @@ const isTreeReordering = ref(false);
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
-const { isMobile, mobileHasLeadingControl } = useMobile();
+const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
@@ -336,7 +331,7 @@ function adaptReadonlyNode(node) {
 		title: node.title,
 		route: node.route,
 		is_group: !!node.is_group,
-		is_published: node.is_published !== false,
+		is_published: toPublished(node.is_published),
 		is_external_link: false,
 		external_url: null,
 		children: (node.children || []).map(adaptReadonlyNode),

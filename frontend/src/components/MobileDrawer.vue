@@ -1,7 +1,7 @@
 <template>
 	<DialogRoot :open="open" @update:open="(v) => emit('update:open', v)">
 		<DialogPortal>
-			<DialogOverlay class="drawer-overlay fixed inset-0 z-40 bg-black/40" />
+			<DialogOverlay class="drawer-overlay fixed inset-0 z-40 bg-black-overlay-200 dark:bg-black-overlay-700" />
 			<DialogContent
 				:aria-describedby="undefined"
 				:data-side="side"

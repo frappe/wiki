@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
+import { openNewPageDialog } from '../helpers/wiki';
 
 interface DraftNode {
 	docKey: string;
@@ -72,15 +73,7 @@ async function createPageViaUI(
 	page: import('@playwright/test').Page,
 	title: string,
 ) {
-	const createFirstPage = page.getByRole('button', {
-		name: 'Create First Page',
-	});
-	const newPageButton = page.getByRole('button', { name: 'New Page' });
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 }

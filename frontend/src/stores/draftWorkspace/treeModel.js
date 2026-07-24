@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue';
 
+import { toPublished } from './utils.js';
+
 // Normalize a server tree node (snake_case from get_cr_tree) into a DraftNode.
 export function normalizeNode(serverNode, parentKey = null) {
 	const docKey = serverNode.doc_key;
@@ -15,7 +17,7 @@ export function normalizeNode(serverNode, parentKey = null) {
 		parentKey,
 		orderIndex: serverNode.order_index ?? null,
 		isGroup: !!serverNode.is_group,
-		isPublished: serverNode.is_published !== false,
+		isPublished: toPublished(serverNode.is_published),
 		isExternalLink: !!serverNode.is_external_link,
 		externalUrl: serverNode.external_url || null,
 		children,
@@ -24,7 +26,7 @@ export function normalizeNode(serverNode, parentKey = null) {
 }
 
 // Convert a DraftNode back to the snake_case shape existing components consume
-// (NestedDraggable, WikiDocumentList, etc.). Lets us migrate incrementally.
+// (WikiTree, WikiDocumentList, etc.). Lets us migrate incrementally.
 export function denormalizeNode(node) {
 	return {
 		doc_key: node.docKey,
