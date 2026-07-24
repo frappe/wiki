@@ -11,6 +11,14 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 	const createTitle = ref('');
 	const createParent = ref(null);
 	const createIsGroup = ref(false);
+	const createIsTab = ref(false);
+	const createTabIcon = ref('');
+
+	const showTabSettingsDialog = ref(false);
+	const tabSettingsNode = ref(null);
+	const tabSettingsIsTab = ref(false);
+	const tabSettingsIcon = ref('');
+	const isUpdatingTab = ref(false);
 
 	const showDeleteDialog = ref(false);
 	const deleteNode = ref(null);
@@ -35,11 +43,43 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 	const isDeleting = ref(false);
 	const isUpdatingExternalLink = ref(false);
 
-	function openCreateDialog(parentKey, isGroup) {
+	function openCreateDialog(parentKey, isGroup, isTab = false) {
 		createParent.value = parentKey;
-		createIsGroup.value = isGroup;
+		// A tab is always a group; the backend rejects anything else.
+		createIsGroup.value = isGroup || isTab;
+		createIsTab.value = isTab;
 		createTitle.value = '';
+		createTabIcon.value = '';
 		showCreateDialog.value = true;
+	}
+
+	function openTabSettingsDialog(node) {
+		tabSettingsNode.value = node;
+		tabSettingsIsTab.value = !!node?.is_tab;
+		tabSettingsIcon.value = node?.tab_icon || '';
+		showTabSettingsDialog.value = true;
+	}
+
+	// Promote/demote an existing top-level group. Clearing the flag leaves
+	// tab_icon alone so a demote/promote round trip keeps the icon.
+	async function saveTabSettings(close) {
+		const docKey = tabSettingsNode.value?.doc_key;
+		if (!docKey) {
+			close();
+			return;
+		}
+		const fields = { is_tab: tabSettingsIsTab.value ? 1 : 0 };
+		if (tabSettingsIsTab.value) fields.tab_icon = tabSettingsIcon.value || null;
+		close();
+		isUpdatingTab.value = true;
+		try {
+			await draftStore.updateNode(docKey, fields);
+		} catch (error) {
+			console.error('Error updating tab:', error);
+			toast.error(error.messages?.[0] || __('Error updating tab'));
+		} finally {
+			isUpdatingTab.value = false;
+		}
 	}
 
 	function countDescendants(node) {
@@ -68,6 +108,8 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 
 		const parentKey = createParent.value;
 		const isGroup = createIsGroup.value;
+		const isTab = createIsTab.value;
+		const tabIcon = createTabIcon.value || null;
 
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
@@ -78,6 +120,8 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 				parentKey,
 				title,
 				isGroup,
+				isTab,
+				tabIcon,
 			});
 			// Open the new page for editing immediately. The DraftContributionPanel
 			// reads its content from pagesByKey (seeded by createNode), and the
@@ -226,6 +270,15 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 		showCreateDialog,
 		createTitle,
 		createIsGroup,
+		createIsTab,
+		createTabIcon,
+		showTabSettingsDialog,
+		tabSettingsNode,
+		tabSettingsIsTab,
+		tabSettingsIcon,
+		isUpdatingTab,
+		openTabSettingsDialog,
+		saveTabSettings,
 		showDeleteDialog,
 		deleteNode,
 		deleteChildCount,

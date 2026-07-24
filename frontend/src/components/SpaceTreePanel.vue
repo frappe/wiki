@@ -48,6 +48,8 @@
 				:root-node="visibleTreeData.root_group || ''"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
+				:can-manage-tabs="canManageTabs"
+				:space-root-node="treeData.root_group || ''"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
 			/>
@@ -104,6 +106,7 @@ const props = defineProps({
 	readonly: { type: Boolean, default: false },
 	selectedPageId: { type: String, default: null },
 	selectedDraftKey: { type: String, default: null },
+	canManageTabs: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['refresh', 'reorder-state-change', 'open-settings']);
@@ -158,4 +161,5 @@ const visibleTreeData = computed(() => {
 function selectTab(key) {
 	activeTabKey.value = key;
 }
+
 </script>

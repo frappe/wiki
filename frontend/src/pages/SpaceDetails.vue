@@ -17,6 +17,7 @@
                 :readonly="isGitSynced"
                 :selected-page-id="currentPageId"
                 :selected-draft-key="currentDraftKey"
+                :can-manage-tabs="canManageTabs"
                 @refresh="refreshTree"
                 @reorder-state-change="handleReorderStateChange"
                 @open-settings="openSettings"
@@ -46,6 +47,7 @@
                 :readonly="isGitSynced"
                 :selected-page-id="currentPageId"
                 :selected-draft-key="currentDraftKey"
+                :can-manage-tabs="canManageTabs"
                 @refresh="refreshTree"
                 @reorder-state-change="handleReorderStateChange"
                 @open-settings="openSettings"
@@ -309,6 +311,24 @@ function syncStatusLabel(status) {
 		__('Sync in progress')
 	);
 }
+
+// Tab management is editor-only (mirrors the backend's can_manage_tabs, which
+// is can_write_space). Enforcement stays server-side; this only hides the UI.
+const canManageTabs = ref(false);
+const capabilitiesResource = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		canManageTabs.value = Boolean(data?.can_write);
+	},
+});
+
+watch(
+	() => props.spaceId,
+	(id) => {
+		if (id) capabilitiesResource.submit({ space: id });
+	},
+	{ immediate: true },
+);
 
 const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
