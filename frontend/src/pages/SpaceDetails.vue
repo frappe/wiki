@@ -331,6 +331,8 @@ function adaptReadonlyNode(node) {
 		title: node.title,
 		route: node.route,
 		is_group: !!node.is_group,
+		is_tab: !!node.is_tab,
+		tab_icon: node.tab_icon || null,
 		is_published: toPublished(node.is_published),
 		is_external_link: false,
 		external_url: null,
