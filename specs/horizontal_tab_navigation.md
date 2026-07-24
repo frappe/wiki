@@ -323,3 +323,119 @@ a demote→promote round trip keeps the icon. It is only ever read when `is_tab`
 
 Tracer verified on `wiki.localhost`: top-level group tab inserts with icon; leaf tab, nested
 tab, and reparenting a tab under a subgroup are all rejected.
+
+### Phase 1 — Revision + change-request plumbing ✅
+
+Threaded through every enumeration the spec listed (9 sites in `wiki_revision.py`, ~20 in
+`wiki_change_request.py`), plus `git_sync.py` and space duplication.
+
+All four silent-corruption sites have a test that was **verified to fail with the fix
+temp-reverted** (per CLAUDE.md), so none of them pass vacuously:
+
+| Landmine | Test | Symptom when reverted |
+|---|---|---|
+| `ensure_overlay_item` | `test_tab_survives_unrelated_edit_on_same_node` | `0 != 1: is_tab was reset by the overlay copy-on-write` |
+| `tree_hash` tuple | `test_is_tab_only_flip_registers_as_a_change` | `False is not true: an is_tab-only change was invisible to the tree hash` |
+| `_find_changed_keys` | `test_is_tab_only_flip_reaches_the_live_document_on_merge` | `There are no changes to submit for review` |
+| `_classify_changes` | (same test) | `0 != 1: merge dropped is_tab` |
+
+**Guards added (none existed before):**
+- `_create_cr_item`, `_update_cr_item`, `_move_cr_item` — a tab must stay a top-level group.
+  `_update_cr_item` re-checks the *post-update* item, so flipping `is_tab` and `is_group` in
+  one call can't slip through.
+- `reorder_wiki_documents` (`api/wiki_space.py`) — this writes `parent_wiki_document` with a
+  raw `db.set_value` and so bypasses document validation entirely. Without its own copy of
+  the guard, dragging a tab into a subgroup would have silently produced a nested tab.
+
+**Permission (decision #10):** new `can_manage_tabs` / `assert_can_manage_tabs` wrapping
+`can_write_space`. Enforced at the two CR mutation chokepoints rather than per-endpoint, so
+the legacy RPCs and `apply_cr_operations` can't drift. Editing a tab group's *content* stays
+open to ordinary contributors — only `is_tab` / `tab_icon` changes are gated.
+
+**Beyond spec:** `git_sync.py` carries the tab flags forward from the previous snapshot. A
+repo can't express them, so re-deriving would have silently demoted a space's tabs on every
+sync.
+
+### Phase 2 — Tree APIs + `get_space_tabs` ✅
+
+Both tree builders carry the fields. `get_space_tabs(space)` returns ordered tabs with a
+`landing_route`.
+
+**Deviation from decision #6:** a group is never served at its own route — the renderer
+redirects it to its first child. So "the tab group's own content page" only exists as a
+published *leaf* sitting at the group's route (the README/index case git-sync produces).
+`_tab_landing_route` prefers that when present, else the first published leaf in the subtree.
+
+### Phase 3 — Tab bar renders ✅
+
+`WikiTabBar.vue`, fed from **the tree the sidebar is already rendering** rather than
+`get_space_tabs` — in the editor that's the draft/CR tree, so a tab created in an unmerged
+draft appears immediately. (`get_space_tabs` is for the reader, which wants live data.)
+
+Three tiers driven by a `ResizeObserver` on the bar's own width (the sidebar is
+user-resizable, so a viewport media query would be wrong): icon + label → icon-only with the
+active tab keeping a truncating label → dropdown. At the default 280px sidebar the middle
+tier is what fits, which reads as a segmented control. Widths are *estimated*, not measured:
+the row's real width is a function of the tier, so measuring oscillates.
+
+**Deviation from decision #7:** the active tab becomes the sidebar's root, so top-level drops
+reparent into the tab rather than the space root. Non-tab top-level content stays reachable
+under its own **General** bar entry instead of rendering inline. Keeping it inline (the
+literal reading) while root-level drops still resolved to the space root would have silently
+moved pages out of their tab on drag.
+
+**Bug found and fixed here:** deriving the active tab from a computed that preferred the open
+page made the tab buttons inert — the open page always won, so clicking never changed the
+view. It's now a single `ref` so the most recent action wins.
+
+**Tailwind safelist confirmed empirically:** seeding `lucide-shopping-cart` (absent from the
+curated list) rendered a blank icon. The list moved to `lib/tabIcons.js` so the popover picker
+and the inline grid share one safelist.
+
+### Phase 4 — Creating and editing tabs ✅
+
+"New Tab" (title + icon) in the sidebar add menu; "Make this a tab" row action on top-level
+groups; client-side `allowMove` guard; editor-only via `get_space_capabilities.can_write`.
+
+- **Five** create-path whitelists, not the four the spec listed — the non-batch fallback calls
+  `changeRequest.createPage` **positionally**, so it would have dropped both fields whenever
+  batch operations are off.
+- `IconPicker` copied from gameplan (99 icons) but converted TS→JS to match the codebase, and
+  given an `inline` mode: nested inside a `Dialog`, the reka-ui popover's interactions are
+  swallowed by the dialog's focus trap.
+- **Bug found and fixed here:** gating "New Tab" on "the sidebar root is the space root" was a
+  catch-22 — once a space has tabs, a tab is always the active root, so the action never
+  appeared. It now always parents to the space root explicitly.
+
+### Phase 5 — Public reader parity ✅
+
+Tab bar in `sidebar.html`, with per-tab subtrees in the nav.
+
+**The DOM-twin problem the spec warned about does not arise.** The reader's tree already
+drives its active-page highlight off `$store.navigation.currentRoute` rather than re-rendering,
+so the tab bar and subtree visibility use the same mechanism: a new `inTab(route)` helper on
+the navigation store. Because a tab's slug is always an ancestor segment of its pages' routes
+(decision #2), "is this page in this tab" is a pure route-prefix test. Nothing is re-rendered
+on SPA nav, so nothing can go stale.
+
+**Known gap:** the reader's tab bar is **labels-only**. The reader's Tailwind build (a plain
+`@tailwindcss/cli` pass over `wiki/public/css/main.css`) has no lucide icon plugin — the editor
+gets one via `frappeUIPreset` — so a `lucide-*` class there renders as an empty box. Adding an
+icon pack to the reader bundle is its own change.
+
+### Tests
+
+- **Backend:** 16 new tests — `TestWikiChangeRequestTabs` (10), `TestTabValidation` (6),
+  `TestGetSpaceTabs` (7). Full suite green: change request 98, document 41, permissions 37,
+  git-sync 66, space 5, api — all OK.
+- **E2E:** `e2e/tests/tab-navigation.spec.ts`, 5 tests, self-contained (builds its own space
+  through the API and tears it down, so it doesn't depend on seeded data). Covers reader bar +
+  SPA nav + deep link, editor bar + subtree swap, and creating a tab with an icon.
+
+### Not done
+
+- Mobile dropdown collapse is implemented and exercised by the resize logic, but has no
+  dedicated e2e test.
+- The full contribute → review → merge flow with a tab change is covered by a **backend**
+  round-trip test, not by Playwright.
+- Icons in the public reader (see Phase 5 gap above).

@@ -65,9 +65,52 @@
         {% endif %}
     </div>
 
+    {#- Horizontal tab bar. Tabs are top-level groups flagged is_tab; everything
+        else stays in the vertical tree below, exactly as before.
+
+        Active state and subtree visibility are driven by Alpine off
+        $store.navigation.currentRoute rather than being re-rendered, so SPA
+        navigation can't leave a stale bar behind — the same approach the tree's
+        own active-page highlight already uses. This works because a tab's slug
+        is always an ancestor segment of its pages' routes, so "is this page in
+        this tab" is a route-prefix test.
+
+        Icons are deliberately omitted here: the reader's Tailwind build has no
+        lucide icon plugin (the editor gets one via frappeUIPreset), so a
+        `lucide-*` class would render as an empty box. -#}
+    {% set current_route = doc.route if doc else '' %}
+    {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
+    {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+
+    {% if tab_nodes %}
+    <div class="px-2 py-1.5 border-b border-[var(--outline-gray-1)] flex-shrink-0">
+        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar" role="tablist">
+            {% for tab in space_tabs %}
+            {% set target = tab.landing_route or tab.route %}
+            <a href="/{{ target }}"
+               role="tab"
+               @click.prevent="$store.navigation.navigateTo('{{ target }}')"
+               @mouseenter="$store.navigation.prefetch('{{ target }}')"
+               :aria-selected="$store.navigation.inTab('{{ tab.route }}')"
+               class="flex-shrink-0 rounded px-2 py-1 text-sm-medium no-underline transition-colors duration-200 whitespace-nowrap"
+               :class="$store.navigation.inTab('{{ tab.route }}') ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-6)] hover:bg-[var(--surface-gray-1)] hover:text-[var(--ink-gray-8)]'"
+               title="{{ tab.title }}">{{ tab.title }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Scrollable Navigation -->
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
-        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '', expanded_nodes=expanded_nodes or set()) }}
+        {% for tab in tab_nodes %}
+        {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
+        <div x-show="$store.navigation.inTab('{{ tab.route }}')"{% if not is_active_tab %} x-cloak{% endif %}>
+            {{ render_wiki_tree(tab.children, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        </div>
+        {% endfor %}
+
+        {#- Non-tab top-level content keeps rendering as it always did. -#}
+        {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
     </nav>
 </div>
 
@@ -150,6 +193,17 @@
                 });
                 // Set initial state (preserve hash for TOC anchor links)
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
+            },
+
+            // Whether the current page lives under a tab. A tab's slug is
+            // always an ancestor segment of its pages' routes, so this is a
+            // prefix test — and because it reads currentRoute, both the tab
+            // bar's active state and the sidebar subtree react to SPA nav
+            // without anything being re-rendered.
+            inTab(route) {
+                if (!route) return false;
+                return this.currentRoute === route
+                    || this.currentRoute.startsWith(route + '/');
             },
 
             async prefetch(route) {

@@ -407,6 +407,7 @@ class WikiDocument(NestedSet):
 			"head_html": frappe.get_cached_value("Wiki Settings", "Wiki Settings", "head_html"),
 			"raw_markdown": self.content or "",
 			"nested_tree": [],
+			"space_tabs": [],
 			"expanded_nodes": expanded_nodes,
 			"prev_doc": None,
 			"next_doc": None,
@@ -451,6 +452,7 @@ class WikiDocument(NestedSet):
 				else [],
 				"favicon": wiki_space_doc.favicon,
 				"nested_tree": nested_tree,
+				"space_tabs": get_space_tabs(wiki_space.name),
 				"prev_doc": adjacent_docs["prev"],
 				"next_doc": adjacent_docs["next"],
 				# Escape "<" so user-supplied titles can't close the
