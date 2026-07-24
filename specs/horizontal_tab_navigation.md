@@ -1,7 +1,7 @@
 # Horizontal Tab Navigation for Frappe Wiki
 
 Date: 2026-07-25
-Status: **Planned.** Not yet started.
+Status: **In progress.** See [Progress log](#progress-log) at the bottom.
 
 ## Problem
 
@@ -300,3 +300,26 @@ correct on hard load and on SPA nav.
   noted in Landmines, worth its own bug fix.
 - A general depth limit on the tree (none exists today; the tab rule is a targeted guard,
   not a fix for the missing structural validation in general).
+
+---
+
+## Progress log
+
+### Phase 0 — Data model + validation ✅
+
+- `is_tab` (Check, `depends_on: is_group`) + `tab_icon` (Data, `depends_on: eval:doc.is_tab`)
+  added to **`Wiki Document`** and **`Wiki Revision Item`** JSONs.
+- New module helper `is_top_level_group(parent_name)` in `wiki_document.py` — true when the
+  parent is some Wiki Space's `root_group`. This is the single definition of "top-level"
+  and is reused by the Phase 1 move guards.
+- `WikiDocument.validate_tab()` wired into `validate()`: throws on a leaf tab, throws on a
+  non-top-level tab. Clearing `is_group` on a tab therefore *rejects* (rather than silently
+  clearing) — the same check fires.
+- Cache busting needed no new code: `on_wiki_document_update` already calls
+  `clear_wiki_tree_cache()` unconditionally.
+
+**Deviation from spec:** `tab_icon` is deliberately *not* cleared when `is_tab` is unset, so
+a demote→promote round trip keeps the icon. It is only ever read when `is_tab` is set.
+
+Tracer verified on `wiki.localhost`: top-level group tab inserts with icon; leaf tab, nested
+tab, and reparenting a tab under a subgroup are all rejected.

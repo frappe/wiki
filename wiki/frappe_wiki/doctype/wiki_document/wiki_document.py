@@ -68,6 +68,17 @@ def process_navbar_items(navbar_items: list) -> list:
 	return processed
 
 
+def is_top_level_group(parent_name: str | None) -> bool:
+	"""True when `parent_name` is a Wiki Space's root_group.
+
+	Top-level == direct child of the space root, which is what makes a node
+	eligible to be a tab.
+	"""
+	if not parent_name:
+		return False
+	return bool(frappe.db.exists("Wiki Space", {"root_group": parent_name}))
+
+
 class WikiDocument(NestedSet):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -81,6 +92,7 @@ class WikiDocument(NestedSet):
 		doc_key: DF.Data | None
 		is_group: DF.Check
 		is_published: DF.Check
+		is_tab: DF.Check
 		lft: DF.Int
 		meta_description: DF.SmallText | None
 		meta_image: DF.AttachImage | None
@@ -91,6 +103,7 @@ class WikiDocument(NestedSet):
 		route: DF.Data | None
 		slug: DF.Data | None
 		sort_order: DF.Int
+		tab_icon: DF.Data | None
 		title: DF.Data
 		wiki_space: DF.Link | None
 	# end: auto-generated types
@@ -102,7 +115,24 @@ class WikiDocument(NestedSet):
 		self.set_route()
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
+		self.validate_tab()
 		self.set_boilerplate_content()
+
+	def validate_tab(self):
+		"""A tab is a top-level group. Both halves of that are hard rules.
+
+		Enforced here rather than only in the UI because a tab restructures the
+		whole space's navigation: a leaf tab or a nested tab has no place to
+		render, so the tab bar would silently drop it.
+		"""
+		if not self.is_tab:
+			return
+
+		if not self.is_group:
+			frappe.throw(_("Only a group can be marked as a tab."))
+
+		if not is_top_level_group(self.parent_wiki_document):
+			frappe.throw(_("Only a top-level group can be marked as a tab. Nested tabs are not supported."))
 
 	def validate_unique_route_for_leaves(self):
 		"""Ensure no two leaf documents (non-groups) share the same route."""
