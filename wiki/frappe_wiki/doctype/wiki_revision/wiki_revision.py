@@ -37,6 +37,8 @@ def create_revision_from_live_tree(
 			"slug",
 			"route",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"is_published",
 			"is_external_link",
 			"external_url",
@@ -84,6 +86,8 @@ def create_revision_from_live_tree(
 		item.slug = doc.get("slug") or cleanup_page_name(doc.get("title") or "")
 		item.route = doc.get("route")
 		item.is_group = doc.get("is_group")
+		item.is_tab = doc.get("is_tab")
+		item.tab_icon = doc.get("tab_icon")
 		item.is_published = doc.get("is_published")
 		item.is_external_link = doc.get("is_external_link")
 		item.external_url = doc.get("external_url")
@@ -148,6 +152,8 @@ def clone_revision(
 			"slug",
 			"route",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"is_published",
 			"is_external_link",
 			"external_url",
@@ -167,6 +173,8 @@ def clone_revision(
 		new_item.slug = item.get("slug")
 		new_item.route = item.get("route")
 		new_item.is_group = item.get("is_group")
+		new_item.is_tab = item.get("is_tab")
+		new_item.tab_icon = item.get("tab_icon")
 		new_item.is_published = item.get("is_published")
 		new_item.is_external_link = item.get("is_external_link")
 		new_item.external_url = item.get("external_url")
@@ -220,6 +228,8 @@ def recompute_revision_hashes(revision: str) -> None:
 				"title",
 				"route",
 				"is_group",
+				"is_tab",
+				"tab_icon",
 				"is_published",
 				"is_external_link",
 				"external_url",
@@ -258,6 +268,8 @@ def recompute_revision_hashes(revision: str) -> None:
 					str(int(item.get("is_published") or 0)),
 					str(int(item.get("is_external_link") or 0)),
 					item.get("external_url") or "",
+					str(int(item.get("is_tab") or 0)),
+					item.get("tab_icon") or "",
 				]
 			)
 		)
@@ -287,6 +299,8 @@ def get_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
 			"slug",
 			"route",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"is_published",
 			"is_external_link",
 			"external_url",
@@ -360,6 +374,8 @@ def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
 			"slug",
 			"route",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"is_published",
 			"is_external_link",
 			"external_url",
@@ -380,6 +396,8 @@ def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
 	new_item.slug = base_item.slug
 	new_item.route = base_item.route
 	new_item.is_group = base_item.is_group
+	new_item.is_tab = base_item.is_tab
+	new_item.tab_icon = base_item.tab_icon
 	new_item.is_published = base_item.is_published
 	new_item.is_external_link = base_item.is_external_link
 	new_item.external_url = base_item.external_url

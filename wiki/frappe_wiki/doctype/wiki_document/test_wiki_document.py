@@ -2012,3 +2012,87 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 			read_only=True,
 		)
 		self.assertEqual(rows[0]["c"], 1)
+
+
+class TestTabValidation(WikiDocumentTestBase):
+	"""`is_tab` is only meaningful on a top-level group — enforce both halves.
+
+	A leaf tab or a nested tab has nowhere to render, so the tab bar would drop
+	it silently. These reject at validate so the bad state never lands.
+	"""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tab Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tab Space", f"tab-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def test_top_level_group_can_be_a_tab(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.tab_icon = "lucide-wallet"
+		tab.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "tab_icon"), "lucide-wallet")
+
+	def test_leaf_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		leaf = create_test_wiki_document(self, "A Page", parent=root_group.name)
+		leaf.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			leaf.save()
+
+	def test_nested_group_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		outer = create_test_wiki_document(self, "Outer", parent=root_group.name, is_group=True)
+		inner = create_test_wiki_document(self, "Inner", parent=outer.name, is_group=True)
+		inner.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			inner.save()
+
+	def test_clearing_is_group_on_a_tab_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Selling", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+
+		tab.is_group = 0
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reparenting_a_tab_below_top_level_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Stock", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Other", parent=root_group.name, is_group=True)
+
+		tab.parent_wiki_document = other.name
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reorder_api_rejects_moving_a_tab_off_top_level(self):
+		"""The reorder endpoint writes parent_wiki_document with a raw db.set_value,
+		so validate never runs — it needs its own copy of the guard."""
+		import json
+
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space, root_group = self._space()
+		tab = create_test_wiki_document(self, "Manufacturing", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Bucket", parent=root_group.name, is_group=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			reorder_wiki_documents(tab.name, other.name, 0, json.dumps([tab.name]))

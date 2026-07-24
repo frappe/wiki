@@ -2221,6 +2221,221 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(tree2.get("operation_version"), 1)
 
 
+class TestWikiChangeRequestTabs(FrappeTestCase):
+	"""Tab flags round-tripping through the change-request machinery.
+
+	Each of these targets one of the hard-coded field enumerations that would
+	otherwise drop `is_tab` / `tab_icon` *silently* — no error, just a tab that
+	stops being a tab. They all pass trivially if the field is simply absent, so
+	each was verified to fail with the corresponding threading reverted.
+	"""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _space_with_tab_cr(self):
+		space = create_test_wiki_space()
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		cr = create_change_request(space.name, "Tab CR")
+		return space, root_key, cr
+
+	def _create_tab(self, cr, root_key, title="Accounting", icon="lucide-wallet"):
+		result = apply_cr_operations(
+			cr.name,
+			operations=[
+				{
+					"type": "create_node",
+					"temp_key": "tab1",
+					"parent_key": root_key,
+					"title": title,
+					"is_group": True,
+					"is_tab": True,
+					"tab_icon": icon,
+				}
+			],
+		)
+		return result["temp_key_map"]["tab1"]
+
+	def test_create_tab_in_cr_stores_both_fields(self):
+		space, root_key, cr = self._space_with_tab_cr()
+		tab_key = self._create_tab(cr, root_key)
+
+		page = get_cr_page(cr.name, tab_key)
+		self.assertEqual(page["is_tab"], 1)
+		self.assertEqual(page["tab_icon"], "lucide-wallet")
+
+	def test_tab_survives_unrelated_edit_on_same_node(self):
+		"""Guards `ensure_overlay_item` — the copy-on-write clone of a base item.
+
+		If the clone omits the field, the first edit of *any* kind on that node
+		resets the tab flag to its default.
+		"""
+		space, root_key, cr = self._space_with_tab_cr()
+		tab_key = self._create_tab(cr, root_key)
+
+		# Merge so the tab lives in the base revision, then edit it from a *new*
+		# CR — that is the path that goes through ensure_overlay_item.
+		submit_change_request(cr.name)
+		_approve_and_merge(cr.name)
+
+		cr2 = create_change_request(space.name, "Unrelated edit")
+		apply_cr_operations(
+			cr2.name,
+			operations=[
+				{"type": "update_node", "doc_key": tab_key, "fields": {"title": "Accounting Renamed"}}
+			],
+		)
+
+		page = get_cr_page(cr2.name, tab_key)
+		self.assertEqual(page["title"], "Accounting Renamed")
+		self.assertEqual(page["is_tab"], 1, "is_tab was reset by the overlay copy-on-write")
+		self.assertEqual(page["tab_icon"], "lucide-wallet")
+
+	def test_is_tab_only_flip_registers_as_a_change(self):
+		"""Guards the `tree_hash` component tuple.
+
+		Omit the field there and a tab-only change hashes identical to no change,
+		so the CR looks empty and can't even be submitted.
+		"""
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Selling", is_group=1)
+
+		cr = create_change_request(space.name, "Promote to tab")
+		self.assertFalse(has_revision_changes(cr.base_revision, cr.head_revision))
+
+		apply_cr_operations(
+			cr.name,
+			operations=[{"type": "update_node", "doc_key": group.doc_key, "fields": {"is_tab": 1}}],
+		)
+
+		self.assertTrue(
+			has_revision_changes(cr.base_revision, cr.head_revision),
+			"an is_tab-only change was invisible to the tree hash",
+		)
+
+	def test_is_tab_only_flip_reaches_the_live_document_on_merge(self):
+		"""Guards `_find_changed_keys` (merge skips the doc entirely) and
+		`_classify_changes` (change is misread as content-only, taking the fast
+		db.set_value path that never writes the flag)."""
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Manufacturing", is_group=1)
+		create_test_wiki_document(group.name, title="Work Order")
+
+		cr = create_change_request(space.name, "Promote to tab")
+		apply_cr_operations(
+			cr.name,
+			operations=[
+				{
+					"type": "update_node",
+					"doc_key": group.doc_key,
+					"fields": {"is_tab": 1, "tab_icon": "lucide-factory"},
+				}
+			],
+		)
+		submit_change_request(cr.name)
+		_approve_and_merge(cr.name)
+
+		live = frappe.db.get_value("Wiki Document", group.name, ["is_tab", "tab_icon"], as_dict=True)
+		self.assertEqual(live.is_tab, 1, "merge dropped is_tab")
+		self.assertEqual(live.tab_icon, "lucide-factory", "merge dropped tab_icon")
+
+	def test_diff_reports_a_tab_change(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Stock", is_group=1)
+
+		cr = create_change_request(space.name, "Promote to tab")
+		apply_cr_operations(
+			cr.name,
+			operations=[{"type": "update_node", "doc_key": group.doc_key, "fields": {"is_tab": 1}}],
+		)
+
+		changes = [c for c in diff_change_request(cr.name) if c["doc_key"] == group.doc_key]
+		self.assertEqual(len(changes), 1)
+		self.assertEqual(changes[0]["change_type"], "modified")
+
+		page_diff = diff_change_request(cr.name, scope="page", doc_key=group.doc_key)
+		self.assertFalse(page_diff["base"]["is_tab"])
+		self.assertTrue(page_diff["head"]["is_tab"])
+
+	def test_cr_rejects_tab_on_a_leaf(self):
+		space, root_key, cr = self._space_with_tab_cr()
+
+		with self.assertRaises(frappe.ValidationError):
+			apply_cr_operations(
+				cr.name,
+				operations=[
+					{
+						"type": "create_node",
+						"temp_key": "leaf",
+						"parent_key": root_key,
+						"title": "Not a group",
+						"is_group": False,
+						"is_tab": True,
+					}
+				],
+			)
+
+	def test_cr_rejects_a_nested_tab(self):
+		space, root_key, cr = self._space_with_tab_cr()
+		parent_key = self._create_tab(cr, root_key)
+
+		with self.assertRaises(frappe.ValidationError):
+			apply_cr_operations(
+				cr.name,
+				operations=[
+					{
+						"type": "create_node",
+						"temp_key": "nested",
+						"parent_key": parent_key,
+						"title": "Nested tab",
+						"is_group": True,
+						"is_tab": True,
+					}
+				],
+			)
+
+	def test_cr_rejects_clearing_is_group_on_a_tab(self):
+		space, root_key, cr = self._space_with_tab_cr()
+		tab_key = self._create_tab(cr, root_key)
+
+		with self.assertRaises(frappe.ValidationError):
+			apply_cr_operations(
+				cr.name,
+				operations=[{"type": "update_node", "doc_key": tab_key, "fields": {"is_group": 0}}],
+			)
+
+	def test_cr_move_guard_keeps_a_tab_top_level(self):
+		space, root_key, cr = self._space_with_tab_cr()
+		tab_key = self._create_tab(cr, root_key)
+		other = create_test_wiki_document(space.root_group, title="Other group", is_group=1)
+
+		with self.assertRaises(frappe.ValidationError):
+			apply_cr_operations(
+				cr.name,
+				operations=[{"type": "move_node", "doc_key": tab_key, "target_parent_key": other.doc_key}],
+			)
+
+	def test_tab_survives_a_full_contribute_review_merge_round_trip(self):
+		space, root_key, cr = self._space_with_tab_cr()
+		tab_key = self._create_tab(cr, root_key, title="Accounting", icon="lucide-wallet")
+
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+
+		live = frappe.db.get_value(
+			"Wiki Document",
+			{"doc_key": tab_key},
+			["name", "title", "is_group", "is_tab", "tab_icon", "parent_wiki_document"],
+			as_dict=True,
+		)
+		self.assertEqual(live.title, "Accounting")
+		self.assertEqual(live.is_group, 1)
+		self.assertEqual(live.is_tab, 1)
+		self.assertEqual(live.tab_icon, "lucide-wallet")
+		self.assertEqual(live.parent_wiki_document, space.root_group)
+
+
 # Helpers
 
 

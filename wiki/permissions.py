@@ -141,6 +141,24 @@ def can_contribute_to_space(space, user=None) -> bool:
 	return _space_accepts_contributions(space)
 
 
+def can_manage_tabs(space, user=None) -> bool:
+	"""Whether the user may create or promote/demote tabs in a space.
+
+	Deliberately stricter than `can_contribute_to_space`: a tab restructures the
+	top-level navigation for every reader of the space, which is an editor
+	decision rather than a contribution.
+	"""
+	return can_write_space(space, user)
+
+
+def assert_can_manage_tabs(space, user=None) -> None:
+	if not can_manage_tabs(space, user):
+		frappe.throw(
+			_("Only space editors can create or change tabs."),
+			frappe.PermissionError,
+		)
+
+
 def _accessible_space_names(user=None) -> set:
 	"""Spaces a user may read: open spaces (no role rows) plus restricted spaces
 	with a role row whose role the user holds. Guests get only the latter."""
