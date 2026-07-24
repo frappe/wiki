@@ -5,7 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build --base=/assets/wiki/frontend/ && yarn copy-html-entry",
+		"build": "vite build --base=/assets/wiki/frontend/ && yarn build:highlight && yarn copy-html-entry",
+		"build:highlight": "vite build --config vite.highlight.config.js",
 		"preview": "vite preview",
 		"lint": "biome check --write .",
 		"copy-html-entry": "cp ../wiki/public/frontend/index.html ../wiki/www/wiki.html"
@@ -27,6 +28,7 @@
 		"@vueuse/router": "^14.2.1",
 		"frappe-ui": "1.0.0-beta.25",
 		"fuzzysort": "^3.1.0",
+		"highlight.js": "~11.11.0",
 		"idb-keyval": "^6.2.0",
 		"pdfjs-dist": "4.10.38",
 		"pinia": "^3.0.4",

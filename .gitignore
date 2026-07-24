@@ -18,6 +18,7 @@ wiki/public/css/tailwind.css
 wiki/public/css/frappe-ui-tokens.css
 wiki/public/css/frappe-ui-prose.css
 wiki/public/css/frappe-ui-code.css
+wiki/public/js/wiki-highlight.bundle.js
 playwright-report/
 test-results/
 e2e/.auth/
