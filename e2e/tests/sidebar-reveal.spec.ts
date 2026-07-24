@@ -116,8 +116,11 @@ test.describe('Reader sidebar reveals current page', () => {
 		// Deep page is hidden inside two collapsed groups
 		await expect(sidebarLink(page, deepPage.route)).toBeHidden();
 
-		// "Next Page" goes to the deep page (adjacent in the flattened tree)
-		await page.locator('#wiki-nav-buttons a', { hasText: 'Next Page' }).click();
+		// The next-page pill (title only now, no "Next Page" label) goes to the
+		// deep page, adjacent in the flattened tree — target it by destination.
+		await page
+			.locator(`#wiki-nav-buttons a[href="/${deepPage.route}"]`)
+			.click();
 		await page.waitForURL(`**/${deepPage.route}`);
 
 		const link = sidebarLink(page, deepPage.route);
