@@ -15,6 +15,8 @@ from frappe.utils import get_test_client
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	WikiDocumentRenderer,
 	download_pdf,
+	get_public_wiki_tree,
+	get_space_tabs,
 	process_navbar_items,
 )
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -2096,3 +2098,90 @@ class TestTabValidation(WikiDocumentTestBase):
 
 		with self.assertRaises(frappe.ValidationError):
 			reorder_wiki_documents(tab.name, other.name, 0, json.dumps([tab.name]))
+
+
+class TestGetSpaceTabs(WikiDocumentTestBase):
+	"""`get_space_tabs` feeds the horizontal tab bar: ordering + landing target."""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tabs Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tabs Space", f"tabs-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def _make_tab(self, root_group, title, icon=None, sort_order=0):
+		tab = create_test_wiki_document(
+			self, title, parent=root_group.name, is_group=True, sort_order=sort_order
+		)
+		tab.is_tab = 1
+		tab.tab_icon = icon
+		tab.save()
+		return tab
+
+	def test_returns_empty_for_a_space_without_tabs(self):
+		space, root_group = self._space()
+		create_test_wiki_document(self, "Plain group", parent=root_group.name, is_group=True)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_returns_tabs_in_sort_order_with_icons(self):
+		space, root_group = self._space()
+		second = self._make_tab(root_group, "Selling", icon="lucide-tag", sort_order=2)
+		first = self._make_tab(root_group, "Accounting", icon="lucide-wallet", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=first.name)
+		create_test_wiki_document(self, "Quotation", parent=second.name)
+
+		tabs = get_space_tabs(space.name)
+
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+		self.assertEqual([t["tab_icon"] for t in tabs], ["lucide-wallet", "lucide-tag"])
+
+	def test_non_tab_top_level_groups_are_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+		plain = create_test_wiki_document(self, "Not a tab", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Some page", parent=plain.name)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+	def test_landing_route_falls_back_to_first_published_leaf(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		group = create_test_wiki_document(self, "Receivables", parent=tab.name, is_group=True, sort_order=0)
+		first = create_test_wiki_document(self, "Invoice", parent=group.name, sort_order=0)
+		create_test_wiki_document(self, "Credit Note", parent=group.name, sort_order=1)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], first.route)
+
+	def test_landing_route_prefers_a_page_at_the_tab_s_own_route(self):
+		"""The README/index case: a published leaf sharing the group's route."""
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		index = create_test_wiki_document(self, "Overview", parent=tab.name)
+		index.route = tab.route
+		index.save()
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], tab.route)
+
+	def test_unpublished_tab_is_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Draft Area")
+		create_test_wiki_document(self, "Page", parent=tab.name)
+		frappe.db.set_value("Wiki Document", tab.name, "is_published", 0)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_public_tree_carries_the_tab_fields(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == tab.name)
+		self.assertEqual(node["is_tab"], 1)
+		self.assertEqual(node["tab_icon"], "lucide-wallet")

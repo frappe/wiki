@@ -81,7 +81,17 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 	"""Build a nested tree structure from a list of Wiki Document names."""
 	wiki_documents = frappe.db.get_all(
 		"Wiki Document",
-		fields=["name", "title", "is_group", "parent_wiki_document", "route", "is_published", "sort_order"],
+		fields=[
+			"name",
+			"title",
+			"is_group",
+			"is_tab",
+			"tab_icon",
+			"parent_wiki_document",
+			"route",
+			"is_published",
+			"sort_order",
+		],
 		filters={"name": ("in", documents)},
 		order_by="lft asc",
 	)

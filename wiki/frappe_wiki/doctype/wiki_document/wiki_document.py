@@ -603,6 +603,8 @@ def build_nested_wiki_tree(documents: list[str]):
 			"name",
 			"title",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"parent_wiki_document",
 			"route",
 			"sort_order",
@@ -687,17 +689,86 @@ def get_first_published_page(root_group: str) -> dict | None:
 	"""First non-group, non-external page in sidebar order — the document a
 	space URL should land on. Walks the same tree the sidebar renders, so the
 	two can't disagree."""
+	return _first_published_leaf(get_public_wiki_tree(root_group))
 
-	def find_first(nodes):
-		for node in nodes:
-			if not node["is_group"] and not node.get("is_external_link"):
-				return node
-			found = find_first(node["children"])
-			if found:
-				return found
+
+def _first_published_leaf(nodes: list) -> dict | None:
+	"""First non-group, non-external page in sidebar order within `nodes`."""
+	for node in nodes:
+		if not node["is_group"] and not node.get("is_external_link"):
+			return node
+		found = _first_published_leaf(node["children"])
+		if found:
+			return found
+	return None
+
+
+def _tab_landing_route(tab: dict, node: dict | None) -> str | None:
+	"""Where clicking a tab should go.
+
+	A group is never served at its own route — the renderer redirects it to its
+	first child — so the "tab group's own content page" only exists as a
+	published leaf sitting at the group's route (the README/index case that
+	git-sync produces). Prefer that, else the first published leaf in the tab's
+	subtree, mirroring get_first_published_page.
+	"""
+	if tab.get("route") and frappe.db.exists(
+		"Wiki Document",
+		{"route": tab["route"], "is_group": 0, "is_published": 1, "is_external_link": 0},
+	):
+		return tab["route"]
+
+	if not node:
 		return None
+	first = _first_published_leaf(node.get("children") or [])
+	return first["route"] if first else None
 
-	return find_first(get_public_wiki_tree(root_group))
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def get_space_tabs(space: str) -> list[dict]:
+	"""Ordered top-level tab groups for a Wiki Space, each with its landing route.
+
+	Reads the same cached public tree the sidebar renders, so a tab can never
+	point somewhere the sidebar doesn't show.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(space):
+		return []
+
+	root_group = frappe.db.get_value("Wiki Space", space, "root_group")
+	if not root_group:
+		return []
+
+	tabs = frappe.get_all(
+		"Wiki Document",
+		filters={
+			"parent_wiki_document": root_group,
+			"is_tab": 1,
+			"is_group": 1,
+			"is_published": 1,
+		},
+		fields=["name", "doc_key", "title", "route", "tab_icon"],
+		order_by="sort_order asc, title asc",
+	)
+	if not tabs:
+		return []
+
+	# A tab whose subtree has no published page is dropped from the public tree
+	# by remove_empty_groups, so `nodes_by_name.get` is deliberately tolerant.
+	nodes_by_name = {node["name"]: node for node in get_public_wiki_tree(root_group)}
+
+	return [
+		{
+			"name": tab["name"],
+			"doc_key": tab["doc_key"],
+			"title": tab["title"],
+			"route": tab["route"],
+			"tab_icon": tab["tab_icon"],
+			"landing_route": _tab_landing_route(tab, nodes_by_name.get(tab["name"])),
+		}
+		for tab in tabs
+	]
 
 
 def clear_wiki_tree_cache():
