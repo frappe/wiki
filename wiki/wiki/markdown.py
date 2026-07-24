@@ -446,7 +446,25 @@ def _build_markdown() -> MarkdownIt:
 	return md
 
 
-def _apply_heading_slugs_and_toc(tokens, md: MarkdownIt) -> list[dict]:
+def _inline_plain_text(children) -> str:
+	"""
+	Flatten inline children to plain text for TOC labels. Like markdown-it's
+	renderInlineAsText but it also keeps `code_inline` content, so a heading
+	wrapped in backticks (`## `GET /items``) yields "GET /items" instead of an
+	empty entry.
+	"""
+	parts: list[str] = []
+	for child in children or []:
+		if child.type in ("text", "code_inline"):
+			parts.append(child.content)
+		elif child.type == "softbreak":
+			parts.append(" ")
+		elif child.children:
+			parts.append(_inline_plain_text(child.children))
+	return "".join(parts)
+
+
+def _apply_heading_slugs_and_toc(tokens) -> list[dict]:
 	"""
 	Walk parsed tokens, assign unique slug IDs to every heading, and collect
 	h2/h3 entries for the table of contents.
@@ -470,8 +488,8 @@ def _apply_heading_slugs_and_toc(tokens, md: MarkdownIt) -> list[dict]:
 
 		level = int(tok.tag[1])  # "h2" -> 2
 		if level in (2, 3):
-			# Render the inline as plain text so TOC entries drop markdown syntax
-			text = md.renderer.renderInlineAsText(inline.children or [], md.options, {})
+			# Plain text (markdown syntax dropped) but keeping inline-code labels.
+			text = _inline_plain_text(inline.children)
 			headings.append({"id": slug, "text": text, "level": level})
 
 	return headings
@@ -500,7 +518,7 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 
 	env: dict = {}
 	tokens = md.parse(processed_content, env)
-	headings = _apply_heading_slugs_and_toc(tokens, md)
+	headings = _apply_heading_slugs_and_toc(tokens)
 	html = md.renderer.render(tokens, md.options, env)
 
 	html = _replace_callout_placeholders(html, callouts, callout_prefix, md.render)

@@ -751,5 +751,25 @@ More text."""
 			self.assertIn(expected_tag, html)
 
 
+class TestTocHeadingText(unittest.TestCase):
+	"""TOC labels must keep inline-code headings (regression: they came back empty)."""
+
+	def _texts(self, content):
+		_, headings = render_markdown_with_toc(content)
+		return [h["text"] for h in headings]
+
+	def test_inline_code_heading_keeps_text(self):
+		"""A heading that is entirely inline code still yields a label."""
+		self.assertEqual(self._texts("## `GET /items`\n"), ["GET /items"])
+
+	def test_mixed_code_and_text_heading(self):
+		"""Inline code mixed with plain text is concatenated in order."""
+		self.assertEqual(self._texts("### `POST` and text\n"), ["POST and text"])
+
+	def test_plain_heading_unchanged(self):
+		"""Plain headings are unaffected by the code-aware extraction."""
+		self.assertEqual(self._texts("## Normal Heading\n"), ["Normal Heading"])
+
+
 if __name__ == "__main__":
 	unittest.main()
