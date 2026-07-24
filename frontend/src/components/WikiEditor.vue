@@ -28,7 +28,6 @@
 </template>
 
 <script setup>
-import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import {
@@ -67,8 +66,10 @@ import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
+import { canonicalizeMarkdown } from './tiptap-extensions/markdown-normalize.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
+import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
 	SLASH_COMMANDS,
 	SlashCommands,
@@ -80,18 +81,6 @@ import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
-
-// Preserve consecutive blank lines in markdown round-trips.
-// Parse: marked's 'space' tokens (ignored by default) become empty paragraphs.
-const PreserveBlankLines = Extension.create({
-	name: 'preserveBlankLines',
-	markdownTokenName: 'space',
-	parseMarkdown(token) {
-		const count = Math.floor(token.raw.length / 2) - 1;
-		if (count <= 0) return null;
-		return Array.from({ length: count }, () => ({ type: 'paragraph' }));
-	},
-});
 
 // Serialize: empty paragraphs render as blank lines instead of &nbsp;.
 const WikiParagraph = Paragraph.extend({
@@ -673,15 +662,7 @@ const contentClass = [
 ];
 
 function normalizeMarkdown(content) {
-	const markdown = content ?? '';
-	const manager = editor.value?.markdown;
-	if (!manager) return markdown;
-	try {
-		return manager.serialize(manager.parse(markdown));
-	} catch (error) {
-		console.warn('[WikiEditor] Could not normalize markdown', error);
-		return markdown;
-	}
+	return canonicalizeMarkdown(editor.value?.markdown, content);
 }
 
 function getMarkdown() {

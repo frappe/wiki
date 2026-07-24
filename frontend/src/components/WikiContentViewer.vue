@@ -7,7 +7,6 @@
 </template>
 
 <script setup>
-import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import {
 	Table,
@@ -28,6 +27,7 @@ import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
+import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
@@ -37,17 +37,6 @@ import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 // than as plain server HTML.
 const props = defineProps({
 	content: { type: String, default: '' },
-});
-
-// Mirror of WikiEditor's blank-line preservation so spacing matches the editor.
-const PreserveBlankLines = Extension.create({
-	name: 'preserveBlankLines',
-	markdownTokenName: 'space',
-	parseMarkdown(token) {
-		const count = Math.floor(token.raw.length / 2) - 1;
-		if (count <= 0) return null;
-		return Array.from({ length: count }, () => ({ type: 'paragraph' }));
-	},
 });
 
 // Writable mirror of the prop — useEditor owns its content ref bidirectionally
