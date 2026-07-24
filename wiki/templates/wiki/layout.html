@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth scroll-pt-20">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,7 +58,7 @@
 
     {{ head_html or "" }}
 </head>
-<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)]">
+<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base">
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 

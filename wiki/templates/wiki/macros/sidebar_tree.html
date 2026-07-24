@@ -5,7 +5,7 @@
                 <li class="wiki-item {{ 'is-group' if node.is_group else 'is-page' }}">
                     {% if node.is_group %}
                         {# Group/folder item #}
-                        <button class="wiki-item-content group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] transition-all duration-200 cursor-pointer hover:bg-[var(--surface-gray-2)]"
+                        <button class="wiki-item-content group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] transition-all duration-200 cursor-pointer hover:bg-[var(--surface-gray-1)]"
                                 @click="toggleNode('{{ node.name }}')"
                                 :aria-expanded="isExpanded('{{ node.name }}')"
                                 aria-controls="{{ node.name }}-children"
@@ -25,7 +25,7 @@
                         <a href="{{ node.external_url }}"
                            target="_blank"
                            rel="noopener noreferrer"
-                           class="wiki-item-content wiki-link wiki-external-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200 hover:bg-[var(--surface-gray-2)]"
+                           class="wiki-item-content wiki-link wiki-external-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200 hover:bg-[var(--surface-gray-1)]"
                            title="{{ node.title }}">
                             <span class="wiki-title text-sm truncate {{ 'pl-[18px]' if level == 0 else '' }}">{{ node.title }}</span>
                             {# External link icon right next to text #}
@@ -41,7 +41,7 @@
                            @click.prevent="$store.navigation.navigateTo('{{ node.route }}')"
                            @mouseenter="$store.navigation.prefetch('{{ node.route }}')"
                            class="wiki-item-content wiki-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200"
-                           :class="$store.navigation.currentRoute === '{{ node.route }}' ? 'bg-[var(--surface-elevation-3)] shadow-sm text-[var(--ink-gray-9)]' : 'hover:bg-[var(--surface-gray-2)]'"
+                           :class="$store.navigation.currentRoute === '{{ node.route }}' ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' : 'hover:bg-[var(--surface-gray-1)]'"
                            :aria-current="$store.navigation.currentRoute === '{{ node.route }}' ? 'page' : false"
                            title="{{ node.title }}"
                            data-route="{{ node.route }}"

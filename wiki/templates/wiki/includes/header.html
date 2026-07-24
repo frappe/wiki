@@ -1,87 +1,93 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<header class="hidden lg:flex items-center gap-4 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]"
+<header class="hidden lg:flex items-center gap-3 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]"
         x-data>
-    {# Spacer to push everything to the right #}
-    <div class="flex-1"></div>
+    {# Left spacer — mirrors the right nav's flex-1 so the search sits dead center #}
+    <div class="flex-1 min-w-0"></div>
 
-    {# Text navigation links (items without icons) #}
-    {% for item in navbar_items %}
-        {% if not item.icon %}
-        <a href="{{ item.url }}"
-           target="_blank" rel="noopener noreferrer"
-           class="px-3 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
-            {{ item.label }}
-        </a>
+    {# Centered search — restyled as a field (frappe-ui docs Search), the primary
+       way to move around: search icon + placeholder + ⌘K hint #}
+    <div class="flex w-full max-w-md justify-center px-2">
+        <button @click="$dispatch('open-search')"
+                aria-label="Open search"
+                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                x-data="{ isMac: navigator.platform.includes('Mac') }">
+            <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
+                {{ render_icon("search", "shrink-0") }}
+            </span>
+            <span class="truncate text-start">Search documentation</span>
+            <span class="absolute inset-y-0 end-0 flex items-center gap-1 pe-2.5 text-xs text-[var(--ink-gray-5)]">
+                <template x-if="isMac">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
+                    </svg>
+                </template>
+                <template x-if="!isMac">
+                    <span>Ctrl</span>
+                </template>
+                K
+            </span>
+        </button>
+    </div>
+
+    {# Right nav: text links, theme toggle, icon links (GitHub, Discord, …) #}
+    <nav class="flex-1 flex items-center justify-end gap-2 sm:gap-3">
+        {# Text navigation links (items without icons) #}
+        {% for item in navbar_items %}
+            {% if not item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               class="px-3 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+                {{ item.label }}
+            </a>
+            {% endif %}
+        {% endfor %}
+
+        {# Separator before toggle (only if there are text links) #}
+        {% set has_text_items = namespace(value=false) %}
+        {% for item in navbar_items %}
+            {% if not item.icon %}
+                {% set has_text_items.value = true %}
+            {% endif %}
+        {% endfor %}
+        {% if has_text_items.value %}
+        <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
         {% endif %}
-    {% endfor %}
 
-    {# Search trigger — mirrors the frappe-ui docs Button (subtle/gray/sm):
-       h-7 px-2 rounded-8px, 14px/420/0.02em text, search prefix + ⌘K suffix #}
-    <button @click="$dispatch('open-search')"
-            aria-label="Open search"
-            class="inline-flex items-center justify-center gap-2 shrink-0 h-7 px-2 rounded text-base leading-[1.15] text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer"
-            x-data="{ isMac: navigator.platform.includes('Mac') }">
-        {{ render_icon("search", "shrink-0") }}
-        <span class="truncate">Search</span>
-        <span class="flex items-center gap-1 text-xs text-[var(--ink-gray-5)]">
-            <template x-if="isMac">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
-                </svg>
+        {# Theme toggle — ghost icon button (sun when dark / moon-star when light) #}
+        <button @click="$store.theme.toggle()"
+                aria-label="Toggle theme"
+                class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+            <template x-if="$store.theme.isDark">
+                {{ render_icon("sun", "shrink-0") }}
             </template>
-            <template x-if="!isMac">
-                <span>Ctrl</span>
+            <template x-if="!$store.theme.isDark">
+                {{ render_icon("moon-star", "shrink-0") }}
             </template>
-            K
-        </span>
-    </button>
+        </button>
 
-    {# Separator before toggle (only if there are text links) #}
-    {% set has_text_items = namespace(value=false) %}
-    {% for item in navbar_items %}
-        {% if not item.icon %}
-            {% set has_text_items.value = true %}
+        {# Separator before icons (only if there are icon items) #}
+        {% set has_icon_items = namespace(value=false) %}
+        {% for item in navbar_items %}
+            {% if item.icon %}
+                {% set has_icon_items.value = true %}
+            {% endif %}
+        {% endfor %}
+        {% if has_icon_items.value %}
+        <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
         {% endif %}
-    {% endfor %}
-    {% if has_text_items.value %}
-    <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-    {% endif %}
 
-    {# Theme toggle — mirrors the frappe-ui docs ghost icon Button (gray/sm):
-       h-7 w-7 rounded-8px, transparent bg, sun when dark / moon-star when light #}
-    <button @click="$store.theme.toggle()"
-            aria-label="Toggle theme"
-            class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
-        <template x-if="$store.theme.isDark">
-            {{ render_icon("sun", "shrink-0") }}
-        </template>
-        <template x-if="!$store.theme.isDark">
-            {{ render_icon("moon-star", "shrink-0") }}
-        </template>
-    </button>
-
-    {# Separator before icons (only if there are icon items) #}
-    {% set has_icon_items = namespace(value=false) %}
-    {% for item in navbar_items %}
-        {% if item.icon %}
-            {% set has_icon_items.value = true %}
-        {% endif %}
-    {% endfor %}
-    {% if has_icon_items.value %}
-    <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-    {% endif %}
-
-    {# Icon links (known services like GitHub, Discord) — ghost icon Button style #}
-    {% for item in navbar_items %}
-        {% if item.icon %}
-        <a href="{{ item.url }}"
-           target="_blank" rel="noopener noreferrer"
-           title="{{ item.label }}"
-           aria-label="{{ item.label }}"
-           class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
-            {{ render_icon(item.icon, "shrink-0") }}
-        </a>
-        {% endif %}
-    {% endfor %}
+        {# Icon links (known services like GitHub, Discord) — ghost icon button style #}
+        {% for item in navbar_items %}
+            {% if item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               title="{{ item.label }}"
+               aria-label="{{ item.label }}"
+               class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
+                {{ render_icon(item.icon, "shrink-0") }}
+            </a>
+            {% endif %}
+        {% endfor %}
+    </nav>
 </header>
