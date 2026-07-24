@@ -26,7 +26,7 @@ today (coexist, not all-or-nothing).
 | 1 | What is a tab? | A **top-level group** (direct child of the Space's `root_group`), flagged `is_tab`. Must be a group; must be top-level — enforced at validate. |
 | 2 | URL model | Tab is an explicit path **segment** — but the tab group's slug is **already** an ancestor slug in today's route (`<space>/<tab-slug>/<...>`). So existing routes are unchanged. Active tab = walk the current page's ancestors up to the tab-flagged group. |
 | 3 | Mobile / narrow | **Dropdown collapse.** Below a breakpoint the active tab becomes a dropdown trigger listing all tabs. |
-| 4 | Icon | **Tabs only.** New `tab_icon` (Lucide name) on Wiki Document, picker shown only when `is_tab` is set. Rendered in the tab bar. |
+| 4 | Icon | **Tabs only.** New `tab_icon` (Lucide class name, e.g. `lucide-wallet`) on Wiki Document, picker shown only when `is_tab` is set. Rendered in the tab bar. Picker is gameplan's `IconPicker.vue` **copied as-is, styles included** — see Phase 4. |
 | 5 | Migration of existing pages | **Manual.** Editor flags each module root as a tab in the UI. No migration script — out of scope. |
 | 6 | Tab landing | The tab **group's own content page** (a group can still hold `content`). Falls back to the first published leaf in its subtree if empty. |
 | 7 | Mixed mode | **Coexist.** Tab groups go to the top bar; non-tab top-level groups/pages stay in the vertical sidebar as today. |
@@ -228,10 +228,32 @@ tab anywhere but top-level. Today it only checks `is_group` for inside-drops, an
 sibling drops are unconditional. Backend guard from Phase 1 is the real enforcement;
 this is UX.
 
-**Icon picker** — build `LucideIconPicker.vue` locally. `lucide-static` is already in
-`frontend/node_modules` (1994 icons + `tags.json` for keyword search + `icon-nodes.json`),
-and frappe-ui ships an `Icon` component. *(The original plan was to port gameplan's
-picker — gameplan is not present in this bench, so build against lucide-static instead.)*
+**Icon picker — copy gameplan's `IconPicker.vue` verbatim, styles included.**
+Source: `frappe/gameplan` → `frontend/src/components/IconPicker.vue` (gameplan is not in
+this bench; clone the repo to read it). Also copy `SpaceIcon.vue` — the 12-line render
+component that falls back to `lucide-hash` for a missing/invalid icon.
+
+What it is: a `reka-ui` Popover (`PopoverRoot/Anchor/Portal/Content`) over a
+`grid-cols-8` of 8×8 buttons, each rendering `<span :class="[icon.class, 'size-5']" />`.
+Selection emits `update:modelValue` and closes. Verified compatible as-is:
+- wiki has `reka-ui` 2.10.1 (gameplan is on ^2.0.2) and all four Popover primitives are
+  exported — no adaptation needed
+- both apps use `frappeUIPreset` in `tailwind.config.js`, which is what provides the
+  `lucide-*` classes; wiki's `WikiTree.vue` already uses them
+- the surface/ink token classes (`bg-surface-elevation-2`, `text-ink-gray-7`, …) come from
+  the same preset
+
+**The icon list is a curated 104 entries, not a search over all ~1994 lucide icons — and
+that is load-bearing, not taste.** Tailwind JIT only emits a class it can find as a
+literal in scanned source. `tab_icon` arrives from the DB at runtime, so those classes are
+only generated because the 104 literals sit in `IconPicker.vue`, which `./src/**/*.vue`
+scans. A free-text search over `lucide-static` would render **blank icons** for anything
+not otherwise mentioned in source. Copy the list as-is; adding an icon later means adding
+it to this list.
+
+Two dead bits in the original, carried over or cleaned as preferred: `filteredIcons` is a
+straight passthrough (`const filteredIcons = icons`) and each entry's `keywords` array is
+unused — a search box was planned and never wired.
 
 Per CLAUDE.md "Frontend / Backend Sync": both fields must be enumerated explicitly in the
 frontend settings component — no auto-sync.
