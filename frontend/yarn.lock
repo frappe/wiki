@@ -2104,9 +2104,10 @@ fraction.js@^4.1.2:
   resolved "https://registry.npmjs.org/fraction.js/-/fraction.js-4.1.2.tgz"
   integrity sha512-o2RiJQ6DZaR/5+Si0qJUIy637QMRudSi9kU/FFzx9EZazrIdnBgpU+3sEWCxAVhH2RtxW2Oz+T4p2o8uOPVcgA==
 
-frappe-ui@frappe/frappe-ui#021ef6683168ccde476fb843e4f07b0deb63c16d:
-  version "1.0.0-beta.21"
-  resolved "https://codeload.github.com/frappe/frappe-ui/tar.gz/021ef6683168ccde476fb843e4f07b0deb63c16d"
+frappe-ui@1.0.0-beta.25:
+  version "1.0.0-beta.25"
+  resolved "https://registry.yarnpkg.com/frappe-ui/-/frappe-ui-1.0.0-beta.25.tgz#99aa2463de799ae98550e9be7e4770e79b431680"
+  integrity sha512-RiHl6Nv3vy8ywtQfWG9pvWYiH9aRdhzteXPiF2+Qjsh0owBVnim0ZP6ZE03jhtmaZ5QgrPovZu+rcBTOORWzuA==
   dependencies:
     "@codemirror/lang-css" "^6.3.0"
     "@codemirror/lang-html" "^6.4.9"
@@ -2176,7 +2177,7 @@ frappe-ui@frappe/frappe-ui#021ef6683168ccde476fb843e4f07b0deb63c16d:
     ora "5.4.1"
     prettier "^3.3.2"
     prosemirror-tables "^1.8.1"
-    reka-ui "^2.5.0"
+    reka-ui "^2.9.9"
     slugify "^1.6.6"
     socket.io-client "^4.5.1"
     tippy.js "^6.3.7"
@@ -3134,7 +3135,7 @@ regex@^6.0.1:
   dependencies:
     regex-utilities "^2.3.0"
 
-reka-ui@^2.10.1, reka-ui@^2.5.0:
+reka-ui@^2.10.1, reka-ui@^2.9.9:
   version "2.10.1"
   resolved "https://registry.yarnpkg.com/reka-ui/-/reka-ui-2.10.1.tgz#af51db13cf753668385639900f0e01e99c386f44"
   integrity sha512-drcOQ4rQtDYAcGCsyQBqQg8QQ+H3B+zDaMJU0h8KPEPMa7g9BHu3zcOi4OB39XJSWizceFoNO0Z9tctSGLOXqg==
