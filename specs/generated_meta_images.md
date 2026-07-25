@@ -381,6 +381,11 @@ future work. Where the code departs from the plan above:
 - **The merge warm-up tests live in `test_wiki_change_request.py`**, next to the
   CR fixtures and `_approve_and_merge` they need, rather than in
   `test_wiki_document.py`.
+- **No accent bar.** The 12px `--surface-gray-2` bar was dropped during design
+  review; the card is a plain white field. `--surface-gray-2` and
+  `--outline-gray-2` stay declared in the `:root` block — that block is the
+  card's palette, and keeping them there keeps the drift test guarding values
+  the Phase 5 space accent will want back.
 - **The endpoint honours the settings toggle too**, not just `get_og_image_url()`.
   The spec only turned the *tag* off; a crawler holding an old `og:image` URL
   would still have launched Chromium on a site that disabled cards. The kill

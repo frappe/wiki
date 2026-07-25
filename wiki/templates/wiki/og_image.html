@@ -18,6 +18,10 @@
 <head>
 <meta charset="utf-8">
 <style>
+	/* The card's palette, not just the rules it currently applies:
+	   outline-gray-2 (a footer hairline) and surface-gray-2 (the space accent
+	   bar) are both design decisions that have been on and off, and keeping
+	   them declared keeps the drift test guarding their values. */
 	:root {
 		--ink-gray-9: #0f0f0f;      /* lightMode/gray/950 */
 		--ink-gray-7: #383838;      /* lightMode/gray/800 */
@@ -55,21 +59,12 @@
 		-webkit-font-smoothing: antialiased;
 	}
 
-	.accent-bar {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		height: 12px;
-		background: var(--surface-gray-2);
-	}
-
 	.logo {
 		/* Sized against the 1200x630 card, not a page header — anything under
 		   ~72px reads as an afterthought at feed scale. The generous max-width
 		   is for wordmark logos, which are wide rather than square; contain
 		   keeps those from being cropped or stretched. */
-		height: 88px;
+		height: 100px;
 		width: auto;
 		max-width: 520px;
 		object-fit: contain;
@@ -77,8 +72,8 @@
 	}
 
 	.breadcrumb {
-		font-size: 26px;
-		font-weight: var(--font-weight-medium);
+		font-size: 32px;
+		font-weight: var(--font-weight-semibold);
 		letter-spacing: 0.01em;
 		color: var(--ink-gray-5);
 		margin-bottom: 20px;
@@ -100,8 +95,6 @@
 	}
 
 	.footer {
-		padding-top: 28px;
-		border-top: 1px solid var(--outline-gray-2);
 		font-size: 28px;
 		font-weight: var(--font-weight-medium);
 		letter-spacing: 0.01em;
@@ -110,8 +103,6 @@
 </style>
 </head>
 <body>
-	<div class="accent-bar"></div>
-
 	<div class="header">
 		{% if logo_url %}<img class="logo" src="{{ logo_url | e }}" alt="">{% endif %}
 	</div>
