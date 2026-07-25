@@ -27,11 +27,14 @@
     <nav class="flex min-w-0 items-stretch gap-5 overflow-x-auto no-scrollbar" role="tablist">
         {% for tab in space_tabs %}
         {% set target = tab.landing_route or tab.route %}
-        {% set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
+        {#- Routes are editor-set and can contain quotes, so every route
+            interpolated into an Alpine JS expression goes through `tojson` to
+            stay a safe, quoted JS string literal (stored-XSS guard). -#}
+        {% set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
         <a href="/{{ target }}"
            role="tab"
-           @click.prevent="$store.navigation.navigateTo('{{ target }}')"
-           @mouseenter="$store.navigation.prefetch('{{ target }}')"
+           @click.prevent="$store.navigation.navigateTo({{ target | tojson | forceescape }})"
+           @mouseenter="$store.navigation.prefetch({{ target | tojson | forceescape }})"
            :aria-selected="{{ active_js }}"
            class="relative flex shrink-0 items-center gap-1.5 text-base whitespace-nowrap no-underline duration-300 ease-in-out"
            :class="{{ active_js }} ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]'"

@@ -90,8 +90,8 @@
             <div class="flex justify-between gap-5">
                 {% if prev_doc %}
                 <a href="/{{ prev_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ prev_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ prev_doc.route }}')"
+                   @click.prevent="$store.navigation.navigateTo({{ prev_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
                    class="{{ nav_link_classes }}">
                     {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
                     <span class="truncate">{{ prev_doc.title }}</span>
@@ -100,8 +100,8 @@
 
                 {% if next_doc %}
                 <a href="/{{ next_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ next_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ next_doc.route }}')"
+                   @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
                    class="{{ nav_link_classes }} {{ 'ml-auto' if not prev_doc else '' }}">
                     <span class="truncate">{{ next_doc.title }}</span>
                     {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
@@ -132,7 +132,7 @@
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
-            markdown: {{ raw_markdown | tojson }}
+            markdown: {{ raw_markdown | tojson | forceescape }}
         });
 
         // Combined component for wiki document page (wikiDocument + tocScrollSpy)

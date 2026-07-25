@@ -195,7 +195,9 @@
                     :aria-expanded="tabPickerOpen"
                     class="flex h-9 w-full items-center gap-2 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] px-2.5 text-base text-[var(--ink-gray-8)] transition-colors hover:border-[var(--outline-gray-3)]">
                 {%- for tab in space_tabs %}
-                {%- set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
+                {#- Routes are editor-set and can contain quotes; tojson keeps them
+                    as safe JS string literals inside Alpine expressions (XSS guard). -#}
+                {%- set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
                 <span class="flex min-w-0 flex-1 items-center gap-2" x-show="{{ active_js }}" x-cloak>
                     {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
                     <span class="truncate text-start">{{ tab.title }}</span>
@@ -215,11 +217,11 @@
                  class="mt-1 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] p-1 shadow-lg">
                 {%- for tab in space_tabs %}
                 {%- set target = tab.landing_route or tab.route %}
-                {%- set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
+                {%- set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
                 <button type="button"
                         role="option"
                         :aria-selected="{{ active_js }}"
-                        @click="$store.navigation.navigateTo('{{ target }}'); tabPickerOpen = false; closeSidebar()"
+                        @click="$store.navigation.navigateTo({{ target | tojson | forceescape }}); tabPickerOpen = false; closeSidebar()"
                         class="flex w-full items-center gap-2 rounded px-2 py-2 text-base transition-colors"
                         :class="{{ active_js }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)]'">
                     {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
@@ -237,13 +239,13 @@
         <nav class="px-2 py-2 flex-1 overflow-y-auto" @click="handleNavClick($event)">
             {% for tab in tab_nodes %}
             {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
-            <div x-show="$store.navigation.inTab('{{ tab.route }}')"{% if not is_active_tab %} x-cloak{% endif %}>
+            <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
                 {{ render_wiki_tree(tab.children, current_route=doc.route if doc else '') }}
             </div>
             {% endfor %}
 
             {% if show_home %}
-            <div x-show="$store.navigation.notInAnyTab('{{ tab_routes }}')"{% if active.in_tab %} x-cloak{% endif %}>
+            <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
                 {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '') }}
             </div>
             {% else %}

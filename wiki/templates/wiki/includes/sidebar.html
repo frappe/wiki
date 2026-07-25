@@ -36,13 +36,13 @@
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
         {% for tab in tab_nodes %}
         {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
-        <div x-show="$store.navigation.inTab('{{ tab.route }}')"{% if not is_active_tab %} x-cloak{% endif %}>
+        <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
             {{ render_wiki_tree(tab.children, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
         </div>
         {% endfor %}
 
         {% if show_home %}
-        <div x-show="$store.navigation.notInAnyTab('{{ tab_routes }}')"{% if active.in_tab %} x-cloak{% endif %}>
+        <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
             {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
         </div>
         {% else %}
@@ -319,6 +319,18 @@
                 if (prevDoc || nextDoc) {
                     // Keep this markup identical to the prev/next block in
                     // document.html — server-render / SPA-render halves of one UI.
+                    // route/title are editor-set free text, so every value going
+                    // into this innerHTML is escaped: `esc` for attribute/text
+                    // contexts, and JSON.stringify (then esc'd) for the route
+                    // interpolated into the Alpine JS expression — mirroring the
+                    // `| tojson` guard the Jinja half uses. Stored-XSS guard.
+                    const esc = (str) => String(str ?? '')
+                        .replaceAll('&', '&amp;')
+                        .replaceAll('<', '&lt;')
+                        .replaceAll('>', '&gt;')
+                        .replaceAll('"', '&quot;')
+                        .replaceAll("'", '&#39;');
+                    const jsRoute = (route) => esc(JSON.stringify(route));
                     const navLinkClasses = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline";
                     const arrowLeft = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>';
                     const arrowRight = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
@@ -326,23 +338,23 @@
 
                     if (prevDoc) {
                         html += `
-                            <a href="/${prevDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${prevDoc.route}')"
-                               @mouseenter="$store.navigation.prefetch('${prevDoc.route}')"
+                            <a href="/${esc(prevDoc.route)}"
+                               @click.prevent="$store.navigation.navigateTo(${jsRoute(prevDoc.route)})"
+                               @mouseenter="$store.navigation.prefetch(${jsRoute(prevDoc.route)})"
                                class="${navLinkClasses}">
                                 ${arrowLeft}
-                                <span class="truncate">${prevDoc.title}</span>
+                                <span class="truncate">${esc(prevDoc.title)}</span>
                             </a>`;
                     }
 
                     if (nextDoc) {
                         const mlClass = !prevDoc ? 'ml-auto' : '';
                         html += `
-                            <a href="/${nextDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${nextDoc.route}')"
-                               @mouseenter="$store.navigation.prefetch('${nextDoc.route}')"
+                            <a href="/${esc(nextDoc.route)}"
+                               @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
+                               @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
                                class="${navLinkClasses} ${mlClass}">
-                                <span class="truncate">${nextDoc.title}</span>
+                                <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}
                             </a>`;
                     }

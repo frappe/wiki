@@ -2318,3 +2318,56 @@ class TestRenderedContentCache(WikiDocumentTestBase):
 		doc.save()
 		# Content unchanged, so the rendered-content entry survives.
 		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+
+class TestReaderRouteXSS(unittest.TestCase):
+	"""Reader templates interpolate editor-set routes into Alpine JS expressions.
+	A route can contain quotes (routes aren't scrubbed once set explicitly), so
+	every such interpolation must go through `| tojson | forceescape` — tojson
+	makes it a JS-safe string literal, forceescape keeps it safe inside the
+	double-quoted HTML attribute. Without both, a route like `x'),alert(1)//`
+	breaks out of the JS string and runs for every reader (stored XSS)."""
+
+	# A route crafted to break out of a single-quoted JS string literal.
+	PAYLOAD = "s/x'),alert(document.domain)//"
+
+	def _assert_route_is_safe(self, html):
+		# The vulnerable pattern is a single-quoted JS literal; after the fix
+		# every call passes a double-quoted, entity-encoded literal instead.
+		self.assertNotIn("navigateTo('", html)
+		self.assertNotIn("inTab('", html)
+		self.assertNotIn("notInAnyTab('", html)
+		# The route's own single quote is unicode-escaped by tojson, so it can
+		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
+		self.assertNotIn("//')", html)
+		self.assertIn("\\u0027", html)
+
+	def test_sidebar_tree_macro_escapes_route_in_alpine_expressions(self):
+		"""render_wiki_tree feeds node.route into navigateTo/prefetch/:class."""
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes) }}"
+		)
+		node = {
+			"is_group": 0,
+			"is_external_link": 0,
+			"name": "n1",
+			"route": self.PAYLOAD,
+			"title": "Evil",
+			"children": [],
+		}
+		html = frappe.render_template(template, {"nodes": [node]})
+		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
+		self._assert_route_is_safe(html)
+
+	def test_active_js_concat_escapes_route(self):
+		"""The tab bar (tabs.html / mobile_header.html) builds the Alpine
+		expression by string concatenation before emitting it; the route piece
+		must stay escaped through the concat + `{{ }}` render."""
+		template = (
+			'{% set active_js = "$store.navigation.inTab(" ~ (route | tojson | forceescape) ~ ")" %}'
+			'<div x-show="{{ active_js }}"></div>'
+		)
+		html = frappe.render_template(template, {"route": self.PAYLOAD})
+		self.assertIn("inTab(&#34;", html)
+		self._assert_route_is_safe(html)
