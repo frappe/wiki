@@ -1,5 +1,42 @@
+import json
+from functools import lru_cache
+
 import frappe
 from frappe.core.doctype.file.utils import get_content_hash
+
+
+def lucide_svg(icon: str | None, css_class: str = "size-4") -> str:
+	"""Inline SVG markup for a `lucide-*` class name, for public templates.
+
+	The SPA renders these icons through frappe-ui's Tailwind plugin, which the
+	reader's separate Tailwind v4 build can't load — so a `lucide-*` class in a
+	public template would render as an empty box. Inlining the SVG here keeps
+	both surfaces on the same icon set without shipping the whole pack's CSS.
+
+	The lookup table covers the curated picker list only (see
+	scripts/generate-public-lucide.mjs); anything else falls back to
+	`lucide-hash`, mirroring SpaceIcon.vue.
+	"""
+	table = _lucide_table()
+	inner = table.get(icon or "") or table.get("lucide-hash")
+	if not inner:
+		return ""
+	return (
+		f'<svg class="{frappe.utils.escape_html(css_class)}" viewBox="0 0 24 24" fill="none" '
+		'stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" '
+		f'aria-hidden="true">{inner}</svg>'
+	)
+
+
+# The table is generated at build time and never changes at runtime, so a
+# process-lifetime cache is enough.
+@lru_cache(maxsize=1)
+def _lucide_table() -> dict:
+	try:
+		with open(frappe.get_app_path("wiki", "lucide_icons.json")) as f:
+			return json.load(f)
+	except (OSError, ValueError):
+		return {}
 
 
 def get_tailwindcss_hash():

@@ -15,7 +15,7 @@
     "postinstall": "cd frontend && yarn install",
     "dev": "cd frontend && yarn dev",
     "build": "yarn tailwind:build && cd frontend && yarn build",
-    "theme:generate": "node scripts/generate-public-theme.mjs && node scripts/generate-public-prose.mjs",
+    "theme:generate": "node scripts/generate-public-theme.mjs && node scripts/generate-public-prose.mjs && node scripts/generate-public-lucide.mjs",
     "tailwind:watch": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css --watch",
     "tailwind:build": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css",
     "test:e2e": "playwright test",
