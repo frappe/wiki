@@ -299,6 +299,33 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertNotIn(page.name, stale_names)
 		self.assertIn(page.name, fresh_names)
 
+	def test_content_only_merge_clears_rendered_content_cache(self):
+		"""Same raw-set_value path skips on_update, so the merge must drop the
+		rendered-content cache or the public page keeps serving pre-merge HTML."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_CONTENT_CACHE_KEY,
+			get_rendered_content,
+		)
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Cache Page", content="stalebodyv1")
+
+		# Prime the cache the way a public render would.
+		html, _ = get_rendered_content(page.name, "stalebodyv1")
+		self.assertIn("stalebodyv1", html)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, page.name))
+
+		cr = create_change_request(space.name, "CR Cache Clear")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "freshbodyv2"})
+		_approve_and_merge(cr.name)
+
+		# Entry dropped, so the next render reflects the merged content.
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, page.name))
+		merged = frappe.get_value("Wiki Document", page.name, "content")
+		new_html, _ = get_rendered_content(page.name, merged)
+		self.assertIn("freshbodyv2", new_html)
+
 	def test_merge_deletes_wiki_document_when_marked_deleted(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page to Delete", content="content")

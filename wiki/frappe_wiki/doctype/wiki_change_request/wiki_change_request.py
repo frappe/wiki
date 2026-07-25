@@ -2005,7 +2005,13 @@ def _apply_merge_changes_only(
 		content_updated_names.append(key_to_name[doc_key])
 
 	if content_updated_names:
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
+
+		# Raw set_value above skips on_update, so the rendered-content cache would
+		# otherwise keep serving the pre-merge HTML — drop those entries here.
+		for name in content_updated_names:
+			clear_wiki_content_cache(name)
 
 		enqueue_reindex(content_updated_names)
 
