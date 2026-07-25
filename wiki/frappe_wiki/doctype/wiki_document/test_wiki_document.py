@@ -2526,6 +2526,23 @@ class TestOGImageEndpoint(OGImageTestBase):
 		self.assertEqual(response.status_code, 404)
 		self.renderer.assert_not_called()
 
+	def test_restricted_space_card_is_not_shared_cacheable(self):
+		"""The URL carries no identity, so a `public` Cache-Control would let a
+		CDN keep serving a restricted space's title and breadcrumbs after access
+		is revoked, without the request ever reaching _resolve_doc again."""
+		from wiki.api.og_image import og_image
+
+		public_doc = self._published_page("og-cc-public")
+		private_doc = self._published_page("og-cc-private", guest_readable=False)
+
+		self.assertIn("public", self._get(public_doc.route).headers["Cache-Control"])
+
+		# Called in-process as a user who *can* read it: the bytes are served,
+		# but only the requesting browser may keep them.
+		cache_control = og_image(route=private_doc.route).headers["Cache-Control"]
+		self.assertIn("private", cache_control)
+		self.assertNotIn("public", cache_control)
+
 	def test_published_page_returns_jpeg(self):
 		doc = self._published_page("og-served")
 
@@ -2587,6 +2604,21 @@ class TestOGImageTemplate(unittest.TestCase):
 
 		self.assertNotIn("<img src=http://evil.example/x>", html)
 		self.assertIn("&lt;img", html)
+
+	def test_traversing_doc_key_cannot_escape_the_cache_directory(self):
+		"""doc_key names the cache file, and WikiDocument.set_doc_key only makes
+		it immutable on update -- an insert keeps whatever the caller passed. A
+		key with path separators must never reach open()/unlink()."""
+		from wiki.api.og_image import _cache_dir, _cache_path, clear_cached_cards
+
+		for hostile in ("../../evil", "a/b", "..", "with space", ""):
+			with self.assertRaises(frappe.DoesNotExistError):
+				_cache_path(hostile, "0123456789ab")
+			# The delete path must not raise (it runs after commit), just do nothing.
+			clear_cached_cards(hostile)
+
+		path = _cache_path("abc123DEF456", "0123456789ab")
+		self.assertEqual(os.path.dirname(path), _cache_dir())
 
 	def test_logo_prefers_the_switcher_logo_the_reader_renders(self):
 		"""app_switcher_logo is the mark the reader header shows, so the card

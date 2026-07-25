@@ -17,6 +17,7 @@ with HTML we build ourselves.
 import glob
 import hashlib
 import os
+import re
 
 import frappe
 from frappe import _
@@ -36,10 +37,21 @@ MAX_BREADCRUMB_SEGMENTS = 2
 
 CACHE_DIR_NAME = "wiki-og"
 
+# doc_key names the cache file, so it has to be safe as a path segment.
+# WikiDocument.set_doc_key only enforces immutability on *update* — an insert
+# keeps whatever the caller supplied — so it is not trustworthy input here.
+DOC_KEY_PATTERN = re.compile(r"\A[a-zA-Z0-9]{1,32}\Z")
+
 # A day in the browser, a week of serving stale while we regenerate. Contains
 # "public" so frappe's process_response leaves it alone and skips flushing
 # cookies onto what is meant to be a CDN-cacheable response.
 CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
+
+# Only ever sent for a card whose page a Guest could read anyway. A restricted
+# space's card must not sit in a shared cache: the URL carries no identity, so a
+# CDN would keep serving the title and breadcrumbs after access is revoked or
+# the page is unpublished, without the request ever reaching _resolve_doc.
+PRIVATE_CACHE_CONTROL = "private, max-age=300, must-revalidate"
 
 # Long enough to cover a cold Chromium spin-up, short enough that a crashed
 # worker's lock frees itself quickly.
@@ -164,12 +176,24 @@ def _cache_dir() -> str:
 	return path
 
 
+def _is_safe_doc_key(doc_key: str | None) -> bool:
+	return bool(doc_key) and bool(DOC_KEY_PATTERN.match(doc_key))
+
+
 def _cache_path(doc_key: str, fp: str) -> str:
+	"""Build a document's cache path, refusing any key that could escape the
+	cache directory. `fp` is our own sha256 digest; `doc_key` is not ours."""
+	if not _is_safe_doc_key(doc_key):
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
 	return os.path.join(_cache_dir(), f"{doc_key}-{fp}.jpg")
 
 
 def _read_cached(path: str) -> bytes | None:
 	try:
+		# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
+		# `path` only ever comes from _cache_path, which pins the directory and
+		# validates doc_key against DOC_KEY_PATTERN. The endpoint's `v` param is
+		# never used to look a file up.
 		with open(path, "rb") as f:
 			return f.read()
 	except FileNotFoundError:
@@ -179,15 +203,26 @@ def _read_cached(path: str) -> bytes | None:
 def _write_cached(path: str, data: bytes) -> None:
 	"""Write through a temp file so a concurrent reader never sees a torn image."""
 	tmp = f"{path}.tmp-{frappe.generate_hash(length=8)}"
+	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
+	# Same as _read_cached: `path` is _cache_path output and the suffix is a
+	# generated hash.
 	with open(tmp, "wb") as f:
 		f.write(data)
 	os.replace(tmp, path)
 
 
+def _card_files(doc_key: str) -> list[str]:
+	"""Every cached card belonging to one document; nothing for a key we refuse
+	to put in a glob."""
+	if not _is_safe_doc_key(doc_key):
+		return []
+	return glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg"))
+
+
 def _prune_old(doc_key: str, keep_fp: str) -> None:
 	"""Drop this document's stale cards, so the directory holds one file per page."""
 	keep = _cache_path(doc_key, keep_fp)
-	for path in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")):
+	for path in _card_files(doc_key):
 		if path == keep:
 			continue
 		try:
@@ -198,9 +233,7 @@ def _prune_old(doc_key: str, keep_fp: str) -> None:
 
 def clear_cached_cards(doc_key: str) -> None:
 	"""Remove every cached card for a document (used when it is deleted)."""
-	if not doc_key:
-		return
-	for path in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")):
+	for path in _card_files(doc_key):
 		try:
 			os.unlink(path)
 		except OSError:
@@ -215,6 +248,9 @@ def render_og_html(ctx: dict) -> str:
 	explicitly with ``| e``. Without it a page titled ``"><img src=http://evil>``
 	would make the screenshotter fetch an attacker-controlled URL.
 	"""
+	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
+	# The template path is a literal owned by this app; only `ctx` varies, and
+	# every value it carries is escaped in the template.
 	return frappe.render_template("templates/wiki/og_image.html", ctx)
 
 
@@ -374,9 +410,10 @@ def og_image(route: str, v: str | None = None):
 	ctx = _og_context(doc)
 	fp = og_fingerprint(ctx)
 	etag = f'"{fp}"'
+	cache_control = CACHE_CONTROL if _is_anonymously_readable(doc) else PRIVATE_CACHE_CONTROL
 
 	if frappe.request and frappe.request.headers.get("If-None-Match") == etag:
-		return _cache_headers(Response(status=304), etag)
+		return _cache_headers(Response(status=304), etag, cache_control)
 
 	path = _cache_path(doc.doc_key, fp)
 	data = _read_cached(path)
@@ -394,11 +431,21 @@ def og_image(route: str, v: str | None = None):
 	response = Response()
 	response.mimetype = "image/jpeg"
 	response.data = data
-	return _cache_headers(response, etag)
+	return _cache_headers(response, etag, cache_control)
 
 
-def _cache_headers(response: Response, etag: str) -> Response:
-	response.headers["Cache-Control"] = CACHE_CONTROL
+def _is_anonymously_readable(doc) -> bool:
+	"""Whether a Guest could read this page, and so whether its card is safe to
+	hand to a shared cache."""
+	from wiki.permissions import can_read_space
+
+	space = doc.wiki_space or (doc.get_wiki_space() or {}).get("name")
+	# Orphan documents are readable by everyone (check_space_access returns early).
+	return True if not space else can_read_space(space, "Guest")
+
+
+def _cache_headers(response: Response, etag: str, cache_control: str) -> Response:
+	response.headers["Cache-Control"] = cache_control
 	response.headers["ETag"] = etag
 	return response
 
