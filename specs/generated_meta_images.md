@@ -196,11 +196,21 @@ In `wiki/api/og_image.py`:
   concurrent writers cannot produce a torn read.
 - `_prune_old(doc_key, keep_fp)` — `glob("<doc_key>-*.jpg")`, unlink the rest. Called after each
   successful write, so the directory holds exactly one file per document.
-- Headers: `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`, `ETag: "<fp>"`,
+- Headers: `Cache-Control: private, max-age=300, stale-while-revalidate=10800`, `ETag: "<fp>"`,
   and a `304` when `If-None-Match` matches.
-  `process_response` (`frappe/app.py:258`) uses `setdefault` for `Cache-Control`, so our value wins;
-  and because it contains `public`, `cookie_manager.flush_cookies` is skipped (`app.py:278`) and the
-  response is CDN-cacheable. Note `frappe._dev_server` force-overrides to no-cache in dev.
+  `process_response` (`frappe/app.py:258`) uses `setdefault` for `Cache-Control`, so our value wins.
+  Note `frappe._dev_server` force-overrides to no-cache in dev.
+
+  **Revised during review — this originally said `public, max-age=86400,
+  stale-while-revalidate=604800`.** That is more permissive than frappe serves
+  the wiki page itself (`private,max-age=300,stale-while-revalidate=10800`, in
+  `frappe/website/utils.py`'s `cache_html`), and the card URL carries no
+  identity: a shared cache would go on serving a card for a day — a week
+  stale — after the page was unpublished or the space's roles changed, with no
+  request reaching `_resolve_doc` again. Matching the page's own policy means a
+  card is never cacheable for longer, or by more parties, than the page whose
+  title it shows. The cost is losing CDN offload, which for one image per
+  shared link is a rounding error.
 - Extend `on_wiki_document_trash` in `wiki_document.py` to drop `wiki-og/<doc_key>-*.jpg`, deferred
   via `frappe.db.after_commit` like `_drop_from_search_index_on_unpublish` (`:881`), so a rollback
   does not delete live files.
@@ -386,6 +396,12 @@ future work. Where the code departs from the plan above:
   `--outline-gray-2` stay declared in the `:root` block — that block is the
   card's palette, and keeping them there keeps the drift test guarding values
   the Phase 5 space accent will want back.
+- **Cards are private-cached and stored under `private/files/`.** Two review
+  findings that turned out to be the same mistake: the card was reachable, and
+  replayable, without the access check the endpoint performs. Both the
+  `Cache-Control` header and the cache directory are corrected above; the
+  principle is that a card must never outlive, or out-reach, the authorization
+  that produced it.
 - **The endpoint honours the settings toggle too**, not just `get_og_image_url()`.
   The spec only turned the *tag* off; a crawler holding an old `og:image` URL
   would still have launched Chromium on a site that disabled cards. The kill

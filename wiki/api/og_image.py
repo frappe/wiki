@@ -42,16 +42,16 @@ CACHE_DIR_NAME = "wiki-og"
 # keeps whatever the caller supplied — so it is not trustworthy input here.
 DOC_KEY_PATTERN = re.compile(r"\A[a-zA-Z0-9]{1,32}\Z")
 
-# A day in the browser, a week of serving stale while we regenerate. Contains
-# "public" so frappe's process_response leaves it alone and skips flushing
-# cookies onto what is meant to be a CDN-cacheable response.
-CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
-
-# Only ever sent for a card whose page a Guest could read anyway. A restricted
-# space's card must not sit in a shared cache: the URL carries no identity, so a
-# CDN would keep serving the title and breadcrumbs after access is revoked or
-# the page is unpublished, without the request ever reaching _resolve_doc.
-PRIVATE_CACHE_CONTROL = "private, max-age=300, must-revalidate"
+# Exactly what frappe serves the wiki page itself (frappe/website/utils.py's
+# cache_html), so a card is never cacheable for longer, or by more parties, than
+# the page whose title it shows.
+#
+# Deliberately not "public": the URL carries no identity, so a shared cache
+# would keep serving a card — title, breadcrumb, space name — after the page is
+# unpublished or the space's roles change, without a request ever reaching
+# _resolve_doc again. A private cache is per-user, so it can only ever replay a
+# card to someone who was already allowed to see it.
+CACHE_CONTROL = "private, max-age=300, stale-while-revalidate=10800"
 
 # Long enough to cover a cold Chromium spin-up, short enough that a crashed
 # worker's lock frees itself quickly.
@@ -414,10 +414,9 @@ def og_image(route: str, v: str | None = None):
 	ctx = _og_context(doc)
 	fp = og_fingerprint(ctx)
 	etag = f'"{fp}"'
-	cache_control = CACHE_CONTROL if _is_anonymously_readable(doc) else PRIVATE_CACHE_CONTROL
 
 	if frappe.request and frappe.request.headers.get("If-None-Match") == etag:
-		return _cache_headers(Response(status=304), etag, cache_control)
+		return _cache_headers(Response(status=304), etag)
 
 	path = _cache_path(doc.doc_key, fp)
 	data = _read_cached(path)
@@ -435,21 +434,11 @@ def og_image(route: str, v: str | None = None):
 	response = Response()
 	response.mimetype = "image/jpeg"
 	response.data = data
-	return _cache_headers(response, etag, cache_control)
+	return _cache_headers(response, etag)
 
 
-def _is_anonymously_readable(doc) -> bool:
-	"""Whether a Guest could read this page, and so whether its card is safe to
-	hand to a shared cache."""
-	from wiki.permissions import can_read_space
-
-	space = doc.wiki_space or (doc.get_wiki_space() or {}).get("name")
-	# Orphan documents are readable by everyone (check_space_access returns early).
-	return True if not space else can_read_space(space, "Guest")
-
-
-def _cache_headers(response: Response, etag: str, cache_control: str) -> Response:
-	response.headers["Cache-Control"] = cache_control
+def _cache_headers(response: Response, etag: str) -> Response:
+	response.headers["Cache-Control"] = CACHE_CONTROL
 	response.headers["ETag"] = etag
 	return response
 

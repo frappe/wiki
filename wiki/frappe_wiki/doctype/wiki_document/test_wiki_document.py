@@ -2526,22 +2526,23 @@ class TestOGImageEndpoint(OGImageTestBase):
 		self.assertEqual(response.status_code, 404)
 		self.renderer.assert_not_called()
 
-	def test_restricted_space_card_is_not_shared_cacheable(self):
+	def test_cards_are_never_shared_cacheable(self):
 		"""The URL carries no identity, so a `public` Cache-Control would let a
-		CDN keep serving a restricted space's title and breadcrumbs after access
-		is revoked, without the request ever reaching _resolve_doc again."""
+		CDN keep serving a card — title, breadcrumb, space name — after the page
+		is unpublished or the space's roles change, without the request ever
+		reaching _resolve_doc again. Guest-readable pages included: a page that
+		is public today may not be tomorrow."""
 		from wiki.api.og_image import og_image
 
-		public_doc = self._published_page("og-cc-public")
-		private_doc = self._published_page("og-cc-private", guest_readable=False)
+		guest_doc = self._published_page("og-cc-guest")
+		restricted_doc = self._published_page("og-cc-restricted", guest_readable=False)
 
-		self.assertIn("public", self._get(public_doc.route).headers["Cache-Control"])
-
-		# Called in-process as a user who *can* read it: the bytes are served,
-		# but only the requesting browser may keep them.
-		cache_control = og_image(route=private_doc.route).headers["Cache-Control"]
-		self.assertIn("private", cache_control)
-		self.assertNotIn("public", cache_control)
+		for cache_control in (
+			self._get(guest_doc.route).headers["Cache-Control"],
+			og_image(route=restricted_doc.route).headers["Cache-Control"],
+		):
+			self.assertIn("private", cache_control)
+			self.assertNotIn("public", cache_control)
 
 	def test_published_page_returns_jpeg(self):
 		doc = self._published_page("og-served")
