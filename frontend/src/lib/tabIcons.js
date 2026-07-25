@@ -12,6 +12,11 @@
 // diffable against the original.
 export const TAB_ICONS = [
 	{
+		class: 'lucide-house',
+		label: 'Home',
+		keywords: ['landing', 'start', 'general'],
+	},
+	{
 		class: 'lucide-megaphone',
 		label: 'Announcements',
 		keywords: ['broadcast'],

@@ -22,6 +22,15 @@
     {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
     {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
 
+    {#- Home leads the reader bar only with several tabs and untabbed content to
+        land on (see get_space_tabs). When it does, the untabbed subtree becomes
+        Home's own — shown only while no tab is active — instead of trailing every
+        tab. With one tab or none there's no Home, so it keeps rendering inline. -#}
+    {% set show_home = (tab_nodes | length) >= 2 and (other_nodes | length) > 0 %}
+    {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
+    {% set active = namespace(in_tab=false) %}
+    {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}
+
     <!-- Scrollable Navigation -->
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
         {% for tab in tab_nodes %}
@@ -31,8 +40,13 @@
         </div>
         {% endfor %}
 
-        {#- Non-tab top-level content keeps rendering as it always did. -#}
+        {% if show_home %}
+        <div x-show="$store.navigation.notInAnyTab('{{ tab_routes }}')"{% if active.in_tab %} x-cloak{% endif %}>
+            {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        </div>
+        {% else %}
         {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        {% endif %}
     </nav>
 </div>
 
@@ -126,6 +140,14 @@
                 if (!route) return false;
                 return this.currentRoute === route
                     || this.currentRoute.startsWith(route + '/');
+            },
+
+            // The mirror of inTab for the Home tab: active when the current page
+            // sits under none of the real tabs. `routesStr` is a '|'-joined list
+            // of tab routes (wiki routes never contain '|').
+            notInAnyTab(routesStr) {
+                if (!routesStr) return true;
+                return !routesStr.split('|').some((route) => this.inTab(route));
             },
 
             async prefetch(route) {

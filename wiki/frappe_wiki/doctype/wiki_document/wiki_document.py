@@ -20,6 +20,10 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
+# The synthetic "Home" tab standing for a space's untabbed top-level content.
+# Kept in sync with GENERAL_KEY in frontend/src/lib/spaceTabs.js.
+WIKI_HOME_TAB_KEY = "__general__"
+
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
 	"github.com": "github",
@@ -758,9 +762,10 @@ def get_space_tabs(space: str) -> list[dict]:
 
 	# A tab whose subtree has no published page is dropped from the public tree
 	# by remove_empty_groups, so `nodes_by_name.get` is deliberately tolerant.
-	nodes_by_name = {node["name"]: node for node in get_public_wiki_tree(root_group)}
+	tree = get_public_wiki_tree(root_group)
+	nodes_by_name = {node["name"]: node for node in tree}
 
-	return [
+	result = [
 		{
 			"name": tab["name"],
 			"doc_key": tab["doc_key"],
@@ -771,6 +776,33 @@ def get_space_tabs(space: str) -> list[dict]:
 		}
 		for tab in tabs
 	]
+
+	# Home leads the bar only when the space has several tabs and untabbed
+	# top-level content to land on. With a single tab a Home entry is just noise;
+	# a fully-tabbed space has nowhere for Home to point — both cases omit it.
+	if len(result) >= 2:
+		home = _home_tab_entry(tree)
+		if home:
+			result.insert(0, home)
+
+	return result
+
+
+def _home_tab_entry(tree: list) -> dict | None:
+	"""The synthetic Home tab pointing at the space's untabbed top-level content,
+	or None when there is no such content to land on."""
+	untabbed = [node for node in tree if not node.get("is_tab")]
+	landing = _first_published_leaf(untabbed)
+	if not landing:
+		return None
+	return {
+		"name": None,
+		"doc_key": WIKI_HOME_TAB_KEY,
+		"title": _("Home"),
+		"route": landing["route"],
+		"tab_icon": "lucide-house",
+		"landing_route": landing["route"],
+	}
 
 
 def clear_wiki_tree_cache():

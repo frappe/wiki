@@ -1,61 +1,5 @@
 <template>
-    <div class="flex h-full">
-        <!-- Desktop: inline resizable tree -->
-        <aside
-            v-if="!isMobile"
-            ref="sidebarRef"
-            class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
-            :style="{ width: `${sidebarWidth}px` }"
-        >
-            <SpaceTreePanel
-                :space-id="spaceId"
-                :space-name="space.doc?.space_name"
-                :space-route="space.doc?.route"
-                :space-loaded="!!space.doc"
-                :tree-data="visibleTreeData"
-                :space-root-node="treeData?.root_group || ''"
-                :change-type-map="changeTypeMap"
-                :readonly="isGitSynced"
-                :selected-page-id="currentPageId"
-                :selected-draft-key="currentDraftKey"
-                :can-manage-tabs="canManageTabs"
-                @refresh="refreshTree"
-                @reorder-state-change="handleReorderStateChange"
-                @open-settings="openSettings"
-            />
-            <div
-                class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
-                :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
-                @mousedown="startResize"
-            />
-        </aside>
-
-        <!-- Mobile: same tree in an off-canvas drawer -->
-        <MobileDrawer
-            v-else
-            :open="mobileTreeOpen"
-            side="left"
-            :title="__('Pages')"
-            @update:open="mobileTreeOpen = $event"
-        >
-            <SpaceTreePanel
-                :space-id="spaceId"
-                :space-name="space.doc?.space_name"
-                :space-route="space.doc?.route"
-                :space-loaded="!!space.doc"
-                :tree-data="visibleTreeData"
-                :space-root-node="treeData?.root_group || ''"
-                :change-type-map="changeTypeMap"
-                :readonly="isGitSynced"
-                :selected-page-id="currentPageId"
-                :selected-draft-key="currentDraftKey"
-                :can-manage-tabs="canManageTabs"
-                @refresh="refreshTree"
-                @reorder-state-change="handleReorderStateChange"
-                @open-settings="openSettings"
-            />
-        </MobileDrawer>
-
+    <div class="flex flex-col h-full">
         <!-- Mobile: contextual header in the shell's PageHeaderTarget
              (tree toggle on the left, centered space name). -->
         <PageHeaderMobile
@@ -75,74 +19,134 @@
             </template>
         </PageHeaderMobile>
 
-        <main class="flex-1 flex flex-col bg-surface-base min-w-0">
-            <div
-                v-if="isGitSynced"
-                class="min-h-12 px-3 sm:px-5 py-1.5 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
-            >
-                <div class="flex items-center gap-3 min-w-0">
-                    <span class="lucide-github size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
-                    <div class="min-w-0">
-                        <a
-                            v-if="space.doc?.repo_full_name"
-                            :href="`https://github.com/${space.doc.repo_full_name}`"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="text-sm-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
-                        >
-                            {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
-                        </a>
-                        <p v-else class="text-sm-medium text-ink-gray-8 truncate">
-                            {{ space.doc?.space_name || spaceId }}
-                        </p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
-                            <Badge variant="subtle" theme="gray" size="sm">
-                                {{ syncStatusLabel(space.doc?.last_sync_status) }}
-                            </Badge>
-                        </div>
+        <!-- Full-width chrome above the sidebar+content row, mirroring the
+             reader's navbar > tabs > tree stack. The draft/git banner is about
+             the whole draft, so it outranks the tab bar, which in turn sits
+             above the tree. -->
+        <div
+            v-if="isGitSynced"
+            class="min-h-12 px-3 sm:px-5 py-1.5 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
+        >
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="lucide-github size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
+                <div class="min-w-0">
+                    <a
+                        v-if="space.doc?.repo_full_name"
+                        :href="`https://github.com/${space.doc.repo_full_name}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-sm-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
+                    >
+                        {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
+                    </a>
+                    <p v-else class="text-sm-medium text-ink-gray-8 truncate">
+                        {{ space.doc?.space_name || spaceId }}
+                    </p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
+                        <Badge variant="subtle" theme="gray" size="sm">
+                            {{ syncStatusLabel(space.doc?.last_sync_status) }}
+                        </Badge>
                     </div>
                 </div>
-                <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
-                    <template #prefix>
-                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
-                    </template>
-                    {{ __('Sync now') }}
-                </Button>
             </div>
-            <ContributionBanner
-                v-else
-                :mergeDisabled="isTreeReordering"
-                @submit="handleSubmitChangeRequest"
-                @withdraw="handleArchiveChangeRequest"
-                @merge="handleMergeChangeRequest"
+            <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
+                <template #prefix>
+                    <span class="lucide-refresh-cw size-4" aria-hidden="true" />
+                </template>
+                {{ __('Sync now') }}
+            </Button>
+        </div>
+        <ContributionBanner
+            v-else
+            :mergeDisabled="isTreeReordering"
+            @submit="handleSubmitChangeRequest"
+            @withdraw="handleArchiveChangeRequest"
+            @merge="handleMergeChangeRequest"
+        />
+
+        <div
+            v-if="tabs.length"
+            class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
+        >
+            <WikiTabBar
+                :tabs="tabs"
+                :active-key="activeTabKey"
+                :can-manage-tabs="canManageTabs && !isGitSynced"
+                @select="selectTab"
+                @create="openCreateTabDialog"
+                @reorder="reorderTab"
             />
+        </div>
 
-            <!-- Horizontal module tabs. Below the change-request banner, not
-                 above it: the banner is about the whole draft, so it outranks
-                 the tab you happen to be browsing. -->
-            <div
-                v-if="tabs.length"
-                class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
+        <!-- Sidebar + content share the row beneath the chrome. -->
+        <div class="flex flex-1 min-h-0">
+            <!-- Desktop: inline resizable tree -->
+            <aside
+                v-if="!isMobile"
+                ref="sidebarRef"
+                class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
+                :style="{ width: `${sidebarWidth}px` }"
             >
-                <WikiTabBar
-                    :tabs="tabs"
-                    :active-key="activeTabKey"
-                    :can-manage-tabs="canManageTabs && !isGitSynced"
-                    @select="selectTab"
-                    @create="openCreateTabDialog"
-                    @reorder="reorderTab"
-                />
-            </div>
-
-            <div class="flex-1 overflow-auto">
-                <router-view
+                <SpaceTreePanel
                     :space-id="spaceId"
+                    :space-name="space.doc?.space_name"
+                    :space-route="space.doc?.route"
+                    :space-loaded="!!space.doc"
+                    :tree-data="visibleTreeData"
+                    :space-root-node="treeData?.root_group || ''"
+                    :change-type-map="changeTypeMap"
                     :readonly="isGitSynced"
+                    :selected-page-id="currentPageId"
+                    :selected-draft-key="currentDraftKey"
+                    :can-manage-tabs="canManageTabs"
                     @refresh="refreshTree"
+                    @reorder-state-change="handleReorderStateChange"
+                    @open-settings="openSettings"
                 />
-            </div>
-        </main>
+                <div
+                    class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
+                    :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
+                    @mousedown="startResize"
+                />
+            </aside>
+
+            <!-- Mobile: same tree in an off-canvas drawer -->
+            <MobileDrawer
+                v-else
+                :open="mobileTreeOpen"
+                side="left"
+                :title="__('Pages')"
+                @update:open="mobileTreeOpen = $event"
+            >
+                <SpaceTreePanel
+                    :space-id="spaceId"
+                    :space-name="space.doc?.space_name"
+                    :space-route="space.doc?.route"
+                    :space-loaded="!!space.doc"
+                    :tree-data="visibleTreeData"
+                    :space-root-node="treeData?.root_group || ''"
+                    :change-type-map="changeTypeMap"
+                    :readonly="isGitSynced"
+                    :selected-page-id="currentPageId"
+                    :selected-draft-key="currentDraftKey"
+                    :can-manage-tabs="canManageTabs"
+                    @refresh="refreshTree"
+                    @reorder-state-change="handleReorderStateChange"
+                    @open-settings="openSettings"
+                />
+            </MobileDrawer>
+
+            <main class="flex-1 flex flex-col bg-surface-base min-w-0">
+                <div class="flex-1 overflow-auto">
+                    <router-view
+                        :space-id="spaceId"
+                        :readonly="isGitSynced"
+                        @refresh="refreshTree"
+                    />
+                </div>
+            </main>
+        </div>
 
         <SpaceSettings
             v-model="showSettingsDialog"

@@ -10,45 +10,49 @@
 		class="relative flex min-w-0 flex-1 items-stretch gap-5 overflow-hidden"
 		role="tablist"
 	>
+		<!-- Home leads the bar and never drags: it's synthetic (everything not in
+		     a tab), so it has no document to reorder and stays pinned leftmost. -->
 		<button
-			v-for="(tab, index) in visibleTabs"
-			:key="tab.key"
+			v-if="homeTab"
 			role="tab"
-			:aria-selected="tab.key === activeKey"
-			:title="tab.title"
-			:draggable="isDraggable(tab)"
-			:data-tab-key="tab.key"
-			class="relative flex shrink-0 items-center gap-1.5 whitespace-nowrap py-2.5 text-base duration-300 ease-in-out"
-			:class="[
-				tab.key === activeKey
-					? 'text-ink-gray-9'
-					: 'text-ink-gray-5 hover:text-ink-gray-9',
-				dragKey === tab.key ? 'opacity-40' : '',
-				isDraggable(tab) ? 'cursor-grab active:cursor-grabbing' : '',
-			]"
-			@click="emit('select', tab.key)"
-			@dragstart="onDragStart(tab, $event)"
-			@dragover="onDragOver(index, $event)"
-			@drop="onDrop"
-			@dragend="onDragEnd"
+			:aria-selected="homeTab.key === activeKey"
+			:title="homeTab.title"
+			:class="triggerClass(homeTab)"
+			@click="emit('select', homeTab.key)"
 		>
-			<!-- Drop marker rides the leading or trailing edge of the tab being
-			     hovered, so the landing spot is visible before the release. -->
+			<SpaceIcon v-if="homeTab.icon" :icon="homeTab.icon" />
+			<span>{{ homeTab.title }}</span>
 			<span
-				v-if="dropMarkerFor(index) === 'before'"
-				class="absolute -left-2.5 inset-y-2 w-[2px] rounded-full bg-surface-gray-10"
-			/>
-			<span
-				v-else-if="dropMarkerFor(index) === 'after'"
-				class="absolute -right-2.5 inset-y-2 w-[2px] rounded-full bg-surface-gray-10"
-			/>
-			<SpaceIcon v-if="tab.icon" :icon="tab.icon" />
-			<span>{{ tab.title }}</span>
-			<span
-				v-if="tab.key === activeKey"
+				v-if="homeTab.key === activeKey"
 				class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-surface-gray-10"
 			/>
 		</button>
+
+		<!-- The reorderable real tabs. SortableJS owns the drag; the group is its
+		     own flex row so the container's gap-5 also spaces it against Home, the
+		     More menu, and the add button. -->
+		<div ref="sortableEl" class="flex items-stretch gap-5">
+			<button
+				v-for="tab in sortableList"
+				:key="tab.key"
+				role="tab"
+				:aria-selected="tab.key === activeKey"
+				:title="tab.title"
+				:data-tab-key="tab.key"
+				:class="[
+					triggerClass(tab),
+					canManageTabs ? 'cursor-grab active:cursor-grabbing' : '',
+				]"
+				@click="emit('select', tab.key)"
+			>
+				<SpaceIcon v-if="tab.icon" :icon="tab.icon" />
+				<span>{{ tab.title }}</span>
+				<span
+					v-if="tab.key === activeKey"
+					class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-surface-gray-10"
+				/>
+			</button>
+		</div>
 
 		<!-- Overflow. When the active tab is inside it, the trigger takes on that
 		     tab's name and indicator so the current section stays visible. -->
@@ -72,21 +76,25 @@
 
 		<!-- Always last, and never collapsed into the overflow menu: creating a
 		     tab is an action on the bar itself, not one of its entries. -->
-		<button
+		<Button
 			v-if="canManageTabs"
+			variant="ghost"
+			:label="__('New Tab')"
 			:title="__('New Tab')"
-			:aria-label="__('New Tab')"
 			data-testid="new-tab-button"
-			class="flex shrink-0 items-center py-2.5 text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9"
+			class="shrink-0 self-center"
 			@click="emit('create')"
 		>
-			<span class="lucide-plus size-4" aria-hidden="true" />
-		</button>
+			<template #prefix>
+				<span class="lucide-plus size-4" aria-hidden="true" />
+			</template>
+		</Button>
 	</div>
 </template>
 
 <script setup>
-import { Dropdown } from 'frappe-ui';
+import { Button, Dropdown } from 'frappe-ui';
+import { useSortable } from '@vueuse/integrations/useSortable';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { GENERAL_KEY } from '../lib/spaceTabs.js';
@@ -106,8 +114,16 @@ const emit = defineEmits(['select', 'create', 'reorder']);
 const container = ref(null);
 const visibleCount = ref(0);
 
-const visibleTabs = computed(() => props.tabs.slice(0, visibleCount.value));
-const overflowTabs = computed(() => props.tabs.slice(visibleCount.value));
+// Home is pinned; only the real (document-backed) tabs reorder and overflow.
+const homeTab = computed(
+	() => props.tabs.find((t) => t.key === GENERAL_KEY) || null,
+);
+const realTabs = computed(() => props.tabs.filter((t) => t.key !== GENERAL_KEY));
+
+const visibleRealTabs = computed(() =>
+	realTabs.value.slice(0, visibleCount.value),
+);
+const overflowTabs = computed(() => realTabs.value.slice(visibleCount.value));
 
 const activeTab = computed(
 	() => props.tabs.find((t) => t.key === props.activeKey) || null,
@@ -123,69 +139,56 @@ const overflowOptions = computed(() =>
 	})),
 );
 
-// Reorder. The General entry is synthetic — it stands for everything *not* in a
-// tab, so it has no document to move and always trails the real tabs.
-const dragKey = ref(null);
-const dropIndex = ref(null);
-
-function isDraggable(tab) {
-	return props.canManageTabs && tab.key !== GENERAL_KEY;
+function triggerClass(tab) {
+	return [
+		'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap py-2.5 text-base duration-300 ease-in-out',
+		tab.key === props.activeKey
+			? 'text-ink-gray-9'
+			: 'text-ink-gray-5 hover:text-ink-gray-9',
+	];
 }
 
-function onDragStart(tab, event) {
-	if (!isDraggable(tab)) {
-		event.preventDefault();
-		return;
-	}
-	dragKey.value = tab.key;
-	event.dataTransfer.effectAllowed = 'move';
-	// Firefox ignores a drag that carries no payload.
-	event.dataTransfer.setData('text/plain', tab.key);
-}
+// Drag-reorder via SortableJS. `sortableList` is a mutable mirror of the visible
+// real tabs: useSortable moves an entry within it on drop (keeping the DOM in
+// step with Vue), and we forward the new order to the parent, which persists it
+// and re-derives `tabs` — resyncing the mirror.
+const sortableEl = ref(null);
+const sortableList = ref([]);
 
-function onDragOver(index, event) {
-	if (!dragKey.value) return;
-	const tab = visibleTabs.value[index];
-	// Dropping onto General means "last among the real tabs", which is where
-	// the index below already lands.
-	event.preventDefault();
-	event.dataTransfer.dropEffect = 'move';
+watch(
+	visibleRealTabs,
+	(tabs) => {
+		sortableList.value = tabs.slice();
+	},
+	{ immediate: true, deep: true },
+);
 
-	const rect = event.currentTarget.getBoundingClientRect();
-	const after = event.clientX > rect.left + rect.width / 2;
-	dropIndex.value = tab.key === GENERAL_KEY ? index : index + (after ? 1 : 0);
-}
+const { option: setSortableOption } = useSortable(sortableEl, sortableList, {
+	animation: 200,
+	// The bar mounts before tabs load (they arrive async), so the sortable target
+	// doesn't exist yet at mount — watch the ref and initialise once it appears.
+	watchElement: true,
+	// Pointer-driven fallback rather than native HTML5 DnD: consistent visuals
+	// across browsers, and reliably drivable by real mouse-move sequences.
+	forceFallback: true,
+	ghostClass: 'opacity-40',
+	disabled: !props.canManageTabs,
+	onEnd(event) {
+		const { oldIndex, newIndex } = event;
+		if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+		// useSortable's default onUpdate splices the mirror on nextTick, so at
+		// onEnd it still holds the pre-drag order — read the dragged tab by its
+		// original index. Slot index counts real tabs only, which is what the
+		// parent reorders over.
+		const moved = sortableList.value[oldIndex];
+		if (moved) emit('reorder', { docKey: moved.key, toIndex: newIndex });
+	},
+});
 
-// Which edge of tab `index` shows the marker, given the pending drop slot.
-function dropMarkerFor(index) {
-	if (dropIndex.value === null || !dragKey.value) return null;
-	if (dropIndex.value === index) return 'before';
-	if (dropIndex.value === index + 1 && index === visibleTabs.value.length - 1)
-		return 'after';
-	return null;
-}
-
-function onDrop(event) {
-	event.preventDefault();
-	const docKey = dragKey.value;
-	const slot = dropIndex.value;
-	if (!docKey || slot === null) return;
-
-	// The bar's slot index counts every entry; the parent reorders among real
-	// tabs only, and the dragged tab is pulled out of the list first — so drop
-	// slots after its current position shift back by one.
-	const tabsOnly = props.tabs.filter((tab) => tab.key !== GENERAL_KEY);
-	const from = tabsOnly.findIndex((tab) => tab.key === docKey);
-	const toIndex = Math.min(slot > from ? slot - 1 : slot, tabsOnly.length - 1);
-
-	if (toIndex !== from) emit('reorder', { docKey, toIndex });
-	onDragEnd();
-}
-
-function onDragEnd() {
-	dragKey.value = null;
-	dropIndex.value = null;
-}
+watch(
+	() => props.canManageTabs,
+	(can) => setSortableOption('disabled', !can),
+);
 
 // How many tabs fit is measured off the bar's own width rather than a viewport
 // breakpoint, because the editor's sidebar is user-resizable and the reader's
@@ -198,7 +201,7 @@ const GAP = 20; // gap-5 between triggers
 const ICON = 16 + 6; // icon + gap-1.5
 const CHAR = 7.2; // average label character
 const MORE = 76; // "More" + chevron
-const ADD = 36; // the add button + its gap
+const ADD = 120; // the "New Tab" ghost button + its gap
 
 function tabWidth(tab) {
 	return GAP + (tab.icon ? ICON : 0) + tab.title.length * CHAR;
@@ -208,12 +211,17 @@ function measure() {
 	const el = container.value;
 	if (!el || !props.tabs.length) return;
 
-	const available = el.clientWidth - (props.canManageTabs ? ADD : 0);
-	const widths = props.tabs.map(tabWidth);
+	// Home is always shown and the add button is always reserved; only the real
+	// tabs compete for the leftover width.
+	const reserved =
+		(homeTab.value ? tabWidth(homeTab.value) : 0) +
+		(props.canManageTabs ? ADD : 0);
+	const available = el.clientWidth - reserved;
+	const widths = realTabs.value.map(tabWidth);
 	const total = widths.reduce((sum, w) => sum + w, 0);
 
 	if (total <= available) {
-		visibleCount.value = props.tabs.length;
+		visibleCount.value = realTabs.value.length;
 		return;
 	}
 

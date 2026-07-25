@@ -2185,3 +2185,36 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == tab.name)
 		self.assertEqual(node["is_tab"], 1)
 		self.assertEqual(node["tab_icon"], "lucide-wallet")
+
+	def test_home_leads_the_bar_when_multiple_tabs_have_untabbed_content(self):
+		space, root_group = self._space()
+		self._make_tab(root_group, "Accounting", sort_order=1)
+		self._make_tab(root_group, "Selling", sort_order=2)
+		misc = create_test_wiki_document(
+			self, "Release Notes", parent=root_group.name, is_group=True, sort_order=3
+		)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["doc_key"], "__general__")
+		self.assertEqual(tabs[0]["title"], "Home")
+		self.assertEqual(tabs[0]["tab_icon"], "lucide-house")
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+		self.assertEqual([t["title"] for t in tabs[1:]], ["Accounting", "Selling"])
+
+	def test_no_home_tab_with_a_single_tab(self):
+		space, root_group = self._space()
+		self._make_tab(root_group, "Accounting")
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
+		space, root_group = self._space()
+		self._make_tab(root_group, "Accounting", sort_order=1)
+		self._make_tab(root_group, "Selling", sort_order=2)
+
+		tabs = get_space_tabs(space.name)
+		self.assertTrue(all(t["doc_key"] != "__general__" for t in tabs))
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])

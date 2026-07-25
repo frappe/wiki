@@ -11,9 +11,9 @@ export const GENERAL_KEY = '__general__';
 
 /**
  * Build the tab bar's entries from a tree's top-level nodes.
- * Returns [{ key, title, icon, node }]; `node` is null for the General entry.
+ * Returns [{ key, title, icon, node }]; `node` is null for the Home entry.
  */
-export function buildTabList(topLevelNodes, generalLabel) {
+export function buildTabList(topLevelNodes, homeLabel) {
 	const nodes = topLevelNodes || [];
 	const tabs = nodes
 		.filter((node) => node.is_tab)
@@ -24,18 +24,17 @@ export function buildTabList(topLevelNodes, generalLabel) {
 			node,
 		}));
 
-	if (!tabs.length) return [];
-
-	const hasOtherContent = nodes.some((node) => !node.is_tab);
-	if (hasOtherContent) {
-		tabs.push({
-			key: GENERAL_KEY,
-			title: generalLabel,
-			// Must be one of IconPicker's curated literals, or Tailwind emits nothing.
-			icon: 'lucide-folder',
-			node: null,
-		});
-	}
+	// Home always leads the bar in the editor: it's the space's landing
+	// (everything not filed under a tab) and the anchor new tabs append to its
+	// right of. Shown even with no tabs yet, so the "+ New Tab" affordance and the
+	// tab model are always discoverable.
+	tabs.unshift({
+		key: GENERAL_KEY,
+		title: homeLabel,
+		// Literal so Tailwind's JIT emits the class; this file is scanned.
+		icon: 'lucide-house',
+		node: null,
+	});
 	return tabs;
 }
 

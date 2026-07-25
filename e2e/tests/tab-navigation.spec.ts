@@ -147,10 +147,40 @@ test.describe('Horizontal tab navigation', () => {
 			sidebar.getByText('Receivables', { exact: true }),
 		).toBeHidden();
 
-		// Decision #7: non-tab top-level groups coexist in the tree.
+		// With multiple tabs, non-tab top-level content lives under Home, so it's
+		// hidden while a tab is active (see the Home test below).
+		await expect(
+			sidebar.getByText('Release Notes', { exact: true }),
+		).toBeHidden();
+	});
+
+	test('reader Home tab lands on untabbed content and gates it behind itself', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.waitForLoadState('networkidle');
+
+		const tabBar = page.getByRole('tablist');
+		const sidebar = page.locator('.wiki-sidebar');
+		const home = tabBar.getByRole('tab', { name: 'Home' });
+
+		// Home leads the bar (≥2 tabs + untabbed content), inactive on a tab page.
+		await expect(home).toBeVisible();
+		await expect(home).toHaveAttribute('aria-selected', 'false');
+		await expect(
+			sidebar.getByText('Release Notes', { exact: true }),
+		).toBeHidden();
+
+		// Clicking Home surfaces the untabbed subtree and deselects the tabs.
+		await home.click();
+		await expect(home).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			sidebar.getByText('Release Notes', { exact: true }),
 		).toBeVisible();
+		await expect(
+			tabBar.getByRole('tab', { name: 'Accounting' }),
+		).toHaveAttribute('aria-selected', 'false');
 	});
 
 	test('reader deep link into a tab subtree highlights that tab on hard load', async ({
@@ -180,13 +210,15 @@ test.describe('Horizontal tab navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		const aside = page.locator('aside').first();
-		const main = page.locator('main').first();
-		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		// The bar sits above the sidebar+content row now, so it's page-level, not
+		// scoped to <main>.
+		const tabBar = page.getByRole('tablist');
+		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
 			timeout: 15000,
 		});
 		await expect(aside.getByText('Receivables', { exact: true })).toBeVisible();
 
-		await main.getByRole('tab', { name: 'Manufacturing' }).click();
+		await tabBar.getByRole('tab', { name: 'Manufacturing' }).click();
 		await expect(aside.getByText('Production', { exact: true })).toBeVisible();
 		await expect(aside.getByText('Receivables', { exact: true })).toHaveCount(
 			0,
@@ -203,8 +235,8 @@ test.describe('Horizontal tab navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		const aside = page.locator('aside').first();
-		const main = page.locator('main').first();
-		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		const tabBar = page.getByRole('tablist');
+		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
 			timeout: 15000,
 		});
 
@@ -220,7 +252,7 @@ test.describe('Horizontal tab navigation', () => {
 
 		// Comes from the draft tree, so it shows before the CR is merged.
 		await expect(
-			main.getByRole('tab', { name: 'Projects', exact: true }),
+			tabBar.getByRole('tab', { name: 'Projects', exact: true }),
 		).toBeVisible({
 			timeout: 15000,
 		});
@@ -272,19 +304,20 @@ test.describe('Horizontal tab navigation', () => {
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');
 
-		const main = page.locator('main').first();
-		const tabBar = main.getByRole('tablist');
-		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		// Banner and bar both sit above the sidebar+content row now, so they're
+		// page-level, not scoped to <main>.
+		const tabBar = page.getByRole('tablist');
+		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
 			timeout: 15000,
 		});
 
 		// The change-request banner is about the whole draft, so it outranks the
 		// tab being browsed.
-		const bannerBox = await box(main.locator('.contribution-banner'));
+		const bannerBox = await box(page.locator('.contribution-banner'));
 		const tabsBox = await box(tabBar);
 		expect(bannerBox.y).toBeLessThan(tabsBox.y);
 
-		await main.getByTestId('new-tab-button').click();
+		await page.getByTestId('new-tab-button').click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog.getByText('Create New Tab')).toBeVisible();
 		await dialog.getByLabel('Tab Name').fill('Support');
@@ -292,7 +325,7 @@ test.describe('Horizontal tab navigation', () => {
 		await dialog.getByRole('button', { name: 'Create' }).click();
 
 		await expect(
-			main.getByRole('tab', { name: 'Support', exact: true }),
+			tabBar.getByRole('tab', { name: 'Support', exact: true }),
 		).toBeVisible({ timeout: 15000 });
 	});
 
@@ -303,25 +336,34 @@ test.describe('Horizontal tab navigation', () => {
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');
 
-		const main = page.locator('main').first();
-		const tabBar = main.getByRole('tablist');
+		const tabBar = page.getByRole('tablist');
 		const accounting = tabBar.getByRole('tab', { name: 'Accounting' });
 		const manufacturing = tabBar.getByRole('tab', { name: 'Manufacturing' });
 		await expect(accounting).toBeVisible({ timeout: 15000 });
 
+		// Home leads the bar (synthetic, non-draggable), so compare the real tabs
+		// that follow it.
 		const order = async () =>
-			(await tabBar.getByRole('tab').allInnerTexts()).map((t) => t.trim());
+			(await tabBar.getByRole('tab').allInnerTexts())
+				.map((t) => t.trim())
+				.filter((t) => t !== 'Home');
 		expect((await order()).slice(0, 2)).toEqual([
 			'Accounting',
 			'Manufacturing',
 		]);
 
-		// Drop past the midpoint of the target, which is what puts the dragged
-		// tab after it rather than before.
-		const target = await box(manufacturing);
-		await accounting.dragTo(manufacturing, {
-			targetPosition: { x: target.width - 2, y: target.height / 2 },
+		// SortableJS runs in pointer-fallback mode, so drive real mouse moves in
+		// steps rather than Playwright's HTML5-drag `dragTo` (which it ignores).
+		// Drop past the target's midpoint to land the dragged tab after it.
+		const src = await box(accounting);
+		const dst = await box(manufacturing);
+		await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(dst.x + dst.width - 4, dst.y + dst.height / 2, {
+			steps: 12,
 		});
+		await page.mouse.move(dst.x + dst.width - 4, dst.y + dst.height / 2);
+		await page.mouse.up();
 
 		await expect
 			.poll(async () => (await order()).slice(0, 2))

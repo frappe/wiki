@@ -18,7 +18,7 @@ import {
  */
 export function useSpaceTabs(treeData, selectedPageId, selectedDraftKey) {
 	const topLevelNodes = computed(() => treeData.value?.children || []);
-	const tabs = computed(() => buildTabList(topLevelNodes.value, __('General')));
+	const tabs = computed(() => buildTabList(topLevelNodes.value, __('Home')));
 
 	// The tab owning the currently open page: walk the page's ancestors up to
 	// the tab-flagged group.

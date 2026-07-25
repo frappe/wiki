@@ -21,23 +21,27 @@
 {% if space_tabs %}
 <div class="hidden lg:flex items-stretch px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-base)] sticky top-[53px] z-20 h-11"
      x-data>
+    {#- Home is active when the current page sits under no tab, so its highlight
+        keys off the real tab routes rather than a prefix of its own. -#}
+    {% set real_routes = space_tabs | rejectattr('doc_key', 'equalto', '__general__') | map(attribute='route') | join('|') %}
     <nav class="flex min-w-0 items-stretch gap-5 overflow-x-auto no-scrollbar" role="tablist">
         {% for tab in space_tabs %}
         {% set target = tab.landing_route or tab.route %}
+        {% set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
         <a href="/{{ target }}"
            role="tab"
            @click.prevent="$store.navigation.navigateTo('{{ target }}')"
            @mouseenter="$store.navigation.prefetch('{{ target }}')"
-           :aria-selected="$store.navigation.inTab('{{ tab.route }}')"
+           :aria-selected="{{ active_js }}"
            class="relative flex shrink-0 items-center gap-1.5 text-base whitespace-nowrap no-underline duration-300 ease-in-out"
-           :class="$store.navigation.inTab('{{ tab.route }}') ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]'"
+           :class="{{ active_js }} ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]'"
            title="{{ tab.title }}">
             {# `| safe`: the markup is build-generated (scripts/generate-public-lucide.mjs),
                keyed by a stored class name, and the CSS class is escaped in the helper. #}
             {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0") | safe }}{% endif %}
             <span>{{ tab.title }}</span>
             <span class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[var(--surface-gray-10)]"
-                  x-show="$store.navigation.inTab('{{ tab.route }}')"
+                  x-show="{{ active_js }}"
                   x-cloak></span>
         </a>
         {% endfor %}
