@@ -87,10 +87,11 @@
 							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
 						>
 							<img
-								v-if="metaImage"
-								:src="metaImage"
+								v-if="previewImage"
+								:src="previewImage"
 								alt=""
 								class="h-full w-full object-cover"
+								@error="previewImageFailed = true"
 							/>
 							<span v-else class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" />
 						</div>
@@ -112,6 +113,9 @@
 							</span>
 						</div>
 					</div>
+					<p v-if="isGeneratedPreview" class="text-xs text-ink-gray-4">
+						{{ __('Auto-generated from the page metadata. Upload an image to override it.') }}
+					</p>
 				</div>
 			</div>
 		</template>
@@ -169,6 +173,27 @@ const previewRoute = computed(() => props.docResource.doc?.route || '');
 const previewTitle = computed(() => metaTitle.value || currentTitle.value);
 const previewDescription = computed(() => metaDescription.value);
 
+// With no uploaded image the page still ships an og:image — the generated card
+// from wiki/api/og_image.py. Preview the real endpoint rather than a mock, so
+// what this box shows is literally what a scraper will fetch. The endpoint 404s
+// for every case that emits no card (setting off, unpublished, group, external
+// link, no space, render failure), which is what the @error fallback catches —
+// no need to duplicate those conditions here.
+const generatedPreview = computed(() => {
+	const route = previewRoute.value;
+	if (!route) return '';
+	return `/api/method/wiki.api.og_image.og_image?route=${encodeURIComponent(route)}`;
+});
+
+const previewImageFailed = ref(false);
+const previewImage = computed(() => {
+	if (metaImage.value) return metaImage.value;
+	return previewImageFailed.value ? '' : generatedPreview.value;
+});
+const isGeneratedPreview = computed(
+	() => !metaImage.value && Boolean(previewImage.value),
+);
+
 const isDirty = computed(() => {
 	const doc = props.docResource.doc;
 	if (!doc) return false;
@@ -187,6 +212,9 @@ watch(show, (isOpen) => {
 	metaTitle.value = doc?.meta_title || '';
 	metaDescription.value = doc?.meta_description || '';
 	metaImage.value = doc?.meta_image || '';
+	// Retry the generated card on each open; a render that failed once (cold
+	// Chromium, another worker holding the lock) usually succeeds next time.
+	previewImageFailed.value = false;
 });
 
 function pickImage() {

@@ -362,6 +362,12 @@ def og_image(route: str, v: str | None = None):
 	``Content-Disposition: attachment``, which no ``og:image`` consumer accepts.
 	"""
 	doc = _resolve_doc(route)
+	if not _cards_enabled():
+		# The kill switch has to stop Chromium launching, not just stop the tag
+		# being emitted -- otherwise a site that turned cards off still pays for
+		# every crawler that remembers an old og:image URL.
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
 	ctx = _og_context(doc)
 	fp = og_fingerprint(ctx)
 	etag = f'"{fp}"'

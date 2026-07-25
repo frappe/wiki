@@ -2514,6 +2514,18 @@ class TestOGImageEndpoint(OGImageTestBase):
 
 		self.assertEqual(self._get(doc.route).status_code, 404)
 
+	def test_toggle_off_returns_404(self):
+		"""The kill switch stops Chromium launching, not just the tag being
+		emitted -- otherwise crawlers holding an old og:image URL keep paying
+		for renders on a site that turned cards off."""
+		doc = self._published_page("og-endpoint-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}, commit=True):
+			response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 404)
+		self.renderer.assert_not_called()
+
 	def test_published_page_returns_jpeg(self):
 		doc = self._published_page("og-served")
 

@@ -381,6 +381,15 @@ future work. Where the code departs from the plan above:
 - **The merge warm-up tests live in `test_wiki_change_request.py`**, next to the
   CR fixtures and `_approve_and_merge` they need, rather than in
   `test_wiki_document.py`.
+- **The endpoint honours the settings toggle too**, not just `get_og_image_url()`.
+  The spec only turned the *tag* off; a crawler holding an old `og:image` URL
+  would still have launched Chromium on a site that disabled cards. The kill
+  switch has to actually kill generation.
+- **Page Settings previews the real card.** The dialog's Social Preview showed a
+  placeholder whenever `meta_image` was empty, which is now wrong — the page does
+  ship an image. It points at the live endpoint (so what the box shows is what a
+  scraper fetches) and falls back to the placeholder on `@error`, which covers
+  every no-card case in one branch instead of duplicating the conditions in JS.
 
 The escaping guard and the token-drift guard were both verified by temporarily
 reverting what they protect (dropping `| e` from the title; changing one hex
