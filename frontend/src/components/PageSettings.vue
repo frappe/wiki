@@ -84,15 +84,29 @@
 						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
 					>
 						<div
-							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
+							class="relative flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
 						>
 							<img
-								v-if="metaImage"
-								:src="metaImage"
+								v-if="previewImage"
+								:src="previewImage"
 								alt=""
 								class="h-full w-full object-cover"
+								:class="{ 'opacity-0': previewImageLoading }"
+								@load="previewImageLoading = false"
+								@error="previewImageFailed = true"
 							/>
-							<span v-else class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" />
+							<span
+								v-else
+								class="lucide-image h-7 w-7 text-ink-gray-3"
+								aria-hidden="true"
+							/>
+							<!-- A cold card takes a Chromium launch to render, so the
+							     placeholder icon would otherwise sit there looking like
+							     "no image" for seconds. -->
+							<div
+								v-if="previewImage && previewImageLoading"
+								class="absolute inset-0 animate-pulse bg-surface-gray-3"
+							/>
 						</div>
 						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
 							<span class="truncate text-xs text-ink-gray-4">
@@ -112,6 +126,9 @@
 							</span>
 						</div>
 					</div>
+					<p v-if="isGeneratedPreview" class="text-xs text-ink-gray-4">
+						{{ __('Auto-generated from the page metadata. Upload an image to override it.') }}
+					</p>
 				</div>
 			</div>
 		</template>
@@ -169,6 +186,43 @@ const previewRoute = computed(() => props.docResource.doc?.route || '');
 const previewTitle = computed(() => metaTitle.value || currentTitle.value);
 const previewDescription = computed(() => metaDescription.value);
 
+// With no uploaded image the page still ships an og:image — the generated card
+// from wiki/api/og_image.py. Preview the real endpoint rather than a mock, so
+// what this box shows is literally what a scraper will fetch. The endpoint 404s
+// for every case that emits no card (setting off, unpublished, group, external
+// link, no space, render failure), which is what the @error fallback catches —
+// no need to duplicate those conditions here.
+// Bumped on each successful save. `v` is ignored server-side (the endpoint
+// always recomputes the fingerprint) and exists only to force the browser to
+// refetch — the img otherwise keeps whatever bytes it got, and a request that
+// raced the save would leave a stale card on screen for the rest of the
+// session. Bumping per *save* rather than per keystroke keeps it to one extra
+// render, instead of launching Chromium on every character typed.
+const previewVersion = ref(0);
+
+const generatedPreview = computed(() => {
+	const doc = props.docResource.doc;
+	if (!doc?.route) return '';
+	return `/api/method/wiki.api.og_image.og_image?route=${encodeURIComponent(
+		doc.route,
+	)}&v=${previewVersion.value}`;
+});
+
+const previewImageFailed = ref(false);
+const previewImageLoading = ref(true);
+const previewImage = computed(() => {
+	if (metaImage.value) return metaImage.value;
+	return previewImageFailed.value ? '' : generatedPreview.value;
+});
+
+// Every new URL is a fresh load, so the skeleton comes back until it decodes.
+watch(previewImage, (url) => {
+	previewImageLoading.value = Boolean(url);
+});
+const isGeneratedPreview = computed(
+	() => !metaImage.value && Boolean(previewImage.value),
+);
+
 const isDirty = computed(() => {
 	const doc = props.docResource.doc;
 	if (!doc) return false;
@@ -187,6 +241,10 @@ watch(show, (isOpen) => {
 	metaTitle.value = doc?.meta_title || '';
 	metaDescription.value = doc?.meta_description || '';
 	metaImage.value = doc?.meta_image || '';
+	// Retry the generated card on each open; a render that failed once (cold
+	// Chromium, another worker holding the lock) usually succeeds next time.
+	previewImageFailed.value = false;
+	previewImageLoading.value = true;
 });
 
 function pickImage() {
@@ -229,7 +287,9 @@ async function saveSettings() {
 			meta_image: metaImage.value,
 		});
 		toast.success(__('Page settings saved'));
-		show.value = false;
+		// Retry a preview that failed before this save fixed its inputs.
+		previewImageFailed.value = false;
+		previewVersion.value += 1;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error saving page settings'));
 	}

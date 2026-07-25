@@ -1,12 +1,17 @@
 # Copyright (c) 2025, Frappe and Contributors
 # See license.txt
 
+import functools
+import glob
 import json
+import os
 import re
+import typing
 import unittest
 from threading import Thread
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import quote
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -392,7 +397,11 @@ class TestGetWebContextMetaTags(WikiDocumentTestBase):
 		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
 
 	def test_metatags_fall_back_to_title_when_meta_fields_unset(self):
-		"""With no meta_title/description/image, metatags should fall back sensibly."""
+		"""With no meta_title/description, metatags should fall back sensibly.
+
+		og:image is the one field with a generated fallback, so it is asserted
+		with the cards turned off; TestOGImageMetaTags covers the on case.
+		"""
 		root_group = create_test_wiki_document(self, "Root Meta Fallback Group", is_group=True)
 		doc = create_test_wiki_document(
 			self, "Fallback Meta Doc", parent=root_group.name, slug="fallback-meta-doc"
@@ -400,7 +409,8 @@ class TestGetWebContextMetaTags(WikiDocumentTestBase):
 		create_test_wiki_space(self, "Fallback Meta Space", "fallback-meta-space", root_group.name)
 
 		doc.reload()
-		context = doc.get_web_context()
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			context = doc.get_web_context()
 		metatags = context["metatags"]
 
 		self.assertEqual(metatags["title"], "Fallback Meta Doc")
@@ -457,7 +467,7 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertRegex(html, r'property="og:title"\s*content="Rendered Meta Title"')
 		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
 
-	def test_rendered_head_omits_image_tags_when_no_meta_image(self):
+	def test_rendered_head_uses_generated_og_image_when_no_meta_image(self):
 		route = self._unique("meta-render-fallback")
 		space = create_test_wiki_space(
 			self, "Meta Render Fallback Space", route, None, roles=[("Guest", "Read")]
@@ -480,9 +490,37 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		html = response.get_data(as_text=True)
 
+		self.assertRegex(html, r'name="twitter:card"\s*content="summary_large_image"')
+		self.assertIn("wiki.api.og_image.og_image", html)
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+	def test_rendered_head_omits_image_tags_when_cards_are_disabled(self):
+		"""With the Wiki Settings toggle off the emitted head is what it was
+		before generated cards existed."""
+		route = self._unique("meta-render-nocard")
+		space = create_test_wiki_space(
+			self, "Meta Render No Card Space", route, None, roles=[("Guest", "Read")]
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render No Card Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-nocard-doc"),
+		)
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}, commit=True):
+			response = _make_request(
+				self.TEST_CLIENT,
+				"get",
+				f"/{doc.route}",
+				headers={"Accept": "text/html"},
+			)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
 		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
 		self.assertNotIn('property="og:image"', html)
-		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
 
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
@@ -2387,3 +2425,397 @@ class TestReaderRouteXSS(unittest.TestCase):
 		self.assertNotIn("&#39;", html)
 		self.assertNotIn("</script>", html)
 		self.assertIn("\\u003c/script", html)
+
+
+# A JPEG magic number is all the endpoint tests need from the renderer; CI
+# installs no server-side Chromium, so every test here patches
+# get_preview_from_html *at its point of use* in wiki.api.og_image -- patching
+# frappe.utils.preview would leave the already-bound import untouched.
+FAKE_JPEG = b"\xff\xd8\xff" + b"\x00" * 32
+
+
+class OGImageTestBase(WikiDocumentTestBase):
+	"""Shared setup for the generated-OG-card tests."""
+
+	def setUp(self):
+		self.og_doc_keys = []
+		self.enterContext(
+			self.change_settings("Wiki Settings", {"auto_generate_meta_images": 1}, commit=True)
+		)
+		self.renderer = self.enterContext(
+			patch("wiki.api.og_image.get_preview_from_html", return_value=FAKE_JPEG)
+		)
+		# Warm-up jobs would otherwise land on the real bench queue and render
+		# for real; the warm-up tests assert on this mock instead.
+		self.enqueue = self.enterContext(patch("frappe.enqueue"))
+
+	def tearDown(self):
+		from wiki.api.og_image import clear_cached_cards
+
+		for doc_key in self.og_doc_keys:
+			clear_cached_cards(doc_key)
+		super().tearDown()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _published_page(self, label, guest_readable=True, **kwargs):
+		"""A published page in its own space, tracked for card cleanup."""
+		route = self._unique(label)
+		space = create_test_wiki_space(
+			self,
+			f"{label} Space",
+			route,
+			None,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+		doc = create_test_wiki_document(
+			self, label, parent=space.root_group, slug=self._unique(label), **kwargs
+		)
+		doc.reload()
+		self.og_doc_keys.append(doc.doc_key)
+		return doc
+
+	def _cached_cards(self, doc_key):
+		from wiki.api.og_image import _cache_dir
+
+		return sorted(os.path.basename(p) for p in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")))
+
+
+class TestOGImageEndpoint(OGImageTestBase):
+	"""The guest-facing endpoint that renders and serves the card."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _get(self, route, **kwargs):
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/api/method/wiki.api.og_image.og_image?route={quote(route)}",
+			**kwargs,
+		)
+
+	def test_unknown_route_returns_404(self):
+		response = self._get("no-such-space/no-such-page")
+		self.assertEqual(response.status_code, 404)
+
+	def test_unpublished_document_returns_404(self):
+		doc = self._published_page("og-unpublished")
+		doc.is_published = 0
+		doc.save()
+
+		self.assertEqual(self._get(doc.route).status_code, 404)
+
+	def test_restricted_space_returns_404_for_guest(self):
+		"""A space with no Guest role is invisible to anonymous requests -- 404,
+		not 403, so the card endpoint leaks no more than the page itself."""
+		doc = self._published_page("og-restricted", guest_readable=False)
+
+		self.assertEqual(self._get(doc.route).status_code, 404)
+
+	def test_toggle_off_returns_404(self):
+		"""The kill switch stops Chromium launching, not just the tag being
+		emitted -- otherwise crawlers holding an old og:image URL keep paying
+		for renders on a site that turned cards off."""
+		doc = self._published_page("og-endpoint-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}, commit=True):
+			response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 404)
+		self.renderer.assert_not_called()
+
+	def test_cards_are_never_shared_cacheable(self):
+		"""The URL carries no identity, so a `public` Cache-Control would let a
+		CDN keep serving a card — title, breadcrumb, space name — after the page
+		is unpublished or the space's roles change, without the request ever
+		reaching _resolve_doc again. Guest-readable pages included: a page that
+		is public today may not be tomorrow."""
+		from wiki.api.og_image import og_image
+
+		guest_doc = self._published_page("og-cc-guest")
+		restricted_doc = self._published_page("og-cc-restricted", guest_readable=False)
+
+		for cache_control in (
+			self._get(guest_doc.route).headers["Cache-Control"],
+			og_image(route=restricted_doc.route).headers["Cache-Control"],
+		):
+			self.assertIn("private", cache_control)
+			self.assertNotIn("public", cache_control)
+
+	def test_published_page_returns_jpeg(self):
+		doc = self._published_page("og-served")
+
+		response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+		self.assertEqual(response.get_data(), FAKE_JPEG)
+
+	def test_repeat_request_serves_the_cached_file(self):
+		doc = self._published_page("og-cached")
+
+		self.assertEqual(self._get(doc.route).status_code, 200)
+		self.assertEqual(self._get(doc.route).status_code, 200)
+
+		self.assertEqual(self.renderer.call_count, 1)
+
+	def test_if_none_match_returns_304_with_empty_body(self):
+		doc = self._published_page("og-etag")
+		etag = self._get(doc.route).headers["ETag"]
+
+		response = self._get(doc.route, headers={"If-None-Match": etag})
+
+		self.assertEqual(response.status_code, 304)
+		self.assertEqual(response.get_data(), b"")
+
+	def test_rename_moves_the_fingerprint_and_prunes_the_old_card(self):
+		doc = self._published_page("og-renamed")
+		self._get(doc.route)
+		before = self._cached_cards(doc.doc_key)
+
+		doc.title = "Renamed For A New Fingerprint"
+		doc.save()
+		self._get(doc.route)
+
+		after = self._cached_cards(doc.doc_key)
+		self.assertEqual(len(before), 1)
+		self.assertEqual(len(after), 1)
+		self.assertNotEqual(before, after)
+
+
+class TestOGImageTemplate(unittest.TestCase):
+	"""frappe.render_template does not autoescape, so the card template carries
+	its own `| e` on every interpolation. Without it a crafted page title turns
+	the screenshotter into an outbound-fetch primitive."""
+
+	def test_hostile_title_is_escaped(self):
+		from wiki.api.og_image import render_og_html
+
+		html = render_og_html(
+			{
+				"title": '"><img src=http://evil.example/x>',
+				"title_font_size": 48,
+				"breadcrumb_trail": "",
+				"space_name": "",
+				"logo_url": "",
+			}
+		)
+
+		self.assertNotIn("<img src=http://evil.example/x>", html)
+		self.assertIn("&lt;img", html)
+
+	def test_traversing_doc_key_cannot_escape_the_cache_directory(self):
+		"""doc_key names the cache file, and WikiDocument.set_doc_key only makes
+		it immutable on update -- an insert keeps whatever the caller passed. A
+		key with path separators must never reach open()/unlink()."""
+		from wiki.api.og_image import _cache_dir, _cache_path, clear_cached_cards
+
+		for hostile in ("../../evil", "a/b", "..", "with space", ""):
+			with self.assertRaises(frappe.DoesNotExistError):
+				_cache_path(hostile, "0123456789ab")
+			# The delete path must not raise (it runs after commit), just do nothing.
+			clear_cached_cards(hostile)
+
+		path = _cache_path("abc123DEF456", "0123456789ab")
+		self.assertEqual(os.path.dirname(path), _cache_dir())
+
+	def test_logo_prefers_the_switcher_logo_the_reader_renders(self):
+		"""app_switcher_logo is the mark the reader header shows, so the card
+		must use it; light_mode_logo is only a fallback for v2 spaces."""
+		from wiki.api.og_image import _og_context
+
+		space = SimpleNamespace(app_switcher_logo="/files/new.png", light_mode_logo="/files/old.png")
+		doc = SimpleNamespace(
+			meta_title=None,
+			title="Doc",
+			lft=None,
+			get_wiki_space=lambda: {"name": "sp", "space_name": "Space"},
+		)
+
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/new.png")
+
+		space.app_switcher_logo = None
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/old.png")
+
+	def test_remote_and_private_logo_urls_are_dropped(self):
+		from wiki.api.og_image import _safe_asset_url
+
+		self.assertEqual(_safe_asset_url("/files/logo.png"), "/files/logo.png")
+		self.assertEqual(_safe_asset_url("/assets/wiki/images/logo.svg"), "/assets/wiki/images/logo.svg")
+		self.assertEqual(_safe_asset_url("/private/files/logo.png"), "")
+		self.assertEqual(_safe_asset_url("https://evil.example/logo.png"), "")
+		self.assertEqual(_safe_asset_url(None), "")
+
+
+class TestOGImageWarmup(OGImageTestBase):
+	"""The background render that runs on document writes, so the first crawler
+	after a change is normally a cache hit. Serving never depends on it."""
+
+	def test_structural_save_enqueues_a_warmup(self):
+		doc = self._published_page("og-warm-enqueue")
+		self.enqueue.reset_mock()
+
+		doc.title = "A Title That Moves The Fingerprint"
+		doc.save()
+
+		self.enqueue.assert_called_once()
+		self.assertEqual(self.enqueue.call_args.args[0], "wiki.api.og_image.warm_og_image")
+		self.assertEqual(self.enqueue.call_args.kwargs["name"], doc.name)
+		self.assertTrue(self.enqueue.call_args.kwargs["deduplicate"])
+		self.assertTrue(self.enqueue.call_args.kwargs["enqueue_after_commit"])
+
+	def test_content_only_change_enqueues_nothing(self):
+		"""Content is not a fingerprint input, so a still-correct card is left
+		alone -- this is what keeps a busy wiki from re-rendering on every edit."""
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-content")
+		warm_og_image(doc.name)
+		self.enqueue.reset_mock()
+
+		doc.content = "Completely different body text."
+		doc.save()
+
+		self.enqueue.assert_not_called()
+
+	def test_warmup_renders_the_card_without_a_page_view(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-render")
+		self.assertEqual(self._cached_cards(doc.doc_key), [])
+
+		warm_og_image(doc.name)
+
+		self.assertEqual(len(self._cached_cards(doc.doc_key)), 1)
+		self.assertEqual(self.renderer.call_count, 1)
+
+	def test_warmup_skips_when_the_card_is_already_on_disk(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-skip")
+		warm_og_image(doc.name)
+		self.renderer.reset_mock()
+
+		warm_og_image(doc.name)
+
+		self.renderer.assert_not_called()
+
+	def test_toggle_off_enqueues_nothing_and_renders_nothing(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			self.enqueue.reset_mock()
+			doc.title = "Renamed While Cards Are Disabled"
+			doc.save()
+			warm_og_image(doc.name)
+
+		self.enqueue.assert_not_called()
+		self.renderer.assert_not_called()
+
+
+class TestOGImageMetaTags(OGImageTestBase):
+	"""get_web_context's fallback from meta_image to the generated card."""
+
+	def test_generated_card_is_used_when_no_meta_image(self):
+		doc = self._published_page("og-meta-generated")
+
+		metatags = doc.get_web_context()["metatags"]
+
+		self.assertIn("wiki.api.og_image.og_image", metatags["og:image"])
+		self.assertEqual(metatags["twitter:card"], "summary_large_image")
+		self.assertEqual(metatags["og:image:width"], "1200")
+		self.assertEqual(metatags["og:image:height"], "630")
+		self.assertEqual(metatags["og:image:type"], "image/jpeg")
+
+	def test_explicit_meta_image_wins_over_the_generated_card(self):
+		doc = self._published_page("og-meta-explicit")
+		doc.meta_image = "/files/hand-made.png"
+		doc.save()
+
+		metatags = doc.get_web_context()["metatags"]
+
+		self.assertEqual(metatags["og:image"], frappe.utils.get_url("/files/hand-made.png"))
+		self.assertNotIn("og:image:width", metatags)
+
+	def test_toggle_off_emits_no_image_tags(self):
+		doc = self._published_page("og-meta-toggle-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			metatags = doc.get_web_context()["metatags"]
+
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+
+	def test_group_external_link_and_orphan_pages_have_no_card(self):
+		space_doc = self._published_page("og-meta-kinds")
+		group = create_test_wiki_document(
+			self, "OG Group", parent=space_doc.parent_wiki_document, is_group=True
+		)
+		external = create_test_wiki_document(
+			self,
+			"OG External",
+			parent=space_doc.parent_wiki_document,
+			is_external_link=True,
+			external_url="https://example.com",
+		)
+		orphan = create_test_wiki_document(self, "OG Orphan", slug=self._unique("og-orphan"))
+
+		self.assertIsNone(group.get_og_image_url())
+		self.assertIsNone(external.get_og_image_url())
+		self.assertIsNone(orphan.get_og_image_url())
+
+
+class TestOGImageTokenDrift(unittest.TestCase):
+	"""The card inlines a snapshot of frappe-ui's light-mode tokens rather than
+	importing the built stylesheet, so a frappe-ui upgrade can move a value
+	silently. Same intent as frappe-ui's own tailwind/audit-token-drift.cjs."""
+
+	# Only the tokens the template actually declares, mapped to their
+	# themedVariables.light lookup.
+	TOKEN_REFS: typing.ClassVar[dict] = {
+		"--ink-gray-9": ("ink", "gray-9"),
+		"--ink-gray-7": ("ink", "gray-7"),
+		"--ink-gray-5": ("ink", "gray-5"),
+		"--outline-gray-2": ("outline", "gray-2"),
+		"--surface-gray-2": ("surface", "gray-2"),
+		"--surface-base": ("surface", "base"),
+	}
+
+	def test_template_tokens_match_frappe_ui(self):
+		# Built with os.path.join, not get_app_path's joins: those are scrubbed,
+		# which would turn "frappe-ui" into "frappe_ui".
+		colors_path = os.path.join(
+			frappe.get_app_path("wiki"),
+			"..",
+			"frontend",
+			"node_modules",
+			"frappe-ui",
+			"tailwind",
+			"generated",
+			"colors.json",
+		)
+		if not os.path.exists(colors_path):
+			# The Python CI job installs no frontend dependencies.
+			raise unittest.SkipTest("frappe-ui is not installed")
+
+		with open(colors_path) as f:
+			colors = json.load(f)
+
+		template = frappe.get_app_path("wiki", "templates", "wiki", "og_image.html")
+		with open(template) as f:
+			declared = dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6});", f.read()))
+
+		for var, (group, name) in self.TOKEN_REFS.items():
+			ref = colors["themedVariables"]["light"][group][name]
+			expected = functools.reduce(lambda node, key: node[key], ref.split("/"), colors)
+			self.assertEqual(
+				declared.get(var),
+				expected,
+				f"{var} drifted from frappe-ui's {ref}; update the template and bump TEMPLATE_VERSION",
+			)

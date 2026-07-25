@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 import json
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import frappe
 from frappe import _
@@ -434,8 +434,20 @@ class WikiDocument(NestedSet):
 		}
 		if self.meta_description:
 			metatags["description"] = self.meta_description
-		if self.meta_image:
-			metatags["image"] = self.meta_image
+
+		# An explicit upload always wins; the generated card is the fallback.
+		image = self.meta_image or self.get_og_image_url()
+		if image:
+			metatags["image"] = image
+		if not self.meta_image and image:
+			from wiki.api.og_image import OG_HEIGHT, OG_WIDTH
+
+			# MetaTags leaves unknown keys alone and meta_block.html emits any
+			# "og:"-prefixed key as a property, so these need no framework change.
+			metatags["og:image:width"] = str(OG_WIDTH)
+			metatags["og:image:height"] = str(OG_HEIGHT)
+			metatags["og:image:type"] = "image/jpeg"
+
 		context["metatags"] = {key: value for key, value in metatags.items() if value}
 		context["metatags"] = MetaTags(self.route, context).tags
 		context["canonical_url"] = frappe.utils.get_url("/" + self.route) if self.route else None
@@ -471,6 +483,26 @@ class WikiDocument(NestedSet):
 		)
 
 		return context
+
+	def get_og_image_url(self) -> str | None:
+		"""Path to this page's auto-generated OG card, or None when it has none.
+
+		Returns a path rather than an absolute URL so MetaTags absolutizes it
+		through get_url() -- that is what keeps it right on custom domains.
+		"""
+		from wiki.api.og_image import _og_context, og_fingerprint
+
+		if self.is_group or self.is_external_link or not self.is_published or not self.route:
+			return None
+		if not frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"):
+			return None
+		if not self.get_wiki_space():
+			return None
+
+		# `v` only busts scraper/CDN caches; the endpoint recomputes the
+		# fingerprint and ignores the param when looking the file up.
+		fingerprint = og_fingerprint(_og_context(self))
+		return f"/api/method/wiki.api.og_image.og_image?route={quote(self.route)}&v={fingerprint}"
 
 	def get_breadcrumb_list(self, wiki_space: dict) -> dict:
 		"""Build a BreadcrumbList JSON-LD payload mirroring the visible reader UI.
@@ -937,6 +969,8 @@ def download_pdf(route: str):
 
 def on_wiki_document_update(doc, method):
 	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
+	from wiki.api.og_image import enqueue_og_warmup
+
 	stamp_wiki_space(doc)
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
@@ -944,6 +978,7 @@ def on_wiki_document_update(doc, method):
 	if doc.has_value_changed("content"):
 		clear_wiki_content_cache(doc.name)
 	_drop_from_search_index_on_unpublish(doc)
+	enqueue_og_warmup(doc)
 
 
 def _drop_from_search_index_on_unpublish(doc):
@@ -988,6 +1023,21 @@ def on_wiki_document_trash(doc, method):
 	_clear_stale_website_cache(doc, deleted=True)
 	clear_wiki_tree_cache()
 	clear_wiki_content_cache(doc.name)
+	_drop_generated_og_cards(doc)
+
+
+def _drop_generated_og_cards(doc):
+	"""Unlink this document's generated OG cards from public/files.
+
+	Deferred like the search-index drop: the files live outside the
+	transaction, so a rollback must not take live cards with it.
+	"""
+	from wiki.api.og_image import clear_cached_cards
+
+	doc_key = doc.doc_key
+	if not doc_key:
+		return
+	frappe.db.after_commit.add(lambda: clear_cached_cards(doc_key))
 
 
 def _clear_stale_website_cache(doc, deleted=False):

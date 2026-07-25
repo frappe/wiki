@@ -39,7 +39,7 @@ of an existing wiki is out of scope.
 
 | | |
 |---|---|
-| Serving | `og:image` → whitelisted `allow_guest` endpoint. Cold hit renders + writes a jpg under `public/files/wiki-og/`; warm hits stream that file. |
+| Serving | `og:image` → whitelisted `allow_guest` endpoint. Cold hit renders + writes a jpg under `private/files/wiki-og/`; warm hits stream that file. |
 | Card content | space logo, breadcrumb trail, page title, space name |
 | Rollout | `Wiki Settings.auto_generate_meta_images` checkbox, default **ON** |
 | Template | hardcoded HTML/CSS, not user-configurable yet; colours and type come from **frappe-ui design tokens** |
@@ -69,7 +69,7 @@ Fingerprint every input the template consumes, and nothing else:
 fp   = sha256("\x1f".join([TEMPLATE_VERSION, meta_title or title, breadcrumb_trail,
                            space_name or "", logo_url or "", str(W), str(H)])).hexdigest()[:12]
 
-path      = <site>/public/files/wiki-og/<doc_key>-<fp>.jpg
+path      = <site>/private/files/wiki-og/<doc_key>-<fp>.jpg
 lock key  = wiki_og_lock:<doc_key>:<fp>     (SET nx ex=90)
 fail key  = wiki_og_fail:<doc_key>:<fp>     (ttl 600)
 og:image  = /api/method/wiki.api.og_image.og_image?route=<route>&v=<fp>
@@ -196,11 +196,21 @@ In `wiki/api/og_image.py`:
   concurrent writers cannot produce a torn read.
 - `_prune_old(doc_key, keep_fp)` — `glob("<doc_key>-*.jpg")`, unlink the rest. Called after each
   successful write, so the directory holds exactly one file per document.
-- Headers: `Cache-Control: public, max-age=86400, stale-while-revalidate=604800`, `ETag: "<fp>"`,
+- Headers: `Cache-Control: private, max-age=300, stale-while-revalidate=10800`, `ETag: "<fp>"`,
   and a `304` when `If-None-Match` matches.
-  `process_response` (`frappe/app.py:258`) uses `setdefault` for `Cache-Control`, so our value wins;
-  and because it contains `public`, `cookie_manager.flush_cookies` is skipped (`app.py:278`) and the
-  response is CDN-cacheable. Note `frappe._dev_server` force-overrides to no-cache in dev.
+  `process_response` (`frappe/app.py:258`) uses `setdefault` for `Cache-Control`, so our value wins.
+  Note `frappe._dev_server` force-overrides to no-cache in dev.
+
+  **Revised during review — this originally said `public, max-age=86400,
+  stale-while-revalidate=604800`.** That is more permissive than frappe serves
+  the wiki page itself (`private,max-age=300,stale-while-revalidate=10800`, in
+  `frappe/website/utils.py`'s `cache_html`), and the card URL carries no
+  identity: a shared cache would go on serving a card for a day — a week
+  stale — after the page was unpublished or the space's roles changed, with no
+  request reaching `_resolve_doc` again. Matching the page's own policy means a
+  card is never cacheable for longer, or by more parties, than the page whose
+  title it shows. The cost is losing CDN offload, which for one image per
+  shared link is a rounding error.
 - Extend `on_wiki_document_trash` in `wiki_document.py` to drop `wiki-og/<doc_key>-*.jpg`, deferred
   via `frappe.db.after_commit` like `_drop_from_search_index_on_unpublish` (`:881`), so a rollback
   does not delete live files.
@@ -344,16 +354,72 @@ cd frontend && yarn build
 
 1. Open a published wiki page, view source, confirm `og:image` points at the endpoint with `v=`.
 2. Open that URL directly — a 1200×630 jpg card with logo, breadcrumb, title, space name.
-3. Confirm `sites/wiki.localhost/public/files/wiki-og/<doc_key>-<fp>.jpg` exists; reload and confirm
+3. Confirm `sites/wiki.localhost/private/files/wiki-og/<doc_key>-<fp>.jpg` exists; reload and confirm
    mtime is unchanged (cache hit).
 4. Rename the page → new `v`, new file, old sibling pruned.
 5. Upload a `meta_image` → `og:image` switches back to the upload.
 6. Turn the Wiki Settings toggle off → `og:image` disappears from the head.
 7. `curl -A "facebookexternalhit" …` on the page to confirm the card is fetched anonymously.
-8. Merge a change request that renames a page, then `ls sites/wiki.localhost/public/files/wiki-og/`
+8. Merge a change request that renames a page, then `ls sites/wiki.localhost/private/files/wiki-og/`
    before opening anything — the new fingerprint file is already there, the old one gone.
 9. Eyeball the card against the app: title, breadcrumb and space name should read as the same greys
    the reader uses, not a second palette.
+
+## Status — implemented 2026-07-25 (branch `feat/generated-meta-images`)
+
+Phases 0–4 are done, tested and verified against `wiki.localhost`. Phase 5 stays
+future work. Where the code departs from the plan above:
+
+- **`--surface-white` is retired.** frappe-ui's tokens-v2 deliberately drops the
+  legacy alias (`tailwind/figma-tokens-to-theme.js:134`) so straggler usage fails
+  visibly. The template declares `--surface-base` (`neutral/white`, `#ffffff`)
+  instead, and that is the name the drift test asserts.
+- **Title tracking is `0em`, not `-0.02em`.** `typography.json` puts every size at
+  or above the card's scale on `0em`; the spec's negative value was invented.
+  Weight stays `600` (`fontWeight.semibold`).
+- **`generate_og_bytes(ctx)` takes the context, not the doc.** The context *is*
+  the render input and is what the fingerprint hashes, so passing the doc would
+  mean building it twice.
+- **The warm-up skips inserts.** A page nobody has shared has no stale card to
+  replace, and warming every insert would turn a git-sync import of a whole wiki
+  into a Chromium storm — the same bulk pre-generation this spec puts out of
+  scope. Renames, publishes and moves (all updates) are covered.
+- **A patch turns the setting on for existing sites.** A new Check on a Single
+  does not backfill its default, so `auto_generate_meta_images` would read as 0
+  everywhere the doctype already existed. `patches.txt` sets it, mirroring the
+  `auto_convert_images_to_webp` line above it.
+- **The merge warm-up tests live in `test_wiki_change_request.py`**, next to the
+  CR fixtures and `_approve_and_merge` they need, rather than in
+  `test_wiki_document.py`.
+- **No accent bar.** The 12px `--surface-gray-2` bar was dropped during design
+  review; the card is a plain white field. `--surface-gray-2` and
+  `--outline-gray-2` stay declared in the `:root` block — that block is the
+  card's palette, and keeping them there keeps the drift test guarding values
+  the Phase 5 space accent will want back.
+- **Cards are private-cached and stored under `private/files/`.** Two review
+  findings that turned out to be the same mistake: the card was reachable, and
+  replayable, without the access check the endpoint performs. Both the
+  `Cache-Control` header and the cache directory are corrected above; the
+  principle is that a card must never outlive, or out-reach, the authorization
+  that produced it.
+- **The endpoint honours the settings toggle too**, not just `get_og_image_url()`.
+  The spec only turned the *tag* off; a crawler holding an old `og:image` URL
+  would still have launched Chromium on a site that disabled cards. The kill
+  switch has to actually kill generation.
+- **Page Settings previews the real card.** The dialog's Social Preview showed a
+  placeholder whenever `meta_image` was empty, which is now wrong — the page does
+  ship an image. It points at the live endpoint (so what the box shows is what a
+  scraper fetches) and falls back to the placeholder on `@error`, which covers
+  every no-card case in one branch instead of duplicating the conditions in JS.
+  Saving keeps the dialog open — saving is what regenerates the card, so closing
+  would hide the thing that just changed — and bumps a counter in the URL's `v`
+  so the browser refetches. Without that bump a preview request that raced the
+  save left a stale card on screen for the rest of the session; keying the bump
+  to saves rather than keystrokes keeps it to one extra render.
+
+The escaping guard and the token-drift guard were both verified by temporarily
+reverting what they protect (dropping `| e` from the title; changing one hex
+value) and confirming each test failed.
 
 ## Risks
 
@@ -373,10 +439,11 @@ cd frontend && yarn build
 5. **Disk cache is per-node.** On a multi-node bench without shared storage each node generates once.
    Bounded and self-healing; a shared byte layer can be added later behind the same
    `_read_cached` / `_write_cached` seam.
-6. **`public/files/wiki-og/` is web-readable.** Filenames embed `doc_key` + fingerprint, so a
-   restricted page's card is reachable by anyone who can guess both. `doc_key` is a 12-char
-   `frappe.generate_hash`, so this is capability-URL security — acceptable for a card containing only
-   a title, but noted.
+6. ~~**`public/files/wiki-og/` is web-readable.**~~ **Resolved during review.** Cards live under
+   `private/files/`, which nginx does not serve, so the endpoint's access check is the only way to
+   reach one. This also closes the case the original wording missed: under `public/files` a card
+   outlived the authorization that produced it, still served statically after the page was
+   unpublished or the space's roles changed.
 7. **Disk growth.** One ~60–150 KB jpg per published page, with stale siblings pruned on write.
 8. **Warm-up job storm.** A structural merge touching N pages enqueues up to N short jobs. Bounded by
    the `job_id` dedupe, the fingerprint diff (unchanged inputs enqueue nothing) and the kill switch —

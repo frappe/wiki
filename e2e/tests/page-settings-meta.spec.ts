@@ -86,6 +86,12 @@ test.describe('Page Settings meta fields', () => {
 		await expect(saveButton).toBeEnabled();
 
 		await saveButton.click();
+		// The dialog deliberately stays open on save: saving is what regenerates
+		// the social preview, so closing would hide the thing that just changed.
+		// Save disabling itself is the signal the write landed.
+		await expect(saveButton).toBeDisabled({ timeout: 10000 });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		// Reopen — values must have persisted to the Wiki Document.
@@ -129,6 +135,8 @@ test.describe('Page Settings meta fields', () => {
 		await dialog.getByLabel('Meta Description').fill('');
 		await expect(saveButton).toBeEnabled();
 		await saveButton.click();
+		await expect(saveButton).toBeDisabled({ timeout: 10000 });
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		await page.goto(`/${doc.route}`);

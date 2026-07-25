@@ -1,6 +1,10 @@
 # Copyright (c) 2026, Frappe and Contributors
 # See license.txt
 
+import glob
+import os
+from unittest.mock import patch
+
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
 from frappe.tests.utils import FrappeTestCase
@@ -37,6 +41,13 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
 )
+
+
+def _cached_cards(doc_key: str) -> list[str]:
+	"""Basenames of the generated OG cards currently on disk for a document."""
+	from wiki.api.og_image import _cache_dir
+
+	return sorted(os.path.basename(p) for p in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")))
 
 
 def _approve_and_merge(name: str):
@@ -2246,6 +2257,77 @@ class TestWikiChangeRequest(FrappeTestCase):
 		)
 		tree2 = get_cr_tree(cr.name)
 		self.assertEqual(tree2.get("operation_version"), 1)
+
+
+class TestWikiChangeRequestOGWarmup(FrappeTestCase):
+	"""Merging is the main way a live page's title changes, so it is the main
+	way a generated OG card goes stale. No merge-specific code exists for this:
+	_classify_changes treats title/slug/route/parent_key/is_published as
+	metadata, so those merges go through a full doc.save() and reach the shared
+	on_update hook. Content-only merges take the raw db.set_value fast path,
+	which skips hooks -- correctly, since content is not a fingerprint input.
+	"""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _rename_via_merge(self, page, new_title):
+		space = frappe.get_value("Wiki Space", {"root_group": page.parent_wiki_document}, "name")
+		cr = create_change_request(space, f"CR OG {frappe.generate_hash(length=4)}")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"title": new_title})
+		submit_change_request(cr.name)
+		_approve_and_merge(cr.name)
+
+	def test_merging_a_rename_enqueues_one_warmup(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Old Title")
+
+		with patch("frappe.enqueue") as enqueue:
+			self._rename_via_merge(page, "New Title")
+
+		og_jobs = [
+			call for call in enqueue.call_args_list if call.args[0] == "wiki.api.og_image.warm_og_image"
+		]
+		self.assertEqual(len(og_jobs), 1)
+		self.assertEqual(og_jobs[0].kwargs["name"], page.name)
+
+	def test_merged_rename_lands_the_new_card_without_a_page_view(self):
+		from wiki.api.og_image import clear_cached_cards, warm_og_image
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Old Title")
+		doc_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		self.addCleanup(clear_cached_cards, doc_key)
+
+		with patch("wiki.api.og_image.get_preview_from_html", return_value=b"\xff\xd8\xff"):
+			warm_og_image(page.name)
+			stale = _cached_cards(doc_key)
+
+			self._rename_via_merge(page, "New Title")
+			# Run the job the merge queued, without ever rendering the page.
+			warm_og_image(page.name)
+
+		fresh = _cached_cards(doc_key)
+		self.assertEqual(len(stale), 1)
+		self.assertEqual(len(fresh), 1)
+		self.assertNotEqual(stale, fresh)
+
+	def test_content_only_merge_enqueues_no_warmup(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Stable Title", content="v1")
+		cr = create_change_request(space.name, "CR OG content")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		submit_change_request(cr.name)
+
+		with patch("frappe.enqueue") as enqueue:
+			_approve_and_merge(cr.name)
+
+		og_jobs = [
+			call for call in enqueue.call_args_list if call.args[0] == "wiki.api.og_image.warm_og_image"
+		]
+		self.assertEqual(og_jobs, [])
 
 
 class TestWikiChangeRequestTabs(FrappeTestCase):

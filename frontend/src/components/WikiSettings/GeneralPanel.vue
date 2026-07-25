@@ -15,6 +15,17 @@
 				__('Automatically convert uploaded PNG/JPEG images to WebP to reduce page size')
 			"
 		/>
+
+		<SettingToggle
+			:settings="settings"
+			fieldname="auto_generate_meta_images"
+			:title="__('Auto Generate Meta Images')"
+			:description="
+				__(
+					'Generate a branded social preview image for pages that have no Meta Image uploaded',
+				)
+			"
+		/>
 	</div>
 </template>
 
