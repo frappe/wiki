@@ -413,9 +413,13 @@ onBeforeUnmount(() => {
 <style>
 .wiki-tree {
 	/* Rows carry two-line search results and py-1.5 content — size to content
-	   instead of the Tree default 32px. Indent matches the old 12px/level. */
+	   instead of the Tree default 32px. */
 	--tree-row-height: auto;
-	--tree-indent: 16px;
+	/* One level of indent equals a group's chevron column (w-5 button + gap-1.5
+	   = 20px + 6px). Leaves omit that chevron placeholder, so this makes a nested
+	   page's icon line up under its parent folder's icon instead of sitting left
+	   of it. */
+	--tree-indent: 26px;
 }
 
 /* Selected page/draft highlight lives on the full-width row (the #item slot
