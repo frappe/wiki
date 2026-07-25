@@ -12,8 +12,9 @@ export const GENERAL_KEY = '__general__';
 /**
  * Build the tab bar's entries from a tree's top-level nodes.
  * Returns [{ key, title, icon, node }]; `node` is null for the Home entry.
+ * `homeLabel` / `homeIcon` come from the space's home_tab_title / home_tab_icon.
  */
-export function buildTabList(topLevelNodes, homeLabel) {
+export function buildTabList(topLevelNodes, homeLabel, homeIcon) {
 	const nodes = topLevelNodes || [];
 	const tabs = nodes
 		.filter((node) => node.is_tab)
@@ -31,8 +32,8 @@ export function buildTabList(topLevelNodes, homeLabel) {
 	tabs.unshift({
 		key: GENERAL_KEY,
 		title: homeLabel,
-		// Literal so Tailwind's JIT emits the class; this file is scanned.
-		icon: 'lucide-house',
+		// 'lucide-house' literal so Tailwind's JIT emits the fallback class.
+		icon: homeIcon || 'lucide-house',
 		node: null,
 	});
 	return tabs;

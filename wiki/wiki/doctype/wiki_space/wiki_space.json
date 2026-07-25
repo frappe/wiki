@@ -33,6 +33,8 @@
   "allow_contributions",
   "version_3_tab",
   "root_group",
+  "home_tab_title",
+  "home_tab_icon",
   "main_revision",
   "git_sync_tab",
   "git_synced",
@@ -168,6 +170,20 @@
    "label": "Main Revision",
    "options": "Wiki Revision",
    "read_only": 1
+  },
+  {
+   "default": "Home",
+   "description": "Label for the synthetic Home tab that leads the space's tab bar.",
+   "fieldname": "home_tab_title",
+   "fieldtype": "Data",
+   "label": "Home Tab Title"
+  },
+  {
+   "default": "lucide-house",
+   "description": "Lucide icon class for the Home tab, e.g. lucide-house.",
+   "fieldname": "home_tab_icon",
+   "fieldtype": "Data",
+   "label": "Home Tab Icon"
   },
   {
    "default": "1",

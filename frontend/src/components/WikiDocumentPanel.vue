@@ -1,7 +1,43 @@
 <template>
 	<div class="h-full flex flex-col">
+		<DefineActions>
+			<Button
+				v-if="wikiDoc.doc?.is_published"
+				variant="ghost"
+				@click="openPage"
+			>
+				<template #prefix>
+					<span class="lucide-external-link size-4" aria-hidden="true" />
+				</template>
+				{{ __('View Page') }}
+			</Button>
+			<Button
+				v-if="!readonly"
+				variant="solid"
+				:loading="isSaving"
+				:title="isMac ? '⌘S' : 'Ctrl+S'"
+				@click="saveFromHeader"
+			>
+				{{ __('Save') }}
+			</Button>
+			<Dropdown :options="menuOptions">
+				<Button variant="ghost" :title="__('More actions')">
+					<span class="lucide-more-vertical size-4" aria-hidden="true" />
+				</Button>
+			</Dropdown>
+		</DefineActions>
+
+		<!-- `defer` lets the target (in SpaceDetails' tab row) mount first when
+		     tabs load async. -->
+		<Teleport v-if="inlineHeader" defer to="#wiki-page-actions">
+			<ReuseActions />
+		</Teleport>
+
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
+			<div
+				v-if="!inlineHeader"
+				class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5"
+			>
 				<div
 					v-if="readonly"
 					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5"
@@ -18,30 +54,7 @@
 				</div>
 
 				<div class="flex shrink-0 items-center gap-2">
-					<Button
-						v-if="wikiDoc.doc?.is_published"
-						variant="ghost"
-						@click="openPage"
-					>
-						<template #prefix>
-							<span class="lucide-external-link size-4" aria-hidden="true" />
-						</template>
-						{{ __('View Page') }}
-					</Button>
-					<Button
-						v-if="!readonly"
-						variant="solid"
-						:loading="isSaving"
-						:title="isMac ? '⌘S' : 'Ctrl+S'"
-						@click="saveFromHeader"
-					>
-						{{ __('Save') }}
-					</Button>
-					<Dropdown :options="menuOptions">
-						<Button variant="ghost" :title="__('More actions')">
-							<span class="lucide-more-vertical size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
+					<ReuseActions />
 				</div>
 			</div>
 
@@ -49,16 +62,40 @@
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-8">
-							<input
-								type="text"
-								v-model="editableTitle"
-								:readonly="readonly"
-								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-								:placeholder="__('Page title')"
-								@blur="saveTitleIfChanged"
-								@keydown.enter="$event.target.blur()"
-							/>
-							<div class="mt-1.5 flex items-center gap-2">
+							<div class="flex items-start gap-3">
+								<input
+									type="text"
+									v-model="editableTitle"
+									:readonly="readonly"
+									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									:placeholder="__('Page title')"
+									@blur="saveTitleIfChanged"
+									@keydown.enter="$event.target.blur()"
+								/>
+								<div v-if="inlineHeader" class="flex shrink-0 items-center gap-2 pt-2">
+									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+										{{ __('Published') }}
+									</Badge>
+									<Badge v-else variant="subtle" theme="orange" size="sm">
+										{{ __('Not Published') }}
+									</Badge>
+									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+										{{ __('Has Draft Changes') }}
+									</Badge>
+								</div>
+							</div>
+
+							<div
+								v-if="inlineHeader"
+								class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
+								:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
+								@click="readonly ? null : openRouteDialog()"
+							>
+								<span class="font-mono truncate">/{{ displayRoute }}</span>
+								<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
+							</div>
+
+							<div v-else class="mt-1.5 flex items-center gap-2">
 								<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
 									{{ __('Published') }}
 								</Badge>
@@ -153,11 +190,14 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
+import { createReusableTemplate } from '@vueuse/core';
 import { computed, ref, shallowRef, watch } from 'vue';
 import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+const [DefineActions, ReuseActions] = createReusableTemplate();
 
 const props = defineProps({
 	pageId: {
@@ -177,6 +217,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['refresh']);
+
+// Read-only (git-synced) pages keep the dedicated header row; editable pages
+// fold the route under the title and park actions in the tab row.
+const inlineHeader = computed(() => !props.readonly);
+
 const editorRef = ref(null);
 const editableTitle = ref('');
 const editableRoute = ref('');

@@ -2144,7 +2144,9 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 		plain = create_test_wiki_document(self, "Not a tab", parent=root_group.name, is_group=True)
 		create_test_wiki_document(self, "Some page", parent=plain.name)
 
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+		# The plain group is untabbed content, so Home leads; it is never itself
+		# listed as a tab.
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Home", "Accounting"])
 
 	def test_landing_route_falls_back_to_first_published_leaf(self):
 		space, root_group = self._space()
@@ -2202,13 +2204,31 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 		self.assertEqual(tabs[0]["landing_route"], changelog.route)
 		self.assertEqual([t["title"] for t in tabs[1:]], ["Accounting", "Selling"])
 
-	def test_no_home_tab_with_a_single_tab(self):
+	def test_home_leads_the_bar_with_a_single_tab_and_untabbed_content(self):
+		space, root_group = self._space()
+		self._make_tab(root_group, "Accounting")
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual([t["title"] for t in tabs], ["Home", "Accounting"])
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+
+	def test_home_tab_uses_the_space_title_and_icon(self):
 		space, root_group = self._space()
 		self._make_tab(root_group, "Accounting")
 		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
 		create_test_wiki_document(self, "Changelog", parent=misc.name)
+		frappe.db.set_value(
+			"Wiki Space",
+			space.name,
+			{"home_tab_title": "Overview", "home_tab_icon": "lucide-compass"},
+		)
 
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+		home = get_space_tabs(space.name)[0]
+		self.assertEqual(home["doc_key"], "__general__")
+		self.assertEqual(home["title"], "Overview")
+		self.assertEqual(home["tab_icon"], "lucide-compass")
 
 	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
 		space, root_group = self._space()

@@ -2,6 +2,7 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { toast } from 'frappe-ui';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 
 export function useTreeDialogs(spaceId, expandedNodes) {
 	const draftStore = useDraftWorkspaceStore();
@@ -19,6 +20,9 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 	const tabSettingsIsTab = ref(false);
 	const tabSettingsIcon = ref('');
 	const isUpdatingTab = ref(false);
+
+	const showConvertTabDialog = ref(false);
+	const convertTabNode = ref(null);
 
 	const showDeleteDialog = ref(false);
 	const deleteNode = ref(null);
@@ -58,6 +62,34 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 		tabSettingsIsTab.value = !!node?.is_tab;
 		tabSettingsIcon.value = node?.tab_icon || '';
 		showTabSettingsDialog.value = true;
+	}
+
+	function openConvertTabDialog(node) {
+		convertTabNode.value = node;
+		showConvertTabDialog.value = true;
+	}
+
+	// Convert straight to a tab with a sensible default icon — the user tweaks
+	// the icon inline afterwards rather than being prompted mid-flow.
+	async function confirmConvertTab(close) {
+		const docKey = convertTabNode.value?.doc_key;
+		if (!docKey) {
+			close();
+			return;
+		}
+		close();
+		isUpdatingTab.value = true;
+		try {
+			await draftStore.updateNode(docKey, {
+				is_tab: 1,
+				tab_icon: DEFAULT_TAB_ICON,
+			});
+		} catch (error) {
+			console.error('Error converting to tab:', error);
+			toast.error(error.messages?.[0] || __('Error converting to tab'));
+		} finally {
+			isUpdatingTab.value = false;
+		}
 	}
 
 	// Promote/demote an existing top-level group. Clearing the flag leaves
@@ -279,6 +311,10 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 		isUpdatingTab,
 		openTabSettingsDialog,
 		saveTabSettings,
+		showConvertTabDialog,
+		convertTabNode,
+		openConvertTabDialog,
+		confirmConvertTab,
 		showDeleteDialog,
 		deleteNode,
 		deleteChildCount,

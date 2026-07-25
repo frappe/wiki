@@ -1,15 +1,45 @@
 <template>
 	<div
 		v-if="crStore.isChangeRequestMode"
-		class="contribution-banner min-h-12 px-3 py-2 sm:px-5 sm:py-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+		class="contribution-banner min-h-10 px-2 py-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
 		:class="bannerClass"
 	>
-		<div class="flex items-center gap-3 min-w-0">
-			<span :class="bannerIcon" class="size-4 shrink-0" aria-hidden="true" />
-			<div class="min-w-0">
-				<p class="text-sm-medium">{{ bannerTitle }}</p>
-				<p v-if="bannerDescription" class="text-xs opacity-80">{{ bannerDescription }}</p>
+		<div class="flex items-center gap-1 min-w-0">
+			<Button
+				class="-ml-2"
+				variant="ghost"
+				icon="arrow-left"
+				:title="__('Back to Spaces')"
+				:route="{ name: 'SpaceList' }"
+			/>
+			<div class="min-w-0 px-1 flex items-center gap-2">
+				<span class="truncate text-base-medium leading-none text-ink-gray-8">
+					{{ spaceName || __('Space') }}
+				</span>
+				<Badge variant="subtle" :theme="statusBadgeTheme" size="sm">
+					{{ bannerTitle }}
+				</Badge>
 			</div>
+			<Button
+				v-if="spaceRoute"
+				variant="ghost"
+				icon="external-link"
+				:title="__('View Space')"
+				:link="'/' + spaceRoute"
+			/>
+			<Button
+				variant="ghost"
+				icon="settings"
+				:title="__('Settings')"
+				@click="emit('open-settings')"
+			/>
+			<span
+				v-if="reviewFeedback"
+				class="truncate text-xs text-ink-red-8 min-w-0"
+				:title="reviewFeedback"
+			>
+				{{ reviewFeedback }}
+			</span>
 		</div>
 
 		<div class="flex items-center gap-2 flex-wrap">
@@ -288,9 +318,29 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	spaceName: {
+		type: String,
+		default: '',
+	},
+	spaceRoute: {
+		type: String,
+		default: '',
+	},
 });
 
-const emit = defineEmits(['submit', 'withdraw', 'merge']);
+const STATUS_BADGE_THEME = {
+	Draft: 'gray',
+	'In Review': 'orange',
+	'Changes Requested': 'red',
+	Approved: 'green',
+	Merged: 'green',
+	Rejected: 'red',
+};
+const statusBadgeTheme = computed(
+	() => STATUS_BADGE_THEME[changeRequestStatus.value] || 'gray',
+);
+
+const emit = defineEmits(['submit', 'withdraw', 'merge', 'open-settings']);
 
 const changeRequestStatus = computed(
 	() => crStore.currentChangeRequest?.status || 'Draft',
@@ -411,14 +461,11 @@ const bannerConfig = computed(
 	() => BANNER_CONFIG[changeRequestStatus.value] || DEFAULT_BANNER,
 );
 const bannerClass = computed(() => bannerConfig.value.class);
-const bannerIcon = computed(() => bannerConfig.value.icon);
 const bannerTitle = computed(() => bannerConfig.value.title);
 
-// On Changes Requested / Rejected, show the reviewer's actual feedback instead
-// of a generic prompt — this is the only place the author sees why their CR
-// bounced back (the comment is stored on the CR by `request_changes` /
-// `reject_change_request`).
-const bannerDescription = computed(() => {
+// The only place the author sees why a CR bounced back; the status badge covers
+// the generic states, so those blurbs are dropped.
+const reviewFeedback = computed(() => {
 	const cr = crStore.currentChangeRequest;
 	const showsReviewComment = ['Changes Requested', 'Rejected'].includes(
 		changeRequestStatus.value,
@@ -428,6 +475,6 @@ const bannerDescription = computed(() => {
 			? __('{0} — {1}', [cr.review_comment, cr.reviewed_by])
 			: cr.review_comment;
 	}
-	return bannerConfig.value.description;
+	return '';
 });
 </script>

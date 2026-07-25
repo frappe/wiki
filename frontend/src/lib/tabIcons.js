@@ -10,6 +10,10 @@
 // Copied from frappe/gameplan's IconPicker.vue. `keywords` is carried over
 // unused (a search box was planned there and never wired) so the list stays
 // diffable against the original.
+// Applied when a group is converted into a tab without the user picking one;
+// they can change it inline afterwards.
+export const DEFAULT_TAB_ICON = 'lucide-book-open-text';
+
 export const TAB_ICONS = [
 	{
 		class: 'lucide-house',

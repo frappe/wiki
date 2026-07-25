@@ -28,7 +28,6 @@
 						aria-hidden="true"
 					/>
 				</button>
-				<div v-else class="w-5 shrink-0" />
 
 				<SpaceIcon v-if="node.is_tab" :icon="node.tab_icon" class="text-ink-gray-5 shrink-0" />
 				<span v-else-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
@@ -145,6 +144,7 @@ const emit = defineEmits([
 	'external-link',
 	'edit-external-link',
 	'tab-settings',
+	'convert-to-tab',
 	'drag-state-change',
 ]);
 
@@ -364,9 +364,10 @@ function getDropdownOptions(node) {
 		// backend would reject. Editor-only, mirroring can_manage_tabs.
 		if (props.canManageTabs && isTopLevel(node)) {
 			options.push({
-				label: node.is_tab ? __('Tab settings') : __('Make this a tab'),
+				label: node.is_tab ? __('Tab settings') : __('Convert to tab'),
 				icon: 'columns',
-				onClick: () => emit('tab-settings', node),
+				onClick: () =>
+					emit(node.is_tab ? 'tab-settings' : 'convert-to-tab', node),
 			});
 		}
 	}

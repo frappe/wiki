@@ -742,7 +742,13 @@ def get_space_tabs(space: str) -> list[dict]:
 	if not can_read_space(space):
 		return []
 
-	root_group = frappe.db.get_value("Wiki Space", space, "root_group")
+	space_doc = frappe.db.get_value(
+		"Wiki Space",
+		space,
+		["root_group", "home_tab_title", "home_tab_icon"],
+		as_dict=True,
+	)
+	root_group = space_doc and space_doc.root_group
 	if not root_group:
 		return []
 
@@ -777,18 +783,17 @@ def get_space_tabs(space: str) -> list[dict]:
 		for tab in tabs
 	]
 
-	# Home leads the bar only when the space has several tabs and untabbed
-	# top-level content to land on. With a single tab a Home entry is just noise;
-	# a fully-tabbed space has nowhere for Home to point — both cases omit it.
-	if len(result) >= 2:
-		home = _home_tab_entry(tree)
-		if home:
-			result.insert(0, home)
+	# Home leads the bar whenever the space has at least one tab and some untabbed
+	# top-level content for it to land on. A fully-tabbed space has nowhere for
+	# Home to point, so _home_tab_entry returns None and it's omitted.
+	home = _home_tab_entry(tree, space_doc.home_tab_title, space_doc.home_tab_icon)
+	if home:
+		result.insert(0, home)
 
 	return result
 
 
-def _home_tab_entry(tree: list) -> dict | None:
+def _home_tab_entry(tree: list, title: str | None = None, icon: str | None = None) -> dict | None:
 	"""The synthetic Home tab pointing at the space's untabbed top-level content,
 	or None when there is no such content to land on."""
 	untabbed = [node for node in tree if not node.get("is_tab")]
@@ -798,9 +803,9 @@ def _home_tab_entry(tree: list) -> dict | None:
 	return {
 		"name": None,
 		"doc_key": WIKI_HOME_TAB_KEY,
-		"title": _("Home"),
+		"title": title or _("Home"),
 		"route": landing["route"],
-		"tab_icon": "lucide-house",
+		"tab_icon": icon or "lucide-house",
 		"landing_route": landing["route"],
 	}
 

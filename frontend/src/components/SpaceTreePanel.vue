@@ -2,7 +2,10 @@
 	<div class="flex h-full min-h-0 flex-col">
 		<!-- Header: fixed 48px region so its bottom border lines up with the
 		     main column's banner/header bars. -->
-		<div class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2">
+		<div
+			v-if="!compactHeader"
+			class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2"
+		>
 			<Button
 				variant="ghost"
 				icon="arrow-left"
@@ -98,6 +101,7 @@ defineProps({
 	// The space root, where a new tab must be parented regardless of which tab
 	// is currently being browsed.
 	spaceRootNode: { type: String, default: '' },
+	compactHeader: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['refresh', 'reorder-state-change', 'open-settings']);

@@ -60,9 +60,12 @@
         <ContributionBanner
             v-else
             :mergeDisabled="isTreeReordering"
+            :space-name="space.doc?.space_name || spaceId"
+            :space-route="space.doc?.route"
             @submit="handleSubmitChangeRequest"
             @withdraw="handleArchiveChangeRequest"
             @merge="handleMergeChangeRequest"
+            @open-settings="openSettings"
         />
 
         <div
@@ -76,7 +79,11 @@
                 @select="selectTab"
                 @create="openCreateTabDialog"
                 @reorder="reorderTab"
+                @update-icon="updateTabIcon"
+                @rename-tab="renameTab"
             />
+            <!-- Teleport target for the open page's actions (inline layout). -->
+            <div id="wiki-page-actions" class="flex shrink-0 items-center gap-2 self-center pl-3" />
         </div>
 
         <!-- Sidebar + content share the row beneath the chrome. -->
@@ -100,6 +107,7 @@
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     :can-manage-tabs="canManageTabs"
+                    :compact-header="treeHeaderCompact"
                     @refresh="refreshTree"
                     @reorder-state-change="handleReorderStateChange"
                     @open-settings="openSettings"
@@ -131,6 +139,7 @@
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     :can-manage-tabs="canManageTabs"
+                    :compact-header="treeHeaderCompact"
                     @refresh="refreshTree"
                     @reorder-state-change="handleReorderStateChange"
                     @open-settings="openSettings"
@@ -163,18 +172,14 @@
                 </h3>
             </template>
             <template #default>
-                <div class="space-y-4 py-2">
+                <div class="py-2">
                     <FormControl
                         type="text"
-                        :label="__('Tab Name')"
+                        :label="__('Title')"
                         v-model="newTabTitle"
-                        :placeholder="__('Enter tab name')"
+                        :placeholder="__('Enter tab title')"
                         @keyup.enter="createTab"
                     />
-                    <div>
-                        <p class="mb-1.5 text-xs text-ink-gray-5">{{ __('Icon') }}</p>
-                        <IconPicker v-model="newTabIcon" inline />
-                    </div>
                 </div>
             </template>
             <template #actions>
@@ -273,7 +278,6 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
-import IconPicker from '../components/IconPicker.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
@@ -281,6 +285,8 @@ import WikiTabBar from '../components/WikiTabBar.vue';
 import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSpaceTabs } from '../composables/useSpaceTabs.js';
+import { GENERAL_KEY } from '../lib/spaceTabs.js';
+import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { toPublished } from '../stores/draftWorkspace/utils';
@@ -330,6 +336,12 @@ const currentDraftKey = computed(() => route.params.docKey || null);
 
 const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
+
+// In change-request mode the banner carries the space name + back/settings, so
+// the tree header drops its own identity block to avoid showing it twice.
+const treeHeaderCompact = computed(
+	() => crStore.isChangeRequestMode && !isGitSynced.value,
+);
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
 // mobile breakpoint, so it can't get stuck open behind the desktop layout.
@@ -569,10 +581,16 @@ const treeData = computed(() => {
 // Tab state lives here rather than in SpaceTreePanel: the bar renders in this
 // column's header while the tree it filters renders in the sidebar, so a single
 // owner keeps the two from disagreeing.
+const homeMeta = computed(() => ({
+	title: space.doc?.home_tab_title || '',
+	icon: space.doc?.home_tab_icon || '',
+}));
+
 const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
 	treeData,
 	currentPageId,
 	currentDraftKey,
+	homeMeta,
 );
 
 // Creating and reordering tabs is owned here alongside the bar, rather than in
@@ -580,12 +598,10 @@ const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
 // doesn't depend on which subtree the sidebar is currently showing.
 const showCreateTabDialog = ref(false);
 const newTabTitle = ref('');
-const newTabIcon = ref('');
 const creatingTab = ref(false);
 
 function openCreateTabDialog() {
 	newTabTitle.value = '';
-	newTabIcon.value = '';
 	showCreateTabDialog.value = true;
 }
 
@@ -603,9 +619,10 @@ async function createTab() {
 			title,
 			isGroup: true,
 			isTab: true,
-			tabIcon: newTabIcon.value || null,
+			tabIcon: DEFAULT_TAB_ICON,
 		});
-		await promise;
+		const newKey = await promise;
+		if (newKey) selectTab(newKey);
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error creating tab'));
 	} finally {
@@ -637,6 +654,32 @@ function reorderTab({ docKey, toIndex }) {
 		newParentKey: treeData.value?.root_group || null,
 		newIndex,
 	});
+}
+
+// The Home tab is synthetic — its icon/title live on the Wiki Space, not a
+// node — so it updates the space doc directly; real tabs go through the draft.
+async function updateTabIcon({ key, icon }) {
+	try {
+		if (key === GENERAL_KEY) {
+			await space.setValue.submit({ home_tab_icon: icon });
+		} else {
+			await draftStore.updateNode(key, { tab_icon: icon });
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error updating tab icon'));
+	}
+}
+
+async function renameTab({ key, title }) {
+	try {
+		if (key === GENERAL_KEY) {
+			await space.setValue.submit({ home_tab_title: title });
+		} else {
+			await draftStore.updateNode(key, { title });
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error renaming tab'));
+	}
 }
 
 // Remember the last page opened in this space (per-space, like the tree's

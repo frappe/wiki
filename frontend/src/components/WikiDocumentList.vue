@@ -59,6 +59,7 @@
 				@external-link="openExternalLinkDialog"
 				@edit-external-link="openEditExternalLinkDialog"
 				@tab-settings="openTabSettingsDialog"
+				@convert-to-tab="openConvertTabDialog"
 				@drag-state-change="handleDragStateChange"
 			/>
 		</div>
@@ -112,6 +113,30 @@
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" :loading="isUpdatingTab" @click="saveTabSettings(close)">
 						{{ __('Save') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
+
+		<Dialog v-model:open="showConvertTabDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
+					{{ __('Convert to tab') }}
+				</h3>
+			</template>
+			<template #default>
+				<p class="text-ink-gray-7">
+					{{ __('Convert "{0}" into a tab?', [convertTabNode?.title || __('this group')]) }}
+				</p>
+				<p class="text-sm text-ink-gray-5 mt-2">
+					{{ __('It will appear in the horizontal tab bar. You can change its icon and name afterwards.') }}
+				</p>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button variant="solid" :loading="isUpdatingTab" @click="confirmConvertTab(close)">
+						{{ __('Convert') }}
 					</Button>
 				</div>
 			</template>
@@ -315,6 +340,10 @@ const {
 	isUpdatingTab,
 	openTabSettingsDialog,
 	saveTabSettings,
+	showConvertTabDialog,
+	convertTabNode,
+	openConvertTabDialog,
+	confirmConvertTab,
 	showDeleteDialog,
 	deleteNode,
 	deleteChildCount,

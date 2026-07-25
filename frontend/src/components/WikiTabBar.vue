@@ -12,46 +12,31 @@
 	>
 		<!-- Home leads the bar and never drags: it's synthetic (everything not in
 		     a tab), so it has no document to reorder and stays pinned leftmost. -->
-		<button
+		<WikiTab
 			v-if="homeTab"
-			role="tab"
-			:aria-selected="homeTab.key === activeKey"
-			:title="homeTab.title"
-			:class="triggerClass(homeTab)"
-			@click="emit('select', homeTab.key)"
-		>
-			<SpaceIcon v-if="homeTab.icon" :icon="homeTab.icon" />
-			<span>{{ homeTab.title }}</span>
-			<span
-				v-if="homeTab.key === activeKey"
-				class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-surface-gray-10"
-			/>
-		</button>
+			:tab="homeTab"
+			:active="homeTab.key === activeKey"
+			:can-manage="canManageTabs"
+			@select="emit('select', homeTab.key)"
+			@update-icon="emit('update-icon', { key: homeTab.key, icon: $event })"
+			@rename="emit('rename-tab', { key: homeTab.key, title: $event })"
+		/>
 
 		<!-- The reorderable real tabs. SortableJS owns the drag; the group is its
 		     own flex row so the container's gap-5 also spaces it against Home, the
 		     More menu, and the add button. -->
-		<div ref="sortableEl" class="flex items-stretch gap-5">
-			<button
+		<div ref="sortableEl" class="flex items-stretch gap-5 empty:hidden">
+			<WikiTab
 				v-for="tab in sortableList"
 				:key="tab.key"
-				role="tab"
-				:aria-selected="tab.key === activeKey"
-				:title="tab.title"
-				:data-tab-key="tab.key"
-				:class="[
-					triggerClass(tab),
-					canManageTabs ? 'cursor-grab active:cursor-grabbing' : '',
-				]"
-				@click="emit('select', tab.key)"
-			>
-				<SpaceIcon v-if="tab.icon" :icon="tab.icon" />
-				<span>{{ tab.title }}</span>
-				<span
-					v-if="tab.key === activeKey"
-					class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-surface-gray-10"
-				/>
-			</button>
+				:tab="tab"
+				:active="tab.key === activeKey"
+				:can-manage="canManageTabs"
+				:draggable="canManageTabs"
+				@select="emit('select', tab.key)"
+				@update-icon="emit('update-icon', { key: tab.key, icon: $event })"
+				@rename="emit('rename-tab', { key: tab.key, title: $event })"
+			/>
 		</div>
 
 		<!-- Overflow. When the active tab is inside it, the trigger takes on that
@@ -98,7 +83,7 @@ import { useSortable } from '@vueuse/integrations/useSortable';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { GENERAL_KEY } from '../lib/spaceTabs.js';
-import SpaceIcon from './SpaceIcon.vue';
+import WikiTab from './WikiTab.vue';
 
 const props = defineProps({
 	// [{ key, title, icon }] — `icon` is a full lucide class name, e.g. 'lucide-wallet'.
@@ -109,7 +94,13 @@ const props = defineProps({
 	canManageTabs: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['select', 'create', 'reorder']);
+const emit = defineEmits([
+	'select',
+	'create',
+	'reorder',
+	'update-icon',
+	'rename-tab',
+]);
 
 const container = ref(null);
 const visibleCount = ref(0);
@@ -138,15 +129,6 @@ const overflowOptions = computed(() =>
 		onClick: () => emit('select', tab.key),
 	})),
 );
-
-function triggerClass(tab) {
-	return [
-		'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap py-2.5 text-base duration-300 ease-in-out',
-		tab.key === props.activeKey
-			? 'text-ink-gray-9'
-			: 'text-ink-gray-5 hover:text-ink-gray-9',
-	];
-}
 
 // Drag-reorder via SortableJS. `sortableList` is a mutable mirror of the visible
 // real tabs: useSortable moves an entry within it on drop (keeping the DOM in

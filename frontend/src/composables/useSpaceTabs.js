@@ -16,9 +16,20 @@ import {
  * from get_space_tabs: in the editor that's the draft/change-request tree, so a
  * tab created in an unmerged draft shows up immediately.
  */
-export function useSpaceTabs(treeData, selectedPageId, selectedDraftKey) {
+export function useSpaceTabs(
+	treeData,
+	selectedPageId,
+	selectedDraftKey,
+	homeMeta,
+) {
 	const topLevelNodes = computed(() => treeData.value?.children || []);
-	const tabs = computed(() => buildTabList(topLevelNodes.value, __('Home')));
+	const tabs = computed(() =>
+		buildTabList(
+			topLevelNodes.value,
+			homeMeta?.value?.title || __('Home'),
+			homeMeta?.value?.icon,
+		),
+	);
 
 	// The tab owning the currently open page: walk the page's ancestors up to
 	// the tab-flagged group.
