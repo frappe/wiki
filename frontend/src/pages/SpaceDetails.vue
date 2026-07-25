@@ -23,40 +23,39 @@
              reader's navbar > tabs > tree stack. The draft/git banner is about
              the whole draft, so it outranks the tab bar, which in turn sits
              above the tree. -->
-        <div
+        <SpaceChromeBar
             v-if="isGitSynced"
-            class="min-h-12 px-3 sm:px-5 py-1.5 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
+            :space-name="space.doc?.space_name || spaceId"
+            :space-route="space.doc?.route"
+            @open-settings="openSettings"
         >
-            <div class="flex items-center gap-3 min-w-0">
-                <span class="lucide-github size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
-                <div class="min-w-0">
-                    <a
-                        v-if="space.doc?.repo_full_name"
-                        :href="`https://github.com/${space.doc.repo_full_name}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-sm-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
-                    >
-                        {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
-                    </a>
-                    <p v-else class="text-sm-medium text-ink-gray-8 truncate">
-                        {{ space.doc?.space_name || spaceId }}
-                    </p>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
-                        <Badge variant="subtle" theme="gray" size="sm">
-                            {{ syncStatusLabel(space.doc?.last_sync_status) }}
-                        </Badge>
-                    </div>
-                </div>
-            </div>
-            <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
-                <template #prefix>
-                    <span class="lucide-refresh-cw size-4" aria-hidden="true" />
-                </template>
-                {{ __('Sync now') }}
-            </Button>
-        </div>
+            <template #badge>
+                <Badge variant="subtle" theme="gray" size="sm" :title="__('Synced from GitHub')">
+                    {{ syncStatusLabel(space.doc?.last_sync_status) }}
+                </Badge>
+            </template>
+            <template #meta>
+                <a
+                    v-if="space.doc?.repo_full_name"
+                    :href="`https://github.com/${space.doc.repo_full_name}`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex min-w-0 items-center gap-1 text-xs text-ink-gray-5 hover:text-ink-gray-7"
+                    :title="__('Synced from GitHub')"
+                >
+                    <span class="lucide-github size-3.5 shrink-0" aria-hidden="true" />
+                    <span class="truncate">{{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span></span>
+                </a>
+            </template>
+            <template #actions>
+                <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
+                    <template #prefix>
+                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
+                    </template>
+                    {{ __('Sync now') }}
+                </Button>
+            </template>
+        </SpaceChromeBar>
         <ContributionBanner
             v-else
             :mergeDisabled="isTreeReordering"
@@ -278,6 +277,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
@@ -337,12 +337,16 @@ const currentDraftKey = computed(() => route.params.docKey || null);
 const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
 
-// In change-request mode the desktop banner carries the space name +
-// back/settings, so the tree header drops its own identity block to avoid
-// showing it twice. On mobile the banner is a separate compact header and the
-// tree lives in a drawer, so the drawer keeps its full header (incl. Settings).
+// Both the CR banner and the git-sync banner carry the space name +
+// back/settings on desktop, so the tree header drops its own identity block to
+// avoid showing it twice. On mobile the banner is a separate compact header and
+// the tree lives in a drawer, so the drawer keeps its full header (incl.
+// Settings). The plain (non-CR, non-git) space has no banner, so it isn't
+// compacted — its identity lives only in the tree header.
 const treeHeaderCompact = computed(
-	() => crStore.isChangeRequestMode && !isGitSynced.value && !isMobile.value,
+	() =>
+		!isMobile.value &&
+		(crStore.isChangeRequestMode || isGitSynced.value),
 );
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the

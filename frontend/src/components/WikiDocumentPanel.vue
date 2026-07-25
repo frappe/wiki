@@ -27,37 +27,13 @@
 			</Dropdown>
 		</DefineActions>
 
-		<!-- `defer` lets the target (in SpaceDetails' tab row) mount first when
-		     tabs load async. -->
-		<Teleport v-if="inlineHeader" defer to="#wiki-page-actions">
+		<!-- Page actions live in the space's tab row (SpaceDetails). `defer` lets
+		     that target mount first when tabs load async. -->
+		<Teleport defer to="#wiki-page-actions">
 			<ReuseActions />
 		</Teleport>
 
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div
-				v-if="!inlineHeader"
-				class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5"
-			>
-				<div
-					v-if="readonly"
-					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5"
-				>
-					<span class="font-mono truncate">/{{ displayRoute }}</span>
-				</div>
-				<div
-					v-else
-					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-					@click="openRouteDialog"
-				>
-					<span class="font-mono truncate">/{{ displayRoute }}</span>
-					<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-				</div>
-
-				<div class="flex shrink-0 items-center gap-2">
-					<ReuseActions />
-				</div>
-			</div>
-
 			<div class="flex-1 overflow-auto pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
@@ -72,7 +48,7 @@
 									@blur="saveTitleIfChanged"
 									@keydown.enter="$event.target.blur()"
 								/>
-								<div v-if="inlineHeader" class="flex shrink-0 items-center gap-2 pt-2">
+								<div class="flex shrink-0 items-center gap-2 pt-2">
 									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
 										{{ __('Published') }}
 									</Badge>
@@ -85,26 +61,14 @@
 								</div>
 							</div>
 
+							<!-- Route under the title; click-to-edit unless read-only. -->
 							<div
-								v-if="inlineHeader"
 								class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
 								:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
 								@click="readonly ? null : openRouteDialog()"
 							>
 								<span class="font-mono truncate">/{{ displayRoute }}</span>
 								<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-							</div>
-
-							<div v-else class="mt-1.5 flex items-center gap-2">
-								<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-									{{ __('Published') }}
-								</Badge>
-								<Badge v-else variant="subtle" theme="orange" size="sm">
-									{{ __('Not Published') }}
-								</Badge>
-								<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-									{{ __('Has Draft Changes') }}
-								</Badge>
 							</div>
 						</div>
 					</template>
@@ -217,10 +181,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['refresh']);
-
-// Read-only (git-synced) pages keep the dedicated header row; editable pages
-// fold the route under the title and park actions in the tab row.
-const inlineHeader = computed(() => !props.readonly);
 
 const editorRef = ref(null);
 const editableTitle = ref('');
