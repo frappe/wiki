@@ -355,6 +355,37 @@ cd frontend && yarn build
 9. Eyeball the card against the app: title, breadcrumb and space name should read as the same greys
    the reader uses, not a second palette.
 
+## Status — implemented 2026-07-25 (branch `feat/generated-meta-images`)
+
+Phases 0–4 are done, tested and verified against `wiki.localhost`. Phase 5 stays
+future work. Where the code departs from the plan above:
+
+- **`--surface-white` is retired.** frappe-ui's tokens-v2 deliberately drops the
+  legacy alias (`tailwind/figma-tokens-to-theme.js:134`) so straggler usage fails
+  visibly. The template declares `--surface-base` (`neutral/white`, `#ffffff`)
+  instead, and that is the name the drift test asserts.
+- **Title tracking is `0em`, not `-0.02em`.** `typography.json` puts every size at
+  or above the card's scale on `0em`; the spec's negative value was invented.
+  Weight stays `600` (`fontWeight.semibold`).
+- **`generate_og_bytes(ctx)` takes the context, not the doc.** The context *is*
+  the render input and is what the fingerprint hashes, so passing the doc would
+  mean building it twice.
+- **The warm-up skips inserts.** A page nobody has shared has no stale card to
+  replace, and warming every insert would turn a git-sync import of a whole wiki
+  into a Chromium storm — the same bulk pre-generation this spec puts out of
+  scope. Renames, publishes and moves (all updates) are covered.
+- **A patch turns the setting on for existing sites.** A new Check on a Single
+  does not backfill its default, so `auto_generate_meta_images` would read as 0
+  everywhere the doctype already existed. `patches.txt` sets it, mirroring the
+  `auto_convert_images_to_webp` line above it.
+- **The merge warm-up tests live in `test_wiki_change_request.py`**, next to the
+  CR fixtures and `_approve_and_merge` they need, rather than in
+  `test_wiki_document.py`.
+
+The escaping guard and the token-drift guard were both verified by temporarily
+reverting what they protect (dropping `| e` from the title; changing one hex
+value) and confirming each test failed.
+
 ## Risks
 
 1. **Chromium cold start blocks a worker.** The first `ChromiumManager` spin-up is seconds. The lock
