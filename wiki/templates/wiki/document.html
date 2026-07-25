@@ -132,7 +132,12 @@
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
-            markdown: {{ raw_markdown | tojson | forceescape }}
+            {#- Script context: bare `tojson` is correct — it emits a valid JS
+                string literal and escapes </script>/quotes. Do NOT add
+                `forceescape` here (that's only for tojson in HTML attributes);
+                inside <script> the browser doesn't HTML-decode, so entities
+                would be a JS syntax error and break Alpine init. -#}
+            markdown: {{ raw_markdown | tojson }}
         });
 
         // Combined component for wiki document page (wikiDocument + tocScrollSpy)

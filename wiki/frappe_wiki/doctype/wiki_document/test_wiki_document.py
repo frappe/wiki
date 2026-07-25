@@ -2371,3 +2371,19 @@ class TestReaderRouteXSS(unittest.TestCase):
 		html = frappe.render_template(template, {"route": self.PAYLOAD})
 		self.assertIn("inTab(&#34;", html)
 		self._assert_route_is_safe(html)
+
+	def test_script_context_uses_bare_tojson_not_forceescape(self):
+		"""Inside a <script> block the browser does not HTML-decode, so a value
+		interpolated as a JS literal must use bare `tojson` (which escapes
+		</script> and quotes to \\uXXXX) — never `tojson | forceescape`, whose
+		HTML entities would be a JS syntax error and break Alpine init. Guards
+		the `Alpine.store('pageContent', { markdown: ... })` line in
+		document.html."""
+		hostile = "a \"quote\" and </script><img src=x> and 'x'"
+		html = frappe.render_template("markdown: {{ md | tojson }}", {"md": hostile})
+		# Valid JS string literal: quotes/script-tag/apostrophes are escaped,
+		# and there are no HTML entities that JS would choke on.
+		self.assertNotIn("&#34;", html)
+		self.assertNotIn("&#39;", html)
+		self.assertNotIn("</script>", html)
+		self.assertIn("\\u003c/script", html)
