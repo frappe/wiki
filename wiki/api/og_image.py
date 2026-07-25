@@ -292,8 +292,17 @@ def enqueue_og_warmup(doc) -> None:
 	moves the fingerprint merges through a full doc.save() and lands here. The
 	content-only fast path bypasses hooks, but content is not a fingerprint
 	input, so there is nothing to miss.
+
+	Inserts are deliberately left to the lazy path: a page nobody has shared yet
+	has no stale card to replace, and warming every insert would turn a git-sync
+	import of a whole wiki into a Chromium storm. Bulk pre-generation is a
+	separate problem.
 	"""
 	if not _cards_enabled():
+		return
+
+	before = doc.get_doc_before_save()
+	if not before:
 		return
 
 	target = _has_card(doc)
@@ -301,8 +310,7 @@ def enqueue_og_warmup(doc) -> None:
 		return
 
 	path, _fingerprint = target
-	before = doc.get_doc_before_save()
-	if before and os.path.exists(path):
+	if os.path.exists(path):
 		previous = _has_card(before)
 		if previous and previous[0] == path:
 			return
