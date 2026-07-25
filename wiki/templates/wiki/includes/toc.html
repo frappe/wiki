@@ -3,7 +3,9 @@
      active heading darkening its own segment. -->
 <aside id="wiki-toc" class="hidden lg:block flex-shrink-0 py-6 pr-6 {% if toc_headings and toc_headings|length > 0 %}w-56{% else %}w-0 !p-0{% endif %}">
 {% if toc_headings and toc_headings|length > 0 %}
-    <nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">
+    {# Sticks 24px under the chrome (navbar + tab row); see --wiki-chrome-h in main.css.
+       Mirrored by the nav-store's SPA re-render in includes/sidebar.html — edit both. #}
+    <nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">
         <!-- Transparent border keeps the label on the same left edge as the links. -->
         <span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent text-[var(--ink-gray-9)]">On this page</span>
         {% for heading in toc_headings %}

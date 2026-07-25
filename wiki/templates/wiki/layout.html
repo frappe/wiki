@@ -58,7 +58,13 @@
 
     {{ head_html or "" }}
 </head>
-<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base">
+{#- `data-wiki-tabs` / `data-wiki-bare` drive --wiki-chrome-h (see main.css):
+    the height of the sticky chrome above the sidebar, which everything below it
+    offsets against. It's a CSS variable rather than an inline value because the
+    chrome is desktop-only — below `lg` the offset has to collapse to zero. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base"
+      {% if hide_chrome %}data-wiki-bare{% elif has_tabs %}data-wiki-tabs{% endif %}>
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 
@@ -66,18 +72,22 @@
     {% include "templates/wiki/includes/mobile_header.html" %}
     {% endif %}
 
-    <!-- Main flex container: sidebar (full height) + content column -->
-    <div class="flex min-h-screen">
+    {#- Chrome stacks top-down at full width — navbar, then tabs — so the
+        sidebar tree reads as nested inside the active tab rather than as its
+        sibling. -#}
+    {% if not hide_chrome %}
+    {% include "templates/wiki/includes/header.html" %}
+    {% include "templates/wiki/includes/tabs.html" %}
+    {% endif %}
+
+    <!-- Main flex container: sidebar + content column, both below the chrome -->
+    <div class="flex min-h-[calc(100vh-var(--wiki-chrome-h))]">
         {% if not hide_chrome %}
         {% include "templates/wiki/includes/sidebar.html" %}
         {% endif %}
 
-        <!-- Content column: desktop header + main + TOC -->
+        <!-- Content column: main + TOC -->
         <div class="flex-1 min-w-0 flex flex-col">
-            {% if not hide_chrome %}
-            {% include "templates/wiki/includes/header.html" %}
-            {% endif %}
-
             {% block content %}
             <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
                 {% block body %} {% endblock %}

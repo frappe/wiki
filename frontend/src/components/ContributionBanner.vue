@@ -1,18 +1,27 @@
 <template>
-	<div
+	<SpaceChromeBar
 		v-if="crStore.isChangeRequestMode"
-		class="contribution-banner min-h-12 px-3 py-2 sm:px-5 sm:py-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-		:class="bannerClass"
+		class="contribution-banner"
+		:space-name="spaceName"
+		:space-route="spaceRoute"
+		:bar-class="bannerClass"
+		@open-settings="emit('open-settings')"
 	>
-		<div class="flex items-center gap-3 min-w-0">
-			<span :class="bannerIcon" class="size-4 shrink-0" aria-hidden="true" />
-			<div class="min-w-0">
-				<p class="text-sm-medium">{{ bannerTitle }}</p>
-				<p v-if="bannerDescription" class="text-xs opacity-80">{{ bannerDescription }}</p>
-			</div>
-		</div>
-
-		<div class="flex items-center gap-2 flex-wrap">
+		<template #badge>
+			<Badge variant="subtle" :theme="statusBadgeTheme" size="sm">
+				{{ bannerTitle }}
+			</Badge>
+		</template>
+		<template #meta>
+			<span
+				v-if="reviewFeedback"
+				class="truncate text-xs text-ink-red-8 min-w-0"
+				:title="reviewFeedback"
+			>
+				{{ reviewFeedback }}
+			</span>
+		</template>
+		<template #actions>
 			<Badge
 				v-if="syncStateLabel"
 				variant="subtle"
@@ -78,9 +87,10 @@
 					<span class="lucide-more-vertical size-4" aria-hidden="true" />
 				</Button>
 			</Dropdown>
-		</div>
+		</template>
+	</SpaceChromeBar>
 
-		<Dialog v-model:open="showChangesDialog" size="lg">
+	<Dialog v-model:open="showChangesDialog" size="lg">
 			<template #title>
 				<div class="flex items-center gap-2">
 					<span class="lucide-git-branch size-5 text-ink-gray-5" aria-hidden="true" />
@@ -171,7 +181,6 @@
 				</div>
 			</template>
 		</Dialog>
-	</div>
 </template>
 
 <script setup>
@@ -181,6 +190,7 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
 import { computed, ref } from 'vue';
+import SpaceChromeBar from './SpaceChromeBar.vue';
 
 const {
 	getChangeIcon,
@@ -288,9 +298,29 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	spaceName: {
+		type: String,
+		default: '',
+	},
+	spaceRoute: {
+		type: String,
+		default: '',
+	},
 });
 
-const emit = defineEmits(['submit', 'withdraw', 'merge']);
+const STATUS_BADGE_THEME = {
+	Draft: 'gray',
+	'In Review': 'orange',
+	'Changes Requested': 'red',
+	Approved: 'green',
+	Merged: 'green',
+	Rejected: 'red',
+};
+const statusBadgeTheme = computed(
+	() => STATUS_BADGE_THEME[changeRequestStatus.value] || 'gray',
+);
+
+const emit = defineEmits(['submit', 'withdraw', 'merge', 'open-settings']);
 
 const changeRequestStatus = computed(
 	() => crStore.currentChangeRequest?.status || 'Draft',
@@ -411,14 +441,11 @@ const bannerConfig = computed(
 	() => BANNER_CONFIG[changeRequestStatus.value] || DEFAULT_BANNER,
 );
 const bannerClass = computed(() => bannerConfig.value.class);
-const bannerIcon = computed(() => bannerConfig.value.icon);
 const bannerTitle = computed(() => bannerConfig.value.title);
 
-// On Changes Requested / Rejected, show the reviewer's actual feedback instead
-// of a generic prompt — this is the only place the author sees why their CR
-// bounced back (the comment is stored on the CR by `request_changes` /
-// `reject_change_request`).
-const bannerDescription = computed(() => {
+// The only place the author sees why a CR bounced back; the status badge covers
+// the generic states, so those blurbs are dropped.
+const reviewFeedback = computed(() => {
 	const cr = crStore.currentChangeRequest;
 	const showsReviewComment = ['Changes Requested', 'Rejected'].includes(
 		changeRequestStatus.value,
@@ -428,6 +455,6 @@ const bannerDescription = computed(() => {
 			? __('{0} — {1}', [cr.review_comment, cr.reviewed_by])
 			: cr.review_comment;
 	}
-	return bannerConfig.value.description;
+	return '';
 });
 </script>

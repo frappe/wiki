@@ -24,7 +24,13 @@ export_python_type_annotations = True
 sqlite_search = ["wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search.WikiSQLiteSearch"]
 
 
-jinja = {"methods": ["wiki.utils.get_tailwindcss_hash", "wiki.utils.get_asset_hash"]}
+jinja = {
+	"methods": [
+		"wiki.utils.get_tailwindcss_hash",
+		"wiki.utils.get_asset_hash",
+		"wiki.utils.lucide_svg",
+	]
+}
 
 # Includes in <head>
 # ------------------

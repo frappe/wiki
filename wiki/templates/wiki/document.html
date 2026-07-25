@@ -13,7 +13,7 @@
 <div x-data="wikiPage" x-init="$store.navigation.init()" class="flex-1 min-w-0 flex">
     <!-- Main Content Area -->
     <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
-        <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[80ch]"
+        <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[100ch]"
              :class="{ 'opacity-50': $store.navigation.loading, 'xl:!max-w-[100ch]': $store.sidebar?.isCollapsed }">
         <!-- Page Header -->
         <header class="py-6 mb-6 border-b border-[var(--outline-gray-1)]">
@@ -90,8 +90,8 @@
             <div class="flex justify-between gap-5">
                 {% if prev_doc %}
                 <a href="/{{ prev_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ prev_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ prev_doc.route }}')"
+                   @click.prevent="$store.navigation.navigateTo({{ prev_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
                    class="{{ nav_link_classes }}">
                     {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
                     <span class="truncate">{{ prev_doc.title }}</span>
@@ -100,8 +100,8 @@
 
                 {% if next_doc %}
                 <a href="/{{ next_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ next_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ next_doc.route }}')"
+                   @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
                    class="{{ nav_link_classes }} {{ 'ml-auto' if not prev_doc else '' }}">
                     <span class="truncate">{{ next_doc.title }}</span>
                     {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
@@ -132,6 +132,11 @@
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
+            {#- Script context: bare `tojson` is correct — it emits a valid JS
+                string literal and escapes </script>/quotes. Do NOT add
+                `forceescape` here (that's only for tojson in HTML attributes);
+                inside <script> the browser doesn't HTML-decode, so entities
+                would be a JS syntax error and break Alpine init. -#}
             markdown: {{ raw_markdown | tojson }}
         });
 

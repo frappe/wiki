@@ -28,9 +28,9 @@
 						aria-hidden="true"
 					/>
 				</button>
-				<div v-else class="w-5 shrink-0" />
 
-				<span v-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
+				<SpaceIcon v-if="node.is_tab" :icon="node.tab_icon" class="text-ink-gray-5 shrink-0" />
+				<span v-else-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 				<span v-else-if="node.is_external_link" class="lucide-link size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 				<span v-else class="lucide-file-text size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 
@@ -83,6 +83,7 @@
 <script setup>
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import SpaceIcon from './SpaceIcon.vue';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -133,6 +134,7 @@ const props = defineProps({
 		type: String,
 		default: null,
 	},
+	canManageTabs: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -141,6 +143,8 @@ const emit = defineEmits([
 	'rename',
 	'external-link',
 	'edit-external-link',
+	'tab-settings',
+	'convert-to-tab',
 	'drag-state-change',
 ]);
 
@@ -282,8 +286,22 @@ function routeParts(node) {
 
 // Reparenting is only allowed into groups; sibling reorder is always fine.
 // Tree's built-in guards (drop-on-self, drop-into-own-descendant) run first.
-function allowMove({ target, position }) {
+//
+// A tab must stay top-level, so it can't be dropped inside anything, and it can
+// only sit beside other top-level rows. `parentName` is the tab's own parent
+// while that tab is the active subtree root, hence the depth check on target.
+// The server guards this too (_move_cr_item / reorder_wiki_documents); this
+// only stops the drag from looking like it worked.
+function allowMove({ dragNode, target, position }) {
+	if (dragNode?.is_tab) {
+		if (position === 'inside') return false;
+		return isTopLevel(target);
+	}
 	return position !== 'inside' || !!target.is_group;
+}
+
+function isTopLevel(node) {
+	return props.items.some((item) => item.doc_key === node?.doc_key);
 }
 
 function onDragStart() {
@@ -341,6 +359,17 @@ function getDropdownOptions(node) {
 				},
 			],
 		);
+
+		// Only top-level groups can be tabs, so don't offer an action the
+		// backend would reject. Editor-only, mirroring can_manage_tabs.
+		if (props.canManageTabs && isTopLevel(node)) {
+			options.push({
+				label: node.is_tab ? __('Tab settings') : __('Convert to tab'),
+				icon: 'columns',
+				onClick: () =>
+					emit(node.is_tab ? 'tab-settings' : 'convert-to-tab', node),
+			});
+		}
 	}
 
 	if (!node.is_group) {
@@ -384,9 +413,13 @@ onBeforeUnmount(() => {
 <style>
 .wiki-tree {
 	/* Rows carry two-line search results and py-1.5 content — size to content
-	   instead of the Tree default 32px. Indent matches the old 12px/level. */
+	   instead of the Tree default 32px. */
 	--tree-row-height: auto;
-	--tree-indent: 16px;
+	/* One level of indent equals a group's chevron column (w-5 button + gap-1.5
+	   = 20px + 6px). Leaves omit that chevron placeholder, so this makes a nested
+	   page's icon line up under its parent folder's icon instead of sitting left
+	   of it. */
+	--tree-indent: 26px;
 }
 
 /* Selected page/draft highlight lives on the full-width row (the #item slot

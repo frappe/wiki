@@ -49,6 +49,13 @@
 	padding: 1.5rem 0;
 }
 
+/* Read-only view (reader, preview, review diffs) has no editing chrome, so the
+   route/title header sits flush against content. Restore the same top gap the
+   editor gets from is-editable's padding. */
+.wiki-editor-content:not(.is-editable) {
+	padding-top: 1.5rem;
+}
+
 /* Table column resize handle (frappe-ui styles cells/selection but not the
    prosemirror-tables drag handle) */
 .wiki-editor-content .column-resize-handle {

@@ -60,11 +60,11 @@ test.describe('Git-synced space (read-only)', () => {
 		await page.goto(`/wiki/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
-		// Synced banner: repo link (title) + "Synced from GitHub" subtitle + Sync now.
+		// Synced banner (shared SpaceChromeBar): the repo link marks it as synced
+		// from GitHub, plus a Sync now action.
 		await expect(
 			page.locator(`a[href="https://github.com/${REPO}"]`),
 		).toBeVisible({ timeout: 10000 });
-		await expect(page.getByText('Synced from GitHub')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 
 		// No create / mutation affordances in the sidebar.

@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
 import {
+	cleanupWikiSpacesByRoute,
+	createTestWikiSpace,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 } from '../helpers/wiki';
@@ -15,6 +17,15 @@ interface WikiDocumentRoute {
  * For public-facing page tests (TOC, sidebar), see public-pages.spec.ts
  */
 test.describe('Wiki Editor', () => {
+	// Spaces created via API for tests that need a clean, isolated space rather
+	// than reusing whatever "first available space" happens to exist.
+	const createdRoutes: string[] = [];
+	test.afterAll(async ({ request }) => {
+		for (const route of createdRoutes) {
+			await cleanupWikiSpacesByRoute(request, route);
+		}
+	});
+
 	test('should display wiki spaces list', async ({ page }) => {
 		await page.goto('/wiki');
 		await page.waitForLoadState('networkidle');
@@ -52,53 +63,59 @@ test.describe('Wiki Editor', () => {
 		// Wait for the dialog to close and page to update
 		await page.waitForLoadState('networkidle');
 
-		// Verify the space was created: check URL changed and space name visible in heading
+		// Verify the space was created: check URL changed and space name visible.
+		// In change-request mode the name lives in the top banner rather than the
+		// tree aside; the timestamped name is unique, so match it page-wide.
 		await expect(page).toHaveURL(/\/wiki\/spaces\//, { timeout: 10000 });
 		await expect(
-			page.locator('aside').getByText(spaceName, { exact: true }),
+			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
 	});
 
-	test('should navigate to space and create a wiki page', async ({ page }) => {
-		await page.goto('/wiki');
-		await page.waitForLoadState('networkidle');
+	test('should navigate to space and create a wiki page', async ({
+		page,
+		request,
+	}) => {
+		// Create a dedicated, empty space rather than reusing whatever space
+		// happens to be first — that shared space can carry an in-progress draft
+		// from another test, which made this flaky.
+		const spaceRoute = `create-page-${Date.now()}`;
+		createdRoutes.push(spaceRoute);
+		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
-		// Click on first available space - fail fast if no spaces exist
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
-		await expect(spaceLink).toBeVisible({
-			timeout: 5000,
-		});
-		await spaceLink.click();
+		await page.goto(`/wiki/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
-
-		// Should be in the space detail view with sidebar
 		await expect(page.locator('aside')).toBeVisible();
 
 		// Open the create dialog — empty-space CTA or the Add dropdown.
 		await openNewPageDialog(page);
 
-		// Fill in the page title dialog
 		const titleInput = page.getByLabel('Title');
 		await expect(titleInput).toBeVisible({ timeout: 5000 });
 		const pageTitle = `Test Page ${Date.now()}`;
 		await titleInput.fill(pageTitle);
-
-		// Click Save button in dialog (use role to be more specific)
 		await page
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
 		await page.waitForLoadState('networkidle');
 
-		// Open the newly created page from the sidebar tree
-		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
+		// Let the optimistic create finish syncing before opening it: while the
+		// node is pending its "Saving…" badge shows, and its draft page isn't
+		// backed yet, so the editor can't mount. Wait for that to clear, then open.
+		const pageItem = page
+			.locator('aside')
+			.getByText(pageTitle, { exact: true });
+		await expect(pageItem).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('aside').getByTitle('Saving…')).toHaveCount(0, {
+			timeout: 15000,
+		});
+		await pageItem.click();
+		await page.waitForURL(/\/draft\/[^/?#]+/, { timeout: 10000 });
 
-		// Verify we're now in page editing mode - editor should be visible
 		await expect(
 			page.locator('.ProseMirror, [contenteditable="true"]'),
 		).toBeVisible({ timeout: 10000 });
-
-		// Verify page title is shown
 		await expect(page.getByText(pageTitle).first()).toBeVisible();
 	});
 

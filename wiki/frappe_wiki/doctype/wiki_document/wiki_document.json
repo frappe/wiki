@@ -26,6 +26,8 @@
 		"lft",
 		"rgt",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"old_parent",
 		"parent_wiki_document",
 		"sort_order"
@@ -59,6 +61,21 @@
 			"fieldname": "is_group",
 			"fieldtype": "Check",
 			"label": "Is Group"
+		},
+		{
+			"default": "0",
+			"depends_on": "is_group",
+			"description": "Render this top-level group as a tab in the horizontal navigation bar",
+			"fieldname": "is_tab",
+			"fieldtype": "Check",
+			"label": "Is Tab"
+		},
+		{
+			"depends_on": "eval:doc.is_tab",
+			"description": "Lucide icon class name, e.g. lucide-wallet",
+			"fieldname": "tab_icon",
+			"fieldtype": "Data",
+			"label": "Tab Icon"
 		},
 		{
 			"fieldname": "old_parent",

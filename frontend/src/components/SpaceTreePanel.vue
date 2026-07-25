@@ -2,7 +2,10 @@
 	<div class="flex h-full min-h-0 flex-col">
 		<!-- Header: fixed 48px region so its bottom border lines up with the
 		     main column's banner/header bars. -->
-		<div class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2">
+		<div
+			v-if="!compactHeader"
+			class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2"
+		>
 			<Button
 				variant="ghost"
 				icon="arrow-left"
@@ -41,6 +44,8 @@
 				:root-node="treeData.root_group || ''"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
+				:can-manage-tabs="canManageTabs"
+				:space-root-node="spaceRootNode"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
 			/>
@@ -77,6 +82,7 @@
 
 <script setup>
 import { Button, Skeleton } from 'frappe-ui';
+
 import WikiDocumentList from './WikiDocumentList.vue';
 
 defineProps({
@@ -84,11 +90,18 @@ defineProps({
 	spaceName: { type: String, default: '' },
 	spaceRoute: { type: String, default: '' },
 	spaceLoaded: { type: Boolean, default: false },
+	// Already narrowed to the active tab's subtree by useSpaceTabs; `root_group`
+	// is that tab, so top-level drops reparent into it.
 	treeData: { type: Object, default: null },
 	changeTypeMap: { type: Map, default: () => new Map() },
 	readonly: { type: Boolean, default: false },
 	selectedPageId: { type: String, default: null },
 	selectedDraftKey: { type: String, default: null },
+	canManageTabs: { type: Boolean, default: false },
+	// The space root, where a new tab must be parented regardless of which tab
+	// is currently being browsed.
+	spaceRootNode: { type: String, default: '' },
+	compactHeader: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['refresh', 'reorder-state-change', 'open-settings']);

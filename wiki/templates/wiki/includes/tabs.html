@@ -1,0 +1,53 @@
+{#- Horizontal module tabs — a full-width row of its own, directly under the
+    navbar and above both the sidebar and the content column. That ordering is
+    the point: navbar > tabs > tree makes the nesting legible, where a tab bar
+    living inside the content column read as a sibling of the tree.
+
+    Tabs are top-level groups flagged is_tab; clicking one swaps the sidebar
+    tree underneath.
+
+    Active state is driven by Alpine off $store.navigation.currentRoute rather
+    than being re-rendered, so SPA navigation can't leave a stale bar behind.
+    That works because a tab's slug is always an ancestor segment of its pages'
+    routes, making "is this page in this tab" a prefix test.
+
+    Styling mirrors frappe-ui's Tabs, same as the editor's WikiTabBar: gap-5,
+    text-base, ink-gray-5 resting / ink-gray-9 active, and a 2px rounded
+    surface-gray-10 indicator.
+
+    Icons are inlined server-side via wiki.utils.lucide_svg — the reader's
+    Tailwind build has no lucide plugin, so a `lucide-*` class would render as
+    an empty box here. -#}
+{% if space_tabs %}
+<div class="hidden lg:flex items-stretch px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-base)] sticky top-[53px] z-20 h-11"
+     x-data>
+    {#- Home is active when the current page sits under no tab, so its highlight
+        keys off the real tab routes rather than a prefix of its own. -#}
+    {% set real_routes = space_tabs | rejectattr('doc_key', 'equalto', '__general__') | map(attribute='route') | join('|') %}
+    <nav class="flex min-w-0 items-stretch gap-5 overflow-x-auto no-scrollbar" role="tablist">
+        {% for tab in space_tabs %}
+        {% set target = tab.landing_route or tab.route %}
+        {#- Routes are editor-set and can contain quotes, so every route
+            interpolated into an Alpine JS expression goes through `tojson` to
+            stay a safe, quoted JS string literal (stored-XSS guard). -#}
+        {% set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
+        <a href="/{{ target }}"
+           role="tab"
+           @click.prevent="$store.navigation.navigateTo({{ target | tojson | forceescape }})"
+           @mouseenter="$store.navigation.prefetch({{ target | tojson | forceescape }})"
+           :aria-selected="{{ active_js }}"
+           class="relative flex shrink-0 items-center gap-1.5 text-base whitespace-nowrap no-underline duration-300 ease-in-out"
+           :class="{{ active_js }} ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]'"
+           title="{{ tab.title }}">
+            {# `| safe`: the markup is build-generated (scripts/generate-public-lucide.mjs),
+               keyed by a stored class name, and the CSS class is escaped in the helper. #}
+            {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0") | safe }}{% endif %}
+            <span>{{ tab.title }}</span>
+            <span class="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[var(--surface-gray-10)]"
+                  x-show="{{ active_js }}"
+                  x-cloak></span>
+        </a>
+        {% endfor %}
+    </nav>
+</div>
+{% endif %}

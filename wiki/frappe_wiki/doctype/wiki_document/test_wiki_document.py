@@ -13,8 +13,13 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
+	clear_wiki_content_cache,
 	download_pdf,
+	get_public_wiki_tree,
+	get_rendered_content,
+	get_space_tabs,
 	process_navbar_items,
 )
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -2012,3 +2017,373 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 			read_only=True,
 		)
 		self.assertEqual(rows[0]["c"], 1)
+
+
+class TestTabValidation(WikiDocumentTestBase):
+	"""`is_tab` is only meaningful on a top-level group — enforce both halves.
+
+	A leaf tab or a nested tab has nowhere to render, so the tab bar would drop
+	it silently. These reject at validate so the bad state never lands.
+	"""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tab Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tab Space", f"tab-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def test_top_level_group_can_be_a_tab(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.tab_icon = "lucide-wallet"
+		tab.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "tab_icon"), "lucide-wallet")
+
+	def test_leaf_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		leaf = create_test_wiki_document(self, "A Page", parent=root_group.name)
+		leaf.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			leaf.save()
+
+	def test_nested_group_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		outer = create_test_wiki_document(self, "Outer", parent=root_group.name, is_group=True)
+		inner = create_test_wiki_document(self, "Inner", parent=outer.name, is_group=True)
+		inner.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			inner.save()
+
+	def test_clearing_is_group_on_a_tab_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Selling", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+
+		tab.is_group = 0
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reparenting_a_tab_below_top_level_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Stock", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Other", parent=root_group.name, is_group=True)
+
+		tab.parent_wiki_document = other.name
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reorder_api_rejects_moving_a_tab_off_top_level(self):
+		"""The reorder endpoint writes parent_wiki_document with a raw db.set_value,
+		so validate never runs — it needs its own copy of the guard."""
+		import json
+
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space, root_group = self._space()
+		tab = create_test_wiki_document(self, "Manufacturing", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Bucket", parent=root_group.name, is_group=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			reorder_wiki_documents(tab.name, other.name, 0, json.dumps([tab.name]))
+
+
+class TestGetSpaceTabs(WikiDocumentTestBase):
+	"""`get_space_tabs` feeds the horizontal tab bar: ordering + landing target."""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tabs Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tabs Space", f"tabs-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def _make_tab(self, root_group, title, icon=None, sort_order=0):
+		tab = create_test_wiki_document(
+			self, title, parent=root_group.name, is_group=True, sort_order=sort_order
+		)
+		tab.is_tab = 1
+		tab.tab_icon = icon
+		tab.save()
+		return tab
+
+	def test_returns_empty_for_a_space_without_tabs(self):
+		space, root_group = self._space()
+		create_test_wiki_document(self, "Plain group", parent=root_group.name, is_group=True)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_returns_tabs_in_sort_order_with_icons(self):
+		space, root_group = self._space()
+		second = self._make_tab(root_group, "Selling", icon="lucide-tag", sort_order=2)
+		first = self._make_tab(root_group, "Accounting", icon="lucide-wallet", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=first.name)
+		create_test_wiki_document(self, "Quotation", parent=second.name)
+
+		tabs = get_space_tabs(space.name)
+
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+		self.assertEqual([t["tab_icon"] for t in tabs], ["lucide-wallet", "lucide-tag"])
+
+	def test_non_tab_top_level_groups_are_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+		plain = create_test_wiki_document(self, "Not a tab", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Some page", parent=plain.name)
+
+		# The plain group is untabbed content, so Home leads; it is never itself
+		# listed as a tab.
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Home", "Accounting"])
+
+	def test_landing_route_falls_back_to_first_published_leaf(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		group = create_test_wiki_document(self, "Receivables", parent=tab.name, is_group=True, sort_order=0)
+		first = create_test_wiki_document(self, "Invoice", parent=group.name, sort_order=0)
+		create_test_wiki_document(self, "Credit Note", parent=group.name, sort_order=1)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], first.route)
+
+	def test_landing_route_prefers_a_page_at_the_tab_s_own_route(self):
+		"""The README/index case: a published leaf sharing the group's route."""
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		index = create_test_wiki_document(self, "Overview", parent=tab.name)
+		index.route = tab.route
+		index.save()
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], tab.route)
+
+	def test_unpublished_tab_is_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Draft Area")
+		create_test_wiki_document(self, "Page", parent=tab.name)
+		frappe.db.set_value("Wiki Document", tab.name, "is_published", 0)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_public_tree_carries_the_tab_fields(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == tab.name)
+		self.assertEqual(node["is_tab"], 1)
+		self.assertEqual(node["tab_icon"], "lucide-wallet")
+
+	def test_home_leads_the_bar_when_multiple_tabs_have_untabbed_content(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
+		misc = create_test_wiki_document(
+			self, "Release Notes", parent=root_group.name, is_group=True, sort_order=3
+		)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["doc_key"], "__general__")
+		self.assertEqual(tabs[0]["title"], "Home")
+		self.assertEqual(tabs[0]["tab_icon"], "lucide-house")
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+		self.assertEqual([t["title"] for t in tabs[1:]], ["Accounting", "Selling"])
+
+	def test_home_leads_the_bar_with_a_single_tab_and_untabbed_content(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual([t["title"] for t in tabs], ["Home", "Accounting"])
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+
+	def test_home_tab_uses_the_space_title_and_icon(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Changelog", parent=misc.name)
+		frappe.db.set_value(
+			"Wiki Space",
+			space.name,
+			{"home_tab_title": "Overview", "home_tab_icon": "lucide-compass"},
+		)
+
+		home = get_space_tabs(space.name)[0]
+		self.assertEqual(home["doc_key"], "__general__")
+		self.assertEqual(home["title"], "Overview")
+		self.assertEqual(home["tab_icon"], "lucide-compass")
+
+	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertTrue(all(t["doc_key"] != "__general__" for t in tabs))
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+
+	def test_tab_with_no_published_pages_is_excluded(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		# An empty tab (no children) and a tab whose only page is unpublished
+		# both have nothing to show, so neither appears on the public bar.
+		self._make_tab(root_group, "Empty", sort_order=2)
+		drafts = self._make_tab(root_group, "Drafts", sort_order=3)
+		draft_page = create_test_wiki_document(self, "WIP", parent=drafts.name)
+		frappe.db.set_value("Wiki Document", draft_page.name, "is_published", 0)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+
+class TestRenderedContentCache(WikiDocumentTestBase):
+	"""Per-document rendered HTML + TOC caching (get_rendered_content)."""
+
+	def test_caches_by_document_name(self):
+		doc = create_test_wiki_document(self, "Cache Page", content="# Hello\n\nfirst")
+		clear_wiki_content_cache(doc.name)
+
+		html, _ = get_rendered_content(doc.name, "# Hello\n\nfirst")
+		self.assertIn("first", html)
+
+		# A second call with different content but the same name returns the
+		# cached render — proving the lookup is keyed by name, not content.
+		cached_html, _ = get_rendered_content(doc.name, "# Hello\n\ncompletely different")
+		self.assertEqual(cached_html, html)
+		self.assertNotIn("completely different", cached_html)
+
+	def test_matches_direct_render(self):
+		doc = create_test_wiki_document(self, "Parity Page", content="## Heading\n\nbody")
+		clear_wiki_content_cache(doc.name)
+
+		html, toc = get_rendered_content(doc.name, "## Heading\n\nbody")
+		direct_html, direct_toc = render_markdown_with_toc("## Heading\n\nbody")
+		self.assertEqual(html, direct_html)
+		self.assertEqual(toc, direct_toc)
+
+	def test_clear_invalidates(self):
+		doc = create_test_wiki_document(self, "Invalidate Page", content="v1")
+		get_rendered_content(doc.name, "v1")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		clear_wiki_content_cache(doc.name)
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		# Re-render picks up new content after invalidation.
+		html, _ = get_rendered_content(doc.name, "v2 fresh")
+		self.assertIn("v2 fresh", html)
+
+	def test_content_edit_drops_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Edited Page", content="original text")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.content = "edited text"
+		doc.save()
+		# on_wiki_document_update fires clear_wiki_content_cache for the changed doc.
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+	def test_non_content_edit_keeps_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Title Only", content="stable body")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.title = "Renamed Title"
+		doc.save()
+		# Content unchanged, so the rendered-content entry survives.
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+
+class TestReaderRouteXSS(unittest.TestCase):
+	"""Reader templates interpolate editor-set routes into Alpine JS expressions.
+	A route can contain quotes (routes aren't scrubbed once set explicitly), so
+	every such interpolation must go through `| tojson | forceescape` — tojson
+	makes it a JS-safe string literal, forceescape keeps it safe inside the
+	double-quoted HTML attribute. Without both, a route like `x'),alert(1)//`
+	breaks out of the JS string and runs for every reader (stored XSS)."""
+
+	# A route crafted to break out of a single-quoted JS string literal.
+	PAYLOAD = "s/x'),alert(document.domain)//"
+
+	def _assert_route_is_safe(self, html):
+		# The vulnerable pattern is a single-quoted JS literal; after the fix
+		# every call passes a double-quoted, entity-encoded literal instead.
+		self.assertNotIn("navigateTo('", html)
+		self.assertNotIn("inTab('", html)
+		self.assertNotIn("notInAnyTab('", html)
+		# The route's own single quote is unicode-escaped by tojson, so it can
+		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
+		self.assertNotIn("//')", html)
+		self.assertIn("\\u0027", html)
+
+	def test_sidebar_tree_macro_escapes_route_in_alpine_expressions(self):
+		"""render_wiki_tree feeds node.route into navigateTo/prefetch/:class."""
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes) }}"
+		)
+		node = {
+			"is_group": 0,
+			"is_external_link": 0,
+			"name": "n1",
+			"route": self.PAYLOAD,
+			"title": "Evil",
+			"children": [],
+		}
+		html = frappe.render_template(template, {"nodes": [node]})
+		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
+		self._assert_route_is_safe(html)
+
+	def test_active_js_concat_escapes_route(self):
+		"""The tab bar (tabs.html / mobile_header.html) builds the Alpine
+		expression by string concatenation before emitting it; the route piece
+		must stay escaped through the concat + `{{ }}` render."""
+		template = (
+			'{% set active_js = "$store.navigation.inTab(" ~ (route | tojson | forceescape) ~ ")" %}'
+			'<div x-show="{{ active_js }}"></div>'
+		)
+		html = frappe.render_template(template, {"route": self.PAYLOAD})
+		self.assertIn("inTab(&#34;", html)
+		self._assert_route_is_safe(html)
+
+	def test_script_context_uses_bare_tojson_not_forceescape(self):
+		"""Inside a <script> block the browser does not HTML-decode, so a value
+		interpolated as a JS literal must use bare `tojson` (which escapes
+		</script> and quotes to \\uXXXX) — never `tojson | forceescape`, whose
+		HTML entities would be a JS syntax error and break Alpine init. Guards
+		the `Alpine.store('pageContent', { markdown: ... })` line in
+		document.html."""
+		hostile = "a \"quote\" and </script><img src=x> and 'x'"
+		html = frappe.render_template("markdown: {{ md | tojson }}", {"md": hostile})
+		# Valid JS string literal: quotes/script-tag/apostrophes are escaped,
+		# and there are no HTML entities that JS would choke on.
+		self.assertNotIn("&#34;", html)
+		self.assertNotIn("&#39;", html)
+		self.assertNotIn("</script>", html)
+		self.assertIn("\\u003c/script", html)

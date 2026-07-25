@@ -81,7 +81,17 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 	"""Build a nested tree structure from a list of Wiki Document names."""
 	wiki_documents = frappe.db.get_all(
 		"Wiki Document",
-		fields=["name", "title", "is_group", "parent_wiki_document", "route", "is_published", "sort_order"],
+		fields=[
+			"name",
+			"title",
+			"is_group",
+			"is_tab",
+			"tab_icon",
+			"parent_wiki_document",
+			"route",
+			"is_published",
+			"sort_order",
+		],
 		filters={"name": ("in", documents)},
 		order_by="lft asc",
 	)
@@ -129,6 +139,7 @@ def reorder_wiki_documents(
 	"""
 	import json
 
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import is_top_level_group
 	from wiki.permissions import assert_space_writable
 
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
@@ -143,6 +154,12 @@ def reorder_wiki_documents(
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
+
+	# This path writes parent_wiki_document with a raw db.set_value, so
+	# WikiDocument.validate never runs — the tab rule has to be re-asserted here
+	# or a drag into a subgroup would silently produce a nested tab.
+	if parent_changed and doc.is_tab and not is_top_level_group(new_parent):
+		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
 
 	frappe.flags.in_reorder_wiki_documents = True
 	try:

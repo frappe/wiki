@@ -12,6 +12,8 @@
 		"route",
 		"column_break_meta",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"is_published",
 		"is_external_link",
 		"external_url",
@@ -61,6 +63,17 @@
 			"fieldname": "is_group",
 			"fieldtype": "Check",
 			"label": "Is Group"
+		},
+		{
+			"default": "0",
+			"fieldname": "is_tab",
+			"fieldtype": "Check",
+			"label": "Is Tab"
+		},
+		{
+			"fieldname": "tab_icon",
+			"fieldtype": "Data",
+			"label": "Tab Icon"
 		},
 		{
 			"default": "0",

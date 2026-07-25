@@ -212,8 +212,8 @@ def _lock_and_load_cr(name: str) -> Document:
 # the caller invokes those once after a logical unit of work so a batch only pays
 # that cost a single time.
 
-_CR_ITEM_SCALAR_UPDATE_FIELDS = ("title", "slug", "route", "external_url")
-_CR_ITEM_CHECKBOX_UPDATE_FIELDS = ("is_group", "is_published", "is_external_link", "is_deleted")
+_CR_ITEM_SCALAR_UPDATE_FIELDS = ("title", "slug", "route", "external_url", "tab_icon")
+_CR_ITEM_CHECKBOX_UPDATE_FIELDS = ("is_group", "is_published", "is_external_link", "is_deleted", "is_tab")
 
 
 def _compute_cr_route(
@@ -250,6 +250,8 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 		"slug",
 		"route",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"is_published",
 		"is_external_link",
 		"external_url",
@@ -284,6 +286,8 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 		"slug": item.get("slug"),
 		"route": item.get("route") or "",
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -299,6 +303,36 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 	return payload
 
 
+def _cr_root_doc_key(cr: Document) -> str | None:
+	"""doc_key of the wiki space's root group — the CR-side notion of "top level"."""
+	root_group = frappe.db.get_value("Wiki Space", cr.wiki_space, "root_group")
+	return frappe.get_value("Wiki Document", root_group, "doc_key") if root_group else None
+
+
+def _assert_valid_tab(cr: Document, *, parent_key: str | None, is_group: bool) -> None:
+	"""Mirror WikiDocument.validate_tab for a node living in a change request.
+
+	Without this a CR could stage a leaf tab or a nested tab and only blow up at
+	merge time, when the live-doc validation finally runs — long after the author
+	could do anything about it.
+	"""
+	if not is_group:
+		frappe.throw(_("Only a group can be marked as a tab."))
+	if parent_key != _cr_root_doc_key(cr):
+		frappe.throw(_("Only a top-level group can be marked as a tab. Nested tabs are not supported."))
+
+
+def _assert_can_manage_tabs(cr: Document) -> None:
+	"""Gate tab flag changes at the two CR mutation chokepoints.
+
+	Enforced here rather than per-endpoint so the legacy per-action RPCs and the
+	batch `apply_cr_operations` path can't drift apart.
+	"""
+	from wiki.permissions import assert_can_manage_tabs
+
+	assert_can_manage_tabs(cr.wiki_space)
+
+
 def _create_cr_item(
 	cr: Document,
 	*,
@@ -312,6 +346,8 @@ def _create_cr_item(
 	external_url: str | None = None,
 	order_index: int | None = None,
 	route: str | None = None,
+	is_tab: bool = False,
+	tab_icon: str | None = None,
 ) -> str:
 	head_revision = cr.head_revision
 	item_map = get_effective_revision_item_map(head_revision)
@@ -319,12 +355,18 @@ def _create_cr_item(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
 
+	if is_tab:
+		_assert_can_manage_tabs(cr)
+		_assert_valid_tab(cr, parent_key=parent_key, is_group=is_group)
+
 	item = frappe.new_doc("Wiki Revision Item")
 	item.revision = head_revision
 	item.doc_key = frappe.generate_hash(length=12)
 	item.title = title
 	item.slug = slug or cleanup_page_name(title)
 	item.is_group = 1 if is_group else 0
+	item.is_tab = 1 if is_tab else 0
+	item.tab_icon = tab_icon
 	item.is_published = 1 if is_published else 0
 	item.is_external_link = 1 if is_external_link else 0
 	item.external_url = external_url
@@ -348,6 +390,11 @@ def _update_cr_item(
 	if not item_name:
 		frappe.throw(_("Document not found in change request"))
 
+	# Only gate operations that actually touch the tab flags — editing a tab
+	# group's own content stays open to ordinary contributors.
+	if "is_tab" in fields or "tab_icon" in fields:
+		_assert_can_manage_tabs(cr)
+
 	item = frappe.get_doc("Wiki Revision Item", item_name)
 	updates = {
 		field: fields[field] for field in _CR_ITEM_SCALAR_UPDATE_FIELDS if fields.get(field) is not None
@@ -362,6 +409,12 @@ def _update_cr_item(
 	if fields.get("content") is not None:
 		updates["content_blob"] = get_or_create_content_blob(fields["content"])
 	item.update(updates)
+
+	# Re-check against the post-update item rather than the incoming fields: one
+	# call can flip is_tab and is_group together, and clearing is_group on an
+	# existing tab has to be rejected just as hard as setting is_tab on a leaf.
+	if item.is_tab:
+		_assert_valid_tab(cr, parent_key=item.parent_key, is_group=bool(item.is_group))
 
 	# When the caller (typically the batch endpoint) didn't pin a route but title
 	# or slug changed, recompute it so renames don't leave stale routes.
@@ -422,6 +475,9 @@ def _move_cr_item(
 		frappe.throw(_("Document not found in change request"))
 
 	item = frappe.get_doc("Wiki Revision Item", item_name)
+	if item.is_tab and parent_key != _cr_root_doc_key(cr):
+		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
+
 	item.parent_key = parent_key
 	if order_index is not None:
 		item.order_index = order_index
@@ -612,6 +668,8 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 			"title": item.get("title"),
 			"slug": item.get("slug"),
 			"is_group": item.get("is_group"),
+			"is_tab": item.get("is_tab"),
+			"tab_icon": item.get("tab_icon"),
 			"is_published": item.get("is_published"),
 			"is_external_link": item.get("is_external_link"),
 			"external_url": item.get("external_url"),
@@ -685,6 +743,8 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 		"slug",
 		"route",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"is_published",
 		"is_external_link",
 		"external_url",
@@ -725,6 +785,8 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 		"slug": item.get("slug"),
 		"route": item.get("route") or "",
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -793,6 +855,8 @@ def create_cr_page(
 	order_index: int | None = None,
 	is_external_link: int = 0,
 	external_url: str | None = None,
+	is_tab: int = 0,
+	tab_icon: str | None = None,
 ) -> str:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
@@ -808,6 +872,8 @@ def create_cr_page(
 		is_external_link=bool(is_external_link),
 		external_url=external_url,
 		order_index=order_index,
+		is_tab=bool(is_tab),
+		tab_icon=tab_icon,
 	)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -898,6 +964,8 @@ def _apply_operation(
 			external_url=op.get("external_url"),
 			order_index=op.get("order_index"),
 			route=op.get("route"),
+			is_tab=bool(op.get("is_tab")),
+			tab_icon=op.get("tab_icon"),
 		)
 		temp_key_map[temp_key] = new_key
 		affected_doc_keys.add(new_key)
@@ -1123,6 +1191,8 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			"slug": item.get("slug"),
 			"route": item.get("route"),
 			"is_group": item.get("is_group"),
+			"is_tab": item.get("is_tab"),
+			"tab_icon": item.get("tab_icon"),
 			"is_published": item.get("is_published"),
 			"is_external_link": item.get("is_external_link"),
 			"external_url": item.get("external_url"),
@@ -1169,6 +1239,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"change_type": "added",
 					"title": head.get("title"),
 					"is_group": head.get("is_group"),
+					"is_tab": head.get("is_tab"),
 					"is_external_link": head.get("is_external_link"),
 					"external_url": head.get("external_url"),
 					"_modified": modified,
@@ -1182,6 +1253,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"change_type": "deleted",
 					"title": base.get("title"),
 					"is_group": base.get("is_group"),
+					"is_tab": base.get("is_tab"),
 					"is_external_link": base.get("is_external_link"),
 					"external_url": base.get("external_url"),
 					"_modified": modified,
@@ -1199,6 +1271,8 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 				"parent_key",
 				"is_external_link",
 				"external_url",
+				"is_tab",
+				"tab_icon",
 			]
 			metadata_changed = any(base.get(field) != head.get(field) for field in metadata_fields)
 			content_changed = base.get("content_hash") != head.get("content_hash")
@@ -1223,6 +1297,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"is_group": head.get("is_group")
 					if head.get("is_group") is not None
 					else base.get("is_group"),
+					"is_tab": head.get("is_tab") if head.get("is_tab") is not None else base.get("is_tab"),
 					"is_external_link": head.get("is_external_link")
 					if head.get("is_external_link") is not None
 					else base.get("is_external_link"),
@@ -1714,6 +1789,8 @@ def _find_changed_keys(
 		"is_published",
 		"is_external_link",
 		"external_url",
+		"is_tab",
+		"tab_icon",
 		"content_blob",
 		"is_deleted",
 	]
@@ -1835,6 +1912,8 @@ def _classify_changes(
 		"is_published",
 		"is_external_link",
 		"external_url",
+		"is_tab",
+		"tab_icon",
 	]
 
 	for key in changed_keys:
@@ -1926,7 +2005,13 @@ def _apply_merge_changes_only(
 		content_updated_names.append(key_to_name[doc_key])
 
 	if content_updated_names:
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
+
+		# Raw set_value above skips on_update, so the rendered-content cache would
+		# otherwise keep serving the pre-merge HTML — drop those entries here.
+		for name in content_updated_names:
+			clear_wiki_content_cache(name)
 
 		enqueue_reindex(content_updated_names)
 
@@ -1965,6 +2050,8 @@ def _apply_merge_changes_only(
 			if item.get("route"):
 				doc.route = item["route"]
 			doc.is_group = item.get("is_group")
+			doc.is_tab = item.get("is_tab")
+			doc.tab_icon = item.get("tab_icon")
 			doc.is_published = item.get("is_published")
 			doc.is_external_link = item.get("is_external_link")
 			doc.external_url = item.get("external_url")
@@ -2016,6 +2103,8 @@ def normalize_item(item: dict[str, Any] | None) -> dict[str, Any] | None:
 		"slug": item.get("slug"),
 		"route": item.get("route"),
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -2091,6 +2180,8 @@ def merge_items(
 		"is_published": resolve_field(
 			base.get("is_published"), ours.get("is_published"), theirs.get("is_published")
 		),
+		"is_tab": resolve_field(base.get("is_tab"), ours.get("is_tab"), theirs.get("is_tab")),
+		"tab_icon": resolve_field(base.get("tab_icon"), ours.get("tab_icon"), theirs.get("tab_icon")),
 		"parent_key": ours.get("parent_key"),
 		"order_index": ours.get("order_index"),
 	}
@@ -2107,7 +2198,17 @@ def items_equal(
 		return True
 	if item_a is None or item_b is None:
 		return False
-	compare_fields = ["title", "slug", "route", "is_group", "is_published", "parent_key", "order_index"]
+	compare_fields = [
+		"title",
+		"slug",
+		"route",
+		"is_group",
+		"is_published",
+		"parent_key",
+		"order_index",
+		"is_tab",
+		"tab_icon",
+	]
 	for field in compare_fields:
 		if item_a.get(field) != item_b.get(field):
 			return False
@@ -2115,7 +2216,7 @@ def items_equal(
 
 
 def conflict_on_metadata(base: dict[str, Any], ours: dict[str, Any], theirs: dict[str, Any]) -> bool:
-	metadata_fields = ["title", "slug", "route", "is_group", "is_published"]
+	metadata_fields = ["title", "slug", "route", "is_group", "is_published", "is_tab", "tab_icon"]
 	for field in metadata_fields:
 		base_value = base.get(field)
 		ours_value = ours.get(field)
@@ -2296,6 +2397,8 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 		new_item.slug = item.get("slug")
 		new_item.route = item.get("route")
 		new_item.is_group = item.get("is_group")
+		new_item.is_tab = item.get("is_tab")
+		new_item.tab_icon = item.get("tab_icon")
 		new_item.is_published = item.get("is_published")
 		new_item.is_external_link = item.get("is_external_link")
 		new_item.external_url = item.get("external_url")
@@ -2377,6 +2480,8 @@ def _apply_merge_revision(space: Document, revision: Document) -> None:
 		if item.get("route"):
 			doc.route = item["route"]
 		doc.is_group = item.get("is_group")
+		doc.is_tab = item.get("is_tab")
+		doc.tab_icon = item.get("tab_icon")
 		doc.is_published = item.get("is_published")
 		doc.is_external_link = item.get("is_external_link")
 		doc.external_url = item.get("external_url")

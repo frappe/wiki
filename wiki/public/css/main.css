@@ -17,6 +17,66 @@
   @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
 }
 
+/* ---------- Scrollbars ----------
+   Copied from frappe-ui's docs site (vitepress/css/style.css): a thin, rounded,
+   track-less thumb instead of the chunky default. Applied globally so every
+   scroll region on the reader gets it; `.no-scrollbar` still wins where set. */
+:root {
+  --scrollbar-size: 4px;
+  --scrollbar-thumb: var(--surface-gray-3);
+  --scrollbar-thumb-hover: var(--surface-gray-4);
+}
+
+[data-theme='dark'] {
+  --scrollbar-thumb: var(--surface-gray-2);
+  --scrollbar-thumb-hover: var(--surface-gray-3);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* ---------- Reader chrome height ----------
+   The full-width navbar (53px) plus the tab row (44px) when a space has tabs.
+   Everything that sticks below the chrome — sidebar, sidebar toggle, TOC —
+   offsets against this. Zero below `lg`, where the desktop chrome is hidden in
+   favour of the mobile header, and on `hide_chrome` pages which have none. */
+body {
+  --wiki-chrome-h: 0px;
+}
+
+@media (min-width: 1024px) {
+  body {
+    --wiki-chrome-h: 53px;
+  }
+  body[data-wiki-tabs] {
+    --wiki-chrome-h: 97px;
+  }
+  body[data-wiki-bare] {
+    --wiki-chrome-h: 0px;
+  }
+}
+
 /* Reader-specific prose tweaks. Typography itself (sizes, headings, links,
    inline code, blockquotes, hr) comes from frappe-ui-prose.css. */
 .prose {

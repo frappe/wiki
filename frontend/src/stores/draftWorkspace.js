@@ -460,6 +460,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		externalUrl = null,
 		content = '',
 		isPublished = true,
+		isTab = false,
+		tabIcon = null,
 	}) {
 		const effectiveParent = parentKey || treeModel.rootKey.value || null;
 		const tempKey = resolver.makeTempKey();
@@ -472,6 +474,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			parentKey: effectiveParent,
 			orderIndex: null,
 			isGroup,
+			isTab,
+			tabIcon,
 			isPublished,
 			isExternalLink,
 			externalUrl,
@@ -502,6 +506,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			isExternalLink,
 			externalUrl,
 			content,
+			isTab,
+			tabIcon,
 		});
 
 		const createPromise = syncCreateNode(tempKey, mutation);
@@ -546,6 +552,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							is_group: !!payload.isGroup,
 							is_external_link: !!payload.isExternalLink,
 							external_url: payload.externalUrl ?? null,
+							is_tab: !!payload.isTab,
+							tab_icon: payload.tabIcon ?? null,
 						},
 					]);
 					realKey = result?.temp_key_map?.[tempKey] || null;
@@ -565,6 +573,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						payload.isGroup,
 						payload.isExternalLink,
 						payload.externalUrl,
+						payload.isTab,
+						payload.tabIcon,
 					);
 					realKey = typeof result === 'string' ? result : result?.doc_key;
 					route = result?.route || null;
@@ -627,6 +637,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			node.isExternalLink = !!fields.is_external_link;
 		if (fields.external_url !== undefined)
 			node.externalUrl = fields.external_url;
+		// Without these two the change would round-trip to the server but the
+		// local node would keep its old value until the next reloadTree().
+		if (fields.is_tab !== undefined) node.isTab = !!fields.is_tab;
+		if (fields.tab_icon !== undefined) node.tabIcon = fields.tab_icon;
 		node.localStatus = 'pending_update';
 
 		const page = pageBuffers.get(docKey);
