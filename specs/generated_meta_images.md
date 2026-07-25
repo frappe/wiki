@@ -390,6 +390,11 @@ future work. Where the code departs from the plan above:
   ship an image. It points at the live endpoint (so what the box shows is what a
   scraper fetches) and falls back to the placeholder on `@error`, which covers
   every no-card case in one branch instead of duplicating the conditions in JS.
+  Saving keeps the dialog open — saving is what regenerates the card, so closing
+  would hide the thing that just changed — and bumps a counter in the URL's `v`
+  so the browser refetches. Without that bump a preview request that raced the
+  save left a stale card on screen for the rest of the session; keying the bump
+  to saves rather than keystrokes keeps it to one extra render.
 
 The escaping guard and the token-drift guard were both verified by temporarily
 reverting what they protect (dropping `| e` from the title; changing one hex

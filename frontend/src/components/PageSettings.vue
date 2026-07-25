@@ -179,10 +179,20 @@ const previewDescription = computed(() => metaDescription.value);
 // for every case that emits no card (setting off, unpublished, group, external
 // link, no space, render failure), which is what the @error fallback catches —
 // no need to duplicate those conditions here.
+// Bumped on each successful save. `v` is ignored server-side (the endpoint
+// always recomputes the fingerprint) and exists only to force the browser to
+// refetch — the img otherwise keeps whatever bytes it got, and a request that
+// raced the save would leave a stale card on screen for the rest of the
+// session. Bumping per *save* rather than per keystroke keeps it to one extra
+// render, instead of launching Chromium on every character typed.
+const previewVersion = ref(0);
+
 const generatedPreview = computed(() => {
-	const route = previewRoute.value;
-	if (!route) return '';
-	return `/api/method/wiki.api.og_image.og_image?route=${encodeURIComponent(route)}`;
+	const doc = props.docResource.doc;
+	if (!doc?.route) return '';
+	return `/api/method/wiki.api.og_image.og_image?route=${encodeURIComponent(
+		doc.route,
+	)}&v=${previewVersion.value}`;
 });
 
 const previewImageFailed = ref(false);
@@ -257,7 +267,11 @@ async function saveSettings() {
 			meta_image: metaImage.value,
 		});
 		toast.success(__('Page settings saved'));
-		show.value = false;
+		// Stay open: saving is what regenerates the social preview, so closing
+		// here would hide the one thing the user just changed. Save disables
+		// itself once the form matches the saved doc.
+		previewImageFailed.value = false;
+		previewVersion.value += 1;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error saving page settings'));
 	}
