@@ -33,6 +33,9 @@ def lucide_svg(icon: str | None, css_class: str = "size-4") -> str:
 @lru_cache(maxsize=1)
 def _lucide_table() -> dict:
 	try:
+		# The filename is a fixed literal resolved under the wiki app root, never
+		# user input, so this is not a traversal vector.
+		# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 		with open(frappe.get_app_path("wiki", "lucide_icons.json")) as f:
 			return json.load(f)
 	except (OSError, ValueError):
