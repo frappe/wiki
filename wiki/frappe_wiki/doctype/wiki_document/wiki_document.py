@@ -709,7 +709,7 @@ def _first_published_leaf(nodes: list) -> dict | None:
 	return None
 
 
-def _tab_landing_route(tab: dict, node: dict | None) -> str | None:
+def _tab_landing_route(tab: dict, node: dict | None, index_routes: set) -> str | None:
 	"""Where clicking a tab should go.
 
 	A group is never served at its own route — the renderer redirects it to its
@@ -717,11 +717,11 @@ def _tab_landing_route(tab: dict, node: dict | None) -> str | None:
 	published leaf sitting at the group's route (the README/index case that
 	git-sync produces). Prefer that, else the first published leaf in the tab's
 	subtree, mirroring get_first_published_page.
+
+	`index_routes` is the set of tab routes that have such an index leaf, fetched
+	once by the caller so this stays O(1) rather than a query per tab.
 	"""
-	if tab.get("route") and frappe.db.exists(
-		"Wiki Document",
-		{"route": tab["route"], "is_group": 0, "is_published": 1, "is_external_link": 0},
-	):
+	if tab.get("route") and tab["route"] in index_routes:
 		return tab["route"]
 
 	if not node:
@@ -772,6 +772,26 @@ def get_space_tabs(space: str) -> list[dict]:
 	tree = get_public_wiki_tree(root_group)
 	nodes_by_name = {node["name"]: node for node in tree}
 
+	# One query for every tab's README/index leaf instead of a db.exists per tab
+	# (this runs on every reader render and every SPA call to this endpoint).
+	tab_route_list = [t["route"] for t in tabs if t.get("route")]
+	index_routes = (
+		set(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"route": ["in", tab_route_list],
+					"is_group": 0,
+					"is_published": 1,
+					"is_external_link": 0,
+				},
+				pluck="route",
+			)
+		)
+		if tab_route_list
+		else set()
+	)
+
 	result = [
 		{
 			"name": tab["name"],
@@ -779,7 +799,7 @@ def get_space_tabs(space: str) -> list[dict]:
 			"title": tab["title"],
 			"route": tab["route"],
 			"tab_icon": tab["tab_icon"],
-			"landing_route": _tab_landing_route(tab, nodes_by_name[tab["name"]]),
+			"landing_route": _tab_landing_route(tab, nodes_by_name[tab["name"]], index_routes),
 		}
 		for tab in tabs
 		if tab["name"] in nodes_by_name
