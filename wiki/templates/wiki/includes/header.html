@@ -91,22 +91,11 @@
             {% if not item.icon %}
             <a href="{{ item.url }}"
                target="_blank" rel="noopener noreferrer"
-               class="px-3 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+               class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
                 {{ item.label }}
             </a>
             {% endif %}
         {% endfor %}
-
-        {# Separator before toggle (only if there are text links) #}
-        {% set has_text_items = namespace(value=false) %}
-        {% for item in navbar_items %}
-            {% if not item.icon %}
-                {% set has_text_items.value = true %}
-            {% endif %}
-        {% endfor %}
-        {% if has_text_items.value %}
-        <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-        {% endif %}
 
         {# Theme toggle — ghost icon button (sun when dark / moon-star when light) #}
         <button @click="$store.theme.toggle()"
@@ -119,17 +108,6 @@
                 {{ render_icon("moon-star", "shrink-0") }}
             </template>
         </button>
-
-        {# Separator before icons (only if there are icon items) #}
-        {% set has_icon_items = namespace(value=false) %}
-        {% for item in navbar_items %}
-            {% if item.icon %}
-                {% set has_icon_items.value = true %}
-            {% endif %}
-        {% endfor %}
-        {% if has_icon_items.value %}
-        <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-        {% endif %}
 
         {# Icon links (known services like GitHub, Discord) — ghost icon button style #}
         {% for item in navbar_items %}
