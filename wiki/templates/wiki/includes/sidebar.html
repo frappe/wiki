@@ -22,11 +22,12 @@
     {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
     {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
 
-    {#- Home leads the reader bar only with several tabs and untabbed content to
-        land on (see get_space_tabs). When it does, the untabbed subtree becomes
-        Home's own — shown only while no tab is active — instead of trailing every
-        tab. With one tab or none there's no Home, so it keeps rendering inline. -#}
-    {% set show_home = (tab_nodes | length) >= 2 and (other_nodes | length) > 0 %}
+    {#- Home leads the reader bar whenever there's at least one tab and untabbed
+        content to land on (see get_space_tabs). When it does, the untabbed subtree
+        becomes Home's own — shown only while no tab is active — instead of leaking
+        into every tab's sidebar. With no tabs there's no Home, so it renders
+        inline (the whole tree is untabbed anyway). -#}
+    {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
     {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
     {% set active = namespace(in_tab=false) %}
     {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}

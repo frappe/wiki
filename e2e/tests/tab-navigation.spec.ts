@@ -370,3 +370,67 @@ test.describe('Horizontal tab navigation', () => {
 			.toEqual(['Manufacturing', 'Accounting']);
 	});
 });
+
+/**
+ * A single-tab space still gates its untabbed top-level content behind Home —
+ * regression for the sidebar leaking untabbed pages into the one tab's subtree
+ * (it took a no-Home inline branch when there were fewer than two tabs).
+ */
+test.describe('Reader sidebar with a single tab', () => {
+	const SOLO_ROUTE = `tabs-solo-e2e-${Date.now()}`;
+
+	test.beforeAll(async ({ request }) => {
+		const root = await createDoc<Doc>(request, 'Wiki Document', {
+			title: `Solo Tab Root ${Date.now()}`,
+			is_group: 1,
+			is_published: 1,
+		});
+		await createDoc(request, 'Wiki Space', {
+			space_name: 'Solo Tab E2E',
+			route: SOLO_ROUTE,
+			root_group: root.name,
+			is_published: 1,
+		});
+
+		const accounting = await group(
+			request,
+			'Accounting',
+			root.name,
+			0,
+			'lucide-wallet',
+		);
+		const receivables = await group(request, 'Receivables', accounting.name, 0);
+		await page_(request, 'Payment Entry', receivables.name, 0);
+
+		// Untabbed top-level page — must NOT show while the tab is active.
+		await page_(request, 'Bold Heading Check', root.name, 1);
+	});
+
+	test.afterAll(async ({ request }) => {
+		await cleanupWikiSpacesByRoute(request, SOLO_ROUTE);
+	});
+
+	test('untabbed content stays behind Home, out of the tab subtree', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(`/${SOLO_ROUTE}/accounting/receivables/payment-entry`);
+		await page.waitForLoadState('networkidle');
+
+		const tabBar = page.getByRole('tablist');
+		const sidebar = page.locator('.wiki-sidebar');
+		const home = tabBar.getByRole('tab', { name: 'Home' });
+
+		// One tab + untabbed content => Home leads, inactive on the tab page, and
+		// the untabbed page is hidden rather than leaking into the tab's sidebar.
+		await expect(home).toBeVisible();
+		await expect(
+			sidebar.getByText('Bold Heading Check', { exact: true }),
+		).toBeHidden();
+
+		await home.click();
+		await expect(
+			sidebar.getByText('Bold Heading Check', { exact: true }),
+		).toBeVisible();
+	});
+});
