@@ -2,7 +2,7 @@
     <div class="wiki-editor-container">
         <div>
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
-            <div class="mx-auto w-full max-w-[770px] px-6">
+            <div class="w-full max-w-[770px] px-6">
                 <slot name="title" />
                 <EditorContent :editor="editor" :class="contentClass" />
             </div>
