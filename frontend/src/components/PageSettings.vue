@@ -267,9 +267,7 @@ async function saveSettings() {
 			meta_image: metaImage.value,
 		});
 		toast.success(__('Page settings saved'));
-		// Stay open: saving is what regenerates the social preview, so closing
-		// here would hide the one thing the user just changed. Save disables
-		// itself once the form matches the saved doc.
+		// Retry a preview that failed before this save fixed its inputs.
 		previewImageFailed.value = false;
 		previewVersion.value += 1;
 	} catch (error) {
