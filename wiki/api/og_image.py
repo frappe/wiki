@@ -20,6 +20,7 @@ import os
 
 import frappe
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils.preview import get_preview_from_html
 from werkzeug.wrappers import Response
 
@@ -39,6 +40,14 @@ CACHE_DIR_NAME = "wiki-og"
 # "public" so frappe's process_response leaves it alone and skips flushing
 # cookies onto what is meant to be a CDN-cacheable response.
 CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
+
+# Long enough to cover a cold Chromium spin-up, short enough that a crashed
+# worker's lock frees itself quickly.
+LOCK_TTL = 90
+
+# How long a failed render is remembered, so later hits short-circuit instead
+# of relaunching Chromium.
+FAILURE_TTL = 600
 
 
 def _resolve_doc(route: str):
@@ -210,6 +219,53 @@ def generate_og_bytes(ctx: dict) -> bytes:
 	return get_preview_from_html(render_og_html(ctx), format="jpg", width=OG_WIDTH, height=OG_HEIGHT)
 
 
+class CardBusy(Exception):
+	"""Another worker holds the render lock for this card."""
+
+
+class CardFailed(Exception):
+	"""Rendering this card failed; the failure is negatively cached."""
+
+
+def _lock_key(doc_key: str, fingerprint: str) -> str:
+	return frappe.cache().make_key(f"wiki_og_lock:{doc_key}:{fingerprint}")
+
+
+def _failure_key(doc_key: str, fingerprint: str) -> str:
+	return frappe.cache().make_key(f"wiki_og_fail:{doc_key}:{fingerprint}")
+
+
+def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str) -> bytes:
+	"""Render one card, at most once at a time across the whole bench.
+
+	Chromium is expensive and its cold start is measured in seconds, so a
+	crawler wave on a fresh page must not queue every worker behind it: the
+	loser of the lock raises CardBusy and the caller answers 503 rather than
+	waiting. A render that actually fails is remembered for FAILURE_TTL so the
+	next hit short-circuits instead of relaunching Chromium.
+	"""
+	cache = frappe.cache()
+	if cache.get(_failure_key(doc_key, fingerprint)):
+		raise CardFailed
+
+	lock = _lock_key(doc_key, fingerprint)
+	if not cache.set(lock, b"1", nx=True, ex=LOCK_TTL):
+		raise CardBusy
+
+	try:
+		data = generate_og_bytes(ctx)
+	except Exception:
+		cache.set(_failure_key(doc_key, fingerprint), b"1", ex=FAILURE_TTL)
+		frappe.log_error("Wiki OG image generation failed")
+		raise CardFailed
+	finally:
+		cache.delete(lock)
+
+	_write_cached(path, data)
+	_prune_old(doc_key, fingerprint)
+	return data
+
+
 def _cards_enabled() -> bool:
 	return bool(frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"))
 
@@ -275,11 +331,17 @@ def warm_og_image(name: str) -> None:
 	if os.path.exists(path):
 		return
 
-	_write_cached(path, generate_og_bytes(_og_context(doc)))
-	_prune_old(doc.doc_key, fingerprint)
+	try:
+		# Same lock and failure keys as the request path, so a worker and a
+		# crawler never both launch Chromium for one card.
+		_generate_and_store(doc.doc_key, _og_context(doc), fingerprint, path)
+	except (CardBusy, CardFailed):
+		# Serving never depends on the warm-up; the request path retries.
+		pass
 
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@rate_limit(key="route", limit=60, seconds=60 * 60, ip_based=True)
 def og_image(route: str, v: str | None = None):
 	"""Serve the generated OG card for the page at ``route``.
 
@@ -302,9 +364,15 @@ def og_image(route: str, v: str | None = None):
 	path = _cache_path(doc.doc_key, fp)
 	data = _read_cached(path)
 	if data is None:
-		data = generate_og_bytes(ctx)
-		_write_cached(path, data)
-		_prune_old(doc.doc_key, fp)
+		try:
+			data = _generate_and_store(doc.doc_key, ctx, fp, path)
+		except CardBusy:
+			return _transient_response(503, {"Retry-After": "5"})
+		except CardFailed:
+			# A 404 og:image degrades to "no preview image" everywhere, and the
+			# page render is never in this call path, so a broken Chromium
+			# cannot break a wiki page.
+			return _transient_response(404)
 
 	response = Response()
 	response.mimetype = "image/jpeg"
@@ -315,4 +383,12 @@ def og_image(route: str, v: str | None = None):
 def _cache_headers(response: Response, etag: str) -> Response:
 	response.headers["Cache-Control"] = CACHE_CONTROL
 	response.headers["ETag"] = etag
+	return response
+
+
+def _transient_response(status: int, headers: dict | None = None) -> Response:
+	response = Response(status=status)
+	response.headers["Cache-Control"] = "no-store"
+	for key, value in (headers or {}).items():
+		response.headers[key] = value
 	return response
