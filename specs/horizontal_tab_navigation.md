@@ -438,4 +438,53 @@ icon pack to the reader bundle is its own change.
   dedicated e2e test.
 - The full contribute → review → merge flow with a tab change is covered by a **backend**
   round-trip test, not by Playwright.
-- Icons in the public reader (see Phase 5 gap above).
+- Icons in the public reader — done in Phase 6.
+
+### Phase 6 — Layout rework + reader icons ✅
+
+Feedback after Phase 5 was that the bar read as a *sibling* of the sidebar tree rather than
+its parent. Reworked so the chrome stacks top-down at full width:
+
+```
+navbar (full width)
+tabs   (full width)
+sidebar | content
+```
+
+**Reader.** `layout.html` now includes `header.html` and the new `tabs.html` above the
+sidebar/content flex row instead of inside the content column. The sidebar's own 53px logo
+header moved into the navbar — with a full-width navbar there is no top-of-window strip left
+for it. Everything that sticks below the chrome (sidebar, sidebar toggle, TOC) offsets against
+a single `--wiki-chrome-h` variable defined in `main.css`: 0 below `lg` (desktop chrome is
+hidden there), 53px without tabs, 97px with. A CSS variable rather than an inline value
+precisely because the offset has to collapse at the mobile breakpoint.
+
+**Editor.** The bar stays inside the content column (the SPA has a left app rail, not a top
+navbar), but now renders *below* `ContributionBanner`: the banner is about the whole draft, so
+it outranks whichever tab is being browsed.
+
+**Add button.** `WikiTabBar` grew a `+` that is always last and never collapses into the
+overflow menu — creating a tab is an action on the bar, not one of its entries. It opens a
+create dialog owned by `SpaceDetails` rather than reusing the tree's, because a tab always
+parents to the space root regardless of which subtree the sidebar shows. The tree's own
+"New Tab" menu entry stays as a second path.
+
+**Drag-reorder.** Native HTML5 drag on the triggers (the tree's frappe-ui `Tree` DnD isn't
+available here). The General entry is synthetic, so it is never draggable and always trails
+the real tabs. `reorderTab` in `SpaceDetails` translates the bar's slot index back into the
+shared top-level sibling list — tabs and untabbed content live in one list, and `moveNode`
+splices *after* pulling the dragged node out, so both shifts have to be accounted for.
+
+**Reader icons — the Phase 5 gap is closed.** Not by adding an icon pack to the reader bundle:
+emitting the curated 100 icons as masked-background CSS came to ~200KB on every page. Instead
+`scripts/generate-public-lucide.mjs` (wired into `yarn theme:generate`) writes
+`wiki/lucide_icons.json` from the same `TAB_ICONS` list, and the new `wiki.utils.lucide_svg`
+jinja method inlines the SVG for the handful of tabs a page actually renders. Unknown icons
+fall back to `lucide-hash`, mirroring `SpaceIcon.vue`.
+
+**Tests.** Three new e2e tests in `tab-navigation.spec.ts` (8 total): reader row stacking +
+navbar space name + inline icon, editor add-button create + banner-above-tabs ordering, and
+editor drag-reorder. Regression sweep over `public-pages`, `toc-navigation`, `sidebar`,
+`sidebar-reveal`, `search-modal`, `ordering`, `space-default-page`, `tree-search`,
+`mobile-view`, `wiki` found no new failures — the remaining ones fail identically on a
+stashed baseline (local job-queue/test-data flakiness, not this change).
