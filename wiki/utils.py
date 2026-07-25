@@ -4,6 +4,15 @@ from functools import lru_cache
 import frappe
 from frappe.core.doctype.file.utils import get_content_hash
 
+# Baked-in `lucide-hash` markup, used when the icon isn't in the generated table
+# AND `lucide-hash` itself is somehow absent (missing/empty JSON at runtime). This
+# is what guarantees a tab icon on the public reader can never render as an empty
+# box — the last-resort fallback lives in code, not just the generated file.
+_FALLBACK_INNER = (
+	'<line x1="4" x2="20" y1="9" y2="9" /><line x1="4" x2="20" y1="15" y2="15" />'
+	'<line x1="10" x2="8" y1="3" y2="21" /><line x1="16" x2="14" y1="3" y2="21" />'
+)
+
 
 def lucide_svg(icon: str | None, css_class: str = "size-4") -> str:
 	"""Inline SVG markup for a `lucide-*` class name, for public templates.
@@ -13,14 +22,13 @@ def lucide_svg(icon: str | None, css_class: str = "size-4") -> str:
 	public template would render as an empty box. Inlining the SVG here keeps
 	both surfaces on the same icon set without shipping the whole pack's CSS.
 
-	The lookup table covers the curated picker list only (see
-	scripts/generate-public-lucide.mjs); anything else falls back to
-	`lucide-hash`, mirroring SpaceIcon.vue.
+	The lookup table covers the curated picker list (see
+	scripts/generate-public-lucide.mjs). Anything outside it falls back to
+	`lucide-hash`, and if even that is missing to `_FALLBACK_INNER` — so this
+	never returns empty markup for a set icon.
 	"""
 	table = _lucide_table()
-	inner = table.get(icon or "") or table.get("lucide-hash")
-	if not inner:
-		return ""
+	inner = table.get(icon or "") or table.get("lucide-hash") or _FALLBACK_INNER
 	return (
 		f'<svg class="{frappe.utils.escape_html(css_class)}" viewBox="0 0 24 24" fill="none" '
 		'stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" '
