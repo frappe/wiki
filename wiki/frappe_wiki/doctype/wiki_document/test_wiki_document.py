@@ -13,9 +13,12 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
+	clear_wiki_content_cache,
 	download_pdf,
 	get_public_wiki_tree,
+	get_rendered_content,
 	get_space_tabs,
 	process_navbar_items,
 )
@@ -2257,3 +2260,61 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 		frappe.db.set_value("Wiki Document", draft_page.name, "is_published", 0)
 
 		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+
+class TestRenderedContentCache(WikiDocumentTestBase):
+	"""Per-document rendered HTML + TOC caching (get_rendered_content)."""
+
+	def test_caches_by_document_name(self):
+		doc = create_test_wiki_document(self, "Cache Page", content="# Hello\n\nfirst")
+		clear_wiki_content_cache(doc.name)
+
+		html, _ = get_rendered_content(doc.name, "# Hello\n\nfirst")
+		self.assertIn("first", html)
+
+		# A second call with different content but the same name returns the
+		# cached render — proving the lookup is keyed by name, not content.
+		cached_html, _ = get_rendered_content(doc.name, "# Hello\n\ncompletely different")
+		self.assertEqual(cached_html, html)
+		self.assertNotIn("completely different", cached_html)
+
+	def test_matches_direct_render(self):
+		doc = create_test_wiki_document(self, "Parity Page", content="## Heading\n\nbody")
+		clear_wiki_content_cache(doc.name)
+
+		html, toc = get_rendered_content(doc.name, "## Heading\n\nbody")
+		direct_html, direct_toc = render_markdown_with_toc("## Heading\n\nbody")
+		self.assertEqual(html, direct_html)
+		self.assertEqual(toc, direct_toc)
+
+	def test_clear_invalidates(self):
+		doc = create_test_wiki_document(self, "Invalidate Page", content="v1")
+		get_rendered_content(doc.name, "v1")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		clear_wiki_content_cache(doc.name)
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		# Re-render picks up new content after invalidation.
+		html, _ = get_rendered_content(doc.name, "v2 fresh")
+		self.assertIn("v2 fresh", html)
+
+	def test_content_edit_drops_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Edited Page", content="original text")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.content = "edited text"
+		doc.save()
+		# on_wiki_document_update fires clear_wiki_content_cache for the changed doc.
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+	def test_non_content_edit_keeps_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Title Only", content="stable body")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.title = "Renamed Title"
+		doc.save()
+		# Content unchanged, so the rendered-content entry survives.
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))

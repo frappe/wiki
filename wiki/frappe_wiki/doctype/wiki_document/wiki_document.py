@@ -20,6 +20,9 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
+# Per-document rendered HTML + TOC, keyed by document name.
+WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
 # The synthetic "Home" tab standing for a space's untabbed top-level content.
 # Kept in sync with GENERAL_KEY in frontend/src/lib/spaceTabs.js.
 WIKI_HOME_TAB_KEY = "__general__"
@@ -389,8 +392,10 @@ class WikiDocument(NestedSet):
 		self.check_published()
 		wiki_space = self.get_wiki_space()
 
-		# Render markdown and extract TOC headings in one pass
-		rendered_content, toc_headings = render_markdown_with_toc(self.content or "")
+		# Rendered HTML + TOC from the per-document cache (see get_rendered_content).
+		# The TOC toggle is applied here, after the lookup, so it needs no cache
+		# invalidation.
+		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
 		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
 			toc_headings = []
 
@@ -691,6 +696,39 @@ def get_public_wiki_tree(root_group: str) -> list:
 	return tree
 
 
+def get_rendered_content(doc_name: str, content: str) -> tuple[str, list]:
+	"""Rendered HTML + TOC headings for a document's markdown, cached in Redis.
+
+	render_markdown_with_toc is a pure function of `content`, so the entry is
+	keyed by document name and dropped whenever the document's content is saved
+	or the document is deleted (see on_wiki_document_update / _trash) — the same
+	writes that already invalidate the tree. The Wiki Settings TOC toggle is
+	applied by the caller after this lookup, so flipping it needs no invalidation.
+	"""
+	cached = frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc_name)
+	if cached is not None:
+		return cached["html"], cached["toc"]
+	html, toc = render_markdown_with_toc(content or "")
+	frappe.cache().hset(WIKI_CONTENT_CACHE_KEY, doc_name, {"html": html, "toc": toc})
+	return html, toc
+
+
+def clear_wiki_content_cache(doc_name: str | None = None):
+	"""Drop the rendered-content cache — one document's entry, or all of it.
+
+	Immediate + after-commit, mirroring clear_wiki_tree_cache: the immediate
+	clear serves the current process, the after-commit clear closes the race
+	where another worker re-caches pre-commit content before the transaction lands.
+	"""
+	cache = frappe.cache()
+	if doc_name:
+		cache.hdel(WIKI_CONTENT_CACHE_KEY, doc_name)
+		frappe.db.after_commit.add(lambda: frappe.cache().hdel(WIKI_CONTENT_CACHE_KEY, doc_name))
+	else:
+		cache.delete_value(WIKI_CONTENT_CACHE_KEY)
+		frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_CONTENT_CACHE_KEY))
+
+
 def get_first_published_page(root_group: str) -> dict | None:
 	"""First non-group, non-external page in sidebar order — the document a
 	space URL should land on. Walks the same tree the sidebar renders, so the
@@ -903,6 +941,8 @@ def on_wiki_document_update(doc, method):
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
 	clear_wiki_tree_cache()
+	if doc.has_value_changed("content"):
+		clear_wiki_content_cache(doc.name)
 	_drop_from_search_index_on_unpublish(doc)
 
 
@@ -947,6 +987,7 @@ def on_wiki_document_trash(doc, method):
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
 	clear_wiki_tree_cache()
+	clear_wiki_content_cache(doc.name)
 
 
 def _clear_stale_website_cache(doc, deleted=False):
