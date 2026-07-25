@@ -52,10 +52,12 @@ test.describe('Wiki Editor', () => {
 		// Wait for the dialog to close and page to update
 		await page.waitForLoadState('networkidle');
 
-		// Verify the space was created: check URL changed and space name visible in heading
+		// Verify the space was created: check URL changed and space name visible.
+		// In change-request mode the name lives in the top banner rather than the
+		// tree aside; the timestamped name is unique, so match it page-wide.
 		await expect(page).toHaveURL(/\/wiki\/spaces\//, { timeout: 10000 });
 		await expect(
-			page.locator('aside').getByText(spaceName, { exact: true }),
+			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
 	});
 

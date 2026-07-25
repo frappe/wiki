@@ -337,10 +337,12 @@ const currentDraftKey = computed(() => route.params.docKey || null);
 const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
 
-// In change-request mode the banner carries the space name + back/settings, so
-// the tree header drops its own identity block to avoid showing it twice.
+// In change-request mode the desktop banner carries the space name +
+// back/settings, so the tree header drops its own identity block to avoid
+// showing it twice. On mobile the banner is a separate compact header and the
+// tree lives in a drawer, so the drawer keeps its full header (incl. Settings).
 const treeHeaderCompact = computed(
-	() => crStore.isChangeRequestMode && !isGitSynced.value,
+	() => crStore.isChangeRequestMode && !isGitSynced.value && !isMobile.value,
 );
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the

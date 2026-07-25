@@ -2,6 +2,7 @@
 	<div
 		role="tab"
 		:aria-selected="active"
+		:aria-label="tab.title"
 		:data-tab-key="tab.key"
 		:title="tab.title"
 		class="relative flex shrink-0 items-center gap-1.5 whitespace-nowrap py-2.5 text-base duration-300 ease-in-out"

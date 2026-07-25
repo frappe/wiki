@@ -320,8 +320,9 @@ test.describe('Horizontal tab navigation', () => {
 		await page.getByTestId('new-tab-button').click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog.getByText('Create New Tab')).toBeVisible();
-		await dialog.getByLabel('Tab Name').fill('Support');
-		await dialog.getByRole('option', { name: 'Launch' }).click();
+		// The dialog only asks for a title now — a default icon is applied and
+		// changed inline from the bar afterwards.
+		await dialog.getByLabel('Title').fill('Support');
 		await dialog.getByRole('button', { name: 'Create' }).click();
 
 		await expect(
