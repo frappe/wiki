@@ -766,8 +766,9 @@ def get_space_tabs(space: str) -> list[dict]:
 	if not tabs:
 		return []
 
-	# A tab whose subtree has no published page is dropped from the public tree
-	# by remove_empty_groups, so `nodes_by_name.get` is deliberately tolerant.
+	# A tab whose subtree has no published page is dropped from the public tree by
+	# remove_empty_groups. Such a tab has nowhere to land, so it's excluded here
+	# too rather than shown as a dead, empty tab.
 	tree = get_public_wiki_tree(root_group)
 	nodes_by_name = {node["name"]: node for node in tree}
 
@@ -778,17 +779,20 @@ def get_space_tabs(space: str) -> list[dict]:
 			"title": tab["title"],
 			"route": tab["route"],
 			"tab_icon": tab["tab_icon"],
-			"landing_route": _tab_landing_route(tab, nodes_by_name.get(tab["name"])),
+			"landing_route": _tab_landing_route(tab, nodes_by_name[tab["name"]]),
 		}
 		for tab in tabs
+		if tab["name"] in nodes_by_name
 	]
 
-	# Home leads the bar whenever the space has at least one tab and some untabbed
-	# top-level content for it to land on. A fully-tabbed space has nowhere for
-	# Home to point, so _home_tab_entry returns None and it's omitted.
-	home = _home_tab_entry(tree, space_doc.home_tab_title, space_doc.home_tab_icon)
-	if home:
-		result.insert(0, home)
+	# Home leads the bar only alongside at least one real (non-empty) tab and some
+	# untabbed top-level content to land on. With no real tabs there's nothing to
+	# navigate between, and a fully-tabbed space has nowhere for Home to point
+	# (_home_tab_entry returns None) — both omit it.
+	if result:
+		home = _home_tab_entry(tree, space_doc.home_tab_title, space_doc.home_tab_icon)
+		if home:
+			result.insert(0, home)
 
 	return result
 

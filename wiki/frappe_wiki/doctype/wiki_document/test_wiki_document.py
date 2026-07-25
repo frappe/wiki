@@ -2190,8 +2190,10 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 
 	def test_home_leads_the_bar_when_multiple_tabs_have_untabbed_content(self):
 		space, root_group = self._space()
-		self._make_tab(root_group, "Accounting", sort_order=1)
-		self._make_tab(root_group, "Selling", sort_order=2)
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
 		misc = create_test_wiki_document(
 			self, "Release Notes", parent=root_group.name, is_group=True, sort_order=3
 		)
@@ -2206,7 +2208,8 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 
 	def test_home_leads_the_bar_with_a_single_tab_and_untabbed_content(self):
 		space, root_group = self._space()
-		self._make_tab(root_group, "Accounting")
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
 		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
 		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
 
@@ -2216,7 +2219,8 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 
 	def test_home_tab_uses_the_space_title_and_icon(self):
 		space, root_group = self._space()
-		self._make_tab(root_group, "Accounting")
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
 		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
 		create_test_wiki_document(self, "Changelog", parent=misc.name)
 		frappe.db.set_value(
@@ -2232,9 +2236,24 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 
 	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
 		space, root_group = self._space()
-		self._make_tab(root_group, "Accounting", sort_order=1)
-		self._make_tab(root_group, "Selling", sort_order=2)
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
 
 		tabs = get_space_tabs(space.name)
 		self.assertTrue(all(t["doc_key"] != "__general__" for t in tabs))
 		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+
+	def test_tab_with_no_published_pages_is_excluded(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		# An empty tab (no children) and a tab whose only page is unpublished
+		# both have nothing to show, so neither appears on the public bar.
+		self._make_tab(root_group, "Empty", sort_order=2)
+		drafts = self._make_tab(root_group, "Drafts", sort_order=3)
+		draft_page = create_test_wiki_document(self, "WIP", parent=drafts.name)
+		frappe.db.set_value("Wiki Document", draft_page.name, "is_published", 0)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
