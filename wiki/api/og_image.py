@@ -171,7 +171,11 @@ def og_fingerprint(ctx: dict) -> str:
 
 
 def _cache_dir() -> str:
-	path = frappe.get_site_path("public", "files", CACHE_DIR_NAME)
+	"""Private, not public: nothing needs these web-reachable — og:image points
+	at this endpoint, never at the file — and under public/files a card would
+	outlive the authorization that produced it, still served by nginx after the
+	page is unpublished or a space's roles change."""
+	path = frappe.get_site_path("private", "files", CACHE_DIR_NAME)
 	os.makedirs(path, exist_ok=True)
 	return path
 
@@ -190,10 +194,10 @@ def _cache_path(doc_key: str, fp: str) -> str:
 
 def _read_cached(path: str) -> bytes | None:
 	try:
-		# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 		# `path` only ever comes from _cache_path, which pins the directory and
 		# validates doc_key against DOC_KEY_PATTERN. The endpoint's `v` param is
 		# never used to look a file up.
+		# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 		with open(path, "rb") as f:
 			return f.read()
 	except FileNotFoundError:
@@ -203,9 +207,9 @@ def _read_cached(path: str) -> bytes | None:
 def _write_cached(path: str, data: bytes) -> None:
 	"""Write through a temp file so a concurrent reader never sees a torn image."""
 	tmp = f"{path}.tmp-{frappe.generate_hash(length=8)}"
-	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 	# Same as _read_cached: `path` is _cache_path output and the suffix is a
 	# generated hash.
+	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 	with open(tmp, "wb") as f:
 		f.write(data)
 	os.replace(tmp, path)
@@ -248,9 +252,9 @@ def render_og_html(ctx: dict) -> str:
 	explicitly with ``| e``. Without it a page titled ``"><img src=http://evil>``
 	would make the screenshotter fetch an attacker-controlled URL.
 	"""
-	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
 	# The template path is a literal owned by this app; only `ctx` varies, and
 	# every value it carries is escaped in the template.
+	# nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
 	return frappe.render_template("templates/wiki/og_image.html", ctx)
 
 

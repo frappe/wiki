@@ -39,7 +39,7 @@ of an existing wiki is out of scope.
 
 | | |
 |---|---|
-| Serving | `og:image` → whitelisted `allow_guest` endpoint. Cold hit renders + writes a jpg under `public/files/wiki-og/`; warm hits stream that file. |
+| Serving | `og:image` → whitelisted `allow_guest` endpoint. Cold hit renders + writes a jpg under `private/files/wiki-og/`; warm hits stream that file. |
 | Card content | space logo, breadcrumb trail, page title, space name |
 | Rollout | `Wiki Settings.auto_generate_meta_images` checkbox, default **ON** |
 | Template | hardcoded HTML/CSS, not user-configurable yet; colours and type come from **frappe-ui design tokens** |
@@ -69,7 +69,7 @@ Fingerprint every input the template consumes, and nothing else:
 fp   = sha256("\x1f".join([TEMPLATE_VERSION, meta_title or title, breadcrumb_trail,
                            space_name or "", logo_url or "", str(W), str(H)])).hexdigest()[:12]
 
-path      = <site>/public/files/wiki-og/<doc_key>-<fp>.jpg
+path      = <site>/private/files/wiki-og/<doc_key>-<fp>.jpg
 lock key  = wiki_og_lock:<doc_key>:<fp>     (SET nx ex=90)
 fail key  = wiki_og_fail:<doc_key>:<fp>     (ttl 600)
 og:image  = /api/method/wiki.api.og_image.og_image?route=<route>&v=<fp>
@@ -344,13 +344,13 @@ cd frontend && yarn build
 
 1. Open a published wiki page, view source, confirm `og:image` points at the endpoint with `v=`.
 2. Open that URL directly — a 1200×630 jpg card with logo, breadcrumb, title, space name.
-3. Confirm `sites/wiki.localhost/public/files/wiki-og/<doc_key>-<fp>.jpg` exists; reload and confirm
+3. Confirm `sites/wiki.localhost/private/files/wiki-og/<doc_key>-<fp>.jpg` exists; reload and confirm
    mtime is unchanged (cache hit).
 4. Rename the page → new `v`, new file, old sibling pruned.
 5. Upload a `meta_image` → `og:image` switches back to the upload.
 6. Turn the Wiki Settings toggle off → `og:image` disappears from the head.
 7. `curl -A "facebookexternalhit" …` on the page to confirm the card is fetched anonymously.
-8. Merge a change request that renames a page, then `ls sites/wiki.localhost/public/files/wiki-og/`
+8. Merge a change request that renames a page, then `ls sites/wiki.localhost/private/files/wiki-og/`
    before opening anything — the new fingerprint file is already there, the old one gone.
 9. Eyeball the card against the app: title, breadcrumb and space name should read as the same greys
    the reader uses, not a second palette.
@@ -423,10 +423,11 @@ value) and confirming each test failed.
 5. **Disk cache is per-node.** On a multi-node bench without shared storage each node generates once.
    Bounded and self-healing; a shared byte layer can be added later behind the same
    `_read_cached` / `_write_cached` seam.
-6. **`public/files/wiki-og/` is web-readable.** Filenames embed `doc_key` + fingerprint, so a
-   restricted page's card is reachable by anyone who can guess both. `doc_key` is a 12-char
-   `frappe.generate_hash`, so this is capability-URL security — acceptable for a card containing only
-   a title, but noted.
+6. ~~**`public/files/wiki-og/` is web-readable.**~~ **Resolved during review.** Cards live under
+   `private/files/`, which nginx does not serve, so the endpoint's access check is the only way to
+   reach one. This also closes the case the original wording missed: under `public/files` a card
+   outlived the authorization that produced it, still served statically after the page was
+   unpublished or the space's roles changed.
 7. **Disk growth.** One ~60–150 KB jpg per published page, with stale siblings pruned on write.
 8. **Warm-up job storm.** A structural merge touching N pages enqueues up to N short jobs. Bounded by
    the `job_id` dedupe, the fingerprint diff (unchanged inputs enqueue nothing) and the kill switch —
