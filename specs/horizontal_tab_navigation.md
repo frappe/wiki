@@ -529,3 +529,37 @@ untabbed-content assertion — it's now gated behind Home — the reorder order-
 Home, and the drag to drive real mouse-move steps since `forceFallback` ignores HTML5 `dragTo`).
 Three new `TestGetSpaceTabs` cases cover Home present / single-tab / fully-tabbed. Full
 `tab-navigation` suite and `TestGetSpaceTabs` green.
+
+---
+
+## Follow-up: inline tab editing, Home customization, layout finalization
+
+**Reader Home now appears with ≥1 tab** (was ≥2). `get_space_tabs` drops the `len >= 2`
+guard — a single-tab space with untabbed content shows Home; a fully-tabbed space still omits
+it (`_home_tab_entry` returns None with nowhere to land).
+
+**Home is customizable.** New Wiki Space fields `home_tab_title` (default "Home") and
+`home_tab_icon` (default `lucide-house`). `_home_tab_entry` reads them for the reader;
+`buildTabList`/`useSpaceTabs` take a `homeMeta` getter sourced from `space.doc` for the editor.
+The Home tab is synthetic (no node), so edits write the Wiki Space doc directly via
+`space.setValue`; real tabs still go through `draftStore.updateNode`.
+
+**Inline icon + rename (`WikiTab.vue`).** Each tab is now a `WikiTab` — clicking its icon opens
+the existing popover `IconPicker` inline (Gameplan-style) and updates immediately;
+double-clicking the label renames it. Works for Home and real tabs. `WikiTabBar` emits
+`update-icon` / `rename-tab` with the tab key; `SpaceDetails` routes them.
+
+**Convert to tab.** The tree context menu splits: a non-tab group emits `convert-to-tab`
+(simple confirm dialog, default icon `lucide-book-open-text` / "Knowledge", editable inline
+after) instead of the checkbox+icon dialog. New Tab creation likewise drops the icon prompt,
+applies the default, and auto-selects the created tab.
+
+**Editor header finalized to inline.** The prototype header/banner variant toggles were
+removed. Editable pages fold the route under the title with badges beside it and park the page
+actions (View Page / Save / More) in the tab-bar row via a `Teleport` to `#wiki-page-actions`;
+read-only pages keep the dedicated header row. The CR banner is the slim `minimal` layout
+(space identity + status badge, `px-2` gutters aligned with the tab row). Leaf tree rows drop
+the chevron-placeholder so file icons sit at the left edge.
+
+**Tests.** Added `test_home_tab_uses_the_space_title_and_icon`; flipped the single-tab Home
+case. `TestGetSpaceTabs` green (65 in module).
