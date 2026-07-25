@@ -26,7 +26,7 @@ from werkzeug.wrappers import Response
 
 # Bumped whenever the card template or its token block changes; it is part of
 # the cache fingerprint, so a bump invalidates every cached card for free.
-TEMPLATE_VERSION = "1"
+TEMPLATE_VERSION = "2"
 
 OG_WIDTH = 1200
 OG_HEIGHT = 630

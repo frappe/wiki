@@ -65,9 +65,13 @@
 	}
 
 	.logo {
-		height: 48px;
+		/* Sized against the 1200x630 card, not a page header — anything under
+		   ~72px reads as an afterthought at feed scale. The generous max-width
+		   is for wordmark logos, which are wide rather than square; contain
+		   keeps those from being cropped or stretched. */
+		height: 88px;
 		width: auto;
-		max-width: 420px;
+		max-width: 520px;
 		object-fit: contain;
 		object-position: left center;
 	}
