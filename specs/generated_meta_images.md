@@ -28,9 +28,12 @@ The interesting part is the framework util, and it already ships in this bench:
 - Deliberately **not** whitelisted (rendering arbitrary HTML server-side is an SSRF surface), so it
   must be called in-process with HTML we control.
 
-We skip the microservice hop and call the util directly. We also skip Builder's precompute-on-publish
-model: generation is **on the fly**, on first request, then cached on disk. Bulk pre-generation is
-out of scope.
+We skip the microservice hop and call the util directly. Serving stays **lazy** — the `og:image` URL
+is always valid and the first request renders — but we borrow Builder's precompute idea as a
+*warm-up*: a background job regenerates the card on the same document-write events that already
+clear caches and re-index search, so in practice the first crawler hit is a cache hit. The warm-up
+can never break the page, because the lazy path is still the one serving bytes. Bulk pre-generation
+of an existing wiki is out of scope.
 
 ## Decisions
 
@@ -39,7 +42,8 @@ out of scope.
 | Serving | `og:image` → whitelisted `allow_guest` endpoint. Cold hit renders + writes a jpg under `public/files/wiki-og/`; warm hits stream that file. |
 | Card content | space logo, breadcrumb trail, page title, space name |
 | Rollout | `Wiki Settings.auto_generate_meta_images` checkbox, default **ON** |
-| Template | hardcoded HTML/CSS, not user-configurable yet |
+| Template | hardcoded HTML/CSS, not user-configurable yet; colours and type come from **frappe-ui design tokens** |
+| Freshness | lazy on first request, plus a **warm-up job on write** (merge / desk / git sync) so the first crawler after a change is already warm |
 | Size | 1200 × 630, jpg |
 
 ### Why not the alternatives
@@ -140,6 +144,46 @@ Tailwind build (`wiki.css` is purged against reader markup, not this):
   (≤40 chars → 76px, ≤80 → 60px, else 48px) so nothing depends on script execution before capture.
 - Bottom: `space_name` at 28px.
 
+#### Colours and type come from frappe-ui tokens
+
+The card is a product surface; it should not invent its own greys. Source of truth is the
+Figma-synced token set that ships with frappe-ui (`1.0.0-beta.25`):
+
+```
+frontend/node_modules/frappe-ui/tailwind/generated/colors.json
+  → themedVariables.light.<group>.<name>  ("ink/gray-9" → "lightMode/gray/950")
+  → lightMode.gray.950                    ("#0f0f0f")
+frontend/node_modules/frappe-ui/tailwind/generated/typography.json  (weights, tracking)
+```
+
+We cannot *load* the built stylesheet here: the SPA bundle is purged, lives under a content-hashed
+filename, and carries dark-mode variables — none of which a deterministic screenshot wants. So the
+template inlines a `:root { … }` block holding the resolved **light-mode** values under their real
+token names, and every rule references `var(--ink-gray-9)` rather than a raw hex. The card is always
+light: no `prefers-color-scheme`, no `data-theme`.
+
+| var | token ref | value | use |
+|---|---|---|---|
+| `--ink-gray-9` | `lightMode/gray/950` | `#0f0f0f` | title |
+| `--ink-gray-7` | `lightMode/gray/800` | `#383838` | space name |
+| `--ink-gray-5` | `lightMode/gray/600` | `#7c7c7c` | breadcrumb |
+| `--outline-gray-2` | `lightMode/gray/300` | `#e2e2e2` | hairline / separator |
+| `--surface-gray-2` | `lightMode/gray/100` | `#f3f3f3` | accent bar, until the Phase 5 space accent lands |
+| `--surface-white` | — | `#ffffff` | background; resolve the exact key at implementation time, the group may carry no `white` entry |
+
+Regenerate the block with:
+
+```py
+import json, functools
+d = json.load(open("frontend/node_modules/frappe-ui/tailwind/generated/colors.json"))
+res = lambda ref: functools.reduce(lambda c, k: c[k], ref.split("/"), d)
+res(d["themedVariables"]["light"]["ink"]["gray-9"])   # '#0f0f0f'
+```
+
+The three title sizes stay literal — the token scale stops far below card scale — but weight and
+tracking come from `typography.json`. `TEMPLATE_VERSION` is bumped whenever the token block changes,
+which invalidates every cached card for free.
+
 Verify: `curl -o /tmp/og.jpg 'http://wiki.localhost:8000/api/method/wiki.api.og_image.og_image?route=<route>'`
 
 ### Phase 2 — disk cache, headers, pruning
@@ -186,6 +230,34 @@ add the matching `<SettingToggle fieldname="auto_generate_meta_images" …/>` to
 With the toggle off, `get_og_image_url()` returns `None` and the emitted HTML is byte-identical to
 today's.
 
+**Warm-up on write.** The app already does post-write work on document events — `_clear_stale_website_cache`
+drops the website cache (`wiki_document.py:993`) and merges queue a search re-index. Card generation
+belongs in exactly that company.
+
+No merge-specific code is needed, because of how the merge classifies changes: `_classify_changes`
+(`wiki_change_request.py:1905-1917`) counts `title`, `slug`, `route`, `parent_key` and `is_published`
+as `metadata_fields`, so every change that moves the OG fingerprint is **structural** and merges
+through a full `doc.save()` — which fires `on_update`. The content-only fast path does bypass hooks
+(raw `db.set_value`, `wiki_change_request.py:2004`), but content is not in the fingerprint, so nothing
+is missed there. One hook therefore covers merges, desk edits and git sync alike.
+
+- `enqueue_og_warmup(doc)` in `wiki/api/og_image.py`, called from `on_wiki_document_update`
+  (`wiki_document.py:938`) right beside the existing cache clear.
+  - Bail on: settings toggle off, `is_group`, `is_external_link`, not `is_published`, no space.
+  - Diff the fingerprint inputs against `doc.get_doc_before_save()` — the same shape
+    `_clear_stale_website_cache` uses — and enqueue only when the fingerprint actually moved or the
+    cached file is missing.
+  - `frappe.enqueue("wiki.api.og_image.warm_og_image", name=doc.name, queue="short",
+    job_id=f"wiki-og-{doc.name}", deduplicate=True, enqueue_after_commit=True)`. `after_commit` so a
+    rolled-back merge never renders; `deduplicate` so a multi-touch merge collapses per document.
+- `warm_og_image(name)` — resolve doc → ctx → fingerprint → path, return early if the file exists,
+  else the same `generate_og_bytes` + `_write_cached` + `_prune_old` as the request path, under the
+  **same** `wiki_og_lock:` / `wiki_og_fail:` keys so a worker and a crawler never both launch Chromium.
+
+The request path is unchanged and remains the fallback: never-merged documents, pages whose space
+name or logo changed (not enumerated per document), and any warm-up that failed. Nothing in the page
+render depends on the job.
+
 ### Phase 4 — hardening
 
 - **Rate limit.** `@rate_limit(key="route", limit=60, seconds=3600, ip_based=True)`
@@ -205,8 +277,10 @@ today's.
 
 - Space-level accent colour and an explicit space-level default OG image on `Wiki Space` (falling
   back to the generated card). Both feed the fingerprint, so switching them invalidates for free.
-- Optional single-doc `frappe.enqueue_doc` warm-up on publish, reusing `generate_og_bytes` unchanged,
-  so the first crawler hit is already warm. One doc, one job — still not bulk generation.
+  The accent replaces the `--surface-gray-2` bar in the token block.
+- A space rename / logo swap moves the fingerprint of every page in that space at once. Today those
+  regenerate lazily, one crawler hit at a time; a bounded bulk warm-up (chunked, `queue="long"`)
+  could be added behind the same `warm_og_image` seam.
 
 ## Tests
 
@@ -227,6 +301,21 @@ New `TestOGImageEndpoint(WikiDocumentTestBase)` in
 - second request with the renderer mocked → `mock.call_count == 1`.
 - renaming the doc → new fingerprint, new file, old file pruned.
 - `If-None-Match` → 304 with an empty body.
+
+Warm-up (same patched renderer, plus `frappe.enqueue` patched to assert the call):
+
+- merging a CR that renames a page → one job enqueued and, running it, the new-fingerprint file
+  lands on disk **without any page view**; the old sibling is pruned.
+- a content-only merge → nothing enqueued (content is not a fingerprint input).
+- `warm_og_image` with the file already present → the renderer is not called.
+- Wiki Settings toggle off → nothing enqueued.
+
+Token drift (no Chromium involved):
+
+- read `frontend/node_modules/frappe-ui/tailwind/generated/colors.json`, `skipTest` when absent (the
+  Python CI job installs no frontend dependencies), otherwise assert every var in the template's
+  `:root` block equals the resolved light-mode token. Same intent as frappe-ui's own
+  `tailwind/audit-token-drift.cjs`. This is what stops the card drifting from the design system.
 
 Existing tests that must change:
 
@@ -261,6 +350,10 @@ cd frontend && yarn build
 5. Upload a `meta_image` → `og:image` switches back to the upload.
 6. Turn the Wiki Settings toggle off → `og:image` disappears from the head.
 7. `curl -A "facebookexternalhit" …` on the page to confirm the card is fetched anonymously.
+8. Merge a change request that renames a page, then `ls sites/wiki.localhost/public/files/wiki-og/`
+   before opening anything — the new fingerprint file is already there, the old one gone.
+9. Eyeball the card against the app: title, breadcrumb and space name should read as the same greys
+   the reader uses, not a second palette.
 
 ## Risks
 
@@ -285,3 +378,12 @@ cd frontend && yarn build
    `frappe.generate_hash`, so this is capability-URL security — acceptable for a card containing only
    a title, but noted.
 7. **Disk growth.** One ~60–150 KB jpg per published page, with stale siblings pruned on write.
+8. **Warm-up job storm.** A structural merge touching N pages enqueues up to N short jobs. Bounded by
+   the `job_id` dedupe, the fingerprint diff (unchanged inputs enqueue nothing) and the kill switch —
+   but locally this is the same bench queue the git-sync specs already saturate, so keep an eye on it
+   during e2e runs. Serving never depends on the job, so a backed-up queue degrades to today's lazy
+   behaviour.
+9. **Token drift.** The `:root` block is a snapshot of frappe-ui's tokens, not a live import; a
+   frappe-ui upgrade can move a value silently. The drift test is the guard, and it self-disables
+   where `node_modules` is absent — so it must not be the *only* place the values are checked before
+   a release.
