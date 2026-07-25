@@ -12,7 +12,8 @@
                 :space-name="space.doc?.space_name"
                 :space-route="space.doc?.route"
                 :space-loaded="!!space.doc"
-                :tree-data="treeData"
+                :tree-data="visibleTreeData"
+                :space-root-node="treeData?.root_group || ''"
                 :change-type-map="changeTypeMap"
                 :readonly="isGitSynced"
                 :selected-page-id="currentPageId"
@@ -42,7 +43,8 @@
                 :space-name="space.doc?.space_name"
                 :space-route="space.doc?.route"
                 :space-loaded="!!space.doc"
-                :tree-data="treeData"
+                :tree-data="visibleTreeData"
+                :space-root-node="treeData?.root_group || ''"
                 :change-type-map="changeTypeMap"
                 :readonly="isGitSynced"
                 :selected-page-id="currentPageId"
@@ -115,6 +117,24 @@
                 @withdraw="handleArchiveChangeRequest"
                 @merge="handleMergeChangeRequest"
             />
+
+            <!-- Horizontal module tabs. Below the change-request banner, not
+                 above it: the banner is about the whole draft, so it outranks
+                 the tab you happen to be browsing. -->
+            <div
+                v-if="tabs.length"
+                class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
+            >
+                <WikiTabBar
+                    :tabs="tabs"
+                    :active-key="activeTabKey"
+                    :can-manage-tabs="canManageTabs && !isGitSynced"
+                    @select="selectTab"
+                    @create="openCreateTabDialog"
+                    @reorder="reorderTab"
+                />
+            </div>
+
             <div class="flex-1 overflow-auto">
                 <router-view
                     :space-id="spaceId"
@@ -131,6 +151,39 @@
             @open-update-routes="openUpdateRoutesDialog"
             @open-clone="openCloneSpaceDialog"
         />
+
+        <Dialog v-model:open="showCreateTabDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
+                    {{ __('Create New Tab') }}
+                </h3>
+            </template>
+            <template #default>
+                <div class="space-y-4 py-2">
+                    <FormControl
+                        type="text"
+                        :label="__('Tab Name')"
+                        v-model="newTabTitle"
+                        :placeholder="__('Enter tab name')"
+                        @keyup.enter="createTab"
+                    />
+                    <div>
+                        <p class="mb-1.5 text-xs text-ink-gray-5">{{ __('Icon') }}</p>
+                        <IconPicker v-model="newTabIcon" inline />
+                    </div>
+                </div>
+            </template>
+            <template #actions>
+                <div class="flex justify-end gap-2">
+                    <Button variant="outline" @click="showCreateTabDialog = false">
+                        {{ __('Cancel') }}
+                    </Button>
+                    <Button variant="solid" :loading="creatingTab" @click="createTab">
+                        {{ __('Create') }}
+                    </Button>
+                </div>
+            </template>
+        </Dialog>
 
         <Dialog v-model:open="showUpdateRoutesDialog">
             <template #title>
@@ -216,11 +269,14 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import IconPicker from '../components/IconPicker.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
+import WikiTabBar from '../components/WikiTabBar.vue';
 import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
+import { useSpaceTabs } from '../composables/useSpaceTabs.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { toPublished } from '../stores/draftWorkspace/utils';
@@ -505,6 +561,79 @@ const treeData = computed(() => {
 	if (draftStore.spaceId !== props.spaceId) return null;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
+
+// Tab state lives here rather than in SpaceTreePanel: the bar renders in this
+// column's header while the tree it filters renders in the sidebar, so a single
+// owner keeps the two from disagreeing.
+const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
+	treeData,
+	currentPageId,
+	currentDraftKey,
+);
+
+// Creating and reordering tabs is owned here alongside the bar, rather than in
+// the tree's own dialogs: a tab is always parented to the space root, so it
+// doesn't depend on which subtree the sidebar is currently showing.
+const showCreateTabDialog = ref(false);
+const newTabTitle = ref('');
+const newTabIcon = ref('');
+const creatingTab = ref(false);
+
+function openCreateTabDialog() {
+	newTabTitle.value = '';
+	newTabIcon.value = '';
+	showCreateTabDialog.value = true;
+}
+
+async function createTab() {
+	const title = newTabTitle.value.trim();
+	if (!title) {
+		toast.warning(__('Tab name is required'));
+		return;
+	}
+	showCreateTabDialog.value = false;
+	creatingTab.value = true;
+	try {
+		const { promise } = draftStore.createNode({
+			parentKey: treeData.value?.root_group || null,
+			title,
+			isGroup: true,
+			isTab: true,
+			tabIcon: newTabIcon.value || null,
+		});
+		await promise;
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error creating tab'));
+	} finally {
+		creatingTab.value = false;
+	}
+}
+
+// Drag-reorder from the bar. Tabs and non-tab top-level content share one
+// sibling list, so the drop index is translated back into that list's
+// coordinates — dropping a tab past the last one must not jump it over the
+// untabbed content that follows.
+function reorderTab({ docKey, toIndex }) {
+	// moveNode splices into the list *after* pulling the dragged node out, so
+	// index maths has to happen against the same post-removal list.
+	const remaining = (treeData.value?.children || []).filter(
+		(node) => node.doc_key !== docKey,
+	);
+	const remainingTabs = remaining.filter((node) => node.is_tab);
+
+	const anchor = remainingTabs[toIndex];
+	const newIndex = anchor
+		? remaining.indexOf(anchor)
+		: // Dropped past the last tab — land just after it, never after the
+			// untabbed top-level content that follows.
+			remaining.indexOf(remainingTabs[remainingTabs.length - 1]) + 1;
+
+	draftStore.moveNode({
+		docKey,
+		newParentKey: treeData.value?.root_group || null,
+		newIndex,
+	});
+}
 
 // Remember the last page opened in this space (per-space, like the tree's
 // expanded-nodes state) so re-entering the space reopens it instead of the

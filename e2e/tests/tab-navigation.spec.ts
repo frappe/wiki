@@ -1,4 +1,9 @@
-import { type APIRequestContext, expect, test } from '@playwright/test';
+import {
+	type APIRequestContext,
+	type Locator,
+	expect,
+	test,
+} from '@playwright/test';
 import { createDoc } from '../helpers/frappe';
 import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
 
@@ -13,6 +18,14 @@ import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
 const ROUTE = `tabs-e2e-${Date.now()}`;
 
 type Doc = { name: string };
+
+// Layout assertions compare row positions, so a missing box is a real failure
+// rather than something to silently skip.
+async function box(locator: Locator) {
+	const rect = await locator.boundingBox();
+	if (!rect) throw new Error('element has no bounding box');
+	return rect;
+}
 
 async function group(
 	request: APIRequestContext,
@@ -103,17 +116,16 @@ test.describe('Horizontal tab navigation', () => {
 		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
 		await page.waitForLoadState('networkidle');
 
+		const tabBar = page.getByRole('tablist');
 		const sidebar = page.locator('.wiki-sidebar');
+		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible();
 		await expect(
-			sidebar.getByRole('tab', { name: 'Accounting' }),
-		).toBeVisible();
-		await expect(
-			sidebar.getByRole('tab', { name: 'Manufacturing' }),
+			tabBar.getByRole('tab', { name: 'Manufacturing' }),
 		).toBeVisible();
 
 		// Hard load: the tab owning the current page is the active one.
 		await expect(
-			sidebar.getByRole('tab', { name: 'Accounting' }),
+			tabBar.getByRole('tab', { name: 'Accounting' }),
 		).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			sidebar.getByText('Receivables', { exact: true }),
@@ -121,12 +133,12 @@ test.describe('Horizontal tab navigation', () => {
 		await expect(sidebar.getByText('Production', { exact: true })).toBeHidden();
 
 		// SPA navigation must move the bar with it, not leave it stale.
-		await sidebar.getByRole('tab', { name: 'Manufacturing' }).click();
+		await tabBar.getByRole('tab', { name: 'Manufacturing' }).click();
 		await expect(
-			sidebar.getByRole('tab', { name: 'Manufacturing' }),
+			tabBar.getByRole('tab', { name: 'Manufacturing' }),
 		).toHaveAttribute('aria-selected', 'true');
 		await expect(
-			sidebar.getByRole('tab', { name: 'Accounting' }),
+			tabBar.getByRole('tab', { name: 'Accounting' }),
 		).toHaveAttribute('aria-selected', 'false');
 		await expect(
 			sidebar.getByText('Production', { exact: true }),
@@ -148,9 +160,10 @@ test.describe('Horizontal tab navigation', () => {
 		await page.goto(`/${ROUTE}/manufacturing/production/work-order`);
 		await page.waitForLoadState('networkidle');
 
+		const tabBar = page.getByRole('tablist');
 		const sidebar = page.locator('.wiki-sidebar');
 		await expect(
-			sidebar.getByRole('tab', { name: 'Manufacturing' }),
+			tabBar.getByRole('tab', { name: 'Manufacturing' }),
 		).toHaveAttribute('aria-selected', 'true');
 		await expect(
 			sidebar.getByText('Production', { exact: true }),
@@ -167,12 +180,13 @@ test.describe('Horizontal tab navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		const aside = page.locator('aside').first();
-		await expect(aside.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		const main = page.locator('main').first();
+		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
 			timeout: 15000,
 		});
 		await expect(aside.getByText('Receivables', { exact: true })).toBeVisible();
 
-		await aside.getByRole('tab', { name: 'Manufacturing' }).click();
+		await main.getByRole('tab', { name: 'Manufacturing' }).click();
 		await expect(aside.getByText('Production', { exact: true })).toBeVisible();
 		await expect(aside.getByText('Receivables', { exact: true })).toHaveCount(
 			0,
@@ -189,7 +203,8 @@ test.describe('Horizontal tab navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		const aside = page.locator('aside').first();
-		await expect(aside.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		const main = page.locator('main').first();
+		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
 			timeout: 15000,
 		});
 
@@ -205,9 +220,111 @@ test.describe('Horizontal tab navigation', () => {
 
 		// Comes from the draft tree, so it shows before the CR is merged.
 		await expect(
-			aside.getByRole('tab', { name: 'Projects', exact: true }),
+			main.getByRole('tab', { name: 'Projects', exact: true }),
 		).toBeVisible({
 			timeout: 15000,
 		});
+	});
+
+	test('reader stacks navbar, tabs, then the tree, and renders tab icons', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.waitForLoadState('networkidle');
+
+		// `banner` picks the page-level header; the mobile one and the article's
+		// own <header> are both plain <header> elements.
+		const navbar = page.getByRole('banner');
+		const tabBar = page.getByRole('tablist');
+		const sidebar = page.locator('.wiki-sidebar');
+
+		// The hierarchy is the point of this layout: each row starts below the
+		// previous one, and both chrome rows span past the sidebar's width.
+		const navbarBox = await box(navbar);
+		const tabsBox = await box(tabBar);
+		const sidebarBox = await box(sidebar);
+		expect(tabsBox.y).toBeGreaterThanOrEqual(
+			navbarBox.y + navbarBox.height - 1,
+		);
+		expect(sidebarBox.y).toBeGreaterThanOrEqual(tabsBox.y + tabsBox.height - 1);
+		expect(navbarBox.width).toBeGreaterThan(sidebarBox.width);
+
+		// The space name moved out of the sidebar and into the navbar. `.first()`
+		// is the switcher's own label — the rest are its (hidden) menu entries.
+		await expect(
+			navbar.getByText('Tabs E2E', { exact: true }).first(),
+		).toBeVisible();
+
+		// Icons are inlined server-side (wiki.utils.lucide_svg) because the
+		// reader's Tailwind build has no lucide plugin.
+		await expect(
+			tabBar.getByRole('tab', { name: 'Accounting' }).locator('svg'),
+		).toBeVisible();
+	});
+
+	test('editor bar creates a tab from its own add button, above the draft banner', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/wiki');
+		await page.waitForLoadState('networkidle');
+		await page.getByText('Tabs E2E', { exact: true }).first().click();
+		await page.waitForLoadState('networkidle');
+
+		const main = page.locator('main').first();
+		const tabBar = main.getByRole('tablist');
+		await expect(main.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+			timeout: 15000,
+		});
+
+		// The change-request banner is about the whole draft, so it outranks the
+		// tab being browsed.
+		const bannerBox = await box(main.locator('.contribution-banner'));
+		const tabsBox = await box(tabBar);
+		expect(bannerBox.y).toBeLessThan(tabsBox.y);
+
+		await main.getByTestId('new-tab-button').click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog.getByText('Create New Tab')).toBeVisible();
+		await dialog.getByLabel('Tab Name').fill('Support');
+		await dialog.getByRole('option', { name: 'Launch' }).click();
+		await dialog.getByRole('button', { name: 'Create' }).click();
+
+		await expect(
+			main.getByRole('tab', { name: 'Support', exact: true }),
+		).toBeVisible({ timeout: 15000 });
+	});
+
+	test('editor reorders tabs by dragging them in the bar', async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/wiki');
+		await page.waitForLoadState('networkidle');
+		await page.getByText('Tabs E2E', { exact: true }).first().click();
+		await page.waitForLoadState('networkidle');
+
+		const main = page.locator('main').first();
+		const tabBar = main.getByRole('tablist');
+		const accounting = tabBar.getByRole('tab', { name: 'Accounting' });
+		const manufacturing = tabBar.getByRole('tab', { name: 'Manufacturing' });
+		await expect(accounting).toBeVisible({ timeout: 15000 });
+
+		const order = async () =>
+			(await tabBar.getByRole('tab').allInnerTexts()).map((t) => t.trim());
+		expect((await order()).slice(0, 2)).toEqual([
+			'Accounting',
+			'Manufacturing',
+		]);
+
+		// Drop past the midpoint of the target, which is what puts the dragged
+		// tab after it rather than before.
+		const target = await box(manufacturing);
+		await accounting.dragTo(manufacturing, {
+			targetPosition: { x: target.width - 2, y: target.height / 2 },
+		});
+
+		await expect
+			.poll(async () => (await order()).slice(0, 2))
+			.toEqual(['Manufacturing', 'Accounting']);
 	});
 });

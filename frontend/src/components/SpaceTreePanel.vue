@@ -32,24 +32,17 @@
 			/>
 		</div>
 
-		<WikiTabBar
-			v-if="spaceLoaded && treeData"
-			:tabs="tabs"
-			:active-key="activeTabKey"
-			@select="selectTab"
-		/>
-
 		<div v-if="spaceLoaded && treeData" class="flex-1 overflow-auto px-2 pt-2 pb-10">
 			<WikiDocumentList
-				:tree-data="visibleTreeData"
+				:tree-data="treeData"
 				:change-type-map="changeTypeMap"
 				:space-id="spaceId"
 				:readonly="readonly"
-				:root-node="visibleTreeData.root_group || ''"
+				:root-node="treeData.root_group || ''"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
 				:can-manage-tabs="canManageTabs"
-				:space-root-node="treeData.root_group || ''"
+				:space-root-node="spaceRootNode"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
 			/>
@@ -86,80 +79,26 @@
 
 <script setup>
 import { Button, Skeleton } from 'frappe-ui';
-import { computed, ref, watch } from 'vue';
 
-import {
-	buildTabList,
-	findOwningTabKey,
-	subtreeForTab,
-} from '../lib/spaceTabs.js';
 import WikiDocumentList from './WikiDocumentList.vue';
-import WikiTabBar from './WikiTabBar.vue';
 
-const props = defineProps({
+defineProps({
 	spaceId: { type: String, required: true },
 	spaceName: { type: String, default: '' },
 	spaceRoute: { type: String, default: '' },
 	spaceLoaded: { type: Boolean, default: false },
+	// Already narrowed to the active tab's subtree by useSpaceTabs; `root_group`
+	// is that tab, so top-level drops reparent into it.
 	treeData: { type: Object, default: null },
 	changeTypeMap: { type: Map, default: () => new Map() },
 	readonly: { type: Boolean, default: false },
 	selectedPageId: { type: String, default: null },
 	selectedDraftKey: { type: String, default: null },
 	canManageTabs: { type: Boolean, default: false },
+	// The space root, where a new tab must be parented regardless of which tab
+	// is currently being browsed.
+	spaceRootNode: { type: String, default: '' },
 });
 
 const emit = defineEmits(['refresh', 'reorder-state-change', 'open-settings']);
-
-const topLevelNodes = computed(() => props.treeData?.children || []);
-const tabs = computed(() => buildTabList(topLevelNodes.value, __('General')));
-
-// The tab owning the currently open page, per the spec's rule: walk the page's
-// ancestors up to the tab-flagged group.
-const selectedTabKey = computed(() => {
-	if (!tabs.value.length) return null;
-	if (!props.selectedPageId && !props.selectedDraftKey) return null;
-	return findOwningTabKey(
-		topLevelNodes.value,
-		(node) =>
-			(props.selectedDraftKey && node.doc_key === props.selectedDraftKey) ||
-			(props.selectedPageId && node.document_name === props.selectedPageId),
-	);
-});
-
-// Single source of truth so the most recent action wins: clicking a tab browses
-// it even while a page from another tab is still open, and navigating to a page
-// pulls the bar back to that page's tab.
-const activeTabKey = ref(null);
-
-watch(
-	[tabs, selectedTabKey],
-	([tabList, owningKey]) => {
-		if (!tabList.length) {
-			activeTabKey.value = null;
-			return;
-		}
-		const stillValid = tabList.some((tab) => tab.key === activeTabKey.value);
-		if (owningKey) activeTabKey.value = owningKey;
-		else if (!stillValid) activeTabKey.value = tabList[0].key;
-	},
-	{ immediate: true, deep: true },
-);
-
-const visibleTreeData = computed(() => {
-	if (!props.treeData) return { children: [], root_group: '' };
-	if (!tabs.value.length) return props.treeData;
-
-	const { children, rootNode } = subtreeForTab(
-		topLevelNodes.value,
-		activeTabKey.value,
-		props.treeData.root_group || '',
-	);
-	return { ...props.treeData, children, root_group: rootNode };
-});
-
-function selectTab(key) {
-	activeTabKey.value = key;
-}
-
 </script>
