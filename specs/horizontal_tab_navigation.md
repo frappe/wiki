@@ -488,3 +488,44 @@ editor drag-reorder. Regression sweep over `public-pages`, `toc-navigation`, `si
 `sidebar-reveal`, `search-modal`, `ordering`, `space-default-page`, `tree-search`,
 `mobile-view`, `wiki` found no new failures — the remaining ones fail identically on a
 stashed baseline (local job-queue/test-data flakiness, not this change).
+
+### Phase 7 — Home tab, editor layout parity, better drag ✅
+
+Feedback after Phase 6: the synthetic entry read as "General" and trailed the real tabs, so a
+newly-created tab appeared to its *left*; the native-DnD reorder was flaky; the `+` was a bare
+icon; and the editor bar still lived inside the content column, unlike the reader.
+
+**Home, not General — and it leads.** `buildTabList` renames the synthetic entry to "Home"
+(icon `lucide-house`) and `unshift`s it to the front, so content tabs follow it and new tabs
+(backend `sort_order = max + 1`) land rightmost. In the *editor* Home is now shown
+unconditionally — even with no tabs yet — so the tab model and the "＋ New Tab" affordance are
+always discoverable. `GENERAL_KEY`/`__general__` stays as the internal key.
+
+**Reader Home (`get_space_tabs`).** The reader gains a Home entry only when the space has ≥2
+tabs *and* untabbed top-level content to land on — with one tab it's noise, with none there's
+nowhere to point. `_home_tab_entry` routes it to the first published leaf of the untabbed
+subtree. `tabs.html` highlights it via a new `notInAnyTab(routes)` nav-store method (active
+when the page is under none of the real tabs) rather than a prefix of its own route.
+`sidebar.html` now gates the untabbed subtree behind that same predicate when Home is present,
+so it shows only while Home is active — instead of trailing every tab as before. `lucide-house`
+was added to `TAB_ICONS` so `generate-public-lucide.mjs` inlines it for the reader.
+
+**Drag via SortableJS.** Native HTML5 DnD replaced with `@vueuse/integrations` `useSortable`
+(pointer-`forceFallback`, `animation`, ghost). `watchElement: true` is load-bearing: the bar
+mounts before tabs load async, so without it the sortable target doesn't exist at mount and
+Sortable never initialises. Only the real tabs are draggable — Home is a pinned, separate
+button outside the sortable container. On drop the bar emits `{ docKey, toIndex }` (index among
+real tabs) and the parent persists + re-derives, resyncing the mirror list.
+
+**Editor layout.** `SpaceDetails.vue` root is now `flex-col`: the draft/git banner and the tab
+bar stack full-width above a `[sidebar | content]` row, mirroring the reader's
+`navbar > tabs > tree`. The bar therefore left `<main>`, so the editor e2e tests source it at
+page level.
+
+**＋ New Tab.** The bare `+` became a frappe-ui ghost `Button` labelled "New Tab".
+
+**Tests.** `tab-navigation.spec.ts` at 9 tests (added a reader-Home test; updated the
+untabbed-content assertion — it's now gated behind Home — the reorder order-helper to skip
+Home, and the drag to drive real mouse-move steps since `forceFallback` ignores HTML5 `dragTo`).
+Three new `TestGetSpaceTabs` cases cover Home present / single-tab / fully-tabbed. Full
+`tab-navigation` suite and `TestGetSpaceTabs` green.
