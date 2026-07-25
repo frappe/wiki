@@ -124,7 +124,10 @@ def _og_context(doc) -> dict:
 	logo_url = ""
 	if wiki_space:
 		space_doc = frappe.get_cached_doc("Wiki Space", wiki_space["name"])
-		logo_url = _safe_asset_url(space_doc.light_mode_logo)
+		# app_switcher_logo is the one the reader header actually renders, so
+		# it is the space's real mark; light_mode_logo is a v2 leftover kept as
+		# a fallback for spaces that only ever set that one.
+		logo_url = _safe_asset_url(space_doc.app_switcher_logo or space_doc.light_mode_logo)
 
 	title = doc.meta_title or doc.title or ""
 	return {

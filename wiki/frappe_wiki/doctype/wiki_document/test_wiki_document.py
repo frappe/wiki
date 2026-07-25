@@ -2588,6 +2588,26 @@ class TestOGImageTemplate(unittest.TestCase):
 		self.assertNotIn("<img src=http://evil.example/x>", html)
 		self.assertIn("&lt;img", html)
 
+	def test_logo_prefers_the_switcher_logo_the_reader_renders(self):
+		"""app_switcher_logo is the mark the reader header shows, so the card
+		must use it; light_mode_logo is only a fallback for v2 spaces."""
+		from wiki.api.og_image import _og_context
+
+		space = SimpleNamespace(app_switcher_logo="/files/new.png", light_mode_logo="/files/old.png")
+		doc = SimpleNamespace(
+			meta_title=None,
+			title="Doc",
+			lft=None,
+			get_wiki_space=lambda: {"name": "sp", "space_name": "Space"},
+		)
+
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/new.png")
+
+		space.app_switcher_logo = None
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/old.png")
+
 	def test_remote_and_private_logo_urls_are_dropped(self):
 		from wiki.api.og_image import _safe_asset_url
 

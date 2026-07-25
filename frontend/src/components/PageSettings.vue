@@ -84,16 +84,29 @@
 						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
 					>
 						<div
-							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
+							class="relative flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
 						>
 							<img
 								v-if="previewImage"
 								:src="previewImage"
 								alt=""
 								class="h-full w-full object-cover"
+								:class="{ 'opacity-0': previewImageLoading }"
+								@load="previewImageLoading = false"
 								@error="previewImageFailed = true"
 							/>
-							<span v-else class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" />
+							<span
+								v-else
+								class="lucide-image h-7 w-7 text-ink-gray-3"
+								aria-hidden="true"
+							/>
+							<!-- A cold card takes a Chromium launch to render, so the
+							     placeholder icon would otherwise sit there looking like
+							     "no image" for seconds. -->
+							<div
+								v-if="previewImage && previewImageLoading"
+								class="absolute inset-0 animate-pulse bg-surface-gray-3"
+							/>
 						</div>
 						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
 							<span class="truncate text-xs text-ink-gray-4">
@@ -196,9 +209,15 @@ const generatedPreview = computed(() => {
 });
 
 const previewImageFailed = ref(false);
+const previewImageLoading = ref(true);
 const previewImage = computed(() => {
 	if (metaImage.value) return metaImage.value;
 	return previewImageFailed.value ? '' : generatedPreview.value;
+});
+
+// Every new URL is a fresh load, so the skeleton comes back until it decodes.
+watch(previewImage, (url) => {
+	previewImageLoading.value = Boolean(url);
 });
 const isGeneratedPreview = computed(
 	() => !metaImage.value && Boolean(previewImage.value),
@@ -225,6 +244,7 @@ watch(show, (isOpen) => {
 	// Retry the generated card on each open; a render that failed once (cold
 	// Chromium, another worker holding the lock) usually succeeds next time.
 	previewImageFailed.value = false;
+	previewImageLoading.value = true;
 });
 
 function pickImage() {
