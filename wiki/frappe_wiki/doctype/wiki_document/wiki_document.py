@@ -988,6 +988,21 @@ def on_wiki_document_trash(doc, method):
 	_clear_stale_website_cache(doc, deleted=True)
 	clear_wiki_tree_cache()
 	clear_wiki_content_cache(doc.name)
+	_drop_generated_og_cards(doc)
+
+
+def _drop_generated_og_cards(doc):
+	"""Unlink this document's generated OG cards from public/files.
+
+	Deferred like the search-index drop: the files live outside the
+	transaction, so a rollback must not take live cards with it.
+	"""
+	from wiki.api.og_image import clear_cached_cards
+
+	doc_key = doc.doc_key
+	if not doc_key:
+		return
+	frappe.db.after_commit.add(lambda: clear_cached_cards(doc_key))
 
 
 def _clear_stale_website_cache(doc, deleted=False):

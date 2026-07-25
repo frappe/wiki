@@ -14,6 +14,10 @@ arbitrary HTML server-side is an SSRF surface), so it is only ever called here
 with HTML we build ourselves.
 """
 
+import glob
+import hashlib
+import os
+
 import frappe
 from frappe import _
 from frappe.utils.preview import get_preview_from_html
@@ -28,6 +32,13 @@ OG_HEIGHT = 630
 
 # Deepest ancestors shown in the card's breadcrumb trail.
 MAX_BREADCRUMB_SEGMENTS = 2
+
+CACHE_DIR_NAME = "wiki-og"
+
+# A day in the browser, a week of serving stale while we regenerate. Contains
+# "public" so frappe's process_response leaves it alone and skips flushing
+# cookies onto what is meant to be a CDN-cacheable response.
+CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
 
 
 def _resolve_doc(route: str):
@@ -116,6 +127,74 @@ def _og_context(doc) -> dict:
 	}
 
 
+def og_fingerprint(ctx: dict) -> str:
+	"""Hash exactly the inputs the template consumes, and nothing else.
+
+	Fingerprinting inputs rather than ``modified`` means a content-only edit
+	leaves a still-correct card alone, while a title / breadcrumb / space-name /
+	logo change invalidates on its own -- no invalidation hook anywhere.
+	"""
+	parts = [
+		TEMPLATE_VERSION,
+		ctx["title"],
+		ctx["breadcrumb_trail"],
+		ctx["space_name"],
+		ctx["logo_url"],
+		str(OG_WIDTH),
+		str(OG_HEIGHT),
+	]
+	return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()[:12]
+
+
+def _cache_dir() -> str:
+	path = frappe.get_site_path("public", "files", CACHE_DIR_NAME)
+	os.makedirs(path, exist_ok=True)
+	return path
+
+
+def _cache_path(doc_key: str, fp: str) -> str:
+	return os.path.join(_cache_dir(), f"{doc_key}-{fp}.jpg")
+
+
+def _read_cached(path: str) -> bytes | None:
+	try:
+		with open(path, "rb") as f:
+			return f.read()
+	except FileNotFoundError:
+		return None
+
+
+def _write_cached(path: str, data: bytes) -> None:
+	"""Write through a temp file so a concurrent reader never sees a torn image."""
+	tmp = f"{path}.tmp-{frappe.generate_hash(length=8)}"
+	with open(tmp, "wb") as f:
+		f.write(data)
+	os.replace(tmp, path)
+
+
+def _prune_old(doc_key: str, keep_fp: str) -> None:
+	"""Drop this document's stale cards, so the directory holds one file per page."""
+	keep = _cache_path(doc_key, keep_fp)
+	for path in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")):
+		if path == keep:
+			continue
+		try:
+			os.unlink(path)
+		except OSError:
+			pass
+
+
+def clear_cached_cards(doc_key: str) -> None:
+	"""Remove every cached card for a document (used when it is deleted)."""
+	if not doc_key:
+		return
+	for path in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")):
+		try:
+			os.unlink(path)
+		except OSError:
+			pass
+
+
 def render_og_html(ctx: dict) -> str:
 	"""Render the card markup.
 
@@ -144,9 +223,27 @@ def og_image(route: str, v: str | None = None):
 	``Content-Disposition: attachment``, which no ``og:image`` consumer accepts.
 	"""
 	doc = _resolve_doc(route)
-	data = generate_og_bytes(_og_context(doc))
+	ctx = _og_context(doc)
+	fp = og_fingerprint(ctx)
+	etag = f'"{fp}"'
+
+	if frappe.request and frappe.request.headers.get("If-None-Match") == etag:
+		return _cache_headers(Response(status=304), etag)
+
+	path = _cache_path(doc.doc_key, fp)
+	data = _read_cached(path)
+	if data is None:
+		data = generate_og_bytes(ctx)
+		_write_cached(path, data)
+		_prune_old(doc.doc_key, fp)
 
 	response = Response()
 	response.mimetype = "image/jpeg"
 	response.data = data
+	return _cache_headers(response, etag)
+
+
+def _cache_headers(response: Response, etag: str) -> Response:
+	response.headers["Cache-Control"] = CACHE_CONTROL
+	response.headers["ETag"] = etag
 	return response
