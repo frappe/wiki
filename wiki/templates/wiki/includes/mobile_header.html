@@ -175,9 +175,80 @@
         </div>
         {% endif %}
 
+        {#- Tab picker (mobile) — the horizontal tab bar is desktop-only, so on
+            mobile a frappe-ui-style combobox switches tabs. Selecting one
+            navigates to its landing route; the tree below then gates to that
+            tab's subtree, exactly like the desktop sidebar. -#}
+        {% set current_route = doc.route if doc else '' %}
+        {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
+        {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+        {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
+        {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
+        {% set active = namespace(in_tab=false) %}
+        {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}
+        {% if space_tabs %}
+        {% set real_routes = space_tabs | rejectattr('doc_key', 'equalto', '__general__') | map(attribute='route') | join('|') %}
+        <div class="px-3 pt-3 pb-1 flex-shrink-0" x-data="{ tabPickerOpen: false }" @click.outside="tabPickerOpen = false">
+            <button type="button"
+                    @click="tabPickerOpen = !tabPickerOpen"
+                    aria-haspopup="listbox"
+                    :aria-expanded="tabPickerOpen"
+                    class="flex h-9 w-full items-center gap-2 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] px-2.5 text-base text-[var(--ink-gray-8)] transition-colors hover:border-[var(--outline-gray-3)]">
+                {%- for tab in space_tabs %}
+                {%- set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
+                <span class="flex min-w-0 flex-1 items-center gap-2" x-show="{{ active_js }}" x-cloak>
+                    {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
+                    <span class="truncate text-start">{{ tab.title }}</span>
+                </span>
+                {%- endfor %}
+                <svg class="size-4 shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': tabPickerOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+
+            <div x-show="tabPickerOpen"
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-cloak
+                 role="listbox"
+                 class="mt-1 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] p-1 shadow-lg">
+                {%- for tab in space_tabs %}
+                {%- set target = tab.landing_route or tab.route %}
+                {%- set active_js = "$store.navigation.notInAnyTab('" ~ real_routes ~ "')" if tab.doc_key == '__general__' else "$store.navigation.inTab('" ~ tab.route ~ "')" %}
+                <button type="button"
+                        role="option"
+                        :aria-selected="{{ active_js }}"
+                        @click="$store.navigation.navigateTo('{{ target }}'); tabPickerOpen = false; closeSidebar()"
+                        class="flex w-full items-center gap-2 rounded px-2 py-2 text-base transition-colors"
+                        :class="{{ active_js }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)]'">
+                    {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
+                    <span class="truncate text-start flex-1">{{ tab.title }}</span>
+                    <svg class="size-4 shrink-0 text-[var(--ink-gray-9)]" x-show="{{ active_js }}" x-cloak fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </button>
+                {%- endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Bottom Sheet Navigation -->
         <nav class="px-2 py-2 flex-1 overflow-y-auto" @click="handleNavClick($event)">
-            {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '') }}
+            {% for tab in tab_nodes %}
+            {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
+            <div x-show="$store.navigation.inTab('{{ tab.route }}')"{% if not is_active_tab %} x-cloak{% endif %}>
+                {{ render_wiki_tree(tab.children, current_route=doc.route if doc else '') }}
+            </div>
+            {% endfor %}
+
+            {% if show_home %}
+            <div x-show="$store.navigation.notInAnyTab('{{ tab_routes }}')"{% if active.in_tab %} x-cloak{% endif %}>
+                {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '') }}
+            </div>
+            {% else %}
+            {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '') }}
+            {% endif %}
         </nav>
 
         {% if navbar_items %}
