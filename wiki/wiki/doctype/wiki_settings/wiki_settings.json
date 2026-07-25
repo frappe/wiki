@@ -11,6 +11,7 @@
   "table_of_contents_section",
   "enable_table_of_contents",
   "auto_convert_images_to_webp",
+  "auto_generate_meta_images",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
@@ -74,6 +75,13 @@
    "fieldname": "auto_convert_images_to_webp",
    "fieldtype": "Check",
    "label": "Convert Uploaded Images to WebP"
+  },
+  {
+   "default": "1",
+   "description": "Generate a branded social preview image for pages that have no Meta Image uploaded.",
+   "fieldname": "auto_generate_meta_images",
+   "fieldtype": "Check",
+   "label": "Auto Generate Meta Images"
   },
   {
    "fieldname": "feedback_section",

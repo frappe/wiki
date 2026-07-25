@@ -210,6 +210,75 @@ def generate_og_bytes(ctx: dict) -> bytes:
 	return get_preview_from_html(render_og_html(ctx), format="jpg", width=OG_WIDTH, height=OG_HEIGHT)
 
 
+def _cards_enabled() -> bool:
+	return bool(frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"))
+
+
+def _has_card(doc) -> tuple[str, str] | None:
+	"""``(path, fingerprint)`` for a document that should have a card, else None."""
+	if doc.is_group or doc.is_external_link or not doc.is_published:
+		return None
+	if not doc.get_wiki_space():
+		return None
+
+	fingerprint = og_fingerprint(_og_context(doc))
+	return _cache_path(doc.doc_key, fingerprint), fingerprint
+
+
+def enqueue_og_warmup(doc) -> None:
+	"""Queue a card render when a write moves the fingerprint.
+
+	Serving stays lazy -- this only means the first crawler after a change is
+	usually a cache hit. Nothing in the page render depends on the job.
+
+	Merges need no special handling: _classify_changes counts title, slug,
+	route, parent_key and is_published as metadata fields, so every change that
+	moves the fingerprint merges through a full doc.save() and lands here. The
+	content-only fast path bypasses hooks, but content is not a fingerprint
+	input, so there is nothing to miss.
+	"""
+	if not _cards_enabled():
+		return
+
+	target = _has_card(doc)
+	if not target:
+		return
+
+	path, _fingerprint = target
+	before = doc.get_doc_before_save()
+	if before and os.path.exists(path):
+		previous = _has_card(before)
+		if previous and previous[0] == path:
+			return
+
+	frappe.enqueue(
+		"wiki.api.og_image.warm_og_image",
+		name=doc.name,
+		queue="short",
+		job_id=f"wiki-og-{doc.name}",
+		deduplicate=True,
+		enqueue_after_commit=True,
+	)
+
+
+def warm_og_image(name: str) -> None:
+	"""Render and cache a document's card ahead of the first request."""
+	if not _cards_enabled():
+		return
+
+	doc = frappe.get_cached_doc("Wiki Document", name)
+	target = _has_card(doc)
+	if not target:
+		return
+
+	path, fingerprint = target
+	if os.path.exists(path):
+		return
+
+	_write_cached(path, generate_og_bytes(_og_context(doc)))
+	_prune_old(doc.doc_key, fingerprint)
+
+
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def og_image(route: str, v: str | None = None):
 	"""Serve the generated OG card for the page at ``route``.
