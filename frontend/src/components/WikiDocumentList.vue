@@ -81,9 +81,6 @@
 						<p v-if="createRouteError" class="mt-1.5 text-xs text-ink-red-3">
 							{{ createRouteError }}
 						</p>
-						<p v-else class="mt-1.5 text-xs text-ink-gray-5">
-							{{ __('The page URL. Filled in from the title — edit it if you want a different one.') }}
-						</p>
 					</div>
 					<div v-if="createIsTab">
 						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
