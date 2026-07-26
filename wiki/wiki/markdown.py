@@ -352,6 +352,43 @@ def _encode_image_url_spaces(content: str) -> str:
 	return IMAGE_PATTERN.sub(encode_url, content)
 
 
+def _image_dimensions(src: str) -> tuple[int, int] | None:
+	"""Intrinsic pixel size of a site-local image, or None if it can't be read.
+
+	The reader emits these as width/height attributes so the browser can reserve
+	the box before the bytes arrive — without them every image above the fold
+	shifts the layout below it (CLS). Only `/files/` and `/private/files/` are
+	resolved: a remote URL would mean a network round-trip per image, and the
+	whole render is memoised per document anyway (get_rendered_content), so the
+	disk read happens once per content edit rather than once per request.
+	"""
+	if not src.startswith(("/files/", "/private/files/")):
+		return None
+
+	from urllib.parse import unquote, urlsplit
+
+	relative = unquote(urlsplit(src).path).lstrip("/")
+	if ".." in relative.split("/"):
+		return None
+
+	try:
+		import frappe
+		from PIL import Image
+
+		# /private/files/x -> ("private", "files", "x"); /files/x -> ("public", "files", "x")
+		parts = relative.split("/")
+		segments = parts if parts[0] == "private" else ["public", *parts]
+
+		with Image.open(frappe.get_site_path(*segments)) as image:
+			width, height = image.size
+	except Exception:
+		# Missing file, an SVG, a decoder Pillow lacks, or no site context in
+		# tests — all mean "no dimensions", never a failed page render.
+		return None
+
+	return (width, height) if width and height else None
+
+
 # Private-use Unicode sentinel — stands in for `|` inside inline-code on table
 # rows during parsing, then gets swapped back after rendering. Both Mistune and
 # markdown-it-py count raw pipes per row in their table plugin and reject the
@@ -420,7 +457,13 @@ def _build_markdown() -> MarkdownIt:
 	md.renderer.rules["fence"] = fence_rstrip
 	md.renderer.rules["code_block"] = code_block_rstrip
 
+	# Counts images across the whole document, callouts included: the renderer
+	# instance is reused for the nested callout render pass (see
+	# _replace_callout_placeholders), so "first" stays first.
+	images_rendered = 0
+
 	def image_render(tokens, idx, options, env):
+		nonlocal images_rendered
 		tok = tokens[idx]
 		src = tok.attrGet("src") or ""
 		alt = _remove_script_tags(tok.content)
@@ -437,10 +480,24 @@ def _build_markdown() -> MarkdownIt:
 			)
 		if _is_pdf_url(src):
 			return _generate_pdf_html(src, alt)
+		images_rendered += 1
 		s = f'<img src="{src}" alt="{alt}"'
 		if title:
 			s += f' title="{title}"'
-		return s + " />"
+
+		dimensions = _image_dimensions(src)
+		if dimensions:
+			s += f' width="{dimensions[0]}" height="{dimensions[1]}"'
+
+		# The first image is usually the hero and often the LCP element, so it
+		# gets fetched eagerly at high priority; everything below it waits until
+		# it approaches the viewport.
+		if images_rendered == 1:
+			s += ' fetchpriority="high"'
+		else:
+			s += ' loading="lazy"'
+
+		return s + ' decoding="async" />'
 
 	md.renderer.rules["image"] = image_render
 	return md
@@ -543,3 +600,40 @@ def render_markdown(content: str) -> str:
 	"""
 	html, _ = render_markdown_with_toc(content)
 	return html
+
+
+# Ordered: fenced code and directive blocks go first so their contents never
+# reach the inline rules below.
+_EXCERPT_STRIPPERS = (
+	(re.compile(r"^(?: {0,3})(`{3,}|~{3,}).*?^(?: {0,3})\1[ \t]*$", re.S | re.M), " "),
+	(re.compile(r"^:::.*$", re.M), " "),
+	(re.compile(r"<[^>]+>"), " "),
+	(re.compile(r"!\[[^\]]*\]\([^)]*\)"), " "),
+	(re.compile(r"\[([^\]]*)\]\([^)]*\)"), r"\1"),
+	(re.compile(r"^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+|\d+\.\s+)", re.M), ""),
+	(re.compile(r"[`*_~]"), ""),
+)
+
+
+def markdown_excerpt(content: str, limit: int = 155) -> str:
+	"""First `limit` characters of a document's prose, markdown syntax removed.
+
+	Used as the meta description when an author hasn't written one — search
+	engines otherwise synthesise their own snippet, and Lighthouse flags the
+	page as having none.
+	"""
+	if not content:
+		return ""
+
+	text = content
+	for pattern, replacement in _EXCERPT_STRIPPERS:
+		text = pattern.sub(replacement, text)
+
+	text = " ".join(text.split())
+	if len(text) <= limit:
+		return text
+
+	# Cut on a word boundary so the snippet doesn't end mid-word.
+	head = text[: limit + 1]
+	cut = head.rfind(" ")
+	return (head[:cut] if cut > 0 else text[:limit]).rstrip(" ,;:.-") + "…"

@@ -3,7 +3,7 @@
 
 import unittest
 
-from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
+from wiki.wiki.markdown import markdown_excerpt, render_markdown, render_markdown_with_toc
 
 
 class TestMarkdownRenderer(unittest.TestCase):
@@ -769,6 +769,90 @@ class TestTocHeadingText(unittest.TestCase):
 	def test_plain_heading_unchanged(self):
 		"""Plain headings are unaffected by the code-aware extraction."""
 		self.assertEqual(self._texts("## Normal Heading\n"), ["Normal Heading"])
+
+
+class TestImageLoadingHints(unittest.TestCase):
+	"""Loading hints that keep images off the critical path (Lighthouse LCP/CLS)."""
+
+	def test_first_image_is_eager_and_high_priority(self):
+		result = render_markdown("![Hero](/files/hero.png)")
+		self.assertIn('fetchpriority="high"', result)
+		self.assertNotIn('loading="lazy"', result)
+
+	def test_later_images_are_lazy(self):
+		result = render_markdown("![One](/files/a.png)\n\n![Two](/files/b.png)\n\n![Three](/files/c.png)")
+		self.assertEqual(result.count('fetchpriority="high"'), 1)
+		self.assertEqual(result.count('loading="lazy"'), 2)
+
+	def test_callout_images_share_the_document_counter(self):
+		"""A callout renders in a second pass; the hero must stay the only eager image."""
+		content = "![Hero](/files/hero.png)\n\n:::note\n![Inside](/files/inside.png)\n:::\n"
+		result = render_markdown(content)
+		self.assertEqual(result.count('fetchpriority="high"'), 1)
+		self.assertIn('src="/files/inside.png" alt="Inside" loading="lazy"', result)
+
+	def test_every_image_decodes_async(self):
+		result = render_markdown("![One](/files/a.png)\n\n![Two](/files/b.png)")
+		self.assertEqual(result.count('decoding="async"'), 2)
+
+	def test_missing_file_omits_dimensions(self):
+		"""An unreadable path must not break the render — it just skips width/height."""
+		result = render_markdown("![Gone](/files/does-not-exist.png)")
+		self.assertIn('<img src="/files/does-not-exist.png"', result)
+		self.assertNotIn("width=", result)
+
+	def test_remote_image_is_not_resolved(self):
+		result = render_markdown("![Remote](https://example.com/a.png)")
+		self.assertNotIn("width=", result)
+		self.assertIn('fetchpriority="high"', result)
+
+	def test_local_image_carries_intrinsic_size(self):
+		"""width/height come from the file on disk, so the browser reserves the box."""
+		import os
+		import tempfile
+		from unittest.mock import patch
+
+		from PIL import Image
+
+		with tempfile.TemporaryDirectory() as site_path:
+			files_dir = os.path.join(site_path, "public", "files")
+			os.makedirs(files_dir)
+			Image.new("RGB", (640, 360)).save(os.path.join(files_dir, "sized.png"))
+
+			with patch("frappe.get_site_path", lambda *parts: os.path.join(site_path, *parts)):
+				result = render_markdown("![Sized](/files/sized.png)")
+
+		self.assertIn('width="640" height="360"', result)
+
+
+class TestMarkdownExcerpt(unittest.TestCase):
+	"""Meta-description fallback derived from the document body."""
+
+	def test_empty_content(self):
+		self.assertEqual(markdown_excerpt(""), "")
+		self.assertEqual(markdown_excerpt(None), "")
+
+	def test_strips_markdown_syntax(self):
+		content = "# Title\n\nSome **bold** and [a link](/somewhere) plus `code`.\n"
+		self.assertEqual(markdown_excerpt(content), "Title Some bold and a link plus code.")
+
+	def test_drops_fenced_code_and_directives(self):
+		content = "Intro text.\n\n```python\nsecret = 1\n```\n\n:::note\nCallout body\n:::\n"
+		excerpt = markdown_excerpt(content)
+		self.assertIn("Intro text.", excerpt)
+		self.assertNotIn("secret", excerpt)
+		self.assertNotIn(":::", excerpt)
+
+	def test_drops_images_but_keeps_link_text(self):
+		content = "![Hero](/files/hero.png) See [the docs](/docs) for more."
+		self.assertEqual(markdown_excerpt(content), "See the docs for more.")
+
+	def test_truncates_on_a_word_boundary(self):
+		excerpt = markdown_excerpt("alpha bravo charlie delta echo", limit=16)
+		self.assertEqual(excerpt, "alpha bravo…")
+
+	def test_short_content_is_not_truncated(self):
+		self.assertEqual(markdown_excerpt("Short enough."), "Short enough.")
 
 
 if __name__ == "__main__":

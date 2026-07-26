@@ -14,7 +14,7 @@ from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
-from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
+from wiki.wiki.markdown import markdown_excerpt, render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
@@ -456,8 +456,9 @@ class WikiDocument(NestedSet):
 			"title": self.meta_title or self.title,
 			"og:site_name": wiki_space.get("space_name") if wiki_space else None,
 		}
-		if self.meta_description:
-			metatags["description"] = self.meta_description
+		# An author-written description always wins; the excerpt keeps the page
+		# from shipping without one at all.
+		metatags["description"] = self.meta_description or markdown_excerpt(self.content or "")
 
 		# An explicit upload always wins; the generated card is the fallback.
 		image = self.meta_image or self.get_og_image_url()

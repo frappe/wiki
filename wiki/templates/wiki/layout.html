@@ -19,6 +19,11 @@
     <script type="application/ld+json">{{ breadcrumbs | safe }}</script>
     {% endif %}
 
+    {#- The variable font backs every glyph on the page, but it's only discovered
+        once tailwind.css has parsed. Preloading it overlaps the two downloads
+        instead of chaining them. -#}
+    <link rel="preload" href="/assets/wiki/fonts/Inter.var.woff2?v=3.19" as="font" type="font/woff2" crossorigin>
+
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css?v={{get_tailwindcss_hash()}}">
 
     <!-- Hide x-cloak elements until Alpine loads -->
@@ -51,6 +56,10 @@
         window.CSRF_TOKEN = '{{ csrf_token }}';
     </script>
 
+    {#- Not deferred, deliberately: both plugins register on `alpine:init`, and
+        so do the inline store definitions further down the body. Deferring the
+        plugins would put their listeners *after* the inline ones, so the stores
+        would call Alpine.$persist before it exists. ~3 KB combined. -#}
     <script src="/assets/wiki/js/vendor/alpinejs/plugins/persist.js"></script>
     <script src="/assets/wiki/js/vendor/alpinejs/plugins/collapse.js"></script>
 
@@ -109,11 +118,15 @@
          the frappe-ui editor), so the public reader tokenises 1-1 with the
          editor and the shared frappe-ui-code.css theme. Must load before
          code-blocks.js, which calls window.hljs.highlightAll(). -->
-    <script src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
-    <script src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
-    <script src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
+    {#- Deferred, not bare: none of these paint anything, and highlight.js alone
+        is ~160 KB of parser blocking first paint. `defer` preserves execution
+        order and still runs everything before DOMContentLoaded, which is what
+        code-blocks.js and mermaid-renderer.js hang off. -#}
+    <script defer src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
+    <script defer src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
+    <script defer src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
     <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
-    <script src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
+    <script defer src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
     <script defer src="/assets/wiki/js/mermaid-renderer.js?v={{ get_asset_hash('public/js/mermaid-renderer.js') }}"></script>
 </body>
 {% block scripts %} {% endblock %}

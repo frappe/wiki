@@ -29,11 +29,13 @@
                 {% endfor %}
                 <button @click="$dispatch('open-search')"
                         data-testid="mobile-search-button"
+                        aria-label="{{ _('Search') }}"
                         class="p-2 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200">
                     {{ render_icon("search") }}
                 </button>
                 <button @click="$store.theme.toggle()"
                         data-testid="mobile-theme-toggle"
+                        aria-label="{{ _('Toggle theme') }}"
                         class="p-2 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200">
                     <template x-if="$store.theme.isDark">
                         {{ render_icon("sun") }}
