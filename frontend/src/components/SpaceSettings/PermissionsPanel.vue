@@ -1,52 +1,24 @@
 <template>
 	<div class="flex flex-col gap-4">
-		<!-- Add role, above the table. The dropdown is rendered in-flow (no
-		     teleport) so it stays clickable inside the modal dialog. Pick a role
-		     to fill the field, then Add it to the table. -->
-		<div
-			v-if="canManageAccess"
-			class="flex items-end gap-2"
-			@focusin="openRoleList"
-			@focusout="closeRoleListSoon"
-			@keyup.enter="addRole"
-		>
-			<div class="relative flex-1" @input="showRoleList = true">
-				<FormControl
-					type="text"
+		<!-- Add role, above the table. The list is searched on the server as you
+		     type — a site can have far more roles than fit in one page, so a
+		     client-side filter over the first page would hide most of them.
+		     Pick a role to fill the field, then Add it to the table. -->
+		<div v-if="canManageAccess" class="flex items-end gap-2">
+			<!-- Combobox renders as `display: contents` when it has no label, so
+			     the width has to come from a wrapper, not a class on it. -->
+			<div class="flex-1">
+				<Combobox
+					ref="roleCombobox"
+					v-model="selectedRole"
+					:options="roleOptions"
 					:placeholder="__('Search role to add')"
-					v-model="roleQuery"
+					:loading="rolesLoading"
+					:empty-text="__('No roles found')"
+					@update:query="searchRoles"
 				/>
-				<div
-					v-if="showRoleList"
-					class="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-elevation-2 p-1 shadow-lg"
-				>
-					<div
-						v-if="allRoles.loading"
-						class="px-2.5 py-1.5 text-base text-ink-gray-5"
-					>
-						{{ __('Loading…') }}
-					</div>
-					<template v-else>
-						<button
-							v-for="role in filteredRoleOptions"
-							:key="role"
-							type="button"
-							class="block w-full truncate rounded px-2.5 py-1.5 text-left text-base text-ink-gray-7 hover:bg-surface-gray-3"
-							@mousedown.prevent
-							@click="pickRole(role)"
-						>
-							{{ role }}
-						</button>
-						<div
-							v-if="!filteredRoleOptions.length"
-							class="px-2.5 py-1.5 text-base text-ink-gray-5"
-						>
-							{{ __('No roles found') }}
-						</div>
-					</template>
-				</div>
 			</div>
-			<Button variant="subtle" :disabled="!matchedRole" @click="addRole">
+			<Button variant="subtle" :disabled="!selectedRole" @click="addRole">
 				{{ __('Add') }}
 			</Button>
 		</div>
@@ -148,7 +120,7 @@
 import {
 	Badge,
 	Button,
-	FormControl,
+	Combobox,
 	Select,
 	SettingsRow,
 	Switch,
@@ -190,10 +162,8 @@ const contributionsDescription = computed(() => {
 		: base;
 });
 
-// Inline (non-teleported) role picker state — see template note.
-const roleQuery = ref('');
-const showRoleList = ref(false);
-let roleListBlurTimer = null;
+const roleCombobox = ref(null);
+const selectedRole = ref(null);
 
 // Only users who can write the space may edit its access control (mirrors the
 // server-side check in update_space_roles). Read-tier users see it read-only.
@@ -239,60 +209,61 @@ const isDirty = computed(
 
 watch(isDirty, (dirty) => emit('update:dirty', dirty), { immediate: true });
 
+const ROLE_PAGE_LENGTH = 50;
+const BASE_ROLE_FILTERS = [['disabled', '=', 0]];
+
 const allRoles = createListResource({
 	doctype: 'Role',
 	fields: ['name'],
-	filters: [['disabled', '=', 0]],
-	pageLength: 0,
+	filters: BASE_ROLE_FILTERS,
+	orderBy: 'name asc',
+	pageLength: ROLE_PAGE_LENGTH,
 	auto: true,
 });
+
 const roleOptions = computed(() => {
 	const taken = new Set(roleRows.value.map((r) => r.role));
 	return (allRoles.data || [])
 		.map((r) => r.name)
 		.filter((name) => !taken.has(name))
-		.sort();
+		.map((name) => ({ label: name, value: name }));
 });
 
-const filteredRoleOptions = computed(() => {
-	const query = roleQuery.value.trim().toLowerCase();
-	const matches = query
-		? roleOptions.value.filter((name) => name.toLowerCase().includes(query))
-		: roleOptions.value;
-	return matches.slice(0, 50);
-});
-
-function openRoleList() {
-	clearTimeout(roleListBlurTimer);
-	showRoleList.value = true;
-}
-
-function closeRoleListSoon() {
-	roleListBlurTimer = setTimeout(() => {
-		showRoleList.value = false;
-	}, 150);
-}
-
-// Exact, still-available role currently in the field — gates the Add button.
-const matchedRole = computed(
-	() =>
-		roleOptions.value.find((name) => name === roleQuery.value.trim()) || null,
+// Combobox only filters the options it is handed, so the server has to be the
+// one that widens the candidate set — otherwise the picker can never see past
+// the first page of roles.
+let roleSearchTimer = null;
+const roleSearchPending = ref(false);
+const rolesLoading = computed(
+	() => roleSearchPending.value || allRoles.list.loading,
 );
 
-function pickRole(role) {
-	roleQuery.value = role;
-	showRoleList.value = false;
+function searchRoles(query) {
+	clearTimeout(roleSearchTimer);
+	roleSearchPending.value = true;
+	roleSearchTimer = setTimeout(() => {
+		const term = query.trim();
+		const filters = term
+			? [...BASE_ROLE_FILTERS, ['name', 'like', `%${term}%`]]
+			: [...BASE_ROLE_FILTERS];
+		allRoles.update({ filters, start: 0 });
+		allRoles.reload().finally(() => {
+			roleSearchPending.value = false;
+		});
+	}, 300);
 }
 
 function addRole() {
-	const role = matchedRole.value;
+	const role = selectedRole.value;
 	if (!role) return;
 	roleRows.value.push({ role, permission_level: 'Read' });
-	roleQuery.value = '';
-	showRoleList.value = false;
+	// Combobox parks the picked label in its own input; reset() clears both the
+	// query and the selection, and re-emits an empty query so the next open
+	// starts from the unfiltered list.
+	roleCombobox.value?.reset();
 }
 
-onBeforeUnmount(() => clearTimeout(roleListBlurTimer));
+onBeforeUnmount(() => clearTimeout(roleSearchTimer));
 
 function setPermissionLevel(idx, level) {
 	roleRows.value[idx].permission_level = level;
