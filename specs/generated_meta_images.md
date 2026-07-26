@@ -66,7 +66,7 @@ of an existing wiki is out of scope.
 Fingerprint every input the template consumes, and nothing else:
 
 ```
-fp   = sha256("\x1f".join([TEMPLATE_VERSION, meta_title or title, breadcrumb_trail,
+fp   = sha256("\x1f".join([TEMPLATE_VERSION, title, breadcrumb_trail,
                            space_name or "", logo_url or "", str(W), str(H)])).hexdigest()[:12]
 
 path      = <site>/private/files/wiki-og/<doc_key>-<fp>.jpg
@@ -138,7 +138,8 @@ Tailwind build (`wiki.css` is purged against reader markup, not this):
   than breaks.
 - `body` fixed at `1200x630`, `box-sizing: border-box`, `padding: 72px`, flex column,
   `justify-content: space-between`. 12px accent bar pinned to the top.
-- Top: `<img class="logo">` (~48px tall), rendered only when `logo_url` survived validation.
+- Top: `<img class="logo">` (132px tall, max-width 520px, `object-fit: contain`), rendered only when
+  `logo_url` survived validation.
 - Middle: breadcrumb trail, muted, small (`Guides / Integrations`), then the title — 600 weight,
   `-0.02em` tracking, `-webkit-line-clamp: 3`. Font size is picked **in Python** by title length
   (≤40 chars → 76px, ≤80 → 60px, else 48px) so nothing depends on script execution before capture.

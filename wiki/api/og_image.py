@@ -27,7 +27,7 @@ from werkzeug.wrappers import Response
 
 # Bumped whenever the card template or its token block changes; it is part of
 # the cache fingerprint, so a bump invalidates every cached card for free.
-TEMPLATE_VERSION = "3"
+TEMPLATE_VERSION = "4"
 
 OG_WIDTH = 1200
 OG_HEIGHT = 630
@@ -141,7 +141,10 @@ def _og_context(doc) -> dict:
 		# a fallback for spaces that only ever set that one.
 		logo_url = _safe_asset_url(space_doc.app_switcher_logo or space_doc.light_mode_logo)
 
-	title = doc.meta_title or doc.title or ""
+	# The page's own title, not meta_title: the card is a visual object where
+	# the title reads as a label for the page you are about to open, while
+	# meta_title is written for search-result copy and is often keyword-padded.
+	title = doc.title or ""
 	return {
 		"title": title,
 		"title_font_size": _title_font_size(title),
