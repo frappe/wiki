@@ -12,6 +12,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -374,7 +375,8 @@ def _create_cr_item(
 	item.order_index = order_index if order_index is not None else max_order + 1
 	item.content_blob = get_or_create_content_blob(content or "")
 	item.is_deleted = 0
-	item.route = route if route is not None else _compute_cr_route(cr, parent_key, item.slug, item_map)
+	# An author-supplied route always wins, but is never trusted verbatim.
+	item.route = sanitize_route(route) if route else _compute_cr_route(cr, parent_key, item.slug, item_map)
 	item.insert()
 	return item.doc_key
 
@@ -383,8 +385,6 @@ def _update_cr_item(
 	cr: Document,
 	doc_key: str,
 	fields: dict[str, Any],
-	*,
-	recompute_route: bool = False,
 ) -> str:
 	item_name = ensure_overlay_item(cr.head_revision, doc_key)
 	if not item_name:
@@ -399,6 +399,8 @@ def _update_cr_item(
 	updates = {
 		field: fields[field] for field in _CR_ITEM_SCALAR_UPDATE_FIELDS if fields.get(field) is not None
 	}
+	if updates.get("route"):
+		updates["route"] = sanitize_route(updates["route"])
 	updates.update(
 		{
 			field: int(bool(fields[field]))
@@ -416,18 +418,9 @@ def _update_cr_item(
 	if item.is_tab:
 		_assert_valid_tab(cr, parent_key=item.parent_key, is_group=bool(item.is_group))
 
-	# When the caller (typically the batch endpoint) didn't pin a route but title
-	# or slug changed, recompute it so renames don't leave stale routes.
-	if (
-		recompute_route
-		and "route" not in fields
-		and (
-			("title" in fields and fields["title"] is not None)
-			or ("slug" in fields and fields["slug"] is not None)
-		)
-	):
-		item_map = get_effective_revision_item_map(cr.head_revision)
-		item.route = _compute_cr_route(cr, item.parent_key, item.slug, item_map)
+	# A route is never recomputed from a renamed title: the author picks the URL
+	# when the page is created and owns it from then on. Moving it is an explicit
+	# `route` edit, never a side effect of renaming.
 
 	item.save()
 	return item.doc_key
@@ -844,6 +837,46 @@ def _bootstrap_main_revision(wiki_space: str) -> Document:
 
 
 @frappe.whitelist()
+def check_route_available(
+	wiki_space: str,
+	route: str,
+	cr_name: str | None = None,
+	exclude_doc_key: str | None = None,
+) -> dict[str, Any]:
+	"""Report whether `route` is free, across live documents and an optional CR.
+
+	Live-only validation (`validate_unique_route_for_leaves`) fires at merge time,
+	long after the author has moved on. The create dialog calls this while the
+	author types so the clash is visible at the moment it is caused. `cr_name` is
+	optional because the draft CR is created lazily — the dialog can open before
+	one exists.
+	"""
+	if not frappe.has_permission("Wiki Space", "read", wiki_space):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	sanitized = sanitize_route(route)
+	if not sanitized:
+		return {"route": "", "available": False}
+
+	live_filters = {"route": sanitized, "is_group": 0}
+	if exclude_doc_key:
+		live_filters["doc_key"] = ("!=", exclude_doc_key)
+	if frappe.db.get_value("Wiki Document", live_filters, "name"):
+		return {"route": sanitized, "available": False}
+
+	if cr_name:
+		cr = frappe.get_doc("Wiki Change Request", cr_name)
+		cr.check_permission("read")
+		for doc_key, item in get_effective_revision_item_map(cr.head_revision).items():
+			if doc_key == exclude_doc_key or item.get("is_deleted") or item.get("is_group"):
+				continue
+			if (item.get("route") or "") == sanitized:
+				return {"route": sanitized, "available": False}
+
+	return {"route": sanitized, "available": True}
+
+
+@frappe.whitelist()
 def create_cr_page(
 	name: str,
 	parent_key: str,
@@ -857,6 +890,7 @@ def create_cr_page(
 	external_url: str | None = None,
 	is_tab: int = 0,
 	tab_icon: str | None = None,
+	route: str | None = None,
 ) -> str:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
@@ -866,6 +900,7 @@ def create_cr_page(
 		parent_key=parent_key,
 		title=title,
 		slug=slug,
+		route=route,
 		is_group=bool(is_group),
 		is_published=bool(is_published),
 		content=content or "",
@@ -978,7 +1013,7 @@ def _apply_operation(
 		if not doc_key:
 			frappe.throw(_("update_node operation requires doc_key"))
 		fields = op.get("fields") or {}
-		_update_cr_item(cr, doc_key, fields, recompute_route=True)
+		_update_cr_item(cr, doc_key, fields)
 		affected_doc_keys.add(doc_key)
 		return
 
