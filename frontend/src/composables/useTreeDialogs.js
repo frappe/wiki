@@ -78,8 +78,13 @@ export function useTreeDialogs(
 	}
 
 	const checkRouteResource = createResource({ url: CHECK_ROUTE_AVAILABLE });
+	// Replies can land out of order, and two checks of the same route text can
+	// legitimately disagree (a page claiming it may have been created in
+	// between), so only the newest request is allowed to write the result.
+	let latestRouteCheck = 0;
 
 	const checkRouteAvailability = useDebounceFn(async () => {
+		const check = ++latestRouteCheck;
 		const route = createRoute.value.trim();
 		// Groups deliberately share a route with their landing page, so the
 		// uniqueness rule (and this check) only applies to leaves.
@@ -93,8 +98,7 @@ export function useTreeDialogs(
 				route,
 				cr_name: draftStore.crName || null,
 			});
-			// Ignore a reply the author has already typed past.
-			if (createRoute.value.trim() !== route) return;
+			if (check !== latestRouteCheck) return;
 			createRouteError.value = result?.available
 				? ''
 				: __('This route is already in use');
@@ -102,6 +106,7 @@ export function useTreeDialogs(
 			// A failed check must not block creation; the backend still
 			// rejects a genuine duplicate at merge time.
 			console.error('Error checking route:', error);
+			if (check !== latestRouteCheck) return;
 			createRouteError.value = '';
 		}
 	}, 300);
@@ -129,6 +134,8 @@ export function useTreeDialogs(
 		createRoutePrefix.value = routePrefixFor(parentKey);
 		createRoute.value = '';
 		createRouteError.value = '';
+		// Retire any check still in flight from the previous dialog.
+		latestRouteCheck++;
 		routeManuallyEdited.value = false;
 		showCreateDialog.value = true;
 	}
