@@ -67,7 +67,7 @@
     <div class="flex w-full max-w-md justify-center px-2">
         <button @click="$dispatch('open-search')"
                 aria-label="Open search"
-                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
                 x-data="{ isMac: navigator.platform.includes('Mac') }">
             <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
                 {{ render_icon("search", "shrink-0") }}

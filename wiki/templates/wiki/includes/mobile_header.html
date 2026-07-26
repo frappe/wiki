@@ -92,6 +92,7 @@
         colours) so it reads as the same component. z-30 keeps it under the
         sheet (z-50), which is what dismisses it once open. -#}
     <button @click="toggleSidebar()"
+            x-show="!sidebarOpen"
             data-testid="mobile-menu-toggle"
             aria-label="Open navigation menu"
             :aria-expanded="sidebarOpen"
@@ -102,14 +103,14 @@
 
     <!-- Mobile Sidebar Overlay -->
     <div x-show="sidebarOpen"
-         x-transition:enter="transition-opacity duration-300"
+         x-transition:enter="transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         x-transition:leave="transition-opacity duration-300"
+         x-transition:leave="transition-opacity duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="closeSidebar()"
-         class="fixed inset-0 bg-black/50 z-40"
+         class="fixed inset-0 bg-black/40 z-40"
          data-testid="mobile-overlay"
          x-cloak>
     </div>
@@ -117,10 +118,10 @@
     <!-- Mobile Bottom Sheet Panel -->
     <div x-show="sidebarOpen"
          x-ref="bottomSheet"
-         x-transition:enter="transition-transform duration-300 ease-out"
+         x-transition:enter="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:enter-start="translate-y-full"
          x-transition:enter-end="translate-y-0"
-         x-transition:leave="transition-transform duration-300 ease-in"
+         x-transition:leave="transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:leave-start="translate-y-0"
          x-transition:leave-end="translate-y-full"
          :style="isDragging ? `transform: translateY(${Math.max(0, dragOffset)}px); transition: none;` : ''"
@@ -131,12 +132,12 @@
          data-testid="mobile-bottom-sheet"
          x-cloak>
 
-        <!-- Drag Handle -->
-        <div class="flex justify-center py-4 cursor-grab active:cursor-grabbing touch-none" data-testid="mobile-drag-handle"
+        {#- Drag handle — geometry from frappe-ui docs' MobileNavSheet. -#}
+        <div class="pt-2 pb-1 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none" data-testid="mobile-drag-handle"
              @mousedown="startDrag($event)"
              @touchstart.passive="startDrag($event)"
              @click="closeSidebar()">
-            <div class="h-1.5 w-12 rounded-full bg-[var(--outline-gray-2)]"></div>
+            <div class="h-1.5 w-10 rounded-full bg-[var(--surface-gray-3)]"></div>
         </div>
 
         <!-- Bottom Sheet Header -->
@@ -247,8 +248,33 @@
         </div>
         {% endif %}
 
+        {#- Sheet search — frappe-ui docs hides the navbar search field below md
+            and puts this in the drawer instead, so it's the only search bar
+            that ever renders on mobile. Markup is frappe-ui TextInput,
+            size lg + subtle, with a prefix slot (h-10, ps-10 for the icon).
+            It filters the tree in place, like the docs sheet; full-text search
+            stays on the header's ⌘K button. -#}
+        <div class="px-3 pt-2 pb-1 shrink-0">
+            <div class="relative flex items-center w-full">
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 text-[var(--ink-gray-8)]">
+                    {{ render_icon("search", "size-[18px] text-[var(--ink-gray-5)]") }}
+                </div>
+                <input type="search"
+                       x-model="navQuery"
+                       @input="filterTree()"
+                       data-testid="mobile-nav-search"
+                       placeholder="{{ _('Search') }}"
+                       aria-label="{{ _('Search navigation') }}"
+                       autocomplete="off"
+                       class="w-full h-10 rounded-md py-1.5 ps-10 pe-3 text-lg text-[var(--ink-gray-8)] border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] placeholder-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] focus:bg-[var(--surface-base)] focus:border-[var(--outline-gray-4)] focus:shadow-sm focus:ring-0 focus:outline-none">
+            </div>
+        </div>
+
         <!-- Bottom Sheet Navigation -->
-        <nav class="px-2 py-2 flex-1 overflow-y-auto" @click="handleNavClick($event)">
+        <nav class="px-3 pt-2 pb-6 flex-1 overflow-y-auto" x-ref="sheetNav" @click="handleNavClick($event)">
+            <div x-show="!navHasResults" x-cloak class="px-2 py-6 text-md text-[var(--ink-gray-5)] text-center">
+                {{ _("No results for") }} "<span x-text="navQuery"></span>"
+            </div>
             {% for tab in tab_nodes %}
             {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
             <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
@@ -297,6 +323,8 @@
             sidebarOpen: false,
             tocOpen: false,
             spaceSwitcherOpen: false,
+            navQuery: '',
+            navHasResults: true,
             tocHeadings: [],
             activeTocId: '',
             activeTocText: '',
@@ -368,6 +396,52 @@
             closeSidebar() {
                 this.sidebarOpen = false;
                 document.body.style.overflow = '';
+                // The docs sheet clears its filter on close; a stale query would
+                // otherwise leave the tree pruned the next time it opens.
+                this.navQuery = '';
+                this.filterTree();
+            },
+
+            // Filters the rendered tree in place. A row survives if its own
+            // title matches or any descendant's does; matched groups are
+            // expanded so the hit is actually visible. Walking the node list
+            // backwards means a node's descendants are always resolved before
+            // it is.
+            filterTree() {
+                const root = this.$refs.sheetNav;
+                if (!root) return;
+
+                const query = this.navQuery.trim().toLowerCase();
+                const items = Array.from(root.querySelectorAll('.wiki-item'));
+
+                if (!query) {
+                    items.forEach((item) => item.classList.remove('hidden'));
+                    this.navHasResults = true;
+                    return;
+                }
+
+                const shown = new Map();
+                for (const item of items.slice().reverse()) {
+                    const title = (item.querySelector('.wiki-title')?.textContent || '')
+                        .trim()
+                        .toLowerCase();
+                    const descendantMatched = Array.from(
+                        item.querySelectorAll('.wiki-item'),
+                    ).some((child) => shown.get(child));
+                    const show = title.includes(query) || descendantMatched;
+
+                    shown.set(item, show);
+                    item.classList.toggle('hidden', !show);
+
+                    if (descendantMatched) {
+                        const nodeId = item
+                            .querySelector('.wiki-item-content[data-node-id]')
+                            ?.getAttribute('data-node-id');
+                        if (nodeId) this.expandedStates[nodeId] = true;
+                    }
+                }
+
+                this.navHasResults = items.some((item) => shown.get(item));
             },
 
             scrollToHeading(id) {
