@@ -1643,7 +1643,12 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
-		self.assertEqual(response.get_data(as_text=True), markdown_content)
+		self.assertEqual(response.headers.get("Vary"), "Accept")
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("---\n"))
+		self.assertIn('title: "Markdown Test Page"', body)
+		self.assertTrue(body.endswith(markdown_content))
 
 	def test_default_accept_returns_html(self):
 		"""Requesting a wiki page without Accept: text/markdown returns HTML."""
@@ -1719,6 +1724,101 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		content_type = response.headers.get("Content-Type", "")
 		self.assertIn("charset=utf-8", content_type)
+
+
+class TestCrawlerEndpoints(WikiDocumentTestBase):
+	"""Tests for the crawler-facing routes served by CrawlerRenderer."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _make_space(self, label, guest_readable=True, content="# Page\n\nBody text.", published=True):
+		"""A one-page space, returning (space, page)."""
+		root_group = create_test_wiki_document(self, f"Root {label}", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			f"Page {label}",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content=content,
+		)
+		space = create_test_wiki_space(
+			self,
+			f"Space {label}",
+			self._unique("crawl"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+		if not published:
+			frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return space, page
+
+	def test_md_route_returns_markdown_with_frontmatter(self):
+		_, page = self._make_space("MD Route", content="# Title\n\nSome **body**.")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
+		self.assertIn("private", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertIn(f'title: "{page.title}"', body)
+		self.assertIn(f'/{page.route}"', body)
+		self.assertTrue(body.endswith("# Title\n\nSome **body**."))
+
+	def test_md_route_for_unpublished_page_is_not_found(self):
+		_, page = self._make_space("MD Unpublished", published=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_md_route_in_restricted_space_is_not_found_for_guest(self):
+		_, page = self._make_space("MD Restricted", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_space_md_route_redirects_to_first_page_markdown(self):
+		space, page = self._make_space("MD Space Redirect")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 301)
+		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
+
+	def test_page_routed_with_md_suffix_still_renders_html(self):
+		"""A page legitimately slugged "<name>.md" keeps its own URL as HTML."""
+		root_group = create_test_wiki_document(self, "Root MD Slug", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Literal MD Page",
+			parent=root_group.name,
+			slug=self._unique("readme") + ".md",
+			content="# Literal",
+		)
+		create_test_wiki_space(
+			self, "MD Slug Space", self._unique("crawl"), root_group.name, roles=[("Guest", "Read")]
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}")
+
+		self.assertEqual(response.status_code, 200)
+		# Content-Type is guessed from the ".md" path by frappe's build_response,
+		# so the body is what tells the two representations apart here.
+		self.assertTrue(response.get_data(as_text=True).lstrip().startswith("<!DOCTYPE html"))
+
+		markdown = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(markdown.status_code, 200)
+		self.assertIn("text/markdown", markdown.headers.get("Content-Type", ""))
+		self.assertTrue(markdown.get_data(as_text=True).startswith("---\n"))
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
