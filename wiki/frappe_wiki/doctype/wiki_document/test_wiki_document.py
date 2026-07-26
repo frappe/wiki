@@ -2992,6 +2992,22 @@ class TestOGImageTemplate(unittest.TestCase):
 		with patch("frappe.get_cached_doc", return_value=space):
 			self.assertEqual(_og_context(doc)["logo_url"], "/files/old.png")
 
+	def test_card_title_ignores_meta_title(self):
+		"""The card shows the page's own title; meta_title is SEO copy for the
+		search result, not a label for the page."""
+		from wiki.api.og_image import _og_context
+
+		space = SimpleNamespace(app_switcher_logo="", light_mode_logo="")
+		doc = SimpleNamespace(
+			meta_title="Keyword Padded Meta Title | Docs",
+			title="Doc",
+			lft=None,
+			get_wiki_space=lambda: {"name": "sp", "space_name": "Space"},
+		)
+
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["title"], "Doc")
+
 	def test_remote_and_private_logo_urls_are_dropped(self):
 		from wiki.api.og_image import _safe_asset_url
 
