@@ -403,13 +403,30 @@
                 if (!root) return;
 
                 const query = this.navQuery.trim().toLowerCase();
-                const items = Array.from(root.querySelectorAll('.wiki-item'));
 
+                // Clearing always spans every subtree, so switching tabs can't
+                // reveal rows left hidden by an earlier query.
                 if (!query) {
-                    items.forEach((item) => item.classList.remove('hidden'));
+                    root.querySelectorAll('.wiki-item').forEach((item) =>
+                        item.classList.remove('hidden'),
+                    );
                     this.navHasResults = true;
                     return;
                 }
+
+                // Only the active tab's subtree is displayed; the others are
+                // still in the DOM. Filtering across all of them would count a
+                // match inside a hidden tab as a result, leaving the drawer
+                // blank with the no-results line suppressed.
+                const items = Array.from(root.children)
+                    .filter(
+                        (subtree) =>
+                            subtree.querySelector('.wiki-item') &&
+                            getComputedStyle(subtree).display !== 'none',
+                    )
+                    .flatMap((subtree) =>
+                        Array.from(subtree.querySelectorAll('.wiki-item')),
+                    );
 
                 const shown = new Map();
                 for (const item of items.slice().reverse()) {
