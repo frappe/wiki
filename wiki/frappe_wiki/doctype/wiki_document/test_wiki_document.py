@@ -11,7 +11,7 @@ import unittest
 from threading import Thread
 from types import SimpleNamespace
 from unittest.mock import patch
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from xml.etree import ElementTree
 
 import frappe
@@ -1595,6 +1595,11 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 
 
+def _sitemap_routes(xml: str) -> set:
+	"""Routes listed in a sitemap, without the host it was served under."""
+	return {urlparse(loc).path.lstrip("/") for loc in re.findall(r"<loc>([^<]+)</loc>", xml)}
+
+
 def _make_request(test_client, method, path, **kwargs):
 	"""Run a werkzeug test-client request in a thread (mirrors frappe test_api pattern)."""
 	site = frappe.local.site
@@ -1849,6 +1854,19 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 	def _unique(self, prefix):
 		return f"{prefix}-{frappe.generate_hash(length=6)}"
 
+	def assertEntry(self, lines, route, prefix, suffix=""):
+		"""Assert one list entry links to `route` and has the expected shape.
+
+		The absolute URLs in these files carry whatever host the request ran
+		against — `localhost` in CI, `localhost:8000` on a dev bench — so the
+		entry is found by route and only its ends are asserted.
+		"""
+		matches = [line for line in lines if f"/{route}.md)" in line]
+		self.assertEqual(len(matches), 1, f"expected exactly one entry for {route}, got {matches}")
+		entry = matches[0]
+		self.assertTrue(entry.startswith(prefix), f"{entry!r} does not start with {prefix!r}")
+		self.assertTrue(entry.endswith(suffix), f"{entry!r} does not end with {suffix!r}")
+
 	def _space_with_tree(self, guest_readable=True):
 		"""A space with untabbed content, a tab, a nested group and a draft page."""
 		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
@@ -1914,12 +1932,12 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertIn("## API Reference", lines)
 
 		# Untabbed top-level content lands under Home, tabbed content under its tab.
-		self.assertIn(f"- [Introduction](http://localhost:8000/{tree.intro.route}.md): What this is.", lines)
-		self.assertIn(f"- [Endpoints](http://localhost:8000/{tree.endpoints.route}.md)", lines)
+		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
+		self.assertEntry(lines, tree.endpoints.route, "- [Endpoints](", ")")
 
 		# A group has no page of its own, so it is a label; its children indent under it.
 		self.assertIn("- **Internals**", lines)
-		self.assertIn(f"  - [Nested Page](http://localhost:8000/{tree.nested.route}.md)", lines)
+		self.assertEntry(lines, tree.nested.route, "  - [Nested Page](", ")")
 
 	def test_space_llms_txt_omits_unpublished_pages(self):
 		tree = self._space_with_tree()
@@ -1954,7 +1972,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 
 		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
 
-		self.assertIn(f"](http://localhost:8000/{hostile.route}.md)", body)
+		self.assertEntry(body.splitlines(), hostile.route, "- [Click \\](https://evil.example) here](")
 		self.assertIn("Click \\](https://evil.example) here", body)
 		# The multiline description collapses instead of becoming its own entry.
 		self.assertNotIn("\n- [Injected]", body)
@@ -1980,7 +1998,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		body = response.get_data(as_text=True)
 		self.assertTrue(body.startswith("# "))
 		self.assertIn("## Spaces", body)
-		self.assertIn(f"(http://localhost:8000/{public.space.route}/llms.txt)", body)
+		self.assertIn(f"/{public.space.route}/llms.txt)", body)
 		self.assertNotIn(f"/{restricted.space.route}/llms.txt", body)
 
 	def test_site_llms_txt_survives_a_space_whose_root_group_is_gone(self):
@@ -2016,7 +2034,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertIn(f"/{added.route}.md", body)
 
 		sitemap = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
-		self.assertIn(f"<loc>http://localhost:8000/{added.route}</loc>", sitemap)
+		self.assertIn(added.route, _sitemap_routes(sitemap))
 
 	def test_site_index_is_rebuilt_when_a_space_is_added(self):
 		self._space_with_tree()
@@ -2038,18 +2056,18 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertIn("xml", response.headers.get("Content-Type", ""))
 
 		body = response.get_data(as_text=True)
-		locations = re.findall(r"<loc>([^<]+)</loc>", body)
+		routes = _sitemap_routes(body)
 
 		# Parses, and every entry is a page — not a group, a draft or a `.md` twin.
 		ElementTree.fromstring(body)
-		self.assertIn(f"http://localhost:8000/{public.intro.route}", locations)
-		self.assertIn(f"http://localhost:8000/{public.nested.route}", locations)
-		self.assertNotIn(f"http://localhost:8000/{public.draft.route}", locations)
-		self.assertNotIn(f"http://localhost:8000/{restricted.intro.route}", locations)
-		self.assertFalse([loc for loc in locations if loc.endswith(".md")])
+		self.assertIn(public.intro.route, routes)
+		self.assertIn(public.nested.route, routes)
+		self.assertNotIn(public.draft.route, routes)
+		self.assertNotIn(restricted.intro.route, routes)
+		self.assertFalse([route for route in routes if route.endswith(".md")])
 		self.assertNotIn(
-			f"http://localhost:8000/{public.nested_group.route}",
-			locations,
+			public.nested_group.route,
+			routes,
 			"groups are not served at their own route",
 		)
 
