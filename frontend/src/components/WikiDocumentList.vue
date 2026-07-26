@@ -74,6 +74,17 @@
 				<div class="space-y-4">
 					<FormControl v-model="createTitle" :label="__('Title')" type="text"
 						:placeholder="createPlaceholder" autofocus />
+					<div>
+						<FormControl :label="__('Route')" type="text" :model-value="createRoute"
+							:placeholder="__('space/page-url')"
+							@update:model-value="handleCreateRouteInput" />
+						<p v-if="createRouteError" class="mt-1.5 text-xs text-ink-red-3">
+							{{ createRouteError }}
+						</p>
+						<p v-else class="mt-1.5 text-xs text-ink-gray-5">
+							{{ __('The page URL. Filled in from the title — edit it if you want a different one.') }}
+						</p>
+					</div>
 					<div v-if="createIsTab">
 						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
 						<IconPicker v-model="createTabIcon" inline />
@@ -287,6 +298,8 @@ const props = defineProps({
 	},
 	// Mirrors the backend's can_manage_tabs gate (space write access).
 	canManageTabs: { type: Boolean, default: false },
+	// Base route of the space, the prefix for pages created at the space root.
+	spaceRoute: { type: String, default: '' },
 	// The space's root group, which is where a tab must be created. This is not
 	// `rootNode`: while a tab is being browsed, `rootNode` is that tab, and
 	// creating there would nest a tab.
@@ -333,6 +346,9 @@ const {
 	createIsGroup,
 	createIsTab,
 	createTabIcon,
+	createRoute,
+	createRouteError,
+	handleCreateRouteInput,
 	showTabSettingsDialog,
 	tabSettingsNode,
 	tabSettingsIsTab,
@@ -370,7 +386,12 @@ const {
 	createExternalLink,
 	openEditExternalLinkDialog,
 	updateExternalLink,
-} = useTreeDialogs(toRef(props, 'spaceId'), expandedNodes);
+} = useTreeDialogs(
+	toRef(props, 'spaceId'),
+	expandedNodes,
+	toRef(props, 'spaceRoute'),
+	toRef(props, 'spaceRootNode'),
+);
 
 const addOptions = [
 	{
