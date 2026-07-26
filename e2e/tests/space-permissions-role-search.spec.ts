@@ -64,7 +64,8 @@ test.describe('Space Settings -> Permissions role search', () => {
 		await expect(option).toBeVisible({ timeout: 10000 });
 		await option.click();
 
-		// Picking adds the row straight to the table, at Read by default.
+		// Picking fills the field; Add commits the row, at Read by default.
+		await dialog.getByRole('button', { name: 'Add', exact: true }).click();
 		const row = dialog.getByRole('row').filter({ hasText: roleName });
 		await expect(row).toBeVisible();
 

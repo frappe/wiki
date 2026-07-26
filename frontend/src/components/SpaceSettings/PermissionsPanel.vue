@@ -3,18 +3,25 @@
 		<!-- Add role, above the table. The list is searched on the server as you
 		     type — a site can have far more roles than fit in one page, so a
 		     client-side filter over the first page would hide most of them.
-		     Picking a role adds it straight to the table. -->
-		<Combobox
-			v-if="canManageAccess"
-			ref="roleCombobox"
-			v-model="selectedRole"
-			:options="roleOptions"
-			:placeholder="__('Search role to add')"
-			:loading="rolesLoading"
-			:empty-text="__('No roles found')"
-			@update:model-value="addRole"
-			@update:query="searchRoles"
-		/>
+		     Pick a role to fill the field, then Add it to the table. -->
+		<div v-if="canManageAccess" class="flex items-end gap-2">
+			<!-- Combobox renders as `display: contents` when it has no label, so
+			     the width has to come from a wrapper, not a class on it. -->
+			<div class="flex-1">
+				<Combobox
+					ref="roleCombobox"
+					v-model="selectedRole"
+					:options="roleOptions"
+					:placeholder="__('Search role to add')"
+					:loading="rolesLoading"
+					:empty-text="__('No roles found')"
+					@update:query="searchRoles"
+				/>
+			</div>
+			<Button variant="subtle" :disabled="!selectedRole" @click="addRole">
+				{{ __('Add') }}
+			</Button>
+		</div>
 
 		<!-- Roles table -->
 		<div class="overflow-hidden rounded-lg border border-outline-gray-2">
@@ -246,7 +253,8 @@ function searchRoles(query) {
 	}, 300);
 }
 
-function addRole(role) {
+function addRole() {
+	const role = selectedRole.value;
 	if (!role) return;
 	roleRows.value.push({ role, permission_level: 'Read' });
 	// Combobox parks the picked label in its own input; reset() clears both the
