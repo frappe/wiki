@@ -220,6 +220,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		externalUrl = null,
 		isTab = false,
 		tabIcon = null,
+		route = null,
 	) {
 		return await createPageResource.submit({
 			name: changeRequestName,
@@ -232,6 +233,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 			external_url: externalUrl,
 			is_tab: isTab,
 			tab_icon: tabIcon,
+			route,
 		});
 	}
 

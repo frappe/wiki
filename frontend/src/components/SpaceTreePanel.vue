@@ -46,6 +46,7 @@
 				:selected-draft-key="selectedDraftKey"
 				:can-manage-tabs="canManageTabs"
 				:space-root-node="spaceRootNode"
+				:space-route="spaceRoute"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
 			/>
