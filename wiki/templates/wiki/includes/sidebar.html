@@ -5,11 +5,13 @@
     height are offset by --wiki-chrome-h (set in layout.html). Its own logo
     header moved into includes/header.html for the same reason: there is no
     top-of-window strip left for it here. -#}
-{#- Borderless, like frappe-ui docs: the tree sits on the same surface as the
-    content, with only whitespace between them. -#}
-<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] flex-col flex-shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
+{#- Keeps its right border: the current Frappe docs layout separates the tree
+    from the content with a hairline (`border-r` at the default outline-gray-1),
+    and without one a white sidebar on a white page has nothing to sit against.
+    The border width animates to 0 on collapse so no hairline is left behind. -#}
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
      x-data="wikiSidebar()"
-     :style="isCollapsed ? 'width: 0;' : 'width: 18rem;'">
+     :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
     {#- Only the active tab's subtree renders. Visibility is driven by Alpine
         off $store.navigation.currentRoute rather than re-rendered, so SPA
