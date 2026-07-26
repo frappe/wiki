@@ -462,15 +462,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		isPublished = true,
 		isTab = false,
 		tabIcon = null,
+		route = null,
 	}) {
 		const effectiveParent = parentKey || treeModel.rootKey.value || null;
 		const tempKey = resolver.makeTempKey();
+		// The dialog hands us the author's route; without one (paste-as-page and
+		// other programmatic creates) fall back to guessing, as before.
+		const localRoute = route || slugify(title);
 		const localNode = {
 			docKey: tempKey,
 			serverDocKey: null,
 			documentName: null,
 			title,
-			route: slugify(title),
+			route: localRoute,
 			parentKey: effectiveParent,
 			orderIndex: null,
 			isGroup,
@@ -490,7 +494,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			pageBuffers.setPage(tempKey, {
 				docKey: tempKey,
 				title,
-				route: slugify(title),
+				route: localRoute,
 				content,
 				isPublished,
 				saveStatus: 'idle',
@@ -508,6 +512,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			content,
 			isTab,
 			tabIcon,
+			route,
 		});
 
 		const createPromise = syncCreateNode(tempKey, mutation);
@@ -554,6 +559,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							external_url: payload.externalUrl ?? null,
 							is_tab: !!payload.isTab,
 							tab_icon: payload.tabIcon ?? null,
+							route: payload.route ?? null,
 						},
 					]);
 					realKey = result?.temp_key_map?.[tempKey] || null;
@@ -575,6 +581,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						payload.externalUrl,
 						payload.isTab,
 						payload.tabIcon,
+						payload.route ?? null,
 					);
 					realKey = typeof result === 'string' ? result : result?.doc_key;
 					route = result?.route || null;

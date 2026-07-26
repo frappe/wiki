@@ -14,6 +14,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	approve_change_request,
 	archive_change_request,
 	check_outdated,
+	check_route_available,
 	create_change_request,
 	create_cr_page,
 	delete_cr_page,
@@ -186,6 +187,54 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(item.external_url, "")
 		self.assertEqual(item.content_blob, content_blob)
 		self.assertEqual(item.is_deleted, 0)
+
+	def test_create_cr_page_honors_author_supplied_route(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Guides", is_group=1)
+		cr = create_change_request(space.name, "CR author route")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		derived_key = create_cr_page(cr.name, parent_key=group_key, title="Derived")
+		custom_key = create_cr_page(
+			cr.name, parent_key=group_key, title="Custom", route=f"{space.route}/short"
+		)
+
+		# Without a route the hierarchy is still derived, exactly as before.
+		self.assertEqual(
+			get_revision_item(cr.head_revision, derived_key).route,
+			f"{space.route}/guides/derived",
+		)
+		self.assertEqual(get_revision_item(cr.head_revision, custom_key).route, f"{space.route}/short")
+
+	def test_create_cr_page_sanitizes_author_supplied_route(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR messy route")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		new_key = create_cr_page(cr.name, parent_key=root_key, title="Messy", route="/Foo Bar//Baz_Qux/")
+
+		self.assertEqual(get_revision_item(cr.head_revision, new_key).route, "foo-bar/baz-qux")
+
+	def test_check_route_available_detects_live_and_cr_duplicates(self):
+		space = create_test_wiki_space()
+		live_page = create_test_wiki_document(space.root_group, title="Live Page")
+		cr = create_change_request(space.name, "CR route check")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		staged_key = create_cr_page(cr.name, parent_key=root_key, title="Staged Page")
+		staged_route = get_revision_item(cr.head_revision, staged_key).route
+
+		self.assertTrue(check_route_available(space.name, f"{space.route}/free")["available"])
+		self.assertFalse(check_route_available(space.name, live_page.route)["available"])
+		self.assertTrue(check_route_available(space.name, staged_route)["available"])
+		self.assertFalse(check_route_available(space.name, staged_route, cr_name=cr.name)["available"])
+
+		# A page never clashes with itself, so editing its own route stays possible.
+		self.assertTrue(
+			check_route_available(space.name, staged_route, cr_name=cr.name, exclude_doc_key=staged_key)[
+				"available"
+			]
+		)
+		self.assertFalse(check_route_available(space.name, "  /  ")["available"])
 
 	def test_move_reorder_in_cr(self):
 		space = create_test_wiki_space()
@@ -1708,7 +1757,8 @@ class TestWikiChangeRequest(FrappeTestCase):
 		child_page = get_cr_page(cr.name, child_key)
 		self.assertEqual(child_page["parent_key"], parent_key)
 
-	def test_apply_cr_operations_update_node_recomputes_route(self):
+	def test_apply_cr_operations_update_node_keeps_route(self):
+		"""The author owns the URL once the page exists — a rename must not move it."""
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Old Name", content="x")
 		cr = create_change_request(space.name, "Batch CR 4")
@@ -1732,7 +1782,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		item = result["items"][0]
 		self.assertEqual(item["title"], "Renamed")
 		self.assertEqual(item["slug"], "renamed")
-		self.assertIn("renamed", item["route"])
+		self.assertEqual(item["route"], page.route)
 
 	def test_apply_cr_operations_delete_group_cascades_to_descendants(self):
 		space = create_test_wiki_space()

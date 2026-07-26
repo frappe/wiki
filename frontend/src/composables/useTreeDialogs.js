@@ -1,10 +1,20 @@
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
-import { toast } from 'frappe-ui';
-import { ref } from 'vue';
+import { slugify } from '@/stores/draftWorkspace/utils';
+import { useDebounceFn } from '@vueuse/core';
+import { createResource, toast } from 'frappe-ui';
+import { ref, unref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 
-export function useTreeDialogs(spaceId, expandedNodes) {
+const CHECK_ROUTE_AVAILABLE =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.check_route_available';
+
+export function useTreeDialogs(
+	spaceId,
+	expandedNodes,
+	spaceRoute,
+	spaceRootNode,
+) {
 	const draftStore = useDraftWorkspaceStore();
 	const router = useRouter();
 
@@ -14,6 +24,10 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 	const createIsGroup = ref(false);
 	const createIsTab = ref(false);
 	const createTabIcon = ref('');
+	const createRoute = ref('');
+	const createRoutePrefix = ref('');
+	const createRouteError = ref('');
+	const routeManuallyEdited = ref(false);
 
 	const showTabSettingsDialog = ref(false);
 	const tabSettingsNode = ref(null);
@@ -47,6 +61,69 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 	const isDeleting = ref(false);
 	const isUpdatingExternalLink = ref(false);
 
+	// A group's route already carries the space route plus every ancestor slug,
+	// so a child's prefix is simply the parent's URL. Only the space root is
+	// special: its own route is a bare slug, and the space route stands in.
+	function routePrefixFor(parentKey) {
+		const base = unref(spaceRoute) || '';
+		const rootKey = unref(spaceRootNode) || draftStore.rootKey;
+		if (!parentKey || parentKey === rootKey) return base;
+		return draftStore.findNode(parentKey)?.route || base;
+	}
+
+	function derivedRoute() {
+		return [createRoutePrefix.value, slugify(createTitle.value)]
+			.filter(Boolean)
+			.join('/');
+	}
+
+	const checkRouteResource = createResource({ url: CHECK_ROUTE_AVAILABLE });
+	// Replies can land out of order, and two checks of the same route text can
+	// legitimately disagree (a page claiming it may have been created in
+	// between), so only the newest request is allowed to write the result.
+	let latestRouteCheck = 0;
+
+	const checkRouteAvailability = useDebounceFn(async () => {
+		const check = ++latestRouteCheck;
+		const route = createRoute.value.trim();
+		// Groups deliberately share a route with their landing page, so the
+		// uniqueness rule (and this check) only applies to leaves.
+		if (!route || createIsGroup.value) {
+			createRouteError.value = '';
+			return;
+		}
+		try {
+			const result = await checkRouteResource.submit({
+				wiki_space: unref(spaceId),
+				route,
+				cr_name: draftStore.crName || null,
+			});
+			if (check !== latestRouteCheck) return;
+			createRouteError.value = result?.available
+				? ''
+				: __('This route is already in use');
+		} catch (error) {
+			// A failed check must not block creation; the backend still
+			// rejects a genuine duplicate at merge time.
+			console.error('Error checking route:', error);
+			if (check !== latestRouteCheck) return;
+			createRouteError.value = '';
+		}
+	}, 300);
+
+	watch(createTitle, () => {
+		if (routeManuallyEdited.value) return;
+		createRoute.value = derivedRoute();
+		checkRouteAvailability();
+	});
+
+	function handleCreateRouteInput(value) {
+		if (value !== derivedRoute()) routeManuallyEdited.value = true;
+		createRoute.value = value;
+		createRouteError.value = '';
+		checkRouteAvailability();
+	}
+
 	function openCreateDialog(parentKey, isGroup, isTab = false) {
 		createParent.value = parentKey;
 		// A tab is always a group; the backend rejects anything else.
@@ -54,6 +131,12 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 		createIsTab.value = isTab;
 		createTitle.value = '';
 		createTabIcon.value = '';
+		createRoutePrefix.value = routePrefixFor(parentKey);
+		createRoute.value = '';
+		createRouteError.value = '';
+		// Retire any check still in flight from the previous dialog.
+		latestRouteCheck++;
+		routeManuallyEdited.value = false;
 		showCreateDialog.value = true;
 	}
 
@@ -137,11 +220,16 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 			toast.warning(__('Title is required'));
 			return;
 		}
+		if (createRouteError.value) {
+			toast.warning(createRouteError.value);
+			return;
+		}
 
 		const parentKey = createParent.value;
 		const isGroup = createIsGroup.value;
 		const isTab = createIsTab.value;
 		const tabIcon = createTabIcon.value || null;
+		const route = createRoute.value.trim() || derivedRoute();
 
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
@@ -154,6 +242,7 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 				isGroup,
 				isTab,
 				tabIcon,
+				route,
 			});
 			// Open the new page for editing immediately. The DraftContributionPanel
 			// reads its content from pagesByKey (seeded by createNode), and the
@@ -304,6 +393,9 @@ export function useTreeDialogs(spaceId, expandedNodes) {
 		createIsGroup,
 		createIsTab,
 		createTabIcon,
+		createRoute,
+		createRouteError,
+		handleCreateRouteInput,
 		showTabSettingsDialog,
 		tabSettingsNode,
 		tabSettingsIsTab,

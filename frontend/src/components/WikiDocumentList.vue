@@ -74,6 +74,12 @@
 				<div class="space-y-4">
 					<FormControl v-model="createTitle" :label="__('Title')" type="text"
 						:placeholder="createPlaceholder" autofocus />
+					<div>
+						<FormControl :label="__('Route')" type="text" :model-value="createRoute"
+							:placeholder="__('space/page-url')"
+							@update:model-value="handleCreateRouteInput" />
+						<ErrorMessage class="mt-1.5" :message="createRouteError" />
+					</div>
 					<div v-if="createIsTab">
 						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
 						<IconPicker v-model="createTabIcon" inline />
@@ -259,7 +265,7 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { Dropdown, FormControl } from 'frappe-ui';
+import { Dropdown, ErrorMessage, FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import IconPicker from './IconPicker.vue';
 import SpaceIcon from './SpaceIcon.vue';
@@ -287,6 +293,8 @@ const props = defineProps({
 	},
 	// Mirrors the backend's can_manage_tabs gate (space write access).
 	canManageTabs: { type: Boolean, default: false },
+	// Base route of the space, the prefix for pages created at the space root.
+	spaceRoute: { type: String, default: '' },
 	// The space's root group, which is where a tab must be created. This is not
 	// `rootNode`: while a tab is being browsed, `rootNode` is that tab, and
 	// creating there would nest a tab.
@@ -333,6 +341,9 @@ const {
 	createIsGroup,
 	createIsTab,
 	createTabIcon,
+	createRoute,
+	createRouteError,
+	handleCreateRouteInput,
 	showTabSettingsDialog,
 	tabSettingsNode,
 	tabSettingsIsTab,
@@ -370,7 +381,12 @@ const {
 	createExternalLink,
 	openEditExternalLinkDialog,
 	updateExternalLink,
-} = useTreeDialogs(toRef(props, 'spaceId'), expandedNodes);
+} = useTreeDialogs(
+	toRef(props, 'spaceId'),
+	expandedNodes,
+	toRef(props, 'spaceRoute'),
+	toRef(props, 'spaceRootNode'),
+);
 
 const addOptions = [
 	{
