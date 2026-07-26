@@ -139,7 +139,8 @@
         </div>
 
         <!-- Bottom Sheet Header -->
-        <div class="px-4 pb-3 border-b border-[var(--outline-gray-1)] flex items-center justify-between">
+        {#- No divider: the docs sheet has no internal rules, only the search field's own border. -#}
+        <div class="px-4 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-3 flex-1 min-w-0">
                 {% if wiki_space.app_switcher_logo %}
                 <img class="size-7 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
@@ -164,7 +165,7 @@
         <!-- Space Switcher Dropdown -->
         <div x-show="spaceSwitcherOpen"
              x-collapse
-             class="border-b border-[var(--outline-gray-1)] bg-[var(--surface-gray-1)] flex-shrink-0">
+             class="bg-[var(--surface-gray-1)] flex-shrink-0">
             <div class="py-2 max-h-64 overflow-y-auto">
                 {% for space in wiki_spaces_for_switcher %}
                 <a href="/{{ space.route }}"
@@ -268,22 +269,22 @@
             {% for tab in tab_nodes %}
             {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
             <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
-                {{ render_wiki_tree(tab.children, current_route=doc.route if doc else '') }}
+                {{ render_wiki_tree(tab.children, current_route=doc.route if doc else '', dense=False) }}
             </div>
             {% endfor %}
 
             {% if show_home %}
             <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
-                {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '') }}
+                {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '', dense=False) }}
             </div>
             {% else %}
-            {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '') }}
+            {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '', dense=False) }}
             {% endif %}
         </nav>
 
         {% if navbar_items %}
         <!-- Navbar Links -->
-        <div class="p-3 border-t border-[var(--outline-gray-1)] bg-[var(--surface-base)]">
+        <div class="p-3 bg-[var(--surface-base)]">
             <div class="flex flex-wrap items-center gap-2">
                 {% for item in navbar_items %}
                     {% if item.icon %}
