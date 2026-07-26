@@ -1794,6 +1794,24 @@ class TestCrawlerEndpoints(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 301)
 		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
 
+	def test_space_md_route_does_not_leak_a_restricted_first_page(self):
+		"""The redirect must not name a private route to a visitor who can't read it."""
+		space, page = self._make_space("MD Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
+	def test_space_html_route_does_not_leak_a_restricted_first_page(self):
+		"""Same for the reader's own redirect, which shares the resolver."""
+		space, page = self._make_space("HTML Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
 	def test_page_routed_with_md_suffix_still_renders_html(self):
 		"""A page legitimately slugged "<name>.md" keeps its own URL as HTML."""
 		root_group = create_test_wiki_document(self, "Root MD Slug", is_group=True)
@@ -1919,6 +1937,29 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertTrue(links)
 		for link in links:
 			self.assertTrue(link.endswith(".md"), f"{link} is not a markdown link")
+
+	def test_space_llms_txt_escapes_editor_controlled_text(self):
+		"""A title or description is free text; it must not rewrite the index."""
+		tree = self._space_with_tree()
+
+		hostile = create_test_wiki_document(
+			self,
+			"Click ](https://evil.example) here",
+			parent=tree.space.root_group,
+			slug=self._unique("hostile"),
+		)
+		hostile.meta_description = "First line\n- [Injected](https://evil.example/inject.md)"
+		hostile.save()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		self.assertIn(f"](http://localhost:8000/{hostile.route}.md)", body)
+		self.assertIn("Click \\](https://evil.example) here", body)
+		# The multiline description collapses instead of becoming its own entry.
+		self.assertNotIn("\n- [Injected]", body)
+		for line in body.splitlines():
+			self.assertFalse(line.startswith("- [Injected]"))
 
 	def test_space_llms_txt_is_not_found_for_a_restricted_space(self):
 		tree = self._space_with_tree(guest_readable=False)

@@ -631,17 +631,12 @@ class WikiDocumentRenderer(BaseRenderer):
 			self.wiki_doc_name = leaf
 			return True
 
-		# A group / Wiki Space route with no page of its own: redirect to first child.
-		root_group = frappe.db.get_value(
-			"Wiki Document", {"route": self.path, "is_group": 1}, "name"
-		) or frappe.db.get_value("Wiki Space", {"route": self.path, "is_published": 1}, "root_group")
-
-		# Redirect to the first page in sidebar order (sort_order at each level),
-		# so the space URL lands on the same document the sidebar shows first.
-		if root_group:
-			first_page = get_first_published_page(root_group)
-			if first_page:
-				frappe.redirect("/" + first_page["route"])
+		# A group / Wiki Space route with no page of its own: redirect to the first
+		# page in sidebar order (sort_order at each level), so the space URL lands
+		# on the same document the sidebar shows first.
+		first_page = get_landing_page_for_route(self.path)
+		if first_page:
+			frappe.redirect("/" + first_page["route"])
 
 		return False
 
@@ -809,6 +804,37 @@ def clear_wiki_content_cache(doc_name: str | None = None):
 	else:
 		cache.delete_value(WIKI_CONTENT_CACHE_KEY)
 		frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_CONTENT_CACHE_KEY))
+
+
+def get_landing_page_for_route(route: str) -> dict | None:
+	"""The page a group / Wiki Space route should redirect to, for this user.
+
+	Returns None when the caller may not read the owning space. The check has to
+	happen *before* the redirect: a Location header naming the space's first
+	page would hand a private route to a visitor who is then 404'd when they
+	follow it.
+	"""
+	from wiki.permissions import can_read_space
+
+	group = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_group": 1}, ["name", "wiki_space"], as_dict=True
+	)
+	if group:
+		root_group, space = group.name, group.wiki_space
+	else:
+		space_doc = frappe.db.get_value(
+			"Wiki Space", {"route": route, "is_published": 1}, ["name", "root_group"], as_dict=True
+		)
+		if not space_doc:
+			return None
+		root_group, space = space_doc.root_group, space_doc.name
+
+	# An orphan group belongs to no space and stays readable by all, matching
+	# check_space_access.
+	if space and not can_read_space(space):
+		return None
+
+	return get_first_published_page(root_group) if root_group else None
 
 
 def get_first_published_page(root_group: str) -> dict | None:

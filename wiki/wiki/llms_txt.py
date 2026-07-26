@@ -10,6 +10,8 @@ Everything here is generated from the *published, Guest-readable* wiki only, and
 never from the requesting session — see wiki/wiki/crawler_renderer.py for why.
 """
 
+import re
+
 import frappe
 from frappe import _
 
@@ -46,14 +48,16 @@ def _site_llms_txt() -> str | None:
 			continue
 
 		url = f"{frappe.utils.get_url('/' + space.route)}/llms.txt"
-		entry = f"- [{space.space_name or space.name}]({url})"
-		description = frappe.db.get_value("Wiki Document", {"route": landing["route"]}, "meta_description")
+		entry = f"- [{_label(space.space_name or space.name)}]({url})"
+		description = _one_line(
+			frappe.db.get_value("Wiki Document", {"route": landing["route"]}, "meta_description")
+		)
 		entries.append(f"{entry}: {description}" if description else entry)
 
 	if not entries:
 		return None
 
-	title = frappe.db.get_single_value("Website Settings", "app_name") or frappe.local.site
+	title = _one_line(frappe.db.get_single_value("Website Settings", "app_name")) or frappe.local.site
 	lines = [f"# {title}", "", SITE_HINT, "", "## Spaces", "", *entries]
 	return "\n".join(lines) + "\n"
 
@@ -113,8 +117,10 @@ def _space_llms_txt(space: str) -> str | None:
 	sections = []
 	untabbed = [node for node in tree if not node.get("is_tab")]
 	if untabbed:
-		sections.append((space_doc.home_tab_title or _("Home"), untabbed))
-	sections += [(node["title"], node.get("children") or []) for node in tree if node.get("is_tab")]
+		sections.append((_one_line(space_doc.home_tab_title) or _("Home"), untabbed))
+	sections += [
+		(_one_line(node["title"]), node.get("children") or []) for node in tree if node.get("is_tab")
+	]
 
 	body = []
 	for title, nodes in sections:
@@ -125,8 +131,8 @@ def _space_llms_txt(space: str) -> str | None:
 	if not body:
 		return None
 
-	lines = [f"# {space_doc.space_name or space_doc.name}", ""]
-	summary = _space_summary(space_doc.root_group, pages)
+	lines = [f"# {_one_line(space_doc.space_name) or space_doc.name}", ""]
+	summary = _one_line(_space_summary(space_doc.root_group, pages))
 	if summary:
 		lines += [f"> {summary}", ""]
 	lines.append(MARKDOWN_HINT)
@@ -176,12 +182,14 @@ def _render_nodes(nodes: list, pages: dict, depth: int) -> list[str]:
 
 def _node_entry(node: dict, pages: dict) -> str:
 	"""One list entry: a link to the page's markdown, or a bare label."""
-	title = node.get("title") or node["name"]
+	title = _label(node.get("title") or node["name"])
 	route = node.get("route")
 
 	if node.get("is_external_link"):
-		# Someone else's URL — there is no `.md` twin of it to point at.
-		return f"[{title}]({node['external_url']})" if node.get("external_url") else f"**{title}**"
+		# Someone else's URL — there is no `.md` twin of it to point at. Angle
+		# brackets keep a destination with parentheses in it from ending the link.
+		url = _one_line(node.get("external_url")).replace("<", "").replace(">", "")
+		return f"[{title}](<{url}>)" if url else f"**{title}**"
 
 	# A group is served by redirecting to its first child, so it is only worth
 	# linking when a page of its own sits at its route.
@@ -189,5 +197,23 @@ def _node_entry(node: dict, pages: dict) -> str:
 		return f"**{title}**"
 
 	entry = f"[{title}]({frappe.utils.get_url('/' + route)}.md)"
-	description = pages.get(route)
+	description = _one_line(pages.get(route))
 	return f"{entry}: {description}" if description else entry
+
+
+def _one_line(text: str | None) -> str:
+	"""Collapse a title or description onto one line.
+
+	Both are editor-controlled and both are free text: a newline in either would
+	end the list item it sits in and turn the rest into new entries.
+	"""
+	return " ".join((text or "").split())
+
+
+def _label(text: str | None) -> str:
+	"""A link label that cannot escape its own brackets.
+
+	`[` / `]` in a title would otherwise re-point the link at whatever follows,
+	which is a real redirect primitive when the reader is a crawler.
+	"""
+	return re.sub(r"([\\\[\]])", r"\\\1", _one_line(text))
