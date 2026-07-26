@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth scroll-pt-20">
+{#- No scroll-smooth: anchor jumps land instantly, which reads better for docs. -#}
+<html lang="en" class="scroll-pt-20">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +25,7 @@
     <style>
         [x-cloak] { display: none !important; }
         /* Sidebar collapsed state before Alpine loads */
-        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; border-right-width: 0 !important; }
+        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; }
         html[data-sidebar-collapsed] .wiki-sidebar-toggle { left: 0.5rem !important; }
         html:not([data-sidebar-collapsed]) .wiki-sidebar-toggle { left: calc(18rem - 0.25rem); }
     </style>

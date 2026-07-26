@@ -6,21 +6,13 @@
     <!-- Mobile Header -->
     <header class="bg-[var(--surface-base)] border-b border-[var(--outline-gray-1)]" data-testid="mobile-header">
         <div class="flex items-center justify-between px-4 py-3">
-            <!-- Left: Logo and Menu Toggle -->
-            <div class="flex items-center gap-3">
-                <button @click="toggleSidebar()"
-                        data-testid="mobile-menu-toggle"
-                        class="p-2 -ml-2 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200">
-                    <template x-if="!sidebarOpen">
-                        {{ render_icon("menu") }}
-                    </template>
-                    <template x-if="sidebarOpen">
-                        {{ render_icon("x") }}
-                    </template>
-                </button>
-                <div class="flex items-center gap-2">
-                    <span class="font-semibold text-[var(--ink-gray-9)]" data-testid="mobile-space-name">{{ wiki_space.space_name or _("Wiki") }}</span>
-                </div>
+            {#- Left: space identity only. The nav toggle is the floating pill
+                below, mirroring frappe-ui docs. -#}
+            <div class="flex items-center gap-2 min-w-0">
+                {% if wiki_space.app_switcher_logo %}
+                <img class="size-6 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+                {% endif %}
+                <span class="font-semibold text-[var(--ink-gray-9)] truncate" data-testid="mobile-space-name">{{ wiki_space.space_name or _("Wiki") }}</span>
             </div>
 
             <!-- Right: Navbar items, Search and Theme Toggle -->
@@ -65,7 +57,7 @@
                 <div class="flex items-center gap-2">
                     <span class="text-[var(--ink-gray-5)] truncate max-w-32" x-text="activeTocText"></span>
                     <svg class="w-4 h-4 transition-transform duration-200 shrink-0" :class="tocOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
             </button>
@@ -94,6 +86,20 @@
         </div>
     </header>
 
+    {#- Floating nav trigger — frappe-ui docs pins its "Menu" button to the
+        bottom-right of the viewport instead of the header. Classes are the
+        frappe-ui Button outline/lg recipe (h-10 px-3 rounded-5, gray-outline
+        colours) so it reads as the same component. z-30 keeps it under the
+        sheet (z-50), which is what dismisses it once open. -#}
+    <button @click="toggleSidebar()"
+            data-testid="mobile-menu-toggle"
+            aria-label="Open navigation menu"
+            :aria-expanded="sidebarOpen"
+            class="fixed bottom-4 right-4 z-30 shadow-2xl inline-flex items-center justify-center gap-2 shrink-0 h-10 px-3 rounded-5 text-lg-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+        {{ render_icon("menu", "w-5 h-5") }}
+        <span>{{ _("Menu") }}</span>
+    </button>
+
     <!-- Mobile Sidebar Overlay -->
     <div x-show="sidebarOpen"
          x-transition:enter="transition-opacity duration-300"
@@ -118,7 +124,10 @@
          x-transition:leave-start="translate-y-0"
          x-transition:leave-end="translate-y-full"
          :style="isDragging ? `transform: translateY(${Math.max(0, dragOffset)}px); transition: none;` : ''"
-         class="fixed left-0 right-0 bottom-0 max-h-[85vh] bg-[var(--surface-elevation-2)] z-50 flex flex-col rounded-t-2xl shadow-xl"
+         {#- Fixed 80dvh, not max-h: the sheet keeps one height whatever the
+             tree's size, the way frappe-ui docs' drawer does. dvh so iOS
+             browser chrome doesn't clip the bottom of the list. -#}
+         class="fixed left-0 right-0 bottom-0 h-[80dvh] bg-[var(--surface-base)] z-50 flex flex-col rounded-t-2xl shadow-2xl"
          data-testid="mobile-bottom-sheet"
          x-cloak>
 
@@ -142,7 +151,7 @@
                         class="p-1.5 rounded hover:bg-[var(--surface-gray-2)] transition-colors duration-200 flex-shrink-0"
                         title="Switch wiki space">
                     <svg class="w-4 h-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
                     </svg>
                 </button>
                 {% endif %}
@@ -166,7 +175,7 @@
                     <span class="truncate">{{ space.space_name }}</span>
                     {% if space.name == wiki_space.name %}
                     <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
                     </svg>
                     {% endif %}
                 </a>
@@ -193,7 +202,8 @@
                     @click="tabPickerOpen = !tabPickerOpen"
                     aria-haspopup="listbox"
                     :aria-expanded="tabPickerOpen"
-                    class="flex h-9 w-full items-center gap-2 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] px-2.5 text-base text-[var(--ink-gray-8)] transition-colors hover:border-[var(--outline-gray-3)]">
+                    {#- frappe-ui Button, gray-outline, size md — full width. -#}
+                    class="flex h-8 w-full items-center gap-2 rounded-4 border border-[var(--outline-gray-2)] bg-[var(--surface-base)] px-2.5 text-base-medium text-[var(--ink-gray-8)] transition-colors hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] cursor-pointer">
                 {%- for tab in space_tabs %}
                 {#- Routes are editor-set and can contain quotes; tojson keeps them
                     as safe JS string literals inside Alpine expressions (XSS guard). -#}
@@ -204,7 +214,7 @@
                 </span>
                 {%- endfor %}
                 <svg class="size-4 shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': tabPickerOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
                 </svg>
             </button>
 
@@ -214,7 +224,8 @@
                  x-transition:enter-end="opacity-100 translate-y-0"
                  x-cloak
                  role="listbox"
-                 class="mt-1 rounded-md border border-[var(--outline-gray-2)] bg-[var(--surface-white)] p-1 shadow-lg">
+                 {#- frappe-ui Menu content + group padding. -#}
+                 class="mt-1 rounded-lg bg-[var(--surface-elevation-2)] p-1.5 shadow-2xl ring-1 ring-black/5">
                 {%- for tab in space_tabs %}
                 {%- set target = tab.landing_route or tab.route %}
                 {%- set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
@@ -222,12 +233,13 @@
                         role="option"
                         :aria-selected="{{ active_js }}"
                         @click="$store.navigation.navigateTo({{ target | tojson | forceescape }}); tabPickerOpen = false; closeSidebar()"
-                        class="flex w-full items-center gap-2 rounded px-2 py-2 text-base transition-colors"
-                        :class="{{ active_js }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)]'">
+                        {#- frappe-ui ItemListRow (size sm) + Menu highlight colour. -#}
+                        class="flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-base transition-colors"
+                        :class="{{ active_js }} ? 'bg-[var(--surface-gray-3)] text-[var(--ink-gray-8)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)]'">
                     {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
                     <span class="truncate text-start flex-1">{{ tab.title }}</span>
                     <svg class="size-4 shrink-0 text-[var(--ink-gray-9)]" x-show="{{ active_js }}" x-cloak fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
                     </svg>
                 </button>
                 {%- endfor %}
@@ -361,7 +373,7 @@
             scrollToHeading(id) {
                 const element = document.getElementById(id);
                 if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    element.scrollIntoView({ block: 'start' });
                     history.pushState(null, null, `#${id}`);
                 }
             },

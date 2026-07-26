@@ -1,6 +1,8 @@
 <!-- Table of Contents (Right Sidebar) - Server-rendered for reliability -->
 <!-- Styling mirrors frappe-ui docs OnThisPage: a faint left rail per link, the
-     active heading darkening its own segment. -->
+     active heading darkening its own segment. Every link sits at the same
+     indent regardless of heading level — that's what keeps the "On this page"
+     label lined up with the rail on pages whose first heading is an h3. -->
 <aside id="wiki-toc" class="hidden lg:block flex-shrink-0 py-6 pr-6 {% if toc_headings and toc_headings|length > 0 %}w-56{% else %}w-0 !p-0{% endif %}">
 {% if toc_headings and toc_headings|length > 0 %}
     {# Sticks 24px under the chrome (navbar + tab row); see --wiki-chrome-h in main.css.
@@ -11,7 +13,7 @@
         {% for heading in toc_headings %}
         <a href="#{{ heading.id }}"
            data-toc-link="{{ heading.id }}"
-           class="toc-link {{ 'pl-7' if heading.level >= 3 else 'pl-4' }} py-1 border-l border-[var(--outline-gray-2)] text-[var(--ink-gray-6)] transition-colors duration-200 hover:text-[var(--ink-gray-9)]">
+           class="toc-link pl-4 py-1 border-l border-[var(--outline-gray-2)] text-[var(--ink-gray-6)] transition-colors duration-200 hover:text-[var(--ink-gray-9)]">
             {{ heading.text }}
         </a>
         {% endfor %}
