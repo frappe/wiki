@@ -1926,6 +1926,39 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 
 		self.assertEqual(response.status_code, 404)
 
+	def test_site_llms_txt_lists_public_spaces_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("# "))
+		self.assertIn("## Spaces", body)
+		self.assertIn(f"(http://localhost:8000/{public.space.route}/llms.txt)", body)
+		self.assertNotIn(f"/{restricted.space.route}/llms.txt", body)
+
+	def test_site_llms_txt_survives_a_space_whose_root_group_is_gone(self):
+		"""One broken space must not take the whole site index down."""
+		public = self._space_with_tree()
+		orphan = create_test_wiki_space(
+			self, "Orphan Space", self._unique("orphan"), None, roles=[("Guest", "Read")]
+		)
+		frappe.db.set_value("Wiki Space", orphan.name, "root_group", self._unique("gone"))
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn(f"/{public.space.route}/llms.txt", response.get_data(as_text=True))
+
+		space_response = _make_request(self.TEST_CLIENT, "get", f"/{orphan.route}/llms.txt")
+
+		self.assertEqual(space_response.status_code, 404)
+
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
 	"""

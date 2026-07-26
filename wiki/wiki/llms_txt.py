@@ -17,8 +17,61 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_first_published_page,
 	get_public_wiki_tree,
 )
+from wiki.permissions import can_read_space
 
 MARKDOWN_HINT = "Append `.md` to any URL below for that page's raw markdown source."
+
+SITE_HINT = (
+	"Each space below links to its own llms.txt index. Append `.md` to any page "
+	"URL on this site to get that page's raw markdown source."
+)
+
+
+def build_site_llms_txt() -> str | None:
+	"""The site-wide llms.txt: one entry per publicly readable Wiki Space.
+
+	Returns None when the site has no such space, so the route can 404 instead
+	of publishing an empty index.
+	"""
+	entries = []
+	for space in _public_spaces():
+		landing = get_first_published_page(space.root_group)
+		if not landing:
+			# No page to read: the space's own index would be empty too.
+			continue
+
+		url = f"{frappe.utils.get_url('/' + space.route)}/llms.txt"
+		entry = f"- [{space.space_name or space.name}]({url})"
+		description = frappe.db.get_value("Wiki Document", {"route": landing["route"]}, "meta_description")
+		entries.append(f"{entry}: {description}" if description else entry)
+
+	if not entries:
+		return None
+
+	title = frappe.db.get_single_value("Website Settings", "app_name") or frappe.local.site
+	lines = [f"# {title}", "", SITE_HINT, "", "## Spaces", "", *entries]
+	return "\n".join(lines) + "\n"
+
+
+def _public_spaces() -> list:
+	"""Published spaces a Guest may read, in the order the space switcher lists them."""
+	spaces = frappe.get_all(
+		"Wiki Space",
+		filters={"is_published": 1},
+		fields=["name", "space_name", "route", "root_group"],
+		order_by="switcher_order asc, space_name asc",
+		ignore_permissions=True,
+	)
+	roots = [space.root_group for space in spaces if space.root_group]
+	# A space whose root group was deleted has no tree to walk, and walking it
+	# raises -- which would take the whole site index down over one bad space.
+	live_roots = set(frappe.get_all("Wiki Document", filters={"name": ["in", roots]}, pluck="name"))
+
+	return [
+		space
+		for space in spaces
+		if space.route and space.root_group in live_roots and can_read_space(space.name, "Guest")
+	]
 
 
 def build_space_llms_txt(space: str) -> str | None:
@@ -34,7 +87,10 @@ def build_space_llms_txt(space: str) -> str | None:
 		["name", "space_name", "route", "root_group", "home_tab_title"],
 		as_dict=True,
 	)
+	# A root group that was deleted leaves nothing to walk, and walking it raises.
 	if not space_doc or not space_doc.root_group:
+		return None
+	if not frappe.db.exists("Wiki Document", space_doc.root_group):
 		return None
 
 	tree = get_public_wiki_tree(space_doc.root_group)

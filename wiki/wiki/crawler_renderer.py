@@ -40,6 +40,11 @@ class CrawlerRenderer(BaseRenderer):
 	def can_render(self) -> bool:
 		self.handler = None
 
+		if self.path == LLMS_TXT:
+			from wiki.wiki.llms_txt import build_site_llms_txt
+
+			return self._match_index(build_site_llms_txt())
+
 		if self.path.endswith("/" + LLMS_TXT):
 			return self._match_space_llms_txt(self.path[: -len("/" + LLMS_TXT)])
 
@@ -54,23 +59,29 @@ class CrawlerRenderer(BaseRenderer):
 	# -- llms.txt ---------------------------------------------------------
 
 	def _match_space_llms_txt(self, route: str) -> bool:
+		from wiki.wiki.llms_txt import build_space_llms_txt
+
 		space = frappe.db.get_value("Wiki Space", {"route": route, "is_published": 1}, "name")
 		if not space or not can_read_space(space, "Guest"):
 			return False
 
-		self.llms_txt_space = space
-		self.handler = self._render_space_llms_txt
+		return self._match_index(build_space_llms_txt(space))
+
+	def _match_index(self, body: str | None) -> bool:
+		"""Claim the route only when there is an index to serve.
+
+		A wiki with nothing public leaves /llms.txt to whatever the site had
+		there before, rather than taking it over to serve an empty file.
+		"""
+		if not body:
+			return False
+
+		self.index_body = body
+		self.handler = self._render_index
 		return True
 
-	def _render_space_llms_txt(self):
-		from wiki.wiki.llms_txt import build_space_llms_txt
-
-		body = build_space_llms_txt(self.llms_txt_space)
-		if not body:
-			# An empty space has no index to serve; 404 rather than an empty file.
-			frappe.throw(frappe._("Page not found"), frappe.DoesNotExistError)
-
-		return _text_response(body)
+	def _render_index(self):
+		return _text_response(self.index_body)
 
 	# -- <route>.md -------------------------------------------------------
 
