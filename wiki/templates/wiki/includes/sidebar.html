@@ -355,12 +355,14 @@
                     }
 
                     if (nextDoc) {
-                        const mlClass = !prevDoc ? 'ml-auto' : '';
+                        // No margin utility for the lone-next case: the flex
+                        // container's justify-between leaves a single child at
+                        // the start, which is where it belongs.
                         html += `
                             <a href="/${esc(nextDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
-                               class="${navLinkClasses} ${mlClass}">
+                               class="${navLinkClasses}">
                                 <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}
                             </a>`;
