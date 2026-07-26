@@ -1,22 +1,27 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-end gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
-				<div class="flex shrink-0 items-center gap-2">
-					<Button
-						variant="solid"
-						:loading="isSaving"
-						@click="saveFromHeader"
-					>
-						{{ __('Save') }}
+			<DefineActions>
+				<Button
+					variant="solid"
+					:loading="isSaving"
+					@click="saveFromHeader"
+				>
+					{{ __('Save') }}
+				</Button>
+				<Dropdown :options="menuOptions">
+					<Button variant="ghost" :title="__('More actions')">
+						<span class="lucide-more-vertical size-4" aria-hidden="true" />
 					</Button>
-					<Dropdown :options="menuOptions">
-						<Button variant="ghost" :title="__('More actions')">
-							<span class="lucide-more-vertical size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
-				</div>
-			</div>
+				</Dropdown>
+			</DefineActions>
+
+			<!-- Draft actions share the space's tab row with the published page's
+			     (SpaceDetails). `defer` lets that target mount first when tabs
+			     load async. -->
+			<Teleport defer to="#wiki-page-actions">
+				<ReuseActions />
+			</Teleport>
 
 			<div v-if="!crPage.is_group" class="flex-1 overflow-auto pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
@@ -141,6 +146,7 @@
 <script setup>
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { createReusableTemplate } from '@vueuse/core';
 import {
 	Badge,
 	Button,
@@ -156,6 +162,8 @@ import {
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import WikiEditor from './WikiEditor.vue';
+
+const [DefineActions, ReuseActions] = createReusableTemplate();
 
 const props = defineProps({
 	docKey: {
