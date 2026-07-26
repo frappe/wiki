@@ -75,6 +75,25 @@ def process_navbar_items(navbar_items: list) -> list:
 	return processed
 
 
+def slugify_segment(text: str) -> str:
+	"""Slugify a single route segment using the app-wide slug rule."""
+	return frappe.website.utils.cleanup_page_name(text or "").replace("_", "-")
+
+
+def sanitize_route(route: str | None) -> str:
+	"""Normalize a client-supplied route into a safe `a/b/c` path.
+
+	Routes are author-editable, so they arrive with whatever was typed — leading
+	slashes, spaces, casing, empty segments. Each segment goes through the same
+	slug rule used to derive routes, so a hand-written route can never produce a
+	URL a derived one couldn't.
+	"""
+	if not route:
+		return ""
+	segments = (slugify_segment(segment) for segment in route.split("/"))
+	return "/".join(segment for segment in segments if segment)
+
+
 def is_top_level_group(parent_name: str | None) -> bool:
 	"""True when `parent_name` is a Wiki Space's root_group.
 
@@ -170,7 +189,7 @@ class WikiDocument(NestedSet):
 	def set_slug(self):
 		"""Ensure slug is set for route generation."""
 		if not self.slug:
-			self.slug = frappe.website.utils.cleanup_page_name(self.title).replace("_", "-")
+			self.slug = slugify_segment(self.title)
 
 	def set_sort_order_for_new_document(self):
 		"""Auto-assign sort_order for new documents to place them at the end of siblings."""
@@ -249,7 +268,7 @@ class WikiDocument(NestedSet):
 						route_parts.append(ancestor_slug)
 
 			# Add this document's slug
-			slug = self.slug or frappe.website.utils.cleanup_page_name(self.title).replace("_", "-")
+			slug = self.slug or slugify_segment(self.title)
 			route_parts.append(slug)
 
 			self.route = "/".join(route_parts)
