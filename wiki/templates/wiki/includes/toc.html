@@ -1,19 +1,24 @@
 <!-- Table of Contents (Right Sidebar) - Server-rendered for reliability -->
-<!-- Styling mirrors frappe-ui docs OnThisPage: a faint left rail per link, the
-     active heading darkening its own segment. Every link sits at the same
-     indent regardless of heading level — that's what keeps the "On this page"
-     label lined up with the rail on pages whose first heading is an h3. -->
-<aside id="wiki-toc" class="hidden lg:block flex-shrink-0 py-6 pr-6 {% if toc_headings and toc_headings|length > 0 %}w-56{% else %}w-0 !p-0{% endif %}">
+{#- Mirrors frappe-ui docs' OnThisPage (vitepress/components/Docs/OnThisPage.vue):
+    a faint left rail per link, the active heading darkening its own segment.
+
+    h3s are indented only when the page also has an h2 — that's the docs' own
+    `'pl-7': x.type == 'h3' && h2Exists` rule. On an all-h3 page every link
+    stays at pl-4, which is what keeps the "On this page" label lined up with
+    the rail. Indenting unconditionally misaligns the label; not indenting at
+    all throws away the hierarchy on mixed pages. -#}
+{% set has_h2 = toc_headings and (toc_headings | selectattr('level', 'equalto', 2) | list | length) > 0 %}
+<aside id="wiki-toc" class="hidden lg:block flex-shrink-0 py-6 pr-6 {% if toc_headings and toc_headings|length > 0 %}w-[200px]{% else %}w-0 !p-0{% endif %}">
 {% if toc_headings and toc_headings|length > 0 %}
     {# Sticks 24px under the chrome (navbar + tab row); see --wiki-chrome-h in main.css.
        Mirrored by the nav-store's SPA re-render in includes/sidebar.html — edit both. #}
     <nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">
         <!-- Transparent border keeps the label on the same left edge as the links. -->
-        <span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent text-[var(--ink-gray-9)]">On this page</span>
+        <span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>
         {% for heading in toc_headings %}
         <a href="#{{ heading.id }}"
            data-toc-link="{{ heading.id }}"
-           class="toc-link pl-4 py-1 border-l border-[var(--outline-gray-2)] text-[var(--ink-gray-6)] transition-colors duration-200 hover:text-[var(--ink-gray-9)]">
+           class="toc-link {{ 'pl-7' if heading.level >= 3 and has_h2 else 'pl-4' }} py-1 border-l border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">
             {{ heading.text }}
         </a>
         {% endfor %}

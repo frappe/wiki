@@ -284,13 +284,13 @@
 
                 if (!headings || headings.length === 0) {
                     tocContainer.innerHTML = '';
-                    tocContainer.classList.remove('w-56');
+                    tocContainer.classList.remove('w-[200px]');
                     tocContainer.classList.add('w-0', '!p-0');
                     return;
                 }
 
                 tocContainer.classList.remove('w-0', '!p-0');
-                tocContainer.classList.add('w-56');
+                tocContainer.classList.add('w-[200px]');
 
                 const escapeHtml = (str) => {
                     const div = document.createElement('div');
@@ -301,11 +301,15 @@
                 // Keep this markup identical to includes/toc.html — the two are
                 // the server-render / SPA-render halves of the same component.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent text-[var(--ink-gray-9)]">On this page</span>';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>';
+                // Same rule as the Jinja half: h3s only indent when the page
+                // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
+                const hasH2 = headings.some(heading => heading.level === 2);
                 headings.forEach(heading => {
                     const safeId = escapeHtml(heading.id);
                     const safeText = escapeHtml(heading.text);
-                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link pl-4 py-1 border-l border-[var(--outline-gray-2)] text-[var(--ink-gray-6)] transition-colors duration-200 hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
+                    const indent = heading.level >= 3 && hasH2 ? 'pl-7' : 'pl-4';
+                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-l border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
                 });
                 html += '</nav>';
                 tocContainer.innerHTML = html;
