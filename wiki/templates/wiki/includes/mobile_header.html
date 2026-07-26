@@ -56,9 +56,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[var(--ink-gray-5)] truncate max-w-32" x-text="activeTocText"></span>
-                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0" :class="tocOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
-                    </svg>
+                    <span class="inline-flex" :class="tocOpen ? 'rotate-180' : ''">{{ render_icon("chevron-down", "transition-transform duration-200 shrink-0") }}</span>
                 </div>
             </button>
 
@@ -151,9 +149,7 @@
                 <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
                         class="p-1.5 rounded hover:bg-[var(--surface-gray-2)] transition-colors duration-200 flex-shrink-0"
                         title="Switch wiki space">
-                    <svg class="w-4 h-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
-                    </svg>
+                    <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevrons-up-down", "text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
                 </button>
                 {% endif %}
             </div>
@@ -175,9 +171,7 @@
                    class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)] font-medium' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
                     <span class="truncate">{{ space.space_name }}</span>
                     {% if space.name == wiki_space.name %}
-                    <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
                     {% endif %}
                 </a>
                 {% endfor %}
@@ -214,9 +208,7 @@
                     <span class="truncate text-start">{{ tab.title }}</span>
                 </span>
                 {%- endfor %}
-                <svg class="size-4 shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': tabPickerOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
-                </svg>
+                <span class="inline-flex" :class="{ 'rotate-180': tabPickerOpen }">{{ render_icon("chevron-down", "shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
             </button>
 
             <div x-show="tabPickerOpen"
@@ -239,9 +231,7 @@
                         :class="{{ active_js }} ? 'bg-[var(--surface-gray-3)] text-[var(--ink-gray-8)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)]'">
                     {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
                     <span class="truncate text-start flex-1">{{ tab.title }}</span>
-                    <svg class="size-4 shrink-0 text-[var(--ink-gray-9)]" x-show="{{ active_js }}" x-cloak fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    <span class="inline-flex" x-show="{{ active_js }}">{{ render_icon("check", "shrink-0 text-[var(--ink-gray-9)]") }}</span>
                 </button>
                 {%- endfor %}
             </div>

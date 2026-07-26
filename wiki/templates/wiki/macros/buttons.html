@@ -39,9 +39,7 @@
                     aria-label="More page actions"
                     :aria-expanded="open"
                     class="{{ split_segment }} w-8 border-l border-[var(--outline-gray-2)] cursor-pointer">
-                <svg class="w-4 h-4 transition-transform duration-200" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
-                </svg>
+                <span class="inline-flex" :class="{ 'rotate-180': open }">{{ render_icon("chevron-down", "transition-transform duration-200") }}</span>
             </button>
         </div>
 
@@ -119,109 +117,44 @@
     {% endif %}
 {% endmacro %}
 
-{# Icon Renderer Helper #}
-{% macro render_icon(icon, extra_classes="") %}
-    {% set icon_base_classes = "w-4 h-4 " ~ extra_classes %}
+{# Icon Renderer Helper
 
-    {% if icon == "clipboard" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-    </svg>
-    {% elif icon == "check" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
-    </svg>
-    {% elif icon == "edit" or icon == "pencil" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-        <path d="m15 5 4 4"></path>
-    </svg>
-    {% elif icon == "sun" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2"></path>
-        <path d="M12 20v2"></path>
-        <path d="m4.93 4.93 1.41 1.41"></path>
-        <path d="m17.66 17.66 1.41 1.41"></path>
-        <path d="M2 12h2"></path>
-        <path d="M20 12h2"></path>
-        <path d="m6.34 17.66-1.41 1.41"></path>
-        <path d="m19.07 4.93-1.41 1.41"></path>
-    </svg>
-    {% elif icon == "arrow-down" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 5v14"></path>
-        <path d="m19 12-7 7-7-7"></path>
-    </svg>
-    {% elif icon == "arrow-up" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m5 12 7-7 7 7"></path>
-        <path d="M12 19V5"></path>
-    </svg>
-    {% elif icon == "file-text" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
-        <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
-        <path d="M10 9H8"></path>
-        <path d="M16 13H8"></path>
-        <path d="M16 17H8"></path>
-    </svg>
-    {% elif icon == "corner-down-left" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
-        <path d="m9 10-5 5 5 5"></path>
-    </svg>
-    {% elif icon == "command" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
-    </svg>
-    {% elif icon == "moon-star" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 5h4"></path>
-        <path d="M20 3v4"></path>
-        <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path>
-    </svg>
-    {% elif icon == "moon" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-    </svg>
-    {% elif icon == "chevron-left" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path>
-    </svg>
-    {% elif icon == "chevron-right" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
-    </svg>
-    {% elif icon == "menu" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path>
-    </svg>
-    {% elif icon == "x" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
-    </svg>
-    {% elif icon == "list" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-    </svg>
-    {% elif icon == "download" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"></path>
-    </svg>
-    {% elif icon == "loader" %}
-    <svg class="{{ icon_base_classes }}" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-20" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"></circle>
-        <path class="opacity-100" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v2a7 7 0 0 1 7 7z"></path>
-    </svg>
-    {% elif icon == "search" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-    </svg>
-    {% elif icon == "sparkles" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-    </svg>
+   Lucide icons come from the generated table (scripts/generate-public-lucide.mjs
+   -> wiki/lucide_icons.json), the same pack and the same 1.5 stroke the SPA and
+   the frappe-ui docs draw from. They used to be hand-copied SVGs here, which had
+   quietly drifted to Heroicons for several glyphs — the magnifier, hamburger,
+   check, list and clipboard were all a different shape from the docs'.
+
+   `edit` is an alias for lucide's `pencil`; brand marks below have no lucide
+   equivalent (the pack dropped them) so they stay inline.
+
+   Names here must also be listed in CHROME_ICONS in
+   scripts/generate-public-lucide.mjs, which is what puts them in the table. #}
+{% set LUCIDE_ICON_ALIASES = {"edit": "pencil"} %}
+{% set LUCIDE_CHROME_ICONS = [
+    "arrow-down", "arrow-left", "arrow-right", "arrow-up", "check",
+    "chevron-down", "chevron-left", "chevron-right", "chevrons-up-down",
+    "clipboard", "command", "corner-down-left", "download", "edit",
+    "external-link", "file-text", "list", "loader", "menu", "moon",
+    "moon-star", "panel-right-open", "pencil", "search", "sparkles", "sun", "x"
+] %}
+
+{% macro render_icon(icon, extra_classes="") %}
+    {#- The default w-4/h-4 only applies when the caller didn't size the icon
+        itself. Concatenating both used to let the default win at equal
+        specificity — `size-[18px]` next to `w-4 h-4` silently rendered 16px,
+        because Tailwind emits `w-*`/`h-*` after an arbitrary `size-*`. -#}
+    {% set sizing = namespace(given=false) %}
+    {% for cls in extra_classes.split() %}
+        {% if cls.startswith("size-") or cls.startswith("w-") or cls.startswith("h-") %}
+            {% set sizing.given = true %}
+        {% endif %}
+    {% endfor %}
+    {% set icon_base_classes = extra_classes if sizing.given else "w-4 h-4 " ~ extra_classes %}
+    {% set lucide_name = LUCIDE_ICON_ALIASES.get(icon, icon) %}
+
+    {% if icon in LUCIDE_CHROME_ICONS %}
+    {{ lucide_svg("lucide-" ~ lucide_name, icon_base_classes) | safe }}
     {% elif icon == "claude" %}
     <svg class="{{ icon_base_classes }}" viewBox="0 0 24 24" fill="currentColor">
         <path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.165-2.263-.134-.86-.06.144-.472.384-.124 1.116.068 2.01.128 2.322.152.986.062h.222l.058-.2-.238-.2-.632-.472-1.89-1.426-1.963-1.486-.663-.525.35-.36.426.074.636.496 1.58 1.21 1.89 1.436.695.516.174.058.082-.14-.066-.258-.324-1.142-.85-2.96-.42-1.418-.227-.81.465-.227.28.282.29.964.676 2.378.622 2.166.14.482.15.07.15-.14.014-.174-.07-.728-.228-2.47-.174-2.05-.072-.986.502-.035.238.366.086 1.332.106 1.578.15 2.324.12 1.31.032.174.168.08.14-.14.342-.59.884-1.546 1.22-2.11.46-.79.488.2.012.406-.354.638-1.01 1.79-1.17 2.086-.24.434-.008.182.214.104.166-.034.728-.298 2.286-.96 1.616-.676.614-.246.286.42-.12.402-.606.288-1.82.776-2.2.932-.566.244-.08.188.066.164.596.242 2.102.82 1.866.752.55.252-.09.494-.446.14-.744-.282-1.75-.686-2.052-.816-.506-.202-.198.002-.102.192.044.2.366.75 1.082 2.198.794 1.664.186.448-.33.338-.392-.068-.252-.504-.868-1.748-1.03-2.11-.216-.432-.128-.138-.186.034-.08.15.018.36.048.986.098 2.424.034 1.574-.006.446-.486.106-.256-.298-.06-.752-.128-2.33-.084-2.016-.026-.606-.012-.182-.17-.068-.14.128-.37.402-1.55 1.696-1.334 1.428-.658.69-.458-.172-.024-.446.51-.552 1.328-1.452 1.546-1.686.306-.336.048-.204-.166-.112-.238.054-.69.252-2.334.862-1.602.578-.612.202-.33-.372.11-.41.612-.252 2.126-.79 2.178-.804.366-.126.112-.172-.064-.172-.174-.06-.756-.156-2.358-.494-1.632-.35-.586-.144.054-.505.472-.09.786.148 2.08.416 1.958.396.538.11.186-.022.102-.17-.05-.212-.224-.504-.868-1.87-1.11-2.41-.28-.674.396-.282.384.128.21.44.948 2.022 1.088 2.362.21.456.124.154.17-.004.088-.122.058-.396.142-2.382.09-1.666.054-.62.495-.046.262.32.026.82.022 2.164-.006 2.146-.02.412.06.19.178.066.132-.112.268-.304 1.258-1.434 1.598-1.852.38-.44.466.14.064.416z"/>
@@ -238,32 +171,10 @@
     <svg class="{{ icon_base_classes }}" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v5.7c0 4.47-3.07 8.67-7 9.93-3.93-1.26-7-5.46-7-9.93V6.3l7-3.12zM12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z"/>
     </svg>
-    {% elif icon == "panel-right-open" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-        <path d="M15 3v18"></path>
-        <path d="m10 15-3-3 3-3"></path>
-    </svg>
-    {% elif icon == "external-link" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-        <polyline points="15 3 21 3 21 9"></polyline>
-        <line x1="10" y1="14" x2="21" y2="3"></line>
-    </svg>
     {% elif icon == "github" %}
     {# frappe-ui docs navbar GitHub mark (filled), copied as-is #}
     <svg class="{{ icon_base_classes }} fill-current" viewBox="0 0 16 16" aria-hidden="true">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
-    </svg>
-    {% elif icon == "arrow-left" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5" />
-        <path d="m12 19-7-7 7-7" />
-    </svg>
-    {% elif icon == "arrow-right" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M5 12h14" />
-        <path d="m12 5 7 7-7 7" />
     </svg>
     {% elif icon == "youtube" %}
     <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
