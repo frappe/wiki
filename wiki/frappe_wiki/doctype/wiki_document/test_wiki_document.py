@@ -1960,6 +1960,33 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 
 		self.assertEqual(space_response.status_code, 404)
 
+	def test_indexes_are_rebuilt_after_a_page_is_added(self):
+		"""The cached index must not outlive the wiki it describes."""
+		tree = self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		added = create_test_wiki_document(
+			self, "Added Later", parent=tree.space.root_group, slug=self._unique("added")
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.route}.md", body)
+
+		sitemap = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
+		self.assertIn(f"<loc>http://localhost:8000/{added.route}</loc>", sitemap)
+
+	def test_site_index_is_rebuilt_when_a_space_is_added(self):
+		self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		added = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", "/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.space.route}/llms.txt", body)
+
 	def test_sitemap_lists_public_wiki_routes_only(self):
 		public = self._space_with_tree()
 		restricted = self._space_with_tree(guest_readable=False)

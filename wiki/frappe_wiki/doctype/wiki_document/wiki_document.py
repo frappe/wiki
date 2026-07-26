@@ -962,8 +962,14 @@ def clear_wiki_tree_cache():
 	new space. Cleared again after commit to close the race where another
 	worker re-caches from pre-commit DB state.
 	"""
+	from wiki.wiki.crawler_cache import clear_crawler_cache
+
 	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
 	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+
+	# llms.txt and sitemap.xml are built from this same tree, so they go stale
+	# at exactly the same moments.
+	clear_crawler_cache()
 
 
 @frappe.whitelist()

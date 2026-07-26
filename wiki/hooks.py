@@ -129,6 +129,12 @@ doc_events = {
 		"on_update": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_update",
 		"on_trash": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_trash",
 	},
+	# A space's roles, route and publish state decide what the crawler indexes
+	# list, and none of them touch a Wiki Document.
+	"Wiki Space": {
+		"on_update": "wiki.wiki.crawler_cache.clear_crawler_cache",
+		"on_trash": "wiki.wiki.crawler_cache.clear_crawler_cache",
+	},
 }
 
 # Auto-prune the webhook delivery log (Frappe's daily log-clearing runs each

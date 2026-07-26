@@ -1,8 +1,11 @@
 # llms.txt, `.md` Page Endpoints, and Wiki Sitemap
 
 Date: 2026-07-26
-Status: **Spec'd, not implemented.** Branch: `feat/llms-txt`.
+Status: **Implemented — all five phases landed.** Branch: `feat/llms-txt`.
 Issue: [frappe/wiki#710](https://github.com/frappe/wiki/issues/710)
+
+See [Reconciliation](#reconciliation) for where the build differs from the plan
+below.
 
 ## Goal
 
@@ -297,6 +300,51 @@ curl -s http://wiki.localhost:8000/sitemap.xml | xmllint --noout -
 
 Then, logged out in a browser, confirm a restricted space appears in **none** of
 the three index/markdown surfaces.
+
+## Reconciliation
+
+What the implementation does differently, and why.
+
+1. **`.md` resolution order is reversed.** The spec tried the full path as a
+   document route *first*, which would have made a page legitimately routed
+   `foo.md` unreachable as HTML — its own URL would always serve markdown.
+   `CrawlerRenderer._match_markdown` now bails when a document exists at the
+   literal path (the reader keeps that URL), and only then strips the suffix.
+   That page's markdown lives at `foo.md.md`. Covered by
+   `test_page_routed_with_md_suffix_still_renders_html`.
+2. **No blockquote fallback, and no site blockquote at all.** `Website Settings`
+   has no `description` field (checked: it does not exist), so the site index
+   opens with the H1 and the usage line only. A space's blockquote is its
+   landing page's `meta_description` when set, and omitted otherwise — a
+   generated "Documentation for X" line is noise in a file whose whole point is
+   signal density. llmstxt.org makes the blockquote optional.
+3. **An empty index does not 404 — the route is not claimed.** `can_render`
+   builds the body and returns False when there is nothing to serve, so
+   `/llms.txt` and `/sitemap.xml` fall through to whatever the site had there
+   before. This is what keeps frappe's own sitemap working on a site with no
+   public wiki, and it replaces the "at least one Guest-readable space exists"
+   pre-check the spec described.
+4. **One cache key, not two.** Both indexes live in a single Redis hash
+   (`wiki_crawler_index`, in `wiki/wiki/crawler_cache.py`) keyed
+   `llms-txt:__site__` / `llms-txt:<space>` / `sitemap`, and are dropped
+   wholesale. Invalidation hangs off `clear_wiki_tree_cache` — which every
+   document write already calls — plus new `Wiki Space` `on_update`/`on_trash`
+   hooks, since a space's roles and publish state change the indexes without
+   touching a document. A miss is cached as an empty string so a crawler
+   hammering a dead route doesn't rebuild the answer each time.
+5. **Spaces with a deleted root group are skipped.** Walking a dangling tree
+   raises, and in an aggregate index one broken space would 500 the whole file.
+   Found while testing (a leftover space on the dev site did exactly this);
+   `test_site_llms_txt_survives_a_space_whose_root_group_is_gone` pins it.
+6. **Content types.** `llms.txt` is `text/plain` so a browser shows it in-tab
+   rather than downloading it; `sitemap.xml` is `application/xml`.
+7. **`Vary: Accept` goes on the HTML response too**, not just the negotiated
+   markdown one — the same URL has two representations, so every response from
+   it has to say what picked this one.
+8. **Cache-Control locally.** `frappe._dev_server` force-overwrites every
+   response with `no-store` (`frappe/app.py:process_response`), so the curl
+   checks below show `no-store` on a dev bench. The headers are asserted in the
+   tests instead, where that override doesn't apply.
 
 ## Deferred
 

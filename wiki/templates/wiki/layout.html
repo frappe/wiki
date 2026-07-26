@@ -12,6 +12,7 @@
     {% include "templates/includes/meta_block.html" %}
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">
+    <link rel="alternate" type="text/markdown" href="{{ canonical_url }}.md">
     {% endif %}
     {% if breadcrumbs %}
     <script type="application/ld+json">{{ breadcrumbs | safe }}</script>

@@ -18,6 +18,7 @@ from frappe.utils import get_url, nowdate
 from frappe.website.router import get_pages
 from frappe.www.sitemap import get_public_pages_from_doctypes
 
+from wiki.wiki.crawler_cache import SITEMAP, cached_index
 from wiki.wiki.llms_txt import public_spaces
 
 
@@ -27,6 +28,10 @@ def build_sitemap_xml() -> str | None:
 	Returning None leaves /sitemap.xml to the framework, so installing this app
 	on a site with no public wiki changes nothing.
 	"""
+	return cached_index(SITEMAP, _sitemap_xml)
+
+
+def _sitemap_xml() -> str | None:
 	wiki_links = _wiki_links()
 	if not wiki_links:
 		return None

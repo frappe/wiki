@@ -18,6 +18,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_public_wiki_tree,
 )
 from wiki.permissions import can_read_space
+from wiki.wiki.crawler_cache import SITE_LLMS_TXT, cached_index, space_llms_txt_key
 
 MARKDOWN_HINT = "Append `.md` to any URL below for that page's raw markdown source."
 
@@ -33,6 +34,10 @@ def build_site_llms_txt() -> str | None:
 	Returns None when the site has no such space, so the route can 404 instead
 	of publishing an empty index.
 	"""
+	return cached_index(SITE_LLMS_TXT, _site_llms_txt)
+
+
+def _site_llms_txt() -> str | None:
 	entries = []
 	for space in public_spaces():
 		landing = get_first_published_page(space.root_group)
@@ -81,6 +86,10 @@ def build_space_llms_txt(space: str) -> str | None:
 	sidebar tree — same source, so this index can never advertise a page the
 	reader doesn't show.
 	"""
+	return cached_index(space_llms_txt_key(space), lambda: _space_llms_txt(space))
+
+
+def _space_llms_txt(space: str) -> str | None:
 	space_doc = frappe.db.get_value(
 		"Wiki Space",
 		space,
