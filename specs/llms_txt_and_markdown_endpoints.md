@@ -341,7 +341,19 @@ What the implementation does differently, and why.
 7. **`Vary: Accept` goes on the HTML response too**, not just the negotiated
    markdown one — the same URL has two representations, so every response from
    it has to say what picked this one.
-8. **Cache-Control locally.** `frappe._dev_server` force-overwrites every
+8. **Group/space redirects check access first** (from review). The spec had the
+   `.md` redirect mirror `WikiDocumentRenderer` exactly — but that path resolves
+   and redirects *before* any permission check, so a restricted space's first
+   page route came back in the `Location` header. Both renderers now go through
+   `get_landing_page_for_route`, which gates on `can_read_space`. The reader's
+   HTML redirect had the same pre-existing leak and is fixed here too: gating
+   only `.md` would have left the identical route exposed one URL over.
+9. **Index text is escaped** (from review). Titles and `meta_description` are
+   editor-controlled free text: `]` in a title re-pointed a generated link, and
+   a newline in a description opened new list entries. Labels escape their
+   brackets, free text collapses to one line, external destinations are
+   angle-bracketed.
+10. **Cache-Control locally.** `frappe._dev_server` force-overwrites every
    response with `no-store` (`frappe/app.py:process_response`), so the curl
    checks below show `no-store` on a dev bench. The headers are asserted in the
    tests instead, where that override doesn't apply.
