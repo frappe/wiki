@@ -37,7 +37,7 @@
 						<h2 class="text-lg font-semibold text-ink-gray-8">
 							{{ __('Permissions') }}
 						</h2>
-						<Badge theme="orange" size="sm">
+						<Badge theme="violet" size="sm">
 							{{ __('Beta') }}
 						</Badge>
 						<Badge v-if="permissionsDirty" theme="orange" size="sm">
