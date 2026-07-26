@@ -78,9 +78,7 @@
 						<FormControl :label="__('Route')" type="text" :model-value="createRoute"
 							:placeholder="__('space/page-url')"
 							@update:model-value="handleCreateRouteInput" />
-						<p v-if="createRouteError" class="mt-1.5 text-xs text-ink-red-3">
-							{{ createRouteError }}
-						</p>
+						<ErrorMessage class="mt-1.5" :message="createRouteError" />
 					</div>
 					<div v-if="createIsTab">
 						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
@@ -267,7 +265,7 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { Dropdown, FormControl } from 'frappe-ui';
+import { Dropdown, ErrorMessage, FormControl } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import IconPicker from './IconPicker.vue';
 import SpaceIcon from './SpaceIcon.vue';
