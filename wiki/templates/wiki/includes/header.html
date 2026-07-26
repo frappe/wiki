@@ -1,9 +1,11 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-{#- No bottom border: frappe-ui docs lets the navbar sit flush on the page
-    surface. The tab row below keeps its rule, so the chrome still reads as one
-    band without stacking two hairlines. -#}
-<header class="hidden lg:flex items-center gap-3 py-3 px-6 bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]"
+{#- The bottom rule belongs to whichever row ends the chrome, so exactly one
+    hairline runs across the window and the sidebar's own border meets it
+    instead of starting in mid-air. With tabs that's the tab row (see
+    includes/tabs.html); without them it's this navbar. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<header class="hidden lg:flex items-center gap-3 py-3 px-6 bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]{% if not has_tabs %} border-b border-[var(--outline-gray-1)]{% endif %}"
         x-data>
     {#- Space logo + switcher. Lives here rather than in the sidebar's own
         header because the navbar now spans the full window: the sidebar starts
