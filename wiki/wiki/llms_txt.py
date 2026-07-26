@@ -34,7 +34,7 @@ def build_site_llms_txt() -> str | None:
 	of publishing an empty index.
 	"""
 	entries = []
-	for space in _public_spaces():
+	for space in public_spaces():
 		landing = get_first_published_page(space.root_group)
 		if not landing:
 			# No page to read: the space's own index would be empty too.
@@ -53,7 +53,7 @@ def build_site_llms_txt() -> str | None:
 	return "\n".join(lines) + "\n"
 
 
-def _public_spaces() -> list:
+def public_spaces() -> list:
 	"""Published spaces a Guest may read, in the order the space switcher lists them."""
 	spaces = frappe.get_all(
 		"Wiki Space",

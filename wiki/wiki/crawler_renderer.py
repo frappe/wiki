@@ -30,6 +30,7 @@ from wiki.permissions import can_read_space
 
 MARKDOWN_SUFFIX = ".md"
 LLMS_TXT = "llms.txt"
+SITEMAP_XML = "sitemap.xml"
 
 # Guest-only, published content with no per-user variation, so a shared cache
 # can hold it. Short enough that a newly published page shows up within the hour.
@@ -47,6 +48,11 @@ class CrawlerRenderer(BaseRenderer):
 
 		if self.path.endswith("/" + LLMS_TXT):
 			return self._match_space_llms_txt(self.path[: -len("/" + LLMS_TXT)])
+
+		if self.path == SITEMAP_XML:
+			from wiki.wiki.sitemap import build_sitemap_xml
+
+			return self._match_sitemap(build_sitemap_xml())
 
 		if self.path.endswith(MARKDOWN_SUFFIX):
 			return self._match_markdown()
@@ -82,6 +88,26 @@ class CrawlerRenderer(BaseRenderer):
 
 	def _render_index(self):
 		return _text_response(self.index_body)
+
+	# -- sitemap.xml ------------------------------------------------------
+
+	def _match_sitemap(self, body: str | None) -> bool:
+		"""Claim /sitemap.xml only when the wiki has routes to contribute.
+
+		A site with no public wiki keeps frappe's own sitemap page, so
+		installing this app never costs it its existing sitemap.
+		"""
+		if not body:
+			return False
+
+		self.index_body = body
+		self.handler = self._render_sitemap
+		return True
+
+	def _render_sitemap(self):
+		response = _text_response(self.index_body)
+		response.headers["Content-Type"] = "application/xml; charset=utf-8"
+		return response
 
 	# -- <route>.md -------------------------------------------------------
 

@@ -12,6 +12,7 @@ from threading import Thread
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -1958,6 +1959,31 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		space_response = _make_request(self.TEST_CLIENT, "get", f"/{orphan.route}/llms.txt")
 
 		self.assertEqual(space_response.status_code, 404)
+
+	def test_sitemap_lists_public_wiki_routes_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("xml", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		locations = re.findall(r"<loc>([^<]+)</loc>", body)
+
+		# Parses, and every entry is a page — not a group, a draft or a `.md` twin.
+		ElementTree.fromstring(body)
+		self.assertIn(f"http://localhost:8000/{public.intro.route}", locations)
+		self.assertIn(f"http://localhost:8000/{public.nested.route}", locations)
+		self.assertNotIn(f"http://localhost:8000/{public.draft.route}", locations)
+		self.assertNotIn(f"http://localhost:8000/{restricted.intro.route}", locations)
+		self.assertFalse([loc for loc in locations if loc.endswith(".md")])
+		self.assertNotIn(
+			f"http://localhost:8000/{public.nested_group.route}",
+			locations,
+			"groups are not served at their own route",
+		)
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
