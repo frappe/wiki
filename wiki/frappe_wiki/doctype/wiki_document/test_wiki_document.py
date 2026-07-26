@@ -21,6 +21,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
 	clear_wiki_content_cache,
+	clear_wiki_tree_cache,
 	download_pdf,
 	get_public_wiki_tree,
 	get_rendered_content,
@@ -1819,6 +1820,111 @@ class TestCrawlerEndpoints(WikiDocumentTestBase):
 		self.assertEqual(markdown.status_code, 200)
 		self.assertIn("text/markdown", markdown.headers.get("Content-Type", ""))
 		self.assertTrue(markdown.get_data(as_text=True).startswith("---\n"))
+
+
+class TestSpaceLlmsTxt(WikiDocumentTestBase):
+	"""Tests for the per-space /<space>/llms.txt index."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _space_with_tree(self, guest_readable=True):
+		"""A space with untabbed content, a tab, a nested group and a draft page."""
+		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
+		# The space comes first: `is_tab` validates against the space's root group.
+		space = create_test_wiki_space(
+			self,
+			"Llms Space",
+			self._unique("llms-space"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+
+		intro = create_test_wiki_document(
+			self, "Introduction", parent=root_group.name, slug=self._unique("intro")
+		)
+		intro.meta_description = "What this is."
+		intro.save()
+
+		tab = create_test_wiki_document(self, "API Reference", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		endpoints = create_test_wiki_document(
+			self, "Endpoints", parent=tab.name, slug=self._unique("endpoints")
+		)
+
+		nested_group = create_test_wiki_document(self, "Internals", parent=tab.name, is_group=True)
+		nested = create_test_wiki_document(
+			self, "Nested Page", parent=nested_group.name, slug=self._unique("nested")
+		)
+
+		draft = create_test_wiki_document(
+			self, "Draft Page", parent=root_group.name, slug=self._unique("draft")
+		)
+
+		frappe.db.set_value("Wiki Document", draft.name, "is_published", 0)
+		clear_wiki_tree_cache()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		return frappe._dict(
+			space=space,
+			intro=intro,
+			endpoints=endpoints,
+			nested=nested,
+			nested_group=nested_group,
+			draft=draft,
+		)
+
+	def test_space_llms_txt_mirrors_the_sidebar(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+		self.assertIn("public", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		lines = body.splitlines()
+
+		self.assertEqual(lines[0], "# Llms Space")
+		self.assertIn("> What this is.", lines)
+		self.assertIn("## Home", lines)
+		self.assertIn("## API Reference", lines)
+
+		# Untabbed top-level content lands under Home, tabbed content under its tab.
+		self.assertIn(f"- [Introduction](http://localhost:8000/{tree.intro.route}.md): What this is.", lines)
+		self.assertIn(f"- [Endpoints](http://localhost:8000/{tree.endpoints.route}.md)", lines)
+
+		# A group has no page of its own, so it is a label; its children indent under it.
+		self.assertIn("- **Internals**", lines)
+		self.assertIn(f"  - [Nested Page](http://localhost:8000/{tree.nested.route}.md)", lines)
+
+	def test_space_llms_txt_omits_unpublished_pages(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertNotIn("Draft Page", response.get_data(as_text=True))
+
+	def test_space_llms_txt_links_only_to_markdown(self):
+		tree = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		links = re.findall(r"\]\((http[^)]+)\)", body)
+		self.assertTrue(links)
+		for link in links:
+			self.assertTrue(link.endswith(".md"), f"{link} is not a markdown link")
+
+	def test_space_llms_txt_is_not_found_for_a_restricted_space(self):
+		tree = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 404)
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
