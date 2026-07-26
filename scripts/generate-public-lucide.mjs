@@ -12,7 +12,8 @@
  * beats shipping ~200KB of masked-background CSS on every request.
  *
  * Scope is the curated TAB_ICONS list the icon picker offers — the same list
- * that acts as the SPA's Tailwind safelist. Adding an icon there adds it here.
+ * that acts as the SPA's Tailwind safelist — plus CHROME_ICONS below, the
+ * fixed set the reader's own chrome draws (see macros/buttons.html).
  *
  * Input:  frontend/src/lib/tabIcons.js + frontend/node_modules/lucide-static
  * Output: wiki/lucide_icons.json
@@ -43,6 +44,45 @@ const classes = [...source.matchAll(/class:\s*'(lucide-[a-z0-9-]+)'/g)].map(
 // The fallback SpaceIcon.vue uses for a missing/unknown icon.
 const EXTRA = ['lucide-hash'];
 
+// Icons the reader's chrome draws itself — navbar, sidebar, search palette,
+// page actions. These were hand-copied SVGs before, and most of them had
+// drifted to Heroicons geometry (a circle-arc magnifier instead of lucide's
+// circle + stub, a 4-bar list instead of lucide's dotted one), so the reader
+// and the frappe-ui docs it mirrors drew visibly different icons. Generating
+// them from the same pack the SPA uses is the only way they stay identical.
+//
+// Brand marks (GitHub, Discord, X, …) are deliberately absent: lucide dropped
+// its brand icons, so those stay hand-written in macros/buttons.html — the
+// same thing frappe-ui's own docs navbar does with its GitHub mark.
+const CHROME_ICONS = [
+	'lucide-arrow-down',
+	'lucide-arrow-left',
+	'lucide-arrow-right',
+	'lucide-arrow-up',
+	'lucide-check',
+	'lucide-chevron-down',
+	'lucide-chevron-left',
+	'lucide-chevron-right',
+	'lucide-chevrons-up-down',
+	'lucide-clipboard',
+	'lucide-command',
+	'lucide-corner-down-left',
+	'lucide-download',
+	'lucide-external-link',
+	'lucide-file-text',
+	'lucide-list',
+	'lucide-loader',
+	'lucide-menu',
+	'lucide-moon',
+	'lucide-moon-star',
+	'lucide-panel-right-open',
+	'lucide-pencil',
+	'lucide-search',
+	'lucide-sparkles',
+	'lucide-sun',
+	'lucide-x',
+];
+
 // Only the inner markup is stored; wiki.utils.lucide_svg wraps it in an <svg>
 // carrying the caller's classes, so sizing stays a template concern.
 function innerMarkup(className) {
@@ -61,7 +101,9 @@ function innerMarkup(className) {
 }
 
 const table = {};
-for (const className of [...new Set([...classes, ...EXTRA])].sort()) {
+for (const className of [
+	...new Set([...classes, ...EXTRA, ...CHROME_ICONS]),
+].sort()) {
 	const inner = innerMarkup(className);
 	if (inner) table[className] = inner;
 }

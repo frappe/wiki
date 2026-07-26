@@ -1,11 +1,15 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
-{% from "templates/wiki/macros/buttons.html" import ghost_button_full, icon_button, render_icon %}
+{% from "templates/wiki/macros/buttons.html" import render_icon %}
 
 {#- The sidebar starts below the full-width navbar and tab rows, so `top` and
     height are offset by --wiki-chrome-h (set in layout.html). Its own logo
     header moved into includes/header.html for the same reason: there is no
     top-of-window strip left for it here. -#}
-<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-sidebar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
+{#- Keeps its right border: the current Frappe docs layout separates the tree
+    from the content with a hairline (`border-r` at the default outline-gray-1),
+    and without one a white sidebar on a white page has nothing to sit against.
+    The border width animates to 0 on collapse so no hairline is left behind. -#}
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
@@ -64,7 +68,7 @@
                 :class="$store.sidebar.isCollapsed ? 'opacity-100' : (hovered ? 'opacity-100 scale-100' : 'opacity-0 scale-75')">
             <svg class="w-4 h-4 text-[var(--ink-gray-4)] hover:text-[var(--ink-gray-6)] transition-colors duration-200"
                  :class="$store.sidebar.isCollapsed ? '' : 'rotate-180'"
-                 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m6 17 5-5-5-5"/>
                 <path d="m13 17 5-5-5-5"/>
             </svg>
@@ -282,13 +286,13 @@
 
                 if (!headings || headings.length === 0) {
                     tocContainer.innerHTML = '';
-                    tocContainer.classList.remove('w-56');
+                    tocContainer.classList.remove('w-[200px]');
                     tocContainer.classList.add('w-0', '!p-0');
                     return;
                 }
 
                 tocContainer.classList.remove('w-0', '!p-0');
-                tocContainer.classList.add('w-56');
+                tocContainer.classList.add('w-[200px]');
 
                 const escapeHtml = (str) => {
                     const div = document.createElement('div');
@@ -299,12 +303,15 @@
                 // Keep this markup identical to includes/toc.html — the two are
                 // the server-render / SPA-render halves of the same component.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent text-[var(--ink-gray-9)]">On this page</span>';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>';
+                // Same rule as the Jinja half: h3s only indent when the page
+                // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
+                const hasH2 = headings.some(heading => heading.level === 2);
                 headings.forEach(heading => {
                     const safeId = escapeHtml(heading.id);
                     const safeText = escapeHtml(heading.text);
-                    const indent = heading.level >= 3 ? 'pl-7' : 'pl-4';
-                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-l border-[var(--outline-gray-2)] text-[var(--ink-gray-6)] transition-colors duration-200 hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
+                    const indent = heading.level >= 3 && hasH2 ? 'pl-7' : 'pl-4';
+                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-l border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
                 });
                 html += '</nav>';
                 tocContainer.innerHTML = html;
@@ -332,8 +339,8 @@
                         .replaceAll("'", '&#39;');
                     const jsRoute = (route) => esc(JSON.stringify(route));
                     const navLinkClasses = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline";
-                    const arrowLeft = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>';
-                    const arrowRight = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
+                    const arrowLeft = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>';
+                    const arrowRight = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
                     html = '<div class="flex justify-between gap-5">';
 
                     if (prevDoc) {
@@ -348,12 +355,14 @@
                     }
 
                     if (nextDoc) {
-                        const mlClass = !prevDoc ? 'ml-auto' : '';
+                        // No margin utility for the lone-next case: the flex
+                        // container's justify-between leaves a single child at
+                        // the start, which is where it belongs.
                         html += `
                             <a href="/${esc(nextDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
-                               class="${navLinkClasses} ${mlClass}">
+                               class="${navLinkClasses}">
                                 <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}
                             </a>`;

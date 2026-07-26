@@ -79,7 +79,7 @@
 
         <!-- Page Content -->
         <!-- prose prose-v3 mirrors the SPA editor's EditorContent defaults -->
-        <div class="prose prose-v3 max-w-none scroll-smooth text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
+        <div class="prose prose-v3 max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
             {{ rendered_content | safe }}
         </div>
 
@@ -87,6 +87,11 @@
         <nav id="wiki-nav-buttons" class="mt-10">
             {% if prev_doc or next_doc %}
             {% set nav_link_classes = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline" %}
+            {#- justify-between alone: with both links they sit at the two ends,
+                and a lone next button falls back to the start rather than
+                hanging off the right edge. Same as frappe-ui docs'
+                PrevNextBtns, which adds no margin utility for that case.
+                Mirrored by updateNavButtons in includes/sidebar.html. -#}
             <div class="flex justify-between gap-5">
                 {% if prev_doc %}
                 <a href="/{{ prev_doc.route }}"
@@ -102,7 +107,7 @@
                 <a href="/{{ next_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
                    @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
-                   class="{{ nav_link_classes }} {{ 'ml-auto' if not prev_doc else '' }}">
+                   class="{{ nav_link_classes }}">
                     <span class="truncate">{{ next_doc.title }}</span>
                     {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
                 </a>

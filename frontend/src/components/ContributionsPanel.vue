@@ -1,10 +1,35 @@
 <template>
 	<div class="flex-1 overflow-auto px-3 pt-4 pb-4 sm:px-5 sm:pb-5">
+		<!-- First load: skeleton rows in the real List chrome, so the table's
+		     columns and row height don't shift when the data lands. -->
 		<div
 			v-if="resource.list.loading && !resource.data?.length"
-			class="flex items-center justify-center py-16"
+			class="min-w-[720px] sm:min-w-0"
 		>
-			<LoadingIndicator class="size-8" />
+			<List :columns="tracks" :row-height="40">
+				<ListHeader>
+					<ListHeaderCell
+						v-for="col in columns"
+						:key="col.key"
+						:class="col.align === 'right' ? 'justify-end' : ''"
+					>
+						{{ col.label }}
+					</ListHeaderCell>
+				</ListHeader>
+				<ListRow v-for="i in SKELETON_ROWS" :key="i">
+					<ListCell
+						v-for="col in columns"
+						:key="col.key"
+						:class="col.align === 'right' ? 'justify-end' : ''"
+					>
+						<Skeleton
+							class="h-4 rounded"
+							:class="skeletonWidth(col)"
+							:style="{ animationDelay: `${i * 60}ms` }"
+						/>
+					</ListCell>
+				</ListRow>
+			</List>
 		</div>
 		<template v-else>
 			<!-- The List family owns geometry only; empty states are app-authored. -->
@@ -107,7 +132,7 @@
 
 <script setup>
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
-import { Badge, Button, LoadingIndicator } from 'frappe-ui';
+import { Badge, Button, Skeleton } from 'frappe-ui';
 import {
 	List,
 	ListCell,
@@ -127,6 +152,25 @@ const props = defineProps({
 const emit = defineEmits(['assign']);
 
 const rows = computed(() => props.resource.data || []);
+
+const SKELETON_ROWS = 6;
+
+// Placeholder bars are sized per column kind so the loading table reads like
+// the real one rather than a block of identical grey lines.
+function skeletonWidth(col) {
+	switch (col.key) {
+		case 'title':
+			return 'w-3/4';
+		case 'status':
+			return 'w-16';
+		case 'assign':
+			return 'w-20';
+		case 'modified':
+			return 'w-24';
+		default:
+			return 'w-1/2';
+	}
+}
 
 // Numeric width = fr weight, string width = fixed track.
 const tracks = computed(() =>

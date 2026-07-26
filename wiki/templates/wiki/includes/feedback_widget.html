@@ -19,7 +19,7 @@
                     role="radio"
                     :aria-checked="feedbackType === '{{ reaction.type }}'"
                     aria-label="{{ reaction.type }}">
-                <svg class="w-4 h-4" :class="feedbackType === '{{ reaction.type }}' ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)]'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4" :class="feedbackType === '{{ reaction.type }}' ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)]'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     {{ reaction.mouth | safe }}
                     <line x1="9" y1="9" x2="9.01" y2="9"/>
@@ -60,7 +60,7 @@
                     </span>
                 </button>
                 <span x-show="submitted" class="flex items-center gap-1 text-xs-medium text-green-600">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9 12l2 2 4-4"/>
                     </svg>

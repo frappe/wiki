@@ -1,6 +1,11 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<header class="hidden lg:flex items-center gap-3 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]"
+{#- The bottom rule belongs to whichever row ends the chrome, so exactly one
+    hairline runs across the window and the sidebar's own border meets it
+    instead of starting in mid-air. With tabs that's the tab row (see
+    includes/tabs.html); without them it's this navbar. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<header class="hidden lg:flex items-center gap-3 py-3 px-6 bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]{% if not has_tabs %} border-b border-[var(--outline-gray-1)]{% endif %}"
         x-data>
     {#- Space logo + switcher. Lives here rather than in the sidebar's own
         header because the navbar now spans the full window: the sidebar starts
@@ -23,9 +28,7 @@
             <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
             {% endif %}
             <span class="ms-2 text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
-            <svg class="ms-2 size-4 shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+            <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevron-down", "ms-2  shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
         </button>
 
         <div x-show="spaceSwitcherOpen"
@@ -42,9 +45,7 @@
                class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
                 <span class="truncate">{{ space.space_name or space.name }}</span>
                 {% if space.name == wiki_space.name %}
-                <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
+                {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
                 {% endif %}
             </a>
             {% endfor %}
@@ -64,7 +65,7 @@
     <div class="flex w-full max-w-md justify-center px-2">
         <button @click="$dispatch('open-search')"
                 aria-label="Open search"
-                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
                 x-data="{ isMac: navigator.platform.includes('Mac') }">
             <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
                 {{ render_icon("search", "shrink-0") }}
@@ -72,7 +73,7 @@
             <span class="truncate text-start">Search documentation</span>
             <span class="absolute inset-y-0 end-0 flex items-center gap-1 pe-2.5 text-xs text-[var(--ink-gray-5)]">
                 <template x-if="isMac">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
                     </svg>
                 </template>
@@ -100,7 +101,7 @@
         {# Theme toggle — ghost icon button (sun when dark / moon-star when light) #}
         <button @click="$store.theme.toggle()"
                 aria-label="Toggle theme"
-                class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+                class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
             <template x-if="$store.theme.isDark">
                 {{ render_icon("sun", "shrink-0") }}
             </template>
@@ -116,7 +117,7 @@
                target="_blank" rel="noopener noreferrer"
                title="{{ item.label }}"
                aria-label="{{ item.label }}"
-               class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
+               class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
                 {{ render_icon(item.icon, "shrink-0") }}
             </a>
             {% endif %}
