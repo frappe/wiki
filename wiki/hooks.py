@@ -17,7 +17,12 @@ add_to_apps_screen = [
 	}
 ]
 
-page_renderer = "wiki.frappe_wiki.doctype.wiki_document.wiki_document.WikiDocumentRenderer"
+page_renderer = [
+	# Crawler routes (.md, llms.txt, sitemap.xml) resolve first — they take over
+	# paths that would otherwise fall through to the reader or the framework.
+	"wiki.wiki.crawler_renderer.CrawlerRenderer",
+	"wiki.frappe_wiki.doctype.wiki_document.wiki_document.WikiDocumentRenderer",
+]
 export_python_type_annotations = True
 
 # SQLite Search
@@ -123,6 +128,12 @@ doc_events = {
 	"Wiki Document": {
 		"on_update": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_update",
 		"on_trash": "wiki.frappe_wiki.doctype.wiki_document.wiki_document.on_wiki_document_trash",
+	},
+	# A space's roles, route and publish state decide what the crawler indexes
+	# list, and none of them touch a Wiki Document.
+	"Wiki Space": {
+		"on_update": "wiki.wiki.crawler_cache.clear_crawler_cache",
+		"on_trash": "wiki.wiki.crawler_cache.clear_crawler_cache",
 	},
 }
 

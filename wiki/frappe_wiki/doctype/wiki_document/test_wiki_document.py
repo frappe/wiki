@@ -11,7 +11,8 @@ import unittest
 from threading import Thread
 from types import SimpleNamespace
 from unittest.mock import patch
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
+from xml.etree import ElementTree
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -21,6 +22,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
 	clear_wiki_content_cache,
+	clear_wiki_tree_cache,
 	download_pdf,
 	get_public_wiki_tree,
 	get_rendered_content,
@@ -1593,6 +1595,11 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 
 
+def _sitemap_routes(xml: str) -> set:
+	"""Routes listed in a sitemap, without the host it was served under."""
+	return {urlparse(loc).path.lstrip("/") for loc in re.findall(r"<loc>([^<]+)</loc>", xml)}
+
+
 def _make_request(test_client, method, path, **kwargs):
 	"""Run a werkzeug test-client request in a thread (mirrors frappe test_api pattern)."""
 	site = frappe.local.site
@@ -1643,7 +1650,12 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
-		self.assertEqual(response.get_data(as_text=True), markdown_content)
+		self.assertEqual(response.headers.get("Vary"), "Accept")
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("---\n"))
+		self.assertIn('title: "Markdown Test Page"', body)
+		self.assertTrue(body.endswith(markdown_content))
 
 	def test_default_accept_returns_html(self):
 		"""Requesting a wiki page without Accept: text/markdown returns HTML."""
@@ -1719,6 +1731,345 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		content_type = response.headers.get("Content-Type", "")
 		self.assertIn("charset=utf-8", content_type)
+
+
+class TestCrawlerEndpoints(WikiDocumentTestBase):
+	"""Tests for the crawler-facing routes served by CrawlerRenderer."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _make_space(self, label, guest_readable=True, content="# Page\n\nBody text.", published=True):
+		"""A one-page space, returning (space, page)."""
+		root_group = create_test_wiki_document(self, f"Root {label}", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			f"Page {label}",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content=content,
+		)
+		space = create_test_wiki_space(
+			self,
+			f"Space {label}",
+			self._unique("crawl"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+		if not published:
+			frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return space, page
+
+	def test_md_route_returns_markdown_with_frontmatter(self):
+		_, page = self._make_space("MD Route", content="# Title\n\nSome **body**.")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
+		self.assertIn("private", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertIn(f'title: "{page.title}"', body)
+		self.assertIn(f'/{page.route}"', body)
+		self.assertTrue(body.endswith("# Title\n\nSome **body**."))
+
+	def test_md_route_for_unpublished_page_is_not_found(self):
+		_, page = self._make_space("MD Unpublished", published=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_md_route_in_restricted_space_is_not_found_for_guest(self):
+		_, page = self._make_space("MD Restricted", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_space_md_route_redirects_to_first_page_markdown(self):
+		space, page = self._make_space("MD Space Redirect")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 301)
+		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
+
+	def test_space_md_route_does_not_leak_a_restricted_first_page(self):
+		"""The redirect must not name a private route to a visitor who can't read it."""
+		space, page = self._make_space("MD Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
+	def test_space_html_route_does_not_leak_a_restricted_first_page(self):
+		"""Same for the reader's own redirect, which shares the resolver."""
+		space, page = self._make_space("HTML Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
+	def test_page_routed_with_md_suffix_still_renders_html(self):
+		"""A page legitimately slugged "<name>.md" keeps its own URL as HTML."""
+		root_group = create_test_wiki_document(self, "Root MD Slug", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Literal MD Page",
+			parent=root_group.name,
+			slug=self._unique("readme") + ".md",
+			content="# Literal",
+		)
+		create_test_wiki_space(
+			self, "MD Slug Space", self._unique("crawl"), root_group.name, roles=[("Guest", "Read")]
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}")
+
+		self.assertEqual(response.status_code, 200)
+		# Content-Type is guessed from the ".md" path by frappe's build_response,
+		# so the body is what tells the two representations apart here.
+		self.assertTrue(response.get_data(as_text=True).lstrip().startswith("<!DOCTYPE html"))
+
+		markdown = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(markdown.status_code, 200)
+		self.assertIn("text/markdown", markdown.headers.get("Content-Type", ""))
+		self.assertTrue(markdown.get_data(as_text=True).startswith("---\n"))
+
+
+class TestSpaceLlmsTxt(WikiDocumentTestBase):
+	"""Tests for the per-space /<space>/llms.txt index."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def assertEntry(self, lines, route, prefix, suffix=""):
+		"""Assert one list entry links to `route` and has the expected shape.
+
+		The absolute URLs in these files carry whatever host the request ran
+		against — `localhost` in CI, `localhost:8000` on a dev bench — so the
+		entry is found by route and only its ends are asserted.
+		"""
+		matches = [line for line in lines if f"/{route}.md)" in line]
+		self.assertEqual(len(matches), 1, f"expected exactly one entry for {route}, got {matches}")
+		entry = matches[0]
+		self.assertTrue(entry.startswith(prefix), f"{entry!r} does not start with {prefix!r}")
+		self.assertTrue(entry.endswith(suffix), f"{entry!r} does not end with {suffix!r}")
+
+	def _space_with_tree(self, guest_readable=True):
+		"""A space with untabbed content, a tab, a nested group and a draft page."""
+		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
+		# The space comes first: `is_tab` validates against the space's root group.
+		space = create_test_wiki_space(
+			self,
+			"Llms Space",
+			self._unique("llms-space"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+
+		intro = create_test_wiki_document(
+			self, "Introduction", parent=root_group.name, slug=self._unique("intro")
+		)
+		intro.meta_description = "What this is."
+		intro.save()
+
+		tab = create_test_wiki_document(self, "API Reference", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		endpoints = create_test_wiki_document(
+			self, "Endpoints", parent=tab.name, slug=self._unique("endpoints")
+		)
+
+		nested_group = create_test_wiki_document(self, "Internals", parent=tab.name, is_group=True)
+		nested = create_test_wiki_document(
+			self, "Nested Page", parent=nested_group.name, slug=self._unique("nested")
+		)
+
+		draft = create_test_wiki_document(
+			self, "Draft Page", parent=root_group.name, slug=self._unique("draft")
+		)
+
+		frappe.db.set_value("Wiki Document", draft.name, "is_published", 0)
+		clear_wiki_tree_cache()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		return frappe._dict(
+			space=space,
+			intro=intro,
+			endpoints=endpoints,
+			nested=nested,
+			nested_group=nested_group,
+			draft=draft,
+		)
+
+	def test_space_llms_txt_mirrors_the_sidebar(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+		self.assertIn("public", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		lines = body.splitlines()
+
+		self.assertEqual(lines[0], "# Llms Space")
+		self.assertIn("> What this is.", lines)
+		self.assertIn("## Home", lines)
+		self.assertIn("## API Reference", lines)
+
+		# Untabbed top-level content lands under Home, tabbed content under its tab.
+		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
+		self.assertEntry(lines, tree.endpoints.route, "- [Endpoints](", ")")
+
+		# A group has no page of its own, so it is a label; its children indent under it.
+		self.assertIn("- **Internals**", lines)
+		self.assertEntry(lines, tree.nested.route, "  - [Nested Page](", ")")
+
+	def test_space_llms_txt_omits_unpublished_pages(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertNotIn("Draft Page", response.get_data(as_text=True))
+
+	def test_space_llms_txt_links_only_to_markdown(self):
+		tree = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		links = re.findall(r"\]\((http[^)]+)\)", body)
+		self.assertTrue(links)
+		for link in links:
+			self.assertTrue(link.endswith(".md"), f"{link} is not a markdown link")
+
+	def test_space_llms_txt_escapes_editor_controlled_text(self):
+		"""A title or description is free text; it must not rewrite the index."""
+		tree = self._space_with_tree()
+
+		hostile = create_test_wiki_document(
+			self,
+			"Click ](https://evil.example) here",
+			parent=tree.space.root_group,
+			slug=self._unique("hostile"),
+		)
+		hostile.meta_description = "First line\n- [Injected](https://evil.example/inject.md)"
+		hostile.save()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		self.assertEntry(body.splitlines(), hostile.route, "- [Click \\](https://evil.example) here](")
+		self.assertIn("Click \\](https://evil.example) here", body)
+		# The multiline description collapses instead of becoming its own entry.
+		self.assertNotIn("\n- [Injected]", body)
+		for line in body.splitlines():
+			self.assertFalse(line.startswith("- [Injected]"))
+
+	def test_space_llms_txt_is_not_found_for_a_restricted_space(self):
+		tree = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_site_llms_txt_lists_public_spaces_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("# "))
+		self.assertIn("## Spaces", body)
+		self.assertIn(f"/{public.space.route}/llms.txt)", body)
+		self.assertNotIn(f"/{restricted.space.route}/llms.txt", body)
+
+	def test_site_llms_txt_survives_a_space_whose_root_group_is_gone(self):
+		"""One broken space must not take the whole site index down."""
+		public = self._space_with_tree()
+		orphan = create_test_wiki_space(
+			self, "Orphan Space", self._unique("orphan"), None, roles=[("Guest", "Read")]
+		)
+		frappe.db.set_value("Wiki Space", orphan.name, "root_group", self._unique("gone"))
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn(f"/{public.space.route}/llms.txt", response.get_data(as_text=True))
+
+		space_response = _make_request(self.TEST_CLIENT, "get", f"/{orphan.route}/llms.txt")
+
+		self.assertEqual(space_response.status_code, 404)
+
+	def test_indexes_are_rebuilt_after_a_page_is_added(self):
+		"""The cached index must not outlive the wiki it describes."""
+		tree = self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		added = create_test_wiki_document(
+			self, "Added Later", parent=tree.space.root_group, slug=self._unique("added")
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.route}.md", body)
+
+		sitemap = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
+		self.assertIn(added.route, _sitemap_routes(sitemap))
+
+	def test_site_index_is_rebuilt_when_a_space_is_added(self):
+		self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		added = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", "/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.space.route}/llms.txt", body)
+
+	def test_sitemap_lists_public_wiki_routes_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("xml", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		routes = _sitemap_routes(body)
+
+		# Parses, and every entry is a page — not a group, a draft or a `.md` twin.
+		ElementTree.fromstring(body)
+		self.assertIn(public.intro.route, routes)
+		self.assertIn(public.nested.route, routes)
+		self.assertNotIn(public.draft.route, routes)
+		self.assertNotIn(restricted.intro.route, routes)
+		self.assertFalse([route for route in routes if route.endswith(".md")])
+		self.assertNotIn(
+			public.nested_group.route,
+			routes,
+			"groups are not served at their own route",
+		)
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):

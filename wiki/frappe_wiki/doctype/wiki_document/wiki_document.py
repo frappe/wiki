@@ -27,6 +27,11 @@ WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
 # Kept in sync with GENERAL_KEY in frontend/src/lib/spaceTabs.js.
 WIKI_HOME_TAB_KEY = "__general__"
 
+# Markdown is served under the page's own permissions, so a shared cache must
+# never hold it -- the same URL yields 404 for a reader without space access.
+# Mirrors what frappe serves the HTML page (frappe/website/utils.py cache_html).
+MARKDOWN_CACHE_CONTROL = "private, max-age=300, stale-while-revalidate=10800"
+
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
 	"github.com": "github",
@@ -533,6 +538,32 @@ class WikiDocument(NestedSet):
 			"itemListElement": [space_item, current_item],
 		}
 
+	def as_markdown(self) -> str:
+		"""The page's markdown source with a YAML frontmatter header.
+
+		Shared by the `.md` route and the `Accept: text/markdown` branch so the
+		two representations of a page can never drift.
+
+		Values are serialised with json.dumps -- a JSON string is also a valid
+		YAML double-quoted scalar, so quotes and newlines escape correctly
+		instead of breaking the header.
+		"""
+		space = self.get_wiki_space()
+		frontmatter = {
+			"title": self.meta_title or self.title,
+			"description": self.meta_description,
+			"space": space.get("space_name") if space else None,
+			"url": frappe.utils.get_url("/" + self.route) if self.route else None,
+			"updated": frappe.utils.get_datetime(self.modified).strftime("%Y-%m-%d")
+			if self.modified
+			else None,
+		}
+		lines = [f"{key}: {json.dumps(value)}" for key, value in frontmatter.items() if value]
+		if not lines:
+			return self.content or ""
+
+		return "---\n" + "\n".join(lines) + "\n---\n\n" + (self.content or "")
+
 	def before_print(self, print_settings=None):
 		"""Render markdown content so the print format can drop it in as HTML."""
 		self.rendered_content_for_pdf = render_markdown(self.content or "")
@@ -600,17 +631,12 @@ class WikiDocumentRenderer(BaseRenderer):
 			self.wiki_doc_name = leaf
 			return True
 
-		# A group / Wiki Space route with no page of its own: redirect to first child.
-		root_group = frappe.db.get_value(
-			"Wiki Document", {"route": self.path, "is_group": 1}, "name"
-		) or frappe.db.get_value("Wiki Space", {"route": self.path, "is_published": 1}, "root_group")
-
-		# Redirect to the first page in sidebar order (sort_order at each level),
-		# so the space URL lands on the same document the sidebar shows first.
-		if root_group:
-			first_page = get_first_published_page(root_group)
-			if first_page:
-				frappe.redirect("/" + first_page["route"])
+		# A group / Wiki Space route with no page of its own: redirect to the first
+		# page in sidebar order (sort_order at each level), so the space URL lands
+		# on the same document the sidebar shows first.
+		first_page = get_landing_page_for_route(self.path)
+		if first_page:
+			frappe.redirect("/" + first_page["route"])
 
 		return False
 
@@ -622,9 +648,8 @@ class WikiDocumentRenderer(BaseRenderer):
 		if "text/markdown" in accept:
 			doc.check_space_access("read")
 			doc.check_published()
-			response = Response()
-			response.data = doc.content or ""
-			response.headers["Content-Type"] = "text/markdown; charset=utf-8"
+			response = build_markdown_response(doc)
+			response.headers["Vary"] = "Accept"
 			return response
 
 		context = doc.get_web_context()
@@ -635,7 +660,27 @@ class WikiDocumentRenderer(BaseRenderer):
 		context["csrf_token"] = csrf_token
 
 		html = frappe.render_template("templates/wiki/document.html", context)
-		return self.build_response(html)
+		response = self.build_response(html)
+		# This URL has two representations, so every response from it -- HTML
+		# included -- has to tell caches which header picked this one.
+		response.headers["Vary"] = "Accept"
+		return response
+
+
+def build_markdown_response(doc) -> Response:
+	"""A raw werkzeug markdown response for a Wiki Document.
+
+	Raw rather than build_response: that attaches X-Page-Name and asset-preload
+	headers, which mean nothing on plain text (same reasoning as
+	wiki/api/og_image.py).
+
+	Callers are responsible for the access checks -- this only formats.
+	"""
+	response = Response()
+	response.data = doc.as_markdown()
+	response.headers["Content-Type"] = "text/markdown; charset=utf-8"
+	response.headers["Cache-Control"] = MARKDOWN_CACHE_CONTROL
+	return response
 
 
 def build_nested_wiki_tree(documents: list[str]):
@@ -759,6 +804,37 @@ def clear_wiki_content_cache(doc_name: str | None = None):
 	else:
 		cache.delete_value(WIKI_CONTENT_CACHE_KEY)
 		frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_CONTENT_CACHE_KEY))
+
+
+def get_landing_page_for_route(route: str) -> dict | None:
+	"""The page a group / Wiki Space route should redirect to, for this user.
+
+	Returns None when the caller may not read the owning space. The check has to
+	happen *before* the redirect: a Location header naming the space's first
+	page would hand a private route to a visitor who is then 404'd when they
+	follow it.
+	"""
+	from wiki.permissions import can_read_space
+
+	group = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_group": 1}, ["name", "wiki_space"], as_dict=True
+	)
+	if group:
+		root_group, space = group.name, group.wiki_space
+	else:
+		space_doc = frappe.db.get_value(
+			"Wiki Space", {"route": route, "is_published": 1}, ["name", "root_group"], as_dict=True
+		)
+		if not space_doc:
+			return None
+		root_group, space = space_doc.root_group, space_doc.name
+
+	# An orphan group belongs to no space and stays readable by all, matching
+	# check_space_access.
+	if space and not can_read_space(space):
+		return None
+
+	return get_first_published_page(root_group) if root_group else None
 
 
 def get_first_published_page(root_group: str) -> dict | None:
@@ -912,8 +988,14 @@ def clear_wiki_tree_cache():
 	new space. Cleared again after commit to close the race where another
 	worker re-caches from pre-commit DB state.
 	"""
+	from wiki.wiki.crawler_cache import clear_crawler_cache
+
 	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
 	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+
+	# llms.txt and sitemap.xml are built from this same tree, so they go stale
+	# at exactly the same moments.
+	clear_crawler_cache()
 
 
 @frappe.whitelist()
