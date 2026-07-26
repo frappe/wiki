@@ -1,15 +1,7 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
-				<div
-					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-					@click="openRouteDialog"
-				>
-					<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
-					<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-				</div>
-
+			<div class="flex min-h-12 shrink-0 items-center justify-end gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
 				<div class="flex shrink-0 items-center gap-2">
 					<Button
 						variant="solid"
@@ -30,18 +22,29 @@
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-8">
-							<input
-								type="text"
-								v-model="editableTitle"
-								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-								:placeholder="__('Page title')"
-								@blur="saveTitleIfChanged"
-								@keydown.enter="$event.target.blur()"
-							/>
-							<div class="mt-1.5 flex items-center gap-2">
-								<Badge variant="subtle" theme="blue" size="sm">
-									{{ __('Draft') }}
-								</Badge>
+							<div class="flex items-start gap-3">
+								<input
+									type="text"
+									v-model="editableTitle"
+									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									:placeholder="__('Page title')"
+									@blur="saveTitleIfChanged"
+									@keydown.enter="$event.target.blur()"
+								/>
+								<div class="flex shrink-0 items-center gap-2 pt-2">
+									<Badge variant="subtle" theme="blue" size="sm">
+										{{ __('Draft') }}
+									</Badge>
+								</div>
+							</div>
+
+							<!-- Route under the title; click to edit. -->
+							<div
+								class="mt-2 flex w-fit items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
+								@click="openRouteDialog"
+							>
+								<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
+								<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 							</div>
 						</div>
 					</template>
@@ -50,17 +53,27 @@
 
 			<div v-else class="flex-1 flex flex-col overflow-auto">
 				<div class="mx-auto w-full max-w-[770px] px-6 pt-8">
-					<input
-						type="text"
-						v-model="editableTitle"
-						class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-						:placeholder="__('Group name')"
-						@blur="saveTitleIfChanged"
-						@keydown.enter="$event.target.blur()"
-					/>
-					<div class="mt-1.5 flex items-center gap-2">
-						<Badge variant="subtle" theme="blue" size="sm">{{ __('Draft') }}</Badge>
-						<Badge variant="subtle" theme="gray" size="sm">{{ __('Group') }}</Badge>
+					<div class="flex items-start gap-3">
+						<input
+							type="text"
+							v-model="editableTitle"
+							class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+							:placeholder="__('Group name')"
+							@blur="saveTitleIfChanged"
+							@keydown.enter="$event.target.blur()"
+						/>
+						<div class="flex shrink-0 items-center gap-2 pt-2">
+							<Badge variant="subtle" theme="blue" size="sm">{{ __('Draft') }}</Badge>
+							<Badge variant="subtle" theme="gray" size="sm">{{ __('Group') }}</Badge>
+						</div>
+					</div>
+
+					<div
+						class="mt-2 flex w-fit items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
+						@click="openRouteDialog"
+					>
+						<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
+						<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 					</div>
 				</div>
 				<div class="flex-1 flex items-center justify-center text-ink-gray-5">
