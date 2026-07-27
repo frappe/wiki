@@ -1,5 +1,36 @@
+// highlight.js is ~160 KB and most doc pages have no code at all, so the bundle
+// is fetched the first time a page actually contains a code block rather than on
+// every page load. The URL (hashed for cache-busting) rides in on this script's
+// own data attribute; it has to be read at load time, because document.currentScript
+// is null by the time SPA navigation calls initCodeBlocks() again.
+const HIGHLIGHT_SRC = document.currentScript && document.currentScript.dataset.highlightSrc;
+let highlightLoad = null;
+
+function loadHighlighter() {
+    if (window.hljs || !HIGHLIGHT_SRC) return Promise.resolve();
+
+    if (!highlightLoad) {
+        highlightLoad = new Promise(function(resolve) {
+            const script = document.createElement('script');
+            script.src = HIGHLIGHT_SRC;
+            // Resolve either way: a failed highlighter should leave plain,
+            // readable <pre> blocks, not an unenhanced page.
+            script.onload = resolve;
+            script.onerror = resolve;
+            document.head.appendChild(script);
+        });
+    }
+
+    return highlightLoad;
+}
+
 // Initialize syntax highlighting and code block enhancements
 function initCodeBlocks() {
+    if (!document.querySelector('pre > code')) return;
+    return loadHighlighter().then(enhanceCodeBlocks);
+}
+
+function enhanceCodeBlocks() {
     // Record the authored language before highlight.js auto-detection adds its
     // own language-* class, so the label mirrors the editor ("auto" when unset).
     document.querySelectorAll('pre > code').forEach(function(codeBlock) {

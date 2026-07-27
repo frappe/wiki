@@ -114,16 +114,17 @@
              class="min-w-[45rem] max-w-[60vw] max-h-[80vh] object-contain cursor-zoom-out max-[768px]:min-w-[100vw]" />
     </div>
 
-    <!-- Wiki-owned highlight.js (highlight.js/lib/common — same language set as
-         the frappe-ui editor), so the public reader tokenises 1-1 with the
-         editor and the shared frappe-ui-code.css theme. Must load before
-         code-blocks.js, which calls window.hljs.highlightAll(). -->
-    {#- Deferred, not bare: none of these paint anything, and highlight.js alone
-        is ~160 KB of parser blocking first paint. `defer` preserves execution
-        order and still runs everything before DOMContentLoaded, which is what
-        code-blocks.js and mermaid-renderer.js hang off. -#}
-    <script defer src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
-    <script defer src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
+    {#- Deferred, not bare: none of these paint anything, and `defer` still runs
+        everything before DOMContentLoaded, which is what code-blocks.js and
+        mermaid-renderer.js hang off.
+
+        wiki-highlight.bundle.js has no tag of its own — code-blocks.js fetches it
+        from data-highlight-src the first time a page actually has a code block.
+        It's the wiki-owned build of highlight.js/lib/common, the same language
+        set as the frappe-ui editor, so the reader tokenises 1-1 with the editor
+        and the shared frappe-ui-code.css theme. -#}
+    <script defer src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"
+            data-highlight-src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
     <script defer src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
     <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
     <script defer src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
