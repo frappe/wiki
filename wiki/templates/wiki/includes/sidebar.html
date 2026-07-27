@@ -134,6 +134,34 @@
                 });
                 // Set initial state (preserve hash for TOC anchor links)
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
+                this.delegateRowEvents();
+            },
+
+            // One delegated pair for every tree row, rather than @click and
+            // @mouseenter attributes repeated on each of them -- the tree
+            // renders twice per page and runs to hundreds of rows on a large
+            // space. Group toggles and external links are excluded: neither
+            // carries data-route on a .wiki-link.
+            delegateRowEvents() {
+                const rowFor = (event) => event.target.closest?.('.wiki-link[data-route]');
+
+                document.addEventListener('click', (event) => {
+                    const row = rowFor(event);
+                    if (!row) return;
+                    event.preventDefault();
+                    this.navigateTo(row.dataset.route);
+                });
+
+                // mouseover bubbles where mouseenter doesn't, so it's the one
+                // that can be delegated; tracking the last row keeps it firing
+                // once per row entry rather than on every pointer move.
+                let hovered = null;
+                document.addEventListener('mouseover', (event) => {
+                    const row = rowFor(event);
+                    if (row === hovered) return;
+                    hovered = row;
+                    if (row) this.prefetch(row.dataset.route);
+                });
             },
 
             // Move the active-row marker. The server renders aria-current on the
@@ -175,8 +203,15 @@
                 return !routesStr.split('|').some((route) => this.inTab(route));
             },
 
+            // Routes with a prefetch already in the air. The cache alone can't
+            // deduplicate: delegated mouseover fires more often than the
+            // per-row mouseenter it replaced, so a second hover can arrive
+            // before the first response lands.
+            prefetchInFlight: {},
+
             async prefetch(route) {
-                if (route === this.currentRoute || this.prefetchCache[route]) return;
+                if (route === this.currentRoute || this.prefetchCache[route] || this.prefetchInFlight[route]) return;
+                this.prefetchInFlight[route] = true;
 
                 try {
                     const response = await fetch('/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_page_data', {
@@ -193,6 +228,8 @@
                     }
                 } catch (e) {
                     // Silently fail - prefetch is just an optimization
+                } finally {
+                    delete this.prefetchInFlight[route];
                 }
             },
 

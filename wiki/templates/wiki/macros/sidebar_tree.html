@@ -51,17 +51,13 @@
                             </svg>
                         </a>
                     {% else %}
-                        {# Page/leaf item #}
-                        {# node.route is editor-set free text; tojson keeps it a
-                           safe JS string literal in these Alpine expressions. #}
-                        {# Active state is a server-rendered aria-current that the
-                           navigation store moves on SPA nav (markActiveRow), and
-                           CSS styles off. Binding it per node instead cost two
-                           Alpine expressions on every row -- ~1,400 of them on a
-                           large space, all recomputing the same comparison. #}
+                        {# Page/leaf item. Carries no Alpine of its own: navigation
+                           and prefetch are delegated off data-route (see
+                           delegateRowEvents), and the active state is a
+                           server-rendered aria-current the store moves on SPA nav
+                           (markActiveRow) and CSS styles. Bound per node instead,
+                           the four expressions here came to ~1,700 bytes a row. #}
                         <a href="/{{ node.route }}"
-                           @click.prevent="$store.navigation.navigateTo({{ node.route | tojson | forceescape }})"
-                           @mouseenter="$store.navigation.prefetch({{ node.route | tojson | forceescape }})"
                            class="wiki-item-content wiki-link {{ row }}"
                            {% if node.route == current_route %}aria-current="page"{% endif %}
                            title="{{ node.title }}"
