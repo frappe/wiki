@@ -77,6 +77,66 @@ body {
   }
 }
 
+/* ---------- Sidebar tree rows ----------
+   One row of the reader's navigation tree. The tree is rendered twice per page
+   (mobile sheet, then desktop rail) and a large space runs to hundreds of
+   nodes, so on docs.frappe.io the repeated utility string alone came to ~105 KB
+   of markup. Presentation lives here; the template keeps only the class names.
+
+   @layer components, not @utility: these are multi-property component classes,
+   so utilities still win when a caller needs to override one. */
+@layer components {
+  .wiki-row {
+    @apply w-full flex items-center px-2 text-[var(--ink-gray-7)] transition-colors duration-200;
+  }
+
+  /* Row geometry. `dense` is the desktop rail; the mobile sheet uses the taller
+     variant so each row is a real touch target rather than a 28px line. */
+  .wiki-row-dense {
+    @apply h-7 rounded;
+  }
+
+  .wiki-row-roomy {
+    @apply h-11 rounded-md;
+  }
+
+  /* Keyed off the element rather than an extra class -- a row is a <button>
+     when it toggles a group and an <a> when it navigates. */
+  .wiki-row:where(a) {
+    @apply no-underline;
+  }
+
+  .wiki-row:where(button) {
+    @apply cursor-pointer;
+  }
+
+  /* Opt-in: leaf links still take their hover from an Alpine binding, which
+     has to stay off while the row is the current page. */
+  .wiki-row-hover:hover {
+    @apply bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)];
+  }
+
+  .wiki-row .wiki-title {
+    @apply truncate;
+  }
+
+  .wiki-row-dense .wiki-title {
+    @apply text-sm;
+  }
+
+  .wiki-row-roomy .wiki-title {
+    @apply text-md;
+  }
+
+  .wiki-row-dense:where(button) .wiki-title {
+    @apply text-sm-medium;
+  }
+
+  .wiki-row-roomy:where(button) .wiki-title {
+    @apply text-md font-medium;
+  }
+}
+
 /* Reader-specific prose tweaks. Typography itself (sizes, headings, links,
    inline code, blockquotes, hr) comes from frappe-ui-prose.css. */
 .prose {
