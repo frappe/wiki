@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.website.utils import delete_page_cache
 
 
 class WikiSettings(Document):
@@ -22,6 +23,15 @@ class WikiSettings(Document):
 		head_html: DF.Code | None
 		javascript: DF.Code | None
 	# end: auto-generated types
+
+	def on_update(self):
+		"""Drop the cached reader pages -- most of these settings are baked into them.
+
+		head_html, javascript, the TOC toggle and the feedback switch all change
+		markup that the page cache is holding verbatim.
+		"""
+		delete_page_cache()
+		frappe.db.after_commit.add(delete_page_cache)
 
 
 @frappe.whitelist()

@@ -17,8 +17,10 @@ from xml.etree import ElementTree
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
+from frappe.website.utils import WEBSITE_PAGE_CACHE_PREFIX, delete_page_cache
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	CSRF_TOKEN_PLACEHOLDER,
 	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
 	clear_wiki_content_cache,
@@ -416,7 +418,9 @@ class TestGetWebContextMetaTags(WikiDocumentTestBase):
 		metatags = context["metatags"]
 
 		self.assertEqual(metatags["title"], "Fallback Meta Doc")
-		self.assertNotIn("description", metatags)
+		# No meta_description, so the body stands in for one rather than the page
+		# shipping without any description at all.
+		self.assertEqual(metatags["description"], "Content for Fallback Meta Doc")
 		self.assertNotIn("image", metatags)
 		self.assertNotIn("og:image", metatags)
 		self.assertEqual(metatags["twitter:card"], "summary")
@@ -1593,6 +1597,105 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		page.before_print()
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
+
+
+class TestReaderPageCache(WikiDocumentTestBase):
+	"""The reader's HTML cache -- what gets stored, who it's served to, when it drops.
+
+	can_cache() is patched on throughout: it refuses to cache under
+	developer_mode, which is exactly how a test bench runs.
+	"""
+
+	TEST_CLIENT = get_test_client()
+	CACHE_MODULE = "wiki.frappe_wiki.doctype.wiki_document.wiki_document.can_cache"
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def setUp(self):
+		delete_page_cache()
+
+	def _guest_readable_doc(self, prefix):
+		route = self._unique(prefix)
+		space = create_test_wiki_space(self, "Page Cache Space", route, None, roles=[("Guest", "Read")])
+		doc = create_test_wiki_document(
+			self,
+			"Page Cache Doc",
+			parent=space.root_group,
+			slug=self._unique("page-cache-doc"),
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return doc
+
+	def _get(self, route):
+		return _make_request(self.TEST_CLIENT, "get", f"/{route}", headers={"Accept": "text/html"})
+
+	def _cache_entry(self, route):
+		return frappe.cache.get_value(f"{WEBSITE_PAGE_CACHE_PREFIX}{route}")
+
+	def test_second_guest_request_is_served_from_cache(self):
+		doc = self._guest_readable_doc("page-cache")
+
+		with patch(self.CACHE_MODULE, return_value=True):
+			first = self._get(doc.route)
+			second = self._get(doc.route)
+
+		self.assertEqual(first.status_code, 200)
+		self.assertEqual(first.headers.get("X-From-Cache"), "False")
+		self.assertEqual(second.headers.get("X-From-Cache"), "True")
+		self.assertEqual(
+			second.headers.get("Cache-Control"),
+			"private,max-age=300,stale-while-revalidate=10800",
+		)
+		# Byte-identical except the CSRF token, which is substituted per request
+		# precisely so the cached copy can be shared.
+		token = re.compile(r"window\.CSRF_TOKEN = '[^']*'")
+		self.assertEqual(
+			token.sub("", first.get_data(as_text=True)),
+			token.sub("", second.get_data(as_text=True)),
+		)
+		self.assertNotEqual(first.get_data(as_text=True), second.get_data(as_text=True))
+
+	def test_cache_holds_a_placeholder_never_a_real_csrf_token(self):
+		doc = self._guest_readable_doc("page-cache-csrf")
+
+		with patch(self.CACHE_MODULE, return_value=True):
+			response = self._get(doc.route)
+
+		stored = self._cache_entry(doc.route)
+		self.assertIsNotNone(stored, "guest render should have been cached")
+		self.assertIn(CSRF_TOKEN_PLACEHOLDER, next(iter(stored.values())))
+
+		# The visitor gets a substituted token, not the placeholder.
+		html = response.get_data(as_text=True)
+		self.assertNotIn(CSRF_TOKEN_PLACEHOLDER, html)
+		self.assertRegex(html, r"window\.CSRF_TOKEN = '[^']+'")
+
+	def test_signed_in_render_is_never_stored(self):
+		"""The page carries the viewer's Edit button, so only anonymous renders are shared."""
+		doc = self._guest_readable_doc("page-cache-user")
+		renderer = WikiDocumentRenderer(path=doc.route)
+
+		frappe.set_user("Administrator")
+		try:
+			with patch(self.CACHE_MODULE, return_value=True):
+				html = renderer.get_html(frappe.get_cached_doc("Wiki Document", doc.name))
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn(CSRF_TOKEN_PLACEHOLDER, html)
+		self.assertIsNone(self._cache_entry(doc.route))
+
+	def test_tree_change_drops_every_cached_page(self):
+		"""Each cached page embeds the sidebar tree, so a tree change stales all of them."""
+		doc = self._guest_readable_doc("page-cache-tree")
+
+		with patch(self.CACHE_MODULE, return_value=True):
+			self._get(doc.route)
+
+		self.assertIsNotNone(self._cache_entry(doc.route))
+		clear_wiki_tree_cache()
+		self.assertIsNone(self._cache_entry(doc.route))
 
 
 def _sitemap_routes(xml: str) -> set:

@@ -10,6 +10,7 @@ from frappe.utils import pretty_date
 from frappe.utils.nestedset import NestedSet, get_descendants_of
 from frappe.utils.print_utils import get_print
 from frappe.website.page_renderers.base_renderer import BaseRenderer
+from frappe.website.utils import WEBSITE_PAGE_CACHE_PREFIX, can_cache, delete_page_cache
 from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
@@ -31,6 +32,15 @@ WIKI_HOME_TAB_KEY = "__general__"
 # never hold it -- the same URL yields 404 for a reader without space access.
 # Mirrors what frappe serves the HTML page (frappe/website/utils.py cache_html).
 MARKDOWN_CACHE_CONTROL = "private, max-age=300, stale-while-revalidate=10800"
+
+# Opting the reader page out of frappe's blanket no-store default (see
+# process_response in frappe/app.py) -- the same value cache_html sets.
+PAGE_CACHE_HEADERS = {"Cache-Control": "private,max-age=300,stale-while-revalidate=10800"}
+
+# Stands in for the visitor's CSRF token inside cached HTML. Deliberately not an
+# HTML comment: it lands inside a <script> string literal, where `<!--` would be
+# parsed as a comment opener.
+CSRF_TOKEN_PLACEHOLDER = "__wiki_csrf_token__"
 
 # Mapping of known service domains to icon identifiers
 KNOWN_SERVICE_ICONS = {
@@ -672,19 +682,59 @@ class WikiDocumentRenderer(BaseRenderer):
 			response.headers["Vary"] = "Accept"
 			return response
 
-		context = doc.get_web_context()
+		html = self.get_html(doc)
 
+		# Substituted after the cache lookup, never rendered into the cached HTML:
+		# the token belongs to this visitor's session, so a stored copy would hand
+		# it to everyone else who hits the same route.
 		csrf_token = frappe.sessions.get_csrf_token()
 		frappe.db.commit()  # nosemgrep
+		html = html.replace(CSRF_TOKEN_PLACEHOLDER, csrf_token)
 
-		context["csrf_token"] = csrf_token
-
-		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)
 		# This URL has two representations, so every response from it -- HTML
 		# included -- has to tell caches which header picked this one.
 		response.headers["Vary"] = "Accept"
 		return response
+
+	def get_html(self, doc) -> str:
+		"""Render the reader page, reading from and writing to frappe's page cache.
+
+		Without this every request rebuilds the whole page -- sidebar tree, space
+		switcher, TOC -- and frappe's default `no-store` header (see
+		process_response in frappe/app.py) stops the browser from reusing it,
+		which also disqualifies the page from the back/forward cache.
+
+		Only anonymous renders are stored. The key is the route alone, and the
+		page carries the visitor's Edit button, so caching a signed-in render
+		would show one editor's chrome to every reader. Guests are safe to share:
+		they all resolve the same space permissions, and an unauthorized Guest
+		throws out of get_web_context before anything is written.
+
+		The key format matches frappe's own, so delete_page_cache and
+		clear_cache(route) drop these entries too.
+		"""
+		cache_key = f"{WEBSITE_PAGE_CACHE_PREFIX}{self.path}"
+		cacheable = frappe.session.user == "Guest" and can_cache()
+
+		if cacheable:
+			cached = (frappe.cache.get_value(cache_key) or {}).get(frappe.local.lang)
+			if cached:
+				frappe.local.response.from_cache = True
+				frappe.local.response_headers.update(PAGE_CACHE_HEADERS)
+				return cached
+
+		context = doc.get_web_context()
+		context["csrf_token"] = CSRF_TOKEN_PLACEHOLDER
+		html = frappe.render_template("templates/wiki/document.html", context)
+
+		if cacheable:
+			page_cache = frappe.cache.get_value(cache_key) or {}
+			page_cache[frappe.local.lang] = html
+			frappe.cache.set_value(cache_key, page_cache, expires_in_sec=30 * 60)
+			frappe.local.response_headers.update(PAGE_CACHE_HEADERS)
+
+		return html
 
 
 def build_markdown_response(doc) -> Response:
@@ -1012,6 +1062,13 @@ def clear_wiki_tree_cache():
 
 	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
 	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+
+	# Every cached reader page embeds a copy of the tree in its sidebar, so a
+	# stale tree means stale pages. Dropped wholesale for the same reason the
+	# tree itself is: a title change or a move restyles pages this document has
+	# no way to enumerate.
+	delete_page_cache()
+	frappe.db.after_commit.add(delete_page_cache)
 
 	# llms.txt and sitemap.xml are built from this same tree, so they go stale
 	# at exactly the same moments.
