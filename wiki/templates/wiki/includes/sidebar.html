@@ -136,6 +136,26 @@
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
             },
 
+            // Move the active-row marker. The server renders aria-current on the
+            // matching row for the first paint; binding it per node instead
+            // meant one Alpine effect per row -- on a large space that is
+            // hundreds of expressions all recomputing the same comparison, in
+            // both copies of the tree. Styling hangs off the attribute in CSS.
+            markActiveRow(route) {
+                document.querySelectorAll('.wiki-link[data-route]').forEach((el) => {
+                    if (el.dataset.route === route) {
+                        el.setAttribute('aria-current', 'page');
+                    } else {
+                        el.removeAttribute('aria-current');
+                    }
+                });
+            },
+
+            setCurrentRoute(route) {
+                this.currentRoute = route;
+                this.markActiveRow(route);
+            },
+
             // Whether the current page lives under a tab. A tab's slug is
             // always an ancestor segment of its pages' routes, so this is a
             // prefix test — and because it reads currentRoute, both the tab
@@ -182,7 +202,7 @@
                 // Check prefetch cache first
                 if (this.prefetchCache[route]) {
                     this.updateContent(this.prefetchCache[route]);
-                    this.currentRoute = route;
+                    this.setCurrentRoute(route);
                     if (pushState) {
                         history.pushState({ route }, '', '/' + route);
                     }
@@ -204,7 +224,7 @@
 
                     if (data.message) {
                         this.updateContent(data.message);
-                        this.currentRoute = route;
+                        this.setCurrentRoute(route);
                         if (pushState) {
                             history.pushState({ route }, '', '/' + route);
                         }

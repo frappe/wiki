@@ -14,7 +14,7 @@
                 <li class="wiki-item {{ 'is-group' if node.is_group else 'is-page' }}">
                     {% if node.is_group %}
                         {# Group/folder item #}
-                        <button class="wiki-item-content {{ row }} wiki-row-hover"
+                        <button class="wiki-item-content {{ row }}"
                                 @click="toggleNode('{{ node.name }}')"
                                 :aria-expanded="isExpanded('{{ node.name }}')"
                                 aria-controls="{{ node.name }}-children"
@@ -40,7 +40,7 @@
                         <a href="{{ node.external_url }}"
                            target="_blank"
                            rel="noopener noreferrer"
-                           class="wiki-item-content wiki-link wiki-external-link {{ row }} wiki-row-hover"
+                           class="wiki-item-content wiki-link wiki-external-link {{ row }}"
                            title="{{ node.title }}">
                             <span class="wiki-title {{ 'pl-5' if level == 0 else '' }}">{{ node.title }}</span>
                             {# External link icon right next to text #}
@@ -54,12 +54,16 @@
                         {# Page/leaf item #}
                         {# node.route is editor-set free text; tojson keeps it a
                            safe JS string literal in these Alpine expressions. #}
+                        {# Active state is a server-rendered aria-current that the
+                           navigation store moves on SPA nav (markActiveRow), and
+                           CSS styles off. Binding it per node instead cost two
+                           Alpine expressions on every row -- ~1,400 of them on a
+                           large space, all recomputing the same comparison. #}
                         <a href="/{{ node.route }}"
                            @click.prevent="$store.navigation.navigateTo({{ node.route | tojson | forceescape }})"
                            @mouseenter="$store.navigation.prefetch({{ node.route | tojson | forceescape }})"
                            class="wiki-item-content wiki-link {{ row }}"
-                           :class="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)]' : 'hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-8)]'"
-                           :aria-current="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'page' : false"
+                           {% if node.route == current_route %}aria-current="page"{% endif %}
                            title="{{ node.title }}"
                            data-route="{{ node.route }}"
                            data-node-id="{{ node.name }}">

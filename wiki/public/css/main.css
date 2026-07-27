@@ -110,9 +110,15 @@ body {
     @apply cursor-pointer;
   }
 
-  /* Opt-in: leaf links still take their hover from an Alpine binding, which
-     has to stay off while the row is the current page. */
-  .wiki-row-hover:hover {
+  /* The current page. Server-rendered on first paint, then moved by the
+     navigation store on SPA nav -- see markActiveRow in sidebar.html. */
+  .wiki-row[aria-current='page'] {
+    @apply bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)];
+  }
+
+  /* Everything but the current row highlights on hover, which is what the old
+     per-node :class ternary encoded. */
+  .wiki-row:not([aria-current='page']):hover {
     @apply bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)];
   }
 
