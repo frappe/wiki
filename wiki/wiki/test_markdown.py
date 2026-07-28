@@ -771,5 +771,96 @@ class TestTocHeadingText(unittest.TestCase):
 		self.assertEqual(self._texts("## Normal Heading\n"), ["Normal Heading"])
 
 
+class TestBlankLinePreservation(unittest.TestCase):
+	"""
+	prose-v3 zeroes paragraph margins, so author blank lines carry the spacing.
+	Counts mirror the editor: a gap of `g` blank lines yields `(g + 1) // 2 - 1`
+	blank paragraphs, or `g // 2` at the start of the document.
+	"""
+
+	def _gaps(self, content):
+		return render_markdown(content).count('class="wiki-blank-line"')
+
+	def test_single_blank_line_is_a_plain_paragraph_break(self):
+		"""The ordinary paragraph separator must not grow a gap."""
+		result = render_markdown("a\n\nb")
+		self.assertNotIn("wiki-blank-line", result)
+		self.assertIn("<p>a</p>\n<p>b</p>", result)
+
+	def test_extra_blank_lines_become_blank_paragraphs(self):
+		self.assertEqual(self._gaps("a\n\n\nb"), 0)
+		self.assertEqual(self._gaps("a\n\n\n\nb"), 1)
+		self.assertEqual(self._gaps("a\n\n\n\n\nb"), 1)
+		self.assertEqual(self._gaps("a\n\n\n\n\n\nb"), 2)
+
+	def test_gap_after_list(self):
+		"""Regression: markdown-it folds trailing blank lines into the list's map,
+		so the gap has to be measured from the *next* block backwards."""
+		self.assertEqual(self._gaps("- a\n- b\n\n\n\n\np"), 1)
+
+	def test_gap_after_other_block_types(self):
+		self.assertEqual(self._gaps("> quoted\n\n\n\nafter"), 1)
+		self.assertEqual(self._gaps("```\ncode\n```\n\n\n\nafter"), 1)
+		self.assertEqual(self._gaps("---\n\n\n\nafter"), 1)
+		self.assertEqual(self._gaps("| a | b |\n| - | - |\n| 1 | 2 |\n\n\n\nafter"), 1)
+		self.assertEqual(self._gaps("## Heading\n\n\n\nafter"), 1)
+		self.assertEqual(self._gaps("<div>raw</div>\n\n\n\nafter"), 1)
+
+	def test_blank_lines_inside_a_fence_are_untouched(self):
+		result = render_markdown("```\ncode\n\nmore\n```")
+		self.assertNotIn("wiki-blank-line", result)
+		self.assertIn("<pre><code>code\n\nmore\n</code></pre>", result)
+
+	def test_blank_lines_inside_a_table_are_untouched(self):
+		content = "| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |"
+		self.assertEqual(self._gaps(content), 0)
+
+	def test_callout_does_not_inflate_neighbouring_gaps(self):
+		"""Placeholder substitution used to pad with \\n\\n on both sides."""
+		self.assertEqual(self._gaps("before\n\n:::note\nhi\n:::\n\nafter"), 0)
+		self.assertEqual(self._gaps("before\n\n\n\n:::note\nhi\n:::\n\n\n\nafter"), 2)
+
+	def test_video_does_not_inflate_neighbouring_gaps(self):
+		before = "before\n\n![clip](/files/a.mp4)\n\nafter"
+		wide = "before\n\n\n\n![clip](/files/a.mp4)\n\n\n\nafter"
+		self.assertEqual(self._gaps(before), 0)
+		self.assertEqual(self._gaps(wide), 2)
+		self.assertIn("<video", render_markdown(before))
+
+	def test_pdf_does_not_inflate_neighbouring_gaps(self):
+		before = "before\n\n![doc](/files/a.pdf)\n\nafter"
+		wide = "before\n\n\n\n![doc](/files/a.pdf)\n\n\n\nafter"
+		self.assertEqual(self._gaps(before), 0)
+		self.assertEqual(self._gaps(wide), 2)
+		self.assertIn("wiki-pdf-embed", render_markdown(before))
+
+	def test_leading_blank_lines(self):
+		self.assertEqual(self._gaps("\n\ntext"), 1)
+		self.assertEqual(self._gaps("\ntext"), 0)
+
+	def test_trailing_blank_lines_are_dropped(self):
+		"""No block to anchor to, and git-synced files often end in stray newlines."""
+		self.assertEqual(self._gaps("text\n\n\n\n"), 0)
+
+	def test_toc_is_unaffected(self):
+		html, headings = render_markdown_with_toc("## A\n\n\n\ntext\n\n## B")
+		self.assertEqual([h["text"] for h in headings], ["A", "B"])
+		self.assertIn('<h2 id="a">A</h2>', html)
+		self.assertIn('<h2 id="b">B</h2>', html)
+		self.assertEqual(html.count('class="wiki-blank-line"'), 1)
+
+	def test_footnote_definitions_do_not_orphan_a_gap(self):
+		"""footnote_tail moves definitions to the end; a gap anchored there would
+		leave a blank paragraph stranded mid-document."""
+		content = "text[^1]\n\n\n\nmore\n\n\n\n[^1]: the note"
+		html = render_markdown(content)
+		self.assertEqual(html.count('class="wiki-blank-line"'), 1)
+		self.assertIn("footnote", html)
+
+	def test_soft_break_renders_as_line_break(self):
+		"""Matches the editor's marked({ breaks: true })."""
+		self.assertIn("<br", render_markdown("line one\nline two"))
+
+
 if __name__ == "__main__":
 	unittest.main()
