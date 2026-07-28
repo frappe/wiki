@@ -85,6 +85,14 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Blank lines the author left between blocks. prose-v3 zeroes paragraph margins,
+   so vertical rhythm is carried by empty paragraphs; markdown.py materialises
+   them as <p class="wiki-blank-line"><br></p>. 20px matches the SPA read-only
+   editor's empty-paragraph line-height (frappe-ui TextEditor/style.css). */
+.prose .wiki-blank-line {
+  line-height: 20px;
+}
+
 /* Code block shell + hljs theme come from frappe-ui-code.css; the reader
    only anchors its own toolbar overlay and scrolls long lines. */
 .prose pre {

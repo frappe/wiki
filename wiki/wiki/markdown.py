@@ -17,6 +17,7 @@ import re
 
 from markdown_it import MarkdownIt
 from markdown_it.common.utils import escapeHtml
+from markdown_it.token import Token
 from mdit_py_plugins.footnote import footnote_plugin
 from mdit_py_plugins.tasklists import tasklists_plugin
 
@@ -95,6 +96,22 @@ def _generate_callout_html(callout_type, title, inner_html):
 	)
 
 
+def _standalone_block(match: "re.Match", body: str) -> str:
+	"""
+	Wrap `body` in just enough newlines to stand alone as a block, without changing
+	the blank-line gap the author wrote around the replaced text.
+
+	Returning an unconditional "\\n\\n{body}\\n\\n" would inflate every gap adjacent to
+	a callout/video/PDF by two newlines, which _blank_line_rule then materialises as
+	a phantom empty paragraph on each side.
+	"""
+	src = match.string
+	before, after = src[: match.start()], src[match.end() :]
+	lead = "" if (not before or before.endswith("\n\n")) else ("\n" if before.endswith("\n") else "\n\n")
+	trail = "" if (not after or after.startswith("\n\n")) else ("\n" if after.startswith("\n") else "\n\n")
+	return lead + body + trail
+
+
 def _process_callouts_with_placeholders(content):
 	"""
 	Replace callout blocks with placeholders, returning the modified content
@@ -120,7 +137,7 @@ def _process_callouts_with_placeholders(content):
 				"content": inner_content.strip(),
 			}
 		)
-		return f"\n\n{placeholder_prefix}{idx}END\n\n"
+		return _standalone_block(match, f"{placeholder_prefix}{idx}END")
 
 	# Process callouts (may be nested, so we process iteratively)
 	prev_content = None
@@ -233,7 +250,7 @@ def _process_videos_with_placeholders(content: str) -> tuple[str, list[dict], st
 				"title": match.group("title") or "",
 			}
 		)
-		return f"\n\n{placeholder_prefix}{idx}END\n\n"
+		return _standalone_block(match, f"{placeholder_prefix}{idx}END")
 
 	return VIDEO_MARKDOWN_PATTERN.sub(replacer, content), videos, placeholder_prefix
 
@@ -315,7 +332,7 @@ def _process_pdfs_with_placeholders(content: str) -> tuple[str, list[dict], str]
 
 		idx = len(pdfs)
 		pdfs.append({"url": url, "filename": match.group("alt") or ""})
-		return f"\n\n{placeholder_prefix}{idx}END\n\n"
+		return _standalone_block(match, f"{placeholder_prefix}{idx}END")
 
 	return VIDEO_MARKDOWN_PATTERN.sub(replacer, content), pdfs, placeholder_prefix
 
@@ -387,10 +404,84 @@ def _escape_table_inline_code_pipes(content: str) -> str:
 	return "\n".join(lines)
 
 
+BLANK_LINE_TOKEN = "wiki_blank_line"
+
+# Block types after which a gap is ignored. Empty on purpose: marked (the editor's
+# parser) swallows trailing newlines after headings, tables, HTML blocks, indented
+# code and callouts, so the editor shows no gap there — but the blank lines are in
+# the stored markdown, so we render them. Populate this to mirror marked instead.
+_GAP_SUPPRESSING_PREV_BLOCKS: frozenset[str] = frozenset()
+
+# Footnote definitions are relocated to the end of the document by the plugin's
+# `footnote_tail` core rule, so a gap measured at their original position would
+# leave an orphaned blank paragraph behind. Never anchor a gap to them.
+_GAP_ANCHOR_SKIP = frozenset({"footnote_reference_open", "footnote_block_open"})
+
+
+def _blank_line_rule(state) -> None:
+	"""
+	Materialise author-typed blank lines between top-level blocks.
+
+	CommonMark discards runs of blank lines, but `.prose-v3` sets `p { margin: 0 }` —
+	blank lines *are* the spacing mechanism, and the editor models them as empty
+	paragraphs. Mirror @tiptap/markdown's arithmetic: a gap of `g` blank lines yields
+	`(g + 1) // 2 - 1` empty paragraphs (g=1,2 -> 0; g=3,4 -> 1; g=5 -> 2), and `g // 2`
+	at the start of the document, where the run has no leading newline.
+
+	Gaps are measured by scanning `state.src` backwards from the block's first line,
+	never from the previous token's `map[1]`: markdown-it folds trailing blank lines
+	into a list's map, so `map[1]` under-reports.
+
+	Out of scope, deliberately: blank lines nested inside list items and blockquotes
+	(markdown-it exposes no container-relative line map) and trailing blank lines at
+	the end of a document (they have no block to anchor to, and every git-synced file
+	ending in a stray newline would gain a dead band).
+	"""
+	lines = state.src.split("\n")
+
+	def is_blank(index: int) -> bool:
+		return 0 <= index < len(lines) and not lines[index].strip()
+
+	tokens = []
+	prev_type = None
+	for token in state.tokens:
+		# Opening/self-closing top-level blocks only: closing tokens carry no map, and
+		# nested tokens (list items, table cells, tight-list paragraphs) are level > 0.
+		is_anchor = (
+			token.level == 0
+			and token.map
+			and token.nesting >= 0
+			and token.type not in _GAP_ANCHOR_SKIP
+			and prev_type not in _GAP_SUPPRESSING_PREV_BLOCKS
+		)
+		if is_anchor:
+			line = token.map[0] - 1
+			gap = 0
+			while is_blank(line):
+				gap += 1
+				line -= 1
+			count = gap // 2 if line < 0 else (gap + 1) // 2 - 1
+			for _ in range(max(count, 0)):
+				blank = Token(BLANK_LINE_TOKEN, "", 0)
+				blank.block = True
+				tokens.append(blank)
+		if token.level == 0 and token.nesting >= 0:
+			prev_type = token.type
+		tokens.append(token)
+
+	state.tokens = tokens
+
+
+def _render_blank_line(tokens, idx, options, env) -> str:
+	# An empty <p> collapses to zero height under `p { margin: 0 }`; the <br> gives it
+	# a line box even where the stylesheet never loads (PDF export).
+	return '<p class="wiki-blank-line" aria-hidden="true"><br></p>\n'
+
+
 def _build_markdown() -> MarkdownIt:
 	"""Build a configured markdown-it-py instance with our render overrides."""
 	md = (
-		MarkdownIt("commonmark", {"html": True, "linkify": False, "typographer": False})
+		MarkdownIt("commonmark", {"html": True, "breaks": True, "linkify": False, "typographer": False})
 		.enable(["table", "strikethrough"])
 		.use(footnote_plugin)
 		.use(tasklists_plugin, enabled=True)
@@ -443,6 +534,12 @@ def _build_markdown() -> MarkdownIt:
 		return s + " />"
 
 	md.renderer.rules["image"] = image_render
+
+	# after("block"): tokens and their line maps exist, `state.src` is already
+	# normalized (CRLF collapsed, so it lines up with the maps), and we still run
+	# before the footnote plugin's `footnote_tail`, which reorders the token stream.
+	md.core.ruler.after("block", "wiki_blank_lines", _blank_line_rule)
+	md.renderer.rules[BLANK_LINE_TOKEN] = _render_blank_line
 	return md
 
 
