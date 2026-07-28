@@ -51,6 +51,7 @@ def create_test_wiki_document(test_case, title, **kwargs):
 		"slug": kwargs.get("slug"),
 		"is_external_link": kwargs.get("is_external_link", False),
 		"external_url": kwargs.get("external_url"),
+		"source_path": kwargs.get("source_path"),
 		"content": kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
 	}
 	doc = frappe.get_doc(fields)
@@ -69,6 +70,9 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 		"show_in_switcher": kwargs.get("show_in_switcher", True),
 		"is_published": kwargs.get("is_published", True),
 		"switcher_order": kwargs.get("switcher_order", 0),
+		"git_synced": kwargs.get("git_synced", False),
+		"repo_full_name": kwargs.get("repo_full_name"),
+		"branch": kwargs.get("branch"),
 	}
 	doc = frappe.get_doc(fields)
 	for role, level in kwargs.get("roles", []):
@@ -366,6 +370,64 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Expected order: Zebra (order 1), Alpha (order 2), Beta (order 2), Gamma (order 3)
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
+
+
+class TestEditLink(WikiDocumentTestBase):
+	"""get_edit_link: wiki editor for normal spaces, GitHub editor for synced ones."""
+
+	def test_normal_space_links_to_wiki_editor(self):
+		root_group = create_test_wiki_document(self, "Edit Link Root", is_group=True)
+		doc = create_test_wiki_document(self, "Editable Page", parent=root_group.name)
+		space = create_test_wiki_space(self, "Edit Link Space", "edit-link-space", root_group.name)
+
+		doc.reload()
+		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}")
+
+	def test_synced_space_links_to_github_editor(self):
+		root_group = create_test_wiki_document(self, "Synced Edit Root", is_group=True)
+		doc = create_test_wiki_document(
+			self, "Synced Page", parent=root_group.name, source_path="docs/getting-started.md"
+		)
+		create_test_wiki_space(
+			self,
+			"Synced Edit Space",
+			"synced-edit-space",
+			root_group.name,
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+
+		doc.reload()
+		self.assertEqual(
+			doc.get_edit_link(),
+			"https://github.com/acme/docs/edit/main/docs/getting-started.md",
+		)
+		context = doc.get_web_context()
+		self.assertTrue(context["can_edit"])
+		self.assertEqual(
+			context["edit_link"], "https://github.com/acme/docs/edit/main/docs/getting-started.md"
+		)
+
+	def test_synced_folder_group_has_no_edit_link(self):
+		root_group = create_test_wiki_document(self, "Synced Folder Root", is_group=True)
+		group = create_test_wiki_document(
+			self, "Folder Group", parent=root_group.name, is_group=True, source_path="docs/guides"
+		)
+		create_test_wiki_space(
+			self,
+			"Synced Folder Space",
+			"synced-folder-space",
+			root_group.name,
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+
+		group.reload()
+		self.assertEqual(group.get_edit_link(), "")
+		context = group.get_web_context()
+		self.assertFalse(context["can_edit"])
 
 
 class TestGetWebContextMetaTags(WikiDocumentTestBase):

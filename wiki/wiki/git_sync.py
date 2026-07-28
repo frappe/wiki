@@ -59,6 +59,20 @@ MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\
 MD_LINK_PATTERN = re.compile(r"(?<!!)(\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
 
 
+def build_github_edit_url(repo_full_name: str | None, branch: str | None, source_path: str | None) -> str:
+	"""URL that opens a synced page's source file in GitHub's web editor.
+
+	Empty string when the inputs can't form one — notably folder-only groups,
+	whose source_path is a directory with nothing to open in the editor.
+	(Python twin of frontend/src/lib/github.js buildGithubEditUrl.)
+	"""
+	if not (repo_full_name and branch and source_path):
+		return ""
+	if not source_path.lower().endswith(MARKDOWN_EXTENSIONS):
+		return ""
+	return f"https://github.com/{repo_full_name}/edit/{branch}/{source_path.lstrip('/')}"
+
+
 # --------------------------------------------------------------------------- #
 # GitHub HTTP (monkeypatched in tests)
 # --------------------------------------------------------------------------- #

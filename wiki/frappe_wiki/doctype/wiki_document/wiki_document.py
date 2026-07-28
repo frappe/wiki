@@ -309,7 +309,26 @@ class WikiDocument(NestedSet):
 		wiki_space = self.get_wiki_space()
 		if not wiki_space:
 			return ""
+		github_url = self._get_github_edit_url(wiki_space.name)
+		if github_url is not None:
+			return github_url
 		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}"
+
+	def _get_github_edit_url(self, space_name: str) -> str | None:
+		"""Edit target for a git-synced space: the source file in GitHub's editor.
+
+		None when the space isn't git-synced (caller falls back to the wiki
+		editor); empty string when it is synced but this page has no editable
+		source file (folder-only groups) — there the Edit button is hidden.
+		"""
+		from wiki.wiki.git_sync import build_github_edit_url
+
+		space = frappe.get_cached_value(
+			"Wiki Space", space_name, ["git_synced", "repo_full_name", "branch"], as_dict=True
+		)
+		if not space or not space.git_synced:
+			return None
+		return build_github_edit_url(space.repo_full_name, space.branch, self.source_path)
 
 	def _can_show_edit(self, wiki_space_doc, user=None) -> bool:
 		"""Whether to render the reader's Edit button for the current user.
@@ -319,6 +338,15 @@ class WikiDocument(NestedSet):
 		write/merge access (managers always see Edit even with contributions off).
 		"""
 		from wiki.permissions import _space_accepts_contributions, can_write_space
+		from wiki.wiki.git_sync import build_github_edit_url
+
+		# Git-synced pages are edited on GitHub (the button links straight there),
+		# so wiki-side roles don't apply — but folder-only groups have no source
+		# file to edit, hence no button.
+		if wiki_space_doc.git_synced:
+			return bool(
+				build_github_edit_url(wiki_space_doc.repo_full_name, wiki_space_doc.branch, self.source_path)
+			)
 
 		# Mirror the backend's contribution gate exactly (it treats a missing/NULL
 		# flag as enabled) so the button and the CR endpoints never disagree.
