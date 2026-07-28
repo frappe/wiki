@@ -2,7 +2,7 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
 
 {% block title %}
-    {{ doc.title }}
+    {{ metatags.title if metatags and metatags.title else doc.title }}
 {% endblock %}
 
 {% block head %}
@@ -13,19 +13,19 @@
 <div x-data="wikiPage" x-init="$store.navigation.init()" class="flex-1 min-w-0 flex">
     <!-- Main Content Area -->
     <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
-        <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[80ch]"
+        <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[100ch]"
              :class="{ 'opacity-50': $store.navigation.loading, 'xl:!max-w-[100ch]': $store.sidebar?.isCollapsed }">
         <!-- Page Header -->
         <header class="py-6 mb-6 border-b border-[var(--outline-gray-1)]">
             {% if hide_chrome %}
             {# Orphan document: Simple header with just copy button #}
             <div class="flex items-center justify-between gap-4">
-                <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
+                <h1 id="wiki-page-title" class="text-4xl-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
                 <div class="flex items-center gap-2">
                     <button @click="downloadPage()"
                             :disabled="downloadInProgress"
                             :aria-busy="downloadInProgress"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
                         <template x-if="!downloadInProgress">
                             {{ render_icon("download", "w-4 h-4") }}
                         </template>
@@ -35,7 +35,7 @@
                         <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
                     </button>
                     <button @click="copyMarkdown()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
                         <template x-if="!copied">
                             {{ render_icon("clipboard", "w-4 h-4") }}
                         </template>
@@ -49,21 +49,25 @@
             {% else %}
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
-                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                     {{ download_action_item() }}
+                    {% if can_edit %}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                    {% endif %}
                     {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                     {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                 {{ dropdown_end() }}
             </div>
             <div class="flex items-center justify-between gap-4">
-                <h1 id="wiki-page-title" class="text-3xl font-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
+                <h1 id="wiki-page-title" class="text-4xl-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
 
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
-                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit") }}
+                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                         {{ download_action_item() }}
+                        {% if can_edit %}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                        {% endif %}
                         {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
                         {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                     {{ dropdown_end() }}
@@ -74,37 +78,38 @@
 
 
         <!-- Page Content -->
-        <div class="prose prose-sm max-w-none scroll-smooth" id="wiki-content">
+        <!-- prose prose-v3 mirrors the SPA editor's EditorContent defaults -->
+        <div class="prose prose-v3 max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
             {{ rendered_content | safe }}
         </div>
 
-        <!-- Previous/Next Navigation -->
-        <nav id="wiki-nav-buttons" class="mt-12 pt-8 border-t border-[var(--outline-gray-1)]">
+        <!-- Previous/Next Navigation — frappe-ui docs PrevNextBtns (subtle/md pills) -->
+        <nav id="wiki-nav-buttons" class="mt-10">
             {% if prev_doc or next_doc %}
-            <div class="flex flex-col sm:flex-row sm:items-stretch gap-4 {{ 'sm:justify-between' if prev_doc and next_doc else ('sm:justify-start' if prev_doc else 'sm:justify-end') }}">
+            {% set nav_link_classes = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline" %}
+            {#- justify-between alone: with both links they sit at the two ends,
+                and a lone next button falls back to the start rather than
+                hanging off the right edge. Same as frappe-ui docs'
+                PrevNextBtns, which adds no margin utility for that case.
+                Mirrored by updateNavButtons in includes/sidebar.html. -#}
+            <div class="flex justify-between gap-5">
                 {% if prev_doc %}
                 <a href="/{{ prev_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ prev_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ prev_doc.route }}')"
-                   class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
-                    {{ render_icon("chevron-left", "w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0") }}
-                    <div class="flex flex-col gap-1 min-w-0">
-                        <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Previous Page</span>
-                        <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate">{{ prev_doc.title }}</span>
-                    </div>
+                   @click.prevent="$store.navigation.navigateTo({{ prev_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
+                   class="{{ nav_link_classes }}">
+                    {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
+                    <span class="truncate">{{ prev_doc.title }}</span>
                 </a>
                 {% endif %}
 
                 {% if next_doc %}
                 <a href="/{{ next_doc.route }}"
-                   @click.prevent="$store.navigation.navigateTo('{{ next_doc.route }}')"
-                   @mouseenter="$store.navigation.prefetch('{{ next_doc.route }}')"
-                   class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden {{ 'sm:ml-auto' if not prev_doc else '' }}">
-                    <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
-                        <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Next Page</span>
-                        <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate text-right">{{ next_doc.title }}</span>
-                    </div>
-                    {{ render_icon("chevron-right", "w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0") }}
+                   @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
+                   @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
+                   class="{{ nav_link_classes }}">
+                    <span class="truncate">{{ next_doc.title }}</span>
+                    {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
                 </a>
                 {% endif %}
             </div>
@@ -132,6 +137,11 @@
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
+            {#- Script context: bare `tojson` is correct — it emits a valid JS
+                string literal and escapes </script>/quotes. Do NOT add
+                `forceescape` here (that's only for tojson in HTML attributes);
+                inside <script> the browser doesn't HTML-decode, so entities
+                would be a JS syntax error and break Alpine init. -#}
             markdown: {{ raw_markdown | tojson }}
         });
 

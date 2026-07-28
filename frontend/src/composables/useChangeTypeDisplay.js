@@ -1,30 +1,24 @@
-import LucideArrowUpDown from '~icons/lucide/arrow-up-down';
-import LucideFileText from '~icons/lucide/file-text';
-import LucidePencil from '~icons/lucide/pencil';
-import LucidePlus from '~icons/lucide/plus';
-import LucideTrash2 from '~icons/lucide/trash-2';
-
 const CHANGE_TYPE_CONFIG = {
 	added: {
-		icon: LucidePlus,
+		icon: 'lucide-plus',
 		iconClass: 'bg-green-100 text-green-600',
 		theme: 'green',
 		label: __('New'),
 	},
 	modified: {
-		icon: LucidePencil,
+		icon: 'lucide-pencil',
 		iconClass: 'bg-blue-100 text-blue-600',
 		theme: 'blue',
 		label: __('Modified'),
 	},
 	deleted: {
-		icon: LucideTrash2,
+		icon: 'lucide-trash-2',
 		iconClass: 'bg-red-100 text-red-600',
 		theme: 'red',
 		label: __('Deleted'),
 	},
 	reordered: {
-		icon: LucideArrowUpDown,
+		icon: 'lucide-arrow-up-down',
 		iconClass: 'bg-amber-100 text-amber-600',
 		theme: 'orange',
 		label: __('Reordered'),
@@ -32,7 +26,7 @@ const CHANGE_TYPE_CONFIG = {
 };
 
 const DEFAULT_CONFIG = {
-	icon: LucideFileText,
+	icon: 'lucide-file-text',
 	iconClass: 'bg-gray-100 text-gray-600',
 	theme: 'gray',
 	label: '',

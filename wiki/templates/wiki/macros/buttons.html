@@ -1,124 +1,6 @@
-{# Ghost Button Macro
-   Usage:
-   {{ ghost_button(text="Click me", icon="clipboard", href="/path", click="handleClick()") }}
-
-   Parameters:
-   - text: Button text (required)
-   - icon: Icon name - clipboard, check, edit, sun, moon, chevron-left, chevron-right, collapse, expand (optional)
-   - href: If provided, renders as <a> tag, otherwise <button> (optional)
-   - click: Alpine.js @click handler (optional)
-   - x_show: Alpine.js x-show condition (optional)
-   - x_text: Alpine.js x-text for dynamic text (optional)
-   - extra_classes: Additional CSS classes (optional)
-   - icon_classes: Additional classes for the icon (optional)
-   - id: HTML id attribute (optional)
-#}
-
-{% macro ghost_button(text="", icon="", href="", click="", x_show="", x_text="", extra_classes="", icon_classes="", id="") %}
-    {% set base_classes = "inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200 cursor-pointer" %}
-
-    {% if href %}
-    <a href="{{ href }}"
-       {% if id %}id="{{ id }}"{% endif %}
-       class="{{ base_classes }} {{ extra_classes }}"
-       {% if x_show %}x-show="{{ x_show }}"{% endif %}>
-        {{ render_icon(icon, icon_classes) }}
-        {% if x_text %}
-        <span x-text="{{ x_text }}">{{ text }}</span>
-        {% else %}
-        <span>{{ text }}</span>
-        {% endif %}
-    </a>
-    {% else %}
-    <button {% if click %}@click="{{ click }}"{% endif %}
-            {% if id %}id="{{ id }}"{% endif %}
-            class="{{ base_classes }} {{ extra_classes }}"
-            {% if x_show %}x-show="{{ x_show }}"{% endif %}>
-        {{ render_icon(icon, icon_classes) }}
-        {% if x_text %}
-        <span x-text="{{ x_text }}">{{ text }}</span>
-        {% else %}
-        <span>{{ text }}</span>
-        {% endif %}
-    </button>
-    {% endif %}
-{% endmacro %}
-
-{# Full-width Ghost Button (for sidebar footer buttons) #}
-{% macro ghost_button_full(text="", icon="", click="", x_show="", x_text="", extra_classes="", icon_classes="") %}
-    {% set base_classes = "w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200 cursor-pointer" %}
-
-    <button {% if click %}@click="{{ click }}"{% endif %}
-            class="{{ base_classes }} {{ extra_classes }}"
-            {% if x_show %}x-show="{{ x_show }}"{% endif %}>
-        {{ render_icon(icon, icon_classes) }}
-        {% if x_text %}
-        <span x-text="{{ x_text }}">{{ text }}</span>
-        {% else %}
-        <span>{{ text }}</span>
-        {% endif %}
-    </button>
-{% endmacro %}
-
-{# Dropdown Menu Macro
-   Usage:
-   {{ dropdown(text="Ask AI", icon="sparkles", id="ai-dropdown") }}
-       {{ dropdown_item(text="Ask Claude", icon="claude", href_expr="getAIUrl('claude')") }}
-       {{ dropdown_item(text="Ask OpenAI", icon="openai", href_expr="getAIUrl('openai')") }}
-   {{ dropdown_end() }}
-
-   Parameters:
-   - text: Button text (required)
-   - icon: Icon name for the trigger button (optional)
-   - id: Unique identifier for the dropdown (required for Alpine.js state)
-   - width: Width class for dropdown menu (default: "w-56")
-#}
-
-{% macro dropdown(text="", icon="", id="dropdown", width="w-56") %}
-    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
-        <button @click="open = !open"
-                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200 cursor-pointer">
-            {% if icon %}{{ render_icon(icon) }}{% endif %}
-            <span>{{ text }}</span>
-            <svg class="w-3 h-3 transition-transform duration-200" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-
-        <div x-show="open"
-             x-cloak
-             x-transition:enter="transition ease-out duration-100"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-75"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95"
-             class="absolute left-0 mt-2 {{ width }} bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1">
-{% endmacro %}
-
-{% macro dropdown_item(text="", icon="", href="", href_expr="", target="_blank") %}
-    <a {% if href_expr %}:href="{{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
-       {% if target %}target="{{ target }}"{% endif %}
-       class="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)] transition-colors duration-200">
-        {% if icon %}{{ render_icon(icon) }}{% endif %}
-        <span>{{ text }}</span>
-    </a>
-{% endmacro %}
-
 {% macro dropdown_end() %}
         </div>
     </div>
-{% endmacro %}
-
-{# Icon Button (small square button, like the expand sidebar button) #}
-{% macro icon_button(icon="", click="", x_show="", extra_classes="", icon_classes="") %}
-    {% set base_classes = "flex items-center justify-center w-10 h-10 bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-md shadow-md hover:shadow-lg hover:bg-[var(--surface-gray-1)] transition-all duration-200 cursor-pointer" %}
-
-    <button {% if click %}@click="{{ click }}"{% endif %}
-            class="{{ base_classes }} {{ extra_classes }}"
-            {% if x_show %}x-show="{{ x_show }}"{% endif %}>
-        {{ render_icon(icon, icon_classes if icon_classes else "w-5 h-5 text-[var(--ink-gray-5)]") }}
-    </button>
 {% endmacro %}
 
 {# Page Actions Dropdown - Split button with Edit action and dropdown for more options
@@ -127,26 +9,43 @@
        {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown()") }}
    {{ dropdown_end() }}
 #}
-{% macro page_actions_dropdown(edit_href="", edit_text="Edit") %}
+{% macro page_actions_dropdown(edit_href="", edit_text="Edit", show_edit=True, edit_external=False) %}
+    {#- Split button: two frappe-ui gray-outline Buttons (size md) sharing one
+        border box, so the pair matches Button's h-8 / rounded-4 / colour
+        recipe while still reading as a single control. -#}
+    {% set split_segment = "inline-flex items-center justify-center gap-2 shrink-0 h-8 text-base-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] active:bg-[var(--surface-gray-4)] transition-colors" %}
     <div class="relative inline-flex" x-data="{ open: false }" @click.outside="open = false">
-        <!-- Split button group -->
-        <div class="inline-flex rounded-lg border border-[var(--outline-gray-2)] overflow-hidden">
+        <div class="inline-flex rounded-4 border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] overflow-hidden transition-colors">
+            {% if show_edit %}
             <!-- Edit button (navigates to edit page) -->
             <a href="{{ edit_href }}"
-               class="wiki-edit-link inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-7)] bg-[var(--surface-white)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
+               {% if edit_external %}target="_blank" rel="noopener"{% endif %}
+               class="wiki-edit-link {{ split_segment }} px-2.5">
                 {{ render_icon("edit", "w-4 h-4") }}
                 <span>{{ edit_text }}</span>
             </a>
+            {% else %}
+            <!-- Contributions off: Copy as Markdown is the primary action -->
+            <button @click="copyMarkdown()" class="{{ split_segment }} px-2.5 cursor-pointer">
+                <template x-if="!copied">
+                    {{ render_icon("clipboard", "w-4 h-4") }}
+                </template>
+                <template x-if="copied">
+                    {{ render_icon("check", "w-4 h-4 text-[var(--ink-green-8)]") }}
+                </template>
+                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+            </button>
+            {% endif %}
             <!-- Dropdown toggle button -->
             <button @click="open = !open"
-                    class="inline-flex items-center px-2 py-1.5 text-[var(--ink-gray-5)] bg-[var(--surface-white)] hover:bg-[var(--surface-gray-1)] border-l border-[var(--outline-gray-2)] transition-colors duration-200 cursor-pointer">
-                <svg class="w-4 h-4 transition-transform duration-200" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
+                    aria-label="More page actions"
+                    :aria-expanded="open"
+                    class="{{ split_segment }} w-8 border-l border-[var(--outline-gray-2)] cursor-pointer">
+                <span class="inline-flex" :class="{ 'rotate-180': open }">{{ render_icon("chevron-down", "transition-transform duration-200") }}</span>
             </button>
         </div>
 
-        <!-- Dropdown menu -->
+        {#- Menu surface: frappe-ui Menu content + its p-1.5 group padding. -#}
         <div x-show="open"
              x-cloak
              x-transition:enter="transition ease-out duration-100"
@@ -155,8 +54,12 @@
              x-transition:leave="transition ease-in duration-75"
              x-transition:leave-start="opacity-100 scale-100"
              x-transition:leave-end="opacity-0 scale-95"
-             class="absolute left-0 sm:left-auto sm:right-0 mt-10 w-72 bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-2">
+             class="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 w-72 min-w-40 bg-[var(--surface-elevation-2)] rounded-lg shadow-2xl ring-1 ring-black/5 z-50 p-1.5">
 {% endmacro %}
+
+{# Menu row geometry, straight from frappe-ui's ItemListRow (size sm) plus the
+   Menu highlight colour. Every row in a page-actions menu uses it. #}
+{% set menu_row = "w-full flex items-center gap-2 min-h-7 px-2 py-1.5 rounded text-base text-left text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)] transition-colors" %}
 
 {# Dropdown row that triggers downloadPage() and reflects the downloadInProgress state.
    Keeps the dropdown open while preparing the PDF so the loading state stays visible. #}
@@ -164,120 +67,96 @@
 <button @click="downloadPage().finally(() => open = false)"
         :disabled="downloadInProgress"
         :aria-busy="downloadInProgress"
-        class="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
-    <span class="flex-shrink-0 mt-0.5">
+        class="{{ menu_row }} cursor-pointer disabled:cursor-wait disabled:opacity-70">
+    <span class="flex shrink-0 items-center justify-center">
         <template x-if="!downloadInProgress">
-            {{ render_icon("download", "w-5 h-5 text-[var(--ink-gray-5)]") }}
+            {{ render_icon("download", "text-[var(--ink-gray-5)]") }}
         </template>
         <template x-if="downloadInProgress">
-            {{ render_icon("loader", "w-5 h-5 text-[var(--ink-gray-5)] animate-spin") }}
+            {{ render_icon("loader", "text-[var(--ink-gray-5)] animate-spin") }}
         </template>
     </span>
     <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium text-[var(--ink-gray-8)]" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
-        <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">Download this page as a PDF</div>
+        <div class="truncate" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
+        <div class="truncate text-p-sm text-[var(--ink-gray-5)]">Download this page as a PDF</div>
     </div>
 </button>
 {% endmacro %}
 
 {% macro page_action_item(text="", description="", icon="", href="", href_expr="", click="", target="") %}
     {% if click %}
-    <button @click="{{ click }}"
-            class="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+    <button @click="{{ click }}" class="{{ menu_row }} cursor-pointer">
         {% if icon %}
-        <span class="flex-shrink-0 mt-0.5">{{ render_icon(icon, "w-5 h-5 text-[var(--ink-gray-5)]") }}</span>
+        <span class="flex shrink-0 items-center justify-center">{{ render_icon(icon, "text-[var(--ink-gray-5)]") }}</span>
         {% endif %}
         <div class="flex-1 min-w-0">
-            <div class="text-sm font-medium text-[var(--ink-gray-8)]">{{ text }}</div>
+            <div class="truncate">{{ text }}</div>
             {% if description %}
-            <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">{{ description }}</div>
+            <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ description }}</div>
             {% endif %}
         </div>
     </button>
     {% else %}
-    <a {% if href_expr %}:href="{{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
+    {# href_expr reads window.location, which is not reactive: recompute on click so SPA nav gets the current URL, not the load-time one #}
+    <a {% if href_expr %}:href="{{ href_expr }}" @click="$el.href = {{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
        {% if target %}target="{{ target }}" rel="noopener noreferrer"{% endif %}
-       class="flex items-start gap-3 px-4 py-3 hover:bg-[var(--surface-gray-1)] transition-colors duration-200">
+       class="{{ menu_row }} no-underline">
         {% if icon %}
-        <span class="flex-shrink-0 mt-0.5">{{ render_icon(icon, "w-5 h-5 text-[var(--ink-gray-5)]") }}</span>
+        <span class="flex shrink-0 items-center justify-center">{{ render_icon(icon, "text-[var(--ink-gray-5)]") }}</span>
         {% endif %}
         <div class="flex-1 min-w-0">
-            <div class="text-sm font-medium text-[var(--ink-gray-8)] flex items-center gap-1">
-                {{ text }}
+            <div class="flex items-center gap-1">
+                <span class="truncate">{{ text }}</span>
                 {% if target == "_blank" %}
-                {{ render_icon("external-link", "w-3 h-3 text-[var(--ink-gray-4)]") }}
+                {{ render_icon("external-link", "w-3 h-3 shrink-0 text-[var(--ink-gray-4)]") }}
                 {% endif %}
             </div>
             {% if description %}
-            <div class="text-xs text-[var(--ink-gray-5)] mt-0.5">{{ description }}</div>
+            <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ description }}</div>
             {% endif %}
         </div>
     </a>
     {% endif %}
 {% endmacro %}
 
-{# Icon Renderer Helper #}
-{% macro render_icon(icon, extra_classes="") %}
-    {% set icon_base_classes = "w-4 h-4 " ~ extra_classes %}
+{# Icon Renderer Helper
 
-    {% if icon == "clipboard" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-    </svg>
-    {% elif icon == "check" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-    </svg>
-    {% elif icon == "edit" or icon == "pencil" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-        <path d="m15 5 4 4"></path>
-    </svg>
-    {% elif icon == "sun" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-    </svg>
-    {% elif icon == "moon" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-    </svg>
-    {% elif icon == "chevron-left" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-    </svg>
-    {% elif icon == "chevron-right" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-    </svg>
-    {% elif icon == "menu" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-    </svg>
-    {% elif icon == "x" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-    </svg>
-    {% elif icon == "list" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-    </svg>
-    {% elif icon == "download" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"></path>
-    </svg>
-    {% elif icon == "loader" %}
-    <svg class="{{ icon_base_classes }}" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-20" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle>
-        <path class="opacity-100" fill="currentColor" d="M21 12a9 9 0 0 0-9-9v2a7 7 0 0 1 7 7z"></path>
-    </svg>
-    {% elif icon == "search" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-    </svg>
-    {% elif icon == "sparkles" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-    </svg>
+   Lucide icons come from the generated table (scripts/generate-public-lucide.mjs
+   -> wiki/lucide_icons.json), the same pack and the same 1.5 stroke the SPA and
+   the frappe-ui docs draw from. They used to be hand-copied SVGs here, which had
+   quietly drifted to Heroicons for several glyphs — the magnifier, hamburger,
+   check, list and clipboard were all a different shape from the docs'.
+
+   `edit` is an alias for lucide's `pencil`; brand marks below have no lucide
+   equivalent (the pack dropped them) so they stay inline.
+
+   Names here must also be listed in CHROME_ICONS in
+   scripts/generate-public-lucide.mjs, which is what puts them in the table. #}
+{% set LUCIDE_ICON_ALIASES = {"edit": "pencil"} %}
+{% set LUCIDE_CHROME_ICONS = [
+    "arrow-down", "arrow-left", "arrow-right", "arrow-up", "check",
+    "chevron-down", "chevron-left", "chevron-right", "chevrons-up-down",
+    "clipboard", "command", "corner-down-left", "download", "edit",
+    "external-link", "file-text", "list", "loader", "menu", "moon",
+    "moon-star", "panel-right-open", "pencil", "search", "sparkles", "sun", "x"
+] %}
+
+{% macro render_icon(icon, extra_classes="") %}
+    {#- The default w-4/h-4 only applies when the caller didn't size the icon
+        itself. Concatenating both used to let the default win at equal
+        specificity — `size-[18px]` next to `w-4 h-4` silently rendered 16px,
+        because Tailwind emits `w-*`/`h-*` after an arbitrary `size-*`. -#}
+    {% set sizing = namespace(given=false) %}
+    {% for cls in extra_classes.split() %}
+        {% if cls.startswith("size-") or cls.startswith("w-") or cls.startswith("h-") %}
+            {% set sizing.given = true %}
+        {% endif %}
+    {% endfor %}
+    {% set icon_base_classes = extra_classes if sizing.given else "w-4 h-4 " ~ extra_classes %}
+    {% set lucide_name = LUCIDE_ICON_ALIASES.get(icon, icon) %}
+
+    {% if icon in LUCIDE_CHROME_ICONS %}
+    {{ lucide_svg("lucide-" ~ lucide_name, icon_base_classes) | safe }}
     {% elif icon == "claude" %}
     <svg class="{{ icon_base_classes }}" viewBox="0 0 24 24" fill="currentColor">
         <path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.165-2.263-.134-.86-.06.144-.472.384-.124 1.116.068 2.01.128 2.322.152.986.062h.222l.058-.2-.238-.2-.632-.472-1.89-1.426-1.963-1.486-.663-.525.35-.36.426.074.636.496 1.58 1.21 1.89 1.436.695.516.174.058.082-.14-.066-.258-.324-1.142-.85-2.96-.42-1.418-.227-.81.465-.227.28.282.29.964.676 2.378.622 2.166.14.482.15.07.15-.14.014-.174-.07-.728-.228-2.47-.174-2.05-.072-.986.502-.035.238.366.086 1.332.106 1.578.15 2.324.12 1.31.032.174.168.08.14-.14.342-.59.884-1.546 1.22-2.11.46-.79.488.2.012.406-.354.638-1.01 1.79-1.17 2.086-.24.434-.008.182.214.104.166-.034.728-.298 2.286-.96 1.616-.676.614-.246.286.42-.12.402-.606.288-1.82.776-2.2.932-.566.244-.08.188.066.164.596.242 2.102.82 1.866.752.55.252-.09.494-.446.14-.744-.282-1.75-.686-2.052-.816-.506-.202-.198.002-.102.192.044.2.366.75 1.082 2.198.794 1.664.186.448-.33.338-.392-.068-.252-.504-.868-1.748-1.03-2.11-.216-.432-.128-.138-.186.034-.08.15.018.36.048.986.098 2.424.034 1.574-.006.446-.486.106-.256-.298-.06-.752-.128-2.33-.084-2.016-.026-.606-.012-.182-.17-.068-.14.128-.37.402-1.55 1.696-1.334 1.428-.658.69-.458-.172-.024-.446.51-.552 1.328-1.452 1.546-1.686.306-.336.048-.204-.166-.112-.238.054-.69.252-2.334.862-1.602.578-.612.202-.33-.372.11-.41.612-.252 2.126-.79 2.178-.804.366-.126.112-.172-.064-.172-.174-.06-.756-.156-2.358-.494-1.632-.35-.586-.144.054-.505.472-.09.786.148 2.08.416 1.958.396.538.11.186-.022.102-.17-.05-.212-.224-.504-.868-1.87-1.11-2.41-.28-.674.396-.282.384.128.21.44.948 2.022 1.088 2.362.21.456.124.154.17-.004.088-.122.058-.396.142-2.382.09-1.666.054-.62.495-.046.262.32.026.82.022 2.164-.006 2.146-.02.412.06.19.178.066.132-.112.268-.304 1.258-1.434 1.598-1.852.38-.44.466.14.064.416z"/>
@@ -294,34 +173,22 @@
     <svg class="{{ icon_base_classes }}" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v5.7c0 4.47-3.07 8.67-7 9.93-3.93-1.26-7-5.46-7-9.93V6.3l7-3.12zM12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z"/>
     </svg>
-    {% elif icon == "panel-right-open" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-        <path d="M15 3v18"></path>
-        <path d="m10 15-3-3 3-3"></path>
-    </svg>
-    {% elif icon == "external-link" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-        <polyline points="15 3 21 3 21 9"></polyline>
-        <line x1="10" y1="14" x2="21" y2="3"></line>
-    </svg>
     {% elif icon == "github" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-        <path d="M9 18c-4.51 2-5-2-7-2" />
+    {# frappe-ui docs navbar GitHub mark (filled), copied as-is #}
+    <svg class="{{ icon_base_classes }} fill-current" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
     </svg>
     {% elif icon == "youtube" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
         <path d="m10 15 5-3-5-3z" />
     </svg>
     {% elif icon == "twitter" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
     </svg>
     {% elif icon == "linkedin" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
         <rect width="4" height="12" x="2" y="9" />
         <circle cx="4" cy="4" r="2" />
@@ -331,7 +198,7 @@
         <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
     </svg>
     {% elif icon == "slack" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <rect width="3" height="8" x="13" y="2" rx="1.5" />
         <path d="M19 8.5V10h1.5A1.5 1.5 0 1 0 19 8.5" />
         <rect width="3" height="8" x="8" y="14" rx="1.5" />
@@ -342,11 +209,11 @@
         <path d="M8.5 5H10V3.5A1.5 1.5 0 1 0 8.5 5" />
     </svg>
     {% elif icon == "facebook" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
     </svg>
     {% elif icon == "instagram" %}
-    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg class="{{ icon_base_classes }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
         <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
         <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />

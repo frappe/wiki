@@ -20,3 +20,7 @@ execute:frappe.db.set_single_value('Wiki Settings', 'auto_convert_images_to_webp
 wiki.wiki.doctype.wiki_space.patches.backfill_space_access
 wiki.wiki.doctype.wiki_space.patches.seed_space_roles_from_published
 wiki.frappe_wiki.doctype.wiki_change_request.patches.drop_reviewer_participant_tables
+wiki.wiki.doctype.wiki_space.patches.set_allow_contributions_default
+wiki.frappe_wiki.doctype.wiki_revision.patches.mark_hashes_stale_for_metadata_hashing
+execute:frappe.db.set_single_value('Wiki Settings', 'auto_generate_meta_images', 1) #2026-07-25
+execute:from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache; clear_wiki_content_cache() #2026-07-28-blank-lines

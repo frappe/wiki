@@ -13,9 +13,33 @@ and ``Wiki Manager`` always have full access.
 """
 
 import frappe
+from frappe import _
 
 MANAGER_ROLES = {"System Manager", "Wiki Manager"}
 WRITE_PTYPES = {"write", "create", "delete", "submit", "cancel", "amend"}
+
+
+def is_git_synced_space(space) -> bool:
+	"""True if the space mirrors a GitHub repo (content is read-only in the wiki)."""
+	name = _resolve_space_name(space)
+	if not name:
+		return False
+	return bool(frappe.get_cached_value("Wiki Space", name, "git_synced"))
+
+
+def assert_space_writable(space) -> None:
+	"""Block content mutations on a git-synced space (the repo is the source of truth).
+
+	The sync engine itself bypasses this by running under
+	``frappe.flags.in_apply_merge_revision``.
+	"""
+	if frappe.flags.in_apply_merge_revision:
+		return
+	if is_git_synced_space(space):
+		frappe.throw(
+			_("This wiki space is synced from GitHub and is read-only."),
+			frappe.PermissionError,
+		)
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +112,51 @@ def can_write_space(space, user=None) -> bool:
 
 	user_roles = set(frappe.get_roles(user))
 	return any(role in user_roles for role, level in levels.items() if level == "Write")
+
+
+def _space_accepts_contributions(space) -> bool:
+	"""Whether a space lets Read-tier users propose changes (raise CRs).
+
+	Missing/NULL is treated as enabled so spaces created before this toggle (and
+	rows not yet backfilled) keep accepting contributions.
+	"""
+	name = _resolve_space_name(space)
+	if not name:
+		return True
+	value = frappe.get_cached_value("Wiki Space", name, "allow_contributions")
+	return value is None or bool(value)
+
+
+def can_contribute_to_space(space, user=None) -> bool:
+	"""Whether the user may propose changes (raise/edit Change Requests).
+
+	Write-tier users (and managers) can always contribute. Read-tier users can
+	contribute only while the space accepts contributions.
+	"""
+	user = user or frappe.session.user
+	if not can_read_space(space, user):
+		return False
+	if can_write_space(space, user):
+		return True
+	return _space_accepts_contributions(space)
+
+
+def can_manage_tabs(space, user=None) -> bool:
+	"""Whether the user may create or promote/demote tabs in a space.
+
+	Deliberately stricter than `can_contribute_to_space`: a tab restructures the
+	top-level navigation for every reader of the space, which is an editor
+	decision rather than a contribution.
+	"""
+	return can_write_space(space, user)
+
+
+def assert_can_manage_tabs(space, user=None) -> None:
+	if not can_manage_tabs(space, user):
+		frappe.throw(
+			_("Only space editors can create or change tabs."),
+			frappe.PermissionError,
+		)
 
 
 def _accessible_space_names(user=None) -> set:
@@ -170,6 +239,10 @@ def wiki_document_has_permission(doc, ptype, user=None):
 		return True
 
 	if ptype in WRITE_PTYPES:
+		# A git-synced space is read-only; only the sync engine (running under
+		# in_apply_merge_revision) may write its documents.
+		if not frappe.flags.in_apply_merge_revision and is_git_synced_space(space):
+			return False
 		return can_write_space(space, user)
 	return can_read_space(space, user)
 
@@ -189,6 +262,10 @@ def wiki_cr_has_permission(doc, ptype, user=None):
 			return _is_manager(user)
 		return True
 
-	# Reading a CR and editing/saving it (proposing changes) both require space
-	# Read. Merging is gated separately by can_write_space in the CR controller.
+	# Reading a CR requires space Read. Editing/saving it (proposing changes)
+	# additionally requires the space to accept contributions (Write-tier users
+	# bypass that). Merging is gated separately by can_write_space in the CR
+	# controller.
+	if ptype in WRITE_PTYPES:
+		return can_contribute_to_space(space, user)
 	return can_read_space(space, user)

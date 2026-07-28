@@ -11,6 +11,7 @@
   "table_of_contents_section",
   "enable_table_of_contents",
   "auto_convert_images_to_webp",
+  "auto_generate_meta_images",
   "feedback_tab",
   "feedback_section",
   "enable_feedback",
@@ -19,7 +20,16 @@
   "section_break_mmtu",
   "javascript",
   "header__robots_tab",
-  "head_html"
+  "head_html",
+  "github_app_tab",
+  "github_app_intro",
+  "github_app_id",
+  "github_app_client_id",
+  "github_app_public_link",
+  "github_app_secrets_section",
+  "github_app_client_secret",
+  "github_app_private_key",
+  "github_webhook_secret"
  ],
  "fields": [
   {
@@ -67,6 +77,13 @@
    "label": "Convert Uploaded Images to WebP"
   },
   {
+   "default": "1",
+   "description": "Generate a branded social preview image for pages that have no Meta Image uploaded.",
+   "fieldname": "auto_generate_meta_images",
+   "fieldtype": "Check",
+   "label": "Auto Generate Meta Images"
+  },
+  {
    "fieldname": "feedback_section",
    "fieldtype": "Section Break",
    "label": "Feedback"
@@ -109,6 +126,54 @@
    "fieldtype": "Code",
    "label": "&lt;head&gt; HTML",
    "options": "HTML"
+  },
+  {
+   "fieldname": "github_app_tab",
+   "fieldtype": "Tab Break",
+   "label": "GitHub App"
+  },
+  {
+   "fieldname": "github_app_intro",
+   "fieldtype": "HTML",
+   "options": "<p class=\"text-muted\">Configure a <a href=\"https://docs.github.com/en/apps/creating-github-apps\" target=\"_blank\">GitHub App</a> to let Wiki Spaces sync from GitHub repositories (including private ones). Installation access tokens are minted on demand from the App private key &mdash; no per-space secrets are stored.</p>"
+  },
+  {
+   "fieldname": "github_app_id",
+   "fieldtype": "Data",
+   "label": "GitHub App ID"
+  },
+  {
+   "fieldname": "github_app_client_id",
+   "fieldtype": "Data",
+   "label": "Client ID"
+  },
+  {
+   "description": "Public installation link, e.g. https://github.com/apps/your-app/installations/new",
+   "fieldname": "github_app_public_link",
+   "fieldtype": "Data",
+   "label": "App Public Link"
+  },
+  {
+   "fieldname": "github_app_secrets_section",
+   "fieldtype": "Section Break",
+   "label": "Secrets"
+  },
+  {
+   "fieldname": "github_app_client_secret",
+   "fieldtype": "Password",
+   "label": "Client Secret"
+  },
+  {
+   "description": "PEM-encoded private key generated for the GitHub App.",
+   "fieldname": "github_app_private_key",
+   "fieldtype": "Password",
+   "label": "Private Key"
+  },
+  {
+   "description": "Shared secret used to verify incoming webhook deliveries (TB6).",
+   "fieldname": "github_webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret"
   }
  ],
  "grid_page_length": 50,
@@ -138,6 +203,14 @@
    "print": 1,
    "read": 1,
    "role": "Wiki Approver",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Wiki Manager",
    "share": 1,
    "write": 1
   }

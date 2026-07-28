@@ -1,101 +1,111 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 bg-surface-white shrink-0 border-b-2 border-b-gray-500/20">
-				<div class="flex items-center gap-2 min-w-0 flex-1">
-					<div class="flex flex-col gap-1 min-w-0 flex-1">
-						<input
-							type="text"
-							v-model="editableTitle"
-							class="text-2xl font-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-							:placeholder="__('Page title')"
-							@blur="saveTitleIfChanged"
-							@keydown.enter="$event.target.blur()"
-						/>
-						<div
-							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-							@click="openRouteDialog"
-						>
-							<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
-							<LucidePencil class="size-3 shrink-0 opacity-0 group-hover/route:opacity-100" />
-						</div>
-						<div class="flex items-center gap-2 mt-1">
-							<Badge variant="subtle" theme="blue" size="sm">
-								{{ __('Draft') }}
-							</Badge>
-							<Badge v-if="crPage.is_group" variant="subtle" theme="gray" size="sm">
-								{{ __('Group') }}
-							</Badge>
-						</div>
-					</div>
+			<div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
+				<div
+					class="flex min-w-0 items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
+					@click="openRouteDialog"
+				>
+					<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
+					<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex shrink-0 items-center gap-2">
 					<Button
 						variant="solid"
 						:loading="isSaving"
 						@click="saveFromHeader"
 					>
-						<template #prefix>
-							<LucideSave class="size-4" />
-						</template>
 						{{ __('Save') }}
 					</Button>
 					<Dropdown :options="menuOptions">
-						<Button variant="outline">
-							<LucideMoreVertical class="size-4" />
+						<Button variant="ghost" :title="__('More actions')">
+							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</div>
 			</div>
 
-			<div v-if="!crPage.is_group" class="flex-1 overflow-auto px-6 pb-6">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+			<div v-if="!crPage.is_group" class="flex-1 overflow-auto pb-10">
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<template #title>
+						<div class="pt-8">
+							<input
+								type="text"
+								v-model="editableTitle"
+								class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
+								:placeholder="__('Page title')"
+								@blur="saveTitleIfChanged"
+								@keydown.enter="$event.target.blur()"
+							/>
+							<div class="mt-1.5 flex items-center gap-2">
+								<Badge variant="subtle" theme="blue" size="sm">
+									{{ __('Draft') }}
+								</Badge>
+							</div>
+						</div>
+					</template>
+				</WikiEditor>
 			</div>
 
-			<div v-else class="flex-1 flex items-center justify-center text-ink-gray-5">
-				<div class="text-center">
-					<LucideFolder class="size-12 mx-auto mb-4 text-ink-gray-4" />
-					<p>{{ __('This is a draft group.') }}</p>
-					<p class="text-sm">{{ __('Groups organize pages but have no content.') }}</p>
+			<div v-else class="flex-1 flex flex-col overflow-auto">
+				<div class="mx-auto w-full max-w-[770px] px-6 pt-8">
+					<input
+						type="text"
+						v-model="editableTitle"
+						class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
+						:placeholder="__('Group name')"
+						@blur="saveTitleIfChanged"
+						@keydown.enter="$event.target.blur()"
+					/>
+					<div class="mt-1.5 flex items-center gap-2">
+						<Badge variant="subtle" theme="blue" size="sm">{{ __('Draft') }}</Badge>
+						<Badge variant="subtle" theme="gray" size="sm">{{ __('Group') }}</Badge>
+					</div>
+				</div>
+				<div class="flex-1 flex items-center justify-center text-ink-gray-5">
+					<div class="text-center">
+						<span class="lucide-folder size-12 mx-auto mb-4 text-ink-gray-4" aria-hidden="true" />
+						<p>{{ __('This is a draft group.') }}</p>
+						<p class="text-sm">{{ __('Groups organize pages but have no content.') }}</p>
+					</div>
 				</div>
 			</div>
 		</div>
 
-		<div v-else-if="!loadFailed" class="h-full flex flex-col animate-pulse">
-			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
+		<div v-else-if="!loadFailed" class="h-full flex flex-col">
+			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
+				<Skeleton class="h-4 w-40 rounded" />
 				<div class="flex items-center gap-2">
-					<div class="h-7 w-48 rounded bg-surface-gray-3" />
-					<div class="h-5 w-14 rounded-full bg-surface-gray-3" />
-				</div>
-				<div class="flex items-center gap-2">
-					<div class="h-8 w-28 rounded bg-surface-gray-3" />
-					<div class="size-8 rounded bg-surface-gray-3" />
+					<Skeleton class="h-8 w-16 rounded" />
+					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
-			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-				<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
+			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
+				<Skeleton class="h-8 w-64 rounded" />
+				<Skeleton class="h-5 w-14 rounded-full" />
+				<Skeleton class="h-4 w-3/4 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-5/6 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-2/3 rounded" />
+				<Skeleton class="h-4 w-full rounded mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
 			</div>
 		</div>
 
 		<div v-else class="h-full flex items-center justify-center text-ink-gray-5">
 			<div class="text-center">
-				<LucideAlertCircle class="size-12 mx-auto mb-4 text-ink-gray-4" />
+				<span class="lucide-alert-circle size-12 mx-auto mb-4 text-ink-gray-4" aria-hidden="true" />
 				<p>{{ __('Draft not found') }}</p>
 			</div>
 		</div>
-		<Dialog v-model="showRouteDialog" :options="{ size: 'sm' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
+		<Dialog v-model:open="showRouteDialog" size="sm">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<FormControl
 					v-model="editableRoute"
 					:label="__('Route')"
@@ -125,17 +135,13 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	Skeleton,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import LucideAlertCircle from '~icons/lucide/alert-circle';
-import LucideFolder from '~icons/lucide/folder';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideSave from '~icons/lucide/save';
 import WikiEditor from './WikiEditor.vue';
 
 const props = defineProps({
@@ -245,6 +251,8 @@ onMounted(async () => {
 	if (props.spaceId) {
 		await draftStore.hydrate(props.spaceId);
 	}
+	// Restored IndexedDB drafts may belong to pages never revisited.
+	draftStore.flushDirtyPages(props.docKey).catch(() => {});
 	await loadCrPage();
 });
 
@@ -252,10 +260,25 @@ watch(
 	() => props.docKey,
 	async (newId) => {
 		if (newId) {
+			// Navigation cancels the previous page's debounced autosave;
+			// flush its buffer now. Failures surface via the sync pill.
+			draftStore.flushDirtyPages(newId).catch(() => {});
 			await loadCrPage();
 		}
 	},
 );
+
+// Drain dirty buffers for pages other than the one on screen; the open
+// page's saves go through the editor instead.
+async function flushOtherDirtyPages() {
+	const failures = await draftStore.flushDirtyPages(props.docKey);
+	if (failures.length) {
+		const error = failures[0];
+		toast.error(
+			error?.messages?.[0] || error?.message || __('Error saving draft'),
+		);
+	}
+}
 
 function onEditorContentChange(content, docKey = props.docKey, options = {}) {
 	if (!docKey) return;

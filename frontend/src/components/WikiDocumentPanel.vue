@@ -1,118 +1,122 @@
 <template>
 	<div class="h-full flex flex-col">
+		<DefineActions>
+			<Button
+				v-if="wikiDoc.doc?.is_published"
+				variant="ghost"
+				@click="openPage"
+			>
+				<template #prefix>
+					<span class="lucide-external-link size-4" aria-hidden="true" />
+				</template>
+				{{ __('View Page') }}
+			</Button>
+			<Button
+				v-if="!readonly"
+				variant="solid"
+				:loading="isSaving"
+				:title="isMac ? '⌘S' : 'Ctrl+S'"
+				@click="saveFromHeader"
+			>
+				{{ __('Save') }}
+			</Button>
+			<Dropdown :options="menuOptions">
+				<Button variant="ghost" :title="__('More actions')">
+					<span class="lucide-more-vertical size-4" aria-hidden="true" />
+				</Button>
+			</Dropdown>
+		</DefineActions>
+
+		<!-- Page actions live in the space's tab row (SpaceDetails). `defer` lets
+		     that target mount first when tabs load async. -->
+		<Teleport defer to="#wiki-page-actions">
+			<ReuseActions />
+		</Teleport>
+
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 bg-surface-white shrink-0 border-b-2 border-b-gray-500/20">
-				<div class="flex items-center gap-2 min-w-0 flex-1">
-					<div class="flex flex-col gap-1 min-w-0 flex-1">
-						<div class="flex items-center gap-2">
-							<input
-								type="text"
-								v-model="editableTitle"
-								class="text-2xl font-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-								:placeholder="__('Page title')"
-								@blur="saveTitleIfChanged"
-								@keydown.enter="$event.target.blur()"
-							/>
-						</div>
-						<div
-							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-							@click="openRouteDialog"
-						>
-							<span class="font-mono truncate">/{{ displayRoute }}</span>
-							<LucidePencil class="size-3 shrink-0 opacity-0 group-hover/route:opacity-100" />
-						</div>
-						<div class="flex items-center gap-2 mt-1">
-							<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-								{{ __('Published') }}
-							</Badge>
-							<Badge v-else variant="subtle" theme="orange" size="sm">
-								{{ __('Not Published') }}
-							</Badge>
-							<Badge v-if="hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-								{{ __('Has Draft Changes') }}
-							</Badge>
-						</div>
-					</div>
-				</div>
+			<div class="flex-1 overflow-auto pb-10">
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<template #title>
+						<div class="pt-8">
+							<div class="flex items-start gap-3">
+								<input
+									type="text"
+									v-model="editableTitle"
+									:readonly="readonly"
+									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									:placeholder="__('Page title')"
+									@blur="saveTitleIfChanged"
+									@keydown.enter="$event.target.blur()"
+								/>
+								<div class="flex shrink-0 items-center gap-2 pt-2">
+									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+										{{ __('Published') }}
+									</Badge>
+									<Badge v-else variant="subtle" theme="orange" size="sm">
+										{{ __('Not Published') }}
+									</Badge>
+									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+										{{ __('Has Draft Changes') }}
+									</Badge>
+								</div>
+							</div>
 
-				<div class="flex items-center gap-2">
-					<Button
-						v-if="wikiDoc.doc?.is_published"
-						variant="outline"
-						@click="openPage"
-					>
-						<template #prefix>
-							<LucideExternalLink class="size-4" />
-						</template>
-						{{ __('View Page') }}
-					</Button>
-					<Button
-						variant="solid"
-						:loading="isSaving"
-						@click="saveFromHeader"
-					>
-						<span class="flex items-center gap-2">
-							{{ __('Save') }}
-							<kbd class="inline-flex items-center gap-1 rounded bg-white/25 px-1.5 py-0.5 text-[11px] font-medium opacity-80">
-								<span class="text-sm">{{ isMac ? '⌘' : 'Ctrl+' }}</span><span>S</span>
-							</kbd>
-						</span>
-					</Button>
-					<Dropdown :options="menuOptions">
-						<Button variant="outline">
-							<LucideMoreVertical class="size-4" />
-						</Button>
-					</Dropdown>
-				</div>
-			</div>
-
-			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" @save="saveContent" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+							<!-- Route under the title; click-to-edit unless read-only. -->
+							<div
+								class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
+								:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
+								@click="readonly ? null : openRouteDialog()"
+							>
+								<span class="font-mono truncate">/{{ displayRoute }}</span>
+								<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
+							</div>
+						</div>
+					</template>
+				</WikiEditor>
 				<!-- Editor body skeleton while the CR page overlay loads -->
-				<div v-else class="space-y-4 animate-pulse">
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-					<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+				<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
+					<Skeleton class="h-4 w-3/4 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-5/6 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-2/3 rounded" />
+					<Skeleton class="h-4 w-full rounded mt-6" />
+					<Skeleton class="h-4 w-4/5 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-3/4 rounded" />
 				</div>
 			</div>
 		</div>
 
 		<!-- Content skeleton -->
-		<div v-else class="h-full flex flex-col animate-pulse">
-			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
+		<div v-else class="h-full flex flex-col">
+			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
+				<Skeleton class="h-4 w-40 rounded" />
 				<div class="flex items-center gap-2">
-					<div class="h-7 w-48 rounded bg-surface-gray-3" />
-					<div class="h-5 w-16 rounded-full bg-surface-gray-3" />
-				</div>
-				<div class="flex items-center gap-2">
-					<div class="h-8 w-24 rounded bg-surface-gray-3" />
-					<div class="h-8 w-28 rounded bg-surface-gray-3" />
-					<div class="size-8 rounded bg-surface-gray-3" />
+					<Skeleton class="h-8 w-24 rounded" />
+					<Skeleton class="h-8 w-16 rounded" />
+					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
-			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-				<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
+				<Skeleton class="h-8 w-64 rounded" />
+				<Skeleton class="h-5 w-24 rounded-full" />
+				<Skeleton class="h-4 w-3/4 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-5/6 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-2/3 rounded" />
+				<Skeleton class="h-4 w-full rounded mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-3/4 rounded" />
 			</div>
 		</div>
-		<Dialog v-model="showRouteDialog" :options="{ size: 'sm' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
+		<Dialog v-model:open="showRouteDialog" size="sm">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<FormControl
 					v-model="editableRoute"
 					:label="__('Route')"
@@ -129,10 +133,12 @@
 				</div>
 			</template>
 		</Dialog>
+		<PageSettings v-if="wikiDoc.doc" v-model="showPageSettingsDialog" :doc-resource="wikiDoc" />
 	</div>
 </template>
 
 <script setup>
+import { buildGithubEditUrl } from '@/lib/github';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
@@ -142,18 +148,20 @@ import {
 	Dialog,
 	Dropdown,
 	FormControl,
+	Skeleton,
 	createDocumentResource,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
+import { createReusableTemplate } from '@vueuse/core';
 import { computed, ref, shallowRef, watch } from 'vue';
-import LucideExternalLink from '~icons/lucide/external-link';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucidePencil from '~icons/lucide/pencil';
+import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+const [DefineActions, ReuseActions] = createReusableTemplate();
 
 const props = defineProps({
 	pageId: {
@@ -164,14 +172,22 @@ const props = defineProps({
 		type: String,
 		required: false,
 	},
+	// Git-synced space: the page is owned by the repo. Render it for reading
+	// only — no change request, no editing affordances, no save path.
+	readonly: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const emit = defineEmits(['refresh']);
+
 const editorRef = ref(null);
 const editableTitle = ref('');
 const editableRoute = ref('');
 const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
+const showPageSettingsDialog = ref(false);
 
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
@@ -210,7 +226,13 @@ watch(
 watch(
 	[() => crStore.currentChangeRequest?.name, () => wikiDoc.value.doc?.doc_key],
 	async ([crName, docKey], [oldCrName]) => {
+		// Read-only (git-synced) pages render straight from the published doc —
+		// no change request overlay, so skip the CR-page load entirely.
+		if (props.readonly) return;
 		if (docKey) {
+			// Navigation cancels the previous page's debounced autosave;
+			// flush its buffer now. Failures surface via the sync pill.
+			draftStore.flushDirtyPages(docKey).catch(() => {});
 			await loadCrPage();
 		} else {
 			currentCrPage.value = null;
@@ -229,6 +251,7 @@ function onEditorContentChange(
 	docKey = wikiDoc.value.doc?.doc_key,
 	options = {},
 ) {
+	if (props.readonly) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.recordEditorContent(docKey, content, title, options);
@@ -239,6 +262,7 @@ function onEditorContentReady(
 	savedContent,
 	docKey = wikiDoc.value.doc?.doc_key,
 ) {
+	if (props.readonly) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
@@ -295,7 +319,12 @@ const editorContent = computed(() => {
 });
 
 const displayTitle = computed(() => {
-	return activePage.value?.title || currentCrPage.value?.title || wikiDoc.value.doc?.title || '';
+	return (
+		activePage.value?.title ||
+		currentCrPage.value?.title ||
+		wikiDoc.value.doc?.title ||
+		''
+	);
 });
 
 const displayPublished = computed(() => {
@@ -309,7 +338,12 @@ const displayPublished = computed(() => {
 });
 
 const displayRoute = computed(() => {
-	return activePage.value?.route || currentCrPage.value?.route || wikiDoc.value.doc?.route || '';
+	return (
+		activePage.value?.route ||
+		currentCrPage.value?.route ||
+		wikiDoc.value.doc?.route ||
+		''
+	);
 });
 
 // Browser tab title: "{page} | {space}". Returning undefined while the doc
@@ -349,6 +383,11 @@ const savedContent = computed(() => {
 });
 
 const editorKey = computed(() => {
+	// Read-only pages have no CR overlay to wait for: mount the viewer as soon
+	// as the published doc for this page is loaded.
+	if (props.readonly) {
+		return wikiDoc.value.doc?.name === props.pageId ? props.pageId : null;
+	}
 	// Gate on the loaded overlay matching the current doc — NOT on
 	// `isLoadingCrPage`. A background revalidation (after a save / title /
 	// route / publish edit) flips that flag without changing the page, and
@@ -364,14 +403,47 @@ const editorKey = computed(() => {
 	return null;
 });
 
+// "Edit on GitHub" target for a synced page — built from the space's repo/branch
+// and the document's source_path. Null for non-synced spaces or folder-only
+// groups (no editable source file). The space resource is the one SpaceDetails
+// already loaded, so this reads from cache.
+const githubEditUrl = computed(() => {
+	const space = props.spaceId
+		? getCachedDocumentResource('Wiki Space', props.spaceId)
+		: null;
+	if (!space?.doc?.git_synced) return null;
+	return buildGithubEditUrl({
+		repoFullName: space.doc.repo_full_name,
+		branch: space.doc.branch,
+		sourcePath: wikiDoc.value.doc?.source_path,
+	});
+});
+
 const menuOptions = computed(() => {
-	const options = [
-		{
-			label: displayPublished.value ? __('Unpublish') : __('Publish'),
-			icon: 'upload-cloud',
-			onClick: togglePublish,
-		},
-	];
+	// Read-only spaces can't change publish state — only offer the desk link.
+	const options = props.readonly
+		? []
+		: [
+				{
+					label: displayPublished.value ? __('Unpublish') : __('Publish'),
+					icon: 'upload-cloud',
+					onClick: togglePublish,
+				},
+				{
+					label: __('Page settings'),
+					icon: 'settings',
+					onClick: () => {
+						showPageSettingsDialog.value = true;
+					},
+				},
+			];
+	if (githubEditUrl.value) {
+		options.push({
+			label: __('Edit on GitHub'),
+			icon: 'github',
+			onClick: () => window.open(githubEditUrl.value, '_blank', 'noopener'),
+		});
+	}
 	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
 		options.push({
 			label: __('View in Desk'),
@@ -387,6 +459,7 @@ const menuOptions = computed(() => {
 });
 
 async function saveTitleIfChanged() {
+	if (props.readonly) return;
 	const newTitle = editableTitle.value.trim();
 	if (!newTitle || newTitle === displayTitle.value) return;
 	if (!wikiDoc.value.doc?.doc_key) return;
@@ -443,7 +516,21 @@ function saveFromHeader() {
 	editorRef.value?.saveToDB();
 }
 
+// Drain dirty buffers for pages other than the one on screen; the open
+// page's saves go through the editor instead.
+async function flushOtherDirtyPages() {
+	if (props.readonly) return;
+	const failures = await draftStore.flushDirtyPages(wikiDoc.value.doc?.doc_key);
+	if (failures.length) {
+		const error = failures[0];
+		toast.error(
+			error?.messages?.[0] || error?.message || __('Error saving draft'),
+		);
+	}
+}
+
 async function saveContent(content) {
+	if (props.readonly) return;
 	if (!wikiDoc.value.doc?.doc_key) {
 		toast.error(__('No active change request'));
 		return;

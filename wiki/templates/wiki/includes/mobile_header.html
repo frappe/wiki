@@ -4,23 +4,15 @@
 <!-- Mobile Navigation Container - Only visible on smaller screens -->
 <div class="sticky top-0 z-30 lg:hidden" x-data="mobileNav()" data-testid="mobile-nav">
     <!-- Mobile Header -->
-    <header class="bg-[var(--surface-white)] border-b border-[var(--outline-gray-1)]" data-testid="mobile-header">
+    <header class="bg-[var(--surface-base)] border-b border-[var(--outline-gray-1)]" data-testid="mobile-header">
         <div class="flex items-center justify-between px-4 py-3">
-            <!-- Left: Logo and Menu Toggle -->
-            <div class="flex items-center gap-3">
-                <button @click="toggleSidebar()"
-                        data-testid="mobile-menu-toggle"
-                        class="p-2 -ml-2 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-md transition-colors duration-200">
-                    <template x-if="!sidebarOpen">
-                        {{ render_icon("menu") }}
-                    </template>
-                    <template x-if="sidebarOpen">
-                        {{ render_icon("x") }}
-                    </template>
-                </button>
-                <div class="flex items-center gap-2">
-                    <span class="font-semibold text-[var(--ink-gray-9)]" data-testid="mobile-space-name">{{ wiki_space.space_name or _("Wiki") }}</span>
-                </div>
+            {#- Left: space identity only. The nav toggle is the floating pill
+                below, mirroring frappe-ui docs. -#}
+            <div class="flex items-center gap-2 min-w-0">
+                {% if wiki_space.app_switcher_logo %}
+                <img class="size-6 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+                {% endif %}
+                <span class="font-semibold text-[var(--ink-gray-9)] truncate" data-testid="mobile-space-name">{{ wiki_space.space_name or _("Wiki") }}</span>
             </div>
 
             <!-- Right: Navbar items, Search and Theme Toggle -->
@@ -64,9 +56,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[var(--ink-gray-5)] truncate max-w-32" x-text="activeTocText"></span>
-                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0" :class="tocOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
+                    <span class="inline-flex" :class="tocOpen ? 'rotate-180' : ''">{{ render_icon("chevron-down", "transition-transform duration-200 shrink-0") }}</span>
                 </div>
             </button>
 
@@ -94,16 +84,31 @@
         </div>
     </header>
 
+    {#- Floating nav trigger — frappe-ui docs pins its "Menu" button to the
+        bottom-right of the viewport instead of the header. Classes are the
+        frappe-ui Button outline/lg recipe (h-10 px-3 rounded-5, gray-outline
+        colours) so it reads as the same component. z-30 keeps it under the
+        sheet (z-50), which is what dismisses it once open. -#}
+    <button @click="toggleSidebar()"
+            x-show="!sidebarOpen"
+            data-testid="mobile-menu-toggle"
+            aria-label="Open navigation menu"
+            :aria-expanded="sidebarOpen"
+            class="fixed bottom-4 right-4 z-30 shadow-2xl inline-flex items-center justify-center gap-2 shrink-0 h-10 px-3 rounded-5 text-lg-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+        {{ render_icon("menu", "w-5 h-5") }}
+        <span>{{ _("Menu") }}</span>
+    </button>
+
     <!-- Mobile Sidebar Overlay -->
     <div x-show="sidebarOpen"
-         x-transition:enter="transition-opacity duration-300"
+         x-transition:enter="transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         x-transition:leave="transition-opacity duration-300"
+         x-transition:leave="transition-opacity duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="closeSidebar()"
-         class="fixed inset-0 bg-black/50 z-40"
+         class="fixed inset-0 bg-black/40 z-40"
          data-testid="mobile-overlay"
          x-cloak>
     </div>
@@ -111,39 +116,41 @@
     <!-- Mobile Bottom Sheet Panel -->
     <div x-show="sidebarOpen"
          x-ref="bottomSheet"
-         x-transition:enter="transition-transform duration-300 ease-out"
+         x-transition:enter="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:enter-start="translate-y-full"
          x-transition:enter-end="translate-y-0"
-         x-transition:leave="transition-transform duration-300 ease-in"
+         x-transition:leave="transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]"
          x-transition:leave-start="translate-y-0"
          x-transition:leave-end="translate-y-full"
          :style="isDragging ? `transform: translateY(${Math.max(0, dragOffset)}px); transition: none;` : ''"
-         class="fixed left-0 right-0 bottom-0 max-h-[85vh] bg-[var(--surface-modal)] z-50 flex flex-col rounded-t-2xl shadow-xl"
+         {#- Fixed 80dvh, not max-h: the sheet keeps one height whatever the
+             tree's size, the way frappe-ui docs' drawer does. dvh so iOS
+             browser chrome doesn't clip the bottom of the list. -#}
+         class="fixed left-0 right-0 bottom-0 h-[80dvh] bg-[var(--surface-base)] z-50 flex flex-col rounded-t-2xl shadow-2xl"
          data-testid="mobile-bottom-sheet"
          x-cloak>
 
-        <!-- Drag Handle -->
-        <div class="flex justify-center py-4 cursor-grab active:cursor-grabbing touch-none" data-testid="mobile-drag-handle"
+        {#- Drag handle — geometry from frappe-ui docs' MobileNavSheet. -#}
+        <div class="pt-2 pb-1 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none" data-testid="mobile-drag-handle"
              @mousedown="startDrag($event)"
              @touchstart.passive="startDrag($event)"
              @click="closeSidebar()">
-            <div class="h-1.5 w-12 rounded-full bg-[var(--outline-gray-2)]"></div>
+            <div class="h-1.5 w-10 rounded-full bg-[var(--surface-gray-3)]"></div>
         </div>
 
         <!-- Bottom Sheet Header -->
-        <div class="px-4 pb-3 border-b border-[var(--outline-gray-1)] flex items-center justify-between">
+        {#- No divider: the docs sheet has no internal rules, only the search field's own border. -#}
+        <div class="px-4 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-3 flex-1 min-w-0">
                 {% if wiki_space.app_switcher_logo %}
                 <img class="size-7 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
                 {% endif %}
-                <h3 class="text-lg font-semibold text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</h3>
+                <h3 class="text-lg-semibold text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</h3>
                 {% if wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
                 <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
                         class="p-1.5 rounded hover:bg-[var(--surface-gray-2)] transition-colors duration-200 flex-shrink-0"
                         title="Switch wiki space">
-                    <svg class="w-4 h-4 text-[var(--ink-gray-5)] transition-transform duration-200" :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
-                    </svg>
+                    <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevrons-up-down", "text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
                 </button>
                 {% endif %}
             </div>
@@ -158,16 +165,14 @@
         <!-- Space Switcher Dropdown -->
         <div x-show="spaceSwitcherOpen"
              x-collapse
-             class="border-b border-[var(--outline-gray-1)] bg-[var(--surface-gray-1)] flex-shrink-0">
+             class="bg-[var(--surface-gray-1)] flex-shrink-0">
             <div class="py-2 max-h-64 overflow-y-auto">
                 {% for space in wiki_spaces_for_switcher %}
                 <a href="/{{ space.route }}"
                    class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)] font-medium' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
                     <span class="truncate">{{ space.space_name }}</span>
                     {% if space.name == wiki_space.name %}
-                    <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+                    {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
                     {% endif %}
                 </a>
                 {% endfor %}
@@ -175,14 +180,111 @@
         </div>
         {% endif %}
 
+        {#- Tab picker (mobile) — the horizontal tab bar is desktop-only, so on
+            mobile a frappe-ui-style combobox switches tabs. Selecting one
+            navigates to its landing route; the tree below then gates to that
+            tab's subtree, exactly like the desktop sidebar. -#}
+        {% set current_route = doc.route if doc else '' %}
+        {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
+        {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+        {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
+        {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
+        {% set active = namespace(in_tab=false) %}
+        {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}
+        {% if space_tabs %}
+        {% set real_routes = space_tabs | rejectattr('doc_key', 'equalto', '__general__') | map(attribute='route') | join('|') %}
+        <div class="px-3 pt-3 pb-1 flex-shrink-0" x-data="{ tabPickerOpen: false }" @click.outside="tabPickerOpen = false">
+            <button type="button"
+                    @click="tabPickerOpen = !tabPickerOpen"
+                    aria-haspopup="listbox"
+                    :aria-expanded="tabPickerOpen"
+                    {#- frappe-ui Button, gray-outline, size md — full width. -#}
+                    class="flex h-8 w-full items-center gap-2 rounded-4 border border-[var(--outline-gray-2)] bg-[var(--surface-base)] px-2.5 text-base-medium text-[var(--ink-gray-8)] transition-colors hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] cursor-pointer">
+                {%- for tab in space_tabs %}
+                {#- Routes are editor-set and can contain quotes; tojson keeps them
+                    as safe JS string literals inside Alpine expressions (XSS guard). -#}
+                {%- set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
+                <span class="flex min-w-0 flex-1 items-center gap-2" x-show="{{ active_js }}" x-cloak>
+                    {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
+                    <span class="truncate text-start">{{ tab.title }}</span>
+                </span>
+                {%- endfor %}
+                <span class="inline-flex" :class="{ 'rotate-180': tabPickerOpen }">{{ render_icon("chevron-down", "shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
+            </button>
+
+            <div x-show="tabPickerOpen"
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-cloak
+                 role="listbox"
+                 {#- frappe-ui Menu content + group padding. -#}
+                 class="mt-1 rounded-lg bg-[var(--surface-elevation-2)] p-1.5 shadow-2xl ring-1 ring-black/5">
+                {%- for tab in space_tabs %}
+                {%- set target = tab.landing_route or tab.route %}
+                {%- set active_js = "$store.navigation.notInAnyTab(" ~ (real_routes | tojson | forceescape) ~ ")" if tab.doc_key == '__general__' else "$store.navigation.inTab(" ~ (tab.route | tojson | forceescape) ~ ")" %}
+                <button type="button"
+                        role="option"
+                        :aria-selected="{{ active_js }}"
+                        @click="$store.navigation.navigateTo({{ target | tojson | forceescape }}); tabPickerOpen = false; closeSidebar()"
+                        {#- frappe-ui ItemListRow (size sm) + Menu highlight colour. -#}
+                        class="flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-base transition-colors"
+                        :class="{{ active_js }} ? 'bg-[var(--surface-gray-3)] text-[var(--ink-gray-8)]' : 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)]'">
+                    {% if tab.tab_icon %}{{ lucide_svg(tab.tab_icon, "size-4 shrink-0 text-[var(--ink-gray-6)]") | safe }}{% endif %}
+                    <span class="truncate text-start flex-1">{{ tab.title }}</span>
+                    <span class="inline-flex" x-show="{{ active_js }}">{{ render_icon("check", "shrink-0 text-[var(--ink-gray-9)]") }}</span>
+                </button>
+                {%- endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {#- Sheet search — frappe-ui docs hides the navbar search field below md
+            and puts this in the drawer instead, so it's the only search bar
+            that ever renders on mobile. Markup is frappe-ui TextInput,
+            size lg + subtle, with a prefix slot (h-10, ps-10 for the icon).
+            It filters the tree in place, like the docs sheet; full-text search
+            stays on the header's ⌘K button. -#}
+        <div class="px-3 pt-2 pb-1 shrink-0">
+            <div class="relative flex items-center w-full">
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 text-[var(--ink-gray-8)]">
+                    {{ render_icon("search", "size-[18px] text-[var(--ink-gray-5)]") }}
+                </div>
+                <input type="search"
+                       x-model="navQuery"
+                       @input="filterTree()"
+                       data-testid="mobile-nav-search"
+                       placeholder="{{ _('Search') }}"
+                       aria-label="{{ _('Search navigation') }}"
+                       autocomplete="off"
+                       class="w-full h-10 rounded-md py-1.5 ps-10 pe-3 text-lg text-[var(--ink-gray-8)] border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] placeholder-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] focus:bg-[var(--surface-base)] focus:border-[var(--outline-gray-4)] focus:shadow-sm focus:ring-0 focus:outline-none">
+            </div>
+        </div>
+
         <!-- Bottom Sheet Navigation -->
-        <nav class="px-2 py-2 flex-1 overflow-y-auto" @click="handleNavClick($event)">
-            {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '') }}
+        <nav class="px-3 pt-2 pb-6 flex-1 overflow-y-auto" x-ref="sheetNav" @click="handleNavClick($event)">
+            <div x-show="!navHasResults" x-cloak class="px-2 py-6 text-md text-[var(--ink-gray-5)] text-center">
+                {{ _("No results for") }} "<span x-text="navQuery"></span>"
+            </div>
+            {% for tab in tab_nodes %}
+            {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
+            <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
+                {{ render_wiki_tree(tab.children, current_route=doc.route if doc else '', dense=False) }}
+            </div>
+            {% endfor %}
+
+            {% if show_home %}
+            <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
+                {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '', dense=False) }}
+            </div>
+            {% else %}
+            {{ render_wiki_tree(other_nodes, current_route=doc.route if doc else '', dense=False) }}
+            {% endif %}
         </nav>
 
         {% if navbar_items %}
         <!-- Navbar Links -->
-        <div class="p-3 border-t border-[var(--outline-gray-1)] bg-[var(--surface-white)]">
+        <div class="p-3 bg-[var(--surface-base)]">
             <div class="flex flex-wrap items-center gap-2">
                 {% for item in navbar_items %}
                     {% if item.icon %}
@@ -212,6 +314,8 @@
             sidebarOpen: false,
             tocOpen: false,
             spaceSwitcherOpen: false,
+            navQuery: '',
+            navHasResults: true,
             tocHeadings: [],
             activeTocId: '',
             activeTocText: '',
@@ -229,6 +333,12 @@
             init() {
                 // Auto-expand parents of current page
                 this.expandCurrentPageParents();
+
+                // Keep the tree in sync when navigation happens client-side
+                this.$watch('$store.navigation.currentRoute', (route) => {
+                    this.currentRoute = route;
+                    this.expandCurrentPageParents();
+                });
 
                 // Add global event listeners for drag
                 document.addEventListener('mousemove', this.onDrag.bind(this));
@@ -265,17 +375,87 @@
             toggleSidebar() {
                 this.sidebarOpen = !this.sidebarOpen;
                 document.body.style.overflow = this.sidebarOpen ? 'hidden' : '';
+                if (this.sidebarOpen) {
+                    // Drawer content is only measurable once it is visible
+                    this.$nextTick(() => {
+                        const el = this.$root.querySelector(`[data-route="${this.currentRoute}"]`);
+                        el?.scrollIntoView({ block: 'nearest' });
+                    });
+                }
             },
 
             closeSidebar() {
                 this.sidebarOpen = false;
                 document.body.style.overflow = '';
+                // The docs sheet clears its filter on close; a stale query would
+                // otherwise leave the tree pruned the next time it opens.
+                this.navQuery = '';
+                this.filterTree();
+            },
+
+            // Filters the rendered tree in place. A row survives if its own
+            // title matches or any descendant's does; matched groups are
+            // expanded so the hit is actually visible. Walking the node list
+            // backwards means a node's descendants are always resolved before
+            // it is.
+            filterTree() {
+                const root = this.$refs.sheetNav;
+                if (!root) return;
+
+                const query = this.navQuery.trim().toLowerCase();
+
+                // Clearing always spans every subtree, so switching tabs can't
+                // reveal rows left hidden by an earlier query.
+                if (!query) {
+                    root.querySelectorAll('.wiki-item').forEach((item) =>
+                        item.classList.remove('hidden'),
+                    );
+                    this.navHasResults = true;
+                    return;
+                }
+
+                // Only the active tab's subtree is displayed; the others are
+                // still in the DOM. Filtering across all of them would count a
+                // match inside a hidden tab as a result, leaving the drawer
+                // blank with the no-results line suppressed.
+                const items = Array.from(root.children)
+                    .filter(
+                        (subtree) =>
+                            subtree.querySelector('.wiki-item') &&
+                            getComputedStyle(subtree).display !== 'none',
+                    )
+                    .flatMap((subtree) =>
+                        Array.from(subtree.querySelectorAll('.wiki-item')),
+                    );
+
+                const shown = new Map();
+                for (const item of items.slice().reverse()) {
+                    const title = (item.querySelector('.wiki-title')?.textContent || '')
+                        .trim()
+                        .toLowerCase();
+                    const descendantMatched = Array.from(
+                        item.querySelectorAll('.wiki-item'),
+                    ).some((child) => shown.get(child));
+                    const show = title.includes(query) || descendantMatched;
+
+                    shown.set(item, show);
+                    item.classList.toggle('hidden', !show);
+
+                    if (descendantMatched) {
+                        const nodeId = item
+                            .querySelector('.wiki-item-content[data-node-id]')
+                            ?.getAttribute('data-node-id');
+                        if (nodeId) this.expandedStates[nodeId] = true;
+                    }
+                }
+
+                this.navHasResults = items.some((item) => shown.get(item));
             },
 
             scrollToHeading(id) {
                 const element = document.getElementById(id);
                 if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    element.scrollIntoView({ block: 'start' });
                     history.pushState(null, null, `#${id}`);
                 }
             },
@@ -332,11 +512,12 @@
                 if (!this.currentRoute) return;
 
                 this.$nextTick(() => {
-                    const currentPageElement = document.querySelector(`[data-route="${this.currentRoute}"]`);
+                    // Scoped to $root so we don't match the desktop sidebar's copy of the tree
+                    const currentPageElement = this.$root.querySelector(`[data-route="${this.currentRoute}"]`);
                     if (!currentPageElement) return;
 
                     let parentElement = currentPageElement.parentElement;
-                    while (parentElement) {
+                    while (parentElement && parentElement !== this.$root) {
                         if (parentElement.classList.contains('wiki-children')) {
                             const parentItem = parentElement.parentElement;
                             if (parentItem) {

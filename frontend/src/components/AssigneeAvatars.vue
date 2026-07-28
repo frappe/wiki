@@ -10,7 +10,7 @@
 		</Tooltip>
 		<Tooltip v-else v-for="user in reversedUsers" :key="user" :text="user">
 			<Avatar
-				class="-mr-1.5 transform ring-2 ring-outline-white transition hover:z-10 hover:scale-110"
+				class="-mr-1.5 transform ring-2 ring-outline-base transition hover:z-10 hover:scale-110"
 				shape="circle"
 				:label="user"
 				:size="size"
@@ -20,8 +20,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { Avatar, Tooltip } from 'frappe-ui';
+import { computed } from 'vue';
 
 const props = defineProps({
 	// Frappe's native `_assign` field — a JSON-encoded array of user ids.

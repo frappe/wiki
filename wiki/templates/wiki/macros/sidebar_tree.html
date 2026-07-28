@@ -1,35 +1,48 @@
-{% macro render_wiki_tree(nodes, level=0, current_route='', expanded_nodes=set()) %}
+{#- `dense` is the desktop tree (h-7 rows). The mobile sheet passes
+    dense=false for the taller, rounder rows frappe-ui docs' MobileNavSheet
+    uses — h-11 at text-md, which is a real touch target rather than a
+    28px line. -#}
+{% macro render_wiki_tree(nodes, level=0, current_route='', expanded_nodes=set(), dense=True) %}
+    {% set row_geometry = "h-7 rounded" if dense else "h-11 rounded-md" %}
+    {% set row_text = "text-sm" if dense else "text-md" %}
+    {% set row_text_medium = "text-sm-medium" if dense else "text-md font-medium" %}
     {% if nodes %}
         <ul class="wiki-tree list-none m-0 px-0 py-0.5 space-y-0.5">
             {% for node in nodes %}
                 <li class="wiki-item {{ 'is-group' if node.is_group else 'is-page' }}">
                     {% if node.is_group %}
                         {# Group/folder item #}
-                        <button class="wiki-item-content group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] transition-all duration-200 cursor-pointer hover:bg-[var(--surface-gray-2)]"
+                        <button class="wiki-item-content group w-full flex items-center {{ row_geometry }} px-2 text-[var(--ink-gray-7)] transition-colors duration-200 cursor-pointer hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-8)]"
                                 @click="toggleNode('{{ node.name }}')"
                                 :aria-expanded="isExpanded('{{ node.name }}')"
                                 aria-controls="{{ node.name }}-children"
                                 title="{{ node.title }}"
                                 data-route="{{ node.route }}"
                                 data-node-id="{{ node.name }}">
-                            {# Triangle chevron that rotates 90° when expanded #}
-                            <svg class="w-3 h-3 mr-1.5 text-[var(--ink-gray-4)] transition-transform duration-200 flex-shrink-0"
-                                 :class="isExpanded('{{ node.name }}') ? 'rotate-90' : 'rotate-0'"
-                                 viewBox="0 0 12 12" fill="currentColor">
-                                <path d="M4 8.54V3.46c0-.4.455-.64.787-.41l3.628 2.54a.5.5 0 010 .82L4.787 8.95A.5.5 0 014 8.54z"/>
-                            </svg>
-                            <span class="wiki-title text-sm font-medium truncate">{{ node.title }}</span>
+                            {# frappe-ui Tree's toggle: a size-5 slot holding a
+                               size-3.5 stroked chevron-right that rotates 90°
+                               when expanded. Leaf rows pad by the same 20px. #}
+                            <span class="flex size-5 shrink-0 items-center justify-center text-[var(--ink-gray-5)]">
+                                <svg class="size-3.5 transition-transform duration-150"
+                                     :class="isExpanded('{{ node.name }}') ? 'rotate-90' : 'rotate-0'"
+                                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                                     aria-hidden="true">
+                                    <path d="m9 18 6-6-6-6"/>
+                                </svg>
+                            </span>
+                            <span class="wiki-title {{ row_text_medium }} truncate">{{ node.title }}</span>
                         </button>
                     {% elif node.is_external_link %}
                         {# External link item #}
                         <a href="{{ node.external_url }}"
                            target="_blank"
                            rel="noopener noreferrer"
-                           class="wiki-item-content wiki-link wiki-external-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200 hover:bg-[var(--surface-gray-2)]"
+                           class="wiki-item-content wiki-link wiki-external-link group w-full flex items-center {{ row_geometry }} px-2 text-[var(--ink-gray-7)] no-underline transition-colors duration-200 hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-8)]"
                            title="{{ node.title }}">
-                            <span class="wiki-title text-sm truncate {{ 'pl-[18px]' if level == 0 else '' }}">{{ node.title }}</span>
+                            <span class="wiki-title {{ row_text }} truncate {{ 'pl-5' if level == 0 else '' }}">{{ node.title }}</span>
                             {# External link icon right next to text #}
-                            <svg class="w-3 h-3 ml-2 text-[var(--ink-gray-4)] flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg class="w-3 h-3 ml-2 text-[var(--ink-gray-4)] flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                                 <polyline points="15 3 21 3 21 9"/>
                                 <line x1="10" y1="14" x2="21" y2="3"/>
@@ -37,26 +50,29 @@
                         </a>
                     {% else %}
                         {# Page/leaf item #}
+                        {# node.route is editor-set free text; tojson keeps it a
+                           safe JS string literal in these Alpine expressions. #}
                         <a href="/{{ node.route }}"
-                           @click.prevent="$store.navigation.navigateTo('{{ node.route }}')"
-                           @mouseenter="$store.navigation.prefetch('{{ node.route }}')"
-                           class="wiki-item-content wiki-link group w-full flex items-center h-7 rounded px-2 text-[var(--ink-gray-7)] no-underline transition-all duration-200"
-                           :class="$store.navigation.currentRoute === '{{ node.route }}' ? 'bg-[var(--surface-selected)] shadow-sm text-[var(--ink-gray-9)]' : 'hover:bg-[var(--surface-gray-2)]'"
-                           :aria-current="$store.navigation.currentRoute === '{{ node.route }}' ? 'page' : false"
+                           @click.prevent="$store.navigation.navigateTo({{ node.route | tojson | forceescape }})"
+                           @mouseenter="$store.navigation.prefetch({{ node.route | tojson | forceescape }})"
+                           class="wiki-item-content wiki-link group w-full flex items-center {{ row_geometry }} px-2 text-[var(--ink-gray-7)] no-underline transition-colors duration-200"
+                           :class="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)]' : 'hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-8)]'"
+                           :aria-current="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'page' : false"
                            title="{{ node.title }}"
                            data-route="{{ node.route }}"
                            data-node-id="{{ node.name }}">
-                            <span class="wiki-title text-sm truncate {{ 'pl-[18px]' if level == 0 else '' }}">{{ node.title }}</span>
+                            <span class="wiki-title {{ row_text }} truncate {{ 'pl-5' if level == 0 else '' }}">{{ node.title }}</span>
                         </a>
                     {% endif %}
 
                     {% if node.children %}
                         <div id="{{ node.name }}-children"
-                             class="wiki-children overflow-hidden mt-0.5 ml-[14px] pl-2 border-l border-[var(--outline-gray-2)]"
+                             {# Rail sits on the toggle's centre line: px-2 (8px) + half of the size-5 slot. #}
+                             class="wiki-children overflow-hidden mt-0.5 ml-[18px] pl-2 border-l border-[var(--outline-gray-2)]"
                              x-show="isExpanded('{{ node.name }}')"
                              x-collapse
                              {% if node.name not in expanded_nodes %}x-cloak{% endif %}>
-                            {{ render_wiki_tree(node.children, level + 1, current_route, expanded_nodes) }}
+                            {{ render_wiki_tree(node.children, level + 1, current_route, expanded_nodes, dense) }}
                         </div>
                     {% endif %}
                 </li>

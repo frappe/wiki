@@ -6,36 +6,36 @@
  * Supports common video formats: mp4, webm, ogg, mov, avi, mkv, m4v
  */
 
-import { computed } from 'vue';
 import { NodeViewWrapper } from '@tiptap/vue-3';
+import { computed } from 'vue';
 
 const props = defineProps({
-    node: {
-        type: Object,
-        required: true,
-    },
-    updateAttributes: {
-        type: Function,
-        required: true,
-    },
-    selected: {
-        type: Boolean,
-        default: false,
-    },
+	node: {
+		type: Object,
+		required: true,
+	},
+	updateAttributes: {
+		type: Function,
+		required: true,
+	},
+	selected: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const src = computed(() => props.node.attrs.src || '');
 
 // Get video MIME type from extension
 const videoType = computed(() => {
-    const url = src.value.toLowerCase();
-    if (url.endsWith('.mp4') || url.endsWith('.m4v')) return 'video/mp4';
-    if (url.endsWith('.webm')) return 'video/webm';
-    if (url.endsWith('.ogg')) return 'video/ogg';
-    if (url.endsWith('.mov')) return 'video/quicktime';
-    if (url.endsWith('.avi')) return 'video/x-msvideo';
-    if (url.endsWith('.mkv')) return 'video/x-matroska';
-    return 'video/mp4'; // Default fallback
+	const url = src.value.toLowerCase();
+	if (url.endsWith('.mp4') || url.endsWith('.m4v')) return 'video/mp4';
+	if (url.endsWith('.webm')) return 'video/webm';
+	if (url.endsWith('.ogg')) return 'video/ogg';
+	if (url.endsWith('.mov')) return 'video/quicktime';
+	if (url.endsWith('.avi')) return 'video/x-msvideo';
+	if (url.endsWith('.mkv')) return 'video/x-matroska';
+	return 'video/mp4'; // Default fallback
 });
 </script>
 

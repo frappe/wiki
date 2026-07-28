@@ -7,7 +7,7 @@
 	"icon_type": "App",
 	"idx": 0,
 	"label": "Wiki",
-	"link": "/wiki",
+	"link": "/wiki-app",
 	"link_type": "External",
 	"logo_url": "/assets/wiki/images/wiki-logo.png",
 	"modified": "2026-01-06 12:18:13.683365",

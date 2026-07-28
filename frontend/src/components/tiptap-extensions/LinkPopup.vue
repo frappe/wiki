@@ -1,5 +1,5 @@
 <template>
-    <div class="p-2 w-72 flex items-center gap-2 bg-surface-white shadow-xl rounded-lg border border-outline-gray-2">
+    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-lg border border-outline-gray-2">
         <TextInput
             v-if="isEditing"
             ref="inputRef"
@@ -27,7 +27,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideCheck class="size-4" />
+                        <span class="lucide-check size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -36,7 +36,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideX class="size-4" />
+                        <span class="lucide-x size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -47,7 +47,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideCopy class="size-4" />
+                        <span class="lucide-copy size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -56,7 +56,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucidePencil class="size-4" />
+                        <span class="lucide-pencil size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -65,7 +65,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideLink2Off class="size-4" />
+                        <span class="lucide-link-2off size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -74,23 +74,18 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue';
 import { Button, TextInput, toast } from 'frappe-ui';
-import LucideCopy from '~icons/lucide/copy';
-import LucideCheck from '~icons/lucide/check';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideX from '~icons/lucide/x';
-import LucideLink2Off from '~icons/lucide/link-2-off';
+import { nextTick, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
-    href: {
-        type: String,
-        default: '',
-    },
-    isNew: {
-        type: Boolean,
-        default: false,
-    },
+	href: {
+		type: String,
+		default: '',
+	},
+	isNew: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const emit = defineEmits(['save', 'remove', 'cancel']);
@@ -101,90 +96,98 @@ const editUrl = ref(props.href || '');
 const currentHref = ref(props.href || '');
 
 function isValidUrl(url) {
-    if (!url) return false;
-    try {
-        // Allow relative URLs or absolute URLs
-        if (url.startsWith('/') || url.startsWith('#')) {
-            return true;
-        }
-        new URL(url);
-        return true;
-    } catch {
-        // Check if it looks like a URL without protocol
-        return /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/.test(url);
-    }
+	if (!url) return false;
+	try {
+		// Allow relative URLs or absolute URLs
+		if (url.startsWith('/') || url.startsWith('#')) {
+			return true;
+		}
+		new URL(url);
+		return true;
+	} catch {
+		// Check if it looks like a URL without protocol
+		return /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/.test(url);
+	}
 }
 
 function startEditing() {
-    editUrl.value = currentHref.value;
-    isEditing.value = true;
-    nextTick(() => {
-        if (inputRef.value?.el) {
-            inputRef.value.el.focus();
-            inputRef.value.el.select();
-        }
-    });
+	editUrl.value = currentHref.value;
+	isEditing.value = true;
+	nextTick(() => {
+		if (inputRef.value?.el) {
+			inputRef.value.el.focus();
+			inputRef.value.el.select();
+		}
+	});
 }
 
 function saveLink() {
-    if (!editUrl.value) {
-        emit('save', '');
-        return;
-    }
+	if (!editUrl.value) {
+		emit('save', '');
+		return;
+	}
 
-    let url = editUrl.value.trim();
+	let url = editUrl.value.trim();
 
-    // Add https:// if no protocol and not a relative URL
-    if (url && !url.startsWith('/') && !url.startsWith('#') && !url.match(/^[a-zA-Z]+:\/\//)) {
-        url = 'https://' + url;
-    }
+	// Add https:// if no protocol and not a relative URL
+	if (
+		url &&
+		!url.startsWith('/') &&
+		!url.startsWith('#') &&
+		!url.match(/^[a-zA-Z]+:\/\//)
+	) {
+		url = 'https://' + url;
+	}
 
-    if (url === '' || isValidUrl(url)) {
-        currentHref.value = url;
-        isEditing.value = false;
-        emit('save', url);
-    }
+	if (url === '' || isValidUrl(url)) {
+		currentHref.value = url;
+		isEditing.value = false;
+		emit('save', url);
+	}
 }
 
 function cancelEdit() {
-    if (props.href) {
-        isEditing.value = false;
-        editUrl.value = currentHref.value;
-    } else {
-        emit('save', '');
-    }
+	if (props.href) {
+		isEditing.value = false;
+		editUrl.value = currentHref.value;
+	} else {
+		emit('save', '');
+	}
 }
 
 function removeLink() {
-    emit('remove');
+	emit('remove');
 }
 
 async function copyLink() {
-    if (currentHref.value) {
-        try {
-            await navigator.clipboard.writeText(currentHref.value);
-            toast.success('Link copied');
-        } catch {
-            toast.error('Failed to copy');
-        }
-    }
+	if (currentHref.value) {
+		try {
+			await navigator.clipboard.writeText(currentHref.value);
+			toast.success('Link copied');
+		} catch {
+			toast.error('Failed to copy');
+		}
+	}
 }
 
-watch(() => props.href, (newHref) => {
-    currentHref.value = newHref || '';
-    editUrl.value = newHref || '';
-    isEditing.value = newHref === '';
-});
+watch(
+	() => props.href,
+	(newHref) => {
+		currentHref.value = newHref || '';
+		editUrl.value = newHref || '';
+		isEditing.value = newHref === '';
+	},
+);
 
 onMounted(async () => {
-    await nextTick();
-    if (inputRef.value?.el && isEditing.value) {
-        inputRef.value.el.focus();
-        inputRef.value.el.select();
-    }
+	await nextTick();
+	if (inputRef.value?.el && isEditing.value) {
+		inputRef.value.el.focus();
+		inputRef.value.el.select();
+	}
 });
 
 defineExpose({
-    startEditing,
+	startEditing,
 });
 </script>

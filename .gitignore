@@ -13,10 +13,19 @@ cypress/screenshots
 cypress/videos
 __pycache__/
 wiki/public/frontend/
-wiki/www/wiki.html
+wiki/www/wiki-app.html
 wiki/public/css/tailwind.css
+wiki/public/css/frappe-ui-tokens.css
+wiki/public/css/frappe-ui-prose.css
+wiki/public/css/frappe-ui-code.css
+wiki/public/js/wiki-highlight.bundle.js
 playwright-report/
 test-results/
 e2e/.auth/
 .env
 screenshots/
+
+# Local design tool for the generated OG card (/og_playground) — renders the
+# real template with live dials. Handy while iterating, not something to ship.
+wiki/www/og_playground.py
+wiki/www/og_playground.html

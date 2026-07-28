@@ -12,6 +12,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -80,6 +81,21 @@ def _can_merge(wiki_space: str | None, user: str | None = None) -> bool:
 	from wiki.permissions import can_write_space
 
 	return can_write_space(wiki_space, user)
+
+
+def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None) -> None:
+	"""Block a Read-tier user from raising CRs when the space has them turned off.
+
+	Write-tier users (and managers) may always contribute. The caller has already
+	verified read access.
+	"""
+	from wiki.permissions import can_contribute_to_space
+
+	if not can_contribute_to_space(wiki_space, user):
+		frappe.throw(
+			_("This wiki space is not accepting contributions."),
+			frappe.PermissionError,
+		)
 
 
 # Statuses in which the CR head revision may still be mutated by its author.
@@ -197,8 +213,8 @@ def _lock_and_load_cr(name: str) -> Document:
 # the caller invokes those once after a logical unit of work so a batch only pays
 # that cost a single time.
 
-_CR_ITEM_SCALAR_UPDATE_FIELDS = ("title", "slug", "route", "external_url")
-_CR_ITEM_CHECKBOX_UPDATE_FIELDS = ("is_group", "is_published", "is_external_link", "is_deleted")
+_CR_ITEM_SCALAR_UPDATE_FIELDS = ("title", "slug", "route", "external_url", "tab_icon")
+_CR_ITEM_CHECKBOX_UPDATE_FIELDS = ("is_group", "is_published", "is_external_link", "is_deleted", "is_tab")
 
 
 def _compute_cr_route(
@@ -235,6 +251,8 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 		"slug",
 		"route",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"is_published",
 		"is_external_link",
 		"external_url",
@@ -269,6 +287,8 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 		"slug": item.get("slug"),
 		"route": item.get("route") or "",
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -284,6 +304,36 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 	return payload
 
 
+def _cr_root_doc_key(cr: Document) -> str | None:
+	"""doc_key of the wiki space's root group — the CR-side notion of "top level"."""
+	root_group = frappe.db.get_value("Wiki Space", cr.wiki_space, "root_group")
+	return frappe.get_value("Wiki Document", root_group, "doc_key") if root_group else None
+
+
+def _assert_valid_tab(cr: Document, *, parent_key: str | None, is_group: bool) -> None:
+	"""Mirror WikiDocument.validate_tab for a node living in a change request.
+
+	Without this a CR could stage a leaf tab or a nested tab and only blow up at
+	merge time, when the live-doc validation finally runs — long after the author
+	could do anything about it.
+	"""
+	if not is_group:
+		frappe.throw(_("Only a group can be marked as a tab."))
+	if parent_key != _cr_root_doc_key(cr):
+		frappe.throw(_("Only a top-level group can be marked as a tab. Nested tabs are not supported."))
+
+
+def _assert_can_manage_tabs(cr: Document) -> None:
+	"""Gate tab flag changes at the two CR mutation chokepoints.
+
+	Enforced here rather than per-endpoint so the legacy per-action RPCs and the
+	batch `apply_cr_operations` path can't drift apart.
+	"""
+	from wiki.permissions import assert_can_manage_tabs
+
+	assert_can_manage_tabs(cr.wiki_space)
+
+
 def _create_cr_item(
 	cr: Document,
 	*,
@@ -297,6 +347,8 @@ def _create_cr_item(
 	external_url: str | None = None,
 	order_index: int | None = None,
 	route: str | None = None,
+	is_tab: bool = False,
+	tab_icon: str | None = None,
 ) -> str:
 	head_revision = cr.head_revision
 	item_map = get_effective_revision_item_map(head_revision)
@@ -304,12 +356,18 @@ def _create_cr_item(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
 
+	if is_tab:
+		_assert_can_manage_tabs(cr)
+		_assert_valid_tab(cr, parent_key=parent_key, is_group=is_group)
+
 	item = frappe.new_doc("Wiki Revision Item")
 	item.revision = head_revision
 	item.doc_key = frappe.generate_hash(length=12)
 	item.title = title
 	item.slug = slug or cleanup_page_name(title)
 	item.is_group = 1 if is_group else 0
+	item.is_tab = 1 if is_tab else 0
+	item.tab_icon = tab_icon
 	item.is_published = 1 if is_published else 0
 	item.is_external_link = 1 if is_external_link else 0
 	item.external_url = external_url
@@ -317,7 +375,8 @@ def _create_cr_item(
 	item.order_index = order_index if order_index is not None else max_order + 1
 	item.content_blob = get_or_create_content_blob(content or "")
 	item.is_deleted = 0
-	item.route = route if route is not None else _compute_cr_route(cr, parent_key, item.slug, item_map)
+	# An author-supplied route always wins, but is never trusted verbatim.
+	item.route = sanitize_route(route) if route else _compute_cr_route(cr, parent_key, item.slug, item_map)
 	item.insert()
 	return item.doc_key
 
@@ -326,17 +385,22 @@ def _update_cr_item(
 	cr: Document,
 	doc_key: str,
 	fields: dict[str, Any],
-	*,
-	recompute_route: bool = False,
 ) -> str:
 	item_name = ensure_overlay_item(cr.head_revision, doc_key)
 	if not item_name:
 		frappe.throw(_("Document not found in change request"))
 
+	# Only gate operations that actually touch the tab flags — editing a tab
+	# group's own content stays open to ordinary contributors.
+	if "is_tab" in fields or "tab_icon" in fields:
+		_assert_can_manage_tabs(cr)
+
 	item = frappe.get_doc("Wiki Revision Item", item_name)
 	updates = {
 		field: fields[field] for field in _CR_ITEM_SCALAR_UPDATE_FIELDS if fields.get(field) is not None
 	}
+	if updates.get("route"):
+		updates["route"] = sanitize_route(updates["route"])
 	updates.update(
 		{
 			field: int(bool(fields[field]))
@@ -348,18 +412,15 @@ def _update_cr_item(
 		updates["content_blob"] = get_or_create_content_blob(fields["content"])
 	item.update(updates)
 
-	# When the caller (typically the batch endpoint) didn't pin a route but title
-	# or slug changed, recompute it so renames don't leave stale routes.
-	if (
-		recompute_route
-		and "route" not in fields
-		and (
-			("title" in fields and fields["title"] is not None)
-			or ("slug" in fields and fields["slug"] is not None)
-		)
-	):
-		item_map = get_effective_revision_item_map(cr.head_revision)
-		item.route = _compute_cr_route(cr, item.parent_key, item.slug, item_map)
+	# Re-check against the post-update item rather than the incoming fields: one
+	# call can flip is_tab and is_group together, and clearing is_group on an
+	# existing tab has to be rejected just as hard as setting is_tab on a leaf.
+	if item.is_tab:
+		_assert_valid_tab(cr, parent_key=item.parent_key, is_group=bool(item.is_group))
+
+	# A route is never recomputed from a renamed title: the author picks the URL
+	# when the page is created and owns it from then on. Moving it is an explicit
+	# `route` edit, never a side effect of renaming.
 
 	item.save()
 	return item.doc_key
@@ -407,6 +468,9 @@ def _move_cr_item(
 		frappe.throw(_("Document not found in change request"))
 
 	item = frappe.get_doc("Wiki Revision Item", item_name)
+	if item.is_tab and parent_key != _cr_root_doc_key(cr):
+		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
+
 	item.parent_key = parent_key
 	if order_index is not None:
 		item.order_index = order_index
@@ -459,10 +523,13 @@ def has_revision_changes(base_revision: str | None, head_revision: str | None) -
 
 @frappe.whitelist()
 def get_or_create_draft_change_request(wiki_space: str, title: str | None = None) -> dict[str, Any]:
-	from wiki.permissions import can_read_space
+	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	_assert_space_accepts_contributions(wiki_space)
+	assert_space_writable(wiki_space)
 
 	cr = _find_existing_draft(wiki_space)
 	if cr:
@@ -594,6 +661,8 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 			"title": item.get("title"),
 			"slug": item.get("slug"),
 			"is_group": item.get("is_group"),
+			"is_tab": item.get("is_tab"),
+			"tab_icon": item.get("tab_icon"),
 			"is_published": item.get("is_published"),
 			"is_external_link": item.get("is_external_link"),
 			"external_url": item.get("external_url"),
@@ -667,6 +736,8 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 		"slug",
 		"route",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"is_published",
 		"is_external_link",
 		"external_url",
@@ -707,6 +778,8 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 		"slug": item.get("slug"),
 		"route": item.get("route") or "",
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -719,10 +792,13 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 @frappe.whitelist()
 def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
-	from wiki.permissions import can_read_space
+	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
 		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	_assert_space_accepts_contributions(wiki_space)
+	assert_space_writable(wiki_space)
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
@@ -761,6 +837,46 @@ def _bootstrap_main_revision(wiki_space: str) -> Document:
 
 
 @frappe.whitelist()
+def check_route_available(
+	wiki_space: str,
+	route: str,
+	cr_name: str | None = None,
+	exclude_doc_key: str | None = None,
+) -> dict[str, Any]:
+	"""Report whether `route` is free, across live documents and an optional CR.
+
+	Live-only validation (`validate_unique_route_for_leaves`) fires at merge time,
+	long after the author has moved on. The create dialog calls this while the
+	author types so the clash is visible at the moment it is caused. `cr_name` is
+	optional because the draft CR is created lazily — the dialog can open before
+	one exists.
+	"""
+	if not frappe.has_permission("Wiki Space", "read", wiki_space):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	sanitized = sanitize_route(route)
+	if not sanitized:
+		return {"route": "", "available": False}
+
+	live_filters = {"route": sanitized, "is_group": 0}
+	if exclude_doc_key:
+		live_filters["doc_key"] = ("!=", exclude_doc_key)
+	if frappe.db.get_value("Wiki Document", live_filters, "name"):
+		return {"route": sanitized, "available": False}
+
+	if cr_name:
+		cr = frappe.get_doc("Wiki Change Request", cr_name)
+		cr.check_permission("read")
+		for doc_key, item in get_effective_revision_item_map(cr.head_revision).items():
+			if doc_key == exclude_doc_key or item.get("is_deleted") or item.get("is_group"):
+				continue
+			if (item.get("route") or "") == sanitized:
+				return {"route": sanitized, "available": False}
+
+	return {"route": sanitized, "available": True}
+
+
+@frappe.whitelist()
 def create_cr_page(
 	name: str,
 	parent_key: str,
@@ -772,6 +888,9 @@ def create_cr_page(
 	order_index: int | None = None,
 	is_external_link: int = 0,
 	external_url: str | None = None,
+	is_tab: int = 0,
+	tab_icon: str | None = None,
+	route: str | None = None,
 ) -> str:
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
@@ -781,12 +900,15 @@ def create_cr_page(
 		parent_key=parent_key,
 		title=title,
 		slug=slug,
+		route=route,
 		is_group=bool(is_group),
 		is_published=bool(is_published),
 		content=content or "",
 		is_external_link=bool(is_external_link),
 		external_url=external_url,
 		order_index=order_index,
+		is_tab=bool(is_tab),
+		tab_icon=tab_icon,
 	)
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
@@ -877,6 +999,8 @@ def _apply_operation(
 			external_url=op.get("external_url"),
 			order_index=op.get("order_index"),
 			route=op.get("route"),
+			is_tab=bool(op.get("is_tab")),
+			tab_icon=op.get("tab_icon"),
 		)
 		temp_key_map[temp_key] = new_key
 		affected_doc_keys.add(new_key)
@@ -889,7 +1013,7 @@ def _apply_operation(
 		if not doc_key:
 			frappe.throw(_("update_node operation requires doc_key"))
 		fields = op.get("fields") or {}
-		_update_cr_item(cr, doc_key, fields, recompute_route=True)
+		_update_cr_item(cr, doc_key, fields)
 		affected_doc_keys.add(doc_key)
 		return
 
@@ -955,6 +1079,10 @@ def apply_cr_operations(
 	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_assert_editable(cr)
+
+	from wiki.permissions import assert_space_writable
+
+	assert_space_writable(cr.wiki_space)
 
 	current_version = int(cr.operation_version or 0)
 	if base_version is not None:
@@ -1098,6 +1226,8 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			"slug": item.get("slug"),
 			"route": item.get("route"),
 			"is_group": item.get("is_group"),
+			"is_tab": item.get("is_tab"),
+			"tab_icon": item.get("tab_icon"),
 			"is_published": item.get("is_published"),
 			"is_external_link": item.get("is_external_link"),
 			"external_url": item.get("external_url"),
@@ -1144,6 +1274,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"change_type": "added",
 					"title": head.get("title"),
 					"is_group": head.get("is_group"),
+					"is_tab": head.get("is_tab"),
 					"is_external_link": head.get("is_external_link"),
 					"external_url": head.get("external_url"),
 					"_modified": modified,
@@ -1157,6 +1288,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"change_type": "deleted",
 					"title": base.get("title"),
 					"is_group": base.get("is_group"),
+					"is_tab": base.get("is_tab"),
 					"is_external_link": base.get("is_external_link"),
 					"external_url": base.get("external_url"),
 					"_modified": modified,
@@ -1165,7 +1297,18 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 			continue
 		if base != head:
 			change_type = "modified"
-			metadata_fields = ["title", "slug", "route", "is_group", "is_published", "parent_key"]
+			metadata_fields = [
+				"title",
+				"slug",
+				"route",
+				"is_group",
+				"is_published",
+				"parent_key",
+				"is_external_link",
+				"external_url",
+				"is_tab",
+				"tab_icon",
+			]
 			metadata_changed = any(base.get(field) != head.get(field) for field in metadata_fields)
 			content_changed = base.get("content_hash") != head.get("content_hash")
 			if base.get("content_hash") is None and head.get("content_hash") is None:
@@ -1189,6 +1332,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 					"is_group": head.get("is_group")
 					if head.get("is_group") is not None
 					else base.get("is_group"),
+					"is_tab": head.get("is_tab") if head.get("is_tab") is not None else base.get("is_tab"),
 					"is_external_link": head.get("is_external_link")
 					if head.get("is_external_link") is not None
 					else base.get("is_external_link"),
@@ -1680,6 +1824,8 @@ def _find_changed_keys(
 		"is_published",
 		"is_external_link",
 		"external_url",
+		"is_tab",
+		"tab_icon",
 		"content_blob",
 		"is_deleted",
 	]
@@ -1801,6 +1947,8 @@ def _classify_changes(
 		"is_published",
 		"is_external_link",
 		"external_url",
+		"is_tab",
+		"tab_icon",
 	]
 
 	for key in changed_keys:
@@ -1878,7 +2026,10 @@ def _apply_merge_changes_only(
 		)
 		blob_contents = {blob["name"]: blob.get("content") or "" for blob in blobs}
 
-	# Content-only fast path: direct DB update, skip doc.save() validation
+	# Content-only fast path: direct DB update, skip doc.save() validation.
+	# Raw set_value skips the on_update hook that queues search re-indexing,
+	# so queue the touched documents explicitly.
+	content_updated_names = []
 	for doc_key in content_only_keys:
 		if doc_key not in key_to_name:
 			continue
@@ -1886,6 +2037,18 @@ def _apply_merge_changes_only(
 		content_blob = item.get("content_blob")
 		content = blob_contents.get(content_blob, "") if content_blob else ""
 		frappe.db.set_value("Wiki Document", key_to_name[doc_key], "content", content)
+		content_updated_names.append(key_to_name[doc_key])
+
+	if content_updated_names:
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
+
+		# Raw set_value above skips on_update, so the rendered-content cache would
+		# otherwise keep serving the pre-merge HTML — drop those entries here.
+		for name in content_updated_names:
+			clear_wiki_content_cache(name)
+
+		enqueue_reindex(content_updated_names)
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys
@@ -1922,6 +2085,8 @@ def _apply_merge_changes_only(
 			if item.get("route"):
 				doc.route = item["route"]
 			doc.is_group = item.get("is_group")
+			doc.is_tab = item.get("is_tab")
+			doc.tab_icon = item.get("tab_icon")
 			doc.is_published = item.get("is_published")
 			doc.is_external_link = item.get("is_external_link")
 			doc.external_url = item.get("external_url")
@@ -1951,11 +2116,16 @@ def _apply_merge_changes_only(
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	"""Update CR status after successful merge."""
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	cr.status = "Merged"
 	cr.merge_revision = merge_revision.name
 	cr.merged_by = frappe.session.user
 	cr.merged_at = now_datetime()
 	cr.save()
+
+	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 	_notify_cr_owner(cr, _("Your change request “{0}” was merged.").format(cr.title))
 
 
@@ -1968,6 +2138,8 @@ def normalize_item(item: dict[str, Any] | None) -> dict[str, Any] | None:
 		"slug": item.get("slug"),
 		"route": item.get("route"),
 		"is_group": item.get("is_group"),
+		"is_tab": item.get("is_tab"),
+		"tab_icon": item.get("tab_icon"),
 		"is_published": item.get("is_published"),
 		"is_external_link": item.get("is_external_link"),
 		"external_url": item.get("external_url"),
@@ -2043,6 +2215,8 @@ def merge_items(
 		"is_published": resolve_field(
 			base.get("is_published"), ours.get("is_published"), theirs.get("is_published")
 		),
+		"is_tab": resolve_field(base.get("is_tab"), ours.get("is_tab"), theirs.get("is_tab")),
+		"tab_icon": resolve_field(base.get("tab_icon"), ours.get("tab_icon"), theirs.get("tab_icon")),
 		"parent_key": ours.get("parent_key"),
 		"order_index": ours.get("order_index"),
 	}
@@ -2059,7 +2233,17 @@ def items_equal(
 		return True
 	if item_a is None or item_b is None:
 		return False
-	compare_fields = ["title", "slug", "route", "is_group", "is_published", "parent_key", "order_index"]
+	compare_fields = [
+		"title",
+		"slug",
+		"route",
+		"is_group",
+		"is_published",
+		"parent_key",
+		"order_index",
+		"is_tab",
+		"tab_icon",
+	]
 	for field in compare_fields:
 		if item_a.get(field) != item_b.get(field):
 			return False
@@ -2067,7 +2251,7 @@ def items_equal(
 
 
 def conflict_on_metadata(base: dict[str, Any], ours: dict[str, Any], theirs: dict[str, Any]) -> bool:
-	metadata_fields = ["title", "slug", "route", "is_group", "is_published"]
+	metadata_fields = ["title", "slug", "route", "is_group", "is_published", "is_tab", "tab_icon"]
 	for field in metadata_fields:
 		base_value = base.get(field)
 		ours_value = ours.get(field)
@@ -2248,6 +2432,8 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 		new_item.slug = item.get("slug")
 		new_item.route = item.get("route")
 		new_item.is_group = item.get("is_group")
+		new_item.is_tab = item.get("is_tab")
+		new_item.tab_icon = item.get("tab_icon")
 		new_item.is_published = item.get("is_published")
 		new_item.is_external_link = item.get("is_external_link")
 		new_item.external_url = item.get("external_url")
@@ -2262,11 +2448,16 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 
 def apply_merge_revision(space: Document, revision: Document) -> None:
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
 	frappe.flags.in_apply_merge_revision = True
 	try:
 		_apply_merge_revision(space, revision)
 	finally:
 		frappe.flags.in_apply_merge_revision = False
+
+	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
+	clear_wiki_tree_cache()
 
 
 def _apply_merge_revision(space: Document, revision: Document) -> None:
@@ -2324,6 +2515,8 @@ def _apply_merge_revision(space: Document, revision: Document) -> None:
 		if item.get("route"):
 			doc.route = item["route"]
 		doc.is_group = item.get("is_group")
+		doc.is_tab = item.get("is_tab")
+		doc.tab_icon = item.get("tab_icon")
 		doc.is_published = item.get("is_published")
 		doc.is_external_link = item.get("is_external_link")
 		doc.external_url = item.get("external_url")

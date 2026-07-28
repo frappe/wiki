@@ -23,7 +23,7 @@ def search(query: str, space: str | None = None) -> dict:
 
 	result = search_engine.search(query, filters=filters)
 
-	hits = _filter_hits_by_read_access(result["results"])
+	hits = _filter_hits_by_space_visibility(result["results"])
 
 	return {
 		"results": [
@@ -40,13 +40,15 @@ def search(query: str, space: str | None = None) -> dict:
 	}
 
 
-def _filter_hits_by_read_access(hits: list[dict]) -> list[dict]:
-	"""Drop search hits in spaces the current user can't read.
+def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
+	"""Drop search hits the current user couldn't open as a page.
 
 	The SQLite index is built without user context, so titles/snippets from
 	restricted spaces can surface here. Resolve each hit's denormalized
-	wiki_space and gate it through the same read check as page rendering.
-	Orphan documents (no wiki_space) stay readable by all.
+	wiki_space and gate it through the same checks as page rendering: the
+	space must be published (`check_published`) and readable by the current
+	user (`check_space_access`). Orphan documents (no wiki_space) stay
+	readable by all.
 	"""
 	from wiki.permissions import can_read_space
 
@@ -63,16 +65,17 @@ def _filter_hits_by_read_access(hits: list[dict]) -> list[dict]:
 		)
 	}
 
-	readable: dict[str, bool] = {}
+	visible: dict[str, bool] = {}
 
-	def _can_read(space_name: str) -> bool:
-		if space_name not in readable:
-			readable[space_name] = can_read_space(space_name)
-		return readable[space_name]
+	def _is_visible(space_name: str) -> bool:
+		if space_name not in visible:
+			space_published = frappe.get_cached_value("Wiki Space", space_name, "is_published")
+			visible[space_name] = bool(space_published) and can_read_space(space_name)
+		return visible[space_name]
 
 	allowed = []
 	for hit in hits:
 		hit_space = space_by_name.get(hit["name"])
-		if not hit_space or _can_read(hit_space):
+		if not hit_space or _is_visible(hit_space):
 			allowed.append(hit)
 	return allowed

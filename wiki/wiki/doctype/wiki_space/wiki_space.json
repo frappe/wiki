@@ -29,9 +29,25 @@
   "access_control_tab",
   "access_control_section",
   "roles",
+  "contributions_section",
+  "allow_contributions",
   "version_3_tab",
   "root_group",
-  "main_revision"
+  "home_tab_title",
+  "home_tab_icon",
+  "main_revision",
+  "git_sync_tab",
+  "git_synced",
+  "repo_full_name",
+  "branch",
+  "docs_subdir",
+  "github_installation_id",
+  "git_sync_status_column",
+  "last_sync_status",
+  "last_synced_commit_sha",
+  "last_sync_time",
+  "last_sync_error",
+  "wiki_config"
  ],
  "fields": [
   {
@@ -124,6 +140,18 @@
    "options": "Wiki Space Role"
   },
   {
+   "fieldname": "contributions_section",
+   "fieldtype": "Section Break",
+   "label": "Contributions"
+  },
+  {
+   "default": "1",
+   "description": "Allow readers to propose edits via Change Requests. Users with write/merge access can always edit, even when this is off.",
+   "fieldname": "allow_contributions",
+   "fieldtype": "Check",
+   "label": "Accept Contributions"
+  },
+  {
    "fieldname": "version_3_tab",
    "fieldtype": "Tab Break",
    "label": "Version 3"
@@ -142,6 +170,20 @@
    "label": "Main Revision",
    "options": "Wiki Revision",
    "read_only": 1
+  },
+  {
+   "default": "Home",
+   "description": "Label for the synthetic Home tab that leads the space's tab bar.",
+   "fieldname": "home_tab_title",
+   "fieldtype": "Data",
+   "label": "Home Tab Title"
+  },
+  {
+   "default": "lucide-house",
+   "description": "Lucide icon class for the Home tab, e.g. lucide-house.",
+   "fieldname": "home_tab_icon",
+   "fieldtype": "Data",
+   "label": "Home Tab Icon"
   },
   {
    "default": "1",
@@ -170,6 +212,83 @@
    "fieldtype": "Int",
    "label": "Switcher Order",
    "non_negative": 1
+  },
+  {
+   "fieldname": "git_sync_tab",
+   "fieldtype": "Tab Break",
+   "label": "Git Sync"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, this space is synced one-way from a GitHub repository and is read-only in the wiki. Immutable after creation.",
+   "fieldname": "git_synced",
+   "fieldtype": "Check",
+   "label": "Git Synced?",
+   "read_only": 1
+  },
+  {
+   "description": "GitHub repository, e.g. frappe/wiki",
+   "fieldname": "repo_full_name",
+   "fieldtype": "Data",
+   "label": "Repository",
+   "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "read_only": 1
+  },
+  {
+   "description": "Optional sub-folder in the repo to sync (e.g. docs). Leave empty to sync from the repo root.",
+   "fieldname": "docs_subdir",
+   "fieldtype": "Data",
+   "label": "Docs Subdirectory",
+   "read_only": 1
+  },
+  {
+   "description": "GitHub App installation that grants access to the repo. Set via the connect-and-pick flow; lets the engine mint a token for private repos.",
+   "fieldname": "github_installation_id",
+   "fieldtype": "Data",
+   "label": "GitHub Installation ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "git_sync_status_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_sync_status",
+   "fieldtype": "Select",
+   "label": "Last Sync Status",
+   "options": "\nPending\nRunning\nSuccess\nError",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_synced_commit_sha",
+   "fieldtype": "Data",
+   "label": "Last Synced Commit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_time",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_error",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "wiki_config",
+   "fieldtype": "Code",
+   "label": "Wiki Config (.wiki.json)",
+   "options": "JSON",
+   "read_only": 1,
+   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred)."
   }
  ],
  "index_web_pages_for_search": 1,

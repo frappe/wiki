@@ -1,6 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
+	clickSidebarAddOption,
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -21,10 +30,10 @@ test.describe('Public Sidebar', () => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
 			// Navigate to wiki and click first space
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			const spaceHref = await spaceLink.getAttribute('href');
 			expect(spaceHref).toBeTruthy();
@@ -33,20 +42,10 @@ test.describe('Public Sidebar', () => {
 			const spaceUrl = spaceHref as string;
 
 			// Create a published page inside the space
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
 
 			const publishedPageTitle = `published-page-${Date.now()}`;
 
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			await page.getByLabel('Title').fill(publishedPageTitle);
 			await page
@@ -78,7 +77,7 @@ test.describe('Public Sidebar', () => {
 			// Submit for review and merge the page
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -88,13 +87,7 @@ test.describe('Public Sidebar', () => {
 			await page.waitForLoadState('networkidle');
 
 			const unpublishedPageTitle = `unpublished-page-${Date.now()}`;
-			const createPageButton = page
-				.locator(
-					'button:has-text("Create First Page"), button[title="New Page"]',
-				)
-				.first();
-			await expect(createPageButton).toBeVisible({ timeout: 15000 });
-			await createPageButton.click();
+			await openNewPageDialog(page);
 			await page.getByLabel('Title').fill(unpublishedPageTitle);
 			await page
 				.getByRole('dialog')
@@ -158,28 +151,18 @@ test.describe('Public Sidebar', () => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
 			// Navigate to wiki and click first space
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 
 			// Create two pages so we can navigate between them
 			const firstPageTitle = `spa-nav-first-${Date.now()}`;
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
 
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
@@ -204,7 +187,7 @@ test.describe('Public Sidebar', () => {
 			await page.waitForLoadState('networkidle');
 
 			const secondPageTitle = `spa-nav-second-${Date.now()}`;
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
@@ -225,7 +208,7 @@ test.describe('Public Sidebar', () => {
 			// Merge both pages
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -293,27 +276,17 @@ test.describe('Public Sidebar', () => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
 			// Navigate to wiki and click first space
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 			// Create first page
 			const firstPageTitle = `first-nav-page-${Date.now()}`;
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
 
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			await page.getByLabel('Title').fill(firstPageTitle);
 			await page
@@ -340,7 +313,7 @@ test.describe('Public Sidebar', () => {
 
 			// Create second page in the same change request
 			const secondPageTitle = `second-nav-page-${Date.now()}`;
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 			await page.getByLabel('Title').fill(secondPageTitle);
 			await page
 				.getByRole('dialog')
@@ -362,7 +335,7 @@ test.describe('Public Sidebar', () => {
 			// Submit for review and merge both pages
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);

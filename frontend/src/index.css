@@ -1,3 +1,31 @@
 @import "./assets/Inter/inter.css";
-@import 'frappe-ui/style.css';
-@import './wiki-rendered.css';
+@import "frappe-ui/style.css";
+/* Editor baseline (task lists, table wrapper, TOC node, resize cursor).
+   Imported explicitly: relying on frappe-ui/editor's side-effect import
+   lets rollup assign the CSS to whichever async chunk it likes, and editor
+   pages can end up without it. */
+@import "frappe-ui/editor-style.css";
+/* List family structural styles — same explicit-import rationale as above. */
+@import "frappe-ui/list-style.css";
+@import "./wiki-rendered.css";
+
+/* Tell the browser which theme its native UI (scrollbars, form controls)
+   should use — without this, dark mode gets glaring light scrollbars. */
+html[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+html[data-theme="light"] {
+	color-scheme: light;
+}
+
+/* Dialog open/close animations are disabled: reka-ui's Presence unmounts the
+   overlay only after the leave animation's end event, and rapid open/close
+   cycles (create dialog reused back-to-back) can lose that event — leaving a
+   ghost overlay that dims the page, swallows every click, and keeps body
+   pointer-events locked. With no animation, Presence unmounts synchronously
+   and the whole failure class is gone, at the cost of the 100/150ms fade. */
+.dialog-overlay[data-state],
+.dialog-content[data-state] {
+	animation: none !important;
+}

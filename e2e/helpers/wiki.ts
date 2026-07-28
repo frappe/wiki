@@ -1,5 +1,31 @@
-import { APIRequestContext, type Page, expect } from '@playwright/test';
+import { type APIRequestContext, type Page, expect } from '@playwright/test';
 import { createDoc, deleteDoc, getDoc, getList } from './frappe';
+
+/**
+ * Tear down every Wiki Space with the given (test-unique) route.
+ *
+ * `Wiki Space` cascades its documents, revisions and root group on delete (see
+ * its `on_trash`), so a single atomic `deleteDoc` removes the whole space —
+ * important for a git-synced space, which is read-only and otherwise lingers as
+ * the newest entry in the app's space list (ordered by creation desc), trapping
+ * later specs whose helpers author into the first space (no "New Page" button).
+ *
+ * Resolving by route rather than the create response means a space the server
+ * created but whose response the client never saw — a `createDoc` that timed
+ * out, or a Playwright retry that created a second space — is still cleaned up.
+ */
+export async function cleanupWikiSpacesByRoute(
+	request: APIRequestContext,
+	route: string,
+): Promise<void> {
+	const found = await getList<{ name: string }>(request, 'Wiki Space', {
+		fields: ['name'],
+		filters: { route },
+		limit: 0,
+	}).catch(() => []);
+	for (const space of found)
+		await deleteDoc(request, 'Wiki Space', space.name).catch(() => {});
+}
 
 /**
  * Publish the change request currently open on the review page. The header
@@ -16,6 +42,32 @@ export async function publishChangeRequestFromReview(page: Page) {
 	await expect(page.locator('text=Change request merged').first()).toBeVisible({
 		timeout: 15000,
 	});
+}
+
+/**
+ * The sidebar create actions live behind a single plus button ("Add") that
+ * opens a dropdown of New Page / New Group / External Link. Opens the menu
+ * and clicks the given option.
+ */
+export async function clickSidebarAddOption(
+	page: Page,
+	option: 'New Page' | 'New Group' | 'External Link',
+) {
+	await page.locator('button[title="Add"]').click();
+	await page.getByRole('menuitem', { name: option }).click();
+}
+
+/**
+ * Start creating a page from the sidebar, handling both the empty-space CTA
+ * ("Create First Page") and the Add dropdown. Leaves the create dialog open.
+ */
+export async function openNewPageDialog(page: Page) {
+	const createFirstPage = page.locator('button:has-text("Create First Page")');
+	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await createFirstPage.click();
+	} else {
+		await clickSidebarAddOption(page, 'New Page');
+	}
 }
 
 /**

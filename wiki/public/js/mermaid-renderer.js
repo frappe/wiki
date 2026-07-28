@@ -2,6 +2,18 @@
   let renderSeq = 0;
   let themeObserverAttached = false;
 
+  // Mermaid sizes each node from the label's measured width. If it measures
+  // before the web font (Inter) has loaded, it sizes against a narrower fallback
+  // and the real font then overflows — the last glyph clips ("Load Balance|r").
+  // Wait for fonts to settle so the measurement matches what actually renders.
+  async function waitForFonts() {
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch (error) {
+      /* fonts API unavailable — fall through and render anyway */
+    }
+  }
+
   // Theme tokens are resolved live from the page's Frappe UI variables (see
   // mermaid-loader.js), so this single config renders correctly in light/dark.
   function applyTheme(mermaid) {
@@ -51,6 +63,7 @@
 
     try {
       const mermaid = await window.wikiGetMermaid();
+      await waitForFonts();
       // Always render with the theme that's active right now, not whatever the
       // theme happened to be when mermaid was first initialized.
       applyTheme(mermaid);
@@ -79,6 +92,7 @@
     if (!rendered.length) return;
 
     const mermaid = window.mermaid;
+    await waitForFonts();
     applyTheme(mermaid);
     for (const el of rendered) {
       const source = el.getAttribute("data-mermaid-src");

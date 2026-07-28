@@ -1,7 +1,6 @@
 // Debounced drag/reorder scheduler. Coalesces rapid drags into a single
 // batched backend call (one move op per dragged node + one reorder op per
-// touched parent) so vuedraggable's per-event noise doesn't translate to
-// N round-trips.
+// touched parent) so per-drag noise doesn't translate to N round-trips.
 //
 // The legacy fall-back path (when `useBatchOperations` is false) issues
 // per-node move + per-parent reorder RPCs directly. Will go away once the

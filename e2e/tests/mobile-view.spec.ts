@@ -1,5 +1,17 @@
-import { APIRequestContext, Page, expect, test } from '@playwright/test';
+import {
+	type APIRequestContext,
+	type Page,
+	expect,
+	test,
+} from '@playwright/test';
 import { callMethod, getList } from '../helpers/frappe';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	SPACE_URL_RE,
+	appUrl,
+} from '../helpers/routes';
+import { openNewPageDialog } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -26,7 +38,7 @@ async function createPublishedTestPage(
 	content?: string,
 ): Promise<string> {
 	// Create a dedicated space for this test
-	await page.goto('/wiki/spaces');
+	await page.goto(appUrl('spaces'));
 	await page.waitForLoadState('networkidle');
 
 	const timestamp = Date.now();
@@ -42,17 +54,11 @@ async function createPublishedTestPage(
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	await expect(page).toHaveURL(SPACE_URL_RE);
 
 	// Create a new page
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	const newPageButton = page.locator('button[title="New Page"]');
 
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
@@ -91,8 +97,12 @@ async function createPublishedTestPage(
 	// Submit for review and merge the page
 	await page.getByRole('button', { name: 'Submit for Review' }).click();
 	await page.getByRole('button', { name: 'Submit' }).click();
-	await expect(page).toHaveURL(/\/wiki\/change-requests\//, { timeout: 10000 });
-	const crMatch = page.url().match(/\/wiki\/change-requests\/([^/?#]+)/);
+	await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
+		timeout: 10000,
+	});
+	const crMatch = page
+		.url()
+		.match(new RegExp(`${APP_BASE}/change-requests/([^/?#]+)`));
 	if (!crMatch) {
 		throw new Error('Change request ID not found in URL');
 	}

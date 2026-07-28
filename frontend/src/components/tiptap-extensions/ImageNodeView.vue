@@ -22,14 +22,14 @@
                 Upload failed: {{ node.attrs.error }}
             </div>
             <input
-                v-if="(editor.isEditable || node.attrs.caption) && !node.attrs.error"
+                v-if="(isEditable || node.attrs.caption) && !node.attrs.error"
                 ref="captionInput"
                 v-model="caption"
                 type="text"
                 class="wiki-image-caption-input"
                 :class="{ 'has-caption': !!caption }"
                 placeholder="Add caption..."
-                :disabled="!editor.isEditable"
+                :disabled="!isEditable"
                 @input="updateCaption"
                 @keydown="handleKeydown"
             />
@@ -38,80 +38,82 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
-    node: {
-        type: Object,
-        required: true,
-    },
-    updateAttributes: {
-        type: Function,
-        required: true,
-    },
-    selected: {
-        type: Boolean,
-        default: false,
-    },
-    editor: {
-        type: Object,
-        required: true,
-    },
-    getPos: {
-        type: Function,
-        required: true,
-    },
+	node: {
+		type: Object,
+		required: true,
+	},
+	updateAttributes: {
+		type: Function,
+		required: true,
+	},
+	selected: {
+		type: Boolean,
+		default: false,
+	},
+	editor: {
+		type: Object,
+		required: true,
+	},
+	getPos: {
+		type: Function,
+		required: true,
+	},
 });
 
+const isEditable = useNodeViewEditable(props.editor);
 const captionInput = ref(null);
 const caption = ref(props.node.attrs.caption || '');
 
 // Watch for external changes to caption attribute
 watch(
-    () => props.node.attrs.caption,
-    (newCaption) => {
-        if (newCaption !== caption.value) {
-            caption.value = newCaption || '';
-        }
-    }
+	() => props.node.attrs.caption,
+	(newCaption) => {
+		if (newCaption !== caption.value) {
+			caption.value = newCaption || '';
+		}
+	},
 );
 
 function updateCaption() {
-    props.updateAttributes({ caption: caption.value });
+	props.updateAttributes({ caption: caption.value });
 }
 
 function selectNode() {
-    const pos = props.getPos();
-    if (typeof pos === 'number') {
-        props.editor.commands.setNodeSelection(pos);
-    }
+	const pos = props.getPos();
+	if (typeof pos === 'number') {
+		props.editor.commands.setNodeSelection(pos);
+	}
 }
 
 function handleKeydown(event) {
-    const pos = props.getPos();
-    if (typeof pos !== 'number') return;
+	const pos = props.getPos();
+	if (typeof pos !== 'number') return;
 
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        // Insert paragraph after image and move cursor there
-        const endPos = pos + props.node.nodeSize;
-        props.editor
-            .chain()
-            .focus()
-            .insertContentAt(endPos, { type: 'paragraph' })
-            .setTextSelection(endPos + 1)
-            .run();
-    } else if (event.key === 'Escape' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        // Move cursor after the image
-        const endPos = pos + props.node.nodeSize;
-        props.editor.chain().focus().setTextSelection(endPos).run();
-    } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        // Move cursor before the image
-        props.editor.chain().focus().setTextSelection(pos).run();
-    }
+	if (event.key === 'Enter') {
+		event.preventDefault();
+		// Insert paragraph after image and move cursor there
+		const endPos = pos + props.node.nodeSize;
+		props.editor
+			.chain()
+			.focus()
+			.insertContentAt(endPos, { type: 'paragraph' })
+			.setTextSelection(endPos + 1)
+			.run();
+	} else if (event.key === 'Escape' || event.key === 'ArrowDown') {
+		event.preventDefault();
+		// Move cursor after the image
+		const endPos = pos + props.node.nodeSize;
+		props.editor.chain().focus().setTextSelection(endPos).run();
+	} else if (event.key === 'ArrowUp') {
+		event.preventDefault();
+		// Move cursor before the image
+		props.editor.chain().focus().setTextSelection(pos).run();
+	}
 }
 </script>
 

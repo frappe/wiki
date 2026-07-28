@@ -38,6 +38,27 @@ def update_space_roles(space_id: str, roles: list | str) -> list[dict]:
 
 
 @frappe.whitelist()
+def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
+	"""Toggle whether a Wiki Space accepts contributions (Change Requests).
+
+	Restricted to users who can write the space (managers, or Write-tier users of
+	a configured space), mirroring access-control changes. Rejected on git-synced
+	spaces, which are read-only — contributions can't happen there regardless.
+	"""
+	from wiki.permissions import assert_space_writable
+
+	allow = frappe.parse_json(allow) if isinstance(allow, str) else allow
+	value = 1 if allow else 0
+
+	space = frappe.get_doc("Wiki Space", space_id)
+	space.check_permission("write")
+	assert_space_writable(space)
+	space.allow_contributions = value
+	space.save()
+	return bool(value)
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)
@@ -60,7 +81,17 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 	"""Build a nested tree structure from a list of Wiki Document names."""
 	wiki_documents = frappe.db.get_all(
 		"Wiki Document",
-		fields=["name", "title", "is_group", "parent_wiki_document", "route", "is_published", "sort_order"],
+		fields=[
+			"name",
+			"title",
+			"is_group",
+			"is_tab",
+			"tab_icon",
+			"parent_wiki_document",
+			"route",
+			"is_published",
+			"sort_order",
+		],
 		filters={"name": ("in", documents)},
 		order_by="lft asc",
 	)
@@ -108,9 +139,14 @@ def reorder_wiki_documents(
 	"""
 	import json
 
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import is_top_level_group
+	from wiki.permissions import assert_space_writable
+
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
+
+	assert_space_writable(_get_wiki_space_for_document(doc.name))
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
@@ -118,6 +154,12 @@ def reorder_wiki_documents(
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
+
+	# This path writes parent_wiki_document with a raw db.set_value, so
+	# WikiDocument.validate never runs — the tab rule has to be re-asserted here
+	# or a drag into a subgroup would silently produce a nested tab.
+	if parent_changed and doc.is_tab and not is_top_level_group(new_parent):
+		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
 
 	frappe.flags.in_reorder_wiki_documents = True
 	try:
@@ -139,6 +181,11 @@ def reorder_wiki_documents(
 			stamp_wiki_space_subtree(doc_name)
 	finally:
 		frappe.flags.in_reorder_wiki_documents = False
+
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+	# Reorders bypass on_update (raw sort_order writes), so bust the tree cache here.
+	clear_wiki_tree_cache()
 
 	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
 

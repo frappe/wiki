@@ -1,73 +1,126 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<header class="hidden lg:flex items-center gap-4 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-white)] sticky top-0 z-30 h-[53px]"
+{#- The bottom rule belongs to whichever row ends the chrome, so exactly one
+    hairline runs across the window and the sidebar's own border meets it
+    instead of starting in mid-air. With tabs that's the tab row (see
+    includes/tabs.html); without them it's this navbar. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<header class="hidden lg:flex items-center gap-3 py-3 px-6 bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]{% if not has_tabs %} border-b border-[var(--outline-gray-1)]{% endif %}"
         x-data>
-    {# Spacer to push everything to the right #}
-    <div class="flex-1"></div>
+    {#- Space logo + switcher. Lives here rather than in the sidebar's own
+        header because the navbar now spans the full window: the sidebar starts
+        below the tab row, so it has no top-of-window strip to put a logo in.
+        Width matches the sidebar (w-72 minus this row's px-6) so the logo stays
+        visually aligned with the tree below it. -#}
+    {% set has_switcher = wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
+    <div class="flex-1 min-w-0 flex items-center"
+         {% if has_switcher %}x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false"{% endif %}>
+        {% if has_switcher %}
+        <button type="button"
+                @click="spaceSwitcherOpen = !spaceSwitcherOpen"
+                @keydown.escape="spaceSwitcherOpen = false"
+                aria-haspopup="menu"
+                :aria-expanded="spaceSwitcherOpen"
+                class="flex h-8 max-w-[15rem] items-center rounded-md px-2 -ms-2 duration-300 ease-in-out cursor-pointer"
+                :class="spaceSwitcherOpen ? 'bg-[var(--surface-gray-3)]' : 'hover:bg-[var(--surface-gray-3)]'"
+                title="Switch wiki space">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <span class="ms-2 text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
+            <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevron-down", "ms-2  shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
+        </button>
 
-    {# Text navigation links (items without icons) #}
-    {% for item in navbar_items %}
-        {% if not item.icon %}
-        <a href="{{ item.url }}"
-           target="_blank" rel="noopener noreferrer"
-           class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
-            {{ item.label }}
-        </a>
+        <div x-show="spaceSwitcherOpen"
+             x-cloak
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-75"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="fixed top-[57px] left-4 w-[17rem] bg-[var(--surface-base)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+            {% for space in wiki_spaces_for_switcher %}
+            <a href="/{{ space.route }}"
+               class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
+                <span class="truncate">{{ space.space_name or space.name }}</span>
+                {% if space.name == wiki_space.name %}
+                {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="flex max-w-[15rem] items-center">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <span class="{% if wiki_space.app_switcher_logo %}ms-2 {% endif %}text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
+        </div>
         {% endif %}
-    {% endfor %}
+    </div>
 
-    <button @click="$dispatch('open-search')"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--surface-gray-2)] ring-1 ring-inset ring-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] transition-colors duration-200 cursor-pointer">
-        {{ render_icon("search", "-ml-0.5 w-4 h-4 text-[var(--ink-gray-5)]") }}
-        <kbd class="text-xs/4 text-[var(--ink-gray-4)] font-sans" x-text="navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'">⌘K</kbd>
-    </button>
+    {# Search — restyled as a field (frappe-ui docs Search), the primary
+       way to move around: search icon + placeholder + ⌘K hint #}
+    <div class="flex w-full max-w-md justify-center px-2">
+        <button @click="$dispatch('open-search')"
+                aria-label="Open search"
+                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                x-data="{ isMac: navigator.platform.includes('Mac') }">
+            <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
+                {{ render_icon("search", "shrink-0") }}
+            </span>
+            <span class="truncate text-start">Search documentation</span>
+            <span class="absolute inset-y-0 end-0 flex items-center gap-1 pe-2.5 text-xs text-[var(--ink-gray-5)]">
+                <template x-if="isMac">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
+                    </svg>
+                </template>
+                <template x-if="!isMac">
+                    <span>Ctrl</span>
+                </template>
+                K
+            </span>
+        </button>
+    </div>
 
-    {# Separator before toggle (only if there are text links) #}
-    {% set has_text_items = namespace(value=false) %}
-    {% for item in navbar_items %}
-        {% if not item.icon %}
-            {% set has_text_items.value = true %}
-        {% endif %}
-    {% endfor %}
-    {% if has_text_items.value %}
-    <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-    {% endif %}
+    {# Right nav: text links, theme toggle, icon links (GitHub, Discord, …) #}
+    <nav class="flex-1 flex items-center justify-end gap-2 sm:gap-3">
+        {# Text navigation links (items without icons) #}
+        {% for item in navbar_items %}
+            {% if not item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+                {{ item.label }}
+            </a>
+            {% endif %}
+        {% endfor %}
 
-    {# Theme Toggle - Compact pill style #}
-    <button @click="$store.theme.toggle()"
-            title="Toggle theme"
-            class="relative flex items-center w-12 h-6 p-0.5 bg-[var(--surface-gray-2)] rounded-full transition-colors duration-200 cursor-pointer">
-        <div class="absolute flex items-center justify-center w-5 h-5 bg-[var(--surface-white)] rounded-full shadow-sm transition-all duration-300"
-             :class="$store.theme.isDark ? 'translate-x-6' : 'translate-x-0'">
+        {# Theme toggle — ghost icon button (sun when dark / moon-star when light) #}
+        <button @click="$store.theme.toggle()"
+                aria-label="Toggle theme"
+                class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
             <template x-if="$store.theme.isDark">
-                {{ render_icon("moon", "w-3 h-3 text-[var(--ink-gray-7)]") }}
+                {{ render_icon("sun", "shrink-0") }}
             </template>
             <template x-if="!$store.theme.isDark">
-                {{ render_icon("sun", "w-3 h-3 text-[var(--ink-gray-7)]") }}
+                {{ render_icon("moon-star", "shrink-0") }}
             </template>
-        </div>
-    </button>
+        </button>
 
-    {# Separator before icons (only if there are icon items) #}
-    {% set has_icon_items = namespace(value=false) %}
-    {% for item in navbar_items %}
-        {% if item.icon %}
-            {% set has_icon_items.value = true %}
-        {% endif %}
-    {% endfor %}
-    {% if has_icon_items.value %}
-    <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-    {% endif %}
-
-    {# Icon links (known services like GitHub, Discord) #}
-    {% for item in navbar_items %}
-        {% if item.icon %}
-        <a href="{{ item.url }}"
-           target="_blank" rel="noopener noreferrer"
-           title="{{ item.label }}"
-           class="p-1.5 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] transition-colors duration-200">
-            {{ render_icon(item.icon, "w-5 h-5") }}
-        </a>
-        {% endif %}
-    {% endfor %}
+        {# Icon links (known services like GitHub, Discord) — ghost icon button style #}
+        {% for item in navbar_items %}
+            {% if item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               title="{{ item.label }}"
+               aria-label="{{ item.label }}"
+               class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
+                {{ render_icon(item.icon, "shrink-0") }}
+            </a>
+            {% endif %}
+        {% endfor %}
+    </nav>
 </header>
