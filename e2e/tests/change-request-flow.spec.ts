@@ -57,7 +57,7 @@ async function createSpaceWithDraftPage(page: Page, label: string) {
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 	const spaceUrl = page.url();
 
 	await openNewPageDialog(page);
@@ -93,7 +93,7 @@ async function submitForReviewFromEditor(page: Page) {
 		.getByRole('dialog')
 		.getByRole('button', { name: 'Submit', exact: true })
 		.click();
-	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+	await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 		timeout: 10000,
 	});
 	return decodeURIComponent(page.url().split('/').pop() as string);
@@ -126,7 +126,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		const spaceUrl = page.url();
 
@@ -167,7 +167,7 @@ test.describe('Change Request Flow', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 
@@ -207,7 +207,7 @@ test.describe('Change Request Flow', () => {
 
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 
@@ -254,7 +254,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		const spaceUrl = page.url();
 		const spaceId = spaceUrl.split('/wiki-app/spaces/')[1];
@@ -409,7 +409,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		const spaceId = page.url().split('/wiki-app/spaces/')[1];
 
@@ -629,7 +629,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		// Create a new page draft
 
@@ -840,7 +840,7 @@ test.describe('Change Request Flow', () => {
 		await assignButton.click();
 
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
-		await expect(page).toHaveURL(/\/wiki\/change-requests(\?.*)?$/);
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests(\?.*)?$/);
 	});
 
 	test('assigned-to-me tab lists CRs assigned to the current user', async ({
@@ -962,7 +962,7 @@ test.describe('Change Request Flow', () => {
 
 		// Back from review lands on the originating tab, query preserved.
 		await page.getByRole('button', { name: 'Back', exact: true }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\?tab=all/);
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\?tab=all/);
 	});
 
 	test('author can withdraw an in-review CR back to Draft from the menu', async ({

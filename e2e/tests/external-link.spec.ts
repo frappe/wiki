@@ -82,7 +82,7 @@ test.describe('External Links', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);
@@ -178,7 +178,7 @@ test.describe('External Links', () => {
 		// Submit and merge both items
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

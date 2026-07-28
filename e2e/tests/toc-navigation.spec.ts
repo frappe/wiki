@@ -158,7 +158,7 @@ Epsilon content here.`;
 		// Submit and merge both pages
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

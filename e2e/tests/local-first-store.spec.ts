@@ -57,7 +57,7 @@ async function createSpaceViaUI(
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 	// `networkidle` can fire before draftStore.hydrate finishes setting
 	// rootKey. Without this wait, the create dialog falls back to
 	// `space.doc.root_group` (a Frappe document name) instead of the CR's

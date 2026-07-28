@@ -72,7 +72,7 @@ test.describe('Public Sidebar', () => {
 			// Submit for review and merge the page
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -203,7 +203,7 @@ test.describe('Public Sidebar', () => {
 			// Merge both pages
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -330,7 +330,7 @@ test.describe('Public Sidebar', () => {
 			// Submit for review and merge both pages
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);

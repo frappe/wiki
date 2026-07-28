@@ -57,7 +57,7 @@ test.describe('Mobile SPA', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Create' })
 			.click();
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 		await page.waitForLoadState('networkidle');
 		const spaceUrl = page.url();
 
@@ -146,7 +146,7 @@ test.describe('Mobile SPA', () => {
 		const row = page.getByText(spaceRoute, { exact: true }).first();
 		await expect(row).toBeVisible();
 		await row.click();
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		await page.goto('/wiki-app/change-requests');
 		await page.waitForLoadState('networkidle');

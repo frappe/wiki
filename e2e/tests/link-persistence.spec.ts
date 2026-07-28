@@ -87,14 +87,14 @@ test.describe('Link Persistence Tests', () => {
 		// URL format: /wiki-app/spaces/{spaceId}/draft/{docKey}
 		await page.waitForURL(/\/draft\/[^/?#]+/);
 		const url = page.url();
-		const draftMatch = url.match(/\/wiki\/spaces\/[^/]+\/draft\/([^/?#]+)/);
+		const draftMatch = url.match(/\/wiki-app\/spaces\/[^/]+\/draft\/([^/?#]+)/);
 		expect(draftMatch).toBeTruthy();
 		const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
 
 		// Submit for review and merge so the content lands on the live doc
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

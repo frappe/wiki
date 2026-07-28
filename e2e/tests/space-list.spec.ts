@@ -19,7 +19,7 @@ test.describe('Wiki Space list', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Create' })
 			.click();
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 		// Back to the list and find the new (published) space row.
 		await page.goto('/wiki-app/spaces');

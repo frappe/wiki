@@ -48,7 +48,7 @@ async function createPublishedTestPage(
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
 
 	// Create a new page
 
@@ -91,8 +91,10 @@ async function createPublishedTestPage(
 	// Submit for review and merge the page
 	await page.getByRole('button', { name: 'Submit for Review' }).click();
 	await page.getByRole('button', { name: 'Submit' }).click();
-	await expect(page).toHaveURL(/\/wiki\/change-requests\//, { timeout: 10000 });
-	const crMatch = page.url().match(/\/wiki\/change-requests\/([^/?#]+)/);
+	await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		timeout: 10000,
+	});
+	const crMatch = page.url().match(/\/wiki-app\/change-requests\/([^/?#]+)/);
 	if (!crMatch) {
 		throw new Error('Change request ID not found in URL');
 	}

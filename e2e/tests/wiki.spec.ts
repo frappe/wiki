@@ -66,7 +66,7 @@ test.describe('Wiki Editor', () => {
 		// Verify the space was created: check URL changed and space name visible.
 		// In change-request mode the name lives in the top banner rather than the
 		// tree aside; the timestamped name is unique, so match it page-wide.
-		await expect(page).toHaveURL(/\/wiki\/spaces\//, { timeout: 10000 });
+		await expect(page).toHaveURL(/\/wiki-app\/spaces\//, { timeout: 10000 });
 		await expect(
 			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
@@ -241,7 +241,7 @@ test.describe('Wiki Editor', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

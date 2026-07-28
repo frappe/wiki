@@ -89,7 +89,7 @@ async function createAndPublishPage(
 	await expect(submitButton).toBeEnabled({ timeout: 10000 });
 	await submitButton.click();
 	await page.getByRole('button', { name: 'Submit' }).click();
-	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+	await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
 		timeout: 10000,
 	});
 	await publishChangeRequestFromReview(page);
