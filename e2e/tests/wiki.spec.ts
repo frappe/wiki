@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
 import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	SPACE_URL_RE,
+	appUrl,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
 	cleanupWikiSpacesByRoute,
 	createTestWikiSpace,
 	openNewPageDialog,
@@ -27,7 +34,7 @@ test.describe('Wiki Editor', () => {
 	});
 
 	test('should display wiki spaces list', async ({ page }) => {
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
 		// Should be on wiki page, not redirected to login
@@ -35,13 +42,13 @@ test.describe('Wiki Editor', () => {
 
 		// Should show the spaces list view with at least one space or the empty state
 		const spacesContainer = page.locator(
-			'[data-testid="wiki-spaces"], .wiki-spaces-list, a[href*="/wiki-app/spaces/"]',
+			`[data-testid="wiki-spaces"], .wiki-spaces-list, ${spaceLinkSelector()}`,
 		);
 		await expect(spacesContainer.first()).toBeVisible();
 	});
 
 	test('should create a new wiki space via UI', async ({ page }) => {
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
 		// Click create new space button
@@ -66,7 +73,7 @@ test.describe('Wiki Editor', () => {
 		// Verify the space was created: check URL changed and space name visible.
 		// In change-request mode the name lives in the top banner rather than the
 		// tree aside; the timestamped name is unique, so match it page-wide.
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//, { timeout: 10000 });
+		await expect(page).toHaveURL(SPACE_URL_RE, { timeout: 10000 });
 		await expect(
 			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
@@ -83,7 +90,7 @@ test.describe('Wiki Editor', () => {
 		createdRoutes.push(spaceRoute);
 		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
-		await page.goto(`/wiki-app/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('aside')).toBeVisible();
 
@@ -121,10 +128,10 @@ test.describe('Wiki Editor', () => {
 
 	test('should have New Page button in space sidebar', async ({ page }) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -149,10 +156,10 @@ test.describe('Wiki Editor', () => {
 		page,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -195,10 +202,10 @@ test.describe('Wiki Editor', () => {
 		request,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -241,7 +248,7 @@ test.describe('Wiki Editor', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

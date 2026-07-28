@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import {
 	cleanupWikiSpacesByRoute,
 	clickSidebarAddOption,
@@ -46,7 +47,7 @@ test.describe('Mobile SPA', () => {
 
 		// --- Setup at desktop: create a space with one page ---
 		await page.setViewportSize(DESKTOP);
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('button', { name: 'New Space' }).click();
@@ -57,7 +58,7 @@ test.describe('Mobile SPA', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Create' })
 			.click();
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 		await page.waitForLoadState('networkidle');
 		const spaceUrl = page.url();
 
@@ -132,7 +133,7 @@ test.describe('Mobile SPA', () => {
 		await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		await expect(
@@ -146,9 +147,9 @@ test.describe('Mobile SPA', () => {
 		const row = page.getByText(spaceRoute, { exact: true }).first();
 		await expect(row).toBeVisible();
 		await row.click();
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
-		await page.goto('/wiki-app/change-requests');
+		await page.goto(appUrl('change-requests'));
 		await page.waitForLoadState('networkidle');
 		await expect(
 			page.getByRole('heading', { name: 'Change Requests' }),
@@ -168,7 +169,7 @@ test.describe('Mobile SPA', () => {
 		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto(`/wiki-app/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.

@@ -1,5 +1,11 @@
 import { type Page, expect, test } from '@playwright/test';
 import { callMethod, getList } from '../helpers/frappe';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	SPACE_URL_RE,
+	appUrl,
+} from '../helpers/routes';
 import { clickSidebarAddOption, openNewPageDialog } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -37,7 +43,7 @@ async function clickReviewMenuItem(page: Page, name: string) {
  * caller needs to navigate back to the space and address the page.
  */
 async function createSpaceWithDraftPage(page: Page, label: string) {
-	await page.goto('/wiki-app/spaces');
+	await page.goto(appUrl('spaces'));
 	await page.waitForLoadState('networkidle');
 
 	await page.getByRole('button', { name: 'New Space' }).click();
@@ -57,7 +63,7 @@ async function createSpaceWithDraftPage(page: Page, label: string) {
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+	await expect(page).toHaveURL(SPACE_URL_RE);
 	const spaceUrl = page.url();
 
 	await openNewPageDialog(page);
@@ -93,7 +99,7 @@ async function submitForReviewFromEditor(page: Page) {
 		.getByRole('dialog')
 		.getByRole('button', { name: 'Submit', exact: true })
 		.click();
-	await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+	await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 		timeout: 10000,
 	});
 	return decodeURIComponent(page.url().split('/').pop() as string);
@@ -104,7 +110,7 @@ test.describe('Change Request Flow', () => {
 		page,
 		request,
 	}) => {
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		// Create a new space
@@ -126,7 +132,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
 		const spaceUrl = page.url();
 
@@ -167,7 +173,7 @@ test.describe('Change Request Flow', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 
@@ -207,7 +213,7 @@ test.describe('Change Request Flow', () => {
 
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 
@@ -236,7 +242,7 @@ test.describe('Change Request Flow', () => {
 		page,
 		request,
 	}) => {
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		// Create a new space
@@ -254,10 +260,10 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
 		const spaceUrl = page.url();
-		const spaceId = spaceUrl.split('/wiki-app/spaces/')[1];
+		const spaceId = spaceUrl.split(`${appUrl('spaces')}/`)[1];
 
 		const createGroup = async (title: string) => {
 			await clickSidebarAddOption(page, 'New Group');
@@ -306,7 +312,7 @@ test.describe('Change Request Flow', () => {
 			await callMethod(request, `${CR_METHOD}.submit_change_request`, {
 				name: draftChangeRequest.name,
 			});
-			return `/wiki-app/change-requests/${draftChangeRequest.name}`;
+			return appUrl('change-requests', draftChangeRequest.name);
 		};
 
 		// Approve via API (the two-person split), then exercise the plain Merge
@@ -335,7 +341,7 @@ test.describe('Change Request Flow', () => {
 		const cr1Url = await submitChangeRequestForSpace();
 
 		// Change request 2 (created after CR1 is submitted)
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 		await page.getByText(spaceName, { exact: true }).click();
 		await page.waitForLoadState('networkidle');
@@ -393,7 +399,7 @@ test.describe('Change Request Flow', () => {
 		page,
 		request,
 	}) => {
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		const timestamp = Date.now();
@@ -409,9 +415,9 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
-		const spaceId = page.url().split('/wiki-app/spaces/')[1];
+		const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
 
 		const groupTitle = `Reorder Group ${timestamp}`;
 
@@ -485,7 +491,7 @@ test.describe('Change Request Flow', () => {
 			return postData.includes(spaceId);
 		});
 
-		await page.goto(`/wiki-app/spaces/${spaceId}`);
+		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 
 		const draftResponse = await draftResponsePromise;
@@ -581,7 +587,7 @@ test.describe('Change Request Flow', () => {
 		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
 			name: draftChangeRequest.name,
 		});
-		await page.goto(`/wiki-app/change-requests/${draftChangeRequest.name}`);
+		await page.goto(appUrl('change-requests', draftChangeRequest.name));
 		await page.waitForLoadState('networkidle');
 
 		const changeCard = page
@@ -610,7 +616,7 @@ test.describe('Change Request Flow', () => {
 		page,
 		request,
 	}) => {
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		const timestamp = Date.now();
@@ -629,7 +635,7 @@ test.describe('Change Request Flow', () => {
 			.getByRole('button', { name: 'Create' })
 			.click();
 		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
 		// Create a new page draft
 
@@ -827,7 +833,7 @@ test.describe('Change Request Flow', () => {
 		await submitForReviewFromEditor(page);
 
 		// The manager inbox renders an Assign action on every in-review row.
-		await page.goto('/wiki-app/change-requests?tab=all');
+		await page.goto(appUrl('change-requests?tab=all'));
 		await page.waitForLoadState('networkidle');
 
 		const assignButton = page.getByRole('button', { name: 'Assign' }).first();
@@ -840,7 +846,9 @@ test.describe('Change Request Flow', () => {
 		await assignButton.click();
 
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests(\?.*)?$/);
+		await expect(page).toHaveURL(
+			new RegExp(`${APP_BASE}/change-requests(\\?.*)?$`),
+		);
 	});
 
 	test('assigned-to-me tab lists CRs assigned to the current user', async ({
@@ -871,7 +879,7 @@ test.describe('Change Request Flow', () => {
 		// filter referenced a non-existent store property (userStore.user ->
 		// undefined), producing `%undefined%` which matched nothing. The CR we
 		// just assigned to ourselves must appear in this inbox.
-		await page.goto('/wiki-app/change-requests?tab=assigned');
+		await page.goto(appUrl('change-requests?tab=assigned'));
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByText(cr.title, { exact: true })).toBeVisible({
@@ -901,7 +909,7 @@ test.describe('Change Request Flow', () => {
 			if (m.type() === 'error') collect(m.text());
 		});
 
-		await page.goto('/wiki-app/change-requests?tab=my');
+		await page.goto(appUrl('change-requests?tab=my'));
 		await page.waitForLoadState('networkidle');
 
 		// The draft must render as a row linking to its space (not the empty state
@@ -953,16 +961,18 @@ test.describe('Change Request Flow', () => {
 		const crName = await submitForReviewFromEditor(page);
 
 		// Enter the CR from a specific tab (not the default 'my').
-		await page.goto('/wiki-app/change-requests?tab=all');
+		await page.goto(appUrl('change-requests?tab=all'));
 		await page.waitForLoadState('networkidle');
 		await page.locator(`a[href*="${crName}"]`).first().click();
 		await expect(page).toHaveURL(
-			new RegExp(`/wiki-app/change-requests/${crName}$`),
+			new RegExp(`${APP_BASE}/change-requests/crName$`),
 		);
 
 		// Back from review lands on the originating tab, query preserved.
 		await page.getByRole('button', { name: 'Back', exact: true }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\?tab=all/);
+		await expect(page).toHaveURL(
+			new RegExp(`${APP_BASE}/change-requests\\?tab=all`),
+		);
 	});
 
 	test('author can withdraw an in-review CR back to Draft from the menu', async ({

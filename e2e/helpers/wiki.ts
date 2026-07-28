@@ -7,7 +7,7 @@ import { createDoc, deleteDoc, getDoc, getList } from './frappe';
  * `Wiki Space` cascades its documents, revisions and root group on delete (see
  * its `on_trash`), so a single atomic `deleteDoc` removes the whole space —
  * important for a git-synced space, which is read-only and otherwise lingers as
- * the newest entry in the `/wiki-app` list (ordered by creation desc), trapping
+ * the newest entry in the app's space list (ordered by creation desc), trapping
  * later specs whose helpers author into the first space (no "New Page" button).
  *
  * Resolving by route rather than the create response means a space the server

@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
 import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
 	clickSidebarAddOption,
 	publishChangeRequestFromReview,
 } from '../helpers/wiki';
@@ -16,10 +21,10 @@ test.describe('External Links', () => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -56,10 +61,10 @@ test.describe('External Links', () => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		const spaceHref = await spaceLink.getAttribute('href');
 		await spaceLink.click();
@@ -82,7 +87,7 @@ test.describe('External Links', () => {
 		// Submit for review and merge
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);
@@ -130,10 +135,10 @@ test.describe('External Links', () => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		const spaceHref = await spaceLink.getAttribute('href');
 		await spaceLink.click();
@@ -178,7 +183,7 @@ test.describe('External Links', () => {
 		// Submit and merge both items
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

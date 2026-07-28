@@ -69,6 +69,8 @@ const routes = [
 	},
 ];
 
+// The app's base path. Kept in sync with APP_ROUTE in wiki_document.py (which
+// also feeds website_route_rules) and APP_BASE in e2e/helpers/routes.ts.
 const router = createRouter({
 	history: createWebHistory('/wiki-app'),
 	routes,

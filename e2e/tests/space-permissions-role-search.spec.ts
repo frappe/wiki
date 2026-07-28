@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createDoc, deleteDoc, getDoc, getList } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
 
 /**
@@ -46,7 +47,7 @@ test.describe('Space Settings -> Permissions role search', () => {
 		spaceName = space.name;
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(`/wiki-app/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		await page.getByTitle('Settings').first().click();

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
 interface WikiDocument {
@@ -18,10 +19,10 @@ test.describe('Markdown Line Breaks', () => {
 		page: import('@playwright/test').Page,
 		pageTitle: string,
 	) {
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');

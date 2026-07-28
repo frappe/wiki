@@ -20,8 +20,9 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
 # Base path of the editor SPA. The reader refuses it so the two never fight over
 # a route, which is why it is deliberately not "wiki" -- that one belongs to the
-# user's own spaces. Kept in sync with website_route_rules in hooks.py and
-# createWebHistory() in frontend/src/router.js.
+# user's own spaces. Kept in sync with website_route_rules in hooks.py,
+# createWebHistory() in frontend/src/router.js, and APP_BASE in
+# e2e/helpers/routes.ts.
 APP_ROUTE = "wiki-app"
 
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"

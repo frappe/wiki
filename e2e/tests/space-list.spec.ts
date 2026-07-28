@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SPACE_URL_RE, appUrl, spaceLinkSelector } from '../helpers/routes';
 
 test.describe('Wiki Space list', () => {
 	test('View opens the public-facing space in a new tab without navigating the row', async ({
@@ -8,7 +9,7 @@ test.describe('Wiki Space list', () => {
 		const spaceName = `View Btn Space ${timestamp}`;
 		const route = `view-btn-space-${timestamp}`;
 
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('button', { name: 'New Space' }).click();
@@ -19,13 +20,13 @@ test.describe('Wiki Space list', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Create' })
 			.click();
-		await expect(page).toHaveURL(/\/wiki-app\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
 		// Back to the list and find the new (published) space row.
-		await page.goto('/wiki-app/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 		const row = page
-			.locator('a[href*="/wiki-app/spaces/"]')
+			.locator(spaceLinkSelector())
 			.filter({ hasText: spaceName })
 			.first();
 		await expect(row).toBeVisible({ timeout: 10000 });

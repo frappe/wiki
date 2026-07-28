@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createDoc } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import {
 	type WikiSpace,
 	cleanupWikiSpacesByRoute,
@@ -57,7 +58,7 @@ test.describe('Git-synced space (read-only)', () => {
 			is_published: true,
 		});
 
-		await page.goto(`/wiki-app/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Synced banner (shared SpaceChromeBar): the repo link marks it as synced

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
 import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
 	clickSidebarAddOption,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
@@ -36,10 +41,10 @@ test.describe('TOC Navigation', () => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
 		// Navigate to wiki and click first space
-		await page.goto('/wiki-app');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -158,7 +163,7 @@ Epsilon content here.`;
 		// Submit and merge both pages
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

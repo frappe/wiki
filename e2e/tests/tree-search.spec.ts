@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { updateDoc } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import { createTestWikiDocument, createTestWikiSpace } from '../helpers/wiki';
 
 /**
@@ -65,7 +66,7 @@ test.describe('Editor Tree Search', () => {
 			parent_wiki_document: reference.name,
 		});
 
-		await page.goto(`/wiki-app/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		const tree = page.locator('aside');
