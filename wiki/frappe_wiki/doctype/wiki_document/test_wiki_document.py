@@ -19,6 +19,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	APP_ROUTE,
 	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
 	clear_wiki_content_cache,
@@ -1431,6 +1432,37 @@ class TestExternalLinkExclusions(WikiDocumentTestBase):
 
 		renderer = WikiDocumentRenderer(path=normal_page.route)
 		self.assertTrue(renderer.can_render())
+
+	def test_renderer_refuses_the_app_route(self):
+		"""The editor SPA owns /wiki-app, even against a space that claims the same route."""
+		root_group = create_test_wiki_document(self, "Root AppRoute", is_group=True)
+		create_test_wiki_space(self, "AppRoute Space", APP_ROUTE, root_group.name)
+		page = create_test_wiki_document(
+			self,
+			"App Route Page",
+			parent=root_group.name,
+			slug="app-route-page",
+		)
+
+		self.assertEqual(page.route, f"{APP_ROUTE}/app-route-page")
+		for path in (APP_ROUTE, page.route):
+			with self.subTest(path=path):
+				self.assertFalse(WikiDocumentRenderer(path=path).can_render())
+
+	def test_renderer_serves_a_space_at_the_wiki_route(self):
+		"""`wiki` is a user route now, not the app's -- the reader must serve it."""
+		root_group = create_test_wiki_document(self, "Root WikiRoute", is_group=True)
+		# Space first: a document's route is built from its space at insert time.
+		create_test_wiki_space(self, "WikiRoute Space", "wiki", root_group.name)
+		page = create_test_wiki_document(
+			self,
+			"Wiki Route Page",
+			parent=root_group.name,
+			slug="wiki-route-page",
+		)
+
+		self.assertEqual(page.route, "wiki/wiki-route-page")
+		self.assertTrue(WikiDocumentRenderer(path=page.route).can_render())
 
 	def test_get_page_data_raises_for_external_link(self):
 		"""Test that get_page_data() raises DoesNotExistError for external links."""

@@ -61,7 +61,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to the wiki space admin
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		// Get initial order from sidebar - wait for tree to load
@@ -147,7 +147,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to the wiki space admin
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		// Wait for tree to load and get folder order from sidebar
@@ -247,7 +247,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Check admin view order
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 		await page.waitForSelector('aside >> text=Alpha', { timeout: 10000 });
 
@@ -340,7 +340,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to admin view
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 		await page.waitForSelector('aside >> text=First', { timeout: 10000 });
 

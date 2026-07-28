@@ -13,7 +13,7 @@ cypress/screenshots
 cypress/videos
 __pycache__/
 wiki/public/frontend/
-wiki/www/wiki.html
+wiki/www/wiki-app.html
 wiki/public/css/tailwind.css
 wiki/public/css/frappe-ui-tokens.css
 wiki/public/css/frappe-ui-prose.css

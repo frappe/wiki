@@ -57,7 +57,7 @@ test.describe('Git-synced space (read-only)', () => {
 			is_published: true,
 		});
 
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		// Synced banner (shared SpaceChromeBar): the repo link marks it as synced

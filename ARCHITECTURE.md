@@ -27,12 +27,12 @@ External DocTypes referenced by links:
 ## Frontend (Frappe UI)
 - SPA is initialized in `frontend/src/main.js` and wrapped by `FrappeUIProvider` in `frontend/src/App.vue`.
 - Uses `frappe-ui` resource helpers and UI components across pages and components in `frontend/src/**`.
-- The compiled assets are referenced by `wiki/www/wiki.html`.
+- The compiled assets are referenced by `wiki/www/wiki-app.html`.
 
 ## Public Page Rendering
 - Published `Wiki Document` pages are rendered by `WikiDocumentRenderer` in
   `wiki/frappe_wiki/doctype/wiki_document/wiki_document.py` using `templates/wiki/document.html`.
 - The renderer uses `Wiki Document.get_web_context` for breadcrumbs, tree navigation, and content HTML.
-- `/wiki` route uses a Vue SPA entry point:
-  - `wiki/www/wiki.html` loads `/assets/wiki/frontend/assets/*` and injects boot data.
-  - `wiki/www/wiki.py` provides the boot context (CSRF token, site info).
+- `/wiki-app` route uses a Vue SPA entry point:
+  - `wiki/www/wiki-app.html` loads `/assets/wiki/frontend/assets/*` and injects boot data.
+  - `wiki/www/wiki_app.py` provides the boot context (CSRF token, site info).

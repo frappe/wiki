@@ -8,7 +8,7 @@ test.describe('Wiki Space list', () => {
 		const spaceName = `View Btn Space ${timestamp}`;
 		const route = `view-btn-space-${timestamp}`;
 
-		await page.goto('/wiki/spaces');
+		await page.goto('/wiki-app/spaces');
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('button', { name: 'New Space' }).click();
@@ -22,10 +22,10 @@ test.describe('Wiki Space list', () => {
 		await expect(page).toHaveURL(/\/wiki\/spaces\//);
 
 		// Back to the list and find the new (published) space row.
-		await page.goto('/wiki/spaces');
+		await page.goto('/wiki-app/spaces');
 		await page.waitForLoadState('networkidle');
 		const row = page
-			.locator('a[href*="/wiki/spaces/"]')
+			.locator('a[href*="/wiki-app/spaces/"]')
 			.filter({ hasText: spaceName })
 			.first();
 		await expect(row).toBeVisible({ timeout: 10000 });

@@ -70,7 +70,7 @@ const routes = [
 ];
 
 const router = createRouter({
-	history: createWebHistory('/wiki'),
+	history: createWebHistory('/wiki-app'),
 	routes,
 });
 
@@ -90,7 +90,7 @@ router.beforeEach(async (to, from, next) => {
 	}
 
 	if (!isLoggedIn) {
-		window.location.href = `/login?redirect-to=/wiki${encodeURIComponent(
+		window.location.href = `/login?redirect-to=/wiki-app${encodeURIComponent(
 			to.fullPath,
 		)}`;
 	} else {

@@ -59,7 +59,7 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 			source_path: leafSourcePath,
 		});
 
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		// Open the synced page.

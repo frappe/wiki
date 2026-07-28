@@ -46,7 +46,7 @@ test.describe('Space Settings -> Permissions role search', () => {
 		spaceName = space.name;
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		await page.getByTitle('Settings').first().click();

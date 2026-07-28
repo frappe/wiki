@@ -32,7 +32,7 @@ async function createPublishedTestPage(
 	content?: string,
 ): Promise<string> {
 	// Create a dedicated space for this test
-	await page.goto('/wiki/spaces');
+	await page.goto('/wiki-app/spaces');
 	await page.waitForLoadState('networkidle');
 
 	const timestamp = Date.now();

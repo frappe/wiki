@@ -36,10 +36,10 @@ test.describe('TOC Navigation', () => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');

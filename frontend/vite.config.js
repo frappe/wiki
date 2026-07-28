@@ -39,7 +39,7 @@ export default defineConfig(async ({ command, mode }) => {
 				jinjaBootData: true,
 				lucideIcons: true,
 				buildConfig: {
-					indexHtmlPath: '../wiki/www/wiki.html',
+					indexHtmlPath: '../wiki/www/wiki-app.html',
 					emptyOutDir: true,
 					sourcemap: true,
 				},

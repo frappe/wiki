@@ -46,7 +46,7 @@ async function createSpaceViaUI(
 	page: import('@playwright/test').Page,
 	{ name, route }: { name: string; route: string },
 ) {
-	await page.goto('/wiki/spaces');
+	await page.goto('/wiki-app/spaces');
 	await page.waitForLoadState('networkidle');
 	await page.getByRole('button', { name: 'New Space' }).click();
 	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
@@ -65,7 +65,7 @@ async function createSpaceViaUI(
 	await page.waitForFunction(() => Boolean(window.__draftStore?.rootKey), {
 		timeout: 10000,
 	});
-	const spaceId = page.url().split('/wiki/spaces/')[1];
+	const spaceId = page.url().split('/wiki-app/spaces/')[1];
 	return { spaceId };
 }
 
@@ -393,7 +393,7 @@ test.describe('Local-first draft workspace', () => {
 			is_published: 1,
 		});
 
-		await page.goto(`/wiki/spaces/${spaceId}/draft/${firstKey}`);
+		await page.goto(`/wiki-app/spaces/${spaceId}/draft/${firstKey}`);
 		await page.waitForLoadState('networkidle');
 
 		const editor = page
@@ -540,7 +540,7 @@ test.describe('Local-first draft workspace', () => {
 			name: initialDraft.name,
 		});
 
-		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.goto(`/wiki-app/spaces/${spaceId}`);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\/[^/?#]+/, { timeout: 10000 });
@@ -973,7 +973,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}
 
-		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.goto(`/wiki-app/spaces/${spaceId}`);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(groupTitle, { exact: true }).click();
 		for (const title of pageTitles) {

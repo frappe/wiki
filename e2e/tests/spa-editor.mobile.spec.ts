@@ -46,7 +46,7 @@ test.describe('Mobile SPA', () => {
 
 		// --- Setup at desktop: create a space with one page ---
 		await page.setViewportSize(DESKTOP);
-		await page.goto('/wiki/spaces');
+		await page.goto('/wiki-app/spaces');
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('button', { name: 'New Space' }).click();
@@ -132,7 +132,7 @@ test.describe('Mobile SPA', () => {
 		await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto('/wiki/spaces');
+		await page.goto('/wiki-app/spaces');
 		await page.waitForLoadState('networkidle');
 
 		await expect(
@@ -148,7 +148,7 @@ test.describe('Mobile SPA', () => {
 		await row.click();
 		await expect(page).toHaveURL(/\/wiki\/spaces\//);
 
-		await page.goto('/wiki/change-requests');
+		await page.goto('/wiki-app/change-requests');
 		await page.waitForLoadState('networkidle');
 		await expect(
 			page.getByRole('heading', { name: 'Change Requests' }),
@@ -168,7 +168,7 @@ test.describe('Mobile SPA', () => {
 		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.

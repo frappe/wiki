@@ -58,7 +58,7 @@ test.describe('Page Settings meta fields', () => {
 		const metaDescription = 'A hand-written meta description for e2e coverage.';
 
 		await page.setViewportSize({ width: 1200, height: 900 });
-		await page.goto(`/wiki/spaces/${space.name}/page/${doc.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}/page/${doc.name}`);
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
@@ -124,7 +124,7 @@ test.describe('Page Settings meta fields', () => {
 		// Clear both fields — the public page must fall back to the page
 		// title in og:title, and drop the now-empty description tag rather
 		// than emit an empty one.
-		await page.goto(`/wiki/spaces/${space.name}/page/${doc.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}/page/${doc.name}`);
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});

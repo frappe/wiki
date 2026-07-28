@@ -27,7 +27,7 @@ test.describe('Wiki Editor', () => {
 	});
 
 	test('should display wiki spaces list', async ({ page }) => {
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
 		// Should be on wiki page, not redirected to login
@@ -35,13 +35,13 @@ test.describe('Wiki Editor', () => {
 
 		// Should show the spaces list view with at least one space or the empty state
 		const spacesContainer = page.locator(
-			'[data-testid="wiki-spaces"], .wiki-spaces-list, a[href*="/wiki/spaces/"]',
+			'[data-testid="wiki-spaces"], .wiki-spaces-list, a[href*="/wiki-app/spaces/"]',
 		);
 		await expect(spacesContainer.first()).toBeVisible();
 	});
 
 	test('should create a new wiki space via UI', async ({ page }) => {
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
 		// Click create new space button
@@ -83,7 +83,7 @@ test.describe('Wiki Editor', () => {
 		createdRoutes.push(spaceRoute);
 		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('aside')).toBeVisible();
 
@@ -121,10 +121,10 @@ test.describe('Wiki Editor', () => {
 
 	test('should have New Page button in space sidebar', async ({ page }) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -149,10 +149,10 @@ test.describe('Wiki Editor', () => {
 		page,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -195,10 +195,10 @@ test.describe('Wiki Editor', () => {
 		request,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');

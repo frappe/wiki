@@ -74,7 +74,7 @@ test.describe('Space default page', () => {
 		page,
 	}) => {
 		// Entering at the bare space route opens the first page (Alpha).
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForURL(`**/spaces/${space.name}/page/${alpha.name}`, {
 			timeout: 15000,
 		});
@@ -83,13 +83,13 @@ test.describe('Space default page', () => {
 		// the rendered title (the page-title input) rather than networkidle: it's
 		// the "page mounted" signal the persist watcher rides on, and avoids
 		// networkidle's flaky 500ms-quiet wait on slow CI.
-		await page.goto(`/wiki/spaces/${space.name}/page/${beta.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}/page/${beta.name}`);
 		await expect(page.getByPlaceholder('Page title')).toHaveValue('Beta Page', {
 			timeout: 15000,
 		});
 
 		// Re-entering the bare space route now reopens Beta, not Alpha.
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(`/wiki-app/spaces/${space.name}`);
 		await page.waitForURL(`**/spaces/${space.name}/page/${beta.name}`, {
 			timeout: 15000,
 		});
@@ -98,7 +98,7 @@ test.describe('Space default page', () => {
 	test('stays on the welcome screen when the space has no pages', async ({
 		page,
 	}) => {
-		await page.goto(`/wiki/spaces/${emptySpace.name}`);
+		await page.goto(`/wiki-app/spaces/${emptySpace.name}`);
 		// Wait for the tree to resolve (sidebar reports it's empty), so any
 		// redirect would already have happened.
 		await expect(page.locator('aside >> text=No pages yet')).toBeVisible({
@@ -190,7 +190,7 @@ test.describe('Space default page — in-app space switch', () => {
 	}) => {
 		// Enter space A — it auto-opens A's first page and hydrates the singleton
 		// draft store for A.
-		await page.goto(`/wiki/spaces/${spaceA.name}`);
+		await page.goto(`/wiki-app/spaces/${spaceA.name}`);
 		await page.waitForURL(`**/spaces/${spaceA.name}/page/${aFirst.name}`, {
 			timeout: 15000,
 		});
@@ -201,7 +201,10 @@ test.describe('Space default page — in-app space switch', () => {
 		await page.waitForURL(/\/spaces$/, { timeout: 15000 });
 		// Target the row by its href (router-link) — robust to how the row text
 		// is rendered — and click it for a client-side nav into B.
-		await page.locator(`a[href="/wiki/spaces/${spaceB.name}"]`).first().click();
+		await page
+			.locator(`a[href="/wiki-app/spaces/${spaceB.name}"]`)
+			.first()
+			.click();
 
 		// B must open *B's* first page — not A's page from the stale tree.
 		await page.waitForURL(`**/spaces/${spaceB.name}/page/${bFirst.name}`, {

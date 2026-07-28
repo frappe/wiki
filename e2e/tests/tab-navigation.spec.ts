@@ -204,7 +204,7 @@ test.describe('Horizontal tab navigation', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');
@@ -229,7 +229,7 @@ test.describe('Horizontal tab navigation', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');
@@ -299,7 +299,7 @@ test.describe('Horizontal tab navigation', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');
@@ -332,7 +332,7 @@ test.describe('Horizontal tab navigation', () => {
 
 	test('editor reorders tabs by dragging them in the bar', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 		await page.getByText('Tabs E2E', { exact: true }).first().click();
 		await page.waitForLoadState('networkidle');

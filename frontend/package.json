@@ -9,7 +9,7 @@
 		"build:highlight": "vite build --config vite.highlight.config.js",
 		"preview": "vite preview",
 		"lint": "biome check --write .",
-		"copy-html-entry": "cp ../wiki/public/frontend/index.html ../wiki/www/wiki.html"
+		"copy-html-entry": "cp ../wiki/public/frontend/index.html ../wiki/www/wiki-app.html"
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.6.0",

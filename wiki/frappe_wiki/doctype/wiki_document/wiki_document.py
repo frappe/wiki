@@ -18,6 +18,12 @@ from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 
+# Base path of the editor SPA. The reader refuses it so the two never fight over
+# a route, which is why it is deliberately not "wiki" -- that one belongs to the
+# user's own spaces. Kept in sync with website_route_rules in hooks.py and
+# createWebHistory() in frontend/src/router.js.
+APP_ROUTE = "wiki-app"
+
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
@@ -302,7 +308,7 @@ class WikiDocument(NestedSet):
 		wiki_space = self.get_wiki_space()
 		if not wiki_space:
 			return ""
-		return f"/wiki/spaces/{wiki_space.name}/page/{self.name}"
+		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}"
 
 	def _can_show_edit(self, wiki_space_doc, user=None) -> bool:
 		"""Whether to render the reader's Edit button for the current user.
@@ -635,7 +641,7 @@ class WikiDocument(NestedSet):
 
 class WikiDocumentRenderer(BaseRenderer):
 	def can_render(self) -> bool:
-		if self.path == "wiki" or self.path.startswith("wiki/"):
+		if self.path == APP_ROUTE or self.path.startswith(APP_ROUTE + "/"):
 			return False
 
 		# Prefer a published content page at this route. A root README/index is

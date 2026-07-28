@@ -205,7 +205,7 @@ const secretsDirty = computed(
 );
 
 function createApp() {
-	// Same-window so the manifest flow's redirect back to /wiki?github_app_created=1
+	// Same-window so the manifest flow's redirect back to /wiki-app?github_app_created=1
 	// re-opens this dialog on the GitHub tab (handled in MainLayout).
 	window.location.href = '/github/new_app';
 }

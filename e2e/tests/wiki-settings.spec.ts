@@ -26,7 +26,7 @@ test.describe('Global Wiki Settings', () => {
 		const before = Boolean(original.enable_table_of_contents);
 
 		await page.setViewportSize({ width: 1100, height: 900 });
-		await page.goto('/wiki?github_app_created=1');
+		await page.goto('/wiki-app?github_app_created=1');
 		await page.waitForLoadState('networkidle');
 
 		const dialog = page.getByRole('dialog');
@@ -73,7 +73,7 @@ test.describe('Global Wiki Settings', () => {
 
 	test('admin opens settings from the sidebar menu', async ({ page }) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
 		// The sidebar header is a dropdown trigger labelled with the app title.

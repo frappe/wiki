@@ -38,10 +38,10 @@ test.describe('Public Wiki Pages', () => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
 			// Navigate to wiki and click first space
-			await page.goto('/wiki');
+			await page.goto('/wiki-app');
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
@@ -193,10 +193,10 @@ That is all.`;
 			// Navigate to an existing published page at mobile viewport
 			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-			await page.goto('/wiki');
+			await page.goto('/wiki-app');
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');
@@ -230,10 +230,10 @@ That is all.`;
 		}) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			await page.goto('/wiki');
+			await page.goto('/wiki-app');
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
@@ -335,10 +335,10 @@ End.`;
 		test('should show sidebar on desktop viewport', async ({ page }) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			await page.goto('/wiki');
+			await page.goto('/wiki-app');
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');
@@ -362,10 +362,10 @@ End.`;
 		test('should hide sidebar on mobile viewport', async ({ page }) => {
 			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-			await page.goto('/wiki');
+			await page.goto('/wiki-app');
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');

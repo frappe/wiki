@@ -19,10 +19,10 @@ test.describe('Link Persistence Tests', () => {
 		request,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto('/wiki-app');
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator('a[href*="/wiki-app/spaces/"]').first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -84,7 +84,7 @@ test.describe('Link Persistence Tests', () => {
 		await page.waitForTimeout(3000); // Wait for DB commit
 
 		// Capture the doc_key from URL before submitting
-		// URL format: /wiki/spaces/{spaceId}/draft/{docKey}
+		// URL format: /wiki-app/spaces/{spaceId}/draft/{docKey}
 		await page.waitForURL(/\/draft\/[^/?#]+/);
 		const url = page.url();
 		const draftMatch = url.match(/\/wiki\/spaces\/[^/]+\/draft\/([^/?#]+)/);
