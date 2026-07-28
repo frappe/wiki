@@ -9,7 +9,7 @@
        {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown()") }}
    {{ dropdown_end() }}
 #}
-{% macro page_actions_dropdown(edit_href="", edit_text="Edit", show_edit=True) %}
+{% macro page_actions_dropdown(edit_href="", edit_text="Edit", show_edit=True, edit_external=False) %}
     {#- Split button: two frappe-ui gray-outline Buttons (size md) sharing one
         border box, so the pair matches Button's h-8 / rounded-4 / colour
         recipe while still reading as a single control. -#}
@@ -18,7 +18,9 @@
         <div class="inline-flex rounded-4 border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] overflow-hidden transition-colors">
             {% if show_edit %}
             <!-- Edit button (navigates to edit page) -->
-            <a href="{{ edit_href }}" class="wiki-edit-link {{ split_segment }} px-2.5">
+            <a href="{{ edit_href }}"
+               {% if edit_external %}target="_blank" rel="noopener"{% endif %}
+               class="wiki-edit-link {{ split_segment }} px-2.5">
                 {{ render_icon("edit", "w-4 h-4") }}
                 <span>{{ edit_text }}</span>
             </a>

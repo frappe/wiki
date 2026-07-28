@@ -49,7 +49,7 @@
             {% else %}
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
-                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
+                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                     {{ download_action_item() }}
                     {% if can_edit %}
                     {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
@@ -63,7 +63,7 @@
 
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
-                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), edit_text="Edit", show_edit=can_edit) }}
+                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                         {{ download_action_item() }}
                         {% if can_edit %}
                         {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
