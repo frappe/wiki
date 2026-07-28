@@ -834,6 +834,24 @@ class TestBlankLinePreservation(unittest.TestCase):
 		self.assertEqual(self._gaps(wide), 2)
 		self.assertIn("wiki-pdf-embed", render_markdown(before))
 
+	def test_adjacent_placeholders_do_not_gain_a_gap(self):
+		"""Two custom blocks one newline apart: each side contributes a newline to
+		break the placeholder out as a block, giving three — still one short of the
+		four an author-typed empty paragraph writes, so no gap."""
+		self.assertEqual(self._gaps("![a](/files/a.mp4)\n![b](/files/b.mp4)"), 0)
+		self.assertEqual(self._gaps("![a](/files/a.mp4)\n![b](/files/b.mp4)\n![c](/files/c.mp4)"), 0)
+		self.assertEqual(self._gaps("![a](/files/a.mp4)\n![b](/files/b.pdf)"), 0)
+		self.assertEqual(self._gaps(":::note\nx\n:::\n![a](/files/a.mp4)"), 0)
+		self.assertEqual(self._gaps("![a](/files/a.mp4)\n:::note\nx\n:::"), 0)
+		self.assertEqual(self._gaps(":::note\nx\n:::\n:::tip\ny\n:::"), 0)
+
+	def test_placeholder_glued_to_surrounding_text(self):
+		"""The placeholder still breaks out of the paragraph it was written inside."""
+		result = render_markdown("text\n![a](/files/a.mp4)\ntext2")
+		self.assertNotIn("wiki-blank-line", result)
+		self.assertIn("<video", result)
+		self.assertNotIn("<p>text\n", result.replace("<br />", ""))
+
 	def test_leading_blank_lines(self):
 		self.assertEqual(self._gaps("\n\ntext"), 1)
 		self.assertEqual(self._gaps("\ntext"), 0)
