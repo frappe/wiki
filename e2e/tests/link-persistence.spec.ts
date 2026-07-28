@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
 import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 } from '../helpers/wiki';
@@ -19,10 +24,10 @@ test.describe('Link Persistence Tests', () => {
 		request,
 	}) => {
 		// Navigate to wiki and click first space
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -84,17 +89,19 @@ test.describe('Link Persistence Tests', () => {
 		await page.waitForTimeout(3000); // Wait for DB commit
 
 		// Capture the doc_key from URL before submitting
-		// URL format: /wiki/spaces/{spaceId}/draft/{docKey}
+		// URL format: ${APP_BASE}/spaces/{spaceId}/draft/{docKey}
 		await page.waitForURL(/\/draft\/[^/?#]+/);
 		const url = page.url();
-		const draftMatch = url.match(/\/wiki\/spaces\/[^/]+\/draft\/([^/?#]+)/);
+		const draftMatch = url.match(
+			new RegExp(`${APP_BASE}/spaces/[^/]+/draft/([^/?#]+)`),
+		);
 		expect(draftMatch).toBeTruthy();
 		const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
 
 		// Submit for review and merge so the content lands on the live doc
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createDoc } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import {
 	type WikiDocument,
 	type WikiSpace,
@@ -59,7 +60,7 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 			source_path: leafSourcePath,
 		});
 
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Open the synced page.

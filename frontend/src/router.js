@@ -69,8 +69,10 @@ const routes = [
 	},
 ];
 
+// The app's base path. Kept in sync with APP_ROUTE in wiki_document.py (which
+// also feeds website_route_rules) and APP_BASE in e2e/helpers/routes.ts.
 const router = createRouter({
-	history: createWebHistory('/wiki'),
+	history: createWebHistory('/wiki-app'),
 	routes,
 });
 
@@ -90,7 +92,7 @@ router.beforeEach(async (to, from, next) => {
 	}
 
 	if (!isLoggedIn) {
-		window.location.href = `/login?redirect-to=/wiki${encodeURIComponent(
+		window.location.href = `/login?redirect-to=/wiki-app${encodeURIComponent(
 			to.fullPath,
 		)}`;
 	} else {

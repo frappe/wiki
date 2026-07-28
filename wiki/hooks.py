@@ -12,7 +12,7 @@ add_to_apps_screen = [
 		"name": "wiki",
 		"logo": "/assets/wiki/images/wiki-logo.png",
 		"title": "Wiki",
-		"route": "/wiki",
+		"route": "/wiki-app",
 		"has_permission": "wiki.utils.check_app_permission",
 	}
 ]
@@ -201,5 +201,5 @@ default_log_clearing_doctypes = {
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
 
 website_route_rules = [
-	{"from_route": "/wiki/<path:app_path>", "to_route": "wiki"},
+	{"from_route": "/wiki-app/<path:app_path>", "to_route": "wiki-app"},
 ]

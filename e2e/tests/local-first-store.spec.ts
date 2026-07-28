@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
+import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
 interface DraftNode {
@@ -46,7 +47,7 @@ async function createSpaceViaUI(
 	page: import('@playwright/test').Page,
 	{ name, route }: { name: string; route: string },
 ) {
-	await page.goto('/wiki/spaces');
+	await page.goto(appUrl('spaces'));
 	await page.waitForLoadState('networkidle');
 	await page.getByRole('button', { name: 'New Space' }).click();
 	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
@@ -57,7 +58,7 @@ async function createSpaceViaUI(
 		.getByRole('button', { name: 'Create' })
 		.click();
 	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(/\/wiki\/spaces\//);
+	await expect(page).toHaveURL(SPACE_URL_RE);
 	// `networkidle` can fire before draftStore.hydrate finishes setting
 	// rootKey. Without this wait, the create dialog falls back to
 	// `space.doc.root_group` (a Frappe document name) instead of the CR's
@@ -65,7 +66,7 @@ async function createSpaceViaUI(
 	await page.waitForFunction(() => Boolean(window.__draftStore?.rootKey), {
 		timeout: 10000,
 	});
-	const spaceId = page.url().split('/wiki/spaces/')[1];
+	const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
 	return { spaceId };
 }
 
@@ -393,7 +394,7 @@ test.describe('Local-first draft workspace', () => {
 			is_published: 1,
 		});
 
-		await page.goto(`/wiki/spaces/${spaceId}/draft/${firstKey}`);
+		await page.goto(appUrl('spaces', spaceId, 'draft', firstKey));
 		await page.waitForLoadState('networkidle');
 
 		const editor = page
@@ -540,7 +541,7 @@ test.describe('Local-first draft workspace', () => {
 			name: initialDraft.name,
 		});
 
-		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\/[^/?#]+/, { timeout: 10000 });
@@ -973,7 +974,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}
 
-		await page.goto(`/wiki/spaces/${spaceId}`);
+		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(groupTitle, { exact: true }).click();
 		for (const title of pageTitles) {

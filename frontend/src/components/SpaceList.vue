@@ -612,7 +612,7 @@ const tracks = columns.map((col) =>
 );
 
 // Open the space's public-facing reader. The reader lives at the site root
-// (`/<route>`), outside the `/wiki` editor SPA, so it can't go through the
+// (`/<route>`), outside the `/wiki-app` editor SPA, so it can't go through the
 // router — a new tab keeps the editor session intact.
 function viewSpace(row) {
 	window.open(`/${row.route}`, '_blank', 'noopener');

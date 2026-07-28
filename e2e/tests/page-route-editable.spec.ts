@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
 /**
@@ -11,10 +12,10 @@ test.describe('Editable page route', () => {
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
