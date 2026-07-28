@@ -965,7 +965,7 @@ test.describe('Change Request Flow', () => {
 		await page.waitForLoadState('networkidle');
 		await page.locator(`a[href*="${crName}"]`).first().click();
 		await expect(page).toHaveURL(
-			new RegExp(`${APP_BASE}/change-requests/crName$`),
+			new RegExp(`${APP_BASE}/change-requests/${crName}$`),
 		);
 
 		// Back from review lands on the originating tab, query preserved.
