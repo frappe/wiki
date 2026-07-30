@@ -123,4 +123,57 @@ sit in the same place in both, and ⌘S still saves.
 
 ## Progress log
 
-_(appended per phase)_
+### Phase 0 — Flag + reader gate ✅
+
+`enable_tabs` (Check, default 0) on Wiki Space, with `home_tab_title` /
+`home_tab_icon` now `depends_on` it. `get_space_tabs` reads the flag in the
+`get_value` it already ran and returns `[]` when it's off.
+
+**Beyond spec:** `llms.txt` also sections by tabs (`_space_llms_txt`), so a
+tabs-off space would have advertised a "Home" section the reader has no concept
+of. It now renders one section titled after the space. Space cloning needed no
+change — `_create_space_copy` copies every non-table field generically.
+
+Tracer verified on `wiki.localhost`: every space with tab groups returns `[]`
+off and its full tab list on.
+
+### Phases 1 + 2 — Settings toggle, editor gate, page actions ✅
+
+Committed together rather than one per phase: gating the bar without moving the
+actions first would have left a commit where a tabs-off space has no way to
+save.
+
+- `GeneralPanel.vue` gains a **Tabbed Navigation** row (optimistic switch,
+  reverts on error — the publish/feedback pattern).
+- `useSpaceTabs` takes an `enabled` getter; off, `tabs` is `[]` and
+  `visibleTreeData` already passes the tree through unchanged for that case.
+- `canManageTabs` is now `canWriteSpace && tabsEnabled`, so "New Tab" /
+  "Convert to tab" / inline rename disappear with the bar.
+- Page actions moved into a header row inside the content column;
+  `#wiki-page-actions` and the `Teleport` are gone. The loading skeleton already
+  drew this row, and now matches what loads.
+
+### Bug found in Phase 2 verification
+
+The reader's sidebar and mobile header split their tree on **node** `is_tab`,
+independently of `space_tabs`. With tabs off, a tab's subtree therefore stayed
+hidden behind an `x-show` for a tab no bar could select — the sidebar showed
+only the open page. Both templates now branch on `space_tabs`, which is empty
+exactly when the space has tabs off. Caught by the new e2e test, not by review.
+
+### Phase 3 — Tests ✅
+
+- **Backend:** `test_returns_empty_when_the_space_has_tabs_switched_off` and
+  `test_space_llms_txt_drops_tab_sections_when_tabs_are_off`. Both verified to
+  fail with their gate temp-reverted. `create_test_wiki_space` gained an
+  `enable_tabs` kwarg; the two fixtures whose tests assert tab behaviour opt in.
+- **E2E:** `tab-navigation.spec.ts` at 12 tests — both existing fixtures now set
+  `enable_tabs: 1`, plus a "Tab navigation disabled" describe covering reader
+  (no bar, every top-level node in the sidebar) and editor (no bar, whole tree,
+  Save still reachable). Full file green.
+- **Regression:** `public-pages`, `sidebar` green. `mobile-view` fails 13 tests
+  locally — **verified identical on a clean `upstream/develop` checkout with a
+  rebuilt frontend**, so it is the known local test-data flakiness, not this
+  change.
+- Manually verified in the app: toggling the switch adds/removes the bar live,
+  and the actions row holds its position in both states.
