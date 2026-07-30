@@ -15,20 +15,27 @@ import {
  * Tabs are derived from the tree the sidebar is already rendering rather than
  * from get_space_tabs: in the editor that's the draft/change-request tree, so a
  * tab created in an unmerged draft shows up immediately.
+ *
+ * `enabled` is the space's enable_tabs flag. Off, this collapses to no tabs and
+ * an unfiltered tree — the same shape a space with no tab groups produces.
  */
 export function useSpaceTabs(
 	treeData,
 	selectedPageId,
 	selectedDraftKey,
 	homeMeta,
+	enabled,
 ) {
+	const tabsEnabled = computed(() => enabled?.value !== false);
 	const topLevelNodes = computed(() => treeData.value?.children || []);
 	const tabs = computed(() =>
-		buildTabList(
-			topLevelNodes.value,
-			homeMeta?.value?.title || __('Home'),
-			homeMeta?.value?.icon,
-		),
+		tabsEnabled.value
+			? buildTabList(
+					topLevelNodes.value,
+					homeMeta?.value?.title || __('Home'),
+					homeMeta?.value?.icon,
+			  )
+			: [],
 	);
 
 	// The tab owning the currently open page: walk the page's ancestors up to

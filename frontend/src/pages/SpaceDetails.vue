@@ -68,7 +68,7 @@
         />
 
         <div
-            v-if="tabs.length"
+            v-if="tabsEnabled && tabs.length"
             class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
         >
             <WikiTabBar
@@ -81,8 +81,6 @@
                 @update-icon="updateTabIcon"
                 @rename-tab="renameTab"
             />
-            <!-- Teleport target for the open page's actions (inline layout). -->
-            <div id="wiki-page-actions" class="flex shrink-0 items-center gap-2 self-center pl-3" />
         </div>
 
         <!-- Sidebar + content share the row beneath the chrome. -->
@@ -91,7 +89,7 @@
             <aside
                 v-if="!isMobile"
                 ref="sidebarRef"
-                class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
+                class="border-r border-outline-gray-2 flex flex-col relative flex-shrink-0"
                 :style="{ width: `${sidebarWidth}px` }"
             >
                 <SpaceTreePanel
@@ -379,6 +377,10 @@ const space = createDocumentResource({
 // live tree instead of a CR.
 const isGitSynced = computed(() => Boolean(space.doc?.git_synced));
 
+// Tabs are opt-in per space (Wiki Space.enable_tabs). Off, the bar is gone and
+// the sidebar shows the whole tree — tab flags on nodes are kept, just ignored.
+const tabsEnabled = computed(() => Boolean(space.doc?.enable_tabs));
+
 // "Pending"/"Running" are transient internal states; show one friendly label.
 function syncStatusLabel(status) {
 	return (
@@ -392,11 +394,11 @@ function syncStatusLabel(status) {
 
 // Tab management is editor-only (mirrors the backend's can_manage_tabs, which
 // is can_write_space). Enforcement stays server-side; this only hides the UI.
-const canManageTabs = ref(false);
+const canWriteSpace = ref(false);
 const capabilitiesResource = createResource({
 	url: 'wiki.api.get_space_capabilities',
 	onSuccess: (data) => {
-		canManageTabs.value = Boolean(data?.can_write);
+		canWriteSpace.value = Boolean(data?.can_write);
 	},
 });
 
@@ -407,6 +409,9 @@ watch(
 	},
 	{ immediate: true },
 );
+
+// Managing tabs needs both the permission and a space that uses tabs at all.
+const canManageTabs = computed(() => canWriteSpace.value && tabsEnabled.value);
 
 const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
@@ -597,6 +602,7 @@ const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
 	currentPageId,
 	currentDraftKey,
 	homeMeta,
+	tabsEnabled,
 );
 
 // Creating and reordering tabs is owned here alongside the bar, rather than in

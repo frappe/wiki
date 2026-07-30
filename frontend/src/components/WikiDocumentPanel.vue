@@ -1,5 +1,8 @@
 <template>
 	<div class="h-full flex flex-col">
+		<!-- Page actions row. Owned by the page rather than teleported into the
+		     space's tab row, so it sits in the same place whether or not the
+		     space uses tabs. -->
 		<DefineActions>
 			<Button
 				v-if="wikiDoc.doc?.is_published"
@@ -27,13 +30,10 @@
 			</Dropdown>
 		</DefineActions>
 
-		<!-- Page actions live in the space's tab row (SpaceDetails). `defer` lets
-		     that target mount first when tabs load async. -->
-		<Teleport defer to="#wiki-page-actions">
-			<ReuseActions />
-		</Teleport>
-
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
+			<div class="flex min-h-12 shrink-0 items-center justify-end gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+				<ReuseActions />
+			</div>
 			<div class="flex-1 overflow-auto pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
@@ -90,8 +90,7 @@
 
 		<!-- Content skeleton -->
 		<div v-else class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
-				<Skeleton class="h-4 w-40 rounded" />
+			<div class="flex min-h-12 shrink-0 items-center justify-end border-b border-outline-gray-2 px-3 sm:px-5">
 				<div class="flex items-center gap-2">
 					<Skeleton class="h-8 w-24 rounded" />
 					<Skeleton class="h-8 w-16 rounded" />
