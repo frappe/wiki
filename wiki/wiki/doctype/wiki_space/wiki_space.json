@@ -33,6 +33,7 @@
   "allow_contributions",
   "version_3_tab",
   "root_group",
+  "enable_tabs",
   "home_tab_title",
   "home_tab_icon",
   "main_revision",
@@ -129,9 +130,9 @@
    "label": "Access Control"
   },
   {
+   "description": "Leave empty for open access to all logged-in users. Add the <b>Guest</b> role for public/anonymous access.",
    "fieldname": "access_control_section",
-   "fieldtype": "Section Break",
-   "description": "Leave empty for open access to all logged-in users. Add the <b>Guest</b> role for public/anonymous access."
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "roles",
@@ -172,7 +173,15 @@
    "read_only": 1
   },
   {
+   "default": "0",
+   "description": "Show a horizontal tab bar above the sidebar. Top-level groups flagged as tabs appear in it.",
+   "fieldname": "enable_tabs",
+   "fieldtype": "Check",
+   "label": "Enable Tabbed Navigation"
+  },
+  {
    "default": "Home",
+   "depends_on": "eval:doc.enable_tabs",
    "description": "Label for the synthetic Home tab that leads the space's tab bar.",
    "fieldname": "home_tab_title",
    "fieldtype": "Data",
@@ -180,6 +189,7 @@
   },
   {
    "default": "lucide-house",
+   "depends_on": "eval:doc.enable_tabs",
    "description": "Lucide icon class for the Home tab, e.g. lucide-house.",
    "fieldname": "home_tab_icon",
    "fieldtype": "Data",
@@ -283,12 +293,12 @@
    "read_only": 1
   },
   {
+   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred).",
    "fieldname": "wiki_config",
    "fieldtype": "Code",
    "label": "Wiki Config (.wiki.json)",
    "options": "JSON",
-   "read_only": 1,
-   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred)."
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
