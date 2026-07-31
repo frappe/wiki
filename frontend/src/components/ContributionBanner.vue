@@ -43,7 +43,17 @@
 				{{ __('Reload latest') }}
 			</Button>
 
-			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
+			<!-- One stable button for the whole merge/withdraw round trip. The
+			     status branches below churn through In Review and Approved on
+			     the way, and the summary they read belongs to a change request
+			     that is being retired. -->
+			<template v-if="crStore.finalizing">
+				<Button size="sm" loading disabled>
+					{{ crStore.finalizing === 'withdrawing' ? __('Withdraw') : __('Merge') }}
+				</Button>
+			</template>
+
+			<template v-else-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
 					v-if="canShowMerge"
 					size="sm"
@@ -189,7 +199,7 @@ import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import SpaceChromeBar from './SpaceChromeBar.vue';
 
 const {
@@ -322,8 +332,24 @@ const statusBadgeTheme = computed(
 
 const emit = defineEmits(['submit', 'withdraw', 'merge', 'open-settings']);
 
-const changeRequestStatus = computed(
-	() => crStore.currentChangeRequest?.status || 'Draft',
+// Frozen while the CR is being finalized: the server walks it through In Review
+// and Approved on the way to a merge, and every one of those states is a badge,
+// a banner colour and a different action row. The user asked for one thing, so
+// they see one state until it lands.
+const changeRequestStatus = computed(() => {
+	if (crStore.finalizing) return finalizingStatus.value;
+	return crStore.currentChangeRequest?.status || 'Draft';
+});
+
+// The status as it was when finalizing began, held for the duration.
+const finalizingStatus = ref('Draft');
+watch(
+	() => crStore.finalizing,
+	(state, previous) => {
+		if (state && !previous) {
+			finalizingStatus.value = crStore.currentChangeRequest?.status || 'Draft';
+		}
+	},
 );
 
 const showChangesDialog = ref(false);

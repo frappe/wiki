@@ -876,17 +876,23 @@ async function handleSubmitChangeRequest() {
 
 async function handleArchiveChangeRequest() {
 	const crName = crStore.currentChangeRequest?.name;
+	crStore.finalizing = 'withdrawing';
 	try {
 		await crStore.archiveChangeRequest();
 		toast.success(__('Change request archived'));
 		crStore.currentChangeRequest = null;
+		crStore.clearChanges();
 		// Drop the local-first drafts too, or hydrate restores the discarded
 		// content from IndexedDB (and autosave re-creates the change request).
 		await draftStore.discardPersistedDraftsForCr(crName);
-		draftStore.reset();
+		// Same as merge: the published tree the next CR opens on is the one
+		// already rendered, so it stays put while hydrate refreshes it.
+		draftStore.reset({ keepTree: true });
 		await draftStore.hydrate(props.spaceId);
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error archiving change request'));
+	} finally {
+		crStore.finalizing = null;
 	}
 }
 
@@ -912,25 +918,42 @@ async function handleMergeChangeRequest() {
 	}
 	const docKey = currentDraftKey.value;
 	const changeRequestName = crStore.currentChangeRequest?.name;
+	// Held across the rehydrate as well as the merge itself, so the banner shows
+	// one state for the whole trip instead of the CR's intermediate ones.
+	crStore.finalizing = 'merging';
 	try {
 		await crStore.approveAndMergeChangeRequest();
 		toast.success(__('Change request merged'));
 		crStore.currentChangeRequest = null;
+		crStore.clearChanges();
 		// The CR's drafts are now merged into the published doc — clear them so a
 		// stale local copy can't resurrect after the merge.
 		await draftStore.discardPersistedDraftsForCr(changeRequestName);
-		draftStore.reset();
-		await draftStore.hydrate(props.spaceId);
+		// Keep the tree on screen: the merged tree is all but identical to the one
+		// already rendered, so blanking it to a skeleton for a round trip is pure
+		// loss. hydrate() swaps in the new one in a single paint.
+		draftStore.reset({ keepTree: true });
 
-		if (docKey) {
+		// Leave the draft route before the rehydrate, not after: the draft the
+		// URL points at no longer exists, so waiting would park the editor on
+		// "Draft not found" for the length of the round trip. The tree is still
+		// on screen (keepTree), so the published page is resolvable now — except
+		// for a page created in this CR, which only gets a document_name once
+		// the merge lands, so that one is resolved again afterwards.
+		const openMergedPage = () => {
+			if (!docKey) return true;
 			const node = findNodeByDocKey(treeData.value?.children, docKey);
-			if (node?.document_name) {
-				router.push({
-					name: 'SpacePage',
-					params: { spaceId: props.spaceId, pageId: node.document_name },
-				});
-			}
-		}
+			if (!node?.document_name) return false;
+			router.push({
+				name: 'SpacePage',
+				params: { spaceId: props.spaceId, pageId: node.document_name },
+			});
+			return true;
+		};
+
+		const opened = openMergedPage();
+		await draftStore.hydrate(props.spaceId);
+		if (!opened) openMergedPage();
 	} catch (error) {
 		// A merge conflict leaves the CR Approved; the conflict-resolution UI
 		// lives on the review page, so send the author there to resolve it.
@@ -945,6 +968,8 @@ async function handleMergeChangeRequest() {
 			return;
 		}
 		toast.error(error.messages?.[0] || __('Error merging change request'));
+	} finally {
+		crStore.finalizing = null;
 	}
 }
 </script>
