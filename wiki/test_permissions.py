@@ -13,13 +13,18 @@ from frappe.tests import IntegrationTestCase
 
 from wiki.permissions import (
 	_accessible_space_names,
+	_document_owner_only_blocks,
 	_is_manager,
+	_space_owner_only_blocks,
 	can_contribute_to_space,
 	can_read_space,
 	can_write_space,
 	wiki_cr_has_permission,
+	wiki_cr_query_conditions,
 	wiki_document_has_permission,
+	wiki_document_query_conditions,
 	wiki_space_has_permission,
+	wiki_space_query_conditions,
 )
 
 
@@ -81,7 +86,7 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		for role in (READER_ROLE, WRITER_ROLE, OTHER_ROLE):
+		for role in (READER_ROLE, WRITER_ROLE, OTHER_ROLE, "Admin", "Technician"):
 			_ensure_role(role)
 
 		cls.reader = _ensure_user("wsac_reader@example.com", ["Wiki User", READER_ROLE])
@@ -89,6 +94,8 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 		cls.outsider = _ensure_user("wsac_outsider@example.com", ["Wiki User", OTHER_ROLE])
 		cls.manager = _ensure_user("wsac_manager@example.com", ["Wiki Manager"])
 		cls.approver = _ensure_user("wsac_approver@example.com", ["Wiki User", "Wiki Approver"])
+		cls.admin = _ensure_user("wsac_admin@example.com", ["Admin"])
+		cls.technician = _ensure_user("wsac_technician@example.com", ["Technician"])
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 	def setUp(self):
@@ -100,7 +107,9 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 		)
 		# A space with no role rows: open to all logged-in users.
 		self.open_space = _make_space(self, "WSAC Open", [])
-		# A publicly readable space (built-in Guest role on the read list).
+		# A Guest role row is inert now (Guest is never granted access) -- kept
+		# as an ordinary restricted-role space so test_get_list_unfiltered_for_manager
+		# still has a third space only a manager can see.
 		self.public = _make_space(self, "WSAC Public", [("Guest", "Read")])
 
 	def tearDown(self):
@@ -140,8 +149,10 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 	def test_open_space_not_readable_by_guest(self):
 		self.assertFalse(can_read_space(self.open_space, "Guest"))
 
-	def test_guest_role_makes_space_publicly_readable(self):
-		self.assertTrue(can_read_space(self.public, "Guest"))
+	def test_guest_role_row_no_longer_grants_guest_access(self):
+		# A space's Guest role row is inert -- Guest is never granted access,
+		# regardless of configuration (see owner_only_and_guest_lockout.md).
+		self.assertFalse(can_read_space(self.public, "Guest"))
 
 	def test_restricted_space_not_readable_by_guest(self):
 		self.assertFalse(can_read_space(self.restricted, "Guest"))
@@ -176,11 +187,9 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 		self.assertNotIn(self.restricted, names)
 		self.assertIn(self.open_space, names)
 
-	def test_accessible_spaces_for_guest_only_public(self):
+	def test_accessible_spaces_for_guest_is_always_empty(self):
 		names = _accessible_space_names("Guest")
-		self.assertIn(self.public, names)
-		self.assertNotIn(self.open_space, names)
-		self.assertNotIn(self.restricted, names)
+		self.assertEqual(names, set())
 
 	# --- query-condition filtering via get_list -------------------------
 
@@ -276,6 +285,154 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
 			create_change_request(self.restricted, "Reader proposal")
+
+	# --- Guest lockout: every hook entry point, including previously-open cases ---
+
+	def test_guest_denied_on_every_query_condition_hook(self):
+		self.assertEqual(wiki_space_query_conditions(user="Guest"), "1=0")
+		self.assertEqual(wiki_document_query_conditions(user="Guest"), "1=0")
+		self.assertEqual(wiki_cr_query_conditions(user="Guest"), "1=0")
+
+	def test_guest_denied_on_every_has_permission_hook(self):
+		space_doc = frappe.get_doc("Wiki Space", self.open_space)
+		self.assertFalse(wiki_space_has_permission(space_doc, "read", "Guest"))
+
+		orphan_doc = frappe.get_doc({"doctype": "Wiki Document", "title": "Orphan", "wiki_space": None})
+		self.assertFalse(wiki_document_has_permission(orphan_doc, "read", "Guest"))
+
+		open_space_doc = frappe.get_doc(
+			{"doctype": "Wiki Document", "title": "In open space", "wiki_space": self.open_space}
+		)
+		self.assertFalse(wiki_document_has_permission(open_space_doc, "read", "Guest"))
+
+		cr_doc = frappe.get_doc({"doctype": "Wiki Change Request", "wiki_space": self.open_space})
+		self.assertFalse(wiki_cr_has_permission(cr_doc, "read", "Guest"))
+
+	# --- Owner Only: Wiki Document ---------------------------------------
+
+	def _make_document(self, title, wiki_space=None, owner_only=0, owner=None):
+		"""An in-memory (never inserted) Wiki Document -- has_permission only reads
+		attributes off the object, so no DB round-trip is needed for those checks."""
+		return frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": title,
+				"wiki_space": wiki_space,
+				"owner_only": owner_only,
+				"owner": owner or frappe.session.user,
+			}
+		)
+
+	def _insert_document(self, title, wiki_space=None, owner_only=0, owner=None):
+		doc = self._make_document(title, wiki_space, owner_only, owner).insert(ignore_permissions=True)
+		self._docs.append(doc.name)
+		return doc
+
+	def test_owner_only_document_visible_to_owner_and_admin_only(self):
+		doc = self._make_document(
+			"Owner Only Doc", wiki_space=self.open_space, owner_only=1, owner=self.reader
+		)
+		self.assertTrue(wiki_document_has_permission(doc, "read", self.reader))
+		self.assertTrue(wiki_document_has_permission(doc, "read", self.admin))
+		self.assertTrue(_is_manager(self.admin))
+		self.assertFalse(wiki_document_has_permission(doc, "read", self.technician))
+		self.assertFalse(wiki_document_has_permission(doc, "read", self.writer))
+
+	def test_owner_only_document_absent_from_list_for_technician(self):
+		doc = self._insert_document(
+			"Owner Only Listed", wiki_space=self.open_space, owner_only=1, owner=self.reader
+		)
+		frappe.set_user(self.technician)
+		names = {d.name for d in frappe.get_list("Wiki Document", limit=0)}
+		self.assertNotIn(doc.name, names)
+
+		frappe.set_user(self.reader)
+		names = {d.name for d in frappe.get_list("Wiki Document", limit=0)}
+		self.assertIn(doc.name, names)
+
+	def test_owner_only_orphan_document_still_gated(self):
+		doc = self._make_document("Owner Only Orphan", wiki_space=None, owner_only=1, owner=self.reader)
+		self.assertTrue(wiki_document_has_permission(doc, "read", self.reader))
+		self.assertFalse(wiki_document_has_permission(doc, "read", self.technician))
+
+	def test_owner_only_document_unchecked_follows_normal_rules(self):
+		doc = self._make_document("Not Owner Only", wiki_space=self.restricted, owner_only=0, owner=self.reader)
+		self.assertTrue(wiki_document_has_permission(doc, "read", self.reader))
+		self.assertFalse(wiki_document_has_permission(doc, "read", self.outsider))
+
+	# --- Owner Only: Wiki Space (cascades to its documents) --------------
+
+	def test_owner_only_space_blocks_non_owner_non_admin(self):
+		frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 1)
+		frappe.db.set_value("Wiki Space", self.open_space, "owner", self.reader)
+		frappe.clear_document_cache("Wiki Space", self.open_space)
+		try:
+			self.assertTrue(can_read_space(self.open_space, self.reader))
+			self.assertTrue(can_read_space(self.open_space, self.admin))
+			self.assertFalse(can_read_space(self.open_space, self.technician))
+			self.assertFalse(can_read_space(self.open_space, self.outsider))
+		finally:
+			frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 0)
+			frappe.clear_document_cache("Wiki Space", self.open_space)
+
+	def test_owner_only_space_cascades_to_its_documents(self):
+		frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 1)
+		frappe.db.set_value("Wiki Space", self.open_space, "owner", self.reader)
+		frappe.clear_document_cache("Wiki Space", self.open_space)
+		try:
+			doc = self._make_document(
+				"In owner-only space", wiki_space=self.open_space, owner_only=0, owner=self.writer
+			)
+			# Space-level flag blocks even a document whose own flag is unset and
+			# whose owner is someone else.
+			self.assertFalse(wiki_document_has_permission(doc, "read", self.technician))
+			self.assertTrue(wiki_document_has_permission(doc, "read", self.reader))
+		finally:
+			frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 0)
+			frappe.clear_document_cache("Wiki Space", self.open_space)
+
+	# --- Owner Only composition (document OR space, union of owners) -----
+
+	def test_owner_only_composition_document_flag_only(self):
+		doc = self._make_document(
+			"Doc flag only", wiki_space=self.open_space, owner_only=1, owner=self.reader
+		)
+		self.assertFalse(_space_owner_only_blocks(self.open_space, self.writer))
+		self.assertTrue(_document_owner_only_blocks(doc, self.writer))
+		self.assertFalse(_document_owner_only_blocks(doc, self.reader))
+
+	def test_owner_only_composition_space_flag_only(self):
+		frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 1)
+		frappe.db.set_value("Wiki Space", self.open_space, "owner", self.writer)
+		frappe.clear_document_cache("Wiki Space", self.open_space)
+		try:
+			doc = self._make_document(
+				"Space flag only", wiki_space=self.open_space, owner_only=0, owner=self.reader
+			)
+			self.assertFalse(_document_owner_only_blocks(doc, self.writer))
+			self.assertTrue(_space_owner_only_blocks(self.open_space, self.reader))
+			# The document's own owner alone doesn't satisfy the space's flag.
+			self.assertFalse(wiki_document_has_permission(doc, "read", self.technician))
+			self.assertTrue(wiki_document_has_permission(doc, "read", self.writer))
+		finally:
+			frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 0)
+			frappe.clear_document_cache("Wiki Space", self.open_space)
+
+	def test_owner_only_composition_both_flags_different_owners(self):
+		frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 1)
+		frappe.db.set_value("Wiki Space", self.open_space, "owner", self.writer)
+		frappe.clear_document_cache("Wiki Space", self.open_space)
+		try:
+			doc = self._make_document(
+				"Both flags", wiki_space=self.open_space, owner_only=1, owner=self.reader
+			)
+			# Both the document's own owner and the space's owner can read it.
+			self.assertTrue(wiki_document_has_permission(doc, "read", self.reader))
+			self.assertTrue(wiki_document_has_permission(doc, "read", self.writer))
+			self.assertFalse(wiki_document_has_permission(doc, "read", self.technician))
+		finally:
+			frappe.db.set_value("Wiki Space", self.open_space, "owner_only", 0)
+			frappe.clear_document_cache("Wiki Space", self.open_space)
 
 
 class TestSpaceRolesAPI(IntegrationTestCase):

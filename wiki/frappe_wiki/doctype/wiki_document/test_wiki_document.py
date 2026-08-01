@@ -1622,7 +1622,7 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		frappe.set_user("Administrator")
 		super().tearDown()
 
-	def test_download_pdf_returns_pdf_for_published_public_page(self):
+	def test_download_pdf_returns_pdf_for_logged_in_user(self):
 		root_group = create_test_wiki_document(self, "Root PDF Public", is_group=True)
 		page = create_test_wiki_document(
 			self,
@@ -1631,16 +1631,10 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 			content="# Public Page\n\nThis page should download.",
 			slug="downloadable-page",
 		)
-		# Public space: the Guest role grants anonymous read access.
-		create_test_wiki_space(
-			self,
-			"PDF Public Space",
-			"pdf-public-space",
-			root_group.name,
-			roles=[("Guest", "Read")],
-		)
+		# Open space: readable by any logged-in user (Guest is never granted access,
+		# regardless of role configuration -- see test_download_pdf_denies_guest_entirely).
+		create_test_wiki_space(self, "PDF Public Space", "pdf-public-space", root_group.name)
 
-		frappe.set_user("Guest")
 		frappe.local.response = frappe._dict()
 
 		with patch(
@@ -1655,6 +1649,29 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertEqual(frappe.local.response.content_type, "application/pdf")
 		self.assertEqual(frappe.local.response.filecontent, b"%PDF-test%")
 		self.assertEqual(frappe.local.response.filename, "downloadable-page.pdf")
+
+	def test_download_pdf_denies_guest_entirely(self):
+		# Guest is rejected regardless of the space's role configuration -- the
+		# public-Guest-role capability has been removed (see wiki/permissions.py).
+		root_group = create_test_wiki_document(self, "Root PDF Guest Denied", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Guest Denied Page",
+			parent=root_group.name,
+			slug="guest-denied-page",
+		)
+		create_test_wiki_space(
+			self,
+			"PDF Guest Denied Space",
+			"pdf-guest-denied-space",
+			root_group.name,
+			roles=[("Guest", "Read")],
+		)
+
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.DoesNotExistError):
+			download_pdf(route=page.route)
 
 	def test_download_pdf_blocks_private_page_for_guest(self):
 		# A space with no role rows is open to logged-in users only; an anonymous

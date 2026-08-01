@@ -12,6 +12,7 @@
 		"doc_key",
 		"column_break_sfff",
 		"is_published",
+		"owner_only",
 		"wiki_space",
 		"is_external_link",
 		"external_url",
@@ -143,6 +144,14 @@
 			"label": "Is Published?"
 		},
 		{
+			"default": "0",
+			"fieldname": "owner_only",
+			"fieldtype": "Check",
+			"label": "Owner Only",
+			"permlevel": 1,
+			"description": "Visible only to the page's owner and users with the Admin role. Completely hidden from everyone else, including Technician."
+		},
+		{
 			"fieldname": "title",
 			"fieldtype": "Data",
 			"in_list_view": 1,
@@ -249,6 +258,34 @@
 			"report": 1,
 			"role": "Wiki User",
 			"share": 1
+		},
+		{
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Technician",
+			"share": 1
+		},
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Admin",
+			"select": 1,
+			"share": 1,
+			"write": 1
+		},
+		{
+			"permlevel": 1,
+			"read": 1,
+			"role": "Admin",
+			"write": 1
 		}
 	],
 	"row_format": "Dynamic",

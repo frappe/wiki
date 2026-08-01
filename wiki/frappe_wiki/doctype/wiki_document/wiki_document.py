@@ -355,21 +355,26 @@ class WikiDocument(NestedSet):
 		return can_write_space(wiki_space_doc.name, user)
 
 	def check_space_access(self, ptype="read", user=None):
-		"""Gate content access by the owning Wiki Space's role configuration.
+		"""Gate content access by the owning Wiki Space's role configuration and
+		this document's own Owner Only flag.
 
 		On failure we raise a 404 (DoesNotExistError) rather than PermissionError
 		so we don't leak the existence of restricted pages to unauthorized users
 		(especially anonymous Guests).
 		"""
-		from wiki.permissions import can_read_space, can_write_space
+		from wiki.permissions import _document_owner_only_blocks, _is_manager, can_read_space, can_write_space
+
+		user = user or frappe.session.user
 
 		space = self.wiki_space or (self.get_wiki_space() or {}).get("name")
-		if not space:
-			# Orphan documents stay readable by all (preserves chromeless pages).
-			return
+		if space:
+			allowed = can_write_space(space, user) if ptype == "write" else can_read_space(space, user)
+			if not allowed:
+				frappe.throw(_("Page not found"), frappe.DoesNotExistError)
 
-		allowed = can_write_space(space, user) if ptype == "write" else can_read_space(space, user)
-		if not allowed:
+		# Document-level Owner Only applies regardless of whether the document
+		# belongs to a space (orphan documents can be Owner Only too).
+		if _document_owner_only_blocks(self, user) and not _is_manager(user):
 			frappe.throw(_("Page not found"), frappe.DoesNotExistError)
 
 	def check_guest_access(self):
@@ -695,6 +700,12 @@ class WikiDocumentRenderer(BaseRenderer):
 		return False
 
 	def render(self):
+		if frappe.session.user == "Guest":
+			# One check covers both the HTML and markdown-negotiation branches
+			# below, so an anonymous visitor gets an identical redirect either
+			# way -- no signal about which branch would have served them.
+			frappe.redirect(f"/login?redirect-to={quote('/' + self.path, safe='')}")
+
 		doc = frappe.get_cached_doc("Wiki Document", self.wiki_doc_name)
 
 		# Return plain markdown for AI agents and other markdown-aware clients
@@ -753,7 +764,7 @@ def build_nested_wiki_tree(documents: list[str]):
 			"is_external_link",
 			"external_url",
 		],
-		filters={"name": ("in", documents)},
+		filters={"name": ("in", documents), "owner_only": ("!=", 1)},
 		or_filters={"is_published": 1, "is_group": 1},
 		order_by="lft asc",
 	)
@@ -930,7 +941,7 @@ def _tab_landing_route(tab: dict, node: dict | None, index_routes: set) -> str |
 	return first["route"] if first else None
 
 
-@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@frappe.whitelist()
 def get_space_tabs(space: str) -> list[dict]:
 	"""Ordered top-level tab groups for a Wiki Space, each with its landing route.
 
@@ -959,6 +970,7 @@ def get_space_tabs(space: str) -> list[dict]:
 			"is_tab": 1,
 			"is_group": 1,
 			"is_published": 1,
+			"owner_only": ("!=", 1),
 		},
 		fields=["name", "doc_key", "title", "route", "tab_icon"],
 		order_by="sort_order asc, title asc",
@@ -1059,7 +1071,7 @@ def get_breadcrumbs(name: str) -> dict:
 	return doc.get_breadcrumbs()
 
 
-@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@frappe.whitelist()
 def get_page_data(route: str) -> dict:
 	"""Returns all data needed to render a page dynamically for client-side navigation."""
 	doc_name = frappe.db.get_value(
@@ -1072,7 +1084,7 @@ def get_page_data(route: str) -> dict:
 	return doc.get_web_context()
 
 
-@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@frappe.whitelist()
 def download_pdf(route: str):
 	doc_name = frappe.db.get_value(
 		"Wiki Document", {"route": route, "is_group": 0, "is_external_link": 0}, "name"
@@ -1084,7 +1096,8 @@ def download_pdf(route: str):
 	doc.check_space_access("read")
 	doc.check_published()
 
-	# Guests can't print by default; we've already authorized them above via check_space_access.
+	# Not guest-whitelisted, so only logged-in, already-authorized (check_space_access
+	# above) callers reach here; this only lifts the print-format permission check.
 	frappe.local.flags.ignore_print_permissions = True
 	try:
 		pdf_file = get_print(

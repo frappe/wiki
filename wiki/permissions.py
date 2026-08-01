@@ -7,15 +7,21 @@ Read access  -> view a space + its pages and raise Change Requests.
 Write access -> additionally merge Change Requests. Write implies Read.
 
 A space with no role rows is open to all logged-in users (backward compatible).
-A space whose Read list contains the built-in ``Guest`` role is publicly readable
-(``frappe.get_roles()`` returns ``Guest`` for anonymous requests). ``System Manager``
-and ``Wiki Manager`` always have full access.
+``System Manager``, ``Wiki Manager`` and ``Admin`` always have full access.
+
+Anonymous (``Guest``) access is never granted, regardless of space role
+configuration -- every hook entry point in this module rejects Guest outright.
+
+``Owner Only`` is a layered restriction on top of the above: when a Wiki
+Document's or its Wiki Space's ``owner_only`` flag is set, the record is
+additionally hidden from everyone except its owner and ``Admin``-role users
+(see ``_document_owner_only_blocks`` / ``_space_owner_only_blocks``).
 """
 
 import frappe
 from frappe import _
 
-MANAGER_ROLES = {"System Manager", "Wiki Manager"}
+MANAGER_ROLES = {"System Manager", "Wiki Manager", "Admin"}
 WRITE_PTYPES = {"write", "create", "delete", "submit", "cancel", "amend"}
 
 
@@ -85,25 +91,69 @@ def _space_role_levels(space) -> dict:
 	return levels
 
 
+def _user_roles(user=None) -> set:
+	return set(frappe.get_roles(user or frappe.session.user))
+
+
+def _space_owner_only_blocks(space, user=None) -> bool:
+	"""True if the space's own Owner Only flag hides it from `user`."""
+	user = user or frappe.session.user
+	name = _resolve_space_name(space)
+	if not name:
+		return False
+	values = frappe.get_cached_value("Wiki Space", name, ["owner_only", "owner"])
+	if not values:
+		return False
+	owner_only, space_owner = values
+	if not owner_only:
+		return False
+	if user == space_owner:
+		return False
+	return "Admin" not in _user_roles(user)
+
+
+def _document_owner_only_blocks(doc, user=None) -> bool:
+	"""True if the document's own Owner Only flag hides it from `user`.
+
+	Only consults the document's own field -- space-level blocking is handled
+	separately (_space_owner_only_blocks) so the two OR together.
+	"""
+	user = user or frappe.session.user
+	owner_only = doc.get("owner_only") if hasattr(doc, "get") else None
+	if not owner_only:
+		return False
+	doc_owner = doc.get("owner") if hasattr(doc, "get") else None
+	if user == doc_owner:
+		return False
+	return "Admin" not in _user_roles(user)
+
+
 def can_read_space(space, user=None) -> bool:
 	user = user or frappe.session.user
+	if user == "Guest":
+		return False
 	if _is_manager(user):
 		return True
+	if _space_owner_only_blocks(space, user):
+		return False
 
 	levels = _space_role_levels(space)
 	if not levels:
-		# Open space: every logged-in user, but not anonymous Guests.
-		return user != "Guest"
+		# Open space: every logged-in user.
+		return True
 
-	# Any role row (Read or Write) grants read. Guest/All rows behave naturally
-	# because frappe.get_roles() returns them in the appropriate contexts.
+	# Any role row (Read or Write) grants read.
 	return bool(set(frappe.get_roles(user)) & set(levels))
 
 
 def can_write_space(space, user=None) -> bool:
 	user = user or frappe.session.user
+	if user == "Guest":
+		return False
 	if _is_manager(user):
 		return True
+	if _space_owner_only_blocks(space, user):
+		return False
 
 	levels = _space_role_levels(space)
 	if not levels:
@@ -161,8 +211,11 @@ def assert_can_manage_tabs(space, user=None) -> None:
 
 def _accessible_space_names(user=None) -> set:
 	"""Spaces a user may read: open spaces (no role rows) plus restricted spaces
-	with a role row whose role the user holds. Guests get only the latter."""
+	with a role row whose role the user holds. Guests get nothing."""
 	user = user or frappe.session.user
+	if user == "Guest":
+		return set()
+
 	user_roles = set(frappe.get_roles(user))
 
 	rows = frappe.get_all(
@@ -173,16 +226,24 @@ def _accessible_space_names(user=None) -> set:
 	restricted_spaces = {row.parent for row in rows}
 	accessible_restricted = {row.parent for row in rows if row.role in user_roles}
 
-	if user == "Guest":
-		return accessible_restricted
-
 	all_spaces = set(frappe.get_all("Wiki Space", pluck="name"))
 	open_spaces = all_spaces - restricted_spaces
-	return open_spaces | accessible_restricted
+	result = open_spaces | accessible_restricted
+
+	if "Admin" not in user_roles:
+		owner_only_spaces = frappe.get_all(
+			"Wiki Space", filters={"owner_only": 1}, fields=["name", "owner"]
+		)
+		blocked = {row.name for row in owner_only_spaces if row.owner != user}
+		result -= blocked
+
+	return result
 
 
 def _space_in_clause(table: str, user: str, allow_null: bool) -> str:
 	"""Build a WHERE fragment restricting ``table`` to spaces the user can read."""
+	if user == "Guest":
+		allow_null = False
 	names = _accessible_space_names(user)
 	parts = []
 	if allow_null:
@@ -205,6 +266,8 @@ def _space_in_clause(table: str, user: str, allow_null: bool) -> str:
 
 def wiki_space_query_conditions(user=None, doctype=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return "1=0"
 	if _is_manager(user):
 		return ""
 
@@ -217,6 +280,8 @@ def wiki_space_query_conditions(user=None, doctype=None):
 
 def wiki_space_has_permission(doc, ptype, user=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return False
 	if ptype in WRITE_PTYPES:
 		return can_write_space(doc, user)
 	return can_read_space(doc, user)
@@ -224,13 +289,31 @@ def wiki_space_has_permission(doc, ptype, user=None):
 
 def wiki_document_query_conditions(user=None, doctype=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return "1=0"
 	if _is_manager(user):
 		return ""
-	return _space_in_clause("tabWiki Document", user, allow_null=True)
+
+	space_clause = _space_in_clause("tabWiki Document", user, allow_null=True)
+	if "Admin" in _user_roles(user):
+		return space_clause
+
+	escaped_user = frappe.db.escape(user)
+	owner_only_clause = (
+		f"(`tabWiki Document`.`owner_only` = 0 "
+		f"or `tabWiki Document`.`owner_only` is null "
+		f"or `tabWiki Document`.`owner` = {escaped_user})"
+	)
+	return f"({space_clause}) and ({owner_only_clause})"
 
 
 def wiki_document_has_permission(doc, ptype, user=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return False
+	if _document_owner_only_blocks(doc, user) and not _is_manager(user):
+		return False
+
 	space = doc.wiki_space
 	if not space:
 		# Orphan document: readable by all, writable only by managers.
@@ -249,6 +332,8 @@ def wiki_document_has_permission(doc, ptype, user=None):
 
 def wiki_cr_query_conditions(user=None, doctype=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return "1=0"
 	if _is_manager(user):
 		return ""
 	return _space_in_clause("tabWiki Change Request", user, allow_null=True)
@@ -256,6 +341,8 @@ def wiki_cr_query_conditions(user=None, doctype=None):
 
 def wiki_cr_has_permission(doc, ptype, user=None):
 	user = user or frappe.session.user
+	if user == "Guest":
+		return False
 	space = doc.wiki_space
 	if not space:
 		if ptype in WRITE_PTYPES:
