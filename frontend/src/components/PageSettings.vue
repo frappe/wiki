@@ -77,6 +77,18 @@
 							@change="handleImageChange"
 						/>
 					</div>
+					<div
+						v-if="userStore.isAdmin"
+						class="flex items-center justify-between gap-4 rounded-md border border-outline-gray-2 p-3"
+					>
+						<div>
+							<p class="text-sm-medium text-ink-gray-8">{{ __('Owner Only') }}</p>
+							<p class="text-xs text-ink-gray-5">
+								{{ __("Hide this page from everyone except its owner and Admins.") }}
+							</p>
+						</div>
+						<Switch v-model="ownerOnly" />
+					</div>
 				</div>
 				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
 					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
@@ -151,8 +163,11 @@
 </template>
 
 <script setup>
-import { Button, Dialog, FormControl, toast, useFileUpload } from 'frappe-ui';
+import { useUserStore } from '@/stores/user';
+import { Button, Dialog, FormControl, Switch, toast, useFileUpload } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
+
+const userStore = useUserStore();
 
 const props = defineProps({
 	// The document resource from createDocumentResource({ doctype: 'Wiki
@@ -169,6 +184,7 @@ const show = defineModel({ type: Boolean, default: false });
 const metaTitle = ref('');
 const metaDescription = ref('');
 const metaImage = ref('');
+const ownerOnly = ref(false);
 const isUploadingImage = ref(false);
 const imageInput = ref(null);
 
@@ -229,7 +245,8 @@ const isDirty = computed(() => {
 	return (
 		metaTitle.value !== (doc.meta_title || '') ||
 		metaDescription.value !== (doc.meta_description || '') ||
-		metaImage.value !== (doc.meta_image || '')
+		metaImage.value !== (doc.meta_image || '') ||
+		(userStore.isAdmin && ownerOnly.value !== Boolean(doc.owner_only))
 	);
 });
 
@@ -241,6 +258,7 @@ watch(show, (isOpen) => {
 	metaTitle.value = doc?.meta_title || '';
 	metaDescription.value = doc?.meta_description || '';
 	metaImage.value = doc?.meta_image || '';
+	ownerOnly.value = Boolean(doc?.owner_only);
 	// Retry the generated card on each open; a render that failed once (cold
 	// Chromium, another worker holding the lock) usually succeeds next time.
 	previewImageFailed.value = false;
@@ -281,11 +299,17 @@ async function handleImageChange(event) {
 
 async function saveSettings() {
 	try {
-		await props.docResource.setValue.submit({
+		const payload = {
 			meta_title: metaTitle.value,
 			meta_description: metaDescription.value,
 			meta_image: metaImage.value,
-		});
+		};
+		// Only an Admin's client ever renders (or can toggle) this control, so
+		// only their save request includes the field.
+		if (userStore.isAdmin) {
+			payload.owner_only = ownerOnly.value ? 1 : 0;
+		}
+		await props.docResource.setValue.submit(payload);
 		toast.success(__('Page settings saved'));
 		// Retry a preview that failed before this save fixed its inputs.
 		previewImageFailed.value = false;

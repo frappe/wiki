@@ -684,10 +684,10 @@ const handleCreateSpace = () => {
 	const payload = {
 		space_name: newSpace.space_name,
 		route: newSpace.route,
-		// New spaces are published by default, so start them as public read.
-		// Guest covers everyone (anonymous + logged-in); admins can refine this
-		// in Space Settings → Permissions.
-		roles: [{ role: 'Guest', permission_level: 'Read' }],
+		// No role rows = open to all logged-in users (there's no public/anonymous
+		// option anymore -- Guest is never granted access). Admins can restrict
+		// this further in Space Settings → Permissions.
+		roles: [],
 	};
 
 	if (newSpace.git_synced) {

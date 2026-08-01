@@ -58,6 +58,9 @@
 									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
 										{{ __('Has Draft Changes') }}
 									</Badge>
+									<Badge v-if="userStore.isAdmin && wikiDoc.doc?.owner_only" variant="subtle" theme="red" size="sm">
+										{{ __('Owner Only') }}
+									</Badge>
 								</div>
 							</div>
 

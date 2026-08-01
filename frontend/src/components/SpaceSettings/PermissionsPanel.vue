@@ -82,7 +82,7 @@
 
 		<!-- Helper message, below the table -->
 		<p class="text-xs text-ink-gray-5">
-			{{ __('Readable by all logged-in users if no roles are set. Add the Guest role for public/anonymous access.') }}
+			{{ __('Readable by all logged-in users if no roles are set.') }}
 		</p>
 		<p v-if="!canManageAccess" class="text-xs text-ink-gray-5">
 			{{ __('Only space admins can change access control.') }}
@@ -98,6 +98,20 @@
 				v-model="allowContributions"
 				:disabled="!canManageAccess || savingContributions || isGitSynced"
 				@update:modelValue="updateContributions"
+			/>
+		</SettingsRow>
+
+		<!-- Owner Only: Admin-only visibility, separate axis from canManageAccess -->
+		<SettingsRow
+			v-if="userStore.isAdmin"
+			class="border-t border-outline-gray-1"
+			:title="__('Owner Only')"
+			:description="__('Hide this space and everything in it from everyone except its owner and Admins.')"
+		>
+			<Switch
+				v-model="ownerOnly"
+				:disabled="savingOwnerOnly"
+				@update:modelValue="updateOwnerOnly"
 			/>
 		</SettingsRow>
 
@@ -117,6 +131,7 @@
 </template>
 
 <script setup>
+import { useUserStore } from '@/stores/user';
 import {
 	Badge,
 	Button,
@@ -129,6 +144,8 @@ import {
 	toast,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+
+const userStore = useUserStore();
 
 const props = defineProps({
 	space: {
@@ -150,6 +167,8 @@ const savingRoles = ref(false);
 // Legacy spaces (created before this toggle) have a null column; treat as on.
 const allowContributions = ref(true);
 const savingContributions = ref(false);
+const ownerOnly = ref(false);
+const savingOwnerOnly = ref(false);
 // Git-synced spaces are read-only; the toggle is moot and the server rejects it.
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
 
@@ -192,6 +211,7 @@ watch(
 				doc.allow_contributions == null
 					? true
 					: Boolean(doc.allow_contributions);
+			ownerOnly.value = Boolean(doc.owner_only);
 			spaceCapabilities.submit({ space: props.spaceId });
 		}
 	},
@@ -210,7 +230,9 @@ const isDirty = computed(
 watch(isDirty, (dirty) => emit('update:dirty', dirty), { immediate: true });
 
 const ROLE_PAGE_LENGTH = 50;
-const BASE_ROLE_FILTERS = [['disabled', '=', 0]];
+// Guest is excluded: it's inert now (see owner_only_and_guest_lockout.md) --
+// picking it would silently do nothing, so don't offer it.
+const BASE_ROLE_FILTERS = [['disabled', '=', 0], ['name', '!=', 'Guest']];
 
 const allRoles = createListResource({
 	doctype: 'Role',
@@ -298,6 +320,19 @@ async function updateContributions(value) {
 		);
 	} finally {
 		savingContributions.value = false;
+	}
+}
+
+async function updateOwnerOnly(value) {
+	savingOwnerOnly.value = true;
+	try {
+		await props.space.setValue.submit({ owner_only: value ? 1 : 0 });
+		toast.success(value ? __('Owner Only enabled') : __('Owner Only disabled'));
+	} catch (error) {
+		ownerOnly.value = !value;
+		toast.error(error.messages?.[0] || __('Failed to update Owner Only'));
+	} finally {
+		savingOwnerOnly.value = false;
 	}
 }
 

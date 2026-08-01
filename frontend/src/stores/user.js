@@ -32,8 +32,19 @@ export const useUserStore = defineStore('user', () => {
 			(role) =>
 				role.role === 'Wiki User' ||
 				role.role === 'Wiki Manager' ||
-				role.role === 'System Manager',
+				role.role === 'System Manager' ||
+				role.role === 'Admin' ||
+				role.role === 'Technician',
 		);
+	});
+
+	// Gates the "Owner Only" toggle and its status pill -- deliberately narrower
+	// than isWikiManager: only the literal Admin role sees it, matching the
+	// field's Admin-only permlevel on the backend.
+	const isAdmin = computed(() => {
+		const user = userResource.data;
+		if (!user || !user.roles) return false;
+		return user.roles.some((role) => role.role === 'Admin');
 	});
 
 	const shouldUseChangeRequestMode = computed(() => {
@@ -59,6 +70,7 @@ export const useUserStore = defineStore('user', () => {
 		isLoading,
 		isWikiManager,
 		canAccessWiki,
+		isAdmin,
 		shouldUseChangeRequestMode,
 		fetch,
 		reload,
