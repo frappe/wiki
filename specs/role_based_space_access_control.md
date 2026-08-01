@@ -3,6 +3,8 @@
 Date: 2026-06-16
 Status: **Implemented & verified** on wiki.localhost (2026-06-16). See [Verification](#verification). The phase notes below have been reconciled to reflect the final implementation; deviations from the original plan are called out inline and summarized in [Implementation Notes (as-built)](#implementation-notes-as-built).
 
+> **Superseded (2026-08-01):** the `Guest`-role-on-`Wiki Space Role` public/anonymous access mechanism described below (Settled semantics, bullet 3) has been removed — see `owner_only_and_guest_lockout.md`. Guest never grants read access now, regardless of configured role rows. The rest of this document (Read/Write role tiers for logged-in users) is unaffected and still describes current behavior.
+
 ## Goal
 
 Let admins configure, **per Wiki Space, which roles get Read vs Write access**, enforced everywhere (Vue SPA, Desk, public `/wiki/...` portal) by leaning on Frappe's permission framework so we write as little code as possible.
