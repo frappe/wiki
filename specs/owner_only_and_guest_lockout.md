@@ -1,7 +1,13 @@
 # Owner-Only Access Control + Guest Lockout
 
 Date: 2026-08-01
-Status: In progress.
+Status: Code complete on `feat/owner-only-access-control`, not yet verified against a running site (no local dev server in this environment — verification is the next step, on the target server).
+
+## Known gaps / follow-ups (not yet addressed)
+
+- `wiki/frappe_wiki/doctype/wiki_document/wiki_document.py`'s ~13 existing tests in `test_wiki_document.py` that seed a space with `roles=[("Guest", "Read")]` and make an *unauthenticated* request via the Playwright-style `get_test_client()` werkzeug client (meta-tag rendering, breadcrumb rendering, markdown content-negotiation classes) will now fail: those requests are genuinely anonymous at the HTTP layer and will hit the new Guest→`/login` redirect instead of rendering. Fixing them correctly requires attaching real authentication to those test-client calls (session cookie or API key), which needs verification against a running site to get right — left as-is rather than guessing blind. The two tests that actually call `download_pdf()` directly as Guest (not through HTTP) were fixed, since those don't have this problem.
+- `CrawlerRenderer` (`wiki/wiki/crawler_renderer.py`, handles `.md`/`llms.txt`/`sitemap.xml`) was deliberately left untouched — crawler/SEO routes are a separate, guest-facing surface by design. Whether Owner Only / Guest lockout should also apply there (so private content doesn't get enumerated in a sitemap) wasn't part of the original ask and needs a decision.
+- The e2e spec (`e2e/tests/owner-only-and-guest-lockout.spec.ts`) is best-effort and unverified — in particular the `Switch` component locator for the Owner Only toggle is a guess at frappe-ui's DOM output and may need adjusting.
 
 ## Goal
 
