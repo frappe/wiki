@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 interface WikiDocumentRoute {
 	route: string;
 	doc_key: string;
@@ -35,29 +43,19 @@ test.describe('Public Wiki Pages', () => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
 			// Navigate to wiki and click first space
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 			// Create a new page with multiple headings
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
 
 			const pageTitle = `toc-test-page-${Date.now()}`;
 
 			// Click create button
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			// Fill in page title
 			await page.getByLabel('Title').fill(pageTitle);
@@ -134,7 +132,7 @@ That is all.`;
 			// Submit for review and merge
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -200,10 +198,10 @@ That is all.`;
 			// Navigate to an existing published page at mobile viewport
 			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');
@@ -237,28 +235,17 @@ That is all.`;
 		}) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			await expect(spaceLink).toBeVisible({ timeout: 5000 });
 			await spaceLink.click();
 			await page.waitForLoadState('networkidle');
 
-			const createFirstPage = page.locator(
-				'button:has-text("Create First Page")',
-			);
-			const newPageButton = page.locator('button[title="New Page"]');
-
 			const pageTitle = `anchor-test-page-${Date.now()}`;
 
-			if (
-				await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)
-			) {
-				await createFirstPage.click();
-			} else {
-				await newPageButton.click();
-			}
+			await openNewPageDialog(page);
 
 			await page.getByLabel('Title').fill(pageTitle);
 			await page
@@ -310,7 +297,7 @@ End.`;
 
 			await page.getByRole('button', { name: 'Submit for Review' }).click();
 			await page.getByRole('button', { name: 'Submit' }).click();
-			await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+			await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 				timeout: 10000,
 			});
 			await publishChangeRequestFromReview(page);
@@ -353,10 +340,10 @@ End.`;
 		test('should show sidebar on desktop viewport', async ({ page }) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');
@@ -380,10 +367,10 @@ End.`;
 		test('should hide sidebar on mobile viewport', async ({ page }) => {
 			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-			await page.goto('/wiki');
+			await page.goto(APP_BASE);
 			await page.waitForLoadState('networkidle');
 
-			const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+			const spaceLink = page.locator(spaceLinkSelector()).first();
 			if (await spaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
 				await spaceLink.click();
 				await page.waitForLoadState('networkidle');

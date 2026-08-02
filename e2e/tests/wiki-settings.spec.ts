@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getDoc, updateDoc } from '../helpers/frappe';
+import { APP_BASE } from '../helpers/routes';
 
 /**
  * Global Wiki Settings dialog (admin-only, front-end).
@@ -26,14 +27,15 @@ test.describe('Global Wiki Settings', () => {
 		const before = Boolean(original.enable_table_of_contents);
 
 		await page.setViewportSize({ width: 1100, height: 900 });
-		await page.goto('/wiki?github_app_created=1');
+		await page.goto(`${APP_BASE}?github_app_created=1`);
 		await page.waitForLoadState('networkidle');
 
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await expect(dialog.getByText('Wiki Settings')).toBeVisible();
 
-		// All four tabs are present.
+		// All four tabs are present. The settings nav is a real ARIA tablist
+		// (frappe-ui SettingsDialog is built on reka-ui Tabs).
 		for (const tab of [
 			'General',
 			'Feedback',
@@ -41,12 +43,12 @@ test.describe('Global Wiki Settings', () => {
 			'GitHub Sync',
 		]) {
 			await expect(
-				dialog.getByRole('button', { name: tab, exact: true }),
+				dialog.getByRole('tab', { name: tab, exact: true }),
 			).toBeVisible();
 		}
 
 		// Toggle "Enable Table of Contents" on the General tab.
-		await dialog.getByRole('button', { name: 'General', exact: true }).click();
+		await dialog.getByRole('tab', { name: 'General', exact: true }).click();
 		const tocSwitch = dialog.getByRole('switch').first();
 		await expect(tocSwitch).toBeVisible();
 		await tocSwitch.click();
@@ -72,7 +74,7 @@ test.describe('Global Wiki Settings', () => {
 
 	test('admin opens settings from the sidebar menu', async ({ page }) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
 		// The sidebar header is a dropdown trigger labelled with the app title.
@@ -82,7 +84,7 @@ test.describe('Global Wiki Settings', () => {
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await expect(
-			dialog.getByRole('button', { name: 'General', exact: true }),
+			dialog.getByRole('tab', { name: 'General', exact: true }),
 		).toBeVisible();
 	});
 });

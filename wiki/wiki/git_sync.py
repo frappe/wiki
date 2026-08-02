@@ -59,6 +59,20 @@ MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\
 MD_LINK_PATTERN = re.compile(r"(?<!!)(\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
 
 
+def build_github_edit_url(repo_full_name: str | None, branch: str | None, source_path: str | None) -> str:
+	"""URL that opens a synced page's source file in GitHub's web editor.
+
+	Empty string when the inputs can't form one — notably folder-only groups,
+	whose source_path is a directory with nothing to open in the editor.
+	(Python twin of frontend/src/lib/github.js buildGithubEditUrl.)
+	"""
+	if not (repo_full_name and branch and source_path):
+		return ""
+	if not source_path.lower().endswith(MARKDOWN_EXTENSIONS):
+		return ""
+	return f"https://github.com/{repo_full_name}/edit/{branch}/{source_path.lstrip('/')}"
+
+
 # --------------------------------------------------------------------------- #
 # GitHub HTTP (monkeypatched in tests)
 # --------------------------------------------------------------------------- #
@@ -832,6 +846,10 @@ def _sync_to_live(
 	target.insert(ignore_permissions=True)
 
 	def add_item(doc_key, title, slug, route, is_group, is_published, parent_key, order_index, content):
+		# A repo can't express tab flags, so carry them forward from the previous
+		# snapshot — otherwise every sync would silently demote the space's tabs.
+		prev = prev_items.get(doc_key) or {}
+
 		item = frappe.new_doc("Wiki Revision Item")
 		item.revision = target.name
 		item.doc_key = doc_key
@@ -839,6 +857,8 @@ def _sync_to_live(
 		item.slug = slug
 		item.route = route
 		item.is_group = is_group
+		item.is_tab = prev.get("is_tab") or 0
+		item.tab_icon = prev.get("tab_icon")
 		item.is_published = is_published
 		item.is_external_link = 0
 		item.parent_key = parent_key

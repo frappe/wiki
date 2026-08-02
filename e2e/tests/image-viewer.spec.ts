@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
+	openNewPageDialog,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -30,22 +38,15 @@ async function createAndPublishPage(
 	markdownContent: string,
 ): Promise<string> {
 	await page.setViewportSize({ width: 1100, height: 900 });
-	await page.goto('/wiki');
+	await page.goto(APP_BASE);
 	await page.waitForLoadState('networkidle');
 
-	const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+	const spaceLink = page.locator(spaceLinkSelector()).first();
 	await expect(spaceLink).toBeVisible({ timeout: 5000 });
 	await spaceLink.click();
 	await page.waitForLoadState('networkidle');
 
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	const newPageButton = page.locator('button[title="New Page"]');
-
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 
 	await page.getByLabel('Title').fill(title);
 	const createDialog = page.getByRole('dialog');
@@ -93,7 +94,7 @@ async function createAndPublishPage(
 	await expect(submitButton).toBeEnabled({ timeout: 10000 });
 	await submitButton.click();
 	await page.getByRole('button', { name: 'Submit' }).click();
-	await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+	await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 		timeout: 10000,
 	});
 	await publishChangeRequestFromReview(page);

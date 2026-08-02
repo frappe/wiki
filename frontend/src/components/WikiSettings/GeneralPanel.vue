@@ -1,5 +1,5 @@
 <template>
-	<div class="flex flex-col gap-4">
+	<div class="divide-y divide-outline-gray-1">
 		<SettingToggle
 			:settings="settings"
 			fieldname="enable_table_of_contents"
@@ -13,6 +13,17 @@
 			:title="__('Auto Convert Image to WebP')"
 			:description="
 				__('Automatically convert uploaded PNG/JPEG images to WebP to reduce page size')
+			"
+		/>
+
+		<SettingToggle
+			:settings="settings"
+			fieldname="auto_generate_meta_images"
+			:title="__('Auto Generate Meta Images')"
+			:description="
+				__(
+					'Generate a branded social preview image for pages that have no Meta Image uploaded',
+				)
 			"
 		/>
 	</div>

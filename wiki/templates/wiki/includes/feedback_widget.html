@@ -14,12 +14,12 @@
             <button type="button"
                     @click="selectFeedback('{{ reaction.type }}')"
                     :disabled="submitted"
-                    :class="feedbackType === '{{ reaction.type }}' ? 'bg-[var(--surface-white)] shadow-sm' : 'hover:bg-[var(--surface-gray-4)]'"
+                    :class="feedbackType === '{{ reaction.type }}' ? 'bg-[var(--surface-base)] shadow-sm' : 'hover:bg-[var(--surface-gray-4)]'"
                     class="p-1.5 rounded-full transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     role="radio"
                     :aria-checked="feedbackType === '{{ reaction.type }}'"
                     aria-label="{{ reaction.type }}">
-                <svg class="w-4 h-4" :class="feedbackType === '{{ reaction.type }}' ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)]'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4" :class="feedbackType === '{{ reaction.type }}' ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)]'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     {{ reaction.mouth | safe }}
                     <line x1="9" y1="9" x2="9.01" y2="9"/>
@@ -43,14 +43,14 @@
                       :disabled="submitted"
                       placeholder="Anything you'd like to add?"
                       rows="3"
-                      class="w-full px-4 py-3 pr-20 text-sm rounded-xl border border-[var(--outline-gray-2)] bg-[var(--surface-white)] text-[var(--ink-gray-9)] placeholder-[var(--ink-gray-4)] focus:outline-none focus:ring-2 focus:ring-[var(--outline-gray-3)] resize-none disabled:opacity-60"></textarea>
+                      class="w-full px-4 py-3 pr-20 text-sm rounded-xl border border-[var(--outline-gray-2)] bg-[var(--surface-base)] text-[var(--ink-gray-9)] placeholder-[var(--ink-gray-4)] focus:outline-none focus:ring-2 focus:ring-[var(--outline-gray-3)] resize-none disabled:opacity-60"></textarea>
 
             <!-- Submit button OR Thank you message -->
             <div class="absolute bottom-3 right-3">
                 <button x-show="!submitted"
                         type="submit"
                         :disabled="submitting"
-                        class="px-2.5 py-1 text-xs font-medium rounded-sm bg-[var(--surface-gray-3)] text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-4)] hover:text-[var(--ink-gray-9)] transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="px-2.5 py-1 text-xs-medium rounded-sm bg-[var(--surface-gray-3)] text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-4)] hover:text-[var(--ink-gray-9)] transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     <span x-show="!submitting">Submit</span>
                     <span x-show="submitting" class="flex items-center gap-1">
                         <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -59,8 +59,8 @@
                         </svg>
                     </span>
                 </button>
-                <span x-show="submitted" class="flex items-center gap-1 text-xs font-medium text-green-600">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span x-show="submitted" class="flex items-center gap-1 text-xs-medium text-green-600">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9 12l2 2 4-4"/>
                     </svg>

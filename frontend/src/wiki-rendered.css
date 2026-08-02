@@ -110,25 +110,25 @@
 	background-color: var(--surface-blue-2);
 }
 .wiki-rendered .callout-note .callout-icon {
-	color: var(--ink-blue-3);
+	color: var(--ink-blue-6);
 }
 .wiki-rendered .callout-tip {
 	background-color: var(--surface-green-2);
 }
 .wiki-rendered .callout-tip .callout-icon {
-	color: var(--ink-green-3);
+	color: var(--ink-green-6);
 }
 .wiki-rendered .callout-caution {
 	background-color: var(--surface-amber-2);
 }
 .wiki-rendered .callout-caution .callout-icon {
-	color: var(--ink-amber-3);
+	color: var(--ink-amber-6);
 }
 .wiki-rendered .callout-danger {
 	background-color: var(--surface-red-2);
 }
 .wiki-rendered .callout-danger .callout-icon {
-	color: var(--ink-red-3);
+	color: var(--ink-red-6);
 }
 
 /* PDF embed card (static; interactive viewer JS is reader-only) */
@@ -139,7 +139,7 @@
 	border: 1px solid var(--outline-gray-2);
 	border-radius: 0.5rem;
 	overflow: hidden;
-	background: var(--surface-white);
+	background: var(--surface-base);
 }
 .wiki-rendered .wiki-pdf-header {
 	display: flex;

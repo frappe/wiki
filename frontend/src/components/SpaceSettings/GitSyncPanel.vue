@@ -1,96 +1,86 @@
 <template>
-	<div class="flex flex-col gap-4">
-		<!-- Repository + Sync now -->
-		<div
-			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
-		>
-			<div class="mr-4 flex-1 min-w-0">
-				<p class="text-sm font-medium text-ink-gray-9">
-					{{ __('Repository') }}
-				</p>
-				<a
-					v-if="repoFullName"
-					:href="`https://github.com/${repoFullName}`"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="mt-0.5 block truncate text-xs text-ink-gray-5 hover:text-ink-gray-7"
-				>
-					{{ repoFullName }}<span v-if="branch">@{{ branch }}</span>
-				</a>
-				<p v-else class="mt-0.5 text-xs text-ink-gray-5">
-					{{ __('No repository configured') }}
-				</p>
+	<div class="flex flex-col gap-8">
+		<div class="divide-y divide-outline-gray-1">
+			<!-- Repository + Sync now (SettingsRow layout, custom left side so the
+			     repo name can be a link) -->
+			<div class="flex items-center gap-8 py-3.5">
+				<div class="min-w-0 flex-1">
+					<div class="text-base-medium text-ink-gray-8">
+						{{ __('Repository') }}
+					</div>
+					<a
+						v-if="repoFullName"
+						:href="`https://github.com/${repoFullName}`"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="mt-1 block truncate text-base leading-5 text-ink-gray-6 hover:text-ink-gray-8"
+					>
+						{{ repoFullName }}<span v-if="branch">@{{ branch }}</span>
+					</a>
+					<div v-else class="mt-1 text-base leading-5 text-ink-gray-6">
+						{{ __('No repository configured') }}
+					</div>
+				</div>
+				<div class="flex shrink-0 items-center gap-2">
+					<Badge :theme="statusTheme(lastSyncStatus)" size="sm" variant="subtle">
+						{{ statusLabel(lastSyncStatus) }}
+					</Badge>
+					<Button variant="solid" :loading="syncing" @click="syncNow">
+						{{ __('Sync now') }}
+					</Button>
+				</div>
 			</div>
-			<div class="flex items-center gap-2">
-				<Badge :theme="statusTheme(lastSyncStatus)" size="sm" variant="subtle">
-					{{ statusLabel(lastSyncStatus) }}
-				</Badge>
-				<Button variant="solid" size="sm" :loading="syncing" @click="syncNow">
-					{{ __('Sync now') }}
-				</Button>
-			</div>
-		</div>
 
-		<!-- Last sync time -->
-		<div
-			class="flex items-center justify-between rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
-		>
-			<div class="mr-4 flex-1">
-				<p class="text-sm font-medium text-ink-gray-9">
-					{{ __('Last Synced') }}
-				</p>
-				<p class="mt-0.5 text-xs text-ink-gray-5">
-					{{ lastSyncTime ? formatDateTime(lastSyncTime) : __('Never') }}
-				</p>
-			</div>
-		</div>
+			<!-- Last sync time -->
+			<SettingsRow
+				:title="__('Last Synced')"
+				:description="lastSyncTime ? formatDateTime(lastSyncTime) : __('Never')"
+			/>
 
-		<!-- Webhook: real-time push sync -->
-		<div
-			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
-		>
-			<p class="text-sm font-medium text-ink-gray-9">
-				{{ __('Real-time Sync') }}
-			</p>
-			<p class="mt-0.5 text-xs text-ink-gray-5">
-				{{ __('Pushes to the repository sync automatically via this webhook URL:') }}
-			</p>
-			<div class="mt-2 flex items-center gap-2">
-				<code
-					class="flex-1 min-w-0 truncate rounded bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
-				>
-					{{ webhookUrl }}
-				</code>
-				<Button
-					size="sm"
-					variant="subtle"
-					icon="copy"
-					:title="__('Copy webhook URL')"
-					@click="copyWebhookUrl"
-				/>
+			<!-- Webhook: real-time push sync -->
+			<div class="py-3.5">
+				<div class="text-base-medium text-ink-gray-8">
+					{{ __('Real-time Sync') }}
+				</div>
+				<div class="mt-1 text-base leading-5 text-ink-gray-6">
+					{{ __('Pushes to the repository sync automatically via this webhook URL:') }}
+				</div>
+				<div class="mt-2 flex items-center gap-2">
+					<code
+						class="flex-1 min-w-0 truncate rounded bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
+					>
+						{{ webhookUrl }}
+					</code>
+					<Button
+						size="sm"
+						variant="subtle"
+						icon="copy"
+						:title="__('Copy webhook URL')"
+						@click="copyWebhookUrl"
+					/>
+				</div>
 			</div>
 		</div>
 
 		<!-- Run history -->
-		<div class="rounded-lg border border-outline-gray-2 bg-surface-gray-1">
-			<div class="flex items-center justify-between border-b border-outline-gray-2 p-3">
-				<p class="text-sm font-medium text-ink-gray-9">
+		<section>
+			<div class="flex items-center justify-between">
+				<h3 class="text-base font-semibold text-ink-gray-8">
 					{{ __('Sync History') }}
-				</p>
+				</h3>
 				<Button
 					variant="ghost"
-					size="sm"
 					icon="refresh-cw"
 					:loading="logs.loading"
 					@click="logs.reload()"
 				/>
 			</div>
 
-			<div v-if="logRows.length" class="divide-y divide-outline-gray-2">
+			<div v-if="logRows.length" class="mt-2 divide-y divide-outline-gray-1">
 				<div
 					v-for="row in logRows"
 					:key="row.name"
-					class="flex items-center justify-between gap-3 px-3 py-2.5"
+					class="flex items-center justify-between gap-3 py-2.5"
 				>
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
@@ -105,19 +95,19 @@
 							>
 								{{ __('Webhook') }}
 							</Badge>
-							<span class="truncate text-xs text-ink-gray-5">
+							<span class="truncate text-sm text-ink-gray-5">
 								{{ formatDateTime(row.started_at || row.creation) }}
 							</span>
 						</div>
 						<p
 							v-if="row.status === 'Success'"
-							class="mt-1 text-xs text-ink-gray-5"
+							class="mt-1 text-sm text-ink-gray-5"
 						>
 							{{ summarizeCounts(row) }}
 						</p>
 						<p
 							v-else-if="row.status === 'Error' && row.error"
-							class="mt-1 truncate text-xs text-ink-red-4"
+							class="mt-1 truncate text-sm text-ink-red-8"
 							:title="row.error"
 						>
 							{{ firstLine(row.error) }}
@@ -128,23 +118,23 @@
 						:href="`https://github.com/${repoFullName}/commit/${row.commit_sha}`"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="shrink-0 text-xs text-ink-gray-5 underline hover:text-ink-gray-7"
+						class="shrink-0 text-sm text-ink-gray-5 underline hover:text-ink-gray-7"
 						:title="__('View commit on GitHub')"
 					>
 						<code>{{ row.commit_sha.slice(0, 7) }}</code>
 					</a>
 					<code
 						v-else-if="row.commit_sha"
-						class="shrink-0 text-xs text-ink-gray-5"
+						class="shrink-0 text-sm text-ink-gray-5"
 					>
 						{{ row.commit_sha.slice(0, 7) }}
 					</code>
 				</div>
 			</div>
-			<p v-else class="px-3 py-6 text-center text-xs text-ink-gray-5">
+			<p v-else class="py-6 text-center text-sm text-ink-gray-5">
 				{{ __('No sync runs yet') }}
 			</p>
-		</div>
+		</section>
 
 		<!-- Loaded .wiki.json preview (collapsed by default) -->
 		<CollapsibleSection :title="__('Configuration (.wiki.json)')">
@@ -160,7 +150,13 @@
 </template>
 
 <script setup>
-import { Badge, Button, createListResource, toast } from 'frappe-ui';
+import {
+	Badge,
+	Button,
+	SettingsRow,
+	createListResource,
+	toast,
+} from 'frappe-ui';
 import { computed, ref } from 'vue';
 import CollapsibleSection from '../CollapsibleSection.vue';
 

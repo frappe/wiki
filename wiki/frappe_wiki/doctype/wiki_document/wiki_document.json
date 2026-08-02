@@ -12,6 +12,7 @@
 		"doc_key",
 		"column_break_sfff",
 		"is_published",
+		"owner_only",
 		"wiki_space",
 		"is_external_link",
 		"external_url",
@@ -26,6 +27,8 @@
 		"lft",
 		"rgt",
 		"is_group",
+		"is_tab",
+		"tab_icon",
 		"old_parent",
 		"parent_wiki_document",
 		"sort_order"
@@ -59,6 +62,21 @@
 			"fieldname": "is_group",
 			"fieldtype": "Check",
 			"label": "Is Group"
+		},
+		{
+			"default": "0",
+			"depends_on": "is_group",
+			"description": "Render this top-level group as a tab in the horizontal navigation bar",
+			"fieldname": "is_tab",
+			"fieldtype": "Check",
+			"label": "Is Tab"
+		},
+		{
+			"depends_on": "eval:doc.is_tab",
+			"description": "Lucide icon class name, e.g. lucide-wallet",
+			"fieldname": "tab_icon",
+			"fieldtype": "Data",
+			"label": "Tab Icon"
 		},
 		{
 			"fieldname": "old_parent",
@@ -124,6 +142,14 @@
 			"fieldname": "is_published",
 			"fieldtype": "Check",
 			"label": "Is Published?"
+		},
+		{
+			"default": "0",
+			"fieldname": "owner_only",
+			"fieldtype": "Check",
+			"label": "Owner Only",
+			"permlevel": 1,
+			"description": "Visible only to the page's owner and users with the Admin role. Completely hidden from everyone else, including Technician."
 		},
 		{
 			"fieldname": "title",
@@ -232,6 +258,34 @@
 			"report": 1,
 			"role": "Wiki User",
 			"share": 1
+		},
+		{
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Technician",
+			"share": 1
+		},
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Admin",
+			"select": 1,
+			"share": 1,
+			"write": 1
+		},
+		{
+			"permlevel": 1,
+			"read": 1,
+			"role": "Admin",
+			"write": 1
 		}
 	],
 	"row_format": "Dynamic",

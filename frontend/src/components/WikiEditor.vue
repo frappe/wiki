@@ -1,15 +1,18 @@
 <template>
     <div class="wiki-editor-container">
-        <div v-if="editor">
+        <div>
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
-            <EditorContent :editor="editor" />
+            <div class="w-full max-w-[770px] px-6">
+                <slot name="title" />
+                <EditorContent :editor="editor" :class="contentClass" />
+            </div>
             <!-- After EditorContent so the ProseMirror DOM is attached when the
                  bubble menu mounts; it derives its flip boundary from the editor's
                  scroll ancestor, which must be reachable at that point. -->
             <WikiBubbleMenu v-if="!readonly" :editor="editor" />
-        </div>
-        <div v-else class="wiki-editor-loading">
-            Loading editor...
+            <!-- Floating row/column/cell controls shown while the selection is
+                 inside a table; replaces the old WikiTableDropdown actions. -->
+            <EditorTableMenu v-if="!readonly" :editor="editor" />
         </div>
 
         <!-- Hidden file input for slash command image upload -->
@@ -25,7 +28,6 @@
 </template>
 
 <script setup>
-import { Extension } from '@tiptap/core';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import {
@@ -35,14 +37,26 @@ import {
 	TableRow,
 } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { Markdown } from '@tiptap/markdown';
-import { Editor, EditorContent } from '@tiptap/vue-3';
 import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
-import { common, createLowlight } from 'lowlight';
-import { createApp, h, onMounted, onUnmounted, ref, watch } from 'vue';
-import { WikiCodeBlock } from './tiptap-extensions/code-block-extension.js';
+import {
+	createApp,
+	h,
+	onBeforeUnmount,
+	onMounted,
+	onUnmounted,
+	ref,
+	shallowRef,
+	watch,
+} from 'vue';
 
+import {
+	CodeBlock,
+	EditorContent,
+	EditorTableMenu,
+	Markdown,
+	useEditor,
+} from 'frappe-ui/editor';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
@@ -52,9 +66,12 @@ import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
+import { canonicalizeMarkdown } from './tiptap-extensions/markdown-normalize.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
+import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
+	SLASH_COMMANDS,
 	SlashCommands,
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
@@ -64,18 +81,6 @@ import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
-
-// Preserve consecutive blank lines in markdown round-trips.
-// Parse: marked's 'space' tokens (ignored by default) become empty paragraphs.
-const PreserveBlankLines = Extension.create({
-	name: 'preserveBlankLines',
-	markdownTokenName: 'space',
-	parseMarkdown(token) {
-		const count = Math.floor(token.raw.length / 2) - 1;
-		if (count <= 0) return null;
-		return Array.from({ length: count }, () => ({ type: 'paragraph' }));
-	},
-});
 
 // Serialize: empty paragraphs render as blank lines instead of &nbsp;.
 const WikiParagraph = Paragraph.extend({
@@ -122,14 +127,8 @@ const emit = defineEmits([
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
 
-// Create lowlight instance for syntax highlighting
-const lowlight = createLowlight(common);
-
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
-
-// Editor instance
-const editor = ref(null);
 
 // Refs for file input and link popup
 const slashImageInput = ref(null);
@@ -452,6 +451,10 @@ function hideLinkPopup() {
 function createSlashCommandsSuggestion() {
 	return {
 		items: ({ query }) => filterCommands(query),
+		// Suggestion dispatches onStart with `initialItems` and only delivers the
+		// real list in a follow-up onUpdate; without this the menu opens on a bare
+		// "/" showing "No commands found" until the first character is typed.
+		initialItems: SLASH_COMMANDS,
 		render: () => {
 			let component;
 			let popup;
@@ -471,16 +474,15 @@ function createSlashCommandsSuggestion() {
 						app: null,
 					};
 
-					// Mount the SlashCommandsList component directly
-					import('vue').then(({ createApp }) => {
-						if (isDestroyed) return;
-						const app = createApp(SlashCommandsList, {
-							items: props.items,
-							command: props.command,
-						});
-						component.app = app;
-						component.vm = app.mount(container);
+					// Mount synchronously: onUpdate fires right after onStart with the
+					// fetched items, and it skips re-rendering while `component.app` is
+					// null — an async mount here would swallow that first update.
+					const app = createApp(SlashCommandsList, {
+						items: props.items,
+						command: props.command,
 					});
+					component.app = app;
+					component.vm = app.mount(container);
 
 					// Create tippy popup with no default styling
 					popup = tippy('body', {
@@ -520,19 +522,13 @@ function createSlashCommandsSuggestion() {
 
 					// Re-render with new items
 					if (component?.app) {
-						import('vue').then(({ createApp }) => {
-							if (isDestroyed) return;
-							// Unmount old app
-							component.app.unmount();
-							const container = component.element;
-							// Create new app with updated props
-							const app = createApp(SlashCommandsList, {
-								items: props.items,
-								command: props.command,
-							});
-							component.app = app;
-							component.vm = app.mount(container);
+						component.app.unmount();
+						const app = createApp(SlashCommandsList, {
+							items: props.items,
+							command: props.command,
 						});
+						component.app = app;
+						component.vm = app.mount(component.element);
 					}
 
 					if (popup) {
@@ -578,92 +574,95 @@ function createSlashCommandsSuggestion() {
 	};
 }
 
-/**
- * Initialize the editor
- */
-function initEditor() {
-	editor.value = new Editor({
-		extensions: [
-			wikiStarterKit({ paragraph: false }),
-			WikiParagraph,
-			// Custom link extension with Cmd+K support
-			WikiLink.configure({
-				openOnClick: false,
-				HTMLAttributes: {
-					rel: 'noopener noreferrer',
-				},
-				onOpenLinkEditor: showLinkPopup,
-			}),
-			Markdown.configure({
-				markedOptions: {
-					breaks: true,
-				},
-			}),
-			PreserveBlankLines,
-			// Custom image extension with caption support
-			WikiImage.configure({
-				inline: false,
-				allowBase64: true,
-			}),
-			Table.configure({
-				resizable: true,
-			}),
-			TableRow,
-			TableCell,
-			TableHeader,
-			TaskList,
-			TaskItem.configure({
-				nested: true,
-			}),
-			Placeholder.configure({
-				placeholder: 'Type "/" for commands, or start writing...',
-			}),
-			WikiCodeBlock.configure({
-				lowlight,
-			}),
-			// Custom extensions
-			CalloutBlock,
-			IframeBlock,
-			MermaidBlock,
-			PdfBlock,
-			VideoBlock.configure({
-				uploadFunction: uploadFile,
-			}),
-			// Slash commands
-			SlashCommands.configure({
-				suggestion: createSlashCommandsSuggestion(),
-			}),
-		],
-		content: props.content || '',
-		contentType: 'markdown',
-		editable: !props.readonly,
-		editorProps: {
-			handlePaste,
-			handleDrop,
-			attributes: {
-				class:
-					'prose prose-sm max-w-none prose-code:before:content-none prose-code:after:content-none prose-code:bg-transparent prose-code:p-0 prose-code:font-normal prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-a:underline prose-a:[text-underline-offset:2px] prose-a:[word-break:break-all] hover:prose-a:text-ink-gray-7 wiki-editor-content' +
-					(props.readonly ? '' : ' is-editable'),
-			},
-		},
-		onUpdate: () => {
-			handleContentChange();
-		},
-	});
+// Final flush of unsaved work. Registered before useEditor() on purpose:
+// both hook onBeforeUnmount, they run in registration order, and useEditor's
+// hook destroys the editor — this one must read it while it's still alive.
+onBeforeUnmount(() => {
+	if (autosaveTimer) {
+		clearTimeout(autosaveTimer);
+		autosaveTimer = null;
+	}
+	emitContentChange({ persistImmediately: true });
+});
 
-	emitContentReady();
-}
+// Seeds the editor and receives serialized markdown on every update; the
+// save flow reads normalized markdown from the editor directly instead.
+const editorContent = shallowRef(props.content || '');
+
+const editor = useEditor({
+	content: editorContent,
+	format: 'markdown',
+	editable: () => !props.readonly,
+	extensions: [
+		wikiStarterKit({ paragraph: false }),
+		WikiParagraph,
+		// Custom link extension with Cmd+K support
+		WikiLink.configure({
+			openOnClick: false,
+			HTMLAttributes: {
+				rel: 'noopener noreferrer',
+			},
+			onOpenLinkEditor: showLinkPopup,
+		}),
+		Markdown.configure({
+			markedOptions: {
+				breaks: true,
+			},
+		}),
+		PreserveBlankLines,
+		// Custom image extension with caption support
+		WikiImage.configure({
+			inline: false,
+			allowBase64: true,
+		}),
+		Table.configure({
+			resizable: true,
+			renderWrapper: true,
+		}),
+		TableRow,
+		TableCell,
+		TableHeader,
+		TaskList,
+		TaskItem.configure({
+			nested: true,
+		}),
+		Placeholder.configure({
+			placeholder: 'Type "/" for commands, or start writing...',
+		}),
+		CodeBlock,
+		// Custom extensions
+		CalloutBlock,
+		IframeBlock,
+		MermaidBlock,
+		PdfBlock,
+		VideoBlock.configure({
+			uploadFunction: uploadFile,
+		}),
+		// Slash commands
+		SlashCommands.configure({
+			suggestion: createSlashCommandsSuggestion(),
+		}),
+	],
+	onUpdate: handleContentChange,
+});
+
+// useEditor doesn't take editorProps; set them on the created instance.
+editor.value.setOptions({
+	editorProps: {
+		handlePaste,
+		handleDrop,
+	},
+});
+
+// Typography comes from EditorContent's own `prose prose-v3` defaults; these
+// classes only hook wiki-specific rules in wiki-editor-content.css.
+const contentClass = [
+	'wiki-editor-content',
+	props.readonly ? '' : 'is-editable',
+];
 
 function normalizeMarkdown(content) {
-	const markdown = content ?? '';
-	const manager = editor.value?.markdown;
-	if (!manager) return markdown;
-	try {
-		return manager.serialize(manager.parse(markdown));
-	} catch (error) {
-		console.warn('[WikiEditor] Could not normalize markdown', error);
-		return markdown;
-	}
+	return canonicalizeMarkdown(editor.value?.markdown, content);
 }
 
 function getMarkdown() {
@@ -776,7 +775,7 @@ onKeyStroke('s', (e) => {
 });
 
 onMounted(() => {
-	initEditor();
+	emitContentReady();
 	// Expose editor on window for E2E testing
 	window.wikiEditor = editor.value;
 	// Listen for slash command image upload events
@@ -799,14 +798,6 @@ onUnmounted(() => {
 	hideLinkPopup();
 	// Clean up window reference
 	delete window.wikiEditor;
-
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-	}
-	emitContentChange({ persistImmediately: true });
-	if (editor.value) {
-		editor.value.destroy();
-	}
 });
 </script>
 

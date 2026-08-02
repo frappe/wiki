@@ -29,10 +29,13 @@
   "access_control_tab",
   "access_control_section",
   "roles",
+  "owner_only",
   "contributions_section",
   "allow_contributions",
   "version_3_tab",
   "root_group",
+  "home_tab_title",
+  "home_tab_icon",
   "main_revision",
   "git_sync_tab",
   "git_synced",
@@ -129,13 +132,21 @@
   {
    "fieldname": "access_control_section",
    "fieldtype": "Section Break",
-   "description": "Leave empty for open access to all logged-in users. Add the <b>Guest</b> role for public/anonymous access."
+   "description": "Leave empty for open access to all logged-in users. Anonymous/Guest access is not supported — the wiki always requires login."
   },
   {
    "fieldname": "roles",
    "fieldtype": "Table",
    "label": "Roles",
    "options": "Wiki Space Role"
+  },
+  {
+   "default": "0",
+   "fieldname": "owner_only",
+   "fieldtype": "Check",
+   "label": "Owner Only",
+   "permlevel": 1,
+   "description": "Visible only to the space's owner and users with the Admin role. Hides the space and everything in it from everyone else, including Technician."
   },
   {
    "fieldname": "contributions_section",
@@ -168,6 +179,20 @@
    "label": "Main Revision",
    "options": "Wiki Revision",
    "read_only": 1
+  },
+  {
+   "default": "Home",
+   "description": "Label for the synthetic Home tab that leads the space's tab bar.",
+   "fieldname": "home_tab_title",
+   "fieldtype": "Data",
+   "label": "Home Tab Title"
+  },
+  {
+   "default": "lucide-house",
+   "description": "Lucide icon class for the Home tab, e.g. lucide-house.",
+   "fieldname": "home_tab_icon",
+   "fieldtype": "Data",
+   "label": "Home Tab Icon"
   },
   {
    "default": "1",
@@ -330,6 +355,35 @@
    "role": "Wiki User",
    "select": 1,
    "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Technician",
+   "select": 1,
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admin",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Admin",
+   "write": 1
   }
  ],
  "row_format": "Dynamic",

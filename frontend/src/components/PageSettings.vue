@@ -1,11 +1,11 @@
 <template>
-	<Dialog v-model="show" :options="{ size: '2xl' }">
-		<template #body-title>
-			<h3 class="text-xl font-semibold text-ink-gray-9">
+	<Dialog v-model:open="show" size="2xl">
+		<template #title>
+			<h3 class="text-2xl-semibold text-ink-gray-9">
 				{{ __('Page Settings') }}
 			</h3>
 		</template>
-		<template #body-content>
+		<template #default>
 			<div class="flex flex-col gap-5 sm:flex-row">
 				<div class="flex flex-1 flex-col gap-4">
 					<FormControl
@@ -33,12 +33,11 @@
 						>
 							<img :src="metaImage" alt="" class="h-32 w-full object-cover" />
 							<div
-								class="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+								class="absolute inset-0 flex items-center justify-center gap-2 bg-black-overlay-400 opacity-0 transition-opacity group-hover:opacity-100"
 							>
-								<LucideLoader2
+								<span
 									v-if="isUploadingImage"
-									class="h-5 w-5 animate-spin text-white"
-								/>
+									class="lucide-loader-2 h-5 w-5 animate-spin text-white" aria-hidden="true" />
 								<template v-else>
 									<Button size="sm" variant="solid" @click="pickImage">
 										{{ __('Replace') }}
@@ -61,11 +60,10 @@
 							:disabled="isUploadingImage"
 							@click="pickImage"
 						>
-							<LucideLoader2
+							<span
 								v-if="isUploadingImage"
-								class="h-5 w-5 animate-spin"
-							/>
-							<LucideImagePlus v-else class="h-5 w-5" />
+								class="lucide-loader-2 h-5 w-5 animate-spin" aria-hidden="true" />
+							<span v-else class="lucide-image-plus h-5 w-5" aria-hidden="true" />
 							<span>{{ isUploadingImage ? __('Uploading...') : __('Upload image') }}</span>
 						</button>
 						<p class="text-xs text-ink-gray-4">
@@ -79,28 +77,54 @@
 							@change="handleImageChange"
 						/>
 					</div>
+					<div
+						v-if="userStore.isAdmin"
+						class="flex items-center justify-between gap-4 rounded-md border border-outline-gray-2 p-3"
+					>
+						<div>
+							<p class="text-sm-medium text-ink-gray-8">{{ __('Owner Only') }}</p>
+							<p class="text-xs text-ink-gray-5">
+								{{ __("Hide this page from everyone except its owner and Admins.") }}
+							</p>
+						</div>
+						<Switch v-model="ownerOnly" />
+					</div>
 				</div>
 				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
 					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
 					<div
-						class="flex flex-1 flex-col overflow-hidden rounded-md border border-outline-gray-2"
+						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
 					>
 						<div
-							class="flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
+							class="relative flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
 						>
 							<img
-								v-if="metaImage"
-								:src="metaImage"
+								v-if="previewImage"
+								:src="previewImage"
 								alt=""
 								class="h-full w-full object-cover"
+								:class="{ 'opacity-0': previewImageLoading }"
+								@load="previewImageLoading = false"
+								@error="previewImageFailed = true"
 							/>
-							<LucideImage v-else class="h-7 w-7 text-ink-gray-3" />
+							<span
+								v-else
+								class="lucide-image h-7 w-7 text-ink-gray-3"
+								aria-hidden="true"
+							/>
+							<!-- A cold card takes a Chromium launch to render, so the
+							     placeholder icon would otherwise sit there looking like
+							     "no image" for seconds. -->
+							<div
+								v-if="previewImage && previewImageLoading"
+								class="absolute inset-0 animate-pulse bg-surface-gray-3"
+							/>
 						</div>
 						<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
 							<span class="truncate text-xs text-ink-gray-4">
 								{{ previewRoute }}
 							</span>
-							<span class="line-clamp-1 text-sm font-medium text-ink-gray-9">
+							<span class="line-clamp-1 text-sm-medium text-ink-gray-9">
 								{{ previewTitle }}
 							</span>
 							<span
@@ -114,6 +138,9 @@
 							</span>
 						</div>
 					</div>
+					<p v-if="isGeneratedPreview" class="text-xs text-ink-gray-4">
+						{{ __('Auto-generated from the page metadata. Upload an image to override it.') }}
+					</p>
 				</div>
 			</div>
 		</template>
@@ -136,11 +163,11 @@
 </template>
 
 <script setup>
-import { Button, Dialog, FormControl, toast, useFileUpload } from 'frappe-ui';
+import { useUserStore } from '@/stores/user';
+import { Button, Dialog, FormControl, Switch, toast, useFileUpload } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
-import LucideImage from '~icons/lucide/image';
-import LucideImagePlus from '~icons/lucide/image-plus';
-import LucideLoader2 from '~icons/lucide/loader-2';
+
+const userStore = useUserStore();
 
 const props = defineProps({
 	// The document resource from createDocumentResource({ doctype: 'Wiki
@@ -157,6 +184,7 @@ const show = defineModel({ type: Boolean, default: false });
 const metaTitle = ref('');
 const metaDescription = ref('');
 const metaImage = ref('');
+const ownerOnly = ref(false);
 const isUploadingImage = ref(false);
 const imageInput = ref(null);
 
@@ -174,13 +202,51 @@ const previewRoute = computed(() => props.docResource.doc?.route || '');
 const previewTitle = computed(() => metaTitle.value || currentTitle.value);
 const previewDescription = computed(() => metaDescription.value);
 
+// With no uploaded image the page still ships an og:image — the generated card
+// from wiki/api/og_image.py. Preview the real endpoint rather than a mock, so
+// what this box shows is literally what a scraper will fetch. The endpoint 404s
+// for every case that emits no card (setting off, unpublished, group, external
+// link, no space, render failure), which is what the @error fallback catches —
+// no need to duplicate those conditions here.
+// Bumped on each successful save. `v` is ignored server-side (the endpoint
+// always recomputes the fingerprint) and exists only to force the browser to
+// refetch — the img otherwise keeps whatever bytes it got, and a request that
+// raced the save would leave a stale card on screen for the rest of the
+// session. Bumping per *save* rather than per keystroke keeps it to one extra
+// render, instead of launching Chromium on every character typed.
+const previewVersion = ref(0);
+
+const generatedPreview = computed(() => {
+	const doc = props.docResource.doc;
+	if (!doc?.route) return '';
+	return `/api/method/wiki.api.og_image.og_image?route=${encodeURIComponent(
+		doc.route,
+	)}&v=${previewVersion.value}`;
+});
+
+const previewImageFailed = ref(false);
+const previewImageLoading = ref(true);
+const previewImage = computed(() => {
+	if (metaImage.value) return metaImage.value;
+	return previewImageFailed.value ? '' : generatedPreview.value;
+});
+
+// Every new URL is a fresh load, so the skeleton comes back until it decodes.
+watch(previewImage, (url) => {
+	previewImageLoading.value = Boolean(url);
+});
+const isGeneratedPreview = computed(
+	() => !metaImage.value && Boolean(previewImage.value),
+);
+
 const isDirty = computed(() => {
 	const doc = props.docResource.doc;
 	if (!doc) return false;
 	return (
 		metaTitle.value !== (doc.meta_title || '') ||
 		metaDescription.value !== (doc.meta_description || '') ||
-		metaImage.value !== (doc.meta_image || '')
+		metaImage.value !== (doc.meta_image || '') ||
+		(userStore.isAdmin && ownerOnly.value !== Boolean(doc.owner_only))
 	);
 });
 
@@ -192,6 +258,11 @@ watch(show, (isOpen) => {
 	metaTitle.value = doc?.meta_title || '';
 	metaDescription.value = doc?.meta_description || '';
 	metaImage.value = doc?.meta_image || '';
+	ownerOnly.value = Boolean(doc?.owner_only);
+	// Retry the generated card on each open; a render that failed once (cold
+	// Chromium, another worker holding the lock) usually succeeds next time.
+	previewImageFailed.value = false;
+	previewImageLoading.value = true;
 });
 
 function pickImage() {
@@ -228,13 +299,21 @@ async function handleImageChange(event) {
 
 async function saveSettings() {
 	try {
-		await props.docResource.setValue.submit({
+		const payload = {
 			meta_title: metaTitle.value,
 			meta_description: metaDescription.value,
 			meta_image: metaImage.value,
-		});
+		};
+		// Only an Admin's client ever renders (or can toggle) this control, so
+		// only their save request includes the field.
+		if (userStore.isAdmin) {
+			payload.owner_only = ownerOnly.value ? 1 : 0;
+		}
+		await props.docResource.setValue.submit(payload);
 		toast.success(__('Page settings saved'));
-		show.value = false;
+		// Retry a preview that failed before this save fixed its inputs.
+		previewImageFailed.value = false;
+		previewVersion.value += 1;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error saving page settings'));
 	}

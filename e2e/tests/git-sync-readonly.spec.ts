@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createDoc } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import {
 	type WikiSpace,
 	cleanupWikiSpacesByRoute,
@@ -57,19 +58,18 @@ test.describe('Git-synced space (read-only)', () => {
 			is_published: true,
 		});
 
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
-		// Synced banner: repo link (title) + "Synced from GitHub" subtitle + Sync now.
+		// Synced banner (shared SpaceChromeBar): the repo link marks it as synced
+		// from GitHub, plus a Sync now action.
 		await expect(
 			page.locator(`a[href="https://github.com/${REPO}"]`),
 		).toBeVisible({ timeout: 10000 });
-		await expect(page.getByText('Synced from GitHub')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 
 		// No create / mutation affordances in the sidebar.
-		await expect(page.locator('button[title="New Page"]')).toHaveCount(0);
-		await expect(page.locator('button[title="New Group"]')).toHaveCount(0);
+		await expect(page.locator('button[title="Add"]')).toHaveCount(0);
 
 		// Open the synced page and confirm the viewer is non-editable.
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();

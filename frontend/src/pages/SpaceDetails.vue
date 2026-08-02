@@ -1,143 +1,206 @@
 <template>
-    <div class="flex h-full">
-        <!-- Desktop: inline resizable tree -->
-        <aside
-            v-if="!isMobile"
-            ref="sidebarRef"
-            class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
-            :style="{ width: `${sidebarWidth}px` }"
+    <div class="flex flex-col h-full">
+        <!-- Mobile: contextual header in the shell's PageHeaderTarget
+             (tree toggle on the left, centered space name). -->
+        <PageHeaderMobile
+            v-if="isMobile"
+            :title="space.doc?.space_name || spaceId"
         >
-            <SpaceTreePanel
-                :space-id="spaceId"
-                :space-name="space.doc?.space_name"
-                :space-route="space.doc?.route"
-                :space-loaded="!!space.doc"
-                :tree-data="treeData"
-                :change-type-map="changeTypeMap"
-                :readonly="isGitSynced"
-                :selected-page-id="currentPageId"
-                :selected-draft-key="currentDraftKey"
-                @refresh="refreshTree"
-                @reorder-state-change="handleReorderStateChange"
-                @open-settings="openSettings"
-            />
-            <div
-                class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
-                :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
-                @mousedown="startResize"
-            />
-        </aside>
+            <template #left>
+                <Button
+                    variant="ghost"
+                    :label="__('Pages')"
+                    @click="mobileTreeOpen = true"
+                >
+                    <template #icon>
+                        <span class="lucide-panel-left size-4" aria-hidden="true" />
+                    </template>
+                </Button>
+            </template>
+        </PageHeaderMobile>
 
-        <!-- Mobile: same tree in an off-canvas drawer -->
-        <MobileDrawer
-            v-else
-            :open="mobileTreeOpen"
-            side="left"
-            :title="__('Pages')"
-            @update:open="mobileTreeOpen = $event"
+        <!-- Full-width chrome above the sidebar+content row, mirroring the
+             reader's navbar > tabs > tree stack. The draft/git banner is about
+             the whole draft, so it outranks the tab bar, which in turn sits
+             above the tree. -->
+        <SpaceChromeBar
+            v-if="isGitSynced"
+            :space-name="space.doc?.space_name || spaceId"
+            :space-route="space.doc?.route"
+            @open-settings="openSettings"
         >
-            <SpaceTreePanel
-                :space-id="spaceId"
-                :space-name="space.doc?.space_name"
-                :space-route="space.doc?.route"
-                :space-loaded="!!space.doc"
-                :tree-data="treeData"
-                :change-type-map="changeTypeMap"
-                :readonly="isGitSynced"
-                :selected-page-id="currentPageId"
-                :selected-draft-key="currentDraftKey"
-                @refresh="refreshTree"
-                @reorder-state-change="handleReorderStateChange"
-                @open-settings="openSettings"
-            />
-        </MobileDrawer>
-
-        <!-- Mobile: contextual header in the top nav (tree toggle + space name).
-             The toggle matches the nav's logo/menu buttons (44px). -->
-        <Teleport v-if="isMobile" to="#app-header">
-            <button
-                class="flex size-11 shrink-0 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-3"
-                :title="__('Pages')"
-                @click="mobileTreeOpen = true"
-            >
-                <LucidePanelLeft class="size-5" />
-            </button>
-            <span class="truncate text-base font-semibold text-ink-gray-9">
-                {{ space.doc?.space_name || spaceId }}
-            </span>
-        </Teleport>
-
-        <main class="flex-1 flex flex-col bg-surface-white min-w-0">
-            <div
-                v-if="isGitSynced"
-                class="px-4 py-3 flex items-center justify-between gap-4 bg-surface-gray-1 border-b border-outline-gray-2"
-            >
-                <div class="flex items-center gap-3 min-w-0">
-                    <LucideGithub class="size-5 shrink-0 text-ink-gray-7" />
-                    <div class="min-w-0">
-                        <a
-                            v-if="space.doc?.repo_full_name"
-                            :href="`https://github.com/${space.doc.repo_full_name}`"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="text-sm font-medium text-ink-gray-8 hover:text-ink-gray-9 truncate block"
-                        >
-                            {{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span>
-                        </a>
-                        <p v-else class="text-sm font-medium text-ink-gray-8 truncate">
-                            {{ space.doc?.space_name || spaceId }}
-                        </p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <p class="text-xs text-ink-gray-5">{{ __('Synced from GitHub') }}</p>
-                            <Badge variant="subtle" theme="gray" size="sm">
-                                {{ syncStatusLabel(space.doc?.last_sync_status) }}
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
+            <template #badge>
+                <Badge variant="subtle" theme="gray" size="sm" :title="__('Synced from GitHub')">
+                    {{ syncStatusLabel(space.doc?.last_sync_status) }}
+                </Badge>
+            </template>
+            <template #meta>
+                <a
+                    v-if="space.doc?.repo_full_name"
+                    :href="`https://github.com/${space.doc.repo_full_name}`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex min-w-0 items-center gap-1 text-xs text-ink-gray-5 hover:text-ink-gray-7"
+                    :title="__('Synced from GitHub')"
+                >
+                    <span class="lucide-github size-3.5 shrink-0" aria-hidden="true" />
+                    <span class="truncate">{{ space.doc.repo_full_name }}<span v-if="space.doc?.branch">@{{ space.doc.branch }}</span></span>
+                </a>
+            </template>
+            <template #actions>
                 <Button variant="outline" size="sm" :loading="syncing" @click="() => syncNow()">
                     <template #prefix>
-                        <LucideRefreshCw class="size-4" />
+                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
                     </template>
                     {{ __('Sync now') }}
                 </Button>
-            </div>
-            <ContributionBanner
-                v-else
-                :mergeDisabled="isTreeReordering"
-                @submit="handleSubmitChangeRequest"
-                @withdraw="handleArchiveChangeRequest"
-                @merge="handleMergeChangeRequest"
-            />
-            <div class="flex-1 overflow-auto">
-                <router-view
-                    :space-id="spaceId"
-                    :readonly="isGitSynced"
-                    @refresh="refreshTree"
-                    @publish="handleMergeChangeRequest"
-                />
-            </div>
-        </main>
+            </template>
+        </SpaceChromeBar>
+        <ContributionBanner
+            v-else
+            :mergeDisabled="isTreeReordering"
+            :space-name="space.doc?.space_name || spaceId"
+            :space-route="space.doc?.route"
+            @submit="handleSubmitChangeRequest"
+            @withdraw="handleArchiveChangeRequest"
+            @merge="handleMergeChangeRequest"
+            @open-settings="openSettings"
+        />
 
-        <Dialog v-model="showSettingsDialog" :options="{ size: '4xl' }">
-            <template #body>
-                <SpaceSettings
-                    :space="space"
+        <div
+            v-if="tabs.length"
+            class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
+        >
+            <WikiTabBar
+                :tabs="tabs"
+                :active-key="activeTabKey"
+                :can-manage-tabs="canManageTabs && !isGitSynced"
+                @select="selectTab"
+                @create="openCreateTabDialog"
+                @reorder="reorderTab"
+                @update-icon="updateTabIcon"
+                @rename-tab="renameTab"
+            />
+            <!-- Teleport target for the open page's actions (inline layout). -->
+            <div id="wiki-page-actions" class="flex shrink-0 items-center gap-2 self-center pl-3" />
+        </div>
+
+        <!-- Sidebar + content share the row beneath the chrome. -->
+        <div class="flex flex-1 min-h-0">
+            <!-- Desktop: inline resizable tree -->
+            <aside
+                v-if="!isMobile"
+                ref="sidebarRef"
+                class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
+                :style="{ width: `${sidebarWidth}px` }"
+            >
+                <SpaceTreePanel
                     :space-id="spaceId"
-                    @close="showSettingsDialog = false"
-                    @open-update-routes="openUpdateRoutesDialog"
-                    @open-clone="openCloneSpaceDialog"
+                    :space-name="space.doc?.space_name"
+                    :space-route="space.doc?.route"
+                    :space-loaded="!!space.doc"
+                    :tree-data="visibleTreeData"
+                    :space-root-node="treeData?.root_group || ''"
+                    :change-type-map="changeTypeMap"
+                    :readonly="isGitSynced"
+                    :selected-page-id="currentPageId"
+                    :selected-draft-key="currentDraftKey"
+                    :can-manage-tabs="canManageTabs"
+                    :compact-header="treeHeaderCompact"
+                    @refresh="refreshTree"
+                    @reorder-state-change="handleReorderStateChange"
+                    @open-settings="openSettings"
                 />
+                <div
+                    class="absolute top-0 right-0 w-1 h-full cursor-col-resize"
+                    :class="sidebarResizing ? 'bg-surface-gray-4' : 'hover:bg-surface-gray-4'"
+                    @mousedown="startResize"
+                />
+            </aside>
+
+            <!-- Mobile: same tree in an off-canvas drawer -->
+            <MobileDrawer
+                v-else
+                :open="mobileTreeOpen"
+                side="left"
+                :title="__('Pages')"
+                @update:open="mobileTreeOpen = $event"
+            >
+                <SpaceTreePanel
+                    :space-id="spaceId"
+                    :space-name="space.doc?.space_name"
+                    :space-route="space.doc?.route"
+                    :space-loaded="!!space.doc"
+                    :tree-data="visibleTreeData"
+                    :space-root-node="treeData?.root_group || ''"
+                    :change-type-map="changeTypeMap"
+                    :readonly="isGitSynced"
+                    :selected-page-id="currentPageId"
+                    :selected-draft-key="currentDraftKey"
+                    :can-manage-tabs="canManageTabs"
+                    :compact-header="treeHeaderCompact"
+                    @refresh="refreshTree"
+                    @reorder-state-change="handleReorderStateChange"
+                    @open-settings="openSettings"
+                />
+            </MobileDrawer>
+
+            <main class="flex-1 flex flex-col bg-surface-base min-w-0">
+                <div class="flex-1 overflow-auto">
+                    <router-view
+                        :space-id="spaceId"
+                        :readonly="isGitSynced"
+                        @refresh="refreshTree"
+                        @publish="handleMergeChangeRequest"
+                    />
+                </div>
+            </main>
+        </div>
+
+        <SpaceSettings
+            v-model="showSettingsDialog"
+            :space="space"
+            :space-id="spaceId"
+            @open-update-routes="openUpdateRoutesDialog"
+            @open-clone="openCloneSpaceDialog"
+        />
+
+        <Dialog v-model:open="showCreateTabDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
+                    {{ __('Create New Tab') }}
+                </h3>
+            </template>
+            <template #default>
+                <div class="py-2">
+                    <FormControl
+                        type="text"
+                        :label="__('Title')"
+                        v-model="newTabTitle"
+                        :placeholder="__('Enter tab title')"
+                        @keyup.enter="createTab"
+                    />
+                </div>
+            </template>
+            <template #actions>
+                <div class="flex justify-end gap-2">
+                    <Button variant="outline" @click="showCreateTabDialog = false">
+                        {{ __('Cancel') }}
+                    </Button>
+                    <Button variant="solid" :loading="creatingTab" @click="createTab">
+                        {{ __('Create') }}
+                    </Button>
+                </div>
             </template>
         </Dialog>
 
-        <Dialog v-model="showUpdateRoutesDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+        <Dialog v-model:open="showUpdateRoutesDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Update Wiki Space Routes') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"
@@ -167,13 +230,13 @@
             </template>
         </Dialog>
 
-        <Dialog v-model="showCloneSpaceDialog">
-            <template #body-title>
-                <h3 class="text-xl font-semibold text-ink-gray-9">
+        <Dialog v-model:open="showCloneSpaceDialog">
+            <template #title>
+                <h3 class="text-2xl-semibold text-ink-gray-9">
                     {{ __('Clone Wiki Space') }}
                 </h3>
             </template>
-            <template #body-content>
+            <template #default>
                 <div class="space-y-4 py-2">
                     <FormControl
                         type="text"
@@ -207,23 +270,27 @@ import {
 	Button,
 	Dialog,
 	FormControl,
+	PageHeaderMobile,
 	createDocumentResource,
 	createResource,
 	toast,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import LucideGithub from '~icons/lucide/github';
-import LucidePanelLeft from '~icons/lucide/panel-left';
-import LucideRefreshCw from '~icons/lucide/refresh-cw';
 import ContributionBanner from '../components/ContributionBanner.vue';
+import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
+import WikiTabBar from '../components/WikiTabBar.vue';
 import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
+import { useSpaceTabs } from '../composables/useSpaceTabs.js';
+import { GENERAL_KEY } from '../lib/spaceTabs.js';
+import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
+import { toPublished } from '../stores/draftWorkspace/utils';
 
 const props = defineProps({
 	spaceId: {
@@ -244,14 +311,10 @@ const userStore = useUserStore();
 // drag-and-drop sequences.
 onMounted(() => {
 	window.__draftStore = draftStore;
-	// This page supplies the leading control (tree toggle) in the mobile top
-	// nav, so the nav hides its logo while we're here.
-	mobileHasLeadingControl.value = true;
 });
 onBeforeUnmount(() => {
 	delete window.__draftStore;
 	syncPollCancelled = true;
-	mobileHasLeadingControl.value = false;
 });
 
 const isManager = computed(() => userStore.isWikiManager);
@@ -272,8 +335,20 @@ const isTreeReordering = ref(false);
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
-const { isMobile, mobileHasLeadingControl } = useMobile();
+const { isMobile } = useMobile();
 const mobileTreeOpen = ref(false);
+
+// Both the CR banner and the git-sync banner carry the space name +
+// back/settings on desktop, so the tree header drops its own identity block to
+// avoid showing it twice. On mobile the banner is a separate compact header and
+// the tree lives in a drawer, so the drawer keeps its full header (incl.
+// Settings). The plain (non-CR, non-git) space has no banner, so it isn't
+// compacted — its identity lives only in the tree header.
+const treeHeaderCompact = computed(
+	() =>
+		!isMobile.value &&
+		(crStore.isChangeRequestMode || isGitSynced.value),
+);
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
 // mobile breakpoint, so it can't get stuck open behind the desktop layout.
@@ -316,6 +391,24 @@ function syncStatusLabel(status) {
 	);
 }
 
+// Tab management is editor-only (mirrors the backend's can_manage_tabs, which
+// is can_write_space). Enforcement stays server-side; this only hides the UI.
+const canManageTabs = ref(false);
+const capabilitiesResource = createResource({
+	url: 'wiki.api.get_space_capabilities',
+	onSuccess: (data) => {
+		canManageTabs.value = Boolean(data?.can_write);
+	},
+});
+
+watch(
+	() => props.spaceId,
+	(id) => {
+		if (id) capabilitiesResource.submit({ space: id });
+	},
+	{ immediate: true },
+);
+
 const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
 });
@@ -337,7 +430,9 @@ function adaptReadonlyNode(node) {
 		title: node.title,
 		route: node.route,
 		is_group: !!node.is_group,
-		is_published: node.is_published !== false,
+		is_tab: !!node.is_tab,
+		tab_icon: node.tab_icon || null,
+		is_published: toPublished(node.is_published),
 		is_external_link: false,
 		external_url: null,
 		children: (node.children || []).map(adaptReadonlyNode),
@@ -489,6 +584,110 @@ const treeData = computed(() => {
 	if (draftStore.spaceId !== props.spaceId) return null;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
+
+// Tab state lives here rather than in SpaceTreePanel: the bar renders in this
+// column's header while the tree it filters renders in the sidebar, so a single
+// owner keeps the two from disagreeing.
+const homeMeta = computed(() => ({
+	title: space.doc?.home_tab_title || '',
+	icon: space.doc?.home_tab_icon || '',
+}));
+
+const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
+	treeData,
+	currentPageId,
+	currentDraftKey,
+	homeMeta,
+);
+
+// Creating and reordering tabs is owned here alongside the bar, rather than in
+// the tree's own dialogs: a tab is always parented to the space root, so it
+// doesn't depend on which subtree the sidebar is currently showing.
+const showCreateTabDialog = ref(false);
+const newTabTitle = ref('');
+const creatingTab = ref(false);
+
+function openCreateTabDialog() {
+	newTabTitle.value = '';
+	showCreateTabDialog.value = true;
+}
+
+async function createTab() {
+	const title = newTabTitle.value.trim();
+	if (!title) {
+		toast.warning(__('Tab name is required'));
+		return;
+	}
+	showCreateTabDialog.value = false;
+	creatingTab.value = true;
+	try {
+		const { promise } = draftStore.createNode({
+			parentKey: treeData.value?.root_group || null,
+			title,
+			isGroup: true,
+			isTab: true,
+			tabIcon: DEFAULT_TAB_ICON,
+		});
+		const newKey = await promise;
+		if (newKey) selectTab(newKey);
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error creating tab'));
+	} finally {
+		creatingTab.value = false;
+	}
+}
+
+// Drag-reorder from the bar. Tabs and non-tab top-level content share one
+// sibling list, so the drop index is translated back into that list's
+// coordinates — dropping a tab past the last one must not jump it over the
+// untabbed content that follows.
+function reorderTab({ docKey, toIndex }) {
+	// moveNode splices into the list *after* pulling the dragged node out, so
+	// index maths has to happen against the same post-removal list.
+	const remaining = (treeData.value?.children || []).filter(
+		(node) => node.doc_key !== docKey,
+	);
+	const remainingTabs = remaining.filter((node) => node.is_tab);
+
+	const anchor = remainingTabs[toIndex];
+	const newIndex = anchor
+		? remaining.indexOf(anchor)
+		: // Dropped past the last tab — land just after it, never after the
+			// untabbed top-level content that follows.
+			remaining.indexOf(remainingTabs[remainingTabs.length - 1]) + 1;
+
+	draftStore.moveNode({
+		docKey,
+		newParentKey: treeData.value?.root_group || null,
+		newIndex,
+	});
+}
+
+// The Home tab is synthetic — its icon/title live on the Wiki Space, not a
+// node — so it updates the space doc directly; real tabs go through the draft.
+async function updateTabIcon({ key, icon }) {
+	try {
+		if (key === GENERAL_KEY) {
+			await space.setValue.submit({ home_tab_icon: icon });
+		} else {
+			await draftStore.updateNode(key, { tab_icon: icon });
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error updating tab icon'));
+	}
+}
+
+async function renameTab({ key, title }) {
+	try {
+		if (key === GENERAL_KEY) {
+			await space.setValue.submit({ home_tab_title: title });
+		} else {
+			await draftStore.updateNode(key, { title });
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error renaming tab'));
+	}
+}
 
 // Remember the last page opened in this space (per-space, like the tree's
 // expanded-nodes state) so re-entering the space reopens it instead of the

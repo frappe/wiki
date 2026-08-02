@@ -1,7 +1,7 @@
 import frappe
 
 
-@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+@frappe.whitelist()
 def search(query: str, space: str | None = None) -> dict:
 	"""
 	Search wiki documents with space-scoped filtering.
@@ -48,20 +48,20 @@ def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
 	wiki_space and gate it through the same checks as page rendering: the
 	space must be published (`check_published`) and readable by the current
 	user (`check_space_access`). Orphan documents (no wiki_space) stay
-	readable by all.
+	readable by all, subject to the same document-level Owner Only check.
 	"""
-	from wiki.permissions import can_read_space
+	from wiki.permissions import _document_owner_only_blocks, _is_manager, can_read_space
 
 	names = [hit["name"] for hit in hits]
 	if not names:
 		return hits
 
-	space_by_name = {
-		row.name: row.wiki_space
+	doc_by_name = {
+		row.name: row
 		for row in frappe.get_all(
 			"Wiki Document",
 			filters={"name": ("in", names)},
-			fields=["name", "wiki_space"],
+			fields=["name", "wiki_space", "owner_only", "owner"],
 		)
 	}
 
@@ -73,9 +73,15 @@ def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
 			visible[space_name] = bool(space_published) and can_read_space(space_name)
 		return visible[space_name]
 
+	is_manager = _is_manager()
+
 	allowed = []
 	for hit in hits:
-		hit_space = space_by_name.get(hit["name"])
-		if not hit_space or _is_visible(hit_space):
+		doc = doc_by_name.get(hit["name"])
+		if not doc:
+			continue
+		if _document_owner_only_blocks(doc, frappe.session.user) and not is_manager:
+			continue
+		if not doc.wiki_space or _is_visible(doc.wiki_space):
 			allowed.append(hit)
 	return allowed

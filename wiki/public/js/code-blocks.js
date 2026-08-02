@@ -1,11 +1,20 @@
 // Initialize syntax highlighting and code block enhancements
 function initCodeBlocks() {
+    // Record the authored language before highlight.js auto-detection adds its
+    // own language-* class, so the label mirrors the editor ("auto" when unset).
+    document.querySelectorAll('pre > code').forEach(function(codeBlock) {
+        if (codeBlock.dataset.language !== undefined) return;
+        const match = codeBlock.className.match(/language-(\S+)/);
+        codeBlock.dataset.language = match ? match[1] : '';
+    });
+
     // First run syntax highlighting
     if (typeof hljs !== 'undefined') {
         hljs.highlightAll();
     }
 
-    // Then enhance code blocks with copy button and language badge
+    // Then enhance code blocks to match the editor's code block node view:
+    // line-number gutter + hover-revealed toolbar (language label, copy button)
     document.querySelectorAll('pre code.hljs').forEach(function(codeBlock) {
         const pre = codeBlock.parentElement;
 
@@ -19,21 +28,29 @@ function initCodeBlocks() {
             lastChild.nodeValue = lastChild.nodeValue.replace(/\s+$/, '\n');
         }
 
-        // Get language from hljs class
-        const classes = codeBlock.className.split(' ');
-        let language = '';
-        for (const cls of classes) {
-            if (cls.startsWith('language-')) {
-                language = cls.replace('language-', '');
-                break;
-            }
+        // Line-number gutter (one number per line, like the editor)
+        const lineCount = codeBlock.textContent.replace(/\n$/, '').split('\n').length;
+        const gutter = document.createElement('span');
+        gutter.className = 'code-block-gutter';
+        gutter.setAttribute('aria-hidden', 'true');
+        for (let n = 1; n <= lineCount; n++) {
+            const line = document.createElement('span');
+            line.textContent = n;
+            gutter.appendChild(line);
         }
+        pre.insertBefore(gutter, codeBlock);
 
-        // Create toolbar element (positioned inside pre)
+        // Toolbar (positioned top-right inside pre, revealed on hover)
         const toolbar = document.createElement('div');
         toolbar.className = 'code-block-toolbar';
 
-        // Copy button (appears on hover)
+        // Language label ("auto" when the block has no explicit language)
+        const langLabel = document.createElement('span');
+        langLabel.className = 'code-block-lang';
+        langLabel.textContent = codeBlock.dataset.language || 'auto';
+        toolbar.appendChild(langLabel);
+
+        // Copy button
         const copyBtn = document.createElement('button');
         copyBtn.className = 'code-block-copy';
         copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
@@ -42,22 +59,12 @@ function initCodeBlocks() {
             const code = codeBlock.textContent;
             navigator.clipboard.writeText(code).then(function() {
                 copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-                copyBtn.classList.add('copied');
                 setTimeout(function() {
                     copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-                    copyBtn.classList.remove('copied');
                 }, 2000);
             });
         });
         toolbar.appendChild(copyBtn);
-
-        // Language badge (only if language is defined)
-        if (language && language !== 'plaintext') {
-            const langBadge = document.createElement('span');
-            langBadge.className = 'code-block-lang';
-            langBadge.textContent = language;
-            toolbar.appendChild(langBadge);
-        }
 
         // Insert toolbar inside pre element
         pre.appendChild(toolbar);

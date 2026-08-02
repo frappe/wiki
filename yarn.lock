@@ -326,16 +326,6 @@
     "@tailwindcss/oxide-win32-arm64-msvc" "4.1.12"
     "@tailwindcss/oxide-win32-x64-msvc" "4.1.12"
 
-"@tailwindcss/typography@^0.5.16":
-  version "0.5.16"
-  resolved "https://registry.npmjs.org/@tailwindcss/typography/-/typography-0.5.16.tgz"
-  integrity sha512-0wDLwCVF5V3x3b1SGXPCDcdsbDHMBe+lkFzBRaHeLvNi+nrrnZ1lA18u+OTWO8iSWU2GxUOCvlXtDuqftc1oiA==
-  dependencies:
-    lodash.castarray "^4.4.0"
-    lodash.isplainobject "^4.0.6"
-    lodash.merge "^4.6.2"
-    postcss-selector-parser "6.0.10"
-
 "@tybys/wasm-util@^0.10.0":
   version "0.10.2"
   resolved "https://registry.yarnpkg.com/@tybys/wasm-util/-/wasm-util-0.10.2.tgz#12b3a1b33db1f9cad4ddff1f604ab7dd00bf464e"
@@ -361,11 +351,6 @@ chownr@^3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/chownr/-/chownr-3.0.0.tgz"
   integrity sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==
-
-cssesc@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.npmjs.org/cssesc/-/cssesc-3.0.0.tgz"
-  integrity sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==
 
 detect-libc@^1.0.3:
   version "1.0.3"
@@ -492,21 +477,6 @@ lightningcss@1.30.1:
     lightningcss-win32-arm64-msvc "1.30.1"
     lightningcss-win32-x64-msvc "1.30.1"
 
-lodash.castarray@^4.4.0:
-  version "4.4.0"
-  resolved "https://registry.npmjs.org/lodash.castarray/-/lodash.castarray-4.4.0.tgz"
-  integrity sha512-aVx8ztPv7/2ULbArGJ2Y42bG1mEQ5mGjpdvrbJcJFU3TbYybe+QlLS4pst9zV52ymy2in1KpFPiZnAOATxD4+Q==
-
-lodash.isplainobject@^4.0.6:
-  version "4.0.6"
-  resolved "https://registry.npmjs.org/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz"
-  integrity sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA==
-
-lodash.merge@^4.6.2:
-  version "4.6.2"
-  resolved "https://registry.npmjs.org/lodash.merge/-/lodash.merge-4.6.2.tgz"
-  integrity sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==
-
 magic-string@^0.30.17:
   version "0.30.18"
   resolved "https://registry.npmjs.org/magic-string/-/magic-string-0.30.18.tgz"
@@ -573,14 +543,6 @@ playwright@1.57.0:
   optionalDependencies:
     fsevents "2.3.2"
 
-postcss-selector-parser@6.0.10:
-  version "6.0.10"
-  resolved "https://registry.npmjs.org/postcss-selector-parser/-/postcss-selector-parser-6.0.10.tgz"
-  integrity sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==
-  dependencies:
-    cssesc "^3.0.0"
-    util-deprecate "^1.0.2"
-
 source-map-js@^1.2.1:
   version "1.2.1"
   resolved "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz"
@@ -624,11 +586,6 @@ undici-types@~6.21.0:
   version "6.21.0"
   resolved "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz"
   integrity sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==
-
-util-deprecate@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz"
-  integrity sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==
 
 yallist@^5.0.0:
   version "5.0.0"

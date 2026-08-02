@@ -34,5 +34,5 @@ def get_context(context):
 	# GitHub redirects here via GET, which Frappe does not auto-commit.
 	frappe.db.commit()  # nosemgrep
 
-	frappe.local.flags.redirect_location = "/wiki?github_connected=1"
+	frappe.local.flags.redirect_location = "/wiki-app?github_connected=1"
 	raise frappe.Redirect

@@ -1,8 +1,15 @@
 /* Wiki content & editor styles.
    Extracted from WikiEditor.vue so the read-only WikiContentViewer (preview,
-   review diffs) gets the same code-block, table and lowlight highlighting CSS
-   as the editor. Imported globally in main.js; all rules are class-scoped under
-   .wiki-editor-content / .wiki-editor-container so global load is safe. */
+   review diffs) gets the same styling as the editor. Imported globally in
+   main.js; all rules are class-scoped under .wiki-editor-content /
+   .wiki-editor-container so global load is safe.
+
+   Baseline styling comes from frappe-ui's editor stylesheet (imported via
+   `frappe-ui/editor`) plus the `prose prose-v3` typography EditorContent
+   applies by default: fonts, headings, lists, inline code, blockquotes, hr,
+   paragraph spacing, code-block shell + highlight.js light/dark theme,
+   table cells/selection/wrapper scrolling, task lists, resize cursor. Only
+   wiki-specific rules that frappe-ui doesn't cover live here. */
 
 /* Tippy theme override for slash commands */
 .tippy-box[data-theme~="none"] {
@@ -28,145 +35,29 @@
 	isolation: isolate; /* Create new stacking context to contain z-index */
 }
 
-.wiki-editor-loading {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 300px;
-	color: var(--ink-gray-5, #6b7280);
-}
-
-/* TipTap Editor Wrapper */
-.wiki-tiptap-editor {
-	flex: 1;
-	min-height: 500px;
-	background-color: var(--surface-white, #ffffff);
-	position: relative;
-	margin-top: 1rem;
-	max-width: 100ch;
-	width: 100%;
-	margin-left: auto;
-	margin-right: auto;
-}
-
 /* Editor Content Styles */
-.wiki-editor-content {
-	outline: none;
-	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-		sans-serif;
-	font-size: 1rem;
-	line-height: 1.625;
-	color: var(--ink-gray-9, #111827);
-}
-
+.wiki-editor-content,
 .wiki-editor-content:focus {
 	outline: none;
 }
 
-/* Editing-surface chrome (bounding box + min height + padding). Only the
-   editor opts in via `.is-editable`; the read-only viewer omits it so previews
-   fill the available space without a bounding box. */
+/* Editing surface: no bounding box — the flush toolbar divider above and the
+   centered column provide the structure. Horizontal padding comes from the
+   column wrapper in WikiEditor.vue. */
 .wiki-editor-content.is-editable {
 	min-height: 480px;
-	padding: 1.5rem;
-	border: 1px solid var(--outline-gray-2, #e5e7eb);
-	border-radius: 0 0 0.5rem 0.5rem;
+	padding: 1.5rem 0;
 }
 
-/* Code block styling - Light theme */
-.wiki-editor-content pre {
-	background-color: var(--surface-gray-1, #f9fafb);
-	border: 1px solid var(--outline-gray-2, #e5e7eb);
-	color: var(--ink-gray-9, #111827);
-	border-radius: 0.5rem;
-	padding: 1rem 1.25rem;
-	overflow-x: auto;
-	font-size: 0.875rem;
-	line-height: 1.6;
-	font-family: "Fira Code", "JetBrains Mono", "SF Mono", Menlo, Monaco,
-		"Courier New", monospace;
-	margin: 1rem 0;
-	caret-color: var(--ink-gray-9, #111827);
+/* Read-only view (reader, preview, review diffs) has no editing chrome, so the
+   route/title header sits flush against content. Restore the same top gap the
+   editor gets from is-editable's padding. */
+.wiki-editor-content:not(.is-editable) {
+	padding-top: 1.5rem;
 }
 
-.wiki-editor-content pre code {
-	background: none;
-	padding: 0;
-	font-size: inherit;
-	color: inherit;
-	caret-color: var(--ink-gray-9, #111827);
-}
-
-/* Inline code styling */
-.wiki-editor-content code {
-	background-color: var(--surface-gray-2, #f3f4f6);
-	padding: 0.125rem 0.375rem;
-	border-radius: 0.25rem;
-	font-size: 0.875em;
-	font-family: "Fira Code", "JetBrains Mono", "SF Mono", Menlo, Monaco,
-		"Courier New", monospace;
-}
-
-/* Blockquote styling */
-.wiki-editor-content blockquote {
-	border-left: 3px solid var(--outline-gray-3, #d1d5db);
-	padding-left: 1rem;
-	margin: 1rem 0;
-	color: var(--ink-gray-6, #4b5563);
-	font-style: italic;
-}
-
-/* Table styling */
-.wiki-editor-content table {
-	width: 100%;
-	border-collapse: collapse;
-	margin: 1rem 0;
-	table-layout: fixed;
-}
-
-/* On a phone a multi-column table can't fit; let it scroll horizontally
-   instead of breaking the layout (Phase 5 — graceful degradation). Columns
-   size to content (table-layout: auto) so the scroll is meaningful. */
-@media (max-width: 767px) {
-	.wiki-editor-content table {
-		display: block;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-		table-layout: auto;
-		width: max-content;
-		max-width: 100%;
-	}
-}
-
-.wiki-editor-content th,
-.wiki-editor-content td {
-	border: 1px solid var(--outline-gray-2, #e5e7eb);
-	padding: 0.5rem 0.75rem;
-	text-align: left;
-	position: relative;
-	vertical-align: top;
-	min-width: 80px;
-}
-
-.wiki-editor-content th {
-	background-color: var(--surface-gray-1, #f9fafb);
-	font-weight: 600;
-}
-
-/* Table cell selection */
-.wiki-editor-content .selectedCell::after {
-	content: "";
-	position: absolute;
-	left: 0;
-	right: 0;
-	top: 0;
-	bottom: 0;
-	background: rgba(59, 130, 246, 0.15);
-	pointer-events: none;
-	z-index: 1;
-}
-
-/* Table column resize handle */
+/* Table column resize handle (frappe-ui styles cells/selection but not the
+   prosemirror-tables drag handle) */
 .wiki-editor-content .column-resize-handle {
 	position: absolute;
 	right: -2px;
@@ -178,98 +69,37 @@
 	z-index: 10;
 }
 
-/* Table resize cursor */
-.wiki-editor-content.resize-cursor {
-	cursor: col-resize;
-}
-
-/* Task lists (checkboxes) — TipTap renders <ul data-type="taskList"> with a
-   native <input type="checkbox"> per item. Drop the inherited bullet/indent and
-   restyle the checkbox to match frappe-ui's Checkbox. Theme tokens are used
-   throughout so it adapts to dark mode without separate overrides. */
-.wiki-editor-content ul[data-type="taskList"] {
-	list-style: none;
-	margin-left: 0;
-	padding-left: 0;
-}
-
-.wiki-editor-content ul[data-type="taskList"] li {
-	display: flex;
-	align-items: flex-start;
-	gap: 0.5rem;
-	margin: 0.25rem 0;
-}
-
-.wiki-editor-content ul[data-type="taskList"] li > label {
-	flex: 0 0 auto;
-	/* Nudge the box onto the first text line. */
-	margin-top: 0.2rem;
-	user-select: none;
-}
-
-.wiki-editor-content ul[data-type="taskList"] li > div {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.wiki-editor-content ul[data-type="taskList"] li > div > p {
-	margin: 0;
-}
-
-.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"] {
-	appearance: none;
-	-webkit-appearance: none;
-	display: inline-block;
-	width: 1rem;
-	height: 1rem;
-	margin: 0;
-	border: 1px solid var(--outline-gray-3, #c7c7c7);
-	border-radius: 0.25rem;
-	background-color: var(--surface-white, #ffffff);
-	cursor: pointer;
-	position: relative;
-	transition: background-color 0.1s ease, border-color 0.1s ease;
-}
-
-.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:hover {
-	border-color: var(--outline-gray-4, #9a9a9a);
-}
-
-.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked {
-	background-color: var(--surface-gray-7, #383838);
-	border-color: var(--surface-gray-7, #383838);
-}
-
-/* Checkmark drawn as a rotated border so it inherits theme colors. */
-.wiki-editor-content
-	ul[data-type="taskList"]
-	input[type="checkbox"]:checked::after {
-	content: "";
-	position: absolute;
-	left: 4.5px;
-	top: 1.5px;
-	width: 4px;
-	height: 8px;
-	border: solid var(--surface-white, #ffffff);
-	border-width: 0 2px 2px 0;
-	transform: rotate(45deg);
-}
-
-/* Read-only viewer renders the box disabled — keep it looking static. */
-.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:disabled {
-	cursor: default;
-}
-
+/* Completed task items render struck through (frappe-ui styles the list and
+   checkbox, but not the checked state) */
 .wiki-editor-content ul[data-type="taskList"] li[data-checked="true"] > div {
 	color: var(--ink-gray-5, #6b7280);
 	text-decoration: line-through;
 }
 
-/* Horizontal rule */
-.wiki-editor-content hr {
-	border: none;
-	border-top: 1px solid var(--outline-gray-2, #e5e7eb);
-	margin: 1.5rem 0;
+/* Task list checkboxes — restyled to match the frappe-ui Checkbox component
+   (sm size). The editor kit's own rule uses a static gray.900 fill that breaks
+   in dark mode; these tokens follow the theme. The @tailwindcss/forms base and
+   the preset's dark-mode check glyph handle the rest. */
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"] {
+	width: 0.875rem;
+	height: 0.875rem;
+	border-radius: var(--radius-sm, 4px);
+	border-color: var(--outline-gray-4);
+	background-color: var(--surface-base);
+	color: var(--ink-gray-9);
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:hover {
+	border-color: var(--outline-gray-7);
+	box-shadow: var(--elevation-sm);
+}
+
+.wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked {
+	background-color: currentColor;
+	border-color: transparent;
 }
 
 /* Image styling */
@@ -302,213 +132,4 @@
 .wiki-editor-content .ProseMirror-selectednode {
 	outline: 2px solid var(--primary, #171717);
 	outline-offset: 2px;
-}
-
-/* Syntax highlighting - GitHub Light inspired theme */
-.wiki-editor-content .hljs-comment,
-.wiki-editor-content .hljs-quote {
-	color: #6a737d;
-	font-style: italic;
-}
-
-.wiki-editor-content .hljs-keyword,
-.wiki-editor-content .hljs-selector-tag {
-	color: #d73a49;
-}
-
-.wiki-editor-content .hljs-deletion {
-	color: #b31d28;
-	background-color: #ffeef0;
-}
-
-.wiki-editor-content .hljs-string,
-.wiki-editor-content .hljs-doctag {
-	color: #032f62;
-}
-
-.wiki-editor-content .hljs-addition {
-	color: #22863a;
-	background-color: #f0fff4;
-}
-
-.wiki-editor-content .hljs-number,
-.wiki-editor-content .hljs-literal {
-	color: #005cc5;
-}
-
-.wiki-editor-content .hljs-symbol,
-.wiki-editor-content .hljs-bullet {
-	color: #e36209;
-}
-
-.wiki-editor-content .hljs-function {
-	color: #6f42c1;
-}
-
-.wiki-editor-content .hljs-title {
-	color: #6f42c1;
-	font-weight: 600;
-}
-
-.wiki-editor-content .hljs-built_in {
-	color: #005cc5;
-}
-
-.wiki-editor-content .hljs-class .hljs-title,
-.wiki-editor-content .hljs-type {
-	color: #22863a;
-}
-
-.wiki-editor-content .hljs-attr {
-	color: #005cc5;
-}
-
-.wiki-editor-content .hljs-variable,
-.wiki-editor-content .hljs-template-variable {
-	color: #e36209;
-}
-
-.wiki-editor-content .hljs-name {
-	color: #22863a;
-}
-
-.wiki-editor-content .hljs-selector-id,
-.wiki-editor-content .hljs-selector-class {
-	color: #6f42c1;
-}
-
-.wiki-editor-content .hljs-regexp {
-	color: #032f62;
-}
-
-.wiki-editor-content .hljs-link {
-	color: #005cc5;
-	text-decoration: underline;
-}
-
-.wiki-editor-content .hljs-meta {
-	color: #6a737d;
-}
-
-.wiki-editor-content .hljs-operator {
-	color: #d73a49;
-}
-
-.wiki-editor-content .hljs-punctuation {
-	color: #24292e;
-}
-
-.wiki-editor-content .hljs-emphasis {
-	font-style: italic;
-}
-
-.wiki-editor-content .hljs-strong {
-	font-weight: bold;
-}
-
-.wiki-editor-content .hljs-params {
-	color: #24292e;
-}
-
-.wiki-editor-content .hljs-property {
-	color: #005cc5;
-}
-
-/* Syntax highlighting - Dark theme overrides (matches public page theme) */
-[data-theme="dark"] .wiki-editor-content .hljs-comment,
-[data-theme="dark"] .wiki-editor-content .hljs-quote {
-	color: #8b949e;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-keyword,
-[data-theme="dark"] .wiki-editor-content .hljs-selector-tag {
-	color: #ff7b72;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-deletion {
-	color: #ffa198;
-	background-color: rgba(248, 81, 73, 0.15);
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-string,
-[data-theme="dark"] .wiki-editor-content .hljs-doctag {
-	color: #a5d6ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-addition {
-	color: #7ee787;
-	background-color: rgba(46, 160, 67, 0.15);
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-number,
-[data-theme="dark"] .wiki-editor-content .hljs-literal {
-	color: #79c0ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-symbol,
-[data-theme="dark"] .wiki-editor-content .hljs-bullet {
-	color: #ffa657;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-function {
-	color: #d2a8ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-title {
-	color: #d2a8ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-built_in {
-	color: #79c0ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-class .hljs-title,
-[data-theme="dark"] .wiki-editor-content .hljs-type {
-	color: #7ee787;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-attr {
-	color: #79c0ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-variable,
-[data-theme="dark"] .wiki-editor-content .hljs-template-variable {
-	color: #ffa657;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-name {
-	color: #7ee787;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-selector-id,
-[data-theme="dark"] .wiki-editor-content .hljs-selector-class {
-	color: #d2a8ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-regexp {
-	color: #a5d6ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-link {
-	color: #79c0ff;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-meta {
-	color: #8b949e;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-operator {
-	color: #ff7b72;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-punctuation {
-	color: #c9d1d9;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-params {
-	color: #c9d1d9;
-}
-
-[data-theme="dark"] .wiki-editor-content .hljs-property {
-	color: #79c0ff;
 }

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { callMethod, updateDoc } from '../helpers/frappe';
-import { createTestWikiDocument, createTestWikiSpace } from '../helpers/wiki';
+import { appUrl } from '../helpers/routes';
+import {
+	clickSidebarAddOption,
+	createTestWikiDocument,
+	createTestWikiSpace,
+} from '../helpers/wiki';
 
 /**
  * E2E tests for wiki document ordering functionality.
@@ -57,7 +62,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to the wiki space admin
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Get initial order from sidebar - wait for tree to load
@@ -78,9 +83,7 @@ test.describe('Wiki Document Ordering', () => {
 		expect(initialOrder).toEqual(['Q1', 'Q2', 'Q3', 'Q4', 'Q5']);
 
 		// Create a new folder Q6 via UI
-		const newGroupButton = page.locator('button[title="New Group"]');
-		await expect(newGroupButton).toBeVisible({ timeout: 5000 });
-		await newGroupButton.click();
+		await clickSidebarAddOption(page, 'New Group');
 
 		// Fill in the title
 		await page.getByLabel('Title').fill('Q6');
@@ -145,7 +148,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to the wiki space admin
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Wait for tree to load and get folder order from sidebar
@@ -245,7 +248,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Check admin view order
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 		await page.waitForSelector('aside >> text=Alpha', { timeout: 10000 });
 
@@ -338,7 +341,7 @@ test.describe('Wiki Document Ordering', () => {
 		}
 
 		// Navigate to admin view
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 		await page.waitForSelector('aside >> text=First', { timeout: 10000 });
 

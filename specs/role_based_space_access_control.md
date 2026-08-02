@@ -3,6 +3,8 @@
 Date: 2026-06-16
 Status: **Implemented & verified** on wiki.localhost (2026-06-16). See [Verification](#verification). The phase notes below have been reconciled to reflect the final implementation; deviations from the original plan are called out inline and summarized in [Implementation Notes (as-built)](#implementation-notes-as-built).
 
+> **Superseded (2026-08-01):** the `Guest`-role-on-`Wiki Space Role` public/anonymous access mechanism described below (Settled semantics, bullet 3) has been removed — see `owner_only_and_guest_lockout.md`. Guest never grants read access now, regardless of configured role rows. The rest of this document (Read/Write role tiers for logged-in users) is unaffected and still describes current behavior.
+
 ## Goal
 
 Let admins configure, **per Wiki Space, which roles get Read vs Write access**, enforced everywhere (Vue SPA, Desk, public `/wiki/...` portal) by leaning on Frappe's permission framework so we write as little code as possible.
@@ -170,7 +172,7 @@ Verified phase-by-phase on **wiki.localhost** via a temporary `bench execute` ha
 | `frontend/src/components/SpaceSettings/GeneralPanel.vue` *(new)* | Published / feedback switches + Update Routes / Clone actions |
 | `frontend/src/components/SpaceList.vue` | New spaces (published by default) seed `Guest`(Read) at creation (public; Guest covers anon + logged-in); admins refine in Permissions |
 | `wiki/wiki/doctype/wiki_space/patches/seed_space_roles_from_published.py` + `patches.txt` | Make existing empty spaces explicit from `is_published`: published → `Guest` Read (public), unpublished → `All` Read (logged-in only). `get_roles()` returns `Guest` for every user, so `Guest`=everyone and `All`=logged-in-only; matches the `backfill_space_access` convention. Skips already-configured spaces; managers bypass (no manager row). Empty-roles still = open-to-logged-in fallback |
-| `frontend/src/components/SpaceSettings/PermissionsPanel.vue` *(new)* | Access-control roles as a CRM/LMS-styled table; Access is an inline Read/Write Select (static Badge when read-only); add-role via an in-flow searchable picker (select → Add; rendered without teleport so it stays clickable inside the reka-ui modal); Save below the table, disabled until dirty; emits dirty state for the shell's "Unsaved changes" badge (`get_space_capabilities`/`update_space_roles`) |
+| `frontend/src/components/SpaceSettings/PermissionsPanel.vue` *(new)* | Access-control roles as a CRM/LMS-styled table; Access is an inline Read/Write Select (static Badge when read-only); add-role via a frappe-ui `Combobox` that searches the `Role` list server-side as you type (selecting adds the row straight to the table); Save below the table, disabled until dirty; emits dirty state for the shell's "Unsaved changes" badge (`get_space_capabilities`/`update_space_roles`) |
 | `frontend/src/components/WikiDocumentSettings.vue`, `WikiDocumentPanel.vue` | Remove page-level Private toggle + lock icon |
 | `wiki/frappe_wiki/doctype/wiki_document/search.py` | `_filter_hits_by_read_access` post-filter (Phase 7) |
 | `…/test_wiki_document.py`, `…/wiki_space/test_wiki_space.py` | Reconcile to new model: `roles=` helper kwarg, 404 (not PermissionError), drop `is_private` asserts |

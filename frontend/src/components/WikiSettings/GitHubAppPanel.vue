@@ -1,138 +1,136 @@
 <template>
-	<div class="flex flex-col gap-5">
+	<div class="flex flex-col gap-8">
 		<!-- Intro + one-click create — only while the App isn't configured yet. -->
-		<div
+		<SettingsRow
 			v-if="!isConfigured"
-			class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3"
+			:title="__('GitHub Sync')"
+			:description="
+				__('Configure a GitHub App so Wiki Spaces can sync from GitHub repositories, including private ones. Access tokens are minted on demand from the App private key — no per-space secrets are stored.')
+			"
 		>
-			<p class="text-sm font-medium text-ink-gray-9">{{ __('GitHub Sync') }}</p>
-			<p class="mt-0.5 text-xs text-ink-gray-5">
-				{{
-					__('Configure a GitHub App so Wiki Spaces can sync from GitHub repositories, including private ones. Access tokens are minted on demand from the App private key — no per-space secrets are stored.')
-				}}
-			</p>
-			<Button
-				class="mt-3"
-				variant="solid"
-				icon-left="github"
-				@click="createApp"
-			>
+			<Button variant="solid" icon-left="github" @click="createApp">
 				{{ __('Create GitHub App') }}
 			</Button>
-		</div>
+		</SettingsRow>
 
 		<!-- Manual configuration (non-secret Data fields) -->
-		<div class="flex flex-col gap-3">
-			<p class="text-sm font-medium text-ink-gray-9">
-				{{ __('App Configuration') }}
-			</p>
-			<FormControl v-model="appId" type="text" :label="__('App ID')" />
-			<FormControl
-				v-model="clientId"
-				type="text"
-				:label="__('Client ID')"
-			/>
-			<FormControl
-				v-model="publicLink"
-				type="text"
-				:label="__('App Public Link')"
-				:description="
-					__('Public installation link, e.g. https://github.com/apps/your-app/installations/new')
-				"
-			/>
-			<div class="flex items-center justify-end gap-2">
-				<Badge v-if="configDirty" theme="orange" size="sm">
-					{{ __('Unsaved changes') }}
-				</Badge>
-				<Button
-					variant="solid"
-					:loading="savingConfig"
-					:disabled="!configDirty"
-					@click="saveConfig"
-				>
-					{{ __('Save') }}
-				</Button>
+		<section>
+			<div class="flex flex-col gap-4">
+				<FormControl v-model="appId" type="text" :label="__('App ID')" />
+				<FormControl
+					v-model="clientId"
+					type="text"
+					:label="__('Client ID')"
+				/>
+				<FormControl
+					v-model="publicLink"
+					type="text"
+					:label="__('App Public Link')"
+					:description="
+						__('Public installation link, e.g. https://github.com/apps/your-app/installations/new')
+					"
+				/>
+				<div class="flex items-center justify-end gap-2">
+					<Badge v-if="configDirty" theme="orange" size="sm">
+						{{ __('Unsaved changes') }}
+					</Badge>
+					<Button
+						variant="solid"
+						:loading="savingConfig"
+						:disabled="!configDirty"
+						@click="saveConfig"
+					>
+						{{ __('Save') }}
+					</Button>
+				</div>
 			</div>
-		</div>
+		</section>
 
 		<!-- Secrets (write-only) -->
-		<div class="flex flex-col gap-3">
-			<p class="text-sm font-medium text-ink-gray-9">{{ __('Secrets') }}</p>
-			<p class="-mt-2 text-xs text-ink-gray-5">
+		<section>
+			<h3 class="text-base font-semibold text-ink-gray-8">
+				{{ __('Secrets') }}
+			</h3>
+			<p class="mt-1 text-base leading-5 text-ink-gray-6">
 				{{ __('Stored secrets are never shown. Leave a field blank to keep its current value.') }}
 			</p>
 
-			<div class="flex flex-col gap-1.5">
-				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
-						{{ __('Client Secret') }}
-					</label>
-					<Badge :theme="hasClientSecret ? 'green' : 'gray'" size="sm">
-						{{ hasClientSecret ? __('Configured') : __('Not set') }}
-					</Badge>
-				</div>
+			<div class="mt-4 flex flex-col gap-4">
 				<FormControl
 					v-model="clientSecret"
 					type="password"
 					:placeholder="hasClientSecret ? '••••••••' : __('Enter client secret')"
-				/>
-			</div>
+				>
+					<template #label>
+						<div class="flex items-center gap-2">
+							<span>{{ __('Client Secret') }}</span>
+							<Badge :theme="hasClientSecret ? 'green' : 'gray'" size="sm">
+								{{ hasClientSecret ? __('Configured') : __('Not set') }}
+							</Badge>
+						</div>
+					</template>
+				</FormControl>
 
-			<div class="flex flex-col gap-1.5">
-				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
-						{{ __('Webhook Secret') }}
-					</label>
-					<Badge :theme="hasWebhookSecret ? 'green' : 'gray'" size="sm">
-						{{ hasWebhookSecret ? __('Configured') : __('Not set') }}
-					</Badge>
-				</div>
 				<FormControl
 					v-model="webhookSecret"
 					type="password"
 					:placeholder="hasWebhookSecret ? '••••••••' : __('Enter webhook secret')"
-				/>
-			</div>
+				>
+					<template #label>
+						<div class="flex items-center gap-2">
+							<span>{{ __('Webhook Secret') }}</span>
+							<Badge :theme="hasWebhookSecret ? 'green' : 'gray'" size="sm">
+								{{ hasWebhookSecret ? __('Configured') : __('Not set') }}
+							</Badge>
+						</div>
+					</template>
+				</FormControl>
 
-			<div class="flex flex-col gap-1.5">
-				<div class="flex items-center gap-2">
-					<label class="text-sm font-medium text-ink-gray-9">
-						{{ __('Private Key') }}
-					</label>
-					<Badge :theme="hasPrivateKey ? 'green' : 'gray'" size="sm">
-						{{ hasPrivateKey ? __('Configured') : __('Not set') }}
-					</Badge>
-				</div>
-				<p class="text-xs text-ink-gray-5">
-					{{ __('PEM-encoded private key generated for the GitHub App') }}
-				</p>
-				<textarea
+				<Textarea
 					v-model="privateKey"
-					rows="5"
+					:rows="5"
 					spellcheck="false"
+					:description="__('PEM-encoded private key generated for the GitHub App')"
 					:placeholder="
 						hasPrivateKey ? __('Configured — paste a new key to replace') : __('Paste PEM private key')
 					"
-					class="w-full rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-3 font-mono text-xs text-ink-gray-9 focus:border-outline-gray-3 focus:outline-none"
-				/>
-			</div>
-
-			<div class="flex items-center justify-end">
-				<Button
-					variant="solid"
-					:loading="savingSecrets"
-					:disabled="!secretsDirty"
-					@click="saveSecrets"
+					class="[&_textarea]:font-mono"
 				>
-					{{ __('Save Secrets') }}
-				</Button>
+					<template #label>
+						<div class="flex items-center gap-2">
+							<span>{{ __('Private Key') }}</span>
+							<Badge :theme="hasPrivateKey ? 'green' : 'gray'" size="sm">
+								{{ hasPrivateKey ? __('Configured') : __('Not set') }}
+							</Badge>
+						</div>
+					</template>
+				</Textarea>
+
+				<div class="flex items-center justify-end">
+					<Button
+						variant="solid"
+						:loading="savingSecrets"
+						:disabled="!secretsDirty"
+						@click="saveSecrets"
+					>
+						{{ __('Save Secrets') }}
+					</Button>
+				</div>
 			</div>
-		</div>
+		</section>
 	</div>
 </template>
 
 <script setup>
-import { Badge, Button, FormControl, createResource, toast } from 'frappe-ui';
+import {
+	Badge,
+	Button,
+	FormControl,
+	SettingsRow,
+	Textarea,
+	createResource,
+	toast,
+} from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -207,7 +205,7 @@ const secretsDirty = computed(
 );
 
 function createApp() {
-	// Same-window so the manifest flow's redirect back to /wiki?github_app_created=1
+	// Same-window so the manifest flow's redirect back to /wiki-app?github_app_created=1
 	// re-opens this dialog on the GitHub tab (handled in MainLayout).
 	window.location.href = '/github/new_app';
 }

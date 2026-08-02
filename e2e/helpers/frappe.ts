@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 
 /**
  * Frappe API response wrapper.

@@ -1,25 +1,21 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": false,
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@helpers/*": ["helpers/*"],
-      "@pages/*": ["pages/*"]
-    }
-  },
-  "include": [
-    "**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"declaration": false,
+		"noEmit": true,
+		"baseUrl": ".",
+		"paths": {
+			"@helpers/*": ["helpers/*"],
+			"@pages/*": ["pages/*"]
+		}
+	},
+	"include": ["**/*.ts"],
+	"exclude": ["node_modules"]
 }

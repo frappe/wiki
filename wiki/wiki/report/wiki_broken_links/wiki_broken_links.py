@@ -52,7 +52,9 @@ def get_data(filters: dict | None = None) -> list[list]:
 
 	data = []
 
-	wiki_documents = frappe.db.get_all("Wiki Document", fields=["name", "content"])
+	doc_filters = {}
+	if filters and filters.get("published_only"):
+		doc_filters["is_published"] = 1
 
 	if filters and filters.get("wiki_space"):
 		wiki_space = filters.get("wiki_space")
@@ -61,15 +63,18 @@ def get_data(filters: dict | None = None) -> list[list]:
 			# Get all descendants of the root group
 			descendants = get_descendants_of("Wiki Document", space_doc.root_group, ignore_permissions=True)
 			if descendants:
+				doc_filters["name"] = ("in", descendants)
 				wiki_documents = frappe.db.get_all(
 					"Wiki Document",
 					fields=["name", "content"],
-					filters={"name": ("in", descendants)},
+					filters=doc_filters,
 				)
 			else:
 				wiki_documents = []
 		else:
 			wiki_documents = []
+	else:
+		wiki_documents = frappe.db.get_all("Wiki Document", fields=["name", "content"], filters=doc_filters)
 
 	include_images = filters and bool(filters.get("check_images"))
 	check_internal_links = filters and bool(filters.get("check_internal_links"))

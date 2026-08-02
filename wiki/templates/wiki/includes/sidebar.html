@@ -1,87 +1,76 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
-{% from "templates/wiki/macros/buttons.html" import ghost_button_full, icon_button, render_icon %}
+{% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-menu-bar)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-0 h-screen"
-    x-data="wikiSidebar()" :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
+{#- The sidebar starts below the full-width navbar and tab rows, so `top` and
+    height are offset by --wiki-chrome-h (set in layout.html). Its own logo
+    header moved into includes/header.html for the same reason: there is no
+    top-of-window strip left for it here. -#}
+{#- Keeps its right border: the current Frappe docs layout separates the tree
+    from the content with a hairline (`border-r` at the default outline-gray-1),
+    and without one a white sidebar on a white page has nothing to sit against.
+    The border width animates to 0 on collapse so no hairline is left behind. -#}
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
+     x-data="wikiSidebar()"
+     :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
-    <!-- Sidebar Header: Space Logo + Switcher -->
-    {% set has_switcher = wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
-    <div class="px-2 h-[53px] border-b border-[var(--outline-gray-1)] flex-shrink-0 flex items-center"
-        {% if has_switcher %}x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false"
-        {% endif %}>
-        {% if has_switcher %}
-        <button type="button" @click="spaceSwitcherOpen = !spaceSwitcherOpen"
-            @keydown.escape="spaceSwitcherOpen = false" aria-haspopup="menu" :aria-expanded="spaceSwitcherOpen"
-            class="flex h-12 w-full items-center rounded-md py-2 px-2 duration-300 ease-in-out"
-            :class="spaceSwitcherOpen ? 'bg-[var(--surface-white)] shadow-sm' : 'hover:bg-[var(--surface-gray-3)]'"
-            title="Switch wiki space">
-            {% if wiki_space.app_switcher_logo %}
-            <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}" />
-            {% endif %}
-            <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
-            </div>
-            <div class="ml-2">
-                <svg class="size-4 text-[var(--ink-gray-5)] transition-transform duration-200"
-                    :class="{ 'rotate-180': spaceSwitcherOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            </div>
-        </button>
+    {#- Only the active tab's subtree renders. Visibility is driven by Alpine
+        off $store.navigation.currentRoute rather than re-rendered, so SPA
+        navigation can't leave a stale tree behind — the same mechanism the
+        tree's own active-page highlight already uses. It works because a tab's
+        slug is always an ancestor segment of its pages' routes, so "is this
+        page in this tab" is a route-prefix test.
 
-        <!-- Dropdown Menu (fixed so it escapes sidebar's overflow-hidden) -->
-        <div x-show="spaceSwitcherOpen" x-cloak x-transition:enter="transition ease-out duration-100"
-            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100"
-            x-transition:leave-end="opacity-0 scale-95"
-            class="fixed top-[57px] left-2 w-[17rem] bg-[var(--surface-white)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
-            {% for space in wiki_spaces_for_switcher %}
-            <a href="/{{ space.route }}"
-                class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
-                <span class="truncate">{{ space.space_name or space.name }}</span>
-                {% if space.name == wiki_space.name %}
-                <svg class="w-4 h-4 text-[var(--ink-gray-9)] flex-shrink-0" fill="none" stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="flex h-12 w-full items-center py-2 px-2">
-            {% if wiki_space.app_switcher_logo %}
-            <img class="h-8 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}" />
-            {% endif %}
-            <div class="flex flex-1 flex-col text-left ml-2 truncate">
-                <div class="text-base font-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
+        The tab bar itself lives in includes/tabs.html, a full-width row above
+        this sidebar. -#}
+    {% set current_route = doc.route if doc else '' %}
+    {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
+    {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+
+    {#- Home leads the reader bar whenever there's at least one tab and untabbed
+        content to land on (see get_space_tabs). When it does, the untabbed subtree
+        becomes Home's own — shown only while no tab is active — instead of leaking
+        into every tab's sidebar. With no tabs there's no Home, so it renders
+        inline (the whole tree is untabbed anyway). -#}
+    {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
+    {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
+    {% set active = namespace(in_tab=false) %}
+    {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}
 
     <!-- Scrollable Navigation -->
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
-        {{ render_wiki_tree(nested_tree, current_route=doc.route if doc else '', expanded_nodes=expanded_nodes or set()) }}
+        {% for tab in tab_nodes %}
+        {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
+        <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
+            {{ render_wiki_tree(tab.children, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        </div>
+        {% endfor %}
+
+        {% if show_home %}
+        <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
+            {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        </div>
+        {% else %}
+        {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
+        {% endif %}
     </nav>
 </div>
 
 <!-- Sidebar Toggle Button (appears on hover at sidebar edge, always visible when collapsed) -->
 <div x-data="{ hovered: false }"
-    class="wiki-sidebar-toggle hidden lg:flex items-center fixed z-40 top-0 h-screen transition-[left] duration-300 ease-in-out"
-    :style="$store.sidebar.isCollapsed ? 'left: 0.5rem;' : 'left: calc(18rem - 0.25rem);'" @mouseenter="hovered = true"
-    @mouseleave="hovered = false">
+     class="wiki-sidebar-toggle hidden lg:flex items-center fixed z-40 top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))] transition-[left] duration-300 ease-in-out"
+     :style="$store.sidebar.isCollapsed ? 'left: 0.5rem;' : 'left: calc(18rem - 0.25rem);'"
+     @mouseenter="hovered = true"
+     @mouseleave="hovered = false">
     <!-- Hover zone -->
     <div class="w-8 h-full flex items-center justify-center">
         <button @click="$store.sidebar.toggle()"
             class="inline-flex items-center justify-center p-1 transition-all duration-200 cursor-pointer focus:outline-none"
             :class="$store.sidebar.isCollapsed ? 'opacity-100' : (hovered ? 'opacity-100 scale-100' : 'opacity-0 scale-75')">
             <svg class="w-4 h-4 text-[var(--ink-gray-4)] hover:text-[var(--ink-gray-6)] transition-colors duration-200"
-                :class="$store.sidebar.isCollapsed ? '' : 'rotate-180'" xmlns="http://www.w3.org/2000/svg" width="24"
-                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="m6 17 5-5-5-5" />
-                <path d="m13 17 5-5-5-5" />
+                 :class="$store.sidebar.isCollapsed ? '' : 'rotate-180'"
+                 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m6 17 5-5-5-5"/>
+                <path d="m13 17 5-5-5-5"/>
             </svg>
         </button>
     </div>
@@ -145,6 +134,25 @@
                 });
                 // Set initial state (preserve hash for TOC anchor links)
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
+            },
+
+            // Whether the current page lives under a tab. A tab's slug is
+            // always an ancestor segment of its pages' routes, so this is a
+            // prefix test — and because it reads currentRoute, both the tab
+            // bar's active state and the sidebar subtree react to SPA nav
+            // without anything being re-rendered.
+            inTab(route) {
+                if (!route) return false;
+                return this.currentRoute === route
+                    || this.currentRoute.startsWith(route + '/');
+            },
+
+            // The mirror of inTab for the Home tab: active when the current page
+            // sits under none of the real tabs. `routesStr` is a '|'-joined list
+            // of tab routes (wiki routes never contain '|').
+            notInAnyTab(routesStr) {
+                if (!routesStr) return true;
+                return !routesStr.split('|').some((route) => this.inTab(route));
             },
 
             async prefetch(route) {
@@ -287,13 +295,13 @@
 
                 if (!headings || headings.length === 0) {
                     tocContainer.innerHTML = '';
-                    tocContainer.classList.remove('w-56');
+                    tocContainer.classList.remove('w-[200px]');
                     tocContainer.classList.add('w-0', '!p-0');
                     return;
                 }
 
                 tocContainer.classList.remove('w-0', '!p-0');
-                tocContainer.classList.add('w-56');
+                tocContainer.classList.add('w-[200px]');
 
                 const escapeHtml = (str) => {
                     const div = document.createElement('div');
@@ -301,16 +309,20 @@
                     return div.innerHTML;
                 };
 
-                let html = '<nav class="sticky top-[77px] max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar"><div>';
-                html += '<h3 class="text-sm font-semibold text-[var(--ink-gray-9)] mb-3">On this page</h3>';
-                html += '<ul class="space-y-2">';
+                // Keep this markup identical to includes/toc.html — the two are
+                // the server-render / SPA-render halves of the same component.
+                let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>';
+                // Same rule as the Jinja half: h3s only indent when the page
+                // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
+                const hasH2 = headings.some(heading => heading.level === 2);
                 headings.forEach(heading => {
-                    const paddingLeft = (heading.level - 2) * 0.75;
                     const safeId = escapeHtml(heading.id);
                     const safeText = escapeHtml(heading.text);
-                    html += `<li><a href="#${safeId}" data-toc-link="${safeId}" style="padding-left: ${paddingLeft}rem" class="toc-link block text-sm transition-colors duration-200 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)]">${safeText}</a></li>`;
+                    const indent = heading.level >= 3 && hasH2 ? 'pl-7' : 'pl-4';
+                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-l border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
                 });
-                html += '</ul></div></nav>';
+                html += '</nav>';
                 tocContainer.innerHTML = html;
             },
 
@@ -321,39 +333,47 @@
                 let html = '';
 
                 if (prevDoc || nextDoc) {
-                    const justifyClass = prevDoc && nextDoc ? 'sm:justify-between' : (prevDoc ? 'sm:justify-start' : 'sm:justify-end');
-                    html = `<div class="flex flex-col sm:flex-row sm:items-stretch gap-4 ${justifyClass}">`;
+                    // Keep this markup identical to the prev/next block in
+                    // document.html — server-render / SPA-render halves of one UI.
+                    // route/title are editor-set free text, so every value going
+                    // into this innerHTML is escaped: `esc` for attribute/text
+                    // contexts, and JSON.stringify (then esc'd) for the route
+                    // interpolated into the Alpine JS expression — mirroring the
+                    // `| tojson` guard the Jinja half uses. Stored-XSS guard.
+                    const esc = (str) => String(str ?? '')
+                        .replaceAll('&', '&amp;')
+                        .replaceAll('<', '&lt;')
+                        .replaceAll('>', '&gt;')
+                        .replaceAll('"', '&quot;')
+                        .replaceAll("'", '&#39;');
+                    const jsRoute = (route) => esc(JSON.stringify(route));
+                    const navLinkClasses = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline";
+                    const arrowLeft = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>';
+                    const arrowRight = '<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>';
+                    html = '<div class="flex justify-between gap-5">';
 
                     if (prevDoc) {
                         html += `
-                            <a href="/${prevDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${prevDoc.route}')"
-                               @mouseenter="$store.navigation.prefetch('${prevDoc.route}')"
-                               class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden">
-                                <svg class="w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                                </svg>
-                                <div class="flex flex-col gap-1 min-w-0">
-                                    <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Previous Page</span>
-                                    <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate">${prevDoc.title}</span>
-                                </div>
+                            <a href="/${esc(prevDoc.route)}"
+                               @click.prevent="$store.navigation.navigateTo(${jsRoute(prevDoc.route)})"
+                               @mouseenter="$store.navigation.prefetch(${jsRoute(prevDoc.route)})"
+                               class="${navLinkClasses}">
+                                ${arrowLeft}
+                                <span class="truncate">${esc(prevDoc.title)}</span>
                             </a>`;
                     }
 
                     if (nextDoc) {
-                        const mlClass = !prevDoc ? 'sm:ml-auto' : '';
+                        // No margin utility for the lone-next case: the flex
+                        // container's justify-between leaves a single child at
+                        // the start, which is where it belongs.
                         html += `
-                            <a href="/${nextDoc.route}"
-                               @click.prevent="$store.navigation.navigateTo('${nextDoc.route}')"
-                               @mouseenter="$store.navigation.prefetch('${nextDoc.route}')"
-                               class="group sm:flex-1 flex items-center gap-3 p-3 rounded-lg border border-[var(--outline-gray-1)] hover:border-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-1)] transition-colors duration-200 no-underline sm:max-w-[50%] overflow-hidden ${mlClass}">
-                                <div class="flex flex-col gap-1 items-end min-w-0 ml-auto">
-                                    <span class="text-xs font-medium text-[var(--ink-gray-4)] uppercase tracking-wide">Next Page</span>
-                                    <span class="text-sm font-medium text-[var(--ink-gray-7)] group-hover:text-[var(--ink-gray-9)] transition-colors duration-200 sm:truncate text-right">${nextDoc.title}</span>
-                                </div>
-                                <svg class="w-5 h-5 text-[var(--ink-gray-4)] group-hover:text-[var(--ink-gray-6)] transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                </svg>
+                            <a href="/${esc(nextDoc.route)}"
+                               @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
+                               @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
+                               class="${navLinkClasses}">
+                                <span class="truncate">${esc(nextDoc.title)}</span>
+                                ${arrowRight}
                             </a>`;
                     }
 

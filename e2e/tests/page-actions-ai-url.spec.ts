@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
-import { publishChangeRequestFromReview } from '../helpers/wiki';
+import {
+	APP_BASE,
+	CHANGE_REQUEST_URL_RE,
+	spaceLinkSelector,
+} from '../helpers/routes';
+import {
+	clickSidebarAddOption,
+	publishChangeRequestFromReview,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -38,10 +46,10 @@ test.describe('Page actions – AI link URL', () => {
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
@@ -56,7 +64,7 @@ test.describe('Page actions – AI link URL', () => {
 		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await createFirstPage.click();
 		} else {
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 		}
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
@@ -92,7 +100,7 @@ test.describe('Page actions – AI link URL', () => {
 
 		// --- Create and fill the second page ---
 		const secondPageTitle = `ai-url-second-${Date.now()}`;
-		await page.locator('button[title="New Page"]').click();
+		await clickSidebarAddOption(page, 'New Page');
 		await page.getByLabel('Title').fill(secondPageTitle);
 		await page
 			.getByRole('dialog')
@@ -130,7 +138,7 @@ test.describe('Page actions – AI link URL', () => {
 		// --- Submit for review and publish both pages ---
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
 		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(/\/wiki\/change-requests\//, {
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
 			timeout: 10000,
 		});
 		await publishChangeRequestFromReview(page);

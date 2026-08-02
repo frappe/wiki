@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
+import { openNewPageDialog } from '../helpers/wiki';
 
 /**
  * Regression: the selection bubble menu must never render on top of the sticky
@@ -11,24 +13,15 @@ test.describe('Editor bubble menu placement', () => {
 		page: import('@playwright/test').Page,
 		pageTitle: string,
 	) {
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
-
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -62,8 +55,23 @@ test.describe('Editor bubble menu placement', () => {
 				window as unknown as { wikiEditor?: { chain: () => ChainStep } }
 			).wikiEditor;
 			if (!editor) return false;
-			editor.chain().focus().setContent('<p>first line text</p>').run();
+			// Filler paragraphs make the scroll container overflow so the first
+			// line can actually be scrolled up under the sticky toolbar — the
+			// page title block above the editor otherwise leaves room for the
+			// menu to render above the selection.
+			const filler = Array.from(
+				{ length: 40 },
+				(_, i) => `<p>filler ${i}</p>`,
+			).join('');
+			editor
+				.chain()
+				.focus()
+				.setContent(`<p>first line text</p>${filler}`)
+				.run();
 			editor.chain().focus().setTextSelection({ from: 1, to: 11 }).run();
+			document
+				.querySelector('.ProseMirror')
+				?.scrollIntoView({ block: 'start' });
 			return true;
 		});
 		expect(selected).toBe(true);

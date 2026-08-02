@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+{#- No scroll-smooth: anchor jumps land instantly, which reads better for docs. -#}
+<html lang="en" class="scroll-pt-20">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +13,13 @@
     {% include "templates/includes/meta_block.html" %}
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">
+    <link rel="alternate" type="text/markdown" href="{{ canonical_url }}.md">
     {% endif %}
     {% if breadcrumbs %}
     <script type="application/ld+json">{{ breadcrumbs | safe }}</script>
     {% endif %}
 
     <link rel="stylesheet" href="/assets/wiki/css/tailwind.css?v={{get_tailwindcss_hash()}}">
-    <link rel="stylesheet" href="/assets/wiki/css/hljs-github-light.css">
 
     <!-- Hide x-cloak elements until Alpine loads -->
     <style>
@@ -59,7 +60,13 @@
 
     {{ head_html or "" }}
 </head>
-<body class="min-h-screen antialiased bg-[var(--surface-white)] text-[var(--ink-gray-9)]">
+{#- `data-wiki-tabs` / `data-wiki-bare` drive --wiki-chrome-h (see main.css):
+    the height of the sticky chrome above the sidebar, which everything below it
+    offsets against. It's a CSS variable rather than an inline value because the
+    chrome is desktop-only — below `lg` the offset has to collapse to zero. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base"
+      {% if hide_chrome %}data-wiki-bare{% elif has_tabs %}data-wiki-tabs{% endif %}>
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 
@@ -67,18 +74,22 @@
     {% include "templates/wiki/includes/mobile_header.html" %}
     {% endif %}
 
-    <!-- Main flex container: sidebar (full height) + content column -->
-    <div class="flex min-h-screen">
+    {#- Chrome stacks top-down at full width — navbar, then tabs — so the
+        sidebar tree reads as nested inside the active tab rather than as its
+        sibling. -#}
+    {% if not hide_chrome %}
+    {% include "templates/wiki/includes/header.html" %}
+    {% include "templates/wiki/includes/tabs.html" %}
+    {% endif %}
+
+    <!-- Main flex container: sidebar + content column, both below the chrome -->
+    <div class="flex min-h-[calc(100vh-var(--wiki-chrome-h))]">
         {% if not hide_chrome %}
         {% include "templates/wiki/includes/sidebar.html" %}
         {% endif %}
 
-        <!-- Content column: desktop header + main + TOC -->
+        <!-- Content column: main + TOC -->
         <div class="flex-1 min-w-0 flex flex-col">
-            {% if not hide_chrome %}
-            {% include "templates/wiki/includes/header.html" %}
-            {% endif %}
-
             {% block content %}
             <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
                 {% block body %} {% endblock %}
@@ -89,12 +100,16 @@
     
     <!-- Image lightbox overlay -->
     <div id="image-viewer"
-         class="fixed inset-0 z-[9999] flex items-center justify-center cursor-zoom-out opacity-0 invisible transition-opacity duration-150 ease-in-out bg-[color-mix(in_srgb,var(--surface-white)_90%,transparent)]">
+         class="fixed inset-0 z-[9999] flex items-center justify-center cursor-zoom-out opacity-0 invisible transition-opacity duration-150 ease-in-out bg-[color-mix(in_srgb,var(--surface-base)_90%,transparent)]">
         <img id="image-viewer-img"
              class="min-w-[45rem] max-w-[60vw] max-h-[80vh] object-contain cursor-zoom-out max-[768px]:min-w-[100vw]" />
     </div>
 
-    {{ include_script("syntax_highlighting.bundle.js") }}
+    <!-- Wiki-owned highlight.js (highlight.js/lib/common — same language set as
+         the frappe-ui editor), so the public reader tokenises 1-1 with the
+         editor and the shared frappe-ui-code.css theme. Must load before
+         code-blocks.js, which calls window.hljs.highlightAll(). -->
+    <script src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
     <script src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
     <script src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
     <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>

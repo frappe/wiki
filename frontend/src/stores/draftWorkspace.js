@@ -19,7 +19,12 @@ import {
 	denormalizeNode,
 	normalizeNode,
 } from './draftWorkspace/treeModel';
-import { errorMessage, slugify } from './draftWorkspace/utils';
+import {
+	errorMessage,
+	restoredDraftBuffer,
+	slugify,
+	toPublished,
+} from './draftWorkspace/utils';
 
 // Local-first workspace store. Owns optimistic UI state for the active change
 // request. Sync flushes through the batched `apply_cr_operations` endpoint
@@ -253,7 +258,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				if (!docKey || content == null) return;
 				// Only restore for keys that still exist server-side. tmp_*
 				// orphans (lost creates) are out of scope for this v1.
-				if (resolver.isTempKey(docKey) || !treeModel.findNode(docKey)) return;
+				const node = treeModel.findNode(docKey);
+				if (resolver.isTempKey(docKey) || !node) return;
 
 				// Verify against the server copy before restoring. A persisted
 				// draft that matches the server has no real unsaved changes —
@@ -280,16 +286,16 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 				const page = pageBuffers.get(docKey);
 				if (!page) {
-					pageBuffers.setPage(docKey, {
+					pageBuffers.setPage(
 						docKey,
-						title: title || '',
-						route: '',
-						content: serverContent,
-						localContent: content,
-						isPublished: true,
-						saveStatus: 'idle',
-						error: null,
-					});
+						restoredDraftBuffer({
+							docKey,
+							title,
+							content: serverContent,
+							localContent: content,
+							node,
+						}),
+					);
 				} else {
 					page.localContent = content;
 					if (title) page.title = title;
@@ -345,7 +351,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (!localPage.title) localPage.title = result?.title || '';
 			localPage.route = result?.route || '';
 			localPage.content = result?.content || '';
-			localPage.isPublished = result?.is_published !== false;
+			localPage.isPublished = toPublished(result?.is_published);
 			return localPage;
 		}
 		return pageBuffers.setPage(docKey, {
@@ -354,7 +360,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			route: result?.route || '',
 			content: result?.content || '',
 			localContent: null,
-			isPublished: result?.is_published !== false,
+			isPublished: toPublished(result?.is_published),
 			saveStatus: 'idle',
 			error: null,
 		});
@@ -469,18 +475,26 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		externalUrl = null,
 		content = '',
 		isPublished = true,
+		isTab = false,
+		tabIcon = null,
+		route = null,
 	}) {
 		const effectiveParent = parentKey || treeModel.rootKey.value || null;
 		const tempKey = resolver.makeTempKey();
+		// The dialog hands us the author's route; without one (paste-as-page and
+		// other programmatic creates) fall back to guessing, as before.
+		const localRoute = route || slugify(title);
 		const localNode = {
 			docKey: tempKey,
 			serverDocKey: null,
 			documentName: null,
 			title,
-			route: slugify(title),
+			route: localRoute,
 			parentKey: effectiveParent,
 			orderIndex: null,
 			isGroup,
+			isTab,
+			tabIcon,
 			isPublished,
 			isExternalLink,
 			externalUrl,
@@ -495,7 +509,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			pageBuffers.setPage(tempKey, {
 				docKey: tempKey,
 				title,
-				route: slugify(title),
+				route: localRoute,
 				content,
 				isPublished,
 				saveStatus: 'idle',
@@ -511,6 +525,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			isExternalLink,
 			externalUrl,
 			content,
+			isTab,
+			tabIcon,
+			route,
 		});
 
 		const createPromise = syncCreateNode(tempKey, mutation);
@@ -555,6 +572,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							is_group: !!payload.isGroup,
 							is_external_link: !!payload.isExternalLink,
 							external_url: payload.externalUrl ?? null,
+							is_tab: !!payload.isTab,
+							tab_icon: payload.tabIcon ?? null,
+							route: payload.route ?? null,
 						},
 					]);
 					realKey = result?.temp_key_map?.[tempKey] || null;
@@ -574,6 +594,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						payload.isGroup,
 						payload.isExternalLink,
 						payload.externalUrl,
+						payload.isTab,
+						payload.tabIcon,
+						payload.route ?? null,
 					);
 					realKey = typeof result === 'string' ? result : result?.doc_key;
 					route = result?.route || null;
@@ -636,6 +659,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			node.isExternalLink = !!fields.is_external_link;
 		if (fields.external_url !== undefined)
 			node.externalUrl = fields.external_url;
+		// Without these two the change would round-trip to the server but the
+		// local node would keep its old value until the next reloadTree().
+		if (fields.is_tab !== undefined) node.isTab = !!fields.is_tab;
+		if (fields.tab_icon !== undefined) node.tabIcon = fields.tab_icon;
 		node.localStatus = 'pending_update';
 
 		const page = pageBuffers.get(docKey);
@@ -713,8 +740,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	// Apply a drag locally, then queue a debounced backend sync. The
-	// legacy view is rebuilt from `tree`, so mutating tree here is what
-	// makes the drag persist after vuedraggable's local splice.
+	// tree view rebuilds from `tree`, so mutating it here is what makes
+	// the drag persist.
 	function moveNode({ docKey, newParentKey, newIndex }) {
 		const node = treeModel.findNode(docKey);
 		if (!node) return;

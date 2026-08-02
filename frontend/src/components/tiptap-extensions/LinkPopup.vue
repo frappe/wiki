@@ -1,5 +1,5 @@
 <template>
-    <div class="p-2 w-72 flex items-center gap-2 bg-surface-white shadow-xl rounded-lg border border-outline-gray-2">
+    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-lg border border-outline-gray-2">
         <TextInput
             v-if="isEditing"
             ref="inputRef"
@@ -27,7 +27,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideCheck class="size-4" />
+                        <span class="lucide-check size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -36,7 +36,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideX class="size-4" />
+                        <span class="lucide-x size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -47,7 +47,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideCopy class="size-4" />
+                        <span class="lucide-copy size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -56,7 +56,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucidePencil class="size-4" />
+                        <span class="lucide-pencil size-4" aria-hidden="true" />
                     </template>
                 </Button>
                 <Button
@@ -65,7 +65,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <LucideLink2Off class="size-4" />
+                        <span class="lucide-link-2off size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -76,11 +76,6 @@
 <script setup>
 import { Button, TextInput, toast } from 'frappe-ui';
 import { nextTick, onMounted, ref, watch } from 'vue';
-import LucideCheck from '~icons/lucide/check';
-import LucideCopy from '~icons/lucide/copy';
-import LucideLink2Off from '~icons/lucide/link-2-off';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideX from '~icons/lucide/x';
 
 const props = defineProps({
 	href: {

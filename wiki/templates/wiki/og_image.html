@@ -1,0 +1,117 @@
+{#
+	Open Graph card, screenshotted at 1200x630 by wiki/api/og_image.py.
+
+	Self-contained on purpose: the Tailwind build is purged against reader
+	markup, lives behind a content-hashed filename and carries dark-mode
+	variables -- none of which a deterministic screenshot wants. So the colours
+	below are the *light-mode* frappe-ui design tokens, inlined under their real
+	token names and resolved from
+	frontend/node_modules/frappe-ui/tailwind/generated/{colors,typography}.json.
+	A drift test in test_wiki_document.py re-resolves them and fails if
+	frappe-ui moves a value. Bump TEMPLATE_VERSION whenever this file changes.
+
+	frappe.render_template does NOT autoescape: every interpolation here must
+	keep its `| e`, or a crafted page title becomes an SSRF vector.
+#}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+	/* The card's palette, not just the rules it currently applies:
+	   outline-gray-2 (a footer hairline) and surface-gray-2 (the space accent
+	   bar) are both design decisions that have been on and off, and keeping
+	   them declared keeps the drift test guarding their values. */
+	:root {
+		--ink-gray-9: #0f0f0f;      /* lightMode/gray/950 */
+		--ink-gray-7: #383838;      /* lightMode/gray/800 */
+		--ink-gray-5: #7c7c7c;      /* lightMode/gray/600 */
+		--outline-gray-2: #e2e2e2;  /* lightMode/gray/300 */
+		--surface-gray-2: #f3f3f3;  /* lightMode/gray/100 */
+		--surface-base: #ffffff;    /* neutral/white */
+		--font-weight-semibold: 600;
+		--font-weight-medium: 500;
+	}
+
+	@font-face {
+		font-family: "Inter";
+		font-weight: 100 900;
+		font-style: normal;
+		/* `block` rather than `swap`: the capture is a single frame, so a
+		   fallback-then-swap would be baked in permanently. */
+		font-display: block;
+		src: url("/assets/wiki/fonts/Inter.var.woff2") format("woff2");
+	}
+
+	* { box-sizing: border-box; }
+
+	body {
+		width: 1200px;
+		height: 630px;
+		margin: 0;
+		padding: 72px;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		background: var(--surface-base);
+		font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+		font-synthesis-weight: none;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	.logo {
+		/* Sized against the 1200x630 card, not a page header — anything under
+		   ~72px reads as an afterthought at feed scale. The generous max-width
+		   is for wordmark logos, which are wide rather than square; contain
+		   keeps those from being cropped or stretched. */
+		height: 132px;
+		width: auto;
+		max-width: 520px;
+		object-fit: contain;
+		object-position: left center;
+	}
+
+	.breadcrumb {
+		font-size: 32px;
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: 0.01em;
+		color: var(--ink-gray-5);
+		margin-bottom: 20px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.title {
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: 0em;
+		line-height: 1.15;
+		color: var(--ink-gray-9);
+		margin: 0;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		overflow: hidden;
+	}
+
+	.footer {
+		font-size: 28px;
+		font-weight: var(--font-weight-medium);
+		letter-spacing: 0.01em;
+		color: var(--ink-gray-7);
+	}
+</style>
+</head>
+<body>
+	<div class="header">
+		{% if logo_url %}<img class="logo" src="{{ logo_url | e }}" alt="">{% endif %}
+	</div>
+
+	<div class="main">
+		{% if breadcrumb_trail %}<div class="breadcrumb">{{ breadcrumb_trail | e }}</div>{% endif %}
+		<div class="title" style="font-size: {{ title_font_size | int }}px">{{ title | e }}</div>
+	</div>
+
+	<div class="footer">{{ space_name | e }}</div>
+</body>
+</html>

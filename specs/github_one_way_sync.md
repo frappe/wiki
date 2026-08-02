@@ -236,6 +236,22 @@ Today the engine stores this verbatim, so two things break: (1) the block **rend
 
 *Deviations / notes:* (1) Only the **leading** block is treated as front matter; a `---` later in the body is a thematic break (untouched). (2) A non-mapping leading block (e.g. `---\nplain text\n---`) is deliberately **not** stripped — it's ambiguous with a thematic break, and the safe default is to leave content visible. (3) Front-matter `title` applies in the **inference path only**; under `.wiki.json` nav the explicit nav title wins (body still stripped). (4) Ordering fields (`sidebar_position`/`weight`) and non-`title` fields are ignored (see *Deferred*). (5) Browser demo deferred (same as TB3 — needs a front-matter-bearing live repo); covered end-to-end by the sync-level unit test through the live tree.
 
+### TB10 — Reader-side Edit → GitHub [DONE]
+
+TB2 covered the space editor's three-dots menu, but the **public reader page** still sent its Edit button to `/wiki/spaces/{space}/page/{doc}` — a read-only editor for synced spaces, a dead end for contributors. For git-synced spaces the reader's Edit button should go **straight to GitHub's editor**, same URL as TB2.
+
+**Settled scope / decisions:**
+
+- `WikiDocument.get_edit_link()` returns the GitHub edit URL when the owning space is git-synced (built from `repo_full_name` + `branch` + `source_path`), else the wiki-editor URL unchanged. Both render paths (initial Jinja render and the `get_page_data` AJAX nav) flow through it, so one change covers both.
+- New backend helper `build_github_edit_url` in `git_sync.py` — Python twin of `frontend/src/lib/github.js`'s `buildGithubEditUrl` (empty for non-markdown `source_path`, i.e. folder-only groups).
+- `_can_show_edit`: for synced spaces the wiki-side contribution/role gate doesn't apply (GitHub handles fork-and-PR for anyone) — show Edit iff the page has an editable source file. Folder-only groups hide the button (the existing `show_edit=False` fallback makes Copy the primary action).
+- Template: button keeps its plain **"Edit"** label (clicking it lands on GitHub, which is signal enough) and opens in a new tab (`target="_blank" rel="noopener"`) via a new `edit_external` param on `page_actions_dropdown`.
+- Sidebar AJAX nav needs no JS change: group nodes only expand/collapse (never navigate), so client-side navigation only ever lands on leaves, which always carry a markdown `source_path` in synced spaces.
+
+*As built:* exactly the above — `build_github_edit_url` (`wiki/wiki/git_sync.py`), `get_edit_link`/`_get_github_edit_url`/`_can_show_edit` (`wiki_document.py`), `edit_external` wiring (`macros/buttons.html`, `document.html`). 3 unit tests in `TestEditLink` (normal space unchanged, synced leaf → exact GitHub URL + `can_edit`, synced folder-group → empty link + `can_edit` False); the two synced tests are temp-revert verified. Live-checked on `NagariaHussain/git-sync-test` (`/tes/...`): rendered page's Edit button → `https://github.com/NagariaHussain/git-sync-test/edit/main/docs/getting-started/installation.md` with `target="_blank"`, `get_page_data` returns the same `edit_link`, and a non-synced space still gets its wiki-editor link.
+
+*Deviations / notes:* (1) A landing-less group reached by direct URL shows Copy as primary (no Edit) — correct — but AJAX-navigating from it to a leaf won't conjure the Edit button until reload (pre-existing behavior of the nav script, previously unreachable; cosmetic, rare). (2) The button shows for anonymous readers too — same as the current contributions-default-on behavior, and GitHub's own auth/fork flow takes over.
+
 ## Verification (whole feature, after the bullets land)
 
 1. `bench build` after frontend edits (rebuild from `frontend/`).
@@ -272,3 +288,4 @@ The spec-loop's source of truth. Tick a bullet (`- [x]`) when it ships, with a o
 - [x] Polish pass: create dialog ("Synced from GitHub?", Docs folder defaults to `docs`); synced banner (repo name as title + "Synced from GitHub", no "read only"); silent guarded first-sync (no duplicate toasts); frappe-ui-styled task-list checkboxes; "GitHub Sync" settings tab; linkable commit SHA + "Sync in progress" status label. Front-matter `is_published`/`published`/`draft`, `slug` override, and ordering (`sidebar_position`/`nav_order`/`weight`/`order`) now honoured in the inference path; 5 unit tests (temp-revert verified).
 - [x] `.wiki.json` reshaped (Starlight-inspired): config moved inside the docs folder, `nav` → `sidebar`, `docs_dir` dropped. `sidebar` accepts bare `"path.md"`, `{label, page}`, `{label, items}`, and `{label?, autogenerate: {directory}}` (curated + inferred can be mixed); legacy single-key forms still parse. 11 unit + sync tests.
 - [x] TB9 — Strip YAML front matter before render + use its `title`: `strip_front_matter` + `_front_matter_title` in the engine; title precedence FM `title` → H1 → humanized filename (inference path); nav title stays authoritative; malformed/non-mapping/mid-body `---` left intact; 11 unit tests (7 temp-revert verified).
+- [x] TB10 — Reader-side Edit → GitHub: public page's Edit button links straight to GitHub's editor for synced spaces (new tab) via `get_edit_link`; folder-only groups hide it; 3 unit tests (2 temp-revert verified), live-checked on `NagariaHussain/git-sync-test`.

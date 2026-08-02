@@ -114,9 +114,10 @@ context.metatags = MetaTags(self.route, context).tags
 Out of scope (phase-2 backlog): sitemap.xml per space, TechArticle JSON-LD,
 space-level meta defaults (default og image / title suffix), auto-description
 from content excerpt, per-page robots field, folding legacy `head_html` into
-structured settings, generated OG-image endpoint (tailwindcss.com pattern:
-`og:image = /api/og?path=...` renders a branded card per page — checked
-2026-07-03; note Tailwind docs ship meta tags only, zero JSON-LD).
+structured settings.
+
+The generated OG-image endpoint moved out of this backlog and into its own
+spec: `specs/generated_meta_images.md`.
 
 ### Phase 5 — BreadcrumbList JSON-LD (added 2026-07-03)
 

@@ -1,100 +1,154 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<header
-  class="hidden lg:flex items-center gap-4 py-3 px-6 border-b border-[var(--outline-gray-1)] bg-[var(--surface-white)] sticky top-0 z-30 h-[53px]"
-  x-data>
-  {# Spacer to push everything to the right #}
-  <div class="flex-1"></div>
+{#- The bottom rule belongs to whichever row ends the chrome, so exactly one
+    hairline runs across the window and the sidebar's own border meets it
+    instead of starting in mid-air. With tabs that's the tab row (see
+    includes/tabs.html); without them it's this navbar. -#}
+{% set has_tabs = space_tabs and space_tabs|length %}
+<header class="hidden lg:flex items-center gap-3 py-3 px-6 bg-[var(--surface-base)] sticky top-0 z-30 h-[53px]{% if not has_tabs %} border-b border-[var(--outline-gray-1)]{% endif %}"
+        x-data>
+    {#- Space logo + switcher. Lives here rather than in the sidebar's own
+        header because the navbar now spans the full window: the sidebar starts
+        below the tab row, so it has no top-of-window strip to put a logo in.
+        Width matches the sidebar (w-72 minus this row's px-6) so the logo stays
+        visually aligned with the tree below it. -#}
+    {% set has_switcher = wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
+    <div class="flex-1 min-w-0 flex items-center"
+         {% if has_switcher %}x-data="{ spaceSwitcherOpen: false }" @click.outside="spaceSwitcherOpen = false"{% endif %}>
+        {% if has_switcher %}
+        <button type="button"
+                @click="spaceSwitcherOpen = !spaceSwitcherOpen"
+                @keydown.escape="spaceSwitcherOpen = false"
+                aria-haspopup="menu"
+                :aria-expanded="spaceSwitcherOpen"
+                class="flex h-8 max-w-[15rem] items-center rounded-md px-2 -ms-2 duration-300 ease-in-out cursor-pointer"
+                :class="spaceSwitcherOpen ? 'bg-[var(--surface-gray-3)]' : 'hover:bg-[var(--surface-gray-3)]'"
+                title="Switch wiki space">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <span class="ms-2 text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
+            <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevron-down", "ms-2  shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
+        </button>
 
-  {# Text navigation links (items without icons) #}
-  {% for item in navbar_items %}
-  {% if not item.icon %}
-  <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer"
-    class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
-    {{ item.label }}
-  </a>
-  {% endif %}
-  {% endfor %}
-
-  {% if wiki_space %}
-  <a href="/wiki/spaces/{{ wiki_space.name }}?new=page"
-    class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
-    Add Article
-  </a>
-
-  <a href="/wiki/spaces/{{ wiki_space.name }}?new=group"
-    class="px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
-    Add Group
-  </a>
-  {% endif %}
-
-  <a href="https://stevesbbs.com/anythingllm/login" target="_blank" rel="noopener noreferrer"
-    class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] ring-1 ring-inset ring-[var(--outline-gray-2)] rounded-full transition-colors duration-200 no-underline">
-    <svg xmlns=" http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 198 244"
-      style="flex-shrink:0; fill: currentColor;">
-      <path
-        d="M 96.5,-0.5 C 97.8333,-0.5 99.1667,-0.5 100.5,-0.5C 155.503,4.50447 187.836,34.1711 197.5,88.5C 197.5,94.8333 197.5,101.167 197.5,107.5C 195.942,121.992 191.442,135.659 184,148.5C 180.34,152.367 175.84,153.534 170.5,152C 166.87,148.95 165.703,145.117 167,140.5C 185.294,107.548 182.961,76.215 160,46.5C 129.583,15.8188 95.0831,10.3188 56.5,30C 24.2582,52.0442 12.4248,82.2108 21,120.5C 23.4514,127.404 26.4514,134.07 30,140.5C 30.9827,150.854 26.4827,154.687 16.5,152C 10.2935,144.088 5.79346,135.254 3,125.5C 1.74077,119.374 0.574099,113.374 -0.5,107.5C -0.5,101.167 -0.5,94.8333 -0.5,88.5C 4.65019,50.0572 24.9835,22.8905 60.5,7C 72.3108,2.8723 84.3108,0.3723 96.5,-0.5 Z M 83.5,84.5 C 84.339,85.6412 85.0057,86.9745 85.5,88.5C 84.277,89.6139 82.9437,89.7805 81.5,89C 82.5822,87.6703 83.2488,86.1703 83.5,84.5 Z" />
-      <path
-        d="M 76.5,56.5 C 81.1785,56.3342 85.8452,56.5008 90.5,57C 93.3807,58.2506 95.214,60.4173 96,63.5C 103,81.8333 110,100.167 117,118.5C 118.141,123.382 116.641,127.215 112.5,130C 109.036,130.817 105.702,130.483 102.5,129C 98.8407,122.846 95.8407,116.346 93.5,109.5C 86.9438,108.19 80.4438,108.19 74,109.5C 71.6439,116.077 68.8106,122.41 65.5,128.5C 51.9783,132.136 47.4783,127.136 52,113.5C 58.6107,97.2779 64.944,80.9445 71,64.5C 72.129,61.2064 73.9624,58.5397 76.5,56.5 Z M 83.5,84.5 C 83.2488,86.1703 82.5822,87.6703 81.5,89C 82.9437,89.7805 84.277,89.6139 85.5,88.5C 85.0057,86.9745 84.339,85.6412 83.5,84.5 Z" />
-      <path
-        d="M 133.5,56.5 C 138.535,55.5021 142.702,56.8354 146,60.5C 146.667,82.5 146.667,104.5 146,126.5C 142.604,130.203 138.437,131.369 133.5,130C 131.19,128.363 129.69,126.196 129,123.5C 128.333,103.5 128.333,83.5 129,63.5C 129.545,60.4732 131.045,58.1399 133.5,56.5 Z" />
-      <path
-        d="M 106.5,243.5 C 101.167,243.5 95.8333,243.5 90.5,243.5C 76.7614,241.858 67.2614,234.525 62,221.5C 60.5304,216.757 58.8637,212.091 57,207.5C 51.694,204.19 47.0273,200.19 43,195.5C 37.5258,185.091 34.5258,174.091 34,162.5C 34.4652,161.069 35.2986,159.903 36.5,159C 77.1072,157.351 117.774,157.017 158.5,158C 162.235,159.8 163.902,162.8 163.5,167C 161.551,179.528 156.885,190.861 149.5,201C 146.55,203.639 143.217,205.473 139.5,206.5C 137.61,215.338 134.444,223.671 130,231.5C 123.766,238.842 115.932,242.842 106.5,243.5 Z M 55.5,175.5 C 84.1667,175.5 112.833,175.5 141.5,175.5C 140.903,181.868 137.903,186.701 132.5,190C 121.213,191.109 109.88,191.609 98.5,191.5C 87.445,191.62 76.445,191.12 65.5,190C 59.3344,187.183 56.0011,182.349 55.5,175.5 Z M 77.5,210.5 C 91.3272,209.339 105.327,209.173 119.5,210C 116.946,221.277 109.946,226.11 98.5,224.5C 87.1995,226.031 80.1995,221.364 77.5,210.5 Z" />
-    </svg>
-    <!-- AnythingLLM -->
-  </a>
-
-  <button @click="$dispatch('open-search')"
-    class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--surface-gray-2)] ring-1 ring-inset ring-[var(--outline-gray-2)] hover:bg-[var(--surface-gray-3)] transition-colors duration-200 cursor-pointer">
-    {{ render_icon("search", "-ml-0.5 w-4 h-4 text-[var(--ink-gray-5)]") }}
-    <kbd class="text-xs/4 text-[var(--ink-gray-4)] font-sans"
-      x-text="navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'">⌘K</kbd>
-  </button>
-
-  {# Separator before toggle (only if there are text links) #}
-  {% set has_text_items = namespace(value=false) %}
-  {% for item in navbar_items %}
-  {% if not item.icon %}
-  {% set has_text_items.value = true %}
-  {% endif %}
-  {% endfor %}
-  {% if has_text_items.value %}
-  <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-  {% endif %}
-
-  {# Theme Toggle - Compact pill style #}
-  <button @click="$store.theme.toggle()" title="Toggle theme"
-    class="relative flex items-center w-12 h-6 p-0.5 bg-[var(--surface-gray-2)] rounded-full transition-colors duration-200 cursor-pointer">
-    <div
-      class="absolute flex items-center justify-center w-5 h-5 bg-[var(--surface-white)] rounded-full shadow-sm transition-all duration-300"
-      :class="$store.theme.isDark ? 'translate-x-6' : 'translate-x-0'">
-      <template x-if="$store.theme.isDark">
-        {{ render_icon("moon", "w-3 h-3 text-[var(--ink-gray-7)]") }}
-      </template>
-      <template x-if="!$store.theme.isDark">
-        {{ render_icon("sun", "w-3 h-3 text-[var(--ink-gray-7)]") }}
-      </template>
+        <div x-show="spaceSwitcherOpen"
+             x-cloak
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-75"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="fixed top-[57px] left-4 w-[17rem] bg-[var(--surface-base)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+            {% for space in wiki_spaces_for_switcher %}
+            <a href="/{{ space.route }}"
+               class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
+                <span class="truncate">{{ space.space_name or space.name }}</span>
+                {% if space.name == wiki_space.name %}
+                {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="flex max-w-[15rem] items-center">
+            {% if wiki_space.app_switcher_logo %}
+            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
+            {% endif %}
+            <span class="{% if wiki_space.app_switcher_logo %}ms-2 {% endif %}text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
+        </div>
+        {% endif %}
     </div>
-  </button>
 
-  {# Separator before icons (only if there are icon items) #}
-  {% set has_icon_items = namespace(value=false) %}
-  {% for item in navbar_items %}
-  {% if item.icon %}
-  {% set has_icon_items.value = true %}
-  {% endif %}
-  {% endfor %}
-  {% if has_icon_items.value %}
-  <div class="w-px h-5 bg-[var(--outline-gray-2)] mx-1"></div>
-  {% endif %}
+    {# Search — restyled as a field (frappe-ui docs Search), the primary
+       way to move around: search icon + placeholder + ⌘K hint #}
+    <div class="flex w-full max-w-md justify-center px-2">
+        <button @click="$dispatch('open-search')"
+                aria-label="Open search"
+                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                x-data="{ isMac: navigator.platform.includes('Mac') }">
+            <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
+                {{ render_icon("search", "shrink-0") }}
+            </span>
+            <span class="truncate text-start">Search documentation</span>
+            <span class="absolute inset-y-0 end-0 flex items-center gap-1 pe-2.5 text-xs text-[var(--ink-gray-5)]">
+                <template x-if="isMac">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"></path>
+                    </svg>
+                </template>
+                <template x-if="!isMac">
+                    <span>Ctrl</span>
+                </template>
+                K
+            </span>
+        </button>
+    </div>
 
-  {# Icon links (known services like GitHub, Discord) #}
-  {% for item in navbar_items %}
-  {% if item.icon %}
-  <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" title="{{ item.label }}"
-    class="p-1.5 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] transition-colors duration-200">
-    {{ render_icon(item.icon, "w-5 h-5") }}
-  </a>
-  {% endif %}
-  {% endfor %}
+    {# Right nav: text links, theme toggle, icon links (GitHub, Discord, …) #}
+    <nav class="flex-1 flex items-center justify-end gap-2 sm:gap-3">
+        {# Text navigation links (items without icons) #}
+        {% for item in navbar_items %}
+            {% if not item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+                {{ item.label }}
+            </a>
+            {% endif %}
+        {% endfor %}
+
+        {% if wiki_space %}
+        <a href="/wiki/spaces/{{ wiki_space.name }}?new=page"
+           class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+            Add Article
+        </a>
+        <a href="/wiki/spaces/{{ wiki_space.name }}?new=group"
+           class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+            Add Group
+        </a>
+        {% endif %}
+
+        {# AnythingLLM login link #}
+        <a href="https://stevesbbs.com/anythingllm/login" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] ring-1 ring-inset ring-[var(--outline-gray-2)] rounded-full transition-colors duration-200 no-underline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 198 244"
+                 style="flex-shrink:0; fill: currentColor;">
+                <path
+                    d="M 96.5,-0.5 C 97.8333,-0.5 99.1667,-0.5 100.5,-0.5C 155.503,4.50447 187.836,34.1711 197.5,88.5C 197.5,94.8333 197.5,101.167 197.5,107.5C 195.942,121.992 191.442,135.659 184,148.5C 180.34,152.367 175.84,153.534 170.5,152C 166.87,148.95 165.703,145.117 167,140.5C 185.294,107.548 182.961,76.215 160,46.5C 129.583,15.8188 95.0831,10.3188 56.5,30C 24.2582,52.0442 12.4248,82.2108 21,120.5C 23.4514,127.404 26.4514,134.07 30,140.5C 30.9827,150.854 26.4827,154.687 16.5,152C 10.2935,144.088 5.79346,135.254 3,125.5C 1.74077,119.374 0.574099,113.374 -0.5,107.5C -0.5,101.167 -0.5,94.8333 -0.5,88.5C 4.65019,50.0572 24.9835,22.8905 60.5,7C 72.3108,2.8723 84.3108,0.3723 96.5,-0.5 Z M 83.5,84.5 C 84.339,85.6412 85.0057,86.9745 85.5,88.5C 84.277,89.6139 82.9437,89.7805 81.5,89C 82.5822,87.6703 83.2488,86.1703 83.5,84.5 Z" />
+                <path
+                    d="M 76.5,56.5 C 81.1785,56.3342 85.8452,56.5008 90.5,57C 93.3807,58.2506 95.214,60.4173 96,63.5C 103,81.8333 110,100.167 117,118.5C 118.141,123.382 116.641,127.215 112.5,130C 109.036,130.817 105.702,130.483 102.5,129C 98.8407,122.846 95.8407,116.346 93.5,109.5C 86.9438,108.19 80.4438,108.19 74,109.5C 71.6439,116.077 68.8106,122.41 65.5,128.5C 51.9783,132.136 47.4783,127.136 52,113.5C 58.6107,97.2779 64.944,80.9445 71,64.5C 72.129,61.2064 73.9624,58.5397 76.5,56.5 Z M 83.5,84.5 C 83.2488,86.1703 82.5822,87.6703 81.5,89C 82.9437,89.7805 84.277,89.6139 85.5,88.5C 85.0057,86.9745 84.339,85.6412 83.5,84.5 Z" />
+                <path
+                    d="M 133.5,56.5 C 138.535,55.5021 142.702,56.8354 146,60.5C 146.667,82.5 146.667,104.5 146,126.5C 142.604,130.203 138.437,131.369 133.5,130C 131.19,128.363 129.69,126.196 129,123.5C 128.333,103.5 128.333,83.5 129,63.5C 129.545,60.4732 131.045,58.1399 133.5,56.5 Z" />
+                <path
+                    d="M 106.5,243.5 C 101.167,243.5 95.8333,243.5 90.5,243.5C 76.7614,241.858 67.2614,234.525 62,221.5C 60.5304,216.757 58.8637,212.091 57,207.5C 51.694,204.19 47.0273,200.19 43,195.5C 37.5258,185.091 34.5258,174.091 34,162.5C 34.4652,161.069 35.2986,159.903 36.5,159C 77.1072,157.351 117.774,157.017 158.5,158C 162.235,159.8 163.902,162.8 163.5,167C 161.551,179.528 156.885,190.861 149.5,201C 146.55,203.639 143.217,205.473 139.5,206.5C 137.61,215.338 134.444,223.671 130,231.5C 123.766,238.842 115.932,242.842 106.5,243.5 Z M 55.5,175.5 C 84.1667,175.5 112.833,175.5 141.5,175.5C 140.903,181.868 137.903,186.701 132.5,190C 121.213,191.109 109.88,191.609 98.5,191.5C 87.445,191.62 76.445,191.12 65.5,190C 59.3344,187.183 56.0011,182.349 55.5,175.5 Z M 77.5,210.5 C 91.3272,209.339 105.327,209.173 119.5,210C 116.946,221.277 109.946,226.11 98.5,224.5C 87.1995,226.031 80.1995,221.364 77.5,210.5 Z" />
+            </svg>
+            <!-- AnythingLLM -->
+        </a>
+
+        {# Theme toggle — ghost icon button (sun when dark / moon-star when light) #}
+        <button @click="$store.theme.toggle()"
+                aria-label="Toggle theme"
+                class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+            <template x-if="$store.theme.isDark">
+                {{ render_icon("sun", "shrink-0") }}
+            </template>
+            <template x-if="!$store.theme.isDark">
+                {{ render_icon("moon-star", "shrink-0") }}
+            </template>
+        </button>
+
+        {# Icon links (known services like GitHub, Discord) — ghost icon button style #}
+        {% for item in navbar_items %}
+            {% if item.icon %}
+            <a href="{{ item.url }}"
+               target="_blank" rel="noopener noreferrer"
+               title="{{ item.label }}"
+               aria-label="{{ item.label }}"
+               class="inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-8)] bg-transparent hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors">
+                {{ render_icon(item.icon, "shrink-0") }}
+            </a>
+            {% endif %}
+        {% endfor %}
+    </nav>
 </header>

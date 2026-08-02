@@ -8,10 +8,10 @@
  */
 
 import { Link } from '@tiptap/extension-link';
-import { Markdown } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Editor, EditorContent, NodeViewWrapper } from '@tiptap/vue-3';
-import { Button, Dialog, Dropdown, Input, TextInput } from 'frappe-ui';
+import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
+import { Markdown } from 'frappe-ui/editor';
 import {
 	computed,
 	nextTick,
@@ -20,15 +20,6 @@ import {
 	ref,
 	shallowRef,
 } from 'vue';
-import LucideCheck from '~icons/lucide/check';
-import LucideInfo from '~icons/lucide/info';
-import LucideLightbulb from '~icons/lucide/lightbulb';
-import LucideLink from '~icons/lucide/link';
-import LucideMoreHorizontal from '~icons/lucide/more-horizontal';
-import LucidePencil from '~icons/lucide/pencil';
-import LucideShieldAlert from '~icons/lucide/shield-alert';
-import LucideTriangleAlert from '~icons/lucide/triangle-alert';
-import LucideX from '~icons/lucide/x';
 
 const props = defineProps({
 	node: {
@@ -294,7 +285,7 @@ function changeType(newType) {
 const dropdownOptions = computed(() => [
 	{
 		label: 'Edit Title',
-		icon: LucidePencil,
+		icon: 'lucide-pencil',
 		onClick: openTitleDialog,
 	},
 	{
@@ -308,22 +299,22 @@ const dropdownOptions = computed(() => [
 		items: [
 			{
 				label: 'Note',
-				icon: LucideInfo,
+				icon: 'lucide-info',
 				onClick: () => changeType('note'),
 			},
 			{
 				label: 'Tip',
-				icon: LucideLightbulb,
+				icon: 'lucide-lightbulb',
 				onClick: () => changeType('tip'),
 			},
 			{
 				label: 'Caution',
-				icon: LucideTriangleAlert,
+				icon: 'lucide-triangle-alert',
 				onClick: () => changeType('caution'),
 			},
 			{
 				label: 'Danger',
-				icon: LucideShieldAlert,
+				icon: 'lucide-shield-alert',
 				onClick: () => changeType('danger'),
 			},
 		],
@@ -340,10 +331,10 @@ const dropdownOptions = computed(() => [
     >
         <div class="flex items-center gap-2">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
-            <span class="flex-1 font-medium text-sm leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
+            <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
             <Dropdown :options="dropdownOptions" placement="bottom-end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
-                    <LucideMoreHorizontal class="size-3.5" />
+                    <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
                 </Button>
             </Dropdown>
         </div>
@@ -373,7 +364,7 @@ const dropdownOptions = computed(() => [
                         :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('link') }"
                         title="Link"
                     >
-                        <LucideLink class="size-3.5" />
+                        <span class="lucide-link size-3.5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -390,10 +381,10 @@ const dropdownOptions = computed(() => [
                         @keydown.escape.stop="cancelLink"
                     />
                     <button @mousedown.prevent="confirmLink" class="toolbar-btn" title="Apply">
-                        <LucideCheck class="size-3.5" />
+                        <span class="lucide-check size-3.5" aria-hidden="true" />
                     </button>
                     <button @mousedown.prevent="cancelLink" class="toolbar-btn" title="Cancel">
-                        <LucideX class="size-3.5" />
+                        <span class="lucide-x size-3.5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -402,21 +393,21 @@ const dropdownOptions = computed(() => [
             </template>
             <div v-else class="callout-content-text text-ink-gray-7">
                 <span v-if="node.attrs.content" v-html="renderedContent"></span>
-                <span v-else class="text-gray-400">Double-click to edit...</span>
+                <span v-else class="text-ink-gray-4">Double-click to edit...</span>
             </div>
         </div>
 
         <!-- Title Edit Dialog -->
-        <Dialog v-model="showTitleDialog" :options="{ title: 'Edit Callout Title' }">
-            <template #body-content>
+        <Dialog v-model:open="showTitleDialog" title="Edit Callout Title">
+            <template #default>
                 <div class="space-y-4">
-                    <Input
+                    <TextInput
                         v-model="editingTitle"
                         label="Title"
                         placeholder="Leave empty for default title"
                         @keydown.enter="saveTitle"
                     />
-                    <p class="text-sm text-gray-500">
+                    <p class="text-sm text-ink-gray-5">
                         Default title: {{ defaultTitles[normalizedType] }}
                     </p>
                 </div>
@@ -461,7 +452,7 @@ const dropdownOptions = computed(() => [
     padding: 0.375rem 0.5rem;
     border: 1px solid var(--outline-gray-2, #e5e7eb);
     border-radius: 0.375rem;
-    background-color: var(--surface-white, #ffffff);
+    background-color: var(--surface-base, #ffffff);
     min-height: 2.5rem;
     color: var(--ink-gray-7, #4b5563);
 }
@@ -476,7 +467,7 @@ const dropdownOptions = computed(() => [
 }
 
 .callout-block-wrapper :deep(.callout-sub-editor-content a) {
-    color: var(--ink-blue-3, #2563eb);
+    color: var(--ink-blue-6, #2563eb);
     text-decoration: underline;
 }
 
@@ -485,27 +476,27 @@ const dropdownOptions = computed(() => [
     background-color: var(--surface-blue-2, #dbeafe);
 }
 .callout-note .callout-icon {
-    color: var(--ink-blue-3, #2563eb);
+    color: var(--ink-blue-6, #2563eb);
 }
 
 .callout-tip {
     background-color: var(--surface-green-2, #dcfce7);
 }
 .callout-tip .callout-icon {
-    color: var(--ink-green-3, #16a34a);
+    color: var(--ink-green-6, #16a34a);
 }
 
 .callout-caution {
     background-color: var(--surface-amber-2, #fef3c7);
 }
 .callout-caution .callout-icon {
-    color: var(--ink-amber-3, #d97706);
+    color: var(--ink-amber-6, #d97706);
 }
 
 .callout-danger {
     background-color: var(--surface-red-2, #fecaca);
 }
 .callout-danger .callout-icon {
-    color: var(--ink-red-3, #dc2626);
+    color: var(--ink-red-6, #dc2626);
 }
 </style>

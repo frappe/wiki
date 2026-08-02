@@ -1,136 +1,134 @@
 <template>
 	<div class="h-full flex flex-col">
+		<DefineActions>
+			<Button
+				v-if="wikiDoc.doc?.is_published"
+				variant="ghost"
+				@click="openPage"
+			>
+				<template #prefix>
+					<span class="lucide-external-link size-4" aria-hidden="true" />
+				</template>
+				{{ __('View Page') }}
+			</Button>
+			<Button
+				v-if="!readonly"
+				:variant="canPublish ? 'outline' : 'solid'"
+				:loading="isSaving"
+				:title="isMac ? '⌘S' : 'Ctrl+S'"
+				@click="saveFromHeader"
+			>
+				{{ __('Save') }}
+			</Button>
+			<Button
+				v-if="!readonly && canPublish"
+				variant="solid"
+				:loading="isPublishing || crStore.isMerging"
+				:title="__('Save and publish straight to the live page')"
+				@click="publishFromHeader"
+			>
+				{{ __('Publish') }}
+			</Button>
+			<Dropdown :options="menuOptions">
+				<Button variant="ghost" :title="__('More actions')">
+					<span class="lucide-more-vertical size-4" aria-hidden="true" />
+				</Button>
+			</Dropdown>
+		</DefineActions>
+
+		<!-- Page actions live in the space's tab row (SpaceDetails). `defer` lets
+		     that target mount first when tabs load async. -->
+		<Teleport defer to="#wiki-page-actions">
+			<ReuseActions />
+		</Teleport>
+
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex items-center justify-between p-6 pb-4 bg-surface-white shrink-0 border-b-2 border-b-gray-500/20">
-				<div class="flex items-center gap-2 min-w-0 flex-1">
-					<div class="flex flex-col gap-1 min-w-0 flex-1">
-						<div class="flex items-center gap-2">
-							<input
-								type="text"
-								v-model="editableTitle"
-								:readonly="readonly"
-								class="text-2xl font-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full focus:ring-0 p-0 placeholder:text-ink-gray-4"
-								:placeholder="__('Page title')"
-								@blur="saveTitleIfChanged"
-								@keydown.enter="$event.target.blur()"
-							/>
-						</div>
-						<div
-							v-if="readonly"
-							class="flex items-center gap-1 text-sm text-ink-gray-5"
-						>
-							<span class="font-mono truncate">/{{ displayRoute }}</span>
-						</div>
-						<div
-							v-else
-							class="flex items-center gap-1 text-sm text-ink-gray-5 cursor-pointer hover:text-ink-gray-7 group/route"
-							@click="openRouteDialog"
-						>
-							<span class="font-mono truncate">/{{ displayRoute }}</span>
-							<LucidePencil class="size-3 shrink-0 opacity-0 group-hover/route:opacity-100" />
-						</div>
-						<div class="flex items-center gap-2 mt-1">
-							<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-								{{ __('Published') }}
-							</Badge>
-							<Badge v-else variant="subtle" theme="orange" size="sm">
-								{{ __('Not Published') }}
-							</Badge>
-							<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-								{{ __('Has Draft Changes') }}
-							</Badge>
-						</div>
-					</div>
-				</div>
+			<div class="flex-1 overflow-auto pb-10">
+				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<template #title>
+						<div class="pt-8">
+							<div class="flex items-start gap-3">
+								<input
+									type="text"
+									v-model="editableTitle"
+									:readonly="readonly"
+									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									:placeholder="__('Page title')"
+									@blur="saveTitleIfChanged"
+									@keydown.enter="$event.target.blur()"
+								/>
+								<div class="flex shrink-0 items-center gap-2 pt-2">
+									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+										{{ __('Published') }}
+									</Badge>
+									<Badge v-else variant="subtle" theme="orange" size="sm">
+										{{ __('Not Published') }}
+									</Badge>
+									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+										{{ __('Has Draft Changes') }}
+									</Badge>
+									<Badge v-if="userStore.isAdmin && wikiDoc.doc?.owner_only" variant="subtle" theme="red" size="sm">
+										{{ __('Owner Only') }}
+									</Badge>
+								</div>
+							</div>
 
-				<div class="flex items-center gap-2">
-					<Button
-						v-if="wikiDoc.doc?.is_published"
-						variant="outline"
-						@click="openPage"
-					>
-						<template #prefix>
-							<LucideExternalLink class="size-4" />
-						</template>
-						{{ __('View Page') }}
-					</Button>
-					<Button
-						v-if="!readonly"
-						:variant="canPublish ? 'outline' : 'solid'"
-						:loading="isSaving"
-						@click="saveFromHeader"
-					>
-						<span class="flex items-center gap-2">
-							{{ __('Save') }}
-							<kbd class="inline-flex items-center gap-1 rounded bg-white/25 px-1.5 py-0.5 text-[11px] font-medium opacity-80">
-								<span class="text-sm">{{ isMac ? '⌘' : 'Ctrl+' }}</span><span>S</span>
-							</kbd>
-						</span>
-					</Button>
-					<Button
-						v-if="!readonly && canPublish"
-						variant="solid"
-						:loading="isPublishing || crStore.isMerging"
-						:title="__('Save and publish straight to the live page')"
-						@click="publishFromHeader"
-					>
-						{{ __('Publish') }}
-					</Button>
-					<Dropdown :options="menuOptions">
-						<Button variant="outline" :title="__('More actions')">
-							<LucideMoreVertical class="size-4" />
-						</Button>
-					</Dropdown>
-				</div>
-			</div>
-
-			<div class="flex-1 overflow-auto px-6 pb-6 mt-4">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady" />
+							<!-- Route under the title; click-to-edit unless read-only. -->
+							<div
+								class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
+								:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
+								@click="readonly ? null : openRouteDialog()"
+							>
+								<span class="font-mono truncate">/{{ displayRoute }}</span>
+								<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
+							</div>
+						</div>
+					</template>
+				</WikiEditor>
 				<!-- Editor body skeleton while the CR page overlay loads -->
-				<div v-else class="space-y-4 animate-pulse">
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-					<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-					<div class="h-4 w-full rounded bg-surface-gray-3" />
-					<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+				<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
+					<Skeleton class="h-4 w-3/4 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-5/6 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-2/3 rounded" />
+					<Skeleton class="h-4 w-full rounded mt-6" />
+					<Skeleton class="h-4 w-4/5 rounded" />
+					<Skeleton class="h-4 w-full rounded" />
+					<Skeleton class="h-4 w-3/4 rounded" />
 				</div>
 			</div>
 		</div>
 
 		<!-- Content skeleton -->
-		<div v-else class="h-full flex flex-col animate-pulse">
-			<div class="flex items-center justify-between p-6 pb-4 shrink-0 border-b-2 border-b-gray-500/20">
+		<div v-else class="h-full flex flex-col">
+			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
+				<Skeleton class="h-4 w-40 rounded" />
 				<div class="flex items-center gap-2">
-					<div class="h-7 w-48 rounded bg-surface-gray-3" />
-					<div class="h-5 w-16 rounded-full bg-surface-gray-3" />
-				</div>
-				<div class="flex items-center gap-2">
-					<div class="h-8 w-24 rounded bg-surface-gray-3" />
-					<div class="h-8 w-28 rounded bg-surface-gray-3" />
-					<div class="size-8 rounded bg-surface-gray-3" />
+					<Skeleton class="h-8 w-24 rounded" />
+					<Skeleton class="h-8 w-16 rounded" />
+					<Skeleton class="size-8 rounded" />
 				</div>
 			</div>
-			<div class="flex-1 px-6 pb-6 mt-4 space-y-4">
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-5/6 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-2/3 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3 mt-6" />
-				<div class="h-4 w-4/5 rounded bg-surface-gray-3" />
-				<div class="h-4 w-full rounded bg-surface-gray-3" />
-				<div class="h-4 w-3/4 rounded bg-surface-gray-3" />
+			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
+				<Skeleton class="h-8 w-64 rounded" />
+				<Skeleton class="h-5 w-24 rounded-full" />
+				<Skeleton class="h-4 w-3/4 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-5/6 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-2/3 rounded" />
+				<Skeleton class="h-4 w-full rounded mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded" />
+				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-3/4 rounded" />
 			</div>
 		</div>
-		<Dialog v-model="showRouteDialog" :options="{ size: 'sm' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
+		<Dialog v-model:open="showRouteDialog" size="sm">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<FormControl
 					v-model="editableRoute"
 					:label="__('Route')"
@@ -163,19 +161,20 @@ import {
 	Dialog,
 	Dropdown,
 	FormControl,
+	Skeleton,
 	createDocumentResource,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
+import { createReusableTemplate } from '@vueuse/core';
 import { computed, ref, shallowRef, watch } from 'vue';
-import LucideExternalLink from '~icons/lucide/external-link';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
-import LucidePencil from '~icons/lucide/pencil';
 import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+const [DefineActions, ReuseActions] = createReusableTemplate();
 
 const props = defineProps({
 	pageId: {

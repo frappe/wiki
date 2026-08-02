@@ -1,20 +1,33 @@
 # Copyright (c) 2025, Frappe and Contributors
 # See license.txt
 
+import functools
+import glob
 import json
+import os
 import re
+import typing
 import unittest
 from threading import Thread
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import quote, urlparse
+from xml.etree import ElementTree
 
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	APP_ROUTE,
+	WIKI_CONTENT_CACHE_KEY,
 	WikiDocumentRenderer,
+	clear_wiki_content_cache,
+	clear_wiki_tree_cache,
 	download_pdf,
+	get_public_wiki_tree,
+	get_rendered_content,
+	get_space_tabs,
 	process_navbar_items,
 )
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -38,6 +51,7 @@ def create_test_wiki_document(test_case, title, **kwargs):
 		"slug": kwargs.get("slug"),
 		"is_external_link": kwargs.get("is_external_link", False),
 		"external_url": kwargs.get("external_url"),
+		"source_path": kwargs.get("source_path"),
 		"content": kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
 	}
 	doc = frappe.get_doc(fields)
@@ -56,6 +70,9 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 		"show_in_switcher": kwargs.get("show_in_switcher", True),
 		"is_published": kwargs.get("is_published", True),
 		"switcher_order": kwargs.get("switcher_order", 0),
+		"git_synced": kwargs.get("git_synced", False),
+		"repo_full_name": kwargs.get("repo_full_name"),
+		"branch": kwargs.get("branch"),
 	}
 	doc = frappe.get_doc(fields)
 	for role, level in kwargs.get("roles", []):
@@ -355,6 +372,64 @@ class TestGetWebContext(WikiDocumentTestBase):
 		self.assertEqual(filtered_spaces, expected_order)
 
 
+class TestEditLink(WikiDocumentTestBase):
+	"""get_edit_link: wiki editor for normal spaces, GitHub editor for synced ones."""
+
+	def test_normal_space_links_to_wiki_editor(self):
+		root_group = create_test_wiki_document(self, "Edit Link Root", is_group=True)
+		doc = create_test_wiki_document(self, "Editable Page", parent=root_group.name)
+		space = create_test_wiki_space(self, "Edit Link Space", "edit-link-space", root_group.name)
+
+		doc.reload()
+		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}")
+
+	def test_synced_space_links_to_github_editor(self):
+		root_group = create_test_wiki_document(self, "Synced Edit Root", is_group=True)
+		doc = create_test_wiki_document(
+			self, "Synced Page", parent=root_group.name, source_path="docs/getting-started.md"
+		)
+		create_test_wiki_space(
+			self,
+			"Synced Edit Space",
+			"synced-edit-space",
+			root_group.name,
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+
+		doc.reload()
+		self.assertEqual(
+			doc.get_edit_link(),
+			"https://github.com/acme/docs/edit/main/docs/getting-started.md",
+		)
+		context = doc.get_web_context()
+		self.assertTrue(context["can_edit"])
+		self.assertEqual(
+			context["edit_link"], "https://github.com/acme/docs/edit/main/docs/getting-started.md"
+		)
+
+	def test_synced_folder_group_has_no_edit_link(self):
+		root_group = create_test_wiki_document(self, "Synced Folder Root", is_group=True)
+		group = create_test_wiki_document(
+			self, "Folder Group", parent=root_group.name, is_group=True, source_path="docs/guides"
+		)
+		create_test_wiki_space(
+			self,
+			"Synced Folder Space",
+			"synced-folder-space",
+			root_group.name,
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+
+		group.reload()
+		self.assertEqual(group.get_edit_link(), "")
+		context = group.get_web_context()
+		self.assertFalse(context["can_edit"])
+
+
 class TestGetWebContextMetaTags(WikiDocumentTestBase):
 	"""
 	Unit tests for the metatags/canonical_url emission in get_web_context().
@@ -387,7 +462,11 @@ class TestGetWebContextMetaTags(WikiDocumentTestBase):
 		self.assertEqual(context["canonical_url"], frappe.utils.get_url("/" + doc.route))
 
 	def test_metatags_fall_back_to_title_when_meta_fields_unset(self):
-		"""With no meta_title/description/image, metatags should fall back sensibly."""
+		"""With no meta_title/description, metatags should fall back sensibly.
+
+		og:image is the one field with a generated fallback, so it is asserted
+		with the cards turned off; TestOGImageMetaTags covers the on case.
+		"""
 		root_group = create_test_wiki_document(self, "Root Meta Fallback Group", is_group=True)
 		doc = create_test_wiki_document(
 			self, "Fallback Meta Doc", parent=root_group.name, slug="fallback-meta-doc"
@@ -395,7 +474,8 @@ class TestGetWebContextMetaTags(WikiDocumentTestBase):
 		create_test_wiki_space(self, "Fallback Meta Space", "fallback-meta-space", root_group.name)
 
 		doc.reload()
-		context = doc.get_web_context()
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			context = doc.get_web_context()
 		metatags = context["metatags"]
 
 		self.assertEqual(metatags["title"], "Fallback Meta Doc")
@@ -452,7 +532,7 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertRegex(html, r'property="og:title"\s*content="Rendered Meta Title"')
 		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
 
-	def test_rendered_head_omits_image_tags_when_no_meta_image(self):
+	def test_rendered_head_uses_generated_og_image_when_no_meta_image(self):
 		route = self._unique("meta-render-fallback")
 		space = create_test_wiki_space(
 			self, "Meta Render Fallback Space", route, None, roles=[("Guest", "Read")]
@@ -475,9 +555,37 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		html = response.get_data(as_text=True)
 
+		self.assertRegex(html, r'name="twitter:card"\s*content="summary_large_image"')
+		self.assertIn("wiki.api.og_image.og_image", html)
+		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
+
+	def test_rendered_head_omits_image_tags_when_cards_are_disabled(self):
+		"""With the Wiki Settings toggle off the emitted head is what it was
+		before generated cards existed."""
+		route = self._unique("meta-render-nocard")
+		space = create_test_wiki_space(
+			self, "Meta Render No Card Space", route, None, roles=[("Guest", "Read")]
+		)
+		doc = create_test_wiki_document(
+			self,
+			"Meta Render No Card Doc",
+			parent=space.root_group,
+			slug=self._unique("meta-render-nocard-doc"),
+		)
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}, commit=True):
+			response = _make_request(
+				self.TEST_CLIENT,
+				"get",
+				f"/{doc.route}",
+				headers={"Accept": "text/html"},
+			)
+
+		self.assertEqual(response.status_code, 200)
+		html = response.get_data(as_text=True)
+
 		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
 		self.assertNotIn('property="og:image"', html)
-		self.assertRegex(html, rf'<link rel="canonical" href="[^"]*/{doc.route}">')
 
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
@@ -1387,6 +1495,37 @@ class TestExternalLinkExclusions(WikiDocumentTestBase):
 		renderer = WikiDocumentRenderer(path=normal_page.route)
 		self.assertTrue(renderer.can_render())
 
+	def test_renderer_refuses_the_app_route(self):
+		"""The editor SPA owns /wiki-app, even against a space that claims the same route."""
+		root_group = create_test_wiki_document(self, "Root AppRoute", is_group=True)
+		create_test_wiki_space(self, "AppRoute Space", APP_ROUTE, root_group.name)
+		page = create_test_wiki_document(
+			self,
+			"App Route Page",
+			parent=root_group.name,
+			slug="app-route-page",
+		)
+
+		self.assertEqual(page.route, f"{APP_ROUTE}/app-route-page")
+		for path in (APP_ROUTE, page.route):
+			with self.subTest(path=path):
+				self.assertFalse(WikiDocumentRenderer(path=path).can_render())
+
+	def test_renderer_serves_a_space_at_the_wiki_route(self):
+		"""`wiki` is a user route now, not the app's -- the reader must serve it."""
+		root_group = create_test_wiki_document(self, "Root WikiRoute", is_group=True)
+		# Space first: a document's route is built from its space at insert time.
+		create_test_wiki_space(self, "WikiRoute Space", "wiki", root_group.name)
+		page = create_test_wiki_document(
+			self,
+			"Wiki Route Page",
+			parent=root_group.name,
+			slug="wiki-route-page",
+		)
+
+		self.assertEqual(page.route, "wiki/wiki-route-page")
+		self.assertTrue(WikiDocumentRenderer(path=page.route).can_render())
+
 	def test_get_page_data_raises_for_external_link(self):
 		"""Test that get_page_data() raises DoesNotExistError for external links."""
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_page_data
@@ -1483,7 +1622,7 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		frappe.set_user("Administrator")
 		super().tearDown()
 
-	def test_download_pdf_returns_pdf_for_published_public_page(self):
+	def test_download_pdf_returns_pdf_for_logged_in_user(self):
 		root_group = create_test_wiki_document(self, "Root PDF Public", is_group=True)
 		page = create_test_wiki_document(
 			self,
@@ -1492,16 +1631,10 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 			content="# Public Page\n\nThis page should download.",
 			slug="downloadable-page",
 		)
-		# Public space: the Guest role grants anonymous read access.
-		create_test_wiki_space(
-			self,
-			"PDF Public Space",
-			"pdf-public-space",
-			root_group.name,
-			roles=[("Guest", "Read")],
-		)
+		# Open space: readable by any logged-in user (Guest is never granted access,
+		# regardless of role configuration -- see test_download_pdf_denies_guest_entirely).
+		create_test_wiki_space(self, "PDF Public Space", "pdf-public-space", root_group.name)
 
-		frappe.set_user("Guest")
 		frappe.local.response = frappe._dict()
 
 		with patch(
@@ -1516,6 +1649,29 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertEqual(frappe.local.response.content_type, "application/pdf")
 		self.assertEqual(frappe.local.response.filecontent, b"%PDF-test%")
 		self.assertEqual(frappe.local.response.filename, "downloadable-page.pdf")
+
+	def test_download_pdf_denies_guest_entirely(self):
+		# Guest is rejected regardless of the space's role configuration -- the
+		# public-Guest-role capability has been removed (see wiki/permissions.py).
+		root_group = create_test_wiki_document(self, "Root PDF Guest Denied", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Guest Denied Page",
+			parent=root_group.name,
+			slug="guest-denied-page",
+		)
+		create_test_wiki_space(
+			self,
+			"PDF Guest Denied Space",
+			"pdf-guest-denied-space",
+			root_group.name,
+			roles=[("Guest", "Read")],
+		)
+
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.DoesNotExistError):
+			download_pdf(route=page.route)
 
 	def test_download_pdf_blocks_private_page_for_guest(self):
 		# A space with no role rows is open to logged-in users only; an anonymous
@@ -1548,6 +1704,11 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		page.before_print()
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
+
+
+def _sitemap_routes(xml: str) -> set:
+	"""Routes listed in a sitemap, without the host it was served under."""
+	return {urlparse(loc).path.lstrip("/") for loc in re.findall(r"<loc>([^<]+)</loc>", xml)}
 
 
 def _make_request(test_client, method, path, **kwargs):
@@ -1600,7 +1761,12 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
-		self.assertEqual(response.get_data(as_text=True), markdown_content)
+		self.assertEqual(response.headers.get("Vary"), "Accept")
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("---\n"))
+		self.assertIn('title: "Markdown Test Page"', body)
+		self.assertTrue(body.endswith(markdown_content))
 
 	def test_default_accept_returns_html(self):
 		"""Requesting a wiki page without Accept: text/markdown returns HTML."""
@@ -1676,6 +1842,345 @@ class TestMarkdownContentNegotiation(WikiDocumentTestBase):
 		self.assertEqual(response.status_code, 200)
 		content_type = response.headers.get("Content-Type", "")
 		self.assertIn("charset=utf-8", content_type)
+
+
+class TestCrawlerEndpoints(WikiDocumentTestBase):
+	"""Tests for the crawler-facing routes served by CrawlerRenderer."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _make_space(self, label, guest_readable=True, content="# Page\n\nBody text.", published=True):
+		"""A one-page space, returning (space, page)."""
+		root_group = create_test_wiki_document(self, f"Root {label}", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			f"Page {label}",
+			parent=root_group.name,
+			slug=self._unique("page"),
+			content=content,
+		)
+		space = create_test_wiki_space(
+			self,
+			f"Space {label}",
+			self._unique("crawl"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+		if not published:
+			frappe.db.set_value("Wiki Document", page.name, "is_published", 0)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return space, page
+
+	def test_md_route_returns_markdown_with_frontmatter(self):
+		_, page = self._make_space("MD Route", content="# Title\n\nSome **body**.")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/markdown", response.headers.get("Content-Type", ""))
+		self.assertIn("private", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertIn(f'title: "{page.title}"', body)
+		self.assertIn(f'/{page.route}"', body)
+		self.assertTrue(body.endswith("# Title\n\nSome **body**."))
+
+	def test_md_route_for_unpublished_page_is_not_found(self):
+		_, page = self._make_space("MD Unpublished", published=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_md_route_in_restricted_space_is_not_found_for_guest(self):
+		_, page = self._make_space("MD Restricted", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_space_md_route_redirects_to_first_page_markdown(self):
+		space, page = self._make_space("MD Space Redirect")
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 301)
+		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
+
+	def test_space_md_route_does_not_leak_a_restricted_first_page(self):
+		"""The redirect must not name a private route to a visitor who can't read it."""
+		space, page = self._make_space("MD Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
+	def test_space_html_route_does_not_leak_a_restricted_first_page(self):
+		"""Same for the reader's own redirect, which shares the resolver."""
+		space, page = self._make_space("HTML Restricted Redirect", guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertNotIn(page.route, response.headers.get("Location", ""))
+
+	def test_page_routed_with_md_suffix_still_renders_html(self):
+		"""A page legitimately slugged "<name>.md" keeps its own URL as HTML."""
+		root_group = create_test_wiki_document(self, "Root MD Slug", is_group=True)
+		page = create_test_wiki_document(
+			self,
+			"Literal MD Page",
+			parent=root_group.name,
+			slug=self._unique("readme") + ".md",
+			content="# Literal",
+		)
+		create_test_wiki_space(
+			self, "MD Slug Space", self._unique("crawl"), root_group.name, roles=[("Guest", "Read")]
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{page.route}")
+
+		self.assertEqual(response.status_code, 200)
+		# Content-Type is guessed from the ".md" path by frappe's build_response,
+		# so the body is what tells the two representations apart here.
+		self.assertTrue(response.get_data(as_text=True).lstrip().startswith("<!DOCTYPE html"))
+
+		markdown = _make_request(self.TEST_CLIENT, "get", f"/{page.route}.md")
+
+		self.assertEqual(markdown.status_code, 200)
+		self.assertIn("text/markdown", markdown.headers.get("Content-Type", ""))
+		self.assertTrue(markdown.get_data(as_text=True).startswith("---\n"))
+
+
+class TestSpaceLlmsTxt(WikiDocumentTestBase):
+	"""Tests for the per-space /<space>/llms.txt index."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def assertEntry(self, lines, route, prefix, suffix=""):
+		"""Assert one list entry links to `route` and has the expected shape.
+
+		The absolute URLs in these files carry whatever host the request ran
+		against — `localhost` in CI, `localhost:8000` on a dev bench — so the
+		entry is found by route and only its ends are asserted.
+		"""
+		matches = [line for line in lines if f"/{route}.md)" in line]
+		self.assertEqual(len(matches), 1, f"expected exactly one entry for {route}, got {matches}")
+		entry = matches[0]
+		self.assertTrue(entry.startswith(prefix), f"{entry!r} does not start with {prefix!r}")
+		self.assertTrue(entry.endswith(suffix), f"{entry!r} does not end with {suffix!r}")
+
+	def _space_with_tree(self, guest_readable=True):
+		"""A space with untabbed content, a tab, a nested group and a draft page."""
+		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
+		# The space comes first: `is_tab` validates against the space's root group.
+		space = create_test_wiki_space(
+			self,
+			"Llms Space",
+			self._unique("llms-space"),
+			root_group.name,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+
+		intro = create_test_wiki_document(
+			self, "Introduction", parent=root_group.name, slug=self._unique("intro")
+		)
+		intro.meta_description = "What this is."
+		intro.save()
+
+		tab = create_test_wiki_document(self, "API Reference", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		endpoints = create_test_wiki_document(
+			self, "Endpoints", parent=tab.name, slug=self._unique("endpoints")
+		)
+
+		nested_group = create_test_wiki_document(self, "Internals", parent=tab.name, is_group=True)
+		nested = create_test_wiki_document(
+			self, "Nested Page", parent=nested_group.name, slug=self._unique("nested")
+		)
+
+		draft = create_test_wiki_document(
+			self, "Draft Page", parent=root_group.name, slug=self._unique("draft")
+		)
+
+		frappe.db.set_value("Wiki Document", draft.name, "is_published", 0)
+		clear_wiki_tree_cache()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		return frappe._dict(
+			space=space,
+			intro=intro,
+			endpoints=endpoints,
+			nested=nested,
+			nested_group=nested_group,
+			draft=draft,
+		)
+
+	def test_space_llms_txt_mirrors_the_sidebar(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+		self.assertIn("public", response.headers.get("Cache-Control", ""))
+
+		body = response.get_data(as_text=True)
+		lines = body.splitlines()
+
+		self.assertEqual(lines[0], "# Llms Space")
+		self.assertIn("> What this is.", lines)
+		self.assertIn("## Home", lines)
+		self.assertIn("## API Reference", lines)
+
+		# Untabbed top-level content lands under Home, tabbed content under its tab.
+		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
+		self.assertEntry(lines, tree.endpoints.route, "- [Endpoints](", ")")
+
+		# A group has no page of its own, so it is a label; its children indent under it.
+		self.assertIn("- **Internals**", lines)
+		self.assertEntry(lines, tree.nested.route, "  - [Nested Page](", ")")
+
+	def test_space_llms_txt_omits_unpublished_pages(self):
+		tree = self._space_with_tree()
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertNotIn("Draft Page", response.get_data(as_text=True))
+
+	def test_space_llms_txt_links_only_to_markdown(self):
+		tree = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		links = re.findall(r"\]\((http[^)]+)\)", body)
+		self.assertTrue(links)
+		for link in links:
+			self.assertTrue(link.endswith(".md"), f"{link} is not a markdown link")
+
+	def test_space_llms_txt_escapes_editor_controlled_text(self):
+		"""A title or description is free text; it must not rewrite the index."""
+		tree = self._space_with_tree()
+
+		hostile = create_test_wiki_document(
+			self,
+			"Click ](https://evil.example) here",
+			parent=tree.space.root_group,
+			slug=self._unique("hostile"),
+		)
+		hostile.meta_description = "First line\n- [Injected](https://evil.example/inject.md)"
+		hostile.save()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+
+		self.assertEntry(body.splitlines(), hostile.route, "- [Click \\](https://evil.example) here](")
+		self.assertIn("Click \\](https://evil.example) here", body)
+		# The multiline description collapses instead of becoming its own entry.
+		self.assertNotIn("\n- [Injected]", body)
+		for line in body.splitlines():
+			self.assertFalse(line.startswith("- [Injected]"))
+
+	def test_space_llms_txt_is_not_found_for_a_restricted_space(self):
+		tree = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_site_llms_txt_lists_public_spaces_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("text/plain", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		self.assertTrue(body.startswith("# "))
+		self.assertIn("## Spaces", body)
+		self.assertIn(f"/{public.space.route}/llms.txt)", body)
+		self.assertNotIn(f"/{restricted.space.route}/llms.txt", body)
+
+	def test_site_llms_txt_survives_a_space_whose_root_group_is_gone(self):
+		"""One broken space must not take the whole site index down."""
+		public = self._space_with_tree()
+		orphan = create_test_wiki_space(
+			self, "Orphan Space", self._unique("orphan"), None, roles=[("Guest", "Read")]
+		)
+		frappe.db.set_value("Wiki Space", orphan.name, "root_group", self._unique("gone"))
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		response = _make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn(f"/{public.space.route}/llms.txt", response.get_data(as_text=True))
+
+		space_response = _make_request(self.TEST_CLIENT, "get", f"/{orphan.route}/llms.txt")
+
+		self.assertEqual(space_response.status_code, 404)
+
+	def test_indexes_are_rebuilt_after_a_page_is_added(self):
+		"""The cached index must not outlive the wiki it describes."""
+		tree = self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt")
+
+		added = create_test_wiki_document(
+			self, "Added Later", parent=tree.space.root_group, slug=self._unique("added")
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.route}.md", body)
+
+		sitemap = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
+		self.assertIn(added.route, _sitemap_routes(sitemap))
+
+	def test_site_index_is_rebuilt_when_a_space_is_added(self):
+		self._space_with_tree()
+
+		_make_request(self.TEST_CLIENT, "get", "/llms.txt")
+
+		added = self._space_with_tree()
+
+		body = _make_request(self.TEST_CLIENT, "get", "/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{added.space.route}/llms.txt", body)
+
+	def test_sitemap_lists_public_wiki_routes_only(self):
+		public = self._space_with_tree()
+		restricted = self._space_with_tree(guest_readable=False)
+
+		response = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("xml", response.headers.get("Content-Type", ""))
+
+		body = response.get_data(as_text=True)
+		routes = _sitemap_routes(body)
+
+		# Parses, and every entry is a page — not a group, a draft or a `.md` twin.
+		ElementTree.fromstring(body)
+		self.assertIn(public.intro.route, routes)
+		self.assertIn(public.nested.route, routes)
+		self.assertNotIn(public.draft.route, routes)
+		self.assertNotIn(restricted.intro.route, routes)
+		self.assertFalse([route for route in routes if route.endswith(".md")])
+		self.assertNotIn(
+			public.nested_group.route,
+			routes,
+			"groups are not served at their own route",
+		)
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
@@ -2012,3 +2517,783 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 			read_only=True,
 		)
 		self.assertEqual(rows[0]["c"], 1)
+
+
+class TestTabValidation(WikiDocumentTestBase):
+	"""`is_tab` is only meaningful on a top-level group — enforce both halves.
+
+	A leaf tab or a nested tab has nowhere to render, so the tab bar would drop
+	it silently. These reject at validate so the bad state never lands.
+	"""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tab Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tab Space", f"tab-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def test_top_level_group_can_be_a_tab(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.tab_icon = "lucide-wallet"
+		tab.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "tab_icon"), "lucide-wallet")
+
+	def test_leaf_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		leaf = create_test_wiki_document(self, "A Page", parent=root_group.name)
+		leaf.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			leaf.save()
+
+	def test_nested_group_cannot_be_a_tab(self):
+		space, root_group = self._space()
+
+		outer = create_test_wiki_document(self, "Outer", parent=root_group.name, is_group=True)
+		inner = create_test_wiki_document(self, "Inner", parent=outer.name, is_group=True)
+		inner.is_tab = 1
+
+		with self.assertRaises(frappe.ValidationError):
+			inner.save()
+
+	def test_clearing_is_group_on_a_tab_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Selling", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+
+		tab.is_group = 0
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reparenting_a_tab_below_top_level_is_rejected(self):
+		space, root_group = self._space()
+
+		tab = create_test_wiki_document(self, "Stock", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Other", parent=root_group.name, is_group=True)
+
+		tab.parent_wiki_document = other.name
+		with self.assertRaises(frappe.ValidationError):
+			tab.save()
+
+	def test_reorder_api_rejects_moving_a_tab_off_top_level(self):
+		"""The reorder endpoint writes parent_wiki_document with a raw db.set_value,
+		so validate never runs — it needs its own copy of the guard."""
+		import json
+
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space, root_group = self._space()
+		tab = create_test_wiki_document(self, "Manufacturing", parent=root_group.name, is_group=True)
+		tab.is_tab = 1
+		tab.save()
+		other = create_test_wiki_document(self, "Bucket", parent=root_group.name, is_group=True)
+
+		with self.assertRaises(frappe.ValidationError):
+			reorder_wiki_documents(tab.name, other.name, 0, json.dumps([tab.name]))
+
+
+class TestGetSpaceTabs(WikiDocumentTestBase):
+	"""`get_space_tabs` feeds the horizontal tab bar: ordering + landing target."""
+
+	def _space(self):
+		root_group = create_test_wiki_document(self, "Tabs Root", is_group=True)
+		space = create_test_wiki_space(
+			self, "Tabs Space", f"tabs-space-{frappe.generate_hash(length=6)}", root_group.name
+		)
+		return space, root_group
+
+	def _make_tab(self, root_group, title, icon=None, sort_order=0):
+		tab = create_test_wiki_document(
+			self, title, parent=root_group.name, is_group=True, sort_order=sort_order
+		)
+		tab.is_tab = 1
+		tab.tab_icon = icon
+		tab.save()
+		return tab
+
+	def test_returns_empty_for_a_space_without_tabs(self):
+		space, root_group = self._space()
+		create_test_wiki_document(self, "Plain group", parent=root_group.name, is_group=True)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_returns_tabs_in_sort_order_with_icons(self):
+		space, root_group = self._space()
+		second = self._make_tab(root_group, "Selling", icon="lucide-tag", sort_order=2)
+		first = self._make_tab(root_group, "Accounting", icon="lucide-wallet", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=first.name)
+		create_test_wiki_document(self, "Quotation", parent=second.name)
+
+		tabs = get_space_tabs(space.name)
+
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+		self.assertEqual([t["tab_icon"] for t in tabs], ["lucide-wallet", "lucide-tag"])
+
+	def test_non_tab_top_level_groups_are_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+		plain = create_test_wiki_document(self, "Not a tab", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Some page", parent=plain.name)
+
+		# The plain group is untabbed content, so Home leads; it is never itself
+		# listed as a tab.
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Home", "Accounting"])
+
+	def test_landing_route_falls_back_to_first_published_leaf(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		group = create_test_wiki_document(self, "Receivables", parent=tab.name, is_group=True, sort_order=0)
+		first = create_test_wiki_document(self, "Invoice", parent=group.name, sort_order=0)
+		create_test_wiki_document(self, "Credit Note", parent=group.name, sort_order=1)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], first.route)
+
+	def test_landing_route_prefers_a_page_at_the_tab_s_own_route(self):
+		"""The README/index case: a published leaf sharing the group's route."""
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		index = create_test_wiki_document(self, "Overview", parent=tab.name)
+		index.route = tab.route
+		index.save()
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["landing_route"], tab.route)
+
+	def test_unpublished_tab_is_excluded(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Draft Area")
+		create_test_wiki_document(self, "Page", parent=tab.name)
+		frappe.db.set_value("Wiki Document", tab.name, "is_published", 0)
+
+		self.assertEqual(get_space_tabs(space.name), [])
+
+	def test_public_tree_carries_the_tab_fields(self):
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == tab.name)
+		self.assertEqual(node["is_tab"], 1)
+		self.assertEqual(node["tab_icon"], "lucide-wallet")
+
+	def test_home_leads_the_bar_when_multiple_tabs_have_untabbed_content(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
+		misc = create_test_wiki_document(
+			self, "Release Notes", parent=root_group.name, is_group=True, sort_order=3
+		)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual(tabs[0]["doc_key"], "__general__")
+		self.assertEqual(tabs[0]["title"], "Home")
+		self.assertEqual(tabs[0]["tab_icon"], "lucide-house")
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+		self.assertEqual([t["title"] for t in tabs[1:]], ["Accounting", "Selling"])
+
+	def test_home_leads_the_bar_with_a_single_tab_and_untabbed_content(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertEqual([t["title"] for t in tabs], ["Home", "Accounting"])
+		self.assertEqual(tabs[0]["landing_route"], changelog.route)
+
+	def test_home_tab_uses_the_space_title_and_icon(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting")
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
+		create_test_wiki_document(self, "Changelog", parent=misc.name)
+		frappe.db.set_value(
+			"Wiki Space",
+			space.name,
+			{"home_tab_title": "Overview", "home_tab_icon": "lucide-compass"},
+		)
+
+		home = get_space_tabs(space.name)[0]
+		self.assertEqual(home["doc_key"], "__general__")
+		self.assertEqual(home["title"], "Overview")
+		self.assertEqual(home["tab_icon"], "lucide-compass")
+
+	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		selling = self._make_tab(root_group, "Selling", sort_order=2)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		create_test_wiki_document(self, "Quotation", parent=selling.name)
+
+		tabs = get_space_tabs(space.name)
+		self.assertTrue(all(t["doc_key"] != "__general__" for t in tabs))
+		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+
+	def test_tab_with_no_published_pages_is_excluded(self):
+		space, root_group = self._space()
+		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
+		create_test_wiki_document(self, "Invoice", parent=accounting.name)
+		# An empty tab (no children) and a tab whose only page is unpublished
+		# both have nothing to show, so neither appears on the public bar.
+		self._make_tab(root_group, "Empty", sort_order=2)
+		drafts = self._make_tab(root_group, "Drafts", sort_order=3)
+		draft_page = create_test_wiki_document(self, "WIP", parent=drafts.name)
+		frappe.db.set_value("Wiki Document", draft_page.name, "is_published", 0)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+
+class TestRenderedContentCache(WikiDocumentTestBase):
+	"""Per-document rendered HTML + TOC caching (get_rendered_content)."""
+
+	def test_caches_by_document_name(self):
+		doc = create_test_wiki_document(self, "Cache Page", content="# Hello\n\nfirst")
+		clear_wiki_content_cache(doc.name)
+
+		html, _ = get_rendered_content(doc.name, "# Hello\n\nfirst")
+		self.assertIn("first", html)
+
+		# A second call with different content but the same name returns the
+		# cached render — proving the lookup is keyed by name, not content.
+		cached_html, _ = get_rendered_content(doc.name, "# Hello\n\ncompletely different")
+		self.assertEqual(cached_html, html)
+		self.assertNotIn("completely different", cached_html)
+
+	def test_matches_direct_render(self):
+		doc = create_test_wiki_document(self, "Parity Page", content="## Heading\n\nbody")
+		clear_wiki_content_cache(doc.name)
+
+		html, toc = get_rendered_content(doc.name, "## Heading\n\nbody")
+		direct_html, direct_toc = render_markdown_with_toc("## Heading\n\nbody")
+		self.assertEqual(html, direct_html)
+		self.assertEqual(toc, direct_toc)
+
+	def test_clear_invalidates(self):
+		doc = create_test_wiki_document(self, "Invalidate Page", content="v1")
+		get_rendered_content(doc.name, "v1")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		clear_wiki_content_cache(doc.name)
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		# Re-render picks up new content after invalidation.
+		html, _ = get_rendered_content(doc.name, "v2 fresh")
+		self.assertIn("v2 fresh", html)
+
+	def test_content_edit_drops_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Edited Page", content="original text")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.content = "edited text"
+		doc.save()
+		# on_wiki_document_update fires clear_wiki_content_cache for the changed doc.
+		self.assertIsNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+	def test_non_content_edit_keeps_the_cache_entry(self):
+		doc = create_test_wiki_document(self, "Title Only", content="stable body")
+		get_rendered_content(doc.name, doc.content)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+		doc.title = "Renamed Title"
+		doc.save()
+		# Content unchanged, so the rendered-content entry survives.
+		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+
+class TestReaderRouteXSS(unittest.TestCase):
+	"""Reader templates interpolate editor-set routes into Alpine JS expressions.
+	A route can contain quotes (routes aren't scrubbed once set explicitly), so
+	every such interpolation must go through `| tojson | forceescape` — tojson
+	makes it a JS-safe string literal, forceescape keeps it safe inside the
+	double-quoted HTML attribute. Without both, a route like `x'),alert(1)//`
+	breaks out of the JS string and runs for every reader (stored XSS)."""
+
+	# A route crafted to break out of a single-quoted JS string literal.
+	PAYLOAD = "s/x'),alert(document.domain)//"
+
+	def _assert_route_is_safe(self, html):
+		# The vulnerable pattern is a single-quoted JS literal; after the fix
+		# every call passes a double-quoted, entity-encoded literal instead.
+		self.assertNotIn("navigateTo('", html)
+		self.assertNotIn("inTab('", html)
+		self.assertNotIn("notInAnyTab('", html)
+		# The route's own single quote is unicode-escaped by tojson, so it can
+		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
+		self.assertNotIn("//')", html)
+		self.assertIn("\\u0027", html)
+
+	def test_sidebar_tree_macro_escapes_route_in_alpine_expressions(self):
+		"""render_wiki_tree feeds node.route into navigateTo/prefetch/:class."""
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes) }}"
+		)
+		node = {
+			"is_group": 0,
+			"is_external_link": 0,
+			"name": "n1",
+			"route": self.PAYLOAD,
+			"title": "Evil",
+			"children": [],
+		}
+		html = frappe.render_template(template, {"nodes": [node]})
+		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
+		self._assert_route_is_safe(html)
+
+	def test_active_js_concat_escapes_route(self):
+		"""The tab bar (tabs.html / mobile_header.html) builds the Alpine
+		expression by string concatenation before emitting it; the route piece
+		must stay escaped through the concat + `{{ }}` render."""
+		template = (
+			'{% set active_js = "$store.navigation.inTab(" ~ (route | tojson | forceescape) ~ ")" %}'
+			'<div x-show="{{ active_js }}"></div>'
+		)
+		html = frappe.render_template(template, {"route": self.PAYLOAD})
+		self.assertIn("inTab(&#34;", html)
+		self._assert_route_is_safe(html)
+
+	def test_script_context_uses_bare_tojson_not_forceescape(self):
+		"""Inside a <script> block the browser does not HTML-decode, so a value
+		interpolated as a JS literal must use bare `tojson` (which escapes
+		</script> and quotes to \\uXXXX) — never `tojson | forceescape`, whose
+		HTML entities would be a JS syntax error and break Alpine init. Guards
+		the `Alpine.store('pageContent', { markdown: ... })` line in
+		document.html."""
+		hostile = "a \"quote\" and </script><img src=x> and 'x'"
+		html = frappe.render_template("markdown: {{ md | tojson }}", {"md": hostile})
+		# Valid JS string literal: quotes/script-tag/apostrophes are escaped,
+		# and there are no HTML entities that JS would choke on.
+		self.assertNotIn("&#34;", html)
+		self.assertNotIn("&#39;", html)
+		self.assertNotIn("</script>", html)
+		self.assertIn("\\u003c/script", html)
+
+
+# A JPEG magic number is all the endpoint tests need from the renderer; CI
+# installs no server-side Chromium, so every test here patches
+# get_preview_from_html *at its point of use* in wiki.api.og_image -- patching
+# frappe.utils.preview would leave the already-bound import untouched.
+FAKE_JPEG = b"\xff\xd8\xff" + b"\x00" * 32
+
+
+class OGImageTestBase(WikiDocumentTestBase):
+	"""Shared setup for the generated-OG-card tests."""
+
+	def setUp(self):
+		self.og_doc_keys = []
+		self.enterContext(
+			self.change_settings("Wiki Settings", {"auto_generate_meta_images": 1}, commit=True)
+		)
+		self.renderer = self.enterContext(
+			patch("wiki.api.og_image.get_preview_from_html", return_value=FAKE_JPEG)
+		)
+		# Warm-up jobs would otherwise land on the real bench queue and render
+		# for real; the warm-up tests assert on this mock instead.
+		self.enqueue = self.enterContext(patch("frappe.enqueue"))
+
+	def tearDown(self):
+		from wiki.api.og_image import clear_cached_cards
+
+		for doc_key in self.og_doc_keys:
+			clear_cached_cards(doc_key)
+		super().tearDown()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _published_page(self, label, guest_readable=True, **kwargs):
+		"""A published page in its own space, tracked for card cleanup."""
+		route = self._unique(label)
+		space = create_test_wiki_space(
+			self,
+			f"{label} Space",
+			route,
+			None,
+			roles=[("Guest", "Read")] if guest_readable else [],
+		)
+		doc = create_test_wiki_document(
+			self, label, parent=space.root_group, slug=self._unique(label), **kwargs
+		)
+		doc.reload()
+		self.og_doc_keys.append(doc.doc_key)
+		return doc
+
+	def _cached_cards(self, doc_key):
+		from wiki.api.og_image import _cache_dir
+
+		return sorted(os.path.basename(p) for p in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")))
+
+
+class TestOGImageEndpoint(OGImageTestBase):
+	"""The guest-facing endpoint that renders and serves the card."""
+
+	TEST_CLIENT = get_test_client()
+
+	def _get(self, route, **kwargs):
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		return _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/api/method/wiki.api.og_image.og_image?route={quote(route)}",
+			**kwargs,
+		)
+
+	def test_unknown_route_returns_404(self):
+		response = self._get("no-such-space/no-such-page")
+		self.assertEqual(response.status_code, 404)
+
+	def test_unpublished_document_returns_404(self):
+		doc = self._published_page("og-unpublished")
+		doc.is_published = 0
+		doc.save()
+
+		self.assertEqual(self._get(doc.route).status_code, 404)
+
+	def test_restricted_space_returns_404_for_guest(self):
+		"""A space with no Guest role is invisible to anonymous requests -- 404,
+		not 403, so the card endpoint leaks no more than the page itself."""
+		doc = self._published_page("og-restricted", guest_readable=False)
+
+		self.assertEqual(self._get(doc.route).status_code, 404)
+
+	def test_toggle_off_returns_404(self):
+		"""The kill switch stops Chromium launching, not just the tag being
+		emitted -- otherwise crawlers holding an old og:image URL keep paying
+		for renders on a site that turned cards off."""
+		doc = self._published_page("og-endpoint-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}, commit=True):
+			response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 404)
+		self.renderer.assert_not_called()
+
+	def test_cards_are_never_shared_cacheable(self):
+		"""The URL carries no identity, so a `public` Cache-Control would let a
+		CDN keep serving a card — title, breadcrumb, space name — after the page
+		is unpublished or the space's roles change, without the request ever
+		reaching _resolve_doc again. Guest-readable pages included: a page that
+		is public today may not be tomorrow."""
+		from wiki.api.og_image import og_image
+
+		guest_doc = self._published_page("og-cc-guest")
+		restricted_doc = self._published_page("og-cc-restricted", guest_readable=False)
+
+		for cache_control in (
+			self._get(guest_doc.route).headers["Cache-Control"],
+			og_image(route=restricted_doc.route).headers["Cache-Control"],
+		):
+			self.assertIn("private", cache_control)
+			self.assertNotIn("public", cache_control)
+
+	def test_published_page_returns_jpeg(self):
+		doc = self._published_page("og-served")
+
+		response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+		self.assertEqual(response.get_data(), FAKE_JPEG)
+
+	def test_repeat_request_serves_the_cached_file(self):
+		doc = self._published_page("og-cached")
+
+		self.assertEqual(self._get(doc.route).status_code, 200)
+		self.assertEqual(self._get(doc.route).status_code, 200)
+
+		self.assertEqual(self.renderer.call_count, 1)
+
+	def test_if_none_match_returns_304_with_empty_body(self):
+		doc = self._published_page("og-etag")
+		etag = self._get(doc.route).headers["ETag"]
+
+		response = self._get(doc.route, headers={"If-None-Match": etag})
+
+		self.assertEqual(response.status_code, 304)
+		self.assertEqual(response.get_data(), b"")
+
+	def test_rename_moves_the_fingerprint_and_prunes_the_old_card(self):
+		doc = self._published_page("og-renamed")
+		self._get(doc.route)
+		before = self._cached_cards(doc.doc_key)
+
+		doc.title = "Renamed For A New Fingerprint"
+		doc.save()
+		self._get(doc.route)
+
+		after = self._cached_cards(doc.doc_key)
+		self.assertEqual(len(before), 1)
+		self.assertEqual(len(after), 1)
+		self.assertNotEqual(before, after)
+
+
+class TestOGImageTemplate(unittest.TestCase):
+	"""frappe.render_template does not autoescape, so the card template carries
+	its own `| e` on every interpolation. Without it a crafted page title turns
+	the screenshotter into an outbound-fetch primitive."""
+
+	def test_hostile_title_is_escaped(self):
+		from wiki.api.og_image import render_og_html
+
+		html = render_og_html(
+			{
+				"title": '"><img src=http://evil.example/x>',
+				"title_font_size": 48,
+				"breadcrumb_trail": "",
+				"space_name": "",
+				"logo_url": "",
+			}
+		)
+
+		self.assertNotIn("<img src=http://evil.example/x>", html)
+		self.assertIn("&lt;img", html)
+
+	def test_traversing_doc_key_cannot_escape_the_cache_directory(self):
+		"""doc_key names the cache file, and WikiDocument.set_doc_key only makes
+		it immutable on update -- an insert keeps whatever the caller passed. A
+		key with path separators must never reach open()/unlink()."""
+		from wiki.api.og_image import _cache_dir, _cache_path, clear_cached_cards
+
+		for hostile in ("../../evil", "a/b", "..", "with space", ""):
+			with self.assertRaises(frappe.DoesNotExistError):
+				_cache_path(hostile, "0123456789ab")
+			# The delete path must not raise (it runs after commit), just do nothing.
+			clear_cached_cards(hostile)
+
+		path = _cache_path("abc123DEF456", "0123456789ab")
+		self.assertEqual(os.path.dirname(path), _cache_dir())
+
+	def test_logo_prefers_the_switcher_logo_the_reader_renders(self):
+		"""app_switcher_logo is the mark the reader header shows, so the card
+		must use it; light_mode_logo is only a fallback for v2 spaces."""
+		from wiki.api.og_image import _og_context
+
+		space = SimpleNamespace(app_switcher_logo="/files/new.png", light_mode_logo="/files/old.png")
+		doc = SimpleNamespace(
+			meta_title=None,
+			title="Doc",
+			lft=None,
+			get_wiki_space=lambda: {"name": "sp", "space_name": "Space"},
+		)
+
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/new.png")
+
+		space.app_switcher_logo = None
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["logo_url"], "/files/old.png")
+
+	def test_card_title_ignores_meta_title(self):
+		"""The card shows the page's own title; meta_title is SEO copy for the
+		search result, not a label for the page."""
+		from wiki.api.og_image import _og_context
+
+		space = SimpleNamespace(app_switcher_logo="", light_mode_logo="")
+		doc = SimpleNamespace(
+			meta_title="Keyword Padded Meta Title | Docs",
+			title="Doc",
+			lft=None,
+			get_wiki_space=lambda: {"name": "sp", "space_name": "Space"},
+		)
+
+		with patch("frappe.get_cached_doc", return_value=space):
+			self.assertEqual(_og_context(doc)["title"], "Doc")
+
+	def test_remote_and_private_logo_urls_are_dropped(self):
+		from wiki.api.og_image import _safe_asset_url
+
+		self.assertEqual(_safe_asset_url("/files/logo.png"), "/files/logo.png")
+		self.assertEqual(_safe_asset_url("/assets/wiki/images/logo.svg"), "/assets/wiki/images/logo.svg")
+		self.assertEqual(_safe_asset_url("/private/files/logo.png"), "")
+		self.assertEqual(_safe_asset_url("https://evil.example/logo.png"), "")
+		self.assertEqual(_safe_asset_url(None), "")
+
+
+class TestOGImageWarmup(OGImageTestBase):
+	"""The background render that runs on document writes, so the first crawler
+	after a change is normally a cache hit. Serving never depends on it."""
+
+	def test_structural_save_enqueues_a_warmup(self):
+		doc = self._published_page("og-warm-enqueue")
+		self.enqueue.reset_mock()
+
+		doc.title = "A Title That Moves The Fingerprint"
+		doc.save()
+
+		self.enqueue.assert_called_once()
+		self.assertEqual(self.enqueue.call_args.args[0], "wiki.api.og_image.warm_og_image")
+		self.assertEqual(self.enqueue.call_args.kwargs["name"], doc.name)
+		self.assertTrue(self.enqueue.call_args.kwargs["deduplicate"])
+		self.assertTrue(self.enqueue.call_args.kwargs["enqueue_after_commit"])
+
+	def test_content_only_change_enqueues_nothing(self):
+		"""Content is not a fingerprint input, so a still-correct card is left
+		alone -- this is what keeps a busy wiki from re-rendering on every edit."""
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-content")
+		warm_og_image(doc.name)
+		self.enqueue.reset_mock()
+
+		doc.content = "Completely different body text."
+		doc.save()
+
+		self.enqueue.assert_not_called()
+
+	def test_warmup_renders_the_card_without_a_page_view(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-render")
+		self.assertEqual(self._cached_cards(doc.doc_key), [])
+
+		warm_og_image(doc.name)
+
+		self.assertEqual(len(self._cached_cards(doc.doc_key)), 1)
+		self.assertEqual(self.renderer.call_count, 1)
+
+	def test_warmup_skips_when_the_card_is_already_on_disk(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-skip")
+		warm_og_image(doc.name)
+		self.renderer.reset_mock()
+
+		warm_og_image(doc.name)
+
+		self.renderer.assert_not_called()
+
+	def test_toggle_off_enqueues_nothing_and_renders_nothing(self):
+		from wiki.api.og_image import warm_og_image
+
+		doc = self._published_page("og-warm-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			self.enqueue.reset_mock()
+			doc.title = "Renamed While Cards Are Disabled"
+			doc.save()
+			warm_og_image(doc.name)
+
+		self.enqueue.assert_not_called()
+		self.renderer.assert_not_called()
+
+
+class TestOGImageMetaTags(OGImageTestBase):
+	"""get_web_context's fallback from meta_image to the generated card."""
+
+	def test_generated_card_is_used_when_no_meta_image(self):
+		doc = self._published_page("og-meta-generated")
+
+		metatags = doc.get_web_context()["metatags"]
+
+		self.assertIn("wiki.api.og_image.og_image", metatags["og:image"])
+		self.assertEqual(metatags["twitter:card"], "summary_large_image")
+		self.assertEqual(metatags["og:image:width"], "1200")
+		self.assertEqual(metatags["og:image:height"], "630")
+		self.assertEqual(metatags["og:image:type"], "image/jpeg")
+
+	def test_explicit_meta_image_wins_over_the_generated_card(self):
+		doc = self._published_page("og-meta-explicit")
+		doc.meta_image = "/files/hand-made.png"
+		doc.save()
+
+		metatags = doc.get_web_context()["metatags"]
+
+		self.assertEqual(metatags["og:image"], frappe.utils.get_url("/files/hand-made.png"))
+		self.assertNotIn("og:image:width", metatags)
+
+	def test_toggle_off_emits_no_image_tags(self):
+		doc = self._published_page("og-meta-toggle-off")
+
+		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			metatags = doc.get_web_context()["metatags"]
+
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+
+	def test_group_external_link_and_orphan_pages_have_no_card(self):
+		space_doc = self._published_page("og-meta-kinds")
+		group = create_test_wiki_document(
+			self, "OG Group", parent=space_doc.parent_wiki_document, is_group=True
+		)
+		external = create_test_wiki_document(
+			self,
+			"OG External",
+			parent=space_doc.parent_wiki_document,
+			is_external_link=True,
+			external_url="https://example.com",
+		)
+		orphan = create_test_wiki_document(self, "OG Orphan", slug=self._unique("og-orphan"))
+
+		self.assertIsNone(group.get_og_image_url())
+		self.assertIsNone(external.get_og_image_url())
+		self.assertIsNone(orphan.get_og_image_url())
+
+
+class TestOGImageTokenDrift(unittest.TestCase):
+	"""The card inlines a snapshot of frappe-ui's light-mode tokens rather than
+	importing the built stylesheet, so a frappe-ui upgrade can move a value
+	silently. Same intent as frappe-ui's own tailwind/audit-token-drift.cjs."""
+
+	# Only the tokens the template actually declares, mapped to their
+	# themedVariables.light lookup.
+	TOKEN_REFS: typing.ClassVar[dict] = {
+		"--ink-gray-9": ("ink", "gray-9"),
+		"--ink-gray-7": ("ink", "gray-7"),
+		"--ink-gray-5": ("ink", "gray-5"),
+		"--outline-gray-2": ("outline", "gray-2"),
+		"--surface-gray-2": ("surface", "gray-2"),
+		"--surface-base": ("surface", "base"),
+	}
+
+	def test_template_tokens_match_frappe_ui(self):
+		# Built with os.path.join, not get_app_path's joins: those are scrubbed,
+		# which would turn "frappe-ui" into "frappe_ui".
+		colors_path = os.path.join(
+			frappe.get_app_path("wiki"),
+			"..",
+			"frontend",
+			"node_modules",
+			"frappe-ui",
+			"tailwind",
+			"generated",
+			"colors.json",
+		)
+		if not os.path.exists(colors_path):
+			# The Python CI job installs no frontend dependencies.
+			raise unittest.SkipTest("frappe-ui is not installed")
+
+		with open(colors_path) as f:
+			colors = json.load(f)
+
+		template = frappe.get_app_path("wiki", "templates", "wiki", "og_image.html")
+		with open(template) as f:
+			declared = dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6});", f.read()))
+
+		for var, (group, name) in self.TOKEN_REFS.items():
+			ref = colors["themedVariables"]["light"][group][name]
+			expected = functools.reduce(lambda node, key: node[key], ref.split("/"), colors)
+			self.assertEqual(
+				declared.get(var),
+				expected,
+				f"{var} drifted from frappe-ui's {ref}; update the template and bump TEMPLATE_VERSION",
+			)

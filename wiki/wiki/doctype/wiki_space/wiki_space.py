@@ -385,6 +385,8 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 			"slug",
 			"route",
 			"is_group",
+			"is_tab",
+			"tab_icon",
 			"is_published",
 			"is_external_link",
 			"external_url",
@@ -411,6 +413,8 @@ def _clone_wiki_documents(space: Document, new_space: Document) -> None:
 		new_doc.slug = doc.get("slug")
 		new_doc.route = _clone_route(doc.get("route"), space.route, new_space.route)
 		new_doc.is_group = doc.get("is_group")
+		new_doc.is_tab = doc.get("is_tab")
+		new_doc.tab_icon = doc.get("tab_icon")
 		new_doc.is_published = doc.get("is_published")
 		new_doc.is_external_link = doc.get("is_external_link")
 		new_doc.external_url = doc.get("external_url")

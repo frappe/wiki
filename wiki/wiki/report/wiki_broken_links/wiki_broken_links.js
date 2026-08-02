@@ -21,5 +21,11 @@ frappe.query_reports['Wiki Broken Links'] = {
 			fieldtype: 'Check',
 			default: 0,
 		},
+		{
+			fieldname: 'published_only',
+			label: __('Published pages only?'),
+			fieldtype: 'Check',
+			default: 1,
+		},
 	],
 };

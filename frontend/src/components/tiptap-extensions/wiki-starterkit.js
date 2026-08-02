@@ -5,7 +5,8 @@ import { StarterKit } from '@tiptap/starter-kit';
  * read-only renderer (WikiContentViewer.vue), so the two never drift apart.
  *
  * Disabled marks/nodes:
- * - codeBlock: replaced by WikiCodeBlock (lowlight syntax highlighting).
+ * - codeBlock: replaced by frappe-ui's CodeBlock (lowlight highlighting,
+ *   line numbers, language picker, copy button, Tab indent keymaps).
  * - link: replaced by WikiLink (Cmd+K editor, markdown round-trip).
  * - underline: wiki markdown has no underline, and StarterKit's Underline mark
  *   serializes to `++…++`. Copied hyperlinks arrive with `text-decoration:

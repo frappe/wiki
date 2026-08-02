@@ -1,13 +1,15 @@
 <template>
 	<div class="flex flex-col h-full">
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-outline-gray-2 bg-surface-white shrink-0">
-			<div class="flex items-center gap-4">
+		<!-- Renders into the shell's PageHeaderTarget on all breakpoints (the
+		     action cluster needs the full row even on a phone). -->
+		<PageHeader>
+			<div class="flex min-w-0 items-center gap-4">
 				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
-				<div v-if="changeRequest.doc">
+				<div v-if="changeRequest.doc" class="min-w-0">
 					<div class="flex items-center gap-2">
-						<h1 class="text-xl font-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+						<h1 class="truncate text-lg-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 						<Badge :variant="'subtle'" :theme="getStatusTheme(changeRequest.doc.status)" size="sm">
 							{{ changeRequest.doc.status }}
 						</Badge>
@@ -57,7 +59,7 @@
 
 					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
 						<Button variant="ghost" :title="__('More actions')">
-							<LucideMoreVertical class="size-4" />
+							<span class="lucide-more-vertical size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</template>
@@ -71,22 +73,22 @@
 					{{ __('Withdraw') }}
 				</Button>
 			</div>
-		</div>
+		</PageHeader>
 
 		<div class="flex-1 overflow-auto p-4">
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
-				class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg"
+				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-lg"
 			>
 				<div class="flex items-start gap-3">
-					<LucideAlertTriangle class="size-5 text-amber-500 shrink-0 mt-0.5" />
+					<span class="lucide-alert-triangle size-5 text-ink-amber-6 shrink-0 mt-0.5" aria-hidden="true" />
 					<div>
-						<p class="font-medium text-amber-800">{{ __('Merge Conflicts') }}</p>
-						<p class="text-sm text-amber-700 mt-1">
+						<p class="font-medium text-ink-amber-8">{{ __('Merge Conflicts') }}</p>
+						<p class="text-sm text-ink-amber-7 mt-1">
 							{{ __('The following documents have conflicting changes. Choose which version to keep for each conflict.') }}
 						</p>
-						<p class="text-sm text-amber-600 mt-2 font-medium">
+						<p class="text-sm-medium text-ink-amber-6 mt-2">
 							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
 						</p>
 					</div>
@@ -96,7 +98,7 @@
 			<div class="space-y-4">
 				<!-- Conflict list (replaces changes list when conflicts exist) -->
 				<template v-if="hasConflicts">
-					<h3 class="text-lg font-medium text-ink-gray-8">
+					<h3 class="text-lg-medium text-ink-gray-8">
 						{{ __('Conflicts') }} ({{ conflicts.length }})
 					</h3>
 
@@ -105,15 +107,15 @@
 							v-for="conflict in conflicts"
 							:key="conflict.name"
 							class="border border-outline-gray-2 rounded-lg overflow-hidden"
-							:class="{ 'border-amber-300': !resolutions[conflict.name] }"
+							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
 							<div
 								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-amber-100 text-amber-600">
-										<LucideAlertTriangle class="size-4" />
+									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-6">
+										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
@@ -134,10 +136,9 @@
 										</div>
 									</div>
 								</div>
-								<LucideChevronDown
-									class="size-5 text-ink-gray-4 transition-transform"
-									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }"
-								/>
+								<span
+									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
+									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }" aria-hidden="true" />
 							</div>
 
 							<div v-if="expandedConflicts.has(conflict.name)" class="border-t border-outline-gray-2">
@@ -170,7 +171,7 @@
 
 				<!-- Normal changes list -->
 				<template v-else>
-					<h3 class="text-lg font-medium text-ink-gray-8">
+					<h3 class="text-lg-medium text-ink-gray-8">
 						{{ __('Changes') }} ({{ changes.data?.length || 0 }})
 					</h3>
 
@@ -193,7 +194,7 @@
 										class="flex items-center justify-center size-8 rounded-full shrink-0"
 										:class="getChangeIconClass(change.change_type)"
 									>
-										<component :is="getChangeIcon(change.change_type)" class="size-4" />
+										<span :class="getChangeIcon(change.change_type)" class="size-4" aria-hidden="true" />
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
@@ -208,16 +209,15 @@
 											{{ getChangeDescription(change.change_type, change.is_group, change.is_external_link) }}
 										</p>
 										<p v-if="change.is_external_link && change.external_url" class="text-sm text-ink-gray-5 mt-0.5">
-											<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+											<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-ink-blue-link hover:underline">
 												{{ change.external_url }}
 											</a>
 										</p>
 									</div>
 								</div>
-								<LucideChevronDown
-									class="size-5 text-ink-gray-4 transition-transform"
-									:class="{ 'rotate-180': expandedChanges.has(change.doc_key) }"
-								/>
+								<span
+									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
+									:class="{ 'rotate-180': expandedChanges.has(change.doc_key) }" aria-hidden="true" />
 							</div>
 
 							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
@@ -231,7 +231,7 @@
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
 											</Badge>
 										</div>
-										<LucideArrowRight class="size-4 text-ink-gray-4 shrink-0" />
+										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
 										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
 											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
@@ -266,9 +266,9 @@
 											v-if="diffsByDocKey[change.doc_key]"
 											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
 										>
-											<section class="bg-surface-white min-w-0">
+											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Current') }}</span>
+													<span class="text-xs-medium text-ink-gray-5">{{ __('Current') }}</span>
 													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
 												</header>
 												<div class="px-4 py-4">
@@ -278,9 +278,9 @@
 													<WikiContentViewer v-else :content="diffsByDocKey[change.doc_key].base?.content || ''" />
 												</div>
 											</section>
-											<section class="bg-surface-white min-w-0">
+											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Proposed') }}</span>
+													<span class="text-xs-medium text-ink-gray-5">{{ __('Proposed') }}</span>
 												</header>
 												<div class="px-4 py-4">
 													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />
@@ -316,11 +316,11 @@
 			</div>
 		</div>
 
-		<Dialog v-model="showApproveMergeDialog" :options="{ size: 'md' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
+		<Dialog v-model:open="showApproveMergeDialog" size="md">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Approve & Merge') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<p class="text-ink-gray-7">
 					{{ __('This will approve the change request and immediately merge it into the live wiki. This cannot be undone. Are you sure?') }}
 				</p>
@@ -339,11 +339,11 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRequestChangesDialog" :options="{ size: 'md' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
+		<Dialog v-model:open="showRequestChangesDialog" size="md">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Request Changes') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Please provide feedback explaining what needs to change. This is sent back to the author.') }}
@@ -372,11 +372,11 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model="showRejectDialog" :options="{ size: 'md' }">
-			<template #body-title>
-				<h3 class="text-xl font-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
+		<Dialog v-model:open="showRejectDialog" size="md">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Reject Change Request') }}</h3>
 			</template>
-			<template #body-content>
+			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Rejecting is final — this change request cannot be merged. Please explain why it is being rejected.') }}
@@ -422,6 +422,7 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	PageHeader,
 	createDocumentResource,
 	createResource,
 	toast,
@@ -437,10 +438,6 @@ import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
-import LucideAlertTriangle from '~icons/lucide/alert-triangle';
-import LucideArrowRight from '~icons/lucide/arrow-right';
-import LucideChevronDown from '~icons/lucide/chevron-down';
-import LucideMoreVertical from '~icons/lucide/more-vertical';
 
 const {
 	getChangeIcon,

@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { updateDoc } from '../helpers/frappe';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 import {
 	createTestWikiDocument,
 	createTestWikiSpace,
 	deleteTestWikiDocument,
 	deleteTestWikiSpace,
+	openNewPageDialog,
 } from '../helpers/wiki';
 
 /**
@@ -42,22 +44,15 @@ async function createDraftAndOpenEditor(
 	page: import('@playwright/test').Page,
 	title: string,
 ) {
-	await page.goto('/wiki');
+	await page.goto(APP_BASE);
 	await page.waitForLoadState('networkidle');
 
-	const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+	const spaceLink = page.locator(spaceLinkSelector()).first();
 	await expect(spaceLink).toBeVisible({ timeout: 5000 });
 	await spaceLink.click();
 	await page.waitForLoadState('networkidle');
 
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	const newPageButton = page.locator('button[title="New Page"]');
-
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await newPageButton.click();
-	}
+	await openNewPageDialog(page);
 
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();

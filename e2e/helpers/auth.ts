@@ -1,4 +1,4 @@
-import { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 /**
  * Login via Frappe API (faster than UI login).

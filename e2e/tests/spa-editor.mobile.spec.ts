@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { cleanupWikiSpacesByRoute, createTestWikiSpace } from '../helpers/wiki';
+import { SPACE_URL_RE, appUrl } from '../helpers/routes';
+import {
+	cleanupWikiSpacesByRoute,
+	clickSidebarAddOption,
+	createTestWikiSpace,
+} from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -42,7 +47,7 @@ test.describe('Mobile SPA', () => {
 
 		// --- Setup at desktop: create a space with one page ---
 		await page.setViewportSize(DESKTOP);
-		await page.goto('/wiki/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('button', { name: 'New Space' }).click();
@@ -53,7 +58,7 @@ test.describe('Mobile SPA', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Create' })
 			.click();
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 		await page.waitForLoadState('networkidle');
 		const spaceUrl = page.url();
 
@@ -63,7 +68,7 @@ test.describe('Mobile SPA', () => {
 		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await createFirstPage.click();
 		} else {
-			await page.locator('button[title="New Page"]').click();
+			await clickSidebarAddOption(page, 'New Page');
 		}
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
@@ -79,7 +84,7 @@ test.describe('Mobile SPA', () => {
 
 		// Desktop inline tree must be gone; the contextual header lives in the
 		// top nav with a tree toggle.
-		const treeToggle = page.locator('#app-header').getByTitle('Pages');
+		const treeToggle = page.getByRole('button', { name: 'Pages' });
 		await expect(treeToggle).toBeVisible();
 
 		// Open the off-canvas tree drawer and pick the page.
@@ -128,7 +133,7 @@ test.describe('Mobile SPA', () => {
 		await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto('/wiki/spaces');
+		await page.goto(appUrl('spaces'));
 		await page.waitForLoadState('networkidle');
 
 		await expect(
@@ -142,9 +147,9 @@ test.describe('Mobile SPA', () => {
 		const row = page.getByText(spaceRoute, { exact: true }).first();
 		await expect(row).toBeVisible();
 		await row.click();
-		await expect(page).toHaveURL(/\/wiki\/spaces\//);
+		await expect(page).toHaveURL(SPACE_URL_RE);
 
-		await page.goto('/wiki/change-requests');
+		await page.goto(appUrl('change-requests'));
 		await page.waitForLoadState('networkidle');
 		await expect(
 			page.getByRole('heading', { name: 'Change Requests' }),
@@ -164,11 +169,11 @@ test.describe('Mobile SPA', () => {
 		const space = await createTestWikiSpace(request, { route: spaceRoute });
 
 		await page.setViewportSize(PHONE);
-		await page.goto(`/wiki/spaces/${space.name}`);
+		await page.goto(appUrl('spaces', space.name));
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.
-		await page.locator('#app-header').getByTitle('Pages').click();
+		await page.getByRole('button', { name: 'Pages' }).click();
 		const drawer = page.locator('.drawer-content');
 		await expect(drawer).toBeVisible();
 		await drawer.getByTitle('Settings').click();

@@ -11,9 +11,9 @@ function nextMermaidInstanceId() {
 </script>
 
 <script setup>
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { useStorage, watchDebounced } from '@vueuse/core';
-import { CircleHelp, Network, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { getMermaid, getMermaidThemeConfig } from './mermaid-loader.js';
 
@@ -28,7 +28,8 @@ const props = defineProps({
 // In a read-only render (e.g. the change-request preview / published viewer)
 // we drop the split-pane editing chrome and show only the rendered diagram,
 // presented as a centered figure like the public page.
-const isReadOnly = computed(() => !props.editor.isEditable);
+const isEditable = useNodeViewEditable(props.editor);
+const isReadOnly = computed(() => !isEditable.value);
 
 // Unique, collision-free render ids without Date.now()/Math.random() (which
 // can collide on rapid keystrokes). One stable instance id per mounted block
@@ -149,7 +150,7 @@ onMounted(renderPreview);
 	>
 		<div class="mermaid-block-header">
 			<span class="mermaid-block-title">
-				<Network class="mermaid-block-title-icon" />
+				<span class="lucide-network mermaid-block-title-icon" aria-hidden="true" />
 				Mermaid diagram
 			</span>
 			<div class="mermaid-block-actions">
@@ -160,7 +161,7 @@ onMounted(renderPreview);
 					rel="noopener noreferrer"
 					title="Learn about Mermaid"
 				>
-					<CircleHelp class="mermaid-block-action-icon" />
+					<span class="lucide-circle-help mermaid-block-action-icon" aria-hidden="true" />
 				</a>
 				<button
 					type="button"
@@ -168,7 +169,7 @@ onMounted(renderPreview);
 					title="Remove diagram"
 					@click="deleteNode()"
 				>
-					<Trash2 class="mermaid-block-action-icon" />
+					<span class="lucide-trash-2 mermaid-block-action-icon" aria-hidden="true" />
 				</button>
 			</div>
 		</div>
@@ -244,7 +245,7 @@ onMounted(renderPreview);
 	margin: 0.75rem 0;
 	border: 1px solid var(--outline-gray-2);
 	border-radius: 0.5rem;
-	background: var(--surface-white);
+	background: var(--surface-base);
 	overflow: hidden;
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }

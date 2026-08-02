@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
+import { openNewPageDialog } from '../helpers/wiki';
 
 /**
  * Regression coverage for frappe/wiki#609:
@@ -18,24 +20,15 @@ test.describe('Markdown Paste (#609)', () => {
 		page: import('@playwright/test').Page,
 		pageTitle: string,
 	) {
-		await page.goto('/wiki');
+		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
-		const spaceLink = page.locator('a[href*="/wiki/spaces/"]').first();
+		const spaceLink = page.locator(spaceLinkSelector()).first();
 		await expect(spaceLink).toBeVisible({ timeout: 5000 });
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const newPageButton = page.locator('button[title="New Page"]');
-
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await newPageButton.click();
-		}
+		await openNewPageDialog(page);
 
 		await page.getByLabel('Title').fill(pageTitle);
 		await page

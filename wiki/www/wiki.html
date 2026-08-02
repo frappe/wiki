@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/wiki/frontend/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frappe Wiki</title>
+    <script type="module" crossorigin src="/assets/wiki/frontend/assets/index-b9NmgrDj.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/wiki/frontend/assets/index-DFEYNjEA.css">
+  </head>
+  <body class="bg-surface-white">
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

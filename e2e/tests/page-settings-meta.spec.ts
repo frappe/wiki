@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { getDoc } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import {
 	type WikiDocument,
 	type WikiSpace,
@@ -58,7 +59,7 @@ test.describe('Page Settings meta fields', () => {
 		const metaDescription = 'A hand-written meta description for e2e coverage.';
 
 		await page.setViewportSize({ width: 1200, height: 900 });
-		await page.goto(`/wiki/spaces/${space.name}/page/${doc.name}`);
+		await page.goto(appUrl('spaces', space.name, 'page', doc.name));
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
@@ -86,6 +87,12 @@ test.describe('Page Settings meta fields', () => {
 		await expect(saveButton).toBeEnabled();
 
 		await saveButton.click();
+		// The dialog deliberately stays open on save: saving is what regenerates
+		// the social preview, so closing would hide the thing that just changed.
+		// Save disabling itself is the signal the write landed.
+		await expect(saveButton).toBeDisabled({ timeout: 10000 });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		// Reopen — values must have persisted to the Wiki Document.
@@ -118,7 +125,7 @@ test.describe('Page Settings meta fields', () => {
 		// Clear both fields — the public page must fall back to the page
 		// title in og:title, and drop the now-empty description tag rather
 		// than emit an empty one.
-		await page.goto(`/wiki/spaces/${space.name}/page/${doc.name}`);
+		await page.goto(appUrl('spaces', space.name, 'page', doc.name));
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
@@ -129,6 +136,8 @@ test.describe('Page Settings meta fields', () => {
 		await dialog.getByLabel('Meta Description').fill('');
 		await expect(saveButton).toBeEnabled();
 		await saveButton.click();
+		await expect(saveButton).toBeDisabled({ timeout: 10000 });
+		await dialog.getByRole('button', { name: 'Cancel' }).click();
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		await page.goto(`/${doc.route}`);
