@@ -355,7 +355,8 @@ const spaceTree = inject(SPACE_TREE_KEY, null);
 
 // Where the open page sits in the tree. Groups only expand in the sidebar, so
 // every crumb above the page is a plain label rather than a link. The last one
-// takes its text from the editor so a rename shows before it is saved.
+// reads the title input rather than the saved title, so it keeps up with the
+// keystroke instead of waiting for the blur that saves.
 const breadcrumbs = computed(() => {
 	const children = spaceTree?.value?.children;
 	if (!children?.length) return [];
@@ -371,7 +372,7 @@ const breadcrumbs = computed(() => {
 
 	return trail.map((node, i) => ({
 		label:
-			(i === trail.length - 1 ? displayTitle.value : node.title) ||
+			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
 	}));
 });
