@@ -421,11 +421,12 @@ const BANNER_CONFIG = {
 	Draft: {
 		class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
 		icon: 'lucide-git-branch',
-		title: __('Change Request Draft'),
+		title: __('Drafting Changes'),
 		description: '',
 	},
 	'In Review': {
-		class: 'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
+		class:
+			'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
 		icon: 'lucide-clock',
 		title: __('In Review'),
 		description: __('Your change request is being reviewed'),
@@ -437,13 +438,15 @@ const BANNER_CONFIG = {
 		description: __('Please review the feedback and update your changes'),
 	},
 	Approved: {
-		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+		class:
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: 'lucide-check-circle',
 		title: __('Approved'),
 		description: __('Approved and ready to merge'),
 	},
 	Merged: {
-		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+		class:
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: 'lucide-check-circle',
 		title: __('Merged'),
 		description: __('Your changes have been merged'),
