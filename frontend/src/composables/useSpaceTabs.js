@@ -73,7 +73,10 @@ export function useSpaceTabs(
 	// The active tab becomes the tree's root, so top-level drops reparent into
 	// the tab rather than the space root.
 	const visibleTreeData = computed(() => {
-		if (!treeData.value) return { children: [], root_group: '' };
+		// Null while the tree loads, never an empty tree: the panel reads null as
+		// "still loading" and draws its skeleton, where no children reads as "this
+		// space has no pages" and offers to create the first one.
+		if (!treeData.value) return null;
 		if (!tabs.value.length) return treeData.value;
 
 		const { children, rootNode } = subtreeForTab(
