@@ -272,11 +272,11 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
-import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
+import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
 import WikiTabBar from '../components/WikiTabBar.vue';
@@ -284,6 +284,7 @@ import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSpaceTabs } from '../composables/useSpaceTabs.js';
 import { GENERAL_KEY } from '../lib/spaceTabs.js';
+import { SPACE_TREE_KEY } from '../lib/spaceTree.js';
 import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -342,9 +343,7 @@ const mobileTreeOpen = ref(false);
 // Settings). The plain (non-CR, non-git) space has no banner, so it isn't
 // compacted — its identity lives only in the tree header.
 const treeHeaderCompact = computed(
-	() =>
-		!isMobile.value &&
-		(crStore.isChangeRequestMode || isGitSynced.value),
+	() => !isMobile.value && (crStore.isChangeRequestMode || isGitSynced.value),
 );
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
@@ -588,6 +587,10 @@ const treeData = computed(() => {
 	if (draftStore.spaceId !== props.spaceId) return null;
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
+
+// The open page's panel is a child route, so it can't take the tree as a prop
+// without every sibling route taking it too.
+provide(SPACE_TREE_KEY, treeData);
 
 // Tab state lives here rather than in SpaceTreePanel: the bar renders in this
 // column's header while the tree it filters renders in the sidebar, so a single

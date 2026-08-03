@@ -31,8 +31,11 @@
 		</DefineActions>
 
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-end gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
-				<ReuseActions />
+			<div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+				<div class="flex shrink-0 items-center gap-2">
+					<ReuseActions />
+				</div>
 			</div>
 			<div class="flex-1 overflow-auto pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
@@ -90,8 +93,9 @@
 
 		<!-- Content skeleton -->
 		<div v-else class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-end border-b border-outline-gray-2 px-3 sm:px-5">
-				<div class="flex items-center gap-2">
+			<div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+				<Skeleton class="h-4 w-40 rounded" />
+				<div class="ml-auto flex shrink-0 items-center gap-2">
 					<Skeleton class="h-8 w-24 rounded" />
 					<Skeleton class="h-8 w-16 rounded" />
 					<Skeleton class="size-8 rounded" />
@@ -138,11 +142,14 @@
 
 <script setup>
 import { buildGithubEditUrl } from '@/lib/github';
+import { SPACE_TREE_KEY, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
+import { createReusableTemplate } from '@vueuse/core';
 import {
 	Badge,
+	Breadcrumbs,
 	Button,
 	Dialog,
 	Dropdown,
@@ -153,8 +160,7 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
-import { createReusableTemplate } from '@vueuse/core';
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, inject, ref, shallowRef, watch } from 'vue';
 import PageSettings from './PageSettings.vue';
 import WikiEditor from './WikiEditor.vue';
 
@@ -343,6 +349,31 @@ const displayRoute = computed(() => {
 		wikiDoc.value.doc?.route ||
 		''
 	);
+});
+
+const spaceTree = inject(SPACE_TREE_KEY, null);
+
+// Where the open page sits in the tree. Groups only expand in the sidebar, so
+// every crumb above the page is a plain label rather than a link. The last one
+// takes its text from the editor so a rename shows before it is saved.
+const breadcrumbs = computed(() => {
+	const children = spaceTree?.value?.children;
+	if (!children?.length) return [];
+
+	const docKey = wikiDoc.value.doc?.doc_key;
+	const trail = trailToNode(
+		children,
+		(node) =>
+			(docKey && node.doc_key === docKey) ||
+			node.document_name === props.pageId,
+	);
+	if (!trail) return [];
+
+	return trail.map((node, i) => ({
+		label:
+			(i === trail.length - 1 ? displayTitle.value : node.title) ||
+			__('Untitled'),
+	}));
 });
 
 // Browser tab title: "{page} | {space}". Returning undefined while the doc
