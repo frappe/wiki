@@ -43,7 +43,17 @@
 				{{ __('Reload latest') }}
 			</Button>
 
-			<template v-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
+			<!-- One stable button for the whole merge/withdraw round trip. The
+			     status branches below churn through In Review and Approved on
+			     the way, and the summary they read belongs to a change request
+			     that is being retired. -->
+			<template v-if="crStore.finalizing">
+				<Button size="sm" loading disabled>
+					{{ crStore.finalizing === 'withdrawing' ? __('Withdraw') : __('Merge') }}
+				</Button>
+			</template>
+
+			<template v-else-if="changeRequestStatus === 'Draft' || changeRequestStatus === 'Changes Requested'">
 				<Button
 					v-if="canShowMerge"
 					size="sm"
@@ -189,7 +199,7 @@ import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
 import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import SpaceChromeBar from './SpaceChromeBar.vue';
 
 const {
@@ -322,8 +332,24 @@ const statusBadgeTheme = computed(
 
 const emit = defineEmits(['submit', 'withdraw', 'merge', 'open-settings']);
 
-const changeRequestStatus = computed(
-	() => crStore.currentChangeRequest?.status || 'Draft',
+// Frozen while the CR is being finalized: the server walks it through In Review
+// and Approved on the way to a merge, and every one of those states is a badge,
+// a banner colour and a different action row. The user asked for one thing, so
+// they see one state until it lands.
+const changeRequestStatus = computed(() => {
+	if (crStore.finalizing) return finalizingStatus.value;
+	return crStore.currentChangeRequest?.status || 'Draft';
+});
+
+// The status as it was when finalizing began, held for the duration.
+const finalizingStatus = ref('Draft');
+watch(
+	() => crStore.finalizing,
+	(state, previous) => {
+		if (state && !previous) {
+			finalizingStatus.value = crStore.currentChangeRequest?.status || 'Draft';
+		}
+	},
 );
 
 const showChangesDialog = ref(false);
@@ -395,11 +421,12 @@ const BANNER_CONFIG = {
 	Draft: {
 		class: 'bg-surface-gray-1 border-b border-outline-gray-2 text-ink-gray-8',
 		icon: 'lucide-git-branch',
-		title: __('Change Request Draft'),
+		title: __('Drafting Changes'),
 		description: '',
 	},
 	'In Review': {
-		class: 'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
+		class:
+			'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
 		icon: 'lucide-clock',
 		title: __('In Review'),
 		description: __('Your change request is being reviewed'),
@@ -411,13 +438,15 @@ const BANNER_CONFIG = {
 		description: __('Please review the feedback and update your changes'),
 	},
 	Approved: {
-		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+		class:
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: 'lucide-check-circle',
 		title: __('Approved'),
 		description: __('Approved and ready to merge'),
 	},
 	Merged: {
-		class: 'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+		class:
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
 		icon: 'lucide-check-circle',
 		title: __('Merged'),
 		description: __('Your changes have been merged'),

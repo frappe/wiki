@@ -191,10 +191,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
-	function reset() {
-		spaceId.value = null;
-		hasLoadedTree.value = false;
-		treeModel.reset();
+	// `keepTree` drops the draft session (buffers, queue, change badges) but
+	// leaves the rendered tree standing, so the next hydrate swaps it in one
+	// paint. Without it the sidebar blanks to a skeleton for the length of a
+	// round trip — which is what merging into the same space used to look like,
+	// even though the tree it came back with was all but identical.
+	function reset({ keepTree = false } = {}) {
+		if (!keepTree) {
+			spaceId.value = null;
+			hasLoadedTree.value = false;
+			treeModel.reset();
+		}
 		pageBuffers.reset();
 		resolver.reset();
 		queue.reset();

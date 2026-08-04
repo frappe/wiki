@@ -71,6 +71,7 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 		"is_published": kwargs.get("is_published", True),
 		"switcher_order": kwargs.get("switcher_order", 0),
 		"git_synced": kwargs.get("git_synced", False),
+		"enable_tabs": kwargs.get("enable_tabs", False),
 		"repo_full_name": kwargs.get("repo_full_name"),
 		"branch": kwargs.get("branch"),
 	}
@@ -1961,7 +1962,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertTrue(entry.startswith(prefix), f"{entry!r} does not start with {prefix!r}")
 		self.assertTrue(entry.endswith(suffix), f"{entry!r} does not end with {suffix!r}")
 
-	def _space_with_tree(self, guest_readable=True):
+	def _space_with_tree(self, guest_readable=True, enable_tabs=True):
 		"""A space with untabbed content, a tab, a nested group and a draft page."""
 		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
 		# The space comes first: `is_tab` validates against the space's root group.
@@ -1971,6 +1972,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 			self._unique("llms-space"),
 			root_group.name,
 			roles=[("Guest", "Read")] if guest_readable else [],
+			enable_tabs=enable_tabs,
 		)
 
 		intro = create_test_wiki_document(
@@ -2032,6 +2034,19 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		# A group has no page of its own, so it is a label; its children indent under it.
 		self.assertIn("- **Internals**", lines)
 		self.assertEntry(lines, tree.nested.route, "  - [Nested Page](", ")")
+
+	def test_space_llms_txt_drops_tab_sections_when_tabs_are_off(self):
+		"""The index mirrors the reader, which ignores is_tab for such a space."""
+		tree = self._space_with_tree(enable_tabs=False)
+
+		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
+		lines = body.splitlines()
+
+		self.assertNotIn("## Home", lines)
+		self.assertIn("## Llms Space", lines)
+		# Every page is still listed, just under the one section.
+		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
+		self.assertEntry(lines, tree.endpoints.route, "  - [Endpoints](", ")")
 
 	def test_space_llms_txt_omits_unpublished_pages(self):
 		tree = self._space_with_tree()
@@ -2592,7 +2607,11 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 	def _space(self):
 		root_group = create_test_wiki_document(self, "Tabs Root", is_group=True)
 		space = create_test_wiki_space(
-			self, "Tabs Space", f"tabs-space-{frappe.generate_hash(length=6)}", root_group.name
+			self,
+			"Tabs Space",
+			f"tabs-space-{frappe.generate_hash(length=6)}",
+			root_group.name,
+			enable_tabs=True,
 		)
 		return space, root_group
 
@@ -2604,6 +2623,22 @@ class TestGetSpaceTabs(WikiDocumentTestBase):
 		tab.tab_icon = icon
 		tab.save()
 		return tab
+
+	def test_returns_empty_when_the_space_has_tabs_switched_off(self):
+		"""Tabs are opt-in: the flags stay on the nodes, the bar just goes away."""
+		space, root_group = self._space()
+		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
+		create_test_wiki_document(self, "Invoice", parent=tab.name)
+
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+
+		frappe.db.set_value("Wiki Space", space.name, "enable_tabs", 0)
+		self.assertEqual(get_space_tabs(space.name), [])
+
+		# The node keeps its flags, so switching back restores the same bar.
+		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
+		frappe.db.set_value("Wiki Space", space.name, "enable_tabs", 1)
+		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
 
 	def test_returns_empty_for_a_space_without_tabs(self):
 		space, root_group = self._space()

@@ -184,9 +184,12 @@
             mobile a frappe-ui-style combobox switches tabs. Selecting one
             navigates to its landing route; the tree below then gates to that
             tab's subtree, exactly like the desktop sidebar. -#}
+        {#- Split on the space's tabs flag, not on the node flags: a space with
+            tabs off keeps its is_tab nodes but must render one plain tree. -#}
         {% set current_route = doc.route if doc else '' %}
-        {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
-        {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+        {% set tabs_on = space_tabs and space_tabs | length %}
+        {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list if tabs_on else [] %}
+        {% set other_nodes = ((nested_tree or []) | rejectattr('is_tab') | list) if tabs_on else (nested_tree or []) %}
         {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
         {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
         {% set active = namespace(in_tab=false) %}

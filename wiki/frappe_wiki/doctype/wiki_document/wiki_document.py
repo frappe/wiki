@@ -945,11 +945,18 @@ def get_space_tabs(space: str) -> list[dict]:
 	space_doc = frappe.db.get_value(
 		"Wiki Space",
 		space,
-		["root_group", "home_tab_title", "home_tab_icon"],
+		["root_group", "enable_tabs", "home_tab_title", "home_tab_icon"],
 		as_dict=True,
 	)
 	root_group = space_doc and space_doc.root_group
 	if not root_group:
+		return []
+
+	# Tabs are opt-in per space. Node-level is_tab flags are left alone when the
+	# space turns them off, so flipping the switch back restores the same bar;
+	# every reader surface (bar, mobile header, chrome height, sidebar gating)
+	# already branches on an empty list, so this one gate covers all of them.
+	if not space_doc.enable_tabs:
 		return []
 
 	tabs = frappe.get_all(
