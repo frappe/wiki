@@ -301,6 +301,8 @@ class WikiPage(WebsiteGenerator):
 			"Wiki Page Revision",
 			filters=[["wiki_page", "=", self.name]],
 			fields=["content", "creation", "owner", "name", "raised_by", "raised_by_username"],
+			order_by="creation desc",
+			limit_page_length=2,
 		)
 		context.current_revision = revisions[0]
 		if len(revisions) > 1:
