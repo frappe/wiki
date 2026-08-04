@@ -142,7 +142,7 @@
 
 <script setup>
 import { buildGithubEditUrl } from '@/lib/github';
-import { SPACE_TREE_KEY, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
@@ -353,10 +353,9 @@ const displayRoute = computed(() => {
 
 const spaceTree = inject(SPACE_TREE_KEY, null);
 
-// Where the open page sits in the tree. Groups only expand in the sidebar, so
-// every crumb above the page is a plain label rather than a link. The last one
-// reads the title input rather than the saved title, so it keeps up with the
-// keystroke instead of waiting for the blur that saves.
+// Where the open page sits in the tree. The last crumb reads the title input
+// rather than the saved title, so it keeps up with the keystroke instead of
+// waiting for the blur that saves.
 const breadcrumbs = computed(() => {
 	const children = spaceTree?.value?.children;
 	if (!children?.length) return [];
@@ -374,6 +373,7 @@ const breadcrumbs = computed(() => {
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
+		route: crumbRoute(node, props.spaceId),
 	}));
 });
 

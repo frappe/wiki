@@ -284,7 +284,7 @@ import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSpaceTabs } from '../composables/useSpaceTabs.js';
 import { GENERAL_KEY } from '../lib/spaceTabs.js';
-import { SPACE_TREE_KEY } from '../lib/spaceTree.js';
+import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
 import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -727,18 +727,6 @@ function findNodeByDocumentName(nodes, name) {
 	return null;
 }
 
-function getFirstPage(nodes) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (!node.is_group && node.document_name) return node.document_name;
-		if (node.is_group) {
-			const found = getFirstPage(node.children);
-			if (found) return found;
-		}
-	}
-	return null;
-}
-
 // On the bare space route (welcome screen) open a page automatically: the
 // remembered page if it still exists, otherwise the tree's first page. Replace
 // rather than push so the back button returns to the spaces list, not here.
@@ -755,7 +743,7 @@ function autoOpenPage() {
 	const target =
 		(remembered && findNodeByDocumentName(tree.children, remembered)
 			? remembered
-			: null) || getFirstPage(tree.children);
+			: null) || firstPageIn(tree.children);
 
 	if (target) {
 		autoOpening = true;

@@ -141,7 +141,7 @@
 </template>
 
 <script setup>
-import { SPACE_TREE_KEY, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import {
@@ -218,6 +218,7 @@ const breadcrumbs = computed(() => {
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
+		route: crumbRoute(node, props.spaceId),
 	}));
 });
 
