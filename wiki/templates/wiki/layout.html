@@ -65,7 +65,7 @@
     offsets against. It's a CSS variable rather than an inline value because the
     chrome is desktop-only — below `lg` the offset has to collapse to zero. -#}
 {% set has_tabs = space_tabs and space_tabs|length %}
-<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base"
+<body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base max-w-[2000px] mx-auto"
       {% if hide_chrome %}data-wiki-bare{% elif has_tabs %}data-wiki-tabs{% endif %}>
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}

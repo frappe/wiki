@@ -13,7 +13,7 @@
 <div x-data="wikiPage" x-init="$store.navigation.init()" class="flex-1 min-w-0 flex">
     <!-- Main Content Area -->
     <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
-        <article class="w-full min-w-0 transition-opacity duration-300 xl:max-w-[100ch]"
+        <article class="min-w-0 w-full transition-opacity duration-300 xl:max-w-[85ch]"
              :class="{ 'opacity-50': $store.navigation.loading, 'xl:!max-w-[100ch]': $store.sidebar?.isCollapsed }">
         <!-- Page Header -->
         <header class="py-6 mb-6 border-b border-[var(--outline-gray-1)]">
@@ -79,7 +79,7 @@
 
         <!-- Page Content -->
         <!-- prose prose-v3 mirrors the SPA editor's EditorContent defaults -->
-        <div class="prose prose-v3 max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
+        <div class="prose prose-v3 !max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
             {{ rendered_content | safe }}
         </div>
 
