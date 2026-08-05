@@ -112,7 +112,10 @@ function handleKeyDown(event) {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
-	margin: 0.5rem 0;
+	/* Same 720px cap the public reader applies in main.css, so an embed is the
+	   same box in the editor, the readonly reader and a change-request preview. */
+	max-width: 720px;
+	margin: 0.5rem auto;
 	border-radius: 8px;
 	transition: outline-color 0.2s ease;
 }
@@ -128,6 +131,17 @@ function handleKeyDown(event) {
 	overflow: hidden;
 	border-radius: 8px;
 	background-color: #000;
+}
+
+/* Documents, boards and code sandboxes aren't 16:9 video — a widescreen box
+   just wastes half the height on their own scrollbars. */
+.iframe-block-wrapper[data-provider='figma'] .iframe-container,
+.iframe-block-wrapper[data-provider='miro'] .iframe-container,
+.iframe-block-wrapper[data-provider='google'] .iframe-container,
+.iframe-block-wrapper[data-provider='codepen'] .iframe-container,
+.iframe-block-wrapper[data-provider='codesandbox'] .iframe-container,
+.iframe-block-wrapper[data-provider='github-gist'] .iframe-container {
+	aspect-ratio: 4 / 3;
 }
 
 .iframe-container iframe {
