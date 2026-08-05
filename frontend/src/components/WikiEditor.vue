@@ -64,6 +64,7 @@ import WikiToolbar from './tiptap-extensions/WikiToolbar.vue';
 // Import custom extensions
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
+import { isEmbedUrlPaste } from './tiptap-extensions/iframe-embed.js';
 import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { canonicalizeMarkdown } from './tiptap-extensions/markdown-normalize.js';
@@ -297,6 +298,15 @@ function handlePaste(_view, event) {
 	// default handler keep the rich formatting.
 	const text = event.clipboardData?.getData('text/plain');
 	const html = event.clipboardData?.getData('text/html');
+
+	// A paste that is nothing but an embeddable URL belongs to the iframe
+	// block's paste rule. Handling it as markdown here would consume the event
+	// (returning true stops ProseMirror applying its slice, and with it every
+	// paste rule) and leave a bare link where the video should be.
+	if (text && isEmbedUrlPaste(text)) {
+		return false;
+	}
+
 	if (text && !html && editor.value?.markdown) {
 		event.preventDefault();
 		editor.value
