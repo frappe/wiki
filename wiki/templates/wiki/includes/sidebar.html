@@ -290,13 +290,8 @@
 
                 if (!headings || headings.length === 0) {
                     tocContainer.innerHTML = '';
-                    tocContainer.classList.remove('w-[200px]');
-                    tocContainer.classList.add('w-0', '!p-0');
                     return;
                 }
-
-                tocContainer.classList.remove('w-0', '!p-0');
-                tocContainer.classList.add('w-[200px]');
 
                 const escapeHtml = (str) => {
                     const div = document.createElement('div');
