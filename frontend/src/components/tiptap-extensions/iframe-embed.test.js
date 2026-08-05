@@ -6,6 +6,7 @@ import {
 	EMBED_URL_PASTE_RE,
 	iframeAttrsFromHtml,
 	isAllowedIframeSrc,
+	isEmbedUrlPaste,
 	normalizeEmbedUrl,
 } from './iframe-embed.js';
 
@@ -25,6 +26,23 @@ test('URL paste regex matches a paste that is only an allowlisted embed URL', ()
 	const matches = [...text.matchAll(EMBED_URL_PASTE_RE)];
 	assert.equal(matches.length, 1);
 	assert.equal(matches[0][1], text);
+});
+
+// WikiEditor's handlePaste asks this before deciding whether to consume the
+// event as markdown. A stale lastIndex here would make every other paste of the
+// same URL fall through to markdown and land as a bare link.
+test('isEmbedUrlPaste is stateless and only claims paste-alone embed URLs', () => {
+	for (let i = 0; i < 3; i++) {
+		assert.equal(isEmbedUrlPaste('https://www.youtube.com/watch?v=abc'), true);
+		assert.equal(isEmbedUrlPaste('https://youtu.be/abc'), true);
+	}
+	assert.equal(
+		isEmbedUrlPaste('watch https://www.youtube.com/watch?v=abc later'),
+		false,
+	);
+	assert.equal(isEmbedUrlPaste('https://evil.example.com/x'), false);
+	assert.equal(isEmbedUrlPaste(''), false);
+	assert.equal(isEmbedUrlPaste(undefined), false);
 });
 
 test('URL paste regex ignores an embed URL sitting inside a sentence', () => {

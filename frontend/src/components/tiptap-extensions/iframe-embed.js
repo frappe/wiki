@@ -186,6 +186,19 @@ export const EMBED_URL_PASTE_RE = new RegExp(
 	'g',
 );
 
+// Non-global twin for one-off tests — a global regex would carry lastIndex
+// between calls and answer `false` on every other identical paste.
+const EMBED_URL_PASTE_RE_SINGLE = new RegExp(EMBED_URL_PASTE_RE.source);
+
+/**
+ * True when a pasted payload is nothing but an embeddable URL, i.e. exactly
+ * what the iframe block's paste rule claims. Editor-level paste handlers use
+ * this to stand aside instead of consuming the event first.
+ */
+export function isEmbedUrlPaste(text) {
+	return EMBED_URL_PASTE_RE_SINGLE.test(String(text ?? ''));
+}
+
 // Non-global form drives the stateless .exec() in iframeAttrsFromHtml (a global
 // regex would carry lastIndex across calls); EMBED_HTML_PASTE_RE_G is its global
 // twin for the paste rule, which goes through matchAll.
