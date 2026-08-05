@@ -86,4 +86,13 @@ def check_app_permission():
 
 
 def add_wiki_user_role(doc, event=None):
-	doc.add_roles("Wiki User")
+	if not any(r.role == "Wiki User" for r in doc.get("roles", [])):
+		frappe.get_doc(
+			{
+				"doctype": "Has Role",
+				"parent": doc.name,
+				"parenttype": "User",
+				"parentfield": "roles",
+				"role": "Wiki User",
+			}
+		).insert(ignore_permissions=True)
