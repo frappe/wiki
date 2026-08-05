@@ -19,6 +19,13 @@ const IFRAME_FIXTURE =
 const IFRAME_SRC =
 	'https://www.youtube.com/embed/QDia3e12czc?si=8or3Lz5IEeelsdcF';
 
+// What the same fixture becomes once it goes through normalizeEmbedUrl: the
+// privacy-enhanced host, share query intact. Only paths that normalize (the
+// URL input, a paste) produce this — markdown already stored on a page is
+// parsed as-is and keeps whichever host it was written with.
+const IFRAME_SRC_NORMALIZED =
+	'https://www.youtube-nocookie.com/embed/QDia3e12czc?si=8or3Lz5IEeelsdcF';
+
 declare global {
 	interface Window {
 		wikiEditor: {
@@ -165,14 +172,14 @@ test.describe('Iframe embed extension', () => {
 			.click();
 
 		const preview = page.locator(
-			'.iframe-block-wrapper iframe[src*="youtube.com/embed"]',
+			'.iframe-block-wrapper iframe[src*="youtube-nocookie.com/embed"]',
 		);
 		await expect(preview).toBeVisible({ timeout: 5000 });
-		await expect(preview).toHaveAttribute('src', IFRAME_SRC);
+		await expect(preview).toHaveAttribute('src', IFRAME_SRC_NORMALIZED);
 
 		// Saved markdown reflects the attrs pulled from the pasted iframe HTML.
 		const md = await page.evaluate(() => window.wikiEditor.getMarkdown());
-		expect(md).toContain(`src="${IFRAME_SRC}"`);
+		expect(md).toContain(`src="${IFRAME_SRC_NORMALIZED}"`);
 		expect(md).toContain('title="YouTube video player"');
 	});
 });
