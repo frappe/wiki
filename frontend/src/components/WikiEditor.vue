@@ -1,10 +1,18 @@
 <template>
-    <div class="wiki-editor-container">
+    <div class="wiki-editor-container" ref="containerRef">
         <div>
+            <!-- Stays outside the content row: it's a full-width sticky bar, and
+                 making it a flex child would strand it above one column. -->
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
-            <div class="w-full max-w-[770px] px-6">
-                <slot name="title" />
-                <EditorContent :editor="editor" :class="contentClass" />
+            <EditorTableOfContents v-if="showTocStrip" :editor="editor" variant="strip" />
+            <div class="flex">
+                <div class="min-w-0 flex-1 flex justify-center">
+                    <div class="w-full max-w-[770px] px-6">
+                        <slot name="title" />
+                        <EditorContent :editor="editor" :class="contentClass" />
+                    </div>
+                </div>
+                <EditorTableOfContents v-if="showTocRail" :editor="editor" variant="rail" />
             </div>
             <!-- After EditorContent so the ProseMirror DOM is attached when the
                  bubble menu mounts; it derives its flip boundary from the editor's
@@ -37,9 +45,10 @@ import {
 	TableRow,
 } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { onKeyStroke } from '@vueuse/core';
+import { onKeyStroke, useElementSize } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
+	computed,
 	createApp,
 	h,
 	onBeforeUnmount,
@@ -57,6 +66,7 @@ import {
 	Markdown,
 	useEditor,
 } from 'frappe-ui/editor';
+import EditorTableOfContents from './EditorTableOfContents.vue';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
@@ -132,6 +142,7 @@ let autosaveTimer = null;
 const fileUploader = useFileUpload();
 
 // Refs for file input and link popup
+const containerRef = ref(null);
 const slashImageInput = ref(null);
 let linkPopupInstance = null;
 let linkPopupApp = null;
@@ -670,6 +681,20 @@ const contentClass = [
 	'wiki-editor-content',
 	props.readonly ? '' : 'is-editable',
 ];
+
+// The editor's width is the viewport minus the app nav and the resizable tree,
+// so a viewport media query would measure the wrong box — watch the element
+// instead. On a 1440px laptop with both open the editor gets ~920px, which is
+// the width this threshold is picked to serve: below it the content column
+// would have to give up too much to seat a rail, so the strip takes over.
+const TOC_RAIL_MIN_WIDTH = 900;
+const { width: containerWidth } = useElementSize(containerRef);
+const showTocRail = computed(() => containerWidth.value >= TOC_RAIL_MIN_WIDTH);
+// Width reads 0 until the first ResizeObserver callback; rendering neither
+// variant until then avoids flashing the narrow strip on a wide screen.
+const showTocStrip = computed(
+	() => containerWidth.value > 0 && !showTocRail.value,
+);
 
 function normalizeMarkdown(content) {
 	return canonicalizeMarkdown(editor.value?.markdown, content);
