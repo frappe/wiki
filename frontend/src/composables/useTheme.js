@@ -4,8 +4,18 @@ import { computed } from 'vue';
 // Module-level so desktop Sidebar and mobile top nav share one theme value.
 const userTheme = useStorage('wiki-theme', 'dark');
 
+// Suppress transitions for the swap itself: without this, every element with a
+// colour transition animates independently and the page flashes on its way to
+// the new theme. Two rAFs so the class survives the style + paint of the swap.
 function applyTheme(theme) {
-	document.documentElement.setAttribute('data-theme', theme);
+	const root = document.documentElement;
+	root.classList.add('no-transition');
+	root.setAttribute('data-theme', theme);
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			root.classList.remove('no-transition');
+		});
+	});
 }
 
 export function useTheme() {
