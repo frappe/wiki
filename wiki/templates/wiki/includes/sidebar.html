@@ -93,8 +93,18 @@
             toggle() {
                 this.isDark = !this.isDark;
                 const newTheme = this.isDark ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme);
+                const root = document.documentElement;
+                // Suppress transitions for the swap itself, else every element
+                // with a colour transition animates and the page flashes. Two
+                // rAFs so the class survives the style + paint of the swap.
+                root.classList.add('no-transition');
+                root.setAttribute('data-theme', newTheme);
                 localStorage.setItem('wiki-theme', newTheme);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        root.classList.remove('no-transition');
+                    });
+                });
             }
         });
 
