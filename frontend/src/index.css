@@ -1,12 +1,9 @@
 @import "./assets/Inter/inter.css";
 @import "frappe-ui/style.css";
-/* Editor baseline (task lists, table wrapper, TOC node, resize cursor).
-   Imported explicitly: relying on frappe-ui/editor's side-effect import
-   lets rollup assign the CSS to whichever async chunk it likes, and editor
-   pages can end up without it. */
-@import "frappe-ui/editor-style.css";
-/* List family structural styles — same explicit-import rationale as above. */
-@import "frappe-ui/list-style.css";
+/* The editor and list family stylesheets used to be imported here. Their
+   subpath exports are gone — the `frappe-ui/editor` and `frappe-ui/list`
+   barrels are marked side-effectful, so each family's CSS ships with the
+   subpath import itself. */
 @import "./wiki-rendered.css";
 
 /* Tell the browser which theme its native UI (scrollbars, form controls)
