@@ -1,7 +1,7 @@
 # Frappe UI `beta.25` → `beta.45` Upgrade
 
 Date: 2026-08-11
-Status: **Planned — not started.**
+Status: **Phases 0–3 landed on `feat/frappe-ui-beta45`; Phase 4 verification in progress.** See the progress log at the end.
 Research base: frappe-ui `v1.0.0-beta.25` (2026-07-20, what we ship) vs `v1.0.0-beta.45` (2026-08-10, npm `beta`). 696 upstream commits. Reference upgrade: [frappe/gameplan#543](https://github.com/frappe/gameplan/pull/543) (beta.36 → beta.43).
 
 Sources: `docs/content/docs/migration.md` and `docs/content/docs/changelog.md` at `v1.0.0-beta.45` (the changelog moved out of `v1-release/changelog.md` in #1031), diffed against the same files at `v1.0.0-beta.25`. 76 new changelog entries in the delta.
@@ -138,3 +138,47 @@ Manual radius/ink sweep of `wiki/public/css/*.css` and `wiki/www/**`. Regenerate
 ## Open question
 
 - Does `--ink-shift` need to run over `wiki/public` and `wiki/www` too, or is a manual sweep safer given the marker's one-shot semantics?
+  **Resolved during Phase 2:** a manual sweep. Only six hand-written `var(--ink-<family>-N)` reads live there, beside generated files (`frappe-ui-tokens.css`, `tailwind.css`, `frappe-ui-prose.css`) that the codemod would rewrite for nothing — and whose token *definitions* it would corrupt until the next `yarn tailwind:build`.
+
+## Progress log
+
+### Phase 0 — branch and spec (`8294d84`)
+
+Branched `feat/frappe-ui-beta45` off `upstream/develop` (`66eb80d`). Spec committed first.
+
+### Phase 1 — bump and compile (`f177792`)
+
+Green `yarn build`. Corrections to the plan as written:
+
+- **The tiptap resolutions are wider than expected.** Bumping our ten direct tiptap deps to `^3.29.2` left frappe-ui's transitive `@tiptap/extension-*` packages resolving to `3.27.1` from the existing lockfile, and each of those declares an *exact* `@tiptap/core` peer — 19 nested copies of core. yarn v1 ignores a `"@tiptap/**"` glob resolution (it warns and moves on), so all 43 tiptap packages in the lockfile are pinned explicitly. One core after that.
+- **A2 (`Autocomplete` → `MultiSelect`) moved from Phase 3 into Phase 1** — it is a loud break, so the build could not go green without it.
+- `lowlight` emits an unmet-peer warning under `@tiptap/extension-code-block-lowlight`. It is hoisted and present at 3.3.0; the warning is resolution ordering, not a missing dependency.
+- Verified after dropping the two CSS imports: the built output carries 119 ProseMirror rules and 36 list-slot rules, so the side-effectful barrels do ship their stylesheets.
+
+### Phase 2 — tokens (`1584482`, `765f74e`)
+
+- **Radius used `--radius-only`, not the plain codemod.** The plain run also does the color and typography passes, and neither is idempotent — both already ran during the beta.25 upgrade. 113 renames over 29 files (80 in the SPA, 33 in the reader's Jinja templates). Three `var(--radius-sm|lg)` reads hand-migrated; the codemod only rewrites classes. Four `rounded` hits survive the sweep, all of them the English word inside comments.
+- **Ink shift: 33 renames over 11 files**, plus the six hand-migrated `var(--ink-*)` reads in `wiki/public/css`. Markers committed at `frontend/src/.tokens-v2-ink-shift` and `wiki/templates/.tokens-v2-ink-shift`.
+- Regenerated `frappe-ui-tokens.css` confirms the shape: chromatic scales now end at `-9`, the `--radius-sm|md|lg|xl|2xl` aliases are gone, `ink-gray` still has its own 9 steps.
+- **Pre-existing drift found, not fixed here:** the reader's callout icon colors (`main.css`) and the SPA's (`wiki-rendered.css`) were already three steps apart before this upgrade — `--ink-blue-3` vs `--ink-blue-6`. Both shifted by one, so the gap is preserved rather than introduced. Worth a follow-up.
+
+### Phase 3 — component APIs (`217c840`)
+
+Migrated: Tabs (composed family, value model), Dropdown `placement`→`align` (2 sites), `PageHeaderMobile` slot renames (3 sites), `Combobox.reset()`→`clear()`.
+
+Audited and found already correct — **no change needed**:
+
+- **B6, the privacy flip.** All three `useFileUpload().upload()` calls already pass `private: false` explicitly, and `isPrivateUpload()` honours it ahead of the new default. `upload_endpoint` is still snake_case in `UploadOptions` — the flat-prop change was `<FileUploader>`'s, not the composable's.
+- **B12** — `Select` is used without a trigger slot.
+- **B8** — `SidebarHeader`'s `logo`/`title`/`subtitle`/`menuItems` props and `SidebarItem`'s `active` are all as we call them, and `components/Sidebar.vue` already owns its padding and scroll container.
+- **B13** — the editor's caption change cannot reach us: `WikiImage` and `wikiStarterKit` are wiki's own extensions, and captions round-trip through our own markdown tokenizer.
+
+### Phase 4 — verification
+
+- `yarn build` green; public reader CSS regenerated.
+- Unit tests: 47/47 pass. These are `node:test`, not vitest — run them with `node --test "src/**/*.test.js"` from `frontend/`. `npx vitest run` reports "No test suite found" for all nine files, which is a wrong runner rather than a failure. Neither runner is wired into CI; CI runs the Python suite and Playwright.
+- **One genuine e2e break from the token migration** (`2138bd8`): `change-request-flow.spec.ts` located a change card by `div.border.border-outline-gray-2.rounded-lg.overflow-hidden`. The codemod renamed the source class to `rounded-6`, so the locator matched nothing. It was the only token-class locator in the suite — a sweep for `rounded-(sm|md|lg|xl|2xl)` and `ink-<chromatic>-N` across `e2e/` found no others. Worth remembering: **the codemods do not touch e2e selectors, and a stale one fails as a timeout, not as a mismatch.**
+- **Everything else that failed also fails on `upstream/develop`.** Local Playwright is not clean on this machine. Measured directly rather than assumed: `callout-rich-text.spec.ts` + `local-first-store.spec.ts` in isolation give **7 failed / 9 passed on the upgrade branch and 7 failed / 9 passed on `upstream/develop`** (beta.25, tiptap 3.27.1). Five of the seven are the same tests on both sides; the two that differ go in *both* directions, which is the signature of flake rather than a regression. The callout markdown round-trip — the failure that most looked like a tiptap 3.26→3.29.2 regression — fails identically without the upgrade.
+- The `local-first-store` cluster ("Wait for pending changes to sync", "Reload latest before submitting") is client-side draft-sync state, not a stuck queue: the bench worker is up and all three RQ queues measured empty during the run. It cascades — one conflicted draft poisons later tests in the same sequential run, which is why the full-suite failure count climbs faster than the isolated one.
+
+**Not verified here:** a clean full-suite Playwright pass. That needs CI, or a local site reset. The targeted run over the changed surfaces (tabs, sidebar, mobile headers, permissions combobox, space list, public reader, settings) is what this branch stands on locally.
