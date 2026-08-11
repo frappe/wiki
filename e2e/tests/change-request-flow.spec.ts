@@ -599,7 +599,7 @@ test.describe('Change Request Flow', () => {
 		await page.waitForLoadState('networkidle');
 
 		const changeCard = page
-			.locator('div.border.border-outline-gray-2.rounded-lg.overflow-hidden')
+			.locator('div.border.border-outline-gray-2.rounded-6.overflow-hidden')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
 		await expect(
