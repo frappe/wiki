@@ -238,7 +238,7 @@ onMounted(renderPreview);
 
 .mermaid-figure-error {
 	font-size: 0.8125rem;
-	color: var(--ink-red-6, #b91c1c);
+	color: var(--ink-red-5, #b91c1c);
 }
 
 .mermaid-block {
@@ -305,7 +305,7 @@ onMounted(renderPreview);
 }
 
 .mermaid-block-delete:hover {
-	color: var(--ink-red-5, #dc2626);
+	color: var(--ink-red-4, #dc2626);
 }
 
 .mermaid-block-action-icon {
@@ -391,7 +391,7 @@ onMounted(renderPreview);
 	padding: 0.5rem 0.75rem;
 	border-top: 1px solid var(--outline-gray-2);
 	background: var(--surface-red-1, #fef2f2);
-	color: var(--ink-red-6, #b91c1c);
+	color: var(--ink-red-5, #b91c1c);
 	font-size: 0.75rem;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', monospace;

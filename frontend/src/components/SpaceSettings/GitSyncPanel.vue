@@ -107,7 +107,7 @@
 						</p>
 						<p
 							v-else-if="row.status === 'Error' && row.error"
-							class="mt-1 truncate text-sm text-ink-red-8"
+							class="mt-1 truncate text-sm text-ink-red-7"
 							:title="row.error"
 						>
 							{{ firstLine(row.error) }}

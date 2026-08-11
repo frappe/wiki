@@ -82,13 +82,13 @@
 				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-6"
 			>
 				<div class="flex items-start gap-3">
-					<span class="lucide-alert-triangle size-5 text-ink-amber-6 shrink-0 mt-0.5" aria-hidden="true" />
+					<span class="lucide-alert-triangle size-5 text-ink-amber-5 shrink-0 mt-0.5" aria-hidden="true" />
 					<div>
-						<p class="font-medium text-ink-amber-8">{{ __('Merge Conflicts') }}</p>
-						<p class="text-sm text-ink-amber-7 mt-1">
+						<p class="font-medium text-ink-amber-7">{{ __('Merge Conflicts') }}</p>
+						<p class="text-sm text-ink-amber-6 mt-1">
 							{{ __('The following documents have conflicting changes. Choose which version to keep for each conflict.') }}
 						</p>
-						<p class="text-sm-medium text-ink-amber-6 mt-2">
+						<p class="text-sm-medium text-ink-amber-5 mt-2">
 							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
 						</p>
 					</div>
@@ -114,7 +114,7 @@
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-6">
+									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
 										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>

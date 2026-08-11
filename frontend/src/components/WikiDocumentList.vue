@@ -163,10 +163,10 @@
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-6 p-4">
 						<div class="flex items-start gap-3">
-							<span class="lucide-alert-triangle size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+							<span class="lucide-alert-triangle size-5 text-ink-orange-3 flex-shrink-0 mt-0.5" aria-hidden="true" />
 							<div>
-								<p class="font-medium text-ink-orange-4">{{ __('Warning') }}</p>
-								<p class="text-sm text-ink-orange-3 mt-1">
+								<p class="font-medium text-ink-orange-3">{{ __('Warning') }}</p>
+								<p class="text-sm text-ink-orange-2 mt-1">
 									{{ __('This group contains') }} {{ deleteChildCount }}
 									{{ deleteChildCount === 1 ? __('child document') : __('child documents') }}
 									{{ __('that will also be deleted.') }}

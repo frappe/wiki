@@ -15,7 +15,7 @@
 		<template #meta>
 			<span
 				v-if="reviewFeedback"
-				class="truncate text-xs text-ink-red-8 min-w-0"
+				class="truncate text-xs text-ink-red-7 min-w-0"
 				:title="reviewFeedback"
 			>
 				{{ reviewFeedback }}
@@ -77,7 +77,7 @@
 			</template>
 
 			<template v-else-if="changeRequestStatus === 'Approved'">
-				<span class="text-sm-medium text-ink-green-7">
+				<span class="text-sm-medium text-ink-green-6">
 					{{ __('Approved! Ready to merge.') }}
 				</span>
 				<Button
@@ -426,33 +426,33 @@ const BANNER_CONFIG = {
 	},
 	'In Review': {
 		class:
-			'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-8',
+			'bg-surface-amber-2 border-b border-outline-amber-2 text-ink-amber-7',
 		icon: 'lucide-clock',
 		title: __('In Review'),
 		description: __('Your change request is being reviewed'),
 	},
 	'Changes Requested': {
-		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
+		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-7',
 		icon: 'lucide-x-circle',
 		title: __('Changes Requested'),
 		description: __('Please review the feedback and update your changes'),
 	},
 	Approved: {
 		class:
-			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-7',
 		icon: 'lucide-check-circle',
 		title: __('Approved'),
 		description: __('Approved and ready to merge'),
 	},
 	Merged: {
 		class:
-			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-8',
+			'bg-surface-green-2 border-b border-outline-green-2 text-ink-green-7',
 		icon: 'lucide-check-circle',
 		title: __('Merged'),
 		description: __('Your changes have been merged'),
 	},
 	Rejected: {
-		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-8',
+		class: 'bg-surface-red-2 border-b border-outline-red-2 text-ink-red-7',
 		icon: 'lucide-x-circle',
 		title: __('Rejected'),
 		description: __('This change request was rejected and will not be merged'),

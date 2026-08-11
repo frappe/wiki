@@ -467,7 +467,7 @@ const dropdownOptions = computed(() => [
 }
 
 .callout-block-wrapper :deep(.callout-sub-editor-content a) {
-    color: var(--ink-blue-6, #2563eb);
+    color: var(--ink-blue-5, #2563eb);
     text-decoration: underline;
 }
 
@@ -476,27 +476,27 @@ const dropdownOptions = computed(() => [
     background-color: var(--surface-blue-2, #dbeafe);
 }
 .callout-note .callout-icon {
-    color: var(--ink-blue-6, #2563eb);
+    color: var(--ink-blue-5, #2563eb);
 }
 
 .callout-tip {
     background-color: var(--surface-green-2, #dcfce7);
 }
 .callout-tip .callout-icon {
-    color: var(--ink-green-6, #16a34a);
+    color: var(--ink-green-5, #16a34a);
 }
 
 .callout-caution {
     background-color: var(--surface-amber-2, #fef3c7);
 }
 .callout-caution .callout-icon {
-    color: var(--ink-amber-6, #d97706);
+    color: var(--ink-amber-5, #d97706);
 }
 
 .callout-danger {
     background-color: var(--surface-red-2, #fecaca);
 }
 .callout-danger .callout-icon {
-    color: var(--ink-red-6, #dc2626);
+    color: var(--ink-red-5, #dc2626);
 }
 </style>

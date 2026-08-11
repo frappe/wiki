@@ -350,7 +350,7 @@ body {
 }
 
 .callout-note .callout-icon {
-  color: var(--ink-blue-3);
+  color: var(--ink-blue-2);
 }
 
 /* Tip callout - Green (success style) */
@@ -359,7 +359,7 @@ body {
 }
 
 .callout-tip .callout-icon {
-  color: var(--ink-green-3);
+  color: var(--ink-green-2);
 }
 
 /* Caution callout - Amber/Yellow (warning style) */
@@ -368,7 +368,7 @@ body {
 }
 
 .callout-caution .callout-icon {
-  color: var(--ink-amber-3);
+  color: var(--ink-amber-2);
 }
 
 /* Danger callout - Red (error style) */
@@ -377,7 +377,7 @@ body {
 }
 
 .callout-danger .callout-icon {
-  color: var(--ink-red-3);
+  color: var(--ink-red-2);
 }
 
 /* Image lightbox active state */
@@ -533,7 +533,7 @@ body.image-viewer-open {
 
 .wiki-pdf-header .wiki-pdf-icon {
   flex-shrink: 0;
-  color: var(--ink-red-5, #dc2626);
+  color: var(--ink-red-4, #dc2626);
 }
 
 .wiki-pdf-name {
