@@ -2,7 +2,7 @@
 	<div class="flex flex-col h-full overflow-hidden">
 		<!-- Header renders into the shell's PageHeaderTarget. -->
 		<PageHeaderMobile v-if="isMobile" :title="__('Change Requests')">
-			<template #right>
+			<template #suffix>
 				<MobileAppMenu />
 			</template>
 		</PageHeaderMobile>
@@ -27,15 +27,32 @@
 			/>
 		</template>
 
-		<Tabs v-else v-model="activeTabIndex" :tabs="tabs">
-			<template #tab-panel="{ tab }">
+		<!-- Composed rather than the `:tabs` shorthand: the panel has to be a
+		     constrained flex column for ContributionsPanel's `flex-1
+		     overflow-auto` to scroll, and the shorthand's generated panels take
+		     no classes. v1 ships no layout defaults of its own. -->
+		<Tabs v-else v-model="activeTabKey" class="flex min-h-0 flex-1 flex-col">
+			<TabList class="shrink-0 overflow-x-auto px-3 sm:px-5">
+				<TabTrigger
+					v-for="tab in tabs"
+					:key="tab.key"
+					:value="tab.key"
+					:label="tab.label"
+				/>
+			</TabList>
+			<TabPanel
+				v-for="tab in tabs"
+				:key="tab.key"
+				:value="tab.key"
+				class="flex min-h-0 flex-1 flex-col"
+			>
 				<ContributionsPanel
 					:resource="panelFor(tab.key).resource"
 					:columns="panelFor(tab.key).columns"
 					:options="panelFor(tab.key).options"
 					@assign="openAssign"
 				/>
-			</template>
+			</TabPanel>
 		</Tabs>
 
 		<AssignDialog
@@ -58,6 +75,9 @@ import {
 	FormControl,
 	PageHeader,
 	PageHeaderMobile,
+	TabList,
+	TabPanel,
+	TabTrigger,
 	Tabs,
 	createListResource,
 	usePageMeta,
@@ -206,20 +226,11 @@ const tabs = computed(() =>
 	tabDefs.value.map((d) => ({ key: d.key, label: d.label })),
 );
 
-const activeTabIndex = computed({
-	get() {
-		const idx = tabs.value.findIndex((t) => t.key === tabQuery.value);
-		return idx >= 0 ? idx : 0;
-	},
-	set(idx) {
-		const tab = tabs.value[idx];
-		if (tab) {
-			tabQuery.value = tab.key;
-		}
-	},
+// A tab query naming a tab this user cannot see falls back to the first one.
+const activeKey = computed(() => {
+	const known = tabs.value.some((t) => t.key === tabQuery.value);
+	return known ? tabQuery.value : tabs.value[0]?.key;
 });
-
-const activeKey = computed(() => tabDefs.value[activeTabIndex.value]?.key);
 
 // Mobile select mirrors the desktop tab strip; both drive `tabQuery`.
 const tabSelectOptions = computed(() =>

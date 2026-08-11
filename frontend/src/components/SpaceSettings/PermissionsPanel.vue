@@ -257,10 +257,10 @@ function addRole() {
 	const role = selectedRole.value;
 	if (!role) return;
 	roleRows.value.push({ role, permission_level: 'Read' });
-	// Combobox parks the picked label in its own input; reset() clears both the
+	// Combobox parks the picked label in its own input; clear() clears both the
 	// query and the selection, and re-emits an empty query so the next open
 	// starts from the unfiltered list.
-	roleCombobox.value?.reset();
+	roleCombobox.value?.clear();
 }
 
 onBeforeUnmount(() => clearTimeout(roleSearchTimer));

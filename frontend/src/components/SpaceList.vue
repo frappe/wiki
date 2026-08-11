@@ -4,7 +4,7 @@
          page): centered-title mobile variant with the app menu, or the
          desktop strip with search + New Space. -->
     <PageHeaderMobile v-if="isMobile" :title="__('Wiki Spaces')">
-      <template #right>
+      <template #suffix>
         <div class="flex items-center gap-1">
           <Button
             v-if="isManager"

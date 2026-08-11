@@ -6,7 +6,7 @@
             v-if="isMobile"
             :title="space.doc?.space_name || spaceId"
         >
-            <template #left>
+            <template #prefix>
                 <Button
                     variant="ghost"
                     :label="__('Pages')"
