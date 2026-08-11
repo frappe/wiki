@@ -90,23 +90,23 @@
 
 		<div v-else-if="!loadFailed" class="h-full flex flex-col">
 			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
-				<Skeleton class="h-4 w-40 rounded" />
+				<Skeleton class="h-4 w-40 rounded-4" />
 				<div class="flex items-center gap-2">
-					<Skeleton class="h-8 w-16 rounded" />
-					<Skeleton class="size-8 rounded" />
+					<Skeleton class="h-8 w-16 rounded-4" />
+					<Skeleton class="size-8 rounded-4" />
 				</div>
 			</div>
 			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
-				<Skeleton class="h-8 w-64 rounded" />
+				<Skeleton class="h-8 w-64 rounded-4" />
 				<Skeleton class="h-5 w-14 rounded-full" />
-				<Skeleton class="h-4 w-3/4 rounded" />
-				<Skeleton class="h-4 w-full rounded" />
-				<Skeleton class="h-4 w-5/6 rounded" />
-				<Skeleton class="h-4 w-full rounded" />
-				<Skeleton class="h-4 w-2/3 rounded" />
-				<Skeleton class="h-4 w-full rounded mt-6" />
-				<Skeleton class="h-4 w-4/5 rounded" />
-				<Skeleton class="h-4 w-full rounded" />
+				<Skeleton class="h-4 w-3/4 rounded-4" />
+				<Skeleton class="h-4 w-full rounded-4" />
+				<Skeleton class="h-4 w-5/6 rounded-4" />
+				<Skeleton class="h-4 w-full rounded-4" />
+				<Skeleton class="h-4 w-2/3 rounded-4" />
+				<Skeleton class="h-4 w-full rounded-4 mt-6" />
+				<Skeleton class="h-4 w-4/5 rounded-4" />
+				<Skeleton class="h-4 w-full rounded-4" />
 			</div>
 		</div>
 

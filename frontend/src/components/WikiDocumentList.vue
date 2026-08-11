@@ -18,14 +18,14 @@
 		</div>
 
 		<div v-if="isSearching && !hasResults"
-			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
+			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-6">
 			<span class="lucide-search size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
 			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
 			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
 		</div>
 
 		<div v-else-if="!treeData.children || treeData.children.length === 0"
-			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-lg">
+			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-6">
 			<span class="lucide-file-text size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
 			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
 			<template v-if="!readonly">
@@ -161,7 +161,7 @@
 						{{ deleteNode?.is_group ? __('group') : __('page') }}?
 					</p>
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
-						class="bg-surface-orange-1 border border-outline-orange-2 rounded-lg p-4">
+						class="bg-surface-orange-1 border border-outline-orange-2 rounded-6 p-4">
 						<div class="flex items-start gap-3">
 							<span class="lucide-alert-triangle size-5 text-ink-orange-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
 							<div>

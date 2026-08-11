@@ -128,7 +128,7 @@ watch(
    sidebar surface in light mode; flat with a hairline divider in dark. */
 .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
 	margin: 0.25rem 0.25rem 0.25rem 0;
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-6);
 	background-color: var(--surface-base);
 	box-shadow: var(--shadow-sm);
 	overflow: hidden;

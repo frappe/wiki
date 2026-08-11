@@ -54,12 +54,12 @@
              x-transition:leave="transition ease-in duration-75"
              x-transition:leave-start="opacity-100 scale-100"
              x-transition:leave-end="opacity-0 scale-95"
-             class="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 w-72 min-w-40 bg-[var(--surface-elevation-2)] rounded-lg shadow-2xl ring-1 ring-black/5 z-50 p-1.5">
+             class="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 w-72 min-w-40 bg-[var(--surface-elevation-2)] rounded-6 shadow-2xl ring-1 ring-black/5 z-50 p-1.5">
 {% endmacro %}
 
 {# Menu row geometry, straight from frappe-ui's ItemListRow (size sm) plus the
    Menu highlight colour. Every row in a page-actions menu uses it. #}
-{% set menu_row = "w-full flex items-center gap-2 min-h-7 px-2 py-1.5 rounded text-base text-left text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)] transition-colors" %}
+{% set menu_row = "w-full flex items-center gap-2 min-h-7 px-2 py-1.5 rounded-4 text-base text-left text-[var(--ink-gray-7)] hover:bg-[var(--surface-alpha-gray-2)] transition-colors" %}
 
 {# Dropdown row that triggers downloadPage() and reflects the downloadInProgress state.
    Keeps the dropdown open while preparing the PDF so the loading state stays visible. #}

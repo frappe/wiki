@@ -437,7 +437,7 @@ body.image-viewer-open {
   margin-right: 0.5em;
   vertical-align: -0.125em;
   border: 1px solid var(--outline-gray-4);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-1, 4px);
   background-color: var(--surface-base);
   color: var(--ink-gray-9);
 }

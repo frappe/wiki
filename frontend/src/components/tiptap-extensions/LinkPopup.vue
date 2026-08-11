@@ -1,5 +1,5 @@
 <template>
-    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-lg border border-outline-gray-2">
+    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-6 border border-outline-gray-2">
         <TextInput
             v-if="isEditing"
             ref="inputRef"

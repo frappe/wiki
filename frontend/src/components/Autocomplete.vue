@@ -23,7 +23,7 @@
         :placeholder="placeholder"
         :disabled="disabled"
         autocomplete="off"
-        class="form-input w-full rounded bg-surface-gray-2 pr-8 text-base text-ink-gray-8 disabled:cursor-not-allowed disabled:opacity-60"
+        class="form-input w-full rounded-4 bg-surface-gray-2 pr-8 text-base text-ink-gray-8 disabled:cursor-not-allowed disabled:opacity-60"
         @focus="open"
         @input="onInput"
         @keydown.down.prevent="move(1)"
@@ -43,7 +43,7 @@
         <div
           v-if="isOpen"
           ref="list"
-          class="fixed z-[9999] max-h-56 overflow-auto rounded border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
+          class="fixed z-[9999] max-h-56 overflow-auto rounded-4 border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
           :style="menuStyle"
           @scroll="onScroll"
           @pointerdown.stop

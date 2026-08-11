@@ -18,7 +18,7 @@
 			>
 				<button
 					v-if="node.is_group"
-					class="p-0.5 hover:bg-surface-gray-3 rounded shrink-0"
+					class="p-0.5 hover:bg-surface-gray-3 rounded-4 shrink-0"
 					:aria-label="isNodeExpanded(node.doc_key) ? __('Collapse') : __('Expand')"
 					@click.stop="toggleExpanded(node.doc_key)"
 				>
@@ -36,11 +36,11 @@
 
 				<div class="flex min-w-0 flex-1 flex-col">
 					<span class="text-sm truncate" :class="getTitleClass(node)">
-						<template v-for="(seg, i) in titleParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+						<template v-for="(seg, i) in titleParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-1">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
 					</span>
 					<!-- Why it matched, when the route hit but the title didn't. -->
 					<span v-if="routeParts(node)" class="text-xs text-ink-gray-4 truncate">
-						<template v-for="(seg, i) in routeParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+						<template v-for="(seg, i) in routeParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-1">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
 					</span>
 				</div>
 

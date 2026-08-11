@@ -57,22 +57,22 @@
 				<div
 					v-for="i in 8"
 					:key="i"
-					class="flex items-center gap-2 px-2 py-1.5 rounded"
+					class="flex items-center gap-2 px-2 py-1.5 rounded-4"
 				>
-					<Skeleton class="size-4 rounded shrink-0" />
+					<Skeleton class="size-4 rounded-4 shrink-0" />
 					<Skeleton
-						class="h-3.5 rounded"
+						class="h-3.5 rounded-4"
 						:style="{ width: `${60 + (i % 3) * 25}%` }"
 					/>
 				</div>
 				<div
 					v-for="i in 4"
 					:key="'nested-' + i"
-					class="flex items-center gap-2 px-2 py-1.5 rounded ml-6"
+					class="flex items-center gap-2 px-2 py-1.5 rounded-4 ml-6"
 				>
-					<Skeleton class="size-4 rounded shrink-0" />
+					<Skeleton class="size-4 rounded-4 shrink-0" />
 					<Skeleton
-						class="h-3.5 rounded"
+						class="h-3.5 rounded-4"
 						:style="{ width: `${50 + (i % 2) * 30}%` }"
 					/>
 				</div>

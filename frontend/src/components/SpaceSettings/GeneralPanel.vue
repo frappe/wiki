@@ -47,7 +47,7 @@
 		>
 			<div class="flex items-center gap-3">
 				<div
-					class="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded border border-outline-gray-2 bg-surface-gray-1"
+					class="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-4 border border-outline-gray-2 bg-surface-gray-1"
 				>
 					<img
 						v-if="logo"

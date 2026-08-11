@@ -24,7 +24,7 @@
 		</div>
 
 		<!-- Roles table -->
-		<div class="overflow-hidden rounded-lg border border-outline-gray-2">
+		<div class="overflow-hidden rounded-6 border border-outline-gray-2">
 			<table class="w-full table-fixed text-sm">
 				<thead>
 					<tr class="bg-surface-gray-2 text-ink-gray-5">

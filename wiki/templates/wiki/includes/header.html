@@ -21,7 +21,7 @@
                 @keydown.escape="spaceSwitcherOpen = false"
                 aria-haspopup="menu"
                 :aria-expanded="spaceSwitcherOpen"
-                class="flex h-8 max-w-[15rem] items-center rounded-md px-2 -ms-2 duration-300 ease-in-out cursor-pointer"
+                class="flex h-8 max-w-[15rem] items-center rounded-5 px-2 -ms-2 duration-300 ease-in-out cursor-pointer"
                 :class="spaceSwitcherOpen ? 'bg-[var(--surface-gray-3)]' : 'hover:bg-[var(--surface-gray-3)]'"
                 title="Switch wiki space">
             {% if wiki_space.app_switcher_logo %}
@@ -39,7 +39,7 @@
              x-transition:leave="transition ease-in duration-75"
              x-transition:leave-start="opacity-100 scale-100"
              x-transition:leave-end="opacity-0 scale-95"
-             class="fixed top-[57px] left-4 w-[17rem] bg-[var(--surface-base)] border border-[var(--outline-gray-1)] rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+             class="fixed top-[57px] left-4 w-[17rem] bg-[var(--surface-base)] border border-[var(--outline-gray-1)] rounded-6 shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
             {% for space in wiki_spaces_for_switcher %}
             <a href="/{{ space.route }}"
                class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
@@ -65,7 +65,7 @@
     <div class="flex w-full max-w-md justify-center px-2">
         <button @click="$dispatch('open-search')"
                 aria-label="Open search"
-                class="relative flex h-8 w-full items-center rounded border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
+                class="relative flex h-8 w-full items-center rounded-4 border border-[var(--surface-gray-2)] bg-[var(--surface-gray-2)] ps-9 pe-9 text-base text-[var(--ink-gray-4)] transition-colors hover:border-[var(--outline-elevation-2)] hover:bg-[var(--surface-gray-3)] cursor-pointer"
                 x-data="{ isMac: navigator.platform.includes('Mac') }">
             <span class="absolute inset-y-0 start-0 flex items-center ps-2.5 text-[var(--ink-gray-5)]">
                 {{ render_icon("search", "shrink-0") }}
@@ -92,7 +92,7 @@
             {% if not item.icon %}
             <a href="{{ item.url }}"
                target="_blank" rel="noopener noreferrer"
-               class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-md transition-colors duration-200">
+               class="px-1 py-1.5 text-sm-medium text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] rounded-5 transition-colors duration-200">
                 {{ item.label }}
             </a>
             {% endif %}

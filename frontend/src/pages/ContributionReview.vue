@@ -79,7 +79,7 @@
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
-				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-lg"
+				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-6"
 			>
 				<div class="flex items-start gap-3">
 					<span class="lucide-alert-triangle size-5 text-ink-amber-6 shrink-0 mt-0.5" aria-hidden="true" />
@@ -106,7 +106,7 @@
 						<div
 							v-for="conflict in conflicts"
 							:key="conflict.name"
-							class="border border-outline-gray-2 rounded-lg overflow-hidden"
+							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
 							<div
@@ -183,7 +183,7 @@
 						<div
 							v-for="change in changes.data"
 							:key="change.doc_key"
-							class="border border-outline-gray-2 rounded-lg overflow-hidden"
+							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 						>
 							<div
 								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
@@ -225,14 +225,14 @@
 								     the page sat vs. where it sits now instead of an empty content diff. -->
 								<template v-if="change.change_type === 'reordered'">
 									<div v-if="diffsByDocKey[change.doc_key]" class="flex items-center gap-3 flex-wrap p-4 text-sm">
-										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-6">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-6">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.base, change.title) }}</span>
 											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.base)" variant="subtle" theme="gray" size="sm">
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
 											</Badge>
 										</div>
 										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
-										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-8 font-medium">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
 											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
@@ -264,7 +264,7 @@
 									<template v-if="viewModeFor(change.doc_key) === 'preview'">
 										<div
 											v-if="diffsByDocKey[change.doc_key]"
-											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
+											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-6 overflow-hidden"
 										>
 											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">

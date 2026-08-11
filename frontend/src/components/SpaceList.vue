@@ -63,10 +63,10 @@
           :key="n"
           class="grid grid-cols-[2fr_1fr_2fr_3fr] items-center gap-4 px-2 h-12 border-b border-outline-gray-1"
         >
-          <Skeleton class="h-3.5 w-2/3 rounded" />
+          <Skeleton class="h-3.5 w-2/3 rounded-4" />
           <Skeleton class="h-5 w-20 rounded-full" />
-          <Skeleton class="h-3.5 w-1/2 rounded" />
-          <Skeleton class="h-7 w-16 rounded" />
+          <Skeleton class="h-3.5 w-1/2 rounded-4" />
+          <Skeleton class="h-7 w-16 rounded-4" />
         </div>
       </div>
 
@@ -194,7 +194,7 @@
                  box is ticked: keep the user informed instead of flashing UI. -->
             <div
               v-if="githubConnected.loading || installationsResource.loading"
-              class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
+              class="flex items-center gap-2 rounded-4 border border-outline-gray-2 p-3"
             >
               <span class="lucide-loader-2 h-4 w-4 animate-spin text-ink-gray-5" aria-hidden="true" />
               <span class="text-p-sm text-ink-gray-6">{{ __('Connecting to GitHub…') }}</span>
@@ -204,7 +204,7 @@
               <!-- Not connected yet: kick off the GitHub App connect-account flow. -->
               <div
                 v-if="!githubConnected.data"
-                class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+                class="flex flex-col items-start gap-2 rounded-4 border border-outline-gray-2 p-3"
               >
                 <p class="text-p-sm text-ink-gray-6">
                   {{ __('Connect your GitHub account to pick a repository (private repos supported).') }}
@@ -221,7 +221,7 @@
               <!-- Connected but the App isn't installed anywhere yet: offer install. -->
               <div
                 v-else-if="installationOptions.length === 0"
-                class="flex flex-col items-start gap-2 rounded border border-outline-gray-2 p-3"
+                class="flex flex-col items-start gap-2 rounded-4 border border-outline-gray-2 p-3"
               >
                 <p class="text-p-sm text-ink-gray-6">
                   {{ __('The GitHub App is not installed on any account yet. Install it on the account and repositories you want to sync.') }}
@@ -251,7 +251,7 @@
                      field never appears empty with no hint that it's loading. -->
                 <div
                   v-if="reposInitialLoading"
-                  class="flex items-center gap-2 rounded border border-outline-gray-2 p-3"
+                  class="flex items-center gap-2 rounded-4 border border-outline-gray-2 p-3"
                 >
                   <span class="lucide-loader-2 h-4 w-4 animate-spin text-ink-gray-5" aria-hidden="true" />
                   <span class="text-p-sm text-ink-gray-6">{{ __('Loading repositories…') }}</span>

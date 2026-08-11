@@ -47,7 +47,7 @@
 				</div>
 				<div class="mt-2 flex items-center gap-2">
 					<code
-						class="flex-1 min-w-0 truncate rounded bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
+						class="flex-1 min-w-0 truncate rounded-4 bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
 					>
 						{{ webhookUrl }}
 					</code>
@@ -140,7 +140,7 @@
 		<CollapsibleSection :title="__('Configuration (.wiki.json)')">
 			<pre
 				v-if="wikiConfig"
-				class="max-h-80 overflow-auto whitespace-pre rounded bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
+				class="max-h-80 overflow-auto whitespace-pre rounded-4 bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
 			>{{ wikiConfig }}</pre>
 			<p v-else class="text-xs text-ink-gray-5">
 				{{ __('No .wiki.json in the repo — the page tree is inferred from the docs folder.') }}

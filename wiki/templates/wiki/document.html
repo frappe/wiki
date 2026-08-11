@@ -25,7 +25,7 @@
                     <button @click="downloadPage()"
                             :disabled="downloadInProgress"
                             :aria-busy="downloadInProgress"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-6 hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer disabled:cursor-wait disabled:opacity-70">
                         <template x-if="!downloadInProgress">
                             {{ render_icon("download", "w-4 h-4") }}
                         </template>
@@ -35,7 +35,7 @@
                         <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
                     </button>
                     <button @click="copyMarkdown()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-lg hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-6 hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
                         <template x-if="!copied">
                             {{ render_icon("clipboard", "w-4 h-4") }}
                         </template>
@@ -86,7 +86,7 @@
         <!-- Previous/Next Navigation — frappe-ui docs PrevNextBtns (subtle/md pills) -->
         <nav id="wiki-nav-buttons" class="mt-10">
             {% if prev_doc or next_doc %}
-            {% set nav_link_classes = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline" %}
+            {% set nav_link_classes = "group inline-flex min-w-0 max-w-[48%] items-center gap-2 h-8 px-2.5 rounded-4 text-base font-medium text-[var(--ink-gray-8)] bg-[var(--surface-gray-2)] hover:bg-[var(--surface-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors no-underline" %}
             {#- justify-between alone: with both links they sit at the two ends,
                 and a lone next button falls back to the start rather than
                 hanging off the right edge. Same as frappe-ui docs'

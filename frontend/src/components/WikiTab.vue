@@ -22,7 +22,7 @@
 			<template #default="{ togglePopover }">
 				<button
 					type="button"
-					class="flex shrink-0 rounded hover:bg-surface-gray-3"
+					class="flex shrink-0 rounded-4 hover:bg-surface-gray-3"
 					:title="__('Change icon')"
 					@click.stop="togglePopover()"
 				>

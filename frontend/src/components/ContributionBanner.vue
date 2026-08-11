@@ -114,7 +114,7 @@
 					<div
 						v-for="change in crStore.changes"
 						:key="change.doc_key"
-						class="flex items-start gap-3 p-3 rounded-lg border border-outline-gray-2 hover:bg-surface-gray-1"
+						class="flex items-start gap-3 p-3 rounded-6 border border-outline-gray-2 hover:bg-surface-gray-1"
 					>
 						<div
 							class="flex items-center justify-center size-8 rounded-full shrink-0"

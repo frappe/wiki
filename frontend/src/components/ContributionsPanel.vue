@@ -23,7 +23,7 @@
 						:class="col.align === 'right' ? 'justify-end' : ''"
 					>
 						<Skeleton
-							class="h-4 rounded"
+							class="h-4 rounded-4"
 							:class="skeletonWidth(col)"
 							:style="{ animationDelay: `${i * 60}ms` }"
 						/>

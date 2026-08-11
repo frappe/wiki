@@ -325,7 +325,7 @@ const dropdownOptions = computed(() => [
 <template>
     <NodeViewWrapper
         ref="wrapperRef"
-        class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-md relative flex flex-col gap-2"
+        class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-5 relative flex flex-col gap-2"
         :class="[`callout-${normalizedType}`, { 'outline-none': selected }]"
         contenteditable="false"
     >

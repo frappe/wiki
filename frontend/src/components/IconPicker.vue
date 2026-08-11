@@ -3,7 +3,7 @@
 	     swallows a nested popover's interactions. -->
 	<div
 		v-if="inline"
-		class="overflow-hidden rounded-lg border border-outline-gray-2 bg-surface-elevation-1"
+		class="overflow-hidden rounded-6 border border-outline-gray-2 bg-surface-elevation-1"
 	>
 		<IconGrid :model-value="modelValue" @select="selectIcon($event)" />
 	</div>
@@ -29,7 +29,7 @@
 				@open-auto-focus.prevent
 			>
 				<div
-					class="max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg bg-surface-elevation-2 text-base shadow-2xl ring-1 ring-black ring-opacity-5"
+					class="max-w-[calc(100vw-2rem)] overflow-hidden rounded-6 bg-surface-elevation-2 text-base shadow-2xl ring-1 ring-black ring-opacity-5"
 				 	style="transform-origin: var(--reka-popover-content-transform-origin)"
 				>
 					<IconGrid

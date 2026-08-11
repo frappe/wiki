@@ -29,7 +29,7 @@
 						</label>
 						<div
 							v-if="metaImage"
-							class="group relative overflow-hidden rounded-md border border-outline-gray-2"
+							class="group relative overflow-hidden rounded-5 border border-outline-gray-2"
 						>
 							<img :src="metaImage" alt="" class="h-32 w-full object-cover" />
 							<div
@@ -56,7 +56,7 @@
 						<button
 							v-else
 							type="button"
-							class="flex flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 py-6 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
+							class="flex flex-col items-center justify-center gap-1.5 rounded-5 border border-dashed border-outline-gray-3 bg-surface-gray-1 py-6 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
 							:disabled="isUploadingImage"
 							@click="pickImage"
 						>
@@ -81,7 +81,7 @@
 				<div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-56">
 					<span class="text-sm text-ink-gray-5">{{ __('Social Preview') }}</span>
 					<div
-						class="flex flex-col self-start w-full overflow-hidden rounded-md border border-outline-gray-2"
+						class="flex flex-col self-start w-full overflow-hidden rounded-5 border border-outline-gray-2"
 					>
 						<div
 							class="relative flex h-28 w-full flex-shrink-0 items-center justify-center bg-surface-gray-2"
