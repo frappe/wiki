@@ -40,11 +40,17 @@
 					:label="tab.label"
 				/>
 			</TabList>
+			<!-- `display` is applied only while active. reka keeps an inactive
+			     panel's wrapper in the DOM with a `hidden` attribute and drops
+			     just its content; a bare `flex` here outranks Tailwind's
+			     preflight `[hidden]{display:none}` (same specificity, utilities
+			     come later), so all three panels stayed visible and split the
+			     height three ways. -->
 			<TabPanel
 				v-for="tab in tabs"
 				:key="tab.key"
 				:value="tab.key"
-				class="flex min-h-0 flex-1 flex-col"
+				class="min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
 			>
 				<ContributionsPanel
 					:resource="panelFor(tab.key).resource"
