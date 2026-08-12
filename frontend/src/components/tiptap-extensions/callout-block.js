@@ -10,11 +10,14 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import CalloutBlockView from './CalloutBlockView.vue';
+import {
+	CALLOUT_TYPES,
+	calloutMarkdownTokenizer,
+	parseCalloutMarkdown,
+	renderCalloutMarkdown,
+} from './callout-markdown.js';
 
-/**
- * Callout types that are supported
- */
-export const CALLOUT_TYPES = ['note', 'tip', 'caution', 'danger', 'warning'];
+export { CALLOUT_TYPES };
 
 /**
  * Default titles for each callout type
@@ -120,69 +123,13 @@ export const CalloutBlock = Node.create({
 		};
 	},
 
-	// TipTap v3 Markdown extension support
-	markdownTokenizer: {
-		name: 'calloutBlock',
-		level: 'block',
+	// TipTap v3 Markdown extension support. The hooks live in callout-markdown.js
+	// so they can be unit tested without loading this module's .vue node view.
+	markdownTokenizer: calloutMarkdownTokenizer,
 
-		start(src) {
-			return src.indexOf(':::');
-		},
+	parseMarkdown: parseCalloutMarkdown,
 
-		tokenize(src, tokens, lexer) {
-			// Match :::type[title]\ncontent\n::: or :::type\ncontent\n:::
-			// Consume any blank lines that follow the closing fence so they
-			// aren't re-parsed into phantom empty paragraphs. Without this, a
-			// callout followed by another block accumulates two extra newlines
-			// on every markdown round-trip (the serializer's block separator
-			// plus PreserveBlankLines), so getMarkdown() never stabilises and
-			// the content grows on each save.
-			const match =
-				/^:::(\w+)(?:\[([^\]]*)\])?\n([\s\S]*?)\n:::[ \t]*(?:\n+|$)/.exec(src);
-
-			if (!match) {
-				return undefined;
-			}
-
-			const rawType = match[1].toLowerCase();
-			if (!CALLOUT_TYPES.includes(rawType)) {
-				return undefined;
-			}
-
-			// Normalize 'warning' to 'caution'
-			const calloutType = rawType === 'warning' ? 'caution' : rawType;
-
-			return {
-				type: 'calloutBlock',
-				raw: match[0],
-				calloutType: calloutType,
-				title: match[2] || '',
-				text: (match[3] || '').trim(),
-			};
-		},
-	},
-
-	parseMarkdown(token) {
-		return {
-			type: 'calloutBlock',
-			attrs: {
-				type: token.calloutType || 'note',
-				title: token.title || '',
-				content: token.text || '',
-			},
-		};
-	},
-
-	renderMarkdown(node) {
-		const calloutType = node.attrs.type || 'note';
-		const title = node.attrs.title || '';
-		const content = node.attrs.content || '';
-
-		if (title) {
-			return `:::${calloutType}[${title}]\n${content}\n:::\n\n`;
-		}
-		return `:::${calloutType}\n${content}\n:::\n\n`;
-	},
+	renderMarkdown: renderCalloutMarkdown,
 });
 
 export default CalloutBlock;
