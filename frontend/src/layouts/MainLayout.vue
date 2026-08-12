@@ -79,7 +79,7 @@
 <script setup>
 import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
-import { computed, onMounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Sidebar from '../components/Sidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
@@ -92,19 +92,16 @@ const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 const { showWikiSettings, initialTab, open } = useWikiSettings();
-const { initTheme } = useTheme();
+// The first useColorScheme() call restores the saved preference and starts
+// following the OS, so mounting this one always-mounted component is enough to
+// apply the theme to both the desktop and mobile shells.
+useTheme();
 
 const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
 
 // Spaces stays lit across every space route (list + space details).
 const isSpacesRoute = computed(() => route.path.startsWith('/spaces'));
-
-// Theme is applied here (the one always-mounted component) so both the
-// desktop and mobile shells get it.
-onMounted(() => {
-	initTheme();
-});
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.
 // Re-open the settings dialog on the GitHub tab and strip the query param. This

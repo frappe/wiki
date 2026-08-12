@@ -83,9 +83,12 @@
 <script>
     // Initialize Alpine.js stores
     document.addEventListener('alpine:init', () => {
-        // Get initial theme from localStorage, default to light
-        const stored = localStorage.getItem('wiki-theme');
-        const initialIsDark = stored === 'dark';
+        // Same key resolution as layout.html's pre-paint script: `theme` is what
+        // frappe-ui and the editor SPA write, `wiki-theme` is the older key both
+        // surfaces shared. Read the painted result rather than re-deriving it, so
+        // a stored 'system' can't disagree with what the page already shows.
+        const initialIsDark =
+            document.documentElement.getAttribute('data-theme') === 'dark';
 
         // Theme store for dark/light mode
         Alpine.store('theme', {
@@ -99,7 +102,10 @@
                 // rAFs so the class survives the style + paint of the swap.
                 root.classList.add('no-transition');
                 root.setAttribute('data-theme', newTheme);
-                localStorage.setItem('wiki-theme', newTheme);
+                // Write frappe-ui's key so a toggle here and a toggle in the
+                // editor SPA agree. The old key is left alone rather than kept in
+                // sync: it is only ever read as a fallback.
+                localStorage.setItem('theme', newTheme);
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         root.classList.remove('no-transition');

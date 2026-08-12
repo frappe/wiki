@@ -33,9 +33,17 @@
     <!-- Theme + sidebar initialization - must run before page renders to prevent flash -->
     <script>
         (function() {
-            const stored = localStorage.getItem('wiki-theme');
-            // Default to light theme if no preference is stored
-            const theme = stored || 'light';
+            // `theme` is frappe-ui's key, which the editor SPA now writes through
+            // useColorScheme; `wiki-theme` is what both surfaces used before and
+            // is still read so an existing preference survives. frappe-ui also
+            // stores 'system', which resolves against the OS.
+            const stored = localStorage.getItem('theme') || localStorage.getItem('wiki-theme');
+            const theme = stored === 'dark' || stored === 'light'
+                ? stored
+                : stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark'
+                    // Default to light theme if no preference is stored
+                    : 'light';
             document.documentElement.setAttribute('data-theme', theme);
 
             // Read sidebar collapsed state to prevent layout shift
