@@ -1,23 +1,27 @@
 <template>
+	<!-- SidebarHeader owns its own gutter and a fixed 48px height that lines up
+	     with PageHeader, so it goes straight into Sidebar. A wrapping padding div
+	     indents it past everything below it. Padding belongs on the scroll region
+	     and the footer instead. -->
 	<Sidebar v-model:collapsed="isSidebarCollapsed">
-		<div class="flex h-full flex-col p-2">
-			<SidebarHeader
-				:title="__('Frappe Wiki')"
-				:subtitle="userStore.data?.full_name"
-				logo="/assets/wiki/images/wiki-logo.png"
-				:menu-items="headerMenuItems"
+		<SidebarHeader
+			:title="__('Frappe Wiki')"
+			:subtitle="userStore.data?.full_name"
+			logo="/assets/wiki/images/wiki-logo.png"
+			:menu-items="headerMenuItems"
+		/>
+		<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pt-1">
+			<SidebarItem
+				v-for="item in navItems"
+				:key="item.label"
+				:label="item.label"
+				:icon="item.icon"
+				:to="item.to"
+				:active="route.path.startsWith(router.resolve(item.to).path)"
 			/>
-			<nav class="mt-2 flex flex-1 flex-col gap-0.5 overflow-y-auto">
-				<SidebarItem
-					v-for="item in navItems"
-					:key="item.label"
-					:label="item.label"
-					:icon="item.icon"
-					:to="item.to"
-					:active="route.path.startsWith(router.resolve(item.to).path)"
-				/>
-			</nav>
-			<SidebarCollapseToggle class="mt-auto" />
+		</nav>
+		<div class="px-2 pb-2">
+			<SidebarCollapseToggle />
 		</div>
 	</Sidebar>
 </template>
