@@ -13,7 +13,7 @@
 				</template>
 			</FormControl>
 			<Dropdown v-if="!readonly" class="ml-auto" :options="addOptionsWithTab">
-				<Button :title="__('Add')" icon="plus" variant="subtle" />
+				<Button :title="__('Add')" icon="lucide-plus" variant="subtle" />
 			</Dropdown>
 		</div>
 
@@ -391,17 +391,17 @@ const {
 const addOptions = [
 	{
 		label: __('New Page'),
-		icon: 'file-plus',
+		icon: 'lucide-file-plus',
 		onClick: () => openCreateDialog(props.rootNode, false),
 	},
 	{
 		label: __('New Group'),
-		icon: 'folder-plus',
+		icon: 'lucide-folder-plus',
 		onClick: () => openCreateDialog(props.rootNode, true),
 	},
 	{
 		label: __('External Link'),
-		icon: 'link',
+		icon: 'lucide-link',
 		onClick: () => openExternalLinkDialog(props.rootNode),
 	},
 ];
@@ -415,7 +415,7 @@ const addOptionsWithTab = computed(() => {
 		...addOptions,
 		{
 			label: __('New Tab'),
-			icon: 'columns',
+			icon: 'lucide-columns',
 			// Always parented to the space root, whichever tab is being browsed.
 			onClick: () =>
 				openCreateDialog(props.spaceRootNode || props.rootNode, true, true),

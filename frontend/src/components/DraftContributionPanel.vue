@@ -416,7 +416,7 @@ const menuOptions = computed(() => {
 	return [
 		{
 			label: __('Delete Draft'),
-			icon: 'trash-2',
+			icon: 'lucide-trash-2',
 			onClick: deleteDraft,
 		},
 	];

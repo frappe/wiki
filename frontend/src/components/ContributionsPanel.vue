@@ -95,7 +95,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											icon-left="user-plus"
+											icon-left="lucide-user-plus"
 											@click.stop.prevent="emit('assign', row)"
 										>
 											{{ __('Assign') }}
@@ -122,7 +122,7 @@
 						@click="() => resource.next()"
 						:loading="resource.list.loading"
 						:label="__('Load more')"
-						icon-left="refresh-cw"
+						icon-left="lucide-refresh-cw"
 					/>
 				</div>
 			</template>

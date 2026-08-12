@@ -83,11 +83,11 @@
 <script setup>
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
-import SpaceIcon from './SpaceIcon.vue';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import SpaceIcon from './SpaceIcon.vue';
 
 const props = defineProps({
 	items: {
@@ -339,22 +339,22 @@ function getDropdownOptions(node) {
 			...[
 				{
 					label: __('New Page'),
-					icon: 'file-plus',
+					icon: 'lucide-file-plus',
 					onClick: () => emit('create', node.doc_key, false),
 				},
 				{
 					label: __('New Group'),
-					icon: 'folder-plus',
+					icon: 'lucide-folder-plus',
 					onClick: () => emit('create', node.doc_key, true),
 				},
 				{
 					label: __('External Link'),
-					icon: 'link',
+					icon: 'lucide-link',
 					onClick: () => emit('external-link', node.doc_key),
 				},
 				{
 					label: __('Rename'),
-					icon: 'edit-2',
+					icon: 'lucide-edit-2',
 					onClick: () => emit('rename', node),
 				},
 			],
@@ -365,7 +365,7 @@ function getDropdownOptions(node) {
 		if (props.canManageTabs && isTopLevel(node)) {
 			options.push({
 				label: node.is_tab ? __('Tab settings') : __('Convert to tab'),
-				icon: 'columns',
+				icon: 'lucide-columns',
 				onClick: () =>
 					emit(node.is_tab ? 'tab-settings' : 'convert-to-tab', node),
 			});
@@ -375,7 +375,7 @@ function getDropdownOptions(node) {
 	if (!node.is_group) {
 		options.push({
 			label: __('Change Title'),
-			icon: 'edit-2',
+			icon: 'lucide-edit-2',
 			onClick: () => emit('rename', node),
 		});
 		options.push({
@@ -392,7 +392,7 @@ function getDropdownOptions(node) {
 			options: [
 				{
 					label: __('Delete'),
-					icon: 'trash-2',
+					icon: 'lucide-trash-2',
 					theme: 'red',
 					onClick: () => emit('delete', node),
 				},

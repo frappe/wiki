@@ -457,12 +457,12 @@ const menuOptions = computed(() => {
 		: [
 				{
 					label: displayPublished.value ? __('Unpublish') : __('Publish'),
-					icon: 'upload-cloud',
+					icon: 'lucide-upload-cloud',
 					onClick: togglePublish,
 				},
 				{
 					label: __('Page settings'),
-					icon: 'settings',
+					icon: 'lucide-settings',
 					onClick: () => {
 						showPageSettingsDialog.value = true;
 					},
@@ -471,14 +471,14 @@ const menuOptions = computed(() => {
 	if (githubEditUrl.value) {
 		options.push({
 			label: __('Edit on GitHub'),
-			icon: 'github',
+			icon: 'lucide-git-branch',
 			onClick: () => window.open(githubEditUrl.value, '_blank', 'noopener'),
 		});
 	}
 	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
 		options.push({
 			label: __('View in Desk'),
-			icon: 'external-link',
+			icon: 'lucide-external-link',
 			onClick: () =>
 				window.open(
 					`/app/wiki-document/${encodeURIComponent(wikiDoc.value.doc.name)}`,

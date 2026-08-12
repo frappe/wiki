@@ -8,7 +8,7 @@
 				__('Configure a GitHub App so Wiki Spaces can sync from GitHub repositories, including private ones. Access tokens are minted on demand from the App private key — no per-space secrets are stored.')
 			"
 		>
-			<Button variant="solid" icon-left="github" @click="createApp">
+			<Button variant="solid" icon-left="lucide-git-branch" @click="createApp">
 				{{ __('Create GitHub App') }}
 			</Button>
 		</SettingsRow>

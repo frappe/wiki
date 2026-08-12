@@ -401,7 +401,7 @@ const menuOptions = computed(() => {
 	if (crStore.changeCount > 0) {
 		options.push({
 			label: __('View changes ({0})', [crStore.changeCount]),
-			icon: 'list',
+			icon: 'lucide-list',
 			onClick: () => {
 				showChangesDialog.value = true;
 			},
@@ -410,7 +410,7 @@ const menuOptions = computed(() => {
 	if (canShowArchive.value) {
 		options.push({
 			label: __('Discard Changes'),
-			icon: 'archive',
+			icon: 'lucide-archive',
 			onClick: () => emit('withdraw'),
 		});
 	}

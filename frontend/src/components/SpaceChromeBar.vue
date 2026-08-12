@@ -11,7 +11,7 @@
 			<Button
 				class="-ml-2"
 				variant="ghost"
-				icon="arrow-left"
+				icon="lucide-arrow-left"
 				:title="__('Back to Spaces')"
 				:route="{ name: 'SpaceList' }"
 			/>
@@ -24,13 +24,13 @@
 			<Button
 				v-if="spaceRoute"
 				variant="ghost"
-				icon="external-link"
+				icon="lucide-external-link"
 				:title="__('View Space')"
 				:link="'/' + spaceRoute"
 			/>
 			<Button
 				variant="ghost"
-				icon="settings"
+				icon="lucide-settings"
 				:title="__('Settings')"
 				@click="emit('open-settings')"
 			/>

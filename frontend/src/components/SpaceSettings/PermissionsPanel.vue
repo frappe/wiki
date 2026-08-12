@@ -63,7 +63,7 @@
 								variant="ghost"
 								theme="red"
 								size="sm"
-								icon="trash-2"
+								icon="lucide-trash-2"
 								@click="removeRole(idx)"
 							/>
 						</td>

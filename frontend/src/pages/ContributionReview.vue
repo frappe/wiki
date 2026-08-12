@@ -4,7 +4,7 @@
 		     action cluster needs the full row even on a phone). -->
 		<PageHeader>
 			<div class="flex min-w-0 items-center gap-4">
-				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
+				<Button variant="ghost" icon-left="lucide-arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc" class="min-w-0">
@@ -601,7 +601,7 @@ const reviewMenuOptions = computed(() => {
 	if (status === 'In Review') {
 		options.push({
 			label: __('Approve & Merge'),
-			icon: 'check-circle',
+			icon: 'lucide-check-circle',
 			onClick: () => {
 				showApproveMergeDialog.value = true;
 			},
@@ -610,21 +610,21 @@ const reviewMenuOptions = computed(() => {
 	if (['In Review', 'Approved'].includes(status)) {
 		options.push({
 			label: __('Request Changes'),
-			icon: 'message-square',
+			icon: 'lucide-message-square',
 			onClick: () => {
 				showRequestChangesDialog.value = true;
 			},
 		});
 		options.push({
 			label: __('Reject'),
-			icon: 'x-circle',
+			icon: 'lucide-x-circle',
 			onClick: () => {
 				showRejectDialog.value = true;
 			},
 		});
 		options.push({
 			label: __('Assign reviewer'),
-			icon: 'user-plus',
+			icon: 'lucide-user-plus',
 			onClick: () => {
 				showAssignDialog.value = true;
 			},
@@ -636,7 +636,7 @@ const reviewMenuOptions = computed(() => {
 	if (canWithdraw.value) {
 		options.push({
 			label: __('Withdraw'),
-			icon: 'rotate-ccw',
+			icon: 'lucide-rotate-ccw',
 			onClick: handleWithdraw,
 		});
 	}

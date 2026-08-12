@@ -122,7 +122,7 @@
                     v-if="row.is_published"
                     variant="ghost"
                     size="sm"
-                    icon-left="external-link"
+                    icon-left="lucide-external-link"
                     @click.stop.prevent="viewSpace(row)"
                   >
                     {{ __('View') }}
@@ -148,7 +148,7 @@
           @click="() => spaces.next()"
           :loading="spaces.list.loading"
           :label="__('Load more')"
-          icon-left="refresh-cw"
+          icon-left="lucide-refresh-cw"
         />
       </div>
     </div>
