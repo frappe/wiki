@@ -3305,7 +3305,15 @@ class TestOGImageTokenDrift(unittest.TestCase):
 
 		template = frappe.get_app_path("wiki", "templates", "wiki", "og_image.html")
 		with open(template) as f:
-			declared = dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6});", f.read()))
+			# frappe-ui emits oklch() since 1.0.0-beta.41; the older hex form is
+			# still matched so this compares whatever colors.json currently holds
+			# rather than assuming one notation.
+			declared = dict(
+				re.findall(
+					r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6}|oklch\([^)]*\));",
+					f.read(),
+				)
+			)
 
 		for var, (group, name) in self.TOKEN_REFS.items():
 			ref = colors["themedVariables"]["light"][group][name]
