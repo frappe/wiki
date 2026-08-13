@@ -32,14 +32,18 @@
 		     overflow-auto` to scroll, and the shorthand's generated panels take
 		     no classes. v1 ships no layout defaults of its own. -->
 		<Tabs v-else v-model="activeTabKey" class="flex min-h-0 flex-1 flex-col">
-			<TabList class="shrink-0 overflow-x-auto px-3 sm:px-5">
-				<TabTrigger
-					v-for="tab in tabs"
-					:key="tab.key"
-					:value="tab.key"
-					:label="tab.label"
-				/>
-			</TabList>
+			<!-- The pill track hugs its content, so page padding goes on a wrapper
+			     rather than on TabList itself. -->
+			<div class="shrink-0 px-3 pt-3 sm:px-5">
+				<TabList variant="subtle" class="overflow-x-auto">
+					<TabTrigger
+						v-for="tab in tabs"
+						:key="tab.key"
+						:value="tab.key"
+						:label="tab.label"
+					/>
+				</TabList>
+			</div>
 			<!-- `display` is applied only while active. reka keeps an inactive
 			     panel's wrapper in the DOM with a `hidden` attribute and drops
 			     just its content; a bare `flex` here outranks Tailwind's
