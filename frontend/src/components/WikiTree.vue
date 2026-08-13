@@ -380,7 +380,7 @@ function getDropdownOptions(node) {
 		});
 		options.push({
 			label: node.is_published ? __('Unpublish') : __('Publish'),
-			icon: node.is_published ? 'eye-off' : 'eye',
+			icon: node.is_published ? 'lucide-eye-off' : 'lucide-eye',
 			onClick: () => togglePublish(node),
 		});
 	}
