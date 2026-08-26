@@ -59,6 +59,34 @@ def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
 
 
 @frappe.whitelist()
+def get_space_count(search: str = "", published: str = "all") -> int:
+	"""Count the Wiki Spaces the list view is showing, for its result tally.
+
+	`frappe.client.get_count` takes filters but no or-filters, and the list
+	searches name *or* route -- so the tally needs its own endpoint rather than
+	quietly counting something other than what is on screen.
+	"""
+	filters = {}
+	if published in ("published", "unpublished"):
+		filters["is_published"] = 1 if published == "published" else 0
+
+	or_filters = []
+	if search:
+		or_filters = [
+			["space_name", "like", f"%{search}%"],
+			["route", "like", f"%{search}%"],
+		]
+
+	rows = frappe.get_list(
+		"Wiki Space",
+		filters=filters,
+		or_filters=or_filters,
+		fields=[{"COUNT": "name", "as": "spaces"}],
+	)
+	return rows[0].spaces if rows else 0
+
+
+@frappe.whitelist()
 def get_space_page_counts(spaces: list | str) -> dict[str, int]:
 	"""Return the page count for each of the given Wiki Spaces, keyed by space name.
 

@@ -931,6 +931,59 @@ class TestSpacePageCounts(FrappeTestCase):
 		self.assertEqual(counts[space.name], 1)
 
 
+class TestSpaceCount(FrappeTestCase):
+	"""Tests for the get_space_count API backing the list's result tally."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_published_filter_narrows_the_count(self):
+		"""Measured as deltas: the site already holds spaces of both kinds."""
+		from wiki.api.wiki_space import get_space_count
+
+		before_all = get_space_count()
+		before_published = get_space_count(published="published")
+		before_unpublished = get_space_count(published="unpublished")
+
+		published = create_test_wiki_space()
+		published.is_published = 1
+		published.save()
+		unpublished = create_test_wiki_space()
+		unpublished.is_published = 0
+		unpublished.save()
+
+		self.assertEqual(get_space_count(), before_all + 2)
+		self.assertEqual(get_space_count(published="published"), before_published + 1)
+		self.assertEqual(get_space_count(published="unpublished"), before_unpublished + 1)
+
+	def test_search_matches_name_or_route(self):
+		"""The tally has to use the same or-group as the list, not just the name."""
+		from wiki.api.wiki_space import get_space_count
+
+		space = create_test_wiki_space()
+		space.space_name = "Findable By Name"
+		space.route = "findable-by-route"
+		space.save()
+
+		self.assertEqual(get_space_count(search="Findable By Name"), 1)
+		self.assertEqual(get_space_count(search="findable-by-route"), 1)
+
+	def test_search_and_filter_combine(self):
+		from wiki.api.wiki_space import get_space_count
+
+		space = create_test_wiki_space()
+		space.space_name = "Combined Filter Space"
+		space.is_published = 0
+		space.save()
+
+		self.assertEqual(get_space_count(search="Combined Filter Space", published="published"), 0)
+		self.assertEqual(get_space_count(search="Combined Filter Space", published="unpublished"), 1)
+
+
 # Helper functions
 
 

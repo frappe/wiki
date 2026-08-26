@@ -19,9 +19,25 @@
     </PageHeaderMobile>
     <PageHeader v-else>
       <h2 class="text-lg-semibold text-ink-gray-9">{{ __('Wiki Spaces') }}</h2>
-      <div class="flex items-center gap-2">
+      <Button v-if="isManager" variant="solid" @click="showCreateDialog = true">
+        <template #prefix>
+          <span class="lucide-plus h-4 w-4" aria-hidden="true" />
+        </template>
+        {{ __('New Space') }}
+      </Button>
+    </PageHeader>
+
+    <!-- Feed rows are short, so the list reads as a centered column rather than
+         a full-bleed table: at pane width the trailing cells drift a screen
+         away from the titles they belong to. -->
+    <div
+      class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 overflow-hidden"
+    >
+      <!-- Search first, then the filter, with the tally on the far side. The
+           row wraps on mobile: search takes the first line on its own. -->
+      <div class="flex shrink-0 flex-wrap items-center gap-2">
         <FormControl
-          class="w-64"
+          class="w-full sm:w-56"
           type="text"
           v-model="searchQuery"
           :placeholder="__('Search spaces...')"
@@ -30,139 +46,138 @@
             <span class="lucide-search h-4 w-4 text-ink-gray-4" aria-hidden="true" />
           </template>
         </FormControl>
-        <Button
-          v-if="isManager"
-          variant="solid"
-          @click="showCreateDialog = true"
+        <TabButtons v-model="publishedFilter" :options="filterOptions" />
+        <span class="ml-auto shrink-0 text-sm text-ink-gray-5">
+          {{ spaceCountLabel }}
+        </span>
+      </div>
+
+      <div class="flex-1 overflow-auto">
+        <!-- The List family owns geometry only; empty states are app-authored. -->
+        <div
+          v-if="!isFirstLoad && !(spaces.data || []).length"
+          class="flex flex-col items-center justify-center py-16 text-center"
         >
-          <template #prefix>
-            <span class="lucide-plus h-4 w-4" aria-hidden="true" />
+          <p class="text-lg-medium text-ink-gray-7">
+            {{ isFiltered ? __('No spaces found') : __('No Wiki Spaces') }}
+          </p>
+          <p class="mt-1 max-w-sm text-p-sm text-ink-gray-5">
+            {{
+              isFiltered
+                ? __('No wiki spaces match the current filters')
+                : isManager
+                  ? __('Create your first wiki space to get started')
+                  : __('No wiki spaces available')
+            }}
+          </p>
+          <Button
+            v-if="isManager && !isFiltered"
+            class="mt-4"
+            variant="solid"
+            :label="__('New Space')"
+            @click="showCreateDialog = true"
+          />
+        </div>
+
+        <!-- Feed content in a column grid: the avatar and the two-line title
+             stay a feed, but the page count and the status each get their own
+             track so they line up down the list instead of stacking in one
+             trailing cell. `divider="inset"` keeps the feed's rule (columns
+             would otherwise default it to full width); `list-row-px-3` sets
+             the content inset on the List, which flows to the rows.
+             Cold-load skeletons render inside the same List, so the geometry
+             is declared once and rows can't shift when the data lands. -->
+        <List
+          v-else
+          :columns="['auto', 'minmax(0,1fr)', '5.5rem', '7rem']"
+          :row-height="64"
+          divider="inset"
+          class="list-row-px-3 max-sm:list-cols-[auto_minmax(0,1fr)_auto]"
+        >
+          <template v-if="isFirstLoad">
+            <ListRow v-for="n in SKELETON_ROWS" :key="n">
+              <ListCell>
+                <Skeleton
+                  class="size-10 rounded-8"
+                  :style="{ animationDelay: `${n * 60}ms` }"
+                />
+              </ListCell>
+              <ListCell>
+                <div class="min-w-0 flex-1">
+                  <Skeleton
+                    class="h-4 w-1/3 rounded-4"
+                    :style="{ animationDelay: `${n * 60}ms` }"
+                  />
+                  <Skeleton
+                    class="mt-1.5 h-3 w-1/4 rounded-4"
+                    :style="{ animationDelay: `${n * 60}ms` }"
+                  />
+                </div>
+              </ListCell>
+              <ListCell class="max-sm:hidden justify-end">
+                <Skeleton
+                  class="h-3.5 w-14 rounded-4"
+                  :style="{ animationDelay: `${n * 60}ms` }"
+                />
+              </ListCell>
+              <ListCell class="justify-end">
+                <Skeleton
+                  class="h-5 w-20 rounded-full"
+                  :style="{ animationDelay: `${n * 60}ms` }"
+                />
+              </ListCell>
+            </ListRow>
           </template>
-          {{ __('New Space') }}
-        </Button>
-      </div>
-    </PageHeader>
-    <!-- Mobile keeps an inline search row (the centered header has no room). -->
-    <FormControl
-      v-if="isMobile"
-      type="text"
-      v-model="searchQuery"
-      :placeholder="__('Search spaces...')"
-    >
-      <template #prefix>
-        <span class="lucide-search h-4 w-4 text-ink-gray-4" aria-hidden="true" />
-      </template>
-    </FormControl>
 
-    <div class="flex-1 overflow-auto">
-      <!-- The List family owns geometry only; empty states are app-authored. -->
-      <div
-        v-if="!isFirstLoad && !(spaces.data || []).length"
-        class="flex flex-col items-center justify-center py-16 text-center"
-      >
-        <p class="text-lg-medium text-ink-gray-7">
-          {{ searchQuery ? __('No spaces found') : __('No Wiki Spaces') }}
-        </p>
-        <p class="mt-1 max-w-sm text-p-sm text-ink-gray-5">
-          {{
-            searchQuery
-              ? __('No wiki spaces matched your search')
-              : isManager
-                ? __('Create your first wiki space to get started')
-                : __('No wiki spaces available')
-          }}
-        </p>
-        <Button
-          v-if="isManager && !searchQuery"
-          class="mt-4"
-          variant="solid"
-          :label="__('New Space')"
-          @click="showCreateDialog = true"
-        />
-      </div>
-
-      <!-- Feed mode, not a table: the default template (leading media, content,
-           trailing) needs no column tracks and reflows on its own, so there is
-           no responsive override to keep in step. `list-row-px-3` sets the
-           content inset on the List, which flows to the rows.
-           Cold-load skeletons render inside the same List, so the geometry is
-           declared once and rows can't shift when the data lands. -->
-      <List v-else :row-height="64" class="list-row-px-3">
-        <template v-if="isFirstLoad">
-          <ListRow v-for="n in SKELETON_ROWS" :key="n">
-            <ListCell>
-              <Skeleton
-                class="size-10 rounded-8"
-                :style="{ animationDelay: `${n * 60}ms` }"
-              />
-            </ListCell>
-            <ListCell>
-              <div class="min-w-0 flex-1">
-                <Skeleton
-                  class="h-4 w-1/3 rounded-4"
-                  :style="{ animationDelay: `${n * 60}ms` }"
+          <ListRows v-else :items="spaces.data || []" v-slot="{ item: row }">
+            <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
+              <ListCell>
+                <Avatar
+                  shape="square"
+                  size="2xl"
+                  :image="row.app_switcher_logo"
+                  :label="row.space_name"
                 />
-                <Skeleton
-                  class="mt-1.5 h-3 w-1/4 rounded-4"
-                  :style="{ animationDelay: `${n * 60}ms` }"
-                />
-              </div>
-            </ListCell>
-            <ListCell class="justify-end">
-              <Skeleton
-                class="h-3.5 w-16 rounded-4"
-                :style="{ animationDelay: `${n * 60}ms` }"
-              />
-            </ListCell>
-          </ListRow>
-        </template>
-
-        <ListRows v-else :items="spaces.data || []" v-slot="{ item: row }">
-          <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
-            <ListCell>
-              <Avatar
-                shape="square"
-                size="2xl"
-                :image="row.app_switcher_logo"
-                :label="row.space_name"
-              />
-            </ListCell>
-            <!-- Cells don't inherit an ink color from the List family, so an
-                 explicit token is required or the text goes black in dark mode. -->
-            <ListCell>
-              <div class="min-w-0">
-                <div class="truncate text-base text-ink-gray-8">
-                  {{ row.space_name }}
+              </ListCell>
+              <!-- Cells don't inherit an ink color from the List family, so an
+                   explicit token is required or the text goes black in dark mode. -->
+              <ListCell>
+                <div class="min-w-0">
+                  <div class="truncate text-base text-ink-gray-8">
+                    {{ row.space_name }}
+                  </div>
+                  <div class="mt-0.5 truncate text-sm text-ink-gray-5">
+                    /{{ row.route }}
+                  </div>
                 </div>
-                <div class="mt-0.5 truncate text-sm text-ink-gray-5">
-                  /{{ row.route }}
-                </div>
-              </div>
-            </ListCell>
-            <ListCell class="justify-end">
-              <div class="flex flex-col items-end gap-1">
+              </ListCell>
+              <!-- The narrowest column: dropped on mobile, where the status
+                   badge is the one thing worth the width. -->
+              <ListCell class="max-sm:hidden justify-end">
                 <span class="text-sm text-ink-gray-5">
                   {{ pageCountLabel(row.name) }}
                 </span>
+              </ListCell>
+              <ListCell class="justify-end">
                 <Badge
                   variant="subtle"
                   :theme="row.is_published ? 'green' : 'amber'"
                   size="sm"
                   :label="row.is_published ? __('Published') : __('Unpublished')"
                 />
-              </div>
-            </ListCell>
-          </ListRow>
-        </ListRows>
-      </List>
+              </ListCell>
+            </ListRow>
+          </ListRows>
+        </List>
 
-      <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
-        <Button
-          @click="() => spaces.next()"
-          :loading="spaces.list.loading"
-          :label="__('Load more')"
-          icon-left="lucide-refresh-cw"
-        />
+        <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
+          <Button
+            @click="() => spaces.next()"
+            :loading="spaces.list.loading"
+            :label="__('Load more')"
+            icon-left="lucide-refresh-cw"
+          />
+        </div>
       </div>
     </div>
 
@@ -251,15 +266,29 @@
 
               <template v-else>
                 <!-- Reveal one step at a time: account → repo → branch → folder.
-                     A single account is auto-selected, so the picker collapses to
-                     repo-first in the common case. -->
-                <Autocomplete
-                  v-if="installationOptions.length > 1"
-                  :label="__('GitHub Account')"
-                  :options="installationOptions"
-                  v-model="newSpace.github_installation_id"
-                  :placeholder="__('Select an account or organization')"
-                />
+                     The account picker always shows, even with a single (auto-
+                     selected) installation: an org the App isn't installed on
+                     yet is invisible otherwise, and "Add" is the way to get it. -->
+                <div class="flex items-end gap-2">
+                  <Autocomplete
+                    class="flex-1"
+                    :label="__('GitHub Account or Organization')"
+                    :options="installationOptions"
+                    v-model="newSpace.github_installation_id"
+                    :placeholder="__('Select an account or organization')"
+                  />
+                  <Button
+                    variant="subtle"
+                    :loading="installationsResource.loading"
+                    :tooltip="__('Install the GitHub App on another account or organization')"
+                    @click="installApp"
+                  >
+                    <template #prefix>
+                      <span class="lucide-plus h-4 w-4" aria-hidden="true" />
+                    </template>
+                    {{ __('Add') }}
+                  </Button>
+                </div>
 
                 <!-- First repo page after an account is chosen: spinner so the repo
                      field never appears empty with no hint that it's loading. -->
@@ -330,6 +359,7 @@ import {
 	PageHeader,
 	PageHeaderMobile,
 	Skeleton,
+	TabButtons,
 	createListResource,
 	createResource,
 	toast,
@@ -347,6 +377,7 @@ const showCreateDialog = ref(false);
 const creating = ref(false);
 const routeManuallyEdited = ref(false);
 const searchQuery = ref('');
+const publishedFilter = ref('all');
 const formError = ref('');
 
 const newSpace = reactive({
@@ -486,13 +517,18 @@ watch(
 	},
 );
 
-// The App install also happens in a popup; poll installations until it appears.
+// The App install also happens in a popup; poll installations until the new one
+// appears, then select it — installing on an org is how that org shows up in
+// the picker at all, so landing on it is the point of the trip.
 function installApp() {
 	const url = appInstallUrl.data;
 	if (!url) {
 		appInstallUrl.fetch();
 		return;
 	}
+	const known = new Set(
+		(installationsResource.data || []).map((i) => String(i.id)),
+	);
 	const popup = window.open(
 		url,
 		'github-install',
@@ -500,16 +536,18 @@ function installApp() {
 	);
 	stopConnectPoll();
 	connectPoll = setInterval(async () => {
-		if (popup && popup.closed) {
+		const closed = popup && popup.closed;
+		await installationsResource.reload();
+		const added = (installationsResource.data || []).find(
+			(i) => !known.has(String(i.id)),
+		);
+		if (added) {
 			stopConnectPoll();
-			installationsResource.reload();
+			newSpace.github_installation_id = String(added.id);
+			popup?.close();
 			return;
 		}
-		await installationsResource.reload();
-		if ((installationsResource.data || []).length > 0) {
-			stopConnectPoll();
-			popup?.close();
-		}
+		if (closed) stopConnectPoll();
 	}, 1500);
 }
 
@@ -675,23 +713,61 @@ function pageCountLabel(name) {
 // instead of flashing back to skeletons.
 const isFirstLoad = computed(() => spaces.list.loading && !spaces.data?.length);
 
-let searchDebounceTimer = null;
-watch(searchQuery, (value) => {
-	clearTimeout(searchDebounceTimer);
-	searchDebounceTimer = setTimeout(() => {
-		spaces.update({
-			filters: {},
-			orFilters: value
-				? [
-						['space_name', 'like', `%${value}%`],
-						['route', 'like', `%${value}%`],
-					]
-				: [],
-			start: 0,
-		});
-		spaces.reload();
-	}, 300);
+// Drives the empty state's wording: nothing to show because of a search or a
+// filter reads differently from a wiki with no spaces in it yet.
+const isFiltered = computed(
+	() => !!searchQuery.value || publishedFilter.value !== 'all',
+);
+
+const filterOptions = computed(() => [
+	{ label: __('All'), value: 'all' },
+	{ label: __('Published'), value: 'published' },
+	{ label: __('Unpublished'), value: 'unpublished' },
+]);
+
+// The tally counts what the list is showing, so it takes the same three inputs
+// and has to be refetched alongside every reload.
+const spaceCount = createResource({ url: 'wiki.api.wiki_space.get_space_count' });
+
+const spaceCountLabel = computed(() => {
+	const count = spaceCount.data;
+	if (count === undefined || count === null) return '';
+	return count === 1 ? __('1 space') : __('{0} spaces', [count]);
 });
+
+function applyFilters() {
+	const search = searchQuery.value;
+	spaces.update({
+		filters:
+			publishedFilter.value === 'all'
+				? {}
+				: { is_published: publishedFilter.value === 'published' ? 1 : 0 },
+		orFilters: search
+			? [
+					['space_name', 'like', `%${search}%`],
+					['route', 'like', `%${search}%`],
+				]
+			: [],
+		start: 0,
+	});
+	spaces.reload();
+	spaceCount.submit({ search, published: publishedFilter.value });
+}
+
+// Typing debounces; clicking a filter does not — a segmented control gives one
+// event per choice, and waiting on it would just feel unresponsive.
+let searchDebounceTimer = null;
+watch(searchQuery, () => {
+	clearTimeout(searchDebounceTimer);
+	searchDebounceTimer = setTimeout(applyFilters, 300);
+});
+
+watch(publishedFilter, () => {
+	clearTimeout(searchDebounceTimer);
+	applyFilters();
+});
+
+spaceCount.submit({ search: '', published: 'all' });
 
 // The branch field takes free text, so the name is only known to be real once
 // GitHub says so — check it here rather than letting the first sync fail.
