@@ -59,6 +59,35 @@ def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
 
 
 @frappe.whitelist()
+def get_space_page_counts(spaces: list | str) -> dict[str, int]:
+	"""Return the page count for each of the given Wiki Spaces, keyed by space name.
+
+	One grouped query rather than a count per space: the space list shows the
+	number on every row, so per-row calls would be N round trips that all grow
+	with the page size.
+
+	Groups are folders and external links point elsewhere, so neither counts as
+	a page. Unpublished pages do count -- this is the editor's list, and a draft
+	is still a page someone has to maintain.
+
+	Uses `get_list`, so the Wiki Document permission query drops spaces the user
+	cannot read; they come back absent and the caller reads a missing key as 0.
+	"""
+	if isinstance(spaces, str):
+		spaces = frappe.parse_json(spaces)
+	if not spaces:
+		return {}
+
+	rows = frappe.get_list(
+		"Wiki Document",
+		filters={"wiki_space": ["in", spaces], "is_group": 0, "is_external_link": 0},
+		fields=["wiki_space", {"COUNT": "name", "as": "pages"}],
+		group_by="wiki_space",
+	)
+	return {row.wiki_space: row.pages for row in rows}
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)

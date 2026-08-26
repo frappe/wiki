@@ -81,38 +81,36 @@
         />
       </div>
 
-      <!-- One List spans both states: cold-load skeletons render inside the real
-           chrome, so the track list is declared once and columns can't shift
-           when the data lands. `list-row-px-3` sets the content inset on the
-           List so header and rows share it instead of drifting.
-           Mobile collapses the table to a feed via a --list-columns override
-           rather than scrolling sideways -- the track count here must stay in
-           step with MOBILE_KEYS below. -->
-      <List
-        v-else
-        :columns="tracks"
-        :row-height="40"
-        class="list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto_auto]"
-      >
-        <!-- `!hidden`: the family sets `display: grid` at attribute specificity
-             (to survive preflight resets), which a plain `hidden` utility ties
-             with and loses to on order. -->
-        <ListHeader class="max-sm:!hidden">
-          <ListHeaderCell v-for="col in columns" :key="col.key">
-            {{ col.label }}
-          </ListHeaderCell>
-        </ListHeader>
-
+      <!-- Feed mode, not a table: the default template (leading media, content,
+           trailing) needs no column tracks and reflows on its own, so there is
+           no responsive override to keep in step. `list-row-px-3` sets the
+           content inset on the List, which flows to the rows.
+           Cold-load skeletons render inside the same List, so the geometry is
+           declared once and rows can't shift when the data lands. -->
+      <List v-else :row-height="64" class="list-row-px-3">
         <template v-if="isFirstLoad">
           <ListRow v-for="n in SKELETON_ROWS" :key="n">
-            <ListCell
-              v-for="col in columns"
-              :key="col.key"
-              :class="hiddenOnMobile(col) && 'max-sm:hidden'"
-            >
+            <ListCell>
               <Skeleton
-                class="h-4 rounded-4"
-                :class="col.skeleton"
+                class="size-10 rounded-8"
+                :style="{ animationDelay: `${n * 60}ms` }"
+              />
+            </ListCell>
+            <ListCell>
+              <div class="min-w-0 flex-1">
+                <Skeleton
+                  class="h-4 w-1/3 rounded-4"
+                  :style="{ animationDelay: `${n * 60}ms` }"
+                />
+                <Skeleton
+                  class="mt-1.5 h-3 w-1/4 rounded-4"
+                  :style="{ animationDelay: `${n * 60}ms` }"
+                />
+              </div>
+            </ListCell>
+            <ListCell class="justify-end">
+              <Skeleton
+                class="h-3.5 w-16 rounded-4"
                 :style="{ animationDelay: `${n * 60}ms` }"
               />
             </ListCell>
@@ -120,43 +118,41 @@
         </template>
 
         <ListRows v-else :items="spaces.data || []" v-slot="{ item: row }">
-            <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
-              <ListCell
-                v-for="col in columns"
-                :key="col.key"
-                :class="hiddenOnMobile(col) && 'max-sm:hidden'"
-              >
+          <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
+            <ListCell>
+              <Avatar
+                shape="square"
+                size="2xl"
+                :image="row.app_switcher_logo"
+                :label="row.space_name"
+              />
+            </ListCell>
+            <!-- Cells don't inherit an ink color from the List family, so an
+                 explicit token is required or the text goes black in dark mode. -->
+            <ListCell>
+              <div class="min-w-0">
+                <div class="truncate text-base text-ink-gray-8">
+                  {{ row.space_name }}
+                </div>
+                <div class="mt-0.5 truncate text-sm text-ink-gray-5">
+                  /{{ row.route }}
+                </div>
+              </div>
+            </ListCell>
+            <ListCell class="justify-end">
+              <div class="flex flex-col items-end gap-1">
+                <span class="text-sm text-ink-gray-5">
+                  {{ pageCountLabel(row.name) }}
+                </span>
                 <Badge
-                  v-if="col.key === 'is_published'"
                   variant="subtle"
                   :theme="row.is_published ? 'green' : 'amber'"
                   size="sm"
                   :label="row.is_published ? __('Published') : __('Unpublished')"
                 />
-                <div v-else-if="col.key === 'view'" class="flex items-center">
-                  <!-- Rows are router-links (an <a>); .stop alone won't stop the browser
-                       from following the row href, so .prevent is required too. -->
-                  <Button
-                    v-if="row.is_published"
-                    variant="ghost"
-                    size="sm"
-                    icon-left="lucide-external-link"
-                    @click.stop.prevent="viewSpace(row)"
-                  >
-                    {{ __('View') }}
-                  </Button>
-                </div>
-                <!-- Cells don't inherit an ink color from the List family, so an
-                     explicit token is required or the text goes black in dark mode. -->
-                <span
-                  v-else
-                  class="truncate"
-                  :class="col.key === 'space_name' ? 'text-ink-gray-9' : 'text-ink-gray-7'"
-                  :title="row[col.key]"
-                  >{{ row[col.key] }}</span
-                >
-              </ListCell>
-            </ListRow>
+              </div>
+            </ListCell>
+          </ListRow>
         </ListRows>
       </List>
 
@@ -297,9 +293,6 @@
                     :loading="branches.loading"
                     :placeholder="__('main')"
                   />
-                  <p v-if="newSpace.repo_full_name" class="-mt-2 text-p-sm text-ink-gray-5">
-                    {{ __('Pick a branch or type any branch name — it is checked when you create the space.') }}
-                  </p>
 
                   <FormControl
                     v-if="newSpace.branch"
@@ -328,6 +321,7 @@ import MobileAppMenu from '@/components/MobileAppMenu.vue';
 import { useMobile } from '@/composables/useMobile';
 import { useUserStore } from '@/stores/user';
 import {
+	Avatar,
 	Badge,
 	Button,
 	Dialog,
@@ -340,14 +334,7 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
-import {
-	List,
-	ListCell,
-	ListHeader,
-	ListHeaderCell,
-	ListRow,
-	ListRows,
-} from 'frappe-ui/list';
+import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -606,61 +593,18 @@ function handleRouteInput(value) {
 	if (value) formError.value = '';
 }
 
-const columns = [
-	{
-		label: __('Name'),
-		key: 'space_name',
-		width: 2,
-		skeleton: 'w-2/3',
-	},
-	{
-		label: __('Status'),
-		key: 'is_published',
-		width: 1,
-		skeleton: 'w-20',
-	},
-	{
-		label: __('Route'),
-		key: 'route',
-		width: 2,
-		skeleton: 'w-1/2',
-	},
-	{
-		// Wide last column, left-aligned: keeps the View buttons in one straight
-		// column that starts right after the route rather than hugging the far edge.
-		label: '',
-		key: 'view',
-		width: 3,
-		skeleton: 'w-16',
-	},
-];
-
-// Numeric width = fr weight, translated into the List grid template.
-const tracks = columns.map((col) =>
-	typeof col.width === 'number' ? `minmax(0,${col.width}fr)` : col.width,
-);
-
-// Columns that survive the mobile feed, in order. Route is the one that goes:
-// it is the longest string and the least useful at a glance. Adding or dropping
-// a key here means editing the max-sm track list on the List too.
-const MOBILE_KEYS = ['space_name', 'is_published', 'view'];
-
-function hiddenOnMobile(col) {
-	return !MOBILE_KEYS.includes(col.key);
-}
-
 const SKELETON_ROWS = 8;
-
-// Open the space's public-facing reader. The reader lives at the site root
-// (`/<route>`), outside the `/wiki-app` editor SPA, so it can't go through the
-// router — a new tab keeps the editor session intact.
-function viewSpace(row) {
-	window.open(`/${row.route}`, '_blank', 'noopener');
-}
 
 const spaces = createListResource({
 	doctype: 'Wiki Space',
-	fields: ['name', 'space_name', 'route', 'root_group', 'is_published'],
+	fields: [
+		'name',
+		'space_name',
+		'route',
+		'root_group',
+		'is_published',
+		'app_switcher_logo',
+	],
 	orderBy: 'creation desc',
 	pageLength: 25,
 	auto: true,
@@ -688,6 +632,44 @@ const spaces = createListResource({
 		},
 	},
 });
+
+// Page counts come from one grouped query instead of a field on the list: Wiki
+// Space stores no count, and a call per row would scale with the page size.
+// They accumulate across pages because `Load more` appends to the same list.
+const pageCounts = ref({});
+const requestedCounts = new Set();
+
+const pageCountsResource = createResource({
+	url: 'wiki.api.wiki_space.get_space_page_counts',
+});
+
+async function fetchPageCounts(names) {
+	const counts = await pageCountsResource.submit({ spaces: names });
+	// Spaces with no pages are absent from the grouped response, so fill the
+	// names asked for in at zero. A key that is still missing means "not fetched
+	// yet" and renders blank, rather than flashing a wrong 0.
+	pageCounts.value = {
+		...pageCounts.value,
+		...Object.fromEntries(names.map((name) => [name, counts[name] || 0])),
+	};
+}
+
+watch(
+	() => (spaces.data || []).map((row) => row.name),
+	(names) => {
+		const missing = names.filter((name) => !requestedCounts.has(name));
+		if (!missing.length) return;
+		for (const name of missing) requestedCounts.add(name);
+		fetchPageCounts(missing);
+	},
+	{ immediate: true },
+);
+
+function pageCountLabel(name) {
+	const count = pageCounts.value[name];
+	if (count === undefined) return '';
+	return count === 1 ? __('1 page') : __('{0} pages', [count]);
+}
 
 // Cold load only: once a page has landed, refetches keep the rows on screen
 // instead of flashing back to skeletons.

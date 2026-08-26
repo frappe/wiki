@@ -864,6 +864,73 @@ class TestRebuildWikiTree(FrappeTestCase):
 		self.assertLess(page_b.lft, page_a.lft)
 
 
+class TestSpacePageCounts(FrappeTestCase):
+	"""Tests for the get_space_page_counts API backing the space list."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_counts_pages_per_space(self):
+		"""Each space gets its own page count, keyed by space name."""
+		from wiki.api.wiki_space import get_space_page_counts
+
+		space_a = create_test_wiki_space()
+		space_b = create_test_wiki_space()
+		create_wiki_document(space_a.root_group, "A1")
+		create_wiki_document(space_a.root_group, "A2")
+		create_wiki_document(space_b.root_group, "B1")
+
+		counts = get_space_page_counts([space_a.name, space_b.name])
+
+		self.assertEqual(counts[space_a.name], 2)
+		self.assertEqual(counts[space_b.name], 1)
+
+	def test_groups_and_external_links_are_not_pages(self):
+		"""Folders and external links live in the tree but are not pages."""
+		from wiki.api.wiki_space import get_space_page_counts
+
+		space = create_test_wiki_space()
+		create_wiki_document(space.root_group, "Real Page")
+		create_wiki_document(space.root_group, "A Folder", is_group=True)
+
+		link = frappe.new_doc("Wiki Document")
+		link.title = "Elsewhere"
+		link.parent_wiki_document = space.root_group
+		link.is_external_link = 1
+		link.external_url = "https://example.com"
+		link.insert()
+
+		self.assertEqual(get_space_page_counts([space.name])[space.name], 1)
+
+	def test_empty_space_is_absent_from_the_response(self):
+		"""A space with no pages has no row to group, so it comes back missing."""
+		from wiki.api.wiki_space import get_space_page_counts
+
+		space = create_test_wiki_space()
+
+		self.assertNotIn(space.name, get_space_page_counts([space.name]))
+
+	def test_no_spaces_asked_for_means_no_query(self):
+		from wiki.api.wiki_space import get_space_page_counts
+
+		self.assertEqual(get_space_page_counts([]), {})
+
+	def test_accepts_a_json_string_of_spaces(self):
+		"""The frontend posts the list as JSON, so strings have to parse."""
+		from wiki.api.wiki_space import get_space_page_counts
+
+		space = create_test_wiki_space()
+		create_wiki_document(space.root_group, "Only Page")
+
+		counts = get_space_page_counts(json.dumps([space.name]))
+
+		self.assertEqual(counts[space.name], 1)
+
+
 # Helper functions
 
 
