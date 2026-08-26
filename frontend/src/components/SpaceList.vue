@@ -1,5 +1,8 @@
 <template>
-  <div class="flex flex-col gap-4 p-3 sm:p-4 h-full">
+  <!-- No padding on the page box: the ScrollArea below has to span the pane so
+       its scrollbar rides the content edge, so the horizontal inset belongs to
+       the rows inside it instead. -->
+  <div class="flex h-full flex-col">
     <!-- Header renders into the shell's PageHeaderTarget (pinned above the
          page): centered-title mobile variant with the app menu, or the
          desktop strip with search + New Space. -->
@@ -29,13 +32,13 @@
 
     <!-- Feed rows are short, so the list reads as a centered column rather than
          a full-bleed table: at pane width the trailing cells drift a screen
-         away from the titles they belong to. -->
-    <div
-      class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 overflow-hidden"
-    >
-      <!-- Search first, then the filter, with the tally on the far side. The
-           row wraps on mobile: search takes the first line on its own. -->
-      <div class="flex shrink-0 flex-wrap items-center gap-2">
+         away from the titles they belong to. The narrow width is repeated on
+         the toolbar and the rows so the two line up; the scroll region between
+         them stays full-bleed.
+         Search first, then the filter, with the tally on the far side. The row
+         wraps on mobile: search takes the first line on its own. -->
+    <div class="shrink-0 px-3 py-3 sm:px-4 sm:py-4">
+      <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
         <FormControl
           class="w-full sm:w-56"
           type="text"
@@ -51,8 +54,10 @@
           {{ spaceCountLabel }}
         </span>
       </div>
+    </div>
 
-      <div class="flex-1 overflow-auto">
+    <ScrollArea class="min-h-0 flex-1">
+      <div class="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4">
         <!-- The List family owns geometry only; empty states are app-authored. -->
         <div
           v-if="!isFirstLoad && !(spaces.data || []).length"
@@ -179,7 +184,7 @@
           />
         </div>
       </div>
-    </div>
+    </ScrollArea>
 
     <Dialog
       v-model:open="showCreateDialog"
@@ -358,6 +363,7 @@ import {
 	FormControl,
 	PageHeader,
 	PageHeaderMobile,
+	ScrollArea,
 	Skeleton,
 	TabButtons,
 	createListResource,
