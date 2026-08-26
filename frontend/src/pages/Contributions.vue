@@ -136,9 +136,6 @@ function getRowRoute(row) {
 
 function listOptions(emptyState, rowRoute) {
 	return {
-		selectable: false,
-		showTooltip: true,
-		resizeColumn: false,
 		getRowRoute: rowRoute,
 		emptyState,
 	};

@@ -55,24 +55,9 @@
     </FormControl>
 
     <div class="flex-1 overflow-auto">
-      <!-- Skeleton on cold load so the empty state never flashes before the
-           first page of spaces arrives. -->
-      <div v-if="spaces.list.loading && !spaces.data?.length" class="flex flex-col">
-        <div
-          v-for="n in 8"
-          :key="n"
-          class="grid grid-cols-[2fr_1fr_2fr_3fr] items-center gap-4 px-2 h-12 border-b border-outline-gray-1"
-        >
-          <Skeleton class="h-3.5 w-2/3 rounded-4" />
-          <Skeleton class="h-5 w-20 rounded-full" />
-          <Skeleton class="h-3.5 w-1/2 rounded-4" />
-          <Skeleton class="h-7 w-16 rounded-4" />
-        </div>
-      </div>
-
       <!-- The List family owns geometry only; empty states are app-authored. -->
       <div
-        v-else-if="!(spaces.data || []).length"
+        v-if="!isFirstLoad && !(spaces.data || []).length"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
         <p class="text-lg-medium text-ink-gray-7">
@@ -96,18 +81,51 @@
         />
       </div>
 
-      <!-- Tables stay tables on mobile and scroll horizontally: the min-width
-           keeps columns readable instead of compressing to mush. -->
-      <div v-else class="min-w-[600px] sm:min-w-0">
-        <List :columns="tracks" :row-height="40">
-          <ListHeader>
-            <ListHeaderCell v-for="col in columns" :key="col.key">
-              {{ col.label }}
-            </ListHeaderCell>
-          </ListHeader>
-          <ListRows :items="spaces.data || []" row-key="name" v-slot="{ item: row }">
+      <!-- One List spans both states: cold-load skeletons render inside the real
+           chrome, so the track list is declared once and columns can't shift
+           when the data lands. `list-row-px-3` sets the content inset on the
+           List so header and rows share it instead of drifting.
+           Mobile collapses the table to a feed via a --list-columns override
+           rather than scrolling sideways -- the track count here must stay in
+           step with MOBILE_KEYS below. -->
+      <List
+        v-else
+        :columns="tracks"
+        :row-height="40"
+        class="list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto_auto]"
+      >
+        <!-- `!hidden`: the family sets `display: grid` at attribute specificity
+             (to survive preflight resets), which a plain `hidden` utility ties
+             with and loses to on order. -->
+        <ListHeader class="max-sm:!hidden">
+          <ListHeaderCell v-for="col in columns" :key="col.key">
+            {{ col.label }}
+          </ListHeaderCell>
+        </ListHeader>
+
+        <template v-if="isFirstLoad">
+          <ListRow v-for="n in SKELETON_ROWS" :key="n">
+            <ListCell
+              v-for="col in columns"
+              :key="col.key"
+              :class="hiddenOnMobile(col) && 'max-sm:hidden'"
+            >
+              <Skeleton
+                class="h-4 rounded-4"
+                :class="col.skeleton"
+                :style="{ animationDelay: `${n * 60}ms` }"
+              />
+            </ListCell>
+          </ListRow>
+        </template>
+
+        <ListRows v-else :items="spaces.data || []" v-slot="{ item: row }">
             <ListRow :to="{ name: 'SpaceDetails', params: { spaceId: row.name } }">
-              <ListCell v-for="col in columns" :key="col.key">
+              <ListCell
+                v-for="col in columns"
+                :key="col.key"
+                :class="hiddenOnMobile(col) && 'max-sm:hidden'"
+              >
                 <Badge
                   v-if="col.key === 'is_published'"
                   variant="subtle"
@@ -139,9 +157,8 @@
                 >
               </ListCell>
             </ListRow>
-          </ListRows>
-        </List>
-      </div>
+        </ListRows>
+      </List>
 
       <div v-if="spaces.hasNextPage" class="flex px-2 py-2">
         <Button
@@ -161,6 +178,7 @@
         {
           label: __('Create'),
           variant: 'solid',
+          loading: creating,
           onClick: handleCreateSpace,
         },
       ]"
@@ -272,12 +290,16 @@
 
                   <Autocomplete
                     v-if="newSpace.repo_full_name"
+                    allow-custom
                     :label="__('Branch')"
                     :options="branchOptions"
                     v-model="newSpace.branch"
                     :loading="branches.loading"
                     :placeholder="__('main')"
                   />
+                  <p v-if="newSpace.repo_full_name" class="-mt-2 text-p-sm text-ink-gray-5">
+                    {{ __('Pick a branch or type any branch name — it is checked when you create the space.') }}
+                  </p>
 
                   <FormControl
                     v-if="newSpace.branch"
@@ -335,6 +357,7 @@ const { isMobile } = useMobile();
 const isManager = computed(() => userStore.isWikiManager);
 
 const showCreateDialog = ref(false);
+const creating = ref(false);
 const routeManuallyEdited = ref(false);
 const searchQuery = ref('');
 const formError = ref('');
@@ -372,6 +395,9 @@ const repositoriesResource = createResource({
 });
 const branchesResource = createResource({
 	url: 'wiki.api.github.my_repo_branches',
+});
+const branchExistsResource = createResource({
+	url: 'wiki.api.github.my_branch_exists',
 });
 const appInstallUrl = createResource({
 	url: 'wiki.api.github.app_install_url',
@@ -585,16 +611,19 @@ const columns = [
 		label: __('Name'),
 		key: 'space_name',
 		width: 2,
+		skeleton: 'w-2/3',
 	},
 	{
 		label: __('Status'),
 		key: 'is_published',
 		width: 1,
+		skeleton: 'w-20',
 	},
 	{
 		label: __('Route'),
 		key: 'route',
 		width: 2,
+		skeleton: 'w-1/2',
 	},
 	{
 		// Wide last column, left-aligned: keeps the View buttons in one straight
@@ -602,7 +631,7 @@ const columns = [
 		label: '',
 		key: 'view',
 		width: 3,
-		align: 'left',
+		skeleton: 'w-16',
 	},
 ];
 
@@ -610,6 +639,17 @@ const columns = [
 const tracks = columns.map((col) =>
 	typeof col.width === 'number' ? `minmax(0,${col.width}fr)` : col.width,
 );
+
+// Columns that survive the mobile feed, in order. Route is the one that goes:
+// it is the longest string and the least useful at a glance. Adding or dropping
+// a key here means editing the max-sm track list on the List too.
+const MOBILE_KEYS = ['space_name', 'is_published', 'view'];
+
+function hiddenOnMobile(col) {
+	return !MOBILE_KEYS.includes(col.key);
+}
+
+const SKELETON_ROWS = 8;
 
 // Open the space's public-facing reader. The reader lives at the site root
 // (`/<route>`), outside the `/wiki-app` editor SPA, so it can't go through the
@@ -649,6 +689,10 @@ const spaces = createListResource({
 	},
 });
 
+// Cold load only: once a page has landed, refetches keep the rows on screen
+// instead of flashing back to skeletons.
+const isFirstLoad = computed(() => spaces.list.loading && !spaces.data?.length);
+
 let searchDebounceTimer = null;
 watch(searchQuery, (value) => {
 	clearTimeout(searchDebounceTimer);
@@ -667,7 +711,24 @@ watch(searchQuery, (value) => {
 	}, 300);
 });
 
-const handleCreateSpace = () => {
+// The branch field takes free text, so the name is only known to be real once
+// GitHub says so — check it here rather than letting the first sync fail.
+async function branchIsValid(repoFullName, branch) {
+	try {
+		return await branchExistsResource.submit({
+			repo_full_name: repoFullName,
+			branch,
+		});
+	} catch (error) {
+		formError.value =
+			error?.messages?.[0] ||
+			error?.message ||
+			__('Could not verify the branch on GitHub.');
+		return false;
+	}
+}
+
+const handleCreateSpace = async () => {
 	// Surface validation through the dialog's ErrorMessage rather than a rejected
 	// promise (which only ends up in the console). The dialog stays open either
 	// way — it closes only on insert success.
@@ -678,6 +739,10 @@ const handleCreateSpace = () => {
 	}
 	if (newSpace.git_synced && !newSpace.repo_full_name.trim()) {
 		formError.value = __('Please pick a GitHub repository');
+		return;
+	}
+	if (newSpace.git_synced && !newSpace.branch.trim()) {
+		formError.value = __('Please pick or enter a branch');
 		return;
 	}
 
@@ -693,7 +758,7 @@ const handleCreateSpace = () => {
 	if (newSpace.git_synced) {
 		payload.git_synced = 1;
 		payload.repo_full_name = newSpace.repo_full_name.trim();
-		payload.branch = newSpace.branch.trim() || 'main';
+		payload.branch = newSpace.branch.trim();
 		if (newSpace.docs_subdir.trim()) {
 			payload.docs_subdir = newSpace.docs_subdir.trim();
 		}
@@ -702,6 +767,23 @@ const handleCreateSpace = () => {
 		}
 	}
 
-	return spaces.insert.submit(payload);
+	creating.value = true;
+	try {
+		if (payload.git_synced) {
+			const valid = await branchIsValid(payload.repo_full_name, payload.branch);
+			if (!valid) {
+				if (!formError.value) {
+					formError.value = __('Branch "{0}" does not exist in {1}.', [
+						payload.branch,
+						payload.repo_full_name,
+					]);
+				}
+				return;
+			}
+		}
+		return await spaces.insert.submit(payload);
+	} finally {
+		creating.value = false;
+	}
 };
 </script>
