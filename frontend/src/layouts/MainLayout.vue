@@ -121,20 +121,13 @@ watch(
 </script>
 
 <style scoped>
-/* Gameplan-style shell: the content column floats as a rounded card over the
-   sidebar surface in light mode; flat with a hairline divider in dark. */
+/* The content column sits flush against the sidebar, separated by a hairline
+   rather than floated as a rounded card: the app window already rounds the
+   outer corners, so a second radius inside it just reads as noise. */
 .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
-	margin: 0.25rem 0.25rem 0.25rem 0;
-	border-radius: var(--radius-6);
 	background-color: var(--surface-base);
-	box-shadow: var(--shadow-sm);
-	overflow: hidden;
-}
-[data-theme='dark'] .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
-	margin: 0;
-	border-radius: 0;
 	border-left: 1px solid var(--outline-gray-2);
-	box-shadow: none;
+	overflow: hidden;
 }
 
 /* Wiki pages are app-like (columns + their own scroll regions), so they need
