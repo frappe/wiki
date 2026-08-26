@@ -184,7 +184,7 @@ function getStatusTheme(status) {
 		case 'Draft':
 			return 'blue';
 		case 'In Review':
-			return 'orange';
+			return 'amber';
 		case 'Changes Requested':
 			return 'red';
 		case 'Approved':

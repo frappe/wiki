@@ -1,5 +1,5 @@
 <template>
-	<SettingsDialog v-model="open" v-model:tab="selectedTab">
+	<SettingsDialog v-model:open="open" v-model:tab="selectedTab">
 		<SettingsSidebar>
 			<div>
 				<span class="block px-2 pt-1 pb-3 text-lg-semibold text-ink-gray-9">
@@ -40,7 +40,7 @@
 						<Badge theme="violet" size="sm">
 							{{ __('Beta') }}
 						</Badge>
-						<Badge v-if="permissionsDirty" theme="orange" size="sm">
+						<Badge v-if="permissionsDirty" theme="amber" size="sm">
 							{{ __('Unsaved changes') }}
 						</Badge>
 					</div>

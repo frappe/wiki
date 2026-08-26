@@ -111,7 +111,7 @@
                 <Badge
                   v-if="col.key === 'is_published'"
                   variant="subtle"
-                  :theme="row.is_published ? 'green' : 'orange'"
+                  :theme="row.is_published ? 'green' : 'amber'"
                   size="sm"
                   :label="row.is_published ? __('Published') : __('Unpublished')"
                 />

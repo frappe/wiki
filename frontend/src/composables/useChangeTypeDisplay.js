@@ -20,7 +20,7 @@ const CHANGE_TYPE_CONFIG = {
 	reordered: {
 		icon: 'lucide-arrow-up-down',
 		iconClass: 'bg-amber-100 text-amber-600',
-		theme: 'orange',
+		theme: 'amber',
 		label: __('Reordered'),
 	},
 };

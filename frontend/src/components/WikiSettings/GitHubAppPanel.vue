@@ -31,7 +31,7 @@
 					"
 				/>
 				<div class="flex items-center justify-end gap-2">
-					<Badge v-if="configDirty" theme="orange" size="sm">
+					<Badge v-if="configDirty" theme="amber" size="sm">
 						{{ __('Unsaved changes') }}
 					</Badge>
 					<Button

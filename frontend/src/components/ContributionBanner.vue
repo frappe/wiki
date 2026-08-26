@@ -263,7 +263,7 @@ const syncStateTheme = computed(() => {
 		return 'red';
 	}
 	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
-		return 'orange';
+		return 'amber';
 	}
 	if (draftStore.hasUnsavedEditorContent) {
 		return 'gray';
@@ -320,7 +320,7 @@ const props = defineProps({
 
 const STATUS_BADGE_THEME = {
 	Draft: 'gray',
-	'In Review': 'orange',
+	'In Review': 'amber',
 	'Changes Requested': 'red',
 	Approved: 'green',
 	Merged: 'green',

@@ -59,10 +59,10 @@
 				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'modified'" variant="subtle" theme="blue" size="sm">
 					{{ __('Modified') }}
 				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'reordered'" variant="subtle" theme="orange" size="sm">
+				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'reordered'" variant="subtle" theme="amber" size="sm">
 					{{ __('Reordered') }}
 				</Badge>
-				<Badge v-else-if="!node.is_group && !node.is_published" variant="subtle" theme="orange" size="sm">
+				<Badge v-else-if="!node.is_group && !node.is_published" variant="subtle" theme="amber" size="sm">
 					{{ __('Not Published') }}
 				</Badge>
 

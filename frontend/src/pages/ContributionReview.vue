@@ -234,7 +234,7 @@
 										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
 										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-8 font-medium">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
-											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="amber" size="sm">
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
 											</Badge>
 										</div>
@@ -879,7 +879,7 @@ function getStatusTheme(status) {
 		case 'Draft':
 			return 'blue';
 		case 'In Review':
-			return 'orange';
+			return 'amber';
 		case 'Changes Requested':
 			return 'red';
 		case 'Approved':
@@ -900,7 +900,7 @@ function getConflictTheme(type) {
 		case 'content':
 			return 'blue';
 		case 'meta':
-			return 'orange';
+			return 'amber';
 		case 'tree':
 			return 'red';
 		default:

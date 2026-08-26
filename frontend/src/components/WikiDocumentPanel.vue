@@ -55,7 +55,7 @@
 									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
 										{{ __('Published') }}
 									</Badge>
-									<Badge v-else variant="subtle" theme="orange" size="sm">
+									<Badge v-else variant="subtle" theme="amber" size="sm">
 										{{ __('Not Published') }}
 									</Badge>
 									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
