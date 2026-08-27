@@ -60,7 +60,13 @@ export default defineConfig(async ({ command, mode }) => {
 			},
 		},
 		optimizeDeps: {
-			include: ['feather-icons', 'highlight.js/lib/core', 'interactjs'],
+			include: ['highlight.js/lib/core'],
+			// frappe-ui ships raw source and reaches its own files through the
+			// `#molecules/*` imports map, which esbuild resolves without trying
+			// extensions. Pre-bundling any of its entries therefore fails on
+			// every extensionless internal import, so let Vite serve them as
+			// source instead.
+			exclude: ['frappe-ui', 'frappe-ui/editor', 'frappe-ui/list'],
 		},
 		server: {
 			allowedHosts: true,
