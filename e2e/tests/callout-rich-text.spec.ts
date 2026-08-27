@@ -1,6 +1,15 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import {
+	type APIRequestContext,
+	type Page,
+	expect,
+	test,
+} from '@playwright/test';
+import { appUrl } from '../helpers/routes';
+import {
+	cleanupWikiSpacesByRoute,
+	createTestWikiSpace,
+	openNewPageDialog,
+} from '../helpers/wiki';
 
 /**
  * Covers the callout as a *container* node: its body is content in the main
@@ -18,6 +27,7 @@ declare global {
 					content: string,
 					options?: { contentType?: string },
 				) => void;
+				focus: () => void;
 			};
 			getMarkdown: () => string;
 			getJSON: () => {
@@ -33,33 +43,56 @@ declare global {
 }
 
 const BOLD = process.platform === 'darwin' ? 'Meta+b' : 'Control+b';
+const MOD_ENTER =
+	process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter';
+
+const createdRoutes: string[] = [];
 
 /**
- * Create a draft page and open the editor. Mirrors the helper in
- * mermaid.spec.ts — duplicated rather than exported so changes to one test
- * don't ripple into others.
+ * Create a throwaway space via the API, then a draft page in it through the
+ * sidebar, and open the editor.
+ *
+ * The space is per-test on purpose: the "click the first space" idiom every
+ * other editor spec opens with lands in whichever space the site happens to
+ * list first, whose page tree grows with every run — slow to render locally,
+ * and the pages are never cleaned up. A fresh space keeps the tree at one item
+ * and `afterEach` takes the whole thing away again.
  */
 async function createDraftAndOpenEditor(
-	page: import('@playwright/test').Page,
-	title: string,
+	page: Page,
+	request: APIRequestContext,
+	label: string,
 ) {
-	await page.goto(APP_BASE);
-	await page.waitForLoadState('networkidle');
+	const spaceRoute = `callout-${label}-${Date.now()}`;
+	const space = await createTestWikiSpace(request, {
+		route: spaceRoute,
+		is_published: true,
+	});
+	createdRoutes.push(spaceRoute);
 
-	const spaceLink = page.locator(spaceLinkSelector()).first();
-	await expect(spaceLink).toBeVisible({ timeout: 5000 });
-	await spaceLink.click();
+	await page.goto(appUrl('spaces', space.name));
 	await page.waitForLoadState('networkidle');
 
 	await openNewPageDialog(page);
-
+	const title = `Callout ${label}`;
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await page.waitForLoadState('networkidle');
 
-	await page.locator('aside').getByText(title, { exact: true }).click();
-
-	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
+	// Creating a page can land on the draft route before the change-request
+	// overlay is readable, which locally is queue lag rather than a product bug
+	// — one reload settles it (same retry as editor-toc.spec.ts).
+	const editor = page.locator('.ProseMirror');
+	for (let attempt = 0; attempt < 3; attempt++) {
+		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) break;
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await page
+			.locator('aside')
+			.getByText(title, { exact: false })
+			.first()
+			.click();
+	}
 	await expect(editor).toBeVisible({ timeout: 10000 });
 
 	await page.waitForFunction(() => window.wikiEditor !== undefined, {
@@ -69,10 +102,18 @@ async function createDraftAndOpenEditor(
 }
 
 test.describe('Callout rich text', () => {
+	test.afterEach(async ({ request }) => {
+		while (createdRoutes.length) {
+			const route = createdRoutes.pop() as string;
+			await cleanupWikiSpacesByRoute(request, route).catch(() => {});
+		}
+	});
+
 	test('a callout body parses into block children and round-trips', async ({
 		page,
+		request,
 	}) => {
-		await createDraftAndOpenEditor(page, `callout-rt-${Date.now()}`);
+		await createDraftAndOpenEditor(page, request, 'rt');
 
 		const result = await page.evaluate(() => {
 			const source = [
@@ -120,8 +161,9 @@ test.describe('Callout rich text', () => {
 
 	test('the main editor formats text typed inside a callout', async ({
 		page,
+		request,
 	}) => {
-		await createDraftAndOpenEditor(page, `callout-typing-${Date.now()}`);
+		await createDraftAndOpenEditor(page, request, 'typing');
 
 		await page.evaluate(() => {
 			window.wikiEditor.commands.setContent(':::tip\nlead\n:::', {
@@ -154,11 +196,9 @@ test.describe('Callout rich text', () => {
 
 	test('the slash menu inserts a callout you can type straight into', async ({
 		page,
+		request,
 	}) => {
-		const editor = await createDraftAndOpenEditor(
-			page,
-			`callout-slash-${Date.now()}`,
-		);
+		const editor = await createDraftAndOpenEditor(page, request, 'slash');
 
 		await editor.click();
 		await page.keyboard.type('/tip');
@@ -179,8 +219,75 @@ test.describe('Callout rich text', () => {
 		expect(markdown).toContain(':::tip\nwritten in place\n:::');
 	});
 
-	test('block nodes are reachable inside a callout', async ({ page }) => {
-		await createDraftAndOpenEditor(page, `callout-blocks-${Date.now()}`);
+	test('the title is editable in place', async ({ page, request }) => {
+		await createDraftAndOpenEditor(page, request, 'title');
+
+		await page.evaluate(() => {
+			window.wikiEditor.commands.setContent(':::note\nbody\n:::', {
+				contentType: 'markdown',
+			});
+		});
+
+		const title = page.locator('input.callout-title');
+		await expect(title).toBeVisible({ timeout: 5000 });
+		// Empty title falls back to the type's default as a placeholder.
+		await expect(title).toHaveAttribute('placeholder', 'Note');
+
+		await title.click();
+		await page.keyboard.type('Heads up');
+
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		expect(markdown).toContain(':::note[Heads up]');
+	});
+
+	test('the cursor can leave a callout that ends the document', async ({
+		page,
+		request,
+	}) => {
+		await createDraftAndOpenEditor(page, request, 'exit');
+
+		await page.evaluate(() => {
+			window.wikiEditor.commands.setContent(':::note\nbody\n:::', {
+				contentType: 'markdown',
+			});
+		});
+
+		await page.locator('.callout-content p').first().click();
+		await page.keyboard.press('End');
+		await page.keyboard.press(MOD_ENTER);
+		await page.keyboard.type('outside');
+
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		// The typed text landed after the closing fence, not inside it.
+		expect(markdown).toMatch(/:::\n\noutside/);
+	});
+
+	test('backspace removes an empty callout', async ({ page, request }) => {
+		const editor = await createDraftAndOpenEditor(page, request, 'backspace');
+
+		await editor.click();
+		await page.keyboard.type('/note');
+		await expect(
+			page.locator('.slash-commands-list').getByText('Note', { exact: true }),
+		).toBeVisible({ timeout: 5000 });
+		await page.keyboard.press('Enter');
+		await expect(page.locator('.callout-content')).toBeVisible({
+			timeout: 5000,
+		});
+
+		await page.locator('.callout-content p').first().click();
+		await page.keyboard.press('Backspace');
+
+		await expect(page.locator('.callout-content')).toHaveCount(0);
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		expect(markdown).not.toContain(':::');
+	});
+
+	test('block nodes are reachable inside a callout', async ({
+		page,
+		request,
+	}) => {
+		await createDraftAndOpenEditor(page, request, 'blocks');
 
 		const childTypes = await page.evaluate(() => {
 			const source = [

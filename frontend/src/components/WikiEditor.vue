@@ -648,7 +648,12 @@ const editor = useEditor({
 			nested: true,
 		}),
 		Placeholder.configure({
-			placeholder: 'Type "/" for commands, or start writing...',
+			// A freshly inserted callout starts with an empty paragraph, and the
+			// top-level hint reads as if the document itself were empty there.
+			placeholder: ({ editor, pos }) =>
+				editor.state.doc.resolve(pos).parent.type.name === 'calloutBlock'
+					? 'Write the callout…'
+					: 'Type "/" for commands, or start writing...',
 		}),
 		CodeBlock,
 		// Custom extensions

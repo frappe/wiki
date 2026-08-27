@@ -11,8 +11,8 @@
  */
 
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
-import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
-import { computed, ref } from 'vue';
+import { Button, Dropdown } from 'frappe-ui';
+import { computed } from 'vue';
 
 const props = defineProps({
 	node: {
@@ -29,6 +29,10 @@ const props = defineProps({
 	},
 	editor: {
 		type: Object,
+		required: true,
+	},
+	getPos: {
+		type: Function,
 		required: true,
 	},
 });
@@ -64,18 +68,15 @@ const icons = {
 
 const icon = computed(() => icons[normalizedType.value] || icons.note);
 
-// Title editing dialog
-const showTitleDialog = ref(false);
-const editingTitle = ref('');
-
-function openTitleDialog() {
-	editingTitle.value = props.node.attrs.title || '';
-	showTitleDialog.value = true;
+// The title is an attribute, not content — a second content hole would need a
+// second node type. An input keeps it editable in place without one.
+function setTitle(event) {
+	props.updateAttributes({ title: event.target.value });
 }
 
-function saveTitle() {
-	props.updateAttributes({ title: editingTitle.value });
-	showTitleDialog.value = false;
+// Enter in the title moves into the body, the way Tab-to-next-field would.
+function focusBody() {
+	props.editor.commands.focus(props.getPos() + 1);
 }
 
 function changeType(newType) {
@@ -84,11 +85,6 @@ function changeType(newType) {
 
 // Dropdown menu options
 const dropdownOptions = computed(() => [
-	{
-		label: 'Edit Title',
-		icon: 'lucide-pencil',
-		onClick: openTitleDialog,
-	},
 	{
 		label: 'Delete',
 		icon: 'lucide-trash-2',
@@ -130,7 +126,17 @@ const dropdownOptions = computed(() => [
     >
         <div class="flex items-center gap-2" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
-            <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
+            <input
+                v-if="editor.isEditable"
+                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-sm-medium leading-[1.4] text-ink-gray-9 placeholder:text-ink-gray-4"
+                :value="node.attrs.title"
+                :placeholder="defaultTitles[normalizedType]"
+                :aria-label="`Callout title (${defaultTitles[normalizedType]})`"
+                @input="setTitle"
+                @keydown.enter.prevent="focusBody"
+                @keydown.escape.prevent="$event.target.blur()"
+            />
+            <span v-else class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
             <Dropdown v-if="editor.isEditable" :options="dropdownOptions" align="end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
@@ -139,26 +145,6 @@ const dropdownOptions = computed(() => [
         </div>
 
         <NodeViewContent class="callout-content text-sm leading-normal text-ink-gray-7" />
-
-        <!-- Title Edit Dialog -->
-        <Dialog v-model:open="showTitleDialog" title="Edit Callout Title">
-            <template #default>
-                <div class="space-y-4">
-                    <TextInput
-                        v-model="editingTitle"
-                        label="Title"
-                        placeholder="Leave empty for default title"
-                        @keydown.enter="saveTitle"
-                    />
-                    <p class="text-sm text-ink-gray-5">
-                        Default title: {{ defaultTitles[normalizedType] }}
-                    </p>
-                </div>
-            </template>
-            <template #actions>
-                <Button variant="solid" @click="saveTitle">Save</Button>
-            </template>
-        </Dialog>
     </NodeViewWrapper>
 </template>
 
