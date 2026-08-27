@@ -6,10 +6,6 @@ import json
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
-	create_change_request,
-)
-
 
 class TestReorderWikiDocumentsAPI(FrappeTestCase):
 	"""Tests for the reorder_wiki_documents API."""
@@ -929,43 +925,8 @@ class TestSpaceStats(FrappeTestCase):
 
 		self.assertEqual(str(last_updated), "2021-06-15 12:00:00")
 
-	def test_counts_only_open_change_requests(self):
-		"""Open means not merged, rejected or archived -- an open pull request."""
-		from wiki.api.wiki_space import get_space_stats
-
-		space = create_contributable_wiki_space()
-		for status in ("In Review", "Changes Requested", "Merged", "Rejected", "Archived"):
-			cr = create_change_request(space.name, f"CR {status}")
-			frappe.db.set_value("Wiki Change Request", cr.name, "status", status)
-
-		stats = get_space_stats([space.name])
-
-		self.assertEqual(stats[space.name]["open_change_requests"], 2)
-
-	def test_draft_change_requests_are_open(self):
-		"""A draft is unfinished, not closed -- it still needs someone's time."""
-		from wiki.api.wiki_space import get_space_stats
-
-		space = create_contributable_wiki_space()
-		create_change_request(space.name, "Still A Draft")
-
-		self.assertEqual(get_space_stats([space.name])[space.name]["open_change_requests"], 1)
-
-	def test_a_space_with_only_change_requests_still_reports(self):
-		"""The CR query has to seed spaces the page query never grouped."""
-		from wiki.api.wiki_space import get_space_stats
-
-		space = create_contributable_wiki_space()
-		create_change_request(space.name, "Lone CR")
-
-		entry = get_space_stats([space.name])[space.name]
-
-		self.assertEqual(entry["pages"], 0)
-		self.assertIsNone(entry["last_updated"])
-		self.assertEqual(entry["open_change_requests"], 1)
-
 	def test_empty_space_is_absent_from_the_response(self):
-		"""Nothing to group on either side, so the space has no entry at all."""
+		"""Nothing to group on, so the space has no entry at all."""
 		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space()
@@ -1058,14 +1019,6 @@ def create_test_wiki_space():
 	space.root_group = root_group.name
 	space.insert()
 
-	return space
-
-
-def create_contributable_wiki_space():
-	"""A test space that accepts Change Requests, for the CR-count tests."""
-	space = create_test_wiki_space()
-	space.allow_contributions = 1
-	space.save()
 	return space
 
 

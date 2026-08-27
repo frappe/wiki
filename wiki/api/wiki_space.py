@@ -90,9 +90,9 @@ def get_space_count(search: str = "", published: str = "all") -> int:
 def get_space_stats(spaces: list | str) -> dict[str, dict]:
 	"""Return per-space list stats, keyed by space name.
 
-	Each entry holds `pages`, `last_updated` and `open_change_requests`. Two
-	grouped queries rather than a call per space: the list shows these on every
-	row, so per-row calls would be N round trips that grow with the page size.
+	Each entry holds `pages` and `last_updated`. One grouped query rather than a
+	call per space: the list shows both on every row, so per-row calls would be
+	N round trips that grow with the page size.
 
 	Groups are folders and external links point elsewhere, so neither counts as
 	a page or moves `last_updated`. Unpublished pages do count -- this is the
@@ -102,19 +102,16 @@ def get_space_stats(spaces: list | str) -> dict[str, dict]:
 	own `modified`: that one moves when someone renames the space or flips a
 	setting, which says nothing about whether the content is current.
 
-	A change request is open until it is merged, rejected or archived -- the same
-	reading as an open pull request.
-
-	Uses `get_list`, so the permission queries drop spaces the user cannot read;
-	they come back absent and the caller reads a missing entry as empty.
+	Uses `get_list`, so the Wiki Document permission query drops spaces the user
+	cannot read; they come back absent and the caller reads a missing entry as
+	empty.
 	"""
 	if isinstance(spaces, str):
 		spaces = frappe.parse_json(spaces)
 	if not spaces:
 		return {}
 
-	stats = {}
-	for row in frappe.get_list(
+	rows = frappe.get_list(
 		"Wiki Document",
 		filters={"wiki_space": ["in", spaces], "is_group": 0, "is_external_link": 0},
 		fields=[
@@ -123,28 +120,8 @@ def get_space_stats(spaces: list | str) -> dict[str, dict]:
 			{"MAX": "modified", "as": "last_updated"},
 		],
 		group_by="wiki_space",
-	):
-		stats[row.wiki_space] = {
-			"pages": row.pages,
-			"last_updated": row.last_updated,
-			"open_change_requests": 0,
-		}
-
-	for row in frappe.get_list(
-		"Wiki Change Request",
-		filters={
-			"wiki_space": ["in", spaces],
-			"status": ["not in", ["Merged", "Rejected", "Archived"]],
-		},
-		fields=["wiki_space", {"COUNT": "name", "as": "open_change_requests"}],
-		group_by="wiki_space",
-	):
-		entry = stats.setdefault(
-			row.wiki_space, {"pages": 0, "last_updated": None, "open_change_requests": 0}
-		)
-		entry["open_change_requests"] = row.open_change_requests
-
-	return stats
+	)
+	return {row.wiki_space: {"pages": row.pages, "last_updated": row.last_updated} for row in rows}
 
 
 @frappe.whitelist()

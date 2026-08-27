@@ -98,9 +98,13 @@
              the content inset on the List, which flows to the rows.
              Cold-load skeletons render inside the same List, so the geometry
              is declared once and rows can't shift when the data lands. -->
+        <!-- The title column is capped rather than flexible, and the slack goes
+             to the trailing stack instead: on a 1fr title column a short name
+             left the status badge floating a third of the row away from the
+             text it describes. -->
         <List
           v-else
-          :columns="['auto', 'minmax(0,1fr)', '4rem', '4rem', '5.5rem', '7rem']"
+          :columns="['auto', 'minmax(0,14rem)', '7rem', 'minmax(0,1fr)']"
           :row-height="64"
           divider="inset"
           class="list-row-px-3 max-sm:list-cols-[auto_minmax(0,1fr)_auto]"
@@ -125,22 +129,23 @@
                   />
                 </div>
               </ListCell>
-              <ListCell
-                v-for="width in ['w-8', 'w-8', 'w-12']"
-                :key="width"
-                class="max-sm:hidden justify-end"
-              >
-                <Skeleton
-                  class="h-3.5 rounded-4"
-                  :class="width"
-                  :style="{ animationDelay: `${n * 60}ms` }"
-                />
-              </ListCell>
-              <ListCell class="justify-end">
+              <ListCell>
                 <Skeleton
                   class="h-5 w-20 rounded-full"
                   :style="{ animationDelay: `${n * 60}ms` }"
                 />
+              </ListCell>
+              <ListCell class="max-sm:hidden justify-end">
+                <div class="flex flex-col items-end gap-1">
+                  <Skeleton
+                    class="h-3.5 w-14 rounded-4"
+                    :style="{ animationDelay: `${n * 60}ms` }"
+                  />
+                  <Skeleton
+                    class="h-3.5 w-16 rounded-4"
+                    :style="{ animationDelay: `${n * 60}ms` }"
+                  />
+                </div>
               </ListCell>
             </ListRow>
           </template>
@@ -167,53 +172,32 @@
                   </div>
                 </div>
               </ListCell>
-              <!-- The measure columns are dropped on mobile, where the status
-                   badge is the one thing worth the width. Each is an icon and a
-                   number rather than a phrase: at this column width the glyph
-                   carries the label, and the title attribute spells it out. -->
-              <ListCell class="max-sm:hidden justify-end">
-                <span
-                  v-if="stat(row.name).open_change_requests"
-                  class="flex items-center gap-1 text-sm text-ink-gray-5"
-                  :title="changeRequestTitle(row.name)"
-                >
-                  <span
-                    class="lucide-git-pull-request size-3.5 shrink-0 text-ink-gray-4"
-                    aria-hidden="true"
-                  />
-                  {{ stat(row.name).open_change_requests }}
-                </span>
-              </ListCell>
-              <ListCell class="max-sm:hidden justify-end">
-                <span
-                  v-if="stat(row.name).pages !== undefined"
-                  class="flex items-center gap-1 text-sm text-ink-gray-5"
-                  :title="pageCountTitle(row.name)"
-                >
-                  <span
-                    class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
-                    aria-hidden="true"
-                  />
-                  {{ stat(row.name).pages }}
-                </span>
-              </ListCell>
-              <!-- The newest page edit, not the space's own `modified`: that one
-                   moves on a rename and would read as fresh content. -->
-              <ListCell class="max-sm:hidden justify-end">
-                <span
-                  class="truncate text-sm text-ink-gray-5"
-                  :title="lastUpdatedTitle(row.name)"
-                >
-                  {{ lastUpdatedLabel(row.name) }}
-                </span>
-              </ListCell>
-              <ListCell class="justify-end">
+              <ListCell>
                 <Badge
                   variant="subtle"
                   :theme="row.is_published ? 'green' : 'amber'"
                   size="sm"
                   :label="row.is_published ? __('Published') : __('Unpublished')"
                 />
+              </ListCell>
+              <!-- The recipe's trailing cell: a right-aligned stack of muted
+                   lines. Dropped on mobile, where the status badge is the one
+                   thing worth the width.
+                   The date is the newest page edit, not the space's own
+                   `modified` -- that one moves on a rename and would read as
+                   fresh content, so a space with no pages shows nothing. -->
+              <ListCell class="max-sm:hidden justify-end">
+                <div class="flex flex-col items-end gap-1">
+                  <span class="text-sm text-ink-gray-5">
+                    {{ pageCountLabel(row.name) }}
+                  </span>
+                  <span
+                    class="text-sm text-ink-gray-5"
+                    :title="lastUpdatedTitle(row.name)"
+                  >
+                    {{ lastUpdatedLabel(row.name) }}
+                  </span>
+                </div>
               </ListCell>
             </ListRow>
           </ListRows>
@@ -726,9 +710,9 @@ const spaces = createListResource({
 // Page counts come from one grouped query instead of a field on the list: Wiki
 // Space stores no count, and a call per row would scale with the page size.
 // They accumulate across pages because `Load more` appends to the same list.
-// Row stats -- pages, last edit, open change requests -- come from one grouped
-// call instead of fields on the list: Wiki Space stores none of them, and a
-// call per row would scale with the page size. They accumulate across pages
+// Row stats -- page count and last edit -- come from one grouped call instead
+// of fields on the list: Wiki Space stores neither, and a call per row would
+// scale with the page size. They accumulate across pages
 // because `Load more` appends to the same list.
 const spaceStats = ref({});
 const requestedStats = new Set();
@@ -737,12 +721,12 @@ const spaceStatsResource = createResource({
 	url: 'wiki.api.wiki_space.get_space_stats',
 });
 
-const EMPTY_STATS = { pages: 0, last_updated: null, open_change_requests: 0 };
+const EMPTY_STATS = { pages: 0, last_updated: null };
 
 async function fetchSpaceStats(names) {
 	const stats = await spaceStatsResource.submit({ spaces: names });
-	// A space with no pages and no change requests has nothing to group on, so
-	// it is absent from the response; fill the names asked for in at zero. A key
+	// A space with no pages has nothing to group on, so it is absent from the
+	// response; fill the names asked for in at zero. A key
 	// that is still missing means "not fetched yet" and renders blank, rather
 	// than flashing a wrong 0.
 	spaceStats.value = {
@@ -768,22 +752,19 @@ function stat(name) {
 	return spaceStats.value[name] || {};
 }
 
-function pageCountTitle(name) {
+function pageCountLabel(name) {
 	const count = stat(name).pages;
+	if (count === undefined) return '';
+	if (!count) return __('No pages');
 	return count === 1 ? __('1 page') : __('{0} pages', [count]);
 }
 
-function changeRequestTitle(name) {
-	const count = stat(name).open_change_requests;
-	return count === 1
-		? __('1 open change request')
-		: __('{0} open change requests', [count]);
-}
-
+// "9 minutes ago" on its own reads as a timestamp for the row; the verb says
+// which event it belongs to.
 function lastUpdatedLabel(name) {
 	const updated = stat(name).last_updated;
 	if (!updated) return '';
-	return dayjsLocal(updated).fromNow();
+	return __('Updated {0}', [dayjsLocal(updated).fromNow()]);
 }
 
 function lastUpdatedTitle(name) {
