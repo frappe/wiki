@@ -38,7 +38,12 @@
          Search first, then the filter, with the tally on the far side. The row
          wraps on mobile: search takes the first line on its own. -->
     <div class="shrink-0 px-3 py-3 sm:px-4 sm:py-4">
-      <div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
+      <!-- `px-3` mirrors the List's own `list-row-px-3`: without it the toolbar
+           sits flush to the narrow column while the row content is inset, and
+           the tally hangs a row-inset past the status badges. -->
+      <div
+        class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2 px-3"
+      >
         <FormControl
           class="w-full sm:w-56"
           type="text"
@@ -57,7 +62,8 @@
     </div>
 
     <ScrollArea class="min-h-0 flex-1">
-      <div class="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4">
+      <div class="px-3 pb-3 sm:px-4 sm:pb-4">
+        <div class="mx-auto w-full max-w-3xl">
         <!-- The List family owns geometry only; empty states are app-authored. -->
         <div
           v-if="!isFirstLoad && !(spaces.data || []).length"
@@ -94,7 +100,7 @@
              is declared once and rows can't shift when the data lands. -->
         <List
           v-else
-          :columns="['auto', 'minmax(0,1fr)', '5.5rem', '7rem']"
+          :columns="['auto', 'minmax(0,1fr)', '4rem', '4rem', '5.5rem', '7rem']"
           :row-height="64"
           divider="inset"
           class="list-row-px-3 max-sm:list-cols-[auto_minmax(0,1fr)_auto]"
@@ -119,9 +125,14 @@
                   />
                 </div>
               </ListCell>
-              <ListCell class="max-sm:hidden justify-end">
+              <ListCell
+                v-for="width in ['w-8', 'w-8', 'w-12']"
+                :key="width"
+                class="max-sm:hidden justify-end"
+              >
                 <Skeleton
-                  class="h-3.5 w-14 rounded-4"
+                  class="h-3.5 rounded-4"
+                  :class="width"
                   :style="{ animationDelay: `${n * 60}ms` }"
                 />
               </ListCell>
@@ -156,11 +167,44 @@
                   </div>
                 </div>
               </ListCell>
-              <!-- The narrowest column: dropped on mobile, where the status
-                   badge is the one thing worth the width. -->
+              <!-- The measure columns are dropped on mobile, where the status
+                   badge is the one thing worth the width. Each is an icon and a
+                   number rather than a phrase: at this column width the glyph
+                   carries the label, and the title attribute spells it out. -->
               <ListCell class="max-sm:hidden justify-end">
-                <span class="text-sm text-ink-gray-5">
-                  {{ pageCountLabel(row.name) }}
+                <span
+                  v-if="stat(row.name).open_change_requests"
+                  class="flex items-center gap-1 text-sm text-ink-gray-5"
+                  :title="changeRequestTitle(row.name)"
+                >
+                  <span
+                    class="lucide-git-pull-request size-3.5 shrink-0 text-ink-gray-4"
+                    aria-hidden="true"
+                  />
+                  {{ stat(row.name).open_change_requests }}
+                </span>
+              </ListCell>
+              <ListCell class="max-sm:hidden justify-end">
+                <span
+                  v-if="stat(row.name).pages !== undefined"
+                  class="flex items-center gap-1 text-sm text-ink-gray-5"
+                  :title="pageCountTitle(row.name)"
+                >
+                  <span
+                    class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
+                    aria-hidden="true"
+                  />
+                  {{ stat(row.name).pages }}
+                </span>
+              </ListCell>
+              <!-- The newest page edit, not the space's own `modified`: that one
+                   moves on a rename and would read as fresh content. -->
+              <ListCell class="max-sm:hidden justify-end">
+                <span
+                  class="truncate text-sm text-ink-gray-5"
+                  :title="lastUpdatedTitle(row.name)"
+                >
+                  {{ lastUpdatedLabel(row.name) }}
                 </span>
               </ListCell>
               <ListCell class="justify-end">
@@ -182,6 +226,7 @@
             :label="__('Load more')"
             icon-left="lucide-refresh-cw"
           />
+        </div>
         </div>
       </div>
     </ScrollArea>
@@ -368,6 +413,7 @@ import {
 	TabButtons,
 	createListResource,
 	createResource,
+	dayjsLocal,
 	toast,
 } from 'frappe-ui';
 import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list';
@@ -680,39 +726,70 @@ const spaces = createListResource({
 // Page counts come from one grouped query instead of a field on the list: Wiki
 // Space stores no count, and a call per row would scale with the page size.
 // They accumulate across pages because `Load more` appends to the same list.
-const pageCounts = ref({});
-const requestedCounts = new Set();
+// Row stats -- pages, last edit, open change requests -- come from one grouped
+// call instead of fields on the list: Wiki Space stores none of them, and a
+// call per row would scale with the page size. They accumulate across pages
+// because `Load more` appends to the same list.
+const spaceStats = ref({});
+const requestedStats = new Set();
 
-const pageCountsResource = createResource({
-	url: 'wiki.api.wiki_space.get_space_page_counts',
+const spaceStatsResource = createResource({
+	url: 'wiki.api.wiki_space.get_space_stats',
 });
 
-async function fetchPageCounts(names) {
-	const counts = await pageCountsResource.submit({ spaces: names });
-	// Spaces with no pages are absent from the grouped response, so fill the
-	// names asked for in at zero. A key that is still missing means "not fetched
-	// yet" and renders blank, rather than flashing a wrong 0.
-	pageCounts.value = {
-		...pageCounts.value,
-		...Object.fromEntries(names.map((name) => [name, counts[name] || 0])),
+const EMPTY_STATS = { pages: 0, last_updated: null, open_change_requests: 0 };
+
+async function fetchSpaceStats(names) {
+	const stats = await spaceStatsResource.submit({ spaces: names });
+	// A space with no pages and no change requests has nothing to group on, so
+	// it is absent from the response; fill the names asked for in at zero. A key
+	// that is still missing means "not fetched yet" and renders blank, rather
+	// than flashing a wrong 0.
+	spaceStats.value = {
+		...spaceStats.value,
+		...Object.fromEntries(
+			names.map((name) => [name, { ...EMPTY_STATS, ...(stats[name] || {}) }]),
+		),
 	};
 }
 
 watch(
 	() => (spaces.data || []).map((row) => row.name),
 	(names) => {
-		const missing = names.filter((name) => !requestedCounts.has(name));
+		const missing = names.filter((name) => !requestedStats.has(name));
 		if (!missing.length) return;
-		for (const name of missing) requestedCounts.add(name);
-		fetchPageCounts(missing);
+		for (const name of missing) requestedStats.add(name);
+		fetchSpaceStats(missing);
 	},
 	{ immediate: true },
 );
 
-function pageCountLabel(name) {
-	const count = pageCounts.value[name];
-	if (count === undefined) return '';
+function stat(name) {
+	return spaceStats.value[name] || {};
+}
+
+function pageCountTitle(name) {
+	const count = stat(name).pages;
 	return count === 1 ? __('1 page') : __('{0} pages', [count]);
+}
+
+function changeRequestTitle(name) {
+	const count = stat(name).open_change_requests;
+	return count === 1
+		? __('1 open change request')
+		: __('{0} open change requests', [count]);
+}
+
+function lastUpdatedLabel(name) {
+	const updated = stat(name).last_updated;
+	if (!updated) return '';
+	return dayjsLocal(updated).fromNow();
+}
+
+function lastUpdatedTitle(name) {
+	const updated = stat(name).last_updated;
+	if (!updated) return __('No pages yet');
+	return __('Last page edit: {0}', [dayjsLocal(updated).format('LLL')]);
 }
 
 // Cold load only: once a page has landed, refetches keep the rows on screen

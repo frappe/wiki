@@ -6,6 +6,10 @@ import json
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+	create_change_request,
+)
+
 
 class TestReorderWikiDocumentsAPI(FrappeTestCase):
 	"""Tests for the reorder_wiki_documents API."""
@@ -864,8 +868,8 @@ class TestRebuildWikiTree(FrappeTestCase):
 		self.assertLess(page_b.lft, page_a.lft)
 
 
-class TestSpacePageCounts(FrappeTestCase):
-	"""Tests for the get_space_page_counts API backing the space list."""
+class TestSpaceStats(FrappeTestCase):
+	"""Tests for the get_space_stats API backing the space list's columns."""
 
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -876,7 +880,7 @@ class TestSpacePageCounts(FrappeTestCase):
 
 	def test_counts_pages_per_space(self):
 		"""Each space gets its own page count, keyed by space name."""
-		from wiki.api.wiki_space import get_space_page_counts
+		from wiki.api.wiki_space import get_space_stats
 
 		space_a = create_test_wiki_space()
 		space_b = create_test_wiki_space()
@@ -884,14 +888,14 @@ class TestSpacePageCounts(FrappeTestCase):
 		create_wiki_document(space_a.root_group, "A2")
 		create_wiki_document(space_b.root_group, "B1")
 
-		counts = get_space_page_counts([space_a.name, space_b.name])
+		stats = get_space_stats([space_a.name, space_b.name])
 
-		self.assertEqual(counts[space_a.name], 2)
-		self.assertEqual(counts[space_b.name], 1)
+		self.assertEqual(stats[space_a.name]["pages"], 2)
+		self.assertEqual(stats[space_b.name]["pages"], 1)
 
 	def test_groups_and_external_links_are_not_pages(self):
 		"""Folders and external links live in the tree but are not pages."""
-		from wiki.api.wiki_space import get_space_page_counts
+		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space()
 		create_wiki_document(space.root_group, "Real Page")
@@ -904,31 +908,85 @@ class TestSpacePageCounts(FrappeTestCase):
 		link.external_url = "https://example.com"
 		link.insert()
 
-		self.assertEqual(get_space_page_counts([space.name])[space.name], 1)
+		self.assertEqual(get_space_stats([space.name])[space.name]["pages"], 1)
+
+	def test_last_updated_tracks_the_newest_page_edit(self):
+		"""Not the space document's own `modified` -- that moves on a rename."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space()
+		older = create_wiki_document(space.root_group, "Older")
+		newer = create_wiki_document(space.root_group, "Newer")
+
+		frappe.db.set_value(
+			"Wiki Document", older.name, "modified", "2020-01-01 00:00:00", update_modified=False
+		)
+		frappe.db.set_value(
+			"Wiki Document", newer.name, "modified", "2021-06-15 12:00:00", update_modified=False
+		)
+
+		last_updated = get_space_stats([space.name])[space.name]["last_updated"]
+
+		self.assertEqual(str(last_updated), "2021-06-15 12:00:00")
+
+	def test_counts_only_open_change_requests(self):
+		"""Open means not merged, rejected or archived -- an open pull request."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_contributable_wiki_space()
+		for status in ("In Review", "Changes Requested", "Merged", "Rejected", "Archived"):
+			cr = create_change_request(space.name, f"CR {status}")
+			frappe.db.set_value("Wiki Change Request", cr.name, "status", status)
+
+		stats = get_space_stats([space.name])
+
+		self.assertEqual(stats[space.name]["open_change_requests"], 2)
+
+	def test_draft_change_requests_are_open(self):
+		"""A draft is unfinished, not closed -- it still needs someone's time."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_contributable_wiki_space()
+		create_change_request(space.name, "Still A Draft")
+
+		self.assertEqual(get_space_stats([space.name])[space.name]["open_change_requests"], 1)
+
+	def test_a_space_with_only_change_requests_still_reports(self):
+		"""The CR query has to seed spaces the page query never grouped."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_contributable_wiki_space()
+		create_change_request(space.name, "Lone CR")
+
+		entry = get_space_stats([space.name])[space.name]
+
+		self.assertEqual(entry["pages"], 0)
+		self.assertIsNone(entry["last_updated"])
+		self.assertEqual(entry["open_change_requests"], 1)
 
 	def test_empty_space_is_absent_from_the_response(self):
-		"""A space with no pages has no row to group, so it comes back missing."""
-		from wiki.api.wiki_space import get_space_page_counts
+		"""Nothing to group on either side, so the space has no entry at all."""
+		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space()
 
-		self.assertNotIn(space.name, get_space_page_counts([space.name]))
+		self.assertNotIn(space.name, get_space_stats([space.name]))
 
 	def test_no_spaces_asked_for_means_no_query(self):
-		from wiki.api.wiki_space import get_space_page_counts
+		from wiki.api.wiki_space import get_space_stats
 
-		self.assertEqual(get_space_page_counts([]), {})
+		self.assertEqual(get_space_stats([]), {})
 
 	def test_accepts_a_json_string_of_spaces(self):
 		"""The frontend posts the list as JSON, so strings have to parse."""
-		from wiki.api.wiki_space import get_space_page_counts
+		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space()
 		create_wiki_document(space.root_group, "Only Page")
 
-		counts = get_space_page_counts(json.dumps([space.name]))
+		stats = get_space_stats(json.dumps([space.name]))
 
-		self.assertEqual(counts[space.name], 1)
+		self.assertEqual(stats[space.name]["pages"], 1)
 
 
 class TestSpaceCount(FrappeTestCase):
@@ -1000,6 +1058,14 @@ def create_test_wiki_space():
 	space.root_group = root_group.name
 	space.insert()
 
+	return space
+
+
+def create_contributable_wiki_space():
+	"""A test space that accepts Change Requests, for the CR-count tests."""
+	space = create_test_wiki_space()
+	space.allow_contributions = 1
+	space.save()
 	return space
 
 
