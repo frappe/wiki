@@ -11,6 +11,10 @@
   - local  (default): filters `options` client-side as the user types.
   - remote (`remote`): leaves filtering to the parent — emits `search` (debounced)
     and `load-more` (on scroll) so the parent can page a server-side list.
+
+  `allow-custom` lets the typed text stand as the value when it matches no
+  option (branch names the picker can't list), committed on Enter or on leaving
+  the field.
 -->
 <template>
   <div class="flex flex-col gap-1" ref="root">
@@ -28,6 +32,7 @@
         @input="onInput"
         @keydown.down.prevent="move(1)"
         @keydown.up.prevent="move(-1)"
+        @blur="onBlur"
         @keydown.enter.prevent="selectHighlighted"
         @keydown.esc.prevent="close"
       />
@@ -97,6 +102,8 @@ const props = defineProps({
 	hasMore: { type: Boolean, default: false },
 	// remote: parent owns filtering (server-side search + paging).
 	remote: { type: Boolean, default: false },
+	// allowCustom: a typed value that matches no option is kept as-is.
+	allowCustom: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'search', 'load-more']);
@@ -159,6 +166,23 @@ function close() {
 	query.value = '';
 }
 
+// Keep what the user typed when it matches no option. Runs on Enter and on
+// leaving the field, so clicking straight through to a dialog action still
+// commits the branch name.
+function commitCustom() {
+	if (!props.allowCustom) return;
+	const typed = query.value.trim();
+	if (typed && typed !== props.modelValue) {
+		emit('update:modelValue', typed);
+	}
+}
+
+function onBlur() {
+	if (!isOpen.value) return;
+	commitCustom();
+	close();
+}
+
 let searchTimer = null;
 function onInput(event) {
 	query.value = event.target.value;
@@ -189,7 +213,13 @@ function move(delta) {
 
 function selectHighlighted() {
 	const opt = displayedOptions.value[highlighted.value];
-	if (opt) select(opt);
+	if (opt) {
+		select(opt);
+		return;
+	}
+	commitCustom();
+	close();
+	input.value?.blur();
 }
 
 function onScroll() {
@@ -201,7 +231,10 @@ function onScroll() {
 }
 
 function onClickOutside(event) {
-	if (root.value && !root.value.contains(event.target)) close();
+	if (root.value && !root.value.contains(event.target)) {
+		commitCustom();
+		close();
+	}
 }
 document.addEventListener('mousedown', onClickOutside);
 // Capture phase so scrolling *inside* the dialog body (not just the window)
