@@ -278,3 +278,13 @@ the type's default, so a wiki full of `:::note` does not get rewritten to
 default on blur (the rendered page always prints one, so an empty title means the
 default, not a missing header), and switching type carries the title along only
 when the author never changed it. The ⋯ action is "Remove", not "Delete".
+
+**Follow-up (body alignment).** Alert's description is full-bleed, and copying
+that exactly turned out to be wrong for this use. Every Alert story renders the
+component inside `max-w-sm` — a 384px status box with a one-sentence description
+(`node_modules/frappe-ui/src/components/Alert/stories/`). A wiki callout is the
+document's width and holds paragraphs and lists, and at that size the two left
+edges (title at 22px behind the icon, body at 0) read as a header floating above
+content it doesn't own. The body is indented to the title's left edge —
+`calc(1rem + 0.375rem)`, the icon plus the header gap — in the editor, on the
+public page and in print. Alert's visual language, at long-form scale.

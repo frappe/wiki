@@ -170,6 +170,15 @@ const dropdownOptions = computed(() => [
 /* The body is document content now, so prose owns its typography — these
    override it back to Alert's description style, and drop the outer margins so
    the callout's own padding is the only gap. */
+/* Aligned to the title, not the container: Alert's description is full-bleed,
+   but Alert is a 384px status box with a one-line description (see its stories).
+   At document width, with paragraphs and lists in the body, a full-bleed body
+   leaves the header looking detached from what it labels. 1rem icon + 0.375rem
+   gap = the title's left edge. */
+.callout-content {
+    padding-left: calc(1rem + 0.375rem);
+}
+
 .callout-content :deep(> *:first-child) {
     margin-top: 0;
 }

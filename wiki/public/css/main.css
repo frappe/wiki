@@ -300,8 +300,13 @@ body {
   color: var(--ink-gray-8);
 }
 
+/* Aligned to the title, not the container: Alert's description is full-bleed,
+   but Alert is a 384px status box with a one-line description. At document
+   width, with paragraphs and lists in the body, a full-bleed body leaves the
+   header looking detached. 1rem icon + 0.375rem gap = the title's left edge. */
 .callout-content {
   margin-top: 0.25rem;
+  padding-left: calc(1rem + 0.375rem);
   font-size: 0.875rem;
   line-height: 1.5;
   letter-spacing: 0.02em;
