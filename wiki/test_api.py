@@ -2,6 +2,8 @@
 # See license.txt
 
 import json
+import os
+from io import BytesIO
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
@@ -1083,3 +1085,43 @@ class TestWikiSpacePermissions(FrappeTestCase):
 		space.space_name = "Hacked Space Name"
 		with self.assertRaises(frappe.PermissionError):
 			space.save()
+
+
+class TestWikiWebpConversion(FrappeTestCase):
+	"""Tests for convert_file_to_webp."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		self.webp_paths = []
+
+	def tearDown(self):
+		for path in self.webp_paths:
+			if os.path.exists(path):
+				os.remove(path)
+		frappe.db.rollback()
+
+	def upload_png(self, color):
+		from PIL import Image
+
+		buffer = BytesIO()
+		Image.new("RGB", (8, 8), color).save(buffer, "PNG")
+		return frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": "image.png",
+				"is_private": 0,
+				"content": buffer.getvalue(),
+			}
+		).insert()
+
+	def test_same_named_upload_does_not_overwrite_earlier_webp(self):
+		"""Clipboard pastes all arrive as `image.png`, so their `.webp` names must not collide."""
+		from frappe.utils import get_files_path
+
+		from wiki.api import convert_file_to_webp
+
+		first_url = convert_file_to_webp(self.upload_png((255, 0, 0)))
+		second_url = convert_file_to_webp(self.upload_png((0, 0, 255)))
+		self.webp_paths = [get_files_path(url.split("/files/")[-1]) for url in (first_url, second_url)]
+
+		self.assertNotEqual(first_url, second_url)
