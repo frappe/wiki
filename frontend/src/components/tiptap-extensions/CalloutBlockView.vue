@@ -13,6 +13,7 @@
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
 import { Button, Dropdown } from 'frappe-ui';
 import { computed } from 'vue';
+import { DEFAULT_TITLES } from './callout-markdown.js';
 
 const props = defineProps({
 	node: {
@@ -43,20 +44,14 @@ const normalizedType = computed(() => {
 	return type === 'warning' ? 'caution' : type;
 });
 
-// Default titles for each type
-const defaultTitles = {
-	note: 'Note',
-	tip: 'Tip',
-	caution: 'Caution',
-	danger: 'Danger',
-};
+const defaultTitle = computed(
+	() => DEFAULT_TITLES[normalizedType.value] || 'Note',
+);
 
 // Display title (custom or default)
-const displayTitle = computed(() => {
-	return (
-		props.node.attrs.title || defaultTitles[normalizedType.value] || 'Note'
-	);
-});
+const displayTitle = computed(
+	() => props.node.attrs.title || defaultTitle.value,
+);
 
 // The frappe-ui Alert status glyphs (icon/solid/* in Figma), inlined: the four
 // SFCs behind `solidStatusIcons` are not exported from frappe-ui/icons, and the
@@ -71,9 +66,18 @@ const icons = {
 const icon = computed(() => icons[normalizedType.value] || icons.note);
 
 // The title is an attribute, not content — a second content hole would need a
-// second node type. An input keeps it editable in place without one.
+// second node type. An input keeps it editable in place without one, holding a
+// real value the author can select and delete.
 function setTitle(event) {
 	props.updateAttributes({ title: event.target.value });
+}
+
+// The rendered page always prints a title, so an emptied one means "the default"
+// rather than "no header" — say so as soon as the author leaves the field.
+function restoreDefaultTitle(event) {
+	if (!event.target.value.trim()) {
+		props.updateAttributes({ title: defaultTitle.value });
+	}
 }
 
 // Enter in the title moves into the body, the way Tab-to-next-field would.
@@ -82,13 +86,18 @@ function focusBody() {
 }
 
 function changeType(newType) {
-	props.updateAttributes({ type: newType });
+	// A title the author never touched follows the type; one they wrote stays.
+	const keepsTitle = props.node.attrs.title !== defaultTitle.value;
+	props.updateAttributes({
+		type: newType,
+		...(keepsTitle ? {} : { title: DEFAULT_TITLES[newType] || '' }),
+	});
 }
 
 // Dropdown menu options
 const dropdownOptions = computed(() => [
 	{
-		label: 'Delete',
+		label: 'Remove',
 		icon: 'lucide-trash-2',
 		onClick: () => props.deleteNode(),
 	},
@@ -128,15 +137,14 @@ const dropdownOptions = computed(() => [
     >
         <div class="flex items-center gap-1.5" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
-            <!-- The placeholder is inked like a typed title on purpose: an empty
-                 title is not an empty header, it publishes as the type's default. -->
             <input
                 v-if="editor.isEditable"
-                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-base-medium text-ink-gray-8 placeholder:text-ink-gray-8"
+                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-base-medium text-ink-gray-8 placeholder:text-ink-gray-5"
                 :value="node.attrs.title"
-                :placeholder="defaultTitles[normalizedType]"
-                :aria-label="`Callout title (${defaultTitles[normalizedType]})`"
+                :placeholder="defaultTitle"
+                aria-label="Callout title"
                 @input="setTitle"
+                @blur="restoreDefaultTitle"
                 @keydown.enter.prevent="focusBody"
                 @keydown.escape.prevent="$event.target.blur()"
             />

@@ -17,6 +17,24 @@
 export const CALLOUT_TYPES = ['note', 'tip', 'caution', 'danger', 'warning'];
 
 /**
+ * Default titles for each callout type.
+ *
+ * Lives here rather than in callout-block.js because both ends of the markdown
+ * round-trip need it: a fence without `[Title]` parses to the default as a real
+ * attribute value (the node view shows an editable title, not a placeholder the
+ * author can't delete), and the serializer drops the brackets again when the
+ * title still equals the default — so documents written before any of this keep
+ * their `:::note` exactly as it is.
+ */
+export const DEFAULT_TITLES = {
+	note: 'Note',
+	tip: 'Tip',
+	caution: 'Caution',
+	danger: 'Danger',
+	warning: 'Caution',
+};
+
+/**
  * Tokenize the fence body as block markdown.
  *
  * `blockTokens` leaves inline tokens unresolved on tokens it built from a plain
@@ -87,12 +105,13 @@ export const calloutMarkdownTokenizer = {
 
 export function parseCalloutMarkdown(token, h) {
 	const content = h.parseChildren(token.tokens || []);
+	const calloutType = token.calloutType || 'note';
 
 	return {
 		type: 'calloutBlock',
 		attrs: {
-			type: token.calloutType || 'note',
-			title: token.title || '',
+			type: calloutType,
+			title: token.title || DEFAULT_TITLES[calloutType] || '',
 		},
 		// `block+` needs at least one child, and an empty callout is a legal
 		// thing to write.
@@ -110,7 +129,12 @@ export function renderCalloutMarkdown(node, h) {
 	const calloutType = node.attrs?.type || 'note';
 	const title = node.attrs?.title || '';
 	const body = h.renderChildren(node.content || [], '\n\n').trim();
-	const fence = title ? `:::${calloutType}[${title}]` : `:::${calloutType}`;
+	// A title that is just the type's default is what the fence means without
+	// any brackets — writing it out would rewrite every untitled callout in the
+	// wiki the first time its page is saved.
+	const isDefault = title === (DEFAULT_TITLES[calloutType] || '');
+	const fence =
+		title && !isDefault ? `:::${calloutType}[${title}]` : `:::${calloutType}`;
 
 	return `${fence}\n${body}\n:::`;
 }

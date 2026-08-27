@@ -16,23 +16,13 @@ import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import CalloutBlockView from './CalloutBlockView.vue';
 import {
 	CALLOUT_TYPES,
+	DEFAULT_TITLES,
 	calloutMarkdownTokenizer,
 	parseCalloutMarkdown,
 	renderCalloutMarkdown,
 } from './callout-markdown.js';
 
-export { CALLOUT_TYPES };
-
-/**
- * Default titles for each callout type
- */
-export const DEFAULT_TITLES = {
-	note: 'Note',
-	tip: 'Tip',
-	caution: 'Caution',
-	danger: 'Danger',
-	warning: 'Caution',
-};
+export { CALLOUT_TYPES, DEFAULT_TITLES };
 
 /**
  * Depth of the callout the position sits in, or null when it sits outside one.
@@ -203,9 +193,16 @@ export const CalloutBlock = Node.create({
 						return false;
 					}
 
+					const type = attributes?.type || 'note';
 					return commands.insertContent({
 						type: this.name,
-						attrs: attributes,
+						// The title is seeded rather than left blank: it is a real,
+						// editable value in the header, not a placeholder the author
+						// can put a cursor in but never delete.
+						attrs: {
+							type,
+							title: attributes?.title || DEFAULT_TITLES[type] || '',
+						},
 						content: [{ type: 'paragraph' }],
 					});
 				},

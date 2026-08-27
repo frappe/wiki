@@ -49,6 +49,7 @@ declare global {
 const BOLD = process.platform === 'darwin' ? 'Meta+b' : 'Control+b';
 const MOD_ENTER =
 	process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter';
+const SELECT_ALL = process.platform === 'darwin' ? 'Meta+a' : 'Control+a';
 
 const createdRoutes: string[] = [];
 
@@ -234,14 +235,44 @@ test.describe('Callout rich text', () => {
 
 		const title = page.locator('input.callout-title');
 		await expect(title).toBeVisible({ timeout: 5000 });
-		// Empty title falls back to the type's default as a placeholder.
-		await expect(title).toHaveAttribute('placeholder', 'Note');
+		// A real value, not a placeholder: the author can select and delete it.
+		await expect(title).toHaveValue('Note');
 
 		await title.click();
+		await page.keyboard.press(SELECT_ALL);
 		await page.keyboard.type('Heads up');
 
 		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
 		expect(markdown).toContain(':::note[Heads up]');
+	});
+
+	test('an emptied title falls back to the type default', async ({
+		page,
+		request,
+	}) => {
+		await createDraftAndOpenEditor(page, request, 'emptytitle');
+
+		await page.evaluate(() => {
+			window.wikiEditor.commands.setContent(':::danger[Boom]\nbody\n:::', {
+				contentType: 'markdown',
+			});
+		});
+
+		const title = page.locator('input.callout-title');
+		await expect(title).toHaveValue('Boom');
+
+		await title.click();
+		await page.keyboard.press(SELECT_ALL);
+		await page.keyboard.press('Backspace');
+		await page.locator('.callout-content p').first().click();
+
+		// The published page always prints a title, so an emptied one means the
+		// default rather than no header at all.
+		await expect(title).toHaveValue('Danger');
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		// Back to the default means back to a bare fence.
+		expect(markdown).toContain(':::danger\n');
+		expect(markdown).not.toContain('[Danger]');
 	});
 
 	test('the cursor can leave a callout that ends the document', async ({

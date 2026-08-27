@@ -136,6 +136,27 @@ test('an empty callout still parses to a body that block+ accepts', () => {
 	assert.deepEqual(callout.content, [{ type: 'paragraph' }]);
 });
 
+test('an untitled fence carries the type default as a real title', () => {
+	// Not a placeholder: the node view puts this in an input the author can
+	// select and delete, which a placeholder never let them do.
+	const callout = buildManager().parse(':::danger\nboom\n:::').content[0];
+	assert.equal(callout.attrs.title, 'Danger');
+});
+
+test('a title still equal to the default serializes without brackets', () => {
+	// Otherwise the first save of any page rewrites every `:::note` in it.
+	const manager = buildManager();
+	const output = manager.serialize(manager.parse(':::danger\nboom\n:::'));
+	assert.match(output, /^:::danger\n/);
+	assert.ok(!output.includes('[Danger]'), output);
+});
+
+test('a title the author wrote survives the round-trip', () => {
+	const manager = buildManager();
+	const output = manager.serialize(manager.parse(':::danger[Boom]\nboom\n:::'));
+	assert.match(output, /^:::danger\[Boom\]\n/);
+});
+
 test('renderMarkdown leaves the block separator to the serializer', () => {
 	// The specific defect: a trailing separator baked into the node's own
 	// output. Asserted directly so a re-introduction fails here by name rather

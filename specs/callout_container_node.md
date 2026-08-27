@@ -265,3 +265,16 @@ the end. Final state: 15 markdown unit tests, 81 python tests in
 covering parse fidelity, typing with the main toolbar, the slash insert, the
 title input, both exits, and the published page. `slash-menu`, `editor-toc` and
 `public-blank-lines` pass unchanged.
+
+**Follow-up (title as a value, not a placeholder).** Phase 3 kept the default
+title as an `<input>` placeholder inked like real text. That reads as text you can
+edit but can't: putting a cursor in it and pressing Backspace does nothing, which
+is exactly what the author tried. The title is a real attribute value now —
+seeded by `setCallout`, and filled in on parse for a fence with no `[Title]`.
+
+`renderCalloutMarkdown` drops the brackets again whenever the title still equals
+the type's default, so a wiki full of `:::note` does not get rewritten to
+`:::note[Note]` the first time each page is saved. Clearing the title restores the
+default on blur (the rendered page always prints one, so an empty title means the
+default, not a missing header), and switching type carries the title along only
+when the author never changed it. The ⋯ action is "Remove", not "Delete".
