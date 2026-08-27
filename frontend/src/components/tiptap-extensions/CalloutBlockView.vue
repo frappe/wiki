@@ -58,12 +58,14 @@ const displayTitle = computed(() => {
 	);
 });
 
-// SVG icons for each callout type
+// The frappe-ui Alert status glyphs (icon/solid/* in Figma), inlined: the four
+// SFCs behind `solidStatusIcons` are not exported from frappe-ui/icons, and the
+// server-rendered reader needs the same paths in markdown.py anyway.
 const icons = {
-	note: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
-	tip: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`,
-	caution: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
-	danger: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
+	note: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM8 6.93652C7.72386 6.93652 7.5 7.16038 7.5 7.43652V11.1436C7.50005 11.4197 7.72389 11.6436 8 11.6436C8.27611 11.6436 8.49995 11.4197 8.5 11.1436V7.43652C8.5 7.16038 8.27614 6.93652 8 6.93652ZM8 4C7.51675 4 7.125 4.39175 7.125 4.875C7.125 5.35825 7.51675 5.75 8 5.75C8.48325 5.75 8.875 5.35825 8.875 4.875C8.875 4.39175 8.48325 4 8 4Z" fill="currentColor"/></svg>`,
+	tip: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM11.1055 5.28125C10.8924 5.10562 10.5771 5.13567 10.4014 5.34863L6.95215 9.53223L5.61035 7.79883C5.44143 7.58051 5.12757 7.54022 4.90918 7.70898C4.69088 7.8779 4.65061 8.19177 4.81934 8.41016L6.54395 10.6396C6.63696 10.7598 6.77972 10.8306 6.93164 10.833C7.08364 10.8354 7.22849 10.7687 7.3252 10.6514L11.1729 5.98438C11.3481 5.77144 11.3181 5.45689 11.1055 5.28125Z" fill="currentColor"/></svg>`,
+	caution: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.35174 1.97129C7.64143 1.47669 8.35697 1.47669 8.64666 1.97129L15.0519 12.9078C15.3447 13.4077 14.9847 14.0365 14.4055 14.0367H1.59295C1.0138 14.0364 0.653701 13.4077 0.946469 12.9078L7.35174 1.97129ZM7.9992 10.4117C7.51609 10.4118 7.12433 10.8036 7.1242 11.2867C7.1242 11.7699 7.51601 12.1617 7.9992 12.1617C8.48245 12.1617 8.8742 11.77 8.8742 11.2867C8.87408 10.8036 8.48238 10.4117 7.9992 10.4117ZM8.00018 5.50742C7.72411 5.50742 7.5003 5.73139 7.50018 6.00742V9.25742C7.50018 9.53356 7.72404 9.75742 8.00018 9.75742C8.27615 9.75723 8.50018 9.53344 8.50018 9.25742V6.00742C8.50006 5.73151 8.27608 5.50762 8.00018 5.50742Z" fill="currentColor"/></svg>`,
+	danger: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM10.8535 5.14648C10.6583 4.95122 10.3417 4.95122 10.1465 5.14648L8 7.29297L5.85352 5.14648C5.65825 4.95122 5.34175 4.95122 5.14648 5.14648C4.95122 5.34175 4.95122 5.65825 5.14648 5.85352L7.29297 8L5.14648 10.1465C4.95122 10.3417 4.95122 10.6583 5.14648 10.8535C5.34175 11.0488 5.65825 11.0488 5.85352 10.8535L8 8.70703L10.1465 10.8535C10.3417 11.0488 10.6583 11.0488 10.8535 10.8535C11.0488 10.6583 11.0488 10.3417 10.8535 10.1465L8.70703 8L10.8535 5.85352C11.0488 5.65825 11.0488 5.34175 10.8535 5.14648Z" fill="currentColor"/></svg>`,
 };
 
 const icon = computed(() => icons[normalizedType.value] || icons.note);
@@ -121,14 +123,16 @@ const dropdownOptions = computed(() => [
 
 <template>
     <NodeViewWrapper
-        class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-5 relative flex flex-col gap-2"
+        class="callout-block-wrapper group my-4 p-3 rounded-6 bg-surface-gray-1 relative flex flex-col"
         :class="`callout-${normalizedType}`"
     >
-        <div class="flex items-center gap-2" contenteditable="false">
+        <div class="flex items-center gap-1.5" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
+            <!-- The placeholder is inked like a typed title on purpose: an empty
+                 title is not an empty header, it publishes as the type's default. -->
             <input
                 v-if="editor.isEditable"
-                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-sm-medium leading-[1.4] text-ink-gray-9 placeholder:text-ink-gray-4"
+                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-base-medium text-ink-gray-8 placeholder:text-ink-gray-8"
                 :value="node.attrs.title"
                 :placeholder="defaultTitles[normalizedType]"
                 :aria-label="`Callout title (${defaultTitles[normalizedType]})`"
@@ -136,7 +140,7 @@ const dropdownOptions = computed(() => [
                 @keydown.enter.prevent="focusBody"
                 @keydown.escape.prevent="$event.target.blur()"
             />
-            <span v-else class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
+            <span v-else class="callout-title flex-1 text-base-medium text-ink-gray-8">{{ displayTitle }}</span>
             <Dropdown v-if="editor.isEditable" :options="dropdownOptions" align="end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
@@ -144,19 +148,20 @@ const dropdownOptions = computed(() => [
             </Dropdown>
         </div>
 
-        <NodeViewContent class="callout-content text-sm leading-normal text-ink-gray-7" />
+        <NodeViewContent class="callout-content mt-1" />
     </NodeViewWrapper>
 </template>
 
 <style scoped>
-/* Icon sizing */
-.callout-icon :deep(svg) {
+/* Alert's prefix box: a fixed 16px slot the glyph sits centred in. */
+.callout-icon {
     width: 1rem;
     height: 1rem;
 }
 
-/* The body is document content now: kill the block margins prose gives its
-   first and last child so the callout keeps its own padding. */
+/* The body is document content now, so prose owns its typography — these
+   override it back to Alert's description style, and drop the outer margins so
+   the callout's own padding is the only gap. */
 .callout-content :deep(> *:first-child) {
     margin-top: 0;
 }
@@ -165,32 +170,28 @@ const dropdownOptions = computed(() => [
     margin-bottom: 0;
 }
 
-/* Callout type colors - these use CSS variables that don't map to Tailwind */
-.callout-note {
-    background-color: var(--surface-blue-2, #dbeafe);
+.callout-content :deep(p) {
+    color: var(--ink-gray-6);
+    font-size: var(--text-base, 0.875rem);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
 }
+
+/* Only the icon carries the type's colour — the surface stays neutral, the way
+   frappe-ui's Alert does it. */
 .callout-note .callout-icon {
-    color: var(--ink-blue-5, #2563eb);
+    color: var(--ink-blue-5);
 }
 
-.callout-tip {
-    background-color: var(--surface-green-2, #dcfce7);
-}
 .callout-tip .callout-icon {
-    color: var(--ink-green-5, #16a34a);
+    color: var(--ink-green-5);
 }
 
-.callout-caution {
-    background-color: var(--surface-amber-2, #fef3c7);
-}
 .callout-caution .callout-icon {
-    color: var(--ink-amber-5, #d97706);
+    color: var(--ink-amber-5);
 }
 
-.callout-danger {
-    background-color: var(--surface-red-2, #fecaca);
-}
 .callout-danger .callout-icon {
-    color: var(--ink-red-5, #dc2626);
+    color: var(--ink-red-5);
 }
 </style>
