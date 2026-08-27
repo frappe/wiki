@@ -4,22 +4,15 @@
  *
  * Renders a callout/aside block in the TipTap editor.
  * Supports types: note, tip, caution, danger
- * Uses a minimal TipTap sub-editor for rich text editing (bold, italic, links).
+ *
+ * The body is a `<NodeViewContent>` hole — the main editor owns it, so bold,
+ * italic, links, lists, headings and code blocks all work inside a callout
+ * with no editor of this component's own.
  */
 
-import { Link } from '@tiptap/extension-link';
-import { StarterKit } from '@tiptap/starter-kit';
-import { Editor, EditorContent, NodeViewWrapper } from '@tiptap/vue-3';
+import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
 import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
-import { Markdown } from 'frappe-ui/editor';
-import {
-	computed,
-	nextTick,
-	onMounted,
-	onUnmounted,
-	ref,
-	shallowRef,
-} from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
 	node: {
@@ -30,12 +23,12 @@ const props = defineProps({
 		type: Function,
 		required: true,
 	},
-	selected: {
-		type: Boolean,
-		default: false,
-	},
 	deleteNode: {
 		type: Function,
+		required: true,
+	},
+	editor: {
+		type: Object,
 		required: true,
 	},
 });
@@ -70,198 +63,6 @@ const icons = {
 };
 
 const icon = computed(() => icons[normalizedType.value] || icons.note);
-
-// Editing state
-const isEditingContent = ref(false);
-const subEditor = shallowRef(null);
-let isSaving = false;
-
-const wrapperRef = ref(null);
-
-// Link input state
-const showLinkInput = ref(false);
-const linkUrl = ref('');
-const linkInputRef = ref(null);
-
-// Render inline markdown to HTML for view mode preview
-function renderInlineMarkdown(text) {
-	if (!text) return '';
-	const html = text
-		// Escape HTML
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		// Bold: **text**
-		.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-		// Italic: *text* (but not inside bold markers)
-		.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-		// Links: [text](url)
-		.replace(
-			/\[([^\]]+)\]\(([^)]+)\)/g,
-			'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-		)
-		// Line breaks
-		.replace(/\n/g, '<br>');
-	return html;
-}
-
-const renderedContent = computed(() =>
-	renderInlineMarkdown(props.node.attrs.content),
-);
-
-function startEditing() {
-	isEditingContent.value = true;
-	nextTick(() => {
-		subEditor.value = new Editor({
-			extensions: [
-				StarterKit.configure({
-					blockquote: false,
-					bulletList: false,
-					codeBlock: false,
-					heading: false,
-					horizontalRule: false,
-					listItem: false,
-					orderedList: false,
-					link: false,
-				}),
-				Link.configure({
-					openOnClick: false,
-					HTMLAttributes: {
-						rel: 'noopener noreferrer',
-					},
-				}),
-				Markdown,
-			],
-			content: props.node.attrs.content || '',
-			contentType: 'markdown',
-			editorProps: {
-				attributes: {
-					class: 'callout-sub-editor-content',
-				},
-				handleKeyDown(_view, event) {
-					if (event.key === 'Escape') {
-						finishEditing();
-						return true;
-					}
-					return false;
-				},
-			},
-		});
-
-		nextTick(() => {
-			subEditor.value?.commands.focus('end');
-		});
-	});
-}
-
-function syncSubEditorContent() {
-	if (!subEditor.value) return;
-	props.updateAttributes({ content: subEditor.value.getMarkdown() });
-}
-
-function finishEditing() {
-	if (isSaving) return;
-	syncSubEditorContent();
-	subEditor.value?.destroy();
-	subEditor.value = null;
-	isEditingContent.value = false;
-	showLinkInput.value = false;
-}
-
-function handleBeforeSave() {
-	if (isEditingContent.value && subEditor.value) {
-		isSaving = true;
-		syncSubEditorContent();
-	}
-}
-
-function handleAfterSave() {
-	if (isSaving) {
-		isSaving = false;
-		nextTick(() => {
-			subEditor.value?.commands.focus();
-		});
-	}
-}
-
-function handleClickOutside(event) {
-	if (!isEditingContent.value || !wrapperRef.value) return;
-	const el = wrapperRef.value.$el || wrapperRef.value;
-	if (!el.contains(event.target)) {
-		finishEditing();
-	}
-}
-
-onMounted(() => {
-	document.addEventListener('wiki-editor-before-save', handleBeforeSave);
-	document.addEventListener('wiki-editor-after-save', handleAfterSave);
-	document.addEventListener('mousedown', handleClickOutside, true);
-
-	if (!props.node.attrs.content) {
-		startEditing();
-	}
-});
-
-onUnmounted(() => {
-	document.removeEventListener('wiki-editor-before-save', handleBeforeSave);
-	document.removeEventListener('wiki-editor-after-save', handleAfterSave);
-	document.removeEventListener('mousedown', handleClickOutside, true);
-
-	if (subEditor.value) {
-		subEditor.value.destroy();
-		subEditor.value = null;
-	}
-});
-
-// Toolbar actions
-function toggleBold() {
-	subEditor.value?.chain().focus().toggleBold().run();
-}
-
-function toggleItalic() {
-	subEditor.value?.chain().focus().toggleItalic().run();
-}
-
-function openLinkInput() {
-	if (!subEditor.value) return;
-	const attrs = subEditor.value.getAttributes('link');
-	linkUrl.value = attrs.href || '';
-	showLinkInput.value = true;
-
-	nextTick(() => {
-		if (linkInputRef.value?.el) {
-			linkInputRef.value.el.focus();
-			linkInputRef.value.el.select();
-		}
-	});
-}
-
-function confirmLink() {
-	if (!subEditor.value) return;
-	let url = linkUrl.value.trim();
-
-	if (!url) {
-		subEditor.value.chain().focus().unsetLink().run();
-	} else {
-		if (
-			!url.startsWith('/') &&
-			!url.startsWith('#') &&
-			!url.match(/^[a-zA-Z]+:\/\//)
-		) {
-			url = 'https://' + url;
-		}
-		subEditor.value.chain().focus().setLink({ href: url }).run();
-	}
-
-	showLinkInput.value = false;
-	linkUrl.value = '';
-}
-
-function cancelLink() {
-	showLinkInput.value = false;
-	linkUrl.value = '';
-	subEditor.value?.commands.focus();
-}
 
 // Title editing dialog
 const showTitleDialog = ref(false);
@@ -324,78 +125,20 @@ const dropdownOptions = computed(() => [
 
 <template>
     <NodeViewWrapper
-        ref="wrapperRef"
         class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-5 relative flex flex-col gap-2"
-        :class="[`callout-${normalizedType}`, { 'outline-none': selected }]"
-        contenteditable="false"
+        :class="`callout-${normalizedType}`"
     >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
             <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
-            <Dropdown :options="dropdownOptions" align="end">
+            <Dropdown v-if="editor.isEditable" :options="dropdownOptions" align="end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
                 </Button>
             </Dropdown>
         </div>
-        <div class="text-sm leading-normal" @dblclick="!isEditingContent && startEditing()">
-            <template v-if="isEditingContent && subEditor">
-                <!-- Inline toolbar -->
-                <div class="flex items-center gap-0.5 mb-1.5">
-                    <button
-                        @mousedown.prevent="toggleBold"
-                        class="toolbar-btn text-[0.8125rem]"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('bold') }"
-                        title="Bold (Ctrl+B)"
-                    >
-                        <strong>B</strong>
-                    </button>
-                    <button
-                        @mousedown.prevent="toggleItalic"
-                        class="toolbar-btn text-[0.8125rem]"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('italic') }"
-                        title="Italic (Ctrl+I)"
-                    >
-                        <em>I</em>
-                    </button>
-                    <button
-                        @mousedown.prevent="openLinkInput"
-                        class="toolbar-btn"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('link') }"
-                        title="Link"
-                    >
-                        <span class="lucide-link size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
 
-                <!-- Link URL input row -->
-                <div v-if="showLinkInput" class="flex items-center gap-1 mb-1.5">
-                    <TextInput
-                        ref="linkInputRef"
-                        type="text"
-                        class="flex-1"
-                        size="sm"
-                        placeholder="https://example.com"
-                        v-model="linkUrl"
-                        @keydown.enter="confirmLink"
-                        @keydown.escape.stop="cancelLink"
-                    />
-                    <button @mousedown.prevent="confirmLink" class="toolbar-btn" title="Apply">
-                        <span class="lucide-check size-3.5" aria-hidden="true" />
-                    </button>
-                    <button @mousedown.prevent="cancelLink" class="toolbar-btn" title="Cancel">
-                        <span class="lucide-x size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
-
-                <!-- Sub-editor -->
-                <EditorContent :editor="subEditor" />
-            </template>
-            <div v-else class="callout-content-text text-ink-gray-7">
-                <span v-if="node.attrs.content" v-html="renderedContent"></span>
-                <span v-else class="text-ink-gray-4">Double-click to edit...</span>
-            </div>
-        </div>
+        <NodeViewContent class="callout-content text-sm leading-normal text-ink-gray-7" />
 
         <!-- Title Edit Dialog -->
         <Dialog v-model:open="showTitleDialog" title="Edit Callout Title">
@@ -420,55 +163,20 @@ const dropdownOptions = computed(() => [
 </template>
 
 <style scoped>
-/* Toolbar button base style */
-.toolbar-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: transparent;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    color: var(--ink-gray-6);
-    transition: all 0.15s ease;
-}
-
-.toolbar-btn:hover {
-    background-color: var(--surface-gray-2);
-    color: var(--ink-gray-9);
-}
-
 /* Icon sizing */
 .callout-icon :deep(svg) {
     width: 1rem;
     height: 1rem;
 }
 
-/* Sub-editor ProseMirror element styling */
-.callout-block-wrapper :deep(.callout-sub-editor-content) {
-    outline: none;
-    padding: 0.375rem 0.5rem;
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.375rem;
-    background-color: var(--surface-base, #ffffff);
-    min-height: 2.5rem;
-    color: var(--ink-gray-7, #4b5563);
+/* The body is document content now: kill the block margins prose gives its
+   first and last child so the callout keeps its own padding. */
+.callout-content :deep(> *:first-child) {
+    margin-top: 0;
 }
 
-.callout-block-wrapper :deep(.callout-sub-editor-content:focus) {
-    border-color: var(--outline-gray-4, #9ca3af);
-    box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.25);
-}
-
-.callout-block-wrapper :deep(.callout-sub-editor-content p) {
-    margin: 0;
-}
-
-.callout-block-wrapper :deep(.callout-sub-editor-content a) {
-    color: var(--ink-blue-5, #2563eb);
-    text-decoration: underline;
+.callout-content :deep(> *:last-child) {
+    margin-bottom: 0;
 }
 
 /* Callout type colors - these use CSS variables that don't map to Tailwind */

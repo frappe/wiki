@@ -5,6 +5,10 @@
  * Supports Markdown syntax: :::type[title]\ncontent\n:::
  *
  * Supported types: note, tip, caution, danger, warning
+ *
+ * The body is real document content (`content: 'block+'`), not an attribute, so
+ * every mark and block node the editor has works inside a callout without the
+ * node view owning an editor of its own.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core';
@@ -35,7 +39,13 @@ export const CalloutBlock = Node.create({
 
 	group: 'block',
 
-	atom: true,
+	content: 'block+',
+
+	// A callout is a unit: a paste replaces its body rather than splitting it,
+	// and Backspace/Delete at either edge can't join it with its neighbours.
+	defining: true,
+
+	isolating: true,
 
 	draggable: true,
 
@@ -47,9 +57,6 @@ export const CalloutBlock = Node.create({
 			title: {
 				default: '',
 			},
-			content: {
-				default: '',
-			},
 		};
 	},
 
@@ -57,26 +64,24 @@ export const CalloutBlock = Node.create({
 		return [
 			{
 				tag: 'aside.callout',
+				contentElement: '.callout-content',
 				getAttrs: (dom) => {
 					const classList = dom.className.split(' ');
 					const typeClass = classList.find((c) => c.startsWith('callout-'));
 					const type = typeClass ? typeClass.replace('callout-', '') : 'note';
 
-					const titleEl = dom.querySelector('.callout-title span');
-					const title = titleEl ? titleEl.textContent : '';
+					const titleEl = dom.querySelector('.callout-title');
+					const title = titleEl ? titleEl.textContent.trim() : '';
 
-					const contentEl = dom.querySelector('.callout-content');
-					const content = contentEl ? contentEl.textContent : '';
-
-					return { type, title, content };
+					return { type, title };
 				},
 			},
 			{
 				tag: 'div[data-type="callout-block"]',
+				contentElement: '.callout-content',
 				getAttrs: (dom) => ({
 					type: dom.getAttribute('data-callout-type') || 'note',
 					title: dom.getAttribute('data-title') || '',
-					content: dom.getAttribute('data-content') || '',
 				}),
 			},
 		];
@@ -94,15 +99,15 @@ export const CalloutBlock = Node.create({
 			attrs,
 			[
 				'div',
-				{ class: 'callout-title' },
+				{ class: 'callout-header' },
 				[
 					'span',
-					{},
+					{ class: 'callout-title' },
 					node.attrs.title ||
 						node.attrs.type.charAt(0).toUpperCase() + node.attrs.type.slice(1),
 				],
 			],
-			['div', { class: 'callout-content' }, node.attrs.content],
+			['div', { class: 'callout-content' }, 0],
 		];
 	},
 
@@ -114,10 +119,17 @@ export const CalloutBlock = Node.create({
 		return {
 			setCallout:
 				(attributes) =>
-				({ commands }) => {
+				({ commands, editor }) => {
+					// The `:::` fence can't express a callout inside a callout, so
+					// don't offer one.
+					if (editor.isActive(this.name)) {
+						return false;
+					}
+
 					return commands.insertContent({
 						type: this.name,
 						attrs: attributes,
+						content: [{ type: 'paragraph' }],
 					});
 				},
 		};

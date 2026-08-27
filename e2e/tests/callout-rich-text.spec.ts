@@ -2,165 +2,210 @@ import { expect, test } from '@playwright/test';
 import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
-test.describe('Callout Rich Text Editing', () => {
-	/**
-	 * Helper: navigate to a space and create a new page, returning the editor locator.
-	 */
-	async function createPageAndOpenEditor(
-		page: import('@playwright/test').Page,
-		pageTitle: string,
-	) {
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
+/**
+ * Covers the callout as a *container* node: its body is content in the main
+ * document (`content: 'block+'` + NodeViewContent), not a markdown string in an
+ * attribute edited by a nested editor. So the assertions here are that the main
+ * editor's own formatting reaches inside a callout, and that block children —
+ * lists, code blocks, headings — survive the markdown round-trip.
+ */
 
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
-		await page.waitForLoadState('networkidle');
-
-		await openNewPageDialog(page);
-
-		await page.getByLabel('Title').fill(pageTitle);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Save' })
-			.click();
-		await page.waitForLoadState('networkidle');
-
-		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-
-		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		return editor;
+declare global {
+	interface Window {
+		wikiEditor: {
+			commands: {
+				setContent: (
+					content: string,
+					options?: { contentType?: string },
+				) => void;
+			};
+			getMarkdown: () => string;
+			getJSON: () => {
+				type: string;
+				content?: {
+					type: string;
+					attrs?: Record<string, unknown>;
+					content?: { type: string }[];
+				}[];
+			};
+		};
 	}
+}
 
-	test('callout should round-trip inline markdown (bold, italic, links)', async ({
+const BOLD = process.platform === 'darwin' ? 'Meta+b' : 'Control+b';
+
+/**
+ * Create a draft page and open the editor. Mirrors the helper in
+ * mermaid.spec.ts — duplicated rather than exported so changes to one test
+ * don't ripple into others.
+ */
+async function createDraftAndOpenEditor(
+	page: import('@playwright/test').Page,
+	title: string,
+) {
+	await page.goto(APP_BASE);
+	await page.waitForLoadState('networkidle');
+
+	const spaceLink = page.locator(spaceLinkSelector()).first();
+	await expect(spaceLink).toBeVisible({ timeout: 5000 });
+	await spaceLink.click();
+	await page.waitForLoadState('networkidle');
+
+	await openNewPageDialog(page);
+
+	await page.getByLabel('Title').fill(title);
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await page.waitForLoadState('networkidle');
+
+	await page.locator('aside').getByText(title, { exact: true }).click();
+
+	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
+	await expect(editor).toBeVisible({ timeout: 10000 });
+
+	await page.waitForFunction(() => window.wikiEditor !== undefined, {
+		timeout: 10000,
+	});
+	return editor;
+}
+
+test.describe('Callout rich text', () => {
+	test('a callout body parses into block children and round-trips', async ({
 		page,
 	}) => {
-		const pageTitle = `callout-rt-${Date.now()}`;
-		await createPageAndOpenEditor(page, pageTitle);
+		await createDraftAndOpenEditor(page, `callout-rt-${Date.now()}`);
 
 		const result = await page.evaluate(() => {
-			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
-				editor?: {
-					commands: {
-						setContent: (c: string, o?: object) => void;
-					};
-					getMarkdown: () => string;
-					getHTML: () => string;
-					getJSON: () => {
-						type: string;
-						content: { type: string; attrs?: Record<string, unknown> }[];
-					};
-				};
-			};
-			const editor = ed?.editor;
-			if (!editor) return { error: 'editor not found' };
+			const source = [
+				':::note[Test]',
+				'This has **bold** and *italic* and [a link](https://example.com)',
+				'',
+				'- one',
+				'- two',
+				':::',
+			].join('\n');
 
-			// Set content with a callout using markdown syntax
-			const calloutContent =
-				'This has **bold** and *italic* and [a link](https://example.com)';
-			editor.commands.setContent(`:::note[Test]\n${calloutContent}\n:::`, {
+			window.wikiEditor.commands.setContent(source, {
 				contentType: 'markdown',
 			});
+			const md1 = window.wikiEditor.getMarkdown();
 
-			const md1 = editor.getMarkdown();
+			window.wikiEditor.commands.setContent(md1, { contentType: 'markdown' });
+			const md2 = window.wikiEditor.getMarkdown();
 
-			// Round-trip: parse the output back
-			editor.commands.setContent(md1, { contentType: 'markdown' });
-			const md2 = editor.getMarkdown();
-			const json = editor.getJSON();
-
-			// Find the callout block in the JSON
-			const calloutNode = json.content?.find(
-				(n: { type: string }) => n.type === 'calloutBlock',
-			);
+			const callout = window.wikiEditor
+				.getJSON()
+				.content?.find((n) => n.type === 'calloutBlock');
 
 			return {
 				md1,
-				md2,
 				roundTrip: md1 === md2,
-				calloutContent: calloutNode?.attrs?.content,
-				hasCallout: !!calloutNode,
+				title: callout?.attrs?.title,
+				childTypes: callout?.content?.map((child) => child.type),
 			};
 		});
 
-		expect(result).not.toHaveProperty('error');
-		expect(result.hasCallout).toBe(true);
+		// The body is child nodes, not a string attribute.
+		expect(result.childTypes).toEqual(['paragraph', 'bulletList']);
+		expect(result.title).toBe('Test');
 
-		// Content should preserve inline markdown
-		expect(result.calloutContent).toContain('**bold**');
-		expect(result.calloutContent).toContain('*italic*');
-		expect(result.calloutContent).toContain('[a link](https://example.com)');
+		// Every mark and the list survive serialization back to the fence.
+		expect(result.md1).toContain('**bold**');
+		expect(result.md1).toContain('*italic*');
+		expect(result.md1).toContain('[a link](https://example.com)');
+		expect(result.md1).toContain('- one');
+		expect(result.md1).toMatch(/:::note\[Test\][\s\S]*:::/);
 
-		// Round-trip should be stable
 		expect(result.roundTrip).toBe(true);
 	});
 
-	test('callout view mode should render formatted HTML preview', async ({
+	test('the main editor formats text typed inside a callout', async ({
 		page,
 	}) => {
-		const pageTitle = `callout-preview-${Date.now()}`;
-		await createPageAndOpenEditor(page, pageTitle);
+		await createDraftAndOpenEditor(page, `callout-typing-${Date.now()}`);
 
-		// Set content with a callout using markdown syntax
 		await page.evaluate(() => {
-			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
-				editor?: {
-					commands: { setContent: (c: string, o?: object) => void };
-				};
-			};
-			ed?.editor?.commands.setContent(
-				':::tip\nUse **bold** for emphasis and *italic* for style\n:::',
-				{ contentType: 'markdown' },
-			);
-		});
-
-		// The callout should render in view mode (not editing) with formatted text
-		const calloutContent = page.locator(
-			'.callout-block-wrapper .callout-content-text',
-		);
-		await expect(calloutContent).toBeVisible({ timeout: 5000 });
-
-		// Check that bold and italic are rendered as HTML
-		const html = await calloutContent.innerHTML();
-		expect(html).toContain('<strong>bold</strong>');
-		expect(html).toContain('<em>italic</em>');
-	});
-
-	test('callout sub-editor should appear on double-click', async ({ page }) => {
-		const pageTitle = `callout-edit-${Date.now()}`;
-		await createPageAndOpenEditor(page, pageTitle);
-
-		// Set content with a callout using markdown syntax
-		await page.evaluate(() => {
-			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
-				editor?: {
-					commands: { setContent: (c: string, o?: object) => void };
-				};
-			};
-			ed?.editor?.commands.setContent(':::note\nSome content here\n:::', {
+			window.wikiEditor.commands.setContent(':::tip\nlead\n:::', {
 				contentType: 'markdown',
 			});
 		});
 
-		// Double-click the callout content area to enter edit mode
-		const calloutContent = page
-			.locator('.callout-block-wrapper .callout-content-text')
-			.first();
-		await expect(calloutContent).toBeVisible({ timeout: 5000 });
-		await calloutContent.dblclick();
+		// Type into the callout body the way an author would — no double-click,
+		// no sub-editor: it is ordinary editable content.
+		const body = page.locator('.callout-content p').first();
+		await expect(body).toBeVisible({ timeout: 5000 });
+		await body.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' ');
 
-		// The sub-editor (a nested ProseMirror instance) and toolbar should appear
-		const subEditor = page.locator(
-			'.callout-block-wrapper .callout-sub-editor-content',
-		);
-		await expect(subEditor).toBeVisible({ timeout: 5000 });
+		// Toggle the editor's own bold shortcut, then type: the mark has to apply
+		// to input inside the callout, which is only true if the body belongs to
+		// the main editor.
+		await page.keyboard.press(BOLD);
+		await page.keyboard.type('emphasis');
 
-		// Toolbar buttons (B, I, Link) should be visible
-		const toolbar = page.locator(
-			'.callout-block-wrapper .flex.items-center.gap-0\\.5',
+		await expect(page.locator('.callout-content strong')).toHaveText(
+			'emphasis',
 		);
-		await expect(toolbar).toBeVisible();
+
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		expect(markdown).toContain(':::tip');
+		expect(markdown).toContain('**emphasis**');
+	});
+
+	test('the slash menu inserts a callout you can type straight into', async ({
+		page,
+	}) => {
+		const editor = await createDraftAndOpenEditor(
+			page,
+			`callout-slash-${Date.now()}`,
+		);
+
+		await editor.click();
+		await page.keyboard.type('/tip');
+		await expect(
+			page.locator('.slash-commands-list').getByText('Tip', { exact: true }),
+		).toBeVisible({ timeout: 5000 });
+		await page.keyboard.press('Enter');
+
+		// setCallout seeds an empty paragraph, so the body is immediately
+		// writable — no placeholder to double-click first.
+		await expect(page.locator('.callout-content')).toBeVisible({
+			timeout: 5000,
+		});
+		await page.locator('.callout-content p').first().click();
+		await page.keyboard.type('written in place');
+
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		expect(markdown).toContain(':::tip\nwritten in place\n:::');
+	});
+
+	test('block nodes are reachable inside a callout', async ({ page }) => {
+		await createDraftAndOpenEditor(page, `callout-blocks-${Date.now()}`);
+
+		const childTypes = await page.evaluate(() => {
+			const source = [
+				':::caution',
+				'## Heading',
+				'',
+				'```js',
+				'const a = 1;',
+				'```',
+				':::',
+			].join('\n');
+
+			window.wikiEditor.commands.setContent(source, {
+				contentType: 'markdown',
+			});
+
+			const callout = window.wikiEditor
+				.getJSON()
+				.content?.find((n) => n.type === 'calloutBlock');
+			return callout?.content?.map((child) => child.type);
+		});
+
+		// A heading and a fenced block inside a callout were unreachable while
+		// the body was a string; degrading either to a bare paragraph is the
+		// regression this guards.
+		expect(childTypes).toEqual(['heading', 'codeBlock']);
 	});
 });
