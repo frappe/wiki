@@ -4,10 +4,14 @@ import {
 	expect,
 	test,
 } from '@playwright/test';
+import { updateDoc } from '../helpers/frappe';
 import { appUrl } from '../helpers/routes';
 import {
 	cleanupWikiSpacesByRoute,
+	createTestWikiDocument,
 	createTestWikiSpace,
+	deleteTestWikiDocument,
+	deleteTestWikiSpace,
 	openNewPageDialog,
 } from '../helpers/wiki';
 
@@ -314,5 +318,75 @@ test.describe('Callout rich text', () => {
 		// the body was a string; degrading either to a bare paragraph is the
 		// regression this guards.
 		expect(childTypes).toEqual(['heading', 'codeBlock']);
+	});
+
+	test('the published page renders the callout body as real markup', async ({
+		page,
+		request,
+	}) => {
+		const spaceRoute = `callout-public-${Date.now()}`;
+		const space = await createTestWikiSpace(request, {
+			route: spaceRoute,
+			is_published: true,
+		});
+		const rootGroup = await createTestWikiDocument(request, {
+			title: 'Root',
+			route: `${spaceRoute}/root`,
+			is_group: true,
+			is_published: true,
+		});
+		await updateDoc(request, 'Wiki Space', space.name, {
+			root_group: rootGroup.name,
+		});
+		const doc = await createTestWikiDocument(request, {
+			title: 'Callout Page',
+			route: `${spaceRoute}/callouts`,
+			content: [
+				':::tip[Careful]',
+				'Body with **bold** text.',
+				'',
+				'- first item',
+				'- second item',
+				':::',
+				'',
+			].join('\n'),
+			is_published: true,
+			parent_wiki_document: rootGroup.name,
+		});
+
+		try {
+			await page.goto(`/${doc.route}`);
+			await page.waitForLoadState('networkidle');
+
+			const callout = page.locator('#wiki-content aside.callout.callout-tip');
+			await expect(callout).toBeVisible({ timeout: 10000 });
+
+			// Alert's banner structure: header row, then a full-width body. The old
+			// markup nested the body beside the title in a .callout-body cell.
+			await expect(
+				callout.locator('.callout-header .callout-title'),
+			).toHaveText('Careful');
+			await expect(callout.locator('.callout-body')).toHaveCount(0);
+			await expect(callout.locator('.callout-header svg')).toBeVisible();
+
+			// The body is rendered markdown, not escaped text.
+			await expect(callout.locator('.callout-content strong')).toHaveText(
+				'bold',
+			);
+			await expect(callout.locator('.callout-content li')).toHaveCount(2);
+
+			// Neutral surface — the type shows only in the icon's colour.
+			const surface = await callout.evaluate(
+				(el) => getComputedStyle(el).backgroundColor,
+			);
+			const iconColor = await callout
+				.locator('.callout-icon')
+				.evaluate((el) => getComputedStyle(el).color);
+			expect(surface).not.toBe(iconColor);
+		} finally {
+			await deleteTestWikiDocument(request, doc.name).catch(() => {});
+			await deleteTestWikiDocument(request, rootGroup.name).catch(() => {});
+			await deleteTestWikiSpace(request, space.name).catch(() => {});
+		}
 	});
 });

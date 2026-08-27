@@ -227,3 +227,41 @@ collapsed to a bare text node — the unit harness had no `codeBlock` registered
 `node --test` can't load). The harness now registers the plain
 `@tiptap/extension-code-block`, and there is an explicit assertion on the parsed
 child node types.
+
+**Phase 2** — `fe6f104`. Inline title input (Enter moves into the body), ⋯ menu
+without the title dialog, and the exits: `Mod-Enter` / `ArrowDown`-at-the-end open
+a paragraph after the callout, Backspace at the start of an empty one deletes it.
+The Placeholder config is now a function so an empty callout body reads as a
+callout rather than as an empty document.
+
+The e2e spec also stopped authoring into "whichever space is listed first". That
+space's tree grows every run and was never cleaned up, which is what made the
+suite flake locally — each test now creates a throwaway space through the API and
+`afterEach` deletes it.
+
+**Phase 3** — `9631c12`. Alert parity in the editor, verified by screenshot. One
+correction after looking at it: the title placeholder was inked `ink-gray-4`, so
+an untitled callout showed a grey "Note" in the editor and a full-ink "Note" once
+published. The placeholder is inked like a typed title now — an empty title is not
+an empty header.
+
+**Phase 4** — `01a03e3`. `markdown.py` emits the header/body structure with the
+Alert glyphs; `main.css` and the print format follow. Verified by screenshotting a
+published page: it matches the editor. Two things found on the way:
+
+- The public icons were a shade off before this — `--ink-blue-2` etc. where the
+  SPA used `-5`. Nobody had noticed because the tinted surface hid it.
+- `wiki-rendered.css` is dead in full, not just its callout rules: its only
+  consumer, the standalone CR preview page, was removed in `afb6808`. Only the
+  callout rules are removed here — `specs/cleanup/` suggests another session is
+  already working through dead code, and this is theirs to take.
+
+Print is the one surface not visually verified; it has no CSS variables and needs
+a wkhtmltopdf run. Its structure follows the same class names `markdown.py` emits.
+
+**Phase 5** — tests landed with the phases they cover rather than in a batch at
+the end. Final state: 15 markdown unit tests, 81 python tests in
+`test_markdown.py` (two new: HTML structure, and the icon paths), and 9 e2e specs
+covering parse fidelity, typing with the main toolbar, the slash insert, the
+title input, both exits, and the published page. `slash-menu`, `editor-toc` and
+`public-blank-lines` pass unchanged.
