@@ -56,12 +56,17 @@ DEFAULT_TITLES = {
 	"warning": "Caution",  # warning is alias for caution
 }
 
-# SVG icons for each callout type
+# SVG icons for each callout type.
+#
+# The frappe-ui Alert status glyphs (icon/solid/* in Figma) — the same paths the
+# editor's node view inlines, kept in sync by hand: the SFCs behind
+# `solidStatusIcons` are not exported from frappe-ui/icons, and this renderer
+# has no build step that could import them.
 CALLOUT_ICONS = {
-	"note": '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-	"tip": '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
-	"caution": '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
-	"danger": '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+	"note": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM8 6.93652C7.72386 6.93652 7.5 7.16038 7.5 7.43652V11.1436C7.50005 11.4197 7.72389 11.6436 8 11.6436C8.27611 11.6436 8.49995 11.4197 8.5 11.1436V7.43652C8.5 7.16038 8.27614 6.93652 8 6.93652ZM8 4C7.51675 4 7.125 4.39175 7.125 4.875C7.125 5.35825 7.51675 5.75 8 5.75C8.48325 5.75 8.875 5.35825 8.875 4.875C8.875 4.39175 8.48325 4 8 4Z" fill="currentColor"/></svg>',
+	"tip": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM11.1055 5.28125C10.8924 5.10562 10.5771 5.13567 10.4014 5.34863L6.95215 9.53223L5.61035 7.79883C5.44143 7.58051 5.12757 7.54022 4.90918 7.70898C4.69088 7.8779 4.65061 8.19177 4.81934 8.41016L6.54395 10.6396C6.63696 10.7598 6.77972 10.8306 6.93164 10.833C7.08364 10.8354 7.22849 10.7687 7.3252 10.6514L11.1729 5.98438C11.3481 5.77144 11.3181 5.45689 11.1055 5.28125Z" fill="currentColor"/></svg>',
+	"caution": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.35174 1.97129C7.64143 1.47669 8.35697 1.47669 8.64666 1.97129L15.0519 12.9078C15.3447 13.4077 14.9847 14.0365 14.4055 14.0367H1.59295C1.0138 14.0364 0.653701 13.4077 0.946469 12.9078L7.35174 1.97129ZM7.9992 10.4117C7.51609 10.4118 7.12433 10.8036 7.1242 11.2867C7.1242 11.7699 7.51601 12.1617 7.9992 12.1617C8.48245 12.1617 8.8742 11.77 8.8742 11.2867C8.87408 10.8036 8.48238 10.4117 7.9992 10.4117ZM8.00018 5.50742C7.72411 5.50742 7.5003 5.73139 7.50018 6.00742V9.25742C7.50018 9.53356 7.72404 9.75742 8.00018 9.75742C8.27615 9.75723 8.50018 9.53344 8.50018 9.25742V6.00742C8.50006 5.73151 8.27608 5.50762 8.00018 5.50742Z" fill="currentColor"/></svg>',
+	"danger": '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM10.8535 5.14648C10.6583 4.95122 10.3417 4.95122 10.1465 5.14648L8 7.29297L5.85352 5.14648C5.65825 4.95122 5.34175 4.95122 5.14648 5.14648C4.95122 5.34175 4.95122 5.65825 5.14648 5.85352L7.29297 8L5.14648 10.1465C4.95122 10.3417 4.95122 10.6583 5.14648 10.8535C5.34175 11.0488 5.65825 11.0488 5.85352 10.8535L8 8.70703L10.1465 10.8535C10.3417 11.0488 10.6583 11.0488 10.8535 10.8535C11.0488 10.6583 11.0488 10.3417 10.8535 10.1465L8.70703 8L10.8535 5.85352C11.0488 5.65825 11.0488 5.34175 10.8535 5.14648Z" fill="currentColor"/></svg>',
 }
 
 # Pattern to match callout blocks
@@ -85,13 +90,15 @@ def _generate_callout_html(callout_type, title, inner_html):
 
 	icon = CALLOUT_ICONS.get(callout_type, CALLOUT_ICONS["note"])
 
+	# Header row, then a full-width body — the layout frappe-ui's Alert uses for
+	# its banner form. The editor's node view builds the same three elements.
 	return (
 		f'<aside class="callout callout-{callout_type}">\n'
+		f'<div class="callout-header">\n'
 		f'<span class="callout-icon">{icon}</span>\n'
-		f'<div class="callout-body">\n'
 		f'<span class="callout-title">{title}</span>\n'
-		f'<div class="callout-content">{inner_html}</div>\n'
 		f"</div>\n"
+		f'<div class="callout-content">{inner_html}</div>\n'
 		f"</aside>"
 	)
 
