@@ -200,4 +200,30 @@ from `colors.json`), delete the dead `wiki-rendered.css` callout rules.
 
 ## Reconciliation log
 
-_(appended after each phase)_
+**Phase 0** — `2dfc31c`. Spec committed. Stayed on `feat/frappe-ui-beta55` per the
+user; no new branch.
+
+**Phase 1** — `8bdc45e`. Schema flipped, markdown hooks rewritten, node view cut
+from 332 lines of sub-editor machinery to a `NodeViewContent` hole
+(−370/+163 across the five files). Deviations from the plan, all deliberate:
+
+- `parseBlockChildren` → `parseChildren`. Matches TipTap's own
+  `createBlockMarkdownSpec`; the blank-line preservation `parseBlockChildren`
+  adds is for the top level, and inside a fence it only risks phantom paragraphs.
+- Nesting guard landed here rather than later: `setCallout` returns false when
+  the cursor is already in a callout, and the four slash commands now go through
+  it instead of raw `insertContent` (they were also still passing the dead
+  `content: ''` attribute).
+- The e2e spec was rewritten now, not in Phase 5 — it asserted the sub-editor and
+  its toolbar exist, so it could not survive the schema flip. Five specs pass
+  against `wiki.localhost:8000`.
+- The ⋯ menu is now hidden when `editor.isEditable` is false. It was rendering in
+  the read-only `WikiContentViewer` on hover.
+
+Worth recording: **a markdown fixed point proves nothing about fidelity.** The
+first version of the code-block case round-tripped perfectly while the fence
+collapsed to a bare text node — the unit harness had no `codeBlock` registered
+(`wikiStarterKit` disables it for frappe-ui's version, whose .vue view
+`node --test` can't load). The harness now registers the plain
+`@tiptap/extension-code-block`, and there is an explicit assertion on the parsed
+child node types.
