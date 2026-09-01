@@ -45,29 +45,34 @@ export async function publishChangeRequestFromReview(page: Page) {
 }
 
 /**
- * The sidebar create actions live behind a single plus button ("Add") that
- * opens a dropdown of New Page / New Group / External Link. Opens the menu
- * and clicks the given option.
+ * The sidebar footer creates a page directly; the rarer kinds (group, external
+ * link, tab) sit behind the chevron beside it. Opens the right one either way.
  */
 export async function clickSidebarAddOption(
 	page: Page,
 	option: 'New Page' | 'New Group' | 'External Link',
 ) {
-	await page.locator('button[title="Add"]').click();
+	if (option === 'New Page') {
+		await newPageButton(page).click();
+		return;
+	}
+	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
 }
 
 /**
- * Start creating a page from the sidebar, handling both the empty-space CTA
- * ("Create First Page") and the Add dropdown. Leaves the create dialog open.
+ * The sidebar's own "New page" button, which renders whether or not the space
+ * already has pages.
+ */
+export function newPageButton(page: Page) {
+	return page.getByRole('button', { name: 'New page', exact: true });
+}
+
+/**
+ * Start creating a page from the sidebar. Leaves the create dialog open.
  */
 export async function openNewPageDialog(page: Page) {
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await clickSidebarAddOption(page, 'New Page');
-	}
+	await newPageButton(page).click();
 }
 
 /**

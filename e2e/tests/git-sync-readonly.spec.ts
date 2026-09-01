@@ -69,7 +69,9 @@ test.describe('Git-synced space (read-only)', () => {
 		await expect(page.getByRole('button', { name: 'Sync now' })).toBeVisible();
 
 		// No create / mutation affordances in the sidebar.
-		await expect(page.locator('button[title="Add"]')).toHaveCount(0);
+		await expect(
+			page.getByRole('button', { name: 'New page', exact: true }),
+		).toHaveCount(0);
 
 		// Open the synced page and confirm the viewer is non-editable.
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();

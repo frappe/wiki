@@ -1,9 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import {
-	cleanupWikiSpacesByRoute,
-	clickSidebarAddOption,
-} from '../helpers/wiki';
+import { cleanupWikiSpacesByRoute, openNewPageDialog } from '../helpers/wiki';
 
 /**
  * The editor's "On this page" rail mirrors the public reader's TOC, but is
@@ -65,12 +62,7 @@ async function createSpaceWithPage(page: Page, stamp: number) {
 	await expect(page).toHaveURL(SPACE_URL_RE);
 	await page.waitForLoadState('networkidle');
 
-	const createFirstPage = page.locator('button:has-text("Create First Page")');
-	if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await createFirstPage.click();
-	} else {
-		await clickSidebarAddOption(page, 'New Page');
-	}
+	await openNewPageDialog(page);
 	const pageTitle = `TOC Page ${stamp}`;
 	await page.getByLabel('Title').fill(pageTitle);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();

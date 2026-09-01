@@ -17,7 +17,7 @@
 				@click.stop="handleRowClick(node)"
 			>
 				<button
-					v-if="node.is_group"
+					v-if="node.is_group && !searchActive"
 					class="p-0.5 hover:bg-surface-gray-3 rounded-4 shrink-0"
 					:aria-label="isNodeExpanded(node.doc_key) ? __('Collapse') : __('Expand')"
 					@click.stop="toggleExpanded(node.doc_key)"
@@ -112,15 +112,11 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
-	// While a tree search is active we render a pruned tree with drag disabled
-	// and every ancestor-of-a-match force-expanded.
+	// While a tree search is active `items` is the flat result list, not the
+	// tree: rows carry no children, and drag is disabled.
 	searchActive: {
 		type: Boolean,
 		default: false,
-	},
-	expandedOverride: {
-		type: Object, // Set<doc_key> | null
-		default: null,
 	},
 	scoreMap: {
 		type: Object, // Map<doc_key, fuzzysort result> | null
@@ -146,6 +142,7 @@ const emit = defineEmits([
 	'tab-settings',
 	'convert-to-tab',
 	'drag-state-change',
+	'reveal-group',
 ]);
 
 const router = useRouter();
@@ -158,26 +155,17 @@ const storageKey = computed(
 const expandedNodes = useStorage(storageKey, {});
 
 function isNodeExpanded(name) {
-	// During search, force-open ancestors of matches without touching the
-	// user's saved expand state — clearing the query restores their tree.
-	if (props.expandedOverride) {
-		return props.expandedOverride.has(name);
-	}
 	return expandedNodes.value[name] === true;
 }
 
 function toggleExpanded(name) {
-	// While searching, groups are force-expanded via expandedOverride; writing
-	// to expandedNodes here would silently corrupt the user's saved layout
-	// (no visible change now, but restore-on-clear would show it). So no-op.
-	if (props.searchActive) return;
 	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 
 // Tree reads/writes each node's `expanded` field and mutates node order is
 // left to us via @drag-end, so we hand it a derived copy of the store tree:
 // `label` feeds the drag ghost + keyboard typeahead, `expanded` is resolved
-// from the persisted map (or the search override). Held in a ref so the
+// from the persisted map. Held in a ref so the
 // copies are reactive and Tree's own keyboard toggles still render.
 const treeNodes = ref([]);
 
@@ -191,7 +179,7 @@ function mapNodes(nodes) {
 }
 
 watch(
-	[() => props.items, () => props.expandedOverride, expandedNodes],
+	[() => props.items, expandedNodes],
 	() => {
 		treeNodes.value = mapNodes(props.items);
 	},
@@ -217,7 +205,11 @@ function handleRowClick(node) {
 	}
 
 	if (node.is_group) {
-		toggleExpanded(node.doc_key);
+		if (props.searchActive) {
+			emit('reveal-group', node);
+		} else {
+			toggleExpanded(node.doc_key);
+		}
 		return;
 	}
 
@@ -273,15 +265,22 @@ function getTitleClass(node) {
 // fuzzysort multi-key result is array-like: [0] = title key, [1] = route key.
 // Render as escaped { text, matched } segments (never an HTML string) — see
 // highlightSegments. titleParts always returns an array (plain title when no
-// match); routeParts only when the route matched but the title didn't.
+// match); routeParts whenever the route matched, plus — while searching — as
+// plain text, since a flat row has no ancestors to place it.
 function titleParts(node) {
 	const result = props.scoreMap?.get(node.doc_key)?.[0];
 	return highlightSegments(result) || [{ text: node.title, matched: false }];
 }
 
 function routeParts(node) {
-	if (highlightSegments(props.scoreMap?.get(node.doc_key)?.[0])) return null;
-	return highlightSegments(props.scoreMap?.get(node.doc_key)?.[1]);
+	const routeSegments = highlightSegments(
+		props.scoreMap?.get(node.doc_key)?.[1],
+	);
+	if (routeSegments) return routeSegments;
+	if (props.searchActive && node.route) {
+		return [{ text: node.route, matched: false }];
+	}
+	return null;
 }
 
 // Reparenting is only allowed into groups; sibling reorder is always fine.

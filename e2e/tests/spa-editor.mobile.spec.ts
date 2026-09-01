@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import {
 	cleanupWikiSpacesByRoute,
-	clickSidebarAddOption,
 	createTestWikiSpace,
+	openNewPageDialog,
 } from '../helpers/wiki';
 
 /**
@@ -62,14 +62,7 @@ test.describe('Mobile SPA', () => {
 		await page.waitForLoadState('networkidle');
 		const spaceUrl = page.url();
 
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await clickSidebarAddOption(page, 'New Page');
-		}
+		await openNewPageDialog(page);
 		await page.getByLabel('Title').fill(pageTitle);
 		await page
 			.getByRole('dialog')

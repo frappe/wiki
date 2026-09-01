@@ -7,6 +7,7 @@ import {
 } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	openNewPageDialog,
 	publishChangeRequestFromReview,
 } from '../helpers/wiki';
 
@@ -58,14 +59,7 @@ test.describe('Page actions – AI link URL', () => {
 
 		// --- Create and fill the first page ---
 		const firstPageTitle = `ai-url-first-${Date.now()}`;
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		if (await createFirstPage.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await createFirstPage.click();
-		} else {
-			await clickSidebarAddOption(page, 'New Page');
-		}
+		await openNewPageDialog(page);
 		await page.getByLabel('Title').fill(firstPageTitle);
 		await page
 			.getByRole('dialog')

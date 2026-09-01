@@ -10,6 +10,7 @@ import {
 import {
 	cleanupWikiSpacesByRoute,
 	createTestWikiSpace,
+	newPageButton,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 } from '../helpers/wiki';
@@ -139,17 +140,9 @@ test.describe('Wiki Editor', () => {
 		// Should have sidebar with space management buttons
 		await expect(page.locator('aside')).toBeVisible();
 
-		// Wait for the tree to load (CR mode requires async init).
-		// On an empty space the empty-state "Create First Page" CTA renders
-		// instead of the sidebar Add dropdown — `.or().first()` tolerates
-		// either without tripping strict-mode on two matches.
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const addButton = page.locator('button[title="Add"]');
-		await expect(createFirstPage.or(addButton).first()).toBeVisible({
-			timeout: 10000,
-		});
+		// Wait for the tree to load (CR mode requires async init). The sidebar
+		// footer's New page button is there whether or not the space has pages.
+		await expect(newPageButton(page)).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should open wiki editor when clicking page in sidebar', async ({
@@ -164,14 +157,8 @@ test.describe('Wiki Editor', () => {
 		await spaceLink.click();
 		await page.waitForLoadState('networkidle');
 
-		// Wait for sidebar to load - either the empty-state CTA or the Add menu
-		const createFirstPage = page.locator(
-			'button:has-text("Create First Page")',
-		);
-		const addButton = page.locator('button[title="Add"]');
-		await expect(createFirstPage.or(addButton).first()).toBeVisible({
-			timeout: 10000,
-		});
+		// Wait for the sidebar to load.
+		await expect(newPageButton(page)).toBeVisible({ timeout: 10000 });
 
 		// Always create a new page so we know exactly what to click
 		const pageTitle = `Test Page ${Date.now()}`;
@@ -214,7 +201,6 @@ test.describe('Wiki Editor', () => {
 		const pageTitle = `e2e-cr-page-${Date.now()}`;
 		const pageContent = `This is test content created by E2E tests at ${new Date().toISOString()}`;
 
-		// Click create button (either "Create First Page" or "New Page")
 		await openNewPageDialog(page);
 
 		// Fill in page title

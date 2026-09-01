@@ -35,8 +35,11 @@
 			/>
 		</div>
 
-		<div v-if="spaceLoaded && treeData" class="relative flex-1 overflow-auto px-2 pt-2 pb-10">
+		<!-- The list owns the scroller: its search row and New page footer have
+		     to stay put while the tree between them scrolls. -->
+		<div v-if="spaceLoaded && treeData" class="flex min-h-0 flex-1 flex-col pt-2">
 			<WikiDocumentList
+				class="min-h-0 flex-1"
 				:tree-data="treeData"
 				:change-type-map="changeTypeMap"
 				:space-id="spaceId"

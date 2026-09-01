@@ -1,8 +1,15 @@
 <template>
-	<div>
-		<div class="flex items-center gap-2 mb-3">
-			<FormControl v-if="treeData.children && treeData.children.length > 0" class="flex-1" type="text"
-				v-model="searchQuery" :placeholder="__('Search pages...')" @keydown.esc="searchQuery = ''">
+	<div class="flex h-full min-h-0 flex-col">
+		<!-- Search sits above the scroller, so it stays put while results move. -->
+		<div v-if="hasPages" class="shrink-0 px-2 pb-2">
+			<TextInput
+				v-model="searchQuery"
+				class="w-full"
+				size="sm"
+				type="text"
+				:placeholder="__('Search pages...')"
+				@keydown.esc="searchQuery = ''"
+			>
 				<template #prefix>
 					<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
 				</template>
@@ -11,44 +18,40 @@
 						<span class="lucide-x size-4 text-ink-gray-5 hover:text-ink-gray-7" aria-hidden="true" />
 					</button>
 				</template>
-			</FormControl>
-			<Dropdown v-if="!readonly" class="ml-auto" :options="addOptionsWithTab">
-				<Button :title="__('Add')" icon="lucide-plus" variant="subtle" />
-			</Dropdown>
+			</TextInput>
 		</div>
 
-		<div v-if="isSearching && !hasResults"
-			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-6">
-			<span class="lucide-search size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
-			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No matches') }}</h3>
-			<p class="text-sm text-ink-gray-5">{{ __('No pages or groups match "{0}"', [searchQuery]) }}</p>
-		</div>
+		<div class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+			<p
+				v-if="isSearching && !hasResults"
+				class="px-1.5 py-3 text-sm text-ink-gray-5"
+			>
+				{{ __('No pages match "{0}"', [searchQuery]) }}
+			</p>
 
-		<div v-else-if="!treeData.children || treeData.children.length === 0"
-			class="flex flex-col items-center justify-center py-16 border border-dashed border-outline-gray-2 rounded-6">
-			<span class="lucide-file-text size-12 text-ink-gray-4 mb-4" aria-hidden="true" />
-			<h3 class="text-lg-medium text-ink-gray-7 mb-2">{{ __('No pages yet') }}</h3>
-			<template v-if="!readonly">
-				<p class="text-sm text-ink-gray-5 mb-6">{{ __('Create your first page to get started') }}</p>
-				<Button variant="solid" @click="openCreateDialog(rootNode, false)">
-					<template #prefix>
-						<span class="lucide-file-plus size-4" aria-hidden="true" />
-					</template>
-					{{ __('Create First Page') }}
-				</Button>
-			</template>
-			<p v-else class="text-sm text-ink-gray-5">{{ __('No pages have synced from the repository yet') }}</p>
-		</div>
+			<div
+				v-else-if="!hasPages"
+				class="flex flex-col items-center justify-center px-2 py-10 text-center"
+			>
+				<span class="lucide-file-text size-8 text-ink-gray-4 mb-3" aria-hidden="true" />
+				<h3 class="text-base-medium text-ink-gray-7 mb-1">{{ __('No pages yet') }}</h3>
+				<p class="text-sm text-ink-gray-5">
+					{{ readonly
+						? __('No pages have synced from the repository yet')
+						: __('Create your first page to get started') }}
+				</p>
+			</div>
 
-		<div v-else>
+			<!-- Searching swaps the tree for the ranked flat list; the rows are
+			     the same component, so selection, badges and row actions hold. -->
 			<WikiTree
-				:items="treeForRender.children"
+				v-else
+				:items="isSearching ? matches : treeData.children"
 				:change-type-map="changeTypeMap"
 				:parent-name="rootNode"
 				:space-id="spaceId"
 				:readonly="readonly"
 				:search-active="isSearching"
-				:expanded-override="expandedOverride"
 				:score-map="scoreMap"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
@@ -60,8 +63,29 @@
 				@edit-external-link="openEditExternalLinkDialog"
 				@tab-settings="openTabSettingsDialog"
 				@convert-to-tab="openConvertTabDialog"
+				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
 			/>
+		</div>
+
+		<!-- New page is the one thing this column is asked for constantly, so it
+		     gets a fixed footer; the rarer kinds live behind the chevron. -->
+		<div
+			v-if="!readonly"
+			class="flex shrink-0 items-center gap-1.5 border-t border-outline-gray-2 p-2"
+		>
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
+				<template #prefix>
+					<span class="lucide-plus size-4" aria-hidden="true" />
+				</template>
+			</Button>
+			<Dropdown :options="addOptionsWithTab" placement="right">
+				<Button variant="subtle" :title="__('Add a group or link')">
+					<template #icon>
+						<span class="lucide-chevron-down size-4" aria-hidden="true" />
+					</template>
+				</Button>
+			</Dropdown>
 		</div>
 
 		<Dialog v-model:open="showCreateDialog">
@@ -265,7 +289,7 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { Dropdown, ErrorMessage, FormControl } from 'frappe-ui';
+import { Dropdown, ErrorMessage, FormControl, TextInput } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import IconPicker from './IconPicker.vue';
 import SpaceIcon from './SpaceIcon.vue';
@@ -325,15 +349,24 @@ const expandedNodes = useStorage(
 	{},
 );
 
-// Client-side fuzzy filter over the in-memory tree (title + route).
+const hasPages = computed(() => (props.treeData?.children?.length || 0) > 0);
+
+// Client-side fuzzy filter over the in-memory tree (title + route). Results
+// render as a flat ranked list, not a pruned tree.
 const {
 	query: searchQuery,
 	isSearching,
-	treeForRender,
+	matches,
 	hasResults,
-	expandedOverride,
 	scoreMap,
 } = useTreeSearch(toRef(props, 'treeData'));
+
+// A group in the result list has no children to open in place, so picking one
+// drops the search and opens it where it actually lives.
+function revealGroup(node) {
+	expandedNodes.value[node.doc_key] = true;
+	searchQuery.value = '';
+}
 
 const {
 	showCreateDialog,
@@ -388,12 +421,8 @@ const {
 	toRef(props, 'spaceRootNode'),
 );
 
+// New Page is the footer's own button, so it is not repeated here.
 const addOptions = [
-	{
-		label: __('New Page'),
-		icon: 'lucide-file-plus',
-		onClick: () => openCreateDialog(props.rootNode, false),
-	},
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',

@@ -4,6 +4,8 @@ import test from 'node:test';
 import fuzzysort from 'fuzzysort';
 import { filterTree, highlightSegments } from './useTreeSearch.js';
 
+const has = (matches, key) => matches.some((node) => node.doc_key === key);
+
 // A small two-level tree: a group "Guides" with two pages, and a top-level page.
 function sampleTree() {
 	return [
@@ -36,27 +38,36 @@ test('blank query returns null (not searching)', () => {
 	assert.equal(filterTree(sampleTree(), '   '), null);
 });
 
-test('matching a page keeps it and its ancestor group', () => {
-	const { keep, expand, children } = filterTree(sampleTree(), 'getting');
+// The result list is flat: a nested match is its own row, and the ancestors
+// that used to be dragged along with it are not results.
+test('a nested match is one flat row, without its ancestor group', () => {
+	const { matches } = filterTree(sampleTree(), 'getting');
 
-	assert.ok(keep.has('p1'), 'matched page kept');
-	assert.ok(keep.has('g1'), 'ancestor group kept');
-	assert.ok(expand.has('g1'), 'ancestor group force-expanded');
-	assert.ok(!keep.has('p2'), 'non-matching sibling pruned');
-	assert.ok(!keep.has('p3'), 'unrelated top-level page pruned');
+	assert.deepEqual(
+		matches.map((node) => node.doc_key),
+		['p1'],
+	);
+});
 
-	// Pruned tree preserves structure: Guides group with only the match inside.
-	assert.equal(children.length, 1);
-	assert.equal(children[0].doc_key, 'g1');
-	assert.equal(children[0].children.length, 1);
-	assert.equal(children[0].children[0].doc_key, 'p1');
+test('a matched group carries no children into the result list', () => {
+	const { matches } = filterTree(sampleTree(), 'Guides');
+
+	const group = matches.find((node) => node.doc_key === 'g1');
+	assert.ok(group, 'the group is a result in its own right');
+	assert.deepEqual(group.children, [], 'its pages are not results');
+});
+
+test('results are ranked, best match first', () => {
+	const { matches } = filterTree(sampleTree(), 'guides');
+
+	assert.equal(matches[0].doc_key, 'g1', 'the exact title beats route hits');
 });
 
 test('matches the route even when the title does not', () => {
 	// "auth-tokens" lives only in p2's route, not its title ("Authentication").
-	const { keep, score } = filterTree(sampleTree(), 'auth-tokens');
+	const { matches, score } = filterTree(sampleTree(), 'auth-tokens');
 
-	assert.ok(keep.has('p2'), 'route-only hit surfaces the page');
+	assert.ok(has(matches, 'p2'), 'route-only hit surfaces the page');
 	const result = score.get('p2');
 	// A non-matching key highlights to an empty string; the matching one wraps
 	// the hit in <mark>.
@@ -72,8 +83,8 @@ test('matches the route even when the title does not', () => {
 });
 
 test('a strong (prefix) fuzzy query still matches', () => {
-	const { keep } = filterTree(sampleTree(), 'authen');
-	assert.ok(keep.has('p2'));
+	const { matches } = filterTree(sampleTree(), 'authen');
+	assert.ok(has(matches, 'p2'));
 });
 
 // Mirrors the reported space (Getting Started / Guides·Advanced / Reference·CLI).
@@ -125,32 +136,32 @@ function prodTree() {
 }
 
 test('"cli" surfaces the CLI pages and drops route-scatter junk', () => {
-	const { keep } = filterTree(prodTree(), 'cli');
-	assert.ok(keep.has('pCLICmd'), 'CLI Commands kept');
-	assert.ok(keep.has('gCLI'), 'CLI group kept');
+	const { matches } = filterTree(prodTree(), 'cli');
+	assert.ok(has(matches, 'pCLICmd'), 'CLI Commands kept');
+	assert.ok(has(matches, 'gCLI'), 'CLI group kept');
 	// Both matched "cli" only as a scattered subsequence of their long routes
 	// (c…l…i across ".../installation"), title score 0 — must be dropped.
-	assert.ok(!keep.has('pInstall'), 'Install It (route-scatter only) dropped');
 	assert.ok(
-		!keep.has('pTrouble'),
+		!has(matches, 'pInstall'),
+		'Install It (route-scatter only) dropped',
+	);
+	assert.ok(
+		!has(matches, 'pTrouble'),
 		'Troubleshooting (route-scatter only) dropped',
 	);
 });
 
 test('"stat" still finds "Getting Started" (lenient title threshold)', () => {
-	const { keep } = filterTree(prodTree(), 'stat');
-	assert.ok(keep.has('gGS'), 'near-prefix "stat" matches "Getting Started"');
+	const { matches } = filterTree(prodTree(), 'stat');
+	assert.ok(
+		has(matches, 'gGS'),
+		'near-prefix "stat" matches "Getting Started"',
+	);
 });
 
-test('no matches yields an empty keep set', () => {
-	const { keep, children } = filterTree(sampleTree(), 'zzzznomatch');
-	assert.equal(keep.size, 0);
-	assert.equal(children.length, 0);
-});
-
-test('matching a group title keeps the group itself', () => {
-	const { keep } = filterTree(sampleTree(), 'Guides');
-	assert.ok(keep.has('g1'));
+test('no matches yields an empty result list', () => {
+	const { matches } = filterTree(sampleTree(), 'zzzznomatch');
+	assert.equal(matches.length, 0);
 });
 
 test('highlightSegments keeps markup as literal text (no HTML injection)', () => {
