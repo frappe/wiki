@@ -24,12 +24,13 @@ page. Content keeps full width.
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Sidebar component | Keep frappe-ui `Sidebar`/`SidebarHeader`/`SidebarItem`/`SidebarSection` as in the prototype. Fixed 260px at level 1; the resizable-width composable (`useSidebarResize`) retires with the tree column. Collapse stays available only at level 0. |
+| 1 | Sidebar component | Keep frappe-ui `Sidebar`/`SidebarHeader`/`SidebarItem`/`SidebarSection` as in the prototype. Fixed 260px at level 1; the resizable-width composable (`useSidebarResize`) retires with the tree column. **No collapse toggle** (settled 2026-09-02, matching the prototype) — there is only one nav column now, so collapsing it leaves nothing to navigate with. |
 | 2 | Space ordering | `switcher_order` (existing field), pinned spaces float to top in pin order. |
 | 3 | Pinning | Per-user, stored in `localStorage` first (`wiki:pinned-spaces`). No backend field until someone asks for cross-device pins. Context-menu on the space row: Pin/Unpin, Space settings, Copy link. One shared `ContextMenu` for the whole list (prototype pattern — rows write the options on `@contextmenu`). |
 | 4 | Suffix state icons | Independent icons, not one merged badge: `lucide-pin` (pinned), `lucide-folder-git-2` (git-synced), `lucide-lock` (has roles ⇒ restricted), `lucide-eye-off` (unpublished). Each with a Tooltip. |
 | 5 | Identity tile | Until spec 3 lands: frappe-ui `Avatar` (square, `app_switcher_logo` image, initial fallback). Spec 3 swaps in the SpaceAvatar component. |
-| 6 | `/spaces` list page | **Retires** (confirmed 2026-09-01). `/spaces` redirects to `/`. The list page's residual jobs move: create-space (incl. the GitHub repo flow) becomes a dialog opened from the sidebar's "New space" footer button; search/filter over spaces is served by the **Overview** page (reversed 2026-09-01 — the sidebar shipped a search box in phase 3 and it was removed again; the sidebar is a nav column, not a finder). |
+| 6 | `/spaces` list page | **Retires** (confirmed 2026-09-01). `/spaces` redirects to `/`. The list page's residual jobs move: create-space (incl. the GitHub repo flow) becomes a dialog opened from the sidebar's "New space" footer button; search/filter over spaces is served by the **Overview** page (reversed 2026-09-01 — the sidebar shipped a search box in phase 3 and it was removed again; the sidebar is a nav column, not a finder). The sidebar lists at most 15 spaces and, when there are more, ends the section with a `Show all spaces` row pointing at the Overview. |
+| 6b | Unpublished spaces in the sidebar | A Wiki Manager sees them (marked with the eye-off icon) — they are that manager's own drafts, in the column they work in. Everyone else gets `is_published = 1`. The Overview is unfiltered either way, so nothing becomes unreachable. |
 | 7 | Landing route `/` | Until spec 4 (Overview) ships: a minimal placeholder page ("pick a space") that also hosts the empty-wiki state and the New Space entry. The sidebar item "Overview" points at it from day one so the route name (`Overview`) never changes. |
 | 8 | SpaceDetails layout | The `<aside>` tree column, `SpaceTreePanel` header, `SpaceChromeBar` and `ContributionBanner` placement all fold into `SpaceSidebar`. SpaceDetails keeps: the space document resource, router-view, settings dialogs. |
 | 8b | Tabs removed | The horizontal tab feature goes away entirely (decided 2026-09-01). Tab-flagged groups render as ordinary top-level groups in the sidebar tree. App side: `WikiTabBar.vue`, `useSpaceTabs.js`, `lib/spaceTabs.js`, the tab bar row in SpaceDetails, "New Tab" tree actions, and the tab fields in space settings all go. Reader side: `templates/wiki/includes/tabs.html` and the tab logic in `mobile_header.html` / `sidebar.html` (both DOM twins). Backend: `is_tab`/`tab_icon` stay **in the schema** (Desk-hidden, ignored) so old CRs/revisions still apply — the ~40 `Wiki Document` field whitelists keep carrying them; actual field removal is a later cleanup with a migration. `enable_tabs`/`home_tab_title`/`home_tab_icon` on Wiki Space likewise hidden, not dropped. `lib/tabIcons.js` **stays** — it is the IconPicker's curated lucide safelist. |
@@ -127,11 +128,21 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - Does "Switch space" in the header dropdown earn its place vs just the back
   button? (Prototype has both.)
-- Whether the sidebar collapse toggle survives at level 1 (prototype has
-  none).
 
 ## Progress log
 
+- 2026-09-02 — **Collapse toggle dropped.** `SidebarCollapseToggle` and the
+  `is-sidebar-collapsed` storage key are gone; the footer strip now renders
+  only for a Wiki Manager, so a reader gets no empty bordered rule under the
+  list. Closes the open question.
+- 2026-09-02 — **The sidebar stops being a directory.** It lists at most 15
+  spaces and, only when there are more, ends with a `Show all spaces` row
+  pointing at the Overview — the `Load more` footer is gone. It also drops
+  unpublished spaces for everyone but a Wiki Manager (`useSpaceLibrary` takes
+  `limit` and `publishedOnly`; the Overview passes neither and stays the full,
+  unfiltered directory). Local dev data cleaned out at the same time: 1918 e2e
+  fixture spaces deleted, leaving the 14 with real content, which is the shape
+  a real wiki has.
 - 2026-09-01 — **Phase 5 done.** The app has no tab bar: `WikiTabBar.vue`,
   `WikiTab.vue`, `useSpaceTabs.js` and `lib/spaceTabs.js` are deleted, the
   space store no longer derives tabs or a narrowed `visibleTreeData`, and the
@@ -144,6 +155,7 @@ list and the real tree before any state icons, pinning, or strip polish.
   box added in phase 3 is gone; `useSpaceLibrary` keeps `searchQuery` /
   `showSearch` for the Overview page, which is now the only place that
   searches spaces. The sidebar still pages 50 at a time behind `Load more`.
+  (Superseded the next day — see below.)
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
 - 2026-09-01 — **Phase 4 done.** Searching the tree now swaps it for a
@@ -227,6 +239,8 @@ landmines).
 
 Phase 1 also caps the library list at 50 spaces with a `Load more` footer
 (landmine: 1847 spaces locally). Search over the list arrives in phase 3.
+(Both superseded — see the 2026-09-02 log entry: the cap is 15 and the footer
+is a link to the Overview.)
 
 Not verified in a browser: the local bench returns 500 for every site on it,
 including ones unrelated to the wiki, so the app could not be loaded. The build
