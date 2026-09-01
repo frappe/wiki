@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Phases 1–4 done**, phases 5–7 pending.
+Status: **Phases 1–5 done**, phases 6–7 pending.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -82,7 +82,7 @@ list and the real tree before any state icons, pinning, or strip polish.
    menu), CR count suffix, New space footer button + extracted
    `NewSpaceDialog.vue`; delete `SpaceList.vue` and `pages/Spaces.vue`.
 4. **Tree search-in-sidebar** ✅ (flat result list) + mobile reconciliation.
-5. **Tab removal, app side.** Delete the tab bar row, `WikiTabBar.vue`,
+5. **Tab removal, app side.** ✅ Delete the tab bar row, `WikiTabBar.vue`,
    `useSpaceTabs.js`, `lib/spaceTabs.js`; tab groups now render as plain
    top-level groups; "New Tab" action and settings toggles removed. Whole
    tree always visible.
@@ -132,6 +132,14 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 ## Progress log
 
+- 2026-09-01 — **Phase 5 done.** The app has no tab bar: `WikiTabBar.vue`,
+  `WikiTab.vue`, `useSpaceTabs.js` and `lib/spaceTabs.js` are deleted, the
+  space store no longer derives tabs or a narrowed `visibleTreeData`, and the
+  tree renders every top-level group at once. "New Tab", "Convert to tab",
+  "Tab settings" and the Tabbed Navigation switch are gone with them. `is_tab`
+  and `tab_icon` still ride the draft/CR model untouched — the reader keeps
+  rendering tabs until phase 6.
+
 - 2026-09-01 — **Library search removed from the sidebar.** The space filter
   box added in phase 3 is gone; `useSpaceLibrary` keeps `searchQuery` /
   `showSearch` for the Overview page, which is now the only place that
@@ -169,6 +177,21 @@ list and the real tree before any state icons, pinning, or strip polish.
 - 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
   MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
   `/spaces` redirects to the new `Overview` route. Reconciliations below.
+
+### Phase 5 reconciliation
+
+| # | Spec said | Build does | Why |
+|---|-----------|-----------|-----|
+| 1 | Delete the bar, `useSpaceTabs.js`, `lib/spaceTabs.js` | `WikiTab.vue` deleted too | It was the bar's row component and had no other consumer. |
+| 2 | — | `spaceRootNode` retires from the tree prop chain | Its only job was parenting a new tab away from the browsed subtree. With no subtree narrowing, `rootNode` *is* the space root, so `useTreeDialogs` takes that instead and three components drop a prop. |
+| 3 | — | `WikiTree`'s `is_tab` drag guard and `isTopLevel` go | The guard existed to keep a tab top-level. Nothing is top-level-only any more, and `isTopLevel` had no other caller. |
+| 4 | — | `SpaceIcon` no longer renders in the tree | Its one use was the tab row's icon; groups get the folder icon like any other group. The component and `lib/tabIcons.js` stay for IconPicker (and spec 3's identity picker). |
+| 5 | Decision 8b — fields stay | `draftWorkspace`, `treeModel` and `changeRequest` untouched | They only carry `is_tab`/`tab_icon` through the CR round trip. Stripping them would drop the flag on a merge while the reader still reads it. `createNode`'s `isTab` argument is now unreachable but harmless; phase 6 decides its fate. |
+| 6 | Phase 7 — e2e specs that asserted the tab bar get updated | `tab-navigation.spec.ts` rewritten now | Four editor-side tests drove a bar that no longer exists. They are replaced by one app-side regression test (an `enable_tabs` space renders its `is_tab` groups as plain top-level rows, no `tablist`), which is the spec's own tab-removal regression. The reader tests stay — the reader still has tabs until phase 6. |
+
+Verified in the browser at 1440×900 on a real `enable_tabs` space: five
+top-level groups in one tree, no tab bar, the add menu offers only New Group /
+External Link, and Space settings → General has no Tabbed Navigation row.
 
 ### Phase 4 reconciliation
 
