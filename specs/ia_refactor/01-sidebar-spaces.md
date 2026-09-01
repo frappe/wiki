@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Planned.**
+Status: **Phase 1 done**, phases 2–7 pending.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -69,7 +69,7 @@ page. Content keeps full width.
 Tracer bullet first: get the drill-in switch rendering with the real space
 list and the real tree before any state icons, pinning, or strip polish.
 
-1. **Drill-in skeleton.** `LibrarySidebar.vue` (spaces via `useList` on Wiki
+1. **Drill-in skeleton.** ✅ `LibrarySidebar.vue` (spaces via `useList` on Wiki
    Space: name, space_name, route, app_switcher_logo, is_published, git_synced,
    switcher_order + a roles-count annotation), `SpaceSidebar.vue` hosting the
    existing `WikiDocumentList` unchanged. MainLayout switches on route.
@@ -134,3 +134,26 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
+  MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
+  `/spaces` redirects to the new `Overview` route. Reconciliations below.
+
+### Phase 1 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Branch off `upstream/develop` | Built on `feat/frappe-ui-beta55` | develop pins frappe-ui `1.0.0-beta.25`; the drill-in sidebar needs beta55's `Sidebar`/`SidebarSection`/`useList`. The IA program is stacked on the upgrade branch. |
+| 2 | Decision 8 — SpaceDetails keeps the space document resource | New `stores/space.js` owns the document, the tree, tabs and git sync | The sidebar is a *sibling* of the page, not a descendant, so the two columns need an owner above them both. SpaceDetails still mounts the dialogs and drives CR submit/merge/withdraw. |
+| 3 | Phase 1 fetches a roles-count annotation | Not fetched yet | The lock suffix icon that consumes it is phase 3; fetching a child table per row on a 1847-space site with nothing rendering it is pure cost. |
+| 4 | Decision 2 — order by `switcher_order` | `switcher_order asc, creation desc` | `switcher_order` defaults to 0 for every space, so on its own it leaves the newest space in an arbitrary slot. Creation breaks the tie the way the old list page did. |
+| 5 | Decision 7 — Overview is a minimal "pick a space" placeholder | Overview renders the existing `SpaceList` for now | It is still the only way to create a space, and the only space list on mobile. It becomes the real placeholder in phase 3, alongside the extracted `NewSpaceDialog`. |
+| 6 | Decision 11 — header dropdown includes "Switch space" | Omitted | The back button already does it (the spec's own open question). Add it back if the sidebar ever stops showing one. |
+| 7 | Phase 7 — `useSidebarResize` retires | Deleted now | Its only consumer was the `<aside>` this phase removed. |
+| 8 | Phase 2 — `SpaceChromeBar` retires with the mode strip | Its identity block (back, name, view live, settings) already removed | The sidebar header renders identity now, so leaving it in the bar showed the space name and a back button twice on desktop. The bar keeps badge / meta / actions until phase 2 deletes it. |
+
+Phase 1 also caps the library list at 50 spaces with a `Load more` footer
+(landmine: 1847 spaces locally). Search over the list arrives in phase 3.
+
+Not verified in a browser: the local bench returns 500 for every site on it,
+including ones unrelated to the wiki, so the app could not be loaded. The build
+and lint pass; the drill-in needs a live check once the bench is back.
