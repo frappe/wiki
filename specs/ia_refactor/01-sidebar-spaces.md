@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Phases 1–2 done**, phases 3–7 pending.
+Status: **Phases 1–3 done**, phases 4–7 pending.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -78,7 +78,7 @@ list and the real tree before any state icons, pinning, or strip polish.
 2. **Mode strips + header actions.** ✅ Port ContributionBanner's submit /
    withdraw / merge and SpaceChromeBar's sync into the strip + dropdown;
    delete both components.
-3. **Library affordances.** Suffix icons, pinning (localStorage + context
+3. **Library affordances.** ✅ Suffix icons, pinning (localStorage + context
    menu), CR count suffix, New space footer button + extracted
    `NewSpaceDialog.vue`; delete `SpaceList.vue` and `pages/Spaces.vue`.
 4. **Tree search-in-sidebar** (flat result list) + mobile reconciliation.
@@ -134,6 +134,14 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-01 — **Phase 3 done.** The library rows carry their four state
+  icons, a shared `ContextMenu` (pin / space settings / copy link), a
+  server-side search and a New Space footer button; `NewSpaceDialog.vue` is
+  extracted and `SpaceList.vue` (911 lines) is deleted. Pins live in
+  `composables/usePinnedSpaces.js` (localStorage, unit-tested); the paged list,
+  search and pin order live in `composables/useSpaceLibrary.js`, shared by the
+  sidebar and the Overview page. Reconciliations below.
+
 - 2026-09-01 — **Layout fix on top of phase 2.** The app frame now clips
   (`overflow-hidden` on the MainLayout root) and the open page owns the only
   scroller in the content column, a frappe-ui `ScrollArea`. Before this the
@@ -201,3 +209,26 @@ Two things the browser pass turned up:
   whose `localContent` diverges outlives the change request it belonged to.
   Pre-existing (the discard path is carried over verbatim from
   ContributionBanner), so it is logged here rather than fixed in this phase.
+
+### Phase 3 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 4 — `lucide-lock` means "has roles ⇒ restricted" | Restricted means role rows **without** `Guest` | Every space created through the dialog gets a `Guest`/Read row, so "has roles" would have locked the whole list. This matches `wiki.permissions.can_read_space`: no rows is open to logged-in users, a Guest row is public. New endpoint `get_restricted_spaces(spaces)` — one grouped query per page of spaces, not a child table per row. |
+| 2 | Phase 1 fetches a roles-count annotation | Still not a list field | Same reason as phase 1: it is a child table. The flag comes back from its own endpoint alongside the page. |
+| 3 | Decision 6 — search over spaces is served by the sidebar list | Shipped here, not in phase 1 | Deleting the list page removed the only space search, so it had to land in the same phase. Server-side `space_name like`, debounced 250 ms, and the row only appears once the list is ≥10 long. |
+| 4 | Decision 7 — Overview is a minimal "pick a space" placeholder | Overview is a lean space list (~170 lines, no stats columns, no filter tabs) | It is still the only space list on **mobile**, where the sidebar it would defer to does not exist (decision 14). The old page's per-row stats and published filter did not survive. |
+| 5 | Decision 6 — New space is the sidebar footer button | Desktop: sidebar only. Mobile: the Overview header | Two `New Space` buttons a few inches apart on the same screen read as a duplicate, and Playwright's role lookup matched both. The desktop empty-wiki state points at the sidebar rather than repeating the button. |
+| 6 | — | `useList` needs a manual paging reset on search | A fetch from a non-zero `start` *appends*, and `start` is exposed readonly with no reset, so a new search would have stacked its results on the last one's. `previous()` is walked back to 0. |
+| 7 | Phase 7 — e2e specs that navigated via `/spaces` get updated | `e2e/tests/space-list.spec.ts` deleted now | Its whole subject was the list page's row-level `View` button, which retires with the page. The other specs still find `New Space` (the sidebar's) and space links unchanged. |
+| 8 | — | `get_space_stats` / `get_space_count` now have no callers | Left in place rather than deleted: spec 4's Overview analytics is the obvious consumer for both. Phase 7 decides. |
+
+Verified in the browser at 1440×900 and 390×844: the four suffix icons each
+render on a space that has that state (pin, `folder-git-2`, `lock`, `eye-off`),
+right-click opens one shared menu, Pin to top floats the space to the top of
+**both** the sidebar and Overview (shared localStorage) and writes
+`wiki:pinned-spaces`, Space settings navigates into the space and opens the
+dialog, search filters server-side, and the New Space dialog creates a space and
+drills into it. Unit suite 73 pass; `wiki.test_api` 37 pass (6 new, checked by
+temp-reverting the Guest rule); lint and build pass. E2E was not run — the local
+site is saturated (see the landmines).
