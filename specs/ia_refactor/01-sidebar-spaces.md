@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Phase 1 done**, phases 2–7 pending.
+Status: **Phases 1–2 done**, phases 3–7 pending.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -75,7 +75,7 @@ list and the real tree before any state icons, pinning, or strip polish.
    existing `WikiDocumentList` unchanged. MainLayout switches on route.
    SpaceDetails drops the aside. `/spaces` redirects; placeholder Overview
    page. **App must be fully usable at the end of this phase.**
-2. **Mode strips + header actions.** Port ContributionBanner's submit /
+2. **Mode strips + header actions.** ✅ Port ContributionBanner's submit /
    withdraw / merge and SpaceChromeBar's sync into the strip + dropdown;
    delete both components.
 3. **Library affordances.** Suffix icons, pinning (localStorage + context
@@ -134,6 +134,10 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-01 — **Phase 2 done.** `SpaceModeStrip.vue` renders both strips
+  under the sidebar header; `SpaceChromeBar.vue` and `ContributionBanner.vue`
+  deleted; submit / discard / merge extracted to
+  `composables/useChangeRequestActions.js`. Reconciliations below.
 - 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
   MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
   `/spaces` redirects to the new `Overview` route. Reconciliations below.
@@ -157,3 +161,20 @@ Phase 1 also caps the library list at 50 spaces with a `Load more` footer
 Not verified in a browser: the local bench returns 500 for every site on it,
 including ones unrelated to the wiki, so the app could not be loaded. The build
 and lint pass; the drill-in needs a live check once the bench is back.
+
+### Phase 2 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Prototype strip: `Submit` and `Discard` side by side | `Submit for Review` full-width; `Discard Changes` in the strip's ⋯ menu | The label is the handle ~15 e2e specs grab (`getByRole('button', { name: 'Submit for Review' })`), and discard is destructive — it stays one level down, as it was in the banner. |
+| 2 | Decision 14 — the mobile tree drawer absorbs the mode strip | Mobile renders the strip inline above the content; the sidebar renders it on desktop | The drawer is closed by default and closes again on page open, so submit / merge / sync would be unreachable without first opening the tree. One instance either way (`v-if="isMobile"` in SpaceDetails, plain in SpaceSidebar). |
+| 3 | Decision 9 — the strip carries the actions | The actions themselves moved to `composables/useChangeRequestActions.js` | The strip is a *sibling* of SpaceDetails, so it cannot receive `@submit`/`@merge` handlers as events. SpaceDetails keeps only the dialogs and auto-open logic (966 → 435 lines across both phases). |
+| 4 | ContributionBanner took a `mergeDisabled` prop from the page | The strip reads `spaceStore.isTreeReordering` directly | Same reason — no parent to pass it. |
+| 5 | Decision 9 — git strip shows a sync status badge | Badge is now themed by status (`Success` green, `Error` red, `Partial` amber), and the strip gained the prototype's `Read-only · last synced …` line from `last_sync_time` | The old bar hardcoded `theme="gray"`, which made a failed sync look like a healthy one. |
+
+Not verified in a browser: `/wiki-app` still 500s on this bench, now with
+`DocType Dock not found` — the framework's new `Dock` doctype is missing from
+the site's DB, so `get_website_settings` → `get_docked_apps` throws before any
+wiki code runs. Unrelated to this program; needs a `bench migrate`. Build and
+lint pass. `npx vitest run` reports "No test suite found" for all 11 files —
+pre-existing, and the subject of `specs/cleanup/001-run-frontend-unit-tests.md`.
