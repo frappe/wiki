@@ -172,9 +172,22 @@ and lint pass; the drill-in needs a live check once the bench is back.
 | 4 | ContributionBanner took a `mergeDisabled` prop from the page | The strip reads `spaceStore.isTreeReordering` directly | Same reason — no parent to pass it. |
 | 5 | Decision 9 — git strip shows a sync status badge | Badge is now themed by status (`Success` green, `Error` red, `Partial` amber), and the strip gained the prototype's `Read-only · last synced …` line from `last_sync_time` | The old bar hardcoded `theme="gray"`, which made a failed sync look like a healthy one. |
 
-Not verified in a browser: `/wiki-app` still 500s on this bench, now with
-`DocType Dock not found` — the framework's new `Dock` doctype is missing from
-the site's DB, so `get_website_settings` → `get_docked_apps` throws before any
-wiki code runs. Unrelated to this program; needs a `bench migrate`. Build and
-lint pass. `npx vitest run` reports "No test suite found" for all 11 files —
-pre-existing, and the subject of `specs/cleanup/001-run-frontend-unit-tests.md`.
+Verified in the browser (the bench's 500 was a missing `Dock` doctype, fixed by
+`bench migrate`): the git strip renders `repo@branch` with a themed status badge
+and the read-only line, the draft strip counts changed pages and drives the
+submit dialog, the ⋯ menu offers View changes / Discard Changes, and discard
+clears the draft. Unit suite (`node --test "src/**/*.test.js"`) 67 pass; lint
+and build pass. E2E was not run — the local site is saturated (see the
+landmines).
+
+Two things the browser pass turned up:
+
+- **The app did not mount at all.** `useChangeTypeDisplay` calls `__()` at
+  module scope, which was harmless while it only loaded in a lazy route chunk;
+  the strip pulls it into the eager sidebar chunk, ahead of the translation
+  global. Fixed by making the labels functions, with a regression test.
+- **"Unsaved changes" survives a discard.** After Discard Changes — and across a
+  reload — the sync pill still reports unsaved editor content: a page buffer
+  whose `localContent` diverges outlives the change request it belonged to.
+  Pre-existing (the discard path is carried over verbatim from
+  ContributionBanner), so it is logged here rather than fixed in this phase.
