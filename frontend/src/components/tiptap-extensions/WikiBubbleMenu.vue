@@ -1,6 +1,9 @@
 <template>
+	<!-- Held back until the scroll container is known: tiptap reads the floating
+	     options once, when the menu mounts, so a menu that mounts first is stuck
+	     listening to the window and never moves with the editor's own scroll. -->
 	<EditorBubbleMenu
-		v-if="editor"
+		v-if="editor && scrollBoundary"
 		class="wiki-bubble-menu"
 		:editor="editor"
 		:items="bubbleItems"
@@ -26,6 +29,7 @@ import {
 	Separator,
 	Strike,
 } from 'frappe-ui/editor';
+import { computed, nextTick, onMounted, ref } from 'vue';
 
 const props = defineProps({
 	editor: {
@@ -66,10 +70,11 @@ const bubbleItems = [
 // flip boundary clears the toolbar band with room to spare.
 const TOOLBAR_HEIGHT = 56;
 
-// Nearest scrollable ancestor of the editor. The sticky toolbar pins to the top
-// of this element, so it's the boundary Floating UI must measure against. Falls
-// back to <body> (a valid, always-connected boundary) when none is found, so the
-// resolved value caches once instead of re-walking the tree on every compute.
+// Nearest scrollable ancestor of the editor: the page's one scroller (a
+// ScrollArea viewport). The sticky toolbar pins to its top edge, so it is both
+// the boundary Floating UI must measure against and the element whose scroll
+// moves the selection under the menu. Falls back to <body>, which always
+// scrolls with the document.
 function getScrollParent(node) {
 	let el = node?.parentElement;
 	while (el) {
@@ -80,15 +85,17 @@ function getScrollParent(node) {
 	return document.body;
 }
 
-// Resolve (and cache) the scroll ancestor lazily. The ProseMirror DOM isn't
-// attached when this component mounts, so we resolve on first position compute
-// (a selection, always post-mount) by which point it's in the tree.
-let cachedBoundary = null;
+// The ProseMirror DOM is attached a tick after this component mounts, so the
+// container is resolved there rather than in setup — and the menu itself waits
+// for it (see the template).
+const scrollBoundary = ref(null);
+onMounted(async () => {
+	await nextTick();
+	scrollBoundary.value = getScrollParent(props.editor?.view?.dom);
+});
+
 function resolveScrollBoundary() {
-	if (!cachedBoundary || !cachedBoundary.isConnected) {
-		cachedBoundary = getScrollParent(props.editor?.view?.dom);
-	}
-	return cachedBoundary;
+	return scrollBoundary.value || document.body;
 }
 
 function shouldShowBubbleMenu({ editor, state }) {
@@ -117,7 +124,7 @@ function shouldShowBubbleMenu({ editor, state }) {
 // height, so such a selection overflows upward and flips the menu below.
 // flip/shift are Floating UI "derivable" options (functions) so the boundary
 // is resolved at compute time, not at mount.
-const floatingOptions = {
+const floatingOptions = computed(() => ({
 	strategy: 'fixed',
 	placement: 'top',
 	offset: 8,
@@ -127,8 +134,17 @@ const floatingOptions = {
 		boundary: resolveScrollBoundary(),
 	}),
 	shift: () => ({ padding: 8, boundary: resolveScrollBoundary() }),
+	// Without this the menu only repositions on window scroll, so scrolling the
+	// editor leaves it parked mid-page looking like a second toolbar.
+	scrollTarget: scrollBoundary.value,
+	// And once the selection scrolls out of the container — or under the sticky
+	// toolbar — the menu goes with it instead of hovering over unrelated text.
+	hide: () => ({
+		padding: { top: TOOLBAR_HEIGHT },
+		boundary: resolveScrollBoundary(),
+	}),
 	shouldShow: shouldShowBubbleMenu,
-};
+}));
 </script>
 
 <style scoped>

@@ -35,7 +35,7 @@
 			/>
 		</div>
 
-		<div v-if="spaceLoaded && treeData" class="flex-1 overflow-auto px-2 pt-2 pb-10">
+		<div v-if="spaceLoaded && treeData" class="relative flex-1 overflow-auto px-2 pt-2 pb-10">
 			<WikiDocumentList
 				:tree-data="treeData"
 				:change-type-map="changeTypeMap"

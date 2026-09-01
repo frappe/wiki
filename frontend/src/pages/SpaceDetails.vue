@@ -69,14 +69,15 @@
                 />
             </MobileDrawer>
 
-            <main class="flex-1 flex flex-col bg-surface-base min-w-0">
-                <div class="flex-1 overflow-auto">
-                    <router-view
-                        :space-id="spaceId"
-                        :readonly="spaceStore.isGitSynced"
-                        @refresh="spaceStore.refreshTree"
-                    />
-                </div>
+            <!-- No scroller here: the open page owns its own, so the editor
+                 scrolls under its sticky toolbar instead of the whole panel
+                 sliding inside a second one. -->
+            <main class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-base">
+                <router-view
+                    :space-id="spaceId"
+                    :readonly="spaceStore.isGitSynced"
+                    @refresh="spaceStore.refreshTree"
+                />
             </main>
         </div>
 

@@ -10,7 +10,7 @@
 		<nav
 			v-if="outline.length"
 			class="hide-scrollbar sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
-			:style="{ top: `${railTop}px`, maxHeight: `calc(100vh - ${railTop}px - 4rem)` }"
+			:style="{ top: `${railTop}px`, maxHeight: `${railMaxHeight}px` }"
 		>
 			<!-- Transparent border keeps the label on the same left edge as the links. -->
 			<span class="whitespace-nowrap border-l border-transparent pl-4 pb-1 font-medium text-ink-gray-8">
@@ -132,6 +132,14 @@ const activeText = computed(() => outline.value[activeIndex.value]?.text || '');
 
 const railTop = computed(() => toolbarHeight.value + 24);
 
+// The rail is sticky inside the editor's scroller, not the window, so its
+// height budget is that container's — `100vh` overshoots by the app header and
+// the page's own header row, and the list runs off the bottom.
+const containerHeight = ref(0);
+const railMaxHeight = computed(() =>
+	Math.max(containerHeight.value - railTop.value - 32, 0),
+);
+
 // The editor's nearest scrollable ancestor owns both the scroll position we
 // spy on and the sticky context the rail lives in.
 let scrollContainer = null;
@@ -149,6 +157,7 @@ function findScrollContainer(element) {
 function measureToolbar() {
 	toolbarHeight.value =
 		scrollContainer?.querySelector('.wiki-toolbar')?.offsetHeight || 0;
+	containerHeight.value = scrollContainer?.clientHeight || 0;
 }
 
 function headingElement(pos) {

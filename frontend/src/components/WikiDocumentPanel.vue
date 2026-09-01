@@ -37,7 +37,10 @@
 					<ReuseActions />
 				</div>
 			</div>
-			<div class="flex-1 overflow-auto pb-10">
+			<!-- The one scroller on this page: the editor body scrolls under
+			     the sticky toolbar, and the bubble menu and the outline rail
+			     both measure against it. -->
+			<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-8">
@@ -88,7 +91,7 @@
 					<Skeleton class="h-4 w-full rounded-4" />
 					<Skeleton class="h-4 w-3/4 rounded-4" />
 				</div>
-			</div>
+			</ScrollArea>
 		</div>
 
 		<!-- Content skeleton -->
@@ -154,6 +157,7 @@ import {
 	Dialog,
 	Dropdown,
 	FormControl,
+	ScrollArea,
 	Skeleton,
 	createDocumentResource,
 	getCachedDocumentResource,

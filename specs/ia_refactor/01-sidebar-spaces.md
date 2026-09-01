@@ -134,6 +134,16 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-01 — **Layout fix on top of phase 2.** The app frame now clips
+  (`overflow-hidden` on the MainLayout root) and the open page owns the only
+  scroller in the content column, a frappe-ui `ScrollArea`. Before this the
+  document itself scrolled — frappe-ui `Tree`'s absolutely-positioned aria-live
+  region resolved against the page and added 196px — so the whole chrome slid
+  with the editor, and SpaceDetails wrapped the page in a second scroller. The
+  bubble menu now takes that ScrollArea as its `scrollTarget`, so it tracks the
+  editor's scroll and hides with the selection instead of parking mid-page
+  looking like a second toolbar; the outline rail sizes to the container rather
+  than `100vh`.
 - 2026-09-01 — **Phase 2 done.** `SpaceModeStrip.vue` renders both strips
   under the sidebar header; `SpaceChromeBar.vue` and `ContributionBanner.vue`
   deleted; submit / discard / merge extracted to

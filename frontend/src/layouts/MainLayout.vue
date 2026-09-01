@@ -1,5 +1,9 @@
 <template>
-	<div class="h-screen w-full bg-surface-sidebar">
+	<!-- The app is a fixed frame: the sidebar and the open page each own a
+	     scroller, and nothing scrolls the layout itself. Without the clip, an
+	     absolutely-positioned stray — frappe-ui Tree's aria-live region, for one
+	     — resolves against the page and drags the whole chrome up with it. -->
+	<div class="h-screen w-full overflow-hidden bg-surface-sidebar">
 		<template v-if="isLoading"></template>
 		<template v-else-if="hasAccess">
 			<MobileShell v-if="isMobile" class="wiki-mobile-shell">

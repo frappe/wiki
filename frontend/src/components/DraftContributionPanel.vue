@@ -20,7 +20,10 @@
 				</div>
 			</div>
 
-			<div v-if="!crPage.is_group" class="flex-1 overflow-auto pb-10">
+			<!-- The one scroller on this page: the editor body scrolls under
+			     the sticky toolbar, and the bubble menu and the outline rail
+			     both measure against it. -->
+			<ScrollArea v-if="!crPage.is_group" class="min-h-0 flex-1" viewport-class="pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-8">
@@ -51,7 +54,7 @@
 						</div>
 					</template>
 				</WikiEditor>
-			</div>
+			</ScrollArea>
 
 			<div v-else class="flex-1 flex flex-col overflow-auto">
 				<div class="mx-auto w-full max-w-[770px] px-6 pt-8">
@@ -152,6 +155,7 @@ import {
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
+	ScrollArea,
 	Skeleton,
 	getCachedDocumentResource,
 	toast,
