@@ -29,7 +29,7 @@ page. Content keeps full width.
 | 3 | Pinning | Per-user, stored in `localStorage` first (`wiki:pinned-spaces`). No backend field until someone asks for cross-device pins. Context-menu on the space row: Pin/Unpin, Space settings, Copy link. One shared `ContextMenu` for the whole list (prototype pattern — rows write the options on `@contextmenu`). |
 | 4 | Suffix state icons | Independent icons, not one merged badge: `lucide-pin` (pinned), `lucide-folder-git-2` (git-synced), `lucide-lock` (has roles ⇒ restricted), `lucide-eye-off` (unpublished). Each with a Tooltip. |
 | 5 | Identity tile | Until spec 3 lands: frappe-ui `Avatar` (square, `app_switcher_logo` image, initial fallback). Spec 3 swaps in the SpaceAvatar component. |
-| 6 | `/spaces` list page | **Retires** (confirmed 2026-09-01). `/spaces` redirects to `/`. The list page's residual jobs move: create-space (incl. the GitHub repo flow) becomes a dialog opened from the sidebar's "New space" footer button; search/filter over spaces is served by the sidebar list itself (and later the Overview). |
+| 6 | `/spaces` list page | **Retires** (confirmed 2026-09-01). `/spaces` redirects to `/`. The list page's residual jobs move: create-space (incl. the GitHub repo flow) becomes a dialog opened from the sidebar's "New space" footer button; search/filter over spaces is served by the **Overview** page (reversed 2026-09-01 — the sidebar shipped a search box in phase 3 and it was removed again; the sidebar is a nav column, not a finder). |
 | 7 | Landing route `/` | Until spec 4 (Overview) ships: a minimal placeholder page ("pick a space") that also hosts the empty-wiki state and the New Space entry. The sidebar item "Overview" points at it from day one so the route name (`Overview`) never changes. |
 | 8 | SpaceDetails layout | The `<aside>` tree column, `SpaceTreePanel` header, `SpaceChromeBar` and `ContributionBanner` placement all fold into `SpaceSidebar`. SpaceDetails keeps: the space document resource, router-view, settings dialogs. |
 | 8b | Tabs removed | The horizontal tab feature goes away entirely (decided 2026-09-01). Tab-flagged groups render as ordinary top-level groups in the sidebar tree. App side: `WikiTabBar.vue`, `useSpaceTabs.js`, `lib/spaceTabs.js`, the tab bar row in SpaceDetails, "New Tab" tree actions, and the tab fields in space settings all go. Reader side: `templates/wiki/includes/tabs.html` and the tab logic in `mobile_header.html` / `sidebar.html` (both DOM twins). Backend: `is_tab`/`tab_icon` stay **in the schema** (Desk-hidden, ignored) so old CRs/revisions still apply — the ~40 `Wiki Document` field whitelists keep carrying them; actual field removal is a later cleanup with a migration. `enable_tabs`/`home_tab_title`/`home_tab_icon` on Wiki Space likewise hidden, not dropped. `lib/tabIcons.js` **stays** — it is the IconPicker's curated lucide safelist. |
@@ -132,6 +132,10 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 ## Progress log
 
+- 2026-09-01 — **Library search removed from the sidebar.** The space filter
+  box added in phase 3 is gone; `useSpaceLibrary` keeps `searchQuery` /
+  `showSearch` for the Overview page, which is now the only place that
+  searches spaces. The sidebar still pages 50 at a time behind `Load more`.
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
 - 2026-09-01 — **Phase 4 done.** Searching the tree now swaps it for a

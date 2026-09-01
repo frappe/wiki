@@ -25,22 +25,6 @@
 			/>
 
 			<SidebarSection :label="__('Spaces')">
-				<!-- The list page that used to own space search is gone, and a wiki
-				     can hold thousands of spaces, so the filter lives here now. It
-				     runs server-side over the same paged list. -->
-				<TextInput
-					v-if="showSearch"
-					class="mb-1"
-					size="sm"
-					type="text"
-					v-model="searchQuery"
-					:placeholder="__('Search spaces...')"
-				>
-					<template #prefix>
-						<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
-					</template>
-				</TextInput>
-
 				<!-- One menu for the whole list: the row writes its own options as it
 				     is right-clicked, before the menu opens, so there is no
 				     ContextMenu instance per space. The trigger is `as-child`, so the
@@ -90,7 +74,7 @@
 					v-if="!spaces.loading && !orderedSpaces.length"
 					class="px-2 py-2 text-p-sm text-ink-gray-5"
 				>
-					{{ searchQuery ? __('No spaces found') : __('No Wiki Spaces') }}
+					{{ __('No Wiki Spaces') }}
 				</p>
 
 				<!-- A wiki can hold thousands of spaces, so the list is paged rather
@@ -134,7 +118,6 @@ import {
 	SidebarHeader,
 	SidebarItem,
 	SidebarSection,
-	TextInput,
 	Tooltip,
 	createResource,
 	toast,
@@ -163,15 +146,8 @@ const { themeIcon, toggleTheme } = useTheme();
 const isSidebarCollapsed = useStorage('is-sidebar-collapsed', false);
 const showCreateDialog = ref(false);
 
-const {
-	spaces,
-	searchQuery,
-	showSearch,
-	orderedSpaces,
-	restrictedSpaces,
-	isPinned,
-	togglePin,
-} = useSpaceLibrary();
+const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
+	useSpaceLibrary();
 
 // Merged, rejected and archived requests are done, so they do not belong in
 // the sidebar count. `get_count` runs through the same permission query as the
