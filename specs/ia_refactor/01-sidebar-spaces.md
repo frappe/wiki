@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Phases 1–3 done**, phases 4–7 pending.
+Status: **Phases 1–4 done**, phases 5–7 pending.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -81,7 +81,7 @@ list and the real tree before any state icons, pinning, or strip polish.
 3. **Library affordances.** ✅ Suffix icons, pinning (localStorage + context
    menu), CR count suffix, New space footer button + extracted
    `NewSpaceDialog.vue`; delete `SpaceList.vue` and `pages/Spaces.vue`.
-4. **Tree search-in-sidebar** (flat result list) + mobile reconciliation.
+4. **Tree search-in-sidebar** ✅ (flat result list) + mobile reconciliation.
 5. **Tab removal, app side.** Delete the tab bar row, `WikiTabBar.vue`,
    `useSpaceTabs.js`, `lib/spaceTabs.js`; tab groups now render as plain
    top-level groups; "New Tab" action and settings toggles removed. Whole
@@ -134,6 +134,12 @@ list and the real tree before any state icons, pinning, or strip polish.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-01 — **Phase 4 done.** Searching the tree now swaps it for a
+  ranked flat list instead of pruning it in place, and the search box and a
+  New page button moved out of the scroller into the panel's own header and
+  footer — the mobile drawer renders the same panel, so it picks both up.
+  Reconciliations below.
+
 - 2026-09-01 — **Phase 3 done.** The library rows carry their four state
   icons, a shared `ContextMenu` (pin / space settings / copy link), a
   server-side search and a New Space footer button; `NewSpaceDialog.vue` is
@@ -159,6 +165,25 @@ list and the real tree before any state icons, pinning, or strip polish.
 - 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
   MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
   `/spaces` redirects to the new `Overview` route. Reconciliations below.
+
+### Phase 4 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 10 — reuse `useTreeSearch` (already fuzzy) | Reused, but its prune/keep/expand core is replaced by a rank-ordered `matches` list | Pruning was what forced the tree to fake its expand state; with a flat list `WikiTree`'s `expandedOverride` prop has no job and retires with it. The thresholds, highlight segments and their tests are untouched. |
+| 2 | Prototype filters the result list to pages | Groups and external links stay results | Dropping groups would leave no way to find one by name. A group has nothing to open in place, so picking one clears the query and expands it back in the tree. |
+| 3 | Prototype puts the search box in `SpaceSidebar` | It lives in `WikiDocumentList`, above that component's own scroller | The mobile drawer renders the same panel (decision 14), so a sidebar-level search box would have needed a second copy and a lifted query. One owner covers both surfaces, and phase 4's mobile reconciliation is then free. |
+| 4 | Prototype footer is a single `New page` button | `New page` plus a chevron dropdown for Group / External Link / Tab | The tree still needs those three entry points until phase 5 drops the tab one. The old `Add` plus-dropdown and the empty state's `Create First Page` CTA both retire into this footer, which renders whether or not the space has pages. |
+| 5 | — | While searching, every result row shows its route, not just route-only matches | A flat row has no ancestors to place it, so the route is the only thing left saying where the page lives. |
+| 6 | Phase 7 — e2e specs get updated | `tree-search.spec.ts` rewritten for flat results now; `clickSidebarAddOption` / `openNewPageDialog` rewritten around the footer button | Both helpers hung off affordances this phase removed, so ~8 specs would have failed on the old locators. `git-sync-readonly` asserts on the absent `New page` button instead of `button[title="Add"]`. |
+
+Verified in the browser at 1440×900 and 390×844: the search box and New page
+footer hold their positions while the tree scrolls between them, a query
+renders matches as a flat list with title and route both highlighted, clicking
+a matched group clears the query and opens that group in the tree, and the
+mobile drawer shows the same header, list and footer. Unit suite 74 pass; lint
+and build pass. E2E was not run — the local site is saturated (see the
+landmines).
 
 ### Phase 1 reconciliation
 
