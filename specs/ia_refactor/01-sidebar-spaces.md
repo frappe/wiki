@@ -1,0 +1,136 @@
+# Spaces in the Sidebar (drill-in navigation)
+
+Date: 2026-09-01
+Status: **Planned.**
+Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
+
+## Problem
+
+Navigation is split across three surfaces that don't compose: a global static
+sidebar (two links), a full `/spaces` list page, and a second resizable tree
+column inside SpaceDetails with its own header. Getting from "which spaces
+exist" to "this page in this space" crosses all three, and the tree column
+steals width from the editor.
+
+## Goal
+
+One navigation column that drills. Level 0 (**library**): spaces listed in the
+sidebar itself, with identity tiles and per-state suffix icons, plus Overview /
+Search / Change Requests items. Level 1 (**space**): the sidebar becomes the
+space — back button, identity, mode strip, tree search, document tree, New
+page. Content keeps full width.
+
+## Decisions
+
+| # | Decision | Choice |
+|---|----------|--------|
+| 1 | Sidebar component | Keep frappe-ui `Sidebar`/`SidebarHeader`/`SidebarItem`/`SidebarSection` as in the prototype. Fixed 260px at level 1; the resizable-width composable (`useSidebarResize`) retires with the tree column. Collapse stays available only at level 0. |
+| 2 | Space ordering | `switcher_order` (existing field), pinned spaces float to top in pin order. |
+| 3 | Pinning | Per-user, stored in `localStorage` first (`wiki:pinned-spaces`). No backend field until someone asks for cross-device pins. Context-menu on the space row: Pin/Unpin, Space settings, Copy link. One shared `ContextMenu` for the whole list (prototype pattern — rows write the options on `@contextmenu`). |
+| 4 | Suffix state icons | Independent icons, not one merged badge: `lucide-pin` (pinned), `lucide-folder-git-2` (git-synced), `lucide-lock` (has roles ⇒ restricted), `lucide-eye-off` (unpublished). Each with a Tooltip. |
+| 5 | Identity tile | Until spec 3 lands: frappe-ui `Avatar` (square, `app_switcher_logo` image, initial fallback). Spec 3 swaps in the SpaceAvatar component. |
+| 6 | `/spaces` list page | **Retires** (confirmed 2026-09-01). `/spaces` redirects to `/`. The list page's residual jobs move: create-space (incl. the GitHub repo flow) becomes a dialog opened from the sidebar's "New space" footer button; search/filter over spaces is served by the sidebar list itself (and later the Overview). |
+| 7 | Landing route `/` | Until spec 4 (Overview) ships: a minimal placeholder page ("pick a space") that also hosts the empty-wiki state and the New Space entry. The sidebar item "Overview" points at it from day one so the route name (`Overview`) never changes. |
+| 8 | SpaceDetails layout | The `<aside>` tree column, `SpaceTreePanel` header, `SpaceChromeBar` and `ContributionBanner` placement all fold into `SpaceSidebar`. SpaceDetails keeps: the space document resource, router-view, settings dialogs. |
+| 8b | Tabs removed | The horizontal tab feature goes away entirely (decided 2026-09-01). Tab-flagged groups render as ordinary top-level groups in the sidebar tree. App side: `WikiTabBar.vue`, `useSpaceTabs.js`, `lib/spaceTabs.js`, the tab bar row in SpaceDetails, "New Tab" tree actions, and the tab fields in space settings all go. Reader side: `templates/wiki/includes/tabs.html` and the tab logic in `mobile_header.html` / `sidebar.html` (both DOM twins). Backend: `is_tab`/`tab_icon` stay **in the schema** (Desk-hidden, ignored) so old CRs/revisions still apply — the ~40 `Wiki Document` field whitelists keep carrying them; actual field removal is a later cleanup with a migration. `enable_tabs`/`home_tab_title`/`home_tab_icon` on Wiki Space likewise hidden, not dropped. `lib/tabIcons.js` **stays** — it is the IconPicker's curated lucide safelist. |
+| 9 | Mode strip | Directly under the space header, mutually exclusive: **git-synced** strip (`repo@branch`, sync status badge, Sync now, "Read-only · last synced …") or **open-draft** strip (CR title, pages-changed count, Submit / Discard, tinted by CR status). The full-width `SpaceChromeBar`/`ContributionBanner` retire; their actions (merge, withdraw, view live, settings) live in the strip and the space actions dropdown. |
+| 10 | Tree search | TextInput above the tree filters in place; matching pages render as a **flat result list** (prototype pattern), not a pruned tree. Reuse `useTreeSearch` (already fuzzy). |
+| 11 | Space header actions | Dropdown: Space settings, View live site, Switch space (→ `/`), Sync now (git only). Back button labeled "Overview". |
+| 12 | Change Requests item | Suffix count = open CRs (status ≠ Merged/Rejected), from a lightweight count API. |
+| 13 | Search sidebar item | Level 0 "Search" opens the existing search affordance if one exists; otherwise ships disabled-hidden until global search exists. Not this spec's job to build search. |
+| 14 | Mobile | Library = existing `Spaces` mobile nav tab; space sidebar = existing `MobileDrawer` tree, which absorbs the mode strip. No new mobile chrome. |
+
+## Current state (what exists)
+
+- `layouts/MainLayout.vue` — Desktop/Mobile shells, access gate, theme,
+  WikiSettings host. **Keeps all of that**; only the `#sidebar` slot content
+  changes.
+- `components/Sidebar.vue` — static two-item nav. Replaced by a router-driven
+  switch: `SpaceSidebar` when `route.params.spaceId`, else `LibrarySidebar`
+  (prototype `App.vue` pattern, `:key="spaceId"`).
+- `components/SpaceList.vue` (911 lines) — list page + New Space dialog with
+  the GitHub connect flow (installations, repos, branches). The dialog logic is
+  the valuable part: extract to `components/NewSpaceDialog.vue` before deleting
+  the page.
+- `pages/SpaceDetails.vue` (966 lines) — owns chrome bar/banner, tab bar, tree
+  aside, resize, mobile drawer, settings + clone + routes dialogs. Slims down
+  to: resource + router-view + dialogs.
+- Tab plumbing (to remove): `WikiTabBar.vue`, `useSpaceTabs.js`,
+  `lib/spaceTabs.js`, tab branches in `WikiTree.vue`, `useTreeDialogs.js`
+  (`DEFAULT_TAB_ICON` new-tab flow), `SpaceSettings/GeneralPanel.vue`,
+  `stores/draftWorkspace*` and `stores/changeRequest.js` tab handling; reader
+  `tabs.html`/`mobile_header.html`/`sidebar.html`; `is_tab` references in
+  `wiki/api/wiki_space.py`, `wiki/wiki/llms_txt.py`, `wiki/wiki/git_sync.py`.
+- `stores/changeRequest.js`, `stores/draftWorkspace.js` — CR mode and draft
+  state the mode strip needs; already global stores.
+
+## Phases
+
+Tracer bullet first: get the drill-in switch rendering with the real space
+list and the real tree before any state icons, pinning, or strip polish.
+
+1. **Drill-in skeleton.** `LibrarySidebar.vue` (spaces via `useList` on Wiki
+   Space: name, space_name, route, app_switcher_logo, is_published, git_synced,
+   switcher_order + a roles-count annotation), `SpaceSidebar.vue` hosting the
+   existing `WikiDocumentList` unchanged. MainLayout switches on route.
+   SpaceDetails drops the aside. `/spaces` redirects; placeholder Overview
+   page. **App must be fully usable at the end of this phase.**
+2. **Mode strips + header actions.** Port ContributionBanner's submit /
+   withdraw / merge and SpaceChromeBar's sync into the strip + dropdown;
+   delete both components.
+3. **Library affordances.** Suffix icons, pinning (localStorage + context
+   menu), CR count suffix, New space footer button + extracted
+   `NewSpaceDialog.vue`; delete `SpaceList.vue` and `pages/Spaces.vue`.
+4. **Tree search-in-sidebar** (flat result list) + mobile reconciliation.
+5. **Tab removal, app side.** Delete the tab bar row, `WikiTabBar.vue`,
+   `useSpaceTabs.js`, `lib/spaceTabs.js`; tab groups now render as plain
+   top-level groups; "New Tab" action and settings toggles removed. Whole
+   tree always visible.
+6. **Tab removal, reader + backend.** `tabs.html` retired; `mobile_header.html`
+   and `sidebar.html` updated **together** (DOM twins); `is_tab` special-casing
+   dropped from `wiki_space.py` API, `llms_txt.py`, `git_sync.py`. Doctype
+   fields hidden, not dropped (see decision 8b).
+7. **Cleanup.** `useSidebarResize` retires; e2e specs that navigated via
+   `/spaces` or asserted the tab bar updated.
+
+## Regression tests
+
+- e2e: drill-in navigation (library → space → page → back), mode strip renders
+  per space kind (plain / git / open-draft), submit-for-review from the strip.
+- e2e: create space from sidebar dialog (plain; GitHub flow behind existing
+  fixture if present).
+- e2e: a space whose groups carry `is_tab` renders them as plain top-level
+  groups in both app sidebar and published reader (tab removal regression).
+- Unit: pin ordering (pin order beats switcher order, unpin restores).
+- Local runs need `BASE_URL=http://wiki.localhost:8000`; long runs against the
+  saturated local site should baseline against `upstream/develop`.
+
+## Landmines
+
+- **1847 spaces locally** — the library list must not fetch unbounded page
+  size with avatars; paginate or cap + search.
+- The reader (Jinja + `sidebar.html`) is off-limits **except** phase 6's tab
+  removal — and there the TOC/nav markup is duplicated in Jinja AND the
+  nav-store JS in `sidebar.html`; edit both or SPA nav shows stale UI.
+- Tab fields ride the `Wiki Document` CR/revision whitelists (~40 explicit
+  enumerations). Leaving the fields in place (decision 8b) means **no
+  whitelist edits** — do not "clean them up" in this spec; that's the later
+  schema-removal migration's job.
+- Spaces with a merged CR history that reordered/flagged tabs must still
+  render: treat `is_tab` as cosmetic-only everywhere, never as filter.
+- `reka [hidden]` vs display utilities: any `hidden` gated by breakpoint on
+  sidebar items needs `!hidden` or `data-[state]` gating (see memory).
+- e2e helpers hardcode `APP_BASE`/routes (`e2e/helpers/routes.ts`) — the
+  `/spaces` redirect must keep old deep links working.
+
+## Open questions
+
+- Does "Switch space" in the header dropdown earn its place vs just the back
+  button? (Prototype has both.)
+- Whether the sidebar collapse toggle survives at level 1 (prototype has
+  none).
+
+## Progress log
+
+- 2026-09-01 — Spec written from `wiki-proto`.
+- 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
