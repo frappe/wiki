@@ -9,7 +9,7 @@
 					<MobileNav>
 						<MobileNavItem
 							:label="__('Spaces')"
-							:to="{ name: 'SpaceList' }"
+							:to="{ name: 'Overview' }"
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
@@ -34,7 +34,10 @@
 			</MobileShell>
 			<DesktopShell v-else class="wiki-desktop-shell h-full">
 				<template #sidebar>
-					<Sidebar />
+					<!-- One navigation column that drills: the library at the top
+					     level, the space itself once you are inside one. -->
+					<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
+					<LibrarySidebar v-else />
 				</template>
 				<slot></slot>
 			</DesktopShell>
@@ -81,7 +84,8 @@ import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Sidebar from '../components/Sidebar.vue';
+import LibrarySidebar from '../components/LibrarySidebar.vue';
+import SpaceSidebar from '../components/SpaceSidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
 import { useMobile } from '../composables/useMobile';
 import { useTheme } from '../composables/useTheme';
@@ -100,8 +104,12 @@ useTheme();
 const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
 
-// Spaces stays lit across every space route (list + space details).
-const isSpacesRoute = computed(() => route.path.startsWith('/spaces'));
+const spaceId = computed(() => route.params.spaceId || null);
+
+// Spaces stays lit across every space route (overview + space details).
+const isSpacesRoute = computed(
+	() => route.name === 'Overview' || Boolean(spaceId.value),
+);
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.
 // Re-open the settings dialog on the GitHub tab and strip the query param. This

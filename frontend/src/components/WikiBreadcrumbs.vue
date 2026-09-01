@@ -34,8 +34,8 @@ onMounted(() => {
 const breadcrumbItems = computed(() => {
 	const items = [
 		{
-			label: __('Spaces'),
-			route: { name: 'SpaceList' },
+			label: __('Overview'),
+			route: { name: 'Overview' },
 		},
 	];
 

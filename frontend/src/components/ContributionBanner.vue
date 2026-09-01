@@ -2,10 +2,7 @@
 	<SpaceChromeBar
 		v-if="crStore.isChangeRequestMode"
 		class="contribution-banner"
-		:space-name="spaceName"
-		:space-route="spaceRoute"
 		:bar-class="bannerClass"
-		@open-settings="emit('open-settings')"
 	>
 		<template #badge>
 			<Badge variant="subtle" :theme="statusBadgeTheme" size="sm">
@@ -308,14 +305,6 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
-	spaceName: {
-		type: String,
-		default: '',
-	},
-	spaceRoute: {
-		type: String,
-		default: '',
-	},
 });
 
 const STATUS_BADGE_THEME = {
@@ -330,7 +319,7 @@ const statusBadgeTheme = computed(
 	() => STATUS_BADGE_THEME[changeRequestStatus.value] || 'gray',
 );
 
-const emit = defineEmits(['submit', 'withdraw', 'merge', 'open-settings']);
+const emit = defineEmits(['submit', 'withdraw', 'merge']);
 
 // Frozen while the CR is being finalized: the server walks it through In Review
 // and Approved on the way to a merge, and every one of those states is a badge,

@@ -9,8 +9,8 @@
 			<Button
 				variant="ghost"
 				icon="lucide-arrow-left"
-				:title="__('Back to Spaces')"
-				:route="{ name: 'SpaceList' }"
+				:title="__('Back to Overview')"
+				:route="{ name: 'Overview' }"
 			/>
 			<div class="min-w-0 flex-1">
 				<div class="truncate text-base-medium leading-none text-ink-gray-8">

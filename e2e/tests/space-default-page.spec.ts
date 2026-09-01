@@ -1,6 +1,6 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { updateDoc } from '../helpers/frappe';
-import { appUrl, spaceLinkSelector } from '../helpers/routes';
+import { APP_BASE, appUrl, spaceLinkSelector } from '../helpers/routes';
 import {
 	type WikiDocument,
 	type WikiSpace,
@@ -196,10 +196,10 @@ test.describe('Space default page — in-app space switch', () => {
 			timeout: 15000,
 		});
 
-		// Switch to space B entirely in-app: back to the list, then into B. No
-		// full reload, so the store still holds A's tree at the moment B mounts.
-		await page.locator('[title="Back to Spaces"]').click();
-		await page.waitForURL(/\/spaces$/, { timeout: 15000 });
+		// Switch to space B entirely in-app: back out to the library, then into B.
+		// No full reload, so the store still holds A's tree at the moment B mounts.
+		await page.locator('[title="Back to Overview"]').first().click();
+		await page.waitForURL(new RegExp(`${APP_BASE}/?$`), { timeout: 15000 });
 		// Target the row by its href (router-link) — robust to how the row text
 		// is rendered — and click it for a client-side nav into B.
 		await page.locator(spaceLinkSelector(spaceB.name)).first().click();
