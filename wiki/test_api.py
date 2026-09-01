@@ -1003,6 +1003,72 @@ class TestSpaceCount(FrappeTestCase):
 		self.assertEqual(get_space_count(search="Combined Filter Space", published="unpublished"), 1)
 
 
+class TestRestrictedSpaces(FrappeTestCase):
+	"""Tests for get_restricted_spaces, which backs the sidebar's lock icon."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_a_space_with_no_roles_is_not_restricted(self):
+		"""No role rows means every logged-in user can read it."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space()
+
+		self.assertEqual(get_restricted_spaces([space.name]), [])
+
+	def test_a_guest_role_makes_a_space_public(self):
+		"""frappe.get_roles() returns Guest anonymously, so a Guest row is public."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space()
+		space.append("roles", {"role": "Guest", "permission_level": "Read"})
+		space.save()
+
+		self.assertEqual(get_restricted_spaces([space.name]), [])
+
+	def test_role_rows_without_guest_are_restricted(self):
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space()
+		space.append("roles", {"role": "Wiki Approver", "permission_level": "Read"})
+		space.save()
+
+		self.assertEqual(get_restricted_spaces([space.name]), [space.name])
+
+	def test_only_the_named_spaces_are_reported(self):
+		"""The sidebar asks about one page of spaces, not the whole wiki."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		restricted = create_test_wiki_space()
+		restricted.append("roles", {"role": "Wiki Approver", "permission_level": "Read"})
+		restricted.save()
+		other = create_test_wiki_space()
+		other.append("roles", {"role": "Wiki Approver", "permission_level": "Read"})
+		other.save()
+
+		self.assertEqual(get_restricted_spaces([restricted.name]), [restricted.name])
+
+	def test_an_empty_request_is_answered_without_a_query(self):
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		self.assertEqual(get_restricted_spaces([]), [])
+
+	def test_a_json_string_is_accepted(self):
+		"""The frontend posts the list as JSON."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space()
+		space.append("roles", {"role": "Wiki Approver", "permission_level": "Read"})
+		space.save()
+
+		self.assertEqual(get_restricted_spaces(json.dumps([space.name])), [space.name])
+
+
 # Helper functions
 
 

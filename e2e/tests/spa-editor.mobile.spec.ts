@@ -137,7 +137,7 @@ test.describe('Mobile SPA', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(
-			page.getByRole('heading', { name: 'Wiki Spaces' }),
+			page.getByRole('heading', { name: 'Spaces', exact: true }),
 		).toBeVisible();
 		// The header stacks and the table scrolls inside its container, so the
 		// page itself must not gain a horizontal scrollbar.

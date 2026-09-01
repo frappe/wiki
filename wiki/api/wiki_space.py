@@ -125,6 +125,45 @@ def get_space_stats(spaces: list | str) -> dict[str, dict]:
 
 
 @frappe.whitelist()
+def get_restricted_spaces(spaces: list | str) -> list[str]:
+	"""Return which of `spaces` are readable only by specific roles.
+
+	A space with no role rows is open to every logged-in user, and one whose
+	rows include `Guest` is public (``frappe.get_roles()`` returns Guest for
+	anonymous requests) -- see `wiki.permissions.can_read_space`. Everything
+	else is restricted, which is what the sidebar's lock icon means.
+
+	One grouped query rather than a role list per row: the sidebar pages 50
+	spaces at a time, and the child table is only ever read for this flag.
+
+	Uses `get_list` on Wiki Space first, so spaces the user cannot read are
+	dropped before their role rows are looked at.
+	"""
+	if isinstance(spaces, str):
+		spaces = frappe.parse_json(spaces)
+	if not spaces:
+		return []
+
+	visible = {
+		row.name for row in frappe.get_list("Wiki Space", filters={"name": ["in", spaces]}, fields=["name"])
+	}
+	if not visible:
+		return []
+
+	rows = frappe.get_all(
+		"Wiki Space Role",
+		filters={"parenttype": "Wiki Space", "parent": ["in", list(visible)]},
+		fields=["parent", "role"],
+	)
+
+	roles_by_space = {}
+	for row in rows:
+		roles_by_space.setdefault(row.parent, set()).add(row.role)
+
+	return sorted(name for name, roles in roles_by_space.items() if roles and "Guest" not in roles)
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)
