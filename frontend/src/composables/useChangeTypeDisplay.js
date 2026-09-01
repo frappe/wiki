@@ -1,27 +1,30 @@
+// `label` is a function, not a string: `__` is installed on window by the
+// translation plugin during app boot, so a module-scope call throws in any
+// chunk that loads before it — as this one now does, via the sidebar.
 const CHANGE_TYPE_CONFIG = {
 	added: {
 		icon: 'lucide-plus',
 		iconClass: 'bg-green-100 text-green-600',
 		theme: 'green',
-		label: __('New'),
+		label: () => __('New'),
 	},
 	modified: {
 		icon: 'lucide-pencil',
 		iconClass: 'bg-blue-100 text-blue-600',
 		theme: 'blue',
-		label: __('Modified'),
+		label: () => __('Modified'),
 	},
 	deleted: {
 		icon: 'lucide-trash-2',
 		iconClass: 'bg-red-100 text-red-600',
 		theme: 'red',
-		label: __('Deleted'),
+		label: () => __('Deleted'),
 	},
 	reordered: {
 		icon: 'lucide-arrow-up-down',
 		iconClass: 'bg-amber-100 text-amber-600',
 		theme: 'amber',
-		label: __('Reordered'),
+		label: () => __('Reordered'),
 	},
 };
 
@@ -29,13 +32,15 @@ const DEFAULT_CONFIG = {
 	icon: 'lucide-file-text',
 	iconClass: 'bg-gray-100 text-gray-600',
 	theme: 'gray',
-	label: '',
 };
 
 export function useChangeTypeDisplay() {
 	function getConfig(changeType) {
 		return (
-			CHANGE_TYPE_CONFIG[changeType] || { ...DEFAULT_CONFIG, label: changeType }
+			CHANGE_TYPE_CONFIG[changeType] || {
+				...DEFAULT_CONFIG,
+				label: () => changeType,
+			}
 		);
 	}
 
@@ -52,7 +57,7 @@ export function useChangeTypeDisplay() {
 	}
 
 	function getChangeLabel(changeType) {
-		return getConfig(changeType).label;
+		return getConfig(changeType).label();
 	}
 
 	function getChangeDescription(changeType, isGroup, isExternalLink) {

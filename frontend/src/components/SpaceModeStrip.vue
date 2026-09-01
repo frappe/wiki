@@ -14,14 +14,17 @@
 				target="_blank"
 				rel="noopener noreferrer"
 				class="flex min-w-0 flex-1 items-center gap-1.5 text-ink-gray-7 hover:text-ink-gray-8"
-				:title="__('Synced from GitHub')"
+				:title="spaceStore.doc.repo_full_name"
 			>
 				<span
 					class="lucide-folder-git-2 size-3.5 shrink-0"
 					aria-hidden="true"
 				/>
+				<!-- Owner dropped, branch kept: 260px minus the badge and the sync
+				     button leaves no room for both, and the branch is the part that
+				     changes. The link's title carries the full name. -->
 				<span class="truncate text-xs">
-					{{ spaceStore.doc.repo_full_name
+					{{ repoShortName
 					}}<span v-if="spaceStore.doc?.branch"
 						>@{{ spaceStore.doc.branch }}</span
 					>
@@ -53,10 +56,11 @@
 		     line and the actions stack. -->
 		<div class="rounded-4 px-2 py-2" :class="stripClass">
 			<div class="flex items-start gap-1.5">
-				<Badge variant="subtle" :theme="statusBadgeTheme" size="sm">
+				<!-- The card's own tint carries the status, so a subtle badge on top
+				     of it would be one grey box inside another. -->
+				<span class="min-w-0 flex-1 truncate text-xs-medium">
 					{{ stripTitle }}
-				</Badge>
-				<div class="flex-1" />
+				</span>
 				<Dropdown
 					v-if="menuOptions.length > 0"
 					:options="menuOptions"
@@ -329,6 +333,12 @@ const spaceStore = useSpaceStore();
 const userStore = useUserStore();
 const crActions = useChangeRequestActions();
 
+// `owner/repo` — only the repo half survives the sidebar's width.
+const repoShortName = computed(() => {
+	const full = spaceStore.doc?.repo_full_name || '';
+	return full.split('/').pop() || full;
+});
+
 const SYNC_STATUS_THEME = {
 	Success: 'green',
 	Error: 'red',
@@ -435,18 +445,6 @@ async function onReloadLatest() {
 		reloading.value = false;
 	}
 }
-
-const STATUS_BADGE_THEME = {
-	Draft: 'gray',
-	'In Review': 'amber',
-	'Changes Requested': 'red',
-	Approved: 'green',
-	Merged: 'green',
-	Rejected: 'red',
-};
-const statusBadgeTheme = computed(
-	() => STATUS_BADGE_THEME[changeRequestStatus.value] || 'gray',
-);
 
 // Frozen while the CR is being finalized: the server walks it through In Review
 // and Approved on the way to a merge, and every one of those states is a badge,
