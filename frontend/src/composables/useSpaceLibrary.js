@@ -1,16 +1,23 @@
 import { createResource, useList } from 'frappe-ui';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, unref, watch } from 'vue';
 
 import { orderSpaces, usePinnedSpaces } from './usePinnedSpaces';
 
-// A wiki can hold thousands of spaces, so the list is paged rather than fetched
-// whole, and the filter runs server-side over the same query.
+// The Overview page is the full directory, so it pages in useful chunks. The
+// sidebar asks for far fewer (see SIDEBAR_LIMIT) and sends you here for the
+// rest.
 const PAGE_SIZE = 50;
 
-// The library list, as both the sidebar and the Overview page need it: the same
-// paged query, the same search, the same pinned-first order. Each caller gets
-// its own instance — the two surfaces page and search independently.
-export function useSpaceLibrary() {
+/**
+ * The library list, as both the sidebar and the Overview page need it: the same
+ * query, the same search, the same pinned-first order. Each caller gets its own
+ * instance — the two surfaces page and search independently.
+ *
+ * `publishedOnly` drops unpublished spaces from the query. The sidebar sets it
+ * for everyone but a Wiki Manager, whose own unpublished drafts have to stay in
+ * the column they work in.
+ */
+export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
 	const { pinnedSpaces, isPinned, togglePin } = usePinnedSpaces();
 
 	const searchQuery = ref('');
@@ -37,10 +44,14 @@ export function useSpaceLibrary() {
 			'git_synced',
 			'switcher_order',
 		],
-		filters: () =>
-			searchTerm.value ? { space_name: ['like', `%${searchTerm.value}%`] } : {},
+		filters: () => ({
+			...(searchTerm.value
+				? { space_name: ['like', `%${searchTerm.value}%`] }
+				: {}),
+			...(unref(publishedOnly) ? { is_published: 1 } : {}),
+		}),
 		orderBy: 'switcher_order asc, creation desc',
-		limit: PAGE_SIZE,
+		limit,
 	});
 
 	// A new search has to start from the top, but useList exposes `start` readonly
@@ -50,6 +61,16 @@ export function useSpaceLibrary() {
 	watch(searchTerm, () => {
 		while (spaces.start > 0) spaces.previous();
 	});
+
+	// `isWikiManager` lands after the session user resource resolves, usually
+	// *after* the first fetch. The reactive `filters` refetches on its own; this
+	// only rewinds the paging, same as a new search.
+	watch(
+		() => unref(publishedOnly),
+		() => {
+			while (spaces.start > 0) spaces.previous();
+		},
+	);
 
 	const orderedSpaces = computed(() =>
 		orderSpaces(spaces.data || [], pinnedSpaces.value),

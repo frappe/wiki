@@ -6,7 +6,7 @@
 	     SidebarHeader owns its own gutter and a fixed 48px height that lines up
 	     with PageHeader, so it goes straight into Sidebar. Padding belongs on the
 	     scroll region and the footer instead. -->
-	<Sidebar v-model:collapsed="isSidebarCollapsed">
+	<Sidebar>
 		<SidebarHeader
 			:title="__('Frappe Wiki')"
 			:subtitle="userStore.data?.full_name"
@@ -77,21 +77,22 @@
 					{{ __('No Wiki Spaces') }}
 				</p>
 
-				<!-- A wiki can hold thousands of spaces, so the list is paged rather
-				     than fetched whole. -->
-				<Button
+				<!-- Most wikis hold a dozen spaces and fit here whole. When one
+				     does not, the column stays short and hands the rest to the
+				     Overview, which is the full directory with its own search. -->
+				<SidebarItem
 					v-if="spaces.hasNextPage"
-					class="w-full"
-					variant="ghost"
-					:label="__('Load more')"
-					:loading="spaces.loading"
-					@click="spaces.next()"
+					:label="__('Show all spaces')"
+					icon="lucide-ellipsis"
+					:to="{ name: 'Overview' }"
 				/>
 			</SidebarSection>
 		</div>
-		<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-2">
+		<div
+			v-if="userStore.isWikiManager"
+			class="flex flex-col gap-1 border-t border-outline-gray-2 p-2"
+		>
 			<Button
-				v-if="userStore.isWikiManager"
 				class="w-full"
 				variant="subtle"
 				:label="__('New Space')"
@@ -101,7 +102,6 @@
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
 			</Button>
-			<SidebarCollapseToggle />
 		</div>
 	</Sidebar>
 
@@ -114,7 +114,6 @@ import {
 	Button,
 	ContextMenu,
 	Sidebar,
-	SidebarCollapseToggle,
 	SidebarHeader,
 	SidebarItem,
 	SidebarSection,
@@ -126,7 +125,6 @@ import {
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue';
 import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
-import { useStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSpaceLibrary } from '../composables/useSpaceLibrary';
@@ -143,11 +141,19 @@ const { open: openSpaceSettings } = useSpaceSettings();
 
 const { themeIcon, toggleTheme } = useTheme();
 
-const isSidebarCollapsed = useStorage('is-sidebar-collapsed', false);
 const showCreateDialog = ref(false);
 
+// The sidebar is a nav column, not a directory: it lists what fits at a glance
+// and defers the long tail to the Overview.
+const SIDEBAR_LIMIT = 15;
+
 const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
-	useSpaceLibrary();
+	useSpaceLibrary({
+		limit: SIDEBAR_LIMIT,
+		// A manager's own unpublished drafts have to stay in the column they work
+		// in; for everyone else an unpublished space is not part of the wiki yet.
+		publishedOnly: computed(() => !userStore.isWikiManager),
+	});
 
 // Merged, rejected and archived requests are done, so they do not belong in
 // the sidebar count. `get_count` runs through the same permission query as the
