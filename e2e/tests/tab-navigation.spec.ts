@@ -5,7 +5,7 @@ import {
 	test,
 } from '@playwright/test';
 import { createDoc } from '../helpers/frappe';
-import { APP_BASE } from '../helpers/routes';
+import { APP_BASE, appUrl } from '../helpers/routes';
 import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
 
 /**
@@ -62,20 +62,23 @@ async function page_(
 }
 
 test.describe('Horizontal tab navigation', () => {
+	let spaceId = '';
+
 	test.beforeAll(async ({ request }) => {
 		const root = await createDoc<Doc>(request, 'Wiki Document', {
 			title: `Tabs Root ${Date.now()}`,
 			is_group: 1,
 			is_published: 1,
 		});
-		await createDoc(request, 'Wiki Space', {
+		const space = await createDoc<Doc>(request, 'Wiki Space', {
 			space_name: 'Tabs E2E',
 			route: ROUTE,
 			root_group: root.name,
 			is_published: 1,
-			// Tabs are opt-in per space; every test below needs the bar.
+			// Tabs are opt-in per space; every reader test below needs the bar.
 			enable_tabs: 1,
 		});
+		spaceId = space.name;
 
 		const accounting = await group(
 			request,
@@ -203,62 +206,34 @@ test.describe('Horizontal tab navigation', () => {
 		).toBeVisible();
 	});
 
-	test('editor shows the bar and swaps the sidebar subtree', async ({
+	test('app sidebar renders is_tab groups as plain top-level groups', async ({
 		page,
 	}) => {
+		// The app has no tab bar any more, so `is_tab` is cosmetic-only there: the
+		// flagged groups and the untabbed ones sit in one tree together. This space
+		// still carries enable_tabs and tab icons, which is exactly the case that
+		// must not resurrect a bar.
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-		await page.getByText('Tabs E2E', { exact: true }).first().click();
+		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 
-		const aside = page.locator('aside').first();
-		// The bar sits above the sidebar+content row now, so it's page-level, not
-		// scoped to <main>.
-		const tabBar = page.getByRole('tablist');
-		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
-			timeout: 15000,
-		});
-		await expect(aside.getByText('Receivables', { exact: true })).toBeVisible();
-
-		await tabBar.getByRole('tab', { name: 'Manufacturing' }).click();
-		await expect(aside.getByText('Production', { exact: true })).toBeVisible();
-		await expect(aside.getByText('Receivables', { exact: true })).toHaveCount(
-			0,
-		);
-	});
-
-	test('editor creates a tab with an icon and it appears in the bar immediately', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-		await page.getByText('Tabs E2E', { exact: true }).first().click();
-		await page.waitForLoadState('networkidle');
-
-		const aside = page.locator('aside').first();
-		const tabBar = page.getByRole('tablist');
-		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
+		const tree = page.locator('aside');
+		await expect(tree.getByText('Accounting', { exact: true })).toBeVisible({
 			timeout: 15000,
 		});
 
-		await aside.getByTitle('Add').click();
-		await page.getByRole('menuitem', { name: 'New Tab' }).click();
-
-		const dialog = page.getByRole('dialog');
-		await expect(dialog.getByText('Create New Tab')).toBeVisible();
-		await dialog.getByLabel('Title').fill('Projects');
-		// Curated icon list, so a known-present label must be offered.
-		await dialog.getByRole('option', { name: 'Launch' }).click();
-		await dialog.getByRole('button', { name: 'Save' }).click();
-
-		// Comes from the draft tree, so it shows before the CR is merged.
+		// All three top-level groups at once — no subtree is hidden behind a tab.
 		await expect(
-			tabBar.getByRole('tab', { name: 'Projects', exact: true }),
-		).toBeVisible({
-			timeout: 15000,
-		});
+			tree.getByText('Manufacturing', { exact: true }),
+		).toBeVisible();
+		await expect(
+			tree.getByText('Release Notes', { exact: true }),
+		).toBeVisible();
+		await expect(page.getByRole('tablist')).toHaveCount(0);
+
+		// And they expand like any other group.
+		await tree.getByText('Accounting', { exact: true }).click();
+		await expect(tree.getByText('Receivables', { exact: true })).toBeVisible();
 	});
 
 	test('reader stacks navbar, tabs, then the tree, and renders tab icons', async ({
@@ -296,82 +271,6 @@ test.describe('Horizontal tab navigation', () => {
 		await expect(
 			tabBar.getByRole('tab', { name: 'Accounting' }).locator('svg'),
 		).toBeVisible();
-	});
-
-	test('editor bar creates a tab from its own add button, above the draft banner', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-		await page.getByText('Tabs E2E', { exact: true }).first().click();
-		await page.waitForLoadState('networkidle');
-
-		// Banner and bar both sit above the sidebar+content row now, so they're
-		// page-level, not scoped to <main>.
-		const tabBar = page.getByRole('tablist');
-		await expect(tabBar.getByRole('tab', { name: 'Accounting' })).toBeVisible({
-			timeout: 15000,
-		});
-
-		// The change-request banner is about the whole draft, so it outranks the
-		// tab being browsed.
-		const bannerBox = await box(page.locator('.contribution-banner'));
-		const tabsBox = await box(tabBar);
-		expect(bannerBox.y).toBeLessThan(tabsBox.y);
-
-		await page.getByTestId('new-tab-button').click();
-		const dialog = page.getByRole('dialog');
-		await expect(dialog.getByText('Create New Tab')).toBeVisible();
-		// The dialog only asks for a title now — a default icon is applied and
-		// changed inline from the bar afterwards.
-		await dialog.getByLabel('Title').fill('Support');
-		await dialog.getByRole('button', { name: 'Create' }).click();
-
-		await expect(
-			tabBar.getByRole('tab', { name: 'Support', exact: true }),
-		).toBeVisible({ timeout: 15000 });
-	});
-
-	test('editor reorders tabs by dragging them in the bar', async ({ page }) => {
-		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-		await page.getByText('Tabs E2E', { exact: true }).first().click();
-		await page.waitForLoadState('networkidle');
-
-		const tabBar = page.getByRole('tablist');
-		const accounting = tabBar.getByRole('tab', { name: 'Accounting' });
-		const manufacturing = tabBar.getByRole('tab', { name: 'Manufacturing' });
-		await expect(accounting).toBeVisible({ timeout: 15000 });
-
-		// Home leads the bar (synthetic, non-draggable), so compare the real tabs
-		// that follow it.
-		const order = async () =>
-			(await tabBar.getByRole('tab').allInnerTexts())
-				.map((t) => t.trim())
-				.filter((t) => t !== 'Home');
-		expect((await order()).slice(0, 2)).toEqual([
-			'Accounting',
-			'Manufacturing',
-		]);
-
-		// SortableJS runs in pointer-fallback mode, so drive real mouse moves in
-		// steps rather than Playwright's HTML5-drag `dragTo` (which it ignores).
-		// Drop past the target's midpoint to land the dragged tab after it.
-		const src = await box(accounting);
-		const dst = await box(manufacturing);
-		await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
-		await page.mouse.down();
-		await page.mouse.move(dst.x + dst.width - 4, dst.y + dst.height / 2, {
-			steps: 12,
-		});
-		await page.mouse.move(dst.x + dst.width - 4, dst.y + dst.height / 2);
-		await page.mouse.up();
-
-		await expect
-			.poll(async () => (await order()).slice(0, 2))
-			.toEqual(['Manufacturing', 'Accounting']);
 	});
 });
 

@@ -4,7 +4,6 @@ import { useDebounceFn } from '@vueuse/core';
 import { createResource, toast } from 'frappe-ui';
 import { ref, unref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 
 const CHECK_ROUTE_AVAILABLE =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.check_route_available';
@@ -22,21 +21,10 @@ export function useTreeDialogs(
 	const createTitle = ref('');
 	const createParent = ref(null);
 	const createIsGroup = ref(false);
-	const createIsTab = ref(false);
-	const createTabIcon = ref('');
 	const createRoute = ref('');
 	const createRoutePrefix = ref('');
 	const createRouteError = ref('');
 	const routeManuallyEdited = ref(false);
-
-	const showTabSettingsDialog = ref(false);
-	const tabSettingsNode = ref(null);
-	const tabSettingsIsTab = ref(false);
-	const tabSettingsIcon = ref('');
-	const isUpdatingTab = ref(false);
-
-	const showConvertTabDialog = ref(false);
-	const convertTabNode = ref(null);
 
 	const showDeleteDialog = ref(false);
 	const deleteNode = ref(null);
@@ -124,13 +112,10 @@ export function useTreeDialogs(
 		checkRouteAvailability();
 	}
 
-	function openCreateDialog(parentKey, isGroup, isTab = false) {
+	function openCreateDialog(parentKey, isGroup) {
 		createParent.value = parentKey;
-		// A tab is always a group; the backend rejects anything else.
-		createIsGroup.value = isGroup || isTab;
-		createIsTab.value = isTab;
+		createIsGroup.value = isGroup;
 		createTitle.value = '';
-		createTabIcon.value = '';
 		createRoutePrefix.value = routePrefixFor(parentKey);
 		createRoute.value = '';
 		createRouteError.value = '';
@@ -138,63 +123,6 @@ export function useTreeDialogs(
 		latestRouteCheck++;
 		routeManuallyEdited.value = false;
 		showCreateDialog.value = true;
-	}
-
-	function openTabSettingsDialog(node) {
-		tabSettingsNode.value = node;
-		tabSettingsIsTab.value = !!node?.is_tab;
-		tabSettingsIcon.value = node?.tab_icon || '';
-		showTabSettingsDialog.value = true;
-	}
-
-	function openConvertTabDialog(node) {
-		convertTabNode.value = node;
-		showConvertTabDialog.value = true;
-	}
-
-	// Convert straight to a tab with a sensible default icon — the user tweaks
-	// the icon inline afterwards rather than being prompted mid-flow.
-	async function confirmConvertTab(close) {
-		const docKey = convertTabNode.value?.doc_key;
-		if (!docKey) {
-			close();
-			return;
-		}
-		close();
-		isUpdatingTab.value = true;
-		try {
-			await draftStore.updateNode(docKey, {
-				is_tab: 1,
-				tab_icon: DEFAULT_TAB_ICON,
-			});
-		} catch (error) {
-			console.error('Error converting to tab:', error);
-			toast.error(error.messages?.[0] || __('Error converting to tab'));
-		} finally {
-			isUpdatingTab.value = false;
-		}
-	}
-
-	// Promote/demote an existing top-level group. Clearing the flag leaves
-	// tab_icon alone so a demote/promote round trip keeps the icon.
-	async function saveTabSettings(close) {
-		const docKey = tabSettingsNode.value?.doc_key;
-		if (!docKey) {
-			close();
-			return;
-		}
-		const fields = { is_tab: tabSettingsIsTab.value ? 1 : 0 };
-		if (tabSettingsIsTab.value) fields.tab_icon = tabSettingsIcon.value || null;
-		close();
-		isUpdatingTab.value = true;
-		try {
-			await draftStore.updateNode(docKey, fields);
-		} catch (error) {
-			console.error('Error updating tab:', error);
-			toast.error(error.messages?.[0] || __('Error updating tab'));
-		} finally {
-			isUpdatingTab.value = false;
-		}
 	}
 
 	function countDescendants(node) {
@@ -227,8 +155,6 @@ export function useTreeDialogs(
 
 		const parentKey = createParent.value;
 		const isGroup = createIsGroup.value;
-		const isTab = createIsTab.value;
-		const tabIcon = createTabIcon.value || null;
 		const route = createRoute.value.trim() || derivedRoute();
 
 		if (parentKey) expandedNodes.value[parentKey] = true;
@@ -240,8 +166,6 @@ export function useTreeDialogs(
 				parentKey,
 				title,
 				isGroup,
-				isTab,
-				tabIcon,
 				route,
 			});
 			// Open the new page for editing immediately. The DraftContributionPanel
@@ -391,22 +315,9 @@ export function useTreeDialogs(
 		showCreateDialog,
 		createTitle,
 		createIsGroup,
-		createIsTab,
-		createTabIcon,
 		createRoute,
 		createRouteError,
 		handleCreateRouteInput,
-		showTabSettingsDialog,
-		tabSettingsNode,
-		tabSettingsIsTab,
-		tabSettingsIcon,
-		isUpdatingTab,
-		openTabSettingsDialog,
-		saveTabSettings,
-		showConvertTabDialog,
-		convertTabNode,
-		openConvertTabDialog,
-		confirmConvertTab,
 		showDeleteDialog,
 		deleteNode,
 		deleteChildCount,

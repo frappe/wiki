@@ -47,8 +47,6 @@
 				:root-node="treeData.root_group || ''"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
-				:can-manage-tabs="canManageTabs"
-				:space-root-node="spaceRootNode"
 				:space-route="spaceRoute"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
@@ -94,17 +92,11 @@ defineProps({
 	spaceName: { type: String, default: '' },
 	spaceRoute: { type: String, default: '' },
 	spaceLoaded: { type: Boolean, default: false },
-	// Already narrowed to the active tab's subtree by useSpaceTabs; `root_group`
-	// is that tab, so top-level drops reparent into it.
 	treeData: { type: Object, default: null },
 	changeTypeMap: { type: Map, default: () => new Map() },
 	readonly: { type: Boolean, default: false },
 	selectedPageId: { type: String, default: null },
 	selectedDraftKey: { type: String, default: null },
-	canManageTabs: { type: Boolean, default: false },
-	// The space root, where a new tab must be parented regardless of which tab
-	// is currently being browsed.
-	spaceRootNode: { type: String, default: '' },
 	compactHeader: { type: Boolean, default: false },
 });
 

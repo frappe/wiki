@@ -25,22 +25,6 @@
              so there it stays inline above the content. -->
         <SpaceModeStrip v-if="isMobile" />
 
-        <div
-            v-if="spaceStore.tabsEnabled && spaceStore.tabs.length"
-            class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
-        >
-            <WikiTabBar
-                :tabs="spaceStore.tabs"
-                :active-key="spaceStore.activeTabKey"
-                :can-manage-tabs="spaceStore.canManageTabs && !spaceStore.isGitSynced"
-                @select="spaceStore.selectTab"
-                @create="openCreateTabDialog"
-                @reorder="reorderTab"
-                @update-icon="updateTabIcon"
-                @rename-tab="renameTab"
-            />
-        </div>
-
         <div class="flex flex-1 min-h-0">
             <!-- The tree lives in the app sidebar on desktop; on mobile there is
                  no sidebar, so it rides in an off-canvas drawer instead. -->
@@ -56,13 +40,11 @@
                     :space-name="spaceStore.doc?.space_name"
                     :space-route="spaceStore.doc?.route"
                     :space-loaded="spaceStore.isLoaded"
-                    :tree-data="spaceStore.visibleTreeData"
-                    :space-root-node="spaceStore.treeData?.root_group || ''"
+                    :tree-data="spaceStore.treeData"
                     :change-type-map="spaceStore.changeTypeMap"
                     :readonly="spaceStore.isGitSynced"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
-                    :can-manage-tabs="spaceStore.canManageTabs"
                     @refresh="spaceStore.refreshTree"
                     @reorder-state-change="spaceStore.setTreeReordering"
                     @open-settings="openSettings"
@@ -88,35 +70,6 @@
             @open-update-routes="openUpdateRoutesDialog"
             @open-clone="openCloneSpaceDialog"
         />
-
-        <Dialog v-model:open="showCreateTabDialog">
-            <template #title>
-                <h3 class="text-2xl-semibold text-ink-gray-9">
-                    {{ __('Create New Tab') }}
-                </h3>
-            </template>
-            <template #default>
-                <div class="py-2">
-                    <FormControl
-                        type="text"
-                        :label="__('Title')"
-                        v-model="newTabTitle"
-                        :placeholder="__('Enter tab title')"
-                        @keyup.enter="createTab"
-                    />
-                </div>
-            </template>
-            <template #actions>
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="showCreateTabDialog = false">
-                        {{ __('Cancel') }}
-                    </Button>
-                    <Button variant="solid" :loading="creatingTab" @click="createTab">
-                        {{ __('Create') }}
-                    </Button>
-                </div>
-            </template>
-        </Dialog>
 
         <Dialog v-model:open="showUpdateRoutesDialog">
             <template #title>
@@ -200,12 +153,9 @@ import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
-import WikiTabBar from '../components/WikiTabBar.vue';
 import { useMobile } from '../composables/useMobile';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
-import { GENERAL_KEY } from '../lib/spaceTabs.js';
 import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
-import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 
@@ -318,95 +268,6 @@ async function cloneSpace(close) {
 		toast.error(error.messages?.[0] || __('Error starting clone'));
 	} finally {
 		cloningSpace.value = false;
-	}
-}
-
-// Creating and reordering tabs is owned here alongside the bar, rather than in
-// the tree's own dialogs: a tab is always parented to the space root, so it
-// doesn't depend on which subtree the sidebar is currently showing.
-const showCreateTabDialog = ref(false);
-const newTabTitle = ref('');
-const creatingTab = ref(false);
-
-function openCreateTabDialog() {
-	newTabTitle.value = '';
-	showCreateTabDialog.value = true;
-}
-
-async function createTab() {
-	const title = newTabTitle.value.trim();
-	if (!title) {
-		toast.warning(__('Tab name is required'));
-		return;
-	}
-	showCreateTabDialog.value = false;
-	creatingTab.value = true;
-	try {
-		const { promise } = draftStore.createNode({
-			parentKey: spaceStore.treeData?.root_group || null,
-			title,
-			isGroup: true,
-			isTab: true,
-			tabIcon: DEFAULT_TAB_ICON,
-		});
-		const newKey = await promise;
-		if (newKey) spaceStore.selectTab(newKey);
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error creating tab'));
-	} finally {
-		creatingTab.value = false;
-	}
-}
-
-// Drag-reorder from the bar. Tabs and non-tab top-level content share one
-// sibling list, so the drop index is translated back into that list's
-// coordinates — dropping a tab past the last one must not jump it over the
-// untabbed content that follows.
-function reorderTab({ docKey, toIndex }) {
-	// moveNode splices into the list *after* pulling the dragged node out, so
-	// index maths has to happen against the same post-removal list.
-	const remaining = (spaceStore.treeData?.children || []).filter(
-		(node) => node.doc_key !== docKey,
-	);
-	const remainingTabs = remaining.filter((node) => node.is_tab);
-
-	const anchor = remainingTabs[toIndex];
-	const newIndex = anchor
-		? remaining.indexOf(anchor)
-		: // Dropped past the last tab — land just after it, never after the
-			// untabbed top-level content that follows.
-			remaining.indexOf(remainingTabs[remainingTabs.length - 1]) + 1;
-
-	draftStore.moveNode({
-		docKey,
-		newParentKey: spaceStore.treeData?.root_group || null,
-		newIndex,
-	});
-}
-
-// The Home tab is synthetic — its icon/title live on the Wiki Space, not a
-// node — so it updates the space doc directly; real tabs go through the draft.
-async function updateTabIcon({ key, icon }) {
-	try {
-		if (key === GENERAL_KEY) {
-			await spaceStore.space.setValue.submit({ home_tab_icon: icon });
-		} else {
-			await draftStore.updateNode(key, { tab_icon: icon });
-		}
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating tab icon'));
-	}
-}
-
-async function renameTab({ key, title }) {
-	try {
-		if (key === GENERAL_KEY) {
-			await spaceStore.space.setValue.submit({ home_tab_title: title });
-		} else {
-			await draftStore.updateNode(key, { title });
-		}
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error renaming tab'));
 	}
 }
 

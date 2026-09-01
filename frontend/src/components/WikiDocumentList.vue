@@ -55,14 +55,11 @@
 				:score-map="scoreMap"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
-				:can-manage-tabs="canManageTabs"
 				@create="openCreateDialog"
 				@delete="openDeleteDialog"
 				@rename="openRenameDialog"
 				@external-link="openExternalLinkDialog"
 				@edit-external-link="openEditExternalLinkDialog"
-				@tab-settings="openTabSettingsDialog"
-				@convert-to-tab="openConvertTabDialog"
 				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
 			/>
@@ -79,7 +76,7 @@
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
 			</Button>
-			<Dropdown :options="addOptionsWithTab" placement="right">
+			<Dropdown :options="addOptions" placement="right">
 				<Button variant="subtle" :title="__('Add a group or link')">
 					<template #icon>
 						<span class="lucide-chevron-down size-4" aria-hidden="true" />
@@ -104,10 +101,6 @@
 							@update:model-value="handleCreateRouteInput" />
 						<ErrorMessage class="mt-1.5" :message="createRouteError" />
 					</div>
-					<div v-if="createIsTab">
-						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
-						<IconPicker v-model="createTabIcon" inline />
-					</div>
 				</div>
 			</template>
 			<template #actions="{ close }">
@@ -115,58 +108,6 @@
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" :loading="isCreating" @click="createDocument(close)">
 						{{ __('Save') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
-
-		<Dialog v-model:open="showTabSettingsDialog">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Tab settings') }}
-				</h3>
-			</template>
-			<template #default>
-				<div class="space-y-4">
-					<p class="text-sm text-ink-gray-6">
-						{{ __('Tabs appear in the horizontal bar above the page tree. Only top-level groups can be tabs.') }}
-					</p>
-					<FormControl v-model="tabSettingsIsTab" type="checkbox" :label="__('Show as a tab')" />
-					<div v-if="tabSettingsIsTab">
-						<label class="block text-xs text-ink-gray-5 mb-1.5">{{ __('Icon') }}</label>
-						<IconPicker v-model="tabSettingsIcon" inline />
-					</div>
-				</div>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isUpdatingTab" @click="saveTabSettings(close)">
-						{{ __('Save') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
-
-		<Dialog v-model:open="showConvertTabDialog">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Convert to tab') }}
-				</h3>
-			</template>
-			<template #default>
-				<p class="text-ink-gray-7">
-					{{ __('Convert "{0}" into a tab?', [convertTabNode?.title || __('this group')]) }}
-				</p>
-				<p class="text-sm text-ink-gray-5 mt-2">
-					{{ __('It will appear in the horizontal tab bar. You can change its icon and name afterwards.') }}
-				</p>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isUpdatingTab" @click="confirmConvertTab(close)">
-						{{ __('Convert') }}
 					</Button>
 				</div>
 			</template>
@@ -291,7 +232,6 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
 import { Dropdown, ErrorMessage, FormControl, TextInput } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
-import IconPicker from './IconPicker.vue';
 import SpaceIcon from './SpaceIcon.vue';
 import WikiTree from './WikiTree.vue';
 
@@ -315,14 +255,8 @@ const props = defineProps({
 		type: String,
 		default: '',
 	},
-	// Mirrors the backend's can_manage_tabs gate (space write access).
-	canManageTabs: { type: Boolean, default: false },
 	// Base route of the space, the prefix for pages created at the space root.
 	spaceRoute: { type: String, default: '' },
-	// The space's root group, which is where a tab must be created. This is not
-	// `rootNode`: while a tab is being browsed, `rootNode` is that tab, and
-	// creating there would nest a tab.
-	spaceRootNode: { type: String, default: '' },
 	// Git-synced spaces render the tree read-only — no create/reorder/row
 	// actions. The dialogs below stay mounted but are never opened.
 	readonly: {
@@ -372,22 +306,9 @@ const {
 	showCreateDialog,
 	createTitle,
 	createIsGroup,
-	createIsTab,
-	createTabIcon,
 	createRoute,
 	createRouteError,
 	handleCreateRouteInput,
-	showTabSettingsDialog,
-	tabSettingsNode,
-	tabSettingsIsTab,
-	tabSettingsIcon,
-	isUpdatingTab,
-	openTabSettingsDialog,
-	saveTabSettings,
-	showConvertTabDialog,
-	convertTabNode,
-	openConvertTabDialog,
-	confirmConvertTab,
 	showDeleteDialog,
 	deleteNode,
 	deleteChildCount,
@@ -418,7 +339,7 @@ const {
 	toRef(props, 'spaceId'),
 	expandedNodes,
 	toRef(props, 'spaceRoute'),
-	toRef(props, 'spaceRootNode'),
+	toRef(props, 'rootNode'),
 );
 
 // New Page is the footer's own button, so it is not repeated here.
@@ -435,32 +356,13 @@ const addOptions = [
 	},
 ];
 
-// A tab restructures top-level navigation for the whole space, so it is
-// editor-only (mirrors the backend's can_manage_tabs gate) and only offered at
-// the space root, where a tab is allowed to live.
-const addOptionsWithTab = computed(() => {
-	if (!props.canManageTabs) return addOptions;
-	return [
-		...addOptions,
-		{
-			label: __('New Tab'),
-			icon: 'lucide-columns',
-			// Always parented to the space root, whichever tab is being browsed.
-			onClick: () =>
-				openCreateDialog(props.spaceRootNode || props.rootNode, true, true),
-		},
-	];
-});
+const createDialogTitle = computed(() =>
+	createIsGroup.value ? __('Create New Group') : __('Create New Page'),
+);
 
-const createDialogTitle = computed(() => {
-	if (createIsTab.value) return __('Create New Tab');
-	return createIsGroup.value ? __('Create New Group') : __('Create New Page');
-});
-
-const createPlaceholder = computed(() => {
-	if (createIsTab.value) return __('Enter tab name');
-	return createIsGroup.value ? __('Enter group name') : __('Enter page title');
-});
+const createPlaceholder = computed(() =>
+	createIsGroup.value ? __('Enter group name') : __('Enter page title'),
+);
 
 // Reorder is owned by the draft workspace store: drag events mutate the
 // store's tree synchronously and the store debounces the backend sync. We

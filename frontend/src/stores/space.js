@@ -2,7 +2,6 @@ import { createDocumentResource, createResource, toast } from 'frappe-ui';
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 
-import { useSpaceTabs } from '../composables/useSpaceTabs.js';
 import router from '../router';
 import { useSocket } from '../socket';
 import { useChangeRequestStore } from './changeRequest';
@@ -58,11 +57,6 @@ export const useSpaceStore = defineStore('space', () => {
 	// instead of a CR.
 	const isGitSynced = computed(() => Boolean(doc.value?.git_synced));
 
-	// Tabs are opt-in per space (Wiki Space.enable_tabs). Off, the bar is gone
-	// and the sidebar shows the whole tree — tab flags on nodes are kept, just
-	// ignored.
-	const tabsEnabled = computed(() => Boolean(doc.value?.enable_tabs));
-
 	// "Pending"/"Running" are transient internal states; show one friendly label.
 	function syncStatusLabel(status) {
 		return (
@@ -74,8 +68,7 @@ export const useSpaceStore = defineStore('space', () => {
 		);
 	}
 
-	// Tab management is editor-only (mirrors the backend's can_manage_tabs, which
-	// is can_write_space). Enforcement stays server-side; this only hides the UI.
+	// Editing a space is gated server-side; this only hides the UI.
 	const canWriteSpace = ref(false);
 	const capabilitiesResource = createResource({
 		url: 'wiki.api.get_space_capabilities',
@@ -91,11 +84,6 @@ export const useSpaceStore = defineStore('space', () => {
 			if (id) capabilitiesResource.submit({ space: id });
 		},
 		{ immediate: true },
-	);
-
-	// Managing tabs needs both the permission and a space that uses tabs at all.
-	const canManageTabs = computed(
-		() => canWriteSpace.value && tabsEnabled.value,
 	);
 
 	const readonlyTreeResource = createResource({
@@ -118,8 +106,6 @@ export const useSpaceStore = defineStore('space', () => {
 			title: node.title,
 			route: node.route,
 			is_group: !!node.is_group,
-			is_tab: !!node.is_tab,
-			tab_icon: node.tab_icon || null,
 			is_published: toPublished(node.is_published),
 			is_external_link: false,
 			external_url: null,
@@ -162,19 +148,6 @@ export const useSpaceStore = defineStore('space', () => {
 		if (draftStore.spaceId !== spaceId.value) return null;
 		return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 	});
-
-	const homeMeta = computed(() => ({
-		title: doc.value?.home_tab_title || '',
-		icon: doc.value?.home_tab_icon || '',
-	}));
-
-	const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
-		treeData,
-		selectedPageId,
-		selectedDraftKey,
-		homeMeta,
-		tabsEnabled,
-	);
 
 	const changeTypeMap = computed(() => {
 		const map = new Map();
@@ -312,18 +285,12 @@ export const useSpaceStore = defineStore('space', () => {
 		doc,
 		isLoaded,
 		isGitSynced,
-		tabsEnabled,
 		syncStatusLabel,
 		canWriteSpace,
-		canManageTabs,
 		selectedPageId,
 		selectedDraftKey,
 		treeData,
-		visibleTreeData,
 		changeTypeMap,
-		tabs,
-		activeTabKey,
-		selectTab,
 		isTreeReordering,
 		setTreeReordering,
 		syncing,

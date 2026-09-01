@@ -25,21 +25,6 @@
 		</SettingsRow>
 
 		<SettingsRow
-			:title="__('Tabbed Navigation')"
-			:description="
-				__(
-					'Show a horizontal tab bar above the sidebar, with top-level groups as tabs',
-				)
-			"
-		>
-			<Switch
-				v-model="enableTabs"
-				:disabled="updatingTabsSetting"
-				@update:modelValue="updateTabsSetting"
-			/>
-		</SettingsRow>
-
-		<SettingsRow
 			:title="__('Space Logo')"
 			:description="
 				__('Shown in the reader header and on generated social preview images')
@@ -112,10 +97,8 @@ defineEmits(['open-update-routes', 'open-clone']);
 
 const isPublished = ref(true);
 const enableFeedbackCollection = ref(false);
-const enableTabs = ref(false);
 const updatingPublishSetting = ref(false);
 const updatingFeedbackSetting = ref(false);
-const updatingTabsSetting = ref(false);
 
 const logo = ref('');
 const uploadingLogo = ref(false);
@@ -128,7 +111,6 @@ watch(
 		if (doc) {
 			isPublished.value = Boolean(doc.is_published);
 			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
-			enableTabs.value = Boolean(doc.enable_tabs);
 			logo.value = doc.app_switcher_logo || '';
 		}
 	},
@@ -185,18 +167,6 @@ async function handleLogoChange(event) {
 		toast.error(error.messages?.[0] || __('Failed to upload logo'));
 	} finally {
 		uploadingLogo.value = false;
-	}
-}
-
-async function updateTabsSetting(value) {
-	updatingTabsSetting.value = true;
-	try {
-		await props.space.setValue.submit({ enable_tabs: value ? 1 : 0 });
-	} catch (error) {
-		console.error('Failed to update tabbed navigation setting:', error);
-		enableTabs.value = !value;
-	} finally {
-		updatingTabsSetting.value = false;
 	}
 }
 
