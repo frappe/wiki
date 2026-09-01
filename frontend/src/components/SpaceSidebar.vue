@@ -34,6 +34,8 @@
 				</Dropdown>
 			</div>
 
+			<SpaceModeStrip />
+
 			<!-- Sidebar is a flex column, so the tree needs a sized track to scroll
 			     inside rather than the sidebar's full height. -->
 			<div class="flex min-h-0 flex-1 flex-col">
@@ -64,6 +66,7 @@ import { computed } from 'vue';
 
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { useSpaceStore } from '../stores/space';
+import SpaceModeStrip from './SpaceModeStrip.vue';
 import SpaceTreePanel from './SpaceTreePanel.vue';
 
 const props = defineProps({

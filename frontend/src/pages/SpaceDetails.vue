@@ -19,44 +19,11 @@
             </template>
         </PageHeaderMobile>
 
-        <!-- Full-width chrome above the content column, mirroring the reader's
-             navbar > tabs stack. The draft/git banner is about the whole draft,
-             so it outranks the tab bar. -->
-        <SpaceChromeBar v-if="spaceStore.isGitSynced">
-            <template #badge>
-                <Badge variant="subtle" theme="gray" size="sm" :title="__('Synced from GitHub')">
-                    {{ spaceStore.syncStatusLabel(spaceStore.doc?.last_sync_status) }}
-                </Badge>
-            </template>
-            <template #meta>
-                <a
-                    v-if="spaceStore.doc?.repo_full_name"
-                    :href="`https://github.com/${spaceStore.doc.repo_full_name}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex min-w-0 items-center gap-1 text-xs text-ink-gray-5 hover:text-ink-gray-7"
-                    :title="__('Synced from GitHub')"
-                >
-                    <span class="lucide-github size-3.5 shrink-0" aria-hidden="true" />
-                    <span class="truncate">{{ spaceStore.doc.repo_full_name }}<span v-if="spaceStore.doc?.branch">@{{ spaceStore.doc.branch }}</span></span>
-                </a>
-            </template>
-            <template #actions>
-                <Button variant="outline" size="sm" :loading="spaceStore.syncing" @click="() => spaceStore.syncNow()">
-                    <template #prefix>
-                        <span class="lucide-refresh-cw size-4" aria-hidden="true" />
-                    </template>
-                    {{ __('Sync now') }}
-                </Button>
-            </template>
-        </SpaceChromeBar>
-        <ContributionBanner
-            v-else
-            :mergeDisabled="spaceStore.isTreeReordering"
-            @submit="handleSubmitChangeRequest"
-            @withdraw="handleArchiveChangeRequest"
-            @merge="handleMergeChangeRequest"
-        />
+        <!-- Desktop renders the mode strip in the space sidebar, which is where
+             the space lives now. Mobile has no sidebar, and the strip's actions
+             (submit, discard, merge, sync) must not hide behind the tree drawer,
+             so there it stays inline above the content. -->
+        <SpaceModeStrip v-if="isMobile" />
 
         <div
             v-if="spaceStore.tabsEnabled && spaceStore.tabs.length"
@@ -219,9 +186,7 @@
 </template>
 
 <script setup>
-import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
-	Badge,
 	Button,
 	Dialog,
 	FormControl,
@@ -230,9 +195,8 @@ import {
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import ContributionBanner from '../components/ContributionBanner.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
-import SpaceChromeBar from '../components/SpaceChromeBar.vue';
+import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
 import WikiTabBar from '../components/WikiTabBar.vue';
@@ -254,7 +218,6 @@ const props = defineProps({
 const route = useRoute();
 
 const router = useRouter();
-const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { showSpaceSettings, open: openSpaceSettings } = useSpaceSettings();
@@ -512,140 +475,4 @@ function autoOpenPage() {
 watch([() => spaceStore.treeData, () => route.name], autoOpenPage, {
 	immediate: true,
 });
-
-function finalizationError(action) {
-	const blocker = draftStore.finalizationBlocker;
-	if (blocker === 'conflict') {
-		return __('Reload latest before {0}', [action]);
-	}
-	if (blocker === 'failed') {
-		return __('Resolve failed changes before {0}', [action]);
-	}
-	if (blocker === 'pending') {
-		return __('Wait for pending changes to sync before {0}', [action]);
-	}
-	if (blocker === 'unsaved') {
-		return __('Save your changes before {0}', [action]);
-	}
-	return null;
-}
-
-async function handleSubmitChangeRequest() {
-	const blockerMessage = finalizationError(__('submitting'));
-	if (blockerMessage) {
-		toast.error(blockerMessage);
-		return;
-	}
-	try {
-		const result = await crStore.submitForReview();
-		toast.success(__('Change request submitted for review'));
-		if (result?.name) {
-			router.push({
-				name: 'ChangeRequestReview',
-				params: { changeRequestId: result.name },
-			});
-		}
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error submitting for review'));
-	}
-}
-
-async function handleArchiveChangeRequest() {
-	const crName = crStore.currentChangeRequest?.name;
-	crStore.finalizing = 'withdrawing';
-	try {
-		await crStore.archiveChangeRequest();
-		toast.success(__('Change request archived'));
-		crStore.currentChangeRequest = null;
-		crStore.clearChanges();
-		// Drop the local-first drafts too, or hydrate restores the discarded
-		// content from IndexedDB (and autosave re-creates the change request).
-		await draftStore.discardPersistedDraftsForCr(crName);
-		// Same as merge: the published tree the next CR opens on is the one
-		// already rendered, so it stays put while hydrate refreshes it.
-		draftStore.reset({ keepTree: true });
-		await draftStore.hydrate(props.spaceId);
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error archiving change request'));
-	} finally {
-		crStore.finalizing = null;
-	}
-}
-
-function findNodeByDocKey(nodes, docKey) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (node.doc_key === docKey) return node;
-		const found = findNodeByDocKey(node.children, docKey);
-		if (found) return found;
-	}
-	return null;
-}
-
-async function handleMergeChangeRequest() {
-	if (spaceStore.isTreeReordering) {
-		toast.error(__('Please wait for reordering to finish before merging'));
-		return;
-	}
-	const blockerMessage = finalizationError(__('merging'));
-	if (blockerMessage) {
-		toast.error(blockerMessage);
-		return;
-	}
-	const docKey = currentDraftKey.value;
-	const changeRequestName = crStore.currentChangeRequest?.name;
-	// Held across the rehydrate as well as the merge itself, so the banner shows
-	// one state for the whole trip instead of the CR's intermediate ones.
-	crStore.finalizing = 'merging';
-	try {
-		await crStore.approveAndMergeChangeRequest();
-		toast.success(__('Change request merged'));
-		crStore.currentChangeRequest = null;
-		crStore.clearChanges();
-		// The CR's drafts are now merged into the published doc — clear them so a
-		// stale local copy can't resurrect after the merge.
-		await draftStore.discardPersistedDraftsForCr(changeRequestName);
-		// Keep the tree on screen: the merged tree is all but identical to the one
-		// already rendered, so blanking it to a skeleton for a round trip is pure
-		// loss. hydrate() swaps in the new one in a single paint.
-		draftStore.reset({ keepTree: true });
-
-		// Leave the draft route before the rehydrate, not after: the draft the
-		// URL points at no longer exists, so waiting would park the editor on
-		// "Draft not found" for the length of the round trip. The tree is still
-		// on screen (keepTree), so the published page is resolvable now — except
-		// for a page created in this CR, which only gets a document_name once
-		// the merge lands, so that one is resolved again afterwards.
-		const openMergedPage = () => {
-			if (!docKey) return true;
-			const node = findNodeByDocKey(spaceStore.treeData?.children, docKey);
-			if (!node?.document_name) return false;
-			router.push({
-				name: 'SpacePage',
-				params: { spaceId: props.spaceId, pageId: node.document_name },
-			});
-			return true;
-		};
-
-		const opened = openMergedPage();
-		await draftStore.hydrate(props.spaceId);
-		if (!opened) openMergedPage();
-	} catch (error) {
-		// A merge conflict leaves the CR Approved; the conflict-resolution UI
-		// lives on the review page, so send the author there to resolve it.
-		if (error.exc_type === 'ValidationError' && changeRequestName) {
-			toast.error(
-				error.messages?.[0] || __('Merge conflict — resolve it to continue'),
-			);
-			router.push({
-				name: 'ChangeRequestReview',
-				params: { changeRequestId: changeRequestName },
-			});
-			return;
-		}
-		toast.error(error.messages?.[0] || __('Error merging change request'));
-	} finally {
-		crStore.finalizing = null;
-	}
-}
 </script>
