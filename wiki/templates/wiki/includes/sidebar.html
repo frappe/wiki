@@ -22,9 +22,13 @@
 
         The tab bar itself lives in includes/tabs.html, a full-width row above
         this sidebar. -#}
+    {#- `space_tabs` is empty for a space with tabs switched off, and the node
+        flags are left in place when that happens — so the flag, not is_tab, is
+        what decides whether this tree is split into tab subtrees at all. -#}
     {% set current_route = doc.route if doc else '' %}
-    {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list %}
-    {% set other_nodes = (nested_tree or []) | rejectattr('is_tab') | list %}
+    {% set tabs_on = space_tabs and space_tabs | length %}
+    {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list if tabs_on else [] %}
+    {% set other_nodes = ((nested_tree or []) | rejectattr('is_tab') | list) if tabs_on else (nested_tree or []) %}
 
     {#- Home leads the reader bar whenever there's at least one tab and untabbed
         content to land on (see get_space_tabs). When it does, the untabbed subtree
@@ -89,8 +93,18 @@
             toggle() {
                 this.isDark = !this.isDark;
                 const newTheme = this.isDark ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme);
+                const root = document.documentElement;
+                // Suppress transitions for the swap itself, else every element
+                // with a colour transition animates and the page flashes. Two
+                // rAFs so the class survives the style + paint of the swap.
+                root.classList.add('no-transition');
+                root.setAttribute('data-theme', newTheme);
                 localStorage.setItem('wiki-theme', newTheme);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        root.classList.remove('no-transition');
+                    });
+                });
             }
         });
 
@@ -286,13 +300,8 @@
 
                 if (!headings || headings.length === 0) {
                     tocContainer.innerHTML = '';
-                    tocContainer.classList.remove('w-[200px]');
-                    tocContainer.classList.add('w-0', '!p-0');
                     return;
                 }
-
-                tocContainer.classList.remove('w-0', '!p-0');
-                tocContainer.classList.add('w-[200px]');
 
                 const escapeHtml = (str) => {
                     const div = document.createElement('div');

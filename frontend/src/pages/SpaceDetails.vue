@@ -68,7 +68,7 @@
         />
 
         <div
-            v-if="tabs.length"
+            v-if="tabsEnabled && tabs.length"
             class="h-12 shrink-0 flex items-stretch border-b border-outline-gray-2 px-2"
         >
             <WikiTabBar
@@ -81,8 +81,6 @@
                 @update-icon="updateTabIcon"
                 @rename-tab="renameTab"
             />
-            <!-- Teleport target for the open page's actions (inline layout). -->
-            <div id="wiki-page-actions" class="flex shrink-0 items-center gap-2 self-center pl-3" />
         </div>
 
         <!-- Sidebar + content share the row beneath the chrome. -->
@@ -91,7 +89,7 @@
             <aside
                 v-if="!isMobile"
                 ref="sidebarRef"
-                class="border-r border-outline-gray-2 flex flex-col bg-surface-gray-1 relative flex-shrink-0"
+                class="border-r border-outline-gray-2 flex flex-col relative flex-shrink-0"
                 :style="{ width: `${sidebarWidth}px` }"
             >
                 <SpaceTreePanel
@@ -274,11 +272,11 @@ import {
 	createResource,
 	toast,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContributionBanner from '../components/ContributionBanner.vue';
-import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import MobileDrawer from '../components/MobileDrawer.vue';
+import SpaceChromeBar from '../components/SpaceChromeBar.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
 import WikiTabBar from '../components/WikiTabBar.vue';
@@ -286,6 +284,7 @@ import { useMobile } from '../composables/useMobile';
 import { useSidebarResize } from '../composables/useSidebarResize';
 import { useSpaceTabs } from '../composables/useSpaceTabs.js';
 import { GENERAL_KEY } from '../lib/spaceTabs.js';
+import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
 import { DEFAULT_TAB_ICON } from '../lib/tabIcons.js';
 import { useSocket } from '../socket';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -344,9 +343,7 @@ const mobileTreeOpen = ref(false);
 // Settings). The plain (non-CR, non-git) space has no banner, so it isn't
 // compacted — its identity lives only in the tree header.
 const treeHeaderCompact = computed(
-	() =>
-		!isMobile.value &&
-		(crStore.isChangeRequestMode || isGitSynced.value),
+	() => !isMobile.value && (crStore.isChangeRequestMode || isGitSynced.value),
 );
 
 // Close the tree drawer once a page is opened from it, and whenever we leave the
@@ -379,6 +376,10 @@ const space = createDocumentResource({
 // live tree instead of a CR.
 const isGitSynced = computed(() => Boolean(space.doc?.git_synced));
 
+// Tabs are opt-in per space (Wiki Space.enable_tabs). Off, the bar is gone and
+// the sidebar shows the whole tree — tab flags on nodes are kept, just ignored.
+const tabsEnabled = computed(() => Boolean(space.doc?.enable_tabs));
+
 // "Pending"/"Running" are transient internal states; show one friendly label.
 function syncStatusLabel(status) {
 	return (
@@ -392,11 +393,11 @@ function syncStatusLabel(status) {
 
 // Tab management is editor-only (mirrors the backend's can_manage_tabs, which
 // is can_write_space). Enforcement stays server-side; this only hides the UI.
-const canManageTabs = ref(false);
+const canWriteSpace = ref(false);
 const capabilitiesResource = createResource({
 	url: 'wiki.api.get_space_capabilities',
 	onSuccess: (data) => {
-		canManageTabs.value = Boolean(data?.can_write);
+		canWriteSpace.value = Boolean(data?.can_write);
 	},
 });
 
@@ -407,6 +408,9 @@ watch(
 	},
 	{ immediate: true },
 );
+
+// Managing tabs needs both the permission and a space that uses tabs at all.
+const canManageTabs = computed(() => canWriteSpace.value && tabsEnabled.value);
 
 const readonlyTreeResource = createResource({
 	url: 'wiki.api.wiki_space.get_wiki_tree',
@@ -584,6 +588,10 @@ const treeData = computed(() => {
 	return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
 });
 
+// The open page's panel is a child route, so it can't take the tree as a prop
+// without every sibling route taking it too.
+provide(SPACE_TREE_KEY, treeData);
+
 // Tab state lives here rather than in SpaceTreePanel: the bar renders in this
 // column's header while the tree it filters renders in the sidebar, so a single
 // owner keeps the two from disagreeing.
@@ -597,6 +605,7 @@ const { tabs, activeTabKey, selectTab, visibleTreeData } = useSpaceTabs(
 	currentPageId,
 	currentDraftKey,
 	homeMeta,
+	tabsEnabled,
 );
 
 // Creating and reordering tabs is owned here alongside the bar, rather than in
@@ -718,18 +727,6 @@ function findNodeByDocumentName(nodes, name) {
 	return null;
 }
 
-function getFirstPage(nodes) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (!node.is_group && node.document_name) return node.document_name;
-		if (node.is_group) {
-			const found = getFirstPage(node.children);
-			if (found) return found;
-		}
-	}
-	return null;
-}
-
 // On the bare space route (welcome screen) open a page automatically: the
 // remembered page if it still exists, otherwise the tree's first page. Replace
 // rather than push so the back button returns to the spaces list, not here.
@@ -746,7 +743,7 @@ function autoOpenPage() {
 	const target =
 		(remembered && findNodeByDocumentName(tree.children, remembered)
 			? remembered
-			: null) || getFirstPage(tree.children);
+			: null) || firstPageIn(tree.children);
 
 	if (target) {
 		autoOpening = true;
@@ -870,17 +867,23 @@ async function handleSubmitChangeRequest() {
 
 async function handleArchiveChangeRequest() {
 	const crName = crStore.currentChangeRequest?.name;
+	crStore.finalizing = 'withdrawing';
 	try {
 		await crStore.archiveChangeRequest();
 		toast.success(__('Change request archived'));
 		crStore.currentChangeRequest = null;
+		crStore.clearChanges();
 		// Drop the local-first drafts too, or hydrate restores the discarded
 		// content from IndexedDB (and autosave re-creates the change request).
 		await draftStore.discardPersistedDraftsForCr(crName);
-		draftStore.reset();
+		// Same as merge: the published tree the next CR opens on is the one
+		// already rendered, so it stays put while hydrate refreshes it.
+		draftStore.reset({ keepTree: true });
 		await draftStore.hydrate(props.spaceId);
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error archiving change request'));
+	} finally {
+		crStore.finalizing = null;
 	}
 }
 
@@ -906,25 +909,42 @@ async function handleMergeChangeRequest() {
 	}
 	const docKey = currentDraftKey.value;
 	const changeRequestName = crStore.currentChangeRequest?.name;
+	// Held across the rehydrate as well as the merge itself, so the banner shows
+	// one state for the whole trip instead of the CR's intermediate ones.
+	crStore.finalizing = 'merging';
 	try {
 		await crStore.approveAndMergeChangeRequest();
 		toast.success(__('Change request merged'));
 		crStore.currentChangeRequest = null;
+		crStore.clearChanges();
 		// The CR's drafts are now merged into the published doc — clear them so a
 		// stale local copy can't resurrect after the merge.
 		await draftStore.discardPersistedDraftsForCr(changeRequestName);
-		draftStore.reset();
-		await draftStore.hydrate(props.spaceId);
+		// Keep the tree on screen: the merged tree is all but identical to the one
+		// already rendered, so blanking it to a skeleton for a round trip is pure
+		// loss. hydrate() swaps in the new one in a single paint.
+		draftStore.reset({ keepTree: true });
 
-		if (docKey) {
+		// Leave the draft route before the rehydrate, not after: the draft the
+		// URL points at no longer exists, so waiting would park the editor on
+		// "Draft not found" for the length of the round trip. The tree is still
+		// on screen (keepTree), so the published page is resolvable now — except
+		// for a page created in this CR, which only gets a document_name once
+		// the merge lands, so that one is resolved again afterwards.
+		const openMergedPage = () => {
+			if (!docKey) return true;
 			const node = findNodeByDocKey(treeData.value?.children, docKey);
-			if (node?.document_name) {
-				router.push({
-					name: 'SpacePage',
-					params: { spaceId: props.spaceId, pageId: node.document_name },
-				});
-			}
-		}
+			if (!node?.document_name) return false;
+			router.push({
+				name: 'SpacePage',
+				params: { spaceId: props.spaceId, pageId: node.document_name },
+			});
+			return true;
+		};
+
+		const opened = openMergedPage();
+		await draftStore.hydrate(props.spaceId);
+		if (!opened) openMergedPage();
 	} catch (error) {
 		// A merge conflict leaves the CR Approved; the conflict-resolution UI
 		// lives on the review page, so send the author there to resolve it.
@@ -939,6 +959,8 @@ async function handleMergeChangeRequest() {
 			return;
 		}
 		toast.error(error.messages?.[0] || __('Error merging change request'));
+	} finally {
+		crStore.finalizing = null;
 	}
 }
 </script>

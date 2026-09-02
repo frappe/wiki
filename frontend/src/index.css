@@ -19,6 +19,15 @@ html[data-theme="light"] {
 	color-scheme: light;
 }
 
+/* Added by the theme switcher for the duration of one swap — many frappe-ui
+   components transition their colours, and letting them all animate at once
+   flashes the page. */
+.no-transition *,
+.no-transition *::before,
+.no-transition *::after {
+	transition: none !important;
+}
+
 /* Dialog open/close animations are disabled: reka-ui's Presence unmounts the
    overlay only after the leave animation's end event, and rapid open/close
    cycles (create dialog reused back-to-back) can lose that event — leaving a

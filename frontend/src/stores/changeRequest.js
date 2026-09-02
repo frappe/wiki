@@ -6,6 +6,13 @@ import { computed, ref } from 'vue';
 export const useChangeRequestStore = defineStore('changeRequest', () => {
 	const currentChangeRequest = ref(null);
 	const isLoadingChangeRequest = ref(false);
+	// 'merging' | 'withdrawing' | null, for the whole round trip including the
+	// rehydrate that follows it. The CR walks Draft -> In Review -> Approved ->
+	// merged on the way, and the banner would otherwise render each of those in
+	// turn — a flash of "Approved! Ready to merge." on the way to a merge the
+	// user already asked for. Owned by whoever runs the flow (SpaceDetails),
+	// because it has to outlive the call itself.
+	const finalizing = ref(null);
 	let initChangeRequestPromise = null;
 	let loadChangesPromise = null;
 
@@ -183,6 +190,13 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return currentChangeRequest.value;
 	}
 
+	// The summary belongs to a change request that no longer exists once it is
+	// merged; leaving it around lets the old count drive the banner until the
+	// next CR's summary lands.
+	function clearChanges() {
+		changesResource.data = [];
+	}
+
 	const changes = computed(() => changesResource.data || []);
 	const changeCount = computed(() => changes.value.length);
 	const isSubmitting = computed(() => submitReviewResource.loading);
@@ -291,6 +305,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 	return {
 		currentChangeRequest,
 		isLoadingChangeRequest,
+		finalizing,
 		isChangeRequestMode,
 		hasActiveChangeRequest,
 		changes,
@@ -307,6 +322,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		initChangeRequest,
 		ensureChangeRequest,
 		loadChanges,
+		clearChanges,
 		submitForReview,
 		archiveChangeRequest,
 		mergeChangeRequest,

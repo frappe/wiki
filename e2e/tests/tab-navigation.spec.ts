@@ -73,6 +73,8 @@ test.describe('Horizontal tab navigation', () => {
 			route: ROUTE,
 			root_group: root.name,
 			is_published: 1,
+			// Tabs are opt-in per space; every test below needs the bar.
+			enable_tabs: 1,
 		});
 
 		const accounting = await group(
@@ -392,6 +394,7 @@ test.describe('Reader sidebar with a single tab', () => {
 			route: SOLO_ROUTE,
 			root_group: root.name,
 			is_published: 1,
+			enable_tabs: 1,
 		});
 
 		const accounting = await group(
@@ -434,5 +437,88 @@ test.describe('Reader sidebar with a single tab', () => {
 		await expect(
 			sidebar.getByText('Bold Heading Check', { exact: true }),
 		).toBeVisible();
+	});
+});
+
+/**
+ * Tabs are opt-in per space (Wiki Space.enable_tabs). A space with tab groups
+ * but the switch off must show no bar anywhere, and none of its content may
+ * become unreachable because a tab was hiding it.
+ */
+test.describe('Tab navigation disabled', () => {
+	const OFF_ROUTE = `tabs-off-e2e-${Date.now()}`;
+
+	test.beforeAll(async ({ request }) => {
+		const root = await createDoc<Doc>(request, 'Wiki Document', {
+			title: `Tabs Off Root ${Date.now()}`,
+			is_group: 1,
+			is_published: 1,
+		});
+		await createDoc(request, 'Wiki Space', {
+			space_name: 'Tabs Off E2E',
+			route: OFF_ROUTE,
+			root_group: root.name,
+			is_published: 1,
+		});
+
+		// Flagged as a tab, but the space never opts in — so it stays an ordinary
+		// top-level group everywhere.
+		const accounting = await group(
+			request,
+			'Accounting',
+			root.name,
+			0,
+			'lucide-wallet',
+		);
+		await page_(request, 'Sales Invoice', accounting.name, 0);
+		await page_(request, 'Release Notes', root.name, 1);
+	});
+
+	test.afterAll(async ({ request }) => {
+		await cleanupWikiSpacesByRoute(request, OFF_ROUTE);
+	});
+
+	test('reader shows no bar and keeps every top-level node in the sidebar', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(`/${OFF_ROUTE}/accounting/sales-invoice`);
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByRole('tablist')).toHaveCount(0);
+
+		const sidebar = page.locator('.wiki-sidebar');
+		await expect(
+			sidebar.getByText('Accounting', { exact: true }),
+		).toBeVisible();
+		await expect(
+			sidebar.getByText('Release Notes', { exact: true }),
+		).toBeVisible();
+	});
+
+	test('editor shows no bar, the whole tree, and the page actions row', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(APP_BASE);
+		await page.waitForLoadState('networkidle');
+		await page.getByText('Tabs Off E2E', { exact: true }).first().click();
+		await page.waitForLoadState('networkidle');
+
+		const aside = page.locator('aside').first();
+		await expect(aside.getByText('Accounting', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(
+			aside.getByText('Release Notes', { exact: true }),
+		).toBeVisible();
+		await expect(page.getByRole('tablist')).toHaveCount(0);
+
+		// Page actions live in the content column, so they survive the missing bar.
+		await aside.getByText('Accounting', { exact: true }).click();
+		await aside.getByText('Sales Invoice', { exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Save' })).toBeVisible({
+			timeout: 15000,
+		});
 	});
 });

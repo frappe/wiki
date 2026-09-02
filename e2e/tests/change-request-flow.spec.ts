@@ -13,6 +13,14 @@ interface WikiDocumentRoute {
 	doc_key: string;
 }
 
+declare global {
+	interface Window {
+		// Set by the merge-UX test's DOM watcher (see below).
+		__mergeUx: { treeBlanked: boolean; sawIntermediateState: boolean };
+		__mergeUxStop?: () => void;
+	}
+}
+
 const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
@@ -973,6 +981,54 @@ test.describe('Change Request Flow', () => {
 		await expect(page).toHaveURL(
 			new RegExp(`${APP_BASE}/change-requests\\?tab=all`),
 		);
+	});
+
+	test('merging from the editor keeps the tree up and the banner steady', async ({
+		page,
+	}) => {
+		const content = `Merge UX content ${Date.now()}`;
+		const { pageTitle } = await createSpaceWithDraftPage(page, 'CR Merge UX');
+		await setEditorContentAndSave(page, content);
+
+		const treeItem = page
+			.locator('aside')
+			.getByText(pageTitle, { exact: true });
+		await expect(treeItem).toBeVisible();
+
+		// Both regressions are transient, so a post-hoc assertion can't see them:
+		// watch the DOM for the whole merge and report what it ever showed.
+		await page.evaluate(() => {
+			const state = { treeBlanked: false, sawIntermediateState: false };
+			window.__mergeUx = state;
+			const sample = () => {
+				const aside = document.querySelector('aside');
+				if (aside && aside.querySelectorAll('[role="treeitem"]').length === 0) {
+					state.treeBlanked = true;
+				}
+				if (document.body.innerText.includes('Ready to merge')) {
+					state.sawIntermediateState = true;
+				}
+			};
+			const observer = new MutationObserver(sample);
+			observer.observe(document.body, { childList: true, subtree: true });
+			window.__mergeUxStop = () => observer.disconnect();
+			sample();
+		});
+
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+		// The rehydrate outlives the toast; let it finish before reading.
+		await page.waitForLoadState('networkidle');
+
+		const observed = await page.evaluate(() => {
+			window.__mergeUxStop?.();
+			return window.__mergeUx;
+		});
+		expect(observed.treeBlanked).toBe(false);
+		expect(observed.sawIntermediateState).toBe(false);
+		await expect(treeItem).toBeVisible();
 	});
 
 	test('author can withdraw an in-review CR back to Draft from the menu', async ({

@@ -58,6 +58,30 @@ export function isAllowedIframeSrc(url) {
 }
 
 /**
+ * Seconds from a YouTube `t` param, which is either a plain count ("90") or a
+ * duration ("1m30s", "1h2m3s"). Returns null when there's nothing usable.
+ */
+function youtubeStartSeconds(value) {
+	if (!value) return null;
+	if (/^\d+$/.test(value)) return Number(value);
+	const parts = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+	if (!parts) return null;
+	const seconds =
+		Number(parts[1] || 0) * 3600 +
+		Number(parts[2] || 0) * 60 +
+		Number(parts[3] || 0);
+	return seconds || null;
+}
+
+// youtube-nocookie.com is YouTube's privacy-enhanced host: no tracking cookies
+// are set until the viewer actually presses play.
+function youtubeEmbedUrl(id, startParam) {
+	const start = youtubeStartSeconds(startParam);
+	const query = start ? `?start=${start}` : '';
+	return `https://www.youtube-nocookie.com/embed/${id}${query}`;
+}
+
+/**
  * Convert user-friendly URLs (watch pages, share links) into the provider's
  * embed URL. Pasting a plain youtube.com/watch?v=X should Just Work.
  */
@@ -74,18 +98,22 @@ export function normalizeEmbedUrl(url) {
 
 	if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
 		if (u.pathname === '/watch' && u.searchParams.get('v')) {
-			return `https://www.youtube.com/embed/${u.searchParams.get('v')}`;
+			return youtubeEmbedUrl(u.searchParams.get('v'), u.searchParams.get('t'));
 		}
 		if (u.pathname.startsWith('/shorts/')) {
-			return `https://www.youtube.com/embed/${u.pathname.slice(
-				'/shorts/'.length,
-			)}`;
+			return youtubeEmbedUrl(u.pathname.slice('/shorts/'.length));
+		}
+		// Already an embed URL — keep its path and query (YouTube's share dialog
+		// hangs a `?si=…` on it) and only move it to the privacy-enhanced host.
+		if (u.pathname.startsWith('/embed/')) {
+			u.hostname = 'www.youtube-nocookie.com';
+			return u.toString();
 		}
 		return input;
 	}
 	if (host === 'youtu.be') {
 		const id = u.pathname.slice(1);
-		return id ? `https://www.youtube.com/embed/${id}` : input;
+		return id ? youtubeEmbedUrl(id, u.searchParams.get('t')) : input;
 	}
 	if (host === 'vimeo.com') {
 		const id = u.pathname.match(/^\/(\d+)/)?.[1];
@@ -158,6 +186,19 @@ export const EMBED_URL_PASTE_RE = new RegExp(
 	'g',
 );
 
+// Non-global twin for one-off tests — a global regex would carry lastIndex
+// between calls and answer `false` on every other identical paste.
+const EMBED_URL_PASTE_RE_SINGLE = new RegExp(EMBED_URL_PASTE_RE.source);
+
+/**
+ * True when a pasted payload is nothing but an embeddable URL, i.e. exactly
+ * what the iframe block's paste rule claims. Editor-level paste handlers use
+ * this to stand aside instead of consuming the event first.
+ */
+export function isEmbedUrlPaste(text) {
+	return EMBED_URL_PASTE_RE_SINGLE.test(String(text ?? ''));
+}
+
 // Non-global form drives the stateless .exec() in iframeAttrsFromHtml (a global
 // regex would carry lastIndex across calls); EMBED_HTML_PASTE_RE_G is its global
 // twin for the paste rule, which goes through matchAll.
@@ -177,8 +218,10 @@ export function iframeAttrsFromHtml(html) {
 	if (!match) return null;
 	const parsed = parseIframeAttrs(match[1]);
 	if (!isAllowedIframeSrc(parsed.src)) return null;
+	// Pasted embed HTML goes through the same normalization as a pasted URL,
+	// otherwise the two paths disagree on which host a YouTube embed lands on.
 	return {
-		src: parsed.src,
+		src: normalizeEmbedUrl(parsed.src),
 		width: parsed.width || null,
 		height: parsed.height || null,
 		title: parsed.title || null,

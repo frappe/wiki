@@ -479,6 +479,37 @@ body.image-viewer-open {
   font-weight: 600;
 }
 
+/* ---------- Iframe embeds (public) ----------
+   Stored markdown keeps whatever width/height the author pasted out of the
+   provider's share dialog, and Tailwind's preflight leaves `iframe` out of the
+   `max-width: 100%` rule it gives `img`/`video`, so those attributes win: the
+   embed overflows the article column and, when the box isn't the video's own
+   ratio, YouTube letterboxes it with black bars. Impose our own box instead. */
+#wiki-content iframe {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  margin: 1.5rem auto;
+  border: 0;
+  border-radius: 0.5rem;
+}
+
+/* Video providers get an exact 16:9 box — this is what kills the bars.
+   Everything else (figma, docs, gists, codepen…) keeps its authored height. */
+#wiki-content iframe[src*="youtube.com"],
+#wiki-content iframe[src*="youtube-nocookie.com"],
+#wiki-content iframe[src*="youtu.be"],
+#wiki-content iframe[src*="vimeo.com"],
+#wiki-content iframe[src*="loom.com"],
+#wiki-content iframe[src*="cloudflarestream.com"],
+#wiki-content iframe[src*="videodelivery.net"],
+#wiki-content iframe[src*="mediadelivery.net"],
+#wiki-content iframe[src*="aparat.com"] {
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
 /* ---------- PDF embed card (public) ---------- */
 .wiki-pdf-embed {
   margin: 1.5rem 0;

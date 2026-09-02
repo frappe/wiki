@@ -1,5 +1,10 @@
 (function () {
-  const defaultMermaidUrl = "/assets/wiki/js/vendor/mermaid/mermaid.min.js";
+  // The vendored bundle is served with far-future `immutable` caching, so the
+  // bare path would keep serving the previously fetched copy after a version
+  // bump. Bump this alongside the file in vendor/mermaid/.
+  const MERMAID_VERSION = "11.15.0";
+  const defaultMermaidUrl =
+    "/assets/wiki/js/vendor/mermaid/mermaid.min.js?v=" + MERMAID_VERSION;
 
   // Build a Mermaid theme config from the live Frappe UI design tokens so
   // diagrams match the wiki's look instead of Mermaid's stock palette. We read

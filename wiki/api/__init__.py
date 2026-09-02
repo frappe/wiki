@@ -67,7 +67,8 @@ def convert_file_to_webp(file_doc) -> str:
 	file_url. Returns the new (or unchanged, if not convertible) file_url.
 	"""
 	from frappe.core.doctype.file.file import get_local_image
-	from frappe.core.doctype.file.utils import delete_file
+	from frappe.core.doctype.file.utils import delete_file, generate_file_name
+	from frappe.utils import get_files_path
 
 	if not file_doc:
 		return ""
@@ -77,9 +78,11 @@ def convert_file_to_webp(file_doc) -> str:
 	if not file_url.startswith("/files") or not file_url.lower().endswith(CONVERTIBLE_IMAGE_EXTENSIONS):
 		return file_url
 
+	webp_name = generate_file_name(_to_webp(file_doc.file_name or os.path.basename(file_url)))
+
 	try:
 		image, _, _ = get_local_image(file_url)
-		image.save(_to_webp(file_doc.get_full_path()), "WEBP")
+		image.save(get_files_path(webp_name), "WEBP")
 	except Exception:
 		# Corrupt or unsupported image — keep the original upload rather than
 		# failing the whole request and losing the author's image.
@@ -90,9 +93,8 @@ def convert_file_to_webp(file_doc) -> str:
 	# must be given the /files/... url — not the absolute filesystem path.
 	delete_file(file_url)
 
-	file_doc.file_url = _to_webp(file_url)
-	if file_doc.file_name:
-		file_doc.file_name = _to_webp(file_doc.file_name)
+	file_doc.file_url = f"/files/{webp_name}"
+	file_doc.file_name = webp_name
 	file_doc.save()
 	return file_doc.file_url
 
