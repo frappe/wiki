@@ -688,9 +688,9 @@ class WikiDocumentRenderer(BaseRenderer):
 		# A group / Wiki Space route with no page of its own: redirect to the first
 		# page in sidebar order (sort_order at each level), so the space URL lands
 		# on the same document the sidebar shows first.
-		first_page = get_landing_page_for_route(self.path)
-		if first_page:
-			frappe.redirect("/" + first_page["route"])
+		landing_route = get_landing_redirect_for_route(self.path)
+		if landing_route:
+			redirect_to_landing_page("/" + landing_route)
 
 		return False
 
@@ -858,6 +858,24 @@ def clear_wiki_content_cache(doc_name: str | None = None):
 	else:
 		cache.delete_value(WIKI_CONTENT_CACHE_KEY)
 		frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_CONTENT_CACHE_KEY))
+
+
+def redirect_to_landing_page(location: str):
+	"""302, not 301: the landing page moves whenever the sidebar is reordered."""
+	frappe.flags.redirect_location = location
+	raise frappe.Redirect(302)
+
+
+def get_landing_redirect_for_route(route: str) -> str | None:
+	"""Landing route for a group / Wiki Space URL, never the route itself.
+
+	It can be: the leaf lookup reads the live table, the landing page comes from
+	the cached tree, and a same-route index leaf makes them disagree.
+	"""
+	first_page = get_landing_page_for_route(route)
+	if not first_page or first_page["route"] == route:
+		return None
+	return first_page["route"]
 
 
 def get_landing_page_for_route(route: str) -> dict | None:
