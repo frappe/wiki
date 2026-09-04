@@ -690,7 +690,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		# on the same document the sidebar shows first.
 		landing_route = get_landing_redirect_for_route(self.path)
 		if landing_route:
-			frappe.redirect("/" + landing_route)
+			redirect_to_landing_page("/" + landing_route)
 
 		return False
 
@@ -858,6 +858,12 @@ def clear_wiki_content_cache(doc_name: str | None = None):
 	else:
 		cache.delete_value(WIKI_CONTENT_CACHE_KEY)
 		frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_CONTENT_CACHE_KEY))
+
+
+def redirect_to_landing_page(location: str):
+	"""302, not 301: the landing page moves whenever the sidebar is reordered."""
+	frappe.flags.redirect_location = location
+	raise frappe.Redirect(302)
 
 
 def get_landing_redirect_for_route(route: str) -> str | None:

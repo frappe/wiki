@@ -1892,7 +1892,8 @@ class TestCrawlerEndpoints(WikiDocumentTestBase):
 
 		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
 
-		self.assertEqual(response.status_code, 301)
+		# Temporary: the first page moves whenever the sidebar is reordered.
+		self.assertEqual(response.status_code, 302)
 		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
 
 	def test_space_md_route_does_not_leak_a_restricted_first_page(self):
@@ -2360,9 +2361,11 @@ class TestSpaceUrlFirstPage(WikiDocumentTestBase):
 		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
 
 		renderer = WikiDocumentRenderer(path="fpr-space")
-		with self.assertRaises(frappe.Redirect):
+		with self.assertRaises(frappe.Redirect) as raised:
 			renderer.can_render()
 		self.assertEqual(frappe.local.flags.redirect_location, "/" + target.route)
+		# Temporary: the first page moves whenever the sidebar is reordered.
+		self.assertEqual(raised.exception.http_status_code, 302)
 
 	def test_space_route_never_redirects_to_itself(self):
 		"""A stale cached tree must not turn the space route into an endless 301.
