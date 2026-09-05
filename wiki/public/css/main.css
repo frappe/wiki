@@ -57,8 +57,7 @@
 }
 
 /* ---------- Reader chrome height ----------
-   The full-width navbar (53px) plus the tab row (44px) when a space has tabs.
-   Everything that sticks below the chrome — sidebar, sidebar toggle, TOC —
+   The full-width navbar (53px). Everything that sticks below the chrome — sidebar, sidebar toggle, TOC —
    offsets against this. Zero below `lg`, where the desktop chrome is hidden in
    favour of the mobile header, and on `hide_chrome` pages which have none. */
 body {
@@ -68,9 +67,6 @@ body {
 @media (min-width: 1024px) {
   body {
     --wiki-chrome-h: 53px;
-  }
-  body[data-wiki-tabs] {
-    --wiki-chrome-h: 97px;
   }
   body[data-wiki-bare] {
     --wiki-chrome-h: 0px;

@@ -1,10 +1,10 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-{#- The sidebar starts below the full-width navbar and tab rows, so `top` and
-    height are offset by --wiki-chrome-h (set in layout.html). Its own logo
-    header moved into includes/header.html for the same reason: there is no
-    top-of-window strip left for it here. -#}
+{#- The sidebar starts below the full-width navbar, so `top` and height are
+    offset by --wiki-chrome-h (set in layout.html). Its own logo header moved
+    into includes/header.html for the same reason: there is no top-of-window
+    strip left for it here. -#}
 {#- Keeps its right border: the current Frappe docs layout separates the tree
     from the content with a hairline (`border-r` at the default outline-gray-1),
     and without one a white sidebar on a white page has nothing to sit against.
@@ -13,49 +13,14 @@
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
-    {#- Only the active tab's subtree renders. Visibility is driven by Alpine
-        off $store.navigation.currentRoute rather than re-rendered, so SPA
-        navigation can't leave a stale tree behind — the same mechanism the
-        tree's own active-page highlight already uses. It works because a tab's
-        slug is always an ancestor segment of its pages' routes, so "is this
-        page in this tab" is a route-prefix test.
-
-        The tab bar itself lives in includes/tabs.html, a full-width row above
-        this sidebar. -#}
-    {#- `space_tabs` is empty for a space with tabs switched off, and the node
-        flags are left in place when that happens — so the flag, not is_tab, is
-        what decides whether this tree is split into tab subtrees at all. -#}
+    {#- The whole tree renders at once. Groups that still carry a stale `is_tab`
+        flag are ordinary top-level groups here — the flag is cosmetic-only now
+        and never filters what the reader shows. -#}
     {% set current_route = doc.route if doc else '' %}
-    {% set tabs_on = space_tabs and space_tabs | length %}
-    {% set tab_nodes = (nested_tree or []) | selectattr('is_tab') | list if tabs_on else [] %}
-    {% set other_nodes = ((nested_tree or []) | rejectattr('is_tab') | list) if tabs_on else (nested_tree or []) %}
-
-    {#- Home leads the reader bar whenever there's at least one tab and untabbed
-        content to land on (see get_space_tabs). When it does, the untabbed subtree
-        becomes Home's own — shown only while no tab is active — instead of leaking
-        into every tab's sidebar. With no tabs there's no Home, so it renders
-        inline (the whole tree is untabbed anyway). -#}
-    {% set show_home = (tab_nodes | length) >= 1 and (other_nodes | length) > 0 %}
-    {% set tab_routes = tab_nodes | map(attribute='route') | join('|') %}
-    {% set active = namespace(in_tab=false) %}
-    {% for t in tab_nodes %}{% if current_route == t.route or current_route.startswith(t.route ~ '/') %}{% set active.in_tab = true %}{% endif %}{% endfor %}
 
     <!-- Scrollable Navigation -->
     <nav class="px-2 py-2 flex-1 overflow-y-auto">
-        {% for tab in tab_nodes %}
-        {% set is_active_tab = current_route == tab.route or current_route.startswith(tab.route ~ '/') %}
-        <div x-show="$store.navigation.inTab({{ tab.route | tojson | forceescape }})"{% if not is_active_tab %} x-cloak{% endif %}>
-            {{ render_wiki_tree(tab.children, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
-        </div>
-        {% endfor %}
-
-        {% if show_home %}
-        <div x-show="$store.navigation.notInAnyTab({{ tab_routes | tojson | forceescape }})"{% if active.in_tab %} x-cloak{% endif %}>
-            {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
-        </div>
-        {% else %}
-        {{ render_wiki_tree(other_nodes, current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
-        {% endif %}
+        {{ render_wiki_tree(nested_tree or [], current_route=current_route, expanded_nodes=expanded_nodes or set()) }}
     </nav>
 </div>
 
@@ -154,25 +119,6 @@
                 });
                 // Set initial state (preserve hash for TOC anchor links)
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
-            },
-
-            // Whether the current page lives under a tab. A tab's slug is
-            // always an ancestor segment of its pages' routes, so this is a
-            // prefix test — and because it reads currentRoute, both the tab
-            // bar's active state and the sidebar subtree react to SPA nav
-            // without anything being re-rendered.
-            inTab(route) {
-                if (!route) return false;
-                return this.currentRoute === route
-                    || this.currentRoute.startsWith(route + '/');
-            },
-
-            // The mirror of inTab for the Home tab: active when the current page
-            // sits under none of the real tabs. `routesStr` is a '|'-joined list
-            // of tab routes (wiki routes never contain '|').
-            notInAnyTab(routesStr) {
-                if (!routesStr) return true;
-                return !routesStr.split('|').some((route) => this.inTab(route));
             },
 
             async prefetch(route) {
