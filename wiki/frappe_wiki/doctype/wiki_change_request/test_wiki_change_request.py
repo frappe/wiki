@@ -824,6 +824,30 @@ class TestWikiChangeRequest(FrappeTestCase):
 		grandchild_keys = {node["doc_key"] for node in group_node.get("children") or []}
 		self.assertSetEqual(grandchild_keys, {child_key})
 
+	def test_get_cr_tree_hides_root_group_when_its_doc_key_changed(self):
+		"""A root group whose doc_key no longer matches the revision must not
+		render as a row inside its own tree."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR root key drift")
+
+		# Recreating a root group (e.g. restoring a deleted one) gives it a fresh
+		# doc_key, so the lookup that finds the tree root by key stops matching.
+		frappe.db.set_value(
+			"Wiki Document", space.root_group, "doc_key", "drifted000000", update_modified=False
+		)
+
+		tree = get_cr_tree(cr.name)
+
+		children = tree.get("children") or []
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		self.assertSetEqual({node["doc_key"] for node in children}, {page_key})
+		self.assertNotIn(
+			space.root_group,
+			{node.get("document_name") for node in children},
+			"the root group itself must never be a top-level row",
+		)
+
 	def test_list_change_requests_filters_by_status(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")

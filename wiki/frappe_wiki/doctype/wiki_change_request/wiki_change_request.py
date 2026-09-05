@@ -710,13 +710,21 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 	if root_key and root_key in doc_map:
 		children = sort_children(doc_map[root_key]["children"])
 	else:
-		children = sort_children(
-			[
-				node
-				for node in doc_map.values()
-				if not node.get("parent_key") or node.get("parent_key") not in doc_map
-			]
-		)
+		parentless = [
+			node
+			for node in doc_map.values()
+			if not node.get("parent_key") or node.get("parent_key") not in doc_map
+		]
+		# A revision always carries the space's root group as its one parentless
+		# node — every genuine top-level page is parented to it. The key recorded
+		# in the revision can disagree with the one on the Wiki Document (a
+		# restored root group gets a fresh doc_key), and the lookup above then
+		# misses; recognise the root by that shape instead of returning it as a
+		# row inside its own tree.
+		if len(parentless) == 1 and parentless[0].get("is_group"):
+			children = sort_children(parentless[0]["children"])
+		else:
+			children = sort_children(parentless)
 
 	return {
 		"children": children,
