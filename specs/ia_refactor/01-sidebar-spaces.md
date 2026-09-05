@@ -87,12 +87,13 @@ list and the real tree before any state icons, pinning, or strip polish.
    `useSpaceTabs.js`, `lib/spaceTabs.js`; tab groups now render as plain
    top-level groups; "New Tab" action and settings toggles removed. Whole
    tree always visible.
-6. **Tab removal, reader + backend.** `tabs.html` retired; `mobile_header.html`
-   and `sidebar.html` updated **together** (DOM twins); `is_tab` special-casing
-   dropped from `wiki_space.py` API, `llms_txt.py`, `git_sync.py`. Doctype
-   fields hidden, not dropped (see decision 8b).
+6. **Tab removal, reader + backend.** ✅ `tabs.html` retired;
+   `mobile_header.html` and `sidebar.html` updated **together** (DOM twins);
+   `is_tab` special-casing dropped from `wiki_document.py`, `wiki_space.py`
+   API, `llms_txt.py`, `git_sync.py`. Doctype fields hidden, not dropped (see
+   decision 8b).
 7. **Cleanup.** `useSidebarResize` retires; e2e specs that navigated via
-   `/spaces` or asserted the tab bar updated.
+   `/spaces` updated.
 
 ## Regression tests
 
@@ -130,6 +131,19 @@ list and the real tree before any state icons, pinning, or strip polish.
   button? (Prototype has both.)
 
 ## Progress log
+
+- 2026-09-05 — **Phase 6 done. The reader has no tabs either.** The chrome is
+  one row again: `tabs.html` is deleted, `layout.html` stops including it and
+  stops stamping `data-wiki-tabs`, the navbar carries the bottom rule
+  unconditionally, and `--wiki-chrome-h` loses its 97px branch. Both DOM twins
+  render `nested_tree` whole. Backend: `get_space_tabs` and the synthetic Home
+  tab are gone, the flags leave both tree builders and the page context,
+  `llms.txt` is one section per space again, git-sync stops carrying the flags
+  across a rebuild, and the five tab fields are hidden on their doctypes rather
+  than dropped. `is_tab` / `tab_icon` still ride the CR and revision
+  whitelists untouched — a merge of a year-old CR still applies. Verified in
+  the browser on `erpnext-docs`, a real `enable_tabs` space: desktop and mobile
+  both show one tree with all five top-level groups. Reconciliation below.
 
 - 2026-09-02 — **Collapse toggle dropped.** `SidebarCollapseToggle` and the
   `is-sidebar-collapsed` storage key are gone; the footer strip now renders
@@ -189,6 +203,20 @@ list and the real tree before any state icons, pinning, or strip polish.
 - 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
   MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
   `/spaces` redirects to the new `Overview` route. Reconciliations below.
+
+### Phase 6 reconciliation
+
+| # | Spec said | Build does | Why |
+|---|-----------|-----------|-----|
+| 1 | Retire `tabs.html`, update the two DOM twins | `layout.html`, `header.html` and `main.css` change too | The tab row was a full-width chrome row, so removing it is a layout change, not just a delete: the include and the `data-wiki-tabs` body attribute go, the navbar's bottom rule stops being conditional (it now always ends the chrome), and `--wiki-chrome-h` drops the 97px branch. |
+| 2 | `is_tab` special-casing dropped from `wiki_space.py` API, `llms_txt.py`, `git_sync.py` | `wiki_document.py` too | That is where the tab API actually lived: `get_space_tabs`, `_home_tab_entry`, `_tab_landing_route`, `WIKI_HOME_TAB_KEY` and the `space_tabs` render-context key are all gone, and `build_nested_wiki_tree` stops selecting the flags. |
+| 3 | — | `WikiDocument.validate_tab` deleted, and `is_top_level_group` with it | A validator that throws is not a cosmetic-only field: it would have rejected an old revision that carries the flag on a nested group. Removing the reorder guard left `is_top_level_group` with no callers. |
+| 4 | — | `_build_wiki_tree_for_api` drops the flags | The app tree has no use for them since phase 5; leaving them in the payload only invited a new reader of a dead field. |
+| 5 | Doctype fields hidden, not dropped | Hidden, `depends_on` removed, descriptions rewritten to say deprecated | A `depends_on` on a hidden field is dead weight, and the old descriptions still described a feature that no longer exists. Both doctype JSONs keep frappe's own formatting (tabs for `Wiki Document`, one-space for `Wiki Space`, no trailing newline on the latter). |
+| 6 | — | The clone path in `wiki/wiki/doctype/wiki_space/wiki_space.py` still copies the flags | A clone mirrors its source's stored data, and the fields are still in the schema. Nothing reads them, so this is fidelity, not a live feature. |
+| 7 | — | The mobile drawer's `filterTree` is simplified | It walked `root.children` and skipped `display:none` subtrees — machinery that existed only because tabs hid subtrees in the DOM. With one tree it is a flat `querySelectorAll`. |
+| 8 | Phase 7 — e2e specs asserting the tab bar get updated | `tab-navigation.spec.ts` → `stale-tab-flags.spec.ts` | The reader tests it carried drove a bar that no longer exists. The suite is rebuilt around the spec's own regression: one space carrying `enable_tabs` + `is_tab` + `tab_icon` renders as one plain tree in the reader (desktop and mobile drawer) and in the app, with no `tablist` anywhere and the navbar sitting directly above the tree. |
+| 9 | — | `TestTabValidation` + `TestGetSpaceTabs` (20 tests) replaced by `TestStaleTabFlags` (3) | Those tested a feature, not a regression. What is worth holding is that a flagged group saves anywhere, reorders anywhere, and never reaches the public tree. The `llms.txt` fixture now carries a stale `is_tab` flag and asserts a single section, which is the same guarantee on the index. |
 
 ### Phase 5 reconciliation
 
