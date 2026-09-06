@@ -261,6 +261,15 @@ class WikiSpace(Document):
 		clear_website_cache()
 		frappe.db.after_commit.add(clear_website_cache)
 
+		# The raw SQL above also bypasses the per-doc save hooks that normally
+		# bust the sidebar/landing-page tree cache, so the root group's cached
+		# tree keeps naming pre-rename routes — the space URL then 301s forever
+		# to a dead link until the cache expires or is cleared by hand.
+		# (clear_wiki_tree_cache re-clears after commit on its own.)
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+		clear_wiki_tree_cache()
+
 		return {"updated_count": updated_count}
 
 	def _batch_update_document_routes(self, doc_names: list, old_route: str, new_route: str) -> int:
