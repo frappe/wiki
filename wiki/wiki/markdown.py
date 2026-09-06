@@ -211,7 +211,7 @@ def _remove_script_tags(value: str | None) -> str:
 # Match full-line markdown image syntax with optional title:
 # ![alt](url) or ![alt](url "title")
 VIDEO_MARKDOWN_PATTERN = re.compile(
-	r'^!\[(?P<alt>[^\]]*)\]\((?P<url>[^)"\s]+)(?:\s+"(?P<title>[^"]*)")?\)[ \t]*$',
+	r'^!\[(?P<alt>[^\]]*)\]\((?P<url>(?:[^()"\s]|\([^()"\s]*\))+?)(?:\s+"(?P<title>[^"]*)")?\)[ \t]*$',
 	re.MULTILINE,
 )
 
