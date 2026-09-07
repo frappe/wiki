@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { openNewPageDialog, saveEditor } from '../helpers/wiki';
 
 interface DraftNode {
 	docKey: string;
@@ -193,8 +193,7 @@ test.describe('Local-first draft workspace', () => {
 				contentType: 'markdown',
 			});
 		}, typedContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 
 		// Sync-state badge should report failure.
 		await expect(page.getByText('Sync failed')).toBeVisible({
@@ -252,8 +251,7 @@ test.describe('Local-first draft workspace', () => {
 				contentType: 'markdown',
 			});
 		}, typedContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 
 		// The save fails; banner surfaces it and Reload latest appears.
 		await expect(page.getByText('Sync failed')).toBeVisible({ timeout: 5000 });
@@ -271,25 +269,27 @@ test.describe('Local-first draft workspace', () => {
 		await unroute();
 		await reloadButton.click();
 
-		// Sync-failed banner clears and the recovery button hides — but
-		// Submit MUST stay disabled because the editor's DOM still holds
-		// the user's unsaved typed content. Unblocking here would let the
-		// user submit a CR that doesn't contain what they see on screen.
+		// Sync-failed banner clears and the recovery button hides — but the
+		// editor's DOM still holds the user's unsaved typed content, so the
+		// workspace must keep reporting it. Submitting from here flushes it
+		// first; what must never happen is the state going quiet while the
+		// screen holds text the CR does not.
 		await expect(page.getByText('Sync failed')).toBeHidden({ timeout: 5000 });
 		await expect(reloadButton).toBeHidden();
-		await expect(submitButton).toBeDisabled();
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
 
 		// Resolving the typed content (Save now succeeds because the
-		// mock is gone and operation_version is fresh) is what finally
-		// re-enables Submit.
-		await page.getByRole('button', { name: 'Save' }).click();
+		// mock is gone and operation_version is fresh) settles the state.
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('typing in editor disables Submit until the change is flushed to the CR', async ({
+	test('typing in editor reports unsaved content until the change is flushed to the CR', async ({
 		page,
 	}) => {
 		const timestamp = Date.now();
@@ -335,20 +335,22 @@ test.describe('Local-first draft workspace', () => {
 		}, typedContent);
 		await editor.click();
 
-		// The fix: Submit must be disabled while the editor has unsaved
-		// typed content the store hasn't received yet. Without it, the user
-		// can submit a stale backend CR and silently lose the latest text.
-		await expect(submitButton).toBeDisabled();
+		// The fix: the workspace must report unsaved editor content the store
+		// hasn't received yet. Submitting flushes it first — what must never
+		// happen is a submit that silently loses the latest text.
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
 
-		// Flushing via manual Save lands the content and re-enables Submit.
-		await page.getByRole('button', { name: 'Save' }).click();
+		// Flushing by hand lands the content and settles the sync state.
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('navigating away from dirty content auto-saves it and re-enables Submit', async ({
+	test('navigating away from dirty content auto-saves it', async ({
 		page,
 		request,
 	}) => {
@@ -415,7 +417,9 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, typedContent);
 		await editor.click();
-		await expect(submitButton).toBeDisabled();
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
 
 		// Navigating away flushes the dirty buffer to the server.
 		await page.locator('aside').getByText(secondTitle, { exact: true }).click();
@@ -429,7 +433,7 @@ test.describe('Local-first draft workspace', () => {
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('typing then undoing back to saved content re-enables Submit without a redundant save', async ({
+	test('typing then undoing back to saved content clears the unsaved state without a redundant save', async ({
 		page,
 	}) => {
 		const timestamp = Date.now();
@@ -466,36 +470,34 @@ test.describe('Local-first draft workspace', () => {
 				contentType: 'markdown',
 			});
 		}, baselineContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
 
-		const submitButton = page.getByRole('button', {
-			name: 'Submit for Review',
-		});
-		await expect(submitButton).toBeEnabled();
-
-		// Type something new — Submit should go disabled.
+		// Type something new — the buffer diverges from the last saved snapshot.
 		await page.evaluate((content) => {
 			window.wikiEditor.commands.setContent(content, {
 				contentType: 'markdown',
 			});
 		}, transientContent);
 		await editor.click();
-		await expect(submitButton).toBeDisabled();
+		await expect(page.getByText('Unsaved changes')).toBeVisible({
+			timeout: 5000,
+		});
 
 		// Revert back to the saved content. No save is issued; the derived
-		// local snapshot converges with the baseline and the banner gate
-		// releases on its own.
+		// local snapshot converges with the baseline and the unsaved state
+		// clears on its own.
 		await page.evaluate((content) => {
 			window.wikiEditor.commands.setContent(content, {
 				contentType: 'markdown',
 			});
 		}, baselineContent);
 		await editor.click();
-		await expect(submitButton).toBeEnabled();
+		await expect(page.getByText('All changes saved')).toBeVisible({
+			timeout: 5000,
+		});
 	});
 
 	test('dirty content on an existing published page survives browser refresh', async ({
@@ -569,7 +571,7 @@ test.describe('Local-first draft workspace', () => {
 			timeout: 5000,
 		});
 
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -627,7 +629,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Navigate back to the draft page. The editor should reopen on the
 		// same content the user last typed, and the banner should report
-		// "Unsaved changes" with Submit still gated.
+		// "Unsaved changes".
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		const restoredEditor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -638,18 +640,15 @@ test.describe('Local-first draft workspace', () => {
 			timeout: 5000,
 		});
 
-		const submitButton = page.getByRole('button', {
-			name: 'Submit for Review',
-		});
-		await expect(submitButton).toBeDisabled();
-
-		// Saving the restored draft clears the IDB entry and re-enables
-		// Submit, just like a normal first-save.
-		await page.getByRole('button', { name: 'Save' }).click();
+		// Saving the restored draft clears the IDB entry and settles the sync
+		// state, just like a normal first-save.
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
-		await expect(submitButton).toBeEnabled();
+		await expect(
+			page.getByRole('button', { name: 'Submit for Review' }),
+		).toBeEnabled();
 	});
 
 	test('a persisted draft identical to the server self-heals instead of gating Submit', async ({
@@ -688,8 +687,7 @@ test.describe('Local-first draft workspace', () => {
 				contentType: 'markdown',
 			});
 		}, savedContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await expect(page.getByText('All changes saved')).toBeVisible({
 			timeout: 5000,
 		});
@@ -891,7 +889,7 @@ test.describe('Local-first draft workspace', () => {
 				contentType: 'markdown',
 			});
 		}, firstContent);
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await expect(page.getByText('Saving…')).toBeVisible();
 
 		await page.evaluate((content) => {

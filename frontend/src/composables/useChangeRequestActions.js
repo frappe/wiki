@@ -36,6 +36,19 @@ export function useChangeRequestActions() {
 	}
 
 	async function submitForReview() {
+		// Nothing offers a Save button any more, so an unsaved buffer is not the
+		// user's problem to solve before submitting: drain it here, then judge
+		// the blockers that a flush cannot clear (conflicts, failed mutations).
+		if (draftStore.finalizationBlocker === 'unsaved') {
+			const failures = await draftStore.flushDirtyPages();
+			if (failures.length) {
+				const error = failures[0];
+				toast.error(
+					error?.messages?.[0] || error?.message || __('Error saving draft'),
+				);
+				return;
+			}
+		}
 		const blockerMessage = finalizationError(__('submitting'));
 		if (blockerMessage) {
 			toast.error(blockerMessage);

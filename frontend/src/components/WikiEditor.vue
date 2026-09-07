@@ -5,12 +5,13 @@
                  making it a flex child would strand it above one column. -->
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
             <EditorTableOfContents v-if="showTocStrip" :editor="editor" variant="strip" />
-            <div class="flex">
-                <div class="min-w-0 flex-1 flex justify-center">
-                    <div class="w-full max-w-[770px] px-6">
-                        <slot name="title" />
-                        <EditorContent :editor="editor" :class="contentClass" />
-                    </div>
+            <!-- The prose column is centred on the whole content width, not on
+                 what the outline leaves behind: the outline floats over the
+                 right gutter so the column never shifts when it appears. -->
+            <div class="relative">
+                <div class="mx-auto w-full max-w-3xl px-6">
+                    <slot name="title" />
+                    <EditorContent :editor="editor" :class="contentClass" />
                 </div>
                 <EditorTableOfContents v-if="showTocRail" :editor="editor" variant="rail" />
             </div>
@@ -687,12 +688,12 @@ const contentClass = [
 	props.readonly ? '' : 'is-editable',
 ];
 
-// The editor's width is the viewport minus the app nav and the resizable tree,
-// so a viewport media query would measure the wrong box — watch the element
-// instead. On a 1440px laptop with both open the editor gets ~920px, which is
-// the width this threshold is picked to serve: below it the content column
-// would have to give up too much to seat a rail, so the strip takes over.
-const TOC_RAIL_MIN_WIDTH = 900;
+// The editor's width is the viewport minus the app nav, so a viewport media
+// query would measure the wrong box — watch the element instead. The rail
+// floats over the gutter now rather than taking a column of its own, so the
+// threshold is what it takes to have a gutter to float in: the 768px prose
+// column plus a rail's width on each side. Below it the strip takes over.
+const TOC_RAIL_MIN_WIDTH = 1140;
 const { width: containerWidth } = useElementSize(containerRef);
 const showTocRail = computed(() => containerWidth.value >= TOC_RAIL_MIN_WIDTH);
 // Width reads 0 until the first ResizeObserver callback; rendering neither

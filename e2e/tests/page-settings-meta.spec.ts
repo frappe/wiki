@@ -12,7 +12,7 @@ import {
 /**
  * Page Settings dialog (per-page SEO meta fields).
  *
- * The dialog lives behind the page-header "More actions" dropdown in the
+ * The dialog lives behind the page-header "Page actions" dropdown in the
  * editor SPA and saves `meta_title` / `meta_description` (+ `meta_image`,
  * not covered here — see spec) directly on the Wiki Document. This spec
  * covers the tracer path end to end: open the dialog, save, reopen to
@@ -64,8 +64,8 @@ test.describe('Page Settings meta fields', () => {
 			timeout: 15000,
 		});
 
-		// Open the dialog from the page-header "More actions" dropdown.
-		await page.getByRole('button', { name: 'More actions' }).click();
+		// Open the dialog from the page-header "Page actions" dropdown.
+		await page.getByRole('button', { name: 'Page actions' }).click();
 		await page.getByRole('menuitem', { name: 'Page settings' }).click();
 
 		const dialog = page.getByRole('dialog');
@@ -96,7 +96,7 @@ test.describe('Page Settings meta fields', () => {
 		await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
 		// Reopen — values must have persisted to the Wiki Document.
-		await page.getByRole('button', { name: 'More actions' }).click();
+		await page.getByRole('button', { name: 'Page actions' }).click();
 		await page.getByRole('menuitem', { name: 'Page settings' }).click();
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await expect(dialog.getByLabel('Meta Title')).toHaveValue(metaTitle);
@@ -129,7 +129,7 @@ test.describe('Page Settings meta fields', () => {
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
-		await page.getByRole('button', { name: 'More actions' }).click();
+		await page.getByRole('button', { name: 'Page actions' }).click();
 		await page.getByRole('menuitem', { name: 'Page settings' }).click();
 		await expect(dialog).toBeVisible({ timeout: 10000 });
 		await dialog.getByLabel('Meta Title').fill('');

@@ -6,7 +6,11 @@ import {
 	SPACE_URL_RE,
 	appUrl,
 } from '../helpers/routes';
-import { clickSidebarAddOption, openNewPageDialog } from '../helpers/wiki';
+import {
+	clickSidebarAddOption,
+	openNewPageDialog,
+	saveEditor,
+} from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -95,8 +99,7 @@ async function setEditorContentAndSave(page: Page, content: string) {
 	await page.evaluate((c) => {
 		window.wikiEditor.commands.setContent(c, { contentType: 'markdown' });
 	}, content);
-	await editor.click();
-	await page.getByRole('button', { name: 'Save' }).click();
+	await saveEditor(page);
 	await page.waitForTimeout(500);
 }
 
@@ -174,8 +177,7 @@ test.describe('Change Request Flow', () => {
 				contentType: 'markdown',
 			});
 		}, initialContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await page.waitForTimeout(500);
 
 		// Submit for review and merge
@@ -215,8 +217,7 @@ test.describe('Change Request Flow', () => {
 				contentType: 'markdown',
 			});
 		}, `${initialContent}\n\n${updatedContent}`);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await page.waitForTimeout(500);
 
 		await page.getByRole('button', { name: 'Submit for Review' }).click();
@@ -673,8 +674,7 @@ test.describe('Change Request Flow', () => {
 				contentType: 'markdown',
 			});
 		}, pageContent);
-		await editor.click();
-		await page.getByRole('button', { name: 'Save' }).click();
+		await saveEditor(page);
 		await page.waitForTimeout(500);
 
 		// One-click self-serve publish from the editor: the Merge button walks

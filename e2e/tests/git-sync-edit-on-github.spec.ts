@@ -79,10 +79,11 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 			};
 		});
 
-		await page.getByRole('button', { name: 'More actions' }).click();
-		const editItem = page.getByRole('menuitem', { name: 'Edit on GitHub' });
-		await expect(editItem).toBeVisible();
-		await editItem.click();
+		// A synced page carries the GitHub trip in its header, not behind the
+		// page menu — the menu holds only edit actions the page cannot offer.
+		const editButton = page.getByRole('button', { name: 'Edit on GitHub' });
+		await expect(editButton).toBeVisible();
+		await editButton.click();
 
 		const opened = await page.evaluate(
 			// @ts-expect-error test-only hook

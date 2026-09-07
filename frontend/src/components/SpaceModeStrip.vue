@@ -128,10 +128,9 @@
 					changeRequestStatus === 'Changes Requested'
 				"
 			>
-				<SubmitForReviewButton class="mt-2 w-full" size="sm" />
 				<Button
 					v-if="canShowMerge"
-					class="mt-1.5 w-full"
+					class="mt-2 w-full"
 					size="sm"
 					:loading="crStore.isMerging"
 					:disabled="mergeDisabled"
@@ -263,8 +262,6 @@
 <script setup>
 import { Badge, Button, Dialog, Dropdown, dayjsLocal, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
-
-import SubmitForReviewButton from './SubmitForReviewButton.vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';

@@ -26,28 +26,16 @@
 						@click="openGithubEdit"
 					>
 						<template #prefix>
-							<span class="lucide-github size-4" aria-hidden="true" />
+							<span class="lucide-pencil size-4" aria-hidden="true" />
 						</template>
 						{{ __('Edit on GitHub') }}
-					</Button>
-					<!-- Interim: autosave already covers content, but the dirty
-					     dot that reports it lands with the prose column (phase
-					     2). Until then Save stays as the visible save signal. -->
-					<Button
-						v-if="!readonly"
-						variant="subtle"
-						:loading="isSaving"
-						:title="isMac ? '⌘S' : 'Ctrl+S'"
-						@click="saveFromHeader"
-					>
-						{{ __('Save') }}
 					</Button>
 					<SubmitForReviewButton v-if="!readonly" />
 					<Dropdown v-if="menuOptions.length" :options="menuOptions">
 						<Button
 							variant="ghost"
-							:title="__('More actions')"
-							:aria-label="__('More actions')"
+							:title="__('Page actions')"
+							:aria-label="__('Page actions')"
 						>
 							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
 						</Button>
@@ -58,7 +46,7 @@
 			     the sticky toolbar, and the bubble menu and the outline rail
 			     both measure against it. -->
 			<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
-				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+				<WikiEditor v-if="editorKey" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-8">
 							<div class="flex items-start gap-3">
@@ -72,6 +60,15 @@
 									@keydown.enter="$event.target.blur()"
 								/>
 								<div class="flex shrink-0 items-center gap-2 pt-2">
+									<!-- The unsaved mark: content has diverged from the last
+									     confirmed save and autosave has yet to catch up. -->
+									<span
+										v-if="isPageDirty"
+										class="size-2 rounded-full bg-surface-amber-4"
+										:title="__('Unsaved changes')"
+										:aria-label="__('Unsaved changes')"
+										role="status"
+									/>
 									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
 										{{ __('Published') }}
 									</Badge>
@@ -236,8 +233,6 @@ import PageSettings from './PageSettings.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
 
-const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
-
 const props = defineProps({
 	pageId: {
 		type: String,
@@ -257,7 +252,6 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh']);
 
-const editorRef = ref(null);
 const editableTitle = ref('');
 const editableRoute = ref('');
 const showRouteDialog = ref(false);
@@ -472,15 +466,14 @@ watch(
 	{ immediate: true },
 );
 
-// Save state lives on the workspace store entry keyed by
-// the published doc's CR overlay key. Until the user saves once, no entry
-// exists and we report 'idle'.
-const pageSaveStatus = computed(() => {
-	const docKey = wikiDoc.value.doc?.doc_key;
-	if (!docKey) return 'idle';
-	return draftStore.pagesByKey[docKey]?.saveStatus || 'idle';
+// Divergence between the editor buffer and the last confirmed save — the same
+// test the store's finalization gate uses, read for this page alone.
+const isPageDirty = computed(() => {
+	const page = activePage.value;
+	return Boolean(
+		page?.localContent != null && page.localContent !== page.content,
+	);
 });
-const isSaving = computed(() => pageSaveStatus.value === 'saving');
 // Confirmed content the editor normalizes before handing both snapshots back
 // to the store. Falls back to editorContent before an overlay entry exists.
 const savedContent = computed(() => {
@@ -682,10 +675,6 @@ async function togglePublish() {
 
 function openPage() {
 	window.open(`/${wikiDoc.value.doc.route}`, '_blank');
-}
-
-function saveFromHeader() {
-	editorRef.value?.saveToDB();
 }
 
 // Drain dirty buffers for pages other than the one on screen; the open

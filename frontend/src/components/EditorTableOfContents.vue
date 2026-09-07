@@ -1,19 +1,21 @@
 <template>
-	<!-- The rail keeps its width even with nothing to list, so the content column
-	     doesn't slide sideways the moment the author types their first `##`. -->
+	<!-- Floats over the right gutter rather than taking a column: the prose
+	     column stays put whether or not the page has headings. The aside spans
+	     the full content height so its nav can stick inside the scroller;
+	     pointer events are handed back to the rows alone, so the gutter above
+	     and below the list still belongs to the page. -->
 	<aside
 		v-if="variant === 'rail'"
 		ref="rootRef"
-		class="w-[220px] shrink-0 py-6 pr-6"
+		class="pointer-events-none absolute inset-y-0 right-0 w-[180px] py-6 pr-4"
 		data-testid="editor-toc-rail"
 	>
 		<nav
 			v-if="outline.length"
-			class="hide-scrollbar sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
+			class="hide-scrollbar pointer-events-auto sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
 			:style="{ top: `${railTop}px`, maxHeight: `${railMaxHeight}px` }"
 		>
-			<!-- Transparent border keeps the label on the same left edge as the links. -->
-			<span class="whitespace-nowrap border-l border-transparent pl-4 pb-1 font-medium text-ink-gray-8">
+			<span class="whitespace-nowrap px-2 pb-1 font-medium text-ink-gray-8">
 				{{ __('On this page') }}
 			</span>
 			<button
@@ -21,12 +23,12 @@
 				:key="entry.pos"
 				type="button"
 				data-testid="editor-toc-link"
-				class="truncate border-l py-1 text-left"
+				class="truncate rounded-4 py-1 pr-2 text-left"
 				:class="[
-					entry.level >= 3 && hasH2 ? 'pl-7' : 'pl-4',
+					entry.level >= 3 && hasH2 ? 'pl-5' : 'pl-2',
 					index === activeIndex
-						? 'border-outline-gray-4 text-ink-gray-9'
-						: 'border-outline-gray-2 text-ink-gray-6 hover:text-ink-gray-9',
+						? 'bg-surface-gray-2 text-ink-gray-9'
+						: 'text-ink-gray-6 hover:bg-surface-gray-2 hover:text-ink-gray-8',
 				]"
 				@click="goTo(entry)"
 			>

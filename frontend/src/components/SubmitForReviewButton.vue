@@ -89,14 +89,23 @@ const visible = computed(() => {
 	if (spaceStore.isGitSynced) return false;
 	if (!crStore.isChangeRequestMode) return false;
 	if (crStore.finalizing) return false;
-	if (crStore.changeCount === 0) return false;
+	// Autosave takes ten seconds to turn typing into a change row. Counting an
+	// unsaved buffer as submittable work keeps the button from disappearing in
+	// that window — there is no Save button left to fill it.
+	if (crStore.changeCount === 0 && !draftStore.hasUnsavedEditorContent) {
+		return false;
+	}
 	const status = crStore.currentChangeRequest?.status || 'Draft';
 	return status === 'Draft' || status === 'Changes Requested';
 });
 
 // Submitting is blocked while local mutations are still syncing or failed:
 // a stale backend CR would silently drop the user's in-flight edits.
-const submitDisabled = computed(() => Boolean(draftStore.finalizationBlocker));
+// An unsaved editor buffer is not a blocker: the action flushes it first.
+const submitDisabled = computed(() => {
+	const blocker = draftStore.finalizationBlocker;
+	return Boolean(blocker) && blocker !== 'unsaved';
+});
 
 const submitButtonTitle = computed(() => {
 	if (draftStore.finalizationBlocker === 'conflict') {
@@ -107,9 +116,6 @@ const submitButtonTitle = computed(() => {
 	}
 	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before submitting');
-	}
-	if (draftStore.finalizationBlocker === 'unsaved') {
-		return __('Save your changes before submitting');
 	}
 	return '';
 });

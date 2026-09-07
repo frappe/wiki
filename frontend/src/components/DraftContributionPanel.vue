@@ -5,16 +5,14 @@
 				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
 
 				<div class="flex shrink-0 items-center gap-2">
-					<Button
-						variant="solid"
-						:loading="isSaving"
-						@click="saveFromHeader"
-					>
-						{{ __('Save') }}
-					</Button>
+					<SubmitForReviewButton />
 					<Dropdown :options="menuOptions">
-						<Button variant="ghost" :title="__('More actions')">
-							<span class="lucide-more-vertical size-4" aria-hidden="true" />
+						<Button
+							variant="ghost"
+							:title="__('Page actions')"
+							:aria-label="__('Page actions')"
+						>
+							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</div>
@@ -37,6 +35,13 @@
 									@keydown.enter="$event.target.blur()"
 								/>
 								<div class="flex shrink-0 items-center gap-2 pt-2">
+									<span
+										v-if="isPageDirty"
+										class="size-2 rounded-full bg-surface-amber-4"
+										:title="__('Unsaved changes')"
+										:aria-label="__('Unsaved changes')"
+										role="status"
+									/>
 									<Badge variant="subtle" theme="blue" size="sm">
 										{{ __('Draft') }}
 									</Badge>
@@ -163,6 +168,7 @@ import {
 } from 'frappe-ui';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const props = defineProps({
@@ -398,11 +404,13 @@ const editorContent = computed(() => {
 	return crPage.value?.content || '';
 });
 
-// Save state is owned by the workspace store.
-const pageSaveStatus = computed(
-	() => draftStore.pagesByKey[props.docKey]?.saveStatus || 'idle',
-);
-const isSaving = computed(() => pageSaveStatus.value === 'saving');
+// Same divergence test the store's finalization gate uses, for this page.
+const isPageDirty = computed(() => {
+	const page = draftStore.pagesByKey[props.docKey];
+	return Boolean(
+		page?.localContent != null && page.localContent !== page.content,
+	);
+});
 // The editor normalizes this confirmed snapshot before handing it back to
 // the store for comparison.
 const savedContent = computed(
@@ -418,6 +426,11 @@ const editorKey = computed(() => {
 
 const menuOptions = computed(() => {
 	return [
+		{
+			label: __('Change route'),
+			icon: 'lucide-link',
+			onClick: openRouteDialog,
+		},
 		{
 			label: __('Delete Draft'),
 			icon: 'lucide-trash-2',
@@ -460,10 +473,6 @@ async function saveRoute(close) {
 	} finally {
 		isSavingRoute.value = false;
 	}
-}
-
-function saveFromHeader() {
-	editorRef.value?.saveToDB();
 }
 
 async function saveContent(content) {

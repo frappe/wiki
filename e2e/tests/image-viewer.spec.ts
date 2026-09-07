@@ -8,6 +8,7 @@ import {
 import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -87,7 +88,7 @@ async function createAndPublishPage(
 	await editor.click();
 	await page.waitForTimeout(500);
 
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await saveEditor(page);
 	await page.waitForLoadState('networkidle');
 
 	const submitButton = page.getByRole('button', { name: 'Submit for Review' });

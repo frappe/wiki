@@ -62,7 +62,8 @@
 							</p>
 							<Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
 								<template #prefix>
-									<span class="lucide-github h-4 w-4" aria-hidden="true" />
+									<!-- lucide-static dropped brand icons, so no `lucide-github`. -->
+									<span class="lucide-git-branch h-4 w-4" aria-hidden="true" />
 								</template>
 								{{ __('Connect GitHub') }}
 							</Button>
@@ -79,7 +80,8 @@
 							</p>
 							<Button variant="subtle" :loading="installationsResource.loading" @click="installApp">
 								<template #prefix>
-									<span class="lucide-github h-4 w-4" aria-hidden="true" />
+									<!-- lucide-static dropped brand icons, so no `lucide-github`. -->
+									<span class="lucide-git-branch h-4 w-4" aria-hidden="true" />
 								</template>
 								{{ __('Install GitHub App') }}
 							</Button>
