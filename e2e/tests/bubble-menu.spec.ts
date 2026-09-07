@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * Regression: the selection bubble menu must never render on top of the sticky
@@ -9,38 +8,15 @@ import { openNewPageDialog } from '../helpers/wiki';
  * instead of overlapping the toolbar. See WikiBubbleMenu.vue.
  */
 test.describe('Editor bubble menu placement', () => {
-	async function createPageAndOpenEditor(
-		page: import('@playwright/test').Page,
-		pageTitle: string,
-	) {
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
-		await page.waitForLoadState('networkidle');
-
-		await openNewPageDialog(page);
-
-		await page.getByLabel('Title').fill(pageTitle);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Save' })
-			.click();
-		await page.waitForLoadState('networkidle');
-
-		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-
-		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		return editor;
-	}
-
 	test('bubble menu flips below a first-line selection instead of covering the toolbar', async ({
 		page,
+		wiki,
 	}) => {
-		await createPageAndOpenEditor(page, `bubble-menu-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`bubble-menu-${Date.now()}`,
+		);
 
 		// Put text on the very first line and select it — this sits directly under
 		// the sticky toolbar, the exact case that used to overlap.
