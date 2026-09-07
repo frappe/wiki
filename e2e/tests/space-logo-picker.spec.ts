@@ -1,7 +1,8 @@
-import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import { uniqueRoute } from '../helpers/factory';
 import { getDoc } from '../helpers/frappe';
 import { appUrl } from '../helpers/routes';
-import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
 
 /**
  * Space Settings -> General: the Space Logo tile.
@@ -13,14 +14,7 @@ import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
  * broken chunk boundary fails here and nowhere else.
  */
 test.describe('Space Settings -> Space Logo', () => {
-	let spaceName = '';
-
-	test.afterEach(async ({ request }) => {
-		if (spaceName) await deleteTestWikiSpace(request, spaceName);
-		spaceName = '';
-	});
-
-	async function openPicker(page) {
+	async function openPicker(page: Page) {
 		await page.getByRole('button', { name: 'Space actions' }).click();
 		await page.getByRole('menuitem', { name: 'Space settings' }).click();
 		const dialog = page.getByRole('dialog');
@@ -33,14 +27,12 @@ test.describe('Space Settings -> Space Logo', () => {
 	test('picking an icon and a colour stores both and survives a reload', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		const space = await createTestWikiSpace(request, {
-			route: `logo-icon-${Date.now()}`,
-		});
-		spaceName = space.name;
+		const space = await wiki.space();
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		await openPicker(page);
@@ -66,14 +58,12 @@ test.describe('Space Settings -> Space Logo', () => {
 	test('shuffle generates a mark, stores its seed, and keeps it on reload', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		const space = await createTestWikiSpace(request, {
-			route: `logo-shuffle-${Date.now()}`,
-		});
-		spaceName = space.name;
+		const space = await wiki.space();
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		await openPicker(page);
@@ -115,12 +105,13 @@ test.describe('Space Settings -> Space Logo', () => {
 	test('a new space is created with a mark rather than a bare initial', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto(appUrl());
 		await page.waitForLoadState('networkidle');
 
-		const route = `logo-created-${Date.now()}`;
+		const route = uniqueRoute('logo-created');
 		await page.getByRole('button', { name: 'New Space' }).click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible();
@@ -135,7 +126,9 @@ test.describe('Space Settings -> Space Logo', () => {
 		await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 		await page.waitForURL(/\/spaces\//, { timeout: 15000 });
 
-		spaceName = page.url().split('/spaces/')[1].split(/[/?#]/)[0];
+		const spaceName = page.url().split('/spaces/')[1].split(/[/?#]/)[0];
+		wiki.adopt(spaceName);
+
 		const doc = await getDoc(request, 'Wiki Space', spaceName);
 		expect(doc.avatar).toMatch(/^data:image\/svg\+xml[;,]/);
 		expect(doc.avatar_seed).toBeTruthy();

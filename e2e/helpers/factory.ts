@@ -81,6 +81,7 @@ function levelsOf(
  */
 export class WikiFactory {
 	private routes: string[] = [];
+	private adopted: string[] = [];
 
 	constructor(private request: APIRequestContext) {}
 
@@ -199,6 +200,16 @@ export class WikiFactory {
 	}
 
 	/**
+	 * Take ownership of a space this factory did not create — one a test made
+	 * through the UI — so it is destroyed along with the rest. Give the space an
+	 * `uniqueRoute()` when creating it, and the global sweeper becomes a backstop
+	 * for it too.
+	 */
+	adopt(spaceName: string): void {
+		this.adopted.push(spaceName);
+	}
+
+	/**
 	 * Destroy everything seeded through this factory.
 	 *
 	 * Spaces are resolved by route rather than by the create response, so a space
@@ -208,8 +219,10 @@ export class WikiFactory {
 	 * created through the UI goes with it.
 	 */
 	async destroyAll(): Promise<void> {
-		const routes = this.routes.splice(0);
-		for (const route of routes) {
+		for (const name of this.adopted.splice(0)) {
+			await deleteDoc(this.request, 'Wiki Space', name).catch(() => {});
+		}
+		for (const route of this.routes.splice(0)) {
 			await destroySpacesByRoute(this.request, route);
 		}
 	}
