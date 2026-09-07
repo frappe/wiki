@@ -1,13 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { getDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import {
-	type WikiDocument,
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	createTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import type { SeededPage, SeededSpace } from '../helpers/factory';
 
 /**
  * Page settings panel (per-page SEO meta fields).
@@ -20,35 +12,12 @@ import {
  * and falls back to the page title when the fields are cleared.
  */
 test.describe('Page settings meta fields', () => {
-	const route = `meta-fields-${Date.now()}`;
-	let space: WikiSpace;
-	let doc: WikiDocument;
+	let space: SeededSpace;
+	let doc: SeededPage;
 
-	test.beforeAll(async ({ request }) => {
-		// createTestWikiSpace auto-creates a root_group document
-		// (Wiki Space.before_insert) when one isn't supplied — reuse it as the
-		// page's parent instead of creating a second one. Wiki_space on a
-		// document gets re-stamped from the tree (walking parent_wiki_document
-		// up to the space's root_group), so a page parented outside that tree
-		// would end up with a stale wiki_space and get orphaned by the space's
-		// on_trash cascade delete.
-		space = await createTestWikiSpace(request, { route, is_published: true });
-		const spaceDoc = await getDoc<{ root_group: string }>(
-			request,
-			'Wiki Space',
-			space.name,
-		);
-		doc = await createTestWikiDocument(request, {
-			title: 'Meta Fields Page',
-			route: `${route}/meta-page`,
-			is_published: true,
-			wiki_space: space.name,
-			parent_wiki_document: spaceDoc.root_group,
-		});
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, route);
+	test.beforeAll(async ({ wikiSuite }) => {
+		space = await wikiSuite.space({ pages: [{ title: 'Meta Fields Page' }] });
+		doc = space.page('Meta Fields Page');
 	});
 
 	test('saves meta fields from the panel, persists them, and reflects on the public page', async ({
@@ -58,7 +27,7 @@ test.describe('Page settings meta fields', () => {
 		const metaDescription = 'A hand-written meta description for e2e coverage.';
 
 		await page.setViewportSize({ width: 1200, height: 900 });
-		await page.goto(appUrl('spaces', space.name, 'page', doc.name));
+		await page.goto(space.url('page', doc.name));
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
@@ -125,7 +94,7 @@ test.describe('Page settings meta fields', () => {
 		// Clear both fields — the public page must fall back to the page
 		// title in og:title, and drop the now-empty description tag rather
 		// than emit an empty one.
-		await page.goto(appUrl('spaces', space.name, 'page', doc.name));
+		await page.goto(space.url('page', doc.name));
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
