@@ -1,4 +1,6 @@
-import { type Page, expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import { type WikiFactory, uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
@@ -52,10 +54,16 @@ declare global {
 const CR_METHOD_PREFIX =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
-async function createSpaceViaUI(
-	page: import('@playwright/test').Page,
-	{ name, route }: { name: string; route: string },
-) {
+/**
+ * Build a space through the New Space dialog.
+ *
+ * These specs need the store hydrated exactly the way the app hydrates it, so
+ * the dialog is load-bearing here and the API factory cannot stand in. The
+ * factory still adopts the result, so the space is torn down with the test.
+ */
+async function createSpaceViaUI(page: Page, wiki: WikiFactory) {
+	const route = uniqueRoute('local-first');
+	const name = route;
 	await page.goto(appUrl('spaces'));
 	await page.waitForLoadState('networkidle');
 	await page.getByRole('button', { name: 'New Space' }).click();
@@ -76,13 +84,11 @@ async function createSpaceViaUI(
 		timeout: 10000,
 	});
 	const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
+	wiki.adopt(spaceId);
 	return { spaceId };
 }
 
-async function createPageViaUI(
-	page: import('@playwright/test').Page,
-	title: string,
-) {
+async function createPageViaUI(page: Page, title: string) {
 	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
@@ -91,14 +97,13 @@ async function createPageViaUI(
 test.describe('Local-first draft workspace', () => {
 	test('delayed apply_cr_operations create: page appears immediately and content survives promotion', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Delay Create Space ${timestamp}`;
-		const spaceRoute = `delay-create-space-${timestamp}`;
 		const pageTitle = `delay-create-page-${timestamp}`;
 		const typedContent = `Typed before backend confirmed ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 
 		// Inject 2.5s of latency on apply_cr_operations so the optimistic UI
 		// is observable for the full duration before the temp key is promoted.
@@ -155,14 +160,13 @@ test.describe('Local-first draft workspace', () => {
 
 	test('failed apply_cr_operations save: content stays visible and submit is blocked', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Fail Update Space ${timestamp}`;
-		const spaceRoute = `fail-update-space-${timestamp}`;
 		const pageTitle = `fail-update-page-${timestamp}`;
 		const typedContent = `Should survive failed save ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -220,14 +224,13 @@ test.describe('Local-first draft workspace', () => {
 
 	test('Reload latest after a failed save clears the conflict and re-enables Submit', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Reload Latest Space ${timestamp}`;
-		const spaceRoute = `reload-latest-space-${timestamp}`;
 		const pageTitle = `reload-latest-page-${timestamp}`;
 		const typedContent = `Will fail to save ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -296,14 +299,13 @@ test.describe('Local-first draft workspace', () => {
 
 	test('typing in editor reports unsaved content until the change is flushed to the CR', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Dirty Editor Space ${timestamp}`;
-		const spaceRoute = `dirty-editor-space-${timestamp}`;
 		const pageTitle = `dirty-editor-page-${timestamp}`;
 		const typedContent = `Must not be dropped by submit ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -356,18 +358,14 @@ test.describe('Local-first draft workspace', () => {
 	test('navigating away from dirty content auto-saves it', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Navigate Dirty Space ${timestamp}`;
-		const spaceRoute = `navigate-dirty-space-${timestamp}`;
 		const firstTitle = `navigate-first-page-${timestamp}`;
 		const secondTitle = `navigate-second-page-${timestamp}`;
 		const typedContent = `Must survive document navigation ${timestamp}`;
 
-		const { spaceId } = await createSpaceViaUI(page, {
-			name: spaceName,
-			route: spaceRoute,
-		});
+		const { spaceId } = await createSpaceViaUI(page, wiki);
 		const draft = await callMethod<{ name: string }>(
 			request,
 			`${CR_METHOD_PREFIX}.get_or_create_draft_change_request`,
@@ -436,15 +434,14 @@ test.describe('Local-first draft workspace', () => {
 
 	test('typing then undoing back to saved content clears the unsaved state without a redundant save', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Undo Editor Space ${timestamp}`;
-		const spaceRoute = `undo-editor-space-${timestamp}`;
 		const pageTitle = `undo-editor-page-${timestamp}`;
 		const baselineContent = `Baseline ${timestamp}`;
 		const transientContent = `Transient typing ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -500,17 +497,13 @@ test.describe('Local-first draft workspace', () => {
 	test('dirty content on an existing published page survives browser refresh', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Published Persist Space ${timestamp}`;
-		const spaceRoute = `published-persist-space-${timestamp}`;
 		const pageTitle = `published-persist-page-${timestamp}`;
 		const typedContent = `Existing page survives refresh ${timestamp}`;
 
-		const { spaceId } = await createSpaceViaUI(page, {
-			name: spaceName,
-			route: spaceRoute,
-		});
+		const { spaceId } = await createSpaceViaUI(page, wiki);
 		const initialDraft = await callMethod<{ name: string }>(
 			request,
 			`${CR_METHOD_PREFIX}.get_or_create_draft_change_request`,
@@ -578,14 +571,13 @@ test.describe('Local-first draft workspace', () => {
 
 	test('dirty editor content survives a browser refresh via IndexedDB', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Persist Space ${timestamp}`;
-		const spaceRoute = `persist-space-${timestamp}`;
 		const pageTitle = `persist-page-${timestamp}`;
 		const typedContent = `Survives a refresh ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -646,14 +638,13 @@ test.describe('Local-first draft workspace', () => {
 
 	test('a persisted draft identical to the server self-heals instead of gating Submit', async ({
 		page,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Phantom Draft Space ${timestamp}`;
-		const spaceRoute = `phantom-draft-space-${timestamp}`;
 		const pageTitle = `phantom-draft-page-${timestamp}`;
 		const savedContent = `Already on the server ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
@@ -765,14 +756,13 @@ test.describe('Local-first draft workspace', () => {
 	test('a restored draft matching normalized server markdown self-heals after editor mount', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Normalized Draft Space ${timestamp}`;
-		const spaceRoute = `normalized-draft-space-${timestamp}`;
 		const pageTitle = `normalized-draft-page-${timestamp}`;
 		const rawServerContent = `Line A ${timestamp}\nLine B`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForFunction(
@@ -847,15 +837,14 @@ test.describe('Local-first draft workspace', () => {
 	test('saving again while the first save is in flight persists the latest content', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Queued Save Space ${timestamp}`;
-		const spaceRoute = `queued-save-space-${timestamp}`;
 		const pageTitle = `queued-save-page-${timestamp}`;
 		const firstContent = `First save ${timestamp}`;
 		const latestContent = `Latest save ${timestamp}`;
 
-		await createSpaceViaUI(page, { name: spaceName, route: spaceRoute });
+		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForFunction(
@@ -912,19 +901,15 @@ test.describe('Local-first draft workspace', () => {
 	test('delayed reorder: visual order stays stable across slow sync', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const timestamp = Date.now();
-		const spaceName = `Delay Reorder Space ${timestamp}`;
-		const spaceRoute = `delay-reorder-space-${timestamp}`;
 		const groupTitle = `Reorder Group ${timestamp}`;
 		const pageTitles = ['1', '2', '3', '4'].map(
 			(n) => `Reorder Page ${n} ${timestamp}`,
 		);
 
-		const { spaceId } = await createSpaceViaUI(page, {
-			name: spaceName,
-			route: spaceRoute,
-		});
+		const { spaceId } = await createSpaceViaUI(page, wiki);
 
 		// Seed a group with 4 pages directly via the existing CR APIs so the
 		// test focuses on the reorder behaviour, not creation.
