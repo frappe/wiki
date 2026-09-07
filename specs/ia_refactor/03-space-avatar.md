@@ -1,8 +1,8 @@
 # Space Avatar: Upload, Icon or Generated Art
 
 Date: 2026-09-01, rewritten 2026-09-07
-Status: **Planned.** Renders in spec 01's sidebar; the picker lives in spec 02's
-settings dialog, which has landed.
+Status: **Done** (2026-09-07). Renders in spec 01's sidebar; the picker lives in
+spec 02's settings dialog.
 Reference implementation: `apps/bwh_hive` — `frontend/src/lib/dicebear.ts`,
 `components/common/IdentityAvatar.vue`, `components/common/IdentityPicker.vue`.
 
@@ -131,3 +131,4 @@ overview rows, the public reader header, and the generated social card.
 - 2026-09-07 — Phases 1 and 2 built: the fields, `SpaceAvatar`, `SpaceIdentityPicker`, and the generator behind Shuffle. `disco` dropped on measurement; the credit line dropped on review.
 - 2026-09-07 — Phase 3 built: `wiki.utils.space_mark` ports the resolution to Python, a `render_space_mark` macro draws it in both headers and the switcher rows, and the social card draws a generated mark or an icon square (TEMPLATE_VERSION 7, ten new palette tokens under the drift test).
 - 2026-09-07 — Phase 4 built: the picker emits a patch instead of saving, so the create dialog reuses it whole and rolls a mark when it opens.
+- 2026-09-07 — Phase 5 built: `e2e/tests/space-logo-picker.spec.ts`. It caught a real one: each patch names all five fields, so a colour save still in flight committed after the icon save and wiped the icon. The picker now builds every patch from the last choice rather than from the caller's copy, and the settings panel chains its writes.

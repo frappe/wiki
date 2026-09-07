@@ -9,7 +9,7 @@
 				:aria-label="__('Change space logo')"
 				data-testid="space-identity-trigger"
 			>
-				<SpaceAvatar :space="identity" :label="label" size="2xl" />
+				<SpaceAvatar :space="chosen" :label="label" size="2xl" />
 			</button>
 		</template>
 
@@ -155,10 +155,32 @@ const uploading = ref(false);
 const fileInput = ref(null);
 const fileUploader = useFileUpload();
 
-const mark = computed(() => resolveSpaceIdentity(props.identity));
-const logo = computed(() => props.identity.app_switcher_logo || '');
-const icon = computed(() => props.identity.space_icon || '');
+/**
+ * What the user has chosen since the popover opened, over what the caller has.
+ * Every patch is built from this rather than from `identity`: a caller that
+ * saves asynchronously has not echoed the last choice back yet, so picking a
+ * colour and then an icon would otherwise send an icon patch carrying the old
+ * colour — and the colour patch, built when there was no icon, carries an
+ * empty `space_icon` that lands last and wipes the icon.
+ *
+ * Dropped when the popover closes, so a change made anywhere else shows up.
+ */
+const pending = ref({});
+
+const chosen = computed(() => ({ ...props.identity, ...pending.value }));
+const mark = computed(() => resolveSpaceIdentity(chosen.value));
+const logo = computed(() => chosen.value.app_switcher_logo || '');
+const icon = computed(() => chosen.value.space_icon || '');
 const color = computed(() => mark.value.color);
+
+function choose(patch) {
+	pending.value = { ...pending.value, ...patch };
+	emit('update', patch);
+}
+
+watch(open, (isOpen) => {
+	if (!isOpen) pending.value = {};
+});
 
 // The tile that is showing is the tab you land on. A space that has never been
 // given a mark opens on Icon, which is the one that can produce one in a click.
@@ -174,11 +196,11 @@ watch(
 // Colour is a one-click tweak you may want to repeat, so only the icon — the
 // choice that finishes the job — closes the popover.
 function pickColor(swatch) {
-	emit('update', generatedIdentityPatch({ icon: icon.value, color: swatch }));
+	choose(generatedIdentityPatch({ icon: icon.value, color: swatch }));
 }
 
 function pickIcon(next) {
-	emit('update', generatedIdentityPatch({ icon: next, color: color.value }));
+	choose(generatedIdentityPatch({ icon: next, color: color.value }));
 	open.value = false;
 }
 
@@ -190,7 +212,7 @@ function pickIcon(next) {
 async function shuffle() {
 	rolling.value = true;
 	try {
-		emit('update', generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
+		choose(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
 	} catch (error) {
 		console.error('Could not generate a space mark', error);
 		toast.error(__('Could not generate a logo'));
@@ -200,12 +222,12 @@ async function shuffle() {
 }
 
 function useLogo() {
-	emit('update', generatedIdentityPatch({}));
+	choose(generatedIdentityPatch({}));
 	open.value = false;
 }
 
 function removeLogo() {
-	emit('update', { app_switcher_logo: '' });
+	choose({ app_switcher_logo: '' });
 }
 
 function pickFile() {
@@ -228,7 +250,7 @@ async function handleFileChange(event) {
 		});
 		// An upload is the one direction that clears: it is an explicit choice
 		// of this image over whatever mark was generated before.
-		emit('update', {
+		choose({
 			...generatedIdentityPatch({}),
 			app_switcher_logo: result.file_url,
 		});
