@@ -73,9 +73,11 @@
 										@blur="saveTitleIfChanged"
 										@keydown.enter="$event.target.blur()"
 									/>
+									<!-- The only mark on the title: content has diverged from
+									     the last confirmed save and autosave has yet to catch
+									     up. Publish state and route are the settings panel's to
+									     report, next to the fields that change them. -->
 									<div class="flex shrink-0 items-center gap-2 pt-2">
-										<!-- The unsaved mark: content has diverged from the last
-										     confirmed save and autosave has yet to catch up. -->
 										<span
 											v-if="isPageDirty"
 											class="size-2 rounded-full bg-surface-amber-4"
@@ -83,28 +85,7 @@
 											:aria-label="__('Unsaved changes')"
 											role="status"
 										/>
-										<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-											{{ __('Published') }}
-										</Badge>
-										<Badge v-else variant="subtle" theme="amber" size="sm">
-											{{ __('Not Published') }}
-										</Badge>
-										<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-											{{ __('Has Draft Changes') }}
-										</Badge>
 									</div>
-								</div>
-
-								<!-- Route under the title; opens the settings panel that owns
-							     the field, unless the page is read-only. -->
-								<div
-									class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
-									:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
-									:title="readonly ? null : __('Change route')"
-									@click="readonly ? null : openPageSettings()"
-								>
-									<span class="font-mono truncate">/{{ displayRoute }}</span>
-									<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 								</div>
 							</div>
 						</template>
@@ -378,12 +359,6 @@ const activePage = computed(() => {
 	return docKey ? draftStore.pagesByKey[docKey] : null;
 });
 
-const hasChangeForCurrentPage = computed(() => {
-	const docKey = wikiDoc.value.doc?.doc_key;
-	if (!docKey) return false;
-	return Boolean(crStore.changes.some((change) => change.doc_key === docKey));
-});
-
 const editorContent = computed(() => {
 	if (activePage.value?.localContent != null) {
 		return activePage.value.localContent;
@@ -429,7 +404,6 @@ const displayRoute = computed(() => {
 // the toggle that owns it lives in this header.
 const {
 	isOpen: showPageSettings,
-	open: openPageSettings,
 	close: closePageSettings,
 	toggle: togglePageSettings,
 } = usePageSettingsPanel();

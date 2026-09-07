@@ -7,7 +7,7 @@
 	<aside
 		v-if="variant === 'rail'"
 		ref="rootRef"
-		class="pointer-events-none absolute inset-y-0 right-0 w-[180px] py-6 pr-4"
+		class="pointer-events-none absolute inset-y-0 right-0 w-[208px] py-6 pr-4"
 		data-testid="editor-toc-rail"
 	>
 		<nav

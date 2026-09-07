@@ -9,6 +9,7 @@ import {
 	clickSidebarAddOption,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -101,7 +102,7 @@ Beta sub content.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
@@ -156,7 +157,7 @@ Epsilon content here.`;
 		await editor.click();
 		await page.waitForTimeout(500);
 
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 

@@ -62,10 +62,15 @@ export async function clickSidebarAddOption(
 
 /**
  * The sidebar's own "New page" button, which renders whether or not the space
- * already has pages.
+ * already has pages. Scoped to the sidebar: an empty space draws a second
+ * "New page" in the content column (spec 02 phase 5), so the name alone is
+ * ambiguous there. The mobile tree lives in a drawer that is an aside too.
  */
 export function newPageButton(page: Page) {
-	return page.getByRole('button', { name: 'New page', exact: true });
+	return page
+		.getByRole('complementary')
+		.getByRole('button', { name: 'New page', exact: true })
+		.first();
 }
 
 /**

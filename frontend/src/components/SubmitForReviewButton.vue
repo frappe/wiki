@@ -6,13 +6,14 @@
 		v-if="visible"
 		v-bind="$attrs"
 		:variant="variant"
+		:theme="theme"
 		:size="size"
 		:loading="crStore.isSubmitting"
 		:disabled="submitDisabled"
 		:title="submitButtonTitle"
 		@click="showConfirmDialog = true"
 	>
-		{{ __('Submit for Review') }}
+		{{ __('Submit for review') }}
 	</Button>
 
 	<Dialog v-model:open="showConfirmDialog" size="sm">
@@ -23,7 +24,7 @@
 					aria-hidden="true"
 				/>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Submit for Review') }}
+					{{ __('Submit for review') }}
 				</h3>
 			</div>
 		</template>
@@ -69,6 +70,10 @@ defineProps({
 	variant: {
 		type: String,
 		default: 'solid',
+	},
+	theme: {
+		type: String,
+		default: 'gray',
 	},
 	size: {
 		type: String,

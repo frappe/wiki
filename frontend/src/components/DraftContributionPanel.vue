@@ -47,15 +47,6 @@
 									</Badge>
 								</div>
 							</div>
-
-							<!-- Route under the title, where an already-merged page keeps it. -->
-							<div
-								class="mt-2 flex w-fit cursor-pointer items-center gap-1 text-sm text-ink-gray-5 hover:text-ink-gray-7 group/route"
-								@click="openRouteDialog"
-							>
-								<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
-								<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-							</div>
 						</div>
 					</template>
 				</WikiEditor>
@@ -76,14 +67,6 @@
 							<Badge variant="subtle" theme="blue" size="sm">{{ __('Draft') }}</Badge>
 							<Badge variant="subtle" theme="gray" size="sm">{{ __('Group') }}</Badge>
 						</div>
-					</div>
-
-					<div
-						class="mt-2 flex w-fit cursor-pointer items-center gap-1 text-sm text-ink-gray-5 hover:text-ink-gray-7 group/route"
-						@click="openRouteDialog"
-					>
-						<span class="font-mono truncate">/{{ crPage.route || '' }}</span>
-						<span class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 					</div>
 				</div>
 				<div class="flex-1 flex items-center justify-center text-ink-gray-5">

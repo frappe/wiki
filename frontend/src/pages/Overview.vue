@@ -108,14 +108,17 @@
 						</router-link>
 					</div>
 
-					<Button
-						v-if="spaces.hasNextPage"
-						class="mt-2 w-full"
-						variant="ghost"
-						:label="__('Load more')"
-						:loading="spaces.loading"
-						@click="spaces.next()"
-					/>
+					<!-- The directory pages in fifties, so this button lands under a
+					     long list and needs to read as a control rather than as one
+					     more line of it. -->
+					<div v-if="spaces.hasNextPage" class="mt-6 flex justify-center">
+						<Button
+							variant="subtle"
+							:label="__('Load more')"
+							:loading="spaces.loading"
+							@click="spaces.next()"
+						/>
+					</div>
 				</template>
 			</div>
 		</ScrollArea>

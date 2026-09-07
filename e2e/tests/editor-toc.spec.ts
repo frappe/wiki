@@ -8,14 +8,17 @@ import { cleanupWikiSpacesByRoute, openNewPageDialog } from '../helpers/wiki';
  * specs cover the two things that makes possible: entries that track the
  * document as it is typed, and click-to-scroll inside the editor.
  *
- * The rail collapses to a strip below 900px of editor width, so the narrow
- * case is exercised by resizing the viewport rather than by a phone project —
- * the breakpoint is on the editor element, not the device.
+ * The rail collapses to a strip below 1008px of editor width — the 768px prose
+ * column plus the gutter the rail is given — so the narrow case is exercised by
+ * resizing the viewport rather than by a phone project: the breakpoint is on
+ * the editor element, not the device.
  */
 
-// The breakpoint is on the editor element, which loses ~520px to the app nav
-// and the page tree — hence the gap between these two viewports.
+// The breakpoint is on the editor element, which loses ~260px to the space
+// sidebar — hence the gap between these viewports. LAPTOP is the tightest
+// window that still earns the rail (1280 - 261 = 1019 >= 1008).
 const WIDE = { width: 1440, height: 900 };
+const LAPTOP = { width: 1280, height: 800 };
 const NARROW = { width: 1000, height: 900 };
 const PHONE = { width: 375, height: 667 };
 
@@ -164,6 +167,26 @@ test.describe('Editor table of contents', () => {
 
 		// The entry you jumped to becomes the active one.
 		await expect(usage).toHaveClass(/text-ink-gray-9/);
+	});
+
+	test('keeps the rail on a 1280px laptop', async ({ page }) => {
+		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+		await seedEditor(page, SEED_HTML);
+
+		await page.setViewportSize(LAPTOP);
+
+		const rail = page.locator('[data-testid="editor-toc-rail"]');
+		await expect(rail).toBeVisible();
+		await expect(page.locator('[data-testid="editor-toc-strip"]')).toHaveCount(
+			0,
+		);
+
+		// The rail is given its own gutter, so it must not sit over the prose.
+		const railBox = await rail.boundingBox();
+		const proseBox = await page.locator('.ProseMirror').boundingBox();
+		expect(railBox).not.toBeNull();
+		expect(proseBox).not.toBeNull();
+		expect(proseBox.x + proseBox.width).toBeLessThanOrEqual(railBox.x);
 	});
 
 	test('falls back to a collapsible strip when the editor is too narrow', async ({

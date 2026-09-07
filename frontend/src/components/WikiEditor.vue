@@ -5,10 +5,12 @@
                  making it a flex child would strand it above one column. -->
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
             <EditorTableOfContents v-if="showTocStrip" :editor="editor" variant="strip" />
-            <!-- The prose column is centred on the whole content width, not on
-                 what the outline leaves behind: the outline floats over the
-                 right gutter so the column never shifts when it appears. -->
-            <div class="relative">
+            <!-- The outline gets a gutter of its own rather than floating over
+                 a centred column's leftovers: the padding reserves it, and the
+                 column re-centres in what remains. The column shifts when the
+                 outline appears, which is what buys it back on a 1280px
+                 screen — floating over both gutters needed 1400. -->
+            <div class="relative" :class="showTocRail ? 'pr-60' : ''">
                 <div class="mx-auto w-full max-w-3xl px-6">
                     <slot name="title" />
                     <EditorContent :editor="editor" :class="contentClass" />
@@ -696,11 +698,13 @@ const contentClass = [
 ];
 
 // The editor's width is the viewport minus the app nav, so a viewport media
-// query would measure the wrong box — watch the element instead. The rail
-// floats over the gutter now rather than taking a column of its own, so the
-// threshold is what it takes to have a gutter to float in: the 768px prose
-// column plus a rail's width on each side. Below it the strip takes over.
-const TOC_RAIL_MIN_WIDTH = 1140;
+// query would measure the wrong box — watch the element instead. The rail is
+// given its gutter rather than floating over whatever the centred column
+// leaves behind, so the threshold is the 768px prose column plus that one
+// reserve — not a rail's width on each side, which needed a 1400px window.
+// Below it the strip takes over.
+const TOC_RAIL_RESERVE = 240;
+const TOC_RAIL_MIN_WIDTH = 768 + TOC_RAIL_RESERVE;
 const { width: containerWidth } = useElementSize(containerRef);
 const showTocRail = computed(
 	() => props.showOutline && containerWidth.value >= TOC_RAIL_MIN_WIDTH,
