@@ -40,11 +40,17 @@ test.describe('Editable page route', () => {
 		await expect(routeField).toHaveValue(customRoute);
 
 		await dialog.getByRole('button', { name: 'Save' }).click();
-		await page.waitForLoadState('networkidle');
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
 
-		// The draft panel reports the route the author chose, not a derived one.
-		await expect(page.locator(`text=/${customRoute}`).first()).toBeVisible({
-			timeout: 10000,
-		});
+		// The draft carries the route the author chose, not one derived from the
+		// title they typed last. A draft lives only in the local-first store
+		// until it is merged, so there is no document to query — the tree's
+		// search, which matches a page's route as well as its title, is what
+		// can see it.
+		const search = page.getByPlaceholder('Search pages...');
+		await search.fill(customRoute);
+		await expect(
+			page.locator('aside').getByText('Route Gamma', { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 	});
 });
