@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import { uniqueRoute } from '../helpers/factory';
 import { getList } from '../helpers/frappe';
 import {
 	APP_BASE,
@@ -8,8 +9,6 @@ import {
 	spaceLinkSelector,
 } from '../helpers/routes';
 import {
-	cleanupWikiSpacesByRoute,
-	createTestWikiSpace,
 	currentDraftDocKey,
 	newPageButton,
 	openNewPageDialog,
@@ -27,15 +26,6 @@ interface WikiDocumentRoute {
  * For public-facing page tests (TOC, sidebar), see public-pages.spec.ts
  */
 test.describe('Wiki Editor', () => {
-	// Spaces created via API for tests that need a clean, isolated space rather
-	// than reusing whatever "first available space" happens to exist.
-	const createdRoutes: string[] = [];
-	test.afterAll(async ({ request }) => {
-		for (const route of createdRoutes) {
-			await cleanupWikiSpacesByRoute(request, route);
-		}
-	});
-
 	test('should display wiki spaces list', async ({ page }) => {
 		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
@@ -50,7 +40,7 @@ test.describe('Wiki Editor', () => {
 		await expect(spacesContainer.first()).toBeVisible();
 	});
 
-	test('should create a new wiki space via UI', async ({ page }) => {
+	test('should create a new wiki space via UI', async ({ page, wiki }) => {
 		await page.goto(APP_BASE);
 		await page.waitForLoadState('networkidle');
 
@@ -61,7 +51,7 @@ test.describe('Wiki Editor', () => {
 		const dialog = page.locator('[role="dialog"]').first();
 		await dialog.waitFor({ state: 'visible' });
 
-		const spaceName = `Test Space ${Date.now()}`;
+		const spaceName = uniqueRoute('test-space');
 		await dialog.locator('input[type="text"]').first().fill(spaceName);
 
 		// Wait for route to auto-populate from space name
@@ -77,6 +67,7 @@ test.describe('Wiki Editor', () => {
 		// In change-request mode the name lives in the top banner rather than the
 		// tree aside; the timestamped name is unique, so match it page-wide.
 		await expect(page).toHaveURL(SPACE_URL_RE, { timeout: 10000 });
+		wiki.adopt(page.url().split('/spaces/')[1].split(/[/?#]/)[0]);
 		await expect(
 			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
@@ -85,15 +76,11 @@ test.describe('Wiki Editor', () => {
 	test('should navigate to space and create a wiki page', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		// Create a dedicated, empty space rather than reusing whatever space
-		// happens to be first — that shared space can carry an in-progress draft
-		// from another test, which made this flaky.
-		const spaceRoute = `create-page-${Date.now()}`;
-		createdRoutes.push(spaceRoute);
-		const space = await createTestWikiSpace(request, { route: spaceRoute });
+		const space = await wiki.space();
 
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('aside')).toBeVisible();
 
@@ -129,14 +116,12 @@ test.describe('Wiki Editor', () => {
 		await expect(page.getByText(pageTitle).first()).toBeVisible();
 	});
 
-	test('should have New Page button in space sidebar', async ({ page }) => {
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+	test('should have New Page button in space sidebar', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Should have sidebar with space management buttons
@@ -149,14 +134,10 @@ test.describe('Wiki Editor', () => {
 
 	test('should open wiki editor when clicking page in sidebar', async ({
 		page,
+		wiki,
 	}) => {
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the sidebar to load.
@@ -191,14 +172,10 @@ test.describe('Wiki Editor', () => {
 	test('should publish page and view it on public route', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Create a new page with specific title and content
