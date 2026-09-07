@@ -1,7 +1,8 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **Planned.** Depends on spec 01 (sidebar drill-in).
+Status: **In progress.** Phase 1 (header row) built; phases 2–5 pending.
+Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.
 
@@ -98,3 +99,32 @@ Commit per phase; reconcile spec after each.
 
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-07 — Phase 1 built: the editor header row.
+
+### Phase 1 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 6 — the header stops offering Save | Save is still in the header, demoted to `subtle` | The dirty dot that replaces it lands with the prose column (phase 2). Removing Save now would leave autosave with no visible signal in the content column, and would break ~20 e2e specs a phase earlier than the dot that lets them be rewritten. |
+| 2 | Decision 2 — "one store action, two triggers" | One *component*: `SubmitForReviewButton.vue`, rendered by both the strip and the header | The confirm dialog is part of the action. Sharing only the store call would have duplicated the dialog; sharing open-state between two components would have made the header depend on the strip being mounted. |
+| 3 | Decision 1 — more-menu carries Rename, Change route, Unpublish, Delete | Also Page settings and (for managers) View in Desk | Both already lived in this menu. Page settings leaves the menu in phase 3, when it becomes a header toggle for the side panel. |
+| 4 | Rename | Its own dialog, not focus-into-the-title-input | Reusing the inline title input was tried first: the dropdown restores focus to its trigger as it closes, and it wins against a `requestAnimationFrame` chain. A dialog matches the tree's rename and needs no focus race. |
+| 5 | Decision 1 — git-synced shows "Edit on GitHub" + Read-only badge | Shipped; the GitHub entry left the more-menu | Two triggers for one action a few inches apart. `githubEditUrl` is non-null only for synced spaces, which are exactly the read-only ones. |
+| 6 | — | Delete redirects to the space route | The deleted page is the open one, so the editor would be pointing at nothing. `SpaceDetails` auto-opens the next page it can find. |
+
+Verified in the browser at 1440×900: the header renders breadcrumbs · View live
+· Save · Submit for Review · ⋯; Submit appears in both the header and the strip
+once the space has a pending change; rename through the menu updates the title
+input, the breadcrumb and the tree; delete writes a delete draft and hands the
+route back to the space, which opens the next page. Unit suite 74 pass; lint and
+build pass on the touched files.
+
+Two gaps this phase leaves:
+
+- **`DraftContributionPanel` still has the old header.** A page created in the
+  draft workspace opens on the draft route, whose panel is a different
+  component with its own Save-only header. The two now disagree. Folding it in
+  belongs with phase 2, which touches the same prose column.
+- **No e2e yet.** The header's shape still changes twice (Save leaves in phase
+  2, the page-settings toggle arrives in phase 3), so the specs the "Regression
+  tests" section asks for are written once it settles.
