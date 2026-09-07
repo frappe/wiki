@@ -1,9 +1,8 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **In progress.** Phases 1–5 built (header row, prose column +
-outline, page settings panel, space settings tabs, empty states); phase 6 — the
-alignment pass against the prototype — pending.
+Status: **Done.** All six phases built (header row, prose column + outline,
+page settings panel, space settings tabs, empty states, alignment pass).
 Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.

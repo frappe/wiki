@@ -2,7 +2,8 @@
 
 Date: 2026-09-01
 Status: **In progress.** Spec 1 is built (all seven phases) and spec 2 is built
-(all five); specs 3–4 are written and unstarted.
+(all six, including the alignment pass against the prototype); specs 3–4 are
+written and unstarted.
 
 Source of truth for the target design: the **`wiki-proto`** Sketch prototype
 (https://sketch.netchamp.dev/u/nagariahussain/wiki-proto). Every spec in this
