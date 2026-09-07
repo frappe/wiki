@@ -47,8 +47,9 @@
 			<SpaceModeStrip />
 
 			<!-- Sidebar is a flex column, so the tree needs a sized track to scroll
-			     inside rather than the sidebar's full height. -->
-			<div class="flex min-h-0 flex-1 flex-col">
+			     inside rather than the sidebar's full height.
+			     `relative` is the floating notice's positioning context. -->
+			<div class="relative flex min-h-0 flex-1 flex-col">
 				<SpaceTreePanel
 					:space-id="spaceId"
 					:space-name="spaceStore.doc?.space_name"
@@ -64,8 +65,29 @@
 					@refresh="spaceStore.refreshTree"
 					@reorder-state-change="spaceStore.setTreeReordering"
 				/>
+
+				<!-- TEMPORARY placement B: overlaid near the bottom edge, clear of
+				     the New page footer. Takes no layout space at all. -->
+				<div
+					v-if="syncAlertPlacement === 'float'"
+					class="pointer-events-none absolute inset-x-2 bottom-14 z-10"
+				>
+					<SyncStateAlert class="pointer-events-auto shadow-md" />
+				</div>
+			</div>
+
+			<!-- TEMPORARY placement A: the sidebar's last row. It takes its height
+			     from the tree's scroller, so the tree's top edge never moves. -->
+			<div
+				v-if="syncAlertPlacement === 'below'"
+				class="shrink-0 border-t border-outline-gray-2 p-2"
+			>
+				<SyncStateAlert />
 			</div>
 		</Sidebar>
+
+		<!-- TEMPORARY — delete with lib/syncAlertPlacement.js. -->
+		<SyncAlertPlacementSwitcher />
 	</aside>
 </template>
 
@@ -73,13 +95,17 @@
 import { Button, Dropdown, Sidebar } from 'frappe-ui';
 import { computed } from 'vue';
 
-import { useSpaceSettings } from '../composables/useSpaceSettings';
-import { useSpaceStore } from '../stores/space';
 import { useSpaceIdentitySaver } from '../composables/useSpaceIdentitySaver.js';
+import { useSpaceSettings } from '../composables/useSpaceSettings';
+import { syncAlertPlacement } from '../lib/syncAlertPlacement';
+import { useSpaceStore } from '../stores/space';
 import SpaceAvatar from './SpaceAvatar.vue';
 import SpaceIdentityPicker from './SpaceIdentityPicker.vue';
 import SpaceModeStrip from './SpaceModeStrip.vue';
 import SpaceTreePanel from './SpaceTreePanel.vue';
+// TEMPORARY — remove together with lib/syncAlertPlacement.js.
+import SyncAlertPlacementSwitcher from './SyncAlertPlacementSwitcher.vue';
+import SyncStateAlert from './SyncStateAlert.vue';
 
 const props = defineProps({
 	spaceId: { type: String, required: true },

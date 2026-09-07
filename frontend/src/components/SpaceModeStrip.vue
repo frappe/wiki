@@ -88,16 +88,12 @@
 			</p>
 
 			<!-- The sync state is a notice, not a label on the change request, so
-			     it gets the shape frappe-ui gives notices. It carries its own
-			     error text as a description rather than hiding it in a `title`
-			     attribute nobody hovers. -->
-			<Alert
-				v-if="syncStateLabel"
+			     it gets the shape frappe-ui gives notices. Whether it belongs
+			     here — where it pushes the tree down as it comes and goes — is
+			     what the placement switch is for. -->
+			<SyncStateAlert
+				v-if="syncAlertPlacement === 'card'"
 				class="mt-2"
-				data-testid="sync-state-alert"
-				:title="syncStateLabel"
-				:description="syncStateTitle || undefined"
-				:theme="syncStateTheme"
 			/>
 
 			<Button
@@ -270,23 +266,18 @@
 </template>
 
 <script setup>
-import {
-	Alert,
-	Badge,
-	Button,
-	Dialog,
-	Dropdown,
-	dayjsLocal,
-	toast,
-} from 'frappe-ui';
+import { Badge, Button, Dialog, Dropdown, dayjsLocal, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
+// TEMPORARY — remove with SyncAlertPlacementSwitcher.
+import { syncAlertPlacement } from '../lib/syncAlertPlacement';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 import { useUserStore } from '../stores/user';
+import SyncStateAlert from './SyncStateAlert.vue';
 
 const {
 	getChangeIcon,
@@ -331,44 +322,6 @@ const readonlyLine = computed(() => {
 // within the 10s autosave window, sending the previous content. Reorder
 // counts as pending too via isTreeReordering.
 const hasUnsyncedWork = computed(() => Boolean(draftStore.finalizationBlocker));
-// Durable sync indicator. Replaces per-edit success toasts: while the
-// store is mid-flight or has failures, this alert is the source of truth.
-// "Unsaved changes" is a distinct state from "Saving…" — the latter
-// implies an in-flight RPC, while the former covers the autosave
-// debounce window where no save has even started. Conflating them
-// reads as dishonest UI per specs/local_first_editor_migration_step_1.md.
-// A settled draft says nothing at all: "All changes saved" is the state the
-// user already assumes, and a permanent pill under the change request is one
-// more thing to read every time they look at the sidebar. The alert is for
-// the states that are not the assumption.
-const syncStateLabel = computed(() => {
-	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
-		return __('Sync failed');
-	}
-	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
-		return __('Saving…');
-	}
-	if (draftStore.hasUnsavedEditorContent) {
-		return __('Unsaved changes');
-	}
-	return '';
-});
-const syncStateTheme = computed(() => {
-	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
-		return 'red';
-	}
-	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
-		return 'amber';
-	}
-	return 'gray';
-});
-const syncStateTitle = computed(() => {
-	if (draftStore.sync.error) return draftStore.sync.error;
-	const failed = draftStore.pending.find((m) => m.status === 'failed');
-	if (failed?.error) return failed.error;
-	return '';
-});
-
 // `Reload latest` is the first-line recovery for conflicts and sync
 // failures (specs/local_first_editor_migration_step_2.md). It appears
 // only when there is something to recover from — otherwise the action
