@@ -1,7 +1,7 @@
 # Spaces in the Sidebar (drill-in navigation)
 
 Date: 2026-09-01
-Status: **Phases 1–5 done**, phases 6–7 pending.
+Status: **Done.** All seven phases built.
 Prototype: `wiki-proto` — `LibrarySidebar.vue`, `SpaceSidebar.vue`, `App.vue`.
 
 ## Problem
@@ -92,8 +92,11 @@ list and the real tree before any state icons, pinning, or strip polish.
    `is_tab` special-casing dropped from `wiki_document.py`, `wiki_space.py`
    API, `llms_txt.py`, `git_sync.py`. Doctype fields hidden, not dropped (see
    decision 8b).
-7. **Cleanup.** `useSidebarResize` retires; e2e specs that navigated via
-   `/spaces` updated.
+7. **Cleanup.** ✅ Both named items landed early (`useSidebarResize` in phase
+   1, the `/spaces` specs in phase 3), so this phase collects what the earlier
+   ones deferred: the orphaned `WikiBreadcrumbs.vue`, the unreachable `isTab`
+   create path, the two dead space-list endpoints, and the drill-in regression
+   test the spec asked for and no phase wrote.
 
 ## Regression tests
 
@@ -131,6 +134,17 @@ list and the real tree before any state icons, pinning, or strip polish.
   button? (Prototype has both.)
 
 ## Progress log
+
+- 2026-09-07 — **Phase 7 done. The spec is complete.** Cleanup swept what
+  phases 1–6 left behind rather than what the phase list named — both named
+  items had already landed. `WikiBreadcrumbs.vue` (orphaned by phase 1's
+  header, zero importers) is deleted; `createNode`'s `isTab` / `tabIcon`
+  arguments are gone from `draftWorkspace.js` and `changeRequest.js`, since
+  nothing has created a tab since phase 5; `get_space_count` and
+  `get_space_stats` are deleted with their tests. The CR round trip is
+  untouched — `treeModel.js` still normalizes and denormalizes both flags, so a
+  year-old change request still merges. New `e2e/tests/sidebar-drill-in.spec.ts`
+  covers the spec's first regression line. Reconciliation below.
 
 - 2026-09-05 — **Phase 6 done. The reader has no tabs either.** The chrome is
   one row again: `tabs.html` is deleted, `layout.html` stops including it and
@@ -203,6 +217,19 @@ list and the real tree before any state icons, pinning, or strip polish.
 - 2026-09-01 — **Phase 1 done.** `LibrarySidebar.vue` + `SpaceSidebar.vue`,
   MainLayout switches on `route.params.spaceId`, SpaceDetails lost its `<aside>`,
   `/spaces` redirects to the new `Overview` route. Reconciliations below.
+
+### Phase 7 reconciliation
+
+| # | Spec said | Build does | Why |
+|---|-----------|-----------|-----|
+| 1 | Phase 7 — `useSidebarResize` retires | Already deleted in phase 1 | Its only consumer was the `<aside>` phase 1 removed; leaving a dead composable in the tree for six phases was the worse option. |
+| 2 | Phase 7 — e2e specs that navigated via `/spaces` updated | Already done in phases 3–5 | Each phase rewrote the specs it broke in the same commit, which is the only way the suite stays green phase to phase. Nothing was left for this one. |
+| 3 | Phase 3 item 8 — `get_space_stats` / `get_space_count` left for spec 4 | **Deleted**, with their two test classes | The assumption did not survive reading spec 4: its API surface is a new `wiki.api.analytics` module (`get_overview`, `get_top_searches`, `get_needs_attention`), not per-space list columns. Both endpoints backed the retired list page's row stats and result tally, and `get_space_count`'s search/published filters exist only to match that page's filter bar. Keeping whitelisted endpoints alive for a consumer that will not call them is public surface with no owner. |
+| 4 | Phase 5 item 5 — `createNode`'s `isTab` argument "unreachable but harmless; phase 6 decides" | Removed from the create path in both stores | Phase 6 did not decide it, so it lands here. No caller passes it, the tab-creation UI is gone, and a new node is never a tab — the parameter only invited a future reader to think tabs were still creatable. The backend `create_cr_item(is_tab=False)` default covers the wire. |
+| 5 | Decision 8b — the flags survive the CR round trip | `treeModel.js` normalize/denormalize untouched; `applyServerFields`'s two branches removed | Serialization is the round trip and stays. `applyServerFields` is the *update* path, and no component has sent `is_tab` or `tab_icon` in an update since phase 5 — those two lines guarded a field nothing writes. No `Wiki Document` whitelist was touched, per the landmine. |
+| 6 | — | `WikiBreadcrumbs.vue` deleted | Orphaned by phase 1, when the sidebar header took over identity. It was the only frontend caller of the whitelisted `get_breadcrumbs`, which now has none — flagged rather than removed, because `specs/cleanup/003` already owns that endpoint's authorization gap. |
+| 7 | Regression tests — e2e drill-in navigation | `e2e/tests/sidebar-drill-in.spec.ts`, new | The one line of the spec's own regression list no phase had written. Mode strip and create-space are covered incidentally (`change-request-flow` drives Submit/Merge from the strip, `git-sync-readonly` covers git mode, and eight specs open the sidebar's New Space dialog), so this adds only the missing one. |
+| 8 | — | The spec is built with two spaces, not one | The load-bearing assertion is negative: inside space A, space B's row is gone. One space would pass even if the library list were appended to rather than replaced. Both space rows and the back button are scoped to `[data-slot="sidebar"]` — the Overview page in the content column lists the same spaces, so an unscoped `href` locator matches twice and asserts nothing about which column owns the row. This was a real failure on the first run, not a precaution. |
 
 ### Phase 6 reconciliation
 
