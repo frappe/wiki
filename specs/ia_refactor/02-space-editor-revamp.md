@@ -1,7 +1,8 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **In progress.** Phase 1 (header row) built; phases 2–5 pending.
+Status: **In progress.** Phases 1–2 (header row, prose column + outline)
+built; phases 3–5 pending.
 Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.
@@ -100,6 +101,8 @@ Commit per phase; reconcile spec after each.
 - 2026-09-01 — Spec written from `wiki-proto`.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
 - 2026-09-07 — Phase 1 built: the editor header row.
+- 2026-09-07 — Phase 2 built: centred prose column, floating outline, dirty dot,
+  Save retired.
 
 ### Phase 1 reconciliation
 
@@ -128,3 +131,33 @@ Two gaps this phase leaves:
 - **No e2e yet.** The header's shape still changes twice (Save leaves in phase
   2, the page-settings toggle arrives in phase 3), so the specs the "Regression
   tests" section asks for are written once it settles.
+
+### Phase 2 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 4 — floating outline in the right gutter, `lg:` only | Shipped as an absolute `aside` over the gutter, but the rail's threshold moved from 900px to ~1140px of editor width | It used to take a column of its own, so 900px was enough. Floating needs a gutter to float in: the 768px column plus a rail's width on each side. Between the two numbers the collapsible strip takes over — a 1280px window with the sidebar open now gets the strip where it used to get the rail. |
+| 2 | Decision 4 — `SidebarItem` rows | Rows styled as sidebar items (rounded, hover fill, active fill), not the component | `SidebarItem` carries icon/label/active props built for navigation; the outline needs a heading level indent and a scroll handler. The look is the point, not the component. |
+| 3 | Decision 6 — the header stops offering Save | Shipped, and submitting now **flushes** an unsaved buffer instead of being blocked by it | The old gate told the user to "Save your changes before submitting" — advice with no button behind it once Save is gone. The property the gate protected (never submit a CR that lacks what is on screen) is kept by flushing first, since the editor pushes every keystroke into the buffer. |
+| 4 | Decision 2 — strip and header both submit | Header only; the strip keeps Merge, Reload latest and the ⋯ menu | Two identical primary buttons on one screen, and every e2e locator for Submit became ambiguous. The header sits next to the page the submit is about. |
+| 5 | — | The header ⋯ is named **Page actions** | It collided with the strip's "More actions" (a strict-mode ambiguity that predates this spec), and it matches the sidebar's existing "Space actions". |
+| 6 | — | Submit stays visible while the buffer is dirty even with zero change rows | Autosave takes ten seconds to turn typing into a change row. With no Save button, the window would otherwise show no action at all. |
+| 7 | Phase 1 gap — `DraftContributionPanel` still had the old header | Folded in here: submit, Page actions menu (Change route, Delete Draft), dirty dot, no Save | It hosts the same prose column this phase reshapes. |
+| 8 | — | `lucide-github` renders blank | `lucide-static` dropped brand icons (already noted in `SpaceSettings`). "Edit on GitHub" uses `lucide-pencil`; the two dead glyphs in `NewSpaceDialog` became `lucide-git-branch`. |
+
+Verified in the browser at 1600×950 and 1280×900: the outline floats over the
+right gutter with the prose column centred and unmoved, the strip variant takes
+over at the narrower width, the dot appears on the title as soon as the buffer
+diverges and clears on ⌘S, and Submit with an unsaved buffer lands the typed
+text in the change request (checked in the review diff).
+
+E2E: 13 header-Save clicks became `saveEditor()` (the ⌘S/Ctrl+S flush); three
+assertions that encoded "Submit is disabled while unsaved" now assert the
+workspace reports unsaved content; `page-settings-meta` opens "Page actions";
+`git-sync-edit-on-github` clicks the header button rather than a menu item.
+Locally `local-first-store.spec.ts` is 8/13 with these changes and 9/13 without
+them, failing a different subset each run — all with the same "draft route never
+resolves" timeout, which is the known local job-queue saturation rather than a
+regression. Every test that failed with the changes passes in isolation except
+`Reload latest after a failed save`, which fails on the unchanged build too.
+Unit suite 74 pass; lint and build pass.
