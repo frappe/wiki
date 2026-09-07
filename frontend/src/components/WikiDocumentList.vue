@@ -21,7 +21,7 @@
 			</TextInput>
 		</div>
 
-		<div class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-2">
 			<p
 				v-if="isSearching && !hasResults"
 				class="px-1.5 py-3 text-sm text-ink-gray-5"
@@ -63,7 +63,7 @@
 				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
 			/>
-		</div>
+		</ScrollArea>
 
 		<!-- New page is the one thing this column is asked for constantly, so it
 		     gets a fixed footer; the rarer kinds live behind the overflow menu.
@@ -234,7 +234,13 @@ import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
-import { Dropdown, ErrorMessage, FormControl, TextInput } from 'frappe-ui';
+import {
+	Dropdown,
+	ErrorMessage,
+	FormControl,
+	ScrollArea,
+	TextInput,
+} from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import SpaceIcon from './SpaceIcon.vue';
 import WikiTree from './WikiTree.vue';

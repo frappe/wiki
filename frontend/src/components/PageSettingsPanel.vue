@@ -22,7 +22,7 @@
 			</Button>
 		</div>
 
-		<div class="min-h-0 flex-1 overflow-y-auto p-3">
+		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
 			<div class="flex flex-col gap-6">
 				<!-- On a git-synced page the repo owns the title, the slug, the
 				     route and whether the page ships: the next sync rewrites
@@ -209,7 +209,7 @@
 					</dl>
 				</section>
 			</div>
-		</div>
+		</ScrollArea>
 
 		<div class="shrink-0 border-t border-outline-gray-2 p-3">
 			<Button
@@ -232,6 +232,7 @@ import {
 	Badge,
 	Button,
 	FormControl,
+	ScrollArea,
 	Switch,
 	dayjsLocal,
 	toast,

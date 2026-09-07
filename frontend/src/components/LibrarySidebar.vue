@@ -13,80 +13,82 @@
 			logo="/assets/wiki/images/wiki-logo.png"
 			:menu-items="headerMenuItems"
 		/>
-		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pt-1">
-			<SidebarItem
-				v-for="item in navItems"
-				:key="item.label"
-				:label="item.label"
-				:icon="item.icon"
-				:to="item.to"
-				:active="item.routeNames.includes(route.name)"
-				:suffix="item.suffix?.value"
-			/>
-
-			<SidebarSection :label="__('Spaces')">
-				<!-- One menu for the whole list: the row writes its own options as it
-				     is right-clicked, before the menu opens, so there is no
-				     ContextMenu instance per space. The trigger is `as-child`, so the
-				     rows need the one wrapping root. -->
-				<ContextMenu :options="spaceMenu">
-					<div class="flex flex-col gap-0.5">
-						<SidebarItem
-							v-for="space in orderedSpaces"
-							:key="space.name"
-							:label="space.space_name || space.name"
-							:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
-							@contextmenu="openSpaceMenu(space)"
-						>
-							<template #prefix>
-								<SpaceAvatar
-									:space="space"
-									:label="space.space_name || space.name"
-									size="sm"
-								/>
-							</template>
-							<!-- Access and publish state are independent fields, so each
-							     gets its own icon. One merged badge would hide the case
-							     that matters most: a restricted space that is also
-							     unpublished. -->
-							<template #suffix>
-								<span class="mr-2 flex items-center gap-1">
-									<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
-										<span class="lucide-pin size-3.5 text-ink-gray-5" aria-hidden="true" />
-									</Tooltip>
-									<Tooltip v-if="space.git_synced" :text="__('Synced from GitHub')">
-										<span class="lucide-folder-git-2 size-3.5 text-ink-gray-4" aria-hidden="true" />
-									</Tooltip>
-									<Tooltip v-if="restrictedSpaces.has(space.name)" :text="__('Restricted access')">
-										<span class="lucide-lock size-3.5 text-ink-gray-4" aria-hidden="true" />
-									</Tooltip>
-									<Tooltip v-if="!space.is_published" :text="__('Unpublished')">
-										<span class="lucide-eye-off size-3.5 text-ink-gray-4" aria-hidden="true" />
-									</Tooltip>
-								</span>
-							</template>
-						</SidebarItem>
-					</div>
-				</ContextMenu>
-
-				<p
-					v-if="!spaces.loading && !orderedSpaces.length"
-					class="px-2 py-2 text-p-sm text-ink-gray-5"
-				>
-					{{ __('No Wiki Spaces') }}
-				</p>
-
-				<!-- Most wikis hold a dozen spaces and fit here whole. When one
-				     does not, the column stays short and hands the rest to the
-				     Overview, which is the full directory with its own search. -->
+		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-1">
+			<div class="flex flex-col gap-0.5">
 				<SidebarItem
-					v-if="spaces.hasNextPage"
-					:label="__('Show all spaces')"
-					icon="lucide-ellipsis"
-					:to="{ name: 'Overview' }"
+					v-for="item in navItems"
+					:key="item.label"
+					:label="item.label"
+					:icon="item.icon"
+					:to="item.to"
+					:active="item.routeNames.includes(route.name)"
+					:suffix="item.suffix?.value"
 				/>
-			</SidebarSection>
-		</div>
+
+				<SidebarSection :label="__('Spaces')">
+					<!-- One menu for the whole list: the row writes its own options as it
+					     is right-clicked, before the menu opens, so there is no
+					     ContextMenu instance per space. The trigger is `as-child`, so the
+					     rows need the one wrapping root. -->
+					<ContextMenu :options="spaceMenu">
+						<div class="flex flex-col gap-0.5">
+							<SidebarItem
+								v-for="space in orderedSpaces"
+								:key="space.name"
+								:label="space.space_name || space.name"
+								:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
+								@contextmenu="openSpaceMenu(space)"
+							>
+								<template #prefix>
+									<SpaceAvatar
+										:space="space"
+										:label="space.space_name || space.name"
+										size="sm"
+									/>
+								</template>
+								<!-- Access and publish state are independent fields, so each
+								     gets its own icon. One merged badge would hide the case
+								     that matters most: a restricted space that is also
+								     unpublished. -->
+								<template #suffix>
+									<span class="mr-2 flex items-center gap-1">
+										<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
+											<span class="lucide-pin size-3.5 text-ink-gray-5" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="space.git_synced" :text="__('Synced from GitHub')">
+											<span class="lucide-folder-git-2 size-3.5 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="restrictedSpaces.has(space.name)" :text="__('Restricted access')">
+											<span class="lucide-lock size-3.5 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="!space.is_published" :text="__('Unpublished')">
+											<span class="lucide-eye-off size-3.5 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+									</span>
+								</template>
+							</SidebarItem>
+						</div>
+					</ContextMenu>
+
+					<p
+						v-if="!spaces.loading && !orderedSpaces.length"
+						class="px-2 py-2 text-p-sm text-ink-gray-5"
+					>
+						{{ __('No Wiki Spaces') }}
+					</p>
+
+					<!-- Most wikis hold a dozen spaces and fit here whole. When one
+					     does not, the column stays short and hands the rest to the
+					     Overview, which is the full directory with its own search. -->
+					<SidebarItem
+						v-if="spaces.hasNextPage"
+						:label="__('Show all spaces')"
+						icon="lucide-ellipsis"
+						:to="{ name: 'Overview' }"
+					/>
+				</SidebarSection>
+			</div>
+		</ScrollArea>
 		<div
 			v-if="userStore.isWikiManager"
 			class="flex flex-col gap-1 border-t border-outline-gray-2 p-2"
@@ -111,6 +113,7 @@
 import {
 	Button,
 	ContextMenu,
+	ScrollArea,
 	Sidebar,
 	SidebarHeader,
 	SidebarItem,
