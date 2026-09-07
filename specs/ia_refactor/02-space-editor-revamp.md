@@ -1,8 +1,8 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **In progress.** Phases 1–2 (header row, prose column + outline)
-built; phases 3–5 pending.
+Status: **In progress.** Phases 1–3 (header row, prose column + outline, page
+settings panel) built; phases 4–5 pending.
 Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.
@@ -45,7 +45,8 @@ frappe-ui `SettingsDialog`.
   (draft buffers, publish state), sheds its ad-hoc header.
 - `components/WikiEditor.vue`, `WikiToolbar.vue`, `WikiBubbleMenu.vue`,
   tiptap-extensions — untouched. This spec is chrome, not editor internals.
-- `components/PageSettings.vue` — dialog to become panel.
+- `components/PageSettingsPanel.vue` — the panel (replaced the
+  `PageSettings.vue` dialog).
 - `components/EditorTableOfContents.vue` + `composables/useDocumentOutline.js`
   — reuse logic, new placement.
 - `components/SpaceSettings/{SpaceSettings,GeneralPanel,GitSyncPanel,PermissionsPanel}.vue`
@@ -103,6 +104,7 @@ Commit per phase; reconcile spec after each.
 - 2026-09-07 — Phase 1 built: the editor header row.
 - 2026-09-07 — Phase 2 built: centred prose column, floating outline, dirty dot,
   Save retired.
+- 2026-09-07 — Phase 3 built: the page settings panel.
 
 ### Phase 1 reconciliation
 
@@ -161,3 +163,35 @@ resolves" timeout, which is the known local job-queue saturation rather than a
 regression. Every test that failed with the changes passes in isolation except
 `Reload latest after a failed save`, which fails on the unchanged build too.
 Unit suite 74 pass; lint and build pass.
+
+### Phase 3 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 3 — the `PageSettings` dialog's content migrates into the panel | It migrated, and the panel also took Title, Slug, Route and Published, which the dialog never carried | One Save, two write paths: the identifying fields go through the change request (`draftStore.updateNode`), the meta fields straight to the document (`setValue`). Meta is not in the CR's field list (`_CR_ITEM_SCALAR_UPDATE_FIELDS`) and carries nothing a reader sees, so routing it through a review would be ceremony for its own sake. |
+| 2 | Decision 3 — panel and outline never show at once | A `showOutline` prop on `WikiEditor` gates **both** outline variants, not just the rail | The panel narrows the editor past the rail's threshold, so gating the rail alone would have swapped one list of the page for another. |
+| 3 | Open question — does "Change route" stay in the more-menu? | No. The menu item and the route dialog are both gone; the route line under the title opens the panel | Three doors onto one field. The panel owns Route now, and the line under the title is the shortest way to it. |
+| 4 | — | Slug is editable from the app for the first time | It is already in the CR's scalar update list and has simply never had a frontend. The backend keeps route and slug independent — a renamed slug does not recompute the route — so the panel shows both rather than implying one derives from the other. |
+| 5 | Landmine — panel state must survive page switches | `composables/usePageSettingsPanel.js`, module-scoped | The editor component is torn down whenever the route leaves the page (a draft, another space); whether the panel is open is a fact about the workspace, not about the page. |
+| 6 | — | The form adopts an outside change only for a field the user has not touched | The title is edited in three places at once (the prose input, the tree's rename, this panel). Resetting on every change would eat what is being typed; never resetting would save a stale title over someone else's rename. |
+| 7 | Open question — word count client- or server-side? | Client-side, `lib/readingStats.js` | The count has to track the buffer between saves, and the buffer only exists in the browser. |
+| 8 | — | The header toggle is hidden on read-only (git-synced) pages | Nothing in the panel is editable there. The rest of the read-only chrome drop is phase 5. |
+
+Verified in the browser at 1600×950: the toggle reads pressed while the panel
+is open, the panel's own h-12 header lines up with the toolbar row and the
+toolbar stops at its border, meta fields save and the generated social card
+re-renders, a title typed into the panel reaches the prose input and the tree
+(as a change row), and the outline rail disappears while the panel is open and
+comes back when it closes.
+
+E2E: `page-settings-meta` now opens the header toggle instead of a menu item
+and reads the panel by test id — 2/2 pass locally. `editor-toc` is 5/5 on a
+retry; its "clicking an entry scrolls that heading into view" case fails and
+passes on the same build, and this phase does not touch the highlight logic it
+asserts. Unit suite 81 pass (74 + 7 new for `readingStats`); lint and build
+pass on the touched files.
+
+One gap this phase leaves: `DraftContributionPanel` has no settings toggle. A
+page that exists only in the draft workspace has no `Wiki Document` behind it,
+so there are no meta fields to edit and no `Details` to report; its route and
+title stay in its own Page actions menu.
