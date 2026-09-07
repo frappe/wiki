@@ -23,14 +23,14 @@
 					v-if="spaceStore.canWriteSpace"
 					:identity="spaceStore.doc || {}"
 					:label="spaceName"
-					size="sm"
+					size="lg"
 					@update="saveIdentity"
 				/>
 				<SpaceAvatar
 					v-else
 					:space="spaceStore.doc || {}"
 					:label="spaceName"
-					size="sm"
+					size="lg"
 				/>
 				<span class="min-w-0 flex-1 truncate text-base-medium text-ink-gray-8">
 					{{ spaceName }}
