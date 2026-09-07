@@ -1,99 +1,130 @@
-# Space Avatar: Upload or Generative Art
+# Space Avatar: Upload, Icon or Generated Art
 
-Date: 2026-09-01
-Status: **Planned.** Renders in spec 01's sidebar; picker lives in spec 02's
-settings dialog (can ship against the old dialog if it lands first).
+Date: 2026-09-01, rewritten 2026-09-07
+Status: **Planned.** Renders in spec 01's sidebar; the picker lives in spec 02's
+settings dialog, which has landed.
 Reference implementation: `apps/bwh_hive` — `frontend/src/lib/dicebear.ts`,
 `components/common/IdentityAvatar.vue`, `components/common/IdentityPicker.vue`.
 
 ## Problem
 
 A space's identity today is `app_switcher_logo` (an upload) or a bare initial.
-The new sidebar and overview lean on per-space identity tiles; most spaces
-will never get a hand-made logo, and rows of gray initials say nothing.
+The settings row for it is a rectangular preview next to an Upload button, and
+the sidebar, overview and space header all render rows of gray initials because
+most spaces will never get a hand-made logo.
 
 ## Goal
 
-Two ways to give a space a face, picked in one control: **upload an image** or
-**generate abstract art** (hive-style: DiceBear rendered locally, shuffle
-button, a few curated abstract styles). Everything that shows a space — the
-library sidebar, space sidebar header, overview rows, space switcher — renders
-the same mark through one component.
+Three ways to give a space a face, picked in one control hung off a square
+preview tile: **upload an image**, **pick a lucide icon on a tinted square**, or
+**shuffle a generated abstract mark**. Everything that shows a space renders the
+same mark through one component — library sidebar, space sidebar header,
+overview rows, the public reader header, and the generated social card.
 
 ## Decisions
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Generator | DiceBear, exactly as hive does it: `@dicebear/core` + `@dicebear/styles`, **local rendering only** (no api.dicebear.com — a Frappe site must not leak its space list), **lazy `import()`** per style so the ~MB of style JSON never loads until the picker opens, one Rollup chunk per style. |
-| 2 | Styles | Abstract marks only: `glass`, `blobs`, `waves`, `disco`, `loops`. All CC0/DiceBear-authored; styles are listed one by one, never pulled wholesale (licensing stays a deliberate act — hive's rule). No character/face sets: a space is a thing, not a person. |
-| 3 | Storage | New fields on `Wiki Space`: `avatar` (Long Text — SVG `data:` URI), `avatar_style` (Data), `avatar_seed` (Data). Uploaded image keeps using `app_switcher_logo` (Attach Image). `avatar` set ⇒ generative wins; else `app_switcher_logo`; else initial fallback. No migration needed. |
-| 4 | Seed | Random per shuffle (crypto), stored — not derived from name/route (derivation makes shuffle a no-op and renames would change the art). |
-| 5 | Picker | One popover/dialog with `TabButtons`: **Upload** (existing FileUploader flow → `app_switcher_logo`, Remove button) \| **Generate** (style Select, live preview, Shuffle button, per-style variant Selects for the 1–2 "aspects" DiceBear exposes). Choosing one mode clears the other on save. Entry points: Space settings → General ("Space logo" row) and the New Space dialog. |
-| 6 | Render component | `components/SpaceAvatar.vue` modeled on hive's `IdentityAvatar`: frappe-ui `Avatar` (square), `image` = avatar data URI or logo URL, default slot = initial fallback, so a bad data URI can never leave an empty tile. Data URI goes through a sanitizing accessor (`spaceAvatarSrc`) — it is stored user content, never injected as markup. |
-| 7 | Frontend/backend sync | The three new fields are enumerated wherever the frontend lists Wiki Space fields (settings panel form, `useList` field lists in the sidebar/overview). House convention — no auto sync. |
-| 8 | Public reader | Out of scope. The reader keeps using the logo fields it already reads; generative avatars appear there only if/when the reader is touched separately. |
-| 9 | Auto-roll on create | **Yes** (decided 2026-09-01, hive's rule): creating a space rolls a random generative avatar (default style, random seed) straight away, so no space is ever a bare initial. The New Space dialog shows it with a Shuffle next to it; upload replaces it. |
+| 1 | Trigger | The preview tile *is* the control: a square (`size-10`), clickable, opening a popover. The Upload and Replace buttons next to it go away; Remove moves inside the popover. |
+| 2 | Popover shape | frappe-ui `Popover` + `TabButtons`: **Upload** \| **Icon**. Proven inside a `SettingsDialog` — hive uses the same pair on the same frappe-ui (beta.55) in `CreateProjectDialog`. `IconPicker.vue`'s `inline` escape hatch exists for a *raw reka* `PopoverRoot`, which portals elsewhere; it is not needed here. |
+| 3 | Icon tab | Colour swatch row (the tile drawn in each tint, so the row doubles as a preview) + the icon grid + one full-width **Shuffle** button under it. Hive's layout, minus the style and variant `Select`s. |
+| 4 | Icon set | `TAB_ICONS` from `lib/tabIcons.js`, unchanged and unextended. That list is already the SPA's Tailwind safelist *and* the input to `scripts/generate-public-lucide.mjs`, so reusing it means a space icon renders on the public reader with no new generation step. A separate curated list would need adding to both. |
+| 5 | Palette | `gray, blue, green, amber, red, violet` — exactly frappe-ui's `AvatarTheme` union, so a space colour can only ever resolve to a tint the design system ships. All six exist as `--surface-*-2` / `--ink-*-7` in the reader's Tailwind v4 build too. |
+| 6 | Shuffle | One button, no `Select`s (decided 2026-09-07). It rolls **both** a random style out of the five curated abstract sets and a random crypto seed. Style and seed are stored so the same mark comes back; the seed is never derived from name or route, which would make shuffle a no-op and a rename change the art. |
+| 7 | Generator | DiceBear, exactly as hive does it: `@dicebear/core` + `@dicebear/styles`, **local rendering only** (a Frappe site must not leak its space list to `api.dicebear.com`), **lazy `import()`** per style so the ~MB of style JSON never loads until Shuffle is pressed, one Rollup chunk per style. |
+| 8 | Styles | Abstract marks only: `glass`, `blobs`, `waves`, `disco`, `loops`. All CC0 and DiceBear-authored; listed one by one, never pulled wholesale from the 61-style package — licensing stays a deliberate act. No character sets: a space is a thing, not a person. |
+| 9 | Storage | New fields on `Wiki Space`: `space_icon` (Data — a full `lucide-*` class, same convention as `home_tab_icon`), `space_color` (Data — a palette name), `avatar` (Long Text, hidden in Desk — an SVG `data:` URI), `avatar_style` (Data), `avatar_seed` (Data). The upload keeps using `app_switcher_logo`. No migration. |
+| 10 | Resolution | `avatar` → `space_icon` + `space_color` → `app_switcher_logo` → initial on a colour hashed from the docname. One accessor, ported to both languages. |
+| 11 | Clearing | Only one direction clears destructively. Choosing an icon or shuffling writes the generated fields and **leaves `app_switcher_logo` alone**, so a picked icon never drops a File link; choosing Upload (or "Use this image" on an already-uploaded logo) clears `avatar` and `space_icon`. Remove, in the Upload tab, clears `app_switcher_logo`. |
+| 12 | Public reader | **In scope** (decided 2026-09-07, reversing the original decision 8). The header, the mobile header and the switcher rows draw the same three-way mark. Cheap because `wiki.utils.lucide_svg` already inlines the curated set, and the OG card is a Jinja page screenshotted by headless Chromium — an SVG `data:` URI in an `<img src>` renders there as-is, so nothing needs rasterizing. |
+| 13 | Auto-roll on create | **Yes** (decided 2026-09-01, reaffirmed 2026-09-07). Creating a space rolls a mark straight away, so no space is ever a bare initial. `NewSpaceDialog` shows it with the same picker; upload or icon replaces it. |
+| 14 | Frontend/backend sync | The five new fields are enumerated wherever the frontend or a Python query lists Wiki Space fields: `useSpaceLibrary.js`, `wiki_document.py`'s switcher query, `og_image.py`'s context. House convention — nothing syncs automatically. |
 
 ## Current state
 
-- `Wiki Space` fields today: `light_mode_logo`, `dark_mode_logo`,
-  `app_switcher_logo`, `favicon` — all uploads, no icon/colour/avatar.
-- `components/SpaceIcon.vue` renders stored lucide classes (used for tabs) —
-  unrelated to space identity, stays as is.
-- `SpaceList.vue` (or its spec-01 successor `LibrarySidebar`) renders
-  `Avatar :image="app_switcher_logo"` with initial fallback — exactly the seam
-  `SpaceAvatar` slots into.
-- hive's `dicebear.ts` is ~self-contained and TypeScript; wiki's frontend is
-  JS — port as `frontend/src/lib/spaceAvatar.js` keeping the structure
-  (style meta table incl. license credits, style loader map, style cache,
-  `renderAvatar`, `randomSeed`, variant listing).
+- `frontend/src/components/SpaceSettings/GeneralPanel.vue` — the row to rebuild:
+  a `h-10 w-16` preview, an Upload/Replace `Button`, a Remove `Button`, a hidden
+  `<input type=file>`, and `useFileUpload` posting to
+  `wiki.api.upload_wiki_asset` with `private: false`.
+- Three SPA render sites, all `Avatar :image="app_switcher_logo"` with an
+  initial fallback — the seam `SpaceAvatar` slots into:
+  `LibrarySidebar.vue:45`, `SpaceSidebar.vue:22`, `Overview.vue:83`.
+- Reader sites: `templates/wiki/includes/header.html:25,53` (switcher trigger and
+  the no-switcher case), `mobile_header.html:12,145`, and the switcher rows,
+  which show no mark at all today.
+- `wiki/api/og_image.py:142` — `logo_url = _safe_asset_url(app_switcher_logo or
+  light_mode_logo)`, fed into `og_fingerprint`, which hashes exactly the inputs
+  the card template consumes.
+- `wiki/utils.py:17` `lucide_svg` — inline SVG for a `lucide-*` class, backed by
+  the generated `wiki/lucide_icons.json` (126 entries, sourced from
+  `tabIcons.js`). Already a Jinja global via `hooks.py`.
+- `IconGrid.vue` / `IconPicker.vue` — the existing grid, reusable as is.
+- hive's `dicebear.ts` is TypeScript; wiki's frontend is JS — port as
+  `frontend/src/lib/spaceAvatar.js`, keeping the structure (style meta table
+  with license credits, loader map, style cache, `renderAvatar`, `randomSeed`).
 
 ## Phases
 
-1. **Backend fields + render path tracer.** Add the three fields; `SpaceAvatar.vue`
-   with priority avatar → logo → initial; swap it into the sidebar (or
-   SpaceList if spec 01 hasn't landed). Hand-set an avatar via Desk to verify
-   end-to-end.
-2. **Generator lib.** Port `dicebear.ts` (add `@dicebear/core` +
-   `@dicebear/styles` deps, pinned; verify chunk-per-style in the build
-   output).
-3. **Picker.** Upload | Generate tabs, shuffle, style + variant controls,
-   save/clear semantics; wire into Space settings General and New Space
-   dialog, with auto-roll on create (decision 9).
-4. **Polish.** Loading state while a style chunk downloads, license credit
-   line in the picker, e2e.
+1. **Tracer: fields, one component, the new control.** Add the five fields.
+   `components/SpaceAvatar.vue` (frappe-ui `Avatar shape="square"`, image =
+   sanitized data URI or logo URL, default slot = the icon, label = the
+   initial), and `lib/spaceIdentity.js` for the resolution, sanitizer and
+   palette. Rebuild the settings row: square trigger, popover, Upload tab
+   (existing uploader, Remove, "Use this image") and Icon tab (swatches +
+   `IconGrid`), no Shuffle yet. Swap `SpaceAvatar` into the three SPA sites and
+   add the fields to `useSpaceLibrary`. End-to-end in the SPA.
+2. **Shuffle.** Add `@dicebear/core` + `@dicebear/styles` pinned, port
+   `lib/spaceAvatar.js`, wire the Shuffle button. Verify chunk-per-style in the
+   `yarn build` output before anything else.
+3. **Reader.** A `space_mark` Jinja macro drawing the same three-way
+   resolution — tinted square via `var(--surface-{colour}-2)` /
+   `var(--ink-{colour}-7)` with the colour validated against the palette
+   server-side, glyph via `lucide_svg`. Use it in `header.html`,
+   `mobile_header.html` and the switcher rows; extend the switcher field lists.
+   Then `og_image.py`: resolve the mark into the card context, allow an
+   `data:image/svg+xml` avatar past `_safe_asset_url`'s siblings check, add the
+   new inputs to `og_fingerprint`, bump `TEMPLATE_VERSION`.
+4. **Auto-roll on create.** `NewSpaceDialog` gets the picker with a pre-rolled
+   mark; the create path stores it.
+5. **Polish.** Loading state while a style chunk downloads, the license credit
+   line, e2e.
 
 ## Regression tests
 
-- Unit: priority resolution (avatar beats logo beats initial), seed survives
-  save/reload (same SVG re-rendered from style+seed equals stored URI — or at
-  minimum stored URI is reused untouched).
-- Unit: sanitizer rejects a non-`data:image/svg+xml` avatar value.
-- e2e: generate → shuffle → save → reload shows the same art; upload path
-  unchanged.
+- Unit (JS): resolution priority — avatar beats icon beats logo beats initial;
+  sanitizer rejects anything that is not a `data:image/svg+xml` URI; an
+  off-palette colour falls back rather than emitting a class that does not exist.
+- Unit (Python): the same resolution and the same sanitizer on the Jinja side,
+  plus `og_fingerprint` changing when the icon, the colour or the avatar changes.
+- e2e: pick an icon → save → reload shows it; shuffle → save → reload shows the
+  same art; the upload path still works and Remove still clears it.
+- Run the JS unit tests with `node --test`, not vitest (see
+  `specs/cleanup/001-run-frontend-unit-tests.md`).
 
 ## Landmines
 
-- **Bundle size**: the styles JSON must never land in the entry chunk. Check
-  `yarn build` output; a bare `import` (not `import()`) anywhere in the lib
-  defeats the whole design.
-- `avatar` is a Long Text holding a data URI — Desk shows it as a wall of
-  text; set `hidden` or `read_only` in the doctype to keep Desk usable.
-- List APIs that fetch spaces now carry a potentially multi-KB `avatar` field
-  per row — acceptable for the sidebar (one fetch), but don't add it to
-  hot/pagination-heavy queries without need.
-- Version-3 CR whitelists don't apply (`Wiki Space` isn't `Wiki Document`),
-  but space edits may still be cached — clear space caches on update as the
-  existing logo fields do.
-
-## Open questions
-
-- Fixed brand-ish color per space (hive also derives a color theme from the
-  docname) — worth porting `projectColorTheme` for the initial fallback?
-  Cheap, probably yes. (Less pressing now that auto-roll means initials only
-  appear on pre-existing spaces.)
+- **Bundle size.** The style JSON must never reach the entry chunk. A bare
+  `import` (not `import()`) anywhere in `lib/spaceAvatar.js` defeats the whole
+  design; check `yarn build` output.
+- **List payloads.** `avatar` is a multi-KB data URI and the sidebar fetches it
+  per row. Acceptable at the current space count, and the alternative —
+  re-rendering from style + seed in the sidebar — would pull the style chunks
+  into the sidebar's load path, which is worse. Do not add `avatar` to any
+  pagination-heavy query without need.
+- **Desk usability.** `avatar` is a Long Text holding a data URI; mark it hidden
+  or read-only or the Wiki Space form becomes a wall of text.
+- **Tailwind literals.** Any `lucide-*` class that is not literally present in
+  scanned source renders blank. Staying inside `TAB_ICONS` is what avoids this
+  on both the SPA and reader sides.
+- **Cache.** Space edits are cached on the reader; clear space caches on update
+  the way the existing logo fields do. Version-3 CR whitelists do not apply —
+  `Wiki Space` is not a `Wiki Document`.
+- **SVG is a script host.** A stored avatar is a field a Wiki Manager can write.
+  It only ever becomes an `<img>` source, never markup, and only after it proves
+  to be an SVG data URI — on both the JS and the Python side.
 
 ## Progress log
 
 - 2026-09-01 — Spec written from `wiki-proto` + hive reference read.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
+- 2026-09-07 — Rewritten against the settings-panel screenshot. Generate tab becomes an Icon tab (swatches + grid + one Shuffle); style and variant `Select`s dropped; public reader and OG card pulled into scope; icon set fixed to `TAB_ICONS`; clearing made one-directional.
