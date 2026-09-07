@@ -1,11 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { createDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import {
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * TB1b-ii — a git-synced Wiki Space renders read-only in the authoring SPA.
@@ -20,45 +13,28 @@ test.describe('Git-synced space (read-only)', () => {
 	const REPO = 'frappe/wiki';
 	const BRANCH = 'main';
 
-	let route: string;
-
-	test.afterEach(async ({ request }) => {
-		if (route) await cleanupWikiSpacesByRoute(request, route);
-		route = '';
-	});
-
 	test('renders read-only with no editing affordances', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		route = `git-sync-ro-${Date.now()}`;
 		// last_sync_time is set so SpaceDetails treats the space as already
 		// synced and skips the auto initial-sync (which would hit GitHub).
-		const space = await createDoc<WikiSpace & { root_group: string }>(
-			request,
-			'Wiki Space',
-			{
-				route,
-				space_name: route,
-				is_published: true,
-				git_synced: 1,
-				repo_full_name: REPO,
-				branch: BRANCH,
-				last_sync_status: 'Success',
-				last_sync_time: '2026-01-01 00:00:00',
-			},
-		);
-
 		const pageTitle = `Synced Page ${Date.now()}`;
-		await createTestWikiDocument(request, {
-			title: pageTitle,
-			content: '# Synced Heading\n\nThis content comes from the repo.',
-			wiki_space: space.name,
-			parent_wiki_document: space.root_group,
-			is_published: true,
+		const space = await wiki.space({
+			git_synced: 1,
+			repo_full_name: REPO,
+			branch: BRANCH,
+			last_sync_status: 'Success',
+			last_sync_time: '2026-01-01 00:00:00',
+			pages: [
+				{
+					title: pageTitle,
+					content: '# Synced Heading\n\nThis content comes from the repo.',
+				},
+			],
 		});
 
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Synced banner (shared SpaceChromeBar): the repo link marks it as synced
