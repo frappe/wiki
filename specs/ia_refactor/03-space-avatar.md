@@ -30,9 +30,10 @@ overview rows, the public reader header, and the generated social card.
 | 3 | Icon tab | Colour swatch row (the tile drawn in each tint, so the row doubles as a preview) + the icon grid + one full-width **Shuffle** button under it. Hive's layout, minus the style and variant `Select`s. |
 | 4 | Icon set | `TAB_ICONS` from `lib/tabIcons.js`, unchanged and unextended. That list is already the SPA's Tailwind safelist *and* the input to `scripts/generate-public-lucide.mjs`, so reusing it means a space icon renders on the public reader with no new generation step. A separate curated list would need adding to both. |
 | 5 | Palette | `gray, blue, green, amber, red, violet` — exactly frappe-ui's `AvatarTheme` union, so a space colour can only ever resolve to a tint the design system ships. All six exist as `--surface-*-2` / `--ink-*-7` in the reader's Tailwind v4 build too. |
-| 6 | Shuffle | One button, no `Select`s (decided 2026-09-07). It rolls **both** a random style out of the five curated abstract sets and a random crypto seed. Style and seed are stored so the same mark comes back; the seed is never derived from name or route, which would make shuffle a no-op and a rename change the art. |
+| 6 | Shuffle | One button, no `Select`s (decided 2026-09-07). It rolls **both** a random style out of the four curated abstract sets and a random crypto seed. Style and seed are stored so the same mark comes back; the seed is never derived from name or route, which would make shuffle a no-op and a rename change the art. |
 | 7 | Generator | DiceBear, exactly as hive does it: `@dicebear/core` + `@dicebear/styles`, **local rendering only** (a Frappe site must not leak its space list to `api.dicebear.com`), **lazy `import()`** per style so the ~MB of style JSON never loads until Shuffle is pressed, one Rollup chunk per style. |
-| 8 | Styles | Abstract marks only: `glass`, `blobs`, `waves`, `disco`, `loops`. All CC0 and DiceBear-authored; listed one by one, never pulled wholesale from the 61-style package — licensing stays a deliberate act. No character sets: a space is a thing, not a person. |
+| 8 | Styles | Abstract marks only: `glass`, `blobs`, `waves`, `loops`. All CC0 and DiceBear-authored; listed one by one, never pulled wholesale from the 61-style package — licensing stays a deliberate act. No character sets: a space is a thing, not a person. `disco` was measured out (2026-09-07): ~35 kB of SVG per mark against ~4 kB for the four kept, and a mark is fetched once per row by the space list. Measure before adding a style. |
+| 8b | Credit | No license line in the popover (decided 2026-09-07). Every shipped style is CC0 and DiceBear-authored, so none obliges attribution, and the credit belongs in the source comment rather than in a control the user opens to press one button. |
 | 9 | Storage | New fields on `Wiki Space`: `space_icon` (Data — a full `lucide-*` class, same convention as `home_tab_icon`), `space_color` (Data — a palette name), `avatar` (Long Text, hidden in Desk — an SVG `data:` URI), `avatar_style` (Data), `avatar_seed` (Data). The upload keeps using `app_switcher_logo`. No migration. |
 | 10 | Resolution | `avatar` → `space_icon` + `space_color` → `app_switcher_logo` → initial on a colour hashed from the docname. One accessor, ported to both languages. |
 | 11 | Clearing | Only one direction clears destructively. Choosing an icon or shuffling writes the generated fields and **leaves `app_switcher_logo` alone**, so a picked icon never drops a File link; choosing Upload (or "Use this image" on an already-uploaded logo) clears `avatar` and `space_icon`. Remove, in the Upload tab, clears `app_switcher_logo`. |
@@ -86,8 +87,7 @@ overview rows, the public reader header, and the generated social card.
    new inputs to `og_fingerprint`, bump `TEMPLATE_VERSION`.
 4. **Auto-roll on create.** `NewSpaceDialog` gets the picker with a pre-rolled
    mark; the create path stores it.
-5. **Polish.** Loading state while a style chunk downloads, the license credit
-   line, e2e.
+5. **Polish.** e2e.
 
 ## Regression tests
 
@@ -106,11 +106,11 @@ overview rows, the public reader header, and the generated social card.
 - **Bundle size.** The style JSON must never reach the entry chunk. A bare
   `import` (not `import()`) anywhere in `lib/spaceAvatar.js` defeats the whole
   design; check `yarn build` output.
-- **List payloads.** `avatar` is a multi-KB data URI and the sidebar fetches it
-  per row. Acceptable at the current space count, and the alternative —
-  re-rendering from style + seed in the sidebar — would pull the style chunks
-  into the sidebar's load path, which is worse. Do not add `avatar` to any
-  pagination-heavy query without need.
+- **List payloads.** `avatar` is a ~4 kB data URI and the sidebar fetches it per
+  row. That is why the style list is measured rather than picked by eye. The
+  alternative — re-rendering from style + seed in the sidebar — would pull the
+  style chunks into the sidebar's load path, which is worse. Do not add
+  `avatar` to any pagination-heavy query without need.
 - **Desk usability.** `avatar` is a Long Text holding a data URI; mark it hidden
   or read-only or the Wiki Space form becomes a wall of text.
 - **Tailwind literals.** Any `lucide-*` class that is not literally present in
@@ -128,3 +128,4 @@ overview rows, the public reader header, and the generated social card.
 - 2026-09-01 — Spec written from `wiki-proto` + hive reference read.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
 - 2026-09-07 — Rewritten against the settings-panel screenshot. Generate tab becomes an Icon tab (swatches + grid + one Shuffle); style and variant `Select`s dropped; public reader and OG card pulled into scope; icon set fixed to `TAB_ICONS`; clearing made one-directional.
+- 2026-09-07 — Phases 1 and 2 built: the fields, `SpaceAvatar`, `SpaceIdentityPicker`, and the generator behind Shuffle. `disco` dropped on measurement; the credit line dropped on review.

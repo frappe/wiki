@@ -285,6 +285,16 @@
     style-mod "^4.1.0"
     w3c-keyname "^2.2.4"
 
+"@dicebear/core@10.7.0":
+  version "10.7.0"
+  resolved "https://registry.yarnpkg.com/@dicebear/core/-/core-10.7.0.tgz#abb30c82f809ffc56d9aa8b1f936cf294a01224f"
+  integrity sha512-JUOzKOd8RUByJJo8ZL+C7YE/pvEsWewfpbWUmR8OIQZWv/PvUQHnohdevySC3icyyxe6EIU/8B/rQgA42us1QA==
+
+"@dicebear/styles@10.6.0":
+  version "10.6.0"
+  resolved "https://registry.yarnpkg.com/@dicebear/styles/-/styles-10.6.0.tgz#55cec7fc58aae8f086c534ad1703be11bd762e8e"
+  integrity sha512-KhxbEVI+z8TaenX58+ZhIRFBt7adggu/F+8g6ZYLu43H2/lgLuWA3Kg8vHBrCVWdfTTTt1p2wUhQomIkkypTuQ==
+
 "@esbuild/aix-ppc64@0.21.5":
   version "0.21.5"
   resolved "https://registry.yarnpkg.com/@esbuild/aix-ppc64/-/aix-ppc64-0.21.5.tgz#c7184a326533fcdf1b8ee0733e21c713b975575f"

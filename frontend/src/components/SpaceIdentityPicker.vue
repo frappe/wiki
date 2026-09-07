@@ -116,6 +116,7 @@
 import { Button, Popover, TabButtons, toast, useFileUpload } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
+import { rollSpaceAvatar } from '../lib/spaceAvatar.js';
 import {
 	generatedIdentityPatch,
 	resolveSpaceIdentity,
@@ -184,8 +185,22 @@ function pickIcon(next) {
 	open.value = false;
 }
 
-// Placeholder until the generator lands: rolling a mark is phase 2 of spec 03.
-function shuffle() {}
+/**
+ * A failed roll — a style chunk that would not download, say — leaves whatever
+ * mark is already on screen rather than clearing it, so a flaky network costs
+ * the user a shuffle and not their choice.
+ */
+async function shuffle() {
+	rolling.value = true;
+	try {
+		await saveIdentity(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
+	} catch (error) {
+		console.error('Could not generate a space mark', error);
+		toast.error(__('Could not generate a logo'));
+	} finally {
+		rolling.value = false;
+	}
+}
 
 function useLogo() {
 	saveIdentity(generatedIdentityPatch({}));
