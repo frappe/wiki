@@ -269,3 +269,21 @@ phases, so each row names the row it overturns.
 | 5 | — | The draft panel **keeps** its blue `Draft` badge | It names the surface, not a publish state. The prototype has no draft route to draw it against, so decision 5 does not reach it |
 | 6 | Decision 1 — solid "Submit for review" | Button is now `solid` + `theme="gray"` and reads "Submit for review" | It had drifted to the default theme and title case. The visibility rule (phase 2 row 6 — visible while the buffer is dirty even with no change rows) is untouched |
 | 7 | — | Overview's "Load more" restyled from `ghost` full-width to a centred `subtle` button | Out of this spec on paper, found in the same pass. With 80 spaces the button renders under 50 rows as transparent text 24px off the bottom edge, and reads as absent |
+| 8 | — | `newPageButton` in `e2e/helpers/wiki.ts` is scoped to the sidebar | Phase 5 gave the empty space its own "New page" in the content column, which made the shared locator ambiguous and took the whole `editor-toc` suite red on a clean tree. Two stale `button:has-text("Save")` clicks in `toc-navigation` went with it — phase 2 converted thirteen of them and missed these, because the spec was already dying earlier |
+
+Verified in the browser at 1280×800, 1440×900 and 1000×900: the rail returns
+on the 1280px laptop with the prose column shifted left and no overlap, the
+strip still takes over at 1000 (739px of editor), the title row carries the
+title and the dot alone, the panel toggle still opens Route and Published, and
+Overview's "Load more" reads as a control and appends the remaining 30 of 80
+spaces.
+
+E2E: `editor-toc` is 5/6 with the new "keeps the rail on a 1280px laptop" case
+— the sixth is the "clicking an entry scrolls that heading into view"
+scroll-spy assertion this spec has recorded as failing since phase 3, checked
+again on a clean tree with only the helper fix applied and failing identically.
+`page-settings-meta` and both `git-sync-*` specs are 4/4. `toc-navigation` is
+still red, now two dead locators further on, at the assertion that a merged
+change request produced a `Wiki Document` route — the local merge job, which is
+the known job-queue saturation rather than anything this pass touched. Unit
+suite 81 pass; lint and build pass on the touched files.
