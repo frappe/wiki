@@ -190,3 +190,14 @@ test('highlightSegments returns null when the key did not match', () => {
 	assert.equal(highlightSegments(null), null);
 	assert.equal(highlightSegments({ target: '', indexes: [] }), null);
 });
+
+test("a group's name does not drag its whole subtree into the results", () => {
+	// Every descendant's route starts with the group's slug, so matching the
+	// full path returned the group and both its pages — the hierarchy the flat
+	// list exists to replace.
+	const { matches } = filterTree(sampleTree(), 'guides');
+
+	assert.ok(has(matches, 'g1'), 'the group itself matches');
+	assert.equal(has(matches, 'p1'), false, 'a page under it does not');
+	assert.equal(has(matches, 'p2'), false, 'nor its sibling');
+});

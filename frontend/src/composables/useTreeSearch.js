@@ -27,12 +27,11 @@ export function useTreeSearch(treeData) {
 
 // Drop weak matches (fuzzysort scores 0..1, 1 = perfect). We threshold each key
 // separately: titles get a lenient cut so a near-prefix like "stat" still finds
-// "Getting Started", while routes get a strict cut because they're long — a
-// short query like "cli" scatter-matches "c…l…i" across ".../installation",
-// which we want to ignore. Strong slug matches (e.g. "auth-tokens") still clear
-// the route bar.
+// "Getting Started", while the slug gets a strict cut because a short query
+// scatter-matches letters across a long word. Strong slug matches (e.g.
+// "auth-tokens") clear it easily.
 const TITLE_THRESHOLD = 0.3;
-const ROUTE_THRESHOLD = 0.5;
+const SLUG_THRESHOLD = 0.5;
 
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
 // blank (meaning "not searching, render the full tree"), otherwise the flat
@@ -41,14 +40,21 @@ export function filterTree(children, query) {
 	const q = (query || '').trim();
 	if (!q) return null;
 
-	// Match title OR route; fuzzysort ranks each row by its best key.
+	// Match on the title or the page's own slug — never on the rest of the
+	// route. An ancestor's segment is in every descendant's route, so matching
+	// the whole path made a search for a group name return the group and its
+	// entire subtree, which is the tree the flat list exists to replace.
+	//
+	// The full route stays a key even though it never decides a match: the
+	// renderer highlights the query inside it, and a slug hit is a substring of
+	// the route, so the highlight lands in the right place.
 	const hits = fuzzysort
 		.go(q, flatten(children), {
-			keys: ['node.title', 'node.route'],
+			keys: ['node.title', 'node.route', 'slug'],
 		})
 		.filter(
 			(hit) =>
-				hit[0].score >= TITLE_THRESHOLD || hit[1].score >= ROUTE_THRESHOLD,
+				hit[0].score >= TITLE_THRESHOLD || hit[2].score >= SLUG_THRESHOLD,
 		);
 
 	const score = new Map(); // doc_key -> result ([0]=title, [1]=route)
@@ -94,9 +100,15 @@ export function highlightSegments(result) {
 
 // Flatten to every node in the tree, at every depth, so a nested page can be
 // its own result row.
+/** The page's own route segment: `guides/auth-tokens` -> `auth-tokens`. */
+function slugOf(route) {
+	const value = route || '';
+	return value.slice(value.lastIndexOf('/') + 1);
+}
+
 function flatten(children, out = []) {
 	for (const node of children) {
-		out.push({ node });
+		out.push({ node, slug: slugOf(node.route) });
 		if (node.children?.length) {
 			flatten(node.children, out);
 		}

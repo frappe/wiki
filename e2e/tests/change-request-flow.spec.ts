@@ -349,10 +349,10 @@ test.describe('Change Request Flow', () => {
 
 		const cr1Url = await submitChangeRequestForSpace();
 
-		// Change request 2 (created after CR1 is submitted)
-		await page.goto(appUrl('spaces'));
-		await page.waitForLoadState('networkidle');
-		await page.getByText(spaceName, { exact: true }).click();
+		// Change request 2 (created after CR1 is submitted). Navigate by id:
+		// a space's name is on the page twice now -- the sidebar lists it and
+		// the overview row repeats it -- so clicking by text is ambiguous.
+		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 
 		const cr2GroupA = `CR2 Folder A ${timestamp}`;

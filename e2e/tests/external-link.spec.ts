@@ -1,14 +1,6 @@
 import { expect, test } from '@playwright/test';
-import {
-	APP_BASE,
-	CHANGE_REQUEST_URL_RE,
-	spaceLinkSelector,
-} from '../helpers/routes';
-import {
-	clickSidebarAddOption,
-	publishChangeRequestFromReview,
-	saveEditor,
-} from '../helpers/wiki';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
+import { clickSidebarAddOption, saveEditor } from '../helpers/wiki';
 
 /**
  * Tests for the external link feature in wiki.
@@ -86,12 +78,18 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge
-		await page.getByRole('button', { name: 'Submit for Review' }).click();
-		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
-			timeout: 10000,
+		// Submit for Review lives in the editor header, and adding an external
+		// link opens no editor. The sidebar's Merge is the manager's one-click
+		// path -- it walks the CR through submit, approve and merge.
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
 		});
-		await publishChangeRequestFromReview(page);
+		await expect(mergeButton).toBeVisible({ timeout: 10000 });
+		await mergeButton.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
 
 		// Navigate back to space to verify the external link is in the tree after merge
 		if (spaceHref) {
@@ -182,12 +180,18 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items
-		await page.getByRole('button', { name: 'Submit for Review' }).click();
-		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
-			timeout: 10000,
+		// Submit for Review lives in the editor header, and adding an external
+		// link opens no editor. The sidebar's Merge is the manager's one-click
+		// path -- it walks the CR through submit, approve and merge.
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
 		});
-		await publishChangeRequestFromReview(page);
+		await expect(mergeButton).toBeVisible({ timeout: 10000 });
+		await mergeButton.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
 
 		// Navigate back to space and click on the page to get public view
 		if (spaceHref) {
