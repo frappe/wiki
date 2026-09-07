@@ -1,10 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { getList } from '../helpers/frappe';
-import {
-	APP_BASE,
-	CHANGE_REQUEST_URL_RE,
-	spaceLinkSelector,
-} from '../helpers/routes';
+import { CHANGE_REQUEST_URL_RE } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
 	openNewPageDialog,
@@ -45,15 +41,12 @@ test.describe('Page actions – AI link URL', () => {
 	test('Open in ChatGPT uses the current page URL after sidebar navigation', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		const editor = page.locator('.ProseMirror, [contenteditable="true"]');

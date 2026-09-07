@@ -1,7 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { getList } from '../helpers/frappe';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog, saveEditor } from '../helpers/wiki';
+import { createDraftAndOpenEditor, saveEditor } from '../helpers/wiki';
 
 interface WikiDocument {
 	name: string;
@@ -12,50 +11,16 @@ interface WikiDocument {
 }
 
 test.describe('Markdown Line Breaks', () => {
-	/**
-	 * Helper: navigate to a space and create a new page, returning the editor locator.
-	 */
-	async function createPageAndOpenEditor(
-		page: import('@playwright/test').Page,
-		pageTitle: string,
-	) {
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
-		await page.waitForLoadState('networkidle');
-
-		await openNewPageDialog(page);
-
-		await page.getByLabel('Title').fill(pageTitle);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Save' })
-			.click();
-		await page.waitForLoadState('networkidle');
-
-		const pageTitleInput = page.getByRole('textbox', { name: 'Page title' });
-		const openedCreatedPage = await pageTitleInput
-			.inputValue({ timeout: 2000 })
-			.then((value) => value === pageTitle)
-			.catch(() => false);
-		if (!openedCreatedPage) {
-			await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		}
-		await expect(pageTitleInput).toHaveValue(pageTitle, { timeout: 10000 });
-
-		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		return editor;
-	}
-
 	test('editor should round-trip single line breaks (soft breaks)', async ({
 		page,
+		wiki,
 	}) => {
 		const pageTitle = `md-breaks-soft-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		// Use the Tiptap editor API to set markdown content with single newlines
 		const result = await page.evaluate(() => {
@@ -91,9 +56,16 @@ test.describe('Markdown Line Breaks', () => {
 		expect(result.roundTrip).toBe(true);
 	});
 
-	test('editor should round-trip consecutive blank lines', async ({ page }) => {
+	test('editor should round-trip consecutive blank lines', async ({
+		page,
+		wiki,
+	}) => {
 		const pageTitle = `md-breaks-blank-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		const result = await page.evaluate(() => {
 			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
@@ -129,9 +101,14 @@ test.describe('Markdown Line Breaks', () => {
 
 	test('editor should round-trip multiple consecutive blank lines', async ({
 		page,
+		wiki,
 	}) => {
 		const pageTitle = `md-breaks-multi-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		const result = await page.evaluate(() => {
 			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
@@ -164,9 +141,14 @@ test.describe('Markdown Line Breaks', () => {
 
 	test('editor should round-trip mixed content: headings, breaks, and soft breaks', async ({
 		page,
+		wiki,
 	}) => {
 		const pageTitle = `md-breaks-mixed-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		const result = await page.evaluate(() => {
 			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
@@ -201,9 +183,14 @@ test.describe('Markdown Line Breaks', () => {
 
 	test('standard paragraph breaks should not create empty paragraphs', async ({
 		page,
+		wiki,
 	}) => {
 		const pageTitle = `md-breaks-standard-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		const result = await page.evaluate(() => {
 			const ed = document.querySelector('.ProseMirror') as HTMLElement & {
@@ -232,9 +219,14 @@ test.describe('Markdown Line Breaks', () => {
 
 	test('blank lines should persist through save and reload', async ({
 		page,
+		wiki,
 	}) => {
 		const pageTitle = `md-breaks-persist-${Date.now()}`;
-		const editor = await createPageAndOpenEditor(page, pageTitle);
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			pageTitle,
+		);
 
 		const inputMarkdown =
 			'First paragraph\n\n\n\nSecond paragraph\n\nLine A\nLine B';

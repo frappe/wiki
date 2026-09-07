@@ -1,10 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { getList } from '../helpers/frappe';
-import {
-	APP_BASE,
-	CHANGE_REQUEST_URL_RE,
-	spaceLinkSelector,
-} from '../helpers/routes';
+import { APP_BASE, CHANGE_REQUEST_URL_RE } from '../helpers/routes';
 import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
@@ -23,14 +19,10 @@ test.describe('Link Persistence Tests', () => {
 	test('should save links as markdown to the database', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Create a new page

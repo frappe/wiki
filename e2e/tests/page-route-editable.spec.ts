@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
+import { expect, test } from '../fixtures';
 import { openNewPageDialog } from '../helpers/wiki';
 
 /**
@@ -9,15 +8,12 @@ import { openNewPageDialog } from '../helpers/wiki';
 test.describe('Editable page route', () => {
 	test('prefills the route from the title, then lets the author take it over', async ({
 		page,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		await openNewPageDialog(page);
