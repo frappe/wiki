@@ -161,7 +161,7 @@
 			</template>
 		</Dialog>
 
-		<Dialog v-model:open="showSubmitConfirmDialog" size="sm">
+		<Dialog v-model:open="showSubmitConfirmDialog" size="md">
 			<template #title>
 				<div class="flex items-center gap-2">
 					<span class="lucide-git-branch size-5 text-ink-gray-5" aria-hidden="true" />
@@ -172,10 +172,45 @@
 			</template>
 			<template #default>
 				<p class="text-ink-gray-7">
-					{{ __('Are you sure you want to submit your changes for review?') }}
+					{{ __('Pick the changes to send for review. The rest stay in your draft.') }}
 				</p>
+
+				<div class="mt-4 border border-outline-gray-2 rounded-lg overflow-hidden">
+					<label
+						class="flex items-center gap-2 px-3 py-2 border-b border-outline-gray-2 bg-surface-gray-1 cursor-pointer"
+					>
+						<Checkbox
+							:model-value="allSelected"
+							:indeterminate="someSelected && !allSelected"
+							@update:model-value="toggleAll"
+						/>
+						<span class="text-sm-medium text-ink-gray-7">
+							{{ __('{0} of {1} selected', [submitSelection.length, crStore.changeCount]) }}
+						</span>
+					</label>
+
+					<div class="max-h-[40vh] overflow-y-auto divide-y divide-outline-gray-2">
+						<label
+							v-for="change in crStore.changes"
+							:key="change.doc_key"
+							class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-surface-gray-1"
+						>
+							<Checkbox
+								:model-value="submitSelection.includes(change.doc_key)"
+								@update:model-value="toggleChange(change.doc_key, $event)"
+							/>
+							<span class="flex-1 min-w-0 truncate text-ink-gray-8">
+								{{ change.title || __('Untitled') }}
+							</span>
+							<Badge variant="subtle" :theme="getChangeTheme(change.change_type)" size="sm">
+								{{ getChangeLabel(change.change_type) }}
+							</Badge>
+						</label>
+					</div>
+				</div>
+
 				<p class="text-sm text-ink-gray-5 mt-2">
-					{{ __('You have {0} pending {1}.', [crStore.changeCount, crStore.changeCount === 1 ? __('change') : __('changes')]) }}
+					{{ __('A page inside a new or deleted group is submitted along with it.') }}
 				</p>
 			</template>
 			<template #actions="{ close }">
@@ -184,6 +219,7 @@
 					<Button
 						variant="solid"
 						:loading="crStore.isSubmitting"
+						:disabled="submitSelection.length === 0"
 						@click="confirmSubmit(close)"
 					>
 						{{ __('Submit') }}
@@ -198,7 +234,7 @@ import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
-import { Badge, Button, Dialog, Dropdown, toast } from 'frappe-ui';
+import { Badge, Button, Checkbox, Dialog, Dropdown, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import SpaceChromeBar from './SpaceChromeBar.vue';
 
@@ -355,9 +391,43 @@ watch(
 const showChangesDialog = ref(false);
 const showSubmitConfirmDialog = ref(false);
 
+// The dialog opens with everything ticked, so the default stays "submit my
+// whole draft"; unticking is how an author splits one page out of it.
+const submitSelection = ref([]);
+
+watch(showSubmitConfirmDialog, (open) => {
+	if (open) {
+		submitSelection.value = crStore.changes.map((change) => change.doc_key);
+	}
+});
+
+const allSelected = computed(
+	() =>
+		crStore.changeCount > 0 &&
+		submitSelection.value.length === crStore.changeCount,
+);
+const someSelected = computed(() => submitSelection.value.length > 0);
+
+function toggleAll(checked) {
+	submitSelection.value = checked
+		? crStore.changes.map((change) => change.doc_key)
+		: [];
+}
+
+function toggleChange(docKey, checked) {
+	if (checked) {
+		if (!submitSelection.value.includes(docKey)) {
+			submitSelection.value = [...submitSelection.value, docKey];
+		}
+		return;
+	}
+	submitSelection.value = submitSelection.value.filter((key) => key !== docKey);
+}
+
 function confirmSubmit(closeDialog) {
+	const selected = [...submitSelection.value];
 	closeDialog();
-	emit('submit');
+	emit('submit', selected);
 }
 
 const canShowMerge = computed(() => {

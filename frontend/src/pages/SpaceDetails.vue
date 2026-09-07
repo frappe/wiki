@@ -845,15 +845,15 @@ function finalizationError(action) {
 	return null;
 }
 
-async function handleSubmitChangeRequest() {
+async function handleSubmitChangeRequest(docKeys = null) {
 	const blockerMessage = finalizationError(__('submitting'));
 	if (blockerMessage) {
 		toast.error(blockerMessage);
 		return;
 	}
 	try {
-		const result = await crStore.submitForReview();
-		toast.success(__('Change request submitted for review'));
+		const result = await crStore.submitForReview(docKeys);
+		toast.success(submitToastMessage(result));
 		if (result?.name) {
 			router.push({
 				name: 'ChangeRequestReview',
@@ -863,6 +863,24 @@ async function handleSubmitChangeRequest() {
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error submitting for review'));
 	}
+}
+
+function submitToastMessage(result) {
+	const heldBack = result?.held_back?.length || 0;
+	const autoIncluded = result?.auto_included?.length || 0;
+	if (!heldBack && !autoIncluded) {
+		return __('Change request submitted for review');
+	}
+	if (!heldBack) {
+		return __('Submitted for review with {0} related {1}', [
+			autoIncluded,
+			autoIncluded === 1 ? __('page') : __('pages'),
+		]);
+	}
+	return __('Submitted for review. {0} {1} stayed in your draft.', [
+		heldBack,
+		heldBack === 1 ? __('change') : __('changes'),
+	]);
 }
 
 async function handleArchiveChangeRequest() {

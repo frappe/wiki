@@ -1350,13 +1350,90 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 	return changes
 
 
+def _expand_selection(cr: Document, selected: set[str], changed: dict[str, str]) -> set[str]:
+	"""Grow a partial selection until neither half of the split is left dangling.
+
+	Up: an ancestor that is new in this CR travels with its descendants, or the
+	submitted tree points at a parent that does not exist yet. Down: a new or
+	deleted node takes its changed descendants, so a new group keeps its pages
+	and a deleted group keeps the descendants the delete cascade marked.
+	"""
+	base_items = get_revision_item_map(cr.base_revision)
+	head_items = get_effective_revision_item_map(cr.head_revision)
+
+	children: dict[str | None, list[str]] = {}
+	for key, item in head_items.items():
+		children.setdefault(item.get("parent_key"), []).append(key)
+
+	expanded = set(selected)
+	queue = list(selected)
+	while queue:
+		key = queue.pop()
+
+		parent = (head_items.get(key) or {}).get("parent_key")
+		while parent and parent in changed and parent not in base_items:
+			if parent not in expanded:
+				expanded.add(parent)
+				queue.append(parent)
+			parent = (head_items.get(parent) or {}).get("parent_key")
+
+		if key in changed and (key not in base_items or changed[key] == "deleted"):
+			for child in children.get(key, []):
+				if child in changed and child not in expanded:
+					expanded.add(child)
+					queue.append(child)
+
+	return expanded
+
+
+def _split_off_changes(cr: Document, doc_keys: set[str]) -> str | None:
+	"""Move the given changes out of `cr` into a fresh draft off the same base.
+
+	Only the overlay rows move — content blobs are immutable and shared, so
+	nothing is copied. Returns the new change request, or None if there was
+	nothing to move.
+	"""
+	if not doc_keys:
+		return None
+
+	rows = frappe.get_all(
+		"Wiki Revision Item",
+		filters={"revision": cr.head_revision, "doc_key": ("in", list(doc_keys))},
+		pluck="name",
+	)
+	if not rows:
+		return None
+
+	head_revision = create_overlay_revision(cr.base_revision, is_working=1)
+
+	leftover = frappe.new_doc("Wiki Change Request")
+	leftover.title = cr.title
+	leftover.wiki_space = cr.wiki_space
+	leftover.status = "Draft"
+	leftover.description = cr.description
+	leftover.base_revision = cr.base_revision
+	leftover.head_revision = head_revision.name
+	leftover.insert()
+
+	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", leftover.name)
+	for row in rows:
+		frappe.db.set_value("Wiki Revision Item", row, "revision", head_revision.name)
+
+	mark_hashes_stale(cr.head_revision)
+	mark_hashes_stale(head_revision.name)
+	return leftover.name
+
+
 @frappe.whitelist()
-def submit_change_request(name: str) -> None:
+def submit_change_request(name: str, doc_keys: list[str] | str | None = None) -> dict[str, Any]:
 	"""Send a Draft / Changes-Requested CR into review.
 
 	The author submits their own work; no reviewer is picked here (reviewer
 	discovery is native assignment, see the review-flow spec). We re-check
 	server-side that the CR actually has changes — the UI gate is not enough.
+
+	`doc_keys` submits a subset: everything else is split off into a new draft
+	the author keeps editing. Omit it to submit the whole change request.
 	"""
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("write")
@@ -1365,8 +1442,31 @@ def submit_change_request(name: str) -> None:
 	if not has_revision_changes(cr.base_revision, cr.head_revision):
 		frappe.throw(_("There are no changes to submit for review."), frappe.ValidationError)
 
+	changed = {change["doc_key"]: change["change_type"] for change in diff_change_request(name)}
+	held_back: set[str] = set()
+	submitted = set(changed)
+	auto_included: set[str] = set()
+
+	if doc_keys is not None:
+		requested = set(frappe.parse_json(doc_keys) if isinstance(doc_keys, str) else doc_keys) & set(changed)
+		if not requested:
+			frappe.throw(_("Select at least one change to submit for review."), frappe.ValidationError)
+		submitted = _expand_selection(cr, requested, changed)
+		auto_included = submitted - requested
+		held_back = set(changed) - submitted
+
+	leftover = _split_off_changes(cr, held_back)
+
 	cr.status = "In Review"
 	cr.save()
+
+	return {
+		"change_request": cr.name,
+		"submitted": sorted(submitted),
+		"auto_included": sorted(auto_included),
+		"held_back": sorted(held_back),
+		"held_back_change_request": leftover,
+	}
 
 
 @frappe.whitelist()

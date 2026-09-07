@@ -142,12 +142,14 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return loadChangesPromise;
 	}
 
-	async function submitForReview() {
+	async function submitForReview(docKeys = null) {
 		if (!currentChangeRequest.value) return null;
-		await submitReviewResource.submit({
-			name: currentChangeRequest.value.name,
+		const name = currentChangeRequest.value.name;
+		const result = await submitReviewResource.submit({
+			name,
+			...(docKeys ? { doc_keys: docKeys } : {}),
 		});
-		return currentChangeRequest.value;
+		return { name, ...(result || {}) };
 	}
 
 	async function archiveChangeRequest() {
