@@ -1,9 +1,11 @@
 <template>
 	<!-- The app is a fixed frame: the sidebar and the open page each own a
-	     scroller, and nothing scrolls the layout itself. Without the clip, an
-	     absolutely-positioned stray — frappe-ui Tree's aria-live region, for one
-	     — resolves against the page and drags the whole chrome up with it. -->
-	<div class="h-screen w-full overflow-hidden bg-surface-sidebar">
+	     scroller, and nothing scrolls the layout itself. The frame is both
+	     `relative` and `overflow-hidden`: the clip only catches an absolutely
+	     positioned stray — frappe-ui Tree's aria-live region, for one — when the
+	     frame is its containing block. Without `relative` the stray resolves
+	     against the page, grows the document, and drags the whole chrome up. -->
+	<div class="relative h-screen w-full overflow-hidden bg-surface-sidebar">
 		<template v-if="isLoading"></template>
 		<template v-else-if="hasAccess">
 			<MobileShell v-if="isMobile" class="wiki-mobile-shell">
