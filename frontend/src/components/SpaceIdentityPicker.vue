@@ -9,7 +9,7 @@
 				:aria-label="__('Change space logo')"
 				data-testid="space-identity-trigger"
 			>
-				<SpaceAvatar :space="space.doc || {}" :label="label" size="2xl" />
+				<SpaceAvatar :space="identity" :label="label" size="2xl" />
 			</button>
 		</template>
 
@@ -82,7 +82,7 @@
 					     still there; this is how it comes back without a
 					     re-upload. -->
 					<Button
-						v-if="logo && identity.mode !== 'logo'"
+						v-if="logo && mark.mode !== 'logo'"
 						class="w-full"
 						:label="__('Use this image')"
 						@click="useLogo"
@@ -129,15 +129,20 @@ import SpaceAvatar from './SpaceAvatar.vue';
  * A space's whole visual identity behind one square tile: an uploaded image,
  * or a curated lucide icon on a tinted square, or a generated abstract mark.
  *
- * Every choice saves straight to the document — the tile is a control, not a
- * form field, and a settings panel with no Save button must not hold an
- * identity hostage until the dialog closes.
+ * The picker never writes anything itself. It emits the fields a choice
+ * implies and the caller decides what that means — the settings panel saves
+ * them at once, because a panel with no Save button must not hold an identity
+ * hostage until the dialog closes, while the create dialog holds them until
+ * the space exists.
  */
 const props = defineProps({
-	// The `useDoc` resource for the Wiki Space, so a save is one setValue.
-	space: { type: Object, required: true },
+	// The five identity fields as a space stores them, flat. A `useDoc` doc or
+	// a plain object from a form both work.
+	identity: { type: Object, default: () => ({}) },
 	label: { type: String, default: '' },
 });
+
+const emit = defineEmits(['update']);
 
 const MODE_OPTIONS = [
 	{ label: __('Icon'), value: 'icon' },
@@ -150,38 +155,30 @@ const uploading = ref(false);
 const fileInput = ref(null);
 const fileUploader = useFileUpload();
 
-const identity = computed(() => resolveSpaceIdentity(props.space.doc || {}));
-const logo = computed(() => props.space.doc?.app_switcher_logo || '');
-const icon = computed(() => props.space.doc?.space_icon || '');
-const color = computed(() => identity.value.color);
+const mark = computed(() => resolveSpaceIdentity(props.identity));
+const logo = computed(() => props.identity.app_switcher_logo || '');
+const icon = computed(() => props.identity.space_icon || '');
+const color = computed(() => mark.value.color);
 
 // The tile that is showing is the tab you land on. A space that has never been
 // given a mark opens on Icon, which is the one that can produce one in a click.
-const mode = ref(identity.value.mode === 'logo' ? 'upload' : 'icon');
+const mode = ref(mark.value.mode === 'logo' ? 'upload' : 'icon');
 
 watch(
-	() => identity.value.mode,
+	() => mark.value.mode,
 	(next) => {
 		mode.value = next === 'logo' ? 'upload' : 'icon';
 	},
 );
 
-async function saveIdentity(patch) {
-	try {
-		await props.space.setValue.submit(patch);
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Failed to update the space logo'));
-	}
-}
-
 // Colour is a one-click tweak you may want to repeat, so only the icon — the
 // choice that finishes the job — closes the popover.
 function pickColor(swatch) {
-	saveIdentity(generatedIdentityPatch({ icon: icon.value, color: swatch }));
+	emit('update', generatedIdentityPatch({ icon: icon.value, color: swatch }));
 }
 
 function pickIcon(next) {
-	saveIdentity(generatedIdentityPatch({ icon: next, color: color.value }));
+	emit('update', generatedIdentityPatch({ icon: next, color: color.value }));
 	open.value = false;
 }
 
@@ -193,7 +190,7 @@ function pickIcon(next) {
 async function shuffle() {
 	rolling.value = true;
 	try {
-		await saveIdentity(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
+		emit('update', generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
 	} catch (error) {
 		console.error('Could not generate a space mark', error);
 		toast.error(__('Could not generate a logo'));
@@ -203,12 +200,12 @@ async function shuffle() {
 }
 
 function useLogo() {
-	saveIdentity(generatedIdentityPatch({}));
+	emit('update', generatedIdentityPatch({}));
 	open.value = false;
 }
 
 function removeLogo() {
-	saveIdentity({ app_switcher_logo: '' });
+	emit('update', { app_switcher_logo: '' });
 }
 
 function pickFile() {
@@ -231,7 +228,7 @@ async function handleFileChange(event) {
 		});
 		// An upload is the one direction that clears: it is an explicit choice
 		// of this image over whatever mark was generated before.
-		await saveIdentity({
+		emit('update', {
 			...generatedIdentityPatch({}),
 			app_switcher_logo: result.file_url,
 		});

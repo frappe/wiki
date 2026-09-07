@@ -18,12 +18,23 @@
 	>
 		<template #default>
 			<div class="flex flex-col gap-4">
-				<FormControl
-					type="text"
-					:label="__('Space Name')"
-					v-model="newSpace.space_name"
-					:placeholder="__('My Wiki Space')"
-				/>
+				<!-- A mark is rolled the moment the dialog opens, so no space is
+				     ever created as a bare initial. The tile opens the same
+				     picker the settings panel uses. -->
+				<div class="flex items-end gap-3">
+					<SpaceIdentityPicker
+						:identity="identity"
+						:label="newSpace.space_name"
+						@update="applyIdentity"
+					/>
+					<FormControl
+						class="flex-1"
+						type="text"
+						:label="__('Space Name')"
+						v-model="newSpace.space_name"
+						:placeholder="__('My Wiki Space')"
+					/>
+				</div>
 				<FormControl
 					type="text"
 					:label="__('Route')"
@@ -169,6 +180,7 @@
 
 <script setup>
 import Autocomplete from '@/components/Autocomplete.vue';
+import SpaceIdentityPicker from '@/components/SpaceIdentityPicker.vue';
 import {
 	Button,
 	Dialog,
@@ -181,6 +193,9 @@ import {
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { rollSpaceAvatar } from '@/lib/spaceAvatar.js';
+import { generatedIdentityPatch } from '@/lib/spaceIdentity.js';
+
 const emit = defineEmits(['created']);
 const isOpen = defineModel({ type: Boolean });
 
@@ -189,6 +204,38 @@ const router = useRouter();
 const creating = ref(false);
 const routeManuallyEdited = ref(false);
 const formError = ref('');
+
+// The identity fields, held here until the space exists rather than saved as
+// they are picked — the only difference between this picker and the settings
+// panel's.
+const identity = reactive(emptyIdentity());
+
+function emptyIdentity() {
+	return {
+		space_icon: '',
+		space_color: '',
+		avatar: '',
+		avatar_style: '',
+		avatar_seed: '',
+		app_switcher_logo: '',
+	};
+}
+
+function applyIdentity(patch) {
+	Object.assign(identity, patch);
+}
+
+// Rolled on open, not on create: the user sees the mark they are about to get
+// and can shuffle past it. A failed roll leaves the initial, which is what the
+// space would have had anyway.
+watch(isOpen, async (open) => {
+	if (!open || identity.avatar || identity.space_icon) return;
+	try {
+		applyIdentity(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
+	} catch (error) {
+		console.error('Could not generate a space mark', error);
+	}
+});
 
 const newSpace = reactive({
 	space_name: '',
@@ -466,6 +513,7 @@ const spaces = createListResource({
 });
 
 function resetForm() {
+	Object.assign(identity, emptyIdentity());
 	newSpace.space_name = '';
 	newSpace.route = '';
 	newSpace.git_synced = false;
@@ -516,6 +564,7 @@ const handleCreateSpace = async () => {
 	}
 
 	const payload = {
+		...identity,
 		space_name: newSpace.space_name,
 		route: newSpace.route,
 		// New spaces are published by default, so start them as public read.

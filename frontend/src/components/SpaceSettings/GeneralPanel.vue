@@ -41,7 +41,11 @@
 				__('Shown in the reader header and on generated social preview images')
 			"
 		>
-			<SpaceIdentityPicker :space="space" :label="spaceName" />
+			<SpaceIdentityPicker
+				:identity="space.doc || {}"
+				:label="spaceName"
+				@update="saveIdentity"
+			/>
 		</SettingsRow>
 
 		<SettingsRow
@@ -91,6 +95,16 @@ watch(
 	},
 	{ immediate: true },
 );
+
+// The picker only says what was chosen; a settings panel has no Save button,
+// so the choice is written the moment it is made.
+async function saveIdentity(patch) {
+	try {
+		await props.space.setValue.submit(patch);
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Failed to update the space logo'));
+	}
+}
 
 async function updatePublishSetting(value) {
 	updatingPublishSetting.value = true;
