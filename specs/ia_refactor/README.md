@@ -1,8 +1,8 @@
 # Information Architecture Refactor
 
 Date: 2026-09-01
-Status: **In progress.** Spec 1 is built (all seven phases); specs 2–4 are
-written and unstarted.
+Status: **In progress.** Spec 1 is built (all seven phases) and spec 2 is built
+(all five); specs 3–4 are written and unstarted.
 
 Source of truth for the target design: the **`wiki-proto`** Sketch prototype
 (https://sketch.netchamp.dev/u/nagariahussain/wiki-proto). Every spec in this
@@ -26,7 +26,7 @@ collapses into this model.
 | # | Spec | What | Depends on |
 |---|------|------|-----------|
 | 1 ✅ | [01-sidebar-spaces.md](01-sidebar-spaces.md) | Spaces in the sidebar: LibrarySidebar + SpaceSidebar drill-in, route changes, retirement of the `/spaces` list page and the in-page tree column | — |
-| 2 | [02-space-editor-revamp.md](02-space-editor-revamp.md) | Space details / editor page revamp: header row, page settings side panel, centered prose, floating outline, SettingsDialog-based space settings | 1 |
+| 2 ✅ | [02-space-editor-revamp.md](02-space-editor-revamp.md) | Space details / editor page revamp: header row, page settings side panel, centered prose, floating outline, SettingsDialog-based space settings | 1 |
 | 3 | [03-space-avatar.md](03-space-avatar.md) | Space identity: upload an image **or** generate abstract art (DiceBear, hive-style) | 1 (renders in the new sidebar) |
 | 4 | [04-overview-analytics.md](04-overview-analytics.md) | Overview landing page with wiki-wide analytics, built like Frappe Builder's analytics | 1; **comes later** |
 

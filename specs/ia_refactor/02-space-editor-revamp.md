@@ -106,6 +106,7 @@ Commit per phase; reconcile spec after each.
   Save retired.
 - 2026-09-07 — Phase 3 built: the page settings panel.
 - 2026-09-07 — Phase 4 built: the space settings tabs.
+- 2026-09-07 — Phase 5 built: the empty space's way out; read-only pass verified.
 
 ### Phase 1 reconciliation
 
@@ -225,3 +226,25 @@ actions" menu; fixed while renaming it. `spa-editor.mobile` asserts the Access
 tab is visible, 4/4 pass — its own drawer still has a gear titled "Settings",
 which is a mobile surface spec 01 did not touch. Unit suite 81 pass; lint and
 build pass.
+
+### Phase 5 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Phase 5 — "read-only (git) chrome-drop pass" | Nothing left to drop. The sweep found the gates already in place: toolbar, bubble menu and table menu (`WikiEditor` 6/21/24), `editable` and the `is-editable` class, the save and Cmd+S guards, Submit, the page-settings toggle, the route line's edit affordance, the panel itself, and the tree's create/reorder/row actions | Phases 1–3 gated each surface as they built it rather than leaving a pass to the end. The pass ran as a verification, and `git-sync-readonly` / `git-sync-edit-on-github` still pass unchanged |
+| 2 | Decision 7 — "No page selected → 'Pick a page to edit'" | That wording only survives for a tree that has pages. An empty space gets "Create your first page" | `SpaceDetails` auto-opens the first page, so "no page selected" is not actually reachable on a populated space — the state the user lands in is *the space has none*. Telling them to pick from an empty tree is advice with nothing behind it |
+| 3 | Decision 7 — the empty state replaces `SpaceWelcome` | `SpaceWelcome` was rewritten, not replaced | It is a sibling route of the editor (`router.js:44`), not a branch inside it as in the prototype. Moving it into `WikiDocumentPanel` would have meant hoisting the header row out for a state whose header has nothing actionable on it |
+| 4 | — | The empty state carries no header row, unlike the prototype | Every control in that row is about a page. On an empty space the whole row would be disabled or hidden, which is a worse thing to draw than nothing |
+| 5 | — | The sidebar keeps "No pages yet"; the content column says "Create your first page" | Both columns showed the same sentence side by side. The tree states the fact where the pages would be, the content column carries the action — one message across two columns instead of one message twice |
+| 6 | Decision 7 — "+ New page button" | `composables/useNewPageRequest.js`, module-scoped, consumed by `WikiDocumentList` | The create dialog lives in the tree with the route-computation it needs, and the tree is a sibling column, not an ancestor. Same shape as `usePageSettingsPanel` |
+| 7 | — | A consumable pending flag, not an event | The mobile tree lives in a drawer that unmounts while closed, so at the moment the button is pressed there is nobody to hear an event. The flag survives until the tree mounts; `SpaceDetails` opens the drawer to make that happen |
+| 8 | — | The content column renders nothing until the tree has loaded | An unloaded tree and an empty one look identical. Without the gate a populated space flashes "create your first page" on entry — the trap `space.js` already documents for the sidebar |
+| 9 | — | Fixed: creating a page could land on "Draft not found" | Out of scope on paper, but it is the empty state's only action. Navigation to `/draft/tmp_*` races the create; when the create wins, `promoteKey` has already moved the buffer to the real key. The panel's route-swap watcher was lazy, so it never fired for a key resolved before it mounted, and no reload could settle it — the temp key was gone for good. The watcher is now `immediate`, and `loadCrPage` follows a promotion instead of reporting the page missing |
+
+Verified at 1440×900: an empty space shows the tree's "No pages yet" beside the
+content column's "Create your first page" + New page; the button opens the
+tree's create dialog and lands in the editor on the page it made. The
+`editor-toc` "clicking an entry scrolls that heading into view" failure was
+checked against a clean `HEAD` and fails identically there — pre-existing, not
+from this phase. New e2e `space-empty-new-page`; `space-default-page` retargeted
+to the new copy. Both git-sync specs, unit suite (81), lint and build pass.
