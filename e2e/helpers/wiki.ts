@@ -1,5 +1,7 @@
 import { type APIRequestContext, type Page, expect } from '@playwright/test';
+import { uniqueRoute } from './factory';
 import { createDoc, deleteDoc, getDoc, getList } from './frappe';
+import { SPACE_URL_RE, appUrl } from './routes';
 
 /**
  * Tear down every Wiki Space with the given (test-unique) route.
@@ -78,6 +80,41 @@ export function newPageButton(page: Page) {
  */
 export async function openNewPageDialog(page: Page) {
 	await newPageButton(page).click();
+}
+
+/**
+ * Build a space through the app's own New Space dialog, and hand it to the
+ * factory so it is torn down with the test.
+ *
+ * Most specs should take a space from the factory instead — it is a couple of
+ * requests rather than a browser round-trip. This exists for the specs whose
+ * subject *is* the app's own create path, or which need the draft store
+ * hydrated exactly the way the app hydrates it.
+ */
+export async function createSpaceViaDialog(
+	page: Page,
+	wiki: { adopt(spaceName: string): void },
+	label = 'space',
+) {
+	const route = uniqueRoute(label);
+
+	await page.goto(appUrl('spaces'));
+	await page.waitForLoadState('networkidle');
+	await page.getByRole('button', { name: 'New Space' }).click();
+	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
+	await page.getByLabel('Space Name').fill(route);
+	await page.getByLabel('Route').fill(route);
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Create' })
+		.click();
+	await page.waitForLoadState('networkidle');
+	await expect(page).toHaveURL(SPACE_URL_RE);
+
+	const spaceUrl = page.url();
+	const spaceId = spaceUrl.split('/spaces/')[1].split(/[/?#]/)[0];
+	wiki.adopt(spaceId);
+	return { spaceId, spaceUrl, route };
 }
 
 /**

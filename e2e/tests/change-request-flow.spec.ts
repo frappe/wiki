@@ -1,4 +1,6 @@
-import { type Page, expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import type { WikiFactory } from '../helpers/factory';
 import { callMethod, getList } from '../helpers/frappe';
 import {
 	APP_BASE,
@@ -8,6 +10,7 @@ import {
 } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	createSpaceViaDialog,
 	currentDraftDocKey,
 	openNewPageDialog,
 	saveEditor,
@@ -55,30 +58,16 @@ async function clickReviewMenuItem(page: Page, name: string) {
  * Create a fresh space with a single draft page. Returns identifiers the
  * caller needs to navigate back to the space and address the page.
  */
-async function createSpaceWithDraftPage(page: Page, label: string) {
-	await page.goto(appUrl('spaces'));
-	await page.waitForLoadState('networkidle');
+async function createSpaceWithDraftPage(
+	page: Page,
+	wiki: WikiFactory,
+	label: string,
+) {
+	const { spaceUrl } = await createSpaceViaDialog(page, wiki, label);
 
-	await page.getByRole('button', { name: 'New Space' }).click();
-	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-
-	const timestamp = Date.now();
-	const spaceName = `${label} ${timestamp}`;
-	const spaceRoute = `${label.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`;
 	const pageTitle = `${label
 		.toLowerCase()
-		.replace(/\s+/g, '-')}-page-${timestamp}`;
-
-	await page.getByLabel('Space Name').fill(spaceName);
-	await page.getByLabel('Route').fill(spaceRoute);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Create' })
-		.click();
-	await page.waitForLoadState('networkidle');
-	await expect(page).toHaveURL(SPACE_URL_RE);
-	const spaceUrl = page.url();
-
+		.replace(/\s+/g, '-')}-page-${Date.now()}`;
 	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(pageTitle);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
@@ -87,7 +76,7 @@ async function createSpaceWithDraftPage(page: Page, label: string) {
 	await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 	await page.waitForURL(/\/draft\/[^/?#]+/);
 
-	return { spaceUrl, spaceName, pageTitle };
+	return { spaceUrl, pageTitle };
 }
 
 /** Set the open editor's content via the exposed wikiEditor and save. */
@@ -121,32 +110,17 @@ test.describe('Change Request Flow', () => {
 	test('should add a page, edit existing page, merge, and verify live content', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		await page.goto(appUrl('spaces'));
-		await page.waitForLoadState('networkidle');
-
-		// Create a new space
-		await page.getByRole('button', { name: 'New Space' }).click();
-		await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-
 		const timestamp = Date.now();
-		const spaceName = `CR Flow Space ${timestamp}`;
-		const spaceRoute = `cr-flow-space-${timestamp}`;
 		const pageTitle = `cr-flow-page-${timestamp}`;
 		const initialContent = `Initial content ${timestamp}`;
 		const updatedContent = `Updated content ${timestamp}`;
-
-		await page.getByLabel('Space Name').fill(spaceName);
-		const routeInput = page.getByLabel('Route');
-		await routeInput.fill(spaceRoute);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Create' })
-			.click();
-		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(SPACE_URL_RE);
-
-		const spaceUrl = page.url();
+		const { spaceUrl } = await createSpaceViaDialog(
+			page,
+			wiki,
+			'cr-flow-space',
+		);
 
 		// Create a new page draft
 
@@ -249,28 +223,14 @@ test.describe('Change Request Flow', () => {
 	test('should merge multiple change requests with added folders and pages', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		await page.goto(appUrl('spaces'));
-		await page.waitForLoadState('networkidle');
-
-		// Create a new space
-		await page.getByRole('button', { name: 'New Space' }).click();
-		await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-
 		const timestamp = Date.now();
-		const spaceName = `CR Multi Space ${timestamp}`;
-		const spaceRoute = `cr-multi-space-${timestamp}`;
-
-		await page.getByLabel('Space Name').fill(spaceName);
-		await page.getByLabel('Route').fill(spaceRoute);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Create' })
-			.click();
-		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(SPACE_URL_RE);
-
-		const spaceUrl = page.url();
+		const { spaceUrl } = await createSpaceViaDialog(
+			page,
+			wiki,
+			'cr-multi-space',
+		);
 		const spaceId = spaceUrl.split(`${appUrl('spaces')}/`)[1];
 
 		const createGroup = async (title: string) => {
@@ -406,24 +366,14 @@ test.describe('Change Request Flow', () => {
 	test('should label reordered pages when reordering within a group', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		await page.goto(appUrl('spaces'));
-		await page.waitForLoadState('networkidle');
-
 		const timestamp = Date.now();
-		const spaceName = `CR Reorder Space ${timestamp}`;
-		const spaceRoute = `cr-reorder-space-${timestamp}`;
-
-		await page.getByRole('button', { name: 'New Space' }).click();
-		await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-		await page.getByLabel('Space Name').fill(spaceName);
-		await page.getByLabel('Route').fill(spaceRoute);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Create' })
-			.click();
-		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(SPACE_URL_RE);
+		const { spaceUrl } = await createSpaceViaDialog(
+			page,
+			wiki,
+			'cr-reorder-space',
+		);
 
 		const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
 
@@ -625,27 +575,16 @@ test.describe('Change Request Flow', () => {
 	test('should navigate to published page after merging from space editor', async ({
 		page,
 		request,
+		wiki,
 	}) => {
-		await page.goto(appUrl('spaces'));
-		await page.waitForLoadState('networkidle');
-
 		const timestamp = Date.now();
-		const spaceName = `CR Merge Nav Space ${timestamp}`;
-		const spaceRoute = `cr-merge-nav-${timestamp}`;
 		const pageTitle = `merge-nav-page-${timestamp}`;
 		const pageContent = `Merge nav content ${timestamp}`;
-
-		// Create a new space
-		await page.getByRole('button', { name: 'New Space' }).click();
-		await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-		await page.getByLabel('Space Name').fill(spaceName);
-		await page.getByLabel('Route').fill(spaceRoute);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Create' })
-			.click();
-		await page.waitForLoadState('networkidle');
-		await expect(page).toHaveURL(SPACE_URL_RE);
+		const { spaceUrl } = await createSpaceViaDialog(
+			page,
+			wiki,
+			'cr-merge-nav-space',
+		);
 
 		// Create a new page draft
 
@@ -703,9 +642,10 @@ test.describe('Change Request Flow', () => {
 	test('two-person path: submit -> assign -> approve -> merge', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const content = `Two-person content ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Two Person');
+		await createSpaceWithDraftPage(page, wiki, 'CR Two Person');
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
@@ -755,11 +695,12 @@ test.describe('Change Request Flow', () => {
 		expect(merged[0]?.status).toBe('Merged');
 	});
 
-	test('request changes -> revise -> resubmit', async ({ page }) => {
+	test('request changes -> revise -> resubmit', async ({ page, wiki }) => {
 		const content = `Request-changes content ${Date.now()}`;
 		const feedback = `Please expand the intro ${Date.now()}`;
 		const { spaceUrl, pageTitle } = await createSpaceWithDraftPage(
 			page,
+			wiki,
 			'CR Request Changes',
 		);
 		await setEditorContentAndSave(page, content);
@@ -793,10 +734,10 @@ test.describe('Change Request Flow', () => {
 		});
 	});
 
-	test('reject is terminal', async ({ page, request }) => {
+	test('reject is terminal', async ({ page, request, wiki }) => {
 		const content = `Reject content ${Date.now()}`;
 		const reason = `Out of scope ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Reject');
+		await createSpaceWithDraftPage(page, wiki, 'CR Reject');
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
@@ -835,9 +776,10 @@ test.describe('Change Request Flow', () => {
 
 	test('assigning from the list opens the dialog without navigating', async ({
 		page,
+		wiki,
 	}) => {
 		const content = `Assign nav content ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Assign Nav');
+		await createSpaceWithDraftPage(page, wiki, 'CR Assign Nav');
 		await setEditorContentAndSave(page, content);
 		await submitForReviewFromEditor(page);
 
@@ -863,9 +805,10 @@ test.describe('Change Request Flow', () => {
 	test('assigned-to-me tab lists CRs assigned to the current user', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		const content = `Assigned inbox content ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Assigned Inbox');
+		await createSpaceWithDraftPage(page, wiki, 'CR Assigned Inbox');
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
@@ -899,11 +842,12 @@ test.describe('Change Request Flow', () => {
 
 	test('my-change-requests tab renders draft rows without a router param error', async ({
 		page,
+		wiki,
 	}) => {
 		const content = `My-tab draft content ${Date.now()}`;
 		// A Draft CR owned by the current user — no submit, so it stays Draft and
 		// lands in the "My Change Requests" tab.
-		await createSpaceWithDraftPage(page, 'CR My Tab');
+		await createSpaceWithDraftPage(page, wiki, 'CR My Tab');
 		await setEditorContentAndSave(page, content);
 
 		// A Draft row routes to the space editor, which needs the `wiki_space`
@@ -933,12 +877,14 @@ test.describe('Change Request Flow', () => {
 
 	test('inline preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
 		page,
+		wiki,
 	}) => {
 		// A fenced Python block — the inline Preview must render it through the same
 		// read-only TipTap viewer the editor uses, which highlights via lowlight.
 		const code = '```python\nimport os\nprint(os.getcwd())\n```';
 		const { pageTitle } = await createSpaceWithDraftPage(
 			page,
+			wiki,
 			'CR Preview Highlight',
 		);
 		await setEditorContentAndSave(page, code);
@@ -963,9 +909,12 @@ test.describe('Change Request Flow', () => {
 		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
 	});
 
-	test('back from review returns to the originating tab', async ({ page }) => {
+	test('back from review returns to the originating tab', async ({
+		page,
+		wiki,
+	}) => {
 		const content = `Nav back content ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Nav Back');
+		await createSpaceWithDraftPage(page, wiki, 'CR Nav Back');
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
@@ -986,9 +935,14 @@ test.describe('Change Request Flow', () => {
 
 	test('merging from the editor keeps the tree up and the banner steady', async ({
 		page,
+		wiki,
 	}) => {
 		const content = `Merge UX content ${Date.now()}`;
-		const { pageTitle } = await createSpaceWithDraftPage(page, 'CR Merge UX');
+		const { pageTitle } = await createSpaceWithDraftPage(
+			page,
+			wiki,
+			'CR Merge UX',
+		);
 		await setEditorContentAndSave(page, content);
 
 		const treeItem = page
@@ -1034,9 +988,10 @@ test.describe('Change Request Flow', () => {
 
 	test('author can withdraw an in-review CR back to Draft from the menu', async ({
 		page,
+		wiki,
 	}) => {
 		const content = `Withdraw content ${Date.now()}`;
-		await createSpaceWithDraftPage(page, 'CR Withdraw');
+		await createSpaceWithDraftPage(page, wiki, 'CR Withdraw');
 		await setEditorContentAndSave(page, content);
 		await submitForReviewFromEditor(page);
 
