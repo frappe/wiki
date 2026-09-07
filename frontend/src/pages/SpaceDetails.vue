@@ -23,7 +23,7 @@
              the space lives now. Mobile has no sidebar, and the strip's actions
              (submit, discard, merge, sync) must not hide behind the tree drawer,
              so there it stays inline above the content. -->
-        <SpaceModeStrip v-if="isMobile" />
+        <SpaceModeStrip v-if="isMobile" show-sync-state />
 
         <div class="flex flex-1 min-h-0">
             <!-- The tree lives in the app sidebar on desktop; on mobile there is

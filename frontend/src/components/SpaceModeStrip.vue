@@ -87,14 +87,11 @@
 				{{ reviewFeedback }}
 			</p>
 
-			<!-- The sync state is a notice, not a label on the change request, so
-			     it gets the shape frappe-ui gives notices. Whether it belongs
-			     here — where it pushes the tree down as it comes and goes — is
-			     what the placement switch is for. -->
-			<SyncStateAlert
-				v-if="syncAlertPlacement === 'card'"
-				class="mt-2"
-			/>
+			<!-- Only the mobile strip carries the sync notice. On desktop it
+			     floats over the sidebar tree instead: in flow here it shoves the
+			     whole tree down every time it appears. Mobile has no sidebar to
+			     float in, and the strip sits above the content anyway. -->
+			<SyncStateAlert v-if="showSyncState" class="mt-2" />
 
 			<Button
 				v-if="showReloadLatest"
@@ -272,12 +269,17 @@ import { computed, ref, watch } from 'vue';
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
 // TEMPORARY — remove with SyncAlertPlacementSwitcher.
-import { syncAlertPlacement } from '../lib/syncAlertPlacement';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 import { useUserStore } from '../stores/user';
 import SyncStateAlert from './SyncStateAlert.vue';
+
+defineProps({
+	// The mobile strip renders inline above the content and is the only place
+	// the sync notice has to live there; the desktop sidebar floats its own.
+	showSyncState: { type: Boolean, default: false },
+});
 
 const {
 	getChangeIcon,

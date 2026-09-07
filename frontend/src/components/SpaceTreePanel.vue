@@ -50,7 +50,11 @@
 				:space-route="spaceRoute"
 				@refresh="emit('refresh')"
 				@reorder-state-change="emit('reorder-state-change', $event)"
-			/>
+			>
+				<template v-if="$slots['above-footer']" #above-footer>
+					<slot name="above-footer" />
+				</template>
+			</WikiDocumentList>
 		</div>
 		<div v-else class="flex-1 overflow-auto p-2">
 			<!-- Sidebar tree skeleton -->

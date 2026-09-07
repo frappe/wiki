@@ -72,8 +72,19 @@
 		     menu in the app uses. -->
 		<div
 			v-if="!readonly"
-			class="flex shrink-0 items-center gap-1.5 border-t border-outline-gray-2 p-2"
+			class="relative flex shrink-0 items-center gap-1.5 border-t border-outline-gray-2 p-2"
 		>
+			<!-- Anything the sidebar wants to show above the footer without
+			     moving the tree. Out of flow, and `bottom-full` pins it to the
+			     footer's top edge whatever height the footer happens to be. -->
+			<div
+				v-if="$slots['above-footer']"
+				class="pointer-events-none absolute inset-x-2 bottom-full z-10 mb-2"
+			>
+				<div class="pointer-events-auto">
+					<slot name="above-footer" />
+				</div>
+			</div>
 			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
