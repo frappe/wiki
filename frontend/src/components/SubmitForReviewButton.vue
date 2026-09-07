@@ -16,44 +16,18 @@
 		{{ __('Submit for review') }}
 	</Button>
 
-	<Dialog v-model:open="showConfirmDialog" size="sm">
-		<template #title>
-			<div class="flex items-center gap-2">
-				<span
-					class="lucide-git-branch size-5 text-ink-gray-5"
-					aria-hidden="true"
-				/>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Submit for review') }}
-				</h3>
-			</div>
-		</template>
-		<template #default>
-			<p class="text-ink-gray-7">
-				{{ __('Are you sure you want to submit your changes for review?') }}
-			</p>
-			<p class="text-sm text-ink-gray-5 mt-2">
-				{{
-					__('You have {0} pending {1}.', [
-						crStore.changeCount,
-						crStore.changeCount === 1 ? __('change') : __('changes'),
-					])
-				}}
-			</p>
-		</template>
-		<template #actions="{ close }">
-			<div class="flex justify-end gap-2">
-				<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-				<Button
-					variant="solid"
-					:loading="crStore.isSubmitting"
-					@click="confirmSubmit(close)"
-				>
-					{{ __('Submit') }}
-				</Button>
-			</div>
-		</template>
-	</Dialog>
+	<!-- Dialog's own title/message/icon/actions, not hand-rolled slots: the
+	     component already lays out a confirm, down to the themed icon disc and
+	     the action row, and the slot version was a narrower, plainer copy of
+	     it. `lg` is the component's default width; `sm` squeezed one sentence
+	     onto three lines. -->
+	<Dialog
+		v-model:open="showConfirmDialog"
+		:title="__('Submit for review')"
+		:message="confirmMessage"
+		:icon="{ name: 'lucide-git-branch', theme: 'blue' }"
+		:actions="confirmActions"
+	/>
 </template>
 
 <script setup>
@@ -124,6 +98,30 @@ const submitButtonTitle = computed(() => {
 	}
 	return '';
 });
+
+// The count is the whole point of the confirmation: what is about to leave
+// your hands. Phrased as the consequence rather than "are you sure", which
+// asks the user to re-derive it.
+const confirmMessage = computed(() =>
+	__('{0} pending {1} will be sent for review.', [
+		crStore.changeCount,
+		crStore.changeCount === 1 ? __('change') : __('changes'),
+	]),
+);
+
+const confirmActions = computed(() => [
+	{
+		label: __('Cancel'),
+		variant: 'outline',
+		onClick: ({ close }) => close(),
+	},
+	{
+		label: __('Submit'),
+		variant: 'solid',
+		loading: crStore.isSubmitting,
+		onClick: ({ close }) => confirmSubmit(close),
+	},
+]);
 
 function confirmSubmit(closeDialog) {
 	closeDialog();
