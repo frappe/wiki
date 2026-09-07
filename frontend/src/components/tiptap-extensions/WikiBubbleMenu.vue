@@ -137,12 +137,15 @@ const floatingOptions = computed(() => ({
 	// Without this the menu only repositions on window scroll, so scrolling the
 	// editor leaves it parked mid-page looking like a second toolbar.
 	scrollTarget: scrollBoundary.value,
-	// And once the selection scrolls out of the container — or under the sticky
-	// toolbar — the menu goes with it instead of hovering over unrelated text.
-	hide: () => ({
-		padding: { top: TOOLBAR_HEIGHT },
-		boundary: resolveScrollBoundary(),
-	}),
+	// And once the selection scrolls out of the container the menu goes with it
+	// instead of hovering over unrelated text.
+	//
+	// The boundary is the container alone, with no toolbar padding: Floating
+	// UI's `hide` reports a reference as hidden when it overflows on *any*
+	// side, so padding the top by the toolbar's height hid the menu for a
+	// selection merely tucked under the toolbar — which is the case `flip`
+	// exists to handle by putting the menu below it.
+	hide: () => ({ boundary: resolveScrollBoundary() }),
 	shouldShow: shouldShowBubbleMenu,
 }));
 </script>
