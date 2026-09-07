@@ -8,6 +8,7 @@ import {
 import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 interface WikiDocumentRoute {
 	route: string;
@@ -124,7 +125,7 @@ That is all.`;
 			await page.waitForTimeout(500);
 
 			// Save the draft
-			await page.click('button:has-text("Save")');
+			await saveEditor(page);
 			await page.waitForLoadState('networkidle');
 			// Wait for save to complete in database
 			await page.waitForTimeout(2000);
@@ -291,7 +292,7 @@ End.`;
 			await editor.click();
 			await page.waitForTimeout(500);
 
-			await page.click('button:has-text("Save")');
+			await saveEditor(page);
 			await page.waitForLoadState('networkidle');
 			await page.waitForTimeout(2000);
 

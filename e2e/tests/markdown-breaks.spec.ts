@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { getList } from '../helpers/frappe';
 import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { openNewPageDialog, saveEditor } from '../helpers/wiki';
 
 interface WikiDocument {
 	name: string;
@@ -252,7 +252,7 @@ test.describe('Markdown Line Breaks', () => {
 		}, inputMarkdown);
 
 		// Save the draft
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 

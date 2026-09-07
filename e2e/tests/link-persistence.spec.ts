@@ -8,6 +8,7 @@ import {
 import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 interface WikiDocument {
@@ -83,8 +84,7 @@ test.describe('Link Persistence Tests', () => {
 		await expect(editorLink).toHaveText('Example Website');
 
 		// Save the draft
-		const saveButton = page.locator('button:has-text("Save")');
-		await saveButton.click();
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000); // Wait for DB commit
 

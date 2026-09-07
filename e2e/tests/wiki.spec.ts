@@ -13,6 +13,7 @@ import {
 	newPageButton,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -180,8 +181,10 @@ test.describe('Wiki Editor', () => {
 			page.locator('.ProseMirror, [contenteditable="true"]'),
 		).toBeVisible({ timeout: 10000 });
 
-		// Verify save draft button is present (indicates edit mode)
-		await expect(page.locator('button:has-text("Save")')).toBeVisible();
+		// The editor autosaves, so its own header action is what marks edit mode.
+		await expect(
+			page.getByRole('button', { name: 'Submit for Review' }),
+		).toBeVisible();
 	});
 
 	test('should publish page and view it on public route', async ({
@@ -228,7 +231,7 @@ test.describe('Wiki Editor', () => {
 		await page.keyboard.type(pageContent);
 
 		// Save the draft
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge

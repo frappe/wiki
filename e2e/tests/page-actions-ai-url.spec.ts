@@ -9,6 +9,7 @@ import {
 	clickSidebarAddOption,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -88,7 +89,7 @@ test.describe('Page actions – AI link URL', () => {
 		});
 		await editor.click();
 		await page.waitForTimeout(500);
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 
@@ -125,7 +126,7 @@ test.describe('Page actions – AI link URL', () => {
 		});
 		await editor.click();
 		await page.waitForTimeout(500);
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(2000);
 

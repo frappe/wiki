@@ -11,7 +11,7 @@ import {
 	SPACE_URL_RE,
 	appUrl,
 } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { openNewPageDialog, saveEditor } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
 	route: string;
@@ -91,7 +91,7 @@ async function createPublishedTestPage(
 	}
 
 	// Save the draft
-	await page.click('button:has-text("Save")');
+	await saveEditor(page);
 	await page.waitForLoadState('networkidle');
 
 	// Submit for review and merge the page

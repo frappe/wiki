@@ -7,6 +7,7 @@ import {
 import {
 	clickSidebarAddOption,
 	publishChangeRequestFromReview,
+	saveEditor,
 } from '../helpers/wiki';
 
 /**
@@ -177,7 +178,7 @@ test.describe('External Links', () => {
 		await expect(editor).toBeVisible({ timeout: 10000 });
 		await editor.click();
 		await page.keyboard.type('Test page content.');
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items
