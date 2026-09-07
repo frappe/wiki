@@ -43,27 +43,37 @@
 					</span>
 				</div>
 
+				<!-- The tree is a navigation column: a word per row makes it a
+				     list of labels rather than a list of pages. Every state here
+				     is a mark instead — except a failed sync, which asks for an
+				     action and so keeps its words. -->
 				<Badge v-if="node.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
 					{{ __('Sync failed') }}
 				</Badge>
-				<Badge v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'" variant="subtle" theme="gray" size="sm" :title="__('Saving…')">
-					{{ __('Syncing…') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
-					{{ __('New') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'deleted'" variant="subtle" theme="red" size="sm">
-					{{ __('Deleted') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'modified'" variant="subtle" theme="blue" size="sm">
-					{{ __('Modified') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'reordered'" variant="subtle" theme="amber" size="sm">
-					{{ __('Reordered') }}
-				</Badge>
-				<Badge v-else-if="!node.is_group && !node.is_published" variant="subtle" theme="amber" size="sm">
-					{{ __('Not Published') }}
-				</Badge>
+				<span
+					v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'"
+					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
+					:title="__('Syncing…')"
+					:aria-label="__('Syncing…')"
+					role="status"
+				/>
+				<span
+					v-else-if="changeTypeMap.get(node.doc_key)"
+					class="size-1.5 shrink-0 rounded-full"
+					:class="getChangeDotClass(changeTypeMap.get(node.doc_key))"
+					:title="getChangeLabel(changeTypeMap.get(node.doc_key))"
+					:aria-label="getChangeLabel(changeTypeMap.get(node.doc_key))"
+					role="status"
+				/>
+				<!-- Unpublished is not a change, so it is not a dot: the same
+				     eye-off the space list uses for an unpublished space. -->
+				<span
+					v-else-if="!node.is_group && !node.is_published"
+					class="lucide-eye-off size-3.5 shrink-0 text-ink-gray-4"
+					:title="__('Unpublished')"
+					:aria-label="__('Unpublished')"
+					role="status"
+				/>
 
 				<!-- Hover-reveal on desktop; always visible on touch (no hover)
 				     so row actions stay reachable on a phone. -->
@@ -80,6 +90,7 @@
 </template>
 
 <script setup>
+import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useStorage } from '@vueuse/core';
@@ -143,6 +154,7 @@ const emit = defineEmits([
 const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
+const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
 const storageKey = computed(
 	() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`,

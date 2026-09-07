@@ -19,3 +19,17 @@ test('importing does not call the translation global', async () => {
 		globalThis.__ = undefined;
 	}
 });
+
+// The tree draws a dot, so the fill is the only thing that says which kind of
+// change it is. A composed class name would not survive Tailwind's scan, so
+// every one has to come back whole.
+test('every change type has a whole dot class, unknown ones fall back', async () => {
+	const { useChangeTypeDisplay } = await import('./useChangeTypeDisplay.js');
+	const { getChangeDotClass } = useChangeTypeDisplay();
+
+	assert.equal(getChangeDotClass('added'), 'bg-surface-green-5');
+	assert.equal(getChangeDotClass('modified'), 'bg-surface-blue-5');
+	assert.equal(getChangeDotClass('deleted'), 'bg-surface-red-5');
+	assert.equal(getChangeDotClass('reordered'), 'bg-surface-amber-5');
+	assert.equal(getChangeDotClass('something-else'), 'bg-surface-gray-5');
+});

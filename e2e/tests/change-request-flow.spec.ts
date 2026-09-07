@@ -585,10 +585,12 @@ test.describe('Change Request Flow', () => {
 			.locator('aside [data-slot="row"]')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
+		// The tree marks a change with a dot, not a word, so the state is read
+		// off the dot's label.
 		await expect(
-			movedRow.getByText('Reordered', { exact: true }),
+			movedRow.getByLabel('Reordered', { exact: true }),
 		).toBeVisible();
-		await expect(movedRow.getByText('Modified', { exact: true })).toHaveCount(
+		await expect(movedRow.getByLabel('Modified', { exact: true })).toHaveCount(
 			0,
 		);
 

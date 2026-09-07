@@ -1,10 +1,11 @@
 <template>
-	<!-- Floats over the right gutter rather than taking a column: the prose
-	     column stays put whether or not the page has headings. The aside spans
-	     the full content height so its nav can stick inside the scroller;
-	     pointer events are handed back to the rows alone, so the gutter above
-	     and below the list still belongs to the page. -->
-	<aside
+	<!-- Sits in the gutter reserved for it on the right of the prose column.
+	     The wrapper spans the full content height so its nav can stick inside
+	     the scroller; pointer events are handed back to the rows alone, so the
+	     gutter above and below the list still belongs to the page. A plain div,
+	     not an aside: the nav inside is already the landmark, and a second
+	     complementary region here competes with the space sidebar. -->
+	<div
 		v-if="variant === 'rail'"
 		ref="rootRef"
 		class="pointer-events-none absolute inset-y-0 right-0 w-[208px] py-6 pr-4"
@@ -35,7 +36,7 @@
 				{{ entry.text }}
 			</button>
 		</nav>
-	</aside>
+	</div>
 
 	<!-- Narrow layouts get the reader's collapsed strip instead: one row that
 	     names the section you're in, expanding to the full list on tap. -->
