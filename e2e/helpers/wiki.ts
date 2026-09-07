@@ -81,6 +81,56 @@ export async function openNewPageDialog(page: Page) {
 }
 
 /**
+ * Create a page in `space` through the sidebar and open it in the editor.
+ *
+ * Every editor spec used to open with "click whatever space is listed first",
+ * which grew that space's tree on every run and left the pages behind. Seeding
+ * a space from the factory and authoring into it keeps the tree at one item and
+ * lets one space delete take the draft away again.
+ *
+ * A created page lands on the draft route, which can render before the
+ * change-request overlay is readable — locally that is queue lag rather than a
+ * product bug, and one reload settles it.
+ */
+export async function createDraftAndOpenEditor(
+	page: Page,
+	space: { url(...segments: string[]): string },
+	title: string,
+	options: { waitForEditorApi?: boolean } = {},
+) {
+	await page.goto(space.url());
+	await page.waitForLoadState('networkidle');
+
+	await openNewPageDialog(page);
+	await page.getByLabel('Title').fill(title);
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await page.waitForLoadState('networkidle');
+
+	const editor = page.locator('.ProseMirror').first();
+	for (let attempt = 0; attempt < 3; attempt++) {
+		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) break;
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await page
+			.locator('aside')
+			.getByText(title, { exact: false })
+			.first()
+			.click();
+	}
+	await expect(editor).toBeVisible({ timeout: 10000 });
+
+	// The editor publishes its command API on the window once mounted; specs
+	// that drive it through page.evaluate need that to have happened.
+	if (options.waitForEditorApi !== false) {
+		await page.waitForFunction(
+			() => (window as { wikiEditor?: unknown }).wikiEditor !== undefined,
+			{ timeout: 10000 },
+		);
+	}
+	return editor;
+}
+
+/**
  * Wiki Space document interface.
  */
 export interface WikiSpace {

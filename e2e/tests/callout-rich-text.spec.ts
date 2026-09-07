@@ -1,19 +1,5 @@
-import {
-	type APIRequestContext,
-	type Page,
-	expect,
-	test,
-} from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import {
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	createTestWikiSpace,
-	deleteTestWikiDocument,
-	deleteTestWikiSpace,
-	openNewPageDialog,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * Covers the callout as a *container* node: its body is content in the main
@@ -51,74 +37,12 @@ const MOD_ENTER =
 	process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter';
 const SELECT_ALL = process.platform === 'darwin' ? 'Meta+a' : 'Control+a';
 
-const createdRoutes: string[] = [];
-
-/**
- * Create a throwaway space via the API, then a draft page in it through the
- * sidebar, and open the editor.
- *
- * The space is per-test on purpose: the "click the first space" idiom every
- * other editor spec opens with lands in whichever space the site happens to
- * list first, whose page tree grows with every run — slow to render locally,
- * and the pages are never cleaned up. A fresh space keeps the tree at one item
- * and `afterEach` takes the whole thing away again.
- */
-async function createDraftAndOpenEditor(
-	page: Page,
-	request: APIRequestContext,
-	label: string,
-) {
-	const spaceRoute = `callout-${label}-${Date.now()}`;
-	const space = await createTestWikiSpace(request, {
-		route: spaceRoute,
-		is_published: true,
-	});
-	createdRoutes.push(spaceRoute);
-
-	await page.goto(appUrl('spaces', space.name));
-	await page.waitForLoadState('networkidle');
-
-	await openNewPageDialog(page);
-	const title = `Callout ${label}`;
-	await page.getByLabel('Title').fill(title);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
-
-	// Creating a page can land on the draft route before the change-request
-	// overlay is readable, which locally is queue lag rather than a product bug
-	// — one reload settles it (same retry as editor-toc.spec.ts).
-	const editor = page.locator('.ProseMirror');
-	for (let attempt = 0; attempt < 3; attempt++) {
-		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) break;
-		await page.reload();
-		await page.waitForLoadState('networkidle');
-		await page
-			.locator('aside')
-			.getByText(title, { exact: false })
-			.first()
-			.click();
-	}
-	await expect(editor).toBeVisible({ timeout: 10000 });
-
-	await page.waitForFunction(() => window.wikiEditor !== undefined, {
-		timeout: 10000,
-	});
-	return editor;
-}
-
 test.describe('Callout rich text', () => {
-	test.afterEach(async ({ request }) => {
-		while (createdRoutes.length) {
-			const route = createdRoutes.pop() as string;
-			await cleanupWikiSpacesByRoute(request, route).catch(() => {});
-		}
-	});
-
 	test('a callout body parses into block children and round-trips', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, request, 'rt');
+		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout rt');
 
 		const result = await page.evaluate(() => {
 			const source = [
@@ -166,9 +90,9 @@ test.describe('Callout rich text', () => {
 
 	test('the main editor formats text typed inside a callout', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, request, 'typing');
+		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout typing');
 
 		await page.evaluate(() => {
 			window.wikiEditor.commands.setContent(':::tip\nlead\n:::', {
@@ -201,9 +125,13 @@ test.describe('Callout rich text', () => {
 
 	test('the slash menu inserts a callout you can type straight into', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const editor = await createDraftAndOpenEditor(page, request, 'slash');
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			'Callout slash',
+		);
 
 		await editor.click();
 		await page.keyboard.type('/tip');
@@ -224,8 +152,8 @@ test.describe('Callout rich text', () => {
 		expect(markdown).toContain(':::tip\nwritten in place\n:::');
 	});
 
-	test('the title is editable in place', async ({ page, request }) => {
-		await createDraftAndOpenEditor(page, request, 'title');
+	test('the title is editable in place', async ({ page, wiki }) => {
+		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout title');
 
 		await page.evaluate(() => {
 			window.wikiEditor.commands.setContent(':::note\nbody\n:::', {
@@ -248,9 +176,13 @@ test.describe('Callout rich text', () => {
 
 	test('an emptied title falls back to the type default', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, request, 'emptytitle');
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			'Callout emptytitle',
+		);
 
 		await page.evaluate(() => {
 			window.wikiEditor.commands.setContent(':::danger[Boom]\nbody\n:::', {
@@ -277,9 +209,9 @@ test.describe('Callout rich text', () => {
 
 	test('the cursor can leave a callout that ends the document', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, request, 'exit');
+		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout exit');
 
 		await page.evaluate(() => {
 			window.wikiEditor.commands.setContent(':::note\nbody\n:::', {
@@ -297,8 +229,12 @@ test.describe('Callout rich text', () => {
 		expect(markdown).toMatch(/:::\n\noutside/);
 	});
 
-	test('backspace removes an empty callout', async ({ page, request }) => {
-		const editor = await createDraftAndOpenEditor(page, request, 'backspace');
+	test('backspace removes an empty callout', async ({ page, wiki }) => {
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			'Callout backspace',
+		);
 
 		await editor.click();
 		await page.keyboard.type('/note');
@@ -318,11 +254,8 @@ test.describe('Callout rich text', () => {
 		expect(markdown).not.toContain(':::');
 	});
 
-	test('block nodes are reachable inside a callout', async ({
-		page,
-		request,
-	}) => {
-		await createDraftAndOpenEditor(page, request, 'blocks');
+	test('block nodes are reachable inside a callout', async ({ page, wiki }) => {
+		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout blocks');
 
 		const childTypes = await page.evaluate(() => {
 			const source = [
@@ -353,71 +286,51 @@ test.describe('Callout rich text', () => {
 
 	test('the published page renders the callout body as real markup', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const spaceRoute = `callout-public-${Date.now()}`;
-		const space = await createTestWikiSpace(request, {
-			route: spaceRoute,
-			is_published: true,
+		const space = await wiki.space({
+			pages: [
+				{
+					title: 'Callout Page',
+					content: [
+						':::tip[Careful]',
+						'Body with **bold** text.',
+						'',
+						'- first item',
+						'- second item',
+						':::',
+						'',
+					].join('\n'),
+				},
+			],
 		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${spaceRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-		const doc = await createTestWikiDocument(request, {
-			title: 'Callout Page',
-			route: `${spaceRoute}/callouts`,
-			content: [
-				':::tip[Careful]',
-				'Body with **bold** text.',
-				'',
-				'- first item',
-				'- second item',
-				':::',
-				'',
-			].join('\n'),
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
+		const doc = space.page('Callout Page');
 
-		try {
-			await page.goto(`/${doc.route}`);
-			await page.waitForLoadState('networkidle');
+		await page.goto(`/${doc.route}`);
+		await page.waitForLoadState('networkidle');
 
-			const callout = page.locator('#wiki-content aside.callout.callout-tip');
-			await expect(callout).toBeVisible({ timeout: 10000 });
+		const callout = page.locator('#wiki-content aside.callout.callout-tip');
+		await expect(callout).toBeVisible({ timeout: 10000 });
 
-			// Alert's banner structure: header row, then a full-width body. The old
-			// markup nested the body beside the title in a .callout-body cell.
-			await expect(
-				callout.locator('.callout-header .callout-title'),
-			).toHaveText('Careful');
-			await expect(callout.locator('.callout-body')).toHaveCount(0);
-			await expect(callout.locator('.callout-header svg')).toBeVisible();
+		// Alert's banner structure: header row, then a full-width body. The old
+		// markup nested the body beside the title in a .callout-body cell.
+		await expect(callout.locator('.callout-header .callout-title')).toHaveText(
+			'Careful',
+		);
+		await expect(callout.locator('.callout-body')).toHaveCount(0);
+		await expect(callout.locator('.callout-header svg')).toBeVisible();
 
-			// The body is rendered markdown, not escaped text.
-			await expect(callout.locator('.callout-content strong')).toHaveText(
-				'bold',
-			);
-			await expect(callout.locator('.callout-content li')).toHaveCount(2);
+		// The body is rendered markdown, not escaped text.
+		await expect(callout.locator('.callout-content strong')).toHaveText('bold');
+		await expect(callout.locator('.callout-content li')).toHaveCount(2);
 
-			// Neutral surface — the type shows only in the icon's colour.
-			const surface = await callout.evaluate(
-				(el) => getComputedStyle(el).backgroundColor,
-			);
-			const iconColor = await callout
-				.locator('.callout-icon')
-				.evaluate((el) => getComputedStyle(el).color);
-			expect(surface).not.toBe(iconColor);
-		} finally {
-			await deleteTestWikiDocument(request, doc.name).catch(() => {});
-			await deleteTestWikiDocument(request, rootGroup.name).catch(() => {});
-			await deleteTestWikiSpace(request, space.name).catch(() => {});
-		}
+		// Neutral surface — the type shows only in the icon's colour.
+		const surface = await callout.evaluate(
+			(el) => getComputedStyle(el).backgroundColor,
+		);
+		const iconColor = await callout
+			.locator('.callout-icon')
+			.evaluate((el) => getComputedStyle(el).color);
+		expect(surface).not.toBe(iconColor);
 	});
 });
