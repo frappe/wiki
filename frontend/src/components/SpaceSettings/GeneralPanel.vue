@@ -63,6 +63,7 @@
 import { Button, FormControl, SettingsRow, Switch, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
+import { useSpaceIdentitySaver } from '../../composables/useSpaceIdentitySaver.js';
 import SpaceIdentityPicker from '../SpaceIdentityPicker.vue';
 
 const props = defineProps({
@@ -98,20 +99,7 @@ watch(
 
 // The picker only says what was chosen; a settings panel has no Save button,
 // so the choice is written the moment it is made.
-//
-// Writes are chained rather than fired in parallel: each patch names all five
-// identity fields, so two in flight at once can commit out of order and the
-// slower one undoes the newer choice. A rejected save must not break the chain
-// for the next one.
-let saving = Promise.resolve();
-
-function saveIdentity(patch) {
-	saving = saving
-		.then(() => props.space.setValue.submit(patch))
-		.catch((error) => {
-			toast.error(error.messages?.[0] || __('Failed to update the space logo'));
-		});
-}
+const saveIdentity = useSpaceIdentitySaver(() => props.space);
 
 async function updatePublishSetting(value) {
 	updatingPublishSetting.value = true;

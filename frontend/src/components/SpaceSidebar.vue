@@ -16,7 +16,18 @@
 					:title="__('Back to Overview')"
 					:route="{ name: 'Overview' }"
 				/>
+				<!-- The header tile is the same control as the settings row: a
+				     space's mark is worth changing from where you look at it.
+				     A space you cannot write still shows its mark, unclickable. -->
+				<SpaceIdentityPicker
+					v-if="spaceStore.canWriteSpace"
+					:identity="spaceStore.doc || {}"
+					:label="spaceName"
+					size="sm"
+					@update="saveIdentity"
+				/>
 				<SpaceAvatar
+					v-else
 					:space="spaceStore.doc || {}"
 					:label="spaceName"
 					size="sm"
@@ -64,7 +75,9 @@ import { computed } from 'vue';
 
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { useSpaceStore } from '../stores/space';
+import { useSpaceIdentitySaver } from '../composables/useSpaceIdentitySaver.js';
 import SpaceAvatar from './SpaceAvatar.vue';
+import SpaceIdentityPicker from './SpaceIdentityPicker.vue';
 import SpaceModeStrip from './SpaceModeStrip.vue';
 import SpaceTreePanel from './SpaceTreePanel.vue';
 
@@ -78,6 +91,10 @@ const { open: openSpaceSettings } = useSpaceSettings();
 const spaceName = computed(
 	() => spaceStore.doc?.space_name || spaceStore.doc?.name || props.spaceId,
 );
+
+// The store's document resource is replaced when the route moves to another
+// space, so the saver reads it each time rather than closing over one.
+const saveIdentity = useSpaceIdentitySaver(() => spaceStore.space);
 
 const spaceActions = computed(() => {
 	const options = [

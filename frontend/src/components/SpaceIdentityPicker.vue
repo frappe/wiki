@@ -9,7 +9,7 @@
 				:aria-label="__('Change space logo')"
 				data-testid="space-identity-trigger"
 			>
-				<SpaceAvatar :space="chosen" :label="label" size="2xl" />
+				<SpaceAvatar :space="chosen" :label="label" :size="size" />
 			</button>
 		</template>
 
@@ -140,6 +140,9 @@ const props = defineProps({
 	// a plain object from a form both work.
 	identity: { type: Object, default: () => ({}) },
 	label: { type: String, default: '' },
+	// The trigger tile's size. The settings row wants a big square; the space
+	// header wants the same tile the sidebar rows draw.
+	size: { type: String, default: '2xl' },
 });
 
 const emit = defineEmits(['update']);
