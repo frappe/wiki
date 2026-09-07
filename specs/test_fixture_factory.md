@@ -1,0 +1,170 @@
+# Test fixture factory: every test owns and destroys its own data
+
+## Status
+
+- **Branch**: `feat/frappe-ui-beta55`
+- **Category**: tests / dx
+- **Planned at**: 2026-09-07
+
+## Why this matters
+
+E2E runs leave permanent debris on the site. Measured on `wiki.localhost` before
+any of this work:
+
+```
+spaces:               5
+documents:          296
+orphan root groups: 101
+CRs: 32   revisions: 99
+```
+
+101 orphan root groups against 5 live spaces. Two independent leaks produce them.
+
+### Leak 1 — specs build a root group the space already made
+
+`WikiSpace.before_insert` calls `create_root_group()`, so every `Wiki Space`
+arrives with a root group already attached. Eighteen specs nonetheless do this:
+
+```ts
+const space = await createTestWikiSpace(request, { route });
+const rootGroup = await createTestWikiDocument(request, {
+    title: 'Root', route: `${route}/root`, is_group: true,
+});
+await updateDoc(request, 'Wiki Space', space.name, { root_group: rootGroup.name });
+```
+
+The replacement wins, and the auto-created group is stranded: it carries no
+`wiki_space` value and is not a descendant of the new root. `WikiSpace.on_trash`
+deletes descendants of `self.root_group` plus anything whose `wiki_space` points
+at the space — the orphan matches neither clause. Every seeded space leaks
+exactly one root group, forever, even when the spec cleans up correctly.
+
+### Leak 2 — specs that author into whatever space sorts first
+
+Sixteen specs never seed at all. They `goto(APP_BASE)`, click
+`spaceLinkSelector()` (bare — "any space"), and create pages through the UI.
+Those pages land in a real space and are never removed. This is also the
+mechanism behind the git-sync trap already documented in `cleanupWikiSpacesByRoute`:
+a read-only space sorting first strands every later spec that expects a
+"New Page" button.
+
+### Cost of the current seeding ritual
+
+Server-side work is cheap; round trips are not.
+
+| Operation | Server time |
+|---|---|
+| space insert (incl. auto root group) | 0.38s |
+| 3 child documents | 0.16s |
+| delete space, full cascade | 0.27s |
+
+A typical `beforeAll` spends **9 HTTP round trips** (space, root group,
+`updateDoc`, then one per page) on ~0.5s of actual server work.
+
+## Approach
+
+One factory, used by every test, that seeds in bulk and tears down by
+construction rather than by remembering to.
+
+### Seeding is `1 + depth` round trips
+
+`frappe.client.insert_many` inserts up to 200 documents in a single request and
+returns their names positionally. The tree cannot go in one call: Wiki Document
+has no `autoname`, and `set_new_name` (`frappe/model/naming.py:160`) nulls any
+explicit `name` for that case, so a child's `parent_wiki_document` is unknowable
+until its parent's insert returns. So the factory inserts **breadth-first, one
+call per depth level**. Most specs are one level deep: 9 round trips becomes 2.
+
+### Teardown is a single delete
+
+The factory never replaces the root group, so leak 1 disappears. `on_trash`
+already cascades documents, revisions, revision items, sync logs and change
+requests, so one `deleteDoc` on the space reclaims the whole tree — including
+pages a test created through the UI, since SPA drafts are `Wiki Change Request`
+rows bound to the space (`frontend/src/stores/draftWorkspace/syncTransport.js`).
+
+Teardown resolves spaces **by route**, not by the create response, so a space the
+server made but whose response the client never saw — a timed-out create, or a
+Playwright retry that seeded twice — is still swept. This preserves the
+robustness `cleanupWikiSpacesByRoute` was written for.
+
+### Routes carry a fixed prefix
+
+Every factory-made space gets `e2e-<slug>-<counter>-<ts>`. A prefix makes the
+sweeper provably unable to touch a real space.
+
+## Design
+
+### `e2e/helpers/factory.ts`
+
+```ts
+const space = await wiki.space({
+    pages: [
+        { title: 'Alpha' },
+        { title: 'Beta', children: [{ title: 'Gamma' }] },
+    ],
+});
+
+space.name;                 // Wiki Space docname
+space.route;                // e2e-…
+space.rootGroup;            // auto-created, not replaced
+space.page('Alpha').name;   // by title
+space.url();                // /wiki-app/spaces/<name>
+space.url('page', id);      // deeper paths
+```
+
+`SpaceSpec` and `PageSpec` both spread unrecognised keys straight onto the
+document, so `git_synced`, `repo_full_name`, `branch`, `is_tab`, `tab_icon`,
+`source_path`, `sort_order` and anything added later need no factory change.
+
+### `e2e/fixtures.ts`
+
+Re-exports `test` with two fixtures over the same `WikiFactory` class:
+
+- `wiki` — test-scoped. Torn down after each test. The default.
+- `wikiSuite` — worker-scoped, for a `describe` whose tests genuinely share a
+  seed. Owns its own `APIRequestContext` built from the stored auth state,
+  because the built-in `request` fixture is test-scoped.
+
+Teardown runs in the fixture's own `use()` epilogue, so there is no `afterAll`
+to forget and no way for a failing test to skip it.
+
+### `e2e/global.teardown.ts`
+
+Sweeps `e2e-%` spaces and orphan root groups left by a crashed or killed run.
+Wired as a Playwright `teardown` project so it runs once after the suite.
+
+### `wiki/tests/factory.py`
+
+The Python suite already tears down per file, but four modules carry their own
+near-identical `create_test_wiki_space` / `create_test_wiki_document`
+(`test_api.py`, `test_wiki_change_request.py`, `test_wiki_document.py`, plus
+`_create_space` in the same file). One `WikiFixtures` mixin replaces them with
+the same vocabulary as the TypeScript factory.
+
+## Phases
+
+Tracer bullet first: one spec end to end, proving the document count is
+unchanged across a run, before touching the other 33.
+
+1. **Sweep** the existing 101 orphans; add `global.teardown.ts`.
+2. **Factory + fixture**, plus convert `space-default-page.spec.ts`. Verify
+   counts before == after.
+3. **Convert the 18 API-seeding specs** off the manual root group.
+4. **Convert the 16 ambient-space specs** to seed their own space.
+5. **Python `wiki/tests/factory.py`**; migrate the four duplicated helpers.
+
+## Verification
+
+Between each phase, on `wiki.localhost`:
+
+```
+spaces / documents / orphan root groups / CRs / revisions
+```
+
+must be identical before and after a full `yarn test:e2e` run.
+
+## Out of scope
+
+- A leak-detection guard test (considered, explicitly declined).
+- Frontend unit tests — they are pure and touch no server state.
