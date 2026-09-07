@@ -409,7 +409,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function loadCrPage(docKey) {
 		if (!docKey) return null;
 		if (resolver.isTempKey(docKey)) {
-			return pageBuffers.get(docKey);
+			// A create that landed before its opener read the buffer has already
+			// promoted it to the real key, leaving nothing under the temp one.
+			// Follow the promotion rather than reporting the page missing.
+			const promoted = resolver.resolveKey(docKey);
+			return pageBuffers.get(promoted || docKey);
 		}
 		const localPage = pageBuffers.get(docKey);
 		if (

@@ -107,7 +107,12 @@ test.describe('Space default page', () => {
 		});
 		// No page was opened — URL is still the bare space route.
 		await expect(page).toHaveURL(new RegExp(`/spaces/${emptySpace.name}$`));
-		await expect(page.locator('text=Select a page')).toBeVisible();
+		// The tree states the fact; the content column carries the action.
+		const content = page.locator('main');
+		await expect(content.getByText('Create your first page')).toBeVisible();
+		await expect(
+			content.getByRole('button', { name: 'New page', exact: true }),
+		).toBeVisible();
 	});
 });
 

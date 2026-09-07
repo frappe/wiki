@@ -354,6 +354,11 @@ watch(
 // Once the create syncs, swap the URL from /draft/tmp_* to /draft/realKey.
 // Without this the panel would stay on a temp key after sync, and any
 // reload would 404 on get_cr_page.
+//
+// Immediate, because the create can resolve before this panel mounts — the
+// navigation to /draft/tmp_* and the create race each other, and on a fast
+// bench the create wins. A lazy watcher then never fires for a key that was
+// promoted moments earlier, stranding the page on "Draft not found".
 watch(
 	() => draftStore.tempKeyResolutions[props.docKey],
 	(realKey) => {
@@ -380,6 +385,7 @@ watch(
 			});
 		}
 	},
+	{ immediate: true },
 );
 
 watch(

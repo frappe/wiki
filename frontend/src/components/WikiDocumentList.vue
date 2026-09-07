@@ -226,6 +226,7 @@
 </template>
 
 <script setup>
+import { useNewPageRequest } from '@/composables/useNewPageRequest';
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -340,6 +341,22 @@ const {
 	expandedNodes,
 	toRef(props, 'spaceRoute'),
 	toRef(props, 'rootNode'),
+);
+
+// The empty content column offers "New page" too, but the dialog that makes one
+// lives here, with the route-computation it needs. Immediate, so a request made
+// while this tree was still unmounted (the mobile drawer) is picked up on mount.
+// A read-only tree consumes nothing: nothing should reach around the gate on
+// the footer.
+const { pending: newPageRequested, consumeNewPageRequest } =
+	useNewPageRequest();
+watch(
+	newPageRequested,
+	(requested) => {
+		if (!requested || props.readonly) return;
+		if (consumeNewPageRequest()) openCreateDialog(props.rootNode, false);
+	},
+	{ immediate: true },
 );
 
 // New Page is the footer's own button, so it is not repeated here.

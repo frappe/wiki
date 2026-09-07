@@ -154,6 +154,7 @@ import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
 import { useMobile } from '../composables/useMobile';
+import { useNewPageRequest } from '../composables/useNewPageRequest';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -200,6 +201,14 @@ const mobileTreeOpen = ref(false);
 // mobile breakpoint, so it can't get stuck open behind the desktop layout.
 watch([currentPageId, currentDraftKey, isMobile], () => {
 	mobileTreeOpen.value = false;
+});
+
+// "New page" in the empty content column is answered by the tree's create
+// dialog, and on mobile the tree only exists while its drawer is open. Opening
+// the drawer mounts it; the request is still pending, so it acts on it there.
+const { pending: newPageRequested } = useNewPageRequest();
+watch(newPageRequested, (requested) => {
+	if (requested && isMobile.value) mobileTreeOpen.value = true;
 });
 
 // Settings opens from inside the tree drawer; close the drawer first so the
