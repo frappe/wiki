@@ -16,11 +16,10 @@
 					:title="__('Back to Overview')"
 					:route="{ name: 'Overview' }"
 				/>
-				<Avatar
-					size="sm"
-					shape="square"
-					:image="spaceStore.doc?.app_switcher_logo"
+				<SpaceAvatar
+					:space="spaceStore.doc || {}"
 					:label="spaceName"
+					size="sm"
 				/>
 				<span class="min-w-0 flex-1 truncate text-base-medium text-ink-gray-8">
 					{{ spaceName }}
@@ -60,11 +59,12 @@
 </template>
 
 <script setup>
-import { Avatar, Button, Dropdown, Sidebar } from 'frappe-ui';
+import { Button, Dropdown, Sidebar } from 'frappe-ui';
 import { computed } from 'vue';
 
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { useSpaceStore } from '../stores/space';
+import SpaceAvatar from './SpaceAvatar.vue';
 import SpaceModeStrip from './SpaceModeStrip.vue';
 import SpaceTreePanel from './SpaceTreePanel.vue';
 

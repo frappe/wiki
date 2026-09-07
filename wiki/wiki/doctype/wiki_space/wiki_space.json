@@ -14,6 +14,11 @@
   "switcher_order",
   "column_break_bynr",
   "app_switcher_logo",
+  "space_icon",
+  "space_color",
+  "avatar",
+  "avatar_style",
+  "avatar_seed",
   "favicon",
   "enable_feedback_collection",
   "show_in_switcher",
@@ -110,6 +115,38 @@
    "fieldtype": "Attach Image",
    "label": "App Switcher Logo",
    "make_attachment_public": 1
+  },
+  {
+   "description": "A lucide class name from the curated picker list, e.g. lucide-book-open-text.",
+   "fieldname": "space_icon",
+   "fieldtype": "Data",
+   "label": "Space Icon"
+  },
+  {
+   "description": "Tint behind the space icon: one of gray, blue, green, amber, red, violet.",
+   "fieldname": "space_color",
+   "fieldtype": "Data",
+   "label": "Space Color"
+  },
+  {
+   "description": "Generated mark as an SVG data URI. Hidden because it is a wall of text in a form.",
+   "fieldname": "avatar",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Avatar"
+  },
+  {
+   "fieldname": "avatar_style",
+   "fieldtype": "Data",
+   "label": "Avatar Style",
+   "read_only": 1
+  },
+  {
+   "description": "Re-rolled by Shuffle. Stored so the same mark can be rebuilt from the style.",
+   "fieldname": "avatar_seed",
+   "fieldtype": "Data",
+   "label": "Avatar Seed",
+   "read_only": 1
   },
   {
    "fieldname": "favicon",

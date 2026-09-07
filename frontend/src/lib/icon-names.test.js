@@ -23,8 +23,13 @@ const SRC = path.resolve(import.meta.dirname, '..');
  * An `icon:` object key, or an `icon=` / `:icon-left=` template prop. The
  * lookbehind keeps a hyphenated name ending in "icon" out — `@update-icon="…"`
  * is an event, not an icon prop.
+ *
+ * The key pattern is case-sensitive and the prop pattern is not, on purpose: a
+ * key is always lowercase-initial (`icon`, `iconLeft`), while an uppercase one
+ * is a component tag before a bound prop — `<IconGrid :model-value="icon">`
+ * read as an `Icon…:` key and reported its own binding as a stale name.
  */
-const ICON_KEY = /(?<![-\w])icon\w*\s*:(?!:)/i;
+const ICON_KEY = /(?<![-\w])icon\w*\s*:(?!:)/;
 const ICON_PROP = /(?<![-\w])(?::)?icon(?:-left|-right|Left|Right)?\s*=/i;
 const STRING_LITERAL = /['"`]([^'"`\n]*)['"`]/g;
 

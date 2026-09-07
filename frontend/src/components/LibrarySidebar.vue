@@ -39,11 +39,10 @@
 							@contextmenu="openSpaceMenu(space)"
 						>
 							<template #prefix>
-								<Avatar
-									size="sm"
-									shape="square"
-									:image="space.app_switcher_logo"
+								<SpaceAvatar
+									:space="space"
 									:label="space.space_name || space.name"
+									size="sm"
 								/>
 							</template>
 							<!-- Access and publish state are independent fields, so each
@@ -110,7 +109,6 @@
 
 <script setup>
 import {
-	Avatar,
 	Button,
 	ContextMenu,
 	Sidebar,
@@ -123,6 +121,7 @@ import {
 } from 'frappe-ui';
 
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue';
+import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
 import { computed, ref } from 'vue';
