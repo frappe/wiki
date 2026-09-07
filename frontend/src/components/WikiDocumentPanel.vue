@@ -1,40 +1,57 @@
 <template>
 	<div class="h-full flex flex-col">
-		<!-- Page actions row. Owned by the page rather than teleported into the
-		     space's tab row, so it sits in the same place whether or not the
-		     space uses tabs. -->
-		<DefineActions>
-			<Button
-				v-if="wikiDoc.doc?.is_published"
-				variant="ghost"
-				@click="openPage"
-			>
-				<template #prefix>
-					<span class="lucide-external-link size-4" aria-hidden="true" />
-				</template>
-				{{ __('View Page') }}
-			</Button>
-			<Button
-				v-if="!readonly"
-				variant="solid"
-				:loading="isSaving"
-				:title="isMac ? '⌘S' : 'Ctrl+S'"
-				@click="saveFromHeader"
-			>
-				{{ __('Save') }}
-			</Button>
-			<Dropdown :options="menuOptions">
-				<Button variant="ghost" :title="__('More actions')">
-					<span class="lucide-more-vertical size-4" aria-hidden="true" />
-				</Button>
-			</Dropdown>
-		</DefineActions>
-
 		<div v-if="wikiDoc.doc" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+			<!-- The page's one action row: where it sits in the tree on the
+			     left, what you can do with it on the right. A synced page is
+			     owned by the repo, so it offers the round trip to GitHub
+			     instead of an edit flow. -->
+			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
 				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
 				<div class="flex shrink-0 items-center gap-2">
-					<ReuseActions />
+					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
+						{{ __('Read-only') }}
+					</Badge>
+					<Button
+						v-if="displayPublished"
+						variant="ghost"
+						:title="__('View live')"
+						:aria-label="__('View live')"
+						@click="openPage"
+					>
+						<span class="lucide-eye size-4" aria-hidden="true" />
+					</Button>
+					<Button
+						v-if="readonly && githubEditUrl"
+						variant="outline"
+						@click="openGithubEdit"
+					>
+						<template #prefix>
+							<span class="lucide-github size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit on GitHub') }}
+					</Button>
+					<!-- Interim: autosave already covers content, but the dirty
+					     dot that reports it lands with the prose column (phase
+					     2). Until then Save stays as the visible save signal. -->
+					<Button
+						v-if="!readonly"
+						variant="subtle"
+						:loading="isSaving"
+						:title="isMac ? '⌘S' : 'Ctrl+S'"
+						@click="saveFromHeader"
+					>
+						{{ __('Save') }}
+					</Button>
+					<SubmitForReviewButton v-if="!readonly" />
+					<Dropdown v-if="menuOptions.length" :options="menuOptions">
+						<Button
+							variant="ghost"
+							:title="__('More actions')"
+							:aria-label="__('More actions')"
+						>
+							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
+						</Button>
+					</Dropdown>
 				</div>
 			</div>
 			<!-- The one scroller on this page: the editor body scrolls under
@@ -139,6 +156,56 @@
 				</div>
 			</template>
 		</Dialog>
+		<Dialog v-model:open="showRenameDialog" size="sm">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Rename Page') }}</h3>
+			</template>
+			<template #default>
+				<FormControl
+					v-model="editableRenameTitle"
+					:label="__('Title')"
+					type="text"
+					:placeholder="__('Page title')"
+				/>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button variant="solid" :loading="isRenaming" @click="renamePage(close)">
+						{{ __('Rename') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
+		<Dialog v-model:open="showDeleteDialog" size="sm">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
+					{{ __('Delete') }} "{{ displayTitle || __('Untitled') }}"
+				</h3>
+			</template>
+			<template #default>
+				<p class="text-ink-gray-7">
+					{{
+						__(
+							'The page is removed from the space when this change request is merged.',
+						)
+					}}
+				</p>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						theme="red"
+						:loading="isDeleting"
+						@click="deletePage(close)"
+					>
+						{{ __('Save Delete Draft') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
 		<PageSettings v-if="wikiDoc.doc" v-model="showPageSettingsDialog" :doc-resource="wikiDoc" />
 	</div>
 </template>
@@ -149,7 +216,6 @@ import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
-import { createReusableTemplate } from '@vueuse/core';
 import {
 	Badge,
 	Breadcrumbs,
@@ -165,12 +231,12 @@ import {
 	usePageMeta,
 } from 'frappe-ui';
 import { computed, inject, ref, shallowRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import PageSettings from './PageSettings.vue';
+import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
 
 const isMac = computed(() => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent));
-
-const [DefineActions, ReuseActions] = createReusableTemplate();
 
 const props = defineProps({
 	pageId: {
@@ -197,7 +263,13 @@ const editableRoute = ref('');
 const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 const showPageSettingsDialog = ref(false);
+const showRenameDialog = ref(false);
+const editableRenameTitle = ref('');
+const isRenaming = ref(false);
+const showDeleteDialog = ref(false);
+const isDeleting = ref(false);
 
+const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
@@ -455,29 +527,34 @@ const githubEditUrl = computed(() => {
 });
 
 const menuOptions = computed(() => {
-	// Read-only spaces can't change publish state — only offer the desk link.
-	const options = props.readonly
-		? []
-		: [
-				{
-					label: displayPublished.value ? __('Unpublish') : __('Publish'),
-					icon: 'lucide-upload-cloud',
-					onClick: togglePublish,
+	const options = [];
+	// A synced page has no editable state here — the repo owns it, and the
+	// header already offers the trip to GitHub.
+	if (!props.readonly) {
+		options.push(
+			{
+				label: __('Rename'),
+				icon: 'lucide-pencil',
+				onClick: openRenameDialog,
+			},
+			{
+				label: __('Change route'),
+				icon: 'lucide-link',
+				onClick: openRouteDialog,
+			},
+			{
+				label: displayPublished.value ? __('Unpublish') : __('Publish'),
+				icon: 'lucide-upload-cloud',
+				onClick: togglePublish,
+			},
+			{
+				label: __('Page settings'),
+				icon: 'lucide-settings',
+				onClick: () => {
+					showPageSettingsDialog.value = true;
 				},
-				{
-					label: __('Page settings'),
-					icon: 'lucide-settings',
-					onClick: () => {
-						showPageSettingsDialog.value = true;
-					},
-				},
-			];
-	if (githubEditUrl.value) {
-		options.push({
-			label: __('Edit on GitHub'),
-			icon: 'lucide-git-branch',
-			onClick: () => window.open(githubEditUrl.value, '_blank', 'noopener'),
-		});
+			},
+		);
 	}
 	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
 		options.push({
@@ -490,8 +567,68 @@ const menuOptions = computed(() => {
 				),
 		});
 	}
+	if (!props.readonly) {
+		options.push({
+			label: __('Delete'),
+			icon: 'lucide-trash-2',
+			onClick: () => {
+				showDeleteDialog.value = true;
+			},
+		});
+	}
 	return options;
 });
+
+function openRenameDialog() {
+	editableRenameTitle.value = displayTitle.value;
+	showRenameDialog.value = true;
+}
+
+async function renamePage(close) {
+	const newTitle = editableRenameTitle.value.trim();
+	if (!newTitle || newTitle === displayTitle.value) {
+		close();
+		return;
+	}
+	if (!wikiDoc.value.doc?.doc_key) return;
+	isRenaming.value = true;
+	try {
+		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
+		await loadCrPage();
+		close();
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error updating title'));
+	} finally {
+		isRenaming.value = false;
+	}
+}
+
+function openGithubEdit() {
+	if (!githubEditUrl.value) return;
+	window.open(githubEditUrl.value, '_blank', 'noopener');
+}
+
+// Deleting the open page leaves the editor pointing at nothing, so hand the
+// route back to the space, which reopens the next page it can find.
+async function deletePage(close) {
+	const docKey = wikiDoc.value.doc?.doc_key;
+	if (!docKey) {
+		close();
+		return;
+	}
+	close();
+	isDeleting.value = true;
+	try {
+		await draftStore.deleteNode(docKey);
+		if (props.spaceId) {
+			router.push({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		}
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error creating draft'));
+	} finally {
+		isDeleting.value = false;
+	}
+}
 
 async function saveTitleIfChanged() {
 	if (props.readonly) return;

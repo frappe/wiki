@@ -128,18 +128,7 @@
 					changeRequestStatus === 'Changes Requested'
 				"
 			>
-				<Button
-					v-if="crStore.changeCount > 0"
-					class="mt-2 w-full"
-					variant="solid"
-					size="sm"
-					:loading="crStore.isSubmitting"
-					:disabled="submitDisabled"
-					:title="submitButtonTitle"
-					@click="showSubmitConfirmDialog = true"
-				>
-					{{ __('Submit for Review') }}
-				</Button>
+				<SubmitForReviewButton class="mt-2 w-full" size="sm" />
 				<Button
 					v-if="canShowMerge"
 					class="mt-1.5 w-full"
@@ -269,49 +258,13 @@
 		</template>
 	</Dialog>
 
-	<Dialog v-model:open="showSubmitConfirmDialog" size="sm">
-		<template #title>
-			<div class="flex items-center gap-2">
-				<span
-					class="lucide-git-branch size-5 text-ink-gray-5"
-					aria-hidden="true"
-				/>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Submit for Review') }}
-				</h3>
-			</div>
-		</template>
-		<template #default>
-			<p class="text-ink-gray-7">
-				{{ __('Are you sure you want to submit your changes for review?') }}
-			</p>
-			<p class="text-sm text-ink-gray-5 mt-2">
-				{{
-					__('You have {0} pending {1}.', [
-						crStore.changeCount,
-						crStore.changeCount === 1 ? __('change') : __('changes'),
-					])
-				}}
-			</p>
-		</template>
-		<template #actions="{ close }">
-			<div class="flex justify-end gap-2">
-				<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-				<Button
-					variant="solid"
-					:loading="crStore.isSubmitting"
-					@click="confirmSubmit(close)"
-				>
-					{{ __('Submit') }}
-				</Button>
-			</div>
-		</template>
-	</Dialog>
 </template>
 
 <script setup>
 import { Badge, Button, Dialog, Dropdown, dayjsLocal, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
+
+import SubmitForReviewButton from './SubmitForReviewButton.vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
@@ -363,23 +316,6 @@ const readonlyLine = computed(() => {
 // within the 10s autosave window, sending the previous content. Reorder
 // counts as pending too via isTreeReordering.
 const hasUnsyncedWork = computed(() => Boolean(draftStore.finalizationBlocker));
-const submitDisabled = computed(() => hasUnsyncedWork.value);
-const submitButtonTitle = computed(() => {
-	if (draftStore.finalizationBlocker === 'conflict') {
-		return __('Reload latest before submitting');
-	}
-	if (draftStore.finalizationBlocker === 'failed') {
-		return __('Resolve failed changes before submitting');
-	}
-	if (draftStore.finalizationBlocker === 'pending') {
-		return __('Wait for pending changes to sync before submitting');
-	}
-	if (draftStore.finalizationBlocker === 'unsaved') {
-		return __('Save your changes before submitting');
-	}
-	return '';
-});
-
 // Durable sync indicator. Replaces per-edit success toasts: while the
 // store is mid-flight or has failures, this pill is the source of truth.
 // "Unsaved changes" is a distinct state from "Saving…" — the latter
@@ -467,12 +403,6 @@ watch(
 );
 
 const showChangesDialog = ref(false);
-const showSubmitConfirmDialog = ref(false);
-
-function confirmSubmit(closeDialog) {
-	closeDialog();
-	crActions.submitForReview();
-}
 
 const canShowMerge = computed(
 	() => userStore.isWikiManager && crStore.changeCount > 0,
