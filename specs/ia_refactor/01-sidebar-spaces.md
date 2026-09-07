@@ -353,3 +353,25 @@ dialog, search filters server-side, and the New Space dialog creates a space and
 drills into it. Unit suite 73 pass; `wiki.test_api` 37 pass (6 new, checked by
 temp-reverting the Guest rule); lint and build pass. E2E was not run — the local
 site is saturated (see the landmines).
+
+### Follow-up: the tree's state marks
+
+2026-09-07. Decision 4 settled the *space* list on independent icons rather
+than badges, but the document tree kept seven text badges of its own — New,
+Modified, Deleted, Reordered, Not Published, Syncing…, Sync failed — one per
+row. At a real space that is a column of coloured labels with page titles
+squeezed behind them, which is the thing decision 4 was avoiding.
+
+| # | What shipped | Why |
+|---|--------------|-----|
+| 1 | Change types become a 6px dot, coloured by type, carrying the old label as `title` and `aria-label` | The tree is a navigation column. Which pages changed is a glance question; which *kind* of change is a hover question |
+| 2 | `Not Published` becomes `lucide-eye-off` | The same icon decision 4 gave an unpublished space. Unpublished is not a change, so it is not a dot |
+| 3 | `Syncing…` becomes a gray dot; **`Sync failed` keeps its red badge** | A failed save is the one state that asks the user to do something, and it has to stand out against the dots rather than join them |
+| 4 | The colours moved into `useChangeTypeDisplay` as `getChangeDotClass` | The tree had hardcoded its own, and had drifted: `added` was drawn blue there and green everywhere else. One place owns the mapping now, and `added` is green |
+| 5 | The outline rail's wrapper became a `div` | It was an `<aside>`, and once spec 02 phase 6 brought the rail back at 1280 there were two complementary landmarks on the page — which made `locator('aside')`, the sidebar in 72 e2e specs, ambiguous. The nav inside it was already the landmark |
+
+Verified at 1440×900: a space with new, modified and reordered pages shows one
+dot per row and full-width titles. `change-request-flow`'s reorder case reads
+the dot's label instead of the badge text — 2/2 pass; `editor-toc` unchanged at
+5/6 (the pre-existing scroll-spy failure). Unit suite 82 pass (81 + 1 for the
+dot classes); lint and build pass.
