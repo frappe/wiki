@@ -225,16 +225,27 @@ export const useSpaceStore = defineStore('space', () => {
 	// riding a component's lifecycle.
 	useSocket()?.on('wiki_git_sync_update', onSyncRealtime);
 
+	// Keyed on the two fields that decide which workspace to build — never on
+	// `doc` itself. `setValue` replaces the document with a fresh object on
+	// every field write, so watching the document made a logo shuffle, a rename
+	// or a publish toggle look exactly like a move to another space: the change
+	// request was dropped, the draft workspace reset and the tree refetched,
+	// flashing the sidebar and the breadcrumbs for a change that touched
+	// neither. Sources are passed as an array so Vue compares them one by one.
 	watch(
-		[doc, () => crStore.isChangeRequestMode],
-		async ([currentDoc, isMode], oldValues) => {
-			if (!currentDoc || !isMode) return;
+		[
+			() => doc.value?.name,
+			() => doc.value?.git_synced,
+			() => crStore.isChangeRequestMode,
+		],
+		async ([name, gitSynced, isMode], previous) => {
+			if (!name || !isMode) return;
 			// Synced spaces never open a change request — they hydrate the
 			// read-only tree path below instead.
-			if (currentDoc.git_synced) return;
+			if (gitSynced) return;
 
-			const [oldDoc] = oldValues || [];
-			if (currentDoc !== oldDoc) {
+			// A different space, not a different revision of the same one.
+			if (name !== previous?.[0]) {
 				crStore.currentChangeRequest = null;
 				draftStore.reset();
 			}
@@ -247,10 +258,13 @@ export const useSpaceStore = defineStore('space', () => {
 	// Read-only tree hydration for git-synced spaces. Loads the published live
 	// tree (no CR) and, for a never-synced space (e.g. just created), kicks off
 	// the first sync so its content appears without a manual click.
+	// Same keying as above, and for the same reason: a field write on a synced
+	// space must not refetch its tree.
 	watch(
-		doc,
-		async (currentDoc) => {
-			if (!currentDoc || !currentDoc.git_synced) return;
+		[() => doc.value?.name, () => doc.value?.git_synced],
+		async ([name, gitSynced]) => {
+			const currentDoc = doc.value;
+			if (!name || !gitSynced || !currentDoc) return;
 			await loadReadonlyTree();
 			// First-ever sync of a freshly-created space: kick it once, silently —
 			// the "created successfully" toast already covers the action, and the
