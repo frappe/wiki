@@ -2598,6 +2598,174 @@ class TestWikiChangeRequestTabs(FrappeTestCase):
 # Helpers
 
 
+class TestPartialSubmit(FrappeTestCase):
+	"""Submitting a subset of a draft's changes.
+
+	A change request is space-level, so everything the author edited before
+	submitting rides along. These cover the split that lets them send one page
+	for review and keep the rest as a draft.
+	"""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def _space_with_three_pages(self):
+		space = create_test_wiki_space()
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		cr = create_change_request(space.name, "Partial submit CR")
+		keys = [
+			create_cr_page(
+				cr.name,
+				parent_key=root_key,
+				title=f"Page {index}",
+				slug=f"page-{index}",
+				is_group=0,
+				is_published=1,
+				content=f"Body {index}",
+			)
+			for index in range(3)
+		]
+		return space, root_key, cr, keys
+
+	def test_subset_submit_leaves_the_rest_in_a_new_draft(self):
+		space, _root_key, cr, keys = self._space_with_three_pages()
+
+		result = submit_change_request(cr.name, doc_keys=[keys[0]])
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
+		leftover = result["held_back_change_request"]
+		self.assertIsNotNone(leftover)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", leftover, "status"), "Draft")
+		self.assertEqual(result["submitted"], [keys[0]])
+		self.assertEqual(sorted(result["held_back"]), sorted(keys[1:]))
+
+		submitted_keys = {change["doc_key"] for change in diff_change_request(cr.name)}
+		leftover_keys = {change["doc_key"] for change in diff_change_request(leftover)}
+		self.assertEqual(submitted_keys, {keys[0]})
+		self.assertEqual(leftover_keys, set(keys[1:]))
+
+		# The leftover draft branches off the same base, not off the live tree.
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", leftover, "base_revision"), cr.base_revision
+		)
+
+	def test_merging_a_subset_publishes_only_its_pages(self):
+		space, _root_key, cr, keys = self._space_with_three_pages()
+		submit_change_request(cr.name, doc_keys=[keys[0]])
+
+		_approve_and_merge(cr.name)
+
+		live = frappe.get_all(
+			"Wiki Document",
+			filters={"parent_wiki_document": space.root_group},
+			pluck="title",
+		)
+		self.assertEqual(live, ["Page 0"])
+
+	def test_full_selection_does_not_split(self):
+		_space, _root_key, cr, keys = self._space_with_three_pages()
+
+		result = submit_change_request(cr.name, doc_keys=keys)
+
+		self.assertIsNone(result["held_back_change_request"])
+		self.assertEqual(result["held_back"], [])
+		self.assertEqual(
+			frappe.db.count("Wiki Change Request", {"wiki_space": cr.wiki_space, "status": "Draft"}), 0
+		)
+
+	def test_empty_selection_is_rejected(self):
+		_space, _root_key, cr, _keys = self._space_with_three_pages()
+
+		with self.assertRaises(frappe.ValidationError):
+			submit_change_request(cr.name, doc_keys=[])
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
+
+	def test_selection_pulls_in_a_new_parent_group(self):
+		space = create_test_wiki_space()
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		cr = create_change_request(space.name, "Nested CR")
+		group_key = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="New Group",
+			slug="new-group",
+			is_group=1,
+			is_published=1,
+			content="",
+		)
+		child_key = create_cr_page(
+			cr.name,
+			parent_key=group_key,
+			title="Nested Page",
+			slug="nested-page",
+			is_group=0,
+			is_published=1,
+			content="Nested body",
+		)
+
+		result = submit_change_request(cr.name, doc_keys=[child_key])
+
+		# The group is new in this CR, so it cannot stay behind.
+		self.assertEqual(sorted(result["submitted"]), sorted([group_key, child_key]))
+		self.assertEqual(result["auto_included"], [group_key])
+		self.assertIsNone(result["held_back_change_request"])
+
+	def test_selecting_a_new_group_keeps_its_pages_with_it(self):
+		space = create_test_wiki_space()
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		cr = create_change_request(space.name, "Group CR")
+		group_key = create_cr_page(
+			cr.name,
+			parent_key=root_key,
+			title="New Group",
+			slug="new-group",
+			is_group=1,
+			is_published=1,
+			content="",
+		)
+		child_key = create_cr_page(
+			cr.name,
+			parent_key=group_key,
+			title="Nested Page",
+			slug="nested-page",
+			is_group=0,
+			is_published=1,
+			content="Nested body",
+		)
+
+		result = submit_change_request(cr.name, doc_keys=[group_key])
+
+		self.assertEqual(result["auto_included"], [child_key])
+		self.assertIsNone(result["held_back_change_request"])
+
+	def test_selecting_a_deleted_group_keeps_its_deleted_pages_with_it(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Live Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Live Child")
+		other = create_test_wiki_document(space.root_group, title="Other Page")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+		other_key = frappe.get_value("Wiki Document", other.name, "doc_key")
+
+		cr = create_change_request(space.name, "Delete CR")
+		delete_cr_page(cr.name, group_key)
+		update_cr_page(cr.name, other_key, {"content": "Edited elsewhere"})
+
+		result = submit_change_request(cr.name, doc_keys=[group_key])
+
+		self.assertEqual(sorted(result["submitted"]), sorted([group_key, child_key]))
+		self.assertEqual(result["held_back"], [other_key])
+
+	def test_leftover_draft_is_what_the_author_gets_back(self):
+		space, _root_key, cr, keys = self._space_with_three_pages()
+		result = submit_change_request(cr.name, doc_keys=[keys[0]])
+
+		draft = get_or_create_draft_change_request(space.name)
+
+		self.assertEqual(draft["name"], result["held_back_change_request"])
+
+
 def create_test_wiki_space():
 	root_group = frappe.new_doc("Wiki Document")
 	root_group.title = f"Root {frappe.generate_hash(length=6)}"
