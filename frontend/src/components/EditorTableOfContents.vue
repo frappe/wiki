@@ -31,7 +31,7 @@
 						? 'bg-surface-gray-2 text-ink-gray-9'
 						: 'text-ink-gray-6 hover:bg-surface-gray-2 hover:text-ink-gray-8',
 				]"
-				@click="goTo(entry)"
+				@click="goTo(entry, { index })"
 			>
 				{{ entry.text }}
 			</button>
@@ -82,7 +82,7 @@
 						? 'bg-surface-gray-2 font-medium text-ink-gray-9'
 						: 'text-ink-gray-6'"
 					:style="{ paddingLeft: `${1 + (entry.level - 2) * 0.75}rem` }"
-					@click="goTo(entry, { collapse: true })"
+					@click="goTo(entry, { index, collapse: true })"
 				>
 					<span
 						class="size-1.5 shrink-0 rounded-full"
@@ -175,9 +175,9 @@ function headingElement(pos) {
 
 function updateActive() {
 	if (!scrollContainer || !outline.value.length) return;
+	const box = scrollContainer.getBoundingClientRect();
 	// Anything above the toolbar's lower edge has already scrolled out of sight.
-	const threshold =
-		scrollContainer.getBoundingClientRect().top + toolbarHeight.value + 16;
+	const threshold = box.top + toolbarHeight.value + 16;
 
 	let next = 0;
 	for (const [index, entry] of outline.value.entries()) {
@@ -186,6 +186,25 @@ function updateActive() {
 		if (element.getBoundingClientRect().top > threshold) break;
 		next = index;
 	}
+
+	// The last headings in a document can never reach the threshold — there is
+	// not enough content below them to scroll that far — so at the bottom of
+	// the scroller the rule changes to "the deepest heading you can actually
+	// see". Without this, clicking the final entry scrolls to it and then
+	// leaves the entry above it marked as the one you are on.
+	const atBottom =
+		scrollContainer.scrollHeight -
+			scrollContainer.scrollTop -
+			scrollContainer.clientHeight <=
+		1;
+	if (atBottom) {
+		for (const [index, entry] of outline.value.entries()) {
+			const element = headingElement(entry.pos);
+			if (!element) continue;
+			if (element.getBoundingClientRect().top < box.bottom) next = index;
+		}
+	}
+
 	activeIndex.value = next;
 }
 
@@ -198,9 +217,14 @@ function scheduleUpdateActive() {
 	});
 }
 
-function goTo(entry, { collapse = false } = {}) {
+function goTo(entry, { index, collapse = false } = {}) {
 	const element = headingElement(entry.pos);
 	if (!element || !scrollContainer) return;
+	// Clicking an entry is a choice, so it goes active straight away rather
+	// than waiting for the smooth scroll to settle. The scroll lands the
+	// heading exactly on the scrollspy's threshold, and a sub-pixel overshoot
+	// there reads as "not reached yet" — which left the previous entry marked.
+	if (index !== undefined) activeIndex.value = index;
 	// scrollIntoView would tuck the heading under the sticky toolbar, so scroll
 	// the container by hand and leave room for it.
 	const top =
