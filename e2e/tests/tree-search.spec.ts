@@ -1,7 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import { createTestWikiDocument, createTestWikiSpace } from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * E2E tests for the editor tree fuzzy search box.
@@ -13,61 +10,29 @@ import { createTestWikiDocument, createTestWikiSpace } from '../helpers/wiki';
 test.describe('Editor Tree Search', () => {
 	test('lists matches flat by title and route, then restores on clear', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const spaceName = `tree-search-${Date.now()}`;
-		const space = await createTestWikiSpace(request, {
-			route: spaceName,
-			is_published: true,
+		// Group "Guides" with two pages; one matches only by route. A sibling
+		// "Reference" group should be pruned away on a "Guides" search.
+		const space = await wiki.space({
+			pages: [
+				{
+					title: 'Guides',
+					is_group: true,
+					children: [
+						{ title: 'Getting Started' },
+						{ title: 'Authentication', slug: 'auth-tokens' },
+					],
+				},
+				{
+					title: 'Reference',
+					is_group: true,
+					children: [{ title: 'API Keys' }],
+				},
+			],
 		});
 
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${spaceName}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-
-		// Group "Guides" with two pages; one page matches only by route.
-		const guides = await createTestWikiDocument(request, {
-			title: 'Guides',
-			route: `${spaceName}/guides`,
-			is_group: true,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		await createTestWikiDocument(request, {
-			title: 'Getting Started',
-			route: `${spaceName}/guides/getting-started`,
-			is_published: true,
-			parent_wiki_document: guides.name,
-		});
-		await createTestWikiDocument(request, {
-			title: 'Authentication',
-			route: `${spaceName}/guides/auth-tokens`,
-			is_published: true,
-			parent_wiki_document: guides.name,
-		});
-
-		// A sibling group that should be pruned away on a "Guides" search.
-		const reference = await createTestWikiDocument(request, {
-			title: 'Reference',
-			route: `${spaceName}/reference`,
-			is_group: true,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		await createTestWikiDocument(request, {
-			title: 'API Keys',
-			route: `${spaceName}/reference/api-keys`,
-			is_published: true,
-			parent_wiki_document: reference.name,
-		});
-
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		const tree = page.locator('aside');

@@ -1,12 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import {
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	createTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * An empty space's content column offers "New page". The dialog that creates
@@ -16,30 +8,12 @@ import {
  * tree's dialog, and land in the editor on the page it made.
  */
 test.describe('Empty space — New page from the content column', () => {
-	const route = `empty-new-page-${Date.now()}`;
-	let space: WikiSpace;
-
-	test.beforeAll(async ({ request }) => {
-		space = await createTestWikiSpace(request, { route, is_published: true });
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${route}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, route);
-	});
-
 	test('creates the first page and opens it in the editor', async ({
 		page,
+		wiki,
 	}) => {
-		await page.goto(appUrl('spaces', space.name));
+		const space = await wiki.space();
+		await page.goto(space.url());
 
 		// The sidebar reporting an empty tree is the signal that any auto-open
 		// would already have happened.

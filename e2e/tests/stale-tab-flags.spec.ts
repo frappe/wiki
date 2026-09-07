@@ -1,12 +1,6 @@
-import {
-	type APIRequestContext,
-	type Locator,
-	expect,
-	test,
-} from '@playwright/test';
-import { createDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
+import type { Locator } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import type { SeededSpace } from '../helpers/factory';
 
 /**
  * Horizontal tabs were removed. `Wiki Space.enable_tabs` and the node-level
@@ -18,9 +12,7 @@ import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
  * render it as one plain tree.
  */
 
-const ROUTE = `stale-tabs-e2e-${Date.now()}`;
-
-type Doc = { name: string };
+const SPACE_NAME = 'Stale Tabs E2E';
 
 // Layout assertions compare row positions, so a missing box is a real failure
 // rather than something to silently skip.
@@ -30,98 +22,59 @@ async function box(locator: Locator) {
 	return rect;
 }
 
-async function group(
-	request: APIRequestContext,
-	title: string,
-	parent: string,
-	sortOrder: number,
-	tabIcon?: string,
-) {
-	return createDoc<Doc>(request, 'Wiki Document', {
-		title,
-		is_group: 1,
-		is_published: 1,
-		parent_wiki_document: parent,
-		sort_order: sortOrder,
-		...(tabIcon ? { is_tab: 1, tab_icon: tabIcon } : {}),
-	});
-}
-
-async function page_(
-	request: APIRequestContext,
-	title: string,
-	parent: string,
-	sortOrder: number,
-) {
-	return createDoc<Doc>(request, 'Wiki Document', {
-		title,
-		is_group: 0,
-		is_published: 1,
-		parent_wiki_document: parent,
-		sort_order: sortOrder,
-		content: `Documentation for ${title}.`,
-	});
-}
-
 test.describe('A space carrying legacy tab flags', () => {
-	let spaceId = '';
+	let space: SeededSpace;
+	// The page every test enters on, addressed by the route the server derived.
+	let salesInvoiceRoute = '';
 
-	test.beforeAll(async ({ request }) => {
-		const root = await createDoc<Doc>(request, 'Wiki Document', {
-			title: `Stale Tabs Root ${Date.now()}`,
-			is_group: 1,
-			is_published: 1,
-		});
-		const space = await createDoc<Doc>(request, 'Wiki Space', {
-			space_name: 'Stale Tabs E2E',
-			route: ROUTE,
-			root_group: root.name,
-			is_published: 1,
-			// The switch that used to raise the bar. Nothing reads it now.
+	test.beforeAll(async ({ wikiSuite }) => {
+		space = await wikiSuite.space({
+			space_name: SPACE_NAME,
+			// The switch that used to raise the tab bar. Nothing reads it now.
 			enable_tabs: 1,
+			pages: [
+				{
+					title: 'Accounting',
+					is_group: true,
+					is_tab: 1,
+					tab_icon: 'lucide-wallet',
+					children: [
+						{
+							title: 'Receivables',
+							is_group: true,
+							children: [{ title: 'Sales Invoice' }, { title: 'Credit Note' }],
+						},
+					],
+				},
+				{
+					title: 'Manufacturing',
+					is_group: true,
+					is_tab: 1,
+					tab_icon: 'lucide-factory',
+					children: [
+						{
+							title: 'Production',
+							is_group: true,
+							children: [{ title: 'Work Order' }],
+						},
+					],
+				},
+				// Never flagged — used to live behind the synthetic Home tab.
+				{
+					title: 'Release Notes',
+					is_group: true,
+					children: [{ title: 'v15 Changelog' }],
+				},
+			],
 		});
-		spaceId = space.name;
-
-		const accounting = await group(
-			request,
-			'Accounting',
-			root.name,
-			0,
-			'lucide-wallet',
-		);
-		const receivables = await group(request, 'Receivables', accounting.name, 0);
-		await page_(request, 'Sales Invoice', receivables.name, 0);
-		await page_(request, 'Credit Note', receivables.name, 1);
-
-		const manufacturing = await group(
-			request,
-			'Manufacturing',
-			root.name,
-			1,
-			'lucide-factory',
-		);
-		const production = await group(
-			request,
-			'Production',
-			manufacturing.name,
-			0,
-		);
-		await page_(request, 'Work Order', production.name, 0);
-
-		// Never flagged — used to live behind the synthetic Home tab.
-		const misc = await group(request, 'Release Notes', root.name, 2);
-		await page_(request, 'v15 Changelog', misc.name, 0);
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, ROUTE);
+		salesInvoiceRoute = space.page('Sales Invoice').route;
 	});
 
 	test('reader shows one tree with every top-level group, and no tab bar', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.goto(`/${salesInvoiceRoute}`);
 		await page.waitForLoadState('networkidle');
 
 		const sidebar = page.locator('.wiki-sidebar');
@@ -148,7 +101,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.goto(`/${salesInvoiceRoute}`);
 		await page.waitForLoadState('networkidle');
 
 		const sidebar = page.locator('.wiki-sidebar');
@@ -160,7 +113,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		await sidebar.getByText('Production', { exact: true }).click();
 		await sidebar.getByText('Work Order', { exact: true }).click();
 		await expect(page).toHaveURL(
-			new RegExp(`/${ROUTE}/manufacturing/production/work-order`),
+			new RegExp(`/${space.page('Work Order').route}`),
 		);
 
 		// The former Home content is still there after the SPA hop.
@@ -173,7 +126,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.goto(`/${salesInvoiceRoute}`);
 		await page.waitForLoadState('networkidle');
 
 		// `banner` picks the page-level header; the mobile one and the article's
@@ -193,7 +146,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		expect(navbarBox.width).toBeGreaterThan(sidebarBox.width);
 
 		await expect(
-			navbar.getByText('Stale Tabs E2E', { exact: true }).first(),
+			navbar.getByText(SPACE_NAME, { exact: true }).first(),
 		).toBeVisible();
 	});
 
@@ -201,7 +154,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		await page.goto(`/${ROUTE}/accounting/receivables/sales-invoice`);
+		await page.goto(`/${salesInvoiceRoute}`);
 		await page.waitForLoadState('networkidle');
 
 		await page.getByTestId('mobile-menu-toggle').click();
@@ -224,7 +177,7 @@ test.describe('A space carrying legacy tab flags', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
-		await page.goto(appUrl('spaces', spaceId));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		const tree = page.locator('aside');

@@ -1,7 +1,5 @@
-import { type APIRequestContext, expect, test } from '@playwright/test';
-import { createDoc } from '../helpers/frappe';
+import { expect, test } from '../fixtures';
 import { APP_BASE, appUrl } from '../helpers/routes';
-import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
 
 /**
  * The IA refactor left the app with exactly one navigation column that drills.
@@ -13,60 +11,24 @@ import { cleanupWikiSpacesByRoute } from '../helpers/wiki';
  * pass even if the library list were merely appended to rather than replaced.
  */
 
-const ROUTE_A = `drill-in-a-e2e-${Date.now()}`;
-const ROUTE_B = `drill-in-b-e2e-${Date.now()}`;
-
 const SPACE_A_NAME = 'Drill In Alpha';
 const SPACE_B_NAME = 'Drill In Beta';
 const PAGE_TITLE = 'Alpha First Page';
-
-type Doc = { name: string };
-
-async function space(
-	request: APIRequestContext,
-	spaceName: string,
-	route: string,
-) {
-	const root = await createDoc<Doc>(request, 'Wiki Document', {
-		title: `${spaceName} Root`,
-		is_group: 1,
-		is_published: 1,
-	});
-	const created = await createDoc<Doc>(request, 'Wiki Space', {
-		space_name: spaceName,
-		route,
-		root_group: root.name,
-		is_published: 1,
-	});
-	return { spaceId: created.name, rootKey: root.name };
-}
 
 test.describe('Sidebar drill-in navigation', () => {
 	let spaceA = '';
 	let spaceB = '';
 	let pageName = '';
 
-	test.beforeAll(async ({ request }) => {
-		const a = await space(request, SPACE_A_NAME, ROUTE_A);
-		spaceA = a.spaceId;
-
-		const page = await createDoc<Doc>(request, 'Wiki Document', {
-			title: PAGE_TITLE,
-			is_group: 0,
-			is_published: 1,
-			parent_wiki_document: a.rootKey,
-			sort_order: 0,
-			content: 'Drill-in fixture content.',
+	test.beforeAll(async ({ wikiSuite }) => {
+		const a = await wikiSuite.space({
+			space_name: SPACE_A_NAME,
+			pages: [{ title: PAGE_TITLE, content: 'Drill-in fixture content.' }],
 		});
-		pageName = page.name;
+		spaceA = a.name;
+		pageName = a.page(PAGE_TITLE).name;
 
-		const b = await space(request, SPACE_B_NAME, ROUTE_B);
-		spaceB = b.spaceId;
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, ROUTE_A);
-		await cleanupWikiSpacesByRoute(request, ROUTE_B);
+		spaceB = (await wikiSuite.space({ space_name: SPACE_B_NAME })).name;
 	});
 
 	test('library lists spaces, entering one replaces the column, back restores it', async ({
