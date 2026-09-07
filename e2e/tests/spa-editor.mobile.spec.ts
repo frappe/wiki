@@ -1,10 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import { uniqueRoute } from '../helpers/factory';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import {
-	cleanupWikiSpacesByRoute,
-	createTestWikiSpace,
-	openNewPageDialog,
-} from '../helpers/wiki';
+import { openNewPageDialog } from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -25,25 +22,15 @@ async function pageOverflow(page: import('@playwright/test').Page) {
 }
 
 test.describe('Mobile SPA', () => {
-	const createdRoutes: string[] = [];
-
-	test.afterEach(async ({ request }) => {
-		while (createdRoutes.length) {
-			const route = createdRoutes.pop() as string;
-			await cleanupWikiSpacesByRoute(request, route).catch(() => {});
-		}
-	});
-
 	// Phase 1: the bug we guard against is the editor collapsing to a sliver
 	// because the desktop sidebars ate the screen. The tree must live in a
 	// drawer and the editor must fill the width.
 	test('tree opens in a drawer and the editor fills the screen at 375px', async ({
 		page,
+		wiki,
 	}) => {
-		const stamp = Date.now();
-		const spaceRoute = `mobile-spa-${stamp}`;
-		createdRoutes.push(spaceRoute);
-		const pageTitle = `Mobile Page ${stamp}`;
+		const spaceRoute = uniqueRoute('mobile-spa');
+		const pageTitle = `Mobile Page ${Date.now()}`;
 
 		// --- Setup at desktop: create a space with one page ---
 		await page.setViewportSize(DESKTOP);
@@ -61,6 +48,7 @@ test.describe('Mobile SPA', () => {
 		await expect(page).toHaveURL(SPACE_URL_RE);
 		await page.waitForLoadState('networkidle');
 		const spaceUrl = page.url();
+		wiki.adopt(spaceUrl.split('/spaces/')[1].split(/[/?#]/)[0]);
 
 		await openNewPageDialog(page);
 		await page.getByLabel('Title').fill(pageTitle);
@@ -119,11 +107,9 @@ test.describe('Mobile SPA', () => {
 	// and rows still navigate.
 	test('Spaces and Change Requests render without page overflow; rows navigate', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const spaceRoute = `mobile-list-${Date.now()}`;
-		createdRoutes.push(spaceRoute);
-		await createTestWikiSpace(request, { route: spaceRoute });
+		const { route: spaceRoute } = await wiki.space();
 
 		await page.setViewportSize(PHONE);
 		await page.goto(appUrl('spaces'));
@@ -155,14 +141,12 @@ test.describe('Mobile SPA', () => {
 	// backdrop swallows the dialog's outside-click.
 	test('Settings opens on top of the tree drawer, not behind it', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const spaceRoute = `mobile-settings-${Date.now()}`;
-		createdRoutes.push(spaceRoute);
-		const space = await createTestWikiSpace(request, { route: spaceRoute });
+		const space = await wiki.space();
 
 		await page.setViewportSize(PHONE);
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Open the tree drawer, then Settings from inside it.

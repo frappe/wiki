@@ -1,7 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { createDoc, deleteDoc, getDoc, getList } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
 
 /**
  * Space Settings -> Access role picker searches on the server.
@@ -14,19 +12,19 @@ import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
  */
 test.describe('Space Settings -> Access role search', () => {
 	let roleName = '';
-	let spaceName = '';
 
-	test.afterEach(async ({ request }) => {
-		// The space's child row links the role, so the space goes first.
-		if (spaceName) await deleteTestWikiSpace(request, spaceName);
+	test.afterEach(async ({ request, wiki }) => {
+		// The space's child row links the role, so the space goes first — the
+		// fixture's own teardown runs after this hook, which would be too late.
+		await wiki.destroyAll();
 		if (roleName) await deleteDoc(request, 'Role', roleName);
-		spaceName = '';
 		roleName = '';
 	});
 
 	test('finds and adds a role that sorts past the first page', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		// The bug only bites once there are more roles than one page holds.
 		const enabledRoles = await getList(request, 'Role', {
@@ -41,13 +39,10 @@ test.describe('Space Settings -> Access role search', () => {
 		roleName = `ZZZ Wiki Role ${Date.now()}`;
 		await createDoc(request, 'Role', { role_name: roleName });
 
-		const space = await createTestWikiSpace(request, {
-			route: `role-search-${Date.now()}`,
-		});
-		spaceName = space.name;
+		const space = await wiki.space();
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// The sidebar's Settings button became a "Space actions" menu (spec 01).
