@@ -29,6 +29,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_rendered_content,
 	process_navbar_items,
 )
+from wiki.tests.factory import make_document, make_space
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 # On IntegrationTestCase, the doctype test records and all
@@ -40,45 +41,40 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 def create_test_wiki_document(test_case, title, **kwargs):
 	"""Create a Wiki Document for testing and track it for cleanup."""
-	fields = {
-		"doctype": "Wiki Document",
-		"title": title,
-		"parent_wiki_document": kwargs.get("parent"),
-		"is_group": kwargs.get("is_group", False),
-		"is_published": kwargs.get("is_published", True),
-		"sort_order": kwargs.get("sort_order", 0),
-		"slug": kwargs.get("slug"),
-		"is_external_link": kwargs.get("is_external_link", False),
-		"external_url": kwargs.get("external_url"),
-		"source_path": kwargs.get("source_path"),
-		"content": kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
-	}
-	doc = frappe.get_doc(fields)
-	doc.insert(ignore_permissions=True)
+	doc = make_document(
+		parent=kwargs.get("parent"),
+		title=title,
+		is_group=kwargs.get("is_group", False),
+		is_published=kwargs.get("is_published", True),
+		sort_order=kwargs.get("sort_order", 0),
+		slug=kwargs.get("slug"),
+		is_external_link=kwargs.get("is_external_link", False),
+		external_url=kwargs.get("external_url"),
+		source_path=kwargs.get("source_path"),
+		content=kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
+	)
 	test_case.test_docs.append(doc.name)
 	return doc
 
 
 def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 	"""Create a Wiki Space for testing and track it for cleanup."""
-	fields = {
-		"doctype": "Wiki Space",
-		"space_name": space_name,
-		"route": route,
-		"root_group": root_group,
-		"show_in_switcher": kwargs.get("show_in_switcher", True),
-		"is_published": kwargs.get("is_published", True),
-		"switcher_order": kwargs.get("switcher_order", 0),
-		"git_synced": kwargs.get("git_synced", False),
-		"repo_full_name": kwargs.get("repo_full_name"),
-		"branch": kwargs.get("branch"),
-	}
-	doc = frappe.get_doc(fields)
-	for role, level in kwargs.get("roles", []):
-		doc.append("roles", {"role": role, "permission_level": level})
-	doc.insert(ignore_permissions=True)
+	doc = make_space(
+		space_name=space_name,
+		route=route,
+		root_group=root_group,
+		roles=kwargs.get("roles", []),
+		show_in_switcher=kwargs.get("show_in_switcher", True),
+		is_published=kwargs.get("is_published", True),
+		switcher_order=kwargs.get("switcher_order", 0),
+		git_synced=kwargs.get("git_synced", False),
+		repo_full_name=kwargs.get("repo_full_name"),
+		branch=kwargs.get("branch"),
+	)
 	test_case.test_spaces.append(doc.name)
-	# Track auto-created root_group for cleanup
+	# A space asked to make its own root group owns a document nothing else
+	# tracks -- the on-trash cascade only reaches it if the space is deleted,
+	# and these tests delete documents first.
 	if not root_group and doc.root_group:
 		test_case.test_docs.append(doc.root_group)
 	return doc

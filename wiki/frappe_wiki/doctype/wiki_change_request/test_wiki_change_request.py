@@ -42,6 +42,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
 )
+from wiki.tests.factory import make_document, make_space
 
 
 def _cached_cards(doc_key: str) -> list[str]:
@@ -2623,29 +2624,11 @@ class TestWikiChangeRequestTabs(FrappeTestCase):
 
 
 def create_test_wiki_space():
-	root_group = frappe.new_doc("Wiki Document")
-	root_group.title = f"Root {frappe.generate_hash(length=6)}"
-	root_group.is_group = 1
-	root_group.insert()
-
-	space = frappe.new_doc("Wiki Space")
-	space.space_name = "Test Space"
-	space.route = f"test-space-{frappe.generate_hash(length=6)}"
-	space.root_group = root_group.name
-	space.insert()
-
-	return space
+	return make_space(space_name="Test Space")
 
 
 def create_test_wiki_document(parent, title="Test Page", content="Content", is_group: int = 0):
-	doc = frappe.new_doc("Wiki Document")
-	doc.title = title
-	doc.content = content
-	doc.parent_wiki_document = parent
-	doc.is_group = 1 if is_group else 0
-	doc.is_published = 1
-	doc.insert()
-	return doc
+	return make_document(parent=parent, title=title, content=content, is_group=is_group)
 
 
 def get_revision_item(revision, doc_key):

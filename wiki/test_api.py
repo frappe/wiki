@@ -6,6 +6,8 @@ import json
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from wiki.tests.factory import make_document, make_space
+
 
 class TestReorderWikiDocumentsAPI(FrappeTestCase):
 	"""Tests for the reorder_wiki_documents API."""
@@ -935,29 +937,12 @@ class TestRestrictedSpaces(FrappeTestCase):
 
 def create_test_wiki_space():
 	"""Create a test Wiki Space with a root group."""
-	root_group = frappe.new_doc("Wiki Document")
-	root_group.title = f"Test Root {frappe.generate_hash(length=6)}"
-	root_group.is_group = 1
-	root_group.insert()
-
-	space = frappe.new_doc("Wiki Space")
-	space.space_name = f"Test Space {frappe.generate_hash(length=6)}"
-	space.route = f"test-space-{frappe.generate_hash(length=6)}"
-	space.root_group = root_group.name
-	space.insert()
-
-	return space
+	return make_space(space_name=f"Test Space {frappe.generate_hash(length=6)}")
 
 
 def create_wiki_document(parent: str, title: str, is_group: bool = False, content: str = ""):
 	"""Create a Wiki Document."""
-	doc = frappe.new_doc("Wiki Document")
-	doc.title = title
-	doc.parent_wiki_document = parent
-	doc.is_group = 1 if is_group else 0
-	doc.content = content
-	doc.insert()
-	return doc
+	return make_document(parent=parent, title=title, is_group=is_group, content=content)
 
 
 def create_test_user(email: str, roles: list | None = None):

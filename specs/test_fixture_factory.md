@@ -168,3 +168,43 @@ must be identical before and after a full `yarn test:e2e` run.
 
 - A leak-detection guard test (considered, explicitly declined).
 - Frontend unit tests — they are pure and touch no server state.
+
+## Log
+
+**Phase 1 — sweep.** 101 orphan root groups plus 30 stray documents removed;
+`documents` went 296 → 165. `global.teardown.ts` added as a Playwright teardown
+project, scoped to the `e2e-` route prefix.
+
+**Phase 2 — factory.** `WikiFactory` seeds `1 + depth + 1` requests: one to
+create the space, one `frappe.client.insert_many` per tree level, one read-back
+for the routes the server derived. `space-default-page.spec.ts` converted as the
+tracer; counts identical either side of its run.
+
+`adopt(spaceName)` was added once the first spec turned up that has to create
+its space through the app's own New Space dialog. `createSpaceViaDialog` in
+`helpers/wiki.ts` wraps that path and adopts what it makes.
+
+**Phases 3–4 — conversion.** 34 specs moved across. Two findings came out of it:
+
+1. **The temp-key race.** A page created through the sidebar lands on
+   `/draft/tmp_<uuid>` and is promoted to its real `doc_key` only once the
+   create round-trips. Eleven specs read that segment straight after the create
+   and then looked the document up by it. In a space that already had a tree the
+   promotion won the race; seeding an empty space made it lose deterministically.
+   `currentDraftDocKey` waits for the promotion. This fixed **17 tests that were
+   already failing** on this branch — all 14 in `mobile-view.spec.ts`, plus
+   `toc-navigation`, `page-actions-ai-url` and `sidebar`'s client-side-nav test.
+
+2. **Tests that asserted nothing.** Three in `public-pages.spec.ts` wrapped
+   every assertion in nested "if the first space happens to hold a published
+   page" guards. Seeding the page let the guards go.
+
+Two specs were also creating spaces by a path the initial inventory missed —
+`mobile-view` (14 per run) and `change-request-flow` (14 per run) — because they
+drive the New Space dialog rather than any helper the survey grepped for.
+
+**Phase 5 — Python.** The Python suite never leaked (it sets `root_group`
+*before* insert, so `create_root_group` no-ops, and it rolls back or tracks),
+but five near-identical `create_test_wiki_space` / `create_test_wiki_document`
+implementations had drifted. `wiki/tests/factory.py` holds the creation logic;
+each module's helper keeps its signature and delegates, so no call site moved.
