@@ -129,3 +129,4 @@ overview rows, the public reader header, and the generated social card.
 - 2026-09-01 — Decisions locked: tabs removed, /spaces retired, duckdb+pandas approved, avatar auto-roll on create.
 - 2026-09-07 — Rewritten against the settings-panel screenshot. Generate tab becomes an Icon tab (swatches + grid + one Shuffle); style and variant `Select`s dropped; public reader and OG card pulled into scope; icon set fixed to `TAB_ICONS`; clearing made one-directional.
 - 2026-09-07 — Phases 1 and 2 built: the fields, `SpaceAvatar`, `SpaceIdentityPicker`, and the generator behind Shuffle. `disco` dropped on measurement; the credit line dropped on review.
+- 2026-09-07 — Phase 3 built: `wiki.utils.space_mark` ports the resolution to Python, a `render_space_mark` macro draws it in both headers and the switcher rows, and the social card draws a generated mark or an icon square (TEMPLATE_VERSION 7, ten new palette tokens under the drift test).

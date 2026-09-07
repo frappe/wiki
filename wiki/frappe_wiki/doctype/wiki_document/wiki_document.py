@@ -490,7 +490,18 @@ class WikiDocument(NestedSet):
 				"can_edit": self._can_show_edit(wiki_space_doc),
 				"wiki_spaces_for_switcher": frappe.get_all(
 					"Wiki Space",
-					fields=["name", "space_name", "route", "light_mode_logo", "app_switcher_logo"],
+					fields=[
+						"name",
+						"space_name",
+						"route",
+						"light_mode_logo",
+						# The identity fields the switcher's mark resolves
+						# through wiki.utils.space_mark -- see spec 03.
+						"app_switcher_logo",
+						"space_icon",
+						"space_color",
+						"avatar",
+					],
 					or_filters={"show_in_switcher": 1, "name": wiki_space["name"]},
 					order_by="switcher_order asc, space_name asc",
 				),

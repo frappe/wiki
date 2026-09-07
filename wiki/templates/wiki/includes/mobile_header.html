@@ -1,4 +1,5 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
+{% from "templates/wiki/macros/space.html" import render_space_mark %}
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 
 <!-- Mobile Navigation Container - Only visible on smaller screens -->
@@ -9,9 +10,7 @@
             {#- Left: space identity only. The nav toggle is the floating pill
                 below, mirroring frappe-ui docs. -#}
             <div class="flex items-center gap-2 min-w-0">
-                {% if wiki_space.app_switcher_logo %}
-                <img class="size-6 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
-                {% endif %}
+                {{ render_space_mark(wiki_space) }}
                 <span class="font-semibold text-[var(--ink-gray-9)] truncate" data-testid="mobile-space-name">{{ wiki_space.space_name or _("Wiki") }}</span>
             </div>
 
@@ -142,9 +141,7 @@
         {#- No divider: the docs sheet has no internal rules, only the search field's own border. -#}
         <div class="px-4 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-3 flex-1 min-w-0">
-                {% if wiki_space.app_switcher_logo %}
-                <img class="size-7 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
-                {% endif %}
+                {{ render_space_mark(wiki_space, size="md") }}
                 <h3 class="text-lg-semibold text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</h3>
                 {% if wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
                 <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
@@ -170,7 +167,10 @@
                 {% for space in wiki_spaces_for_switcher %}
                 <a href="/{{ space.route }}"
                    class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)] font-medium' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
-                    <span class="truncate">{{ space.space_name }}</span>
+                    <span class="flex min-w-0 items-center gap-2">
+                        {{ render_space_mark(space) }}
+                        <span class="truncate">{{ space.space_name }}</span>
+                    </span>
                     {% if space.name == wiki_space.name %}
                     {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
                     {% endif %}

@@ -3048,6 +3048,17 @@ class TestOGImageTokenDrift(unittest.TestCase):
 		"--outline-gray-2": ("outline", "gray-2"),
 		"--surface-gray-2": ("surface", "gray-2"),
 		"--surface-base": ("surface", "base"),
+		# The space-mark palette. gray is covered by the two entries above.
+		"--surface-blue-2": ("surface", "blue-2"),
+		"--ink-blue-7": ("ink", "blue-7"),
+		"--surface-green-2": ("surface", "green-2"),
+		"--ink-green-7": ("ink", "green-7"),
+		"--surface-amber-2": ("surface", "amber-2"),
+		"--ink-amber-7": ("ink", "amber-7"),
+		"--surface-red-2": ("surface", "red-2"),
+		"--ink-red-7": ("ink", "red-7"),
+		"--surface-violet-2": ("surface", "violet-2"),
+		"--ink-violet-7": ("ink", "violet-7"),
 	}
 
 	def test_template_tokens_match_frappe_ui(self):

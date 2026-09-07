@@ -1,4 +1,5 @@
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
+{% from "templates/wiki/macros/space.html" import render_space_mark %}
 
 {#- The navbar ends the chrome, so its bottom rule is the one hairline running
     across the window — the sidebar's own border meets it instead of starting
@@ -22,9 +23,7 @@
                 class="flex h-8 max-w-[15rem] items-center rounded-5 px-2 -ms-2 duration-300 ease-in-out cursor-pointer"
                 :class="spaceSwitcherOpen ? 'bg-[var(--surface-gray-3)]' : 'hover:bg-[var(--surface-gray-3)]'"
                 title="Switch wiki space">
-            {% if wiki_space.app_switcher_logo %}
-            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
-            {% endif %}
+            {{ render_space_mark(wiki_space) }}
             <span class="ms-2 text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
             <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevron-down", "ms-2  shrink-0 text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
         </button>
@@ -41,7 +40,10 @@
             {% for space in wiki_spaces_for_switcher %}
             <a href="/{{ space.route }}"
                class="flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors duration-200 {{ 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-9)]' if space.name == wiki_space.name else 'text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-9)]' }}">
-                <span class="truncate">{{ space.space_name or space.name }}</span>
+                <span class="flex min-w-0 items-center gap-2">
+                    {{ render_space_mark(space) }}
+                    <span class="truncate">{{ space.space_name or space.name }}</span>
+                </span>
                 {% if space.name == wiki_space.name %}
                 {{ render_icon("check", "text-[var(--ink-gray-9)] flex-shrink-0") }}
                 {% endif %}
@@ -50,10 +52,8 @@
         </div>
         {% else %}
         <div class="flex max-w-[15rem] items-center">
-            {% if wiki_space.app_switcher_logo %}
-            <img class="h-6 max-w-16 flex-shrink-0" src="{{ wiki_space.app_switcher_logo }}"/>
-            {% endif %}
-            <span class="{% if wiki_space.app_switcher_logo %}ms-2 {% endif %}text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
+            {{ render_space_mark(wiki_space) }}
+            <span class="ms-2 text-base-medium leading-tight text-[var(--ink-gray-9)] truncate">{{ wiki_space.space_name or _("Wiki") }}</span>
         </div>
         {% endif %}
     </div>
