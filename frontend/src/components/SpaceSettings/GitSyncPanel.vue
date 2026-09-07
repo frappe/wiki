@@ -31,11 +31,36 @@
 				</div>
 			</div>
 
-			<!-- Last sync time -->
+			<!-- Where in the repo the pages come from -->
+			<SettingsRow
+				:title="__('Docs Folder')"
+				:description="
+					docsSubdir
+						? __('Pages are read from this folder in the repository')
+						: __('Pages are read from the repository root')
+				"
+			>
+				<code class="truncate text-xs text-ink-gray-7">
+					{{ docsSubdir || '/' }}
+				</code>
+			</SettingsRow>
+
+			<!-- Last sync time, and the commit it landed on -->
 			<SettingsRow
 				:title="__('Last Synced')"
 				:description="lastSyncTime ? formatDateTime(lastSyncTime) : __('Never')"
-			/>
+			>
+				<a
+					v-if="lastSyncedCommit && repoFullName"
+					:href="`https://github.com/${repoFullName}/commit/${lastSyncedCommit}`"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-xs text-ink-gray-5 underline hover:text-ink-gray-7"
+					:title="__('View commit on GitHub')"
+				>
+					<code>{{ lastSyncedCommit.slice(0, 7) }}</code>
+				</a>
+			</SettingsRow>
 
 			<!-- Webhook: real-time push sync -->
 			<div class="py-3.5">
@@ -176,6 +201,10 @@ const branch = computed(() => props.space.doc?.branch || '');
 const lastSyncStatus = computed(() => props.space.doc?.last_sync_status || '');
 const lastSyncTime = computed(() => props.space.doc?.last_sync_time || '');
 const wikiConfig = computed(() => props.space.doc?.wiki_config || '');
+const docsSubdir = computed(() => props.space.doc?.docs_subdir || '');
+const lastSyncedCommit = computed(
+	() => props.space.doc?.last_synced_commit_sha || '',
+);
 
 const webhookUrl = computed(
 	() => `${window.location.origin}/api/method/wiki.api.github.webhook`,

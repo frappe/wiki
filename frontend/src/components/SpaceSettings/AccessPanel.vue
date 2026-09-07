@@ -88,18 +88,32 @@
 			{{ __('Only space admins can change access control.') }}
 		</p>
 
-		<!-- Accept contributions -->
-		<SettingsRow
-			class="border-t border-outline-gray-1"
-			:title="__('Accept Contributions')"
-			:description="contributionsDescription"
-		>
-			<Switch
-				v-model="allowContributions"
-				:disabled="!canManageAccess || savingContributions || isGitSynced"
-				@update:modelValue="updateContributions"
-			/>
-		</SettingsRow>
+		<!-- What a reader may do here, under who may see it -->
+		<div class="divide-y divide-outline-gray-1 border-t border-outline-gray-1">
+			<SettingsRow
+				:title="__('Accept Contributions')"
+				:description="contributionsDescription"
+			>
+				<Switch
+					v-model="allowContributions"
+					:disabled="!canManageAccess || savingContributions || isGitSynced"
+					@update:modelValue="updateContributions"
+				/>
+			</SettingsRow>
+
+			<SettingsRow
+				:title="__('Collect Feedback')"
+				:description="
+					__('Show a feedback widget on wiki pages to collect user reactions')
+				"
+			>
+				<Switch
+					v-model="enableFeedbackCollection"
+					:disabled="!canManageAccess || savingFeedback"
+					@update:modelValue="updateFeedbackSetting"
+				/>
+			</SettingsRow>
+		</div>
 
 		<!-- Primary Save, below the message, aligned right -->
 		<div v-if="canManageAccess" class="flex justify-end">
@@ -150,6 +164,8 @@ const savingRoles = ref(false);
 // Legacy spaces (created before this toggle) have a null column; treat as on.
 const allowContributions = ref(true);
 const savingContributions = ref(false);
+const enableFeedbackCollection = ref(false);
+const savingFeedback = ref(false);
 // Git-synced spaces are read-only; the toggle is moot and the server rejects it.
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
 
@@ -192,6 +208,7 @@ watch(
 				doc.allow_contributions == null
 					? true
 					: Boolean(doc.allow_contributions);
+			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
 			spaceCapabilities.submit({ space: props.spaceId });
 		}
 	},
@@ -298,6 +315,22 @@ async function updateContributions(value) {
 		);
 	} finally {
 		savingContributions.value = false;
+	}
+}
+
+async function updateFeedbackSetting(value) {
+	savingFeedback.value = true;
+	try {
+		await props.space.setValue.submit({
+			enable_feedback_collection: value ? 1 : 0,
+		});
+	} catch (error) {
+		enableFeedbackCollection.value = !value;
+		toast.error(
+			error.messages?.[0] || __('Failed to update the feedback setting'),
+		);
+	} finally {
+		savingFeedback.value = false;
 	}
 }
 

@@ -2,8 +2,10 @@
 	<SettingsDialog v-model:open="open" v-model:tab="selectedTab">
 		<SettingsSidebar>
 			<div>
-				<span class="block px-2 pt-1 pb-3 text-lg-semibold text-ink-gray-9">
-					{{ __('Settings') }}
+				<span
+					class="block truncate px-2 pt-1 pb-3 text-lg-semibold text-ink-gray-9"
+				>
+					{{ space.doc?.space_name || __('Space') }}
 				</span>
 				<div class="flex flex-col gap-1">
 					<SettingsNavItem
@@ -31,33 +33,66 @@
 					/>
 				</SettingsBody>
 			</SettingsPanel>
-			<SettingsPanel value="permissions">
+			<SettingsPanel value="navigation">
+				<SettingsHeader :title="__('Navigation')" />
+				<SettingsBody>
+					<NavigationPanel class="pt-6" :space="space" />
+				</SettingsBody>
+			</SettingsPanel>
+			<SettingsPanel value="access">
 				<SettingsHeader>
 					<div class="flex items-center gap-2">
 						<h2 class="text-lg font-semibold text-ink-gray-8">
-							{{ __('Permissions') }}
+							{{ __('Access') }}
 						</h2>
 						<Badge theme="violet" size="sm">
 							{{ __('Beta') }}
 						</Badge>
-						<Badge v-if="permissionsDirty" theme="amber" size="sm">
+						<Badge v-if="accessDirty" theme="amber" size="sm">
 							{{ __('Unsaved changes') }}
 						</Badge>
 					</div>
 				</SettingsHeader>
 				<SettingsBody>
-					<PermissionsPanel
+					<AccessPanel
 						class="pt-6"
 						:space="space"
 						:space-id="spaceId"
-						@update:dirty="permissionsDirty = $event"
+						@update:dirty="accessDirty = $event"
 					/>
 				</SettingsBody>
 			</SettingsPanel>
-			<SettingsPanel v-if="space.doc?.git_synced" value="git-sync">
-				<SettingsHeader :title="__('GitHub Sync')" />
+			<SettingsPanel value="git-sync">
+				<SettingsHeader :title="__('Git Sync')" />
 				<SettingsBody>
-					<GitSyncPanel class="pt-6" :space="space" :space-id="spaceId" />
+					<GitSyncPanel
+						v-if="isGitSynced"
+						class="pt-6"
+						:space="space"
+						:space-id="spaceId"
+					/>
+					<!-- A space is bound to a repository when it is created, so there
+					     is nothing to connect from here — say so rather than offer a
+					     button that leads nowhere. -->
+					<div
+						v-else
+						class="flex flex-col items-center justify-center py-16 text-center"
+					>
+						<span
+							class="lucide-git-branch size-8 text-ink-gray-4"
+							aria-hidden="true"
+						/>
+						<p class="mt-3 text-base-medium text-ink-gray-8">
+							{{ __('Not connected to a repository') }}
+						</p>
+						<p class="mt-1 max-w-sm text-sm text-ink-gray-5">
+							{{
+								__(
+									'A space is connected to GitHub when it is created. A connected space is read-only in the editor — its pages come from the repository.',
+								)
+							}}
+						</p>
+					</div>
 				</SettingsBody>
 			</SettingsPanel>
 		</SettingsContent>
@@ -76,9 +111,10 @@ import {
 	SettingsSidebar,
 } from 'frappe-ui';
 import { computed, ref } from 'vue';
+import AccessPanel from './AccessPanel.vue';
 import GeneralPanel from './GeneralPanel.vue';
 import GitSyncPanel from './GitSyncPanel.vue';
-import PermissionsPanel from './PermissionsPanel.vue';
+import NavigationPanel from './NavigationPanel.vue';
 
 const props = defineProps({
 	modelValue: {
@@ -106,23 +142,18 @@ const open = computed({
 	set: (value) => emit('update:modelValue', value),
 });
 
-const tabs = computed(() => {
-	const items = [
-		{ label: __('General'), value: 'general', icon: 'lucide-settings' },
-		{ label: __('Permissions'), value: 'permissions', icon: 'lucide-lock' },
-	];
-	// GitHub Sync settings only apply to git-synced spaces.
-	if (props.space.doc?.git_synced) {
-		items.push({
-			label: __('GitHub Sync'),
-			value: 'git-sync',
-			// lucide-static dropped brand icons, so no `lucide-github`.
-			icon: 'lucide-git-branch',
-		});
-	}
-	return items;
-});
+const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
+
+// The tab set does not depend on the space: a tab that appears only for some
+// spaces teaches people the settings move around.
+const tabs = computed(() => [
+	{ label: __('General'), value: 'general', icon: 'lucide-settings' },
+	{ label: __('Navigation'), value: 'navigation', icon: 'lucide-list-tree' },
+	{ label: __('Access'), value: 'access', icon: 'lucide-lock' },
+	// lucide-static dropped brand icons, so no `lucide-github`.
+	{ label: __('Git Sync'), value: 'git-sync', icon: 'lucide-git-branch' },
+]);
 
 const selectedTab = ref('general');
-const permissionsDirty = ref(false);
+const accessDirty = ref(false);
 </script>

@@ -1,6 +1,30 @@
 <template>
 	<div class="divide-y divide-outline-gray-1">
 		<SettingsRow
+			:title="__('Space Name')"
+			:description="__('Shown in the sidebar, the switcher and the reader header')"
+		>
+			<FormControl
+				v-model="spaceName"
+				class="w-64"
+				type="text"
+				:disabled="savingName"
+				:placeholder="__('Space name')"
+				@blur="saveSpaceName"
+				@keydown.enter="$event.target.blur()"
+			/>
+		</SettingsRow>
+
+		<SettingsRow
+			:title="__('Route Prefix')"
+			:description="routeDescription"
+		>
+			<Button variant="outline" @click="$emit('open-update-routes')">
+				{{ __('Update') }}
+			</Button>
+		</SettingsRow>
+
+		<SettingsRow
 			:title="__('Published')"
 			:description="__('Make this wiki space publicly accessible')"
 		>
@@ -8,19 +32,6 @@
 				v-model="isPublished"
 				:disabled="updatingPublishSetting"
 				@update:modelValue="updatePublishSetting"
-			/>
-		</SettingsRow>
-
-		<SettingsRow
-			:title="__('Enable Feedback Collection')"
-			:description="
-				__('Show a feedback widget on wiki pages to collect user reactions')
-			"
-		>
-			<Switch
-				v-model="enableFeedbackCollection"
-				:disabled="updatingFeedbackSetting"
-				@update:modelValue="updateFeedbackSetting"
 			/>
 		</SettingsRow>
 
@@ -63,15 +74,6 @@
 		</SettingsRow>
 
 		<SettingsRow
-			:title="__('Bulk Update Routes')"
-			:description="__('Change the base route for this space and all its pages')"
-		>
-			<Button variant="outline" @click="$emit('open-update-routes')">
-				{{ __('Update') }}
-			</Button>
-		</SettingsRow>
-
-		<SettingsRow
 			:title="__('Clone Space')"
 			:description="__('Create a new space with the same structure')"
 		>
@@ -83,8 +85,15 @@
 </template>
 
 <script setup>
-import { Button, SettingsRow, Switch, toast, useFileUpload } from 'frappe-ui';
-import { ref, watch } from 'vue';
+import {
+	Button,
+	FormControl,
+	SettingsRow,
+	Switch,
+	toast,
+	useFileUpload,
+} from 'frappe-ui';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
 	space: {
@@ -95,10 +104,16 @@ const props = defineProps({
 
 defineEmits(['open-update-routes', 'open-clone']);
 
+const spaceName = ref('');
+const savingName = ref(false);
 const isPublished = ref(true);
-const enableFeedbackCollection = ref(false);
 const updatingPublishSetting = ref(false);
-const updatingFeedbackSetting = ref(false);
+
+// Renaming the space never moves its pages — the route is changed on purpose,
+// through the flow next to it, because every published URL depends on it.
+const routeDescription = computed(() =>
+	__('Pages live under /{0}/…', [props.space.doc?.route || '']),
+);
 
 const logo = ref('');
 const uploadingLogo = ref(false);
@@ -109,8 +124,8 @@ watch(
 	() => props.space.doc,
 	(doc) => {
 		if (doc) {
+			spaceName.value = doc.space_name || '';
 			isPublished.value = Boolean(doc.is_published);
-			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
 			logo.value = doc.app_switcher_logo || '';
 		}
 	},
@@ -170,17 +185,23 @@ async function handleLogoChange(event) {
 	}
 }
 
-async function updateFeedbackSetting(value) {
-	updatingFeedbackSetting.value = true;
+async function saveSpaceName() {
+	const saved = props.space.doc?.space_name || '';
+	const next = spaceName.value.trim();
+	// An empty name would leave the space unnamed everywhere it is listed.
+	if (!next || next === saved) {
+		spaceName.value = saved;
+		return;
+	}
+	savingName.value = true;
 	try {
-		await props.space.setValue.submit({
-			enable_feedback_collection: value ? 1 : 0,
-		});
+		await props.space.setValue.submit({ space_name: next });
+		spaceName.value = next;
 	} catch (error) {
-		console.error('Failed to update feedback setting:', error);
-		enableFeedbackCollection.value = !value;
+		spaceName.value = saved;
+		toast.error(error.messages?.[0] || __('Failed to rename the space'));
 	} finally {
-		updatingFeedbackSetting.value = false;
+		savingName.value = false;
 	}
 }
 </script>

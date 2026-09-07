@@ -173,6 +173,6 @@ test.describe('Mobile SPA', () => {
 
 		// Drawer closes; the settings dialog is the only modal left.
 		await expect(drawer).toBeHidden();
-		await expect(page.getByText('Permissions', { exact: true })).toBeVisible();
+		await expect(page.getByText('Access', { exact: true })).toBeVisible();
 	});
 });
