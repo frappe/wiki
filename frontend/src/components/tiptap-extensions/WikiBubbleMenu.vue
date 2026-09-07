@@ -152,7 +152,22 @@ const floatingOptions = computed(() => ({
 
 <style scoped>
 .wiki-bubble-menu {
-    /* Appended to <body>, so it must clear the editor chrome and sidebar. */
+    /* tiptap appends the menu to the editor's own parent — the prose column —
+       not to <body>, so it must clear the editor chrome and the sidebar. */
     z-index: 60;
+
+    /* Load-bearing, `!important` included — it is beating an inline style.
+       On mount tiptap writes `el.style.position = "absolute"`, and only after
+       positioning does it write back the strategy we asked for. Floating UI
+       picks the box its coordinates are relative to by reading the floating
+       element's computed position: anything but `fixed` and it measures
+       against the nearest positioned ancestor. So the first computePosition
+       answered in coordinates relative to the prose column's `relative`
+       wrapper, tiptap then stamped `position: fixed` on top of that answer,
+       and the menu landed up and to the left of the selection by exactly that
+       wrapper's origin. Every later selection was correct, because by then
+       the element was already fixed — which is why this only ever showed up
+       on the first selection after opening a page. */
+    position: fixed !important;
 }
 </style>
