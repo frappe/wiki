@@ -1,8 +1,17 @@
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import { openNewPageDialog, saveEditor } from '../helpers/wiki';
+
+/**
+ * The sidebar's sync alert only speaks when something is in flight or wrong;
+ * a settled draft shows nothing at all. "Saved" is therefore the absence of
+ * the alert, not a label to wait for.
+ */
+async function expectSyncSettled(page: Page, timeout = 5000) {
+	await expect(page.getByTestId('sync-state-alert')).toBeHidden({ timeout });
+}
 
 interface DraftNode {
 	docKey: string;
@@ -140,9 +149,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Promotion triggers a save against the real key. Let that intercepted
 		// request finish before unregistering its delayed route handler.
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 6000,
-		});
+		await expectSyncSettled(page, 6000);
 		await unroute();
 	});
 
@@ -283,9 +290,7 @@ test.describe('Local-first draft workspace', () => {
 		// Resolving the typed content (Save now succeeds because the
 		// mock is gone and operation_version is fresh) settles the state.
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 		await expect(submitButton).toBeEnabled();
 	});
 
@@ -344,9 +349,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Flushing by hand lands the content and settles the sync state.
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 		await expect(submitButton).toBeEnabled();
 	});
 
@@ -423,9 +426,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Navigating away flushes the dirty buffer to the server.
 		await page.locator('aside').getByText(secondTitle, { exact: true }).click();
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 		await expect(submitButton).toBeEnabled();
 
 		await page.locator('aside').getByText(firstTitle, { exact: true }).click();
@@ -471,9 +472,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, baselineContent);
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 
 		// Type something new — the buffer diverges from the last saved snapshot.
 		await page.evaluate((content) => {
@@ -495,9 +494,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, baselineContent);
 		await editor.click();
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 	});
 
 	test('dirty content on an existing published page survives browser refresh', async ({
@@ -572,9 +569,7 @@ test.describe('Local-first draft workspace', () => {
 		});
 
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 		const submitButton = page.getByRole('button', {
 			name: 'Submit for Review',
 		});
@@ -643,9 +638,7 @@ test.describe('Local-first draft workspace', () => {
 		// Saving the restored draft clears the IDB entry and settles the sync
 		// state, just like a normal first-save.
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 		await expect(
 			page.getByRole('button', { name: 'Submit for Review' }),
 		).toBeEnabled();
@@ -688,9 +681,7 @@ test.describe('Local-first draft workspace', () => {
 			});
 		}, savedContent);
 		await saveEditor(page);
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 5000,
-		});
+		await expectSyncSettled(page, 5000);
 
 		// Plant a persisted IndexedDB draft whose content is byte-identical to
 		// what the server already holds — a phantom with no real unsaved
@@ -899,9 +890,7 @@ test.describe('Local-first draft workspace', () => {
 		}, latestContent);
 		await page.keyboard.press('Control+s');
 
-		await expect(page.getByText('All changes saved')).toBeVisible({
-			timeout: 8000,
-		});
+		await expectSyncSettled(page, 8000);
 		await unroute();
 
 		const { crName, docKey } = await page.evaluate(() => {

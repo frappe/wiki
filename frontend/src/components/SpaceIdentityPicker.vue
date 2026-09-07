@@ -3,9 +3,12 @@
 		<!-- reka's PopoverTrigger wires the click, keyboard and aria itself, so
 		     the button carries no handler of its own. -->
 		<template #trigger>
+			<!-- `flex`, not the default block: Avatar is inline-block, so a block
+			     button wraps it in a line box and the tile's ring comes out
+			     taller than it is wide. -->
 			<button
 				type="button"
-				class="rounded-[6px] ring-outline-gray-3 hover:ring-2"
+				class="flex rounded-[6px] ring-outline-gray-3 hover:ring-2"
 				:aria-label="__('Change space logo')"
 				data-testid="space-identity-trigger"
 			>
@@ -140,9 +143,10 @@ const props = defineProps({
 	// a plain object from a form both work.
 	identity: { type: Object, default: () => ({}) },
 	label: { type: String, default: '' },
-	// The trigger tile's size. The settings row wants a big square; the space
-	// header wants the same tile the sidebar rows draw.
-	size: { type: String, default: '2xl' },
+	// The trigger tile's size. The settings row wants a big square — big
+	// enough to read the mark it is there to change; the space header wants
+	// the same tile the sidebar rows draw.
+	size: { type: String, default: '3xl' },
 });
 
 const emit = defineEmits(['update']);

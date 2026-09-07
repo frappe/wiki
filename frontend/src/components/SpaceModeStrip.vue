@@ -87,16 +87,18 @@
 				{{ reviewFeedback }}
 			</p>
 
-			<div v-if="syncStateLabel" class="mt-1.5">
-				<Badge
-					variant="subtle"
-					:theme="syncStateTheme"
-					size="sm"
-					:title="syncStateTitle"
-				>
-					{{ syncStateLabel }}
-				</Badge>
-			</div>
+			<!-- The sync state is a notice, not a label on the change request, so
+			     it gets the shape frappe-ui gives notices. It carries its own
+			     error text as a description rather than hiding it in a `title`
+			     attribute nobody hovers. -->
+			<Alert
+				v-if="syncStateLabel"
+				class="mt-2"
+				data-testid="sync-state-alert"
+				:title="syncStateLabel"
+				:description="syncStateTitle || undefined"
+				:theme="syncStateTheme"
+			/>
 
 			<Button
 				v-if="showReloadLatest"
@@ -260,7 +262,15 @@
 </template>
 
 <script setup>
-import { Badge, Button, Dialog, Dropdown, dayjsLocal, toast } from 'frappe-ui';
+import {
+	Alert,
+	Badge,
+	Button,
+	Dialog,
+	Dropdown,
+	dayjsLocal,
+	toast,
+} from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
@@ -314,11 +324,15 @@ const readonlyLine = computed(() => {
 // counts as pending too via isTreeReordering.
 const hasUnsyncedWork = computed(() => Boolean(draftStore.finalizationBlocker));
 // Durable sync indicator. Replaces per-edit success toasts: while the
-// store is mid-flight or has failures, this pill is the source of truth.
+// store is mid-flight or has failures, this alert is the source of truth.
 // "Unsaved changes" is a distinct state from "Saving…" — the latter
 // implies an in-flight RPC, while the former covers the autosave
 // debounce window where no save has even started. Conflating them
 // reads as dishonest UI per specs/local_first_editor_migration_step_1.md.
+// A settled draft says nothing at all: "All changes saved" is the state the
+// user already assumes, and a permanent pill under the change request is one
+// more thing to read every time they look at the sidebar. The alert is for
+// the states that are not the assumption.
 const syncStateLabel = computed(() => {
 	if (draftStore.hasFailedMutations || draftStore.sync.status === 'failed') {
 		return __('Sync failed');
@@ -329,9 +343,6 @@ const syncStateLabel = computed(() => {
 	if (draftStore.hasUnsavedEditorContent) {
 		return __('Unsaved changes');
 	}
-	if (draftStore.sync.lastSavedAt) {
-		return __('All changes saved');
-	}
 	return '';
 });
 const syncStateTheme = computed(() => {
@@ -341,10 +352,7 @@ const syncStateTheme = computed(() => {
 	if (draftStore.hasPendingMutations || draftStore.sync.status === 'saving') {
 		return 'amber';
 	}
-	if (draftStore.hasUnsavedEditorContent) {
-		return 'gray';
-	}
-	return 'green';
+	return 'gray';
 });
 const syncStateTitle = computed(() => {
 	if (draftStore.sync.error) return draftStore.sync.error;

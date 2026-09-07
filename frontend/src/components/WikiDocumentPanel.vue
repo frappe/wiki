@@ -62,7 +62,7 @@
 				<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
 					<WikiEditor v-if="editorKey" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" :show-outline="!showPageSettings" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 						<template #title>
-							<div class="pt-8">
+							<div class="pt-10">
 								<div class="flex items-start gap-3">
 									<input
 										type="text"
@@ -91,7 +91,7 @@
 						</template>
 					</WikiEditor>
 					<!-- Editor body skeleton while the CR page overlay loads -->
-					<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
+					<div v-else class="mx-auto w-full max-w-3xl space-y-4 px-8 pt-10">
 						<Skeleton class="h-4 w-3/4 rounded-4" />
 						<Skeleton class="h-4 w-full rounded-4" />
 						<Skeleton class="h-4 w-5/6 rounded-4" />
@@ -120,7 +120,7 @@
 
 		<!-- Content skeleton -->
 		<div v-else class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
 				<Skeleton class="h-4 w-40 rounded-4" />
 				<div class="ml-auto flex shrink-0 items-center gap-2">
 					<Skeleton class="h-8 w-24 rounded-4" />
@@ -128,7 +128,7 @@
 					<Skeleton class="size-8 rounded-4" />
 				</div>
 			</div>
-			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
+			<div class="mx-auto w-full max-w-3xl flex-1 px-8 pb-10 pt-10 space-y-4">
 				<Skeleton class="h-8 w-64 rounded-4" />
 				<Skeleton class="h-5 w-24 rounded-full" />
 				<Skeleton class="h-4 w-3/4 rounded-4" />

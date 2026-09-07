@@ -1,7 +1,7 @@
 <template>
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
+			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
 				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
 
 				<div class="flex shrink-0 items-center gap-2">
@@ -24,7 +24,7 @@
 			<ScrollArea v-if="!crPage.is_group" class="min-h-0 flex-1" viewport-class="pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
-						<div class="pt-8">
+						<div class="pt-10">
 							<div class="flex items-start gap-3">
 								<input
 									type="text"
@@ -53,7 +53,7 @@
 			</ScrollArea>
 
 			<div v-else class="flex-1 flex flex-col overflow-auto">
-				<div class="mx-auto w-full max-w-[770px] px-6 pt-8">
+				<div class="mx-auto w-full max-w-3xl px-8 pt-10">
 					<div class="flex items-start gap-3">
 						<input
 							type="text"
@@ -80,14 +80,14 @@
 		</div>
 
 		<div v-else-if="!loadFailed" class="h-full flex flex-col">
-			<div class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
+			<div class="flex h-12 shrink-0 items-center justify-between border-b border-outline-gray-2 px-3 sm:px-5">
 				<Skeleton class="h-4 w-40 rounded-4" />
 				<div class="flex items-center gap-2">
 					<Skeleton class="h-8 w-16 rounded-4" />
 					<Skeleton class="size-8 rounded-4" />
 				</div>
 			</div>
-			<div class="mx-auto w-full max-w-[770px] flex-1 px-6 pb-6 pt-8 space-y-4">
+			<div class="mx-auto w-full max-w-3xl flex-1 px-8 pb-10 pt-10 space-y-4">
 				<Skeleton class="h-8 w-64 rounded-4" />
 				<Skeleton class="h-5 w-14 rounded-full" />
 				<Skeleton class="h-4 w-3/4 rounded-4" />

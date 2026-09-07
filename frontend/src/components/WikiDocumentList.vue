@@ -66,7 +66,10 @@
 		</div>
 
 		<!-- New page is the one thing this column is asked for constantly, so it
-		     gets a fixed footer; the rarer kinds live behind the chevron. -->
+		     gets a fixed footer; the rarer kinds live behind the overflow menu.
+		     A chevron would read as "more of the same button"; these are other
+		     kinds of thing, so it takes the three-dot mark every other overflow
+		     menu in the app uses. -->
 		<div
 			v-if="!readonly"
 			class="flex shrink-0 items-center gap-1.5 border-t border-outline-gray-2 p-2"
@@ -79,7 +82,7 @@
 			<Dropdown :options="addOptions" placement="right">
 				<Button variant="subtle" :title="__('Add a group or link')">
 					<template #icon>
-						<span class="lucide-chevron-down size-4" aria-hidden="true" />
+						<span class="lucide-more-horizontal size-4" aria-hidden="true" />
 					</template>
 				</Button>
 			</Dropdown>
