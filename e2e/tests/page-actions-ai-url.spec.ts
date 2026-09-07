@@ -3,6 +3,7 @@ import { getList } from '../helpers/frappe';
 import { CHANGE_REQUEST_URL_RE } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	currentDraftDocKey,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
@@ -65,10 +66,7 @@ test.describe('Page actions – AI link URL', () => {
 			.locator('aside')
 			.getByText(firstPageTitle, { exact: true })
 			.click();
-		await page.waitForURL(/\/draft\/[^/?#]+/);
-		const firstDocKey = decodeURIComponent(
-			page.url().match(/\/draft\/([^/?#]+)/)?.[1] ?? '',
-		);
+		const firstDocKey = await currentDraftDocKey(page);
 		expect(firstDocKey).not.toBe('');
 
 		await expect(editor).toBeVisible({ timeout: 10000 });
@@ -100,10 +98,7 @@ test.describe('Page actions – AI link URL', () => {
 			.locator('aside')
 			.getByText(secondPageTitle, { exact: true })
 			.click();
-		await page.waitForURL(/\/draft\/[^/?#]+/);
-		const secondDocKey = decodeURIComponent(
-			page.url().match(/\/draft\/([^/?#]+)/)?.[1] ?? '',
-		);
+		const secondDocKey = await currentDraftDocKey(page);
 		expect(secondDocKey).not.toBe('');
 
 		await expect(editor).toBeVisible({ timeout: 10000 });
