@@ -21,6 +21,16 @@
 						<span class="lucide-eye size-4" aria-hidden="true" />
 					</Button>
 					<Button
+						v-if="!readonly"
+						:variant="showPageSettings ? 'subtle' : 'ghost'"
+						:title="__('Page settings')"
+						:aria-label="__('Page settings')"
+						:aria-pressed="showPageSettings"
+						@click="togglePageSettings"
+					>
+						<span class="lucide-panel-right size-4" aria-hidden="true" />
+					</Button>
+					<Button
 						v-if="readonly && githubEditUrl"
 						variant="outline"
 						@click="openGithubEdit"
@@ -42,70 +52,89 @@
 					</Dropdown>
 				</div>
 			</div>
-			<!-- The one scroller on this page: the editor body scrolls under
-			     the sticky toolbar, and the bubble menu and the outline rail
-			     both measure against it. -->
-			<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
-				<WikiEditor v-if="editorKey" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
-					<template #title>
-						<div class="pt-8">
-							<div class="flex items-start gap-3">
-								<input
-									type="text"
-									v-model="editableTitle"
-									:readonly="readonly"
-									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
-									:placeholder="__('Page title')"
-									@blur="saveTitleIfChanged"
-									@keydown.enter="$event.target.blur()"
-								/>
-								<div class="flex shrink-0 items-center gap-2 pt-2">
-									<!-- The unsaved mark: content has diverged from the last
-									     confirmed save and autosave has yet to catch up. -->
-									<span
-										v-if="isPageDirty"
-										class="size-2 rounded-full bg-surface-amber-4"
-										:title="__('Unsaved changes')"
-										:aria-label="__('Unsaved changes')"
-										role="status"
+			<!-- The panel takes the right edge of the row, so the scroller it
+			     sits beside is narrower than the window — which is what the
+			     editor measures to decide between the outline's two variants. -->
+			<div class="flex min-h-0 flex-1">
+				<!-- The one scroller on this page: the editor body scrolls under
+				     the sticky toolbar, and the bubble menu and the outline rail
+				     both measure against it. -->
+				<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
+					<WikiEditor v-if="editorKey" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" :show-outline="!showPageSettings" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+						<template #title>
+							<div class="pt-8">
+								<div class="flex items-start gap-3">
+									<input
+										type="text"
+										v-model="editableTitle"
+										:readonly="readonly"
+										class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+										:placeholder="__('Page title')"
+										@blur="saveTitleIfChanged"
+										@keydown.enter="$event.target.blur()"
 									/>
-									<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
-										{{ __('Published') }}
-									</Badge>
-									<Badge v-else variant="subtle" theme="amber" size="sm">
-										{{ __('Not Published') }}
-									</Badge>
-									<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
-										{{ __('Has Draft Changes') }}
-									</Badge>
+									<div class="flex shrink-0 items-center gap-2 pt-2">
+										<!-- The unsaved mark: content has diverged from the last
+										     confirmed save and autosave has yet to catch up. -->
+										<span
+											v-if="isPageDirty"
+											class="size-2 rounded-full bg-surface-amber-4"
+											:title="__('Unsaved changes')"
+											:aria-label="__('Unsaved changes')"
+											role="status"
+										/>
+										<Badge v-if="displayPublished" variant="subtle" theme="green" size="sm">
+											{{ __('Published') }}
+										</Badge>
+										<Badge v-else variant="subtle" theme="amber" size="sm">
+											{{ __('Not Published') }}
+										</Badge>
+										<Badge v-if="!readonly && hasChangeForCurrentPage" variant="subtle" theme="blue" size="sm">
+											{{ __('Has Draft Changes') }}
+										</Badge>
+									</div>
+								</div>
+
+								<!-- Route under the title; opens the settings panel that owns
+							     the field, unless the page is read-only. -->
+								<div
+									class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
+									:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
+									:title="readonly ? null : __('Change route')"
+									@click="readonly ? null : openPageSettings()"
+								>
+									<span class="font-mono truncate">/{{ displayRoute }}</span>
+									<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
 								</div>
 							</div>
-
-							<!-- Route under the title; click-to-edit unless read-only. -->
-							<div
-								class="mt-2 flex items-center gap-1 text-sm text-ink-gray-5"
-								:class="readonly ? '' : 'cursor-pointer hover:text-ink-gray-7 group/route w-fit'"
-								@click="readonly ? null : openRouteDialog()"
-							>
-								<span class="font-mono truncate">/{{ displayRoute }}</span>
-								<span v-if="!readonly" class="lucide-pencil size-3 shrink-0 opacity-0 group-hover/route:opacity-100" aria-hidden="true" />
-							</div>
-						</div>
-					</template>
-				</WikiEditor>
-				<!-- Editor body skeleton while the CR page overlay loads -->
-				<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
-					<Skeleton class="h-4 w-3/4 rounded-4" />
-					<Skeleton class="h-4 w-full rounded-4" />
-					<Skeleton class="h-4 w-5/6 rounded-4" />
-					<Skeleton class="h-4 w-full rounded-4" />
-					<Skeleton class="h-4 w-2/3 rounded-4" />
-					<Skeleton class="h-4 w-full rounded-4 mt-6" />
-					<Skeleton class="h-4 w-4/5 rounded-4" />
-					<Skeleton class="h-4 w-full rounded-4" />
-					<Skeleton class="h-4 w-3/4 rounded-4" />
-				</div>
-			</ScrollArea>
+						</template>
+					</WikiEditor>
+					<!-- Editor body skeleton while the CR page overlay loads -->
+					<div v-else class="mx-auto w-full max-w-[770px] space-y-4 px-6 pt-8">
+						<Skeleton class="h-4 w-3/4 rounded-4" />
+						<Skeleton class="h-4 w-full rounded-4" />
+						<Skeleton class="h-4 w-5/6 rounded-4" />
+						<Skeleton class="h-4 w-full rounded-4" />
+						<Skeleton class="h-4 w-2/3 rounded-4" />
+						<Skeleton class="h-4 w-full rounded-4 mt-6" />
+						<Skeleton class="h-4 w-4/5 rounded-4" />
+						<Skeleton class="h-4 w-full rounded-4" />
+						<Skeleton class="h-4 w-3/4 rounded-4" />
+					</div>
+				</ScrollArea>
+				<PageSettingsPanel
+					v-if="showPageSettings && !readonly"
+					:doc-resource="wikiDoc"
+					:doc-key="wikiDoc.doc?.doc_key"
+					:title="displayTitle"
+					:slug="displaySlug"
+					:route="displayRoute"
+					:published="displayPublished"
+					:content="editorContent"
+					@close="closePageSettings"
+					@node-updated="loadCrPage"
+				/>
+			</div>
 		</div>
 
 		<!-- Content skeleton -->
@@ -132,27 +161,6 @@
 				<Skeleton class="h-4 w-3/4 rounded-4" />
 			</div>
 		</div>
-		<Dialog v-model:open="showRouteDialog" size="sm">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Edit Route') }}</h3>
-			</template>
-			<template #default>
-				<FormControl
-					v-model="editableRoute"
-					:label="__('Route')"
-					type="text"
-					:placeholder="__('page-route')"
-				/>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isSavingRoute" @click="saveRoute(close)">
-						{{ __('Update') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
 		<Dialog v-model:open="showRenameDialog" size="sm">
 			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Rename Page') }}</h3>
@@ -203,11 +211,11 @@
 				</div>
 			</template>
 		</Dialog>
-		<PageSettings v-if="wikiDoc.doc" v-model="showPageSettingsDialog" :doc-resource="wikiDoc" />
 	</div>
 </template>
 
 <script setup>
+import { usePageSettingsPanel } from '@/composables/usePageSettingsPanel';
 import { buildGithubEditUrl } from '@/lib/github';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
@@ -229,7 +237,7 @@ import {
 } from 'frappe-ui';
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import PageSettings from './PageSettings.vue';
+import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
 
@@ -253,10 +261,6 @@ const props = defineProps({
 const emit = defineEmits(['refresh']);
 
 const editableTitle = ref('');
-const editableRoute = ref('');
-const showRouteDialog = ref(false);
-const isSavingRoute = ref(false);
-const showPageSettingsDialog = ref(false);
 const showRenameDialog = ref(false);
 const editableRenameTitle = ref('');
 const isRenaming = ref(false);
@@ -421,6 +425,21 @@ const displayRoute = computed(() => {
 	);
 });
 
+// The panel is module-scoped state: it stays open across page switches, and
+// the toggle that owns it lives in this header.
+const {
+	isOpen: showPageSettings,
+	open: openPageSettings,
+	close: closePageSettings,
+	toggle: togglePageSettings,
+} = usePageSettingsPanel();
+
+// Slug has no draft buffer — nothing but the settings panel edits it — so the
+// CR overlay is the newest copy until the request merges.
+const displaySlug = computed(
+	() => currentCrPage.value?.slug || wikiDoc.value.doc?.slug || '',
+);
+
 const spaceTree = inject(SPACE_TREE_KEY, null);
 
 // Where the open page sits in the tree. The last crumb reads the title input
@@ -531,21 +550,9 @@ const menuOptions = computed(() => {
 				onClick: openRenameDialog,
 			},
 			{
-				label: __('Change route'),
-				icon: 'lucide-link',
-				onClick: openRouteDialog,
-			},
-			{
 				label: displayPublished.value ? __('Unpublish') : __('Publish'),
 				icon: 'lucide-upload-cloud',
 				onClick: togglePublish,
-			},
-			{
-				label: __('Page settings'),
-				icon: 'lucide-settings',
-				onClick: () => {
-					showPageSettingsDialog.value = true;
-				},
 			},
 		);
 	}
@@ -633,30 +640,6 @@ async function saveTitleIfChanged() {
 		await loadCrPage();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
-	}
-}
-
-function openRouteDialog() {
-	editableRoute.value = displayRoute.value;
-	showRouteDialog.value = true;
-}
-
-async function saveRoute(close) {
-	const newRoute = editableRoute.value.trim().replace(/^\/+/, '');
-	if (!newRoute || newRoute === displayRoute.value) {
-		close();
-		return;
-	}
-	if (!wikiDoc.value.doc?.doc_key) return;
-	isSavingRoute.value = true;
-	try {
-		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { route: newRoute });
-		await loadCrPage();
-		close();
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating route'));
-	} finally {
-		isSavingRoute.value = false;
 	}
 }
 

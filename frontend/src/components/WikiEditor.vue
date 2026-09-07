@@ -127,6 +127,13 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// The outline stands down when something wider has claimed the right of
+	// the page — the page settings panel. Two lists of the page at once is one
+	// too many.
+	showOutline: {
+		type: Boolean,
+		default: true,
+	},
 });
 
 const emit = defineEmits([
@@ -695,11 +702,13 @@ const contentClass = [
 // column plus a rail's width on each side. Below it the strip takes over.
 const TOC_RAIL_MIN_WIDTH = 1140;
 const { width: containerWidth } = useElementSize(containerRef);
-const showTocRail = computed(() => containerWidth.value >= TOC_RAIL_MIN_WIDTH);
+const showTocRail = computed(
+	() => props.showOutline && containerWidth.value >= TOC_RAIL_MIN_WIDTH,
+);
 // Width reads 0 until the first ResizeObserver callback; rendering neither
 // variant until then avoids flashing the narrow strip on a wide screen.
 const showTocStrip = computed(
-	() => containerWidth.value > 0 && !showTocRail.value,
+	() => props.showOutline && containerWidth.value > 0 && !showTocRail.value,
 );
 
 function normalizeMarkdown(content) {

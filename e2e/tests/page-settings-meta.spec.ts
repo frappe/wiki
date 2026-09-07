@@ -10,17 +10,16 @@ import {
 } from '../helpers/wiki';
 
 /**
- * Page Settings dialog (per-page SEO meta fields).
+ * Page settings panel (per-page SEO meta fields).
  *
- * The dialog lives behind the page-header "Page actions" dropdown in the
- * editor SPA and saves `meta_title` / `meta_description` (+ `meta_image`,
- * not covered here — see spec) directly on the Wiki Document. This spec
- * covers the tracer path end to end: open the dialog, save, reopen to
- * confirm persistence, then verify the public page head actually emits the
- * og/description/canonical tags — and falls back to the page title when the
- * fields are cleared.
+ * The panel is toggled from the page header in the editor SPA and saves
+ * `meta_title` / `meta_description` (+ `meta_image`, not covered here — see
+ * spec) directly on the Wiki Document. This spec covers the tracer path end
+ * to end: open the panel, save, reopen to confirm persistence, then verify
+ * the public page head actually emits the og/description/canonical tags —
+ * and falls back to the page title when the fields are cleared.
  */
-test.describe('Page Settings meta fields', () => {
+test.describe('Page settings meta fields', () => {
 	const route = `meta-fields-${Date.now()}`;
 	let space: WikiSpace;
 	let doc: WikiDocument;
@@ -52,7 +51,7 @@ test.describe('Page Settings meta fields', () => {
 		await cleanupWikiSpacesByRoute(request, route);
 	});
 
-	test('saves meta fields from the dialog, persists them, and reflects on the public page', async ({
+	test('saves meta fields from the panel, persists them, and reflects on the public page', async ({
 		page,
 	}) => {
 		const metaTitle = `Meta Title ${Date.now()}`;
@@ -64,22 +63,25 @@ test.describe('Page Settings meta fields', () => {
 			timeout: 15000,
 		});
 
-		// Open the dialog from the page-header "Page actions" dropdown.
-		await page.getByRole('button', { name: 'Page actions' }).click();
-		await page.getByRole('menuitem', { name: 'Page settings' }).click();
+		// The panel is a header toggle, not a menu item.
+		const panel = page.getByTestId('page-settings-panel');
+		// `exact` matters: the panel's own close button is "Close page settings",
+		// which a substring match would pick up too.
+		const settingsToggle = page.getByRole('button', {
+			name: 'Page settings',
+			exact: true,
+		});
+		await settingsToggle.click();
+		await expect(panel).toBeVisible({ timeout: 10000 });
 
-		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible({ timeout: 10000 });
-		await expect(dialog.getByText('Page Settings')).toBeVisible();
-
-		const saveButton = dialog.getByRole('button', {
+		const saveButton = panel.getByRole('button', {
 			name: 'Save',
 			exact: true,
 		});
-		const metaTitleInput = dialog.getByLabel('Meta Title');
-		const metaDescriptionInput = dialog.getByLabel('Meta Description');
+		const metaTitleInput = panel.getByLabel('Meta title');
+		const metaDescriptionInput = panel.getByLabel('Meta description');
 
-		// Clean, freshly-opened dialog: nothing to save yet.
+		// Clean, freshly-opened panel: nothing to save yet.
 		await expect(saveButton).toBeDisabled();
 
 		await metaTitleInput.fill(metaTitle);
@@ -87,24 +89,22 @@ test.describe('Page Settings meta fields', () => {
 		await expect(saveButton).toBeEnabled();
 
 		await saveButton.click();
-		// The dialog deliberately stays open on save: saving is what regenerates
-		// the social preview, so closing would hide the thing that just changed.
-		// Save disabling itself is the signal the write landed.
+		// Save disabling itself is the signal the write landed: the panel is a
+		// form measured against the saved values, so a clean form is a saved one.
 		await expect(saveButton).toBeDisabled({ timeout: 10000 });
-		await expect(dialog).toBeVisible();
-		await dialog.getByRole('button', { name: 'Cancel' }).click();
-		await expect(dialog).not.toBeVisible({ timeout: 10000 });
+		await expect(panel).toBeVisible();
+		await panel.getByRole('button', { name: 'Close page settings' }).click();
+		await expect(panel).not.toBeVisible({ timeout: 10000 });
 
 		// Reopen — values must have persisted to the Wiki Document.
-		await page.getByRole('button', { name: 'Page actions' }).click();
-		await page.getByRole('menuitem', { name: 'Page settings' }).click();
-		await expect(dialog).toBeVisible({ timeout: 10000 });
-		await expect(dialog.getByLabel('Meta Title')).toHaveValue(metaTitle);
-		await expect(dialog.getByLabel('Meta Description')).toHaveValue(
+		await settingsToggle.click();
+		await expect(panel).toBeVisible({ timeout: 10000 });
+		await expect(panel.getByLabel('Meta title')).toHaveValue(metaTitle);
+		await expect(panel.getByLabel('Meta description')).toHaveValue(
 			metaDescription,
 		);
-		await dialog.getByRole('button', { name: 'Cancel' }).click();
-		await expect(dialog).not.toBeVisible({ timeout: 10000 });
+		await panel.getByRole('button', { name: 'Close page settings' }).click();
+		await expect(panel).not.toBeVisible({ timeout: 10000 });
 
 		// Public page head: og:title carries the meta title, a plain
 		// description meta tag is present, and the canonical link is emitted.
@@ -129,16 +129,15 @@ test.describe('Page Settings meta fields', () => {
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(doc.title, {
 			timeout: 15000,
 		});
-		await page.getByRole('button', { name: 'Page actions' }).click();
-		await page.getByRole('menuitem', { name: 'Page settings' }).click();
-		await expect(dialog).toBeVisible({ timeout: 10000 });
-		await dialog.getByLabel('Meta Title').fill('');
-		await dialog.getByLabel('Meta Description').fill('');
+		await settingsToggle.click();
+		await expect(panel).toBeVisible({ timeout: 10000 });
+		await panel.getByLabel('Meta title').fill('');
+		await panel.getByLabel('Meta description').fill('');
 		await expect(saveButton).toBeEnabled();
 		await saveButton.click();
 		await expect(saveButton).toBeDisabled({ timeout: 10000 });
-		await dialog.getByRole('button', { name: 'Cancel' }).click();
-		await expect(dialog).not.toBeVisible({ timeout: 10000 });
+		await panel.getByRole('button', { name: 'Close page settings' }).click();
+		await expect(panel).not.toBeVisible({ timeout: 10000 });
 
 		await page.goto(`/${doc.route}`);
 		await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
