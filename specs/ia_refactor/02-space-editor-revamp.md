@@ -1,8 +1,8 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **In progress.** Phases 1–3 (header row, prose column + outline, page
-settings panel) built; phases 4–5 pending.
+Status: **In progress.** Phases 1–4 (header row, prose column + outline, page
+settings panel, space settings tabs) built; phase 5 pending.
 Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.
@@ -49,8 +49,8 @@ frappe-ui `SettingsDialog`.
   `PageSettings.vue` dialog).
 - `components/EditorTableOfContents.vue` + `composables/useDocumentOutline.js`
   — reuse logic, new placement.
-- `components/SpaceSettings/{SpaceSettings,GeneralPanel,GitSyncPanel,PermissionsPanel}.vue`
-  — content migrates into SettingsDialog panels.
+- `components/SpaceSettings/{SpaceSettings,GeneralPanel,NavigationPanel,AccessPanel,GitSyncPanel}.vue`
+  — one panel per tab, hosted by the `SettingsDialog`.
 - `components/WikiBreadcrumbs.vue` — check reusability for the header trail.
 - `pages/ContributionReview.vue` / `DraftContributionPanel.vue` — CR review
   surfaces; out of scope beyond not breaking their routes.
@@ -105,6 +105,7 @@ Commit per phase; reconcile spec after each.
 - 2026-09-07 — Phase 2 built: centred prose column, floating outline, dirty dot,
   Save retired.
 - 2026-09-07 — Phase 3 built: the page settings panel.
+- 2026-09-07 — Phase 4 built: the space settings tabs.
 
 ### Phase 1 reconciliation
 
@@ -195,3 +196,32 @@ One gap this phase leaves: `DraftContributionPanel` has no settings toggle. A
 page that exists only in the draft workspace has no `Wiki Document` behind it,
 so there are no meta fields to edit and no `Details` to report; its route and
 title stay in its own Page actions menu.
+
+### Phase 4 reconciliation
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Decision 8 — "rebuild on frappe-ui `SettingsDialog`/`SettingsPanel`/`SettingsRow`" | The dialog was already built on them; this phase reorganised the tabs and filled in the missing fields | The bespoke dialog decision 8 describes had already been replaced. What was actually wrong was the tab set — General / Permissions / GitHub Sync — and the fields it left out. |
+| 2 | Decision 8 — tabs General, Navigation, Access, Git sync | Shipped. `PermissionsPanel` became `AccessPanel`, `NavigationPanel` is new | Nothing under "Permissions" was about permissions in the Frappe sense; the tab decides who may read and what they may do, which is access. |
+| 3 | Decision 8 — General carries name, route prefix, logo, published | Shipped, plus Clone space. Space name saves on blur; the route prefix row is the existing bulk-update-routes flow, retitled | Renaming a space is safe, so it saves where it is typed. Changing the prefix rewrites every published URL under it, so it keeps its confirm dialog and its own button. |
+| 4 | Decision 8 — logo → spec 3 avatar | The existing logo upload stays as it is | The avatar is spec 03's whole subject; swapping it in here would build it twice. |
+| 5 | Decision 8 — Access carries "collect feedback" | Moved here from General | It is a setting about what a reader may do on the page, which is what the rest of this tab decides. |
+| 6 | Decision 8 — Git sync shows a "connect flow when not synced" | An empty state that says a space is connected at creation — no connect button | A repository is picked in `NewSpaceDialog` and there is no backend for binding one to an existing space. A button that cannot work is worse than a sentence that explains. |
+| 7 | Decision 8 — Git sync facts include the subdir and the last commit | Added: Docs Folder, and the last synced commit as a link to it on GitHub | Both were already on the doc (`docs_subdir`, `last_synced_commit_sha`) and only the sync history showed a commit. |
+| 8 | — | The Git Sync tab is always in the list, synced or not | It used to appear only for synced spaces. A tab set that changes shape per space teaches people that settings move around. |
+| 9 | Decision 9 — no field the old panels carried may be dropped | Inventory kept whole: `is_published`, `app_switcher_logo`, `enable_feedback_collection`, `roles`, `allow_contributions`, the read-only git facts, plus the update-routes and clone flows. New: `space_name`, `show_in_switcher`, `switcher_order`, `docs_subdir`, `last_synced_commit_sha` | — |
+| 10 | — | Every row still saves on its own, as the panels already did; no per-panel Save button (the roles table keeps its own, because a table is one edit) | The prototype's per-panel Save was drawn against prototype state. Switching the shipped panels to a buffered form would have been a second, larger change riding along with the tab move. |
+
+Verified in the browser at 1440×900: all four tabs render, renaming the space
+from General reaches the dialog's own sidebar and the app sidebar, the switcher
+order round-trips to the document (checked through `frappe.client.get_value`),
+Collect Feedback writes `enable_feedback_collection`, and an unsynced space's
+Git Sync tab shows the not-connected state.
+
+E2E: `space-permissions-role-search` is now `space-access-role-search` and
+clicks the Access tab — 2/2 pass. It was already failing before this phase on
+`getByTitle('Settings')`, which spec 01 replaced with the sidebar's "Space
+actions" menu; fixed while renaming it. `spa-editor.mobile` asserts the Access
+tab is visible, 4/4 pass — its own drawer still has a gear titled "Settings",
+which is a mobile surface spec 01 did not touch. Unit suite 81 pass; lint and
+build pass.
