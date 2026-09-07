@@ -24,19 +24,30 @@
 
 		<div class="min-h-0 flex-1 overflow-y-auto p-3">
 			<div class="flex flex-col gap-6">
+				<!-- On a git-synced page the repo owns the title, the slug, the
+				     route and whether the page ships: the next sync rewrites
+				     anything typed here. The social preview below is wiki-side
+				     data the repo never carries, so it stays editable. -->
 				<section class="flex flex-col gap-3">
-					<h4 class="text-xs text-ink-gray-5">{{ __('General') }}</h4>
+					<div class="flex items-baseline justify-between gap-2">
+						<h4 class="text-xs text-ink-gray-5">{{ __('General') }}</h4>
+						<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
+							{{ __('From the repo') }}
+						</Badge>
+					</div>
 					<FormControl
 						v-model="form.title"
 						type="text"
 						:label="__('Title')"
 						:placeholder="__('Untitled')"
+						:disabled="readonly"
 					/>
 					<FormControl
 						v-model="form.slug"
 						type="text"
 						:label="__('Slug')"
 						:placeholder="__('page-slug')"
+						:disabled="readonly"
 					/>
 					<FormControl
 						v-model="form.route"
@@ -44,6 +55,7 @@
 						:label="__('Route')"
 						:placeholder="__('space/section/page')"
 						:description="publicUrl"
+						:disabled="readonly"
 					/>
 					<div class="flex items-center justify-between gap-3">
 						<div class="flex flex-col">
@@ -52,7 +64,7 @@
 								{{ __('Visible on the public site') }}
 							</span>
 						</div>
-						<Switch v-model="form.isPublished" />
+						<Switch v-model="form.isPublished" :disabled="readonly" />
 					</div>
 				</section>
 
@@ -217,6 +229,7 @@
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import {
+	Badge,
 	Button,
 	FormControl,
 	Switch,
@@ -238,6 +251,12 @@ const props = defineProps({
 	docKey: {
 		type: String,
 		default: null,
+	},
+	// A git-synced page: the repo owns everything the change request would
+	// carry, so only the meta fields are the wiki's to write.
+	readonly: {
+		type: Boolean,
+		default: false,
 	},
 	// The effective values for the open page: the draft's, where it has one.
 	title: {
@@ -308,8 +327,13 @@ watch(
 	{ immediate: true },
 );
 
+const META_FIELDS = ['metaTitle', 'metaDescription', 'metaImage'];
+
 const isDirty = computed(() =>
-	Object.entries(saved.value).some(([field, value]) => form[field] !== value),
+	Object.entries(saved.value).some(
+		([field, value]) =>
+			(!props.readonly || META_FIELDS.includes(field)) && form[field] !== value,
+	),
 );
 
 const publicUrl = computed(() =>
@@ -413,6 +437,9 @@ async function handleImageChange(event) {
 // or route would leave the page unreachable, and the backend would take it.
 function nodeChanges() {
 	const changes = {};
+	// The repo is the source for all of these; a change request cannot carry
+	// them, and the panel's inputs are disabled anyway.
+	if (props.readonly) return changes;
 	const current = saved.value;
 	if (form.title.trim() && form.title !== current.title) {
 		changes.title = form.title.trim();

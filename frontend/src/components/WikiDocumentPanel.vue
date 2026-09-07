@@ -20,8 +20,10 @@
 					>
 						<span class="lucide-eye size-4" aria-hidden="true" />
 					</Button>
+					<!-- Shown for a synced page too: its meta title, description and
+					     social card are wiki-side fields the repo never carries, so
+					     they are still this app's to edit. -->
 					<Button
-						v-if="!readonly"
 						:variant="showPageSettings ? 'subtle' : 'ghost'"
 						:title="__('Page settings')"
 						:aria-label="__('Page settings')"
@@ -104,9 +106,10 @@
 					</div>
 				</ScrollArea>
 				<PageSettingsPanel
-					v-if="showPageSettings && !readonly"
+					v-if="showPageSettings"
 					:doc-resource="wikiDoc"
 					:doc-key="wikiDoc.doc?.doc_key"
+					:readonly="readonly"
 					:title="displayTitle"
 					:slug="displaySlug"
 					:route="displayRoute"
@@ -336,7 +339,10 @@ async function loadCrPage() {
 		loadedDocKey.value = null;
 		return;
 	}
+	// A git-synced space has no change request to hydrate — asking for one
+	// answers 403, once per page opened.
 	if (
+		!props.readonly &&
 		props.spaceId &&
 		draftStore.isEnabled &&
 		(draftStore.spaceId !== props.spaceId ||
