@@ -296,6 +296,20 @@ export async function cleanupTestWikiDocuments(
 }
 
 /**
+ * The doc key of the draft currently open in the editor.
+ *
+ * A page created through the sidebar first lands on a temp key
+ * (`/draft/tmp_…`) and is promoted to its real doc key once the create
+ * round-trips. Reading the segment straight after the create therefore yields a
+ * key no Wiki Document will ever carry — this waits for the promotion instead.
+ */
+export async function currentDraftDocKey(page: Page): Promise<string> {
+	await page.waitForURL(/\/draft\/(?!tmp_)[^/?#]+/, { timeout: 15000 });
+	const match = page.url().match(/\/draft\/([^/?#]+)/);
+	return decodeURIComponent(match?.[1] ?? '');
+}
+
+/**
  * Flush the open editor's buffer.
  *
  * The editor header has no Save button — autosave owns the save path and the

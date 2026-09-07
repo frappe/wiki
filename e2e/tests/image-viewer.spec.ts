@@ -6,6 +6,7 @@ import {
 	spaceLinkSelector,
 } from '../helpers/routes';
 import {
+	currentDraftDocKey,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
@@ -69,9 +70,7 @@ async function createAndPublishPage(
 		const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
 		return match && !decodeURIComponent(match[1]).startsWith('tmp_');
 	});
-	const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-	expect(draftMatch).toBeTruthy();
-	const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+	const docKey = await currentDraftDocKey(page);
 
 	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 	await expect(editor).toBeVisible({ timeout: 10000 });

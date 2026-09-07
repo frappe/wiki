@@ -1,12 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { getList } from '../helpers/frappe';
-import {
-	APP_BASE,
-	CHANGE_REQUEST_URL_RE,
-	spaceLinkSelector,
-} from '../helpers/routes';
+import { CHANGE_REQUEST_URL_RE } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	currentDraftDocKey,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
@@ -27,20 +24,14 @@ test.describe('Public Sidebar', () => {
 		test('should only display published pages in the public sidebar', async ({
 			page,
 			request,
+			wiki,
 		}) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			// Navigate to wiki and click first space
-			await page.goto(APP_BASE);
+			const space = await wiki.space();
+			const spaceUrl = space.url();
+			await page.goto(spaceUrl);
 			await page.waitForLoadState('networkidle');
-
-			const spaceLink = page.locator(spaceLinkSelector()).first();
-			await expect(spaceLink).toBeVisible({ timeout: 5000 });
-			const spaceHref = await spaceLink.getAttribute('href');
-			expect(spaceHref).toBeTruthy();
-			await spaceLink.click();
-			await page.waitForLoadState('networkidle');
-			const spaceUrl = spaceHref as string;
 
 			// Create a published page inside the space
 
@@ -61,9 +52,7 @@ test.describe('Public Sidebar', () => {
 				.getByText(publishedPageTitle, { exact: true })
 				.click();
 			await page.waitForURL(/\/draft\/[^/?#]+/);
-			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-			expect(draftMatch).toBeTruthy();
-			const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const docKey = await currentDraftDocKey(page);
 
 			// Wait for editor and add content
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
@@ -148,16 +137,12 @@ test.describe('Public Sidebar', () => {
 		test('should use client-side navigation without full page refresh when clicking sidebar links', async ({
 			page,
 			request,
+			wiki,
 		}) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			// Navigate to wiki and click first space
-			await page.goto(APP_BASE);
-			await page.waitForLoadState('networkidle');
-
-			const spaceLink = page.locator(spaceLinkSelector()).first();
-			await expect(spaceLink).toBeVisible({ timeout: 5000 });
-			await spaceLink.click();
+			const space = await wiki.space();
+			await page.goto(space.url());
 			await page.waitForLoadState('networkidle');
 
 			// Create two pages so we can navigate between them
@@ -177,9 +162,7 @@ test.describe('Public Sidebar', () => {
 				.getByText(firstPageTitle, { exact: true })
 				.click();
 			await page.waitForURL(/\/draft\/[^/?#]+/);
-			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-			expect(draftMatch).toBeTruthy();
-			const firstDocKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const firstDocKey = await currentDraftDocKey(page);
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();
@@ -273,16 +256,12 @@ test.describe('Public Sidebar', () => {
 		test('should update content, URL, active state, and metadata when clicking sidebar links', async ({
 			page,
 			request,
+			wiki,
 		}) => {
 			await page.setViewportSize({ width: 1100, height: 900 });
 
-			// Navigate to wiki and click first space
-			await page.goto(APP_BASE);
-			await page.waitForLoadState('networkidle');
-
-			const spaceLink = page.locator(spaceLinkSelector()).first();
-			await expect(spaceLink).toBeVisible({ timeout: 5000 });
-			await spaceLink.click();
+			const space = await wiki.space();
+			await page.goto(space.url());
 			await page.waitForLoadState('networkidle');
 			// Create first page
 			const firstPageTitle = `first-nav-page-${Date.now()}`;
@@ -302,9 +281,7 @@ test.describe('Public Sidebar', () => {
 				.getByText(firstPageTitle, { exact: true })
 				.click();
 			await page.waitForURL(/\/draft\/[^/?#]+/);
-			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-			expect(draftMatch).toBeTruthy();
-			const firstDocKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const firstDocKey = await currentDraftDocKey(page);
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });
 			await editor.click();

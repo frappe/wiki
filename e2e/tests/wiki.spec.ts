@@ -10,6 +10,7 @@ import {
 import {
 	cleanupWikiSpacesByRoute,
 	createTestWikiSpace,
+	currentDraftDocKey,
 	newPageButton,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
@@ -217,9 +218,7 @@ test.describe('Wiki Editor', () => {
 		// Open the newly created page from the tree
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/draft\/[^/?#]+/);
-		const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-		expect(draftMatch).toBeTruthy();
-		const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+		const docKey = await currentDraftDocKey(page);
 
 		// Wait for editor to be visible
 		const editor = page.locator('.ProseMirror, [contenteditable="true"]');

@@ -3,6 +3,7 @@ import { getList } from '../helpers/frappe';
 import { CHANGE_REQUEST_URL_RE } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	currentDraftDocKey,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
@@ -60,9 +61,7 @@ test.describe('TOC Navigation', () => {
 			.getByText(firstPageTitle, { exact: true })
 			.click();
 		await page.waitForURL(/\/draft\/[^/?#]+/);
-		const draftMatch1 = page.url().match(/\/draft\/([^/?#]+)/);
-		expect(draftMatch1).toBeTruthy();
-		const firstDocKey = decodeURIComponent(draftMatch1?.[1] ?? '');
+		const firstDocKey = await currentDraftDocKey(page);
 
 		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 		await expect(editor).toBeVisible({ timeout: 10000 });

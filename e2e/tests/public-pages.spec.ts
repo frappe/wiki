@@ -6,6 +6,7 @@ import {
 	spaceLinkSelector,
 } from '../helpers/routes';
 import {
+	currentDraftDocKey,
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
@@ -69,9 +70,7 @@ test.describe('Public Wiki Pages', () => {
 			// Open the newly created page from the tree
 			await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 			await page.waitForURL(/\/draft\/[^/?#]+/);
-			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-			expect(draftMatch).toBeTruthy();
-			const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const docKey = await currentDraftDocKey(page);
 
 			// Wait for editor to be visible and ready
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
@@ -257,9 +256,7 @@ That is all.`;
 
 			await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 			await page.waitForURL(/\/draft\/[^/?#]+/);
-			const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-			expect(draftMatch).toBeTruthy();
-			const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+			const docKey = await currentDraftDocKey(page);
 
 			const editor = page.locator('.ProseMirror, [contenteditable="true"]');
 			await expect(editor).toBeVisible({ timeout: 10000 });

@@ -8,6 +8,7 @@ import {
 } from '../helpers/routes';
 import {
 	clickSidebarAddOption,
+	currentDraftDocKey,
 	openNewPageDialog,
 	saveEditor,
 } from '../helpers/wiki';
@@ -161,9 +162,7 @@ test.describe('Change Request Flow', () => {
 		// Open the new draft page from the tree
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/draft\/[^/?#]+/);
-		const draftMatch = page.url().match(/\/draft\/([^/?#]+)/);
-		expect(draftMatch).toBeTruthy();
-		const docKey = decodeURIComponent(draftMatch?.[1] ?? '');
+		const docKey = await currentDraftDocKey(page);
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
 			.first();
