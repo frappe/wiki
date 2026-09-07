@@ -1,8 +1,9 @@
 # Space Details / Editor Page Revamp
 
 Date: 2026-09-01
-Status: **In progress.** Phases 1–4 (header row, prose column + outline, page
-settings panel, space settings tabs) built; phase 5 pending.
+Status: **In progress.** Phases 1–5 built (header row, prose column +
+outline, page settings panel, space settings tabs, empty states); phase 6 — the
+alignment pass against the prototype — pending.
 Depends on spec 01 (sidebar drill-in).
 Prototype: `wiki-proto` — `PageContent.vue`, `PageSettingsPanel.vue`,
 `SpaceSettingsDialog.vue`, `Space.vue`.
@@ -67,6 +68,9 @@ frappe-ui `SettingsDialog`.
 4. **Space SettingsDialog.** Panel-by-panel migration (General → Navigation →
    Access → Git sync), then delete `SpaceSettings/*`.
 5. **Empty states** and read-only (git) chrome-drop pass.
+6. **Alignment pass.** Read the built editor back against `PageContent.vue`
+   and fix what drifted: the outline rail's threshold, the title row's extra
+   chrome, the submit button's label. Plus the Overview's unreadable pagination.
 
 Commit per phase; reconcile spec after each.
 
@@ -107,6 +111,7 @@ Commit per phase; reconcile spec after each.
 - 2026-09-07 — Phase 3 built: the page settings panel.
 - 2026-09-07 — Phase 4 built: the space settings tabs.
 - 2026-09-07 — Phase 5 built: the empty space's way out; read-only pass verified.
+- 2026-09-07 — Phase 6 built: the alignment pass against the prototype.
 
 ### Phase 1 reconciliation
 
@@ -248,3 +253,19 @@ tree's create dialog and lands in the editor on the page it made. The
 checked against a clean `HEAD` and fails identically there — pre-existing, not
 from this phase. New e2e `space-empty-new-page`; `space-default-page` retargeted
 to the new copy. Both git-sync specs, unit suite (81), lint and build pass.
+
+### Phase 6 reconciliation
+
+The build was read back against `PageContent.vue` at 1440×900 and 1280×800.
+Four things had drifted; all four are reversals of calls made in earlier
+phases, so each row names the row it overturns.
+
+| # | Spec said | What shipped | Why |
+|---|-----------|--------------|-----|
+| 1 | Phase 2 row 1 — the rail's threshold is ~1140px of editor width, and the prose column stays "centred and unmoved" | Both reversed. The rail's gutter is **reserved** (`pr-60` on the content row while the rail is up), the way the prototype reserves it, and the threshold drops to 1008 — the 768px column plus that reserve | A rail that needs a gutter on *both* sides needs 768 + 2×186 of width, which is a ~1400px window. Reserving one gutter needs 1008, which a 1280px laptop has (1019px of editor). The column now shifts left when the rail appears; that is the price the prototype already pays, and it buys the outline back on the most common screen |
+| 2 | Decision 4 — the rail is a prototype `w-52` | Rail widened 180 → 208px | 180px truncated most real headings ("Overriding classes an…"), which is a table of contents that cannot be read. 208 + `pr-4` still fits inside the 240px reserve |
+| 3 | Phase 3 row 3 — the route line under the title is the door to the Route field | The line is gone; the header's panel toggle is the only door | Decision 5 draws the title row as the title and the dirty dot. The publish badges (`Published` / `Not Published` / `Has Draft Changes`) went with it — the panel's `Published` switch says the same thing where the field is, and the header's View-live eye already reports it |
+| 4 | — | `DraftContributionPanel` loses its route line too; its ⋯ menu already carries "Change route" | The two editors share one prose column. Leaving the line on one of them is the disagreement phase 1 opened and phase 2 closed |
+| 5 | — | The draft panel **keeps** its blue `Draft` badge | It names the surface, not a publish state. The prototype has no draft route to draw it against, so decision 5 does not reach it |
+| 6 | Decision 1 — solid "Submit for review" | Button is now `solid` + `theme="gray"` and reads "Submit for review" | It had drifted to the default theme and title case. The visibility rule (phase 2 row 6 — visible while the buffer is dirty even with no change rows) is untouched |
+| 7 | — | Overview's "Load more" restyled from `ghost` full-width to a centred `subtle` button | Out of this spec on paper, found in the same pass. With 80 spaces the button renders under 50 rows as transparent text 24px off the bottom edge, and reads as absent |
