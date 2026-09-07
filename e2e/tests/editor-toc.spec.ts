@@ -1,6 +1,7 @@
-import { type Page, expect, test } from '@playwright/test';
-import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { cleanupWikiSpacesByRoute, openNewPageDialog } from '../helpers/wiki';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import type { WikiFactory } from '../helpers/factory';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * The editor's "On this page" rail mirrors the public reader's TOC, but is
@@ -47,69 +48,22 @@ async function seedEditor(page: Page, html: string) {
 	expect(applied).toBe(true);
 }
 
-async function createSpaceWithPage(page: Page, stamp: number) {
-	const spaceRoute = `editor-toc-${stamp}`;
-
+/** A space of its own, with one page open in the editor. */
+async function createSpaceWithPage(page: Page, wiki: WikiFactory) {
 	await page.setViewportSize(WIDE);
-	await page.goto(appUrl('spaces'));
-	await page.waitForLoadState('networkidle');
-
-	await page.getByRole('button', { name: 'New Space' }).click();
-	await page.waitForSelector('[role="dialog"]', { state: 'visible' });
-	await page.getByLabel('Space Name').fill(spaceRoute);
-	await page.getByLabel('Route').fill(spaceRoute);
-	await page
-		.getByRole('dialog')
-		.getByRole('button', { name: 'Create' })
-		.click();
-	await expect(page).toHaveURL(SPACE_URL_RE);
-	await page.waitForLoadState('networkidle');
-
-	await openNewPageDialog(page);
-	const pageTitle = `TOC Page ${stamp}`;
-	await page.getByLabel('Title').fill(pageTitle);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
-
-	await openPageFromTree(page, pageTitle);
-	return spaceRoute;
-}
-
-/**
- * Open a page from the tree and wait for the editor.
- *
- * Creating a page can land on the draft route before the change-request
- * overlay is readable ("Draft not found"), which locally is a queue-lag
- * artefact rather than a product bug — one reload settles it.
- */
-async function openPageFromTree(page: Page, pageTitle: string) {
-	const treeItem = page.locator('aside').getByText(pageTitle, { exact: false });
-	const editor = page.locator('.ProseMirror');
-
-	for (let attempt = 0; attempt < 3; attempt++) {
-		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) return;
-		await page.reload();
-		await page.waitForLoadState('networkidle');
-		await treeItem.first().click();
-	}
-
-	await expect(editor).toBeVisible({ timeout: 10000 });
+	await createDraftAndOpenEditor(
+		page,
+		await wiki.space(),
+		`TOC Page ${Date.now()}`,
+	);
 }
 
 test.describe('Editor table of contents', () => {
-	const createdRoutes: string[] = [];
-
-	test.afterEach(async ({ request }) => {
-		while (createdRoutes.length) {
-			const route = createdRoutes.pop() as string;
-			await cleanupWikiSpacesByRoute(request, route).catch(() => {});
-		}
-	});
-
 	test('lists h2/h3 headings and follows the document as it is typed', async ({
 		page,
+		wiki,
 	}) => {
-		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+		await createSpaceWithPage(page, wiki);
 		await seedEditor(page, SEED_HTML);
 
 		const rail = page.locator('[data-testid="editor-toc-rail"]');
@@ -139,8 +93,11 @@ test.describe('Editor table of contents', () => {
 		]);
 	});
 
-	test('clicking an entry scrolls that heading into view', async ({ page }) => {
-		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+	test('clicking an entry scrolls that heading into view', async ({
+		page,
+		wiki,
+	}) => {
+		await createSpaceWithPage(page, wiki);
 		await seedEditor(page, SEED_HTML);
 
 		const rail = page.locator('[data-testid="editor-toc-rail"]');
@@ -169,8 +126,8 @@ test.describe('Editor table of contents', () => {
 		await expect(usage).toHaveClass(/text-ink-gray-9/);
 	});
 
-	test('keeps the rail on a 1280px laptop', async ({ page }) => {
-		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+	test('keeps the rail on a 1280px laptop', async ({ page, wiki }) => {
+		await createSpaceWithPage(page, wiki);
 		await seedEditor(page, SEED_HTML);
 
 		await page.setViewportSize(LAPTOP);
@@ -191,8 +148,9 @@ test.describe('Editor table of contents', () => {
 
 	test('falls back to a collapsible strip when the editor is too narrow', async ({
 		page,
+		wiki,
 	}) => {
-		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+		await createSpaceWithPage(page, wiki);
 		await seedEditor(page, SEED_HTML);
 
 		await expect(page.locator('[data-testid="editor-toc-rail"]')).toBeVisible();
@@ -221,8 +179,9 @@ test.describe('Editor table of contents', () => {
 
 	test('the strip works on a phone without widening the page', async ({
 		page,
+		wiki,
 	}) => {
-		createdRoutes.push(await createSpaceWithPage(page, Date.now()));
+		await createSpaceWithPage(page, wiki);
 		await seedEditor(page, SEED_HTML);
 
 		await page.setViewportSize(PHONE);
