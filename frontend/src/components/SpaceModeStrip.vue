@@ -115,9 +115,15 @@
 			<!-- One stable button for the whole merge/withdraw round trip. The
 			     status branches below churn through In Review and Approved on the
 			     way, and the summary they read belongs to a change request that is
-			     being retired. -->
+			     being retired.
+
+			     Outline, not subtle: a subtle gray button is drawn on
+			     surface-gray-2, which is this card's own tint in the Draft state,
+			     so it vanished into it. Outline puts it on surface-base, which
+			     reads off the card without taking solid — the page header's
+			     Submit for review is the one primary action on this screen. -->
 			<template v-if="crStore.finalizing">
-				<Button class="mt-2 w-full" size="sm" loading disabled>
+				<Button class="mt-2 w-full" variant="outline" size="sm" loading disabled>
 					{{
 						crStore.finalizing === 'withdrawing' ? __('Discard') : __('Merge')
 					}}
@@ -133,6 +139,7 @@
 				<Button
 					v-if="canShowMerge"
 					class="mt-2 w-full"
+					variant="outline"
 					size="sm"
 					:loading="crStore.isMerging"
 					:disabled="mergeDisabled"
@@ -150,6 +157,7 @@
 				<Button
 					v-if="canShowMerge"
 					class="mt-2 w-full"
+					variant="outline"
 					size="sm"
 					:loading="crStore.isMerging"
 					:disabled="mergeDisabled"
