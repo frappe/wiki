@@ -181,11 +181,16 @@
 					>
 						<Checkbox
 							:model-value="allSelected"
+							:disabled="loadingSubmitChanges"
 							:indeterminate="someSelected && !allSelected"
 							@update:model-value="toggleAll"
 						/>
 						<span class="text-sm-medium text-ink-gray-7">
-							{{ __('{0} of {1} selected', [submitSelection.length, crStore.changeCount]) }}
+							{{
+								loadingSubmitChanges
+									? __('Loading changes…')
+									: __('{0} of {1} selected', [submitSelection.length, crStore.changeCount])
+							}}
 						</span>
 					</label>
 
@@ -219,7 +224,7 @@
 					<Button
 						variant="solid"
 						:loading="crStore.isSubmitting"
-						:disabled="submitSelection.length === 0"
+						:disabled="loadingSubmitChanges || submitSelection.length === 0"
 						@click="confirmSubmit(close)"
 					>
 						{{ __('Submit') }}
@@ -394,10 +399,20 @@ const showSubmitConfirmDialog = ref(false);
 // The dialog opens with everything ticked, so the default stays "submit my
 // whole draft"; unticking is how an author splits one page out of it.
 const submitSelection = ref([]);
+const loadingSubmitChanges = ref(false);
 
-watch(showSubmitConfirmDialog, (open) => {
-	if (open) {
-		submitSelection.value = crStore.changes.map((change) => change.doc_key);
+// Re-read the summary before ticking anything: a change the dialog never
+// listed would otherwise be treated as one the author deliberately left out,
+// and quietly held back from the review.
+watch(showSubmitConfirmDialog, async (open) => {
+	if (!open) return;
+	submitSelection.value = [];
+	loadingSubmitChanges.value = true;
+	try {
+		const changes = await crStore.loadChanges();
+		submitSelection.value = changes.map((change) => change.doc_key);
+	} finally {
+		loadingSubmitChanges.value = false;
 	}
 });
 
