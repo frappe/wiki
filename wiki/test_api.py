@@ -962,12 +962,12 @@ class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(get_space_stats([space.name])[space.name]["pages"], 2)
 
-	def test_open_change_requests_exclude_closed_ones(self):
-		"""Merged, rejected and archived requests are history, not outstanding work."""
+	def test_only_requests_awaiting_review_are_counted(self):
+		"""A Draft is private work in progress; the rest are already finished."""
 		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space(self)
-		for status in ("Draft", "In Review", "Merged", "Rejected", "Archived"):
+		for status in ("Draft", "In Review", "Approved", "Merged", "Rejected", "Archived"):
 			self.wiki.track(
 				"Wiki Change Request",
 				frappe.get_doc(
@@ -981,7 +981,26 @@ class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 			)
 
 		stats = get_space_stats([space.name])[space.name]
-		self.assertEqual(stats["open_change_requests"], 2)
+		self.assertEqual(stats["change_requests_in_review"], 2)
+
+	def test_a_draft_is_not_counted_as_awaiting_review(self):
+		"""The regression: a space whose only request was a draft reported one."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+		self.wiki.track(
+			"Wiki Change Request",
+			frappe.get_doc(
+				{
+					"doctype": "Wiki Change Request",
+					"title": "A draft",
+					"wiki_space": space.name,
+					"status": "Draft",
+				}
+			).insert(ignore_permissions=True, ignore_mandatory=True),
+		)
+
+		self.assertEqual(get_space_stats([space.name])[space.name]["change_requests_in_review"], 0)
 
 	def test_last_updated_tracks_the_newest_document(self):
 		"""Any content change moves the date, not just a merge."""

@@ -83,7 +83,7 @@
 					     track list here has to stay in step with that choice. -->
 					<List
 						v-else
-						:columns="['auto', 'minmax(0,1fr)', '10rem', '8rem']"
+						:columns="['auto', 'minmax(0,1fr)', '7rem', '4.5rem', '8rem']"
 						divider="inset"
 						:row-height="60"
 						class="-mx-3 w-full list-row-px-3 list-gap-3 max-sm:list-cols-[auto_minmax(0,1fr)_auto]"
@@ -99,9 +99,10 @@
 						     at the row's edge -- which is also where the filter row above
 						     it starts. -->
 						<ListHeader
-							class="max-sm:!hidden list-cols-[minmax(0,1fr)_10rem_8rem]"
+							class="max-sm:!hidden list-cols-[minmax(0,1fr)_7rem_4.5rem_8rem]"
 						>
 							<ListHeaderCell>{{ __('Space') }}</ListHeaderCell>
+							<ListHeaderCell />
 							<!-- No header. The counts label themselves -- a unit word on
 							     the pages figure, the Change Requests glyph on the other
 							     -- so a title above them would only repeat that. -->
@@ -134,7 +135,13 @@
 								</ListCell>
 								<ListCell class="max-sm:hidden">
 									<Skeleton
-										class="h-3 w-20 rounded-4"
+										class="h-3 w-16 rounded-4"
+										:style="{ animationDelay: `${i * 60}ms` }"
+									/>
+								</ListCell>
+								<ListCell class="max-sm:hidden">
+									<Skeleton
+										class="h-3 w-8 rounded-4"
 										:style="{ animationDelay: `${i * 60}ms` }"
 									/>
 								</ListCell>
@@ -185,37 +192,49 @@
 								</div>
 							</ListCell>
 
-							<!-- Both figures in one column, because they answer the same
-							     question: how much is here, and how much is moving. An
-							     open-request count of zero is dropped rather than drawn --
-							     "nothing outstanding" reads faster as an absence than as a
-							     number to compare against its neighbours. -->
+							<!-- A column each, so the figures line up down the page
+							     instead of sliding with the width of the one before them.
+							     Mono digits hold that alignment inside the cell too, where
+							     a 1 is otherwise much narrower than a 4. An in-review count
+							     of zero is dropped rather than drawn -- "nothing waiting"
+							     reads faster as an absence than as a number to compare
+							     against its neighbours. -->
 							<ListCell class="max-sm:hidden">
-								<div class="flex items-center gap-3 text-sm text-ink-gray-5">
-									<span class="flex items-center gap-1.5 whitespace-nowrap">
+								<span
+									class="flex items-center gap-1.5 whitespace-nowrap text-sm text-ink-gray-5"
+								>
+									<span
+										class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
+										aria-hidden="true"
+									/>
+									<span class="font-mono tabular-nums">
+										{{ statsFor(space.name).pages }}
+									</span>
+									{{ pageUnit(statsFor(space.name).pages) }}
+								</span>
+							</ListCell>
+
+							<ListCell class="max-sm:hidden">
+								<Tooltip
+									v-if="statsFor(space.name).change_requests_in_review"
+									:text="
+										__('{0} change requests in review', [
+											statsFor(space.name).change_requests_in_review,
+										])
+									"
+								>
+									<span
+										class="flex items-center gap-1.5 whitespace-nowrap text-sm text-ink-gray-5"
+									>
 										<span
-											class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
+											class="lucide-git-branch size-3.5 shrink-0 text-ink-gray-4"
 											aria-hidden="true"
 										/>
-										{{ pageCountLabel(statsFor(space.name).pages) }}
-									</span>
-									<Tooltip
-										v-if="statsFor(space.name).open_change_requests"
-										:text="
-											__('{0} open change requests', [
-												statsFor(space.name).open_change_requests,
-											])
-										"
-									>
-										<span class="flex items-center gap-1.5 whitespace-nowrap">
-											<span
-												class="lucide-git-branch size-3.5 shrink-0 text-ink-gray-4"
-												aria-hidden="true"
-											/>
-											{{ statsFor(space.name).open_change_requests }}
+										<span class="font-mono tabular-nums">
+											{{ statsFor(space.name).change_requests_in_review }}
 										</span>
-									</Tooltip>
-								</div>
+									</span>
+								</Tooltip>
 							</ListCell>
 
 							<ListCell class="justify-end">
@@ -316,14 +335,20 @@ const isFirstLoad = computed(
 	() => spaces.loading && !(spaces.data || []).length,
 );
 
-const EMPTY_STATS = { pages: 0, open_change_requests: 0, last_updated: null };
+const EMPTY_STATS = {
+	pages: 0,
+	change_requests_in_review: 0,
+	last_updated: null,
+};
 function statsFor(space) {
 	return spaceStats.value[space] || EMPTY_STATS;
 }
 
-// The unit is spelled out because the column has no header to carry it.
-function pageCountLabel(count) {
-	return count === 1 ? __('1 page') : __('{0} pages', [count]);
+// The unit is spelled out because the column has no header to carry it. It
+// sits beside the figure rather than inside it so the digits can stay mono
+// while the word does not.
+function pageUnit(count) {
+	return count === 1 ? __('page') : __('pages');
 }
 
 function fromNow(value) {

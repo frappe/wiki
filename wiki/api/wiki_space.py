@@ -97,15 +97,19 @@ def get_restricted_spaces(spaces: list | str) -> list[str]:
 	return sorted(name for name, roles in roles_by_space.items() if roles and "Guest" not in roles)
 
 
-# Merged, rejected and archived requests are done, so they are not outstanding
-# work. Matches the sidebar's own open-change-request badge, so the two numbers
-# can never disagree about what "open" means.
-CLOSED_CHANGE_REQUEST_STATUSES = ["Merged", "Rejected", "Archived"]
+# What the Change Requests page calls "All in review". A Draft is one author's
+# private work in progress -- it is waiting on nobody, and counting it made a
+# space with nothing to review report two.
+#
+# An inclusion list rather than an exclusion one: a status added later should
+# have to be named here to be counted, not slip in because it is absent from a
+# list of the ones that are finished.
+IN_REVIEW_CHANGE_REQUEST_STATUSES = ["In Review", "Approved"]
 
 
 @frappe.whitelist()
 def get_space_stats(spaces: list | str) -> dict:
-	"""Directory figures for `spaces`: pages, open change requests, last activity.
+	"""Directory figures for `spaces`: pages, requests in review, last activity.
 
 	Three grouped queries for a whole page of spaces rather than three per row,
 	behind the same `get_list` gate as `get_restricted_spaces` -- a space the
@@ -131,7 +135,7 @@ def get_space_stats(spaces: list | str) -> dict:
 	if not visible:
 		return {}
 
-	stats = {name: {"pages": 0, "open_change_requests": 0, "last_updated": None} for name in visible}
+	stats = {name: {"pages": 0, "change_requests_in_review": 0, "last_updated": None} for name in visible}
 
 	# Groups and external links are navigation, not pages, so neither is counted.
 	document = frappe.qb.DocType("Wiki Document")
@@ -154,15 +158,15 @@ def get_space_stats(spaces: list | str) -> dict:
 	change_request = frappe.qb.DocType("Wiki Change Request")
 	change_request_rows = (
 		frappe.qb.from_(change_request)
-		.select(change_request.wiki_space, Count(change_request.name).as_("open_change_requests"))
+		.select(change_request.wiki_space, Count(change_request.name).as_("change_requests_in_review"))
 		.where(
 			change_request.wiki_space.isin(visible)
-			& change_request.status.notin(CLOSED_CHANGE_REQUEST_STATUSES)
+			& change_request.status.isin(IN_REVIEW_CHANGE_REQUEST_STATUSES)
 		)
 		.groupby(change_request.wiki_space)
 	).run(as_dict=True)
 	for row in change_request_rows:
-		stats[row.wiki_space]["open_change_requests"] = row.open_change_requests
+		stats[row.wiki_space]["change_requests_in_review"] = row.change_requests_in_review
 
 	empty = [name for name, row in stats.items() if not row["last_updated"]]
 	if empty:
