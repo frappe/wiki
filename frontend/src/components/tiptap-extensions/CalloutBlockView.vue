@@ -10,6 +10,7 @@
  * with no editor of this component's own.
  */
 
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
 import { Button, Dropdown } from 'frappe-ui';
 import { computed } from 'vue';
@@ -37,6 +38,13 @@ const props = defineProps({
 		required: true,
 	},
 });
+
+// Never `props.editor.isEditable` directly: a node view's first render runs
+// inside the editor's own `createView`, before `editor.view` exists, and that
+// getter reaches through it -- so reading it there throws, the render aborts,
+// and tiptap reports the node view as missing its NodeViewWrapper. The whole
+// document then fails to mount. See useNodeViewEditable.
+const isEditable = useNodeViewEditable(props.editor);
 
 // Normalize warning to caution
 const normalizedType = computed(() => {
@@ -138,7 +146,7 @@ const dropdownOptions = computed(() => [
         <div class="flex items-center gap-1.5" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
             <input
-                v-if="editor.isEditable"
+                v-if="isEditable"
                 class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-base-medium text-ink-gray-8 placeholder:text-ink-gray-5"
                 :value="node.attrs.title"
                 :placeholder="defaultTitle"
@@ -149,7 +157,7 @@ const dropdownOptions = computed(() => [
                 @keydown.escape.prevent="$event.target.blur()"
             />
             <span v-else class="callout-title flex-1 text-base-medium text-ink-gray-8">{{ displayTitle }}</span>
-            <Dropdown v-if="editor.isEditable" :options="dropdownOptions" align="end">
+            <Dropdown v-if="isEditable" :options="dropdownOptions" align="end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
                 </Button>
