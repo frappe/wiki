@@ -153,7 +153,8 @@ test.describe('Mobile SPA', () => {
 		await page.getByRole('button', { name: 'Pages' }).click();
 		const drawer = page.locator('.drawer-content');
 		await expect(drawer).toBeVisible();
-		await drawer.getByTitle('Settings').click();
+		// The trigger carries an aria-label now, not a title attribute.
+		await drawer.getByRole('button', { name: 'Space settings' }).click();
 
 		// Drawer closes; the settings dialog is the only modal left.
 		await expect(drawer).toBeHidden();
