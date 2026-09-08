@@ -3,8 +3,8 @@
 </template>
 
 <script setup>
+import { useTheme } from '@/composables/useTheme';
 import { FileDiff } from '@pierre/diffs';
-import { useStorage } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const THEMES = {
@@ -12,10 +12,8 @@ const THEMES = {
 	light: 'github-light',
 };
 
-const userTheme = useStorage('wiki-theme', 'dark');
-const themeType = computed(() =>
-	userTheme.value === 'dark' ? 'dark' : 'light',
-);
+const { resolvedTheme } = useTheme();
+const themeType = computed(() => resolvedTheme.value);
 
 const props = defineProps({
 	oldContent: {

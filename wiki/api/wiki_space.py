@@ -59,6 +59,113 @@ def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
 
 
 @frappe.whitelist()
+def get_restricted_spaces(spaces: list | str) -> list[str]:
+	"""Return which of `spaces` are readable only by specific roles.
+
+	A space with no role rows is open to every logged-in user, and one whose
+	rows include `Guest` is public (``frappe.get_roles()`` returns Guest for
+	anonymous requests) -- see `wiki.permissions.can_read_space`. Everything
+	else is restricted, which is what the sidebar's lock icon means.
+
+	One grouped query rather than a role list per row: the sidebar pages 50
+	spaces at a time, and the child table is only ever read for this flag.
+
+	Uses `get_list` on Wiki Space first, so spaces the user cannot read are
+	dropped before their role rows are looked at.
+	"""
+	if isinstance(spaces, str):
+		spaces = frappe.parse_json(spaces)
+	if not spaces:
+		return []
+
+	visible = {
+		row.name for row in frappe.get_list("Wiki Space", filters={"name": ["in", spaces]}, fields=["name"])
+	}
+	if not visible:
+		return []
+
+	rows = frappe.get_all(
+		"Wiki Space Role",
+		filters={"parenttype": "Wiki Space", "parent": ["in", list(visible)]},
+		fields=["parent", "role"],
+	)
+
+	roles_by_space = {}
+	for row in rows:
+		roles_by_space.setdefault(row.parent, set()).add(row.role)
+
+	return sorted(name for name, roles in roles_by_space.items() if roles and "Guest" not in roles)
+
+
+# What the Change Requests page calls "All in review". A Draft is one author's
+# private work in progress -- it is waiting on nobody, and counting it made a
+# space with nothing to review report two.
+#
+# An inclusion list rather than an exclusion one: a status added later should
+# have to be named here to be counted, not slip in because it is absent from a
+# list of the ones that are finished.
+IN_REVIEW_CHANGE_REQUEST_STATUSES = ["In Review", "Approved"]
+
+
+@frappe.whitelist()
+def get_space_stats(spaces: list | str) -> dict:
+	"""Directory figures for `spaces`: pages and change requests awaiting review.
+
+	Two grouped queries for a whole page of spaces rather than two per row,
+	behind the same `get_list` gate as `get_restricted_spaces` -- a space the
+	user cannot read is dropped before it is counted, so the figures never leak
+	the size of a restricted space.
+
+	Last activity is deliberately not here. `Wiki Space.last_edited` already
+	carries it, stamped on every save, delete and content-only merge, and the
+	directory both sorts and renders from that one field -- so the column can
+	never disagree with the order it is shown in.
+	"""
+	from frappe.query_builder.functions import Count
+
+	if isinstance(spaces, str):
+		spaces = frappe.parse_json(spaces)
+	if not spaces:
+		return {}
+
+	visible = [
+		row.name for row in frappe.get_list("Wiki Space", filters={"name": ["in", spaces]}, fields=["name"])
+	]
+	if not visible:
+		return {}
+
+	stats = {name: {"pages": 0, "change_requests_in_review": 0} for name in visible}
+
+	# Groups and external links are navigation, not pages, so neither is counted.
+	document = frappe.qb.DocType("Wiki Document")
+	document_rows = (
+		frappe.qb.from_(document)
+		.select(document.wiki_space, Count(document.name).as_("pages"))
+		.where(
+			document.wiki_space.isin(visible) & (document.is_group == 0) & (document.is_external_link == 0)
+		)
+		.groupby(document.wiki_space)
+	).run(as_dict=True)
+	for row in document_rows:
+		stats[row.wiki_space]["pages"] = row.pages
+
+	change_request = frappe.qb.DocType("Wiki Change Request")
+	change_request_rows = (
+		frappe.qb.from_(change_request)
+		.select(change_request.wiki_space, Count(change_request.name).as_("change_requests_in_review"))
+		.where(
+			change_request.wiki_space.isin(visible)
+			& change_request.status.isin(IN_REVIEW_CHANGE_REQUEST_STATUSES)
+		)
+		.groupby(change_request.wiki_space)
+	).run(as_dict=True)
+	for row in change_request_rows:
+		stats[row.wiki_space]["change_requests_in_review"] = row.change_requests_in_review
+
+	return stats
+
+
+@frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
 	space = frappe.get_cached_doc("Wiki Space", space_id)
@@ -85,8 +192,6 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 			"name",
 			"title",
 			"is_group",
-			"is_tab",
-			"tab_icon",
 			"parent_wiki_document",
 			"route",
 			"is_published",
@@ -139,7 +244,6 @@ def reorder_wiki_documents(
 	"""
 	import json
 
-	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import is_top_level_group
 	from wiki.permissions import assert_space_writable
 
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
@@ -154,12 +258,6 @@ def reorder_wiki_documents(
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
-
-	# This path writes parent_wiki_document with a raw db.set_value, so
-	# WikiDocument.validate never runs — the tab rule has to be re-asserted here
-	# or a drag into a subgroup would silently produce a nested tab.
-	if parent_changed and doc.is_tab and not is_top_level_group(new_parent):
-		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
 
 	frappe.flags.in_reorder_wiki_documents = True
 	try:

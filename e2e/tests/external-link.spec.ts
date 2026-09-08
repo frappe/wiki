@@ -1,12 +1,8 @@
-import { expect, test } from '@playwright/test';
-import {
-	APP_BASE,
-	CHANGE_REQUEST_URL_RE,
-	spaceLinkSelector,
-} from '../helpers/routes';
+import { expect, test } from '../fixtures';
 import {
 	clickSidebarAddOption,
-	publishChangeRequestFromReview,
+	createDraftAndOpenEditor,
+	saveEditor,
 } from '../helpers/wiki';
 
 /**
@@ -17,16 +13,12 @@ import {
 test.describe('External Links', () => {
 	test('should create an external link and verify it appears with link icon', async ({
 		page,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Click the External Link button in the toolbar
@@ -57,17 +49,12 @@ test.describe('External Links', () => {
 
 	test('should show external link with link icon after merge and open edit dialog on click', async ({
 		page,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		const spaceHref = await spaceLink.getAttribute('href');
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Create an external link
@@ -85,17 +72,19 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge
-		await page.getByRole('button', { name: 'Submit for Review' }).click();
-		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
-			timeout: 10000,
+		// Submit for Review lives in the editor header, and adding an external
+		// link opens no editor. The sidebar's Merge is the manager's one-click
+		// path -- it walks the CR through submit, approve and merge.
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
 		});
-		await publishChangeRequestFromReview(page);
-
-		// Navigate back to space to verify the external link is in the tree after merge
-		if (spaceHref) {
-			await page.goto(spaceHref);
-		}
+		await expect(mergeButton).toBeVisible({ timeout: 10000 });
+		await mergeButton.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Verify the external link appears in the sidebar after merge
@@ -131,17 +120,12 @@ test.describe('External Links', () => {
 
 	test('should show external link in public sidebar with link icon', async ({
 		page,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		// Navigate to wiki and click first space
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		const spaceHref = await spaceLink.getAttribute('href');
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Create an external link
@@ -158,40 +142,33 @@ test.describe('External Links', () => {
 			.click();
 		await page.waitForLoadState('networkidle');
 
-		// Also create a regular page so we can access the public view
-		await clickSidebarAddOption(page, 'New Page');
-
+		// Also create a regular page so the space has a public page to open.
+		// The shared helper is what settles the draft route: creating a second
+		// item back to back can leave the tree click landing before the first
+		// draft has finished mounting.
 		const pageTitle = `test-page-${Date.now()}`;
-		await page.getByLabel('Title').fill(pageTitle);
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Save' })
-			.click();
-		await page.waitForLoadState('networkidle');
-
-		// Open the page and add content
-		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForURL(/\/draft\/[^/?#]+/);
-
-		const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-		await expect(editor).toBeVisible({ timeout: 10000 });
+		const editor = await createDraftAndOpenEditor(page, space, pageTitle, {
+			waitForEditorApi: false,
+		});
 		await editor.click();
 		await page.keyboard.type('Test page content.');
-		await page.click('button:has-text("Save")');
+		await saveEditor(page);
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items
-		await page.getByRole('button', { name: 'Submit for Review' }).click();
-		await page.getByRole('button', { name: 'Submit' }).click();
-		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
-			timeout: 10000,
+		// Submit for Review lives in the editor header, and adding an external
+		// link opens no editor. The sidebar's Merge is the manager's one-click
+		// path -- it walks the CR through submit, approve and merge.
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
 		});
-		await publishChangeRequestFromReview(page);
-
-		// Navigate back to space and click on the page to get public view
-		if (spaceHref) {
-			await page.goto(spaceHref);
-		}
+		await expect(mergeButton).toBeVisible({ timeout: 10000 });
+		await mergeButton.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Click on the page

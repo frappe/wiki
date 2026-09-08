@@ -1,12 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import {
-	type WikiDocument,
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	createTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import type { SeededPage } from '../helpers/factory';
 
 /**
  * The reader sidebar must always reveal the current page: expand its ancestor
@@ -15,71 +8,39 @@ import {
  * prev/next buttons (see issue #685).
  */
 test.describe('Reader sidebar reveals current page', () => {
-	const spaceRoute = `sidebar-reveal-${Date.now()}`;
-	let space: WikiSpace;
-	let topPage: WikiDocument;
-	let deepPage: WikiDocument;
-	let lastFiller: WikiDocument;
+	let topPage: SeededPage;
+	let deepPage: SeededPage;
+	let lastFiller: SeededPage;
 
 	const FILLER_COUNT = 30;
 
-	test.beforeAll(async ({ request }) => {
-		space = await createTestWikiSpace(request, {
-			route: spaceRoute,
-			is_published: true,
+	test.beforeAll(async ({ wikiSuite }) => {
+		const fillerTitles = Array.from(
+			{ length: FILLER_COUNT },
+			(_, i) => `Filler Page ${String(i).padStart(2, '0')}`,
+		);
+		const space = await wikiSuite.space({
+			pages: [
+				{ title: 'Top Page' },
+				// Two collapsed levels above the page the sidebar has to reveal.
+				{
+					title: 'Outer Group',
+					is_group: true,
+					children: [
+						{
+							title: 'Inner Group',
+							is_group: true,
+							children: [{ title: 'Deep Page' }],
+						},
+					],
+				},
+				// Enough siblings after the deep page to overflow the viewport.
+				...fillerTitles.map((title) => ({ title })),
+			],
 		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${spaceRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-
-		topPage = await createTestWikiDocument(request, {
-			title: 'Top Page',
-			route: `${spaceRoute}/top`,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-
-		// Group > Sub Group > Deep Page — two collapsed levels above the page
-		const group = await createTestWikiDocument(request, {
-			title: 'Outer Group',
-			route: `${spaceRoute}/outer`,
-			is_group: true,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		const subGroup = await createTestWikiDocument(request, {
-			title: 'Inner Group',
-			route: `${spaceRoute}/outer/inner`,
-			is_group: true,
-			is_published: true,
-			parent_wiki_document: group.name,
-		});
-		deepPage = await createTestWikiDocument(request, {
-			title: 'Deep Page',
-			route: `${spaceRoute}/outer/inner/deep`,
-			is_published: true,
-			parent_wiki_document: subGroup.name,
-		});
-
-		// Enough siblings after the deep page to overflow the sidebar viewport
-		for (let i = 0; i < FILLER_COUNT; i++) {
-			lastFiller = await createTestWikiDocument(request, {
-				title: `Filler Page ${String(i).padStart(2, '0')}`,
-				route: `${spaceRoute}/filler-${String(i).padStart(2, '0')}`,
-				is_published: true,
-				parent_wiki_document: rootGroup.name,
-			});
-		}
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, spaceRoute);
+		topPage = space.page('Top Page');
+		deepPage = space.page('Deep Page');
+		lastFiller = space.page(fillerTitles[fillerTitles.length - 1]);
 	});
 
 	function sidebarLink(page: import('@playwright/test').Page, route: string) {

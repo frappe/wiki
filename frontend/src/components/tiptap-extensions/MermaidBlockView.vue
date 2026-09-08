@@ -13,7 +13,8 @@ function nextMermaidInstanceId() {
 <script setup>
 import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
-import { useStorage, watchDebounced } from '@vueuse/core';
+import { watchDebounced } from '@vueuse/core';
+import { useTheme } from '@/composables/useTheme';
 import { computed, onMounted, ref, watch } from 'vue';
 import { getMermaid, getMermaidThemeConfig } from './mermaid-loader.js';
 
@@ -47,10 +48,10 @@ const errorMessage = ref('');
 const isRendering = ref(false);
 
 // Theme is the same signal the rest of the SPA uses (see Sidebar.vue /
-// DiffViewer.vue): a `wiki-theme` localStorage ref mirrored to <html data-theme>.
-// We re-render on flips so the diagram picks up the freshly-resolved Frappe UI
-// tokens (the theme itself comes from getMermaidThemeConfig(), not this value).
-const userTheme = useStorage('wiki-theme', 'dark');
+// DiffViewer.vue): the painted scheme behind <html data-theme>. We re-render on
+// flips so the diagram picks up the freshly-resolved Frappe UI tokens (the theme
+// itself comes from getMermaidThemeConfig(), not this value).
+const { resolvedTheme } = useTheme();
 
 function updateCode(event) {
 	props.updateAttributes({ code: event.target.value });
@@ -122,7 +123,7 @@ async function renderPreview() {
 // Debounce edits so we don't re-render on every keystroke, but re-render
 // immediately when the theme flips.
 watchDebounced(code, renderPreview, { debounce: 300, maxWait: 1000 });
-watch(userTheme, renderPreview);
+watch(resolvedTheme, renderPreview);
 
 onMounted(renderPreview);
 </script>
@@ -238,7 +239,7 @@ onMounted(renderPreview);
 
 .mermaid-figure-error {
 	font-size: 0.8125rem;
-	color: var(--ink-red-6, #b91c1c);
+	color: var(--ink-red-5, #b91c1c);
 }
 
 .mermaid-block {
@@ -305,7 +306,7 @@ onMounted(renderPreview);
 }
 
 .mermaid-block-delete:hover {
-	color: var(--ink-red-5, #dc2626);
+	color: var(--ink-red-4, #dc2626);
 }
 
 .mermaid-block-action-icon {
@@ -391,7 +392,7 @@ onMounted(renderPreview);
 	padding: 0.5rem 0.75rem;
 	border-top: 1px solid var(--outline-gray-2);
 	background: var(--surface-red-1, #fef2f2);
-	color: var(--ink-red-6, #b91c1c);
+	color: var(--ink-red-5, #b91c1c);
 	font-size: 0.75rem;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', monospace;

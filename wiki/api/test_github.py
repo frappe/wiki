@@ -209,6 +209,19 @@ class TestGithubAuth(FrappeTestCase):
 		self.assertEqual(result, ["main", "develop"])
 		self.assertIn("/repos/acme/docs/branches", fake.get_calls[0][0])
 
+	def test_branch_exists_true_for_200(self):
+		fake = _FakeRequests(get=lambda url, headers: _FakeResponse({"name": "feature/docs"}))
+		github.requests = fake
+
+		self.assertTrue(github.branch_exists("acme/docs", "feature/docs", "user-oauth-token"))
+		# Slashes in the branch name must survive as path segments GitHub accepts.
+		self.assertIn("/repos/acme/docs/branches/feature/docs", fake.get_calls[0][0])
+
+	def test_branch_exists_false_for_404(self):
+		github.requests = _FakeRequests(get=lambda url, headers: _FakeResponse({}, status=404))
+
+		self.assertFalse(github.branch_exists("acme/docs", "nope", "user-oauth-token"))
+
 	# ----- connect-account OAuth (TB4b) ----- #
 
 	def test_oauth_state_round_trips_and_is_single_use(self):

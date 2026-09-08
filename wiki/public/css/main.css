@@ -57,8 +57,7 @@
 }
 
 /* ---------- Reader chrome height ----------
-   The full-width navbar (53px) plus the tab row (44px) when a space has tabs.
-   Everything that sticks below the chrome — sidebar, sidebar toggle, TOC —
+   The full-width navbar (53px). Everything that sticks below the chrome — sidebar, sidebar toggle, TOC —
    offsets against this. Zero below `lg`, where the desktop chrome is hidden in
    favour of the mobile header, and on `hide_chrome` pages which have none. */
 body {
@@ -68,9 +67,6 @@ body {
 @media (min-width: 1024px) {
   body {
     --wiki-chrome-h: 53px;
-  }
-  body[data-wiki-tabs] {
-    --wiki-chrome-h: 97px;
   }
   body[data-wiki-bare] {
     --wiki-chrome-h: 0px;
@@ -262,23 +258,28 @@ body {
   color: var(--ink-gray-6);
 }
 
-/* Callout/Aside Styles - Frappe UI Alert-inspired */
+/* Callout/Aside Styles — the frappe-ui Alert banner: one neutral surface, with
+   the type's colour carried only by the icon. */
 .callout {
   margin: 1rem 0;
-  padding: 0.875rem 1rem;
-  border-radius: 0.375rem;
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
-  align-items: start;
+  padding: 0.75rem;
+  border-radius: var(--radius-6);
+  background-color: var(--surface-gray-1);
+}
+
+.callout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .callout-icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding-top: 0.125rem;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
 }
 
 .callout-icon svg {
@@ -286,23 +287,26 @@ body {
   height: 1rem;
 }
 
-.callout-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .callout-title {
-  font-weight: 500;
+  min-width: 0;
   font-size: 0.875rem;
-  line-height: 1.4;
-  color: var(--ink-gray-9);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-8);
 }
 
+/* Aligned to the title, not the container: Alert's description is full-bleed,
+   but Alert is a 384px status box with a one-line description. At document
+   width, with paragraphs and lists in the body, a full-bleed body leaves the
+   header looking detached. 1rem icon + 0.375rem gap = the title's left edge. */
 .callout-content {
+  margin-top: 0.25rem;
+  padding-left: calc(1rem + 0.375rem);
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--ink-gray-7);
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-6);
 }
 
 .callout-content > *:first-child {
@@ -344,40 +348,20 @@ body {
   margin: 0.25rem 0;
 }
 
-/* Note callout - Blue (info style) */
-.callout-note {
-  background-color: var(--surface-blue-2);
-}
-
 .callout-note .callout-icon {
-  color: var(--ink-blue-3);
-}
-
-/* Tip callout - Green (success style) */
-.callout-tip {
-  background-color: var(--surface-green-2);
+  color: var(--ink-blue-5);
 }
 
 .callout-tip .callout-icon {
-  color: var(--ink-green-3);
-}
-
-/* Caution callout - Amber/Yellow (warning style) */
-.callout-caution {
-  background-color: var(--surface-amber-2);
+  color: var(--ink-green-5);
 }
 
 .callout-caution .callout-icon {
-  color: var(--ink-amber-3);
-}
-
-/* Danger callout - Red (error style) */
-.callout-danger {
-  background-color: var(--surface-red-2);
+  color: var(--ink-amber-5);
 }
 
 .callout-danger .callout-icon {
-  color: var(--ink-red-3);
+  color: var(--ink-red-5);
 }
 
 /* Image lightbox active state */
@@ -437,7 +421,7 @@ body.image-viewer-open {
   margin-right: 0.5em;
   vertical-align: -0.125em;
   border: 1px solid var(--outline-gray-4);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-1, 4px);
   background-color: var(--surface-base);
   color: var(--ink-gray-9);
 }
@@ -533,7 +517,7 @@ body.image-viewer-open {
 
 .wiki-pdf-header .wiki-pdf-icon {
   flex-shrink: 0;
-  color: var(--ink-red-5, #dc2626);
+  color: var(--ink-red-4, #dc2626);
 }
 
 .wiki-pdf-name {

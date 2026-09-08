@@ -28,9 +28,10 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_landing_redirect_for_route,
 	get_public_wiki_tree,
 	get_rendered_content,
-	get_space_tabs,
 	process_navbar_items,
+	touch_space_last_edited,
 )
+from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 # On IntegrationTestCase, the doctype test records and all
@@ -42,70 +43,52 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 def create_test_wiki_document(test_case, title, **kwargs):
 	"""Create a Wiki Document for testing and track it for cleanup."""
-	fields = {
-		"doctype": "Wiki Document",
-		"title": title,
-		"parent_wiki_document": kwargs.get("parent"),
-		"is_group": kwargs.get("is_group", False),
-		"is_published": kwargs.get("is_published", True),
-		"sort_order": kwargs.get("sort_order", 0),
-		"slug": kwargs.get("slug"),
-		"is_external_link": kwargs.get("is_external_link", False),
-		"external_url": kwargs.get("external_url"),
-		"source_path": kwargs.get("source_path"),
-		"content": kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
-	}
-	doc = frappe.get_doc(fields)
-	doc.insert(ignore_permissions=True)
-	test_case.test_docs.append(doc.name)
+	doc = make_document(
+		parent=kwargs.get("parent"),
+		title=title,
+		is_group=kwargs.get("is_group", False),
+		is_published=kwargs.get("is_published", True),
+		sort_order=kwargs.get("sort_order", 0),
+		slug=kwargs.get("slug"),
+		is_external_link=kwargs.get("is_external_link", False),
+		external_url=kwargs.get("external_url"),
+		source_path=kwargs.get("source_path"),
+		content=kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
+	)
+	test_case.wiki.track_document(doc)
 	return doc
 
 
 def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 	"""Create a Wiki Space for testing and track it for cleanup."""
-	fields = {
-		"doctype": "Wiki Space",
-		"space_name": space_name,
-		"route": route,
-		"root_group": root_group,
-		"show_in_switcher": kwargs.get("show_in_switcher", True),
-		"is_published": kwargs.get("is_published", True),
-		"switcher_order": kwargs.get("switcher_order", 0),
-		"git_synced": kwargs.get("git_synced", False),
-		"enable_tabs": kwargs.get("enable_tabs", False),
-		"repo_full_name": kwargs.get("repo_full_name"),
-		"branch": kwargs.get("branch"),
-	}
-	doc = frappe.get_doc(fields)
-	for role, level in kwargs.get("roles", []):
-		doc.append("roles", {"role": role, "permission_level": level})
-	doc.insert(ignore_permissions=True)
-	test_case.test_spaces.append(doc.name)
-	# Track auto-created root_group for cleanup
+	doc = make_space(
+		space_name=space_name,
+		route=route,
+		root_group=root_group,
+		roles=kwargs.get("roles", []),
+		show_in_switcher=kwargs.get("show_in_switcher", True),
+		is_published=kwargs.get("is_published", True),
+		switcher_order=kwargs.get("switcher_order", 0),
+		git_synced=kwargs.get("git_synced", False),
+		repo_full_name=kwargs.get("repo_full_name"),
+		branch=kwargs.get("branch"),
+	)
+	test_case.wiki.track_space(doc)
+	# A space asked to make its own root group owns a document nothing else
+	# tracks -- the on-trash cascade only reaches it if the space is deleted,
+	# and these tests delete documents first.
 	if not root_group and doc.root_group:
-		test_case.test_docs.append(doc.root_group)
+		test_case.wiki.track_document(doc.root_group)
 	return doc
 
 
-class WikiDocumentTestBase(IntegrationTestCase):
-	"""Base class with common setup/teardown for Wiki Document tests."""
+class WikiDocumentTestBase(WikiFixtureMixin, IntegrationTestCase):
+	"""Base class for Wiki Document tests; `self.wiki` cleans up after each one.
 
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.test_docs = []
-		cls.test_spaces = []
-
-	def tearDown(self):
-		for doc_name in reversed(self.test_docs):
-			if frappe.db.exists("Wiki Document", doc_name):
-				frappe.delete_doc("Wiki Document", doc_name, force=True)
-		self.test_docs = []
-
-		for space_name in self.test_spaces:
-			if frappe.db.exists("Wiki Space", space_name):
-				frappe.delete_doc("Wiki Space", space_name, force=True)
-		self.test_spaces = []
+	The mixin registers teardown with ``addCleanup``, so it still runs when a
+	test fails and a subclass's own ``tearDown`` no longer has to remember to
+	call ``super()``.
+	"""
 
 
 class IntegrationTestWikiDocument(IntegrationTestCase):
@@ -372,6 +355,44 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Expected order: Zebra (order 1), Alpha (order 2), Beta (order 2), Gamma (order 3)
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
+
+
+class TestSpaceLastEdited(WikiDocumentTestBase):
+	"""Wiki Space.last_edited moves with the pages inside it, not with the space."""
+
+	def last_edited(self, space):
+		return frappe.db.get_value("Wiki Space", space.name, "last_edited")
+
+	def test_saving_a_page_stamps_the_space(self):
+		space = self.wiki.space(pages=[{"title": "First Page"}])
+		before = self.last_edited(space)
+		self.assertIsNotNone(before)
+
+		page = frappe.get_doc("Wiki Document", {"title": "First Page", "wiki_space": space.name})
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+		page.content = "changed"
+		page.save()
+
+		self.assertGreater(self.last_edited(space), frappe.utils.get_datetime("2020-01-01 00:00:00"))
+
+	def test_stamping_leaves_the_space_modified_alone(self):
+		space = self.wiki.space()
+		modified = frappe.db.get_value("Wiki Space", space.name, "modified")
+
+		touch_space_last_edited(space.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "modified"), modified)
+
+	def test_deleting_a_page_stamps_the_space(self):
+		space = self.wiki.space(pages=[{"title": "Doomed Page"}])
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+
+		frappe.delete_doc(
+			"Wiki Document",
+			frappe.db.get_value("Wiki Document", {"title": "Doomed Page", "wiki_space": space.name}),
+		)
+
+		self.assertGreater(self.last_edited(space), frappe.utils.get_datetime("2020-01-01 00:00:00"))
 
 
 class TestEditLink(WikiDocumentTestBase):
@@ -1964,17 +1985,19 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		self.assertTrue(entry.startswith(prefix), f"{entry!r} does not start with {prefix!r}")
 		self.assertTrue(entry.endswith(suffix), f"{entry!r} does not end with {suffix!r}")
 
-	def _space_with_tree(self, guest_readable=True, enable_tabs=True):
-		"""A space with untabbed content, a tab, a nested group and a draft page."""
+	def _space_with_tree(self, guest_readable=True):
+		"""A space with top-level content, a group, a nested group and a draft page.
+
+		The group carries a stale `is_tab` flag: tabs are gone, and the index has
+		to treat such a group as any other.
+		"""
 		root_group = create_test_wiki_document(self, "Root Llms", is_group=True)
-		# The space comes first: `is_tab` validates against the space's root group.
 		space = create_test_wiki_space(
 			self,
 			"Llms Space",
 			self._unique("llms-space"),
 			root_group.name,
 			roles=[("Guest", "Read")] if guest_readable else [],
-			enable_tabs=enable_tabs,
 		)
 
 		intro = create_test_wiki_document(
@@ -1983,14 +2006,13 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		intro.meta_description = "What this is."
 		intro.save()
 
-		tab = create_test_wiki_document(self, "API Reference", parent=root_group.name, is_group=True)
-		tab.is_tab = 1
-		tab.save()
+		group = create_test_wiki_document(self, "API Reference", parent=root_group.name, is_group=True)
+		frappe.db.set_value("Wiki Document", group.name, "is_tab", 1)
 		endpoints = create_test_wiki_document(
-			self, "Endpoints", parent=tab.name, slug=self._unique("endpoints")
+			self, "Endpoints", parent=group.name, slug=self._unique("endpoints")
 		)
 
-		nested_group = create_test_wiki_document(self, "Internals", parent=tab.name, is_group=True)
+		nested_group = create_test_wiki_document(self, "Internals", parent=group.name, is_group=True)
 		nested = create_test_wiki_document(
 			self, "Nested Page", parent=nested_group.name, slug=self._unique("nested")
 		)
@@ -2026,29 +2048,17 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 
 		self.assertEqual(lines[0], "# Llms Space")
 		self.assertIn("> What this is.", lines)
-		self.assertIn("## Home", lines)
-		self.assertIn("## API Reference", lines)
 
-		# Untabbed top-level content lands under Home, tabbed content under its tab.
+		# One section per space, titled after it. A group flagged `is_tab` is a
+		# label in that section like any other group — never a section of its own.
+		self.assertEqual([line for line in lines if line.startswith("## ")], ["## Llms Space"])
 		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
-		self.assertEntry(lines, tree.endpoints.route, "- [Endpoints](", ")")
+		self.assertIn("- **API Reference**", lines)
+		self.assertEntry(lines, tree.endpoints.route, "  - [Endpoints](", ")")
 
 		# A group has no page of its own, so it is a label; its children indent under it.
-		self.assertIn("- **Internals**", lines)
-		self.assertEntry(lines, tree.nested.route, "  - [Nested Page](", ")")
-
-	def test_space_llms_txt_drops_tab_sections_when_tabs_are_off(self):
-		"""The index mirrors the reader, which ignores is_tab for such a space."""
-		tree = self._space_with_tree(enable_tabs=False)
-
-		body = _make_request(self.TEST_CLIENT, "get", f"/{tree.space.route}/llms.txt").get_data(as_text=True)
-		lines = body.splitlines()
-
-		self.assertNotIn("## Home", lines)
-		self.assertIn("## Llms Space", lines)
-		# Every page is still listed, just under the one section.
-		self.assertEntry(lines, tree.intro.route, "- [Introduction](", "): What this is.")
-		self.assertEntry(lines, tree.endpoints.route, "  - [Endpoints](", ")")
+		self.assertIn("  - **Internals**", lines)
+		self.assertEntry(lines, tree.nested.route, "    - [Nested Page](", ")")
 
 	def test_space_llms_txt_omits_unpublished_pages(self):
 		tree = self._space_with_tree()
@@ -2388,7 +2398,7 @@ class TestSpaceUrlFirstPage(WikiDocumentTestBase):
 				"content": "landing",
 			}
 		).insert(ignore_permissions=True)
-		self.test_docs.append(landing.name)
+		self.wiki.track_document(landing)
 
 		self.assertTrue(WikiDocumentRenderer(path="sr-space").can_render())
 
@@ -2553,11 +2563,9 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 		self.assertEqual(rows[0]["c"], 1)
 
 
-class TestTabValidation(WikiDocumentTestBase):
-	"""`is_tab` is only meaningful on a top-level group — enforce both halves.
-
-	A leaf tab or a nested tab has nowhere to render, so the tab bar would drop
-	it silently. These reject at validate so the bad state never lands.
+class TestStaleTabFlags(WikiDocumentTestBase):
+	"""Tabs are gone; `is_tab` / `tab_icon` survive only so old revisions and
+	change requests still apply. Nothing may read them as navigation any more.
 	"""
 
 	def _space(self):
@@ -2567,253 +2575,49 @@ class TestTabValidation(WikiDocumentTestBase):
 		)
 		return space, root_group
 
-	def test_top_level_group_can_be_a_tab(self):
-		space, root_group = self._space()
-
-		tab = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
-		tab.is_tab = 1
-		tab.tab_icon = "lucide-wallet"
-		tab.save()
-
-		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
-		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "tab_icon"), "lucide-wallet")
-
-	def test_leaf_cannot_be_a_tab(self):
-		space, root_group = self._space()
-
-		leaf = create_test_wiki_document(self, "A Page", parent=root_group.name)
-		leaf.is_tab = 1
-
-		with self.assertRaises(frappe.ValidationError):
-			leaf.save()
-
-	def test_nested_group_cannot_be_a_tab(self):
+	def test_a_flagged_group_saves_anywhere_in_the_tree(self):
+		"""The old rule — a tab is a top-level group — is no longer enforced,
+		so a revision carrying the flag on a nested group still applies."""
 		space, root_group = self._space()
 
 		outer = create_test_wiki_document(self, "Outer", parent=root_group.name, is_group=True)
 		inner = create_test_wiki_document(self, "Inner", parent=outer.name, is_group=True)
 		inner.is_tab = 1
+		inner.tab_icon = "lucide-wallet"
+		inner.save()
 
-		with self.assertRaises(frappe.ValidationError):
-			inner.save()
+		self.assertEqual(frappe.db.get_value("Wiki Document", inner.name, "is_tab"), 1)
 
-	def test_clearing_is_group_on_a_tab_is_rejected(self):
-		space, root_group = self._space()
-
-		tab = create_test_wiki_document(self, "Selling", parent=root_group.name, is_group=True)
-		tab.is_tab = 1
-		tab.save()
-
-		tab.is_group = 0
-		with self.assertRaises(frappe.ValidationError):
-			tab.save()
-
-	def test_reparenting_a_tab_below_top_level_is_rejected(self):
-		space, root_group = self._space()
-
-		tab = create_test_wiki_document(self, "Stock", parent=root_group.name, is_group=True)
-		tab.is_tab = 1
-		tab.save()
-		other = create_test_wiki_document(self, "Other", parent=root_group.name, is_group=True)
-
-		tab.parent_wiki_document = other.name
-		with self.assertRaises(frappe.ValidationError):
-			tab.save()
-
-	def test_reorder_api_rejects_moving_a_tab_off_top_level(self):
-		"""The reorder endpoint writes parent_wiki_document with a raw db.set_value,
-		so validate never runs — it needs its own copy of the guard."""
-		import json
-
+	def test_reorder_moves_a_flagged_group_off_top_level(self):
 		from wiki.api.wiki_space import reorder_wiki_documents
 
 		space, root_group = self._space()
-		tab = create_test_wiki_document(self, "Manufacturing", parent=root_group.name, is_group=True)
-		tab.is_tab = 1
-		tab.save()
+
+		# `other` is created first so teardown, which deletes in reverse creation
+		# order, still reaches the moved node before its new parent.
 		other = create_test_wiki_document(self, "Bucket", parent=root_group.name, is_group=True)
+		flagged = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
+		frappe.db.set_value("Wiki Document", flagged.name, "is_tab", 1)
 
-		with self.assertRaises(frappe.ValidationError):
-			reorder_wiki_documents(tab.name, other.name, 0, json.dumps([tab.name]))
+		reorder_wiki_documents(flagged.name, other.name, 0, json.dumps([flagged.name]))
 
-
-class TestGetSpaceTabs(WikiDocumentTestBase):
-	"""`get_space_tabs` feeds the horizontal tab bar: ordering + landing target."""
-
-	def _space(self):
-		root_group = create_test_wiki_document(self, "Tabs Root", is_group=True)
-		space = create_test_wiki_space(
-			self,
-			"Tabs Space",
-			f"tabs-space-{frappe.generate_hash(length=6)}",
-			root_group.name,
-			enable_tabs=True,
-		)
-		return space, root_group
-
-	def _make_tab(self, root_group, title, icon=None, sort_order=0):
-		tab = create_test_wiki_document(
-			self, title, parent=root_group.name, is_group=True, sort_order=sort_order
-		)
-		tab.is_tab = 1
-		tab.tab_icon = icon
-		tab.save()
-		return tab
-
-	def test_returns_empty_when_the_space_has_tabs_switched_off(self):
-		"""Tabs are opt-in: the flags stay on the nodes, the bar just goes away."""
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
-		create_test_wiki_document(self, "Invoice", parent=tab.name)
-
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
-
-		frappe.db.set_value("Wiki Space", space.name, "enable_tabs", 0)
-		self.assertEqual(get_space_tabs(space.name), [])
-
-		# The node keeps its flags, so switching back restores the same bar.
-		self.assertEqual(frappe.db.get_value("Wiki Document", tab.name, "is_tab"), 1)
-		frappe.db.set_value("Wiki Space", space.name, "enable_tabs", 1)
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
-
-	def test_returns_empty_for_a_space_without_tabs(self):
-		space, root_group = self._space()
-		create_test_wiki_document(self, "Plain group", parent=root_group.name, is_group=True)
-
-		self.assertEqual(get_space_tabs(space.name), [])
-
-	def test_returns_tabs_in_sort_order_with_icons(self):
-		space, root_group = self._space()
-		second = self._make_tab(root_group, "Selling", icon="lucide-tag", sort_order=2)
-		first = self._make_tab(root_group, "Accounting", icon="lucide-wallet", sort_order=1)
-		create_test_wiki_document(self, "Invoice", parent=first.name)
-		create_test_wiki_document(self, "Quotation", parent=second.name)
-
-		tabs = get_space_tabs(space.name)
-
-		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
-		self.assertEqual([t["tab_icon"] for t in tabs], ["lucide-wallet", "lucide-tag"])
-
-	def test_non_tab_top_level_groups_are_excluded(self):
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Accounting")
-		create_test_wiki_document(self, "Invoice", parent=tab.name)
-		plain = create_test_wiki_document(self, "Not a tab", parent=root_group.name, is_group=True)
-		create_test_wiki_document(self, "Some page", parent=plain.name)
-
-		# The plain group is untabbed content, so Home leads; it is never itself
-		# listed as a tab.
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Home", "Accounting"])
-
-	def test_landing_route_falls_back_to_first_published_leaf(self):
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Accounting")
-		group = create_test_wiki_document(self, "Receivables", parent=tab.name, is_group=True, sort_order=0)
-		first = create_test_wiki_document(self, "Invoice", parent=group.name, sort_order=0)
-		create_test_wiki_document(self, "Credit Note", parent=group.name, sort_order=1)
-
-		tabs = get_space_tabs(space.name)
-		self.assertEqual(tabs[0]["landing_route"], first.route)
-
-	def test_landing_route_prefers_a_page_at_the_tab_s_own_route(self):
-		"""The README/index case: a published leaf sharing the group's route."""
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Accounting")
-		create_test_wiki_document(self, "Invoice", parent=tab.name)
-
-		index = create_test_wiki_document(self, "Overview", parent=tab.name)
-		index.route = tab.route
-		index.save()
-
-		tabs = get_space_tabs(space.name)
-		self.assertEqual(tabs[0]["landing_route"], tab.route)
-
-	def test_unpublished_tab_is_excluded(self):
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Draft Area")
-		create_test_wiki_document(self, "Page", parent=tab.name)
-		frappe.db.set_value("Wiki Document", tab.name, "is_published", 0)
-
-		self.assertEqual(get_space_tabs(space.name), [])
-
-	def test_public_tree_carries_the_tab_fields(self):
-		space, root_group = self._space()
-		tab = self._make_tab(root_group, "Accounting", icon="lucide-wallet")
-		create_test_wiki_document(self, "Invoice", parent=tab.name)
-
-		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == tab.name)
-		self.assertEqual(node["is_tab"], 1)
-		self.assertEqual(node["tab_icon"], "lucide-wallet")
-
-	def test_home_leads_the_bar_when_multiple_tabs_have_untabbed_content(self):
-		space, root_group = self._space()
-		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
-		selling = self._make_tab(root_group, "Selling", sort_order=2)
-		create_test_wiki_document(self, "Invoice", parent=accounting.name)
-		create_test_wiki_document(self, "Quotation", parent=selling.name)
-		misc = create_test_wiki_document(
-			self, "Release Notes", parent=root_group.name, is_group=True, sort_order=3
-		)
-		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
-
-		tabs = get_space_tabs(space.name)
-		self.assertEqual(tabs[0]["doc_key"], "__general__")
-		self.assertEqual(tabs[0]["title"], "Home")
-		self.assertEqual(tabs[0]["tab_icon"], "lucide-house")
-		self.assertEqual(tabs[0]["landing_route"], changelog.route)
-		self.assertEqual([t["title"] for t in tabs[1:]], ["Accounting", "Selling"])
-
-	def test_home_leads_the_bar_with_a_single_tab_and_untabbed_content(self):
-		space, root_group = self._space()
-		accounting = self._make_tab(root_group, "Accounting")
-		create_test_wiki_document(self, "Invoice", parent=accounting.name)
-		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
-		changelog = create_test_wiki_document(self, "Changelog", parent=misc.name)
-
-		tabs = get_space_tabs(space.name)
-		self.assertEqual([t["title"] for t in tabs], ["Home", "Accounting"])
-		self.assertEqual(tabs[0]["landing_route"], changelog.route)
-
-	def test_home_tab_uses_the_space_title_and_icon(self):
-		space, root_group = self._space()
-		accounting = self._make_tab(root_group, "Accounting")
-		create_test_wiki_document(self, "Invoice", parent=accounting.name)
-		misc = create_test_wiki_document(self, "Release Notes", parent=root_group.name, is_group=True)
-		create_test_wiki_document(self, "Changelog", parent=misc.name)
-		frappe.db.set_value(
-			"Wiki Space",
-			space.name,
-			{"home_tab_title": "Overview", "home_tab_icon": "lucide-compass"},
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", flagged.name, "parent_wiki_document"), other.name
 		)
 
-		home = get_space_tabs(space.name)[0]
-		self.assertEqual(home["doc_key"], "__general__")
-		self.assertEqual(home["title"], "Overview")
-		self.assertEqual(home["tab_icon"], "lucide-compass")
-
-	def test_no_home_tab_when_the_space_is_fully_tabbed(self):
+	def test_the_public_tree_does_not_carry_the_flags(self):
+		"""The reader renders one tree, so the flags never reach the template."""
 		space, root_group = self._space()
-		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
-		selling = self._make_tab(root_group, "Selling", sort_order=2)
-		create_test_wiki_document(self, "Invoice", parent=accounting.name)
-		create_test_wiki_document(self, "Quotation", parent=selling.name)
 
-		tabs = get_space_tabs(space.name)
-		self.assertTrue(all(t["doc_key"] != "__general__" for t in tabs))
-		self.assertEqual([t["title"] for t in tabs], ["Accounting", "Selling"])
+		flagged = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
+		frappe.db.set_value("Wiki Document", flagged.name, "is_tab", 1)
+		create_test_wiki_document(self, "Invoice", parent=flagged.name)
+		clear_wiki_tree_cache()
 
-	def test_tab_with_no_published_pages_is_excluded(self):
-		space, root_group = self._space()
-		accounting = self._make_tab(root_group, "Accounting", sort_order=1)
-		create_test_wiki_document(self, "Invoice", parent=accounting.name)
-		# An empty tab (no children) and a tab whose only page is unpublished
-		# both have nothing to show, so neither appears on the public bar.
-		self._make_tab(root_group, "Empty", sort_order=2)
-		drafts = self._make_tab(root_group, "Drafts", sort_order=3)
-		draft_page = create_test_wiki_document(self, "WIP", parent=drafts.name)
-		frappe.db.set_value("Wiki Document", draft_page.name, "is_published", 0)
+		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == flagged.name)
 
-		self.assertEqual([t["title"] for t in get_space_tabs(space.name)], ["Accounting"])
+		self.assertNotIn("is_tab", node)
+		self.assertNotIn("tab_icon", node)
 
 
 class TestRenderedContentCache(WikiDocumentTestBase):
@@ -2889,8 +2693,6 @@ class TestReaderRouteXSS(unittest.TestCase):
 		# The vulnerable pattern is a single-quoted JS literal; after the fix
 		# every call passes a double-quoted, entity-encoded literal instead.
 		self.assertNotIn("navigateTo('", html)
-		self.assertNotIn("inTab('", html)
-		self.assertNotIn("notInAnyTab('", html)
 		# The route's own single quote is unicode-escaped by tojson, so it can
 		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
 		self.assertNotIn("//')", html)
@@ -2912,18 +2714,6 @@ class TestReaderRouteXSS(unittest.TestCase):
 		}
 		html = frappe.render_template(template, {"nodes": [node]})
 		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
-		self._assert_route_is_safe(html)
-
-	def test_active_js_concat_escapes_route(self):
-		"""The tab bar (tabs.html / mobile_header.html) builds the Alpine
-		expression by string concatenation before emitting it; the route piece
-		must stay escaped through the concat + `{{ }}` render."""
-		template = (
-			'{% set active_js = "$store.navigation.inTab(" ~ (route | tojson | forceescape) ~ ")" %}'
-			'<div x-show="{{ active_js }}"></div>'
-		)
-		html = frappe.render_template(template, {"route": self.PAYLOAD})
-		self.assertIn("inTab(&#34;", html)
 		self._assert_route_is_safe(html)
 
 	def test_script_context_uses_bare_tojson_not_forceescape(self):
@@ -3317,6 +3107,17 @@ class TestOGImageTokenDrift(unittest.TestCase):
 		"--outline-gray-2": ("outline", "gray-2"),
 		"--surface-gray-2": ("surface", "gray-2"),
 		"--surface-base": ("surface", "base"),
+		# The space-mark palette. gray is covered by the two entries above.
+		"--surface-blue-2": ("surface", "blue-2"),
+		"--ink-blue-7": ("ink", "blue-7"),
+		"--surface-green-2": ("surface", "green-2"),
+		"--ink-green-7": ("ink", "green-7"),
+		"--surface-amber-2": ("surface", "amber-2"),
+		"--ink-amber-7": ("ink", "amber-7"),
+		"--surface-red-2": ("surface", "red-2"),
+		"--ink-red-7": ("ink", "red-7"),
+		"--surface-violet-2": ("surface", "violet-2"),
+		"--ink-violet-7": ("ink", "violet-7"),
 	}
 
 	def test_template_tokens_match_frappe_ui(self):
@@ -3341,7 +3142,15 @@ class TestOGImageTokenDrift(unittest.TestCase):
 
 		template = frappe.get_app_path("wiki", "templates", "wiki", "og_image.html")
 		with open(template) as f:
-			declared = dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6});", f.read()))
+			# frappe-ui emits oklch() since 1.0.0-beta.41; the older hex form is
+			# still matched so this compares whatever colors.json currently holds
+			# rather than assuming one notation.
+			declared = dict(
+				re.findall(
+					r"(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6}|oklch\([^)]*\));",
+					f.read(),
+				)
+			)
 
 		for var, (group, name) in self.TOKEN_REFS.items():
 			ref = colors["themedVariables"]["light"][group][name]

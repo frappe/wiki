@@ -17,8 +17,8 @@
 				@click.stop="handleRowClick(node)"
 			>
 				<button
-					v-if="node.is_group"
-					class="p-0.5 hover:bg-surface-gray-3 rounded shrink-0"
+					v-if="node.is_group && !searchActive"
+					class="p-0.5 hover:bg-surface-gray-3 rounded-4 shrink-0"
 					:aria-label="isNodeExpanded(node.doc_key) ? __('Collapse') : __('Expand')"
 					@click.stop="toggleExpanded(node.doc_key)"
 				>
@@ -29,42 +29,51 @@
 					/>
 				</button>
 
-				<SpaceIcon v-if="node.is_tab" :icon="node.tab_icon" class="text-ink-gray-5 shrink-0" />
-				<span v-else-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
+				<span v-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 				<span v-else-if="node.is_external_link" class="lucide-link size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 				<span v-else class="lucide-file-text size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 
 				<div class="flex min-w-0 flex-1 flex-col">
 					<span class="text-sm truncate" :class="getTitleClass(node)">
-						<template v-for="(seg, i) in titleParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+						<template v-for="(seg, i) in titleParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-1">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
 					</span>
 					<!-- Why it matched, when the route hit but the title didn't. -->
 					<span v-if="routeParts(node)" class="text-xs text-ink-gray-4 truncate">
-						<template v-for="(seg, i) in routeParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-sm">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
+						<template v-for="(seg, i) in routeParts(node)" :key="i"><mark v-if="seg.matched" class="bg-surface-amber-2 text-ink-gray-9 rounded-1">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template>
 					</span>
 				</div>
 
+				<!-- The tree is a navigation column: a word per row makes it a
+				     list of labels rather than a list of pages. Every state here
+				     is a mark instead — except a failed sync, which asks for an
+				     action and so keeps its words. -->
 				<Badge v-if="node.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
 					{{ __('Sync failed') }}
 				</Badge>
-				<Badge v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'" variant="subtle" theme="gray" size="sm" :title="__('Saving…')">
-					{{ __('Syncing…') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
-					{{ __('New') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'deleted'" variant="subtle" theme="red" size="sm">
-					{{ __('Deleted') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'modified'" variant="subtle" theme="blue" size="sm">
-					{{ __('Modified') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'reordered'" variant="subtle" theme="orange" size="sm">
-					{{ __('Reordered') }}
-				</Badge>
-				<Badge v-else-if="!node.is_group && !node.is_published" variant="subtle" theme="orange" size="sm">
-					{{ __('Not Published') }}
-				</Badge>
+				<span
+					v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'"
+					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
+					:title="__('Syncing…')"
+					:aria-label="__('Syncing…')"
+					role="status"
+				/>
+				<span
+					v-else-if="changeTypeMap.get(node.doc_key)"
+					class="size-1.5 shrink-0 rounded-full"
+					:class="getChangeDotClass(changeTypeMap.get(node.doc_key))"
+					:title="getChangeLabel(changeTypeMap.get(node.doc_key))"
+					:aria-label="getChangeLabel(changeTypeMap.get(node.doc_key))"
+					role="status"
+				/>
+				<!-- Unpublished is not a change, so it is not a dot: the same
+				     eye-off the space list uses for an unpublished space. -->
+				<span
+					v-else-if="!node.is_group && !node.is_published"
+					class="lucide-eye-off size-3.5 shrink-0 text-ink-gray-4"
+					:title="__('Unpublished')"
+					:aria-label="__('Unpublished')"
+					role="status"
+				/>
 
 				<!-- Hover-reveal on desktop; always visible on touch (no hover)
 				     so row actions stay reachable on a phone. -->
@@ -81,9 +90,9 @@
 </template>
 
 <script setup>
+import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
-import SpaceIcon from './SpaceIcon.vue';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -112,15 +121,11 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
-	// While a tree search is active we render a pruned tree with drag disabled
-	// and every ancestor-of-a-match force-expanded.
+	// While a tree search is active `items` is the flat result list, not the
+	// tree: rows carry no children, and drag is disabled.
 	searchActive: {
 		type: Boolean,
 		default: false,
-	},
-	expandedOverride: {
-		type: Object, // Set<doc_key> | null
-		default: null,
 	},
 	scoreMap: {
 		type: Object, // Map<doc_key, fuzzysort result> | null
@@ -134,7 +139,6 @@ const props = defineProps({
 		type: String,
 		default: null,
 	},
-	canManageTabs: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -143,14 +147,14 @@ const emit = defineEmits([
 	'rename',
 	'external-link',
 	'edit-external-link',
-	'tab-settings',
-	'convert-to-tab',
 	'drag-state-change',
+	'reveal-group',
 ]);
 
 const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
+const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
 const storageKey = computed(
 	() => `wiki-tree-expanded-nodes-${props.spaceId || 'default'}`,
@@ -158,26 +162,17 @@ const storageKey = computed(
 const expandedNodes = useStorage(storageKey, {});
 
 function isNodeExpanded(name) {
-	// During search, force-open ancestors of matches without touching the
-	// user's saved expand state — clearing the query restores their tree.
-	if (props.expandedOverride) {
-		return props.expandedOverride.has(name);
-	}
 	return expandedNodes.value[name] === true;
 }
 
 function toggleExpanded(name) {
-	// While searching, groups are force-expanded via expandedOverride; writing
-	// to expandedNodes here would silently corrupt the user's saved layout
-	// (no visible change now, but restore-on-clear would show it). So no-op.
-	if (props.searchActive) return;
 	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 
 // Tree reads/writes each node's `expanded` field and mutates node order is
 // left to us via @drag-end, so we hand it a derived copy of the store tree:
 // `label` feeds the drag ghost + keyboard typeahead, `expanded` is resolved
-// from the persisted map (or the search override). Held in a ref so the
+// from the persisted map. Held in a ref so the
 // copies are reactive and Tree's own keyboard toggles still render.
 const treeNodes = ref([]);
 
@@ -191,7 +186,7 @@ function mapNodes(nodes) {
 }
 
 watch(
-	[() => props.items, () => props.expandedOverride, expandedNodes],
+	[() => props.items, expandedNodes],
 	() => {
 		treeNodes.value = mapNodes(props.items);
 	},
@@ -217,7 +212,11 @@ function handleRowClick(node) {
 	}
 
 	if (node.is_group) {
-		toggleExpanded(node.doc_key);
+		if (props.searchActive) {
+			emit('reveal-group', node);
+		} else {
+			toggleExpanded(node.doc_key);
+		}
 		return;
 	}
 
@@ -273,35 +272,28 @@ function getTitleClass(node) {
 // fuzzysort multi-key result is array-like: [0] = title key, [1] = route key.
 // Render as escaped { text, matched } segments (never an HTML string) — see
 // highlightSegments. titleParts always returns an array (plain title when no
-// match); routeParts only when the route matched but the title didn't.
+// match); routeParts whenever the route matched, plus — while searching — as
+// plain text, since a flat row has no ancestors to place it.
 function titleParts(node) {
 	const result = props.scoreMap?.get(node.doc_key)?.[0];
 	return highlightSegments(result) || [{ text: node.title, matched: false }];
 }
 
 function routeParts(node) {
-	if (highlightSegments(props.scoreMap?.get(node.doc_key)?.[0])) return null;
-	return highlightSegments(props.scoreMap?.get(node.doc_key)?.[1]);
+	const routeSegments = highlightSegments(
+		props.scoreMap?.get(node.doc_key)?.[1],
+	);
+	if (routeSegments) return routeSegments;
+	if (props.searchActive && node.route) {
+		return [{ text: node.route, matched: false }];
+	}
+	return null;
 }
 
 // Reparenting is only allowed into groups; sibling reorder is always fine.
 // Tree's built-in guards (drop-on-self, drop-into-own-descendant) run first.
-//
-// A tab must stay top-level, so it can't be dropped inside anything, and it can
-// only sit beside other top-level rows. `parentName` is the tab's own parent
-// while that tab is the active subtree root, hence the depth check on target.
-// The server guards this too (_move_cr_item / reorder_wiki_documents); this
-// only stops the drag from looking like it worked.
-function allowMove({ dragNode, target, position }) {
-	if (dragNode?.is_tab) {
-		if (position === 'inside') return false;
-		return isTopLevel(target);
-	}
+function allowMove({ target, position }) {
 	return position !== 'inside' || !!target.is_group;
-}
-
-function isTopLevel(node) {
-	return props.items.some((item) => item.doc_key === node?.doc_key);
 }
 
 function onDragStart() {
@@ -339,48 +331,37 @@ function getDropdownOptions(node) {
 			...[
 				{
 					label: __('New Page'),
-					icon: 'file-plus',
+					icon: 'lucide-file-plus',
 					onClick: () => emit('create', node.doc_key, false),
 				},
 				{
 					label: __('New Group'),
-					icon: 'folder-plus',
+					icon: 'lucide-folder-plus',
 					onClick: () => emit('create', node.doc_key, true),
 				},
 				{
 					label: __('External Link'),
-					icon: 'link',
+					icon: 'lucide-link',
 					onClick: () => emit('external-link', node.doc_key),
 				},
 				{
 					label: __('Rename'),
-					icon: 'edit-2',
+					icon: 'lucide-edit-2',
 					onClick: () => emit('rename', node),
 				},
 			],
 		);
-
-		// Only top-level groups can be tabs, so don't offer an action the
-		// backend would reject. Editor-only, mirroring can_manage_tabs.
-		if (props.canManageTabs && isTopLevel(node)) {
-			options.push({
-				label: node.is_tab ? __('Tab settings') : __('Convert to tab'),
-				icon: 'columns',
-				onClick: () =>
-					emit(node.is_tab ? 'tab-settings' : 'convert-to-tab', node),
-			});
-		}
 	}
 
 	if (!node.is_group) {
 		options.push({
 			label: __('Change Title'),
-			icon: 'edit-2',
+			icon: 'lucide-edit-2',
 			onClick: () => emit('rename', node),
 		});
 		options.push({
 			label: node.is_published ? __('Unpublish') : __('Publish'),
-			icon: node.is_published ? 'eye-off' : 'eye',
+			icon: node.is_published ? 'lucide-eye-off' : 'lucide-eye',
 			onClick: () => togglePublish(node),
 		});
 	}
@@ -392,7 +373,7 @@ function getDropdownOptions(node) {
 			options: [
 				{
 					label: __('Delete'),
-					icon: 'trash-2',
+					icon: 'lucide-trash-2',
 					theme: 'red',
 					onClick: () => emit('delete', node),
 				},

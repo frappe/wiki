@@ -42,6 +42,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
 )
+from wiki.tests.factory import make_document, make_space
 
 
 def _cached_cards(doc_key: str) -> list[str]:
@@ -370,6 +371,23 @@ class TestWikiChangeRequest(FrappeTestCase):
 		fresh_names = [r["name"] for r in search.search("freshtermv2zzz")["results"]]
 		self.assertNotIn(page.name, stale_names)
 		self.assertIn(page.name, fresh_names)
+
+	def test_content_only_merge_stamps_space_last_edited(self):
+		"""The raw set_value fast path skips on_update, so the merge has to stamp
+		the space itself or it never moves up the sidebar."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Stamp Page", content="before")
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+
+		cr = create_change_request(space.name, "CR Stamp Space")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "after"})
+		_approve_and_merge(cr.name)
+
+		self.assertGreater(
+			frappe.db.get_value("Wiki Space", space.name, "last_edited"),
+			frappe.utils.get_datetime("2020-01-01 00:00:00"),
+		)
 
 	def test_content_only_merge_reindexes_through_index_doc(self):
 		"""`add_to_queue` and the search index queue only exist on Frappe
@@ -860,6 +878,30 @@ class TestWikiChangeRequest(FrappeTestCase):
 		group_node = next(node for node in children if node["doc_key"] == group_key)
 		grandchild_keys = {node["doc_key"] for node in group_node.get("children") or []}
 		self.assertSetEqual(grandchild_keys, {child_key})
+
+	def test_get_cr_tree_hides_root_group_when_its_doc_key_changed(self):
+		"""A root group whose doc_key no longer matches the revision must not
+		render as a row inside its own tree."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR root key drift")
+
+		# Recreating a root group (e.g. restoring a deleted one) gives it a fresh
+		# doc_key, so the lookup that finds the tree root by key stops matching.
+		frappe.db.set_value(
+			"Wiki Document", space.root_group, "doc_key", "drifted000000", update_modified=False
+		)
+
+		tree = get_cr_tree(cr.name)
+
+		children = tree.get("children") or []
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		self.assertSetEqual({node["doc_key"] for node in children}, {page_key})
+		self.assertNotIn(
+			space.root_group,
+			{node.get("document_name") for node in children},
+			"the root group itself must never be a top-level row",
+		)
 
 	def test_list_change_requests_filters_by_status(self):
 		space = create_test_wiki_space()
@@ -2636,29 +2678,11 @@ class TestWikiChangeRequestTabs(FrappeTestCase):
 
 
 def create_test_wiki_space():
-	root_group = frappe.new_doc("Wiki Document")
-	root_group.title = f"Root {frappe.generate_hash(length=6)}"
-	root_group.is_group = 1
-	root_group.insert()
-
-	space = frappe.new_doc("Wiki Space")
-	space.space_name = "Test Space"
-	space.route = f"test-space-{frappe.generate_hash(length=6)}"
-	space.root_group = root_group.name
-	space.insert()
-
-	return space
+	return make_space(space_name="Test Space")
 
 
 def create_test_wiki_document(parent, title="Test Page", content="Content", is_group: int = 0):
-	doc = frappe.new_doc("Wiki Document")
-	doc.title = title
-	doc.content = content
-	doc.parent_wiki_document = parent
-	doc.is_group = 1 if is_group else 0
-	doc.is_published = 1
-	doc.insert()
-	return doc
+	return make_document(parent=parent, title=title, content=content, is_group=is_group)
 
 
 def get_revision_item(revision, doc_key):

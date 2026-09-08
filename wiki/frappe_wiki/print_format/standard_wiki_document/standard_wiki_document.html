@@ -94,20 +94,24 @@
 		content: close-quote;
 	}
 
-	/* Callouts — mirror the public-page treatment. Public CSS uses display:grid;
-	   wkhtmltopdf's QtWebKit predates Grid, so use a float for icon-left layout. */
+	/* Callouts — mirror the public-page treatment: the frappe-ui Alert banner,
+	   one neutral surface with the type's colour only on the icon. Tokens are
+	   resolved to hex here; the print pipeline has no CSS variables, and
+	   wkhtmltopdf's QtWebKit cannot parse oklch() either way. */
 	.wiki-document-content .callout {
 		margin: 1rem 0;
-		padding: 0.875rem 1rem;
-		border-radius: 6px;
+		padding: 0.75rem;
+		border-radius: 12px;
+		background-color: #F8F8F8;
 		overflow: hidden;
 	}
 
+	/* QtWebKit predates flexbox, so the header row is a float. */
 	.wiki-document-content .callout-icon {
 		float: left;
 		width: 1rem;
-		margin-right: 0.75rem;
-		padding-top: 0.125rem;
+		height: 1rem;
+		margin-right: 0.375rem;
 		line-height: 0;
 	}
 
@@ -116,20 +120,23 @@
 		height: 1rem;
 	}
 
-	.wiki-document-content .callout-body {
+	.wiki-document-content .callout-header {
 		overflow: hidden;
 	}
 
 	.wiki-document-content .callout-title {
 		display: block;
-		margin-bottom: 0.5rem;
+		overflow: hidden;
 		font-size: 0.875rem;
 		font-weight: 500;
-		line-height: 1.4;
+		line-height: 1.15;
 		color: #171717;
 	}
 
+	/* Indented to the title's left edge, as on the public page. */
 	.wiki-document-content .callout-content {
+		margin-top: 0.25rem;
+		padding-left: calc(1rem + 0.375rem);
 		font-size: 0.875rem;
 		line-height: 1.5;
 		color: #525252;
@@ -143,36 +150,20 @@
 		margin-bottom: 0;
 	}
 
-	.wiki-document-content .callout-note {
-		background-color: #E6F4FF;
-	}
-
 	.wiki-document-content .callout-note .callout-icon {
-		color: #007BE0;
-	}
-
-	.wiki-document-content .callout-tip {
-		background-color: #E4FAEB;
+		color: #0C8EF8;
 	}
 
 	.wiki-document-content .callout-tip .callout-icon {
-		color: #278F5E;
-	}
-
-	.wiki-document-content .callout-caution {
-		background-color: #FFF7D3;
+		color: #43AC79;
 	}
 
 	.wiki-document-content .callout-caution .callout-icon {
-		color: #DB7706;
-	}
-
-	.wiki-document-content .callout-danger {
-		background-color: #FFE7E7;
+		color: #DF9310;
 	}
 
 	.wiki-document-content .callout-danger .callout-icon {
-		color: #E03636;
+		color: #E03434;
 	}
 </style>
 
