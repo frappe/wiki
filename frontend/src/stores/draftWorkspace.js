@@ -916,6 +916,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const node = treeModel.findNode(docKey);
 		if (!node) return;
 		node.localStatus = 'pending_delete';
+		treeModel.setSubtreeDeleted(docKey, true);
 
 		const isTempKey = resolver.isTempKey(docKey);
 		queue.supersedeFailedFor(`delete:${docKey}`);
@@ -951,15 +952,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				await crStore.deletePage(crName.value, resolvedKey);
 			}
 			const synced = treeModel.findNode(docKey);
-			if (synced) {
-				synced.isDeleted = true;
-				synced.localStatus = null;
-			}
+			if (synced) synced.localStatus = null;
 			queue.clear(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
 			const fresh = treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
+			treeModel.setSubtreeDeleted(docKey, false);
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
 		}
@@ -970,7 +969,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function restoreNode(docKey) {
 		const node = treeModel.findNode(docKey);
 		if (!node?.isDeleted) return;
-		node.isDeleted = false;
+		treeModel.setSubtreeDeleted(docKey, false);
 
 		queue.supersedeFailedFor(`delete:${docKey}`);
 		const mutation = queue.enqueue('restore_node', { docKey });
@@ -988,8 +987,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			queue.clear(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
-			const fresh = treeModel.findNode(docKey);
-			if (fresh) fresh.isDeleted = true;
+			treeModel.setSubtreeDeleted(docKey, true);
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
 		}

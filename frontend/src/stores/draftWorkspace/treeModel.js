@@ -88,6 +88,18 @@ export function createTreeModel() {
 		return removeFrom(tree.value);
 	}
 
+	// Delete and restore cascade over the subtree server-side, so the local
+	// flags have to move together with them.
+	function setSubtreeDeleted(docKey, isDeleted) {
+		const node = findNode(docKey);
+		if (!node) return;
+		const mark = (n) => {
+			n.isDeleted = isDeleted;
+			for (const child of n.children) mark(child);
+		};
+		mark(node);
+	}
+
 	function applyServerTree(serverTree) {
 		rootKey.value = serverTree?.root_group || null;
 		tree.value = (serverTree?.children || []).map((c) =>
@@ -121,6 +133,7 @@ export function createTreeModel() {
 		getChildList,
 		insertNode,
 		removeNodeByKey,
+		setSubtreeDeleted,
 		applyServerTree,
 		reset,
 	};
