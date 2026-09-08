@@ -90,6 +90,7 @@ class WikiFixtures:
 	def __init__(self):
 		self._spaces: list[str] = []
 		self._documents: list[str] = []
+		self._others: list[tuple[str, str]] = []
 
 	def space(self, pages: list[dict] | None = None, **kwargs):
 		return self.track_space(make_space(pages=pages, **kwargs))
@@ -107,13 +108,55 @@ class WikiFixtures:
 		self._documents.append(doc.name if hasattr(doc, "name") else doc)
 		return doc
 
+	def track(self, doctype: str, doc):
+		"""Adopt a row of any other doctype -- a legacy ``Wiki Page``, say."""
+		self._others.append((doctype, doc.name if hasattr(doc, "name") else doc))
+		return doc
+
+	@staticmethod
+	def snapshot_documents() -> set[str]:
+		"""Every Wiki Document that exists right now. Pair with ``track_new``."""
+		return set(frappe.get_all("Wiki Document", pluck="name", limit=0))
+
+	def track_new(self, before: set[str]):
+		"""Adopt every Wiki Document that appeared since ``before``.
+
+		For code under test that creates documents itself -- the v3 migrations
+		build them from legacy Wiki Pages, and the orphan pass parents them
+		nowhere, so no space's on-trash cascade can reach them.
+		"""
+		for name in self.snapshot_documents() - before:
+			self._documents.append(name)
+
+	@staticmethod
+	def _leaf_first(names: list[str]) -> list[str]:
+		"""Order documents so no parent is deleted before its children.
+
+		Insertion order is not enough: ``track_new`` adopts whatever the code
+		under test created, in whatever order the query returned it, and the
+		nested set refuses to delete a node that still has children.
+		"""
+		rows = (
+			frappe.get_all(
+				"Wiki Document",
+				filters={"name": ["in", names]},
+				fields=["name", "lft", "rgt"],
+				limit=0,
+			)
+			if names
+			else []
+		)
+		rows.sort(key=lambda r: (r.rgt or 0) - (r.lft or 0))
+		ordered = [r.name for r in rows]
+		# Anything the query no longer sees (already gone) keeps its place last.
+		return ordered + [n for n in names if n not in set(ordered)]
+
 	def destroy_all(self):
 		"""Delete everything this factory made. Safe to call more than once."""
 		previous_flag = frappe.flags.in_apply_merge_revision
 		frappe.flags.in_apply_merge_revision = True
 		try:
-			# Leaf-first, so the nested set never blocks on a node with children.
-			for name in reversed(self._documents):
+			for name in self._leaf_first(self._documents):
 				if frappe.db.exists("Wiki Document", name):
 					frappe.delete_doc("Wiki Document", name, force=True, ignore_permissions=True)
 			self._documents.clear()
@@ -122,6 +165,18 @@ class WikiFixtures:
 				if frappe.db.exists("Wiki Space", name):
 					frappe.delete_doc("Wiki Space", name, force=True, ignore_permissions=True)
 			self._spaces.clear()
+
+			for doctype, name in reversed(self._others):
+				if frappe.db.exists(doctype, name):
+					frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
+			self._others.clear()
+
+			# The deletion has to outlive the framework's post-test rollback.
+			# A test that commits its own inserts (the reorder and rebuild APIs
+			# commit on their own) leaves rows the rollback cannot reach, and an
+			# uncommitted delete of those rows is itself rolled back -- which is
+			# how these suites came to leave spaces behind.
+			frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		finally:
 			frappe.flags.in_apply_merge_revision = previous_flag
 
