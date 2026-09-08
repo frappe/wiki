@@ -25,6 +25,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	clear_wiki_content_cache,
 	clear_wiki_tree_cache,
 	download_pdf,
+	get_landing_redirect_for_route,
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
@@ -1912,7 +1913,8 @@ class TestCrawlerEndpoints(WikiDocumentTestBase):
 
 		response = _make_request(self.TEST_CLIENT, "get", f"/{space.route}.md")
 
-		self.assertEqual(response.status_code, 301)
+		# Temporary: the first page moves whenever the sidebar is reordered.
+		self.assertEqual(response.status_code, 302)
 		self.assertTrue(response.headers["Location"].endswith(f"/{page.route}.md"))
 
 	def test_space_md_route_does_not_leak_a_restricted_first_page(self):
@@ -2369,9 +2371,43 @@ class TestSpaceUrlFirstPage(WikiDocumentTestBase):
 		frappe.db.set_value("Wiki Document", later.name, "sort_order", 1)
 
 		renderer = WikiDocumentRenderer(path="fpr-space")
-		with self.assertRaises(frappe.Redirect):
+		with self.assertRaises(frappe.Redirect) as raised:
 			renderer.can_render()
 		self.assertEqual(frappe.local.flags.redirect_location, "/" + target.route)
+		# Temporary: the first page moves whenever the sidebar is reordered.
+		self.assertEqual(raised.exception.http_status_code, 302)
+
+	def test_space_route_never_redirects_to_itself(self):
+		"""A stale cached tree must not turn the space route into an endless 301.
+
+		git-sync routes a root README/index leaf at the space route itself, so the
+		live leaf lookup and the cached tree can name the same route. Unpublishing
+		that leaf without going through the doc events leaves the tree stale, which
+		used to redirect /<space> to /<space> forever.
+		"""
+		root = create_test_wiki_document(self, "SelfRedirect Root", is_group=True)
+		create_test_wiki_space(self, "SelfRedirect Space", "sr-space", root.name)
+		landing = frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": "Index",
+				"route": "sr-space",
+				"parent_wiki_document": root.name,
+				"is_published": True,
+				"sort_order": 0,
+				"content": "landing",
+			}
+		).insert(ignore_permissions=True)
+		self.test_docs.append(landing.name)
+
+		self.assertTrue(WikiDocumentRenderer(path="sr-space").can_render())
+
+		get_public_wiki_tree(root.name)
+		frappe.db.set_value("Wiki Document", landing.name, "is_published", 0, update_modified=False)
+
+		self.assertFalse(WikiDocumentRenderer(path="sr-space").can_render())
+		# The crawler's `.md` routes redirect through the same helper.
+		self.assertIsNone(get_landing_redirect_for_route("sr-space"))
 
 
 class TestWikiTreeCache(WikiDocumentTestBase):

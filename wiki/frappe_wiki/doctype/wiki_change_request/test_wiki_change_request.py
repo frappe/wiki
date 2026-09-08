@@ -52,6 +52,20 @@ def _cached_cards(doc_key: str) -> list[str]:
 	return sorted(os.path.basename(p) for p in glob.glob(os.path.join(_cache_dir(), f"{doc_key}-*.jpg")))
 
 
+def drain_search_index_queue():
+	"""Flush the framework search-index queue, where that queue exists.
+
+	Frappe develop queues re-indexes and drains them from a scheduled job;
+	version-16 indexes inline and has no queue at all.
+	"""
+	try:
+		from frappe.search.sqlite_search import index_docs_in_queue
+	except ImportError:
+		return
+
+	index_docs_in_queue()
+
+
 def _approve_and_merge(name: str):
 	"""Force a CR to Approved, then merge — for tests that exercise the merge
 	machinery directly without walking the full submit → approve flow.
@@ -337,8 +351,6 @@ class TestWikiChangeRequest(FrappeTestCase):
 		"""Content-only merges write via raw db.set_value, which skips the
 		on_update hook — the merge must queue the re-index itself, or search
 		keeps serving the pre-merge content."""
-		from frappe.search.sqlite_search import index_docs_in_queue
-
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
 
 		space = create_test_wiki_space()
@@ -353,7 +365,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		update_cr_page(cr.name, page_key, {"content": "freshtermv2zzz"})
 		_approve_and_merge(cr.name)
 
-		index_docs_in_queue()
+		drain_search_index_queue()
 
 		stale_names = [r["name"] for r in search.search("staletermv1zzz")["results"]]
 		fresh_names = [r["name"] for r in search.search("freshtermv2zzz")["results"]]
@@ -375,6 +387,31 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertGreater(
 			frappe.db.get_value("Wiki Space", space.name, "last_edited"),
 			frappe.utils.get_datetime("2020-01-01 00:00:00"),
+		)
+
+	def test_content_only_merge_reindexes_through_index_doc(self):
+		"""`add_to_queue` and the search index queue only exist on Frappe
+		develop, so reaching for them loses the re-index on version-16
+		(issue #740). `index_doc` is the API both branches ship."""
+		from unittest.mock import patch
+
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="V16 Page", content="stalev16zzz")
+
+		WikiSQLiteSearch().build_index()
+
+		cr = create_change_request(space.name, "CR V16 Reindex")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "freshv16zzz"})
+
+		with patch.object(WikiSQLiteSearch, "index_doc", autospec=True) as index_doc:
+			_approve_and_merge(cr.name)
+
+		self.assertIn(
+			("Wiki Document", page.name),
+			[call.args[1:] for call in index_doc.call_args_list],
 		)
 
 	def test_content_only_merge_clears_rendered_content_cache(self):

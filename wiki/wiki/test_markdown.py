@@ -857,6 +857,17 @@ class TestBlankLinePreservation(unittest.TestCase):
 		self.assertEqual(self._gaps(wide), 2)
 		self.assertIn("wiki-pdf-embed", render_markdown(before))
 
+	def test_embed_filename_with_spaces_and_parens_stays_a_block(self):
+		"""Frappe keeps the uploaded filename, so `(2)` and spaces are routine.
+		The embed must still become a block card, not an inline image inside a <p>."""
+		html = render_markdown("![VIEW QUICK 2X5L (2).pdf](/files/VIEW QUICK 2X5L (2).pdf)")
+		self.assertIn("wiki-pdf-embed", html)
+		self.assertNotIn('<p><div class="wiki-pdf-embed"', html)
+
+		html = render_markdown("![my clip (1).mp4](/files/my clip (1).mp4)")
+		self.assertIn('data-type="video-block"', html)
+		self.assertNotIn('<p><div data-type="video-block"', html)
+
 	def test_adjacent_placeholders_do_not_gain_a_gap(self):
 		"""Two custom blocks one newline apart: each side contributes a newline to
 		break the placeholder out as a block, giving three — still one short of the
