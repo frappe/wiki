@@ -1,5 +1,9 @@
 <template>
-	<div class="flex-1 overflow-auto px-3 pt-4 pb-4 sm:px-5 sm:pb-5">
+	<!-- No `pt` on the scroller. A sticky child pins at the scroll container's
+	     *content* box, so top padding here would leave a band above the pinned
+	     space heading that rows scroll visibly through. The lead space belongs
+	     inside the scrolled content instead. -->
+	<div class="flex-1 overflow-auto px-3 pb-4 sm:px-5 sm:pb-5">
 		<!-- The List family owns geometry only; empty states are app-authored. -->
 		<div
 			v-if="!isFirstLoad && !rows.length"
@@ -25,7 +29,7 @@
 			v-else
 			:columns="tracks"
 			:row-height="60"
-			class="w-full list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto]"
+			class="w-full pt-4 list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto]"
 		>
 			<!-- `!hidden`: the family sets `display: grid` at attribute specificity
 			     (to survive preflight resets), which a plain `hidden` utility ties
