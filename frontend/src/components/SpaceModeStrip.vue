@@ -45,7 +45,7 @@
 				@click="() => spaceStore.syncNow()"
 			/>
 		</div>
-		<p class="px-2 pt-1 text-xs text-ink-gray-5">{{ readonlyLine }}</p>
+		<p class="px-2 py-2 text-xs text-ink-gray-5">{{ syncedLine }}</p>
 	</div>
 
 	<div
@@ -309,12 +309,13 @@ const syncStatusTheme = computed(
 	() => SYNC_STATUS_THEME[spaceStore.doc?.last_sync_status] || 'gray',
 );
 
-// The strip's own line about what "synced" costs you: the space is read-only,
-// and here is how stale it is.
-const readonlyLine = computed(() => {
+// How stale the space is, and nothing else. That it is read-only is the page
+// header's to say, on the page you would have edited — saying it here too put
+// the same word twice on one screen, in the place with the least room for it.
+const syncedLine = computed(() => {
 	const lastSync = spaceStore.doc?.last_sync_time;
-	if (!lastSync) return __('Read-only · never synced');
-	return __('Read-only · last synced {0}', [dayjsLocal(lastSync).fromNow()]);
+	if (!lastSync) return __('Never synced');
+	return __('Last synced {0}', [dayjsLocal(lastSync).fromNow()]);
 });
 
 // Submit / merge are blocked while local mutations are still syncing or
