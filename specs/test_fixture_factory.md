@@ -240,9 +240,13 @@ Sharing the factory also surfaced two traps worth recording:
 unit — passes with spaces, documents, Wiki Pages and revisions all identical
 either side of the run.
 
-## Not addressed
+**Phase 6 — CI was running a third of the suite.** `run-tests` takes
+`--test-category`, and it defaults to `unit`, so every `IntegrationTestCase` was
+skipped on every pull request: 130 tests of roughly 410, and none that touch the
+database — including the suite that caught the `ignore_permissions` bug above.
 
-`.github/workflows/ci.yml:116` runs `bench … run-tests --app wiki`, and
-`--test-category` defaults to `unit`. CI therefore runs 130 of the ~404 tests,
-and none of the integration ones — including the suite that caught the
-`ignore_permissions` bug above. Out of scope here, but it wants fixing.
+Verified before flipping it, against a site built the way CI builds one
+(`bench new-site`, `install-app wiki`, `allow_tests`), because the local site
+carries data a fresh one would not: green at 137 integration, 279 all-category
+and 130 unit, leaving behind only the two documents `install-app` itself
+creates. The scratch site was dropped afterwards.
