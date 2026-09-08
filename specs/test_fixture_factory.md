@@ -203,8 +203,46 @@ Two specs were also creating spaces by a path the initial inventory missed —
 `mobile-view` (14 per run) and `change-request-flow` (14 per run) — because they
 drive the New Space dialog rather than any helper the survey grepped for.
 
-**Phase 5 — Python.** The Python suite never leaked (it sets `root_group`
-*before* insert, so `create_root_group` no-ops, and it rolls back or tracks),
-but five near-identical `create_test_wiki_space` / `create_test_wiki_document`
-implementations had drifted. `wiki/tests/factory.py` holds the creation logic;
-each module's helper keeps its signature and delegates, so no call site moved.
+**Phase 5 — Python.** `wiki/tests/factory.py` holds the creation logic that
+five near-identical `create_test_wiki_space` / `create_test_wiki_document`
+implementations had each drifted their own copy of. Every module's helper keeps
+its signature and delegates, so no call site moved.
+
+The suites turned out to leak after all — not the orphan root group the e2e
+specs did (Python sets `root_group` *before* insert, so `create_root_group`
+no-ops) but whole spaces, for three reasons that each look like the code
+working:
+
+1. **Teardown deletes were never committed.** A test that commits its own
+   inserts — the reorder and rebuild APIs commit on their own — leaves rows the
+   framework's rollback cannot reach, and an *uncommitted delete* of those rows
+   is itself rolled back. `test_api` leaked 7 spaces and 52 documents a run.
+2. **Documents were deleted in reverse-insertion order.** `track_new` adopts
+   rows in whatever order the query returns them, and the nested set refuses to
+   delete a node that still has children. Ordered leaf-first now, as
+   `Wiki Space.on_trash` already did.
+3. **The v3 migrations build documents themselves**, and the orphan pass
+   parents them nowhere, so no space's cascade reaches them.
+   `snapshot_documents` / `track_new` adopt whatever the code under test made.
+
+Sharing the factory also surfaced two traps worth recording:
+
+- `Document.insert(ignore_permissions=True)` stores the flag **on the
+  document**, so a fixture carried the bypass into any later `save()` on the
+  same object. `test_regular_user_cannot_modify_space_settings` asserts a
+  regular user *cannot* save a space, and it passed silently.
+- Two classes in the Wiki Document suite define `setUp` without calling
+  `super()`. A `setUp`-based mixin would leave them with no factory at all, so
+  `WikiFixtureMixin` builds it lazily on first use and registers its own
+  `addCleanup` there.
+
+**Verified.** The whole Python suite — 134 integration, 270 all-category, 130
+unit — passes with spaces, documents, Wiki Pages and revisions all identical
+either side of the run.
+
+## Not addressed
+
+`.github/workflows/ci.yml:116` runs `bench … run-tests --app wiki`, and
+`--test-category` defaults to `unit`. CI therefore runs 130 of the ~404 tests,
+and none of the integration ones — including the suite that caught the
+`ignore_permissions` bug above. Out of scope here, but it wants fixing.
