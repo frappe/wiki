@@ -97,6 +97,81 @@ def get_restricted_spaces(spaces: list | str) -> list[str]:
 	return sorted(name for name, roles in roles_by_space.items() if roles and "Guest" not in roles)
 
 
+# Merged, rejected and archived requests are done, so they are not outstanding
+# work. Matches the sidebar's own open-change-request badge, so the two numbers
+# can never disagree about what "open" means.
+CLOSED_CHANGE_REQUEST_STATUSES = ["Merged", "Rejected", "Archived"]
+
+
+@frappe.whitelist()
+def get_space_stats(spaces: list | str) -> dict:
+	"""Directory figures for `spaces`: pages, open change requests, last activity.
+
+	Three grouped queries for a whole page of spaces rather than three per row,
+	behind the same `get_list` gate as `get_restricted_spaces` -- a space the
+	user cannot read is dropped before it is counted, so the figures never leak
+	the size of a restricted space.
+
+	`last_updated` is the newest `modified` among the space's documents, not the
+	last merge. A merge is only one of the ways content changes -- a direct save
+	in an open-draft space is another -- and `modified` catches both. A space
+	with no documents yet falls back to its own `modified` so the column reads
+	as a date rather than a blank.
+	"""
+	from frappe.query_builder.functions import Count, Max
+
+	if isinstance(spaces, str):
+		spaces = frappe.parse_json(spaces)
+	if not spaces:
+		return {}
+
+	visible = [
+		row.name for row in frappe.get_list("Wiki Space", filters={"name": ["in", spaces]}, fields=["name"])
+	]
+	if not visible:
+		return {}
+
+	stats = {name: {"pages": 0, "open_change_requests": 0, "last_updated": None} for name in visible}
+
+	# Groups and external links are navigation, not pages, so neither is counted.
+	document = frappe.qb.DocType("Wiki Document")
+	document_rows = (
+		frappe.qb.from_(document)
+		.select(
+			document.wiki_space,
+			Count(document.name).as_("pages"),
+			Max(document.modified).as_("last_updated"),
+		)
+		.where(
+			document.wiki_space.isin(visible) & (document.is_group == 0) & (document.is_external_link == 0)
+		)
+		.groupby(document.wiki_space)
+	).run(as_dict=True)
+	for row in document_rows:
+		stats[row.wiki_space]["pages"] = row.pages
+		stats[row.wiki_space]["last_updated"] = row.last_updated
+
+	change_request = frappe.qb.DocType("Wiki Change Request")
+	change_request_rows = (
+		frappe.qb.from_(change_request)
+		.select(change_request.wiki_space, Count(change_request.name).as_("open_change_requests"))
+		.where(
+			change_request.wiki_space.isin(visible)
+			& change_request.status.notin(CLOSED_CHANGE_REQUEST_STATUSES)
+		)
+		.groupby(change_request.wiki_space)
+	).run(as_dict=True)
+	for row in change_request_rows:
+		stats[row.wiki_space]["open_change_requests"] = row.open_change_requests
+
+	empty = [name for name, row in stats.items() if not row["last_updated"]]
+	if empty:
+		for row in frappe.get_all("Wiki Space", filters={"name": ["in", empty]}, fields=["name", "modified"]):
+			stats[row.name]["last_updated"] = row.modified
+
+	return stats
+
+
 @frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""

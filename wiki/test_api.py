@@ -935,6 +935,107 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 # Helper functions
 
 
+class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
+	"""Tests for get_space_stats, which backs the All Spaces directory columns."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_pages_count_excludes_groups_and_external_links(self):
+		"""A group is navigation and a link points elsewhere; neither is a page."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+		create_wiki_document(self, space.root_group, "Page One")
+		create_wiki_document(self, space.root_group, "Page Two")
+		create_wiki_document(self, space.root_group, "A Group", is_group=True)
+		self.wiki.document(
+			parent=space.root_group,
+			title="Elsewhere",
+			is_external_link=1,
+			external_url="https://example.com",
+		)
+
+		self.assertEqual(get_space_stats([space.name])[space.name]["pages"], 2)
+
+	def test_open_change_requests_exclude_closed_ones(self):
+		"""Merged, rejected and archived requests are history, not outstanding work."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+		for status in ("Draft", "In Review", "Merged", "Rejected", "Archived"):
+			self.wiki.track(
+				"Wiki Change Request",
+				frappe.get_doc(
+					{
+						"doctype": "Wiki Change Request",
+						"title": f"CR {status}",
+						"wiki_space": space.name,
+						"status": status,
+					}
+				).insert(ignore_permissions=True, ignore_mandatory=True),
+			)
+
+		stats = get_space_stats([space.name])[space.name]
+		self.assertEqual(stats["open_change_requests"], 2)
+
+	def test_last_updated_tracks_the_newest_document(self):
+		"""Any content change moves the date, not just a merge."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+		older = create_wiki_document(self, space.root_group, "Older")
+		newer = create_wiki_document(self, space.root_group, "Newer")
+		frappe.db.set_value(
+			"Wiki Document", older.name, "modified", "2020-01-01 00:00:00", update_modified=False
+		)
+		frappe.db.set_value(
+			"Wiki Document", newer.name, "modified", "2030-01-01 00:00:00", update_modified=False
+		)
+
+		last_updated = get_space_stats([space.name])[space.name]["last_updated"]
+		self.assertEqual(str(last_updated), "2030-01-01 00:00:00")
+
+	def test_a_space_with_no_documents_falls_back_to_its_own_date(self):
+		"""The column reads as a date rather than a blank."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+		frappe.db.delete("Wiki Document", {"wiki_space": space.name})
+
+		stats = get_space_stats([space.name])[space.name]
+		self.assertEqual(stats["pages"], 0)
+		self.assertIsNotNone(stats["last_updated"])
+
+	def test_only_the_named_spaces_are_reported(self):
+		"""The directory asks about one page of spaces, not the whole wiki."""
+		from wiki.api.wiki_space import get_space_stats
+
+		asked = create_test_wiki_space(self)
+		other = create_test_wiki_space(self)
+
+		stats = get_space_stats([asked.name])
+		self.assertIn(asked.name, stats)
+		self.assertNotIn(other.name, stats)
+
+	def test_an_empty_request_is_answered_without_a_query(self):
+		from wiki.api.wiki_space import get_space_stats
+
+		self.assertEqual(get_space_stats([]), {})
+
+	def test_a_json_string_is_accepted(self):
+		"""The frontend posts the list as JSON."""
+		from wiki.api.wiki_space import get_space_stats
+
+		space = create_test_wiki_space(self)
+
+		self.assertIn(space.name, get_space_stats(json.dumps([space.name])))
+
+
 def create_test_wiki_space(test_case):
 	"""Create a test Wiki Space, tracked so it is deleted after the test.
 
