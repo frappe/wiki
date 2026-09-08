@@ -16,7 +16,15 @@
 			class="hide-scrollbar pointer-events-auto sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
 			:style="{ top: `${railTop}px`, maxHeight: `${railMaxHeight}px` }"
 		>
-			<span class="whitespace-nowrap px-2 pb-1 font-medium text-ink-gray-8">
+			<!-- `shrink-0` throughout: this is a flex column with a max-height, so
+			     its children shrink to fit by default. On a long page that
+			     squashed 61 rows from 28px to 12px each -- text overlapping,
+			     scrollHeight equal to clientHeight, so it never scrolled either.
+			     At natural height they overflow, which is what makes the nav's
+			     own `overflow-y: auto` do its job. -->
+			<span
+				class="shrink-0 whitespace-nowrap px-2 pb-1 font-medium text-ink-gray-8"
+			>
 				{{ __('On this page') }}
 			</span>
 			<button
@@ -24,7 +32,7 @@
 				:key="entry.pos"
 				type="button"
 				data-testid="editor-toc-link"
-				class="truncate rounded-4 py-1 pr-2 text-left"
+				class="shrink-0 truncate rounded-4 py-1 pr-2 text-left"
 				:class="[
 					entry.level >= 3 && hasH2 ? 'pl-5' : 'pl-2',
 					index === activeIndex
