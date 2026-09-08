@@ -16,6 +16,19 @@ def unique_route(prefix: str = "test-space") -> str:
 	return f"{prefix}-{frappe.generate_hash(length=8)}"
 
 
+def _insert(doc):
+	"""Insert regardless of who the test is currently logged in as.
+
+	``ignore_permissions`` is sticky -- ``insert`` stores it on the document --
+	so a fixture inserted this way would carry a permission bypass into any
+	later ``save()`` the test makes on the same object. Clear it, or a test
+	asserting that a regular user *cannot* save gets a silent pass.
+	"""
+	doc.insert(ignore_permissions=True)
+	doc.flags.ignore_permissions = False
+	return doc
+
+
 def make_space(pages: list[dict] | None = None, roles: list[tuple[str, str]] | None = None, **fields):
 	"""Create a Wiki Space, and optionally a tree of pages under it.
 
@@ -37,7 +50,7 @@ def make_space(pages: list[dict] | None = None, roles: list[tuple[str, str]] | N
 	)
 	for role, level in roles or []:
 		space.append("roles", {"role": role, "permission_level": level})
-	space.insert(ignore_permissions=True)
+	_insert(space)
 
 	for spec in pages or []:
 		make_document(parent=space.root_group, **spec)
@@ -59,7 +72,7 @@ def make_document(
 			**fields,
 		}
 	)
-	doc.insert(ignore_permissions=True)
+	_insert(doc)
 
 	for spec in children or []:
 		make_document(parent=doc.name, **spec)
