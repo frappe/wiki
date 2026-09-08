@@ -55,7 +55,7 @@ test.describe('Space Settings -> Space Logo', () => {
 		).toBeVisible();
 	});
 
-	test('shuffle generates a mark, stores its seed, and keeps it on reload', async ({
+	test('generate rolls a mark, stores its seed, and keeps it on reload', async ({
 		page,
 		request,
 		wiki,
@@ -67,7 +67,7 @@ test.describe('Space Settings -> Space Logo', () => {
 		await page.waitForLoadState('networkidle');
 
 		await openPicker(page);
-		await page.getByTestId('space-identity-shuffle').click();
+		await page.getByTestId('space-identity-generate').click();
 
 		const rolled = await expect
 			.poll(
@@ -88,9 +88,9 @@ test.describe('Space Settings -> Space Logo', () => {
 		const mark = page.locator(`img[src^="data:image/svg+xml"]`).first();
 		await expect(mark).toBeVisible();
 
-		// Rolling again has to change the art, or Shuffle is a no-op button.
+		// Rolling again has to change the art, or Generate is a no-op button.
 		await openPicker(page);
-		await page.getByTestId('space-identity-shuffle').click();
+		await page.getByTestId('space-identity-generate').click();
 		await expect
 			.poll(
 				async () => {

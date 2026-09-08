@@ -49,20 +49,30 @@
 						</button>
 					</div>
 
+					<!-- The generator belongs beside the grid's heading, not
+					     under it: it produces an abstract mark rather than an
+					     icon, and the grid ends in a fade that already means
+					     "scroll for more". A full-width button in that slot
+					     read as the grid's own footer — and as this popover's
+					     commit action, which every other bottom-slot button
+					     here is. -->
+					<div class="flex items-center justify-between">
+						<span class="text-p-sm text-ink-gray-5">{{ __('Icons') }}</span>
+						<Button
+							variant="ghost"
+							icon-left="lucide-sparkles"
+							:label="generated ? __('Try another') : __('Generate')"
+							:loading="rolling"
+							data-testid="space-identity-generate"
+							@click="generate"
+						/>
+					</div>
+
 					<!-- No wrapper surface: the grid's own bottom fade is drawn
 					     `from-surface-elevation-2`, which is the panel. -->
 					<div class="-mx-3">
 						<IconGrid :model-value="icon" @select="pickIcon" />
 					</div>
-
-					<Button
-						class="w-full"
-						icon-left="lucide-shuffle"
-						:label="__('Shuffle')"
-						:loading="rolling"
-						data-testid="space-identity-shuffle"
-						@click="shuffle"
-					/>
 				</template>
 
 				<template v-else>
@@ -179,6 +189,9 @@ const mark = computed(() => resolveSpaceIdentity(chosen.value));
 const logo = computed(() => chosen.value.app_switcher_logo || '');
 const icon = computed(() => chosen.value.space_icon || '');
 const color = computed(() => mark.value.color);
+// Drives the generator's label: once a mark exists, the button's job is to
+// offer another one, and saying so is what tells the user it can be repeated.
+const generated = computed(() => mark.value.mode === 'avatar');
 
 function choose(patch) {
 	pending.value = { ...pending.value, ...patch };
@@ -214,9 +227,9 @@ function pickIcon(next) {
 /**
  * A failed roll — a style chunk that would not download, say — leaves whatever
  * mark is already on screen rather than clearing it, so a flaky network costs
- * the user a shuffle and not their choice.
+ * the user a roll and not their choice.
  */
-async function shuffle() {
+async function generate() {
 	rolling.value = true;
 	try {
 		choose(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));

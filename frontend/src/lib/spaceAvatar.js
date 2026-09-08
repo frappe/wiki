@@ -1,4 +1,4 @@
-// Generated abstract marks for a space, behind the Shuffle button in
+// Generated abstract marks for a space, behind the Generate button in
 // SpaceIdentityPicker. The rest of a space's identity — icons, colours, how a
 // stored mark is resolved and drawn — lives in `lib/spaceIdentity.js`, which
 // this file must never be imported by.
@@ -13,7 +13,7 @@
 // and the renderer another ~120 kB; that is only ever needed while the picker
 // is open. Every entry point here is async and reaches the packages through
 // `import()`, so Rollup splits them into chunks the app loads on the first
-// shuffle and never before. Nothing in this module may be imported for its
+// roll and never before. Nothing in this module may be imported for its
 // side effects.
 
 // The shipped styles: abstract marks only. A space is a thing, not a person,
@@ -47,7 +47,7 @@ const STYLE_LOADERS = {
 };
 
 // Keyed by style id, holding the in-flight promise rather than the resolved
-// style. Two shuffles a frame apart then share one download, and `new Style` —
+// style. Two rolls a frame apart then share one download, and `new Style` —
 // which validates the definition against a JSON schema — runs once per style
 // for the life of the tab instead of once per roll.
 const styleCache = new Map();
@@ -66,8 +66,8 @@ function loadStyle(id) {
 	return pending;
 }
 
-// Shuffle rolls this, and it is stored so the same mark comes back. Random
-// rather than derived from the space: a docname would make shuffle a no-op, and
+// A roll picks this, and it is stored so the same mark comes back. Random
+// rather than derived from the space: a docname would make a roll a no-op, and
 // the space name would change the art on every rename.
 export function randomAvatarSeed() {
 	const bytes = new Uint8Array(8);

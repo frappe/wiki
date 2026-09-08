@@ -226,7 +226,7 @@ function applyIdentity(patch) {
 }
 
 // Rolled on open, not on create: the user sees the mark they are about to get
-// and can shuffle past it. A failed roll leaves the initial, which is what the
+// and can generate past it. A failed roll leaves the initial, which is what the
 // space would have had anyway.
 watch(isOpen, async (open) => {
 	if (!open || identity.avatar || identity.space_icon) return;
