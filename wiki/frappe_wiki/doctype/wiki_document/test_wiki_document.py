@@ -1464,6 +1464,7 @@ class TestUniqueRouteValidation(WikiDocumentTestBase):
 				"title": "Page A Copy",
 				"parent_wiki_document": space.root_group,
 				"route": page_a.route,
+				"is_published": 1,
 				"content": "Content",
 			}
 		)
@@ -1498,6 +1499,31 @@ class TestUniqueRouteValidation(WikiDocumentTestBase):
 		link.is_external_link = 0
 		link.external_url = None
 		self.assertRaises(frappe.ValidationError, link.save)
+
+	def test_unpublishing_a_duplicate_route_is_allowed(self):
+		space = create_test_wiki_space(self, "Unpublish Space", "unpublish", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		page_b = create_test_wiki_document(self, "Page B", parent=space.root_group, slug="page-b")
+
+		frappe.db.set_value("Wiki Document", page_b.name, "route", page_a.route)
+		page_b.reload()
+		page_b.is_published = 0
+		page_b.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", page_b.name, "is_published"), 0)
+
+	def test_local_page_becoming_external_link_is_allowed(self):
+		space = create_test_wiki_space(self, "To Link Space", "to-link", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		page_b = create_test_wiki_document(self, "Page B", parent=space.root_group, slug="page-b")
+
+		frappe.db.set_value("Wiki Document", page_b.name, "route", page_a.route)
+		page_b.reload()
+		page_b.is_external_link = 1
+		page_b.external_url = "https://example.com"
+		page_b.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", page_b.name, "is_external_link"), 1)
 
 	def test_group_turning_into_leaf_still_throws(self):
 		space = create_test_wiki_space(self, "Group Clash Space", "group-clash", None)

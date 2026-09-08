@@ -177,8 +177,13 @@ class WikiDocument(NestedSet):
 		if self.is_group or not self.route:
 			return
 
-		# Only a save that changes where the page is served can introduce a clash, and
-		# merges re-save every document in the space.
+		# The route resolver only serves published local pages, so a draft or an
+		# external link can't take a route from anyone.
+		if not self.is_published or self.is_external_link:
+			return
+
+		# Of the rest, only a save that moves the page onto a route it wasn't already
+		# serving can introduce a clash, and merges re-save every document in the space.
 		if not any(
 			self.has_value_changed(field)
 			for field in ("route", "is_group", "is_published", "is_external_link")
