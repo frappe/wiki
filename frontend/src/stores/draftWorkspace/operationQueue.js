@@ -55,7 +55,8 @@ export function createOperationQueue({ resolveKey }) {
 		const r = (k) => resolveKey(k) || k;
 		if (type === 'create_node') return `create:${payload?.tempKey}`;
 		if (type === 'update_node') return `update:${r(payload?.docKey)}`;
-		if (type === 'delete_node') return `delete:${r(payload?.docKey)}`;
+		if (type === 'delete_node' || type === 'restore_node')
+			return `delete:${r(payload?.docKey)}`;
 		if (type === 'move_node') return `move:${r(payload?.docKey)}`;
 		if (type === 'update_content') return `content:${r(payload?.docKey)}`;
 		return null;

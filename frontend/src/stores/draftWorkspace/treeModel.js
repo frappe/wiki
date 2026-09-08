@@ -22,6 +22,7 @@ export function normalizeNode(serverNode, parentKey = null) {
 		isPublished: toPublished(serverNode.is_published),
 		isExternalLink: !!serverNode.is_external_link,
 		externalUrl: serverNode.external_url || null,
+		isDeleted: !!serverNode.is_deleted,
 		children,
 		localStatus: null,
 	};
@@ -42,6 +43,7 @@ export function denormalizeNode(node) {
 		is_external_link: node.isExternalLink,
 		external_url: node.externalUrl,
 		order_index: node.orderIndex,
+		is_deleted: node.isDeleted || node.localStatus === 'pending_delete',
 		children: node.children.map(denormalizeNode),
 		local_status: node.localStatus,
 	};
@@ -93,19 +95,16 @@ export function createTreeModel() {
 		);
 	}
 
-	// Filter pending_delete nodes out of the legacy view so deletion feels
-	// immediate. They're restored if the backend call fails.
+	// A deleted node stays in the view, flagged, until the merge.
 	const treeAsLegacy = computed(() => {
-		const filterDeleted = (nodes) =>
-			nodes
-				.filter((n) => n.localStatus !== 'pending_delete')
-				.map((n) => ({
-					...denormalizeNode(n),
-					children: filterDeleted(n.children),
-				}));
+		const toLegacy = (nodes) =>
+			nodes.map((n) => ({
+				...denormalizeNode(n),
+				children: toLegacy(n.children),
+			}));
 		return {
 			root_group: rootKey.value,
-			children: filterDeleted(tree.value),
+			children: toLegacy(tree.value),
 		};
 	});
 
