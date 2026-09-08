@@ -914,11 +914,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		persistEditorDraft(realKey, title, { immediate: true });
 	}
 
-	// Mark pending_delete locally (treeAsLegacy hides those). On failure
-	// the flag is cleared so the row reappears in the sidebar. For temp
-	// nodes whose create never reached the server, just drop the local
-	// node and the failed-create mutation rather than calling
-	// delete_cr_page with a tmp_* key.
+	// Mark pending_delete locally, which strikes the row through. The page only
+	// leaves the live tree once the change request is merged, so it stays on
+	// screen until then (#762). On failure the flag is cleared so the row
+	// reads as normal again. For temp nodes whose create never reached the
+	// server, just drop the local node and the failed-create mutation rather
+	// than calling delete_cr_page with a tmp_* key.
 	async function deleteNode(docKey) {
 		const node = treeModel.findNode(docKey);
 		if (!node) return;
@@ -957,11 +958,46 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			} else {
 				await crStore.deletePage(crName.value, resolvedKey);
 			}
+			const synced = treeModel.findNode(docKey);
+			if (synced) {
+				synced.isDeleted = true;
+				synced.localStatus = null;
+			}
 			queue.clear(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
 			const fresh = treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
+			queue.setStatus(mutation.id, 'failed', errorMessage(err));
+			throw err;
+		}
+	}
+
+	// Undo a deletion that is still staged in this change request. Optimistic
+	// like the delete it reverses: the row un-strikes right away.
+	async function restoreNode(docKey) {
+		const node = treeModel.findNode(docKey);
+		if (!node?.isDeleted) return;
+		node.isDeleted = false;
+
+		queue.supersedeFailedFor(`delete:${docKey}`);
+		const mutation = queue.enqueue('restore_node', { docKey });
+		queue.setStatus(mutation.id, 'syncing');
+		try {
+			const resolvedKey = resolver.resolveKey(docKey) || docKey;
+			if (!(await ensureCr())) throw new Error('No change request');
+			if (useBatchOperations) {
+				await transport.applyBatchOps([
+					{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
+				]);
+			} else {
+				await crStore.restorePage(crName.value, resolvedKey);
+			}
+			queue.clear(mutation.id);
+			scheduleSummaryRefresh();
+		} catch (err) {
+			const fresh = treeModel.findNode(docKey);
+			if (fresh) fresh.isDeleted = true;
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
 		}
@@ -1005,6 +1041,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		updateNode,
 		renameNode,
 		deleteNode,
+		restoreNode,
 		moveNode,
 		saveContent,
 		flushDirtyPages,

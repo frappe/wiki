@@ -740,10 +740,14 @@ function autoOpenPage() {
 	if (!tree) return;
 
 	const remembered = localStorage.getItem(lastPageKey());
+	// A page staged for deletion is still in the tree, so the remembered one has
+	// to be checked for that too, or the space reopens on a page nothing can load.
+	const rememberedNode = remembered
+		? findNodeByDocumentName(tree.children, remembered)
+		: null;
 	const target =
-		(remembered && findNodeByDocumentName(tree.children, remembered)
-			? remembered
-			: null) || firstPageIn(tree.children);
+		(rememberedNode && !rememberedNode.is_deleted ? remembered : null) ||
+		firstPageIn(tree.children);
 
 	if (target) {
 		autoOpening = true;
@@ -761,6 +765,21 @@ function autoOpenPage() {
 // treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
 // as it — and the route — settle.
 watch([treeData, () => route.name], autoOpenPage, { immediate: true });
+
+// The open page can be deleted from under the reader: by this tab (the row is
+// struck through but the panel stays put) or by a bookmark to a page already
+// deleted in the draft. Its overlay is gone, so the editor would sit on a
+// skeleton forever. Fall back to the space, which opens the first live page.
+watch(
+	[treeData, () => route.name, () => route.params.pageId],
+	([tree, name, pageId]) => {
+		if (name !== 'SpacePage' || !tree || !pageId) return;
+		const node = findNodeByDocumentName(tree.children, pageId);
+		if (!node?.is_deleted) return;
+		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+	},
+	{ immediate: true },
+);
 
 const changeTypeMap = computed(() => {
 	const map = new Map();

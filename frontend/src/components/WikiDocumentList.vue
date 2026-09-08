@@ -160,6 +160,9 @@
 						{{ __('Are you sure you want to delete this') }}
 						{{ deleteNode?.is_group ? __('group') : __('page') }}?
 					</p>
+					<p class="text-sm text-ink-gray-5">
+						{{ __('It stays in your draft, marked as deleted, until the change request is merged.') }}
+					</p>
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-lg p-4">
 						<div class="flex items-start gap-3">
@@ -181,7 +184,7 @@
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" theme="gray" :loading="isDeleting"
 						@click="deleteDocument(close)">
-						{{ __('Save Delete Draft') }}
+						{{ __('Delete') }}
 					</Button>
 				</div>
 			</template>

@@ -27,6 +27,8 @@ export function trailToNode(nodes, matches, trail = []) {
 /** The first readable page in a subtree, depth first. Groups hold no content. */
 export function firstPageIn(nodes) {
 	for (const node of nodes || []) {
+		// A page staged for deletion still has a row, but nothing should open it.
+		if (node.is_deleted) continue;
 		if (!node.is_group && node.document_name) return node.document_name;
 		if (node.is_group) {
 			const found = firstPageIn(node.children);

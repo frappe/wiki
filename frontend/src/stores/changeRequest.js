@@ -78,6 +78,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.delete_cr_page',
 	});
 
+	const restorePageResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.restore_cr_page',
+	});
+
 	const movePageResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.move_cr_page',
 	});
@@ -266,6 +270,13 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		});
 	}
 
+	async function restorePage(changeRequestName, docKey) {
+		return await restorePageResource.submit({
+			name: changeRequestName,
+			doc_key: docKey,
+		});
+	}
+
 	async function movePage(
 		changeRequestName,
 		docKey,
@@ -330,6 +341,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		createPage,
 		updatePage,
 		deletePage,
+		restorePage,
 		movePage,
 		reorderChildren,
 		applyOperations,
