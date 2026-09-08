@@ -21,7 +21,7 @@
 				:key="entry.pos"
 				type="button"
 				data-testid="editor-toc-link"
-				class="truncate border-l py-1 text-left"
+				class="shrink-0 truncate border-l py-1 text-left"
 				:class="[
 					entry.level >= 3 && hasH2 ? 'pl-7' : 'pl-4',
 					index === activeIndex
