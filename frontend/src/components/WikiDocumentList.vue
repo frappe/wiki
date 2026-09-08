@@ -14,9 +14,11 @@
 					<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
 				</template>
 				<template v-if="searchQuery" #suffix>
-					<button class="flex" :title="__('Clear search')" @click="searchQuery = ''">
-						<span class="lucide-x size-4 text-ink-gray-5 hover:text-ink-gray-7" aria-hidden="true" />
-					</button>
+					<Tooltip :text="__('Clear search')">
+						<button class="flex" :aria-label="__('Clear search')" @click="searchQuery = ''">
+							<span class="lucide-x size-4 text-ink-gray-5 hover:text-ink-gray-7" aria-hidden="true" />
+						</button>
+					</Tooltip>
 				</template>
 			</TextInput>
 		</div>
@@ -251,6 +253,7 @@ import {
 	FormControl,
 	ScrollArea,
 	TextInput,
+	Tooltip,
 } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import SpaceIcon from './SpaceIcon.vue';

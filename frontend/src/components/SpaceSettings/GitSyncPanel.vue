@@ -76,13 +76,15 @@
 					>
 						{{ webhookUrl }}
 					</code>
-					<Button
-						size="sm"
-						variant="subtle"
-						icon="lucide-copy"
-						:title="__('Copy webhook URL')"
-						@click="copyWebhookUrl"
-					/>
+					<Tooltip :text="__('Copy webhook URL')">
+						<Button
+							size="sm"
+							variant="subtle"
+							icon="lucide-copy"
+							:aria-label="__('Copy webhook URL')"
+							@click="copyWebhookUrl"
+						/>
+					</Tooltip>
 				</div>
 			</div>
 		</div>
@@ -179,6 +181,7 @@ import {
 	Badge,
 	Button,
 	SettingsRow,
+	Tooltip,
 	createListResource,
 	toast,
 } from 'frappe-ui';

@@ -11,27 +11,29 @@
 					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
 						{{ __('Read-only') }}
 					</Badge>
-					<Button
-						v-if="displayPublished"
-						variant="ghost"
-						:title="__('View live')"
-						:aria-label="__('View live')"
-						@click="openPage"
-					>
-						<span class="lucide-eye size-4" aria-hidden="true" />
-					</Button>
+					<Tooltip :text="__('View live')">
+						<Button
+							v-if="displayPublished"
+							variant="ghost"
+							:aria-label="__('View live')"
+							@click="openPage"
+						>
+							<span class="lucide-eye size-4" aria-hidden="true" />
+						</Button>
+					</Tooltip>
 					<!-- Shown for a synced page too: its meta title, description and
 					     social card are wiki-side fields the repo never carries, so
 					     they are still this app's to edit. -->
-					<Button
-						:variant="showPageSettings ? 'subtle' : 'ghost'"
-						:title="__('Page settings')"
-						:aria-label="__('Page settings')"
-						:aria-pressed="showPageSettings"
-						@click="togglePageSettings"
-					>
-						<span class="lucide-panel-right size-4" aria-hidden="true" />
-					</Button>
+					<Tooltip :text="__('Page settings')">
+						<Button
+							:variant="showPageSettings ? 'subtle' : 'ghost'"
+							:aria-label="__('Page settings')"
+							:aria-pressed="showPageSettings"
+							@click="togglePageSettings"
+						>
+							<span class="lucide-panel-right size-4" aria-hidden="true" />
+						</Button>
+					</Tooltip>
 					<Button
 						v-if="readonly && githubEditUrl"
 						variant="outline"
@@ -204,7 +206,6 @@ import { buildGithubEditUrl } from '@/lib/github';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
-import { useUserStore } from '@/stores/user';
 import {
 	Badge,
 	Breadcrumbs,
@@ -214,6 +215,7 @@ import {
 	FormControl,
 	ScrollArea,
 	Skeleton,
+	Tooltip,
 	createDocumentResource,
 	getCachedDocumentResource,
 	toast,
@@ -254,7 +256,6 @@ const isDeleting = ref(false);
 const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
-const userStore = useUserStore();
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -535,17 +536,6 @@ const menuOptions = computed(() => {
 				onClick: togglePublish,
 			},
 		);
-	}
-	if (userStore.isWikiManager && wikiDoc.value.doc?.name) {
-		options.push({
-			label: __('View in Desk'),
-			icon: 'lucide-external-link',
-			onClick: () =>
-				window.open(
-					`/app/wiki-document/${encodeURIComponent(wikiDoc.value.doc.name)}`,
-					'_blank',
-				),
-		});
 	}
 	if (!props.readonly) {
 		options.push({

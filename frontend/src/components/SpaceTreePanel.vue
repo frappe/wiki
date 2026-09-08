@@ -6,12 +6,14 @@
 			v-if="!compactHeader"
 			class="flex h-12 shrink-0 items-center gap-1 border-b border-outline-gray-2 px-2"
 		>
-			<Button
-				variant="ghost"
-				icon="lucide-arrow-left"
-				:title="__('Back to Overview')"
-				:route="{ name: 'Overview' }"
-			/>
+			<Tooltip :text="__('Back to Overview')">
+				<Button
+					variant="ghost"
+					icon="lucide-arrow-left"
+					:aria-label="__('Back to Overview')"
+					:route="{ name: 'Overview' }"
+				/>
+			</Tooltip>
 			<div class="min-w-0 flex-1">
 				<div class="truncate text-base-medium leading-none text-ink-gray-8">
 					{{ spaceName || spaceId }}
@@ -20,19 +22,23 @@
 					{{ spaceRoute }}
 				</div>
 			</div>
-			<Button
-				v-if="spaceRoute"
-				variant="ghost"
-				icon="lucide-external-link"
-				:title="__('View Space')"
-				:link="'/' + spaceRoute"
-			/>
-			<Button
-				variant="ghost"
-				icon="lucide-settings"
-				:title="__('Settings')"
-				@click="emit('open-settings')"
-			/>
+			<Tooltip :text="__('View space')">
+				<Button
+					v-if="spaceRoute"
+					variant="ghost"
+					icon="lucide-external-link"
+					:aria-label="__('View space')"
+					:link="'/' + spaceRoute"
+				/>
+			</Tooltip>
+			<Tooltip :text="__('Space settings')">
+				<Button
+					variant="ghost"
+					icon="lucide-settings"
+					:aria-label="__('Space settings')"
+					@click="emit('open-settings')"
+				/>
+			</Tooltip>
 		</div>
 
 		<!-- The list owns the scroller: its search row and New page footer have
@@ -87,7 +93,7 @@
 </template>
 
 <script setup>
-import { Button, Skeleton } from 'frappe-ui';
+import { Button, Skeleton, Tooltip } from 'frappe-ui';
 
 import WikiDocumentList from './WikiDocumentList.vue';
 

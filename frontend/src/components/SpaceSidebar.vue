@@ -10,12 +10,14 @@
 			<div
 				class="flex h-12 shrink-0 items-center gap-1.5 border-b border-outline-gray-2 px-2"
 			>
-				<Button
-					variant="ghost"
-					icon="lucide-chevron-left"
-					:title="__('Back to Overview')"
-					:route="{ name: 'Overview' }"
-				/>
+				<Tooltip :text="__('Back to Overview')">
+					<Button
+						variant="ghost"
+						icon="lucide-chevron-left"
+						:aria-label="__('Back to Overview')"
+						:route="{ name: 'Overview' }"
+					/>
+				</Tooltip>
 				<!-- The header tile is the same control as the settings row: a
 				     space's mark is worth changing from where you look at it.
 				     A space you cannot write still shows its mark, unclickable. -->
@@ -79,7 +81,7 @@
 </template>
 
 <script setup>
-import { Button, Dropdown, Sidebar } from 'frappe-ui';
+import { Button, Dropdown, Sidebar, Tooltip } from 'frappe-ui';
 import { computed } from 'vue';
 
 import { useSpaceIdentitySaver } from '../composables/useSpaceIdentitySaver.js';

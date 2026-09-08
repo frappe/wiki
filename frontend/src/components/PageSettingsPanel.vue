@@ -12,14 +12,15 @@
 			<span class="truncate text-base-medium text-ink-gray-8">
 				{{ __('Page settings') }}
 			</span>
-			<Button
-				variant="ghost"
-				:title="__('Close page settings')"
-				:aria-label="__('Close page settings')"
-				@click="emit('close')"
-			>
-				<span class="lucide-x size-4" aria-hidden="true" />
-			</Button>
+			<Tooltip :text="__('Close page settings')">
+				<Button
+					variant="ghost"
+					:aria-label="__('Close page settings')"
+					@click="emit('close')"
+				>
+					<span class="lucide-x size-4" aria-hidden="true" />
+				</Button>
+			</Tooltip>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
@@ -207,6 +208,20 @@
 							<dd class="truncate text-ink-gray-8">{{ lastEditedBy }}</dd>
 						</div>
 					</dl>
+					<!-- The raw document, for the people who can read it. It used to
+					     sit in the header's action menu, beside Rename and Delete,
+					     which put an admin's escape hatch on the same footing as the
+					     two things everyone does to a page. -->
+					<a
+						v-if="deskUrl"
+						:href="deskUrl"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="flex items-center gap-1.5 text-sm text-ink-gray-5 hover:text-ink-gray-7"
+					>
+						<span class="lucide-external-link size-3.5" aria-hidden="true" />
+						{{ __('View in Desk') }}
+					</a>
 				</section>
 			</div>
 		</ScrollArea>
@@ -228,12 +243,14 @@
 <script setup>
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useUserStore } from '@/stores/user';
 import {
 	Badge,
 	Button,
 	FormControl,
 	ScrollArea,
 	Switch,
+	Tooltip,
 	dayjsLocal,
 	toast,
 	useFileUpload,
@@ -286,6 +303,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'node-updated']);
 
 const draftStore = useDraftWorkspaceStore();
+const userStore = useUserStore();
 const fileUploader = useFileUpload();
 
 const isSaving = ref(false);
@@ -354,6 +372,13 @@ const lastEdited = computed(() => {
 	const modified = props.docResource.doc?.modified;
 	return modified ? dayjsLocal(modified).fromNow() : '';
 });
+// Only a Wiki Manager can open the Desk form, so only they are offered it.
+const deskUrl = computed(() => {
+	const name = props.docResource.doc?.name;
+	if (!name || !userStore.isWikiManager) return '';
+	return `/app/wiki-document/${encodeURIComponent(name)}`;
+});
+
 const lastEditedBy = computed(() => props.docResource.doc?.modified_by || '');
 
 // With no uploaded image the page still ships an og:image — the generated card
