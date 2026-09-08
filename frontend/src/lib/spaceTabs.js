@@ -17,7 +17,8 @@ export const GENERAL_KEY = '__general__';
 export function buildTabList(topLevelNodes, homeLabel, homeIcon) {
 	const nodes = topLevelNodes || [];
 	const tabs = nodes
-		.filter((node) => node.is_tab)
+		// The bar has no struck-through state, so a deleted tab drops out of it.
+		.filter((node) => node.is_tab && !node.is_deleted)
 		.map((node) => ({
 			key: node.doc_key,
 			title: node.title,

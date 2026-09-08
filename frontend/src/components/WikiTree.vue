@@ -50,11 +50,11 @@
 				<Badge v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'" variant="subtle" theme="gray" size="sm" :title="__('Saving…')">
 					{{ __('Syncing…') }}
 				</Badge>
+				<Badge v-else-if="isDeleted(node)" variant="subtle" theme="red" size="sm" :title="__('Deleted in this draft. Merge to remove it for everyone.')">
+					{{ __('Deleted') }}
+				</Badge>
 				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'added'" variant="subtle" theme="blue" size="sm">
 					{{ __('New') }}
-				</Badge>
-				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'deleted'" variant="subtle" theme="red" size="sm">
-					{{ __('Deleted') }}
 				</Badge>
 				<Badge v-else-if="changeTypeMap.get(node.doc_key) === 'modified'" variant="subtle" theme="blue" size="sm">
 					{{ __('Modified') }}
@@ -211,8 +211,16 @@ function navigateToTreePage(to) {
 	}
 }
 
+// A staged deletion (this change request's own, or one the diff reports) keeps
+// its row until the change request is merged, struck through and inert.
+function isDeleted(node) {
+	return (
+		!!node.is_deleted || props.changeTypeMap.get(node.doc_key) === 'deleted'
+	);
+}
+
 function handleRowClick(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return;
 	}
 
@@ -254,14 +262,14 @@ function isSelected(node) {
 }
 
 function getRowClasses(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return 'cursor-not-allowed opacity-60';
 	}
 	return 'cursor-pointer';
 }
 
 function getTitleClass(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return 'text-ink-gray-4 line-through';
 	}
 	if (node.is_published || node.is_group) {
@@ -331,8 +339,26 @@ async function togglePublish(node) {
 	}
 }
 
+async function restore(node) {
+	try {
+		await draftStore.restoreNode(node.doc_key);
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error restoring page'));
+	}
+}
+
 function getDropdownOptions(node) {
 	const options = [];
+
+	if (isDeleted(node)) {
+		return [
+			{
+				label: __('Restore'),
+				icon: 'rotate-ccw',
+				onClick: () => restore(node),
+			},
+		];
+	}
 
 	if (node.is_group) {
 		options.push(

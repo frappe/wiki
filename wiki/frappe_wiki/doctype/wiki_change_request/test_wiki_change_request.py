@@ -33,6 +33,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	reorder_cr_children,
 	request_changes,
 	resolve_merge_conflict,
+	restore_cr_page,
 	retry_merge_after_resolution,
 	submit_change_request,
 	update_change_request,
@@ -466,6 +467,57 @@ class TestWikiChangeRequest(FrappeTestCase):
 		child_item = get_revision_item(cr.head_revision, child_key)
 		self.assertEqual(group_item.is_deleted, 1)
 		self.assertEqual(child_item.is_deleted, 1)
+
+	def test_get_cr_tree_keeps_deleted_page_flagged(self):
+		"""A staged deletion stays in the tree until the merge, or the author
+		reads the empty row as "already deleted" and never publishes it (#762)."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR Delete Visible")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		delete_cr_page(cr.name, page_key)
+
+		node = next(node for node in get_cr_tree(cr.name)["children"] if node["doc_key"] == page_key)
+		self.assertTrue(node["is_deleted"])
+
+	def test_get_cr_tree_drops_page_created_and_deleted_in_same_cr(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR Create Then Delete")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		page_key = create_cr_page(cr.name, parent_key=root_key, title="Never Lived")
+		delete_cr_page(cr.name, page_key)
+
+		keys = {node["doc_key"] for node in get_cr_tree(cr.name)["children"]}
+		self.assertNotIn(page_key, keys)
+
+	def test_restore_cr_page_clears_deletion(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Child")
+		cr = create_change_request(space.name, "CR Restore")
+
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+		delete_cr_page(cr.name, group_key)
+		restore_cr_page(cr.name, group_key)
+
+		self.assertEqual(get_revision_item(cr.head_revision, group_key).is_deleted, 0)
+		self.assertEqual(get_revision_item(cr.head_revision, child_key).is_deleted, 0)
+		self.assertFalse(has_revision_changes(cr.base_revision, cr.head_revision))
+
+	def test_restore_node_operation_clears_deletion(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR Restore Batch")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		apply_cr_operations(cr.name, operations=[{"type": "delete_node", "doc_key": page_key}])
+		result = apply_cr_operations(cr.name, operations=[{"type": "restore_node", "doc_key": page_key}])
+
+		self.assertEqual(get_revision_item(cr.head_revision, page_key).is_deleted, 0)
+		self.assertEqual([item["doc_key"] for item in result["items"]], [page_key])
 
 	def test_diff_summary_returns_changed_pages(self):
 		space = create_test_wiki_space()
