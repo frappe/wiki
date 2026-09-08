@@ -1435,7 +1435,10 @@ def submit_change_request(name: str, doc_keys: list[str] | str | None = None) ->
 	`doc_keys` submits a subset: everything else is split off into a new draft
 	the author keeps editing. Omit it to submit the whole change request.
 	"""
-	cr = frappe.get_doc("Wiki Change Request", name)
+	# Same row lock the mutation endpoints take: a save landing between the diff
+	# below and the split would either miss the selection or end up on a
+	# revision that is already in review.
+	cr = _lock_and_load_cr(name)
 	cr.check_permission("write")
 	_assert_status(cr, {"Draft", "Changes Requested"})
 
@@ -1448,7 +1451,12 @@ def submit_change_request(name: str, doc_keys: list[str] | str | None = None) ->
 	auto_included: set[str] = set()
 
 	if doc_keys is not None:
-		requested = set(frappe.parse_json(doc_keys) if isinstance(doc_keys, str) else doc_keys) & set(changed)
+		if isinstance(doc_keys, str):
+			doc_keys = frappe.parse_json(doc_keys)
+		if not isinstance(doc_keys, list | tuple) or not all(isinstance(key, str) for key in doc_keys):
+			frappe.throw(_("doc_keys must be a list of document keys."), frappe.ValidationError)
+
+		requested = set(doc_keys) & set(changed)
 		if not requested:
 			frappe.throw(_("Select at least one change to submit for review."), frappe.ValidationError)
 		submitted = _expand_selection(cr, requested, changed)

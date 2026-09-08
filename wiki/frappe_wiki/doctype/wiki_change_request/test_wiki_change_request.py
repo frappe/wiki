@@ -2681,6 +2681,15 @@ class TestPartialSubmit(FrappeTestCase):
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
 
+	def test_non_list_selection_is_rejected(self):
+		_space, _root_key, cr, keys = self._space_with_three_pages()
+
+		for bad in ('"not-a-list"', 5, {"doc_key": keys[0]}, [keys[0], 7]):
+			with self.assertRaises(frappe.ValidationError):
+				submit_change_request(cr.name, doc_keys=bad)
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
+
 	def test_selection_pulls_in_a_new_parent_group(self):
 		space = create_test_wiki_space()
 		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
