@@ -237,12 +237,14 @@
 								</Tooltip>
 							</ListCell>
 
+							<!-- The same field the list is sorted by, so the column can
+							     never disagree with the order it is shown in. -->
 							<ListCell class="justify-end">
 								<span
 									class="truncate text-sm text-ink-gray-5"
-									:title="formatDateTime(statsFor(space.name).last_updated)"
+									:title="formatDateTime(space.last_edited)"
 								>
-									{{ fromNow(statsFor(space.name).last_updated) }}
+									{{ fromNow(space.last_edited) || '—' }}
 								</span>
 							</ListCell>
 						</ListRow>
@@ -335,11 +337,7 @@ const isFirstLoad = computed(
 	() => spaces.loading && !(spaces.data || []).length,
 );
 
-const EMPTY_STATS = {
-	pages: 0,
-	change_requests_in_review: 0,
-	last_updated: null,
-};
+const EMPTY_STATS = { pages: 0, change_requests_in_review: 0 };
 function statsFor(space) {
 	return spaceStats.value[space] || EMPTY_STATS;
 }

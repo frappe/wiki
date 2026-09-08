@@ -8,10 +8,16 @@ import { orderSpaces, usePinnedSpaces } from './usePinnedSpaces';
 // SIDEBAR_LIMIT) and sends you to the directory for the rest.
 const PAGE_SIZE = 50;
 
-// switcher_order is the space's declared position, but it defaults to 0 for
-// every space, so the newest space would otherwise land in an arbitrary spot
-// in the list. Creation order breaks the tie the way the old list page did.
-const DECLARED_ORDER = 'switcher_order asc, creation desc';
+// Recent activity first, for both callers: the spaces being worked on are the
+// ones worth a glance in the sidebar and the ones worth the top of the
+// directory. `last_edited` is stamped on every page save, delete and
+// content-only merge, and is indexed, so this sorts in the database rather
+// than over whatever page happened to be fetched.
+//
+// The declared order only breaks ties between spaces nobody has touched:
+// switcher_order defaults to 0 for every space, so creation order settles it
+// the way the old list page did.
+const RECENT_ORDER = 'last_edited desc, switcher_order asc, creation desc';
 
 /**
  * The library list, as both the sidebar and the Overview page need it: the same
@@ -26,12 +32,11 @@ const DECLARED_ORDER = 'switcher_order asc, creation desc';
  * `withStats` adds the per-page figures call. Off by default: the sidebar draws
  * names, not numbers, and should not pay for them.
  *
- * `orderBy` is the directory's declared order unless a caller says otherwise;
- * the sidebar orders by recent activity instead (see LibrarySidebar).
+ * `orderBy` defaults to recent activity, which is what both surfaces show.
  */
 export function useSpaceLibrary({
 	limit = PAGE_SIZE,
-	orderBy = DECLARED_ORDER,
+	orderBy = RECENT_ORDER,
 	publishedOnly,
 	withStats = false,
 } = {}) {
@@ -65,6 +70,7 @@ export function useSpaceLibrary({
 			'is_published',
 			'git_synced',
 			'switcher_order',
+			'last_edited',
 		],
 		filters: () => ({
 			...(searchTerm.value

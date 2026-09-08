@@ -1002,25 +1002,7 @@ class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(get_space_stats([space.name])[space.name]["change_requests_in_review"], 0)
 
-	def test_last_updated_tracks_the_newest_document(self):
-		"""Any content change moves the date, not just a merge."""
-		from wiki.api.wiki_space import get_space_stats
-
-		space = create_test_wiki_space(self)
-		older = create_wiki_document(self, space.root_group, "Older")
-		newer = create_wiki_document(self, space.root_group, "Newer")
-		frappe.db.set_value(
-			"Wiki Document", older.name, "modified", "2020-01-01 00:00:00", update_modified=False
-		)
-		frappe.db.set_value(
-			"Wiki Document", newer.name, "modified", "2030-01-01 00:00:00", update_modified=False
-		)
-
-		last_updated = get_space_stats([space.name])[space.name]["last_updated"]
-		self.assertEqual(str(last_updated), "2030-01-01 00:00:00")
-
-	def test_a_space_with_no_documents_falls_back_to_its_own_date(self):
-		"""The column reads as a date rather than a blank."""
+	def test_a_space_with_no_documents_reports_zero(self):
 		from wiki.api.wiki_space import get_space_stats
 
 		space = create_test_wiki_space(self)
@@ -1028,7 +1010,7 @@ class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 
 		stats = get_space_stats([space.name])[space.name]
 		self.assertEqual(stats["pages"], 0)
-		self.assertIsNotNone(stats["last_updated"])
+		self.assertEqual(stats["change_requests_in_review"], 0)
 
 	def test_only_the_named_spaces_are_reported(self):
 		"""The directory asks about one page of spaces, not the whole wiki."""

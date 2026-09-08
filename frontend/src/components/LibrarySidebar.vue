@@ -137,16 +137,13 @@ const { themeIcon, toggleTheme } = useTheme();
 const showCreateDialog = ref(false);
 
 // The sidebar is a nav column, not a directory: it lists what fits at a glance
-// and defers the long tail to All Spaces. Recent activity picks which spaces
-// make the cut -- the ones being worked on are the ones worth a glance -- and
-// the declared order only breaks ties between spaces nobody has touched.
+// and defers the long tail to All Spaces. Which spaces make the cut is decided
+// by the recency order the composable now applies for both surfaces.
 const SIDEBAR_LIMIT = 100;
-const RECENT_ORDER = 'last_edited desc, switcher_order asc, creation desc';
 
 const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
 	useSpaceLibrary({
 		limit: SIDEBAR_LIMIT,
-		orderBy: RECENT_ORDER,
 		// A manager's own unpublished drafts have to stay in the column they work
 		// in; for everyone else an unpublished space is not part of the wiki yet.
 		publishedOnly: computed(() => !userStore.isWikiManager),
