@@ -51,17 +51,25 @@
 				</div>
 
 				<template v-else>
-					<TextInput
-						v-if="showSearch"
-						class="mb-3"
-						type="text"
-						v-model="searchQuery"
-						:placeholder="__('Search spaces...')"
-					>
-						<template #prefix>
-							<span class="lucide-search size-4 text-ink-gray-4" aria-hidden="true" />
-						</template>
-					</TextInput>
+					<!-- Filter and search sit on one row: both narrow the same
+					     list, and both are server-side, so a result count below
+					     them would only ever describe the page that is loaded. -->
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+						<TabButtons v-model="publishState" :options="publishOptions" />
+						<TextInput
+							class="w-full sm:w-64"
+							type="text"
+							v-model="searchQuery"
+							:placeholder="__('Search spaces...')"
+						>
+							<template #prefix>
+								<span
+									class="lucide-search size-4 text-ink-gray-4"
+									aria-hidden="true"
+								/>
+							</template>
+						</TextInput>
+					</div>
 
 					<p
 						v-if="!spaces.loading && !orderedSpaces.length"
@@ -70,42 +78,108 @@
 						{{ __('No spaces found') }}
 					</p>
 
-					<div class="flex flex-col gap-1">
-						<router-link
+					<!-- Mobile keeps the identity column and the date; pages and
+					     change requests are the two that can go, and the max-sm
+					     track list here has to stay in step with that choice. -->
+					<List
+						v-else
+						:columns="['minmax(0,1fr)', '10rem', '8rem']"
+						:row-height="60"
+						class="w-full list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto]"
+					>
+						<!-- `!hidden`: the family sets `display: grid` at attribute
+						     specificity, which a plain `hidden` utility ties with and
+						     loses to on order. -->
+						<ListHeader class="max-sm:!hidden">
+							<ListHeaderCell>{{ __('Space') }}</ListHeaderCell>
+							<!-- No header. The counts label themselves -- a unit word on
+							     the pages figure, the Change Requests glyph on the other
+							     -- so a title above them would only repeat that. -->
+							<ListHeaderCell class="max-sm:hidden" />
+							<ListHeaderCell class="justify-end">
+								{{ __('Last Updated') }}
+							</ListHeaderCell>
+						</ListHeader>
+
+						<ListRow
 							v-for="space in orderedSpaces"
 							:key="space.name"
-							class="flex items-center gap-3 rounded-4 px-3 py-2 hover:bg-surface-gray-2"
 							:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
 						>
-							<SpaceAvatar
-								:space="space"
-								:label="space.space_name || space.name"
-								size="lg"
-							/>
-							<span class="min-w-0 flex-1">
-								<span class="block truncate text-base text-ink-gray-8">
-									{{ space.space_name || space.name }}
+							<ListCell>
+								<SpaceAvatar
+									class="shrink-0"
+									:space="space"
+									:label="space.space_name || space.name"
+									size="lg"
+								/>
+								<div class="ml-3 min-w-0 flex-1">
+									<div class="flex min-w-0 items-center gap-1.5">
+										<span class="truncate text-base text-ink-gray-8">
+											{{ space.space_name || space.name }}
+										</span>
+										<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
+											<span class="lucide-pin size-3.5 shrink-0 text-ink-gray-5" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="space.git_synced" :text="__('Synced from GitHub')">
+											<span class="lucide-folder-git-2 size-3.5 shrink-0 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="restrictedSpaces.has(space.name)" :text="__('Restricted access')">
+											<span class="lucide-lock size-3.5 shrink-0 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+										<Tooltip v-if="!space.is_published" :text="__('Unpublished')">
+											<span class="lucide-eye-off size-3.5 shrink-0 text-ink-gray-4" aria-hidden="true" />
+										</Tooltip>
+									</div>
+									<div class="mt-1.5 truncate text-sm text-ink-gray-5">
+										/{{ space.route }}
+									</div>
+								</div>
+							</ListCell>
+
+							<!-- Both figures in one column, because they answer the same
+							     question: how much is here, and how much is moving. An
+							     open-request count of zero is dropped rather than drawn --
+							     "nothing outstanding" reads faster as an absence than as a
+							     number to compare against its neighbours. -->
+							<ListCell class="max-sm:hidden">
+								<div class="flex items-center gap-3 text-sm text-ink-gray-5">
+									<span class="flex items-center gap-1.5 whitespace-nowrap">
+										<span
+											class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
+											aria-hidden="true"
+										/>
+										{{ pageCountLabel(statsFor(space.name).pages) }}
+									</span>
+									<Tooltip
+										v-if="statsFor(space.name).open_change_requests"
+										:text="
+											__('{0} open change requests', [
+												statsFor(space.name).open_change_requests,
+											])
+										"
+									>
+										<span class="flex items-center gap-1.5 whitespace-nowrap">
+											<span
+												class="lucide-git-branch size-3.5 shrink-0 text-ink-gray-4"
+												aria-hidden="true"
+											/>
+											{{ statsFor(space.name).open_change_requests }}
+										</span>
+									</Tooltip>
+								</div>
+							</ListCell>
+
+							<ListCell class="justify-end">
+								<span
+									class="truncate text-sm text-ink-gray-5"
+									:title="formatDateTime(statsFor(space.name).last_updated)"
+								>
+									{{ fromNow(statsFor(space.name).last_updated) }}
 								</span>
-								<span class="block truncate text-p-sm text-ink-gray-5">
-									{{ space.route }}
-								</span>
-							</span>
-							<span class="flex shrink-0 items-center gap-1.5">
-								<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
-									<span class="lucide-pin size-4 text-ink-gray-5" aria-hidden="true" />
-								</Tooltip>
-								<Tooltip v-if="space.git_synced" :text="__('Synced from GitHub')">
-									<span class="lucide-folder-git-2 size-4 text-ink-gray-4" aria-hidden="true" />
-								</Tooltip>
-								<Tooltip v-if="restrictedSpaces.has(space.name)" :text="__('Restricted access')">
-									<span class="lucide-lock size-4 text-ink-gray-4" aria-hidden="true" />
-								</Tooltip>
-								<Tooltip v-if="!space.is_published" :text="__('Unpublished')">
-									<span class="lucide-eye-off size-4 text-ink-gray-4" aria-hidden="true" />
-								</Tooltip>
-							</span>
-						</router-link>
-					</div>
+							</ListCell>
+						</ListRow>
+					</List>
 
 					<!-- The directory pages in fifties, so this button lands under a
 					     long list and needs to read as a control rather than as one
@@ -138,10 +212,19 @@ import {
 	PageHeader,
 	PageHeaderMobile,
 	ScrollArea,
+	TabButtons,
 	TextInput,
 	Tooltip,
+	dayjsLocal,
 	usePageMeta,
 } from 'frappe-ui';
+import {
+	List,
+	ListCell,
+	ListHeader,
+	ListHeaderCell,
+	ListRow,
+} from 'frappe-ui/list';
 import { computed, ref } from 'vue';
 
 const userStore = useUserStore();
@@ -150,15 +233,51 @@ const isManager = computed(() => userStore.isWikiManager);
 
 const showCreateDialog = ref(false);
 
+// The directory is the one surface that shows the figures, so it is the one
+// that asks for them.
 const {
 	spaces,
 	searchQuery,
-	showSearch,
+	publishState,
+	spaceStats,
 	orderedSpaces,
 	isEmptyWiki,
 	restrictedSpaces,
 	isPinned,
-} = useSpaceLibrary();
+} = useSpaceLibrary({ withStats: true });
+
+const publishOptions = [
+	{ label: __('All'), value: 'all' },
+	{ label: __('Published'), value: 'published' },
+	{ label: __('Unpublished'), value: 'unpublished' },
+];
+
+// The figures land a beat after the rows do, so every row needs a shape to
+// draw before its stats arrive rather than a `v-if` around three cells.
+const EMPTY_STATS = { pages: 0, open_change_requests: 0, last_updated: null };
+function statsFor(space) {
+	return spaceStats.value[space] || EMPTY_STATS;
+}
+
+// The unit is spelled out because the column has no header to carry it.
+function pageCountLabel(count) {
+	return count === 1 ? __('1 page') : __('{0} pages', [count]);
+}
+
+function fromNow(value) {
+	return value ? dayjsLocal(value).fromNow() : '';
+}
+
+function formatDateTime(value) {
+	if (!value) return '';
+	return new Date(value).toLocaleString(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
 
 // On desktop the New Space button lives in the sidebar, so the empty state
 // points at it rather than repeating it.

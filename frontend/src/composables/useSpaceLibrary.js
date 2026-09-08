@@ -15,10 +15,23 @@ const PAGE_SIZE = 50;
  *
  * `publishedOnly` drops unpublished spaces from the query. The sidebar sets it
  * for everyone but a Wiki Manager, whose own unpublished drafts have to stay in
- * the column they work in.
+ * the column they work in. `publishState` is the directory's own three-way
+ * filter on the same field, and applies on top.
+ *
+ * `withStats` adds the per-page figures call. Off by default: the sidebar draws
+ * names, not numbers, and should not pay for them.
  */
-export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
+export function useSpaceLibrary({
+	limit = PAGE_SIZE,
+	publishedOnly,
+	withStats = false,
+} = {}) {
 	const { pinnedSpaces, isPinned, togglePin } = usePinnedSpaces();
+
+	// 'all' | 'published' | 'unpublished'. Server-side, like the search term:
+	// filtering the rows already fetched would make "Load more" page through a
+	// list the user is not looking at.
+	const publishState = ref('all');
 
 	const searchQuery = ref('');
 	const searchTerm = ref('');
@@ -52,6 +65,8 @@ export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
 				? { space_name: ['like', `%${searchTerm.value}%`] }
 				: {}),
 			...(unref(publishedOnly) ? { is_published: 1 } : {}),
+			...(publishState.value === 'published' ? { is_published: 1 } : {}),
+			...(publishState.value === 'unpublished' ? { is_published: 0 } : {}),
 		}),
 		orderBy: 'switcher_order asc, creation desc',
 		limit,
@@ -61,7 +76,7 @@ export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
 	// and no reset — and a fetch from a non-zero start *appends* to the rows the
 	// last search left behind. Walking `previous()` back to 0 is the reset; the
 	// writes are synchronous, so the URL settles once and refetches once.
-	watch(searchTerm, () => {
+	watch([searchTerm, publishState], () => {
 		while (spaces.start > 0) spaces.previous();
 	});
 
@@ -85,8 +100,16 @@ export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
 		() => Boolean(searchTerm.value) || (spaces.data || []).length >= 10,
 	);
 
+	// "This wiki has no spaces", not "this filter found none" -- the distinction
+	// matters because the empty-wiki state replaces the whole page, controls
+	// included, so claiming it while a filter is on strands the user with no way
+	// back to the list.
 	const isEmptyWiki = computed(
-		() => !spaces.loading && !searchTerm.value && !(spaces.data || []).length,
+		() =>
+			!spaces.loading &&
+			!searchTerm.value &&
+			publishState.value === 'all' &&
+			!(spaces.data || []).length,
 	);
 
 	// Restricted means "readable only by specific roles" — the backend works that
@@ -106,9 +129,27 @@ export function useSpaceLibrary({ limit = PAGE_SIZE, publishedOnly } = {}) {
 		{ immediate: true },
 	);
 
+	// Same shape as the restricted lookup above: one call per page of spaces,
+	// keyed off the names that came back, not a query per row.
+	const statsResource = createResource({
+		url: 'wiki.api.wiki_space.get_space_stats',
+	});
+	const spaceStats = computed(() => statsResource.data || {});
+	if (withStats) {
+		watch(
+			() => (spaces.data || []).map((space) => space.name).join(','),
+			(names) => {
+				if (names) statsResource.submit({ spaces: names.split(',') });
+			},
+			{ immediate: true },
+		);
+	}
+
 	return {
 		spaces,
 		searchQuery,
+		publishState,
+		spaceStats,
 		showSearch,
 		orderedSpaces,
 		isEmptyWiki,
