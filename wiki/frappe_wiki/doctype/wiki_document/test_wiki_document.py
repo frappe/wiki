@@ -1429,6 +1429,57 @@ class TestSetRoute(WikiDocumentTestBase):
 		self.assertEqual(child.route, "single/child-page")
 
 
+class TestUniqueRouteValidation(WikiDocumentTestBase):
+	"""Route uniqueness only guards saves that actually touch the route."""
+
+	def test_save_with_untouched_route_ignores_preexisting_duplicate(self):
+		space = create_test_wiki_space(self, "Dup Route Space", "dup-route", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		page_c = create_test_wiki_document(self, "Page C", parent=space.root_group, slug="page-c")
+
+		# Pre-existing invalid data: two leaves sharing a route.
+		frappe.db.set_value("Wiki Document", page_c.name, "route", page_a.route)
+
+		page_a.reload()
+		page_a.sort_order = 5
+		page_a.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", page_a.name, "sort_order"), 5)
+
+	def test_changing_route_to_an_existing_one_still_throws(self):
+		space = create_test_wiki_space(self, "Clash Space", "clash", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		page_b = create_test_wiki_document(self, "Page B", parent=space.root_group, slug="page-b")
+
+		page_b.route = page_a.route
+		self.assertRaises(frappe.ValidationError, page_b.save)
+
+	def test_new_document_with_duplicate_route_still_throws(self):
+		space = create_test_wiki_space(self, "New Clash Space", "new-clash", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+
+		duplicate = frappe.get_doc(
+			{
+				"doctype": "Wiki Document",
+				"title": "Page A Copy",
+				"parent_wiki_document": space.root_group,
+				"route": page_a.route,
+				"content": "Content",
+			}
+		)
+		self.assertRaises(frappe.ValidationError, duplicate.insert)
+
+	def test_group_turning_into_leaf_still_throws(self):
+		space = create_test_wiki_space(self, "Group Clash Space", "group-clash", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		group = create_test_wiki_document(self, "Group", parent=space.root_group, is_group=True, slug="group")
+
+		frappe.db.set_value("Wiki Document", group.name, "route", page_a.route)
+		group.reload()
+		group.is_group = 0
+		self.assertRaises(frappe.ValidationError, group.save)
+
+
 class TestExternalLinkExclusions(WikiDocumentTestBase):
 	"""
 	Tests that external link documents are excluded from search indexing

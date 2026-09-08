@@ -281,6 +281,32 @@ class TestWikiChangeRequest(FrappeTestCase):
 		item1 = get_revision_item(cr.head_revision, page1_key)
 		self.assertEqual(item1.parent_key, group_key)
 
+	def test_merge_reorder_with_preexisting_duplicate_route(self):
+		"""A reorder merge must not trip over duplicate routes it didn't create.
+
+		Merging re-saves every document in the space, so pre-existing invalid data
+		(two leaves sharing a route) used to block an unrelated reorder.
+		"""
+		space = create_test_wiki_space()
+		page_a = create_test_wiki_document(space.root_group, title="Page A")
+		page_b = create_test_wiki_document(space.root_group, title="Page B")
+		page_c = create_test_wiki_document(space.root_group, title="Page C")
+		frappe.db.set_value("Wiki Document", page_c.name, "route", page_a.route)
+
+		cr = create_change_request(space.name, "CR reorder duplicate route")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		reorder_cr_children(cr.name, root_key, [page_b.doc_key, page_a.doc_key, page_c.doc_key])
+
+		_approve_and_merge(cr.name)
+
+		order = frappe.get_all(
+			"Wiki Document",
+			filters={"parent_wiki_document": space.root_group},
+			fields=["title", "sort_order"],
+			order_by="sort_order",
+		)
+		self.assertEqual([row.title for row in order], ["Page B", "Page A", "Page C"])
+
 	def test_diff_reorder_reports_location_and_position(self):
 		"""A reorder is classified as such and carries before/after position so the
 		review UI can show a structural move instead of an empty content diff."""
