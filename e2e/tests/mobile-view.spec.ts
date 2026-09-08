@@ -1,18 +1,6 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import type { WikiFactory } from '../helpers/factory';
-import { callMethod, getList } from '../helpers/frappe';
-import { APP_BASE, CHANGE_REQUEST_URL_RE } from '../helpers/routes';
-import {
-	createDraftAndOpenEditor,
-	currentDraftDocKey,
-	saveEditor,
-} from '../helpers/wiki';
-
-interface WikiDocumentRoute {
-	route: string;
-	doc_key: string;
-}
 
 /**
  * Tests for mobile-specific UI elements and interactions.
@@ -24,80 +12,20 @@ interface WikiDocumentRoute {
 const mobileViewport = { width: 375, height: 667 };
 
 /**
- * Helper to create a merged test page and return the public page URL.
- * This ensures tests have a page to work with.
+ * A published page to read, and its public URL.
+ *
+ * Seeded through the API rather than authored and merged through the UI. None
+ * of these tests are about the authoring flow -- they inspect the public
+ * reader's chrome -- and driving a create-and-merge sixteen times over made the
+ * file the slowest in the suite and flaky under load.
  */
 async function createPublishedTestPage(
-	page: Page,
-	request: APIRequestContext,
 	wiki: WikiFactory,
 	title: string,
-	content?: string,
+	content = 'Test content for mobile view.',
 ): Promise<string> {
-	const editor = await createDraftAndOpenEditor(
-		page,
-		await wiki.space(),
-		title,
-		{ waitForEditorApi: false },
-	);
-	const docKey = await currentDraftDocKey(page);
-
-	// Add content if provided
-	if (content) {
-		await page.waitForFunction(() => window.wikiEditor !== undefined, {
-			timeout: 10000,
-		});
-		await page.evaluate((c) => {
-			window.wikiEditor.commands.setContent(c, { contentType: 'markdown' });
-		}, content);
-	} else {
-		await editor.click();
-		await page.keyboard.type('Test content for mobile view.');
-	}
-
-	// Save the draft
-	await saveEditor(page);
-	await page.waitForLoadState('networkidle');
-
-	// Submit for review and merge the page
-	await page.getByRole('button', { name: 'Submit for Review' }).click();
-	await page.getByRole('button', { name: 'Submit' }).click();
-	await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, {
-		timeout: 10000,
-	});
-	const crMatch = page
-		.url()
-		.match(new RegExp(`${APP_BASE}/change-requests/([^/?#]+)`));
-	if (!crMatch) {
-		throw new Error('Change request ID not found in URL');
-	}
-	const changeRequestId = decodeURIComponent(crMatch[1]);
-	// Merge requires an explicit Approved decision, so approve first.
-	await callMethod(
-		request,
-		'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
-		{ name: changeRequestId },
-	);
-	await callMethod(
-		request,
-		'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',
-		{ name: changeRequestId },
-	);
-
-	let routes: WikiDocumentRoute[] = [];
-	for (let attempt = 0; attempt < 5; attempt++) {
-		routes = await getList<WikiDocumentRoute>(request, 'Wiki Document', {
-			fields: ['route', 'doc_key'],
-			filters: { doc_key: docKey },
-			limit: 1,
-		});
-		if (routes.length) break;
-		await page.waitForTimeout(500);
-	}
-	if (!routes.length || !routes[0].route) {
-		throw new Error('Public route not found for doc');
-	}
-	return `/${routes[0].route}`;
+	const space = await wiki.space({ pages: [{ title, content }] });
+	return `/${space.page(title).route}`;
 }
 
 /** Locator helpers using data-testid attributes */
@@ -107,18 +35,12 @@ test.describe('Mobile View', () => {
 	test.describe('Mobile Header', () => {
 		test('should display mobile header on small viewport', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first (at desktop size for admin)
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `mobile-header-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Now switch to mobile and visit the public page
 			await page.setViewportSize(mobileViewport);
@@ -146,18 +68,12 @@ test.describe('Mobile View', () => {
 
 		test('should display wiki space name in mobile header', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `mobile-space-name-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile and visit public page
 			await page.setViewportSize(mobileViewport);
@@ -176,18 +92,12 @@ test.describe('Mobile View', () => {
 	test.describe('Bottom Sheet Sidebar', () => {
 		test('should open bottom sheet when menu button is clicked', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-open-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile and visit the public page
 			await page.setViewportSize(mobileViewport);
@@ -208,18 +118,12 @@ test.describe('Mobile View', () => {
 
 		test('should close bottom sheet when overlay is clicked', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-overlay-close-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -241,18 +145,12 @@ test.describe('Mobile View', () => {
 
 		test('should close bottom sheet when close button is clicked', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-close-button-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -277,18 +175,12 @@ test.describe('Mobile View', () => {
 
 		test('should display sidebar navigation in bottom sheet', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-nav-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -312,18 +204,12 @@ test.describe('Mobile View', () => {
 
 		test('should close bottom sheet when navigation link is clicked', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-nav-click-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -350,18 +236,12 @@ test.describe('Mobile View', () => {
 
 		test('should have drag handle for swipe-to-dismiss', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-drag-handle-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -383,7 +263,6 @@ test.describe('Mobile View', () => {
 	test.describe('Mobile TOC Dropdown', () => {
 		test('should have TOC container in mobile header structure', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page with headings at desktop viewport
@@ -398,8 +277,6 @@ Content for first section.
 Content for second section.`;
 
 			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
 				wiki,
 				pageTitle,
 				tocContent,
@@ -424,7 +301,6 @@ Content for second section.`;
 
 		test('should render headings with anchor links on mobile', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page with headings
@@ -439,8 +315,6 @@ Intro content.
 Getting started content.`;
 
 			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
 				wiki,
 				pageTitle,
 				tocContent,
@@ -470,18 +344,12 @@ Getting started content.`;
 	test.describe('Theme Toggle', () => {
 		test('should have theme toggle button in mobile header', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `theme-toggle-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -497,18 +365,12 @@ Getting started content.`;
 	test.describe('Search Button', () => {
 		test('should open search when search button is clicked', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `search-button-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Switch to mobile
 			await page.setViewportSize(mobileViewport);
@@ -529,18 +391,12 @@ Getting started content.`;
 	test.describe('Responsive Breakpoints', () => {
 		test('should hide mobile header on desktop viewport', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first (at desktop)
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `responsive-breakpoints-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Start at mobile viewport
 			await page.setViewportSize(mobileViewport);
@@ -565,18 +421,12 @@ Getting started content.`;
 
 		test('should show mobile header on tablet viewport', async ({
 			page,
-			request,
 			wiki,
 		}) => {
 			// Create a test page first
 			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `tablet-viewport-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(
-				page,
-				request,
-				wiki,
-				pageTitle,
-			);
+			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
 
 			// Tablet viewport (below lg breakpoint of 1024px)
 			await page.setViewportSize({ width: 768, height: 1024 });
@@ -591,15 +441,3 @@ Getting started content.`;
 });
 
 // Extend Window interface for Tiptap editor access in tests
-declare global {
-	interface Window {
-		wikiEditor: {
-			commands: {
-				setContent: (
-					content: string,
-					options?: { contentType?: string },
-				) => void;
-			};
-		};
-	}
-}
