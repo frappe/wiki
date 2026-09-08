@@ -42,6 +42,7 @@
   "home_tab_title",
   "home_tab_icon",
   "main_revision",
+  "last_edited",
   "git_sync_tab",
   "git_synced",
   "repo_full_name",
@@ -208,6 +209,14 @@
    "label": "Main Revision",
    "options": "Wiki Revision",
    "read_only": 1
+  },
+  {
+   "description": "Newest save or merge of a page in this space. The sidebar orders spaces by it.",
+   "fieldname": "last_edited",
+   "fieldtype": "Datetime",
+   "label": "Last Edited",
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "default": "0",

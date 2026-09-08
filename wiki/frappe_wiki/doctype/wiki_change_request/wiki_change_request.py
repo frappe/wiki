@@ -2048,7 +2048,10 @@ def _apply_merge_changes_only(
 		content_updated_names.append(key_to_name[doc_key])
 
 	if content_updated_names:
-		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			clear_wiki_content_cache,
+			touch_space_last_edited,
+		)
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
 
 		# Raw set_value above skips on_update, so the rendered-content cache would
@@ -2057,6 +2060,7 @@ def _apply_merge_changes_only(
 			clear_wiki_content_cache(name)
 
 		enqueue_reindex(content_updated_names)
+		touch_space_last_edited(space.name)
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys

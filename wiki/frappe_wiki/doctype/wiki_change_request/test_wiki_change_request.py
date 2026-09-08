@@ -360,6 +360,23 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertNotIn(page.name, stale_names)
 		self.assertIn(page.name, fresh_names)
 
+	def test_content_only_merge_stamps_space_last_edited(self):
+		"""The raw set_value fast path skips on_update, so the merge has to stamp
+		the space itself or it never moves up the sidebar."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Stamp Page", content="before")
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+
+		cr = create_change_request(space.name, "CR Stamp Space")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "after"})
+		_approve_and_merge(cr.name)
+
+		self.assertGreater(
+			frappe.db.get_value("Wiki Space", space.name, "last_edited"),
+			frappe.utils.get_datetime("2020-01-01 00:00:00"),
+		)
+
 	def test_content_only_merge_clears_rendered_content_cache(self):
 		"""Same raw-set_value path skips on_update, so the merge must drop the
 		rendered-content cache or the public page keeps serving pre-merge HTML."""

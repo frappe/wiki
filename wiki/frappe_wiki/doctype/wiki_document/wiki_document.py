@@ -957,7 +957,7 @@ def on_wiki_document_update(doc, method):
 	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
 	from wiki.api.og_image import enqueue_og_warmup
 
-	stamp_wiki_space(doc)
+	touch_space_last_edited(stamp_wiki_space(doc))
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
 	clear_wiki_tree_cache()
@@ -990,6 +990,21 @@ def stamp_wiki_space(doc):
 	space_name = _get_wiki_space_for_document(doc.name)
 	if doc.get("wiki_space") != space_name:
 		frappe.db.set_value("Wiki Document", doc.name, "wiki_space", space_name, update_modified=False)
+	return space_name
+
+
+def touch_space_last_edited(space_name: str | None):
+	"""Record that a page in `space_name` just changed.
+
+	The sidebar orders spaces by this, so it has to move on every path that
+	changes a page: desk and editor saves come through on_update, deletions
+	through on_trash, and content-only merges call it directly because they
+	write with raw set_value. The space's own `modified` is left alone -- a page
+	edit is not an edit of the space's settings.
+	"""
+	if not space_name:
+		return
+	frappe.db.set_value("Wiki Space", space_name, "last_edited", frappe.utils.now(), update_modified=False)
 
 
 def stamp_wiki_space_subtree(root_doc_name):
@@ -1005,6 +1020,7 @@ def stamp_wiki_space_subtree(root_doc_name):
 
 def on_wiki_document_trash(doc, method):
 	"""Sync desk deletions to the revision system."""
+	touch_space_last_edited(doc.get("wiki_space"))
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
 	clear_wiki_tree_cache()

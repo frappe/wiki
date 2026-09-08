@@ -28,6 +28,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
+	touch_space_last_edited,
 )
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
@@ -353,6 +354,44 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# Expected order: Zebra (order 1), Alpha (order 2), Beta (order 2), Gamma (order 3)
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
+
+
+class TestSpaceLastEdited(WikiDocumentTestBase):
+	"""Wiki Space.last_edited moves with the pages inside it, not with the space."""
+
+	def last_edited(self, space):
+		return frappe.db.get_value("Wiki Space", space.name, "last_edited")
+
+	def test_saving_a_page_stamps_the_space(self):
+		space = self.wiki.space(pages=[{"title": "First Page"}])
+		before = self.last_edited(space)
+		self.assertIsNotNone(before)
+
+		page = frappe.get_doc("Wiki Document", {"title": "First Page", "wiki_space": space.name})
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+		page.content = "changed"
+		page.save()
+
+		self.assertGreater(self.last_edited(space), frappe.utils.get_datetime("2020-01-01 00:00:00"))
+
+	def test_stamping_leaves_the_space_modified_alone(self):
+		space = self.wiki.space()
+		modified = frappe.db.get_value("Wiki Space", space.name, "modified")
+
+		touch_space_last_edited(space.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "modified"), modified)
+
+	def test_deleting_a_page_stamps_the_space(self):
+		space = self.wiki.space(pages=[{"title": "Doomed Page"}])
+		frappe.db.set_value("Wiki Space", space.name, "last_edited", "2020-01-01 00:00:00")
+
+		frappe.delete_doc(
+			"Wiki Document",
+			frappe.db.get_value("Wiki Document", {"title": "Doomed Page", "wiki_space": space.name}),
+		)
+
+		self.assertGreater(self.last_edited(space), frappe.utils.get_datetime("2020-01-01 00:00:00"))
 
 
 class TestEditLink(WikiDocumentTestBase):

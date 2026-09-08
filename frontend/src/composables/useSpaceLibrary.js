@@ -8,6 +8,11 @@ import { orderSpaces, usePinnedSpaces } from './usePinnedSpaces';
 // rest.
 const PAGE_SIZE = 50;
 
+// switcher_order is the space's declared position, but it defaults to 0 for
+// every space, so the newest space would otherwise land in an arbitrary spot
+// in the list. Creation order breaks the tie the way the old list page did.
+const DECLARED_ORDER = 'switcher_order asc, creation desc';
+
 /**
  * The library list, as both the sidebar and the Overview page need it: the same
  * query, the same search, the same pinned-first order. Each caller gets its own
@@ -20,9 +25,13 @@ const PAGE_SIZE = 50;
  *
  * `withStats` adds the per-page figures call. Off by default: the sidebar draws
  * names, not numbers, and should not pay for them.
+ *
+ * `orderBy` is the directory's declared order unless a caller says otherwise;
+ * the sidebar orders by recent activity instead (see LibrarySidebar).
  */
 export function useSpaceLibrary({
 	limit = PAGE_SIZE,
+	orderBy = DECLARED_ORDER,
 	publishedOnly,
 	withStats = false,
 } = {}) {
@@ -43,9 +52,6 @@ export function useSpaceLibrary({
 		}, 250);
 	});
 
-	// switcher_order is the space's declared position, but it defaults to 0 for
-	// every space, so the newest space would otherwise land in an arbitrary spot
-	// in the list. Creation order breaks the tie the way the old list page did.
 	const spaces = useList({
 		doctype: 'Wiki Space',
 		fields: [
@@ -68,7 +74,7 @@ export function useSpaceLibrary({
 			...(publishState.value === 'published' ? { is_published: 1 } : {}),
 			...(publishState.value === 'unpublished' ? { is_published: 0 } : {}),
 		}),
-		orderBy: 'switcher_order asc, creation desc',
+		orderBy,
 		limit,
 	});
 
