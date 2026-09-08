@@ -61,7 +61,7 @@
 						<Button
 							variant="ghost"
 							icon-left="lucide-sparkles"
-							:label="generated ? __('Try another') : __('Generate')"
+							:label="__('Generate')"
 							:loading="rolling"
 							data-testid="space-identity-generate"
 							@click="generate"
@@ -189,9 +189,6 @@ const mark = computed(() => resolveSpaceIdentity(chosen.value));
 const logo = computed(() => chosen.value.app_switcher_logo || '');
 const icon = computed(() => chosen.value.space_icon || '');
 const color = computed(() => mark.value.color);
-// Drives the generator's label: once a mark exists, the button's job is to
-// offer another one, and saying so is what tells the user it can be repeated.
-const generated = computed(() => mark.value.mode === 'avatar');
 
 function choose(patch) {
 	pending.value = { ...pending.value, ...patch };
