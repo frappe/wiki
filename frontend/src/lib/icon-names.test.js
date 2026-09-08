@@ -48,30 +48,47 @@ function iconExpressions(line) {
 		// literals are the candidates.
 		const rest = line.slice(prop.index + prop[0].length);
 		const quoted = /^\s*(['"])(.*?)\1/.exec(rest);
-		if (quoted) out.push(quoted[2]);
+		if (quoted) out.push(iconNameOf(quoted[2]));
 	}
 
 	const key = ICON_KEY.exec(line);
 	if (key) {
 		// Object form: up to the first comma outside quotes, so a ternary's
 		// branches are included but the next property is not.
-		const rest = line.slice(key.index + key[0].length);
-		let quote = null;
-		let end = rest.length;
-		for (let i = 0; i < rest.length; i++) {
-			const c = rest[i];
-			if (quote) {
-				if (c === quote) quote = null;
-			} else if (c === "'" || c === '"' || c === '`') quote = c;
-			else if (c === ',') {
-				end = i;
-				break;
-			}
-		}
-		out.push(rest.slice(0, end));
+		out.push(valueUpToComma(line.slice(key.index + key[0].length)));
 	}
 
 	return out;
+}
+
+/**
+ * An icon prop also takes an object -- frappe-ui's Dialog declares
+ * `icon?: string | DialogIcon`, and `DialogIcon` is `{ name, theme }`. Only
+ * `name` is an icon string there; `theme` is a colour tone from a small closed
+ * set, and reading it as a name reported every themed dialog icon as stale.
+ *
+ * A non-object expression is returned untouched, so a ternary of bare names
+ * still gets scanned whole.
+ */
+function iconNameOf(expression) {
+	if (!/^\s*\{/.test(expression)) return expression;
+	const name = /(?<![-\w])name\s*:/.exec(expression);
+	return name
+		? valueUpToComma(expression.slice(name.index + name[0].length))
+		: '';
+}
+
+/** The expression up to the first comma outside quotes. */
+function valueUpToComma(rest) {
+	let quote = null;
+	for (let i = 0; i < rest.length; i++) {
+		const c = rest[i];
+		if (quote) {
+			if (c === quote) quote = null;
+		} else if (c === "'" || c === '"' || c === '`') quote = c;
+		else if (c === ',') return rest.slice(0, i);
+	}
+	return rest;
 }
 
 function sourceFiles(dir) {
