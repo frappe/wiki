@@ -10,11 +10,11 @@
 			<div
 				class="flex h-12 shrink-0 items-center gap-1.5 border-b border-outline-gray-2 px-2"
 			>
-				<Tooltip :text="__('Back to Overview')">
+				<Tooltip :text="__('Back to All Spaces')">
 					<Button
 						variant="ghost"
 						icon="lucide-chevron-left"
-						:aria-label="__('Back to Overview')"
+						:aria-label="__('Back to All Spaces')"
 						:route="{ name: 'Overview' }"
 					/>
 				</Tooltip>

@@ -6,7 +6,7 @@
 	     state, and the only space list on mobile — where the sidebar this page
 	     sits beside does not exist. -->
 	<div class="flex h-full flex-col">
-		<PageHeaderMobile v-if="isMobile" :title="__('Spaces')">
+		<PageHeaderMobile v-if="isMobile" :title="__('All Spaces')">
 			<template #suffix>
 				<div class="flex items-center gap-1">
 					<Button
@@ -24,7 +24,7 @@
 		     sits an inch away and owns it. Mobile has no sidebar, so there the
 		     header keeps it. -->
 		<PageHeader v-else>
-			<h2 class="text-lg-semibold text-ink-gray-9">{{ __('Overview') }}</h2>
+			<h2 class="text-lg-semibold text-ink-gray-9">{{ __('All Spaces') }}</h2>
 		</PageHeader>
 
 		<ScrollArea class="min-h-0 flex-1">
@@ -169,5 +169,5 @@ const emptyWikiHint = computed(() => {
 		: __('Create your first wiki space from the sidebar to get started');
 });
 
-usePageMeta(() => ({ title: `${__('Overview')} | Frappe Wiki` }));
+usePageMeta(() => ({ title: `${__('All Spaces')} | Frappe Wiki` }));
 </script>

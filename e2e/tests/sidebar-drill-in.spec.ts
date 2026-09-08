@@ -47,12 +47,16 @@ test.describe('Sidebar drill-in navigation', () => {
 		const betaRow = sidebar.locator(`a[href="${appUrl('spaces', spaceB)}"]`);
 		await expect(alphaRow).toBeVisible();
 		await expect(betaRow).toBeVisible();
-		await expect(sidebar.locator('[title="Back to Overview"]')).toHaveCount(0);
+		await expect(
+			sidebar.locator('[aria-label="Back to All Spaces"]'),
+		).toHaveCount(0);
 
 		// Level 1: the sidebar *becomes* space A.
 		await alphaRow.click();
 		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/spaces/${spaceA}`));
-		await expect(sidebar.locator('[title="Back to Overview"]')).toBeVisible();
+		await expect(
+			sidebar.locator('[aria-label="Back to All Spaces"]'),
+		).toBeVisible();
 		await expect(
 			sidebar.getByText(SPACE_A_NAME, { exact: true }).first(),
 		).toBeVisible();
@@ -66,14 +70,18 @@ test.describe('Sidebar drill-in navigation', () => {
 			new RegExp(`${APP_BASE}/spaces/${spaceA}/page/${pageName}`),
 		);
 		// Drilling to a page keeps the space column — it does not drill again.
-		await expect(sidebar.locator('[title="Back to Overview"]')).toBeVisible();
+		await expect(
+			sidebar.locator('[aria-label="Back to All Spaces"]'),
+		).toBeVisible();
 
 		// Back out: the library returns whole, with both spaces.
-		await sidebar.locator('[title="Back to Overview"]').first().click();
+		await sidebar.locator('[aria-label="Back to All Spaces"]').first().click();
 		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
 		await expect(alphaRow).toBeVisible();
 		await expect(betaRow).toBeVisible();
-		await expect(sidebar.locator('[title="Back to Overview"]')).toHaveCount(0);
+		await expect(
+			sidebar.locator('[aria-label="Back to All Spaces"]'),
+		).toHaveCount(0);
 	});
 
 	test('the retired /spaces list page redirects to the library', async ({
