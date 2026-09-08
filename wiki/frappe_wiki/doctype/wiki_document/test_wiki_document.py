@@ -1469,6 +1469,36 @@ class TestUniqueRouteValidation(WikiDocumentTestBase):
 		)
 		self.assertRaises(frappe.ValidationError, duplicate.insert)
 
+	def test_publishing_a_duplicate_route_still_throws(self):
+		space = create_test_wiki_space(self, "Publish Clash Space", "publish-clash", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		draft = create_test_wiki_document(
+			self, "Draft", parent=space.root_group, slug="draft", is_published=False
+		)
+
+		frappe.db.set_value("Wiki Document", draft.name, "route", page_a.route)
+		draft.reload()
+		draft.is_published = 1
+		self.assertRaises(frappe.ValidationError, draft.save)
+
+	def test_external_link_becoming_local_page_still_throws(self):
+		space = create_test_wiki_space(self, "Link Clash Space", "link-clash", None)
+		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")
+		link = create_test_wiki_document(
+			self,
+			"Link",
+			parent=space.root_group,
+			slug="link",
+			is_external_link=True,
+			external_url="https://example.com",
+		)
+
+		frappe.db.set_value("Wiki Document", link.name, "route", page_a.route)
+		link.reload()
+		link.is_external_link = 0
+		link.external_url = None
+		self.assertRaises(frappe.ValidationError, link.save)
+
 	def test_group_turning_into_leaf_still_throws(self):
 		space = create_test_wiki_space(self, "Group Clash Space", "group-clash", None)
 		page_a = create_test_wiki_document(self, "Page A", parent=space.root_group, slug="page-a")

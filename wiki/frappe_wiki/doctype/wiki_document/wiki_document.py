@@ -177,8 +177,12 @@ class WikiDocument(NestedSet):
 		if self.is_group or not self.route:
 			return
 
-		# An unchanged route can't introduce a clash, and merges re-save every document.
-		if not self.has_value_changed("route") and not self.has_value_changed("is_group"):
+		# Only a save that changes where the page is served can introduce a clash, and
+		# merges re-save every document in the space.
+		if not any(
+			self.has_value_changed(field)
+			for field in ("route", "is_group", "is_published", "is_external_link")
+		):
 			return
 
 		filters = {
