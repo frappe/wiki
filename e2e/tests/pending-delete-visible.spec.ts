@@ -93,9 +93,9 @@ async function openRowMenu(
 	page: import('@playwright/test').Page,
 	title: string,
 ) {
-	const row = page.locator('aside').getByText(title, { exact: true });
+	const row = page.locator('aside div.group', { hasText: title }).last();
 	await row.hover();
-	await page.locator('aside').getByRole('button').last().click();
+	await row.getByRole('button').last().click();
 }
 
 async function deleteFromTree(
