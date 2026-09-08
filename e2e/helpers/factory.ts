@@ -46,8 +46,19 @@ export interface SeededSpace extends WikiSpace {
 
 let counter = 0;
 
-/** A route no other spec (or parallel run) can collide with. */
-export function uniqueRoute(slug = 'space'): string {
+/**
+ * A route no other spec (or parallel run) can collide with.
+ *
+ * The label is slugified rather than trusted: callers pass human labels
+ * ("CR Nav Back"), and a route carrying spaces and capitals is not one the app
+ * would ever have produced.
+ */
+export function uniqueRoute(label = 'space'): string {
+	const slug =
+		label
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '') || 'space';
 	counter += 1;
 	return `${E2E_ROUTE_PREFIX}-${slug}-${counter}-${Date.now().toString(36)}`;
 }

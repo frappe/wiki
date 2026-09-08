@@ -29,7 +29,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_rendered_content,
 	process_navbar_items,
 )
-from wiki.tests.factory import make_document, make_space
+from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 # On IntegrationTestCase, the doctype test records and all
@@ -53,7 +53,7 @@ def create_test_wiki_document(test_case, title, **kwargs):
 		source_path=kwargs.get("source_path"),
 		content=kwargs.get("content") if kwargs.get("content") is not None else f"Content for {title}",
 	)
-	test_case.test_docs.append(doc.name)
+	test_case.wiki.track_document(doc)
 	return doc
 
 
@@ -71,34 +71,22 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 		repo_full_name=kwargs.get("repo_full_name"),
 		branch=kwargs.get("branch"),
 	)
-	test_case.test_spaces.append(doc.name)
+	test_case.wiki.track_space(doc)
 	# A space asked to make its own root group owns a document nothing else
 	# tracks -- the on-trash cascade only reaches it if the space is deleted,
 	# and these tests delete documents first.
 	if not root_group and doc.root_group:
-		test_case.test_docs.append(doc.root_group)
+		test_case.wiki.track_document(doc.root_group)
 	return doc
 
 
-class WikiDocumentTestBase(IntegrationTestCase):
-	"""Base class with common setup/teardown for Wiki Document tests."""
+class WikiDocumentTestBase(WikiFixtureMixin, IntegrationTestCase):
+	"""Base class for Wiki Document tests; `self.wiki` cleans up after each one.
 
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.test_docs = []
-		cls.test_spaces = []
-
-	def tearDown(self):
-		for doc_name in reversed(self.test_docs):
-			if frappe.db.exists("Wiki Document", doc_name):
-				frappe.delete_doc("Wiki Document", doc_name, force=True)
-		self.test_docs = []
-
-		for space_name in self.test_spaces:
-			if frappe.db.exists("Wiki Space", space_name):
-				frappe.delete_doc("Wiki Space", space_name, force=True)
-		self.test_spaces = []
+	The mixin registers teardown with ``addCleanup``, so it still runs when a
+	test fails and a subclass's own ``tearDown`` no longer has to remember to
+	call ``super()``.
+	"""
 
 
 class IntegrationTestWikiDocument(IntegrationTestCase):

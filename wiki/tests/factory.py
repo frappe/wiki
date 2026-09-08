@@ -92,13 +92,19 @@ class WikiFixtures:
 		self._documents: list[str] = []
 
 	def space(self, pages: list[dict] | None = None, **kwargs):
-		space = make_space(pages=pages, **kwargs)
-		self._spaces.append(space.name)
-		return space
+		return self.track_space(make_space(pages=pages, **kwargs))
 
 	def document(self, parent: str | None = None, **kwargs):
-		doc = make_document(parent=parent, **kwargs)
-		self._documents.append(doc.name)
+		return self.track_document(make_document(parent=parent, **kwargs))
+
+	def track_space(self, space):
+		"""Adopt a space this factory did not create, so it is destroyed too."""
+		self._spaces.append(space.name if hasattr(space, "name") else space)
+		return space
+
+	def track_document(self, doc):
+		"""Adopt a document this factory did not create."""
+		self._documents.append(doc.name if hasattr(doc, "name") else doc)
 		return doc
 
 	def destroy_all(self):
@@ -123,11 +129,18 @@ class WikiFixtures:
 class WikiFixtureMixin:
 	"""Gives a TestCase a ``self.wiki`` factory that tears itself down.
 
-	Registered with ``addCleanup`` rather than ``tearDown`` so it still runs
-	when the test fails, and so a subclass's own ``tearDown`` is not shadowed.
+	The factory is built on first use and registers its own ``addCleanup`` there
+	and then, so it does not depend on a subclass's ``setUp`` remembering to
+	call ``super()`` -- two classes in the Wiki Document suite do not. Cleanup
+	runs after every ``tearDown`` in the chain, and still runs when the test
+	fails.
 	"""
 
-	def setUp(self):
-		super().setUp()
-		self.wiki = WikiFixtures()
-		self.addCleanup(self.wiki.destroy_all)
+	@property
+	def wiki(self) -> WikiFixtures:
+		fixtures = getattr(self, "_wiki_fixtures", None)
+		if fixtures is None:
+			fixtures = WikiFixtures()
+			self._wiki_fixtures = fixtures
+			self.addCleanup(fixtures.destroy_all)
+		return fixtures
