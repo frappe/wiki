@@ -2398,7 +2398,7 @@ class TestSpaceUrlFirstPage(WikiDocumentTestBase):
 				"content": "landing",
 			}
 		).insert(ignore_permissions=True)
-		self.test_docs.append(landing.name)
+		self.wiki.track_document(landing)
 
 		self.assertTrue(WikiDocumentRenderer(path="sr-space").can_render())
 
