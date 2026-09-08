@@ -3,9 +3,9 @@ import { computed, ref, unref, watch } from 'vue';
 
 import { orderSpaces, usePinnedSpaces } from './usePinnedSpaces';
 
-// The Overview page is the full directory, so it pages in useful chunks. The
-// sidebar asks for far fewer (see SIDEBAR_LIMIT) and sends you here for the
-// rest.
+// All Spaces is the full directory and pages through it in fifties. The sidebar
+// takes a single larger slice of the most recently edited instead (see
+// SIDEBAR_LIMIT) and sends you to the directory for the rest.
 const PAGE_SIZE = 50;
 
 // switcher_order is the space's declared position, but it defaults to 0 for

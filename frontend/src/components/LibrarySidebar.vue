@@ -137,10 +137,10 @@ const { themeIcon, toggleTheme } = useTheme();
 const showCreateDialog = ref(false);
 
 // The sidebar is a nav column, not a directory: it lists what fits at a glance
-// and defers the long tail to the Overview. Recent activity picks which spaces
+// and defers the long tail to All Spaces. Recent activity picks which spaces
 // make the cut -- the ones being worked on are the ones worth a glance -- and
 // the declared order only breaks ties between spaces nobody has touched.
-const SIDEBAR_LIMIT = 30;
+const SIDEBAR_LIMIT = 100;
 const RECENT_ORDER = 'last_edited desc, switcher_order asc, creation desc';
 
 const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
