@@ -32,6 +32,13 @@ const SEED_HTML = [
 	...Array.from({ length: 25 }, (_, i) => `<p>usage note ${i}</p>`),
 ].join('');
 
+// More headings than the rail can show at once. This is the case from #749,
+// where the rail rendered every entry a few pixels tall instead of scrolling.
+const LONG_SEED_HTML = Array.from(
+	{ length: 60 },
+	(_, i) => `<h2>Section ${i}</h2><p>body ${i}</p>`,
+).join('');
+
 async function seedEditor(page: Page, html: string) {
 	const applied = await page.evaluate((content) => {
 		const editor = (
@@ -144,6 +151,29 @@ test.describe('Editor table of contents', () => {
 		expect(railBox).not.toBeNull();
 		expect(proseBox).not.toBeNull();
 		expect(proseBox.x + proseBox.width).toBeLessThanOrEqual(railBox.x);
+	});
+
+	test('a long outline scrolls the rail instead of squashing its rows', async ({
+		page,
+		wiki,
+	}) => {
+		await createSpaceWithPage(page, wiki);
+		await seedEditor(page, LONG_SEED_HTML);
+
+		const rail = page.locator('[data-testid="editor-toc-rail"]');
+		const links = rail.locator('[data-testid="editor-toc-link"]');
+		await expect(links).toHaveCount(60);
+
+		// Every row keeps a readable height (one line of text plus py-1)...
+		const box = await links.first().boundingBox();
+		expect(box?.height ?? 0).toBeGreaterThanOrEqual(20);
+
+		// ...and the overflow goes to the rail's own scrollbar.
+		const nav = rail.locator('nav');
+		const scrollable = await nav.evaluate(
+			(el) => el.scrollHeight > el.clientHeight,
+		);
+		expect(scrollable).toBe(true);
 	});
 
 	test('falls back to a collapsible strip when the editor is too narrow', async ({
