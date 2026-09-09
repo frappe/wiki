@@ -3,7 +3,7 @@
 
 import unittest
 
-from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
+from wiki.wiki.markdown import CALLOUT_ICONS, render_markdown, render_markdown_with_toc
 
 
 class TestMarkdownRenderer(unittest.TestCase):
@@ -324,6 +324,29 @@ This has **bold text** and *italic text* and [a link](https://example.com)
 		self.assertIn("<em>italic text</em>", result)
 		self.assertIn('href="https://example.com"', result)
 		self.assertIn("a link", result)
+
+	def test_callout_html_is_the_alert_banner_structure(self):
+		"""Header row (icon + title), then a full-width body.
+
+		The editor's node view builds the same three elements, so the public page
+		and the editor agree — the old markup nested the body beside the title in
+		a `.callout-body` grid cell.
+		"""
+		result = render_markdown(":::tip[Careful]\nBody text\n:::\n")
+		self.assertIn('<aside class="callout callout-tip">', result)
+		self.assertIn('<div class="callout-header">', result)
+		self.assertIn('<span class="callout-title">Careful</span>', result)
+		self.assertIn('<div class="callout-content">', result)
+		self.assertNotIn("callout-body", result)
+
+	def test_callout_icon_is_the_alert_status_glyph(self):
+		"""Each type carries frappe-ui Alert's solid status glyph at 16px."""
+		for callout_type in ("note", "tip", "caution", "danger"):
+			with self.subTest(callout_type=callout_type):
+				result = render_markdown(f":::{callout_type}\nBody\n:::\n")
+				self.assertIn('viewBox="0 0 16 16"', result)
+				self.assertIn('fill="currentColor"', result)
+				self.assertIn(CALLOUT_ICONS[callout_type], result)
 
 	def test_indented_callout(self):
 		"""Test callout that is indented (e.g. inside a list item) still renders."""

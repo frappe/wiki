@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * Covers the editor's "/" command menu.
@@ -11,48 +10,11 @@ import { openNewPageDialog } from '../helpers/wiki';
  * "No commands found" until a character was typed.
  */
 
-/**
- * Create a draft page and open the editor. Mirrors the helper in
- * iframe-embed.spec.ts — duplicated here rather than exported so changes
- * to one test don't ripple into others.
- */
-async function createDraftAndOpenEditor(
-	page: import('@playwright/test').Page,
-	title: string,
-) {
-	await page.goto(APP_BASE);
-	await page.waitForLoadState('networkidle');
-
-	const spaceLink = page.locator(spaceLinkSelector()).first();
-	await expect(spaceLink).toBeVisible({ timeout: 5000 });
-	await spaceLink.click();
-	await page.waitForLoadState('networkidle');
-
-	await openNewPageDialog(page);
-
-	await page.getByLabel('Title').fill(title);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
-
-	// Saving usually auto-opens the new page; fall back to the sidebar entry.
-	const titleBox = page.getByPlaceholder('Page title');
-	const alreadyOpen = await titleBox
-		.inputValue()
-		.then((v) => v === title)
-		.catch(() => false);
-	if (!alreadyOpen) {
-		await page.locator('aside').getByText(title, { exact: true }).click();
-	}
-
-	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-	return editor;
-}
-
 test.describe('Slash command menu', () => {
-	test('bare "/" opens the full command list', async ({ page }) => {
+	test('bare "/" opens the full command list', async ({ page, wiki }) => {
 		const editor = await createDraftAndOpenEditor(
 			page,
+			await wiki.space(),
 			`slash-menu-${Date.now()}`,
 		);
 
@@ -74,9 +36,11 @@ test.describe('Slash command menu', () => {
 
 	test('typing filters the list and Enter inserts the block', async ({
 		page,
+		wiki,
 	}) => {
 		const editor = await createDraftAndOpenEditor(
 			page,
+			await wiki.space(),
 			`slash-filter-${Date.now()}`,
 		);
 

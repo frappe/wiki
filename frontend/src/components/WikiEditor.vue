@@ -5,12 +5,15 @@
                  making it a flex child would strand it above one column. -->
             <WikiToolbar v-if="!readonly" :editor="editor" @uploadImage="handleImageUpload" />
             <EditorTableOfContents v-if="showTocStrip" :editor="editor" variant="strip" />
-            <div class="flex">
-                <div class="min-w-0 flex-1 flex justify-center">
-                    <div class="w-full max-w-[770px] px-6">
-                        <slot name="title" />
-                        <EditorContent :editor="editor" :class="contentClass" />
-                    </div>
+            <!-- The outline gets a gutter of its own rather than floating over
+                 a centred column's leftovers: the padding reserves it, and the
+                 column re-centres in what remains. The column shifts when the
+                 outline appears, which is what buys it back on a 1280px
+                 screen — floating over both gutters needed 1400. -->
+            <div class="relative" :class="showTocRail ? 'pr-60' : ''">
+                <div class="mx-auto w-full max-w-3xl px-8">
+                    <slot name="title" />
+                    <EditorContent :editor="editor" :class="contentClass" />
                 </div>
                 <EditorTableOfContents v-if="showTocRail" :editor="editor" variant="rail" />
             </div>
@@ -125,6 +128,13 @@ const props = defineProps({
 	readonly: {
 		type: Boolean,
 		default: false,
+	},
+	// The outline stands down when something wider has claimed the right of
+	// the page — the page settings panel. Two lists of the page at once is one
+	// too many.
+	showOutline: {
+		type: Boolean,
+		default: true,
 	},
 });
 
@@ -648,7 +658,12 @@ const editor = useEditor({
 			nested: true,
 		}),
 		Placeholder.configure({
-			placeholder: 'Type "/" for commands, or start writing...',
+			// A freshly inserted callout starts with an empty paragraph, and the
+			// top-level hint reads as if the document itself were empty there.
+			placeholder: ({ editor, pos }) =>
+				editor.state.doc.resolve(pos).parent.type.name === 'calloutBlock'
+					? 'Write the callout…'
+					: 'Type "/" for commands, or start writing...',
 		}),
 		CodeBlock,
 		// Custom extensions
@@ -682,18 +697,22 @@ const contentClass = [
 	props.readonly ? '' : 'is-editable',
 ];
 
-// The editor's width is the viewport minus the app nav and the resizable tree,
-// so a viewport media query would measure the wrong box — watch the element
-// instead. On a 1440px laptop with both open the editor gets ~920px, which is
-// the width this threshold is picked to serve: below it the content column
-// would have to give up too much to seat a rail, so the strip takes over.
-const TOC_RAIL_MIN_WIDTH = 900;
+// The editor's width is the viewport minus the app nav, so a viewport media
+// query would measure the wrong box — watch the element instead. The rail is
+// given its gutter rather than floating over whatever the centred column
+// leaves behind, so the threshold is the 768px prose column plus that one
+// reserve — not a rail's width on each side, which needed a 1400px window.
+// Below it the strip takes over.
+const TOC_RAIL_RESERVE = 240;
+const TOC_RAIL_MIN_WIDTH = 768 + TOC_RAIL_RESERVE;
 const { width: containerWidth } = useElementSize(containerRef);
-const showTocRail = computed(() => containerWidth.value >= TOC_RAIL_MIN_WIDTH);
+const showTocRail = computed(
+	() => props.showOutline && containerWidth.value >= TOC_RAIL_MIN_WIDTH,
+);
 // Width reads 0 until the first ResizeObserver callback; rendering neither
 // variant until then avoids flashing the narrow strip on a wide screen.
 const showTocStrip = computed(
-	() => containerWidth.value > 0 && !showTocRail.value,
+	() => props.showOutline && containerWidth.value > 0 && !showTocRail.value,
 );
 
 function normalizeMarkdown(content) {

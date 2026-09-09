@@ -1,10 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { createDoc, deleteDoc, getDoc, getList } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
 
 /**
- * Space Settings -> Permissions role picker searches on the server.
+ * Space Settings -> Access role picker searches on the server.
  *
  * Regression for #709: the picker used to load a single page of roles and
  * filter it in the browser, so on any site with more roles than fit in that
@@ -12,21 +10,21 @@ import { createTestWikiSpace, deleteTestWikiSpace } from '../helpers/wiki';
  * alphabetically, so it can only be found if the typed query actually reaches
  * the server.
  */
-test.describe('Space Settings -> Permissions role search', () => {
+test.describe('Space Settings -> Access role search', () => {
 	let roleName = '';
-	let spaceName = '';
 
-	test.afterEach(async ({ request }) => {
-		// The space's child row links the role, so the space goes first.
-		if (spaceName) await deleteTestWikiSpace(request, spaceName);
+	test.afterEach(async ({ request, wiki }) => {
+		// The space's child row links the role, so the space goes first — the
+		// fixture's own teardown runs after this hook, which would be too late.
+		await wiki.destroyAll();
 		if (roleName) await deleteDoc(request, 'Role', roleName);
-		spaceName = '';
 		roleName = '';
 	});
 
 	test('finds and adds a role that sorts past the first page', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		// The bug only bites once there are more roles than one page holds.
 		const enabledRoles = await getList(request, 'Role', {
@@ -41,19 +39,18 @@ test.describe('Space Settings -> Permissions role search', () => {
 		roleName = `ZZZ Wiki Role ${Date.now()}`;
 		await createDoc(request, 'Role', { role_name: roleName });
 
-		const space = await createTestWikiSpace(request, {
-			route: `role-search-${Date.now()}`,
-		});
-		spaceName = space.name;
+		const space = await wiki.space();
 
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
-		await page.getByTitle('Settings').first().click();
+		// The sidebar's Settings button became a "Space actions" menu (spec 01).
+		await page.getByRole('button', { name: 'Space actions' }).click();
+		await page.getByRole('menuitem', { name: 'Space settings' }).click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible();
-		await dialog.getByRole('tab', { name: 'Permissions', exact: true }).click();
+		await dialog.getByRole('tab', { name: 'Access', exact: true }).click();
 
 		// Type a fragment that no role from the first page matches.
 		const picker = dialog.getByPlaceholder('Search role to add');

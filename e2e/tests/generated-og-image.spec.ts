@@ -1,10 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { createDoc, getDoc } from '../helpers/frappe';
-import {
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * Auto-generated OG (meta) images.
@@ -22,41 +16,20 @@ import {
  * template work and must never regress.
  */
 test.describe('Generated OG image', () => {
-	const route = `generated-og-${Date.now()}`;
 	let pageUrl: string;
 
-	test.beforeAll(async ({ request }) => {
-		const space = await createDoc<WikiSpace & { root_group: string }>(
-			request,
-			'Wiki Space',
-			{
-				route,
-				space_name: route,
-				is_published: true,
-				// Guest Read makes the card reachable by an anonymous scraper.
-				roles: [{ role: 'Guest', permission_level: 'Read' }],
-			},
-		);
-
-		const doc = await createTestWikiDocument(request, {
-			title: 'Generated OG Page',
-			content: '# Heading\n\nReader body content.',
-			is_published: true,
-			wiki_space: space.name,
-			parent_wiki_document: space.root_group,
+	test.beforeAll(async ({ wikiSuite }) => {
+		const space = await wikiSuite.space({
+			// Guest Read makes the card reachable by an anonymous scraper.
+			roles: [{ role: 'Guest', permission_level: 'Read' }],
+			pages: [
+				{
+					title: 'Generated OG Page',
+					content: '# Heading\n\nReader body content.',
+				},
+			],
 		});
-
-		// The controller computes the final stored route; read it back.
-		const stored = await getDoc<{ route: string }>(
-			request,
-			'Wiki Document',
-			doc.name,
-		);
-		pageUrl = `/${stored.route}`;
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, route);
+		pageUrl = `/${space.page('Generated OG Page').route}`;
 	});
 
 	test('the public page advertises a card the endpoint can actually serve', async ({

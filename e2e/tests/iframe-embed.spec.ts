@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * Covers the iframe embed extension added for frappe/wiki#599.
@@ -45,45 +44,16 @@ declare global {
 	}
 }
 
-/**
- * Create a draft page and open the editor. Mirrors the helper in
- * image-viewer.spec.ts — duplicated here rather than exported so changes
- * to one test don't ripple into others.
- */
-async function createDraftAndOpenEditor(
-	page: import('@playwright/test').Page,
-	title: string,
-) {
-	await page.goto(APP_BASE);
-	await page.waitForLoadState('networkidle');
-
-	const spaceLink = page.locator(spaceLinkSelector()).first();
-	await expect(spaceLink).toBeVisible({ timeout: 5000 });
-	await spaceLink.click();
-	await page.waitForLoadState('networkidle');
-
-	await openNewPageDialog(page);
-
-	await page.getByLabel('Title').fill(title);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
-
-	await page.locator('aside').getByText(title, { exact: true }).click();
-
-	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-
-	await page.waitForFunction(() => window.wikiEditor !== undefined, {
-		timeout: 10000,
-	});
-	return editor;
-}
-
 test.describe('Iframe embed extension', () => {
 	test('parses a YouTube iframe HTML block from markdown into a node', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `iframe-parse-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-parse-${Date.now()}`,
+		);
 
 		const result = await page.evaluate((html) => {
 			window.wikiEditor.commands.setContent(html, { contentType: 'markdown' });
@@ -107,8 +77,15 @@ test.describe('Iframe embed extension', () => {
 		expect(result.height).toBe('315');
 	});
 
-	test('renders the iframe preview inside the editor', async ({ page }) => {
-		await createDraftAndOpenEditor(page, `iframe-preview-${Date.now()}`);
+	test('renders the iframe preview inside the editor', async ({
+		page,
+		wiki,
+	}) => {
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-preview-${Date.now()}`,
+		);
 
 		await page.evaluate((html) => {
 			window.wikiEditor.commands.setContent(html, { contentType: 'markdown' });
@@ -123,8 +100,13 @@ test.describe('Iframe embed extension', () => {
 
 	test('round-trips iframe markdown without mutating the src', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `iframe-roundtrip-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-roundtrip-${Date.now()}`,
+		);
 
 		const { md1, md2 } = await page.evaluate((html) => {
 			window.wikiEditor.commands.setContent(html, { contentType: 'markdown' });
@@ -172,8 +154,12 @@ test.describe('Iframe embed extension', () => {
 		}, text);
 	}
 
-	test('turns a pasted YouTube link into an embed', async ({ page }) => {
-		await createDraftAndOpenEditor(page, `iframe-paste-${Date.now()}`);
+	test('turns a pasted YouTube link into an embed', async ({ page, wiki }) => {
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-paste-${Date.now()}`,
+		);
 
 		await pasteText(page, 'https://www.youtube.com/watch?v=QDia3e12czc');
 
@@ -195,8 +181,13 @@ test.describe('Iframe embed extension', () => {
 	// entire payload is the URL should embed.
 	test('leaves a pasted sentence containing a link as text', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `iframe-paste-inline-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-paste-inline-${Date.now()}`,
+		);
 
 		await pasteText(
 			page,
@@ -216,8 +207,13 @@ test.describe('Iframe embed extension', () => {
 
 	test('accepts the full iframe tag in the /embed URL input', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `iframe-slash-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`iframe-slash-${Date.now()}`,
+		);
 
 		// Insert an empty placeholder via the extension command (skips the
 		// slash-menu fuzzy-find noise and tests the URL input directly).

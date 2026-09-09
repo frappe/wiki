@@ -13,7 +13,6 @@ never from the requesting session — see wiki/wiki/crawler_renderer.py for why.
 import re
 
 import frappe
-from frappe import _
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_first_published_page,
@@ -97,7 +96,7 @@ def _space_llms_txt(space: str) -> str | None:
 	space_doc = frappe.db.get_value(
 		"Wiki Space",
 		space,
-		["name", "space_name", "route", "root_group", "enable_tabs", "home_tab_title"],
+		["name", "space_name", "route", "root_group"],
 		as_dict=True,
 	)
 	# A root group that was deleted leaves nothing to walk, and walking it raises.
@@ -112,21 +111,9 @@ def _space_llms_txt(space: str) -> str | None:
 
 	pages = _published_pages(space_doc.name)
 
-	# Top-level tab groups become sections; anything untabbed goes under the
-	# space's Home tab, matching _home_tab_entry in the reader. A space with tabs
-	# switched off has no Home tab to name, so the whole tree is one section
-	# titled after the space — is_tab flags are still on the nodes, but the
-	# reader ignores them, and this index mirrors the reader.
-	if space_doc.enable_tabs:
-		sections = []
-		untabbed = [node for node in tree if not node.get("is_tab")]
-		if untabbed:
-			sections.append((_one_line(space_doc.home_tab_title) or _("Home"), untabbed))
-		sections += [
-			(_one_line(node["title"]), node.get("children") or []) for node in tree if node.get("is_tab")
-		]
-	else:
-		sections = [(_one_line(space_doc.space_name) or space_doc.name, tree)]
+	# The reader renders one tree per space, so the index is one section titled
+	# after the space.
+	sections = [(_one_line(space_doc.space_name) or space_doc.name, tree)]
 
 	body = []
 	for title, nodes in sections:

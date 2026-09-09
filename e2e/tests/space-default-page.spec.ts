@@ -1,13 +1,6 @@
-import { type APIRequestContext, expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import { appUrl, spaceLinkSelector } from '../helpers/routes';
-import {
-	type WikiDocument,
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	createTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import type { SeededSpace } from '../helpers/factory';
+import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 
 /**
  * Opening a space in the editor should never strand the user on the "Select a
@@ -15,67 +8,26 @@ import {
  * whichever page the user last had open (persisted per-space in localStorage).
  */
 test.describe('Space default page', () => {
-	const populatedRoute = `default-page-${Date.now()}`;
-	const emptyRoute = `default-page-empty-${Date.now()}`;
-	let space: WikiSpace;
-	let alpha: WikiDocument;
-	let beta: WikiDocument;
-	let emptySpace: WikiSpace;
+	let space: SeededSpace;
+	let emptySpace: SeededSpace;
 
-	test.beforeAll(async ({ request }) => {
+	test.beforeAll(async ({ wikiSuite }) => {
 		// A space with two published pages, Alpha before Beta.
-		space = await createTestWikiSpace(request, {
-			route: populatedRoute,
-			is_published: true,
+		space = await wikiSuite.space({
+			pages: [{ title: 'Alpha Page' }, { title: 'Beta Page' }],
 		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${populatedRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-		alpha = await createTestWikiDocument(request, {
-			title: 'Alpha Page',
-			route: `${populatedRoute}/alpha`,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		beta = await createTestWikiDocument(request, {
-			title: 'Beta Page',
-			route: `${populatedRoute}/beta`,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-
 		// A space with no pages, to exercise the empty-tree fallback.
-		emptySpace = await createTestWikiSpace(request, {
-			route: emptyRoute,
-			is_published: true,
-		});
-		const emptyRoot = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${emptyRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', emptySpace.name, {
-			root_group: emptyRoot.name,
-		});
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, populatedRoute);
-		await cleanupWikiSpacesByRoute(request, emptyRoute);
+		emptySpace = await wikiSuite.space();
 	});
 
 	test('auto-opens the first page, then reopens the last opened page', async ({
 		page,
 	}) => {
+		const alpha = space.page('Alpha Page');
+		const beta = space.page('Beta Page');
+
 		// Entering at the bare space route opens the first page (Alpha).
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForURL(`**/spaces/${space.name}/page/${alpha.name}`, {
 			timeout: 15000,
 		});
@@ -84,13 +36,13 @@ test.describe('Space default page', () => {
 		// the rendered title (the page-title input) rather than networkidle: it's
 		// the "page mounted" signal the persist watcher rides on, and avoids
 		// networkidle's flaky 500ms-quiet wait on slow CI.
-		await page.goto(appUrl('spaces', space.name, 'page', beta.name));
+		await page.goto(space.url('page', beta.name));
 		await expect(page.getByPlaceholder('Page title')).toHaveValue('Beta Page', {
 			timeout: 15000,
 		});
 
 		// Re-entering the bare space route now reopens Beta, not Alpha.
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForURL(`**/spaces/${space.name}/page/${beta.name}`, {
 			timeout: 15000,
 		});
@@ -99,7 +51,7 @@ test.describe('Space default page', () => {
 	test('stays on the welcome screen when the space has no pages', async ({
 		page,
 	}) => {
-		await page.goto(appUrl('spaces', emptySpace.name));
+		await page.goto(emptySpace.url());
 		// Wait for the tree to resolve (sidebar reports it's empty), so any
 		// redirect would already have happened.
 		await expect(page.locator('aside >> text=No pages yet')).toBeVisible({
@@ -107,7 +59,12 @@ test.describe('Space default page', () => {
 		});
 		// No page was opened — URL is still the bare space route.
 		await expect(page).toHaveURL(new RegExp(`/spaces/${emptySpace.name}$`));
-		await expect(page.locator('text=Select a page')).toBeVisible();
+		// The tree states the fact; the content column carries the action.
+		const content = page.locator('main');
+		await expect(content.getByText('Create your first page')).toBeVisible();
+		await expect(
+			content.getByRole('button', { name: 'New page', exact: true }),
+		).toBeVisible();
 	});
 });
 
@@ -120,86 +77,32 @@ test.describe('Space default page', () => {
  * each space with a fresh page.goto().
  */
 test.describe('Space default page — in-app space switch', () => {
-	const ts = Date.now();
-	const routeA = `switch-a-${ts}`;
-	const routeB = `switch-b-${ts}`;
-	const nameB = `Bravo Space ${ts}`;
-	let spaceA: WikiSpace;
-	let spaceB: WikiSpace;
-	let aFirst: WikiDocument;
-	let bFirst: WikiDocument;
-
-	async function buildSpace(
-		request: APIRequestContext,
-		route: string,
-		spaceName: string,
-		pagePrefix: string,
-	): Promise<{ space: WikiSpace; firstPage: WikiDocument }> {
-		const space = await createTestWikiSpace(request, {
-			route,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			space_name: spaceName,
-		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: `${pagePrefix} Root`,
-			route: `${route}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-		const firstPage = await createTestWikiDocument(request, {
-			title: `${pagePrefix} One`,
-			route: `${route}/one`,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		await createTestWikiDocument(request, {
-			title: `${pagePrefix} Two`,
-			route: `${route}/two`,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		return { space, firstPage };
-	}
-
-	test.beforeAll(async ({ request }) => {
-		({ space: spaceA, firstPage: aFirst } = await buildSpace(
-			request,
-			routeA,
-			`Alpha Space ${ts}`,
-			'Alpha',
-		));
-		({ space: spaceB, firstPage: bFirst } = await buildSpace(
-			request,
-			routeB,
-			nameB,
-			'Bravo',
-		));
-	});
-
-	test.afterAll(async ({ request }) => {
-		await cleanupWikiSpacesByRoute(request, routeA);
-		await cleanupWikiSpacesByRoute(request, routeB);
-	});
-
 	test('opens the switched-to space page, not the previous space page', async ({
 		page,
+		wiki,
 	}) => {
+		const spaceA = await wiki.space({
+			space_name: 'Alpha Space',
+			pages: [{ title: 'Alpha One' }, { title: 'Alpha Two' }],
+		});
+		const spaceB = await wiki.space({
+			space_name: 'Bravo Space',
+			pages: [{ title: 'Bravo One' }, { title: 'Bravo Two' }],
+		});
+		const aFirst = spaceA.page('Alpha One');
+		const bFirst = spaceB.page('Bravo One');
+
 		// Enter space A — it auto-opens A's first page and hydrates the singleton
 		// draft store for A.
-		await page.goto(appUrl('spaces', spaceA.name));
+		await page.goto(spaceA.url());
 		await page.waitForURL(`**/spaces/${spaceA.name}/page/${aFirst.name}`, {
 			timeout: 15000,
 		});
 
-		// Switch to space B entirely in-app: back to the list, then into B. No
-		// full reload, so the store still holds A's tree at the moment B mounts.
-		await page.locator('[title="Back to Spaces"]').click();
-		await page.waitForURL(/\/spaces$/, { timeout: 15000 });
+		// Switch to space B entirely in-app: back out to the library, then into B.
+		// No full reload, so the store still holds A's tree at the moment B mounts.
+		await page.locator('[aria-label="Back to All Spaces"]').first().click();
+		await page.waitForURL(new RegExp(`${APP_BASE}/?$`), { timeout: 15000 });
 		// Target the row by its href (router-link) — robust to how the row text
 		// is rendered — and click it for a client-side nav into B.
 		await page.locator(spaceLinkSelector(spaceB.name)).first().click();

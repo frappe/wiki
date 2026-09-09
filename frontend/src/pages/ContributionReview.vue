@@ -4,7 +4,7 @@
 		     action cluster needs the full row even on a phone). -->
 		<PageHeader>
 			<div class="flex min-w-0 items-center gap-4">
-				<Button variant="ghost" icon-left="arrow-left" @click="goBack">
+				<Button variant="ghost" icon-left="lucide-arrow-left" @click="goBack">
 					{{ __('Back') }}
 				</Button>
 				<div v-if="changeRequest.doc" class="min-w-0">
@@ -79,16 +79,16 @@
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
-				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-lg"
+				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-6"
 			>
 				<div class="flex items-start gap-3">
-					<span class="lucide-alert-triangle size-5 text-ink-amber-6 shrink-0 mt-0.5" aria-hidden="true" />
+					<span class="lucide-alert-triangle size-5 text-ink-amber-5 shrink-0 mt-0.5" aria-hidden="true" />
 					<div>
-						<p class="font-medium text-ink-amber-8">{{ __('Merge Conflicts') }}</p>
-						<p class="text-sm text-ink-amber-7 mt-1">
+						<p class="font-medium text-ink-amber-7">{{ __('Merge Conflicts') }}</p>
+						<p class="text-sm text-ink-amber-6 mt-1">
 							{{ __('The following documents have conflicting changes. Choose which version to keep for each conflict.') }}
 						</p>
-						<p class="text-sm-medium text-ink-amber-6 mt-2">
+						<p class="text-sm-medium text-ink-amber-5 mt-2">
 							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
 						</p>
 					</div>
@@ -106,7 +106,7 @@
 						<div
 							v-for="conflict in conflicts"
 							:key="conflict.name"
-							class="border border-outline-gray-2 rounded-lg overflow-hidden"
+							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
 							<div
@@ -114,7 +114,7 @@
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-6">
+									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
 										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>
@@ -183,7 +183,7 @@
 						<div
 							v-for="change in changes.data"
 							:key="change.doc_key"
-							class="border border-outline-gray-2 rounded-lg overflow-hidden"
+							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 						>
 							<div
 								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
@@ -225,16 +225,16 @@
 								     the page sat vs. where it sits now instead of an empty content diff. -->
 								<template v-if="change.change_type === 'reordered'">
 									<div v-if="diffsByDocKey[change.doc_key]" class="flex items-center gap-3 flex-wrap p-4 text-sm">
-										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-6">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-6">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.base, change.title) }}</span>
 											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.base)" variant="subtle" theme="gray" size="sm">
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
 											</Badge>
 										</div>
 										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
-										<div class="flex items-center gap-2 px-3 py-2 rounded-md bg-surface-gray-2 text-ink-gray-8 font-medium">
+										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-8 font-medium">
 											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
-											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="orange" size="sm">
+											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="amber" size="sm">
 												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
 											</Badge>
 										</div>
@@ -264,7 +264,7 @@
 									<template v-if="viewModeFor(change.doc_key) === 'preview'">
 										<div
 											v-if="diffsByDocKey[change.doc_key]"
-											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-lg overflow-hidden"
+											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-6 overflow-hidden"
 										>
 											<section class="bg-surface-base min-w-0">
 												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
@@ -601,7 +601,7 @@ const reviewMenuOptions = computed(() => {
 	if (status === 'In Review') {
 		options.push({
 			label: __('Approve & Merge'),
-			icon: 'check-circle',
+			icon: 'lucide-check-circle',
 			onClick: () => {
 				showApproveMergeDialog.value = true;
 			},
@@ -610,21 +610,21 @@ const reviewMenuOptions = computed(() => {
 	if (['In Review', 'Approved'].includes(status)) {
 		options.push({
 			label: __('Request Changes'),
-			icon: 'message-square',
+			icon: 'lucide-message-square',
 			onClick: () => {
 				showRequestChangesDialog.value = true;
 			},
 		});
 		options.push({
 			label: __('Reject'),
-			icon: 'x-circle',
+			icon: 'lucide-x-circle',
 			onClick: () => {
 				showRejectDialog.value = true;
 			},
 		});
 		options.push({
 			label: __('Assign reviewer'),
-			icon: 'user-plus',
+			icon: 'lucide-user-plus',
 			onClick: () => {
 				showAssignDialog.value = true;
 			},
@@ -636,7 +636,7 @@ const reviewMenuOptions = computed(() => {
 	if (canWithdraw.value) {
 		options.push({
 			label: __('Withdraw'),
-			icon: 'rotate-ccw',
+			icon: 'lucide-rotate-ccw',
 			onClick: handleWithdraw,
 		});
 	}
@@ -879,7 +879,7 @@ function getStatusTheme(status) {
 		case 'Draft':
 			return 'blue';
 		case 'In Review':
-			return 'orange';
+			return 'amber';
 		case 'Changes Requested':
 			return 'red';
 		case 'Approved':
@@ -900,7 +900,7 @@ function getConflictTheme(type) {
 		case 'content':
 			return 'blue';
 		case 'meta':
-			return 'orange';
+			return 'amber';
 		case 'tree':
 			return 'red';
 		default:

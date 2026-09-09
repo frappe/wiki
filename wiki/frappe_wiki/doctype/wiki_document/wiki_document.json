@@ -64,17 +64,17 @@
 		},
 		{
 			"default": "0",
-			"depends_on": "is_group",
-			"description": "Render this top-level group as a tab in the horizontal navigation bar",
+			"description": "Deprecated: tabs were removed. Kept so old revisions and change requests still apply.",
 			"fieldname": "is_tab",
 			"fieldtype": "Check",
+			"hidden": 1,
 			"label": "Is Tab"
 		},
 		{
-			"depends_on": "eval:doc.is_tab",
-			"description": "Lucide icon class name, e.g. lucide-wallet",
+			"description": "Deprecated: tabs were removed. Kept so old revisions and change requests still apply.",
 			"fieldname": "tab_icon",
 			"fieldtype": "Data",
+			"hidden": 1,
 			"label": "Tab Icon"
 		},
 		{

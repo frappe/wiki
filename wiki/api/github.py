@@ -26,7 +26,7 @@ import ipaddress
 import secrets
 import time
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 import frappe
 import jwt
@@ -194,6 +194,23 @@ def repo_branches(repo_full_name: str, token: str) -> list[str]:
 	)
 	resp.raise_for_status()
 	return [b.get("name") for b in resp.json() if b.get("name")]
+
+
+def branch_exists(repo_full_name: str, branch: str, token: str) -> bool:
+	"""Whether a single branch exists — the picker allows typing an arbitrary name.
+
+	Goes straight at the branch endpoint instead of scanning `repo_branches`,
+	which only returns the first 100 branches.
+	"""
+	resp = requests.get(
+		f"{GITHUB_API}/repos/{repo_full_name}/branches/{quote(branch)}",
+		headers=_headers(token),
+		timeout=30,
+	)
+	if resp.status_code == 404:
+		return False
+	resp.raise_for_status()
+	return True
 
 
 # --------------------------------------------------------------------------- #
@@ -503,6 +520,11 @@ def my_repositories(installation_id: str | int, search: str | None = None, page:
 @frappe.whitelist()
 def my_repo_branches(repo_full_name: str) -> list[str]:
 	return repo_branches(repo_full_name, _require_user_token())
+
+
+@frappe.whitelist()
+def my_branch_exists(repo_full_name: str, branch: str) -> bool:
+	return branch_exists(repo_full_name, branch, _require_user_token())
 
 
 @frappe.whitelist()

@@ -1,0 +1,34 @@
+{# A space's mark on the public reader: the generated art, a lucide icon on a
+   tinted square, an uploaded logo, or the space's initial.
+
+   The same four cases as `SpaceAvatar.vue`, resolved by the same rules through
+   `wiki.utils.space_mark`. A space that shows a green book in the app and a
+   blue initial on its own page has two identities, not one.
+
+   Usage:
+   {{ render_space_mark(wiki_space) }}
+   {{ render_space_mark(space, size="md") }}
+#}
+{% macro render_space_mark(space, size="sm") %}
+    {%- set mark = space_mark(space) -%}
+    {%- set box = {"sm": "size-6", "md": "size-7"}.get(size, "size-6") -%}
+    {%- set glyph = {"sm": "size-4", "md": "size-[18px]"}.get(size, "size-4") -%}
+    {%- set text = {"sm": "text-xs", "md": "text-sm"}.get(size, "text-xs") -%}
+    {%- if mark.image -%}
+    {#- object-contain, not cover: an uploaded logo is often a wordmark, and
+        cropping one is worse than letterboxing it. -#}
+    <img class="{{ box }} shrink-0 rounded-[5px] object-contain" src="{{ mark.image | e }}" alt=""/>
+    {%- elif mark.mode == "icon" -%}
+    {#- The colour is only ever one of six palette names -- `space_color_theme`
+        resolves anything else to a hashed one -- so it is safe in a style
+        attribute, and it keeps the tint on the design system's tokens rather
+        than a hex value written here. -#}
+    <span class="{{ box }} shrink-0 inline-flex items-center justify-center rounded-[5px]"
+          style="background-color: var(--surface-{{ mark.color }}-2); color: var(--ink-{{ mark.color }}-7)"
+          aria-hidden="true">{{ lucide_svg(mark.icon, glyph) | safe }}</span>
+    {%- else -%}
+    <span class="{{ box }} {{ text }} shrink-0 inline-flex items-center justify-center rounded-[5px] font-medium uppercase"
+          style="background-color: var(--surface-{{ mark.color }}-2); color: var(--ink-{{ mark.color }}-7)"
+          aria-hidden="true">{{ mark.initial }}</span>
+    {%- endif -%}
+{% endmacro %}

@@ -186,7 +186,7 @@ function handleKeydown(event) {
     width: 100%;
     text-align: center;
     font-size: 0.8125rem;
-    color: var(--ink-red-5, #dc2626);
+    color: var(--ink-red-4, #dc2626);
     padding: 0.5rem 0;
 }
 

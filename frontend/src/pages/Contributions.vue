@@ -2,7 +2,7 @@
 	<div class="flex flex-col h-full overflow-hidden">
 		<!-- Header renders into the shell's PageHeaderTarget. -->
 		<PageHeaderMobile v-if="isMobile" :title="__('Change Requests')">
-			<template #right>
+			<template #suffix>
 				<MobileAppMenu />
 			</template>
 		</PageHeaderMobile>
@@ -21,21 +21,59 @@
 			</div>
 			<ContributionsPanel
 				:resource="panelFor(activeKey).resource"
-				:columns="panelFor(activeKey).columns"
 				:options="panelFor(activeKey).options"
+				:show-assign="panelFor(activeKey).showAssign"
 				@assign="openAssign"
 			/>
 		</template>
 
-		<Tabs v-else v-model="activeTabIndex" :tabs="tabs">
-			<template #tab-panel="{ tab }">
+		<!-- Composed rather than the `:tabs` shorthand: the panel has to be a
+		     constrained flex column for ContributionsPanel's `flex-1
+		     overflow-auto` to scroll, and the shorthand's generated panels take
+		     no classes. v1 ships no layout defaults of its own. -->
+		<Tabs v-else v-model="activeTabKey" class="flex min-h-0 flex-1 flex-col">
+			<!-- The pill track hugs its content, so page padding goes on a wrapper
+			     rather than on TabList itself. -->
+			<div class="shrink-0 px-3 pt-3 sm:px-5">
+				<div class="flex items-center justify-between gap-3">
+					<TabList variant="subtle" class="overflow-x-auto">
+						<TabTrigger
+							v-for="tab in tabs"
+							:key="tab.key"
+							:value="tab.key"
+							:label="tab.label"
+						/>
+					</TabList>
+					<!-- Loaded, not total: the list resource pages and reports no count,
+					     so a bare number would go stale at the page boundary. The `+`
+					     says there is more behind Load more. -->
+					<span
+						v-if="activeCountLabel"
+						class="shrink-0 text-sm text-ink-gray-5"
+					>
+						{{ activeCountLabel }}
+					</span>
+				</div>
+			</div>
+			<!-- `display` is applied only while active. reka keeps an inactive
+			     panel's wrapper in the DOM with a `hidden` attribute and drops
+			     just its content; a bare `flex` here outranks Tailwind's
+			     preflight `[hidden]{display:none}` (same specificity, utilities
+			     come later), so all three panels stayed visible and split the
+			     height three ways. -->
+			<TabPanel
+				v-for="tab in tabs"
+				:key="tab.key"
+				:value="tab.key"
+				class="min-h-0 flex-1 data-[state=active]:flex data-[state=active]:flex-col"
+			>
 				<ContributionsPanel
 					:resource="panelFor(tab.key).resource"
-					:columns="panelFor(tab.key).columns"
 					:options="panelFor(tab.key).options"
+					:show-assign="panelFor(tab.key).showAssign"
 					@assign="openAssign"
 				/>
-			</template>
+			</TabPanel>
 		</Tabs>
 
 		<AssignDialog
@@ -58,6 +96,9 @@ import {
 	FormControl,
 	PageHeader,
 	PageHeaderMobile,
+	TabList,
+	TabPanel,
+	TabTrigger,
 	Tabs,
 	createListResource,
 	usePageMeta,
@@ -73,23 +114,26 @@ const userStore = useUserStore();
 const isManager = computed(() => userStore.isWikiManager);
 const currentUser = computed(() => userStore.data?.name);
 
-const myChangeRequestColumns = [
-	{ label: __('Title'), key: 'title', width: 2 },
-	{ label: __('Space'), key: 'space_name', width: 1.5 },
-	{ label: __('Status'), key: 'status', width: 1 },
-	{ label: __('Last Modified'), key: 'modified', width: 1.5 },
-];
-
-const reviewColumns = [
-	{ label: __('Title'), key: 'title', width: 2 },
-	{ label: __('Author'), key: 'owner', width: 1 },
-	{ label: __('Space'), key: 'space_name', width: 2 },
-	{ label: __('Status'), key: 'status', width: '8rem' },
-	{ label: __('Assignees'), key: 'assign', width: '6rem', align: 'right' },
-	// Submitted is a compact, clock-marked date column anchored to the end; the
-	// header text is dropped (the icon is the cue) and the full timestamp is on
-	// hover, since the date alone is enough at a glance.
-	{ label: '', key: 'modified', width: '7.5rem', align: 'right' },
+// One field list for every tab: the panel renders a single feed row shape, and
+// grouping by space means each row also has to carry the identity fields the
+// group header draws its tile from. `wiki_space` (the link id) is needed both
+// for the row route into the space editor and as the group key --
+// `wiki_space.space_name` only yields the display name.
+const CHANGE_REQUEST_FIELDS = [
+	'name',
+	'title',
+	'status',
+	'owner',
+	'modified',
+	'_assign',
+	'archived_at',
+	'merged_at',
+	'wiki_space',
+	'wiki_space.space_name',
+	'wiki_space.space_icon',
+	'wiki_space.space_color',
+	'wiki_space.avatar',
+	'wiki_space.app_switcher_logo',
 ];
 
 const reviewRowRoute = (row) => ({
@@ -106,16 +150,13 @@ function getRowRoute(row) {
 
 function listOptions(emptyState, rowRoute) {
 	return {
-		selectable: false,
-		showTooltip: true,
-		resizeColumn: false,
 		getRowRoute: rowRoute,
 		emptyState,
 	};
 }
 
-// Each tab is a self-contained descriptor: the server-side filter, the columns
-// to render, and its empty state. `filters` is a getter (not a frozen object)
+// Each tab is a self-contained descriptor: the server-side filter, its empty
+// state, and whether its rows carry the assign action. `filters` is a getter (not a frozen object)
 // so the session user is read at fetch time and can never leak in as
 // `undefined` — the bug this tab structure previously shipped with.
 const tabDefs = computed(() => {
@@ -123,20 +164,7 @@ const tabDefs = computed(() => {
 		{
 			key: 'my',
 			label: __('My Change Requests'),
-			// `wiki_space` (the link id) is needed for the row route to the space
-			// editor; `wiki_space.space_name` only yields the display name.
-			fields: [
-				'name',
-				'title',
-				'wiki_space',
-				'wiki_space.space_name',
-				'status',
-				'modified',
-				'archived_at',
-				'merged_at',
-			],
 			filters: () => ({ owner: ['=', currentUser.value] }),
-			columns: myChangeRequestColumns,
 			options: listOptions(
 				{
 					title: __('No Change Requests'),
@@ -150,20 +178,11 @@ const tabDefs = computed(() => {
 		{
 			key: 'assigned',
 			label: __('Assigned to me'),
-			fields: [
-				'name',
-				'title',
-				'wiki_space.space_name',
-				'status',
-				'owner',
-				'modified',
-				'_assign',
-			],
+			showAssign: true,
 			filters: () => ({
 				_assign: ['like', `%${currentUser.value}%`],
 				status: ['in', ['In Review', 'Approved']],
 			}),
-			columns: reviewColumns,
 			options: listOptions(
 				{
 					title: __('Nothing assigned to you'),
@@ -179,17 +198,8 @@ const tabDefs = computed(() => {
 		defs.push({
 			key: 'all',
 			label: __('All in review'),
-			fields: [
-				'name',
-				'title',
-				'wiki_space.space_name',
-				'status',
-				'owner',
-				'modified',
-				'_assign',
-			],
+			showAssign: true,
 			filters: () => ({ status: ['in', ['In Review', 'Approved']] }),
-			columns: reviewColumns,
 			options: listOptions(
 				{
 					title: __('No change requests in review'),
@@ -206,20 +216,11 @@ const tabs = computed(() =>
 	tabDefs.value.map((d) => ({ key: d.key, label: d.label })),
 );
 
-const activeTabIndex = computed({
-	get() {
-		const idx = tabs.value.findIndex((t) => t.key === tabQuery.value);
-		return idx >= 0 ? idx : 0;
-	},
-	set(idx) {
-		const tab = tabs.value[idx];
-		if (tab) {
-			tabQuery.value = tab.key;
-		}
-	},
+// A tab query naming a tab this user cannot see falls back to the first one.
+const activeKey = computed(() => {
+	const known = tabs.value.some((t) => t.key === tabQuery.value);
+	return known ? tabQuery.value : tabs.value[0]?.key;
 });
-
-const activeKey = computed(() => tabDefs.value[activeTabIndex.value]?.key);
 
 // Mobile select mirrors the desktop tab strip; both drive `tabQuery`.
 const tabSelectOptions = computed(() =>
@@ -243,7 +244,7 @@ function entryFor(key) {
 	if (!resources[key]) {
 		resources[key] = createListResource({
 			doctype: 'Wiki Change Request',
-			fields: def.fields,
+			fields: CHANGE_REQUEST_FIELDS,
 			filters: def.filters(),
 			orderBy: 'modified desc',
 			pageLength: 25,
@@ -267,12 +268,25 @@ watch(
 	{ immediate: true },
 );
 
+// Loaded rows, not a total: the list resource pages and reports no count.
+const activeCountLabel = computed(() => {
+	const entry = activeKey.value ? entryFor(activeKey.value) : null;
+	if (!entry?.resource.list.fetched) return '';
+	const loaded = entry.resource.data?.length || 0;
+	if (!loaded) return '';
+	if (loaded === 1 && !entry.resource.hasNextPage) {
+		return __('1 change request');
+	}
+	const count = entry.resource.hasNextPage ? `${loaded}+` : `${loaded}`;
+	return __('{0} change requests', [count]);
+});
+
 function panelFor(key) {
 	const entry = entryFor(key) || entryFor(tabDefs.value[0].key);
 	return {
 		resource: entry.resource,
-		columns: entry.def.columns,
 		options: entry.def.options,
+		showAssign: Boolean(entry.def.showAssign),
 	};
 }
 

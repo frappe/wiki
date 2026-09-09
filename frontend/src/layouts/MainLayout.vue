@@ -1,5 +1,11 @@
 <template>
-	<div class="h-screen w-full bg-surface-sidebar">
+	<!-- The app is a fixed frame: the sidebar and the open page each own a
+	     scroller, and nothing scrolls the layout itself. The frame is both
+	     `relative` and `overflow-hidden`: the clip only catches an absolutely
+	     positioned stray — frappe-ui Tree's aria-live region, for one — when the
+	     frame is its containing block. Without `relative` the stray resolves
+	     against the page, grows the document, and drags the whole chrome up. -->
+	<div class="relative h-screen w-full overflow-hidden bg-surface-sidebar">
 		<template v-if="isLoading"></template>
 		<template v-else-if="hasAccess">
 			<MobileShell v-if="isMobile" class="wiki-mobile-shell">
@@ -9,7 +15,7 @@
 					<MobileNav>
 						<MobileNavItem
 							:label="__('Spaces')"
-							:to="{ name: 'SpaceList' }"
+							:to="{ name: 'Overview' }"
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
@@ -34,7 +40,10 @@
 			</MobileShell>
 			<DesktopShell v-else class="wiki-desktop-shell h-full">
 				<template #sidebar>
-					<Sidebar />
+					<!-- One navigation column that drills: the library at the top
+					     level, the space itself once you are inside one. -->
+					<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
+					<LibrarySidebar v-else />
 				</template>
 				<slot></slot>
 			</DesktopShell>
@@ -79,9 +88,10 @@
 <script setup>
 import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
-import { computed, onMounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Sidebar from '../components/Sidebar.vue';
+import LibrarySidebar from '../components/LibrarySidebar.vue';
+import SpaceSidebar from '../components/SpaceSidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
 import { useMobile } from '../composables/useMobile';
 import { useTheme } from '../composables/useTheme';
@@ -92,19 +102,20 @@ const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 const { showWikiSettings, initialTab, open } = useWikiSettings();
-const { initTheme } = useTheme();
+// The first useColorScheme() call restores the saved preference and starts
+// following the OS, so mounting this one always-mounted component is enough to
+// apply the theme to both the desktop and mobile shells.
+useTheme();
 
 const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
 
-// Spaces stays lit across every space route (list + space details).
-const isSpacesRoute = computed(() => route.path.startsWith('/spaces'));
+const spaceId = computed(() => route.params.spaceId || null);
 
-// Theme is applied here (the one always-mounted component) so both the
-// desktop and mobile shells get it.
-onMounted(() => {
-	initTheme();
-});
+// Spaces stays lit across every space route (overview + space details).
+const isSpacesRoute = computed(
+	() => route.name === 'Overview' || Boolean(spaceId.value),
+);
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.
 // Re-open the settings dialog on the GitHub tab and strip the query param. This
@@ -124,20 +135,13 @@ watch(
 </script>
 
 <style scoped>
-/* Gameplan-style shell: the content column floats as a rounded card over the
-   sidebar surface in light mode; flat with a hairline divider in dark. */
+/* The content column sits flush against the sidebar, separated by a hairline
+   rather than floated as a rounded card: the app window already rounds the
+   outer corners, so a second radius inside it just reads as noise. */
 .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
-	margin: 0.25rem 0.25rem 0.25rem 0;
-	border-radius: var(--radius-lg);
 	background-color: var(--surface-base);
-	box-shadow: var(--shadow-sm);
-	overflow: hidden;
-}
-[data-theme='dark'] .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
-	margin: 0;
-	border-radius: 0;
 	border-left: 1px solid var(--outline-gray-2);
-	box-shadow: none;
+	overflow: hidden;
 }
 
 /* Wiki pages are app-like (columns + their own scroll regions), so they need

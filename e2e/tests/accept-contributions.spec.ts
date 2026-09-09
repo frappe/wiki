@@ -1,11 +1,6 @@
-import { expect, test } from '@playwright/test';
-import { createDoc, getDoc } from '../helpers/frappe';
-import {
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-	createTestWikiDocument,
-	generateWikiTitle,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import type { WikiFactory } from '../helpers/factory';
+import { generateWikiTitle } from '../helpers/wiki';
 
 /**
  * Per-space "Accept Contributions" toggle — reader-side behavior.
@@ -22,54 +17,26 @@ import {
  * (Administrator) auth state.
  */
 test.describe('Accept Contributions toggle (reader)', () => {
-	let route: string;
-
-	test.afterEach(async ({ request }) => {
-		if (route) await cleanupWikiSpacesByRoute(request, route);
-		route = '';
-	});
-
 	async function seedPublicPage(
-		request: Parameters<typeof createDoc>[0],
+		wiki: WikiFactory,
 		allowContributions: boolean,
 	): Promise<string> {
-		route = `accept-contrib-${Date.now()}`;
-		const space = await createDoc<WikiSpace & { root_group: string }>(
-			request,
-			'Wiki Space',
-			{
-				route,
-				space_name: route,
-				is_published: true,
-				allow_contributions: allowContributions ? 1 : 0,
-				// Guest Read makes the space publicly readable (anonymous reader path).
-				roles: [{ role: 'Guest', permission_level: 'Read' }],
-			},
-		);
-
-		const doc = await createTestWikiDocument(request, {
-			title: generateWikiTitle('Accept Contrib'),
-			content: '# Heading\n\nReader body content.',
-			wiki_space: space.name,
-			parent_wiki_document: space.root_group,
-			is_published: true,
+		const title = generateWikiTitle('Accept Contrib');
+		const space = await wiki.space({
+			allow_contributions: allowContributions ? 1 : 0,
+			// Guest Read makes the space publicly readable (anonymous reader path).
+			roles: [{ role: 'Guest', permission_level: 'Read' }],
+			pages: [{ title, content: '# Heading\n\nReader body content.' }],
 		});
-
-		// The controller computes the final stored route; read it back.
-		const stored = await getDoc<{ route: string }>(
-			request,
-			'Wiki Document',
-			doc.name,
-		);
-		return `/${stored.route}`;
+		return `/${space.page(title).route}`;
 	}
 
 	test('shows Edit to a public reader when contributions are on', async ({
-		request,
+		wiki,
 		browser,
 		baseURL,
 	}) => {
-		const url = await seedPublicPage(request, true);
+		const url = await seedPublicPage(wiki, true);
 
 		// Explicitly logged-out context (the project default carries the admin
 		// auth state) pointed at the same server.
@@ -92,11 +59,11 @@ test.describe('Accept Contributions toggle (reader)', () => {
 
 	test('hides Edit (Copy becomes primary) when contributions are off; other actions remain', async ({
 		page,
-		request,
+		wiki,
 		browser,
 		baseURL,
 	}) => {
-		const url = await seedPublicPage(request, false);
+		const url = await seedPublicPage(wiki, false);
 
 		// --- Read-only viewer (Guest) ---
 		const guest = await browser.newContext({

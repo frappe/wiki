@@ -31,11 +31,36 @@
 				</div>
 			</div>
 
-			<!-- Last sync time -->
+			<!-- Where in the repo the pages come from -->
+			<SettingsRow
+				:title="__('Docs Folder')"
+				:description="
+					docsSubdir
+						? __('Pages are read from this folder in the repository')
+						: __('Pages are read from the repository root')
+				"
+			>
+				<code class="truncate text-xs text-ink-gray-7">
+					{{ docsSubdir || '/' }}
+				</code>
+			</SettingsRow>
+
+			<!-- Last sync time, and the commit it landed on -->
 			<SettingsRow
 				:title="__('Last Synced')"
 				:description="lastSyncTime ? formatDateTime(lastSyncTime) : __('Never')"
-			/>
+			>
+				<a
+					v-if="lastSyncedCommit && repoFullName"
+					:href="`https://github.com/${repoFullName}/commit/${lastSyncedCommit}`"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-xs text-ink-gray-5 underline hover:text-ink-gray-7"
+					:title="__('View commit on GitHub')"
+				>
+					<code>{{ lastSyncedCommit.slice(0, 7) }}</code>
+				</a>
+			</SettingsRow>
 
 			<!-- Webhook: real-time push sync -->
 			<div class="py-3.5">
@@ -47,17 +72,19 @@
 				</div>
 				<div class="mt-2 flex items-center gap-2">
 					<code
-						class="flex-1 min-w-0 truncate rounded bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
+						class="flex-1 min-w-0 truncate rounded-4 bg-surface-gray-2 px-2 py-1 text-xs text-ink-gray-7"
 					>
 						{{ webhookUrl }}
 					</code>
-					<Button
-						size="sm"
-						variant="subtle"
-						icon="copy"
-						:title="__('Copy webhook URL')"
-						@click="copyWebhookUrl"
-					/>
+					<Tooltip :text="__('Copy webhook URL')">
+						<Button
+							size="sm"
+							variant="subtle"
+							icon="lucide-copy"
+							:aria-label="__('Copy webhook URL')"
+							@click="copyWebhookUrl"
+						/>
+					</Tooltip>
 				</div>
 			</div>
 		</div>
@@ -70,7 +97,7 @@
 				</h3>
 				<Button
 					variant="ghost"
-					icon="refresh-cw"
+					icon="lucide-refresh-cw"
 					:loading="logs.loading"
 					@click="logs.reload()"
 				/>
@@ -107,7 +134,7 @@
 						</p>
 						<p
 							v-else-if="row.status === 'Error' && row.error"
-							class="mt-1 truncate text-sm text-ink-red-8"
+							class="mt-1 truncate text-sm text-ink-red-7"
 							:title="row.error"
 						>
 							{{ firstLine(row.error) }}
@@ -140,7 +167,7 @@
 		<CollapsibleSection :title="__('Configuration (.wiki.json)')">
 			<pre
 				v-if="wikiConfig"
-				class="max-h-80 overflow-auto whitespace-pre rounded bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
+				class="max-h-80 overflow-auto whitespace-pre rounded-4 bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
 			>{{ wikiConfig }}</pre>
 			<p v-else class="text-xs text-ink-gray-5">
 				{{ __('No .wiki.json in the repo — the page tree is inferred from the docs folder.') }}
@@ -154,6 +181,7 @@ import {
 	Badge,
 	Button,
 	SettingsRow,
+	Tooltip,
 	createListResource,
 	toast,
 } from 'frappe-ui';
@@ -176,6 +204,10 @@ const branch = computed(() => props.space.doc?.branch || '');
 const lastSyncStatus = computed(() => props.space.doc?.last_sync_status || '');
 const lastSyncTime = computed(() => props.space.doc?.last_sync_time || '');
 const wikiConfig = computed(() => props.space.doc?.wiki_config || '');
+const docsSubdir = computed(() => props.space.doc?.docs_subdir || '');
+const lastSyncedCommit = computed(
+	() => props.space.doc?.last_synced_commit_sha || '',
+);
 
 const webhookUrl = computed(
 	() => `${window.location.origin}/api/method/wiki.api.github.webhook`,
