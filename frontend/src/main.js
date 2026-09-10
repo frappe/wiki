@@ -5,7 +5,7 @@ import router from './router';
 import { initSocket } from './socket';
 import { pinia } from './stores';
 
-import translationPlugin from './translation';
+import translationPlugin, { loadTranslations } from './translation';
 
 import {
 	Badge,
@@ -34,6 +34,8 @@ const globalComponents = {
 const app = createApp(App);
 
 setConfig('resourceFetcher', frappeRequest);
+
+await loadTranslations();
 
 app.use(pinia);
 app.use(router);
