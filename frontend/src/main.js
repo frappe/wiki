@@ -31,22 +31,26 @@ const globalComponents = {
 	Badge,
 };
 
-const app = createApp(App);
-
 setConfig('resourceFetcher', frappeRequest);
 
-await loadTranslations();
+async function bootstrap() {
+	await loadTranslations();
 
-app.use(pinia);
-app.use(router);
-app.use(translationPlugin);
-app.use(resourcesPlugin);
+	const app = createApp(App);
 
-const socket = initSocket();
-app.config.globalProperties.$socket = socket;
+	app.use(pinia);
+	app.use(router);
+	app.use(translationPlugin);
+	app.use(resourcesPlugin);
 
-for (const key in globalComponents) {
-	app.component(key, globalComponents[key]);
+	const socket = initSocket();
+	app.config.globalProperties.$socket = socket;
+
+	for (const key in globalComponents) {
+		app.component(key, globalComponents[key]);
+	}
+
+	app.mount('#app');
 }
 
-app.mount('#app');
+bootstrap();
