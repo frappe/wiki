@@ -12,6 +12,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
+from wiki.api.wiki_space import flush_pending_revision_syncs
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
@@ -538,6 +539,8 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	_assert_space_accepts_contributions(wiki_space)
 	assert_space_writable(wiki_space)
 
+	flush_pending_revision_syncs()
+
 	cr = _find_existing_draft(wiki_space)
 	if cr:
 		if _is_stale_empty_draft(cr, wiki_space):
@@ -820,6 +823,8 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	_assert_space_accepts_contributions(wiki_space)
 	assert_space_writable(wiki_space)
+
+	flush_pending_revision_syncs()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
@@ -1520,6 +1525,8 @@ def merge_change_request(name: str) -> str:
 	# finalized so a re-fired request can't re-merge or revive a closed CR.
 	_assert_status(cr, {"Approved"})
 
+	flush_pending_revision_syncs()
+
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
 
 	if cr.base_revision == space.main_revision:
@@ -1609,6 +1616,8 @@ def retry_merge_after_resolution(name: str) -> str:
 			_("You do not have permission to merge in this space."),
 			frappe.PermissionError,
 		)
+
+	flush_pending_revision_syncs()
 
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
 
@@ -1739,6 +1748,9 @@ def retry_merge_after_resolution(name: str) -> str:
 def check_outdated(name: str) -> int:
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("write")
+
+	flush_pending_revision_syncs()
+
 	main_revision = frappe.get_value("Wiki Space", cr.wiki_space, "main_revision")
 	outdated = 1 if main_revision and main_revision != cr.base_revision else 0
 	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", outdated)

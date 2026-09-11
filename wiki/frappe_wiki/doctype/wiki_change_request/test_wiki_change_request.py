@@ -1053,6 +1053,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
 
 		# Ensure main_revision exists
+		from wiki.api.wiki_space import flush_pending_revision_syncs
 		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 			create_revision_from_live_tree,
 			get_revision_item_map,
@@ -1065,6 +1066,10 @@ class TestWikiChangeRequest(FrappeTestCase):
 		# Edit via desk (direct save)
 		page.content = "v2-desk-edit"
 		page.save()
+
+		# The snapshot is deferred to the end of the transaction, so take it now
+		# instead of waiting for the commit this test never makes.
+		flush_pending_revision_syncs()
 
 		# main_revision should have advanced
 		new_main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
