@@ -57,6 +57,15 @@
 					:aria-label="__('Syncing…')"
 					role="status"
 				/>
+				<!-- Deleted in this draft: struck through in the row, and a red
+				     dot for the same reason every other change type has one. -->
+				<span
+					v-else-if="isDeleted(node)"
+					class="size-1.5 shrink-0 rounded-full bg-surface-red-5"
+					:title="__('Deleted in this draft. Merge to remove it for everyone.')"
+					:aria-label="__('Deleted')"
+					role="status"
+				/>
 				<span
 					v-else-if="changeTypeMap.get(node.doc_key)"
 					class="size-1.5 shrink-0 rounded-full"
@@ -206,8 +215,16 @@ function navigateToTreePage(to) {
 	}
 }
 
+// A staged deletion (this change request's own, or one the diff reports) keeps
+// its row until the change request is merged, struck through and inert.
+function isDeleted(node) {
+	return (
+		!!node.is_deleted || props.changeTypeMap.get(node.doc_key) === 'deleted'
+	);
+}
+
 function handleRowClick(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return;
 	}
 
@@ -253,14 +270,14 @@ function isSelected(node) {
 }
 
 function getRowClasses(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return 'cursor-not-allowed opacity-60';
 	}
 	return 'cursor-pointer';
 }
 
 function getTitleClass(node) {
-	if (props.changeTypeMap.get(node.doc_key) === 'deleted') {
+	if (isDeleted(node)) {
 		return 'text-ink-gray-4 line-through';
 	}
 	if (node.is_published || node.is_group) {
@@ -323,8 +340,26 @@ async function togglePublish(node) {
 	}
 }
 
+async function restore(node) {
+	try {
+		await draftStore.restoreNode(node.doc_key);
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error restoring page'));
+	}
+}
+
 function getDropdownOptions(node) {
 	const options = [];
+
+	if (isDeleted(node)) {
+		return [
+			{
+				label: __('Restore'),
+				icon: 'rotate-ccw',
+				onClick: () => restore(node),
+			},
+		];
+	}
 
 	if (node.is_group) {
 		options.push(
