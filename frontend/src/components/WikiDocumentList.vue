@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-full min-h-0 flex-col">
+	<div ref="rootEl" class="flex h-full min-h-0 flex-col">
 		<!-- Search sits above the scroller, so it stays put while results move. -->
 		<div v-if="hasPages" class="shrink-0 px-2 pb-2">
 			<TextInput
@@ -258,7 +258,7 @@ import {
 	TextInput,
 	Tooltip,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import SpaceIcon from './SpaceIcon.vue';
 import WikiTree from './WikiTree.vue';
 
@@ -328,6 +328,50 @@ function revealGroup(node) {
 	expandedNodes.value[node.doc_key] = true;
 	searchQuery.value = '';
 }
+
+// Reveal a page opened from outside the tree (Edit link, reload, deep link).
+const rootEl = ref(null);
+
+function findAncestorKeys(nodes, isTarget) {
+	for (const node of nodes || []) {
+		if (isTarget(node)) return [];
+		const path = findAncestorKeys(node.children, isTarget);
+		if (path) return [node.doc_key, ...path];
+	}
+	return null;
+}
+
+const selectedAncestorKeys = computed(() => {
+	const { selectedPageId, selectedDraftKey } = props;
+	if (!selectedPageId && !selectedDraftKey) return null;
+	return findAncestorKeys(props.treeData?.children, (node) =>
+		selectedPageId
+			? !node.is_group && node.document_name === selectedPageId
+			: !node.document_name && node.doc_key === selectedDraftKey,
+	);
+});
+
+// Keyed on the selection, not the tree, so unrelated edits don't re-expand or re-scroll.
+watch(
+	() =>
+		selectedAncestorKeys.value &&
+		[
+			props.selectedPageId,
+			props.selectedDraftKey,
+			...selectedAncestorKeys.value,
+		].join('/'),
+	async () => {
+		if (!selectedAncestorKeys.value) return;
+		for (const key of selectedAncestorKeys.value) {
+			expandedNodes.value[key] = true;
+		}
+		await nextTick();
+		rootEl.value
+			?.querySelector('[data-selected]')
+			?.scrollIntoView({ block: 'nearest' });
+	},
+	{ immediate: true },
+);
 
 const {
 	showCreateDialog,

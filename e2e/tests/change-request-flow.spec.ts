@@ -521,8 +521,10 @@ test.describe('Change Request Flow', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Ensure the group is expanded for assertions
-		await page.locator('aside').getByText(groupTitle, { exact: true }).click();
+		// The space opens its first page, so the tree has already revealed the group.
+		await expect(
+			page.locator('aside').getByText(pageTitles[0], { exact: true }),
+		).toBeVisible();
 
 		const sidebarText = await page.locator('aside').innerText();
 		expect(sidebarText.indexOf(pageTitles[1])).toBeLessThan(

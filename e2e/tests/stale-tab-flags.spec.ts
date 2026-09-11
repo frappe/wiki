@@ -194,8 +194,10 @@ test.describe('A space carrying legacy tab flags', () => {
 		).toBeVisible();
 		await expect(page.getByRole('tablist')).toHaveCount(0);
 
-		// And they expand like any other group.
-		await tree.getByText('Accounting', { exact: true }).click();
-		await expect(tree.getByText('Receivables', { exact: true })).toBeVisible();
+		// And they expand like any other group. Not Accounting: the space opens a
+		// page inside it, so the tree has already revealed that one.
+		await expect(tree.getByText('Production', { exact: true })).toHaveCount(0);
+		await tree.getByText('Manufacturing', { exact: true }).click();
+		await expect(tree.getByText('Production', { exact: true })).toBeVisible();
 	});
 });
