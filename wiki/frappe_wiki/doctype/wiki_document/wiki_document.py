@@ -1101,7 +1101,7 @@ def _clear_stale_website_cache(doc, deleted=False):
 
 
 def _sync_document_to_revision(doc):
-	"""Find the owning Wiki Space and refresh its main_revision.
+	"""Find the owning Wiki Space and queue a refresh of its main_revision.
 
 	Skips when called during merge or reorder — those flows manage revisions
 	themselves via guard flags.
@@ -1111,13 +1111,13 @@ def _sync_document_to_revision(doc):
 	if getattr(frappe.flags, "in_reorder_wiki_documents", False):
 		return
 
-	from wiki.api.wiki_space import _get_wiki_space_for_document, _sync_main_revision_for_space
+	from wiki.api.wiki_space import _get_wiki_space_for_document, queue_main_revision_sync
 
 	space_name = _get_wiki_space_for_document(doc.name)
 	if not space_name:
 		return
 
-	_sync_main_revision_for_space(space_name)
+	queue_main_revision_sync(space_name)
 
 
 def get_adjacent_documents(nested_tree: list, current_route: str) -> dict:
