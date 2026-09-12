@@ -367,10 +367,16 @@ def queue_main_revision_sync(space_name: str | None) -> None:
 
 
 def flush_pending_revision_syncs() -> None:
-	"""Snapshot every space with edits queued since the last flush."""
+	"""Snapshot every space with edits queued since the last flush.
+
+	A space queued earlier in the transaction can be deleted before the flush runs,
+	so a snapshot is only taken for one that still exists.
+	"""
 	pending = _pending_revision_spaces()
 	while pending:
-		_sync_main_revision_for_space(pending.pop())
+		space_name = pending.pop()
+		if frappe.db.exists("Wiki Space", space_name):
+			_sync_main_revision_for_space(space_name)
 
 
 def _sync_main_revision_for_space(space_name: str | None) -> None:
