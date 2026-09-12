@@ -375,8 +375,15 @@ def flush_pending_revision_syncs() -> None:
 	pending = _pending_revision_spaces()
 	while pending:
 		space_name = pending.pop()
-		if frappe.db.exists("Wiki Space", space_name):
+		if not frappe.db.exists("Wiki Space", space_name):
+			continue
+		try:
 			_sync_main_revision_for_space(space_name)
+		except Exception:
+			frappe.log_error(
+				title=f"Wiki: main_revision sync failed for {space_name}",
+				defer_insert=True,
+			)
 
 
 def _sync_main_revision_for_space(space_name: str | None) -> None:
