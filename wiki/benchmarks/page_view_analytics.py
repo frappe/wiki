@@ -2,7 +2,8 @@
 # See license.txt
 
 """
-Timing for wiki.api.analytics.get_analytics against a large Web Page View table.
+Timing for the page view rollup and wiki.api.analytics.get_analytics against a large
+Web Page View table.
 
 Not part of the test suite. It inserts rows into the site it runs on and deletes
 them afterwards, so run it on a development site. Seeded rows and MariaDB's sort
@@ -18,6 +19,7 @@ import frappe
 from frappe.utils import add_days, get_url, nowdate
 
 from wiki.api import analytics
+from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_days
 
 NAME_PREFIX = "bench-pv-"
 DAYS = 180
@@ -28,14 +30,21 @@ BUDGET_SECONDS = 60
 TIMED_HELPERS = ("_series", "_top_pages", "_top_referrers")
 
 
-def run(rows: int = 1_000_000, keep: bool = False) -> None:
+def run(rows: int = 1_000_000, keep: bool = False, reuse: bool = False) -> None:
+	"""`reuse` times the rows a previous `keep` run left behind, skipping the slow seed and rollup."""
 	frappe.set_user("Administrator")
-	delete_rows()
+	if not reuse:
+		delete_rows()
 	try:
-		seconds = seed(rows)
-		print(f"Seeded {rows:,} rows in {seconds:.0f}s over {DAYS} days", flush=True)
+		if not reuse:
+			seconds = seed(rows)
+			print(f"Seeded {rows:,} rows in {seconds:.0f}s over {DAYS} days", flush=True)
+			started = time.perf_counter()
+			roll_up_days(seeded_days(), commit_each=True)
+			print(f"Rolled up in {time.perf_counter() - started:.0f}s", flush=True)
 		print(
-			f"Spaces: {frappe.db.count('Wiki Space'):,}, pages: {frappe.db.count('Wiki Document'):,}",
+			f"Spaces: {frappe.db.count('Wiki Space'):,}, pages: {frappe.db.count('Wiki Document'):,}, "
+			f"rollup rows: {frappe.db.count('Wiki Page View Daily'):,}",
 			flush=True,
 		)
 		print_table(scenarios())
@@ -106,7 +115,7 @@ def scenarios() -> list[tuple[str, dict]]:
 		("wiki-wide, 180 days, daily", last(180)),
 		("wiki-wide, 180 days, weekly", last(180, "weekly")),
 		("wiki-wide, 30 days, daily", last(30)),
-		("wiki-wide, 7 days, hourly", last(7, "hourly")),
+		("wiki-wide, 180 days, monthly", last(180, "monthly")),
 		("busiest space, 180 days, daily", last(180, space=space)),
 		("busiest page, 180 days, daily", last(180, document=document)),
 	]
@@ -159,6 +168,12 @@ def format_ms(values: list[float]) -> str:
 	return f"{median(values) * 1000:.0f} / {p95 * 1000:.0f}"
 
 
+def seeded_days() -> list:
+	return [add_days(nowdate(), -offset) for offset in range(DAYS, -1, -1)]
+
+
 def delete_rows() -> None:
 	frappe.db.sql("DELETE FROM `tabWeb Page View` WHERE name LIKE %s", f"{NAME_PREFIX}%")
 	frappe.db.commit()  # nosemgrep: cleanup must persist even when the run fails
+	# Rolling the days up again leaves only the rollup of the site's real views.
+	roll_up_days(seeded_days(), commit_each=True)

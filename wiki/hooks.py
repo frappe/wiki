@@ -147,6 +147,14 @@ default_log_clearing_doctypes = {
 # Scheduled Tasks
 # ---------------
 
+scheduler_events = {
+	"cron": {
+		"*/15 * * * *": [
+			"wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily.roll_up_recent_days",
+		],
+	},
+}
+
 # scheduler_events = {
 # 	"cron": {
 # 		"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.build_index_in_background"],

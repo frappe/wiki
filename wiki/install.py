@@ -4,7 +4,7 @@
 
 import frappe
 
-from wiki.patches.add_web_page_view_path_index import execute as add_web_page_view_path_index
+from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import ensure_web_page_view_index
 
 
 def after_install():
@@ -22,4 +22,4 @@ def after_install():
 	page.content = "# Welcome to Frappe Wiki!"
 	page.insert()
 
-	add_web_page_view_path_index()
+	ensure_web_page_view_index()

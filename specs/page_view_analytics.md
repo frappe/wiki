@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Phase 3 of 5 done** (2026-09-13). See [Progress](#progress).
+Status: **Phase 4 of 5 done** (2026-09-13). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -154,6 +154,9 @@ Every 15 minutes a scheduled job rolls up today and yesterday from `Web Page Vie
 - Re-rolling yesterday on each run picks up rows that were still in Redis when the day ended. Each run deletes a day's rollup rows and inserts them again, so it can repeat safely.
 - A migration patch fills the rollup from every day already in the log.
 - All sums are additive, so any range, scope and interval is a `SUM` over rollup rows. No request reads `Web Page View`.
+- One covering index, `(path, date, referrer_host, views, new_visitors)`, serves every analytics query without reading table rows. `date` has its own index for the job's per-day delete.
+- A scope's paths are found once per request: `DISTINCT path` over the rollup (a loose index scan), kept when a space route is the path or a `/`-bounded prefix of it, then passed to every query as `path IN (...)`. This replaced one `=`/`LIKE` pair per space, which cost 570ms at 20k rows with 288 spaces.
+- The rollup grows with pages × days × referrer hosts, not with views, so its cost levels off as traffic grows.
 - `hourly` is dropped: the rollup has no hours. Add an hourly rollup if a dashboard needs it.
 - The rollup outlives `Web Page View` retention, and a visitor whose rows were all cleared counts as new again.
 
@@ -303,3 +306,39 @@ What the numbers say:
 5. **The planned rollup cannot hold distinct visitors.** A `Wiki Page View Daily` row with `unique_views` per path per day cannot be summed into a multi-day or multi-page count: the same visitor would be counted once per day and per page.
 
 Decision (2026-09-13): add the rollup, with new visitors instead of distinct visitors. See decisions 4 and 5 and [Rollup](#rollup-phase-4-decision).
+
+#### Rollup build (2026-09-13)
+
+Built:
+
+- `Wiki Page View Daily` DocType, read-only, readable by System Manager and Wiki Manager.
+- `roll_up_day`, `roll_up_days`, `roll_up_recent_days` (cron every 15 minutes in `hooks.py`) and `roll_up_all_logged_days` in `wiki_page_view_daily.py`.
+- `wiki.patches.backfill_page_view_rollup` (post model sync): adds the `(visitor_id, creation)` index on `Web Page View` and rolls up every logged day, committing per day. `after_install` adds the same index.
+- `wiki.patches.add_web_page_view_path_index` from phase 1 is removed before release: nothing reads `Web Page View` by path any more.
+- `get_analytics` reads the rollup and returns `new_visitors` in place of `unique_views`. `hourly` is rejected. Series dates are plain dates.
+- The benchmark now also times the rollup, re-rolls the seeded days when it cleans up, and has `keep` and `reuse` flags so index experiments can skip the ten minute seed.
+
+Verified:
+
+- `test_wiki_page_view_daily.py` (3 cases): first view per visitor across days, same-second ties, missing and empty visitor ids, all rows flagged `is_unique` as Redis leaves them; referrer host grouping including ports, non-web schemes and non-URLs; re-rolling a day replaces it and a late row from the day before moves the visitor's first view.
+- `test_analytics.py` (14 cases) updated for new visitors and date buckets. Both suites passed twice.
+- Mutation check: counting every view as new, dropping the same-second tie-break, dropping the empty visitor check, skipping the delete before re-rolling, dropping the own-host filter, dropping the range end, and matching routes with a plain `startswith` each fail at least one test.
+- The scheduled function runs with `bench execute`, and `frappe.get_hooks("scheduler_events")` lists it under `*/15 * * * *`.
+
+Benchmark, same machine and 128MB buffer pool, 1M views seeded over 180 days:
+
+- Seed: 351s. Rollup of 181 days: 218s (about 1.2s per day at 5,500 views a day, so a 15 minute run over two days costs about 2.5s). 539,194 rollup rows, 280,109 of them distinct path-days.
+
+| Scenario (p50 / p95 ms) | Raw log (phase 3) | Rollup, `(date, path)` index | Rollup, covering index and loose path scan |
+|---|---|---|---|
+| wiki-wide, 180 days, daily | over 50s, stopped | 9,020 / 9,198 | 1,699 / 1,815 |
+| wiki-wide, 180 days, weekly | not run | 9,014 / 9,285 | 1,693 / 1,735 |
+| wiki-wide, 180 days, monthly | not run | 8,789 / 9,034 | 1,660 / 1,718 |
+| wiki-wide, 30 days, daily | not run | 2,720 / 2,821 | 421 / 434 |
+| busiest space, 180 days | not run | 5,545 / 5,702 | 71 / 73 |
+| busiest page, 180 days | not run | 2,010 / 2,309 | 16 / 16 |
+
+- At 20k views the final design takes 166ms wiki-wide over 180 days, 38ms for a space and 14ms for a page.
+- Wiki-wide over 180 days still misses the 1s goal on this machine. Its time splits into top referrers 614ms, series 527ms, top pages 324ms, and totals plus path lookup about 230ms: each groups every rollup row in range. The 128MB buffer pool is smaller than the 236MB rollup table, so this is partly disk reads. A production-sized pool could not be tried: the site's database user cannot resize it.
+- 5M was not run: the database disk has 1.4GB free. Since the rollup grows with pages × days × hosts rather than views, 5M views over the same pages should land close to the 1M numbers. That is a prediction, not a measurement.
+- Seeded rows and the rollup were truncated afterwards. Both tables held only benchmark data.

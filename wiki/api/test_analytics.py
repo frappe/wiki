@@ -5,6 +5,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from wiki.api.analytics import get_analytics
+from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_day
 from wiki.tests.factory import WikiFixtures, unique_route
 
 READER_ROLE = "_Test Analytics Reader"
@@ -27,6 +28,7 @@ def _log_view(path: str, creation: str, visitor_id: str | None = None, referrer:
 		{"doctype": "Web Page View", "path": path, "visitor_id": visitor_id, "referrer": referrer}
 	).insert(ignore_permissions=True)
 	frappe.db.set_value("Web Page View", view.name, "creation", creation, update_modified=False)
+	roll_up_day(frappe.utils.getdate(creation))
 
 
 class TestGetAnalytics(IntegrationTestCase):
@@ -49,6 +51,7 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
+		frappe.db.delete("Wiki Page View Daily", {"path": ("like", "analytics%")})
 		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
 
 	def test_counts_the_space_route_and_its_pages_only(self):
@@ -89,11 +92,9 @@ class TestGetAnalytics(IntegrationTestCase):
 			get_analytics("2024-01-01", "2026-03-01", space=self.space.name)
 
 		with self.assertRaises(frappe.ValidationError):
-			get_analytics("2026-01-01", "2026-03-01", interval="hourly", space=self.space.name)
-		with self.assertRaises(frappe.ValidationError):
-			get_analytics("2026-03-01", "2026-03-02", interval="yearly", space=self.space.name)
+			get_analytics("2026-03-01", "2026-03-02", interval="hourly", space=self.space.name)
 
-	def test_unique_views_count_distinct_visitors_in_scope(self):
+	def test_new_visitors_count_first_views_in_scope(self):
 		_log_view(f"{self.route}/a", "2026-03-10 09:00:00", visitor_id="v1")
 		_log_view(f"{self.route}/b", "2026-03-10 09:05:00", visitor_id="v1")
 		_log_view(f"{self.route}/a", "2026-03-11 09:00:00", visitor_id="v2")
@@ -101,7 +102,7 @@ class TestGetAnalytics(IntegrationTestCase):
 
 		result = get_analytics(**self.march)
 
-		self.assertEqual((result["total_views"], result["unique_views"]), (4, 2))
+		self.assertEqual((result["total_views"], result["new_visitors"]), (4, 2))
 
 	def test_daily_series_fills_empty_days(self):
 		_log_view(f"{self.route}/a", "2026-03-02 09:00:00", visitor_id="v1")
@@ -111,16 +112,16 @@ class TestGetAnalytics(IntegrationTestCase):
 		series = get_analytics("2026-03-01", "2026-03-04", space=self.space.name)["series"]
 
 		self.assertEqual(
-			[(str(point["date"]), point["views"], point["unique_views"]) for point in series],
+			[(str(point["date"]), point["views"], point["new_visitors"]) for point in series],
 			[
-				("2026-03-01 00:00:00", 0, 0),
-				("2026-03-02 00:00:00", 2, 1),
-				("2026-03-03 00:00:00", 0, 0),
-				("2026-03-04 00:00:00", 1, 1),
+				("2026-03-01", 0, 0),
+				("2026-03-02", 2, 1),
+				("2026-03-03", 0, 0),
+				("2026-03-04", 1, 1),
 			],
 		)
 
-	def test_hourly_weekly_and_monthly_buckets(self):
+	def test_weekly_and_monthly_buckets(self):
 		_log_view(f"{self.route}/a", "2026-03-03 09:10:00")  # Tuesday
 		_log_view(f"{self.route}/a", "2026-03-03 09:50:00")
 		_log_view(f"{self.route}/a", "2026-03-09 00:00:00")  # next Monday
@@ -130,14 +131,13 @@ class TestGetAnalytics(IntegrationTestCase):
 			series = get_analytics(from_date, to_date, interval=interval, space=self.space.name)["series"]
 			return {str(point["date"]): point["views"] for point in series if point["views"]}
 
-		self.assertEqual(buckets("2026-03-03", "2026-03-03", "hourly"), {"2026-03-03 09:00:00": 2})
 		self.assertEqual(
 			buckets("2026-03-01", "2026-03-10", "weekly"),
-			{"2026-03-02 00:00:00": 2, "2026-03-09 00:00:00": 1},
+			{"2026-03-02": 2, "2026-03-09": 1},
 		)
 		self.assertEqual(
 			buckets("2026-03-01", "2026-04-30", "monthly"),
-			{"2026-03-01 00:00:00": 3, "2026-04-01 00:00:00": 1},
+			{"2026-03-01": 3, "2026-04-01": 1},
 		)
 
 	def test_top_pages_carry_titles_and_rank_by_views(self):
