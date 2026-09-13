@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Phase 1 of 5 done** (2026-09-13). See [Progress](#progress).
+Status: **Phase 2 of 5 done** (2026-09-13). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -215,4 +215,16 @@ Verified:
 - Browser, with tracking on: the page on the pre-change server makes no `make_view_log` call. The same page on this branch makes one (200), and after `frappe.deferred_insert.save_to_db` the row has the right path, time zone and visitor id.
 - The Analytics tab shows the logged count for Administrator, in light and dark themes.
 
-Not yet done: views after client-side navigation (phase 2). No Playwright spec yet; phase 2 adds the capture e2e.
+
+### Phase 2: client-side navigation (2026-09-13)
+
+Built:
+
+- `Alpine.store('navigation')` in `includes/sidebar.html`: both `navigateTo` branches (prefetch cache hit and fetch) now go through one `showPage(route, data, pushState)`, which updates the content, pushes the URL and then calls `window.wikiLogView(previousUrl)`. Back and forward reach it through the existing `popstate` handler. `prefetch` is untouched, so hovers never log.
+- The referrer sent for an in-reader navigation is the previous page's URL.
+
+Verified:
+
+- `e2e/tests/page-view-tracking.spec.ts`: load Alpha, click Beta, click Gamma, hover Delta (waits for its prefetch), go back. Asserts exactly 4 view logs with paths Alpha, Beta, Gamma, Beta (from the Referer header) and the previous page as referrer. It fails at the second log on the phase 1 code, passes after, and passed 3 repeated runs. It turns tracking on for the suite and restores the previous value.
+- After flushing the queue, the stored `Web Page View` rows match those paths and referrers.
+- Reader specs that do not need the editor build (among them `sidebar-reveal`, which covers prev/next navigation) pass locally. Specs that drive the editor app could not run locally from this worktree, before or after the change, since the dev bench serves another branch's editor build. CI covers them.
