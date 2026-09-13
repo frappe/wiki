@@ -109,6 +109,8 @@ window.wikiLogView = async (referrer) => {
 
 ### Storage and queries
 
+**Superseded on 2026-09-13 by the phase 4 benchmark:** queries read a rollup table, see [Rollup](#rollup-phase-4-decision). The comparison below is kept for the record.
+
 **Recommendation: query MariaDB directly in v1. Do not add DuckDB yet.**
 
 | | MariaDB on `tabWeb Page View` | DuckDB snapshot (builder) |
@@ -135,6 +137,26 @@ Queries live in `wiki/analytics.py` and use `frappe.qb`:
 
 Date range is required and capped (for example 400 days) so no request scans the whole table.
 
+### Rollup (phase 4 decision)
+
+Every 15 minutes a scheduled job rolls up today and yesterday from `Web Page View` into `Wiki Page View Daily`:
+
+| Field | Meaning |
+|---|---|
+| `date` | Day of the views |
+| `path` | Page path, as logged |
+| `referrer_host` | Host of the referrer, empty for direct |
+| `views` | Row count |
+| `new_visitors` | Views that were a visitor's first logged view |
+
+- A view is a visitor's first when no `Web Page View` row with the same `visitor_id` is older. The job checks this with an index probe on `(visitor_id, creation)`, one day of rows at a time.
+- Frappe's `is_unique` is not used. `make_view_log` computes it by looking for the `visitor_id` in the database, but rows wait in Redis for up to 15 minutes first, so every page a new visitor opens before the flush is marked unique.
+- Re-rolling yesterday on each run picks up rows that were still in Redis when the day ended. Each run deletes a day's rollup rows and inserts them again, so it can repeat safely.
+- A migration patch fills the rollup from every day already in the log.
+- All sums are additive, so any range, scope and interval is a `SUM` over rollup rows. No request reads `Web Page View`.
+- `hourly` is dropped: the rollup has no hours. Add an hourly rollup if a dashboard needs it.
+- The rollup outlives `Web Page View` retention, and a visitor whose rows were all cleared counts as new again.
+
 ### API
 
 New module `wiki/api/analytics.py`:
@@ -144,7 +166,7 @@ New module `wiki/api/analytics.py`:
 def get_analytics(from_date: str, to_date: str, interval: str = "daily", space: str | None = None, document: str | None = None) -> dict: ...
 ```
 
-One endpoint with optional `space` or `document` instead of three near copies. Returns `{total_views, unique_views, series, top_pages, top_referrers}` (a page scope skips `top_pages`).
+One endpoint with optional `space` or `document` instead of three near copies. Returns `{total_views, new_visitors, series, top_pages, top_referrers}` (a page scope skips `top_pages`).
 
 Permissions:
 
@@ -186,16 +208,18 @@ Each phase goes end to end and gets a commit.
 1. **Bullet: one number on screen.** Capture script on first load only, index patch, `get_analytics` returning `total_views` for a space, a bare number in the space Analytics tab. Verify: open a page as Guest, flush with `bench --site wiki.localhost execute frappe.deferred_insert.save_to_db`, see the count go up.
 2. **Client-side navigation.** Log in `navigateTo` and `popstate`, never in `prefetch`. Playwright e2e: load a page, click two sidebar links, hover a third, flush, assert 3 rows with the right paths.
 3. **Full query set.** Series, unique visitors, top pages with titles, top referrers, permission checks. Unit tests in `wiki/tests/test_analytics.py` (seed `Web Page View` rows directly, cover scope prefix matching, date bounds, permission denial).
-4. **Benchmark.** Seed 1M and 5M rows, time the wiki-wide 180-day query. Record results here. Decide rollup yes or no.
+4. **Benchmark.** Seed 1M and 5M rows, time the wiki-wide 180-day query. Record results here. Decide rollup yes or no. Outcome: yes, then build it: `Wiki Page View Daily`, the 15 minute job, a backfill patch, `get_analytics` reading the rollup, and the benchmark re-run against it.
 5. **Dashboard.** Composable, chart, presets, drill down, top lists, tracking-off notice, wiki-wide Overview for managers, page level link. Playwright e2e for the dashboard flow.
 
 ## Decisions
 
 Taken 2026-09-13.
 
-1. Unique visitors use `COUNT(DISTINCT visitor_id)` per scope, not Frappe's site-wide `is_unique`.
+1. ~~Unique visitors use `COUNT(DISTINCT visitor_id)` per scope, not Frappe's site-wide `is_unique`.~~ Replaced by decision 4.
 2. Logged-in editors' own visits count, as in builder. `Web Page View` does not store the user, so filtering them is out of scope.
 3. Space and page analytics are visible to space writers (`can_write_space`), not readers.
+4. (2026-09-13, after the phase 4 benchmark) Numbers come from a rollup table. Distinct visitors cannot be summed across days or pages, so the metric is **new visitors**: views that were a visitor's first logged view on the site. It is computed by the rollup job, not taken from Frappe's `is_unique`.
+5. (2026-09-13) The `hourly` interval is dropped with the move to a daily rollup.
 
 ## Progress
 
@@ -246,3 +270,36 @@ Verified:
 - `wiki/api/test_analytics.py`, 14 cases, passed 3 repeated runs. New cases cover distinct visitors, daily gap filling, hourly, weekly and monthly buckets, top page titles and ranking, referrer host grouping with own-site skip, exact page scope, page scope denial for a reader, wiki-wide manager gate and non-wiki path exclusion, and space plus document rejection.
 - Mutation check: removing the own-host skip, `DISTINCT`, gap filling, the manager check, the page permission check or the exact page match each fails its test.
 - Not verified over HTTP: the dev bench serves another branch, so tests ran with `PYTHONPATH` pointing at this worktree. Phase 5 adds the dashboard e2e.
+
+### Phase 4: benchmark (2026-09-13)
+
+Built:
+
+- `wiki/benchmarks/page_view_analytics.py`: seeds `Web Page View` rows in SQL from MariaDB's `seq_1_to_N` table (deterministic: `CRC32` instead of `RAND()`, pages and referrer hosts skewed, one visitor per four views, 55% own-site referrers, 25% direct), times `get_analytics` per scenario with a split for series, top pages and referrers, then deletes the rows. Run with `bench --site <site> execute wiki.benchmarks.page_view_analytics.run --kwargs "{'rows': 1_000_000}"`.
+
+Setup: local dev site, MariaDB 10.11, 16 cores, `innodb_buffer_pool_size` 128MB (the default, far below a production server), `Web Page View` is `ROW_FORMAT=COMPRESSED`, 288 spaces and 1,928 pages. Rows spread over 180 days.
+
+Results:
+
+| Rows | Query | Time |
+|---|---|---|
+| 20k | `get_analytics`, wiki-wide, 180 days, daily (p50 / p95 of 7) | 659 / 667 ms |
+| 20k | same, 30 days | 175 / 177 ms |
+| 20k | busiest space, 180 days | 21 / 23 ms |
+| 20k | busiest page, 180 days | 8 / 10 ms |
+| 1M | `get_analytics`, wiki-wide, 180 days | did not finish: the series query alone ran over 50s, run stopped |
+| 1M | `COUNT(*)` over 180 days | 0.46 s |
+| 1M | `COUNT(*), COUNT(DISTINCT visitor_id)` over 180 days, optimizer's plan (range on `creation`) | 83.5 s |
+| 1M | same, forced full table scan | 3.5 s |
+| 1M | same, with a covering index `(creation, path, visitor_id)` | 1.5 s |
+| 1M | `DISTINCT path` over 180 days | 1.1 s |
+
+What the numbers say:
+
+1. **Distinct visitors are the cost, not the view counts.** Counting views over 1M rows takes under half a second. Adding `COUNT(DISTINCT visitor_id)` takes 83s, because the optimizer walks the `creation` index for a range that covers the whole table and then does a random, decompressing primary key lookup per row. Even the best plan found (a covering index) takes 1.5s for one number, and the series repeats that work per bucket.
+2. **The wiki-wide scope is slow even when small.** At 20k rows the 180-day request already takes 659 ms: 288 spaces become 576 `=` and `LIKE` conditions, checked on every row by each of the four queries.
+3. **The 1s gate fails at 1M rows.** 5M was not run: MariaDB's data and temp directories are on a root disk with 1.1GB free, and grouped `COUNT(DISTINCT)` failed with `Errcode: 28 "No space left on device"` while spilling a sort file. The table was truncated afterwards (it held only benchmark rows).
+4. **Log retention does not save us.** With 180 days of retention, a 180-day range always covers the whole table, so the wiki-wide query is a full scan by design.
+5. **The planned rollup cannot hold distinct visitors.** A `Wiki Page View Daily` row with `unique_views` per path per day cannot be summed into a multi-day or multi-page count: the same visitor would be counted once per day and per page.
+
+Decision (2026-09-13): add the rollup, with new visitors instead of distinct visitors. See decisions 4 and 5 and [Rollup](#rollup-phase-4-decision).
