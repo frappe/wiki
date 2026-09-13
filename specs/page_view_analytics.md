@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Phase 2 of 5 done** (2026-09-13). See [Progress](#progress).
+Status: **Phase 3 of 5 done** (2026-09-13). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -228,3 +228,21 @@ Verified:
 - `e2e/tests/page-view-tracking.spec.ts`: load Alpha, click Beta, click Gamma, hover Delta (waits for its prefetch), go back. Asserts exactly 4 view logs with paths Alpha, Beta, Gamma, Beta (from the Referer header) and the previous page as referrer. It fails at the second log on the phase 1 code, passes after, and passed 3 repeated runs. It turns tracking on for the suite and restores the previous value.
 - After flushing the queue, the stored `Web Page View` rows match those paths and referrers.
 - Reader specs that do not need the editor build (among them `sidebar-reveal`, which covers prev/next navigation) pass locally. Specs that drive the editor app could not run locally from this worktree, before or after the change, since the dev bench serves another branch's editor build. CI covers them.
+
+### Phase 3: full query set (2026-09-13)
+
+Built:
+
+- `get_analytics(from_date, to_date, interval="daily", space=None, document=None)` in `wiki/api/analytics.py` now returns `total_views`, `unique_views`, `series`, `top_referrers` and, outside a page scope, `top_pages`. The phase 1 space tab still reads `total_views` unchanged.
+- Scopes: no `space` or `document` means wiki-wide, a union of every space's route prefix, so non-wiki web pages never count. `space` is a prefix match. `document` is an exact match on the page's route. Passing both is rejected.
+- Permissions: wiki-wide needs `_is_manager` (System Manager, Wiki Manager). Space and page need `can_write_space` on the space (for a page, found through `get_wiki_space()`).
+- `unique_views` is `COUNT(DISTINCT visitor_id)` in the scope and in each series bucket, per decision 1.
+- `series`: buckets from `DATE_FORMAT` with a fixed format per `hourly | daily | weekly | monthly`. Weeks start on Monday (ISO week). Empty buckets are filled with zeros so a chart does not draw a line across a gap. Hourly is capped at 31 days to bound the bucket count.
+- `top_pages`: top 20 paths by views, titled from `Wiki Document.route`, with a space's own route titled by its space name. A path with no matching page (renamed or deleted) has `title: null`.
+- `top_referrers`: top 20 referrer hosts. An empty referrer is `referrer: null` (direct). Referrers on this site's own host are skipped, since phase 2 sends the previous page as referrer and in-reader navigation would otherwise top the list.
+
+Verified:
+
+- `wiki/api/test_analytics.py`, 14 cases, passed 3 repeated runs. New cases cover distinct visitors, daily gap filling, hourly, weekly and monthly buckets, top page titles and ranking, referrer host grouping with own-site skip, exact page scope, page scope denial for a reader, wiki-wide manager gate and non-wiki path exclusion, and space plus document rejection.
+- Mutation check: removing the own-host skip, `DISTINCT`, gap filling, the manager check, the page permission check or the exact page match each fails its test.
+- Not verified over HTTP: the dev bench serves another branch, so tests ran with `PYTHONPATH` pointing at this worktree. Phase 5 adds the dashboard e2e.
