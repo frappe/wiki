@@ -120,6 +120,7 @@
     <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
     <script src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
     <script defer src="/assets/wiki/js/mermaid-renderer.js?v={{ get_asset_hash('public/js/mermaid-renderer.js') }}"></script>
+    {% if enable_view_tracking %}{% include "templates/wiki/includes/page_view.html" %}{% endif %}
 </body>
 {% block scripts %} {% endblock %}
 </html>

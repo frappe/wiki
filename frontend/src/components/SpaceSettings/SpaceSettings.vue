@@ -62,6 +62,12 @@
 					/>
 				</SettingsBody>
 			</SettingsPanel>
+			<SettingsPanel value="analytics">
+				<SettingsHeader :title="__('Analytics')" />
+				<SettingsBody>
+					<AnalyticsPanel class="pt-6" :space-id="spaceId" />
+				</SettingsBody>
+			</SettingsPanel>
 			<SettingsPanel value="git-sync">
 				<SettingsHeader :title="__('Git Sync')" />
 				<SettingsBody>
@@ -112,6 +118,7 @@ import {
 } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import AccessPanel from './AccessPanel.vue';
+import AnalyticsPanel from './AnalyticsPanel.vue';
 import GeneralPanel from './GeneralPanel.vue';
 import GitSyncPanel from './GitSyncPanel.vue';
 import NavigationPanel from './NavigationPanel.vue';
@@ -150,6 +157,7 @@ const tabs = computed(() => [
 	{ label: __('General'), value: 'general', icon: 'lucide-settings' },
 	{ label: __('Navigation'), value: 'navigation', icon: 'lucide-list-tree' },
 	{ label: __('Access'), value: 'access', icon: 'lucide-lock' },
+	{ label: __('Analytics'), value: 'analytics', icon: 'lucide-chart-line' },
 	// lucide-static dropped brand icons, so no `lucide-github`.
 	{ label: __('Git Sync'), value: 'git-sync', icon: 'lucide-git-branch' },
 ]);

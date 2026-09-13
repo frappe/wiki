@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Research / Proposed**. Nothing built yet.
+Status: **Phase 1 of 5 done** (2026-09-13). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -104,6 +104,7 @@ window.wikiLogView = async (referrer) => {
 - First load: `wikiLogView(document.referrer)`.
 - In `navigateTo`, **after** `history.pushState` (and on `popstate`), call `wikiLogView(previousUrl)`. The call must come after `pushState` because `make_view_log` reads the path from the `Referer` header, which the browser fills from the current document URL.
 - `prefetch` stays untouched, so hovers never count.
+- `make_view_log` stamps `creation` at request time, before the row waits in Redis, so the 15 minute flush does not blur the time series.
 - Browser name and version are left out. `user_agent` is already stored server side, and the dashboard does not show browsers in v1.
 
 ### Storage and queries
@@ -149,6 +150,7 @@ Permissions:
 
 - wiki-wide: `System Manager` or `Wiki Manager`,
 - space or page: `can_write_space(space)`. Readers should not see traffic numbers.
+- Call `can_write_space` directly, not `space.check_permission("write")`. The DocType-level check denies a `Wiki User` who holds a space's Write role, so it would lock out the people this is for.
 
 `is_unique` note: Frappe sets it per site, not per page. So "unique visitors" in a space or page scope means "first-ever visits to the site that landed here". For a true per-scope count, use `COUNT(DISTINCT visitor_id)` instead of `SUM(is_unique)`. **Decision needed**, see Open Questions. Recommendation: `COUNT(DISTINCT visitor_id)`, since it is what a reader of the label expects.
 
@@ -187,8 +189,30 @@ Each phase goes end to end and gets a commit.
 4. **Benchmark.** Seed 1M and 5M rows, time the wiki-wide 180-day query. Record results here. Decide rollup yes or no.
 5. **Dashboard.** Composable, chart, presets, drill down, top lists, tracking-off notice, wiki-wide Overview for managers, page level link. Playwright e2e for the dashboard flow.
 
-## Open Questions
+## Decisions
 
-1. Unique visitors: `COUNT(DISTINCT visitor_id)` per scope (recommended) or Frappe's site-wide `is_unique`?
-2. Should logged-in editors' own visits count? Builder counts them. Filtering needs the user on the row, which `Web Page View` does not store.
-3. Who sees space analytics: space writers (recommended) or anyone with read access?
+Taken 2026-09-13.
+
+1. Unique visitors use `COUNT(DISTINCT visitor_id)` per scope, not Frappe's site-wide `is_unique`.
+2. Logged-in editors' own visits count, as in builder. `Web Page View` does not store the user, so filtering them is out of scope.
+3. Space and page analytics are visible to space writers (`can_write_space`), not readers.
+
+## Progress
+
+### Phase 1: one number on screen (2026-09-13)
+
+Built:
+
+- `wiki/templates/wiki/includes/page_view.html`: capture script, included by `layout.html` when `enable_view_tracking` is on. Defines `window.wikiLogView(referrer)` and calls it once on load. Honours Do Not Track.
+- `WikiDocumentRenderer.render` passes `enable_view_tracking` into the template context.
+- `wiki/patches/add_web_page_view_path_index.py`: `(path, creation)` index, also run from `after_install`.
+- `wiki/api/analytics.py`: `get_analytics(space, from_date, to_date)` returns `{total_views}`. Prefix match escapes LIKE wildcards, since space routes may contain `_`. Range must be ordered and at most 400 days.
+- `SpaceSettings/AnalyticsPanel.vue`: new Analytics tab showing views for the last 30 days.
+
+Verified:
+
+- Unit tests `wiki/api/test_analytics.py` (5 cases): prefix scoping including a sibling route and a `_` wildcard lookalike, inclusive date bounds, writer allowed, reader denied, bad ranges rejected. Temporarily dropping the LIKE escaping and the permission check fails 2 of them.
+- Browser, with tracking on: the page on the pre-change server makes no `make_view_log` call. The same page on this branch makes one (200), and after `frappe.deferred_insert.save_to_db` the row has the right path, time zone and visitor id.
+- The Analytics tab shows the logged count for Administrator, in light and dark themes.
+
+Not yet done: views after client-side navigation (phase 2). No Playwright spec yet; phase 2 adds the capture e2e.

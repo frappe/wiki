@@ -702,6 +702,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		frappe.db.commit()  # nosemgrep
 
 		context["csrf_token"] = csrf_token
+		context["enable_view_tracking"] = frappe.get_website_settings("enable_view_tracking")
 
 		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)

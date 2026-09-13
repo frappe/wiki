@@ -1,0 +1,39 @@
+<script>
+    (function() {
+        let visitorId;
+
+        function getVisitorId() {
+            visitorId ||= import('/assets/frappe/js/lib/fingerprintjs.js')
+                .then((fingerprint) => fingerprint.load())
+                .then((agent) => agent.get())
+                .then((result) => result.visitorId);
+            return visitorId;
+        }
+
+        // make_view_log reads the page path from the Referer header, which the
+        // browser fills from the current document URL.
+        window.wikiLogView = async function(referrer) {
+            if (navigator.doNotTrack == 1) return;
+            const params = new URLSearchParams(window.location.search);
+            fetch('/api/method/frappe.website.doctype.web_page_view.web_page_view.make_view_log', {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-CSRF-Token': window.CSRF_TOKEN
+                },
+                body: JSON.stringify({
+                    referrer: referrer,
+                    user_tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    source: params.get('utm_source'),
+                    medium: params.get('utm_medium'),
+                    campaign: params.get('utm_campaign'),
+                    content: params.get('utm_content'),
+                    visitor_id: await getVisitorId()
+                })
+            });
+        };
+
+        window.wikiLogView(document.referrer);
+    })();
+</script>

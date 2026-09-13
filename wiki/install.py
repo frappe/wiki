@@ -4,6 +4,8 @@
 
 import frappe
 
+from wiki.patches.add_web_page_view_path_index import execute as add_web_page_view_path_index
+
 
 def after_install():
 	# create the wiki space
@@ -19,3 +21,5 @@ def after_install():
 	page.title = "Welcome to Frappe Wiki"
 	page.content = "# Welcome to Frappe Wiki!"
 	page.insert()
+
+	add_web_page_view_path_index()

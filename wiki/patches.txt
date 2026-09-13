@@ -27,3 +27,4 @@ execute:from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_w
 wiki.patches.remove_stale_spa_entry
 wiki.wiki.doctype.wiki_space.patches.backfill_last_edited #2026-09-16
 wiki.patches.update_desktop_icon_link
+wiki.patches.add_web_page_view_path_index
