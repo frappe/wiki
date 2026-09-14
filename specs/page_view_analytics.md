@@ -404,3 +404,27 @@ E2E: seed rollup rows for a space, open the Analytics tab, check totals, top pag
 
 - The first and last buckets of a weekly or monthly chart are partial, so the last one reads as a drop. Builder does the same.
 - The tooltip keeps the old bucket's label after a drill down until the mouse moves. That is frappe-ui's chart, not this code.
+
+### Phase 6: Overview page (2026-09-14)
+
+Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a KPI strip with deltas, a page views area chart that can be scoped to one space, views by space and top pages.
+
+#### Built
+
+- `get_overview(from_date, to_date)`, managers only. It returns views and new visitors, each with a delta against the equal-length window before, views by space (top 8) and top pages (top 8) with their space and delta. An empty previous window gives no delta, not +100%.
+- Per-path counts for a window are cached (`count_views_by_path`) and cleared by the rollup like `count_views`. Spaces, titles and the path to space match are resolved outside the cache, so a renamed space shows at once. A path belongs to the space with the longest matching route.
+- `OverviewDashboard.vue`: `PageHeader` with `TabButtons`, `NumberCard`s without a card surface, `AreaChart` with a space `Select` (fed by `get_analytics`), `SpaceAvatar` rows with a `Progress` meter, ranked top pages. Rows link into the space or page.
+- `Overview.vue` shows it to managers on desktop. Mobile, non-managers and an empty wiki keep the space directory.
+- The sidebar item is now "Overview" with a grid icon.
+- The tracking-off notice moved into `TrackingNotice.vue`, shared with `AnalyticsDashboard.vue`.
+
+#### Verified
+
+- `test_analytics.py`, 20 cases. New: deltas against the previous window with a nested space route, and the manager gate.
+- `analytics-dashboard.spec.ts`, 4 tests: the Overview test stubs `get_overview`, checks KPIs, rows, deltas and "No change", switches to 7 days, scopes the chart to a space and opens a top page.
+- Screenshots in dark at 1616px and light at 1280px on the local seeded data.
+
+#### Known gaps
+
+- Searches and searches with no result are not shown: there is no search log yet (see `specs/ia_refactor/05-search-analytics.md`).
+- The mock says unique visitors. The rollup only stores new visitors, since distinct visitors do not add up across days, so the strip says new visitors.

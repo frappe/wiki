@@ -28,32 +28,10 @@
 			</Button>
 		</div>
 
-		<div
+		<TrackingNotice
 			v-if="data && !data.tracking_enabled"
-			class="flex flex-col gap-3 rounded-xl border border-outline-amber-2 bg-surface-amber-1 px-4 py-3 sm:flex-row sm:items-center"
-			data-testid="analytics-tracking-off"
-		>
-			<span class="lucide-eye-off size-4 shrink-0 text-ink-amber-3" aria-hidden="true" />
-			<div class="min-w-0 flex-1">
-				<p class="text-base-medium text-ink-gray-8">
-					{{ __('Page views are not being recorded') }}
-				</p>
-				<p class="mt-0.5 text-p-sm text-ink-gray-6">
-					{{
-						isManager
-							? __('Tracking counts visits to published pages and stores a device fingerprint for each visitor. It applies to the whole site.')
-							: __('Ask a Wiki Manager to turn on page view tracking.')
-					}}
-				</p>
-			</div>
-			<Button
-				v-if="isManager"
-				variant="solid"
-				:label="__('Turn on tracking')"
-				:loading="enableTracking.loading"
-				@click="enableTracking.submit()"
-			/>
-		</div>
+			@enabled="analytics.reload()"
+		/>
 
 		<div class="grid grid-cols-2 gap-4">
 			<NumberCard
@@ -109,10 +87,10 @@
 
 <script setup>
 import TopList from '@/components/Analytics/TopList.vue';
+import TrackingNotice from '@/components/Analytics/TrackingNotice.vue';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { PRESETS } from '@/lib/analyticsRange';
-import { useUserStore } from '@/stores/user';
-import { Button, DateRangePicker, Select, createResource } from 'frappe-ui';
+import { Button, DateRangePicker, Select } from 'frappe-ui';
 import { BarChart, NumberCard } from 'frappe-ui/charts';
 import { computed, ref, watch } from 'vue';
 
@@ -138,8 +116,6 @@ const presetOptions = [
 	{ label: __('Custom range'), value: 'custom' },
 ];
 
-const isManager = computed(() => useUserStore().isWikiManager);
-
 const { analytics, preset, range, interval, setCustomRange, drillDown } =
 	useAnalytics(() =>
 		props.page
@@ -152,11 +128,6 @@ const isFirstLoad = computed(() => analytics.loading && !analytics.data);
 const errorMessage = computed(() => {
 	const error = analytics.error;
 	return error ? error.messages?.[0] || error.message : null;
-});
-
-const enableTracking = createResource({
-	url: 'wiki.api.analytics.enable_view_tracking',
-	onSuccess: () => analytics.reload(),
 });
 
 const seriesConfig = {

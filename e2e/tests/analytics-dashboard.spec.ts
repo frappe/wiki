@@ -13,6 +13,8 @@ import { getDoc, updateDoc } from '../helpers/frappe';
  * go to the real server.
  */
 
+const GET_OVERVIEW =
+	/\/api\/method\/wiki\.api\.analytics\.get_overview(?:\?|$)/;
 const GET_ANALYTICS =
 	/\/api\/method\/wiki\.api\.analytics\.get_analytics(?:\?|$)/;
 
@@ -261,16 +263,74 @@ test.describe('Analytics dashboard', () => {
 		expect(settings.enable_view_tracking).toBe(1);
 	});
 
-	test('a manager sees wiki-wide views on the overview', async ({ page }) => {
-		const request = page.waitForRequest(GET_ANALYTICS);
-		await page.goto('/wiki-app');
+	test('a manager reads the overview and narrows its chart', async ({
+		page,
+	}) => {
+		const chartRequests = await stubAnalytics(page, space);
+		const overviewRequests: AnalyticsParams[] = [];
+		await page.route(GET_OVERVIEW, async (route) => {
+			overviewRequests.push(route.request().postDataJSON());
+			await route.fulfill({
+				contentType: 'application/json',
+				body: JSON.stringify({
+					message: {
+						views: { value: 54813, delta: 11.8 },
+						new_visitors: { value: 321, delta: null },
+						tracking_enabled: true,
+						spaces: [
+							{
+								name: space.name,
+								space_name: 'Seeded Space',
+								views: 54813,
+								delta: -3.8,
+							},
+						],
+						top_pages: [
+							{
+								path: space.page('Alpha').route,
+								document: space.page('Alpha').name,
+								title: 'Alpha',
+								space: space.name,
+								space_name: 'Seeded Space',
+								views: 900,
+								delta: 0,
+							},
+						],
+					},
+				}),
+			});
+		});
 
-		const params: AnalyticsParams = (await request).postDataJSON();
-		expect(params.space).toBeUndefined();
-		expect(params.document).toBeUndefined();
-		await expect(page.getByTestId('analytics-dashboard')).toBeVisible();
-		await expect(page.getByTestId('analytics-total-views')).not.toContainText(
-			'-',
+		await page.goto('/wiki-app');
+		const sidebarItem = page.getByRole('link', { name: 'Overview' });
+		await expect(sidebarItem).toBeVisible();
+		await expect(page.getByTestId('overview-views')).toContainText('54,813');
+
+		const spaces = page.getByTestId('overview-spaces');
+		await expect(spaces).toContainText('Seeded Space');
+		await expect(spaces).toContainText('-3.8%');
+		const topPages = page.getByTestId('overview-top-pages');
+		await expect(topPages).toContainText('Alpha');
+		await expect(topPages).toContainText('No change');
+		expect(lastOf(chartRequests).space).toBeUndefined();
+
+		await page.getByTestId('overview-range').getByText('7 days').click();
+		await expect
+			.poll(() =>
+				daysBetween(
+					lastOf(overviewRequests).from_date,
+					lastOf(overviewRequests).to_date,
+				),
+			)
+			.toBe(6);
+
+		await page.getByTestId('overview-space').click();
+		await page.getByRole('option', { name: 'Seeded Space' }).click();
+		await expect.poll(() => lastOf(chartRequests).space).toBe(space.name);
+
+		await topPages.getByText('Alpha').click();
+		await expect(page).toHaveURL(
+			new RegExp(`/page/${space.page('Alpha').name}`),
 		);
 	});
 });

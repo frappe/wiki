@@ -4,7 +4,13 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from wiki.api.analytics import count_views, enable_view_tracking, get_analytics
+from wiki.api.analytics import (
+	count_views,
+	count_views_by_path,
+	enable_view_tracking,
+	get_analytics,
+	get_overview,
+)
 from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_day
 from wiki.tests.factory import WikiFixtures, unique_route
 
@@ -264,3 +270,48 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
 			get_analytics(**self.march)
+
+
+class TestGetOverview(IntegrationTestCase):
+	def setUp(self):
+		self.fixtures = WikiFixtures()
+		self.route = unique_route("analytics_overview")
+		self.space = self.fixtures.space(route=self.route)
+		# Nested inside the first space's route, so its pages must not count towards that space.
+		self.nested = self.fixtures.space(route=f"{self.route}/v2")
+		# A week far from any other test's rows, since the numbers are wiki-wide.
+		self.week = {"from_date": "2031-03-08", "to_date": "2031-03-14"}
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		count_views_by_path.clear_cache()
+		self.fixtures.destroy_all()
+		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
+		frappe.db.delete("Wiki Page View Daily", {"path": ("like", "analytics%")})
+		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
+
+	def test_compares_each_number_against_the_previous_window(self):
+		for hour in (9, 10):
+			_log_view(f"{self.route}/a", f"2031-03-03 {hour}:00:00", visitor_id=f"old-{hour}")
+		for hour in (9, 10, 11):
+			_log_view(f"{self.route}/a", f"2031-03-10 {hour}:00:00", visitor_id=f"new-{hour}")
+		_log_view(f"{self.route}/v2/b", "2031-03-11 09:00:00")
+		_log_view("analytics-not-a-wiki-page", "2031-03-11 09:00:00")
+
+		overview = get_overview(**self.week)
+
+		self.assertEqual(overview["views"], {"value": 4, "delta": 100.0})
+		self.assertEqual(overview["new_visitors"], {"value": 3, "delta": 50.0})
+		spaces = {row["name"]: (row["views"], row["delta"]) for row in overview["spaces"]}
+		self.assertEqual(spaces[self.space.name], (3, 50.0))
+		# Nothing before is no delta, not +100%.
+		self.assertEqual(spaces[self.nested.name], (1, None))
+		self.assertEqual(
+			[(row["path"], row["space"], row["views"]) for row in overview["top_pages"]],
+			[(f"{self.route}/a", self.space.name, 3), (f"{self.route}/v2/b", self.nested.name, 1)],
+		)
+
+	def test_is_for_managers_only(self):
+		frappe.set_user(_ensure_user("analytics_writer@example.com", WRITER_ROLE))
+		with self.assertRaises(frappe.PermissionError):
+			get_overview(**self.week)

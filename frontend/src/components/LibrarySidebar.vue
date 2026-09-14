@@ -256,8 +256,8 @@ const headerMenuItems = computed(() => [
 
 const navItems = [
 	{
-		label: __('All Spaces'),
-		icon: 'lucide-library',
+		label: __('Overview'),
+		icon: 'lucide-layout-grid',
 		to: { name: 'Overview' },
 		routeNames: ['Overview'],
 	},
