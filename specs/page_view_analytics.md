@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Phase 4 of 5 done, phase 5 in progress** (2026-09-14). See [Progress](#progress).
+Status: **All 5 phases done** (2026-09-14). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -360,7 +360,9 @@ Verified:
 - Benchmark at 20k views: cached calls take 0 to 7ms against 14 to 276ms uncached.
 - Not verified over HTTP: the dev server runs another branch's code.
 
-### Phase 5: dashboard (plan, 2026-09-14)
+### Phase 5: dashboard (2026-09-14)
+
+#### Plan
 
 Backend:
 
@@ -378,3 +380,27 @@ Frontend, one dashboard used in three places:
 Skipped from builder: debounced refetch (no typed input drives a request) and a range kept in `localStorage`.
 
 E2E: seed rollup rows for a space, open the Analytics tab, check totals, top pages and referrers, switch presets, drill down, open a page's analytics from page settings, see the notice and turn tracking on.
+
+#### Built
+
+- Backend as planned. `top_pages` rows also carry `document`, the page's name, so a row can filter the dashboard to that page.
+- `AnalyticsDashboard.vue` and `TopList.vue` in `components/Analytics/`, `useAnalytics.js`, and the date logic in `lib/analyticsRange.js`. The date logic moved out of the composable because `node --test` cannot import `frappe-ui`.
+- The chart is a `BarChart` of views with new visitors as a line over it, not an area chart. An area chart only fires `select` on the exact line, and a short bar is still a small target, so a click anywhere in a week or month column drills into its days through the ECharts instance. The subtitle says so on weekly and monthly charts.
+- The `categorical` palette, not the default `sequential`: the sequential ramp's first stop is too dark to see on the dark theme.
+- The page filter shows as a chip. Clicking a top page that still exists sets it. Closing the dialog clears it, so the next space opens unfiltered.
+- `SpaceSettings/AnalyticsPanel.vue` from phase 1 is removed.
+- Unrelated fix on the way: the tree's Restore action had no icon (`'rotate-ccw'` without its `lucide-` prefix), which also failed `icon-names.test.js`.
+
+#### Verified
+
+- `test_analytics.py`, 18 cases. New: `tracking_enabled` follows the setting outside the cache, and only managers can turn tracking on. Removing the manager check or hardcoding the flag each fails a test.
+- `analyticsRange.test.js`, 5 cases, run under `America/Los_Angeles` and `Asia/Kolkata`.
+- `e2e/tests/analytics-dashboard.spec.ts`, 4 tests, passed 3 repeated runs. E2E cannot fill the rollup, so rendering tests answer `get_analytics` themselves and assert on the requests. Tracking on/off and the wiki-wide scope use the real server. Mutation check: sending space and document together, not reloading after turning tracking on, keeping the page filter after closing, and dropping the column click each fail a test.
+- `page-view-tracking`, `page-settings-meta`, `space-access-role-search` and `space-logo-picker` specs pass alongside it, twice.
+- Screenshots in light and dark, 1280px and 400px, on 8,140 seeded views over 180 days: space tab, page filter, 180 days weekly, 12 months monthly, drill down, page settings row and the Overview.
+- How it ran: the dev bench serves another branch, and Vite dev breaks the editor (frappe-ui's editor source loads beside pre-bundled ProseMirror). So this worktree ran as `PYTHONPATH=<worktree> bench serve --port 8010` with a production build, its asset base rewritten to a temporary `sites/assets/wiki-pva` link.
+
+#### Known gaps
+
+- The first and last buckets of a weekly or monthly chart are partial, so the last one reads as a drop. Builder does the same.
+- The tooltip keeps the old bucket's label after a drill down until the mouse moves. That is frappe-ui's chart, not this code.
