@@ -413,16 +413,16 @@ Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a 
 
 - `get_overview(from_date, to_date)`, managers only. It returns views and new visitors, each with a delta against the equal-length window before, views by space (top 8) and top pages (top 8) with their space and delta. An empty previous window gives no delta, not +100%.
 - Per-path counts for a window are cached (`count_views_by_path`) and cleared by the rollup like `count_views`. Spaces, titles and the path to space match are resolved outside the cache, so a renamed space shows at once. A path belongs to the space with the longest matching route.
-- `OverviewDashboard.vue`: `PageHeader` with `TabButtons`, `NumberCard`s without a card surface, `AreaChart` with a space `Select` (fed by `get_analytics`), `SpaceAvatar` rows with a `Progress` meter, ranked top pages. Rows link into the space or page.
-- `Overview.vue` shows it to managers on desktop. Mobile, non-managers and an empty wiki keep the space directory.
-- The sidebar item is now "Overview" with a grid icon.
+- `pages/Overview.vue` at `/overview`: `PageHeader` with `TabButtons`, `NumberCard`s without a card surface, `AreaChart` with a space `Select` (fed by `get_analytics`), `SpaceAvatar` rows with a `Progress` meter, ranked top pages. Rows link into the space or page.
+- Its own page, not a replacement for the directory. The directory moved to `pages/AllSpaces.vue`, still at `/`, with the route renamed from `Overview` to `AllSpaces`. The sidebar lists Overview (managers only) above All Spaces. A non-manager who opens `/overview` is sent to `/`.
 - The tracking-off notice moved into `TrackingNotice.vue`, shared with `AnalyticsDashboard.vue`.
 
 #### Verified
 
 - `test_analytics.py`, 20 cases. New: deltas against the previous window with a nested space route, and the manager gate.
-- `analytics-dashboard.spec.ts`, 4 tests: the Overview test stubs `get_overview`, checks KPIs, rows, deltas and "No change", switches to 7 days, scopes the chart to a space and opens a top page.
-- Screenshots in dark at 1616px and light at 1280px on the local seeded data.
+- `analytics-dashboard.spec.ts`, 4 tests: the Overview test opens the page from the sidebar, stubs `get_overview`, checks KPIs, rows, deltas and "No change", switches to 7 days, scopes the chart to a space and opens a top page.
+- `sidebar-drill-in` and `space-default-page` specs pass. `sidebar-drill-in` failed on the local site before this: its second space had no page, so no last-edited time, and sorted past the sidebar's first 50 spaces. It now gets a page.
+- Screenshots of Overview and All Spaces in dark at 1440px and 1616px, and light at 1280px, on the local seeded data.
 
 #### Known gaps
 

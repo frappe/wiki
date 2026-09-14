@@ -302,8 +302,9 @@ test.describe('Analytics dashboard', () => {
 		});
 
 		await page.goto('/wiki-app');
-		const sidebarItem = page.getByRole('link', { name: 'Overview' });
-		await expect(sidebarItem).toBeVisible();
+		await expect(page.getByRole('link', { name: 'All Spaces' })).toBeVisible();
+		await page.getByRole('link', { name: 'Overview' }).click();
+		await expect(page).toHaveURL(/\/wiki-app\/overview$/);
 		await expect(page.getByTestId('overview-views')).toContainText('54,813');
 
 		const spaces = page.getByTestId('overview-spaces');

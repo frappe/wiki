@@ -254,23 +254,35 @@ const headerMenuItems = computed(() => [
 	{ label: __('Log out'), icon: 'lucide-log-out', onClick: logout },
 ]);
 
-const navItems = [
+const openChangeRequestCount = computed(() =>
+	openChangeRequests.data ? String(openChangeRequests.data) : '',
+);
+
+const navItems = computed(() => [
+	...(userStore.isWikiManager
+		? [
+				{
+					label: __('Overview'),
+					icon: 'lucide-layout-grid',
+					to: { name: 'Overview' },
+					routeNames: ['Overview'],
+				},
+			]
+		: []),
 	{
-		label: __('Overview'),
-		icon: 'lucide-layout-grid',
-		to: { name: 'Overview' },
-		routeNames: ['Overview'],
+		label: __('All Spaces'),
+		icon: 'lucide-library',
+		to: { name: 'AllSpaces' },
+		routeNames: ['AllSpaces'],
 	},
 	{
 		label: __('Change Requests'),
 		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
 		routeNames: ['ChangeRequests', 'ChangeRequestReview'],
-		suffix: computed(() =>
-			openChangeRequests.data ? String(openChangeRequests.data) : '',
-		),
+		suffix: openChangeRequestCount,
 	},
-];
+]);
 
 function logout() {
 	sessionStore.logout.submit();

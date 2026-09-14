@@ -15,7 +15,7 @@
 						variant="ghost"
 						icon="lucide-chevron-left"
 						:aria-label="__('Back to All Spaces')"
-						:route="{ name: 'Overview' }"
+						:route="{ name: 'AllSpaces' }"
 					/>
 				</Tooltip>
 				<!-- The header tile is the same control as the settings row: a

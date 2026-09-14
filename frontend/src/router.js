@@ -3,13 +3,18 @@ import { createRouter, createWebHistory } from 'vue-router';
 const routes = [
 	{
 		path: '/',
+		name: 'AllSpaces',
+		component: () => import('@/pages/AllSpaces.vue'),
+	},
+	{
+		path: '/overview',
 		name: 'Overview',
 		component: () => import('@/pages/Overview.vue'),
 	},
 	{
 		// The space list page retired into the sidebar; old links still land.
 		path: '/spaces',
-		redirect: { name: 'Overview' },
+		redirect: { name: 'AllSpaces' },
 	},
 	{
 		path: '/change-requests',
