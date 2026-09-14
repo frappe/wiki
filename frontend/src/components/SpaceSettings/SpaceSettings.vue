@@ -65,7 +65,11 @@
 			<SettingsPanel value="analytics">
 				<SettingsHeader :title="__('Analytics')" />
 				<SettingsBody>
-					<AnalyticsPanel class="pt-6" :space-id="spaceId" />
+					<AnalyticsDashboard
+						class="pt-6"
+						:space="spaceId"
+						v-model:page="analyticsPage"
+					/>
 				</SettingsBody>
 			</SettingsPanel>
 			<SettingsPanel value="git-sync">
@@ -106,6 +110,8 @@
 </template>
 
 <script setup>
+import AnalyticsDashboard from '@/components/Analytics/AnalyticsDashboard.vue';
+import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import {
 	Badge,
 	SettingsBody,
@@ -118,7 +124,6 @@ import {
 } from 'frappe-ui';
 import { computed, ref } from 'vue';
 import AccessPanel from './AccessPanel.vue';
-import AnalyticsPanel from './AnalyticsPanel.vue';
 import GeneralPanel from './GeneralPanel.vue';
 import GitSyncPanel from './GitSyncPanel.vue';
 import NavigationPanel from './NavigationPanel.vue';
@@ -144,9 +149,14 @@ const emit = defineEmits([
 	'open-clone',
 ]);
 
+const { selectedTab, analyticsPage } = useSpaceSettings();
+
 const open = computed({
 	get: () => props.modelValue,
-	set: (value) => emit('update:modelValue', value),
+	set: (value) => {
+		if (!value) analyticsPage.value = null;
+		emit('update:modelValue', value);
+	},
 });
 
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
@@ -162,6 +172,5 @@ const tabs = computed(() => [
 	{ label: __('Git Sync'), value: 'git-sync', icon: 'lucide-git-branch' },
 ]);
 
-const selectedTab = ref('general');
 const accessDirty = ref(false);
 </script>

@@ -256,9 +256,6 @@ const headerMenuItems = computed(() => [
 
 const navItems = [
 	{
-		// The `Overview` route name is unchanged -- spec 04 still fills this page
-		// with wiki-wide analytics later. Until it does, the page is the space
-		// directory, so that is what the item is called.
 		label: __('All Spaces'),
 		icon: 'lucide-library',
 		to: { name: 'Overview' },

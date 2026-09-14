@@ -1,10 +1,4 @@
 <template>
-	<!-- Placeholder landing page. The route name is `Overview` from day one so
-	     the sidebar's Overview item never has to be repointed, but the wiki-wide
-	     analytics that belong here come later.
-	     It still carries two jobs the retired list page owned: the empty-wiki
-	     state, and the only space list on mobile — where the sidebar this page
-	     sits beside does not exist. -->
 	<div class="flex h-full flex-col">
 		<PageHeaderMobile v-if="isMobile" :title="__('All Spaces')">
 			<template #suffix>
@@ -51,6 +45,13 @@
 				</div>
 
 				<template v-else>
+					<section v-if="isManager" class="mb-10">
+						<h3 class="mb-3 text-lg-semibold text-ink-gray-9">
+							{{ __('Page views') }}
+						</h3>
+						<AnalyticsDashboard />
+					</section>
+
 					<!-- Filter and search sit on one row: both narrow the same
 					     list, and both are server-side, so a result count below
 					     them would only ever describe the page that is loaded. -->
@@ -273,6 +274,7 @@
 </template>
 
 <script setup>
+import AnalyticsDashboard from '@/components/Analytics/AnalyticsDashboard.vue';
 import MobileAppMenu from '@/components/MobileAppMenu.vue';
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue';
 import SpaceAvatar from '@/components/SpaceAvatar.vue';

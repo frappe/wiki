@@ -1,9 +1,8 @@
 import { ref } from 'vue';
 
-// Global open-state for the per-space settings dialog. The dialog is mounted by
-// SpaceDetails, but it is opened from the sidebar — a sibling, not a child — so
-// the flag lives outside both. Mirrors useWikiSettings.
 const showSpaceSettings = ref(false);
+const selectedTab = ref('general');
+const analyticsPage = ref(null);
 
 export function useSpaceSettings() {
 	function open() {
@@ -14,5 +13,18 @@ export function useSpaceSettings() {
 		showSpaceSettings.value = false;
 	}
 
-	return { showSpaceSettings, open, close };
+	function openAnalytics(page = null) {
+		selectedTab.value = 'analytics';
+		analyticsPage.value = page;
+		showSpaceSettings.value = true;
+	}
+
+	return {
+		showSpaceSettings,
+		selectedTab,
+		analyticsPage,
+		open,
+		close,
+		openAnalytics,
+	};
 }
