@@ -4,7 +4,7 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from wiki.api.analytics import count_views, get_analytics
+from wiki.api.analytics import count_views, enable_view_tracking, get_analytics
 from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_day
 from wiki.tests.factory import WikiFixtures, unique_route
 
@@ -48,9 +48,12 @@ class TestGetAnalytics(IntegrationTestCase):
 			route=self.route, roles=[(READER_ROLE, "Read"), (WRITER_ROLE, "Write")]
 		)
 		self.march = {"from_date": "2026-03-01", "to_date": "2026-03-31", "space": self.space.name}
+		self.tracking_before = frappe.db.get_single_value("Website Settings", "enable_view_tracking")
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
+		# tearDown commits, so a test that flips tracking must not leave it flipped.
+		frappe.db.set_single_value("Website Settings", "enable_view_tracking", self.tracking_before)
 		count_views.clear_cache()
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
@@ -157,9 +160,9 @@ class TestGetAnalytics(IntegrationTestCase):
 		self.assertEqual(
 			top_pages,
 			[
-				{"path": f"{self.route}/gone", "title": None, "views": 3},
-				{"path": page.route, "title": "Analytics Intro", "views": 2},
-				{"path": self.route, "title": self.space.space_name, "views": 1},
+				{"path": f"{self.route}/gone", "document": None, "title": None, "views": 3},
+				{"path": page.route, "document": page.name, "title": "Analytics Intro", "views": 2},
+				{"path": self.route, "document": None, "title": self.space.space_name, "views": 1},
 			],
 		)
 
@@ -213,6 +216,24 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.set_user(self.writer)
 		with self.assertRaises(frappe.PermissionError):
 			get_analytics("2026-03-01", "2026-03-31")
+
+	def test_reports_whether_tracking_is_on_without_caching_it(self):
+		frappe.db.set_single_value("Website Settings", "enable_view_tracking", 0)
+		self.assertFalse(get_analytics(**self.march)["tracking_enabled"])
+
+		enable_view_tracking()
+
+		self.assertTrue(get_analytics(**self.march)["tracking_enabled"])
+
+	def test_only_managers_can_turn_tracking_on(self):
+		frappe.db.set_single_value("Website Settings", "enable_view_tracking", 0)
+		frappe.set_user(self.writer)
+
+		with self.assertRaises(frappe.PermissionError):
+			enable_view_tracking()
+
+		frappe.set_user("Administrator")
+		self.assertFalse(frappe.get_website_settings("enable_view_tracking"))
 
 	def test_rejects_space_and_document_together(self):
 		page = self.fixtures.document(parent=self.space.root_group, title="Analytics Both")

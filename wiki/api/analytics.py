@@ -37,7 +37,19 @@ def get_analytics(
 	# Access is checked on every call; only the counting below is cached.
 	routes, is_page = _scope_routes(space, document)
 	# Referrers from the host the dashboard is served on are navigation, so the host is part of the key.
-	return count_views(start, end, interval, tuple(routes), is_page, urlparse(get_url()).netloc)
+	result = count_views(start, end, interval, tuple(routes), is_page, urlparse(get_url()).netloc)
+	# Outside the cache: turning tracking on must hide the notice on the next load.
+	return {**result, "tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking"))}
+
+
+@frappe.whitelist(methods=["POST"])
+def enable_view_tracking() -> None:
+	# One switch for the whole site, so it is not a space writer's to flip.
+	if not _is_manager():
+		frappe.throw(_("Not permitted to turn on page view tracking"), frappe.PermissionError)
+	settings = frappe.get_single("Website Settings")
+	settings.enable_view_tracking = 1
+	settings.save(ignore_permissions=True)
 
 
 @redis_cache(ttl=CACHE_SECONDS)
@@ -181,12 +193,24 @@ def _top_pages(view, in_scope) -> list[dict]:
 	).run(as_dict=True)
 
 	paths = [row.path for row in rows]
-	# A space's own route is its landing page, so it takes the space's name.
-	titles = {
-		**dict(frappe.get_all("Wiki Document", {"route": ("in", paths)}, ["route", "title"], as_list=True)),
-		**dict(frappe.get_all("Wiki Space", {"route": ("in", paths)}, ["route", "space_name"], as_list=True)),
+	documents = {
+		route: (name, title)
+		for route, name, title in frappe.get_all(
+			"Wiki Document", {"route": ("in", paths)}, ["route", "name", "title"], as_list=True
+		)
 	}
-	return [{"path": row.path, "title": titles.get(row.path), "views": int(row.views)} for row in rows]
+	# A space's own route is its landing page, so it takes the space's name and has no document.
+	documents.update(
+		(route, (None, space_name))
+		for route, space_name in frappe.get_all(
+			"Wiki Space", {"route": ("in", paths)}, ["route", "space_name"], as_list=True
+		)
+	)
+	top_pages = []
+	for row in rows:
+		document, title = documents.get(row.path, (None, None))
+		top_pages.append({"path": row.path, "document": document, "title": title, "views": int(row.views)})
+	return top_pages
 
 
 def _top_referrers(view, in_scope, own_host: str) -> list[dict]:
