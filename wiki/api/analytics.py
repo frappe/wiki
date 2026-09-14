@@ -6,11 +6,14 @@ from frappe import _
 from frappe.query_builder import Criterion
 from frappe.query_builder.functions import DateFormat, Sum
 from frappe.utils import add_months, date_diff, get_url, getdate
+from frappe.utils.caching import redis_cache
 
 from wiki.permissions import _is_manager, can_write_space
 
 MAX_RANGE_DAYS = 400
 TOP_LIMIT = 20
+# The rollup job clears the cache after each run, so this only bounds how long an unused entry lives.
+CACHE_SECONDS = 15 * 60
 
 # Never built from user input: the key is validated against this map.
 INTERVAL_FORMATS = {
@@ -31,8 +34,16 @@ def get_analytics(
 ) -> dict:
 	"""Page view numbers over an inclusive date range, wiki-wide or for one space or page."""
 	start, end = _validate_range(from_date, to_date, interval)
+	# Access is checked on every call; only the counting below is cached.
 	routes, is_page = _scope_routes(space, document)
+	# Referrers from the host the dashboard is served on are navigation, so the host is part of the key.
+	return count_views(start, end, interval, tuple(routes), is_page, urlparse(get_url()).netloc)
 
+
+@redis_cache(ttl=CACHE_SECONDS)
+def count_views(
+	start: date, end: date, interval: str, routes: tuple[str, ...], is_page: bool, own_host: str
+) -> dict:
 	# Raw Web Page View rows are never read here: counting distinct visitors over them took
 	# 83s at a million rows (see the phase 4 benchmark in specs/page_view_analytics.md).
 	view = frappe.qb.DocType("Wiki Page View Daily")
@@ -49,7 +60,7 @@ def get_analytics(
 		"total_views": int(total_views or 0),
 		"new_visitors": int(new_visitors or 0),
 		"series": _series(view, in_scope, start, end, interval),
-		"top_referrers": _top_referrers(view, in_scope),
+		"top_referrers": _top_referrers(view, in_scope, own_host),
 	}
 	if not is_page:
 		result["top_pages"] = _top_pages(view, in_scope)
@@ -178,13 +189,13 @@ def _top_pages(view, in_scope) -> list[dict]:
 	return [{"path": row.path, "title": titles.get(row.path), "views": int(row.views)} for row in rows]
 
 
-def _top_referrers(view, in_scope) -> list[dict]:
+def _top_referrers(view, in_scope, own_host: str) -> list[dict]:
 	views = Sum(view.views).as_("views")
 	rows = (
 		frappe.qb.from_(view)
 		.select(view.referrer_host, views)
 		# Moving between pages of this site is navigation, not a referral.
-		.where(in_scope & (view.referrer_host != urlparse(get_url()).netloc))
+		.where(in_scope & (view.referrer_host != own_host))
 		.groupby(view.referrer_host)
 		.orderby(views, order=frappe.qb.desc)
 		.limit(TOP_LIMIT)

@@ -157,6 +157,7 @@ Every 15 minutes a scheduled job rolls up today and yesterday from `Web Page Vie
 - One covering index, `(path, date, referrer_host, views, new_visitors)`, serves every analytics query without reading table rows. `date` has its own index for the job's per-day delete.
 - A scope's paths are found once per request: `DISTINCT path` over the rollup (a loose index scan), kept when a space route is the path or a `/`-bounded prefix of it, then passed to every query as `path IN (...)`. This replaced one `=`/`LIKE` pair per space, which cost 570ms at 20k rows with 288 spaces.
 - The rollup grows with pages × days × referrer hosts, not with views, so its cost levels off as traffic grows.
+- Results are cached in Redis for 15 minutes (decision 6). Access is checked on every call and only `count_views` is cached, keyed by range, interval, scope routes and the host the dashboard is served on. Each rollup clears the cache after its transaction commits, so a cached answer is never older than the rollup behind it.
 - `hourly` is dropped: the rollup has no hours. Add an hourly rollup if a dashboard needs it.
 - The rollup outlives `Web Page View` retention, and a visitor whose rows were all cleared counts as new again.
 
@@ -223,6 +224,7 @@ Taken 2026-09-13.
 3. Space and page analytics are visible to space writers (`can_write_space`), not readers.
 4. (2026-09-13, after the phase 4 benchmark) Numbers come from a rollup table. Distinct visitors cannot be summed across days or pages, so the metric is **new visitors**: views that were a visitor's first logged view on the site. It is computed by the rollup job, not taken from Frappe's `is_unique`.
 5. (2026-09-13) The `hourly` interval is dropped with the move to a daily rollup.
+6. (2026-09-14) Wiki-wide over 180 days still took 1.7s at 1M views on the benchmark machine, so analytics responses are cached for 15 minutes rather than tuning the rollup further. The first load of a range pays the full cost.
 
 ## Progress
 
@@ -342,3 +344,18 @@ Benchmark, same machine and 128MB buffer pool, 1M views seeded over 180 days:
 - Wiki-wide over 180 days still misses the 1s goal on this machine. Its time splits into top referrers 614ms, series 527ms, top pages 324ms, and totals plus path lookup about 230ms: each groups every rollup row in range. The 128MB buffer pool is smaller than the 236MB rollup table, so this is partly disk reads. A production-sized pool could not be tried: the site's database user cannot resize it.
 - 5M was not run: the database disk has 1.4GB free. Since the rollup grows with pages × days × hosts rather than views, 5M views over the same pages should land close to the 1M numbers. That is a prediction, not a measurement.
 - Seeded rows and the rollup were truncated afterwards. Both tables held only benchmark data.
+
+#### Response cache (2026-09-14)
+
+Built:
+
+- `get_analytics` checks access, then calls `count_views`, which has Frappe's `@redis_cache(ttl=15 * 60)`.
+- `roll_up_day` registers `count_views.clear_cache` with `frappe.db.after_commit`. Clearing any earlier would let a request between the rollup and its commit cache the old rows again.
+- The benchmark clears the cache before each timed run and reports one cached call per scenario.
+
+Verified:
+
+- `test_analytics.py` now has 16 cases. New: a result stays cached after an uncommitted rollup and refreshes once the commit callbacks run; a reader is still denied a scope a writer has just cached.
+- Mutation check: without the cache, clearing before commit instead of after, never clearing, and caching `get_analytics` itself (access check included) each fail a test.
+- Benchmark at 20k views: cached calls take 0 to 7ms against 14 to 276ms uncached.
+- Not verified over HTTP: the dev server runs another branch's code.

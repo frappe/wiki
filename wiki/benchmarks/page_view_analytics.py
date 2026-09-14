@@ -138,14 +138,20 @@ def time_scenario(kwargs: dict) -> dict[str, list[float]]:
 	try:
 		for name in TIMED_HELPERS:
 			setattr(analytics, name, timed(name))
-		analytics.get_analytics(**kwargs)  # warm up the buffer pool and caches
+		analytics.count_views.clear_cache()
+		analytics.get_analytics(**kwargs)  # warm up the buffer pool
 		timings = {"total": []}
 		for _ in range(RUNS):
+			# Time the queries, not a Redis read.
+			analytics.count_views.clear_cache()
 			started = time.perf_counter()
 			analytics.get_analytics(**kwargs)
 			timings["total"].append(time.perf_counter() - started)
 			if sum(timings["total"]) > BUDGET_SECONDS:
 				break
+		started = time.perf_counter()
+		analytics.get_analytics(**kwargs)
+		timings["cached"] = [time.perf_counter() - started]
 	finally:
 		for name, original in originals.items():
 			setattr(analytics, name, original)
@@ -153,7 +159,7 @@ def time_scenario(kwargs: dict) -> dict[str, list[float]]:
 
 
 def print_table(cases: list[tuple[str, dict]]) -> None:
-	columns = ["total", *TIMED_HELPERS]
+	columns = ["total", *TIMED_HELPERS, "cached"]
 	print(f"\n{'scenario':<34}" + "".join(f"{c + ' p50/p95 ms':>30}" for c in columns), flush=True)
 	for label, kwargs in cases:
 		timings = time_scenario(kwargs)

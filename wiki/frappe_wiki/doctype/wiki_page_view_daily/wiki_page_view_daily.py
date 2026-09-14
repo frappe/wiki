@@ -7,6 +7,8 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, getdate, nowdate
 
+from wiki.api.analytics import count_views
+
 
 class WikiPageViewDaily(Document):
 	# begin: auto-generated types
@@ -62,6 +64,9 @@ def roll_up_days(days: list[date], commit_each: bool = False):
 
 def roll_up_day(day: date):
 	"""Replace one day's rollup rows, so a day can be rolled up again at any time."""
+	# After commit, not now: a request between now and the commit would cache the old rows again.
+	frappe.db.after_commit.add(count_views.clear_cache)
+
 	values = {"day": day, "next_day": add_days(day, 1)}
 	frappe.db.sql("DELETE FROM `tabWiki Page View Daily` WHERE date = %(day)s", values)
 	# Frappe's is_unique is not used: make_view_log checks the database for the visitor, but
