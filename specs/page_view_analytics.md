@@ -1,7 +1,7 @@
 # Page View Analytics
 
 Date: 2026-09-13
-Status: **Phase 4 of 5 done** (2026-09-13). See [Progress](#progress).
+Status: **Phase 4 of 5 done, phase 5 in progress** (2026-09-14). See [Progress](#progress).
 Reference: [frappe/builder](https://github.com/frappe/builder) at `94fd412` (2026-09-10).
 
 ## Goal
@@ -359,3 +359,22 @@ Verified:
 - Mutation check: without the cache, clearing before commit instead of after, never clearing, and caching `get_analytics` itself (access check included) each fail a test.
 - Benchmark at 20k views: cached calls take 0 to 7ms against 14 to 276ms uncached.
 - Not verified over HTTP: the dev server runs another branch's code.
+
+### Phase 5: dashboard (plan, 2026-09-14)
+
+Backend:
+
+- `get_analytics` adds `tracking_enabled` to its response, read outside the cache, so a dashboard learns in one call whether to show the notice.
+- `enable_view_tracking()`, whitelisted, managers only: it is a site-wide switch, so space writers see the notice without the button.
+
+Frontend, one dashboard used in three places:
+
+- `composables/useAnalytics.js`: range presets (last 7, 30, 90 and 180 days, last 12 months, custom through `DateRangePicker`), interval picked from the range length (up to 90 days daily, up to 180 weekly, else monthly), drill down from a weekly or monthly bucket to its days, refetch when range or scope changes. The date logic is plain functions with a `node:test` file.
+- `components/Analytics/AnalyticsDashboard.vue`: range control, `NumberCard`s for views and new visitors, a `frappe-ui/charts` `AreaChart` for the series, `TopList.vue` for pages and referrers, and the tracking-off notice inline.
+- Space: the Analytics tab in `SpaceSettings.vue` shows the dashboard. It can be filtered to one page, shown as a removable chip.
+- Page: a "Views, last 30 days" row in `PageSettingsPanel.vue` opens the space settings on the Analytics tab filtered to that page. The open tab and page filter move into `useSpaceSettings`.
+- Wiki-wide: managers see the dashboard above the space directory on `Overview.vue`.
+
+Skipped from builder: debounced refetch (no typed input drives a request) and a range kept in `localStorage`.
+
+E2E: seed rollup rows for a space, open the Analytics tab, check totals, top pages and referrers, switch presets, drill down, open a page's analytics from page settings, see the notice and turn tracking on.
