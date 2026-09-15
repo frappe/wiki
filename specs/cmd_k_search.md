@@ -49,7 +49,7 @@ stack, and full text. Converge on the look, not the code.
 | 2 | What counts as a page | `is_group = 0`, `is_external_link = 0`, and a `wiki_space` set. Groups hold no content, external links leave the app, and the app only opens a page inside its space. Pages that exist only in an unmerged change request have no `Wiki Document` yet and are out of scope. |
 | 3 | Matching | Route only, never the title. `route LIKE %/%query%` server-side once the query has 2 characters, with spaces in the query turned into hyphens, debounced 300ms, 20 rows, most recently modified first, with the space name and route joined in. The slash skips the space's own segment, which every page in it shares. The client re-ranks the page's path inside its space with `fuzzysort`, already a dependency, at a 0.5 cut as in the tree filter, so a prefix match beats a mid-word one. Rows are two lines, like the All Spaces list: the title, then the full `/route` in muted text, cut at the end when too long. Spaces and recents use the same second line for their route and space name, and the eye-off icon sits at the right edge. Stale rows from an earlier query are re-ranked against the current one, so rows that no longer match drop out without tracking. |
 | 4 | Local results | "Jump to" (All Spaces, Change Requests) and **Spaces** are matched on the client. Spaces are fetched once, on the palette's first open. Unpublished spaces show only to a Wiki Manager, as in the sidebar. |
-| 5 | No new chrome | The palette has no launcher in either sidebar, and neither existing search box changes. ⌘K is the whole entry point. |
+| 5 | One sidebar entry | A **Search** row in `LibrarySidebar`, below Change Requests, with a `Mod+K` hint, as in Gameplan. It opens the palette. `SpaceSidebar` keeps its own tree filter and gets no row. Neither existing search box changes. |
 | 6 | The editor keeps ⌘K where it means something | The editor binds `Mod-k` to its link popup, and `openLinkEditor` already returns `false` when nothing is selected and the cursor is not in a link. So the key falls through on its own, and the editor's keymap is unchanged. The palette registers with `allowInInput: true` (the editor is contenteditable) and `preventDefault: false`, and stands down on an event whose default was already prevented, which is exactly the case the editor handled. |
 | 7 | Rendering | frappe-ui `Dialog` (`position="top"`, `bare`), a plain combobox input, a `role="listbox"` result list and `KeyboardShortcut` footer hints: Gameplan's structure, with its row metrics (`px-2 py-2`, `mr-3` icons) and 8px row corners. This frappe-ui has a numbered radius scale, so Gameplan's bare `rounded` generates no CSS here; the row uses `rounded-4`. Unpublished pages and spaces carry an eye-off icon. |
 | 8 | Out of scope | Gameplan's command registry and its "Add new" / Settings groups, match highlighting, and a full-text results page. Mobile has no shortcut, so it has no palette. |
@@ -72,7 +72,7 @@ stack, and full text. Converge on the look, not the code.
 | `wiki/api/test_search.py` | 8 | Route match with spaces as hyphens, title ignored, space segment ignored, space join, groups and external links excluded, unpublished included, restricted space hidden from an outsider and shown to a reader |
 | `frontend/src/lib/commandPalette.test.js` | 8 | Empty-query groups, empty groups dropped, path match not title, spaced words against a hyphenated path, stale rows, server query length, current-space bias |
 | `frontend/src/composables/useRecentPages.test.js` | 6 | Newest first, revisit moves to top, rename, cap of five, untitled ignored, per-user lists |
-| `e2e/tests/command-palette.spec.ts` | 5 | Page in another space, space by name and Escape, recents without the current page, stable active row, shortcut shared with the link popup |
+| `e2e/tests/command-palette.spec.ts` | 6 | Page in another space, space by name and Escape, opening from the sidebar Search row, recents without the current page, stable active row, shortcut shared with the link popup |
 
 ## Progress log
 
@@ -116,12 +116,14 @@ stack, and full text. Converge on the look, not the code.
   `deployment` finds nothing. A one-line row with the route on the right was dropped: truncation started each route at a different x, so the column was ragged, the eye-off icon floated mid-row, and cutting from the left hid the space, the one part that told duplicates apart. Also fixed the Restore icon in `WikiTree.vue`,
   which used `rotate-ccw` without the `lucide-` prefix and failed
   `icon-names.test.js`.
+- 2026-09-16: **Sidebar entry.** Added a Search row with a `Mod+K` hint to
+  `LibrarySidebar`, as in Gameplan, plus an e2e that clicks it.
 
 ## Wrong turns worth recording
 
 | # | What was tried | Why it was dropped |
 |---|----------------|--------------------|
-| 1 | A **Search** row in `LibrarySidebar` and a search button in the `SpaceSidebar` header | The wiki already shows two search boxes. A third and fourth entry point for search is clutter, not discoverability. ⌘K alone. |
+| 1 | A search button in the `SpaceSidebar` header | That column already has the tree filter, so a second search entry there is clutter. The `LibrarySidebar` row was dropped at first too, then added on request: ⌘K alone gave no hint that the palette exists. |
 | 2 | ⌘K **focusing the existing search box** on screen instead of a palette | Neither box crosses a space, which is the thing that was missing. |
 | 3 | Making the editor's `Mod-k` return `false` on an empty selection | Redundant: `openLinkEditor` already returns `false` there. Worse, it broke ⌘K on a cursor inside an existing link, which is how a link gets edited. Reverted, and the e2e now covers that case. |
 | 4 | A `recent_pages` endpoint ordering `Wiki Document` by `modified desc` | That is the wiki's edit activity, not the user's history. It filled the palette with pages the user had never opened. Recents are per person and per browser, so they belong in localStorage, next to pins. |

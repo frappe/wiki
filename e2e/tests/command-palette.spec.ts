@@ -59,6 +59,16 @@ test.describe('Command Palette', () => {
 		await expect(palette).toBeHidden();
 	});
 
+	test('opens from the Search row in the sidebar', async ({ page }) => {
+		await page.goto(appUrl());
+		const search = page.getByRole('button', { name: 'Search', exact: true });
+		await expect(search).toBeVisible({ timeout: 10000 });
+
+		await search.click();
+		const palette = page.getByRole('dialog');
+		await expect(palette.getByRole('combobox')).toBeFocused();
+	});
+
 	test('offers the pages the user opened, not the page they are on', async ({
 		page,
 		wiki,
