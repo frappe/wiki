@@ -170,6 +170,13 @@ test.describe('Command Palette', () => {
 			editor.getByRole('link', { name: 'Welcome to the wiki' }),
 		).toHaveCount(0);
 
+		// A blank URL must not wrap the selection in a link either.
+		await editor.getByText('Welcome to the wiki').click({ clickCount: 3 });
+		await page.keyboard.press('ControlOrMeta+k');
+		await page.getByPlaceholder('https://example.com').fill('   ');
+		await page.getByPlaceholder('https://example.com').press('Enter');
+		await expect(editor.locator('a[href=""]')).toHaveCount(0);
+
 		// Cursor in a link: the popup answers, in view mode.
 		await editor.getByRole('link', { name: 'docs' }).click();
 		await page.keyboard.press('ControlOrMeta+k');

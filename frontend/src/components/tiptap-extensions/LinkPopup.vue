@@ -122,17 +122,16 @@ function startEditing() {
 }
 
 function saveLink() {
+	let url = editUrl.value.trim();
+
 	// Saving '' would leave the text wrapped in a link with no href.
-	if (!editUrl.value) {
+	if (!url) {
 		emit('remove');
 		return;
 	}
 
-	let url = editUrl.value.trim();
-
 	// Add https:// if no protocol and not a relative URL
 	if (
-		url &&
 		!url.startsWith('/') &&
 		!url.startsWith('#') &&
 		!url.match(/^[a-zA-Z]+:\/\//)
@@ -140,7 +139,7 @@ function saveLink() {
 		url = `https://${url}`;
 	}
 
-	if (url === '' || isValidUrl(url)) {
+	if (isValidUrl(url)) {
 		currentHref.value = url;
 		isEditing.value = false;
 		emit('save', url);
