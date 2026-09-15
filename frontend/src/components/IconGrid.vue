@@ -1,6 +1,6 @@
 <template>
-	<div class="relative">
-		<div class="max-h-72 overflow-y-auto p-2 pb-5">
+	<div class="relative flex min-h-0 flex-1 flex-col">
+		<div class="min-h-0 max-h-72 flex-1 overflow-y-auto p-2 pb-5">
 			<div
 				class="grid grid-cols-8 gap-1"
 				role="listbox"

@@ -17,7 +17,10 @@
 		</template>
 
 		<template #default>
-			<div class="w-64 space-y-3 p-3">
+			<div
+				class="flex w-64 flex-col gap-3 p-3"
+				style="max-height: var(--reka-popper-available-height, 100vh)"
+			>
 				<!-- An upload and a generated mark are alternatives, not layers,
 				     so the control that picks between them is a value control
 				     and the panels follow — hence TabButtons rather than Tabs.
@@ -70,9 +73,7 @@
 
 					<!-- No wrapper surface: the grid's own bottom fade is drawn
 					     `from-surface-elevation-2`, which is the panel. -->
-					<div class="-mx-3">
-						<IconGrid :model-value="icon" @select="pickIcon" />
-					</div>
+					<IconGrid class="-mx-3" :model-value="icon" @select="pickIcon" />
 				</template>
 
 				<template v-else>

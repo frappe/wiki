@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-full min-h-0 flex-col">
+	<div ref="rootEl" class="flex h-full min-h-0 flex-col">
 		<!-- Search sits above the scroller, so it stays put while results move. -->
 		<div v-if="hasPages" class="shrink-0 px-2 pb-2">
 			<TextInput
@@ -141,6 +141,9 @@
 						{{ __('Are you sure you want to delete this') }}
 						{{ deleteNode?.is_group ? __('group') : __('page') }}?
 					</p>
+					<p class="text-sm text-ink-gray-5">
+						{{ __('It stays in your draft, marked as deleted, until the change request is merged.') }}
+					</p>
 					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-6 p-4">
 						<div class="flex items-start gap-3">
@@ -162,7 +165,7 @@
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
 					<Button variant="solid" theme="gray" :loading="isDeleting"
 						@click="deleteDocument(close)">
-						{{ __('Save Delete Draft') }}
+						{{ __('Delete') }}
 					</Button>
 				</div>
 			</template>
@@ -255,7 +258,7 @@ import {
 	TextInput,
 	Tooltip,
 } from 'frappe-ui';
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import SpaceIcon from './SpaceIcon.vue';
 import WikiTree from './WikiTree.vue';
 
@@ -325,6 +328,50 @@ function revealGroup(node) {
 	expandedNodes.value[node.doc_key] = true;
 	searchQuery.value = '';
 }
+
+// Reveal a page opened from outside the tree (Edit link, reload, deep link).
+const rootEl = ref(null);
+
+function findAncestorKeys(nodes, isTarget) {
+	for (const node of nodes || []) {
+		if (isTarget(node)) return [];
+		const path = findAncestorKeys(node.children, isTarget);
+		if (path) return [node.doc_key, ...path];
+	}
+	return null;
+}
+
+const selectedAncestorKeys = computed(() => {
+	const { selectedPageId, selectedDraftKey } = props;
+	if (!selectedPageId && !selectedDraftKey) return null;
+	return findAncestorKeys(props.treeData?.children, (node) =>
+		selectedPageId
+			? !node.is_group && node.document_name === selectedPageId
+			: !node.document_name && node.doc_key === selectedDraftKey,
+	);
+});
+
+// Keyed on the selection, not the tree, so unrelated edits don't re-expand or re-scroll.
+watch(
+	() =>
+		selectedAncestorKeys.value &&
+		[
+			props.selectedPageId,
+			props.selectedDraftKey,
+			...selectedAncestorKeys.value,
+		].join('/'),
+	async () => {
+		if (!selectedAncestorKeys.value) return;
+		for (const key of selectedAncestorKeys.value) {
+			expandedNodes.value[key] = true;
+		}
+		await nextTick();
+		rootEl.value
+			?.querySelector('[data-selected]')
+			?.scrollIntoView({ block: 'nearest' });
+	},
+	{ immediate: true },
+);
 
 const {
 	showCreateDialog,

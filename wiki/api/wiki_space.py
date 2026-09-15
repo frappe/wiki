@@ -341,6 +341,44 @@ def _get_wiki_space_for_document(doc_name: str) -> str | None:
 	return None
 
 
+def _pending_revision_spaces() -> set[str]:
+	if not hasattr(frappe.local, "wiki_pending_revision_spaces"):
+		frappe.local.wiki_pending_revision_spaces = set()
+	return frappe.local.wiki_pending_revision_spaces
+
+
+def queue_main_revision_sync(space_name: str | None) -> None:
+	"""Defer a space's revision snapshot to the end of the transaction.
+
+	`create_revision_from_live_tree` re-materialises every document in the space, so
+	snapshotting inline on each save makes a bulk write cost O(n^2) item inserts.
+	Collapsing to one snapshot per transaction keeps it linear. Readers of
+	`main_revision` call `flush_pending_revision_syncs` first, so a deferred sync is
+	never observable to them.
+	"""
+	if not space_name:
+		return
+
+	pending = _pending_revision_spaces()
+	if not pending:
+		frappe.db.before_commit.add(flush_pending_revision_syncs)
+		frappe.db.after_rollback.add(pending.clear)
+	pending.add(space_name)
+
+
+def flush_pending_revision_syncs() -> None:
+	"""Snapshot every space with edits queued since the last flush.
+
+	A space queued earlier in the transaction can be deleted before the flush runs,
+	so a snapshot is only taken for one that still exists.
+	"""
+	pending = _pending_revision_spaces()
+	while pending:
+		space_name = pending.pop()
+		if frappe.db.exists("Wiki Space", space_name):
+			_sync_main_revision_for_space(space_name)
+
+
 def _sync_main_revision_for_space(space_name: str | None) -> None:
 	"""Refresh main_revision after direct edits to keep CRs aligned with live tree."""
 	if not space_name:

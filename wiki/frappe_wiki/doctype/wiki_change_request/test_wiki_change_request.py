@@ -9,6 +9,7 @@ import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
 from frappe.tests.utils import FrappeTestCase
 
+from wiki.api.wiki_space import _pending_revision_spaces
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	apply_cr_operations,
 	approve_change_request,
@@ -33,6 +34,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	reorder_cr_children,
 	request_changes,
 	resolve_merge_conflict,
+	restore_cr_page,
 	retry_merge_after_resolution,
 	submit_change_request,
 	update_change_request,
@@ -42,7 +44,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
 )
-from wiki.tests.factory import make_document, make_space
+from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 
 
 def _cached_cards(doc_key: str) -> list[str]:
@@ -548,6 +550,57 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(group_item.is_deleted, 1)
 		self.assertEqual(child_item.is_deleted, 1)
 
+	def test_get_cr_tree_keeps_deleted_page_flagged(self):
+		"""A staged deletion stays in the tree until the merge, or the author
+		reads the empty row as "already deleted" and never publishes it (#762)."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR Delete Visible")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		delete_cr_page(cr.name, page_key)
+
+		node = next(node for node in get_cr_tree(cr.name)["children"] if node["doc_key"] == page_key)
+		self.assertTrue(node["is_deleted"])
+
+	def test_get_cr_tree_drops_page_created_and_deleted_in_same_cr(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR Create Then Delete")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+
+		page_key = create_cr_page(cr.name, parent_key=root_key, title="Never Lived")
+		delete_cr_page(cr.name, page_key)
+
+		keys = {node["doc_key"] for node in get_cr_tree(cr.name)["children"]}
+		self.assertNotIn(page_key, keys)
+
+	def test_restore_cr_page_clears_deletion(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Child")
+		cr = create_change_request(space.name, "CR Restore")
+
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+		delete_cr_page(cr.name, group_key)
+		restore_cr_page(cr.name, group_key)
+
+		self.assertEqual(get_revision_item(cr.head_revision, group_key).is_deleted, 0)
+		self.assertEqual(get_revision_item(cr.head_revision, child_key).is_deleted, 0)
+		self.assertFalse(has_revision_changes(cr.base_revision, cr.head_revision))
+
+	def test_restore_node_operation_clears_deletion(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "CR Restore Batch")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		apply_cr_operations(cr.name, operations=[{"type": "delete_node", "doc_key": page_key}])
+		result = apply_cr_operations(cr.name, operations=[{"type": "restore_node", "doc_key": page_key}])
+
+		self.assertEqual(get_revision_item(cr.head_revision, page_key).is_deleted, 0)
+		self.assertEqual([item["doc_key"] for item in result["items"]], [page_key])
+
 	def test_diff_summary_returns_changed_pages(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
@@ -1001,6 +1054,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
 
 		# Ensure main_revision exists
+		from wiki.api.wiki_space import flush_pending_revision_syncs
 		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 			create_revision_from_live_tree,
 			get_revision_item_map,
@@ -1013,6 +1067,10 @@ class TestWikiChangeRequest(FrappeTestCase):
 		# Edit via desk (direct save)
 		page.content = "v2-desk-edit"
 		page.save()
+
+		# The snapshot is deferred to the end of the transaction, so take it now
+		# instead of waiting for the commit this test never makes.
+		flush_pending_revision_syncs()
 
 		# main_revision should have advanced
 		new_main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
@@ -2720,3 +2778,85 @@ def get_revision_item(revision, doc_key):
 			"name",
 		),
 	)
+
+
+class TestDeferredRevisionSync(WikiFixtureMixin, FrappeTestCase):
+	"""The main_revision snapshot is queued per save and taken once per transaction."""
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def setUp(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		# Tracked fixtures: one test commits, and the factory's teardown is what
+		# reaches rows the framework's post-test rollback cannot.
+		self.space = self.wiki.space(space_name="Test Space")
+		# Creating the space queues its own root group; start from a clean queue.
+		flush_pending_revision_syncs()
+
+	def space_revisions(self) -> int:
+		return frappe.db.count("Wiki Revision", {"wiki_space": self.space.name})
+
+	def test_bulk_saves_take_one_snapshot_instead_of_one_per_save(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		before = self.space_revisions()
+		for i in range(5):
+			self.wiki.document(parent=self.space.root_group, title=f"Page {i}")
+
+		self.assertEqual(
+			self.space_revisions(), before, "saves should not snapshot before the transaction ends"
+		)
+
+		flush_pending_revision_syncs()
+		self.assertEqual(
+			self.space_revisions(), before + 1, "five saves should collapse into a single snapshot"
+		)
+
+	def test_a_save_registers_the_flush_on_before_commit(self):
+		from wiki.api.wiki_space import _pending_revision_spaces, flush_pending_revision_syncs
+
+		self.wiki.document(parent=self.space.root_group, title="Queued Page")
+
+		self.assertIn(self.space.name, _pending_revision_spaces())
+		self.assertIn(flush_pending_revision_syncs, frappe.db.before_commit._functions)
+
+	def test_rollback_drops_the_pending_queue(self):
+		from wiki.api.wiki_space import _pending_revision_spaces
+
+		self.wiki.document(parent=self.space.root_group, title="Doomed Page")
+		self.assertTrue(_pending_revision_spaces())
+
+		# Run the rollback callbacks rather than rolling back for real, so the
+		# assertion is about the queue and not about this test's own fixtures.
+		frappe.db.after_rollback.run()
+		self.assertFalse(_pending_revision_spaces(), "a rollback should discard queued snapshots")
+
+	def test_flush_skips_a_space_deleted_after_it_was_queued(self):
+		from wiki.api.wiki_space import _pending_revision_spaces, flush_pending_revision_syncs
+
+		page = self.wiki.document(parent=self.space.root_group, title="Will Vanish")
+		page.content = "edited just before the space goes"
+		page.save()
+
+		frappe.delete_doc("Wiki Space", self.space.name, force=True, ignore_permissions=True)
+		self.assertIn(self.space.name, _pending_revision_spaces())
+
+		# Asserted through the snapshot call rather than the absence of an error,
+		# so the test still pins the guard if the flush ever stops raising.
+		with patch("wiki.api.wiki_space._sync_main_revision_for_space") as sync:
+			flush_pending_revision_syncs()
+
+		sync.assert_not_called()
+		self.assertFalse(_pending_revision_spaces())
+
+	def test_several_saves_take_one_snapshot_on_commit(self):
+		before = self.space_revisions()
+		for i in range(3):
+			self.wiki.document(parent=self.space.root_group, title=f"Committed Page {i}")
+
+		frappe.db.commit()
+
+		self.assertEqual(self.space_revisions(), before + 1, "the commit should take exactly one snapshot")
+		self.assertFalse(_pending_revision_spaces())

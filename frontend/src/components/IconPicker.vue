@@ -29,8 +29,11 @@
 				@open-auto-focus.prevent
 			>
 				<div
-					class="max-w-[calc(100vw-2rem)] overflow-hidden rounded-6 bg-surface-elevation-2 text-base shadow-2xl ring-1 ring-black ring-opacity-5"
-				 	style="transform-origin: var(--reka-popover-content-transform-origin)"
+					class="flex max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-6 bg-surface-elevation-2 text-base shadow-2xl ring-1 ring-black ring-opacity-5"
+					style="
+						transform-origin: var(--reka-popover-content-transform-origin);
+						max-height: var(--reka-popper-available-height, 100vh);
+					"
 				>
 					<IconGrid
 						:model-value="modelValue"
