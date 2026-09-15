@@ -223,6 +223,7 @@ import {
 } from 'frappe-ui';
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useRecentPages } from '../composables/useRecentPages';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
@@ -256,6 +257,7 @@ const isDeleting = ref(false);
 const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
+const { recordVisit } = useRecentPages();
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -387,6 +389,13 @@ const displayTitle = computed(() => {
 		''
 	);
 });
+
+watch(
+	[() => props.pageId, displayTitle],
+	([pageId, title]) =>
+		recordVisit({ name: pageId, title, space: props.spaceId }),
+	{ immediate: true },
+);
 
 const displayPublished = computed(() => {
 	if (activePage.value?.isPublished != null) {
