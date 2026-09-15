@@ -179,6 +179,10 @@ test.describe('Command Palette', () => {
 
 		// Cursor in a link: the popup answers, in view mode.
 		await editor.getByRole('link', { name: 'docs' }).click();
+		// The editor reads the click's selection asynchronously; wait for it to land in the link.
+		await expect(
+			page.getByRole('button', { name: 'Link', pressed: true }),
+		).toBeVisible();
 		await page.keyboard.press('ControlOrMeta+k');
 		await expect(palette).toBeHidden();
 		await page.getByRole('button', { name: 'Edit' }).click();
