@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-// The composable reads localStorage through vueuse on import.
+// The composable reads the user cookie and localStorage on import. Vue is
+// loaded first because a bare document object breaks its own setup.
+await import('@vueuse/core');
+globalThis.document = { cookie: 'user_id=alice@example.com' };
 globalThis.localStorage = {
 	store: new Map(),
 	getItem(key) {
@@ -51,4 +54,10 @@ test('ignores a page with no title yet', () => {
 	recordVisit({});
 	assert.equal(titles().includes(''), false);
 	assert.equal(recentPages.value.length, 5);
+});
+
+test('keeps each user to their own recent pages', async () => {
+	globalThis.document.cookie = 'user_id=bob@example.com';
+	const other = await import('./useRecentPages.js?user=bob');
+	assert.deepEqual(other.useRecentPages().recentPages.value, []);
 });

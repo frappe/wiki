@@ -55,7 +55,7 @@ stack, and full text. Converge on the look, not the code.
 | 8 | Out of scope | Gameplan's command registry and its "Add new" / Settings groups, match highlighting, and a full-text results page. Mobile has no shortcut, so it has no palette. |
 | 9 | The palette navigates, it does not search | It cuts clicks to a destination the user can already name. Full-text search stays with the reader. It would need a results page the app does not have, plus snippets, paging and ranking. And the SQLite index is published-only, so it has the wrong rows for the editor this palette serves. |
 | 10 | Context biases, it never scopes | The same results everywhere. A page in the space the user is already in gets a `scoreScale` of 1.5, so it outranks the same title elsewhere without splitting the group. A palette scoped to the current space would rebuild search #3 behind a shortcut and fail the one case it exists for: a page in another space. No modes, so no destination is ever hidden. |
-| 11 | An empty query | A **Recent** group: the last five pages *this user opened*, newest first, from `useRecentPages` (localStorage, like `usePinnedSpaces`). `WikiDocumentPanel` records a visit once the page has a title. The page they are on is left out, because it is not somewhere to go. Visits store the space id, so a renamed space still labels its rows. |
+| 11 | An empty query | A **Recent** group: the last five pages *this user opened*, newest first, from `useRecentPages` (localStorage, like `usePinnedSpaces`), keyed by user so the next person in the same browser never sees titles they cannot read. `WikiDocumentPanel` records a visit once the page has a title. The page they are on is left out, because it is not somewhere to go. Visits store the space id, so a renamed space still labels its rows. |
 | 12 | The active row | Tracked by item key, not list index, so a group that loads late cannot move the row a user is about to press Enter on. An unknown key falls back to the top row. |
 
 ## Phases
@@ -71,7 +71,7 @@ stack, and full text. Converge on the look, not the code.
 |-------|-------|--------|
 | `wiki/api/test_search.py` | 6 | Title match, space join, groups and external links excluded, unpublished included, restricted space hidden from an outsider and shown to a reader |
 | `frontend/src/lib/commandPalette.test.js` | 7 | Empty-query groups, empty groups dropped, near-prefix match, stale rows, server query length, current-space bias |
-| `frontend/src/composables/useRecentPages.test.js` | 5 | Newest first, revisit moves to top, rename, cap of five, untitled ignored |
+| `frontend/src/composables/useRecentPages.test.js` | 6 | Newest first, revisit moves to top, rename, cap of five, untitled ignored, per-user lists |
 | `e2e/tests/command-palette.spec.ts` | 5 | Page in another space, space by name and Escape, recents without the current page, stable active row, shortcut shared with the link popup |
 
 ## Progress log
@@ -99,6 +99,14 @@ stack, and full text. Converge on the look, not the code.
   existing link emits `remove` instead of saving nothing.
 - 2026-09-15: Folded `cmd_k_search_scope.md` into this spec (existing
   searches, decisions 9 and 10, considered and future ideas) and removed it.
+- 2026-09-15: Review fixes from Greptile on #780. Recents used one
+  localStorage key for every user, and localStorage outlives a logout, so a
+  second user in the same browser saw the first user's page titles. The key now
+  carries the user id, read from the `user_id` cookie through a helper shared
+  with the session store. A whitespace-only URL in the link popup was checked
+  before trimming, so it still saved an empty href; it now removes the link.
+  The third finding, an unchecked `query` type, needed no change: Frappe
+  validates the `str` annotation and rejects a list with `FrappeTypeError`.
 
 ## Wrong turns worth recording
 
