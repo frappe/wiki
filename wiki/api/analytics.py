@@ -12,7 +12,7 @@ from wiki.permissions import _is_manager, can_write_space
 
 MAX_RANGE_DAYS = 400
 TOP_LIMIT = 20
-OVERVIEW_LIMIT = 8
+OVERVIEW_LIMIT = 5
 OPEN_CHANGE_REQUEST_STATUSES = ("In Review", "Changes Requested", "Approved")
 # The rollup job clears the cache after each run, so this only bounds how long an unused entry lives.
 CACHE_SECONDS = 15 * 60

@@ -411,7 +411,7 @@ Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a 
 
 #### Built
 
-- `get_overview(from_date, to_date)`, managers only. It returns views and new visitors, each with a delta against the equal-length window before, views by space (top 8) and top pages (top 8) with their space and delta. An empty previous window gives no delta, not +100%.
+- `get_overview(from_date, to_date)`, managers only. It returns views and new visitors, each with a delta against the equal-length window before, views by space (top 5) and top pages (top 5) with their space and delta. An empty previous window gives no delta, not +100%.
 - Per-path counts for a window are cached (`count_views_by_path`) and cleared by the rollup like `count_views`. Spaces, titles and the path to space match are resolved outside the cache, so a renamed space shows at once. A path belongs to the space with the longest matching route.
 - `pages/Overview.vue` at `/overview`: `PageHeader` with `TabButtons`, `NumberCard`s without a card surface, `AreaChart` with a space `Select` (fed by `get_analytics`), `SpaceAvatar` rows with a `Progress` meter, ranked top pages. Rows link into the space or page.
 - Its own page, not a replacement for the directory. The directory moved to `pages/AllSpaces.vue`, still at `/`, with the route renamed from `Overview` to `AllSpaces`. The sidebar lists Overview (managers only) above All Spaces. A non-manager who opens `/overview` is sent to `/`.
