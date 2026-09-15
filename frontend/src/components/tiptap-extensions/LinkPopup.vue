@@ -122,8 +122,9 @@ function startEditing() {
 }
 
 function saveLink() {
+	// Saving '' would leave the text wrapped in a link with no href.
 	if (!editUrl.value) {
-		emit('save', '');
+		emit('remove');
 		return;
 	}
 
@@ -136,7 +137,7 @@ function saveLink() {
 		!url.startsWith('#') &&
 		!url.match(/^[a-zA-Z]+:\/\//)
 	) {
-		url = 'https://' + url;
+		url = `https://${url}`;
 	}
 
 	if (url === '' || isValidUrl(url)) {
@@ -151,7 +152,7 @@ function cancelEdit() {
 		isEditing.value = false;
 		editUrl.value = currentHref.value;
 	} else {
-		emit('save', '');
+		emit('cancel');
 	}
 }
 
