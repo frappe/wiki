@@ -47,7 +47,7 @@ stack, and full text. Converge on the look, not the code.
 |---|----------|--------|
 | 1 | Page source | A new authenticated endpoint, `wiki.api.search.search_pages`, querying `Wiki Document` routes with `frappe.get_list`. The reader's SQLite index is not used: it holds only published pages, so drafts and unpublished spaces, which are exactly what an editor works on, would never show. `get_list` applies the existing `wiki_document_query_conditions`, so restricted spaces stay hidden with no new permission code. |
 | 2 | What counts as a page | `is_group = 0`, `is_external_link = 0`, and a `wiki_space` set. Groups hold no content, external links leave the app, and the app only opens a page inside its space. Pages that exist only in an unmerged change request have no `Wiki Document` yet and are out of scope. |
-| 3 | Matching | Route only, never the title. `route LIKE %/%query%` server-side once the query has 2 characters, with spaces in the query turned into hyphens, debounced 300ms, 20 rows, most recently modified first, with the space name and route joined in. The slash skips the space's own segment, which every page in it shares. The client re-ranks the page's path inside its space with `fuzzysort`, already a dependency, at a 0.5 cut as in the tree filter, so a prefix match beats a mid-word one. Rows are two lines, like the All Spaces list: the title, then the full `/route` in muted text, cut at the end when too long. Spaces and recents use the same second line for their route and space name, and the eye-off icon sits at the right edge. Stale rows from an earlier query are re-ranked against the current one, so rows that no longer match drop out without tracking. |
+| 3 | Matching | Route only, never the title. `route LIKE %/%query%` server-side once the query has 2 characters, with spaces in the query turned into hyphens, debounced 300ms, 20 rows, most recently modified first, with the space name and route joined in. The slash skips the space's own segment, which every page in it shares. The client re-ranks the page's path inside its space with `fuzzysort`, already a dependency, at a 0.5 cut as in the tree filter, so a prefix match beats a mid-word one. Rows are two lines, like the All Spaces list: the title, then the full `/route` in muted text, cut at the end when too long. Spaces and recents use the same second line for their route, and the eye-off icon sits at the right edge. Stale rows from an earlier query are re-ranked against the current one, so rows that no longer match drop out without tracking. |
 | 4 | Local results | "Jump to" (All Spaces, Change Requests) and **Spaces** are matched on the client. Spaces are fetched once, on the palette's first open. Unpublished spaces show only to a Wiki Manager, as in the sidebar. |
 | 5 | One sidebar entry | A **Search** row in `LibrarySidebar`, below Change Requests, with a `Mod+K` hint, as in Gameplan. It opens the palette. `SpaceSidebar` keeps its own tree filter and gets no row. Neither existing search box changes. |
 | 6 | The editor keeps ⌘K where it means something | The editor binds `Mod-k` to its link popup, and `openLinkEditor` already returns `false` when nothing is selected and the cursor is not in a link. So the key falls through on its own, and the editor's keymap is unchanged. The palette registers with `allowInInput: true` (the editor is contenteditable) and `preventDefault: false`, and stands down on an event whose default was already prevented, which is exactly the case the editor handled. |
@@ -55,7 +55,7 @@ stack, and full text. Converge on the look, not the code.
 | 8 | Out of scope | Gameplan's command registry and its "Add new" / Settings groups, match highlighting, and a full-text results page. Mobile has no shortcut, so it has no palette. |
 | 9 | The palette navigates, it does not search | It cuts clicks to a destination the user can already name. Full-text search stays with the reader. It would need a results page the app does not have, plus snippets, paging and ranking. And the SQLite index is published-only, so it has the wrong rows for the editor this palette serves. |
 | 10 | Context biases, it never scopes | The same results everywhere. A page in the space the user is already in gets a `scoreScale` of 1.5, so it outranks the same title elsewhere without splitting the group. A palette scoped to the current space would rebuild search #3 behind a shortcut and fail the one case it exists for: a page in another space. No modes, so no destination is ever hidden. |
-| 11 | An empty query | A **Recent** group: the last five pages *this user opened*, newest first, from `useRecentPages` (localStorage, like `usePinnedSpaces`), keyed by user so the next person in the same browser never sees titles they cannot read. `WikiDocumentPanel` records a visit once the page has a title. The page they are on is left out, because it is not somewhere to go. Visits store the space id, so a renamed space still labels its rows. |
+| 11 | An empty query | A **Recent** group: the last five pages *this user opened*, newest first, from `useRecentPages` (localStorage, like `usePinnedSpaces`), keyed by user so the next person in the same browser never sees titles they cannot read. `WikiDocumentPanel` records a visit once the page has a title. The page they are on is left out, because it is not somewhere to go. Visits store the space id and the route, and a row shows `/route` like a search result. A visit saved before routes were stored shows the space name until the page is opened again. |
 | 12 | The active row | Tracked by item key, not list index, so a group that loads late cannot move the row a user is about to press Enter on. An unknown key falls back to the top row. |
 
 ## Phases
@@ -118,6 +118,10 @@ stack, and full text. Converge on the look, not the code.
   `icon-names.test.js`.
 - 2026-09-16: **Sidebar entry.** Added a Search row with a `Mod+K` hint to
   `LibrarySidebar`, as in Gameplan, plus an e2e that clicks it.
+- 2026-09-16: **Routes on recents.** Recent rows still showed the space name,
+  because visits were stored without a route. `recordVisit` now stores the
+  route, and the watcher in `WikiDocumentPanel` moved below `displayRoute`,
+  which it reads immediately.
 
 ## Wrong turns worth recording
 
@@ -142,7 +146,7 @@ stack, and full text. Converge on the look, not the code.
 
 | # | Gameplan | Here | Why |
 |---|----------|------|-----|
-| 1 | Rows show the hit's relative modified time | Page rows show their `/route`, recents show their space | A page title repeats across spaces ("Getting Started" in four of them). The route starts with the space, so it tells them apart, and it is what the query matched. |
+| 1 | Rows show the hit's relative modified time | Page and recent rows show their `/route` | A page title repeats across spaces ("Getting Started" in four of them). The route starts with the space, so it tells them apart, and it is what the query matched. |
 | 2 | Spaces are grouped per community | One Spaces group, each row labelled with its `/route` | The wiki has no community layer, and space names are not unique. |
 | 3 | A command registry pages register actions into | No registry | Nothing registers commands yet. One implementation is not a framework. |
 | 4 | A `Search for "<query>"` row into a full-text results page | No such row | Gameplan has a Search page to land on; the wiki does not, and its content index is published-only, so it would miss the drafts an editor lives in. |

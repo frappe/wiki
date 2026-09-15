@@ -390,13 +390,6 @@ const displayTitle = computed(() => {
 	);
 });
 
-watch(
-	[() => props.pageId, displayTitle],
-	([pageId, title]) =>
-		recordVisit({ name: pageId, title, space: props.spaceId }),
-	{ immediate: true },
-);
-
 const displayPublished = computed(() => {
 	if (activePage.value?.isPublished != null) {
 		return Boolean(activePage.value.isPublished);
@@ -415,6 +408,13 @@ const displayRoute = computed(() => {
 		''
 	);
 });
+
+watch(
+	[() => props.pageId, displayTitle, displayRoute],
+	([pageId, title, route]) =>
+		recordVisit({ name: pageId, title, space: props.spaceId, route }),
+	{ immediate: true },
+);
 
 // The panel is module-scoped state: it stays open across page switches, and
 // the toggle that owns it lives in this header.

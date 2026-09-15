@@ -89,7 +89,9 @@ test.describe('Command Palette', () => {
 		const recent = palette.getByRole('group', { name: 'Recent' });
 		await expect(recent.getByRole('option')).toHaveCount(1);
 		await expect(recent.getByRole('option')).toContainText(`${token} Runbook`);
-		await expect(recent.getByRole('option')).toContainText(`${token} Space`);
+		await expect(recent.getByRole('option')).toContainText(
+			`/${space.page(`${token} Runbook`).route}`,
+		);
 
 		await recent.getByRole('option').click();
 		await expect(page).toHaveURL(

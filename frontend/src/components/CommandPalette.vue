@@ -262,7 +262,8 @@ const recentItems = computed(() =>
 			key: `recent:${page.name}`,
 			label: page.title,
 			icon: 'lucide-file-text',
-			subtitle: spaceNames.value.get(page.space),
+			// Visits saved before routes were recorded fall back to the space name.
+			subtitle: page.route ? `/${page.route}` : spaceNames.value.get(page.space),
 			route: {
 				name: 'SpacePage',
 				params: { spaceId: page.space, pageId: page.name },

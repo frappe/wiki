@@ -12,14 +12,12 @@ const STORAGE_KEY = `wiki:recent-pages:${getCookieUser()}`;
 const recentPages = useStorage(STORAGE_KEY, [], localStorage);
 
 export function useRecentPages() {
-	function recordVisit({ name, title, space } = {}) {
+	function recordVisit({ name, title, space, route } = {}) {
 		if (!name || !title) return;
 
 		const rest = recentPages.value.filter((page) => page.name !== name);
-		recentPages.value = [{ name, title, space: space || null }, ...rest].slice(
-			0,
-			LIMIT,
-		);
+		const visit = { name, title, space: space || null, route: route || null };
+		recentPages.value = [visit, ...rest].slice(0, LIMIT);
 	}
 
 	return { recentPages, recordVisit };

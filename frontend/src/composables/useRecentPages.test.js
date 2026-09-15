@@ -49,6 +49,23 @@ test('caps the list at five', () => {
 	assert.deepEqual(titles(), ['F', 'E', 'D', 'C', 'Alpha Renamed']);
 });
 
+test('keeps the route of the latest visit', () => {
+	recordVisit({
+		name: 'a',
+		title: 'Alpha Renamed',
+		space: 's1',
+		route: 's1/alpha',
+	});
+	recordVisit({
+		name: 'a',
+		title: 'Alpha Renamed',
+		space: 's1',
+		route: 's1/moved',
+	});
+	assert.equal(recentPages.value[0].route, 's1/moved');
+	assert.equal(recentPages.value.filter((page) => page.name === 'a').length, 1);
+});
+
 test('ignores a page with no title yet', () => {
 	recordVisit({ name: 'g', title: '', space: 's1' });
 	recordVisit({});
