@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import frappe
 from frappe import _
 from frappe.query_builder import Criterion
-from frappe.query_builder.functions import DateFormat, Sum
+from frappe.query_builder.functions import Count, DateFormat, Sum
 from frappe.utils import add_months, date_diff, get_url, getdate
 from frappe.utils.caching import redis_cache
 
@@ -69,6 +69,7 @@ def get_overview(from_date: str, to_date: str) -> dict:
 		"new_visitors": _metric(current, previous, 1),
 		"spaces": _views_by_space(spaces, space_of, current, previous),
 		"top_pages": _top_pages_with_delta(space_of, current, previous),
+		**_change_requests(start, end, previous_start, previous_end),
 		"tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking")),
 	}
 
@@ -147,6 +148,35 @@ def _top_pages_with_delta(space_of, current: dict, previous: dict) -> list[dict]
 		}
 		for path in paths
 	]
+
+
+def _change_requests(start: date, end: date, previous_start: date, previous_end: date) -> dict:
+	"""Change requests raised in each window, and how the current ones stand now."""
+	cr = frappe.qb.DocType("Wiki Change Request")
+	# Editing a page opens a Draft on its own, so only submitted work counts as raised.
+	raised = cr.status != "Draft"
+
+	def raised_between(first: date, last: date):
+		# `creation` is a datetime, so the last day runs up to midnight after it.
+		return raised & (cr.creation >= first) & (cr.creation < last + timedelta(days=1))
+
+	count = Count(cr.name).as_("count")
+	by_status = (
+		frappe.qb.from_(cr)
+		.select(cr.status, count)
+		.where(raised_between(start, end))
+		.groupby(cr.status)
+		.orderby(count, order=frappe.qb.desc)
+	).run(as_dict=True)
+	before = (
+		frappe.qb.from_(cr).select(Count(cr.name)).where(raised_between(previous_start, previous_end))
+	).run()[0][0]
+
+	value = sum(row["count"] for row in by_status)
+	return {
+		"change_requests": {"value": value, "delta": _delta(value, before)},
+		"change_requests_by_status": by_status,
+	}
 
 
 @frappe.whitelist(methods=["POST"])

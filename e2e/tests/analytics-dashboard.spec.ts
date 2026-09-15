@@ -276,6 +276,11 @@ test.describe('Analytics dashboard', () => {
 					message: {
 						views: { value: 54813, delta: 11.8 },
 						new_visitors: { value: 321, delta: null },
+						change_requests: { value: 7, delta: -12.5 },
+						change_requests_by_status: [
+							{ status: 'Merged', count: 5 },
+							{ status: 'In Review', count: 2 },
+						],
 						tracking_enabled: true,
 						spaces: [
 							{
@@ -306,6 +311,12 @@ test.describe('Analytics dashboard', () => {
 		await page.getByRole('link', { name: 'Overview' }).click();
 		await expect(page).toHaveURL(/\/wiki-app\/overview$/);
 		await expect(page.getByTestId('overview-views')).toContainText('54,813');
+		await expect(page.getByTestId('overview-change_requests')).toContainText(
+			'7',
+		);
+		await expect(page.getByTestId('overview-change-requests')).toContainText(
+			'In Review',
+		);
 
 		const spaces = page.getByTestId('overview-spaces');
 		await expect(spaces).toContainText('Seeded Space');

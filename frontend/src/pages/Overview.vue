@@ -116,6 +116,19 @@
 						</router-link>
 					</section>
 				</div>
+
+				<section class="h-72" data-testid="overview-change-requests">
+					<DonutChart
+						:title="__('Change requests by status')"
+						:subtitle="rangeLabel"
+						:data="changeRequestsByStatus"
+						category="status"
+						value="count"
+						:center-label="__('Change requests')"
+						:loading="isFirstLoad"
+						:error="errorOf(overview)"
+					/>
+				</section>
 			</div>
 		</ScrollArea>
 	</div>
@@ -136,7 +149,7 @@ import {
 	createResource,
 	usePageMeta,
 } from 'frappe-ui';
-import { AreaChart, NumberCard } from 'frappe-ui/charts';
+import { AreaChart, DonutChart, NumberCard } from 'frappe-ui/charts';
 import { computed, h, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -160,6 +173,7 @@ const rangeOptions = [
 const kpis = [
 	{ key: 'views', title: __('Page views') },
 	{ key: 'new_visitors', title: __('New visitors') },
+	{ key: 'change_requests', title: __('Change requests') },
 ];
 
 if (!useUserStore().isWikiManager) useRouter().replace({ name: 'AllSpaces' });
@@ -178,6 +192,12 @@ watch(range, () => overview.reload(), { immediate: true });
 const data = computed(() => overview.data);
 const isFirstLoad = computed(() => overview.loading && !overview.data);
 const rangeLabel = computed(() => RANGE_LABELS[preset.value]);
+const changeRequestsByStatus = computed(() =>
+	(data.value?.change_requests_by_status || []).map((row) => ({
+		status: __(row.status),
+		count: row.count,
+	})),
+);
 
 function reloadAll() {
 	overview.reload();

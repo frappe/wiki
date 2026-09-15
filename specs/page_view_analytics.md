@@ -428,3 +428,17 @@ Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a 
 
 - Searches and searches with no result are not shown: there is no search log yet (see `specs/ia_refactor/05-search-analytics.md`).
 - The mock says unique visitors. The rollup only stores new visitors, since distinct visitors do not add up across days, so the strip says new visitors.
+
+### Phase 7: change requests on Overview (2026-09-15)
+
+#### Built
+
+- `get_overview` also returns `change_requests` (count raised in the window, with a delta against the window before) and `change_requests_by_status` (count per status, largest first).
+- Raised means created in the window and not a Draft. Editing a page opens a Draft on its own, so Drafts would count edits, not requests. Status is the status today, not at the end of the window.
+- `Overview.vue` adds a Change requests `NumberCard` to the KPI strip and a `DonutChart` of the status breakdown below the lists. Status names go through `__()`.
+
+#### Verified
+
+- `test_analytics.py`, 21 cases. New: Drafts and rows outside the window are skipped, both ends of the window are inclusive, and the delta and status order are right.
+- `analytics-dashboard.spec.ts`, 4 tests pass. The Overview stub carries the new keys and checks the card and the donut legend.
+- Screenshot of Overview at 1400px on local data: 227 change requests, donut with five statuses.

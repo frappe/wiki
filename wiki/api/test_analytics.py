@@ -311,6 +311,35 @@ class TestGetOverview(IntegrationTestCase):
 			[(f"{self.route}/a", self.space.name, 3), (f"{self.route}/v2/b", self.nested.name, 1)],
 		)
 
+	def test_counts_submitted_change_requests_by_status(self):
+		for status, creation in (
+			("In Review", "2031-03-08 00:00:00"),
+			("Merged", "2031-03-14 23:59:00"),
+			("Merged", "2031-03-10 09:00:00"),
+			("Draft", "2031-03-10 09:00:00"),
+			("Approved", "2031-03-05 09:00:00"),
+			("Merged", "2031-03-15 00:00:00"),
+		):
+			cr = frappe.get_doc(
+				{
+					"doctype": "Wiki Change Request",
+					"title": status,
+					"wiki_space": self.space.name,
+					"status": status,
+				}
+			)
+			cr.db_insert()
+			frappe.db.set_value("Wiki Change Request", cr.name, "creation", creation, update_modified=False)
+			self.fixtures.track("Wiki Change Request", cr)
+
+		overview = get_overview(**self.week)
+
+		self.assertEqual(overview["change_requests"], {"value": 3, "delta": 200.0})
+		self.assertEqual(
+			overview["change_requests_by_status"],
+			[{"status": "Merged", "count": 2}, {"status": "In Review", "count": 1}],
+		)
+
 	def test_is_for_managers_only(self):
 		frappe.set_user(_ensure_user("analytics_writer@example.com", WRITER_ROLE))
 		with self.assertRaises(frappe.PermissionError):
