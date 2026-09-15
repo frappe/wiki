@@ -25,13 +25,12 @@ test.describe('Command Palette', () => {
 			name: new RegExp(`${token} Deploy Guide`),
 		});
 		await expect(result).toBeVisible();
-		await expect(result).toContainText(`${token} Space`);
+		const seeded = target.page(`${token} Deploy Guide`);
+		await expect(result).toContainText(`/${seeded.route}`);
 
 		await page.keyboard.press('Enter');
 		await expect(palette).toBeHidden();
-		await expect(page).toHaveURL(
-			target.url('page', target.page(`${token} Deploy Guide`).name),
-		);
+		await expect(page).toHaveURL(target.url('page', seeded.name));
 	});
 
 	test('opens a space by name, and closes on Escape', async ({

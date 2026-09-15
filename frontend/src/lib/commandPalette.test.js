@@ -15,8 +15,9 @@ const spaces = [
 	{ key: 'space:eng', label: 'Engineering' },
 ];
 const pages = [
-	{ key: 'page:1', label: 'Deploying to production' },
-	{ key: 'page:2', label: 'Getting Started' },
+	{ key: 'page:1', label: 'Deploying to production', path: 'deploying' },
+	{ key: 'page:2', label: 'Getting Started', path: 'guides/getting-started' },
+	{ key: 'page:3', label: 'Onboarding', path: 'release-howto' },
 ];
 const recent = [{ key: 'page:9', label: 'Release notes' }];
 
@@ -52,8 +53,18 @@ test('drops groups with no matches', () => {
 	assert.deepEqual(labels(build('engin')), [['spaces', ['Engineering']]]);
 });
 
-test('matches a near-prefix inside a title', () => {
-	assert.deepEqual(labels(build('start')), [['pages', ['Getting Started']]]);
+test('matches a page by its path, not its title', () => {
+	assert.deepEqual(labels(build('howto')), [['pages', ['Onboarding']]]);
+	assert.equal(labels(build('onboarding')).length, 0);
+});
+
+test('matches words typed with spaces against a hyphenated path', () => {
+	assert.deepEqual(labels(build('getting started')), [
+		['pages', ['Getting Started']],
+	]);
+	assert.deepEqual(labels(build('guides/get')), [
+		['pages', ['Getting Started']],
+	]);
 });
 
 test('drops stale page rows that no longer match the query', () => {
@@ -68,10 +79,15 @@ test('ignores page rows below the server query length', () => {
 });
 
 test('lifts a page in the current space over a better match elsewhere', () => {
-	// Bare 'Deploy' is the stronger title match, but the biased row wins.
+	// Bare 'deploy' is the stronger path match, but the biased row wins.
 	const biased = [
-		{ key: 'page:1', label: 'Deploy' },
-		{ key: 'page:2', label: 'Deployment checklist', scoreScale: 1.5 },
+		{ key: 'page:1', label: 'Deploy', path: 'deploy' },
+		{
+			key: 'page:2',
+			label: 'Deployment checklist',
+			path: 'deployment-checklist',
+			scoreScale: 1.5,
+		},
 	];
 	const options = { pages: biased, jumpTo: [], spaces: [] };
 	const [group] = build('deploy', options);

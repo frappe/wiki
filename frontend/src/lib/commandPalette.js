@@ -1,6 +1,9 @@
 import fuzzysort from 'fuzzysort';
 
 const MATCH_THRESHOLD = 0.3;
+// Pages match on their path inside the space, never the title. Stricter,
+// because a short query scatter-matches letters across a long path.
+const PATH_THRESHOLD = 0.5;
 
 export const MIN_SERVER_QUERY = 2;
 
@@ -33,15 +36,22 @@ export function buildResultGroups(
 		{
 			id: 'pages',
 			title: titles.pages,
-			items: q.length >= MIN_SERVER_QUERY ? rank(q, pages) : [],
+			items:
+				q.length >= MIN_SERVER_QUERY
+					? rank(q, pages, { key: 'path', threshold: PATH_THRESHOLD })
+					: [],
 		},
 	];
 	return groups.filter((group) => group.items.length);
 }
 
-function rank(query, items) {
+function rank(
+	query,
+	items,
+	{ key = 'label', threshold = MATCH_THRESHOLD } = {},
+) {
 	return fuzzysort
-		.go(query, items, { key: 'label', threshold: MATCH_THRESHOLD })
+		.go(query, items, { key, threshold })
 		.map((result) => ({
 			item: result.obj,
 			score: result.score * (result.obj.scoreScale ?? 1),

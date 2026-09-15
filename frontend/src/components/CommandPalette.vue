@@ -54,7 +54,7 @@
 					:key="item.key"
 					role="option"
 					:aria-selected="item === activeItem ? 'true' : 'false'"
-					class="flex cursor-pointer items-center rounded px-2 py-2 text-base-medium text-ink-gray-7"
+					class="flex cursor-pointer items-center rounded-4 px-2 py-2 text-base-medium text-ink-gray-7"
 					:class="{ 'bg-surface-gray-3': item === activeItem }"
 					@click="select(item)"
 					@mousemove="activeKey = item.key"
@@ -71,19 +71,21 @@
 						:class="[item.icon, 'mr-3 size-4 shrink-0 text-ink-gray-6']"
 						aria-hidden="true"
 					/>
-					<span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+					<div class="min-w-0 flex-1">
+						<div class="truncate">{{ item.label }}</div>
+						<div
+							v-if="item.subtitle"
+							class="mt-0.5 truncate text-sm text-ink-gray-5"
+						>
+							{{ item.subtitle }}
+						</div>
+					</div>
 					<Tooltip v-if="item.unpublished" :text="__('Unpublished')">
 						<span
-							class="lucide-eye-off ml-1 size-3.5 shrink-0 text-ink-gray-4"
+							class="lucide-eye-off ml-2 size-3.5 shrink-0 text-ink-gray-4"
 							aria-hidden="true"
 						/>
 					</Tooltip>
-					<span
-						v-if="item.subtitle"
-						class="ml-auto max-w-[40%] shrink-0 truncate pl-2 text-ink-gray-5"
-					>
-						{{ item.subtitle }}
-					</span>
 				</div>
 			</div>
 
@@ -184,7 +186,7 @@ const spaces = useList({
 	immediate: false,
 });
 
-const pages = createResource({ url: 'wiki.api.search.search_titles' });
+const pages = createResource({ url: 'wiki.api.search.search_pages' });
 
 watch(showCommandPalette, (open) => {
 	if (open && !spaces.data) spaces.fetch();
@@ -233,8 +235,9 @@ function toPageItem(page) {
 	return {
 		key: `page:${page.name}`,
 		label: page.title,
+		path: pathInSpace(page),
 		icon: 'lucide-file-text',
-		subtitle: page.space_name || page.space_route,
+		subtitle: `/${page.route}`,
 		unpublished: !page.is_published,
 		scoreScale: page.wiki_space === currentSpace.value ? SPACE_BIAS : 1,
 		route: {
@@ -242,6 +245,12 @@ function toPageItem(page) {
 			params: { spaceId: page.wiki_space, pageId: page.name },
 		},
 	};
+}
+
+/** `docs/guides/auth-tokens` in space `docs` -> `guides/auth-tokens`. */
+function pathInSpace(page) {
+	const route = page.route || '';
+	return route.slice(route.indexOf('/') + 1);
 }
 
 const pageItems = computed(() => (pages.data || []).map(toPageItem));

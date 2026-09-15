@@ -1,19 +1,22 @@
 import frappe
 
-TITLE_SEARCH_LIMIT = 20
+PAGE_SEARCH_LIMIT = 20
 
 
 @frappe.whitelist()
-def search_titles(query: str) -> list[dict]:
-	"""Find pages by title across every space the user can read."""
+def search_pages(query: str) -> list[dict]:
+	"""Find pages by URL across every space the user can read."""
 	query = (query or "").strip()
 	if not query:
 		return []
 
+	# Routes hyphenate words, so "getting started" still finds `getting-started`.
+	# The slash skips the space's own segment, which every page in it shares.
+	route = query.replace(" ", "-")
 	return frappe.get_list(
 		"Wiki Document",
 		filters={
-			"title": ("like", f"%{query}%"),
+			"route": ("like", f"%/%{route}%"),
 			"is_group": 0,
 			"is_external_link": 0,
 			"wiki_space": ("is", "set"),
@@ -28,5 +31,5 @@ def search_titles(query: str) -> list[dict]:
 			"wiki_space.route as space_route",
 		],
 		order_by="modified desc",
-		limit=TITLE_SEARCH_LIMIT,
+		limit=PAGE_SEARCH_LIMIT,
 	)
