@@ -127,7 +127,7 @@ class WikiDocument(NestedSet):
 		slug: DF.Data | None
 		sort_order: DF.Int
 		tab_icon: DF.Data | None
-		title: DF.Data
+		title: DF.SmallText
 		wiki_space: DF.Link | None
 	# end: auto-generated types
 

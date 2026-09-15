@@ -375,6 +375,17 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(cr_doc.status, "Merged")
 		self.assertIsNotNone(cr_doc.merge_revision)
 
+	def test_merge_page_with_title_longer_than_140_characters(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Long title")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		title = "5. The transplant coordinator also has the responsibility to maintain up to date records and reports as required for the Renal Transplant license."
+
+		page_key = create_cr_page(cr.name, parent_key=root_key, title=title, content="Hello")
+		_approve_and_merge(cr.name)
+
+		self.assertEqual(frappe.get_value("Wiki Document", {"doc_key": page_key}, "title"), title)
+
 	def test_content_only_merge_queues_search_reindex(self):
 		"""Content-only merges write via raw db.set_value, which skips the
 		on_update hook — the merge must queue the re-index itself, or search
