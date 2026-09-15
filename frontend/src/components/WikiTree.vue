@@ -355,7 +355,7 @@ function getDropdownOptions(node) {
 		return [
 			{
 				label: __('Restore'),
-				icon: 'rotate-ccw',
+				icon: 'lucide-rotate-ccw',
 				onClick: () => restore(node),
 			},
 		];

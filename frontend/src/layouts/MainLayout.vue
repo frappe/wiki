@@ -82,6 +82,7 @@
 		</div>
 
 		<WikiSettings v-model="showWikiSettings" :initial-tab="initialTab" />
+		<CommandPalette v-if="hasAccess" />
 	</div>
 </template>
 
@@ -90,6 +91,7 @@ import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import CommandPalette from '../components/CommandPalette.vue';
 import LibrarySidebar from '../components/LibrarySidebar.vue';
 import SpaceSidebar from '../components/SpaceSidebar.vue';
 import WikiSettings from '../components/WikiSettings/WikiSettings.vue';
@@ -126,8 +128,7 @@ watch(
 	(created) => {
 		if (!created) return;
 		open('github');
-		const query = { ...route.query };
-		delete query.github_app_created;
+		const { github_app_created, ...query } = route.query;
 		router.replace({ query });
 	},
 	{ immediate: true },
