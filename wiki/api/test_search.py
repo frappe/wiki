@@ -20,7 +20,6 @@ class TestSearchPages(IntegrationTestCase):
 		_ensure_role(READER_ROLE)
 		cls.reader = _ensure_user("page_search_reader@example.com", ["Wiki User", READER_ROLE])
 		cls.outsider = _ensure_user("page_search_outsider@example.com", ["Wiki User"])
-		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 	def setUp(self):
 		open_route = unique_route()
