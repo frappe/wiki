@@ -2,8 +2,11 @@ import fuzzysort from 'fuzzysort';
 import { computed, ref } from 'vue';
 
 // Client-side fuzzy filter for the editor tree. The whole tree is already in
-// memory, so we match titles/routes here and prune the tree in place rather
-// than hitting the backend.
+// memory, so we match titles/routes here rather than hitting the backend.
+//
+// A filtered *hierarchy* hides matches behind collapsed parents and forces the
+// tree to fake its own expand state, so searching swaps the tree for a flat
+// result list instead: every hit is one row, ranked by score.
 export function useTreeSearch(treeData) {
 	const query = ref('');
 
@@ -11,63 +14,60 @@ export function useTreeSearch(treeData) {
 		filterTree(treeData.value?.children || [], query.value),
 	);
 
-	const isSearching = computed(() => result.value !== null);
-
-	const treeForRender = computed(() => {
-		if (!result.value) return treeData.value;
-		return { ...treeData.value, children: result.value.children };
-	});
-
 	return {
 		query,
-		isSearching,
-		treeForRender,
-		hasResults: computed(() => !result.value || result.value.keep.size > 0),
-		expandedOverride: computed(() => result.value?.expand || null),
+		isSearching: computed(() => result.value !== null),
+		matches: computed(() => result.value?.matches || []),
+		hasResults: computed(
+			() => !result.value || result.value.matches.length > 0,
+		),
 		scoreMap: computed(() => result.value?.score || null),
 	};
 }
 
 // Drop weak matches (fuzzysort scores 0..1, 1 = perfect). We threshold each key
 // separately: titles get a lenient cut so a near-prefix like "stat" still finds
-// "Getting Started", while routes get a strict cut because they're long — a
-// short query like "cli" scatter-matches "c…l…i" across ".../installation",
-// which we want to ignore. Strong slug matches (e.g. "auth-tokens") still clear
-// the route bar.
+// "Getting Started", while the slug gets a strict cut because a short query
+// scatter-matches letters across a long word. Strong slug matches (e.g.
+// "auth-tokens") clear it easily.
 const TITLE_THRESHOLD = 0.3;
-const ROUTE_THRESHOLD = 0.5;
+const SLUG_THRESHOLD = 0.5;
 
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
-// blank (meaning "not searching, render the full tree"), otherwise the pruned
-// children plus the keep/expand/score sets the renderer needs.
+// blank (meaning "not searching, render the full tree"), otherwise the flat
+// matches in rank order plus the score map the renderer highlights from.
 export function filterTree(children, query) {
 	const q = (query || '').trim();
 	if (!q) return null;
 
-	// Match title OR route; fuzzysort ranks each row by its best key.
+	// Match on the title or the page's own slug — never on the rest of the
+	// route. An ancestor's segment is in every descendant's route, so matching
+	// the whole path made a search for a group name return the group and its
+	// entire subtree, which is the tree the flat list exists to replace.
+	//
+	// The full route stays a key even though it never decides a match: the
+	// renderer highlights the query inside it, and a slug hit is a substring of
+	// the route, so the highlight lands in the right place.
 	const hits = fuzzysort
 		.go(q, flatten(children), {
-			keys: ['node.title', 'node.route'],
+			keys: ['node.title', 'node.route', 'slug'],
 		})
 		.filter(
 			(hit) =>
-				hit[0].score >= TITLE_THRESHOLD || hit[1].score >= ROUTE_THRESHOLD,
+				hit[0].score >= TITLE_THRESHOLD || hit[2].score >= SLUG_THRESHOLD,
 		);
 
-	const keep = new Set(); // doc_keys that survive the prune
-	const expand = new Set(); // group doc_keys to force-open
 	const score = new Map(); // doc_key -> result ([0]=title, [1]=route)
+	const matches = []; // rank-ordered rows
 	for (const hit of hits) {
-		const { node, ancestorKeys } = hit.obj;
-		keep.add(node.doc_key);
+		const { node } = hit.obj;
 		score.set(node.doc_key, hit);
-		for (const key of ancestorKeys) {
-			keep.add(key);
-			expand.add(key);
-		}
+		// One row per hit: a match's own children are not results, and keeping
+		// them would rebuild the hierarchy this list exists to flatten.
+		matches.push({ ...node, children: [] });
 	}
 
-	return { keep, expand, score, children: prune(children, keep) };
+	return { matches, score };
 }
 
 // Split a fuzzysort result into { text, matched } segments for rendering.
@@ -98,25 +98,20 @@ export function highlightSegments(result) {
 	return segments;
 }
 
-// Flatten to every node paired with its ancestor keys, so a match can pull its
-// parent groups back into the pruned tree.
-function flatten(children, ancestorKeys = [], out = []) {
+// Flatten to every node in the tree, at every depth, so a nested page can be
+// its own result row.
+/** The page's own route segment: `guides/auth-tokens` -> `auth-tokens`. */
+function slugOf(route) {
+	const value = route || '';
+	return value.slice(value.lastIndexOf('/') + 1);
+}
+
+function flatten(children, out = []) {
 	for (const node of children) {
-		out.push({ node, ancestorKeys });
+		out.push({ node, slug: slugOf(node.route) });
 		if (node.children?.length) {
-			flatten(node.children, [...ancestorKeys, node.doc_key], out);
+			flatten(node.children, out);
 		}
 	}
 	return out;
-}
-
-// Structural copy with non-matching branches removed, original order kept —
-// position in the tree is the point, so we never reorder by score.
-function prune(children, keep) {
-	const result = [];
-	for (const node of children) {
-		if (!keep.has(node.doc_key)) continue;
-		result.push({ ...node, children: prune(node.children || [], keep) });
-	}
-	return result;
 }

@@ -5,34 +5,49 @@
  * Supports Markdown syntax: :::type[title]\ncontent\n:::
  *
  * Supported types: note, tip, caution, danger, warning
+ *
+ * The body is real document content (`content: 'block+'`), not an attribute, so
+ * every mark and block node the editor has works inside a callout without the
+ * node view owning an editor of its own.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import CalloutBlockView from './CalloutBlockView.vue';
+import {
+	CALLOUT_TYPES,
+	DEFAULT_TITLES,
+	calloutMarkdownTokenizer,
+	parseCalloutMarkdown,
+	renderCalloutMarkdown,
+} from './callout-markdown.js';
+
+export { CALLOUT_TYPES, DEFAULT_TITLES };
 
 /**
- * Callout types that are supported
+ * Depth of the callout the position sits in, or null when it sits outside one.
  */
-export const CALLOUT_TYPES = ['note', 'tip', 'caution', 'danger', 'warning'];
-
-/**
- * Default titles for each callout type
- */
-export const DEFAULT_TITLES = {
-	note: 'Note',
-	tip: 'Tip',
-	caution: 'Caution',
-	danger: 'Danger',
-	warning: 'Caution',
-};
+function calloutDepth($pos, name) {
+	for (let depth = $pos.depth; depth > 0; depth--) {
+		if ($pos.node(depth).type.name === name) {
+			return depth;
+		}
+	}
+	return null;
+}
 
 export const CalloutBlock = Node.create({
 	name: 'calloutBlock',
 
 	group: 'block',
 
-	atom: true,
+	content: 'block+',
+
+	// A callout is a unit: a paste replaces its body rather than splitting it,
+	// and Backspace/Delete at either edge can't join it with its neighbours.
+	defining: true,
+
+	isolating: true,
 
 	draggable: true,
 
@@ -44,9 +59,6 @@ export const CalloutBlock = Node.create({
 			title: {
 				default: '',
 			},
-			content: {
-				default: '',
-			},
 		};
 	},
 
@@ -54,26 +66,24 @@ export const CalloutBlock = Node.create({
 		return [
 			{
 				tag: 'aside.callout',
+				contentElement: '.callout-content',
 				getAttrs: (dom) => {
 					const classList = dom.className.split(' ');
 					const typeClass = classList.find((c) => c.startsWith('callout-'));
 					const type = typeClass ? typeClass.replace('callout-', '') : 'note';
 
-					const titleEl = dom.querySelector('.callout-title span');
-					const title = titleEl ? titleEl.textContent : '';
+					const titleEl = dom.querySelector('.callout-title');
+					const title = titleEl ? titleEl.textContent.trim() : '';
 
-					const contentEl = dom.querySelector('.callout-content');
-					const content = contentEl ? contentEl.textContent : '';
-
-					return { type, title, content };
+					return { type, title };
 				},
 			},
 			{
 				tag: 'div[data-type="callout-block"]',
+				contentElement: '.callout-content',
 				getAttrs: (dom) => ({
 					type: dom.getAttribute('data-callout-type') || 'note',
 					title: dom.getAttribute('data-title') || '',
-					content: dom.getAttribute('data-content') || '',
 				}),
 			},
 		];
@@ -91,15 +101,15 @@ export const CalloutBlock = Node.create({
 			attrs,
 			[
 				'div',
-				{ class: 'callout-title' },
+				{ class: 'callout-header' },
 				[
 					'span',
-					{},
+					{ class: 'callout-title' },
 					node.attrs.title ||
 						node.attrs.type.charAt(0).toUpperCase() + node.attrs.type.slice(1),
 				],
 			],
-			['div', { class: 'callout-content' }, node.attrs.content],
+			['div', { class: 'callout-content' }, 0],
 		];
 	},
 
@@ -107,82 +117,105 @@ export const CalloutBlock = Node.create({
 		return VueNodeViewRenderer(CalloutBlockView);
 	},
 
+	addKeyboardShortcuts() {
+		// A callout is `isolating`, so ProseMirror's own exits don't apply: at the
+		// end of the document there is nothing after the node to move into, and
+		// the cursor would have nowhere to go.
+		const exitForward = () => {
+			const { $from, empty } = this.editor.state.selection;
+			if (!empty) return false;
+
+			const depth = calloutDepth($from, this.name);
+			if (depth === null) return false;
+
+			const after = $from.after(depth);
+			return this.editor
+				.chain()
+				.insertContentAt(after, { type: 'paragraph' })
+				.setTextSelection(after + 1)
+				.focus()
+				.run();
+		};
+
+		return {
+			'Mod-Enter': exitForward,
+
+			ArrowDown: () => {
+				const { state } = this.editor;
+				const { $from, empty } = state.selection;
+				if (!empty) return false;
+
+				const depth = calloutDepth($from, this.name);
+				if (depth === null) return false;
+
+				// Only when the callout ends the document and the cursor is at the
+				// end of its last block — anything else has somewhere to go already.
+				if ($from.after(depth) < state.doc.content.size) return false;
+				if ($from.pos < $from.end(depth) - 1) return false;
+
+				return exitForward();
+			},
+
+			Backspace: () => {
+				const { $from, empty } = this.editor.state.selection;
+				if (!empty) return false;
+
+				const depth = calloutDepth($from, this.name);
+				if (depth === null) return false;
+
+				// Only at the very start of the first block, and only when there is
+				// nothing left to delete inside — otherwise fall through to the
+				// default, which `isolating` already stops at the border.
+				if ($from.pos !== $from.start(depth) + 1) return false;
+
+				const callout = $from.node(depth);
+				if (callout.childCount > 1 || callout.firstChild?.content.size) {
+					return false;
+				}
+
+				const from = $from.before(depth);
+				return this.editor.commands.deleteRange({
+					from,
+					to: from + callout.nodeSize,
+				});
+			},
+		};
+	},
+
 	addCommands() {
 		return {
 			setCallout:
 				(attributes) =>
-				({ commands }) => {
+				({ commands, editor }) => {
+					// The `:::` fence can't express a callout inside a callout, so
+					// don't offer one.
+					if (editor.isActive(this.name)) {
+						return false;
+					}
+
+					const type = attributes?.type || 'note';
 					return commands.insertContent({
 						type: this.name,
-						attrs: attributes,
+						// The title is seeded rather than left blank: it is a real,
+						// editable value in the header, not a placeholder the author
+						// can put a cursor in but never delete.
+						attrs: {
+							type,
+							title: attributes?.title || DEFAULT_TITLES[type] || '',
+						},
+						content: [{ type: 'paragraph' }],
 					});
 				},
 		};
 	},
 
-	// TipTap v3 Markdown extension support
-	markdownTokenizer: {
-		name: 'calloutBlock',
-		level: 'block',
+	// TipTap v3 Markdown extension support. The hooks live in callout-markdown.js
+	// so they can be unit tested without loading this module's .vue node view.
+	markdownTokenizer: calloutMarkdownTokenizer,
 
-		start(src) {
-			return src.indexOf(':::');
-		},
+	parseMarkdown: parseCalloutMarkdown,
 
-		tokenize(src, tokens, lexer) {
-			// Match :::type[title]\ncontent\n::: or :::type\ncontent\n:::
-			// Consume any blank lines that follow the closing fence so they
-			// aren't re-parsed into phantom empty paragraphs. Without this, a
-			// callout followed by another block accumulates two extra newlines
-			// on every markdown round-trip (the serializer's block separator
-			// plus PreserveBlankLines), so getMarkdown() never stabilises and
-			// the content grows on each save.
-			const match =
-				/^:::(\w+)(?:\[([^\]]*)\])?\n([\s\S]*?)\n:::[ \t]*(?:\n+|$)/.exec(src);
-
-			if (!match) {
-				return undefined;
-			}
-
-			const rawType = match[1].toLowerCase();
-			if (!CALLOUT_TYPES.includes(rawType)) {
-				return undefined;
-			}
-
-			// Normalize 'warning' to 'caution'
-			const calloutType = rawType === 'warning' ? 'caution' : rawType;
-
-			return {
-				type: 'calloutBlock',
-				raw: match[0],
-				calloutType: calloutType,
-				title: match[2] || '',
-				text: (match[3] || '').trim(),
-			};
-		},
-	},
-
-	parseMarkdown(token) {
-		return {
-			type: 'calloutBlock',
-			attrs: {
-				type: token.calloutType || 'note',
-				title: token.title || '',
-				content: token.text || '',
-			},
-		};
-	},
-
-	renderMarkdown(node) {
-		const calloutType = node.attrs.type || 'note';
-		const title = node.attrs.title || '';
-		const content = node.attrs.content || '';
-
-		if (title) {
-			return `:::${calloutType}[${title}]\n${content}\n:::\n\n`;
-		}
-		return `:::${calloutType}\n${content}\n:::\n\n`;
-	},
+	renderMarkdown: renderCalloutMarkdown,
 });
 
 export default CalloutBlock;

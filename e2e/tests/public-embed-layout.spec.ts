@@ -1,11 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import {
-	createTestWikiDocument,
-	createTestWikiSpace,
-	deleteTestWikiDocument,
-	deleteTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * Authors paste whatever dimensions the provider's share dialog hands them, and
@@ -25,60 +18,37 @@ const CONTENT =
 test.describe('Public reader embed layout', () => {
 	test('renders a mis-sized embed as a centered 16:9 box', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const spaceRoute = `embed-layout-space-${Date.now()}`;
-		const space = await createTestWikiSpace(request, {
-			route: spaceRoute,
-			is_published: true,
+		const space = await wiki.space({
+			pages: [{ title: 'Embed Page', content: CONTENT }],
 		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${spaceRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-		const doc = await createTestWikiDocument(request, {
-			title: 'Embed Page',
-			route: `${spaceRoute}/embed`,
-			content: CONTENT,
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
+		const doc = space.page('Embed Page');
 
-		try {
-			// Wide enough that the 720px cap leaves visible slack on both sides,
-			// so the centering assertion below is actually measuring something.
-			await page.setViewportSize({ width: 1600, height: 900 });
-			await page.goto(`/${doc.route}`);
-			await page.waitForLoadState('networkidle');
+		// Wide enough that the 720px cap leaves visible slack on both sides,
+		// so the centering assertion below is actually measuring something.
+		await page.setViewportSize({ width: 1600, height: 900 });
+		await page.goto(`/${doc.route}`);
+		await page.waitForLoadState('networkidle');
 
-			const frame = page.locator('#wiki-content iframe');
-			await expect(frame).toBeVisible();
+		const frame = page.locator('#wiki-content iframe');
+		await expect(frame).toBeVisible();
 
-			const box = await frame.boundingBox();
-			const column = await page.locator('#wiki-content').boundingBox();
-			expect(box).not.toBeNull();
-			expect(column).not.toBeNull();
-			if (!box || !column) return;
+		const box = await frame.boundingBox();
+		const column = await page.locator('#wiki-content').boundingBox();
+		expect(box).not.toBeNull();
+		expect(column).not.toBeNull();
+		if (!box || !column) return;
 
-			// The authored 800px must not win over the column.
-			expect(box.width).toBeLessThanOrEqual(720);
+		// The authored 800px must not win over the column.
+		expect(box.width).toBeLessThanOrEqual(720);
 
-			// The bars are gone only if the box is exactly 16:9.
-			expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+		// The bars are gone only if the box is exactly 16:9.
+		expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
 
-			const leftGap = box.x - column.x;
-			const rightGap = column.x + column.width - (box.x + box.width);
-			expect(leftGap).toBeGreaterThan(0);
-			expect(Math.abs(leftGap - rightGap)).toBeLessThan(2);
-		} finally {
-			await deleteTestWikiDocument(request, doc.name).catch(() => {});
-			await deleteTestWikiDocument(request, rootGroup.name).catch(() => {});
-			await deleteTestWikiSpace(request, space.name).catch(() => {});
-		}
+		const leftGap = box.x - column.x;
+		const rightGap = column.x + column.width - (box.x + box.width);
+		expect(leftGap).toBeGreaterThan(0);
+		expect(Math.abs(leftGap - rightGap)).toBeLessThan(2);
 	});
 });

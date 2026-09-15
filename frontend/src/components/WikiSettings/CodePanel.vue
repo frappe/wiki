@@ -10,7 +10,7 @@
 		/>
 
 		<div class="flex items-center justify-end gap-2">
-			<Badge v-if="isDirty" theme="orange" size="sm">
+			<Badge v-if="isDirty" theme="amber" size="sm">
 				{{ __('Unsaved changes') }}
 			</Badge>
 			<Button

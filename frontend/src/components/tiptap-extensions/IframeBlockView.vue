@@ -177,6 +177,6 @@ function handleKeyDown(event) {
 .placeholder-error {
 	margin: 0;
 	font-size: 0.8125rem;
-	color: var(--ink-red-6, #b91c1c);
+	color: var(--ink-red-5, #b91c1c);
 }
 </style>

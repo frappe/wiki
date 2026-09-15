@@ -409,7 +409,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function loadCrPage(docKey) {
 		if (!docKey) return null;
 		if (resolver.isTempKey(docKey)) {
-			return pageBuffers.get(docKey);
+			// A create that landed before its opener read the buffer has already
+			// promoted it to the real key, leaving nothing under the temp one.
+			// Follow the promotion rather than reporting the page missing.
+			const promoted = resolver.resolveKey(docKey);
+			return pageBuffers.get(promoted || docKey);
 		}
 		const localPage = pageBuffers.get(docKey);
 		if (
@@ -467,8 +471,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		externalUrl = null,
 		content = '',
 		isPublished = true,
-		isTab = false,
-		tabIcon = null,
 		route = null,
 	}) {
 		const effectiveParent = parentKey || treeModel.rootKey.value || null;
@@ -485,8 +487,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			parentKey: effectiveParent,
 			orderIndex: null,
 			isGroup,
-			isTab,
-			tabIcon,
+			isTab: false,
+			tabIcon: null,
 			isPublished,
 			isExternalLink,
 			externalUrl,
@@ -517,8 +519,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			isExternalLink,
 			externalUrl,
 			content,
-			isTab,
-			tabIcon,
 			route,
 		});
 
@@ -564,8 +564,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							is_group: !!payload.isGroup,
 							is_external_link: !!payload.isExternalLink,
 							external_url: payload.externalUrl ?? null,
-							is_tab: !!payload.isTab,
-							tab_icon: payload.tabIcon ?? null,
 							route: payload.route ?? null,
 						},
 					]);
@@ -586,8 +584,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						payload.isGroup,
 						payload.isExternalLink,
 						payload.externalUrl,
-						payload.isTab,
-						payload.tabIcon,
 						payload.route ?? null,
 					);
 					realKey = typeof result === 'string' ? result : result?.doc_key;
@@ -651,10 +647,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			node.isExternalLink = !!fields.is_external_link;
 		if (fields.external_url !== undefined)
 			node.externalUrl = fields.external_url;
-		// Without these two the change would round-trip to the server but the
-		// local node would keep its old value until the next reloadTree().
-		if (fields.is_tab !== undefined) node.isTab = !!fields.is_tab;
-		if (fields.tab_icon !== undefined) node.tabIcon = fields.tab_icon;
 		node.localStatus = 'pending_update';
 
 		const page = pageBuffers.get(docKey);
@@ -914,15 +906,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		persistEditorDraft(realKey, title, { immediate: true });
 	}
 
-	// Mark pending_delete locally (treeAsLegacy hides those). On failure
-	// the flag is cleared so the row reappears in the sidebar. For temp
-	// nodes whose create never reached the server, just drop the local
-	// node and the failed-create mutation rather than calling
-	// delete_cr_page with a tmp_* key.
+	// Mark pending_delete locally, which strikes the row through. The page only
+	// leaves the live tree once the change request is merged, so it stays on
+	// screen until then (#762). On failure the flag is cleared so the row
+	// reads as normal again. For temp nodes whose create never reached the
+	// server, just drop the local node and the failed-create mutation rather
+	// than calling delete_cr_page with a tmp_* key.
 	async function deleteNode(docKey) {
 		const node = treeModel.findNode(docKey);
 		if (!node) return;
 		node.localStatus = 'pending_delete';
+		treeModel.setSubtreeDeleted(docKey, true);
 
 		const isTempKey = resolver.isTempKey(docKey);
 		queue.supersedeFailedFor(`delete:${docKey}`);
@@ -957,11 +951,43 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			} else {
 				await crStore.deletePage(crName.value, resolvedKey);
 			}
+			const synced = treeModel.findNode(docKey);
+			if (synced) synced.localStatus = null;
 			queue.clear(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
 			const fresh = treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
+			treeModel.setSubtreeDeleted(docKey, false);
+			queue.setStatus(mutation.id, 'failed', errorMessage(err));
+			throw err;
+		}
+	}
+
+	// Undo a deletion that is still staged in this change request. Optimistic
+	// like the delete it reverses: the row un-strikes right away.
+	async function restoreNode(docKey) {
+		const node = treeModel.findNode(docKey);
+		if (!node?.isDeleted) return;
+		treeModel.setSubtreeDeleted(docKey, false);
+
+		queue.supersedeFailedFor(`delete:${docKey}`);
+		const mutation = queue.enqueue('restore_node', { docKey });
+		queue.setStatus(mutation.id, 'syncing');
+		try {
+			const resolvedKey = resolver.resolveKey(docKey) || docKey;
+			if (!(await ensureCr())) throw new Error('No change request');
+			if (useBatchOperations) {
+				await transport.applyBatchOps([
+					{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
+				]);
+			} else {
+				await crStore.restorePage(crName.value, resolvedKey);
+			}
+			queue.clear(mutation.id);
+			scheduleSummaryRefresh();
+		} catch (err) {
+			treeModel.setSubtreeDeleted(docKey, true);
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
 		}
@@ -1005,6 +1031,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		updateNode,
 		renameNode,
 		deleteNode,
+		restoreNode,
 		moveNode,
 		saveContent,
 		flushDirtyPages,

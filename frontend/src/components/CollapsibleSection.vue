@@ -1,5 +1,5 @@
 <template>
-	<div class="rounded-lg border border-outline-gray-2 bg-surface-gray-1">
+	<div class="rounded-6 border border-outline-gray-2 bg-surface-gray-1">
 		<button
 			type="button"
 			class="flex w-full items-center justify-between gap-2 p-3 text-left"

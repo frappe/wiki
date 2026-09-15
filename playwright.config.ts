@@ -44,6 +44,13 @@ export default defineConfig({
 			name: 'setup',
 			testMatch: /auth\.setup\.ts/,
 		},
+		// Teardown project - sweeps `e2e-` spaces a killed run left behind.
+		// The factory destroys what it seeds, so this normally finds nothing.
+		{
+			name: 'teardown',
+			testMatch: /global\.teardown\.ts/,
+			use: { storageState: authFile },
+		},
 		// Main test project - uses stored auth state
 		{
 			name: 'chromium',
@@ -51,9 +58,11 @@ export default defineConfig({
 				...devices['Desktop Chrome'],
 				storageState: authFile,
 			},
-			// Mobile SPA specs run in the dedicated `mobile` project below.
-			testIgnore: /\.mobile\.spec\.ts$/,
+			// Mobile SPA specs run in the dedicated `mobile` project below;
+			// the sweeper runs as its own teardown project.
+			testIgnore: /(\.mobile\.spec|global\.teardown)\.ts$/,
 			dependencies: ['setup'],
+			teardown: 'teardown',
 		},
 		// Mobile SPA project - phone viewport for the responsive app shell.
 		// Pixel 7 keeps us on chromium (no extra webkit install) with touch +
@@ -67,6 +76,7 @@ export default defineConfig({
 			},
 			testMatch: /\.mobile\.spec\.ts$/,
 			dependencies: ['setup'],
+			teardown: 'teardown',
 		},
 	],
 });

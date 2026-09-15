@@ -4,22 +4,17 @@
  *
  * Renders a callout/aside block in the TipTap editor.
  * Supports types: note, tip, caution, danger
- * Uses a minimal TipTap sub-editor for rich text editing (bold, italic, links).
+ *
+ * The body is a `<NodeViewContent>` hole — the main editor owns it, so bold,
+ * italic, links, lists, headings and code blocks all work inside a callout
+ * with no editor of this component's own.
  */
 
-import { Link } from '@tiptap/extension-link';
-import { StarterKit } from '@tiptap/starter-kit';
-import { Editor, EditorContent, NodeViewWrapper } from '@tiptap/vue-3';
-import { Button, Dialog, Dropdown, TextInput } from 'frappe-ui';
-import { Markdown } from 'frappe-ui/editor';
-import {
-	computed,
-	nextTick,
-	onMounted,
-	onUnmounted,
-	ref,
-	shallowRef,
-} from 'vue';
+import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
+import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
+import { Button, Dropdown } from 'frappe-ui';
+import { computed } from 'vue';
+import { DEFAULT_TITLES } from './callout-markdown.js';
 
 const props = defineProps({
 	node: {
@@ -30,15 +25,26 @@ const props = defineProps({
 		type: Function,
 		required: true,
 	},
-	selected: {
-		type: Boolean,
-		default: false,
-	},
 	deleteNode: {
 		type: Function,
 		required: true,
 	},
+	editor: {
+		type: Object,
+		required: true,
+	},
+	getPos: {
+		type: Function,
+		required: true,
+	},
 });
+
+// Never `props.editor.isEditable` directly: a node view's first render runs
+// inside the editor's own `createView`, before `editor.view` exists, and that
+// getter reaches through it -- so reading it there throws, the render aborts,
+// and tiptap reports the node view as missing its NodeViewWrapper. The whole
+// document then fails to mount. See useNodeViewEditable.
+const isEditable = useNodeViewEditable(props.editor);
 
 // Normalize warning to caution
 const normalizedType = computed(() => {
@@ -46,251 +52,61 @@ const normalizedType = computed(() => {
 	return type === 'warning' ? 'caution' : type;
 });
 
-// Default titles for each type
-const defaultTitles = {
-	note: 'Note',
-	tip: 'Tip',
-	caution: 'Caution',
-	danger: 'Danger',
-};
+const defaultTitle = computed(
+	() => DEFAULT_TITLES[normalizedType.value] || 'Note',
+);
 
 // Display title (custom or default)
-const displayTitle = computed(() => {
-	return (
-		props.node.attrs.title || defaultTitles[normalizedType.value] || 'Note'
-	);
-});
+const displayTitle = computed(
+	() => props.node.attrs.title || defaultTitle.value,
+);
 
-// SVG icons for each callout type
+// The frappe-ui Alert status glyphs (icon/solid/* in Figma), inlined: the four
+// SFCs behind `solidStatusIcons` are not exported from frappe-ui/icons, and the
+// server-rendered reader needs the same paths in markdown.py anyway.
 const icons = {
-	note: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
-	tip: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`,
-	caution: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
-	danger: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
+	note: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM8 6.93652C7.72386 6.93652 7.5 7.16038 7.5 7.43652V11.1436C7.50005 11.4197 7.72389 11.6436 8 11.6436C8.27611 11.6436 8.49995 11.4197 8.5 11.1436V7.43652C8.5 7.16038 8.27614 6.93652 8 6.93652ZM8 4C7.51675 4 7.125 4.39175 7.125 4.875C7.125 5.35825 7.51675 5.75 8 5.75C8.48325 5.75 8.875 5.35825 8.875 4.875C8.875 4.39175 8.48325 4 8 4Z" fill="currentColor"/></svg>`,
+	tip: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM11.1055 5.28125C10.8924 5.10562 10.5771 5.13567 10.4014 5.34863L6.95215 9.53223L5.61035 7.79883C5.44143 7.58051 5.12757 7.54022 4.90918 7.70898C4.69088 7.8779 4.65061 8.19177 4.81934 8.41016L6.54395 10.6396C6.63696 10.7598 6.77972 10.8306 6.93164 10.833C7.08364 10.8354 7.22849 10.7687 7.3252 10.6514L11.1729 5.98438C11.3481 5.77144 11.3181 5.45689 11.1055 5.28125Z" fill="currentColor"/></svg>`,
+	caution: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.35174 1.97129C7.64143 1.47669 8.35697 1.47669 8.64666 1.97129L15.0519 12.9078C15.3447 13.4077 14.9847 14.0365 14.4055 14.0367H1.59295C1.0138 14.0364 0.653701 13.4077 0.946469 12.9078L7.35174 1.97129ZM7.9992 10.4117C7.51609 10.4118 7.12433 10.8036 7.1242 11.2867C7.1242 11.7699 7.51601 12.1617 7.9992 12.1617C8.48245 12.1617 8.8742 11.77 8.8742 11.2867C8.87408 10.8036 8.48238 10.4117 7.9992 10.4117ZM8.00018 5.50742C7.72411 5.50742 7.5003 5.73139 7.50018 6.00742V9.25742C7.50018 9.53356 7.72404 9.75742 8.00018 9.75742C8.27615 9.75723 8.50018 9.53344 8.50018 9.25742V6.00742C8.50006 5.73151 8.27608 5.50762 8.00018 5.50742Z" fill="currentColor"/></svg>`,
+	danger: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1ZM10.8535 5.14648C10.6583 4.95122 10.3417 4.95122 10.1465 5.14648L8 7.29297L5.85352 5.14648C5.65825 4.95122 5.34175 4.95122 5.14648 5.14648C4.95122 5.34175 4.95122 5.65825 5.14648 5.85352L7.29297 8L5.14648 10.1465C4.95122 10.3417 4.95122 10.6583 5.14648 10.8535C5.34175 11.0488 5.65825 11.0488 5.85352 10.8535L8 8.70703L10.1465 10.8535C10.3417 11.0488 10.6583 11.0488 10.8535 10.8535C11.0488 10.6583 11.0488 10.3417 10.8535 10.1465L8.70703 8L10.8535 5.85352C11.0488 5.65825 11.0488 5.34175 10.8535 5.14648Z" fill="currentColor"/></svg>`,
 };
 
 const icon = computed(() => icons[normalizedType.value] || icons.note);
 
-// Editing state
-const isEditingContent = ref(false);
-const subEditor = shallowRef(null);
-let isSaving = false;
-
-const wrapperRef = ref(null);
-
-// Link input state
-const showLinkInput = ref(false);
-const linkUrl = ref('');
-const linkInputRef = ref(null);
-
-// Render inline markdown to HTML for view mode preview
-function renderInlineMarkdown(text) {
-	if (!text) return '';
-	const html = text
-		// Escape HTML
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		// Bold: **text**
-		.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-		// Italic: *text* (but not inside bold markers)
-		.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-		// Links: [text](url)
-		.replace(
-			/\[([^\]]+)\]\(([^)]+)\)/g,
-			'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-		)
-		// Line breaks
-		.replace(/\n/g, '<br>');
-	return html;
+// The title is an attribute, not content — a second content hole would need a
+// second node type. An input keeps it editable in place without one, holding a
+// real value the author can select and delete.
+function setTitle(event) {
+	props.updateAttributes({ title: event.target.value });
 }
 
-const renderedContent = computed(() =>
-	renderInlineMarkdown(props.node.attrs.content),
-);
-
-function startEditing() {
-	isEditingContent.value = true;
-	nextTick(() => {
-		subEditor.value = new Editor({
-			extensions: [
-				StarterKit.configure({
-					blockquote: false,
-					bulletList: false,
-					codeBlock: false,
-					heading: false,
-					horizontalRule: false,
-					listItem: false,
-					orderedList: false,
-					link: false,
-				}),
-				Link.configure({
-					openOnClick: false,
-					HTMLAttributes: {
-						rel: 'noopener noreferrer',
-					},
-				}),
-				Markdown,
-			],
-			content: props.node.attrs.content || '',
-			contentType: 'markdown',
-			editorProps: {
-				attributes: {
-					class: 'callout-sub-editor-content',
-				},
-				handleKeyDown(_view, event) {
-					if (event.key === 'Escape') {
-						finishEditing();
-						return true;
-					}
-					return false;
-				},
-			},
-		});
-
-		nextTick(() => {
-			subEditor.value?.commands.focus('end');
-		});
-	});
-}
-
-function syncSubEditorContent() {
-	if (!subEditor.value) return;
-	props.updateAttributes({ content: subEditor.value.getMarkdown() });
-}
-
-function finishEditing() {
-	if (isSaving) return;
-	syncSubEditorContent();
-	subEditor.value?.destroy();
-	subEditor.value = null;
-	isEditingContent.value = false;
-	showLinkInput.value = false;
-}
-
-function handleBeforeSave() {
-	if (isEditingContent.value && subEditor.value) {
-		isSaving = true;
-		syncSubEditorContent();
+// The rendered page always prints a title, so an emptied one means "the default"
+// rather than "no header" — say so as soon as the author leaves the field.
+function restoreDefaultTitle(event) {
+	if (!event.target.value.trim()) {
+		props.updateAttributes({ title: defaultTitle.value });
 	}
 }
 
-function handleAfterSave() {
-	if (isSaving) {
-		isSaving = false;
-		nextTick(() => {
-			subEditor.value?.commands.focus();
-		});
-	}
-}
-
-function handleClickOutside(event) {
-	if (!isEditingContent.value || !wrapperRef.value) return;
-	const el = wrapperRef.value.$el || wrapperRef.value;
-	if (!el.contains(event.target)) {
-		finishEditing();
-	}
-}
-
-onMounted(() => {
-	document.addEventListener('wiki-editor-before-save', handleBeforeSave);
-	document.addEventListener('wiki-editor-after-save', handleAfterSave);
-	document.addEventListener('mousedown', handleClickOutside, true);
-
-	if (!props.node.attrs.content) {
-		startEditing();
-	}
-});
-
-onUnmounted(() => {
-	document.removeEventListener('wiki-editor-before-save', handleBeforeSave);
-	document.removeEventListener('wiki-editor-after-save', handleAfterSave);
-	document.removeEventListener('mousedown', handleClickOutside, true);
-
-	if (subEditor.value) {
-		subEditor.value.destroy();
-		subEditor.value = null;
-	}
-});
-
-// Toolbar actions
-function toggleBold() {
-	subEditor.value?.chain().focus().toggleBold().run();
-}
-
-function toggleItalic() {
-	subEditor.value?.chain().focus().toggleItalic().run();
-}
-
-function openLinkInput() {
-	if (!subEditor.value) return;
-	const attrs = subEditor.value.getAttributes('link');
-	linkUrl.value = attrs.href || '';
-	showLinkInput.value = true;
-
-	nextTick(() => {
-		if (linkInputRef.value?.el) {
-			linkInputRef.value.el.focus();
-			linkInputRef.value.el.select();
-		}
-	});
-}
-
-function confirmLink() {
-	if (!subEditor.value) return;
-	let url = linkUrl.value.trim();
-
-	if (!url) {
-		subEditor.value.chain().focus().unsetLink().run();
-	} else {
-		if (
-			!url.startsWith('/') &&
-			!url.startsWith('#') &&
-			!url.match(/^[a-zA-Z]+:\/\//)
-		) {
-			url = 'https://' + url;
-		}
-		subEditor.value.chain().focus().setLink({ href: url }).run();
-	}
-
-	showLinkInput.value = false;
-	linkUrl.value = '';
-}
-
-function cancelLink() {
-	showLinkInput.value = false;
-	linkUrl.value = '';
-	subEditor.value?.commands.focus();
-}
-
-// Title editing dialog
-const showTitleDialog = ref(false);
-const editingTitle = ref('');
-
-function openTitleDialog() {
-	editingTitle.value = props.node.attrs.title || '';
-	showTitleDialog.value = true;
-}
-
-function saveTitle() {
-	props.updateAttributes({ title: editingTitle.value });
-	showTitleDialog.value = false;
+// Enter in the title moves into the body, the way Tab-to-next-field would.
+function focusBody() {
+	props.editor.commands.focus(props.getPos() + 1);
 }
 
 function changeType(newType) {
-	props.updateAttributes({ type: newType });
+	// A title the author never touched follows the type; one they wrote stays.
+	const keepsTitle = props.node.attrs.title !== defaultTitle.value;
+	props.updateAttributes({
+		type: newType,
+		...(keepsTitle ? {} : { title: DEFAULT_TITLES[newType] || '' }),
+	});
 }
 
 // Dropdown menu options
 const dropdownOptions = computed(() => [
 	{
-		label: 'Edit Title',
-		icon: 'lucide-pencil',
-		onClick: openTitleDialog,
-	},
-	{
-		label: 'Delete',
-		icon: 'trash-2',
+		label: 'Remove',
+		icon: 'lucide-trash-2',
 		onClick: () => props.deleteNode(),
 	},
 	{
@@ -324,179 +140,83 @@ const dropdownOptions = computed(() => [
 
 <template>
     <NodeViewWrapper
-        ref="wrapperRef"
-        class="callout-block-wrapper group my-4 px-4 py-3.5 rounded-md relative flex flex-col gap-2"
-        :class="[`callout-${normalizedType}`, { 'outline-none': selected }]"
-        contenteditable="false"
+        class="callout-block-wrapper group my-4 p-3 rounded-6 bg-surface-gray-1 relative flex flex-col"
+        :class="`callout-${normalizedType}`"
     >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5" contenteditable="false">
             <span class="shrink-0 flex items-center callout-icon" v-html="icon"></span>
-            <span class="flex-1 text-sm-medium leading-[1.4] text-ink-gray-9">{{ displayTitle }}</span>
-            <Dropdown :options="dropdownOptions" placement="bottom-end">
+            <input
+                v-if="isEditable"
+                class="callout-title flex-1 min-w-0 bg-transparent border-none p-0 outline-none text-base-medium text-ink-gray-8 placeholder:text-ink-gray-5"
+                :value="node.attrs.title"
+                :placeholder="defaultTitle"
+                aria-label="Callout title"
+                @input="setTitle"
+                @blur="restoreDefaultTitle"
+                @keydown.enter.prevent="focusBody"
+                @keydown.escape.prevent="$event.target.blur()"
+            />
+            <span v-else class="callout-title flex-1 text-base-medium text-ink-gray-8">{{ displayTitle }}</span>
+            <Dropdown v-if="isEditable" :options="dropdownOptions" align="end">
                 <Button variant="ghost" size="sm" class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 callout-menu-btn">
                     <span class="lucide-more-horizontal size-3.5" aria-hidden="true" />
                 </Button>
             </Dropdown>
         </div>
-        <div class="text-sm leading-normal" @dblclick="!isEditingContent && startEditing()">
-            <template v-if="isEditingContent && subEditor">
-                <!-- Inline toolbar -->
-                <div class="flex items-center gap-0.5 mb-1.5">
-                    <button
-                        @mousedown.prevent="toggleBold"
-                        class="toolbar-btn text-[0.8125rem]"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('bold') }"
-                        title="Bold (Ctrl+B)"
-                    >
-                        <strong>B</strong>
-                    </button>
-                    <button
-                        @mousedown.prevent="toggleItalic"
-                        class="toolbar-btn text-[0.8125rem]"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('italic') }"
-                        title="Italic (Ctrl+I)"
-                    >
-                        <em>I</em>
-                    </button>
-                    <button
-                        @mousedown.prevent="openLinkInput"
-                        class="toolbar-btn"
-                        :class="{ '!bg-surface-gray-3 !text-ink-gray-9': subEditor.isActive('link') }"
-                        title="Link"
-                    >
-                        <span class="lucide-link size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
 
-                <!-- Link URL input row -->
-                <div v-if="showLinkInput" class="flex items-center gap-1 mb-1.5">
-                    <TextInput
-                        ref="linkInputRef"
-                        type="text"
-                        class="flex-1"
-                        size="sm"
-                        placeholder="https://example.com"
-                        v-model="linkUrl"
-                        @keydown.enter="confirmLink"
-                        @keydown.escape.stop="cancelLink"
-                    />
-                    <button @mousedown.prevent="confirmLink" class="toolbar-btn" title="Apply">
-                        <span class="lucide-check size-3.5" aria-hidden="true" />
-                    </button>
-                    <button @mousedown.prevent="cancelLink" class="toolbar-btn" title="Cancel">
-                        <span class="lucide-x size-3.5" aria-hidden="true" />
-                    </button>
-                </div>
-
-                <!-- Sub-editor -->
-                <EditorContent :editor="subEditor" />
-            </template>
-            <div v-else class="callout-content-text text-ink-gray-7">
-                <span v-if="node.attrs.content" v-html="renderedContent"></span>
-                <span v-else class="text-ink-gray-4">Double-click to edit...</span>
-            </div>
-        </div>
-
-        <!-- Title Edit Dialog -->
-        <Dialog v-model:open="showTitleDialog" title="Edit Callout Title">
-            <template #default>
-                <div class="space-y-4">
-                    <TextInput
-                        v-model="editingTitle"
-                        label="Title"
-                        placeholder="Leave empty for default title"
-                        @keydown.enter="saveTitle"
-                    />
-                    <p class="text-sm text-ink-gray-5">
-                        Default title: {{ defaultTitles[normalizedType] }}
-                    </p>
-                </div>
-            </template>
-            <template #actions>
-                <Button variant="solid" @click="saveTitle">Save</Button>
-            </template>
-        </Dialog>
+        <NodeViewContent class="callout-content mt-1" />
     </NodeViewWrapper>
 </template>
 
 <style scoped>
-/* Toolbar button base style */
-.toolbar-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border: none;
-    background: transparent;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    color: var(--ink-gray-6);
-    transition: all 0.15s ease;
-}
-
-.toolbar-btn:hover {
-    background-color: var(--surface-gray-2);
-    color: var(--ink-gray-9);
-}
-
-/* Icon sizing */
-.callout-icon :deep(svg) {
+/* Alert's prefix box: a fixed 16px slot the glyph sits centred in. */
+.callout-icon {
     width: 1rem;
     height: 1rem;
 }
 
-/* Sub-editor ProseMirror element styling */
-.callout-block-wrapper :deep(.callout-sub-editor-content) {
-    outline: none;
-    padding: 0.375rem 0.5rem;
-    border: 1px solid var(--outline-gray-2, #e5e7eb);
-    border-radius: 0.375rem;
-    background-color: var(--surface-base, #ffffff);
-    min-height: 2.5rem;
-    color: var(--ink-gray-7, #4b5563);
+/* The body is document content now, so prose owns its typography — these
+   override it back to Alert's description style, and drop the outer margins so
+   the callout's own padding is the only gap. */
+/* Aligned to the title, not the container: Alert's description is full-bleed,
+   but Alert is a 384px status box with a one-line description (see its stories).
+   At document width, with paragraphs and lists in the body, a full-bleed body
+   leaves the header looking detached from what it labels. 1rem icon + 0.375rem
+   gap = the title's left edge. */
+.callout-content {
+    padding-left: calc(1rem + 0.375rem);
 }
 
-.callout-block-wrapper :deep(.callout-sub-editor-content:focus) {
-    border-color: var(--outline-gray-4, #9ca3af);
-    box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.25);
+.callout-content :deep(> *:first-child) {
+    margin-top: 0;
 }
 
-.callout-block-wrapper :deep(.callout-sub-editor-content p) {
-    margin: 0;
+.callout-content :deep(> *:last-child) {
+    margin-bottom: 0;
 }
 
-.callout-block-wrapper :deep(.callout-sub-editor-content a) {
-    color: var(--ink-blue-6, #2563eb);
-    text-decoration: underline;
+.callout-content :deep(p) {
+    color: var(--ink-gray-6);
+    font-size: var(--text-base, 0.875rem);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
 }
 
-/* Callout type colors - these use CSS variables that don't map to Tailwind */
-.callout-note {
-    background-color: var(--surface-blue-2, #dbeafe);
-}
+/* Only the icon carries the type's colour — the surface stays neutral, the way
+   frappe-ui's Alert does it. */
 .callout-note .callout-icon {
-    color: var(--ink-blue-6, #2563eb);
+    color: var(--ink-blue-5);
 }
 
-.callout-tip {
-    background-color: var(--surface-green-2, #dcfce7);
-}
 .callout-tip .callout-icon {
-    color: var(--ink-green-6, #16a34a);
+    color: var(--ink-green-5);
 }
 
-.callout-caution {
-    background-color: var(--surface-amber-2, #fef3c7);
-}
 .callout-caution .callout-icon {
-    color: var(--ink-amber-6, #d97706);
+    color: var(--ink-amber-5);
 }
 
-.callout-danger {
-    background-color: var(--surface-red-2, #fecaca);
-}
 .callout-danger .callout-icon {
-    color: var(--ink-red-6, #dc2626);
+    color: var(--ink-red-5);
 }
 </style>

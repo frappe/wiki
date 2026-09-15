@@ -6,7 +6,7 @@
  * test side.
  *
  * Kept in sync with the two other definitions of this route — there is no
- * automatic mechanism, same as GENERAL_KEY / WIKI_HOME_TAB_KEY:
+ * automatic mechanism:
  *   - `createWebHistory()` in frontend/src/router.js
  *   - `APP_ROUTE` in wiki/frappe_wiki/doctype/wiki_document/wiki_document.py
  */

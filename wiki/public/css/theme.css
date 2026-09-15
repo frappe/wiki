@@ -117,7 +117,7 @@ select {
 .form-checkbox {
     border-radius: 0.375rem;
     background-color: var(--surface-gray-2);
-    color: var(--ink-blue-2);
+    color: var(--ink-blue-1);
 }
 
 .form-checkbox:focus {

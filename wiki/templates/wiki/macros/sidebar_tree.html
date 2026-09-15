@@ -3,7 +3,7 @@
     uses — h-11 at text-md, which is a real touch target rather than a
     28px line. -#}
 {% macro render_wiki_tree(nodes, level=0, current_route='', expanded_nodes=set(), dense=True) %}
-    {% set row_geometry = "h-7 rounded" if dense else "h-11 rounded-md" %}
+    {% set row_geometry = "h-7 rounded-4" if dense else "h-11 rounded-5" %}
     {% set row_text = "text-sm" if dense else "text-md" %}
     {% set row_text_medium = "text-sm-medium" if dense else "text-md font-medium" %}
     {% if nodes %}

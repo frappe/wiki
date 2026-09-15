@@ -1,19 +1,30 @@
 <template>
-	<!-- The rail keeps its width even with nothing to list, so the content column
-	     doesn't slide sideways the moment the author types their first `##`. -->
-	<aside
+	<!-- Sits in the gutter reserved for it on the right of the prose column.
+	     The wrapper spans the full content height so its nav can stick inside
+	     the scroller; pointer events are handed back to the rows alone, so the
+	     gutter above and below the list still belongs to the page. A plain div,
+	     not an aside: the nav inside is already the landmark, and a second
+	     complementary region here competes with the space sidebar. -->
+	<div
 		v-if="variant === 'rail'"
 		ref="rootRef"
-		class="w-[220px] shrink-0 py-6 pr-6"
+		class="pointer-events-none absolute inset-y-0 right-0 w-[208px] py-6 pr-4"
 		data-testid="editor-toc-rail"
 	>
 		<nav
 			v-if="outline.length"
-			class="hide-scrollbar sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
-			:style="{ top: `${railTop}px`, maxHeight: `calc(100vh - ${railTop}px - 4rem)` }"
+			class="hide-scrollbar pointer-events-auto sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
+			:style="{ top: `${railTop}px`, maxHeight: `${railMaxHeight}px` }"
 		>
-			<!-- Transparent border keeps the label on the same left edge as the links. -->
-			<span class="whitespace-nowrap border-l border-transparent pl-4 pb-1 font-medium text-ink-gray-8">
+			<!-- `shrink-0` throughout: this is a flex column with a max-height, so
+			     its children shrink to fit by default. On a long page that
+			     squashed 61 rows from 28px to 12px each -- text overlapping,
+			     scrollHeight equal to clientHeight, so it never scrolled either.
+			     At natural height they overflow, which is what makes the nav's
+			     own `overflow-y: auto` do its job. -->
+			<span
+				class="shrink-0 whitespace-nowrap px-2 pb-1 font-medium text-ink-gray-8"
+			>
 				{{ __('On this page') }}
 			</span>
 			<button
@@ -21,19 +32,19 @@
 				:key="entry.pos"
 				type="button"
 				data-testid="editor-toc-link"
-				class="truncate border-l py-1 text-left"
+				class="shrink-0 truncate rounded-4 py-1 pr-2 text-left"
 				:class="[
-					entry.level >= 3 && hasH2 ? 'pl-7' : 'pl-4',
+					entry.level >= 3 && hasH2 ? 'pl-5' : 'pl-2',
 					index === activeIndex
-						? 'border-outline-gray-4 text-ink-gray-9'
-						: 'border-outline-gray-2 text-ink-gray-6 hover:text-ink-gray-9',
+						? 'bg-surface-gray-2 text-ink-gray-9'
+						: 'text-ink-gray-6 hover:bg-surface-gray-2 hover:text-ink-gray-8',
 				]"
-				@click="goTo(entry)"
+				@click="goTo(entry, { index })"
 			>
 				{{ entry.text }}
 			</button>
 		</nav>
-	</aside>
+	</div>
 
 	<!-- Narrow layouts get the reader's collapsed strip instead: one row that
 	     names the section you're in, expanding to the full list on tap. -->
@@ -79,7 +90,7 @@
 						? 'bg-surface-gray-2 font-medium text-ink-gray-9'
 						: 'text-ink-gray-6'"
 					:style="{ paddingLeft: `${1 + (entry.level - 2) * 0.75}rem` }"
-					@click="goTo(entry, { collapse: true })"
+					@click="goTo(entry, { index, collapse: true })"
 				>
 					<span
 						class="size-1.5 shrink-0 rounded-full"
@@ -132,6 +143,14 @@ const activeText = computed(() => outline.value[activeIndex.value]?.text || '');
 
 const railTop = computed(() => toolbarHeight.value + 24);
 
+// The rail is sticky inside the editor's scroller, not the window, so its
+// height budget is that container's — `100vh` overshoots by the app header and
+// the page's own header row, and the list runs off the bottom.
+const containerHeight = ref(0);
+const railMaxHeight = computed(() =>
+	Math.max(containerHeight.value - railTop.value - 32, 0),
+);
+
 // The editor's nearest scrollable ancestor owns both the scroll position we
 // spy on and the sticky context the rail lives in.
 let scrollContainer = null;
@@ -149,6 +168,7 @@ function findScrollContainer(element) {
 function measureToolbar() {
 	toolbarHeight.value =
 		scrollContainer?.querySelector('.wiki-toolbar')?.offsetHeight || 0;
+	containerHeight.value = scrollContainer?.clientHeight || 0;
 }
 
 function headingElement(pos) {
@@ -163,9 +183,9 @@ function headingElement(pos) {
 
 function updateActive() {
 	if (!scrollContainer || !outline.value.length) return;
+	const box = scrollContainer.getBoundingClientRect();
 	// Anything above the toolbar's lower edge has already scrolled out of sight.
-	const threshold =
-		scrollContainer.getBoundingClientRect().top + toolbarHeight.value + 16;
+	const threshold = box.top + toolbarHeight.value + 16;
 
 	let next = 0;
 	for (const [index, entry] of outline.value.entries()) {
@@ -174,6 +194,25 @@ function updateActive() {
 		if (element.getBoundingClientRect().top > threshold) break;
 		next = index;
 	}
+
+	// The last headings in a document can never reach the threshold — there is
+	// not enough content below them to scroll that far — so at the bottom of
+	// the scroller the rule changes to "the deepest heading you can actually
+	// see". Without this, clicking the final entry scrolls to it and then
+	// leaves the entry above it marked as the one you are on.
+	const atBottom =
+		scrollContainer.scrollHeight -
+			scrollContainer.scrollTop -
+			scrollContainer.clientHeight <=
+		1;
+	if (atBottom) {
+		for (const [index, entry] of outline.value.entries()) {
+			const element = headingElement(entry.pos);
+			if (!element) continue;
+			if (element.getBoundingClientRect().top < box.bottom) next = index;
+		}
+	}
+
 	activeIndex.value = next;
 }
 
@@ -186,9 +225,14 @@ function scheduleUpdateActive() {
 	});
 }
 
-function goTo(entry, { collapse = false } = {}) {
+function goTo(entry, { index, collapse = false } = {}) {
 	const element = headingElement(entry.pos);
 	if (!element || !scrollContainer) return;
+	// Clicking an entry is a choice, so it goes active straight away rather
+	// than waiting for the smooth scroll to settle. The scroll lands the
+	// heading exactly on the scrollspy's threshold, and a sub-pixel overshoot
+	// there reads as "not reached yet" — which left the previous entry marked.
+	if (index !== undefined) activeIndex.value = index;
 	// scrollIntoView would tuck the heading under the sticky toolbar, so scroll
 	// the container by hand and leave room for it.
 	const top =
