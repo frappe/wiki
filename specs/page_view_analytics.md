@@ -429,16 +429,18 @@ Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a 
 - Searches and searches with no result are not shown: there is no search log yet (see `specs/ia_refactor/05-search-analytics.md`).
 - The mock says unique visitors. The rollup only stores new visitors, since distinct visitors do not add up across days, so the strip says new visitors.
 
-### Phase 7: change requests on Overview (2026-09-15)
+### Phase 7: open change requests on Overview (2026-09-15)
 
 #### Built
 
-- `get_overview` also returns `change_requests` (count raised in the window, with a delta against the window before) and `change_requests_by_status` (count per status, largest first).
-- Raised means created in the window and not a Draft. Editing a page opens a Draft on its own, so Drafts would count edits, not requests. Status is the status today, not at the end of the window.
-- `Overview.vue` adds a Change requests `NumberCard` to the KPI strip and a `DonutChart` of the status breakdown below the lists. Status names go through `__()`.
+- `get_overview` also returns `open_change_requests` (a count, no delta) and `open_change_requests_by_space` (count per space, largest first).
+- Open means In Review, Changes Requested or Approved. Drafts are left out: editing a page opens a Draft on its own, so a Draft is an edit, not a request. This differs from the sidebar badge, which counts every status but Merged, Rejected and Archived.
+- It is a backlog, so it counts what is open today and ignores the range. A request left open for months is the one a manager needs to see.
+- `Overview.vue` adds an Open change requests `NumberCard` to the KPI strip and a `DonutChart` of open requests by space, subtitled "Right now", below the lists. The ring's center says "Open", since the full label truncates.
+- A first cut counted requests created in the range and split them by status. On review it moved to open requests by space.
 
 #### Verified
 
-- `test_analytics.py`, 21 cases. New: Drafts and rows outside the window are skipped, both ends of the window are inclusive, and the delta and status order are right.
+- `test_analytics.py`, 21 cases. New: only open statuses count, rows group by space, and the card total matches the breakdown.
 - `analytics-dashboard.spec.ts`, 4 tests pass. The Overview stub carries the new keys and checks the card and the donut legend.
-- Screenshot of Overview at 1400px on local data: 227 change requests, donut with five statuses.
+- Screenshot of Overview at 1400px on local data: 61 open change requests over many test spaces, the tail grouped as Others.

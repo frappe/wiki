@@ -13,6 +13,7 @@ from wiki.permissions import _is_manager, can_write_space
 MAX_RANGE_DAYS = 400
 TOP_LIMIT = 20
 OVERVIEW_LIMIT = 8
+OPEN_CHANGE_REQUEST_STATUSES = ("In Review", "Changes Requested", "Approved")
 # The rollup job clears the cache after each run, so this only bounds how long an unused entry lives.
 CACHE_SECONDS = 15 * 60
 
@@ -61,6 +62,7 @@ def get_overview(from_date: str, to_date: str) -> dict:
 		fields=["name", "space_name", "route", "space_icon", "space_color", "avatar", "app_switcher_logo"],
 	)
 	space_of = _space_resolver(spaces)
+	open_change_requests = _open_change_requests_by_space()
 	current = {path: counts for path, counts in current.items() if space_of(path)}
 	previous = {path: counts for path, counts in previous.items() if space_of(path)}
 
@@ -69,7 +71,9 @@ def get_overview(from_date: str, to_date: str) -> dict:
 		"new_visitors": _metric(current, previous, 1),
 		"spaces": _views_by_space(spaces, space_of, current, previous),
 		"top_pages": _top_pages_with_delta(space_of, current, previous),
-		**_change_requests(start, end, previous_start, previous_end),
+		# A backlog, not traffic: it counts what is open today whatever the range, so it has no delta.
+		"open_change_requests": {"value": sum(row["count"] for row in open_change_requests), "delta": None},
+		"open_change_requests_by_space": open_change_requests,
 		"tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking")),
 	}
 
@@ -150,33 +154,21 @@ def _top_pages_with_delta(space_of, current: dict, previous: dict) -> list[dict]
 	]
 
 
-def _change_requests(start: date, end: date, previous_start: date, previous_end: date) -> dict:
-	"""Change requests raised in each window, and how the current ones stand now."""
+def _open_change_requests_by_space() -> list[dict]:
+	"""Change requests waiting on a decision right now, per space, largest first."""
 	cr = frappe.qb.DocType("Wiki Change Request")
-	# Editing a page opens a Draft on its own, so only submitted work counts as raised.
-	raised = cr.status != "Draft"
-
-	def raised_between(first: date, last: date):
-		# `creation` is a datetime, so the last day runs up to midnight after it.
-		return raised & (cr.creation >= first) & (cr.creation < last + timedelta(days=1))
-
+	space = frappe.qb.DocType("Wiki Space")
 	count = Count(cr.name).as_("count")
-	by_status = (
+	return (
 		frappe.qb.from_(cr)
-		.select(cr.status, count)
-		.where(raised_between(start, end))
-		.groupby(cr.status)
+		.left_join(space)
+		.on(space.name == cr.wiki_space)
+		.select(cr.wiki_space.as_("space"), space.space_name, count)
+		# Editing a page opens a Draft on its own, so a Draft is an edit, not a request.
+		.where(cr.status.isin(OPEN_CHANGE_REQUEST_STATUSES))
+		.groupby(cr.wiki_space, space.space_name)
 		.orderby(count, order=frappe.qb.desc)
 	).run(as_dict=True)
-	before = (
-		frappe.qb.from_(cr).select(Count(cr.name)).where(raised_between(previous_start, previous_end))
-	).run()[0][0]
-
-	value = sum(row["count"] for row in by_status)
-	return {
-		"change_requests": {"value": value, "delta": _delta(value, before)},
-		"change_requests_by_status": by_status,
-	}
 
 
 @frappe.whitelist(methods=["POST"])

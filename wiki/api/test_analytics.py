@@ -311,33 +311,46 @@ class TestGetOverview(IntegrationTestCase):
 			[(f"{self.route}/a", self.space.name, 3), (f"{self.route}/v2/b", self.nested.name, 1)],
 		)
 
-	def test_counts_submitted_change_requests_by_status(self):
-		for status, creation in (
-			("In Review", "2031-03-08 00:00:00"),
-			("Merged", "2031-03-14 23:59:00"),
-			("Merged", "2031-03-10 09:00:00"),
-			("Draft", "2031-03-10 09:00:00"),
-			("Approved", "2031-03-05 09:00:00"),
-			("Merged", "2031-03-15 00:00:00"),
+	def test_counts_open_change_requests_by_space(self):
+		for space, status in (
+			(self.space, "In Review"),
+			(self.space, "Changes Requested"),
+			(self.space, "Approved"),
+			(self.space, "Draft"),
+			(self.space, "Merged"),
+			(self.space, "Rejected"),
+			(self.space, "Archived"),
+			(self.nested, "In Review"),
 		):
 			cr = frappe.get_doc(
 				{
 					"doctype": "Wiki Change Request",
 					"title": status,
-					"wiki_space": self.space.name,
+					"wiki_space": space.name,
 					"status": status,
 				}
 			)
 			cr.db_insert()
-			frappe.db.set_value("Wiki Change Request", cr.name, "creation", creation, update_modified=False)
 			self.fixtures.track("Wiki Change Request", cr)
 
 		overview = get_overview(**self.week)
+		# The site has change requests of its own, so only these spaces are compared.
+		rows = [
+			row
+			for row in overview["open_change_requests_by_space"]
+			if row["space"] in (self.space.name, self.nested.name)
+		]
 
-		self.assertEqual(overview["change_requests"], {"value": 3, "delta": 200.0})
 		self.assertEqual(
-			overview["change_requests_by_status"],
-			[{"status": "Merged", "count": 2}, {"status": "In Review", "count": 1}],
+			rows,
+			[
+				{"space": self.space.name, "space_name": self.space.space_name, "count": 3},
+				{"space": self.nested.name, "space_name": self.nested.space_name, "count": 1},
+			],
+		)
+		self.assertEqual(
+			overview["open_change_requests"]["value"],
+			sum(row["count"] for row in overview["open_change_requests_by_space"]),
 		)
 
 	def test_is_for_managers_only(self):
