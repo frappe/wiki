@@ -59,7 +59,7 @@
 					:tree-data="spaceStore.treeData"
 					:space-root-node="spaceStore.treeData?.root_group || ''"
 					:change-type-map="spaceStore.changeTypeMap"
-					:readonly="spaceStore.isGitSynced"
+					:readonly="spaceStore.isReadonly"
 					:selected-page-id="spaceStore.selectedPageId"
 					:selected-draft-key="spaceStore.selectedDraftKey"
 					compact-header
