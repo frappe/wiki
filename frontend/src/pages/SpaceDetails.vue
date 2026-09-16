@@ -42,7 +42,7 @@
                     :space-loaded="spaceStore.isLoaded"
                     :tree-data="spaceStore.treeData"
                     :change-type-map="spaceStore.changeTypeMap"
-                    :readonly="spaceStore.isGitSynced"
+                    :readonly="spaceStore.isReadonly"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="spaceStore.refreshTree"
@@ -57,7 +57,7 @@
             <main class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-base">
                 <router-view
                     :space-id="spaceId"
-                    :readonly="spaceStore.isGitSynced"
+                    :readonly="spaceStore.isReadonly"
                     @refresh="spaceStore.refreshTree"
                 />
             </main>

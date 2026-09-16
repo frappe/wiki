@@ -288,7 +288,10 @@ const recentItems = computed(() =>
 );
 
 const canCreatePage = computed(
-	() => Boolean(currentSpace.value) && !spaceStore.isGitSynced,
+	() =>
+		Boolean(currentSpace.value) &&
+		!spaceStore.isGitSynced &&
+		spaceStore.canContribute === true,
 );
 
 const actionItems = computed(() => [
@@ -325,7 +328,7 @@ const actionItems = computed(() => [
 				},
 			]
 		: []),
-	...(currentSpace.value
+	...(currentSpace.value && spaceStore.canWriteSpace
 		? [
 				{
 					key: 'space-settings',
