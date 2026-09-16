@@ -1,5 +1,5 @@
 <template>
-    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-lg border border-outline-gray-2">
+    <div class="p-2 w-72 flex items-center gap-2 bg-surface-base shadow-xl rounded-6 border border-outline-gray-2">
         <TextInput
             v-if="isEditing"
             ref="inputRef"
@@ -122,24 +122,24 @@ function startEditing() {
 }
 
 function saveLink() {
-	if (!editUrl.value) {
-		emit('save', '');
+	let url = editUrl.value.trim();
+
+	// Saving '' would leave the text wrapped in a link with no href.
+	if (!url) {
+		emit('remove');
 		return;
 	}
 
-	let url = editUrl.value.trim();
-
 	// Add https:// if no protocol and not a relative URL
 	if (
-		url &&
 		!url.startsWith('/') &&
 		!url.startsWith('#') &&
 		!url.match(/^[a-zA-Z]+:\/\//)
 	) {
-		url = 'https://' + url;
+		url = `https://${url}`;
 	}
 
-	if (url === '' || isValidUrl(url)) {
+	if (isValidUrl(url)) {
 		currentHref.value = url;
 		isEditing.value = false;
 		emit('save', url);
@@ -151,7 +151,7 @@ function cancelEdit() {
 		isEditing.value = false;
 		editUrl.value = currentHref.value;
 	} else {
-		emit('save', '');
+		emit('cancel');
 	}
 }
 

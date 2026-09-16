@@ -78,6 +78,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.delete_cr_page',
 	});
 
+	const restorePageResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.restore_cr_page',
+	});
+
 	const movePageResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.move_cr_page',
 	});
@@ -232,8 +236,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		isGroup = false,
 		isExternalLink = false,
 		externalUrl = null,
-		isTab = false,
-		tabIcon = null,
 		route = null,
 	) {
 		return await createPageResource.submit({
@@ -245,8 +247,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 			is_published: true,
 			is_external_link: isExternalLink,
 			external_url: externalUrl,
-			is_tab: isTab,
-			tab_icon: tabIcon,
 			route,
 		});
 	}
@@ -261,6 +261,13 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 
 	async function deletePage(changeRequestName, docKey) {
 		return await deletePageResource.submit({
+			name: changeRequestName,
+			doc_key: docKey,
+		});
+	}
+
+	async function restorePage(changeRequestName, docKey) {
+		return await restorePageResource.submit({
 			name: changeRequestName,
 			doc_key: docKey,
 		});
@@ -330,6 +337,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		createPage,
 		updatePage,
 		deletePage,
+		restorePage,
 		movePage,
 		reorderChildren,
 		applyOperations,

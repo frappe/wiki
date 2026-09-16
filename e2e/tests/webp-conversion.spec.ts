@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { type Page, expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from '../fixtures';
+import type { SeededSpace } from '../helpers/factory';
 import { deleteDoc, getList, updateDoc } from '../helpers/frappe';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
 /**
@@ -83,14 +84,13 @@ async function setWebpConversion(
  * until the editor is mounted on its draft. Mirrors the setup used by other
  * editor e2e tests (image-viewer.spec.ts) but stops at the editable draft.
  */
-async function openNewPageInEditor(page: Page, title: string): Promise<void> {
+async function openNewPageInEditor(
+	page: Page,
+	space: SeededSpace,
+	title: string,
+): Promise<void> {
 	await page.setViewportSize({ width: 1100, height: 900 });
-	await page.goto(APP_BASE);
-	await page.waitForLoadState('networkidle');
-
-	const spaceLink = page.locator(spaceLinkSelector()).first();
-	await expect(spaceLink).toBeVisible({ timeout: 5000 });
-	await spaceLink.click();
+	await page.goto(space.url());
 	await page.waitForLoadState('networkidle');
 
 	await openNewPageDialog(page);
@@ -151,12 +151,13 @@ test.describe('Automatic WebP image optimization', () => {
 	test('converts an uploaded PNG to WebP when the setting is enabled', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		await setWebpConversion(request, true);
 
 		const stamp = Date.now();
 		const fileName = `e2e-webp-on-${stamp}.png`;
-		await openNewPageInEditor(page, `webp-on-${stamp}`);
+		await openNewPageInEditor(page, await wiki.space(), `webp-on-${stamp}`);
 		await uploadImage(page, fileName);
 
 		// The node first shows a base64 preview (loading), then swaps to the
@@ -187,12 +188,13 @@ test.describe('Automatic WebP image optimization', () => {
 	test('keeps the original format when the setting is disabled', async ({
 		page,
 		request,
+		wiki,
 	}) => {
 		await setWebpConversion(request, false);
 
 		const stamp = Date.now();
 		const fileName = `e2e-webp-off-${stamp}.png`;
-		await openNewPageInEditor(page, `webp-off-${stamp}`);
+		await openNewPageInEditor(page, await wiki.space(), `webp-off-${stamp}`);
 		await uploadImage(page, fileName);
 
 		// With conversion off, the image stays a .png served from /files.

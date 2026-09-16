@@ -33,15 +33,21 @@ class WikiSpace(Document):
 		from wiki.wiki.doctype.wiki_group_item.wiki_group_item import WikiGroupItem
 
 		app_switcher_logo: DF.AttachImage | None
+		avatar: DF.LongText | None
+		avatar_seed: DF.Data | None
+		avatar_style: DF.Data | None
 		dark_mode_logo: DF.AttachImage | None
 		enable_feedback_collection: DF.Check
 		favicon: DF.AttachImage | None
 		is_published: DF.Check
+		last_edited: DF.Datetime | None
 		light_mode_logo: DF.AttachImage | None
 		navbar_items: DF.Table[TopBarItem]
 		root_group: DF.Link | None
 		route: DF.Data
 		show_in_switcher: DF.Check
+		space_color: DF.Data | None
+		space_icon: DF.Data | None
 		space_name: DF.Data | None
 		switcher_order: DF.Int
 		wiki_sidebars: DF.Table[WikiGroupItem]
@@ -260,6 +266,10 @@ class WikiSpace(Document):
 		# keep serving 404s for the renamed URLs.
 		clear_website_cache()
 		frappe.db.after_commit.add(clear_website_cache)
+
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+		clear_wiki_tree_cache()
 
 		return {"updated_count": updated_count}
 

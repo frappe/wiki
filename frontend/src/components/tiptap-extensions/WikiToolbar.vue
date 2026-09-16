@@ -130,15 +130,27 @@ function handleImageSelect(event) {
 </script>
 
 <style scoped>
+/* 3rem tall with the same gutter as the breadcrumb bar above it: the two
+   chromes stack, so an off-by-a-few-pixels row reads as a misprint. The
+   height is fixed rather than derived from the buttons so it stays put when
+   the toolbar's contents change. */
 .wiki-toolbar {
     display: flex;
     align-items: center;
-    padding: 0.375rem 1.25rem;
+    flex-shrink: 0;
+    height: 3rem;
+    padding: 0 0.75rem;
     background-color: var(--surface-base, #ffffff);
     border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
     position: sticky;
     top: 0;
     z-index: 40;
+}
+
+@media (min-width: 640px) {
+    .wiki-toolbar {
+        padding: 0 1.25rem;
+    }
 }
 
 .hidden {

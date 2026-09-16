@@ -1,5 +1,5 @@
 <template>
-	<SettingsDialog v-model="open" v-model:tab="selectedTab">
+	<SettingsDialog v-model:open="open" v-model:tab="selectedTab">
 		<SettingsSidebar>
 			<div>
 				<span class="block px-2 pt-1 pb-3 text-lg-semibold text-ink-gray-9">

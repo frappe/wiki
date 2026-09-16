@@ -1,11 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { createDoc } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
-import {
-	type WikiDocument,
-	type WikiSpace,
-	cleanupWikiSpacesByRoute,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * TB2 — "Edit on GitHub" on a synced page.
@@ -20,47 +13,31 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 	const REPO = 'frappe/wiki';
 	const BRANCH = 'main';
 
-	let route: string;
-
-	test.afterEach(async ({ request }) => {
-		if (route) await cleanupWikiSpacesByRoute(request, route);
-		route = '';
-	});
-
 	test('menu item opens the source file in GitHub editor', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		route = `git-sync-edit-${Date.now()}`;
-		const space = await createDoc<WikiSpace & { root_group: string }>(
-			request,
-			'Wiki Space',
-			{
-				route,
-				space_name: route,
-				is_published: true,
-				git_synced: 1,
-				repo_full_name: REPO,
-				branch: BRANCH,
-				last_sync_status: 'Success',
-				last_sync_time: '2026-01-01 00:00:00',
-			},
-		);
-
-		// A nested leaf page with a repo-relative source_path.
+		// last_sync_time is set so SpaceDetails treats the space as already
+		// synced and skips the auto initial-sync (which would hit GitHub).
+		// The leaf carries a repo-relative source_path — the GitHub trip's input.
 		const leafSourcePath = 'docs/guides/setup.md';
 		const leafTitle = `Setup ${Date.now()}`;
-		await createDoc<WikiDocument>(request, 'Wiki Document', {
-			title: leafTitle,
-			route: `${route}/setup`,
-			content: '# Setup\n\nFrom the repo.',
-			wiki_space: space.name,
-			parent_wiki_document: space.root_group,
-			is_published: true,
-			source_path: leafSourcePath,
+		const space = await wiki.space({
+			git_synced: 1,
+			repo_full_name: REPO,
+			branch: BRANCH,
+			last_sync_status: 'Success',
+			last_sync_time: '2026-01-01 00:00:00',
+			pages: [
+				{
+					title: leafTitle,
+					content: '# Setup\n\nFrom the repo.',
+					source_path: leafSourcePath,
+				},
+			],
 		});
 
-		await page.goto(appUrl('spaces', space.name));
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		// Open the synced page.
@@ -79,10 +56,11 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 			};
 		});
 
-		await page.getByRole('button', { name: 'More actions' }).click();
-		const editItem = page.getByRole('menuitem', { name: 'Edit on GitHub' });
-		await expect(editItem).toBeVisible();
-		await editItem.click();
+		// A synced page carries the GitHub trip in its header, not behind the
+		// page menu — the menu holds only edit actions the page cannot offer.
+		const editButton = page.getByRole('button', { name: 'Edit on GitHub' });
+		await expect(editButton).toBeVisible();
+		await editButton.click();
 
 		const opened = await page.evaluate(
 			// @ts-expect-error test-only hook

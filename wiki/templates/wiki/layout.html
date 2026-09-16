@@ -33,9 +33,17 @@
     <!-- Theme + sidebar initialization - must run before page renders to prevent flash -->
     <script>
         (function() {
-            const stored = localStorage.getItem('wiki-theme');
-            // Default to light theme if no preference is stored
-            const theme = stored || 'light';
+            // `theme` is frappe-ui's key, which the editor SPA now writes through
+            // useColorScheme; `wiki-theme` is what both surfaces used before and
+            // is still read so an existing preference survives. frappe-ui also
+            // stores 'system', which resolves against the OS.
+            const stored = localStorage.getItem('theme') || localStorage.getItem('wiki-theme');
+            const theme = stored === 'dark' || stored === 'light'
+                ? stored
+                : stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark'
+                    // Default to light theme if no preference is stored
+                    : 'light';
             document.documentElement.setAttribute('data-theme', theme);
 
             // Read sidebar collapsed state to prevent layout shift
@@ -60,13 +68,12 @@
 
     {{ head_html or "" }}
 </head>
-{#- `data-wiki-tabs` / `data-wiki-bare` drive --wiki-chrome-h (see main.css):
-    the height of the sticky chrome above the sidebar, which everything below it
-    offsets against. It's a CSS variable rather than an inline value because the
-    chrome is desktop-only — below `lg` the offset has to collapse to zero. -#}
-{% set has_tabs = space_tabs and space_tabs|length %}
+{#- `data-wiki-bare` drives --wiki-chrome-h (see main.css): the height of the
+    sticky chrome above the sidebar, which everything below it offsets against.
+    It's a CSS variable rather than an inline value because the chrome is
+    desktop-only — below `lg` the offset has to collapse to zero. -#}
 <body class="min-h-screen antialiased bg-[var(--surface-base)] text-[var(--ink-gray-9)] text-base max-w-[2000px] mx-auto"
-      {% if hide_chrome %}data-wiki-bare{% elif has_tabs %}data-wiki-tabs{% endif %}>
+      {% if hide_chrome %}data-wiki-bare{% endif %}>
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/search_modal.html" %}
 
@@ -74,12 +81,10 @@
     {% include "templates/wiki/includes/mobile_header.html" %}
     {% endif %}
 
-    {#- Chrome stacks top-down at full width — navbar, then tabs — so the
-        sidebar tree reads as nested inside the active tab rather than as its
-        sibling. -#}
+    {#- The navbar is the whole desktop chrome: one full-width row above both
+        the sidebar and the content column. -#}
     {% if not hide_chrome %}
     {% include "templates/wiki/includes/header.html" %}
-    {% include "templates/wiki/includes/tabs.html" %}
     {% endif %}
 
     <!-- Main flex container: sidebar + content column, both below the chrome -->

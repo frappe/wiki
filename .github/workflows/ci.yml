@@ -113,6 +113,8 @@ jobs:
         working-directory: /home/runner/frappe-bench
         run: |
           bench --site test_site set-config allow_tests true
-          bench --site test_site run-tests --app wiki
+          # --test-category defaults to `unit`, which skipped every
+          # IntegrationTestCase in the app -- 130 tests of ~410 ran.
+          bench --site test_site run-tests --app wiki --test-category all
         env:
           TYPE: server

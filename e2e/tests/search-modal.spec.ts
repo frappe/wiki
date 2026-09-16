@@ -1,11 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { updateDoc } from '../helpers/frappe';
-import {
-	createTestWikiDocument,
-	createTestWikiSpace,
-	deleteTestWikiDocument,
-	deleteTestWikiSpace,
-} from '../helpers/wiki';
+import { expect, test } from '../fixtures';
 
 /**
  * Tests for the public reader search modal (search_modal.html).
@@ -28,38 +21,22 @@ const SEARCH_INPUT = 'input[placeholder="Search documentation"]';
 test.describe('Search Modal', () => {
 	test('keyboard navigation moves one result per keypress across reopens', async ({
 		page,
-		request,
+		wiki,
 	}) => {
-		const timestamp = Date.now();
-		const spaceRoute = `search-modal-space-${timestamp}`;
-
-		const space = await createTestWikiSpace(request, {
-			route: spaceRoute,
-			is_published: true,
+		const space = await wiki.space({
+			pages: [
+				{
+					title: 'Search Host',
+					content: 'Host page for the search modal test.',
+				},
+				{
+					title: 'Search Target',
+					content: 'Target page the second result points at.',
+				},
+			],
 		});
-		const rootGroup = await createTestWikiDocument(request, {
-			title: 'Root',
-			route: `${spaceRoute}/root`,
-			is_group: true,
-			is_published: true,
-		});
-		await updateDoc(request, 'Wiki Space', space.name, {
-			root_group: rootGroup.name,
-		});
-		const hostPage = await createTestWikiDocument(request, {
-			title: `Search Host ${timestamp}`,
-			route: `${spaceRoute}/search-host`,
-			content: 'Host page for the search modal test.',
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
-		const targetPage = await createTestWikiDocument(request, {
-			title: `Search Target ${timestamp}`,
-			route: `${spaceRoute}/search-target`,
-			content: 'Target page the second result points at.',
-			is_published: true,
-			parent_wiki_document: rootGroup.name,
-		});
+		const hostPage = space.page('Search Host');
+		const targetPage = space.page('Search Target');
 
 		await page.route(SEARCH_API, (route) =>
 			route.fulfill({
@@ -69,21 +46,21 @@ test.describe('Search Modal', () => {
 							{
 								name: 'stub-1',
 								title: 'First <mark>stub</mark> result',
-								route: `${spaceRoute}/search-host`,
+								route: hostPage.route,
 								content: 'Snippet for the first <mark>stub</mark>.',
 								score: 3,
 							},
 							{
 								name: 'stub-2',
 								title: 'Second <mark>stub</mark> result',
-								route: `${spaceRoute}/search-target`,
+								route: targetPage.route,
 								content: 'Snippet for the second <mark>stub</mark>.',
 								score: 2,
 							},
 							{
 								name: 'stub-3',
 								title: 'Third <mark>stub</mark> result',
-								route: `${spaceRoute}/search-host`,
+								route: hostPage.route,
 								content: 'Snippet for the third <mark>stub</mark>.',
 								score: 1,
 							},
@@ -94,42 +71,35 @@ test.describe('Search Modal', () => {
 			}),
 		);
 
-		try {
-			await page.setViewportSize({ width: 1280, height: 800 });
-			await page.goto(`/${hostPage.route}`);
-			await page.waitForLoadState('networkidle');
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto(`/${hostPage.route}`);
+		await page.waitForLoadState('networkidle');
 
-			const searchInput = page.locator(SEARCH_INPUT);
-			const results = page.getByTestId('search-result');
+		const searchInput = page.locator(SEARCH_INPUT);
+		const results = page.getByTestId('search-result');
 
-			// First open: results render for the query
-			await page.getByRole('button', { name: 'Open search' }).click();
-			await expect(searchInput).toBeVisible();
-			await searchInput.fill('stub');
-			await expect(results).toHaveCount(3);
+		// First open: results render for the query
+		await page.getByRole('button', { name: 'Open search' }).click();
+		await expect(searchInput).toBeVisible();
+		await searchInput.fill('stub');
+		await expect(results).toHaveCount(3);
 
-			// Close and reopen — a leaked keydown listener from the first open
-			// would now double every arrow-key step
-			await page.keyboard.press('Escape');
-			await expect(searchInput).toBeHidden();
-			await page.getByRole('button', { name: 'Open search' }).click();
-			await searchInput.fill('stub');
-			await expect(results).toHaveCount(3);
+		// Close and reopen — a leaked keydown listener from the first open
+		// would now double every arrow-key step
+		await page.keyboard.press('Escape');
+		await expect(searchInput).toBeHidden();
+		await page.getByRole('button', { name: 'Open search' }).click();
+		await searchInput.fill('stub');
+		await expect(results).toHaveCount(3);
 
-			// One ArrowDown must move the highlight exactly one row
-			await page.keyboard.press('ArrowDown');
-			await expect(results.nth(1)).toHaveClass(/surface-gray-3/);
-			await expect(results.nth(0)).not.toHaveClass(/surface-gray-3/);
-			await expect(results.nth(2)).not.toHaveClass(/surface-gray-3/);
+		// One ArrowDown must move the highlight exactly one row
+		await page.keyboard.press('ArrowDown');
+		await expect(results.nth(1)).toHaveClass(/surface-gray-3/);
+		await expect(results.nth(0)).not.toHaveClass(/surface-gray-3/);
+		await expect(results.nth(2)).not.toHaveClass(/surface-gray-3/);
 
-			// Enter navigates to the highlighted (second) result
-			await page.keyboard.press('Enter');
-			await page.waitForURL(`**/${targetPage.route}`, { timeout: 10000 });
-		} finally {
-			await deleteTestWikiDocument(request, targetPage.name).catch(() => {});
-			await deleteTestWikiDocument(request, hostPage.name).catch(() => {});
-			await deleteTestWikiDocument(request, rootGroup.name).catch(() => {});
-			await deleteTestWikiSpace(request, space.name).catch(() => {});
-		}
+		// Enter navigates to the highlighted (second) result
+		await page.keyboard.press('Enter');
+		await page.waitForURL(`**/${targetPage.route}`, { timeout: 10000 });
 	});
 });

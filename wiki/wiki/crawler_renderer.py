@@ -24,7 +24,8 @@ from werkzeug.wrappers import Response
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	build_markdown_response,
-	get_landing_page_for_route,
+	get_landing_redirect_for_route,
+	redirect_to_landing_page,
 )
 from wiki.permissions import can_read_space
 
@@ -133,11 +134,10 @@ class CrawlerRenderer(BaseRenderer):
 			self.handler = self._render_markdown
 			return True
 
-		# get_landing_page_for_route gates on space access, so a restricted space's
-		# `.md` URL 404s instead of naming its first page in a Location header.
-		first_page = get_landing_page_for_route(route)
-		if first_page:
-			frappe.redirect("/" + first_page["route"] + MARKDOWN_SUFFIX)
+		# Gated on space access, so a restricted space's `.md` 404s instead of leaking its first page.
+		landing_route = get_landing_redirect_for_route(route)
+		if landing_route:
+			redirect_to_landing_page("/" + landing_route + MARKDOWN_SUFFIX)
 
 		return False
 

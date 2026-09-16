@@ -1,6 +1,6 @@
 <template>
-	<div class="relative">
-		<div class="max-h-72 overflow-y-auto p-2 pb-5">
+	<div class="relative flex min-h-0 flex-1 flex-col">
+		<div class="min-h-0 max-h-72 flex-1 overflow-y-auto p-2 pb-5">
 			<div
 				class="grid grid-cols-8 gap-1"
 				role="listbox"
@@ -11,7 +11,7 @@
 					:key="icon.class"
 					type="button"
 					role="option"
-					class="flex size-8 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2"
+					class="flex size-8 items-center justify-center rounded-4 text-ink-gray-7 hover:bg-surface-gray-2"
 					:class="icon.class === modelValue ? 'bg-surface-gray-3 text-ink-gray-9' : ''"
 					:title="icon.label"
 					:aria-label="icon.label"

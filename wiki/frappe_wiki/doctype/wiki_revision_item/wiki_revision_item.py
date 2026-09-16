@@ -25,7 +25,7 @@ class WikiRevisionItem(Document):
 		parent_key: DF.Data | None
 		revision: DF.Link
 		slug: DF.Data | None
-		title: DF.Data | None
+		title: DF.SmallText | None
 	# end: auto-generated types
 
 	pass

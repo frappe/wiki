@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
+import { expect, test } from '../fixtures';
 import { openNewPageDialog } from '../helpers/wiki';
 
 /**
@@ -9,15 +8,12 @@ import { openNewPageDialog } from '../helpers/wiki';
 test.describe('Editable page route', () => {
 	test('prefills the route from the title, then lets the author take it over', async ({
 		page,
+		wiki,
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
-
-		const spaceLink = page.locator(spaceLinkSelector()).first();
-		await expect(spaceLink).toBeVisible({ timeout: 5000 });
-		await spaceLink.click();
+		const space = await wiki.space();
+		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
 		await openNewPageDialog(page);
@@ -40,11 +36,17 @@ test.describe('Editable page route', () => {
 		await expect(routeField).toHaveValue(customRoute);
 
 		await dialog.getByRole('button', { name: 'Save' }).click();
-		await page.waitForLoadState('networkidle');
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
 
-		// The draft panel reports the route the author chose, not a derived one.
-		await expect(page.locator(`text=/${customRoute}`).first()).toBeVisible({
-			timeout: 10000,
-		});
+		// The draft carries the route the author chose, not one derived from the
+		// title they typed last. A draft lives only in the local-first store
+		// until it is merged, so there is no document to query — the tree's
+		// search, which matches a page's route as well as its title, is what
+		// can see it.
+		const search = page.getByPlaceholder('Search pages...');
+		await search.fill(customRoute);
+		await expect(
+			page.locator('aside').getByText('Route Gamma', { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 	});
 });
