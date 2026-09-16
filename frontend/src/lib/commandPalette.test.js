@@ -100,3 +100,25 @@ test('lifts a page in the current space over a better match elsewhere', () => {
 	const [unbiased] = build('deploy', { ...options, pages: plain });
 	assert.equal(unbiased.items[0].key, 'page:1');
 });
+
+test('lists actions above recent pages for an empty query', () => {
+	const actions = [{ key: 'toggle-theme', label: 'Toggle theme' }];
+	assert.deepEqual(labels(build('', { actions })), [
+		['jump', ['All Spaces']],
+		['actions', ['Toggle theme']],
+		['recent', ['Release notes']],
+	]);
+});
+
+test('matches an action by an alias it does not render', () => {
+	const actions = [
+		{
+			key: 'toggle-theme',
+			label: 'Toggle theme',
+			search: 'toggle theme dark light mode',
+		},
+	];
+	assert.deepEqual(labels(build('dark', { actions })), [
+		['actions', ['Toggle theme']],
+	]);
+});

@@ -124,6 +124,8 @@
 </template>
 
 <script setup>
+import { useSessionStore } from '@/stores/session';
+import { useSpaceStore } from '@/stores/space';
 import { useUserStore } from '@/stores/user';
 import { watchDebounced } from '@vueuse/core';
 import {
@@ -138,14 +140,26 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCommandPalette } from '../composables/useCommandPalette';
+import { useNewPageRequest } from '../composables/useNewPageRequest';
+import { useNewSpaceRequest } from '../composables/useNewSpaceRequest';
 import { useRecentPages } from '../composables/useRecentPages';
+import { useSpaceSettings } from '../composables/useSpaceSettings';
+import { useTheme } from '../composables/useTheme';
+import { useWikiSettings } from '../composables/useWikiSettings';
 import { MIN_SERVER_QUERY, buildResultGroups } from '../lib/commandPalette';
 import SpaceAvatar from './SpaceAvatar.vue';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const sessionStore = useSessionStore();
+const spaceStore = useSpaceStore();
 const { showCommandPalette, close, toggle } = useCommandPalette();
+const { open: openWikiSettings } = useWikiSettings();
+const { open: openSpaceSettings } = useSpaceSettings();
+const { themeIcon, toggleTheme } = useTheme();
+const { requestNewPage } = useNewPageRequest();
+const { requestNewSpace } = useNewSpaceRequest();
 const { recentPages } = useRecentPages();
 
 const query = ref('');
@@ -263,13 +277,85 @@ const recentItems = computed(() =>
 			label: page.title,
 			icon: 'lucide-file-text',
 			// Visits saved before routes were recorded fall back to the space name.
-			subtitle: page.route ? `/${page.route}` : spaceNames.value.get(page.space),
+			subtitle: page.route
+				? `/${page.route}`
+				: spaceNames.value.get(page.space),
 			route: {
 				name: 'SpacePage',
 				params: { spaceId: page.space, pageId: page.name },
 			},
 		})),
 );
+
+const canCreatePage = computed(
+	() => Boolean(currentSpace.value) && !spaceStore.isGitSynced,
+);
+
+const actionItems = computed(() => [
+	...(canCreatePage.value
+		? [
+				{
+					key: 'new-page',
+					label: __('New page'),
+					search: 'new page create page add page',
+					icon: 'lucide-file-plus',
+					onClick: requestNewPage,
+				},
+			]
+		: []),
+	...(userStore.isWikiManager && !currentSpace.value
+		? [
+				{
+					key: 'new-space',
+					label: __('New space'),
+					search: 'new space create space add space',
+					icon: 'lucide-plus',
+					onClick: createSpace,
+				},
+			]
+		: []),
+	...(userStore.isWikiManager
+		? [
+				{
+					key: 'settings',
+					label: __('Settings'),
+					search: 'settings wiki general feedback header robots github sync',
+					icon: 'lucide-settings',
+					onClick: () => openWikiSettings(),
+				},
+			]
+		: []),
+	...(currentSpace.value
+		? [
+				{
+					key: 'space-settings',
+					label: __('Space settings'),
+					search: 'space settings navigation access git sync',
+					icon: 'lucide-settings-2',
+					onClick: openSpaceSettings,
+				},
+			]
+		: []),
+	{
+		key: 'toggle-theme',
+		label: __('Toggle theme'),
+		search: 'toggle theme dark light mode appearance',
+		icon: themeIcon.value,
+		onClick: toggleTheme,
+	},
+	{
+		key: 'logout',
+		label: __('Log out'),
+		search: 'log out logout sign out',
+		icon: 'lucide-log-out',
+		onClick: () => sessionStore.logout.submit(),
+	},
+]);
+
+async function createSpace() {
+	await router.push({ name: 'Overview' });
+	requestNewSpace();
+}
 
 const spaceNames = computed(
 	() =>
@@ -287,11 +373,13 @@ const groups = computed(() =>
 		spaces: spaceItems.value,
 		pages: pageItems.value,
 		recent: recentItems.value,
+		actions: actionItems.value,
 		titles: {
 			jump: __('Jump to'),
 			spaces: __('Spaces'),
 			pages: __('Pages'),
 			recent: __('Recent'),
+			actions: __('Actions'),
 		},
 	}),
 );
@@ -333,7 +421,8 @@ function move(step) {
 
 function select(item) {
 	close();
-	router.push(item.route);
+	if (item.onClick) item.onClick();
+	else router.push(item.route);
 }
 
 function onClose() {

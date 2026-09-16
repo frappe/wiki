@@ -20,12 +20,13 @@ export const MIN_SERVER_QUERY = 2;
  */
 export function buildResultGroups(
 	query,
-	{ jumpTo, spaces, pages, recent, titles },
+	{ jumpTo, spaces, pages, recent, actions, titles },
 ) {
 	const q = (query || '').trim();
 	if (!q) {
 		return [
 			{ id: 'jump', title: titles.jump, items: jumpTo },
+			{ id: 'actions', title: titles.actions, items: actions || [] },
 			{ id: 'recent', title: titles.recent, items: recent || [] },
 		].filter((group) => group.items.length);
 	}
@@ -33,6 +34,11 @@ export function buildResultGroups(
 	const groups = [
 		{ id: 'jump', title: titles.jump, items: rank(q, jumpTo) },
 		{ id: 'spaces', title: titles.spaces, items: rank(q, spaces) },
+		{
+			id: 'actions',
+			title: titles.actions,
+			items: rank(q, actions || [], { key: 'search' }),
+		},
 		{
 			id: 'pages',
 			title: titles.pages,
