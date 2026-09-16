@@ -359,10 +359,23 @@
                 document.querySelectorAll('[data-toc-link]').forEach(link => {
                     if (link.dataset.tocLink === this.activeId) {
                         link.classList.add('active');
+                        this.keepTocLinkInView(link);
                     } else {
                         link.classList.remove('active');
                     }
                 });
+            },
+
+            // A long TOC overflows its sticky nav, so keep the active link in view.
+            // Scrolled by hand: scrollIntoView would also move the page.
+            keepTocLinkInView(link) {
+                const nav = link.closest('nav');
+                if (!nav) return;
+                if (link.offsetTop < nav.scrollTop) {
+                    nav.scrollTop = link.offsetTop;
+                } else if (link.offsetTop + link.offsetHeight > nav.scrollTop + nav.clientHeight) {
+                    nav.scrollTop = link.offsetTop + link.offsetHeight - nav.clientHeight;
+                }
             },
 
             addAnchorLink(heading) {
