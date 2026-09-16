@@ -62,7 +62,7 @@ OPEN_ROLES = {"Guest", "All"}
 
 
 @frappe.whitelist()
-def get_restricted_spaces(spaces: list | str) -> list[str]:
+def get_restricted_spaces(spaces: list[str]) -> list[str]:
 	"""Return which of `spaces` are readable only by specific roles.
 
 	A space with no role rows is open to every logged-in user, and so is one
@@ -77,8 +77,6 @@ def get_restricted_spaces(spaces: list | str) -> list[str]:
 	Uses `get_list` on Wiki Space first, so spaces the user cannot read are
 	dropped before their role rows are looked at.
 	"""
-	if isinstance(spaces, str):
-		spaces = frappe.parse_json(spaces)
 	if not spaces:
 		return []
 
@@ -112,7 +110,7 @@ IN_REVIEW_CHANGE_REQUEST_STATUSES = ["In Review", "Approved"]
 
 
 @frappe.whitelist()
-def get_space_stats(spaces: list | str) -> dict:
+def get_space_stats(spaces: list[str]) -> dict:
 	"""Directory figures for `spaces`: pages and change requests awaiting review.
 
 	Two grouped queries for a whole page of spaces rather than two per row,
@@ -127,8 +125,6 @@ def get_space_stats(spaces: list | str) -> dict:
 	"""
 	from frappe.query_builder.functions import Count
 
-	if isinstance(spaces, str):
-		spaces = frappe.parse_json(spaces)
 	if not spaces:
 		return {}
 
