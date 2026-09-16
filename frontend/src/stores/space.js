@@ -78,6 +78,11 @@ export const useSpaceStore = defineStore('space', () => {
 	const isReadonly = computed(
 		() => isGitSynced.value || canContribute.value === false,
 	);
+	// Not simply !isReadonly: while the capabilities are pending a space is
+	// neither, and anything that opens a change request must wait for a yes.
+	const canEdit = computed(
+		() => !isGitSynced.value && canContribute.value === true,
+	);
 	const capabilitiesResource = createResource({
 		url: 'wiki.api.get_space_capabilities',
 		onSuccess: (data) => {
@@ -321,6 +326,7 @@ export const useSpaceStore = defineStore('space', () => {
 		canWriteSpace,
 		canContribute,
 		isReadonly,
+		canEdit,
 		selectedPageId,
 		selectedDraftKey,
 		treeData,
