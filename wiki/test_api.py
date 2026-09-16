@@ -896,6 +896,17 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(get_restricted_spaces([space.name]), [])
 
+	def test_an_all_role_is_not_restricted(self):
+		"""frappe.get_roles() returns All for every logged-in user."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space(self)
+		space.append("roles", {"role": "All", "permission_level": "Read"})
+		space.append("roles", {"role": "Wiki Approver", "permission_level": "Write"})
+		space.save()
+
+		self.assertEqual(get_restricted_spaces([space.name]), [])
+
 	def test_role_rows_without_guest_are_restricted(self):
 		from wiki.api.wiki_space import get_restricted_spaces
 
