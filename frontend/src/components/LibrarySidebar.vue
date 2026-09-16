@@ -24,6 +24,15 @@
 					:active="item.routeNames.includes(route.name)"
 					:suffix="item.suffix?.value"
 				/>
+				<SidebarItem
+					:label="__('Search')"
+					icon="lucide-search"
+					@click="openCommandPalette"
+				>
+					<template #suffix>
+						<KeyboardShortcut combo="Mod+K" class="mr-2 text-ink-gray-4" />
+					</template>
+				</SidebarItem>
 
 				<SidebarSection :label="__('Spaces')">
 					<!-- One menu for the whole list: the row writes its own options as it
@@ -104,6 +113,7 @@
 import {
 	Button,
 	ContextMenu,
+	KeyboardShortcut,
 	ScrollArea,
 	Sidebar,
 	SidebarHeader,
@@ -120,6 +130,7 @@ import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useCommandPalette } from '../composables/useCommandPalette';
 import { useSpaceLibrary } from '../composables/useSpaceLibrary';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { useTheme } from '../composables/useTheme';
@@ -131,6 +142,7 @@ const sessionStore = useSessionStore();
 const userStore = useUserStore();
 const { open: openWikiSettings } = useWikiSettings();
 const { open: openSpaceSettings } = useSpaceSettings();
+const { open: openCommandPalette } = useCommandPalette();
 
 const { themeIcon, toggleTheme } = useTheme();
 

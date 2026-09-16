@@ -122,24 +122,24 @@ function startEditing() {
 }
 
 function saveLink() {
-	if (!editUrl.value) {
-		emit('save', '');
+	let url = editUrl.value.trim();
+
+	// Saving '' would leave the text wrapped in a link with no href.
+	if (!url) {
+		emit('remove');
 		return;
 	}
 
-	let url = editUrl.value.trim();
-
 	// Add https:// if no protocol and not a relative URL
 	if (
-		url &&
 		!url.startsWith('/') &&
 		!url.startsWith('#') &&
 		!url.match(/^[a-zA-Z]+:\/\//)
 	) {
-		url = 'https://' + url;
+		url = `https://${url}`;
 	}
 
-	if (url === '' || isValidUrl(url)) {
+	if (isValidUrl(url)) {
 		currentHref.value = url;
 		isEditing.value = false;
 		emit('save', url);
@@ -151,7 +151,7 @@ function cancelEdit() {
 		isEditing.value = false;
 		editUrl.value = currentHref.value;
 	} else {
-		emit('save', '');
+		emit('cancel');
 	}
 }
 

@@ -277,6 +277,7 @@ import MobileAppMenu from '@/components/MobileAppMenu.vue';
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue';
 import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import { useMobile } from '@/composables/useMobile';
+import { useNewSpaceRequest } from '@/composables/useNewSpaceRequest';
 import { useSpaceLibrary } from '@/composables/useSpaceLibrary';
 import { useUserStore } from '@/stores/user';
 import {
@@ -298,13 +299,24 @@ import {
 	ListHeaderCell,
 	ListRow,
 } from 'frappe-ui/list';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const userStore = useUserStore();
 const { isMobile } = useMobile();
 const isManager = computed(() => userStore.isWikiManager);
 
 const showCreateDialog = ref(false);
+
+const { pending: newSpaceRequested, consumeNewSpaceRequest } =
+	useNewSpaceRequest();
+watch(
+	newSpaceRequested,
+	(requested) => {
+		if (!requested || !isManager.value) return;
+		if (consumeNewSpaceRequest()) showCreateDialog.value = true;
+	},
+	{ immediate: true },
+);
 
 // The directory is the one surface that shows the figures, so it is the one
 // that asks for them.
