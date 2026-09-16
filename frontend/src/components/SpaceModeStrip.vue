@@ -49,7 +49,7 @@
 	</div>
 
 	<div
-		v-else-if="crStore.isChangeRequestMode && !spaceStore.isReadonly"
+		v-else-if="crStore.isChangeRequestMode && spaceStore.canEdit"
 		class="contribution-strip shrink-0 px-2 pt-2"
 	>
 		<!-- 260px does not fit a label and two buttons on one line, so the meta
