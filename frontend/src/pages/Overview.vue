@@ -317,7 +317,7 @@ const {
 	isEmptyWiki,
 	restrictedSpaces,
 	isPinned,
-} = useSpaceLibrary({ withStats: true });
+} = useSpaceLibrary({ withStats: true, initialPublishState: 'published' });
 
 const publishOptions = [
 	{ label: __('All'), value: 'all' },

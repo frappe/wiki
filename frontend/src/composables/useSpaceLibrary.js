@@ -38,6 +38,7 @@ export function useSpaceLibrary({
 	limit = PAGE_SIZE,
 	orderBy = RECENT_ORDER,
 	publishedOnly,
+	initialPublishState = 'all',
 	withStats = false,
 } = {}) {
 	const { pinnedSpaces, isPinned, togglePin } = usePinnedSpaces();
@@ -45,7 +46,7 @@ export function useSpaceLibrary({
 	// 'all' | 'published' | 'unpublished'. Server-side, like the search term:
 	// filtering the rows already fetched would make "Load more" page through a
 	// list the user is not looking at.
-	const publishState = ref('all');
+	const publishState = ref(initialPublishState);
 
 	const searchQuery = ref('');
 	const searchTerm = ref('');
@@ -115,13 +116,19 @@ export function useSpaceLibrary({
 	// "This wiki has no spaces", not "this filter found none" -- the distinction
 	// matters because the empty-wiki state replaces the whole page, controls
 	// included, so claiming it while a filter is on strands the user with no way
-	// back to the list.
+	// back to the list. The filter need not start at 'all', so an empty list is
+	// only a hint, confirmed by the unfiltered count.
+	const totalSpaces = createResource({ url: 'frappe.client.get_count' });
+	const hasNoRows = computed(
+		() => !spaces.loading && !(spaces.data || []).length,
+	);
+	watch(hasNoRows, (empty) => {
+		if (!empty || searchTerm.value) return;
+		totalSpaces.reset();
+		totalSpaces.fetch({ doctype: 'Wiki Space' });
+	});
 	const isEmptyWiki = computed(
-		() =>
-			!spaces.loading &&
-			!searchTerm.value &&
-			publishState.value === 'all' &&
-			!(spaces.data || []).length,
+		() => hasNoRows.value && !searchTerm.value && totalSpaces.data === 0,
 	);
 
 	// Restricted means "readable only by specific roles" — the backend works that
