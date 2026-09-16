@@ -267,6 +267,10 @@ class WikiSpace(Document):
 		clear_website_cache()
 		frappe.db.after_commit.add(clear_website_cache)
 
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+		clear_wiki_tree_cache()
+
 		return {"updated_count": updated_count}
 
 	def _batch_update_document_routes(self, doc_names: list, old_route: str, new_route: str) -> int:
