@@ -328,7 +328,7 @@ const actionItems = computed(() => [
 				},
 			]
 		: []),
-	...(currentSpace.value
+	...(currentSpace.value && spaceStore.canWriteSpace
 		? [
 				{
 					key: 'space-settings',

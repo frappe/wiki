@@ -69,6 +69,9 @@ test('a reader who cannot contribute gets the read-only tree, not a dead New pag
 	await expect(palette.getByRole('combobox')).toBeFocused();
 	await expect(palette.getByRole('option', { name: 'New page' })).toBeHidden();
 	await expect(
+		palette.getByRole('option', { name: 'Space settings' }),
+	).toBeHidden();
+	await expect(
 		palette.getByRole('option', { name: 'Toggle theme' }),
 	).toBeVisible();
 
