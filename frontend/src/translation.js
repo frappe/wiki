@@ -1,15 +1,27 @@
 import { frappeRequest } from 'frappe-ui';
 
+const TRANSLATION_LOAD_TIMEOUT = 10_000;
+
 export async function loadTranslations() {
 	if (window.translatedMessages) return;
 
+	const controller = new AbortController();
+	const timeoutId = window.setTimeout(
+		() => controller.abort(),
+		TRANSLATION_LOAD_TIMEOUT,
+	);
+
 	try {
-		window.translatedMessages = await frappeRequest({
-			url: 'wiki.api.get_translations',
-		});
+		window.translatedMessages =
+			(await frappeRequest({
+				url: 'wiki.api.get_translations',
+				signal: controller.signal,
+			})) || {};
 	} catch (error) {
-		console.error('Failed to load translations', error);
+		console.warn('Unable to load translations; using source messages.', error);
 		window.translatedMessages = {};
+	} finally {
+		window.clearTimeout(timeoutId);
 	}
 }
 

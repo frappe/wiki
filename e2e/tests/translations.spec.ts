@@ -2,6 +2,7 @@ import { expect, test } from '../fixtures';
 import { APP_BASE } from '../helpers/routes';
 
 const TRANSLATIONS_URL = '**/api/method/wiki.api.get_translations';
+const TRANSLATION_LOAD_TIMEOUT = 10_000;
 
 test.describe('Translations', () => {
 	test('loads translations before the first render', async ({ page }) => {
@@ -63,6 +64,23 @@ test.describe('Translations', () => {
 		);
 
 		await page.goto(APP_BASE);
+
+		await expect(
+			page.getByRole('link', { name: 'Spaces', exact: true }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('link', { name: 'Change Requests', exact: true }),
+		).toBeVisible();
+	});
+
+	test('falls back to source strings when translations stall', async ({
+		page,
+	}) => {
+		await page.clock.install();
+		await page.route(TRANSLATIONS_URL, () => {});
+
+		await page.goto(APP_BASE);
+		await page.clock.fastForward(TRANSLATION_LOAD_TIMEOUT);
 
 		await expect(
 			page.getByRole('link', { name: 'Spaces', exact: true }),
