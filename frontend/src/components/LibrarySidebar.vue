@@ -33,10 +33,6 @@
 					:collapsed="group.key === 'unpublished' && unpublishedCollapsed"
 					@update:collapsed="unpublishedCollapsed = $event"
 				>
-					<!-- One menu per section: the row writes its own options as it is
-					     right-clicked, before the menu opens, so there is no
-					     ContextMenu instance per space. The trigger is `as-child`, so the
-					     rows need the one wrapping root. -->
 					<ContextMenu :options="spaceMenu">
 						<div class="flex flex-col gap-0.5">
 							<SidebarItem
