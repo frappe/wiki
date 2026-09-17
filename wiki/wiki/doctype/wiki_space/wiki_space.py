@@ -55,6 +55,8 @@ class WikiSpace(Document):
 
 	def before_insert(self):
 		self.create_root_group()
+		# The root group's stamp runs before this space exists, so it misses.
+		self.last_edited = frappe.utils.now()
 
 	def validate(self):
 		self.remove_leading_slash_from_route()

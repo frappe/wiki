@@ -363,6 +363,12 @@ class TestSpaceLastEdited(WikiDocumentTestBase):
 	def last_edited(self, space):
 		return frappe.db.get_value("Wiki Space", space.name, "last_edited")
 
+	def test_a_new_space_is_stamped(self):
+		"""An empty space would otherwise sort below every other one in the sidebar."""
+		space = self.wiki.space()
+
+		self.assertIsNotNone(self.last_edited(space))
+
 	def test_saving_a_page_stamps_the_space(self):
 		space = self.wiki.space(pages=[{"title": "First Page"}])
 		before = self.last_edited(space)
