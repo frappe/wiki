@@ -4,8 +4,6 @@
 
 import frappe
 
-from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import ensure_web_page_view_index
-
 
 def after_install():
 	# create the wiki space
@@ -21,5 +19,3 @@ def after_install():
 	page.title = "Welcome to Frappe Wiki"
 	page.content = "# Welcome to Frappe Wiki!"
 	page.insert()
-
-	ensure_web_page_view_index()

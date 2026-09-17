@@ -149,8 +149,8 @@ default_log_clearing_doctypes = {
 
 scheduler_events = {
 	"cron": {
-		"*/15 * * * *": [
-			"wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily.roll_up_recent_days",
+		"*/10 * * * *": [
+			"wiki.analytics_store.ingest_recent_views",
 		],
 	},
 }

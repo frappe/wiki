@@ -1,29 +1,18 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from urllib.parse import urlparse
 
 import frappe
 from frappe import _
-from frappe.query_builder import Criterion
-from frappe.query_builder.functions import Count, DateFormat, Sum
+from frappe.query_builder.functions import Count
 from frappe.utils import add_months, date_diff, get_url, getdate
-from frappe.utils.caching import redis_cache
 
+from wiki import analytics_store as store
 from wiki.permissions import _is_manager, can_write_space
 
 MAX_RANGE_DAYS = 400
 TOP_LIMIT = 20
 OVERVIEW_LIMIT = 5
 OPEN_CHANGE_REQUEST_STATUSES = ("In Review", "Changes Requested", "Approved")
-# The rollup job clears the cache after each run, so this only bounds how long an unused entry lives.
-CACHE_SECONDS = 15 * 60
-
-# Never built from user input: the key is validated against this map.
-INTERVAL_FORMATS = {
-	"daily": "%Y-%m-%d",
-	# ISO year and week, turned back into the Monday that starts the week.
-	"weekly": "%x-%v",
-	"monthly": "%Y-%m",
-}
 
 
 @frappe.whitelist()
@@ -36,11 +25,8 @@ def get_analytics(
 ) -> dict:
 	"""Page view numbers over an inclusive date range, wiki-wide or for one space or page."""
 	start, end = _validate_range(from_date, to_date, interval)
-	# Access is checked on every call; only the counting below is cached.
 	routes, is_page = _scope_routes(space, document)
-	# Referrers from the host the dashboard is served on are navigation, so the host is part of the key.
 	result = count_views(start, end, interval, tuple(routes), is_page, urlparse(get_url()).netloc)
-	# Outside the cache: turning tracking on must hide the notice on the next load.
 	return {**result, "tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking"))}
 
 
@@ -53,9 +39,8 @@ def get_overview(from_date: str, to_date: str) -> dict:
 	previous_end = start - timedelta(days=1)
 	previous_start = previous_end - (end - start)
 
-	current = count_views_by_path(start, end)
-	previous = count_views_by_path(previous_start, previous_end)
-	# Resolved outside the cache, so a renamed space shows its new name straight away.
+	current = store.views_by_path(start, end)
+	previous = store.views_by_path(previous_start, previous_end)
 	spaces = frappe.get_all(
 		"Wiki Space",
 		filters={"route": ("is", "set")},
@@ -76,18 +61,6 @@ def get_overview(from_date: str, to_date: str) -> dict:
 		"open_change_requests_by_space": open_change_requests,
 		"tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking")),
 	}
-
-
-@redis_cache(ttl=CACHE_SECONDS)
-def count_views_by_path(start: date, end: date) -> dict[str, tuple[int, int]]:
-	view = frappe.qb.DocType("Wiki Page View Daily")
-	rows = (
-		frappe.qb.from_(view)
-		.select(view.path, Sum(view.views), Sum(view.new_visitors))
-		.where(view.date[start:end])
-		.groupby(view.path)
-	).run()
-	return {path: (int(views), int(new)) for path, views, new in rows if path}
 
 
 def _space_resolver(spaces: list[dict]):
@@ -181,36 +154,26 @@ def enable_view_tracking() -> None:
 	settings.save(ignore_permissions=True)
 
 
-@redis_cache(ttl=CACHE_SECONDS)
 def count_views(
 	start: date, end: date, interval: str, routes: tuple[str, ...], is_page: bool, own_host: str
 ) -> dict:
-	# Raw Web Page View rows are never read here: counting distinct visitors over them took
-	# 83s at a million rows (see the phase 4 benchmark in specs/page_view_analytics.md).
-	view = frappe.qb.DocType("Wiki Page View Daily")
-	in_range = view.date[start:end]
-	paths = routes if is_page else _paths_under(view, routes)
-	# An empty IN () is invalid SQL, and no path means nothing to count.
-	in_scope = Criterion.all([in_range, view.path.isin(paths) if paths else view.name.isnull()])
-
-	total_views, new_visitors = (
-		frappe.qb.from_(view).select(Sum(view.views), Sum(view.new_visitors)).where(in_scope)
-	).run()[0]
+	paths = tuple(routes) if is_page else tuple(_paths_under(routes))
+	total_views, new_visitors = store.totals(start, end, paths)
 
 	result = {
-		"total_views": int(total_views or 0),
-		"new_visitors": int(new_visitors or 0),
-		"series": _series(view, in_scope, start, end, interval),
-		"top_referrers": _top_referrers(view, in_scope, own_host),
+		"total_views": total_views,
+		"new_visitors": new_visitors,
+		"series": _series(start, end, paths, interval),
+		"top_referrers": _top_referrers(start, end, paths, own_host),
 	}
 	if not is_page:
-		result["top_pages"] = _top_pages(view, in_scope)
+		result["top_pages"] = _top_pages(start, end, paths)
 	return result
 
 
 def _validate_range(from_date: str, to_date: str, interval: str) -> tuple[date, date]:
-	if interval not in INTERVAL_FORMATS:
-		frappe.throw(_("Interval must be one of {0}").format(", ".join(INTERVAL_FORMATS)))
+	if interval not in store.INTERVALS:
+		frappe.throw(_("Interval must be one of {0}").format(", ".join(store.INTERVALS)))
 
 	start, end = getdate(from_date), getdate(to_date)
 	if end < start:
@@ -248,17 +211,14 @@ def _check_space_access(space) -> None:
 		frappe.throw(_("Not permitted to view analytics for this space"), frappe.PermissionError)
 
 
-def _paths_under(view, routes: list[str]) -> list[str]:
+def _paths_under(routes: tuple[str, ...]) -> list[str]:
 	"""Logged paths that are a route or sit below one.
 
-	Matched in Python on the few distinct paths: wiki-wide, one `path = route OR path LIKE
-	'route/%'` pair per space took 570ms at only 20k rows with 288 spaces.
+	Matched in Python on the few distinct paths: one `path = route OR path LIKE 'route/%'`
+	pair per space is 576 conditions on a 288 space wiki, checked against every row.
 	"""
 	route_set = set(routes)
-	# No date filter: DISTINCT path alone is a loose index scan (5ms against 380ms with the range),
-	# and the caller's range still applies to the counts.
-	paths = frappe.qb.from_(view).select(view.path).distinct().run(pluck=True)
-	return [path for path in paths if path and _has_prefix_in(path, route_set)]
+	return [path for path in store.known_paths() if _has_prefix_in(path, route_set)]
 
 
 def _has_prefix_in(path: str, routes: set[str]) -> bool:
@@ -267,30 +227,14 @@ def _has_prefix_in(path: str, routes: set[str]) -> bool:
 	return any("/".join(parts[:depth]) in routes for depth in range(1, len(parts) + 1))
 
 
-def _series(view, in_scope, start: date, end: date, interval: str) -> list[dict]:
-	bucket = DateFormat(view.date, INTERVAL_FORMATS[interval])
-	rows = (
-		frappe.qb.from_(view)
-		.select(bucket.as_("bucket"), Sum(view.views), Sum(view.new_visitors))
-		.where(in_scope)
-		.groupby(bucket)
-	).run()
-	counts = {_bucket_start(key, interval): (int(views), int(new)) for key, views, new in rows}
-
+def _series(start: date, end: date, paths: tuple[str, ...], interval: str) -> list[dict]:
+	counts = store.series(start, end, paths, interval)
 	# Empty buckets are filled so a chart draws zero instead of a line across the gap.
 	series = []
 	for day in _bucket_starts(start, end, interval):
 		views, new = counts.get(day, (0, 0))
 		series.append({"date": day, "views": views, "new_visitors": new})
 	return series
-
-
-def _bucket_start(key: str, interval: str) -> date:
-	if interval == "weekly":
-		return datetime.strptime(f"{key}-1", "%G-%V-%u").date()
-	if interval == "monthly":
-		return datetime.strptime(key, "%Y-%m").date()
-	return datetime.strptime(key, "%Y-%m-%d").date()
 
 
 def _bucket_starts(start: date, end: date, interval: str):
@@ -310,22 +254,13 @@ def _bucket_starts(start: date, end: date, interval: str):
 			day = getdate(add_months(day, 1))
 
 
-def _top_pages(view, in_scope) -> list[dict]:
-	views = Sum(view.views).as_("views")
-	rows = (
-		frappe.qb.from_(view)
-		.select(view.path, views)
-		.where(in_scope)
-		.groupby(view.path)
-		.orderby(views, order=frappe.qb.desc)
-		.limit(TOP_LIMIT)
-	).run(as_dict=True)
-
-	titles = _page_titles([row.path for row in rows])
+def _top_pages(start: date, end: date, paths: tuple[str, ...]) -> list[dict]:
+	rows = store.top_paths(start, end, paths, TOP_LIMIT)
+	titles = _page_titles([path for path, _views in rows])
 	top_pages = []
-	for row in rows:
-		document, title = titles.get(row.path, (None, None))
-		top_pages.append({"path": row.path, "document": document, "title": title, "views": int(row.views)})
+	for path, views in rows:
+		document, title = titles.get(path, (None, None))
+		top_pages.append({"path": path, "document": document, "title": title, "views": views})
 	return top_pages
 
 
@@ -348,15 +283,7 @@ def _page_titles(paths: list[str]) -> dict[str, tuple[str | None, str]]:
 	return documents
 
 
-def _top_referrers(view, in_scope, own_host: str) -> list[dict]:
-	views = Sum(view.views).as_("views")
-	rows = (
-		frappe.qb.from_(view)
-		.select(view.referrer_host, views)
-		# Moving between pages of this site is navigation, not a referral.
-		.where(in_scope & (view.referrer_host != own_host))
-		.groupby(view.referrer_host)
-		.orderby(views, order=frappe.qb.desc)
-		.limit(TOP_LIMIT)
-	).run()
-	return [{"referrer": host or None, "views": int(views)} for host, views in rows]
+def _top_referrers(start: date, end: date, paths: tuple[str, ...], own_host: str) -> list[dict]:
+	# Moving between pages of this site is navigation, not a referral, so own_host is dropped.
+	rows = store.top_referrers(start, end, paths, own_host, TOP_LIMIT)
+	return [{"referrer": host or None, "views": views} for host, views in rows]

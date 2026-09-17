@@ -2,7 +2,7 @@
 # See license.txt
 
 """
-Timing for the page view rollup and wiki.api.analytics.get_analytics against a large
+Timing for the DuckDB mirror and wiki.api.analytics.get_analytics against a large
 Web Page View table.
 
 Not part of the test suite. It inserts rows into the site it runs on and deletes
@@ -12,14 +12,15 @@ files need free space on the database disk: about 300MB per million rows.
     bench --site <site> execute wiki.benchmarks.page_view_analytics.run --kwargs "{'rows': 1_000_000}"
 """
 
+import os
 import time
 from statistics import median, quantiles
 
 import frappe
 from frappe.utils import add_days, get_url, nowdate
 
+from wiki import analytics_store as store
 from wiki.api import analytics
-from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_days
 
 NAME_PREFIX = "bench-pv-"
 DAYS = 180
@@ -31,7 +32,7 @@ TIMED_HELPERS = ("_series", "_top_pages", "_top_referrers")
 
 
 def run(rows: int = 1_000_000, keep: bool = False, reuse: bool = False) -> None:
-	"""`reuse` times the rows a previous `keep` run left behind, skipping the slow seed and rollup."""
+	"""`reuse` times the rows a previous `keep` run left behind, skipping the slow seed and mirror."""
 	frappe.set_user("Administrator")
 	if not reuse:
 		delete_rows()
@@ -40,11 +41,11 @@ def run(rows: int = 1_000_000, keep: bool = False, reuse: bool = False) -> None:
 			seconds = seed(rows)
 			print(f"Seeded {rows:,} rows in {seconds:.0f}s over {DAYS} days", flush=True)
 			started = time.perf_counter()
-			roll_up_days(seeded_days(), commit_each=True)
-			print(f"Rolled up in {time.perf_counter() - started:.0f}s", flush=True)
+			mirrored = store.rebuild()
+			print(f"Mirrored {mirrored:,} rows in {time.perf_counter() - started:.0f}s", flush=True)
 		print(
 			f"Spaces: {frappe.db.count('Wiki Space'):,}, pages: {frappe.db.count('Wiki Document'):,}, "
-			f"rollup rows: {frappe.db.count('Wiki Page View Daily'):,}",
+			f"mirror size: {os.path.getsize(store.database_path()) / 1024**2:.0f}MB",
 			flush=True,
 		)
 		print_table(scenarios())
@@ -58,10 +59,12 @@ def seed(rows: int) -> float:
 	started = time.perf_counter()
 	frappe.db.sql("DROP TEMPORARY TABLE IF EXISTS bench_paths")
 	frappe.db.sql(
+		# `Web Page View.path` is varchar(140), and a deep enough page route outgrows it.
+		# Those routes are dropped rather than truncated, so the seeded paths stay real.
 		"""CREATE TEMPORARY TABLE bench_paths (idx INT PRIMARY KEY, path VARCHAR(140))
 		SELECT ROW_NUMBER() OVER (ORDER BY route) - 1 AS idx, route AS path
-		FROM (SELECT route FROM `tabWiki Document` WHERE route IS NOT NULL
-			UNION SELECT route FROM `tabWiki Space` WHERE route IS NOT NULL) routes"""
+		FROM (SELECT route FROM `tabWiki Document` WHERE CHAR_LENGTH(route) BETWEEN 1 AND 140
+			UNION SELECT route FROM `tabWiki Space` WHERE CHAR_LENGTH(route) BETWEEN 1 AND 140) routes"""
 	)
 	paths = frappe.db.sql("SELECT COUNT(*) FROM bench_paths")[0][0]
 	own_url = get_url()
@@ -138,20 +141,14 @@ def time_scenario(kwargs: dict) -> dict[str, list[float]]:
 	try:
 		for name in TIMED_HELPERS:
 			setattr(analytics, name, timed(name))
-		analytics.count_views.clear_cache()
-		analytics.get_analytics(**kwargs)  # warm up the buffer pool
+		analytics.get_analytics(**kwargs)  # warm up the page cache
 		timings = {"total": []}
 		for _ in range(RUNS):
-			# Time the queries, not a Redis read.
-			analytics.count_views.clear_cache()
 			started = time.perf_counter()
 			analytics.get_analytics(**kwargs)
 			timings["total"].append(time.perf_counter() - started)
 			if sum(timings["total"]) > BUDGET_SECONDS:
 				break
-		started = time.perf_counter()
-		analytics.get_analytics(**kwargs)
-		timings["cached"] = [time.perf_counter() - started]
 	finally:
 		for name, original in originals.items():
 			setattr(analytics, name, original)
@@ -159,7 +156,7 @@ def time_scenario(kwargs: dict) -> dict[str, list[float]]:
 
 
 def print_table(cases: list[tuple[str, dict]]) -> None:
-	columns = ["total", *TIMED_HELPERS, "cached"]
+	columns = ["total", *TIMED_HELPERS]
 	print(f"\n{'scenario':<34}" + "".join(f"{c + ' p50/p95 ms':>30}" for c in columns), flush=True)
 	for label, kwargs in cases:
 		timings = time_scenario(kwargs)
@@ -181,5 +178,5 @@ def seeded_days() -> list:
 def delete_rows() -> None:
 	frappe.db.sql("DELETE FROM `tabWeb Page View` WHERE name LIKE %s", f"{NAME_PREFIX}%")
 	frappe.db.commit()  # nosemgrep: cleanup must persist even when the run fails
-	# Rolling the days up again leaves only the rollup of the site's real views.
-	roll_up_days(seeded_days(), commit_each=True)
+	# Rebuilding leaves the mirror holding only the site's real views.
+	store.rebuild()

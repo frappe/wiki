@@ -4,14 +4,9 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from wiki.api.analytics import (
-	count_views,
-	count_views_by_path,
-	enable_view_tracking,
-	get_analytics,
-	get_overview,
-)
-from wiki.frappe_wiki.doctype.wiki_page_view_daily.wiki_page_view_daily import roll_up_day
+from wiki import analytics_store as store
+from wiki.api import analytics
+from wiki.api.analytics import enable_view_tracking
 from wiki.tests.factory import WikiFixtures, unique_route
 
 READER_ROLE = "_Test Analytics Reader"
@@ -34,9 +29,18 @@ def _log_view(path: str, creation: str, visitor_id: str | None = None, referrer:
 		{"doctype": "Web Page View", "path": path, "visitor_id": visitor_id, "referrer": referrer}
 	).insert(ignore_permissions=True)
 	frappe.db.set_value("Web Page View", view.name, "creation", creation, update_modified=False)
-	roll_up_day(frappe.utils.getdate(creation))
-	# The rollup clears the cache on commit, and tests never commit.
-	frappe.db.after_commit.run()
+
+
+def get_analytics(*args, **kwargs):
+	# Rebuilt rather than ingested: these rows are backdated, so they sit behind the
+	# high-water mark an incremental ingest starts from. Once per call, not per logged view.
+	store.rebuild()
+	return analytics.get_analytics(*args, **kwargs)
+
+
+def get_overview(*args, **kwargs):
+	store.rebuild()
+	return analytics.get_overview(*args, **kwargs)
 
 
 class TestGetAnalytics(IntegrationTestCase):
@@ -60,11 +64,10 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		# tearDown commits, so a test that flips tracking must not leave it flipped.
 		frappe.db.set_single_value("Website Settings", "enable_view_tracking", self.tracking_before)
-		count_views.clear_cache()
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
-		frappe.db.delete("Wiki Page View Daily", {"path": ("like", "analytics%")})
 		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
+		store.rebuild()
 
 	def test_counts_the_space_route_and_its_pages_only(self):
 		_log_view(self.route, "2026-03-10 09:00:00")
@@ -246,31 +249,6 @@ class TestGetAnalytics(IntegrationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			get_analytics("2026-03-01", "2026-03-31", space=self.space.name, document=page.name)
 
-	def test_results_are_cached_until_a_rollup_commits(self):
-		_log_view(f"{self.route}/a", "2026-03-10 09:00:00")
-		self.assertEqual(get_analytics(**self.march)["total_views"], 1)
-
-		view = frappe.get_doc({"doctype": "Web Page View", "path": f"{self.route}/a"}).insert(
-			ignore_permissions=True
-		)
-		frappe.db.set_value(
-			"Web Page View", view.name, "creation", "2026-03-10 10:00:00", update_modified=False
-		)
-		roll_up_day(frappe.utils.getdate("2026-03-10"))
-		# Rolled up but not committed: a request now must not see, or cache, the new rows.
-		self.assertEqual(get_analytics(**self.march)["total_views"], 1)
-
-		frappe.db.after_commit.run()
-		self.assertEqual(get_analytics(**self.march)["total_views"], 2)
-
-	def test_cached_results_still_check_access(self):
-		frappe.set_user(self.writer)
-		get_analytics(**self.march)
-
-		frappe.set_user(self.reader)
-		with self.assertRaises(frappe.PermissionError):
-			get_analytics(**self.march)
-
 
 class TestGetOverview(IntegrationTestCase):
 	def setUp(self):
@@ -284,11 +262,10 @@ class TestGetOverview(IntegrationTestCase):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
-		count_views_by_path.clear_cache()
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
-		frappe.db.delete("Wiki Page View Daily", {"path": ("like", "analytics%")})
 		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
+		store.rebuild()
 
 	def test_compares_each_number_against_the_previous_window(self):
 		for hour in (9, 10):

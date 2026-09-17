@@ -10,6 +10,7 @@ dynamic = ["version"]
 dependencies = [
     "markdown-it-py>=3.0",
     "mdit-py-plugins>=0.4",
+    "duckdb>=1.4.3,<2",
 ]
 
 [project.urls]
