@@ -26,3 +26,4 @@ execute:frappe.db.set_single_value('Wiki Settings', 'auto_generate_meta_images',
 execute:from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache; clear_wiki_content_cache() #2026-07-28-blank-lines
 wiki.patches.remove_stale_spa_entry
 wiki.wiki.doctype.wiki_space.patches.backfill_last_edited
+wiki.patches.update_desktop_icon_link
