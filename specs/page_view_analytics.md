@@ -224,7 +224,8 @@ Taken 2026-09-13.
 3. Space and page analytics are visible to space writers (`can_write_space`), not readers.
 4. (2026-09-13, after the phase 4 benchmark) Numbers come from a rollup table. Distinct visitors cannot be summed across days or pages, so the metric is **new visitors**: views that were a visitor's first logged view on the site. It is computed by the rollup job, not taken from Frappe's `is_unique`.
 5. (2026-09-13) The `hourly` interval is dropped with the move to a daily rollup.
-6. (2026-09-14) Wiki-wide over 180 days still took 1.7s at 1M views on the benchmark machine, so analytics responses are cached for 15 minutes rather than tuning the rollup further. The first load of a range pays the full cost.
+6. ~~(2026-09-14) Wiki-wide over 180 days still took 1.7s at 1M views on the benchmark machine, so analytics responses are cached for 15 minutes rather than tuning the rollup further. The first load of a range pays the full cost.~~ Replaced by decision 7.
+7. (2026-09-18) The numbers come from a DuckDB mirror of `Web Page View`, not a MariaDB rollup. The rollup, the two indexes it needed and the response cache all existed to work around MariaDB's cost for columnar counting; DuckDB does that work in ~240ms for the worst scope at 1M views, so all of it is deleted and responses are live. `new visitors` stays the metric, now a column derived once per ingest rather than a figure the rollup job computed. See [Phase 8](#phase-8-duckdb-replaces-the-rollup-2026-09-18).
 
 ## Progress
 
@@ -444,3 +445,109 @@ Target: the Overview mock from the team call. A header with 7/30/90 day tabs, a 
 - `test_analytics.py`, 21 cases. New: only open statuses count, rows group by space, and the card total matches the breakdown.
 - `analytics-dashboard.spec.ts`, 4 tests pass. The Overview stub carries the new keys and checks the card and the donut legend.
 - Screenshot of Overview at 1400px on local data: 61 open change requests over many test spaces, the tail grouped as Others.
+
+### Phase 8: DuckDB replaces the rollup (2026-09-18)
+
+Phase 4 chose a MariaDB rollup and phase 6 added a 15 minute response cache, because wiki-wide
+over 180 days still took 1.7s at 1M views. Both were working around the same thing: the numbers
+are columnar work, and MariaDB row storage does it badly enough to need a derived table, a
+covering index, a second index on the log and a cache in front. DuckDB does that work directly,
+so the derived table and its scaffolding go.
+
+#### Built
+
+- `wiki/analytics_store.py`: a DuckDB mirror of `Web Page View` at
+  `sites/<site>/wiki_analytics.duckdb`, plus every aggregate the dashboard runs. MariaDB stays
+  the source of truth; the file is derived and can be deleted at any time.
+- `ingest` appends rows from the newest second already mirrored, paged 20k on `(creation, name)`.
+  The boundary second is re-read rather than skipped: `Web Page View` names are random, so a row
+  logged in the same second as the high-water mark can sort before it, and paging past it would
+  lose the row. Re-offered rows cost a primary key conflict. Cron every 10 minutes.
+- `rebuild` drops and refills the mirror. Needed whenever rows are backdated, which the ingest
+  path cannot see: backfills and tests.
+- `referrer_host` and `is_new_visitor` live in a second DuckDB table, `page_views`, rebuilt from
+  the mirror at the end of every ingest. They started as a view, which was wrong: `is_new_visitor`
+  ranks a visitor's views against the whole log, so DuckDB could not filter by date before
+  computing it and re-sorted every mirrored row on every query. The first benchmark showed it
+  plainly, with wiki-wide over 30 days costing the same as 180 days (937ms against 942ms) and one
+  page costing nearly as much as the whole wiki (639ms). Deriving once per ingest moves that work
+  off the request. It is rebuilt wholesale rather than patched, so a late or backdated row needs
+  no correction, which is what the stored flag on the old rollup did need.
+- `wiki/api/analytics.py` keeps its whole public surface: access checks, range validation, space
+  resolution, titles and change requests are unchanged, and only the counting moved to the store.
+  The frontend and its e2e specs are untouched.
+
+#### Deleted
+
+- `Wiki Page View Daily` DocType, `roll_up_day`/`roll_up_days`/`roll_up_recent_days`/
+  `roll_up_all_logged_days`, and `test_wiki_page_view_daily.py`.
+- The `analytics_covering_index` on the rollup, the `(visitor_id, creation)` index on
+  `Web Page View` that only the rollup's first-view self-join needed, and `ensure_web_page_view_index`
+  from `after_install`.
+- The `@redis_cache` on `count_views` and `count_views_by_path`, and the `after_commit` cache
+  clearing wired into the rollup. The cache existed to hide the rollup's cost (decision 6); at
+  ~240ms for the worst scope the benchmark no longer justifies it, so the numbers are live.
+- `INTERVAL_FORMATS` and `_bucket_start`: DuckDB's `date_trunc` returns the bucket's start date
+  already, and truncates weeks to Monday as ISO weeks do.
+- `wiki.patches.backfill_page_view_rollup`, with nothing put in its place. The rollup was added
+  on this branch and never released, so no site outside it has the DocType or the index to be
+  migrated away from, and a patch for that state would be dead weight from the day it landed. A
+  site that ran this branch can drop `tabWiki Page View Daily` and the `visitor_id_creation_index`
+  on `Web Page View` by hand; nothing reads either.
+
+#### New dependency
+
+`duckdb>=1.4.3,<2`. Builder already ships it, and 1.4.3 has wheels for the Python 3.14 this app
+requires. `pandas` is deliberately not added: builder needs it only for its first full snapshot,
+and the paged insert here covers the initial build with the same code path.
+
+#### Benchmark
+
+Same machine and 128MB `innodb_buffer_pool_size` as phase 4, 1M views seeded over 180 days, 296
+spaces and 1,951 pages. The mirror holds 1,008,174 rows in 114MB, against the rollup's 236MB.
+
+Per query, wiki-wide, at 1M rows (p50):
+
+| Query | Rollup (phase 4) | DuckDB, derived in a view | DuckDB, derived at ingest |
+|---|---|---|---|
+| series | 527 | 210 | 35 |
+| top pages | 324 | 217 | 41 |
+| top referrers | 614 | 291 | 36 |
+| totals | - | - | 32 |
+| **whole request, 180 days** | **1,699** | **942** | **~240** |
+| whole request, 30 days | 421 | 937 | ~215 |
+
+The middle column is why the derived columns moved out of the view: its 30 day and 180 day numbers
+are the same, because the window ran over every mirrored row before any date filter could apply.
+
+`rebuild` of 1M rows takes 151s; the `DERIVE` step inside it takes 0.62s, which is what each
+scheduled ingest pays on top of copying new rows.
+
+#### Verified
+
+- `wiki/tests/test_analytics_store.py`, 12 new cases: a visitor counted new once across pages and
+  days; a visitor whose first view predates the range counted as returning inside it; missing and
+  empty visitor ids never new; same-second views yielding exactly one first view; an inclusive
+  range at both ends; referrer hosts keeping the port and falling back to empty for non-URLs;
+  the own host dropped; weekly buckets starting on Monday; an empty scope counting nothing; a row
+  logged in the same second as the high-water mark still picked up by `ingest`; a backdated row
+  invisible to `ingest` but picked up by `rebuild`; and an ingest deriving again when the derived
+  table is short, which is the state an upgrade leaves behind.
+- `wiki/api/test_analytics.py`, 19 cases, all passing unchanged apart from the two that covered the
+  removed cache. Scope, permission, title, bucket and delta behaviour is untouched.
+- Both suites run green: 12 cases in 95s and 19 in 111s. They are slow because each assertion
+  rebuilds the mirror from the whole of the dev site's log; the scheduled path does not.
+- Mutation check: dropping the `visitor_id <> ''` guard, making the range end exclusive, keeping the
+  whole referrer URL instead of the host, truncating weeks to days, paging past the boundary second
+  in `ingest`, and keeping the own host in referrers each fail at least one test.
+- The frontend is untouched: `get_analytics` and `get_overview` return the same keys, and the e2e
+  specs stub those calls.
+
+#### Known gaps
+
+- `rebuild` copies what MariaDB still holds, so running it after the log has been trimmed by
+  retention discards mirrored history older than the trim. `ingest` is additive and does not.
+- A long `rebuild` holds DuckDB's exclusive write lock, and readers retry for about 2s before
+  raising. Backfills on a large log should run out of hours.
+- The mirror is a file in the site directory, so a database-only backup does not include it. It is
+  derived: after a restore the next ingest refills it from an empty table.
