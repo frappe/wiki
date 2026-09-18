@@ -144,13 +144,20 @@ def _open_change_requests_by_space() -> list[dict]:
 	).run(as_dict=True)
 
 
+@frappe.whitelist()
+def get_view_tracking() -> bool:
+	if not _is_manager():
+		frappe.throw(_("Not permitted to read the page view tracking setting"), frappe.PermissionError)
+	return bool(frappe.get_website_settings("enable_view_tracking"))
+
+
 @frappe.whitelist(methods=["POST"])
-def enable_view_tracking() -> None:
+def set_view_tracking(enabled: bool = True) -> None:
 	# One switch for the whole site, so it is not a space writer's to flip.
 	if not _is_manager():
-		frappe.throw(_("Not permitted to turn on page view tracking"), frappe.PermissionError)
+		frappe.throw(_("Not permitted to change page view tracking"), frappe.PermissionError)
 	settings = frappe.get_single("Website Settings")
-	settings.enable_view_tracking = 1
+	settings.enable_view_tracking = int(enabled)
 	settings.save(ignore_permissions=True)
 
 

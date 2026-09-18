@@ -21,7 +21,7 @@
 			variant="solid"
 			:label="__('Turn on tracking')"
 			:loading="enableTracking.loading"
-			@click="enableTracking.submit()"
+			@click="enableTracking.submit({ enabled: true })"
 		/>
 	</div>
 </template>
@@ -36,7 +36,7 @@ const emit = defineEmits(['enabled']);
 const isManager = computed(() => useUserStore().isWikiManager);
 
 const enableTracking = createResource({
-	url: 'wiki.api.analytics.enable_view_tracking',
+	url: 'wiki.api.analytics.set_view_tracking',
 	onSuccess: () => emit('enabled'),
 });
 </script>

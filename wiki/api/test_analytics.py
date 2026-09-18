@@ -6,7 +6,7 @@ from frappe.tests import IntegrationTestCase
 
 from wiki import analytics_store as store
 from wiki.api import analytics
-from wiki.api.analytics import enable_view_tracking
+from wiki.api.analytics import get_view_tracking, set_view_tracking
 from wiki.tests.factory import WikiFixtures, unique_route
 
 READER_ROLE = "_Test Analytics Reader"
@@ -230,16 +230,26 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.db.set_single_value("Website Settings", "enable_view_tracking", 0)
 		self.assertFalse(get_analytics(**self.march)["tracking_enabled"])
 
-		enable_view_tracking()
+		set_view_tracking()
 
 		self.assertTrue(get_analytics(**self.march)["tracking_enabled"])
+
+	def test_tracking_switches_both_ways(self):
+		set_view_tracking(True)
+		self.assertTrue(get_view_tracking())
+
+		# A POST sends the flag as a string; the type hint is what turns it back.
+		set_view_tracking("false")
+
+		self.assertFalse(get_view_tracking())
+		self.assertFalse(frappe.get_website_settings("enable_view_tracking"))
 
 	def test_only_managers_can_turn_tracking_on(self):
 		frappe.db.set_single_value("Website Settings", "enable_view_tracking", 0)
 		frappe.set_user(self.writer)
 
 		with self.assertRaises(frappe.PermissionError):
-			enable_view_tracking()
+			set_view_tracking()
 
 		frappe.set_user("Administrator")
 		self.assertFalse(frappe.get_website_settings("enable_view_tracking"))
