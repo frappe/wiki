@@ -62,15 +62,12 @@
 						:error="errorOf(analytics)"
 					>
 						<template #actions>
-							<div class="flex items-center gap-3">
-								<span class="text-sm text-ink-gray-5">{{ rangeLabel }}</span>
-								<Select
-									v-model="space"
-									class="w-40"
-									:options="spaceOptions"
-									data-testid="overview-space"
-								/>
-							</div>
+							<Select
+								v-model="space"
+								class="w-40"
+								:options="spaceOptions"
+								data-testid="overview-space"
+							/>
 						</template>
 					</AreaChart>
 				</section>
