@@ -55,8 +55,8 @@
 						:title="__('Page views')"
 						:data="analytics.data?.series || []"
 						x="date"
-						:y="['views']"
-						:series-config="{ views: { label: __('Views') } }"
+						:y="['views', 'new_visitors']"
+						:series-config="seriesConfig"
 						:x-axis="xAxis"
 						:loading="analytics.loading && !analytics.data"
 						:error="errorOf(analytics)"
@@ -199,6 +199,10 @@ const xAxis = {
 	type: 'time',
 	timeGrain: 'day',
 	echartOptions: { splitNumber: 15 },
+};
+const seriesConfig = {
+	views: { label: __('Views') },
+	new_visitors: { label: __('New visitors') },
 };
 const openChangeRequestsBySpace = computed(() =>
 	(data.value?.open_change_requests_by_space || []).map((row) => ({

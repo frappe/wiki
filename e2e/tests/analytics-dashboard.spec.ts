@@ -325,6 +325,9 @@ test.describe('Analytics dashboard', () => {
 		await expect(topPages).toContainText('Alpha');
 		await expect(topPages).toContainText('No change');
 		expect(lastOf(chartRequests).space).toBeUndefined();
+		const chart = page.getByTestId('overview-chart');
+		await expect(chart).toContainText('Views');
+		await expect(chart).toContainText('New visitors');
 
 		await page.getByTestId('overview-range').getByText('7 days').click();
 		await expect
