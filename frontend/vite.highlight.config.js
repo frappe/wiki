@@ -7,6 +7,7 @@ import { defineConfig } from 'vite';
 // Output lands next to the other hand-written public scripts, loaded via a
 // plain <script> in templates/wiki/layout.html.
 export default defineConfig({
+	publicDir: false,
 	build: {
 		outDir: '../wiki/public/js',
 		emptyOutDir: false,
