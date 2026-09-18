@@ -551,3 +551,25 @@ scheduled ingest pays on top of copying new rows.
   raising. Backfills on a large log should run out of hours.
 - The mirror is a file in the site directory, so a database-only backup does not include it. It is
   derived: after a restore the next ingest refills it from an empty table.
+
+### Phase 9: top referrers on Overview (2026-09-18)
+
+The space and page dashboards listed top referrers, but the wiki-wide Overview did not. Builder's
+global analytics shows them next to top pages, so Overview now does too.
+
+#### Built
+
+- `get_overview` returns `top_referrers`: the 5 busiest referrer hosts on wiki pages, each with
+  `views` and a `delta` against the window before, like the other Overview lists. Direct is
+  `referrer: null`, and the site's own host is skipped as in `get_analytics`.
+- `analytics_store.views_by_referrer` counts every host in a window, so a host that fell out of the
+  previous window's top 5 still gets a true delta.
+- `Overview.vue` shows the list below Views by space: the site's favicon (on a white tile, since
+  many are dark marks that vanish in dark mode), falling back to a globe; a log-in icon for Direct.
+  Rows do not link or highlight on hover.
+
+#### Verified
+
+- `test_ranks_referrers_against_the_previous_window`: ranking, delta, direct, own-host skip and
+  non-wiki path exclusion. Letting the own host through fails it.
+- The Overview e2e stubs `top_referrers` and checks the host, the delta and Direct.
