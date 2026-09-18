@@ -50,7 +50,7 @@
 					</section>
 				</div>
 
-				<section class="h-80" data-testid="overview-chart">
+				<section class="h-64" data-testid="overview-chart">
 					<AreaChart
 						:title="__('Page views')"
 						:data="analytics.data?.series || []"
