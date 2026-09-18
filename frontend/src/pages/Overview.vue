@@ -57,7 +57,7 @@
 						x="date"
 						:y="['views']"
 						:series-config="{ views: { label: __('Views') } }"
-						:x-axis="{ type: 'time', timeGrain: 'day' }"
+						:x-axis="xAxis"
 						:loading="analytics.loading && !analytics.data"
 						:error="errorOf(analytics)"
 					>
@@ -198,6 +198,11 @@ watch(range, () => overview.reload(), { immediate: true });
 const data = computed(() => overview.data);
 const isFirstLoad = computed(() => overview.loading && !overview.data);
 const rangeLabel = computed(() => RANGE_LABELS[preset.value]);
+const xAxis = {
+	type: 'time',
+	timeGrain: 'day',
+	echartOptions: { splitNumber: 15 },
+};
 const openChangeRequestsBySpace = computed(() =>
 	(data.value?.open_change_requests_by_space || []).map((row) => ({
 		space: row.space_name || row.space,
