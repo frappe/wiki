@@ -16,19 +16,38 @@
 					@enabled="reloadAll"
 				/>
 
-				<div class="grid grid-cols-2 gap-y-6 sm:grid-cols-4">
-					<NumberCard
-						v-for="(kpi, i) in kpis"
-						:key="kpi.key"
-						:card="false"
-						:class="i > 0 && 'border-l border-outline-gray-1 ps-6'"
-						:title="kpi.title"
-						:value="data ? data[kpi.key].value : null"
-						:delta="data?.[kpi.key].delta"
-						delta-suffix="%"
-						:loading="isFirstLoad"
-						:data-testid="`overview-${kpi.key}`"
-					/>
+				<div class="grid grid-cols-1 gap-12 md:grid-cols-3">
+					<div class="flex flex-col gap-6">
+						<NumberCard
+							v-for="(kpi, i) in kpis"
+							:key="kpi.key"
+							:card="false"
+							:class="i > 0 && 'border-t border-outline-gray-1 pt-6'"
+							:title="kpi.title"
+							:value="data ? data[kpi.key].value : null"
+							:delta="data?.[kpi.key].delta"
+							delta-suffix="%"
+							:loading="isFirstLoad"
+							:data-testid="`overview-${kpi.key}`"
+						/>
+					</div>
+
+					<section
+						class="h-72 md:col-span-2"
+						data-testid="overview-change-requests"
+					>
+						<DonutChart
+							:title="__('Open change requests by space')"
+							:subtitle="__('Right now')"
+							:data="openChangeRequestsBySpace"
+							category="space"
+							value="count"
+							:max-slices="6"
+							:center-label="__('Open')"
+							:loading="isFirstLoad"
+							:error="errorOf(overview)"
+						/>
+					</section>
 				</div>
 
 				<section class="h-80" data-testid="overview-chart">
@@ -116,19 +135,6 @@
 						</router-link>
 					</section>
 				</div>
-
-				<section class="h-72" data-testid="overview-change-requests">
-					<DonutChart
-						:title="__('Open change requests by space')"
-						:subtitle="__('Right now')"
-						:data="openChangeRequestsBySpace"
-						category="space"
-						value="count"
-						:center-label="__('Open')"
-						:loading="isFirstLoad"
-						:error="errorOf(overview)"
-					/>
-				</section>
 			</div>
 		</ScrollArea>
 	</div>
