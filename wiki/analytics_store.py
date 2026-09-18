@@ -278,3 +278,18 @@ def views_by_path(start: date, end: date) -> dict[str, tuple[int, int]]:
 			[start, end],
 		).fetchall()
 	return {path: (int(views), int(new)) for path, views, new in rows if path}
+
+
+def views_by_referrer(start: date, end: date, paths: tuple[str, ...], own_host: str) -> dict[str, int]:
+	"""Every referrer host's views in the range, for the wiki-wide overview."""
+	where, params = _in_scope(start, end, paths)
+	with reader() as db:
+		rows = db.execute(
+			f"""
+			SELECT referrer_host, COUNT(*) FROM {DERIVED}
+			WHERE ({where}) AND referrer_host <> ?
+			GROUP BY referrer_host
+			""",
+			[*params, own_host],
+		).fetchall()
+	return {host: int(views) for host, views in rows}

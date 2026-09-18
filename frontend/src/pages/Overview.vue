@@ -131,6 +131,27 @@
 							<DeltaText :delta="row.delta" />
 						</router-link>
 					</section>
+
+					<section data-testid="overview-top-referrers">
+						<SectionTitle :title="__('Top referrers')" :hint="rangeLabel" />
+						<ListSkeleton v-if="isFirstLoad" />
+						<p v-else-if="!data.top_referrers.length" :class="EMPTY">
+							{{ __('No views in this range') }}
+						</p>
+						<div
+							v-for="row in data?.top_referrers || []"
+							v-else
+							:key="row.referrer || ''"
+							:class="STATIC_ROW"
+						>
+							<ReferrerIcon :host="row.referrer" />
+							<span class="min-w-0 flex-1 truncate text-base text-ink-gray-8">
+								{{ row.referrer || __('Direct') }}
+							</span>
+							<span :class="COUNT">{{ formatCount(row.views) }}</span>
+							<DeltaText :delta="row.delta" />
+						</div>
+					</section>
 				</div>
 			</div>
 		</ScrollArea>
@@ -153,11 +174,11 @@ import {
 	usePageMeta,
 } from 'frappe-ui';
 import { AreaChart, DonutChart, NumberCard } from 'frappe-ui/charts';
-import { computed, h, ref, watch } from 'vue';
+import { computed, defineComponent, h, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-const ROW =
-	'-mx-2 flex h-12 items-center gap-3 rounded-lg px-2 hover:bg-surface-gray-2';
+const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-lg px-2';
+const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
 const COUNT =
 	'w-16 shrink-0 text-right text-base tabular-nums text-ink-gray-8';
 const EMPTY = 'py-8 text-center text-sm text-ink-gray-5';
@@ -261,6 +282,25 @@ function ListSkeleton() {
 		[1, 2, 3, 4].map((i) => h(Skeleton, { key: i, class: 'h-9 rounded-lg' })),
 	);
 }
+
+const ReferrerIcon = defineComponent({
+	props: ['host'],
+	setup(props) {
+		const failed = ref(false);
+		const icon = (name) =>
+			h('span', { class: `${name} size-5 shrink-0 text-ink-gray-5`, 'aria-hidden': 'true' });
+		return () => {
+			if (!props.host) return icon('lucide-log-in');
+			if (failed.value) return icon('lucide-globe');
+			return h('img', {
+				src: `https://${props.host}/favicon.ico`,
+				alt: '',
+				class: 'size-5 shrink-0 rounded-sm bg-white p-0.5',
+				onError: () => (failed.value = true),
+			});
+		};
+	},
+});
 
 function DeltaText({ delta }) {
 	const base = 'w-20 shrink-0 text-right text-sm tabular-nums';

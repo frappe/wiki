@@ -298,6 +298,28 @@ class TestGetOverview(IntegrationTestCase):
 			[(f"{self.route}/a", self.space.name, 3), (f"{self.route}/v2/b", self.nested.name, 1)],
 		)
 
+	def test_ranks_referrers_against_the_previous_window(self):
+		own = frappe.utils.get_url()
+		_log_view(f"{self.route}/a", "2031-03-03 09:00:00", referrer="https://www.google.com/")
+		_log_view(f"{self.route}/a", "2031-03-03 10:00:00", referrer="https://www.google.com/")
+		for hour in (9, 10, 11):
+			_log_view(f"{self.route}/a", f"2031-03-10 {hour}:00:00", referrer="https://www.google.com/?q=a")
+		_log_view(f"{self.route}/v2/b", "2031-03-11 09:00:00", referrer="https://github.com/frappe/wiki")
+		_log_view(f"{self.route}/a", "2031-03-12 09:00:00", referrer="")
+		_log_view(f"{self.route}/a", "2031-03-12 10:00:00", referrer=f"{own}/{self.route}/v2/b")
+		_log_view("analytics-not-a-wiki-page", "2031-03-12 09:00:00", referrer="https://github.com/")
+
+		overview = get_overview(**self.week)
+
+		self.assertEqual(
+			overview["top_referrers"],
+			[
+				{"referrer": "www.google.com", "views": 3, "delta": 50.0},
+				{"referrer": None, "views": 1, "delta": None},
+				{"referrer": "github.com", "views": 1, "delta": None},
+			],
+		)
+
 	def test_counts_open_change_requests_by_space(self):
 		for space, status in (
 			(self.space, "In Review"),

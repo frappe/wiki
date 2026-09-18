@@ -301,6 +301,10 @@ test.describe('Analytics dashboard', () => {
 								delta: 0,
 							},
 						],
+						top_referrers: [
+							{ referrer: 'github.com', views: 40, delta: 25 },
+							{ referrer: null, views: 12, delta: null },
+						],
 					},
 				}),
 			});
@@ -324,6 +328,10 @@ test.describe('Analytics dashboard', () => {
 		const topPages = page.getByTestId('overview-top-pages');
 		await expect(topPages).toContainText('Alpha');
 		await expect(topPages).toContainText('No change');
+		const referrers = page.getByTestId('overview-top-referrers');
+		await expect(referrers).toContainText('github.com');
+		await expect(referrers).toContainText('+25%');
+		await expect(referrers).toContainText('Direct');
 		expect(lastOf(chartRequests).space).toBeUndefined();
 		const chart = page.getByTestId('overview-chart');
 		await expect(chart).toContainText('Views');

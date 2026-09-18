@@ -32,7 +32,7 @@ def get_analytics(
 
 @frappe.whitelist()
 def get_overview(from_date: str, to_date: str) -> dict:
-	"""Wiki-wide totals, views by space and top pages, each against the window just before."""
+	"""Wiki-wide totals, views by space, top pages and referrers, each against the window just before."""
 	if not _is_manager():
 		frappe.throw(_("Not permitted to view wiki analytics"), frappe.PermissionError)
 	start, end = _validate_range(from_date, to_date, "daily")
@@ -56,6 +56,9 @@ def get_overview(from_date: str, to_date: str) -> dict:
 		"new_visitors": _metric(current, previous, 1),
 		"spaces": _views_by_space(spaces, space_of, current, previous),
 		"top_pages": _top_pages_with_delta(space_of, current, previous),
+		"top_referrers": _top_referrers_with_delta(
+			(start, end, tuple(current)), (previous_start, previous_end, tuple(previous))
+		),
 		# A backlog, not traffic: it counts what is open today whatever the range, so it has no delta.
 		"open_change_requests": {"value": sum(row["count"] for row in open_change_requests), "delta": None},
 		"open_change_requests_by_space": open_change_requests,
@@ -124,6 +127,21 @@ def _top_pages_with_delta(space_of, current: dict, previous: dict) -> list[dict]
 			"delta": _delta(current[path][0], previous.get(path, (0, 0))[0]),
 		}
 		for path in paths
+	]
+
+
+def _top_referrers_with_delta(current_window: tuple, previous_window: tuple) -> list[dict]:
+	own_host = urlparse(get_url()).netloc
+	current = store.views_by_referrer(*current_window, own_host)
+	previous = store.views_by_referrer(*previous_window, own_host)
+	hosts = sorted(current, key=lambda host: (-current[host], host))[:OVERVIEW_LIMIT]
+	return [
+		{
+			"referrer": host or None,
+			"views": current[host],
+			"delta": _delta(current[host], previous.get(host, 0)),
+		}
+		for host in hosts
 	]
 
 
