@@ -163,6 +163,7 @@
 import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import TrackingNotice from '@/components/Analytics/TrackingNotice.vue';
 import { useAnalytics } from '@/composables/useAnalytics';
+import { useWikiSettings } from '@/composables/useWikiSettings';
 import { useUserStore } from '@/stores/user';
 import {
 	PageHeader,
@@ -237,6 +238,10 @@ function reloadAll() {
 	overview.reload();
 	analytics.reload();
 }
+
+// View tracking can be switched in Wiki Settings, which opens over this page.
+const { showWikiSettings } = useWikiSettings();
+watch(showWikiSettings, (open) => open || reloadAll());
 
 function errorOf(resource) {
 	const error = resource.error;

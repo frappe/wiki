@@ -263,6 +263,34 @@ test.describe('Analytics dashboard', () => {
 		expect(settings.enable_view_tracking).toBe(1);
 	});
 
+	test('the overview shows the notice once tracking is switched off in Wiki Settings', async ({
+		page,
+		request,
+	}) => {
+		await updateDoc(request, 'Website Settings', 'Website Settings', {
+			enable_view_tracking: 1,
+		});
+		await page.goto('/wiki-app/overview');
+		const notice = page.getByTestId('analytics-tracking-off');
+		await expect(page.getByTestId('overview-chart')).toBeVisible();
+		await expect(notice).toHaveCount(0);
+
+		await page.getByRole('button', { name: 'Frappe Wiki' }).click();
+		await page.getByRole('menuitem', { name: 'Settings' }).click();
+		const dialog = page.getByRole('dialog');
+		const toggle = dialog.getByRole('switch', { name: 'Enable View Tracking' });
+		await expect(toggle).toBeChecked();
+		const saved = page.waitForResponse(/set_view_tracking/);
+		await toggle.click();
+		await saved;
+		await page.keyboard.press('Escape');
+		await expect(dialog).toHaveCount(0);
+
+		await expect(notice).toBeVisible();
+		await notice.getByRole('button', { name: 'Turn on tracking' }).click();
+		await expect(notice).toHaveCount(0);
+	});
+
 	test('a manager reads the overview and narrows its chart', async ({
 		page,
 	}) => {
