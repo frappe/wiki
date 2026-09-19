@@ -102,7 +102,7 @@ const props = defineProps({
 const emit = defineEmits(['update:page']);
 
 const CARD =
-	'flex min-w-0 flex-col rounded-xl border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3';
+	'flex min-w-0 flex-col rounded-6 border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3';
 const TIME_GRAINS = { daily: 'day', weekly: 'week', monthly: 'month' };
 const PRESET_LABELS = {
 	'7d': __('Last 7 days'),

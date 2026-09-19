@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="flex flex-col gap-3 rounded-xl border border-outline-amber-2 bg-surface-amber-1 px-4 py-3 sm:flex-row sm:items-center"
+		class="flex flex-col gap-3 rounded-6 border border-outline-amber-2 bg-surface-amber-1 px-4 py-3 sm:flex-row sm:items-center"
 		data-testid="analytics-tracking-off"
 	>
 		<span class="lucide-eye-off size-4 shrink-0 text-ink-amber-3" aria-hidden="true" />

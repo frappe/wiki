@@ -177,7 +177,7 @@ import { AreaChart, DonutChart, NumberCard } from 'frappe-ui/charts';
 import { computed, defineComponent, h, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-lg px-2';
+const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-5 px-2';
 const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
 const COUNT =
 	'w-16 shrink-0 text-right text-base tabular-nums text-ink-gray-8';
@@ -279,7 +279,7 @@ function ListSkeleton() {
 	return h(
 		'div',
 		{ class: 'flex flex-col gap-3' },
-		[1, 2, 3, 4].map((i) => h(Skeleton, { key: i, class: 'h-9 rounded-lg' })),
+		[1, 2, 3, 4].map((i) => h(Skeleton, { key: i, class: 'h-9 rounded-5' })),
 	);
 }
 
@@ -295,7 +295,7 @@ const ReferrerIcon = defineComponent({
 			return h('img', {
 				src: `https://${props.host}/favicon.ico`,
 				alt: '',
-				class: 'size-5 shrink-0 rounded-sm bg-white p-0.5',
+				class: 'size-5 shrink-0 rounded-1 bg-white p-0.5',
 				onError: () => (failed.value = true),
 			});
 		};

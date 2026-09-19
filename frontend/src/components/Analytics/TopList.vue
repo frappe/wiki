@@ -1,5 +1,5 @@
 <template>
-	<section class="flex min-w-0 flex-col rounded-xl border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3">
+	<section class="flex min-w-0 flex-col rounded-6 border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3">
 		<h3 class="text-base-medium text-ink-gray-8">{{ title }}</h3>
 		<div v-if="loading" class="mt-3 flex flex-col gap-2">
 			<Skeleton v-for="i in 4" :key="i" class="h-7 rounded-4" />
