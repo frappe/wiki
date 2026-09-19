@@ -104,7 +104,7 @@ window.wikiLogView = async (referrer) => {
 - First load: `wikiLogView(document.referrer)`.
 - In `navigateTo`, **after** `history.pushState` (and on `popstate`), call `wikiLogView(previousUrl)`. The call must come after `pushState` because `make_view_log` reads the path from the `Referer` header, which the browser fills from the current document URL.
 - `prefetch` stays untouched, so hovers never count.
-- `make_view_log` stamps `creation` at request time, before the row waits in Redis, so the 15 minute flush does not blur the time series.
+- `creation` is the flush time, not the request time: `deferred_insert` stamps the row, but `insert()` stamps it again when `save_to_db` writes it (every 15 minutes). A view can land up to 15 minutes late, so one just before midnight counts for the next day. It also keeps `creation` rising in insert order, which `ingest`'s high-water mark relies on. (Corrected 2026-09-19; this line first said the reverse.)
 - Browser name and version are left out. `user_agent` is already stored server side, and the dashboard does not show browsers in v1.
 
 ### Storage and queries
@@ -573,3 +573,26 @@ global analytics shows them next to top pages, so Overview now does too.
 - `test_ranks_referrers_against_the_previous_window`: ranking, delta, direct, own-host skip and
   non-wiki path exclusion. Letting the own host through fails it.
 - The Overview e2e stubs `top_referrers` and checks the host, the delta and Direct.
+
+### Final end to end pass (2026-09-19)
+
+Run on `wiki.localhost` with no stubs: a guest browser read pages, the deferred insert was flushed, `ingest` ran, and a manager read the numbers in the UI.
+
+#### Verified
+
+- A guest who landed on a page with `utm_source`, went to two more pages in the sidebar and pressed back logged 4 views with the right paths, referrers and source. Hovering a link logged nothing.
+- A fresh visitor with 2 views from news.ycombinator.com counted as 1 new visitor, grouped under that host.
+- Overview (7 and 30 days, filtered to one space), the space Analytics tab (12 months, drill down into a month, page filter) and the page settings row all agreed with the log.
+- Switching tracking off in Wiki Settings removed the script from reader pages and brought up the notice. Turning it back on from the notice worked.
+- Guests get 403 from every analytics endpoint. A space writer who opens `/overview` lands on All Spaces.
+- `test_analytics.py` (21), `test_analytics_store.py` (12), `analyticsRange.test.js` (5), and the `analytics-dashboard`, `page-view-tracking` and `sidebar-drill-in` specs pass.
+
+#### Fixed on the way
+
+- The chart's value axis showed ticks such as 0.2 and 0.4 when counts were low. Views are whole numbers, so both charts now set `minInterval: 1`.
+- With Overview open, switching tracking in Wiki Settings left the page stale until a reload, so the notice did not show. Overview now reloads when that dialog closes. A new e2e test covers it, and it fails when the reload is removed.
+
+#### Known gaps
+
+- Frappe's own error page loads `website_script.js`, and that script logs a view. So a guest who gets a 404 on a page in a restricted space still counts as a view of that path, and the space's numbers include it. Frappe core does this, so the fix belongs there, or in filtering views to published routes, which would drop the history of renamed routes.
+
