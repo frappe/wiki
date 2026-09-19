@@ -186,6 +186,46 @@ That is all.`;
 			await publicPage.close();
 		});
 
+		test('scrolls the TOC so the active link stays in view', async ({
+			page,
+			wiki,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 720 });
+
+			// More headings than the TOC can show at once: the nav gets its own
+			// scrollbar, and the highlight has to bring itself back into view.
+			const content = Array.from(
+				{ length: 60 },
+				(_, i) => `## Section ${i}\n\nBody ${i}.`,
+			).join('\n\n');
+			const space = await wiki.space({
+				pages: [{ title: 'Reader Page', content }],
+			});
+			await page.goto(`/${space.page('Reader Page').route}`);
+			await page.waitForLoadState('networkidle');
+
+			const nav = page.locator('#wiki-toc nav');
+			await expect(nav).toBeVisible();
+			expect(
+				await nav.evaluate((el) => el.scrollHeight > el.clientHeight),
+			).toBe(true);
+
+			await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+			const active = nav.locator('.toc-link.active');
+			await expect(active).toHaveCount(1);
+			await expect
+				.poll(async () => nav.evaluate((el) => el.scrollTop))
+				.toBeGreaterThan(0);
+
+			const withinNav = await active.evaluate((link) => {
+				const view = link.closest('nav').getBoundingClientRect();
+				const box = link.getBoundingClientRect();
+				return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+			});
+			expect(withinNav).toBe(true);
+		});
+
 		test('should hide TOC on mobile viewport', async ({ page, wiki }) => {
 			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 

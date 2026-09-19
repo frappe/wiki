@@ -896,6 +896,17 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(get_restricted_spaces([space.name]), [])
 
+	def test_an_all_role_is_not_restricted(self):
+		"""frappe.get_roles() returns All for every logged-in user."""
+		from wiki.api.wiki_space import get_restricted_spaces
+
+		space = create_test_wiki_space(self)
+		space.append("roles", {"role": "All", "permission_level": "Read"})
+		space.append("roles", {"role": "Wiki Approver", "permission_level": "Write"})
+		space.save()
+
+		self.assertEqual(get_restricted_spaces([space.name]), [])
+
 	def test_role_rows_without_guest_are_restricted(self):
 		from wiki.api.wiki_space import get_restricted_spaces
 
@@ -923,15 +934,14 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(get_restricted_spaces([]), [])
 
-	def test_a_json_string_is_accepted(self):
-		"""The frontend posts the list as JSON."""
-		from wiki.api.wiki_space import get_restricted_spaces
+	def test_non_string_names_are_rejected(self):
+		"""Objects and numbers would reach the SQL `in` clause unescaped or type-coerced."""
+		from wiki.api.wiki_space import get_restricted_spaces, get_space_stats
 
-		space = create_test_wiki_space(self)
-		space.append("roles", {"role": "Wiki Approver", "permission_level": "Read"})
-		space.save()
-
-		self.assertEqual(get_restricted_spaces(json.dumps([space.name])), [space.name])
+		for payload in ([{"name": "x"}], [1, 2], [["x"]], {"a": 1}, "x"):
+			for endpoint in (get_restricted_spaces, get_space_stats):
+				with self.subTest(payload=payload, endpoint=endpoint.__name__):
+					self.assertRaises(frappe.FrappeTypeError, endpoint, payload)
 
 
 # Helper functions
@@ -1029,14 +1039,6 @@ class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 		from wiki.api.wiki_space import get_space_stats
 
 		self.assertEqual(get_space_stats([]), {})
-
-	def test_a_json_string_is_accepted(self):
-		"""The frontend posts the list as JSON."""
-		from wiki.api.wiki_space import get_space_stats
-
-		space = create_test_wiki_space(self)
-
-		self.assertIn(space.name, get_space_stats(json.dumps([space.name])))
 
 
 def create_test_wiki_space(test_case):

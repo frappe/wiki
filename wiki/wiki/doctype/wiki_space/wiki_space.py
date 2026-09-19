@@ -55,6 +55,8 @@ class WikiSpace(Document):
 
 	def before_insert(self):
 		self.create_root_group()
+		# The root group's stamp runs before this space exists, so it misses.
+		self.last_edited = frappe.utils.now()
 
 	def validate(self):
 		self.remove_leading_slash_from_route()
@@ -266,6 +268,10 @@ class WikiSpace(Document):
 		# keep serving 404s for the renamed URLs.
 		clear_website_cache()
 		frappe.db.after_commit.add(clear_website_cache)
+
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
+
+		clear_wiki_tree_cache()
 
 		return {"updated_count": updated_count}
 

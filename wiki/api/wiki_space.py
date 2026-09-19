@@ -58,13 +58,17 @@ def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
 	return bool(value)
 
 
+OPEN_ROLES = {"Guest", "All"}
+
+
 @frappe.whitelist()
-def get_restricted_spaces(spaces: list | str) -> list[str]:
+def get_restricted_spaces(spaces: list[str]) -> list[str]:
 	"""Return which of `spaces` are readable only by specific roles.
 
-	A space with no role rows is open to every logged-in user, and one whose
-	rows include `Guest` is public (``frappe.get_roles()`` returns Guest for
-	anonymous requests) -- see `wiki.permissions.can_read_space`. Everything
+	A space with no role rows is open to every logged-in user, and so is one
+	whose rows include `All`. One whose rows include `Guest` is public
+	(``frappe.get_roles()`` returns Guest for anonymous requests and All for
+	every logged-in user) -- see `wiki.permissions.can_read_space`. Everything
 	else is restricted, which is what the sidebar's lock icon means.
 
 	One grouped query rather than a role list per row: the sidebar pages 50
@@ -73,8 +77,6 @@ def get_restricted_spaces(spaces: list | str) -> list[str]:
 	Uses `get_list` on Wiki Space first, so spaces the user cannot read are
 	dropped before their role rows are looked at.
 	"""
-	if isinstance(spaces, str):
-		spaces = frappe.parse_json(spaces)
 	if not spaces:
 		return []
 
@@ -94,7 +96,7 @@ def get_restricted_spaces(spaces: list | str) -> list[str]:
 	for row in rows:
 		roles_by_space.setdefault(row.parent, set()).add(row.role)
 
-	return sorted(name for name, roles in roles_by_space.items() if roles and "Guest" not in roles)
+	return sorted(name for name, roles in roles_by_space.items() if not roles & OPEN_ROLES)
 
 
 # What the Change Requests page calls "All in review". A Draft is one author's
@@ -108,7 +110,7 @@ IN_REVIEW_CHANGE_REQUEST_STATUSES = ["In Review", "Approved"]
 
 
 @frappe.whitelist()
-def get_space_stats(spaces: list | str) -> dict:
+def get_space_stats(spaces: list[str]) -> dict:
 	"""Directory figures for `spaces`: pages and change requests awaiting review.
 
 	Two grouped queries for a whole page of spaces rather than two per row,
@@ -123,8 +125,6 @@ def get_space_stats(spaces: list | str) -> dict:
 	"""
 	from frappe.query_builder.functions import Count
 
-	if isinstance(spaces, str):
-		spaces = frappe.parse_json(spaces)
 	if not spaces:
 		return {}
 

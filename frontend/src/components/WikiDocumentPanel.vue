@@ -206,6 +206,7 @@ import { buildGithubEditUrl } from '@/lib/github';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import {
 	Badge,
 	Breadcrumbs,
@@ -223,6 +224,7 @@ import {
 } from 'frappe-ui';
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useRecentPages } from '../composables/useRecentPages';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
@@ -256,6 +258,8 @@ const isDeleting = ref(false);
 const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
+const spaceStore = useSpaceStore();
+const { recordVisit } = useRecentPages();
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -288,11 +292,16 @@ watch(
 );
 
 watch(
-	[() => crStore.currentChangeRequest?.name, () => wikiDoc.value.doc?.doc_key],
-	async ([crName, docKey], [oldCrName]) => {
-		// Read-only (git-synced) pages render straight from the published doc —
-		// no change request overlay, so skip the CR-page load entirely.
-		if (props.readonly) return;
+	[
+		() => crStore.currentChangeRequest?.name,
+		() => wikiDoc.value.doc?.doc_key,
+		() => spaceStore.canEdit,
+	],
+	async ([crName, docKey, canEdit], [oldCrName]) => {
+		// Read-only pages render straight from the published doc, with no change
+		// request overlay. Until the capabilities land we cannot tell, and asking
+		// a reader's space for a change request answers 403.
+		if (!canEdit) return;
 		if (docKey) {
 			// Navigation cancels the previous page's debounced autosave;
 			// flush its buffer now. Failures surface via the sync pill.
@@ -406,6 +415,13 @@ const displayRoute = computed(() => {
 		''
 	);
 });
+
+watch(
+	[() => props.pageId, displayTitle, displayRoute],
+	([pageId, title, route]) =>
+		recordVisit({ name: pageId, title, space: props.spaceId, route }),
+	{ immediate: true },
+);
 
 // The panel is module-scoped state: it stays open across page switches, and
 // the toggle that owns it lives in this header.

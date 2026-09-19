@@ -363,6 +363,12 @@ class TestSpaceLastEdited(WikiDocumentTestBase):
 	def last_edited(self, space):
 		return frappe.db.get_value("Wiki Space", space.name, "last_edited")
 
+	def test_a_new_space_is_stamped(self):
+		"""An empty space would otherwise sort below every other one in the sidebar."""
+		space = self.wiki.space()
+
+		self.assertIsNotNone(self.last_edited(space))
+
 	def test_saving_a_page_stamps_the_space(self):
 		space = self.wiki.space(pages=[{"title": "First Page"}])
 		before = self.last_edited(space)
@@ -2564,6 +2570,32 @@ class TestWikiTreeCache(WikiDocumentTestBase):
 		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
 		tree = get_public_wiki_tree(root.name)
 		self.assertEqual([n["title"] for n in tree], ["Reorder B", "Reorder A"])
+
+	def test_tree_cache_busted_on_space_route_rename(self):
+		"""Wiki Space.update_routes() rewrites routes with raw SQL (no per-doc
+		save hooks), so it must bust the tree cache itself. Before this fix the
+		space URL kept redirecting to the pre-rename route forever, since
+		get_public_wiki_tree(root_group) is keyed by root_group name, which a
+		route rename never changes."""
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_TREE_CACHE_KEY,
+			get_public_wiki_tree,
+		)
+
+		root = create_test_wiki_document(self, "TreeCache RnRoot", is_group=True)
+		space = create_test_wiki_space(self, "TreeCache RnSpace", "tcrn-space", root.name)
+		create_test_wiki_document(self, "Rename Page", parent=root.name, slug="tcrn-page")
+
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["route"], "tcrn-space/tcrn-page")
+		self.assertIsNotNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+
+		space.reload()
+		space.update_routes("tcrn-space-renamed")
+
+		self.assertIsNone(frappe.cache().hget(WIKI_TREE_CACHE_KEY, root.name))
+		tree = get_public_wiki_tree(root.name)
+		self.assertEqual(tree[0]["route"], "tcrn-space-renamed/tcrn-page")
 
 
 class TestSearchPublishGating(WikiDocumentTestBase):

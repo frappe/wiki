@@ -176,6 +176,43 @@ test.describe('Editor table of contents', () => {
 		expect(scrollable).toBe(true);
 	});
 
+	test('scrolls the rail so the active entry stays in view', async ({
+		page,
+		wiki,
+	}) => {
+		await createSpaceWithPage(page, wiki);
+		await seedEditor(page, LONG_SEED_HTML);
+
+		const rail = page.locator('[data-testid="editor-toc-rail"]');
+		const nav = rail.locator('nav');
+		const active = rail.locator(
+			'[data-testid="editor-toc-link"].bg-surface-gray-2',
+		);
+
+		// Far enough down that the active entry is past the rail's last visible
+		// row: the highlight moved, but the rail itself never scrolled.
+		await page.evaluate(() => {
+			const editor = document.querySelector('.ProseMirror');
+			let node = editor?.parentElement;
+			while (node && !/auto|scroll/.test(getComputedStyle(node).overflowY)) {
+				node = node.parentElement;
+			}
+			node?.scrollTo({ top: node.scrollHeight });
+		});
+
+		await expect(active).toHaveCount(1);
+		await expect
+			.poll(async () => nav.evaluate((el) => el.scrollTop))
+			.toBeGreaterThan(0);
+
+		const withinRail = await active.evaluate((row) => {
+			const view = row.closest('nav').getBoundingClientRect();
+			const box = row.getBoundingClientRect();
+			return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+		});
+		expect(withinRail).toBe(true);
+	});
+
 	test('falls back to a collapsible strip when the editor is too narrow', async ({
 		page,
 		wiki,

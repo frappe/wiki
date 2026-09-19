@@ -13,6 +13,7 @@
 	>
 		<nav
 			v-if="outline.length"
+			ref="railRef"
 			class="hide-scrollbar pointer-events-auto sticky flex flex-col overflow-y-auto text-sm leading-relaxed"
 			:style="{ top: `${railTop}px`, maxHeight: `${railMaxHeight}px` }"
 		>
@@ -130,6 +131,7 @@ const props = defineProps({
 });
 
 const rootRef = ref(null);
+const railRef = ref(null);
 const activeIndex = ref(0);
 const toolbarHeight = ref(0);
 const open = ref(false);
@@ -267,6 +269,20 @@ onBeforeUnmount(() => {
 useEventListener(window, 'resize', () => {
 	measureToolbar();
 	scheduleUpdateActive();
+});
+
+// A long outline overflows the rail, so keep the active row in its view.
+// Scrolled by hand: scrollIntoView would also move the editor's scroller.
+watch(activeIndex, async (index) => {
+	await nextTick();
+	const rail = railRef.value;
+	const row = rail?.querySelectorAll('[data-testid="editor-toc-link"]')[index];
+	if (!row) return;
+	if (row.offsetTop < rail.scrollTop) {
+		rail.scrollTop = row.offsetTop;
+	} else if (row.offsetTop + row.offsetHeight > rail.scrollTop + rail.clientHeight) {
+		rail.scrollTop = row.offsetTop + row.offsetHeight - rail.clientHeight;
+	}
 });
 
 // Editing above the current heading shifts every position below it; re-run the

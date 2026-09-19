@@ -24,16 +24,28 @@
 					:active="item.routeNames.includes(route.name)"
 					:suffix="item.suffix?.value"
 				/>
+				<SidebarItem
+					:label="__('Search')"
+					icon="lucide-search"
+					@click="openCommandPalette"
+				>
+					<template #suffix>
+						<KeyboardShortcut combo="Mod+K" class="mr-2 text-ink-gray-4" />
+					</template>
+				</SidebarItem>
 
-				<SidebarSection :label="__('Spaces')">
-					<!-- One menu for the whole list: the row writes its own options as it
-					     is right-clicked, before the menu opens, so there is no
-					     ContextMenu instance per space. The trigger is `as-child`, so the
-					     rows need the one wrapping root. -->
+				<SidebarSection
+					v-for="group in spaceGroups"
+					:key="group.key"
+					:label="group.label"
+					:collapsible="group.key === 'unpublished'"
+					:collapsed="group.key === 'unpublished' && unpublishedCollapsed"
+					@update:collapsed="unpublishedCollapsed = $event"
+				>
 					<ContextMenu :options="spaceMenu">
 						<div class="flex flex-col gap-0.5">
 							<SidebarItem
-								v-for="space in orderedSpaces"
+								v-for="space in group.spaces"
 								:key="space.name"
 								:label="space.space_name || space.name"
 								:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
@@ -46,10 +58,7 @@
 										size="sm"
 									/>
 								</template>
-								<!-- Access and publish state are independent fields, so each
-								     gets its own icon. One merged badge would hide the case
-								     that matters most: a restricted space that is also
-								     unpublished. -->
+								<!-- No unpublished icon: the Unpublished section already says it. -->
 								<template #suffix>
 									<span class="mr-2 flex items-center gap-1">
 										<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
@@ -61,9 +70,6 @@
 										<Tooltip v-if="restrictedSpaces.has(space.name)" :text="__('Restricted access')">
 											<span class="lucide-lock size-3.5 text-ink-gray-4" aria-hidden="true" />
 										</Tooltip>
-										<Tooltip v-if="!space.is_published" :text="__('Unpublished')">
-											<span class="lucide-eye-off size-3.5 text-ink-gray-4" aria-hidden="true" />
-										</Tooltip>
 									</span>
 								</template>
 							</SidebarItem>
@@ -71,7 +77,7 @@
 					</ContextMenu>
 
 					<p
-						v-if="!spaces.loading && !orderedSpaces.length"
+						v-if="group.key === 'published' && !spaces.loading && !orderedSpaces.length"
 						class="px-2 py-2 text-p-sm text-ink-gray-5"
 					>
 						{{ __('No Wiki Spaces') }}
@@ -104,6 +110,7 @@
 import {
 	Button,
 	ContextMenu,
+	KeyboardShortcut,
 	ScrollArea,
 	Sidebar,
 	SidebarHeader,
@@ -118,8 +125,10 @@ import NewSpaceDialog from '@/components/NewSpaceDialog.vue';
 import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
+import { useStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useCommandPalette } from '../composables/useCommandPalette';
 import { useSpaceLibrary } from '../composables/useSpaceLibrary';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
 import { useTheme } from '../composables/useTheme';
@@ -131,6 +140,7 @@ const sessionStore = useSessionStore();
 const userStore = useUserStore();
 const { open: openWikiSettings } = useWikiSettings();
 const { open: openSpaceSettings } = useSpaceSettings();
+const { open: openCommandPalette } = useCommandPalette();
 
 const { themeIcon, toggleTheme } = useTheme();
 
@@ -159,6 +169,25 @@ const openChangeRequests = createResource({
 		filters: { status: ['not in', ['Merged', 'Rejected', 'Archived']] },
 	},
 	auto: true,
+});
+
+const unpublishedCollapsed = useStorage(
+	'wiki:sidebar-unpublished-collapsed',
+	true,
+);
+
+const spaceGroups = computed(() => {
+	const published = orderedSpaces.value.filter((space) => space.is_published);
+	const unpublished = orderedSpaces.value.filter(
+		(space) => !space.is_published,
+	);
+	return [
+		{ key: 'published', label: __('Spaces'), spaces: published },
+		{ key: 'unpublished', label: __('Unpublished'), spaces: unpublished },
+	].filter(
+		(group) =>
+			group.spaces.length || (group.key === 'published' && !unpublished.length),
+	);
 });
 
 const spaceMenu = ref([]);
