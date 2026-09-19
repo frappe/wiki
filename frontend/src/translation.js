@@ -1,9 +1,33 @@
-import { createResource } from 'frappe-ui';
+import { frappeRequest } from 'frappe-ui';
+
+const TRANSLATION_LOAD_TIMEOUT = 10_000;
+
+export async function loadTranslations() {
+	if (window.translatedMessages) return;
+
+	const controller = new AbortController();
+	const timeoutId = window.setTimeout(
+		() => controller.abort(),
+		TRANSLATION_LOAD_TIMEOUT,
+	);
+
+	try {
+		window.translatedMessages =
+			(await frappeRequest({
+				url: 'wiki.api.get_translations',
+				signal: controller.signal,
+			})) || {};
+	} catch (error) {
+		console.warn('Unable to load translations; using source messages.', error);
+		window.translatedMessages = {};
+	} finally {
+		window.clearTimeout(timeoutId);
+	}
+}
 
 export default function translationPlugin(app) {
 	app.config.globalProperties.__ = translate;
 	window.__ = translate;
-	if (!window.translatedMessages) fetchTranslations();
 }
 
 function format(message, replace) {
@@ -33,14 +57,4 @@ function translate(message, replace, context = null) {
 	}
 
 	return format(translatedMessage, replace);
-}
-
-function fetchTranslations() {
-	createResource({
-		url: 'wiki.api.get_translations',
-		auto: true,
-		transform: (data) => {
-			window.translatedMessages = data;
-		},
-	});
 }
