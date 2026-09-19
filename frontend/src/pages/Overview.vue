@@ -117,15 +117,17 @@
 							:class="ROW"
 							:title="`/${row.path}`"
 						>
-							<span class="w-4 shrink-0 text-right text-sm tabular-nums text-ink-gray-5">
-								{{ i + 1 }}
-							</span>
-							<span class="min-w-0 flex-1">
-								<span class="block truncate text-base text-ink-gray-8">
-									{{ row.title || `/${row.path}` }}
+							<span class="flex min-w-0 flex-1 items-baseline gap-3">
+								<span class="w-4 shrink-0 text-right text-sm tabular-nums text-ink-gray-5">
+									{{ i + 1 }}
 								</span>
-								<span class="mt-0.5 block truncate text-sm text-ink-gray-5">
-									{{ row.space_name }}
+								<span class="min-w-0 flex-1">
+									<span class="block truncate text-base text-ink-gray-8">
+										{{ row.title || `/${row.path}` }}
+									</span>
+									<span class="mt-0.5 block truncate text-sm text-ink-gray-5">
+										{{ row.space_name }}
+									</span>
 								</span>
 							</span>
 							<span :class="COUNT">{{ formatCount(row.views) }}</span>
