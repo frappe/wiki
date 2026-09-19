@@ -156,12 +156,6 @@ scheduler_events = {
 }
 
 # scheduler_events = {
-# 	"cron": {
-# 		"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.build_index_in_background"],
-# 	},
-# }
-
-# scheduler_events = {
 # 	"all": [
 # 		"wiki.tasks.all"
 # 	],
