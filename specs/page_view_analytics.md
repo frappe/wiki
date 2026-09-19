@@ -281,7 +281,7 @@ Verified:
 
 Built:
 
-- `wiki/benchmarks/page_view_analytics.py`: seeds `Web Page View` rows in SQL from MariaDB's `seq_1_to_N` table (deterministic: `CRC32` instead of `RAND()`, pages and referrer hosts skewed, one visitor per four views, 55% own-site referrers, 25% direct), times `get_analytics` per scenario with a split for series, top pages and referrers, then deletes the rows. Run with `bench --site <site> execute wiki.benchmarks.page_view_analytics.run --kwargs "{'rows': 1_000_000}"`.
+- `wiki/benchmarks/page_view_analytics.py`: seeds `Web Page View` rows in SQL from MariaDB's `seq_1_to_N` table (deterministic: `CRC32` instead of `RAND()`, pages and referrer hosts skewed, one visitor per four views, 55% own-site referrers, 25% direct), times `get_analytics` per scenario with a split for series, top pages and referrers, then deletes the rows. Run with `bench --site <site> execute wiki.benchmarks.page_view_analytics.run --kwargs "{'rows': 1_000_000}"`. Removed after the perf work was done; recover it from git history if needed.
 
 Setup: local dev site, MariaDB 10.11, 16 cores, `innodb_buffer_pool_size` 128MB (the default, far below a production server), `Web Page View` is `ROW_FORMAT=COMPRESSED`, 288 spaces and 1,928 pages. Rows spread over 180 days.
 
