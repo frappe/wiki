@@ -1,6 +1,7 @@
 import { expect, test } from '../fixtures';
 import { uniqueRoute } from '../helpers/factory';
-import { SPACE_URL_RE, appUrl } from '../helpers/routes';
+import { callMethod } from '../helpers/frappe';
+import { APP_BASE, SPACE_URL_RE, appUrl } from '../helpers/routes';
 import { openNewPageDialog } from '../helpers/wiki';
 
 /**
@@ -134,6 +135,38 @@ test.describe('Mobile SPA', () => {
 			page.getByRole('heading', { name: 'Change Requests' }),
 		).toBeVisible();
 		expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+	});
+
+	// Regression: the bottom nav must mirror the desktop sidebar. Overview was
+	// missing for managers, and a single change request lit no tab at all.
+	test('bottom nav reaches Overview and keeps Change Requests lit on a review', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+		const draft = await callMethod<{ name: string }>(
+			request,
+			'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
+			{ wiki_space: space.name },
+		);
+		const nav = page.locator('[data-slot="mobile-nav"]');
+		// The current tab renders as a button, the others as links.
+		const tab = (name: string) => nav.getByLabel(name, { exact: true });
+
+		await page.setViewportSize(PHONE);
+		await page.goto(appUrl('spaces'));
+		await page.waitForLoadState('networkidle');
+
+		await tab('Overview').click();
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/overview$`));
+		await expect(tab('Overview')).toHaveAttribute('data-state', 'active');
+
+		await page.goto(appUrl('change-requests', draft.name));
+		await expect(tab('Change Requests')).toHaveAttribute(
+			'data-state',
+			'active',
+		);
 	});
 
 	// Regression: Settings opens from inside the tree drawer. The drawer must

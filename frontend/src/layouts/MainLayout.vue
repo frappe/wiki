@@ -14,6 +14,18 @@
 				<template #nav>
 					<MobileNav>
 						<MobileNavItem
+							v-if="userStore.isWikiManager"
+							:label="__('Overview')"
+							:to="{ name: 'Overview' }"
+							:active="route.name === 'Overview'"
+						>
+							<template #default="{ active }">
+								<span
+									class="lucide-layout-grid size-6"
+									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
+							</template>
+						</MobileNavItem>
+						<MobileNavItem
 							:label="__('Spaces')"
 							:to="{ name: 'AllSpaces' }"
 							:active="isSpacesRoute"
@@ -27,7 +39,7 @@
 						<MobileNavItem
 							:label="__('Change Requests')"
 							:to="{ name: 'ChangeRequests' }"
-							:active="route.name === 'ChangeRequests'"
+							:active="['ChangeRequests', 'ChangeRequestReview'].includes(route.name)"
 						>
 							<template #default="{ active }">
 								<span
