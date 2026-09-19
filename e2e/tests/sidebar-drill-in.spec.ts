@@ -28,7 +28,14 @@ test.describe('Sidebar drill-in navigation', () => {
 		spaceA = a.name;
 		pageName = a.page(PAGE_TITLE).name;
 
-		spaceB = (await wikiSuite.space({ space_name: SPACE_B_NAME })).name;
+		// A page gives B a last-edited time; without one it sorts below every
+		// other space and falls off the sidebar's first page on a busy site.
+		spaceB = (
+			await wikiSuite.space({
+				space_name: SPACE_B_NAME,
+				pages: [{ title: 'Beta First Page' }],
+			})
+		).name;
 	});
 
 	test('library lists spaces, entering one replaces the column, back restores it', async ({

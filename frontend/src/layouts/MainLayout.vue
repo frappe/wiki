@@ -15,7 +15,7 @@
 					<MobileNav>
 						<MobileNavItem
 							:label="__('Spaces')"
-							:to="{ name: 'Overview' }"
+							:to="{ name: 'AllSpaces' }"
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
@@ -116,7 +116,7 @@ const spaceId = computed(() => route.params.spaceId || null);
 
 // Spaces stays lit across every space route (overview + space details).
 const isSpacesRoute = computed(
-	() => route.name === 'Overview' || Boolean(spaceId.value),
+	() => route.name === 'AllSpaces' || Boolean(spaceId.value),
 );
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.

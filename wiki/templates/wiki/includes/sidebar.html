@@ -147,11 +147,7 @@
 
                 // Check prefetch cache first
                 if (this.prefetchCache[route]) {
-                    this.updateContent(this.prefetchCache[route]);
-                    this.currentRoute = route;
-                    if (pushState) {
-                        history.pushState({ route }, '', '/' + route);
-                    }
+                    this.showPage(route, this.prefetchCache[route], pushState);
                     return;
                 }
 
@@ -169,11 +165,7 @@
                     const data = await response.json();
 
                     if (data.message) {
-                        this.updateContent(data.message);
-                        this.currentRoute = route;
-                        if (pushState) {
-                            history.pushState({ route }, '', '/' + route);
-                        }
+                        this.showPage(route, data.message, pushState);
                     } else {
                         throw new Error('Invalid response');
                     }
@@ -183,6 +175,18 @@
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            showPage(route, data, pushState) {
+                const previousUrl = window.location.origin + '/' + this.currentRoute;
+                this.updateContent(data);
+                this.currentRoute = route;
+                if (pushState) {
+                    history.pushState({ route }, '', '/' + route);
+                }
+                // Only after the URL changes: the view log reads the page path
+                // from the Referer header. Absent when view tracking is off.
+                window.wikiLogView?.(previousUrl);
             },
 
             updateContent(data) {

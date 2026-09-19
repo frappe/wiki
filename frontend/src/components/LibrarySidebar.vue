@@ -254,26 +254,35 @@ const headerMenuItems = computed(() => [
 	{ label: __('Log out'), icon: 'lucide-log-out', onClick: logout },
 ]);
 
-const navItems = [
+const openChangeRequestCount = computed(() =>
+	openChangeRequests.data ? String(openChangeRequests.data) : '',
+);
+
+const navItems = computed(() => [
+	...(userStore.isWikiManager
+		? [
+				{
+					label: __('Overview'),
+					icon: 'lucide-layout-grid',
+					to: { name: 'Overview' },
+					routeNames: ['Overview'],
+				},
+			]
+		: []),
 	{
-		// The `Overview` route name is unchanged -- spec 04 still fills this page
-		// with wiki-wide analytics later. Until it does, the page is the space
-		// directory, so that is what the item is called.
 		label: __('All Spaces'),
 		icon: 'lucide-library',
-		to: { name: 'Overview' },
-		routeNames: ['Overview'],
+		to: { name: 'AllSpaces' },
+		routeNames: ['AllSpaces'],
 	},
 	{
 		label: __('Change Requests'),
 		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
 		routeNames: ['ChangeRequests', 'ChangeRequestReview'],
-		suffix: computed(() =>
-			openChangeRequests.data ? String(openChangeRequests.data) : '',
-		),
+		suffix: openChangeRequestCount,
 	},
-];
+]);
 
 function logout() {
 	sessionStore.logout.submit();
