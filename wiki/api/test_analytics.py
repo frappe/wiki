@@ -66,7 +66,7 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.db.set_single_value("Website Settings", "enable_view_tracking", self.tracking_before)
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
-		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 
 	def test_counts_the_space_route_and_its_pages_only(self):
@@ -288,7 +288,7 @@ class TestGetOverview(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		self.fixtures.destroy_all()
 		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
-		frappe.db.commit()  # nosemgrep: destroy_all already committed the fixtures' teardown
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 
 	def test_compares_each_number_against_the_previous_window(self):

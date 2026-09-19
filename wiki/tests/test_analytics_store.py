@@ -26,7 +26,7 @@ class TestAnalyticsStore(IntegrationTestCase):
 
 	def tearDown(self):
 		frappe.db.delete("Web Page View", {"path": ("like", "store%")})
-		frappe.db.commit()  # nosemgrep: the mirror is rebuilt from what MariaDB holds after this
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 
 	def test_counts_a_visitors_first_view_only_once(self):

@@ -150,23 +150,24 @@ def rebuild() -> int:
 def _copy_rows(db, since) -> int:
 	columns = ", ".join(FIELDS)
 	marks = "?, TRY_CAST(? AS TIMESTAMP), ?, ?, COALESCE(?, '')"
-	selected = ", ".join(f"`{field}`" for field in FIELDS)
+	view = frappe.qb.DocType("Web Page View")
+	page = frappe.qb.from_(view).select(*FIELDS).orderby(view.creation).orderby(view.name).limit(PAGE_SIZE)
 	held_before = db.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0]
 	cursor = None
 
 	db.begin()
 	while True:
 		if cursor:
-			where, values = "WHERE creation > %s OR (creation = %s AND name > %s)", (*cursor[:1], *cursor)
+			creation, name = cursor
+			query = page.where(
+				(view.creation > creation) | ((view.creation == creation) & (view.name > name))
+			)
 		elif since:
-			where, values = "WHERE creation >= %s", (since,)
+			query = page.where(view.creation >= since)
 		else:
-			where, values = "", ()
+			query = page
 
-		rows = frappe.db.sql(
-			f"SELECT {selected} FROM `tabWeb Page View` {where} ORDER BY creation, name LIMIT {PAGE_SIZE}",
-			values,
-		)
+		rows = query.run()
 		if not rows:
 			break
 
