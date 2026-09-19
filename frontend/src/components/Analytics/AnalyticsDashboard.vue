@@ -59,6 +59,7 @@
 				palette="categorical"
 				:series-config="seriesConfig"
 				:x-axis="{ type: 'time', timeGrain: TIME_GRAINS[interval] }"
+				:y-axis="{ echartOptions: { minInterval: 1 } }"
 				:loading="isFirstLoad"
 				:error="errorMessage"
 			/>

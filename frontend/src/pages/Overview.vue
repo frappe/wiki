@@ -58,6 +58,7 @@
 						:y="['views', 'new_visitors']"
 						:series-config="seriesConfig"
 						:x-axis="xAxis"
+						:y-axis="{ echartOptions: { minInterval: 1 } }"
 						:loading="analytics.loading && !analytics.data"
 						:error="errorOf(analytics)"
 					>
