@@ -81,6 +81,20 @@ class TestGetAnalytics(IntegrationTestCase):
 
 		self.assertEqual(result["total_views"], 3)
 
+	def test_space_scope_leaves_out_nested_spaces(self):
+		# The writer role has no access here, so its traffic is not theirs to see.
+		nested = self.fixtures.space(route=f"{self.route}/v2", roles=[("System Manager", "Write")])
+		_log_view(f"{self.route}/a", "2026-03-10 09:00:00")
+		_log_view(f"{self.route}/v2/b", "2026-03-10 09:00:00")
+		frappe.set_user(self.writer)
+
+		result = get_analytics(**self.march)
+
+		self.assertEqual(result["total_views"], 1)
+		self.assertEqual([row["path"] for row in result["top_pages"]], [f"{self.route}/a"])
+		frappe.set_user("Administrator")
+		self.assertEqual(get_analytics("2026-03-01", "2026-03-31", space=nested.name)["total_views"], 1)
+
 	def test_date_range_is_inclusive_of_both_days(self):
 		_log_view(f"{self.route}/a", "2026-02-28 23:59:59")
 		_log_view(f"{self.route}/b", "2026-03-01 00:00:00")

@@ -237,19 +237,17 @@ def _check_space_access(space) -> None:
 
 
 def _paths_under(routes: tuple[str, ...]) -> list[str]:
-	"""Logged paths that are a route or sit below one.
+	"""Logged paths whose own space is one of these routes.
 
 	Matched in Python on the few distinct paths: one `path = route OR path LIKE 'route/%'`
 	pair per space is 576 conditions on a 288 space wiki, checked against every row.
 	"""
+	# A nested space has its own writers, so its paths belong to it and not to the space around it.
+	space_of = _space_resolver(
+		frappe.get_all("Wiki Space", filters={"route": ("is", "set")}, fields=["route"])
+	)
 	route_set = set(routes)
-	return [path for path in store.known_paths() if _has_prefix_in(path, route_set)]
-
-
-def _has_prefix_in(path: str, routes: set[str]) -> bool:
-	# Route prefixes end at a "/": "docs" covers "docs/intro" but not "docsx/intro".
-	parts = path.split("/")
-	return any("/".join(parts[:depth]) in routes for depth in range(1, len(parts) + 1))
+	return [path for path in store.known_paths() if (space := space_of(path)) and space.route in route_set]
 
 
 def _series(start: date, end: date, paths: tuple[str, ...], interval: str) -> list[dict]:
