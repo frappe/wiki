@@ -220,10 +220,10 @@ const SPACE_BIAS = 1.5;
 
 const jumpTo = [
 	{
-		key: 'overview',
+		key: 'all-spaces',
 		label: __('All Spaces'),
 		icon: 'lucide-library',
-		route: { name: 'Overview' },
+		route: { name: 'AllSpaces' },
 	},
 	{
 		key: 'change-requests',
@@ -353,7 +353,7 @@ const actionItems = computed(() => [
 ]);
 
 async function createSpace() {
-	await router.push({ name: 'Overview' });
+	await router.push({ name: 'AllSpaces' });
 	requestNewSpace();
 }
 

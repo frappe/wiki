@@ -199,6 +199,19 @@
 								{{ __('{0} min', [readingTime]) }}
 							</dd>
 						</div>
+						<div v-if="recentViews.data" class="flex justify-between gap-3">
+							<dt class="text-ink-gray-6">{{ __('Views, last 30 days') }}</dt>
+							<dd>
+								<button
+									type="button"
+									class="text-ink-gray-8 underline decoration-outline-gray-3 underline-offset-2 hover:decoration-ink-gray-5"
+									data-testid="page-views-link"
+									@click="openAnalytics({ document: docName, title })"
+								>
+									{{ recentViews.data.total_views.toLocaleString() }}
+								</button>
+							</dd>
+						</div>
 						<div v-if="lastEdited" class="flex justify-between gap-3">
 							<dt class="text-ink-gray-6">{{ __('Last edited') }}</dt>
 							<dd class="text-ink-gray-8">{{ lastEdited }}</dd>
@@ -241,6 +254,8 @@
 </template>
 
 <script setup>
+import { useSpaceSettings } from '@/composables/useSpaceSettings';
+import { presetRange } from '@/lib/analyticsRange';
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useUserStore } from '@/stores/user';
@@ -251,6 +266,7 @@ import {
 	ScrollArea,
 	Switch,
 	Tooltip,
+	createResource,
 	dayjsLocal,
 	toast,
 	useFileUpload,
@@ -305,6 +321,18 @@ const emit = defineEmits(['close', 'node-updated']);
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
 const fileUploader = useFileUpload();
+
+const { openAnalytics } = useSpaceSettings();
+
+const docName = computed(() => props.docResource.doc?.name);
+const recentViews = createResource({
+	url: 'wiki.api.analytics.get_analytics',
+	makeParams: () => {
+		const [from_date, to_date] = presetRange(30);
+		return { from_date, to_date, document: docName.value };
+	},
+});
+watch(docName, (name) => name && recentViews.reload(), { immediate: true });
 
 const isSaving = ref(false);
 const isUploadingImage = ref(false);

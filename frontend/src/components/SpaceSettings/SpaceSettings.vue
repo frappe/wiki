@@ -62,6 +62,16 @@
 					/>
 				</SettingsBody>
 			</SettingsPanel>
+			<SettingsPanel value="analytics">
+				<SettingsHeader :title="__('Analytics')" />
+				<SettingsBody>
+					<AnalyticsDashboard
+						class="pt-6"
+						:space="spaceId"
+						v-model:page="analyticsPage"
+					/>
+				</SettingsBody>
+			</SettingsPanel>
 			<SettingsPanel value="git-sync">
 				<SettingsHeader :title="__('Git Sync')" />
 				<SettingsBody>
@@ -100,6 +110,8 @@
 </template>
 
 <script setup>
+import AnalyticsDashboard from '@/components/Analytics/AnalyticsDashboard.vue';
+import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import {
 	Badge,
 	SettingsBody,
@@ -137,9 +149,14 @@ const emit = defineEmits([
 	'open-clone',
 ]);
 
+const { selectedTab, analyticsPage } = useSpaceSettings();
+
 const open = computed({
 	get: () => props.modelValue,
-	set: (value) => emit('update:modelValue', value),
+	set: (value) => {
+		if (!value) analyticsPage.value = null;
+		emit('update:modelValue', value);
+	},
 });
 
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
@@ -150,10 +167,10 @@ const tabs = computed(() => [
 	{ label: __('General'), value: 'general', icon: 'lucide-settings' },
 	{ label: __('Navigation'), value: 'navigation', icon: 'lucide-list-tree' },
 	{ label: __('Access'), value: 'access', icon: 'lucide-lock' },
+	{ label: __('Analytics'), value: 'analytics', icon: 'lucide-chart-line' },
 	// lucide-static dropped brand icons, so no `lucide-github`.
 	{ label: __('Git Sync'), value: 'git-sync', icon: 'lucide-git-branch' },
 ]);
 
-const selectedTab = ref('general');
 const accessDirty = ref(false);
 </script>
