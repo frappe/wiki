@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 Date revised: 2026-09-21
-Status: **Phase 0 done. Phase 1 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
+Status: **Phases 0 and 1 done. Phase 2 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
 
 ## Problem
 
@@ -137,13 +137,25 @@ Events exist to answer these. An event that answers none stays in Planned.
 
 ### Phase 1: tracer bullet
 
-One event per half, end to end, plus the catalogue file, before any more events.
+**Done, 2026-09-21.** One event per half, end to end, plus the catalogue file, before any more events.
 
 - `docs/telemetry.md`: the question table, the rules, and the two events below.
 - `wiki/telemetry.py`: `capture(event, interval=None, **props)` wrapping frappe's, adding `app_version` and `entry`, swallowing every exception. About 20 lines, copied from insights.
 - Backend: `capture("active_site")` in `wiki/www/wiki_app.py:get_context` for non-guest users.
 - Frontend: `frontend/src/telemetry.js` wrapping `useTelemetry()` with the same two properties (served from `get_boot`), and `app.use(telemetryPlugin, { app_name: 'wiki', router })` in `main.js` once the user is signed in. `router` gives `pageview` on new sites for free.
 - Done when one `active_site` sits in the server queue and one `pageview` leaves the browser with `app: "wiki"`.
+
+Both verified on `wiki.localhost` with `pulse_api_key` and `pulse_force_enabled` set:
+
+- `GET /wiki-app` as Administrator queued `{"app": "wiki", "event_name": "active_site", "properties": {"app_version": "3.2.1", "entry": "self_hosted"}}`. A guest sends nothing.
+- Playwright with `boot_config` and the Pulse CDN client stubbed captured `{"event_name": "pageview", "app": "wiki", "props": {"route": "/"}}`. The stub is `e2e/tests/telemetry.spec.ts`, so no test ever reaches Pulse.
+
+Two things came out different from the plan.
+
+- **The shared properties ride on the existing boot payload, not a new API.** `wiki_app.py:get_boot` already feeds `window.<key>` for every key it returns, so `get_boot` gained one key, `telemetry`, holding `{app_version, entry}`. Insights needs `get_site_info` because its SPA has no such payload. No new whitelisted method here.
+- **`frontend/src/telemetry.js` has no caller yet.** Phase 1's frontend event is `pageview`, which the plugin sends itself. The wrapper is what Phase 2's browser events go through, and it is what keeps `app_version` and `entry` on them.
+
+`get_debug_info(fetch_events=...)` returns an empty list on a non-empty queue (`lindex` against the list it `lpush`es), so the queue was read with `frappe.cache.lrange` instead. Frappe bug, not wiki's; worth reporting.
 
 ### Phase 2: shipping events
 
@@ -224,4 +236,5 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-20: Reworked around the insights `develop` model: catalogue file, question table, naming and privacy rules, per-half wrapper, daily site scan.
 - 2026-09-20: Added questions 9 to 13 and their events: space publish and unpublish, document kind on create, the generated avatar picker, meta image generation, and wiki size per space in the scan.
 - 2026-09-21: Phase 0 pins the frappe-ui target at the latest tag, `1.0.0-beta.76`, and calls the upgrade a separate blocking spec.
+- 2026-09-21: Phase 1 done. `wiki/telemetry.py`, `active_site` from the app shell, the boot-served shared properties, `frontend/src/telemetry.js`, the plugin installed for signed-in SPA users, `docs/telemetry.md`, unit tests and one stubbed Playwright test.
 - 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
