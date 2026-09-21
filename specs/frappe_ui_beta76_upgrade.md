@@ -1,7 +1,7 @@
 # Frappe UI `beta.55` → `beta.76` Upgrade
 
 Date: 2026-09-21
-Status: **Draft, not started.**
+Status: **Phases 0 to 4 landed on `chore/frappe-ui-beta76`.** 167/167 e2e, matching the pre-upgrade reference run. See the progress log at the end.
 Research base: frappe-ui `v1.0.0-beta.55` (what `frontend/package.json` ships) vs `v1.0.0-beta.76` (npm `beta`, the current tag). Sources: `docs/content/docs/changelog.md` and `docs/content/docs/migration.md` at both tags, diffed. The changelog delta is 66 entries; the migration delta is larger because it also documents older v0 breaks that were written up late, so the changelog delta is the list of things that actually changed under us.
 
 ## Goal
@@ -18,7 +18,8 @@ Not a telemetry prerequisite. `@framework/ui/telemetry` needs only `call` from f
 
 | # | Change | Wiki call sites |
 |---|---|---|
-| A1 | `resolvedColorScheme` is no longer a function export. It is a read-only ref on `useColorScheme()`, and the `MutationObserver` around it goes away | `composables/useTheme.js:1,28,32` |
+| A1 | `resolvedColorScheme` is no longer a function export. It is a read-only ref on `useColorScheme()`, and the `MutationObserver` around it goes away | `composables/useTheme.js:1,28,32`. Fixed with `useResolvedColorScheme()`, which reads the painted scheme without also owning `data-theme`. Our hand-rolled `toggleTheme` went with it: upstream's `toggleColorScheme` now flips the painted value, which is the only reason we had our own |
+| A2 | **The token files moved.** `tailwind/colors.json` and `tailwind/generated/*.json` are gone; the tokens are a module, `frappe-ui/tailwind/tokens`. The changelog names wiki as one of the three apps reading them by path | `scripts/generate-public-theme.mjs`, which read four JSON files and mirrored `colorPalette.js` and `plugin.js` by hand to shape them. The module publishes `cssVariables.light` / `.dark`, which is exactly the `:root` and dark blocks the mirror was rebuilding, so the fix deleted the mirror: 171 lines out, 72 in |
 
 ### B. Silent breaks that hit us
 
@@ -29,9 +30,10 @@ Not a telemetry prerequisite. `@framework/ui/telemetry` needs only `call` from f
 | B3 | `ListGroup` `#header` slot is `#label`. Vue drops content under an unknown slot name, so the group header just disappears | `components/ContributionsPanel.vue:85` |
 | B4 | `Dialog` `icon` takes a `lucide-*` string or a component, and the tone moves to a top-level `theme`. An object renders an empty icon badge | `components/SubmitForReviewButton.vue:28` (`:icon="{ name: 'lucide-git-branch', theme: 'blue' }"`) |
 | B5 | **Editor menu options are a fixed set**: `side`, `align`, `strategy`, `offset`, `flip`, `shift`, `hide`, `inline`, `scrollTarget`, `shouldShow`. `placement` splits into `side` plus `align`; `flip` and `shift` in object form are gone, `true` or nothing; the Floating UI derivable boundary we pass is not a supported key. `scrollTarget` is the replacement for pinning to a scroll container | `components/tiptap-extensions/WikiBubbleMenu.vue:119-140`, which pins the flip/shift boundary to the editor's scroll container and pads it by the toolbar height. This is the one real design change in the upgrade: see Phase 2 |
-| B6 | `frappe-ui/list` row state vocabulary: `[data-slot='list-row'][data-active]` is `[data-state='active']`, and `data-state="selected"` is `data-selected` | One file carries a `data-state` selector; `npx list-v1 .` covers the anchored forms, the rest is a grep |
-| B7 | Tailwind preset: `hover:` applies only where hovering is possible | Any hover-only affordance on touch. Visual check on the mobile specs |
-| B8 | Writes reject instead of resolving `null` across the data-fetching composables, and an unawaited write becomes an unhandled rejection | We use `createResource` / `createListResource` / `createDocumentResource` in 24 files. Audit every `if (!result)` after a submit, and every unawaited `.submit()` |
+| B6 | **`frappe-ui/list` responsive columns.** `--list-columns` and the `list-cols-[…]` utility are gone; a breakpoint object on the `columns` prop replaces them | `pages/AllSpaces.vue:83,96` and `components/ContributionsPanel.vue:32`, both of which collapsed their table to a phone feed with `max-sm:list-cols-[…]`. **This one shipped a visible regression**: the 5-track desktop template stayed on at 384px and the space name column rendered at zero width. `spa-editor.mobile.spec.ts` caught it. `AllSpaces`'s header runs one track short on purpose, which `list-cols-` used to express; it now overrides with `!grid-cols-[…]` |
+| B7 | `frappe-ui/list` row state vocabulary: `[data-slot='list-row'][data-active]` is `[data-state='active']`, and `data-state="selected"` is `data-selected` | One file carries a `data-state` selector; `npx list-v1 .` covers the anchored forms, the rest is a grep |
+| B8 | Tailwind preset: `hover:` applies only where hovering is possible | Any hover-only affordance on touch. Visual check on the mobile specs |
+| B9 | Writes reject instead of resolving `null` across the data-fetching composables, and an unawaited write becomes an unhandled rejection | We use `createResource` / `createListResource` / `createDocumentResource` in 24 files. Audit every `if (!result)` after a submit, and every unawaited `.submit()` |
 
 ### C. Changed, but no wiki call sites
 
@@ -43,7 +45,9 @@ Tracer bullet order: make it build, make it run, then fix what renders wrong.
 
 ### Phase 0: pin and build
 
-Bump `frontend/package.json` to `1.0.0-beta.76`, `yarn install`, run the codemods frappe-ui ships, and get `yarn build` green. Codemods, each idempotent and run with `--dry-run` first: `packaging-v1`, `list-v1`, `navigation-v1`, `base-props-v1`, `editor-v1`, `tokens-v2`, `data-v1`, `overlays-v1`, `destinations-v1`, `shortcuts-v1`. Review every diff they produce: they are a starting point, not the fix.
+Bump `frontend/package.json` to `1.0.0-beta.76`, `yarn install`, run the codemods frappe-ui ships, and get `yarn build` green. Codemods, each idempotent and run with `--dry-run` first: `packaging-v1`, `list-v1`, `navigation-v1`, `base-props-v1`, `editor-v1`, `data-v1`, `overlays-v1`, `destinations-v1`, `shortcuts-v1`. Review every diff they produce: they are a starting point, not the fix.
+
+**Do not run `tokens-v2`.** Its dry run offers 30 renames here (`text-lg-semibold` → `text-md-semibold` and friends) and taking them would shrink every size by one step. Wiki ran the full tokens-v2, typography shift included, on 2026-07-04 (`frappe_ui_v1_upgrade.md`, Phase 2). The codemod detects an already-migrated codebase and then offers the typography correction *again*, with no sentinel that can tell it already ran. `--radius-only`, the idempotent mode, reports 0 changes, which is how we know wiki is fully migrated.
 
 ### Phase 1: loud breaks
 
@@ -68,12 +72,17 @@ Full Playwright run against `wiki.localhost`, compared to the pre-upgrade refere
 - `yarn build` plus the dev server, because the dev path aliases frappe-ui differently from the build path.
 - Screenshots per Phase 3, before and after, desktop and phone.
 
+## Answered while building
+
+1. **Bubble menu boundary (B5).** Neither. `EditorBubbleMenu` narrows the option type but spreads the rest of the bag straight into TipTap, so the derivable `flip`, `shift` and `hide` boundaries still reach Floating UI at runtime, and wiki is JavaScript. Only `placement` moved, to `side`. The passthrough is load-bearing and undocumented, so the code says so and `bubble-menu.spec.ts` is what tells us if a later release starts filtering the bag.
+2. **Typography blast radius (B1).** Small. Before and after builds at both versions show tree rows, the sidebar, the spaces table and the reader holding their pitch, because the row heights come from frappe-ui components that carry `leading-tighter`. The command palette was the exception: rows 32px to 35px, panel 65px taller. `leading-tighter` on the four hand-written menu surfaces (command palette, `Autocomplete` options, the slash menu, `SpaceSidebar` rows) puts them back.
+3. **`@framework/ui` peer floor.** Satisfied honestly now, rather than by importing only the telemetry subpath.
+
 ## Open questions
 
-1. **Bubble menu boundary (B5).** Does `scrollTarget` reproduce the toolbar-aware flip, or do we mount TipTap's `BubbleMenu` ourselves? Decided while building Phase 2.
-2. **Typography blast radius (B1).** 1.15 to 1.35 touches every hand-written row in the app. If the sweep grows past a day, ship Phases 0 to 2 and take B1 as its own PR, since it is a rendering change with no API in it.
-3. **`@framework/ui` peer floor.** The telemetry work links `@framework/ui`, whose peer range is `frappe-ui >=1.0.0-beta.63`. After this upgrade that range is satisfied honestly rather than by only importing the telemetry subpath.
+1. **`--radius-9` is 100px, not 999px.** It reaches the reader's generated token CSS. No template uses `rounded-9`, so nothing to change, but a pill that renders as a rounded rectangle is the thing to look for.
 
 ## Progress log
 
 - 2026-09-21: Spec drafted from the beta.55 to beta.76 changelog and migration diff, with the wiki call-site inventory.
+- 2026-09-21: Phases 0 to 4 done. Build green after two loud breaks (A1, A2). `list-v1` and `destinations-v1` applied, 6 files; the other seven codemods had nothing to do, and `tokens-v2` must not run (see Phase 0). Manual fixes: Tree's keyed `v-model:expanded`, the Dialog icon object, the bubble menu's `side`, and the list responsive columns that took the mobile spec down. `leading-tighter` on four menu surfaces. Reference run before the bump: 167/167 in 16.7m. After: 167/167 in 14.8m.
