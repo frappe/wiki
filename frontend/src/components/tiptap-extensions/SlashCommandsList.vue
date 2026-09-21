@@ -3,7 +3,7 @@
          so the wiki editor matches Gameplan: compact rows, section headers per
          consecutive `group` run, icon + title only. -->
     <div
-        class="slash-commands-list relative max-h-[300px] min-w-48 overflow-y-auto rounded-6 border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base shadow-2xl"
+        class="slash-commands-list relative max-h-[300px] min-w-48 overflow-y-auto rounded-6 border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base leading-tighter shadow-2xl"
     >
         <template v-if="items.length">
             <template

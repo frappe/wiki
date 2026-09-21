@@ -54,7 +54,7 @@
 					:key="item.key"
 					role="option"
 					:aria-selected="item === activeItem ? 'true' : 'false'"
-					class="flex cursor-pointer items-center rounded-4 px-2 py-2 text-base-medium text-ink-gray-7"
+					class="flex cursor-pointer items-center rounded-4 px-2 py-2 text-base-medium leading-tighter text-ink-gray-7"
 					:class="{ 'bg-surface-gray-3': item === activeItem }"
 					@click="select(item)"
 					@mousemove="activeKey = item.key"
