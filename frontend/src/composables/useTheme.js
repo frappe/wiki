@@ -1,5 +1,5 @@
-import { resolvedColorScheme, useColorScheme } from 'frappe-ui';
-import { computed, ref } from 'vue';
+import { useColorScheme, useResolvedColorScheme } from 'frappe-ui';
+import { computed } from 'vue';
 
 // Light/dark now comes from frappe-ui's useColorScheme: it owns the
 // `data-theme` attribute, the `theme` localStorage key, following the OS while
@@ -23,39 +23,24 @@ if (typeof localStorage !== 'undefined') {
 // The painted scheme, which is what a consumer picking a light/dark asset
 // actually needs. It is not derivable from the preference alone: `system`
 // resolves against the OS, and an OS flip repaints without changing the
-// preference, so there is nothing reactive to watch. Track the attribute
-// frappe-ui writes instead. Module-level so every caller shares one observer.
-const resolvedTheme = ref(resolvedColorScheme());
-
-if (typeof document !== 'undefined') {
-	new MutationObserver(() => {
-		resolvedTheme.value = resolvedColorScheme();
-	}).observe(document.documentElement, {
-		attributes: true,
-		attributeFilter: ['data-theme'],
-	});
-}
+// preference. frappe-ui tracks that for us; `useResolvedColorScheme` reads it
+// without also owning `data-theme`, which `useColorScheme` below does.
+const resolvedTheme = useResolvedColorScheme();
 
 export function useTheme() {
-	const { colorScheme, setColorScheme } = useColorScheme();
+	const { colorScheme, setColorScheme, toggleColorScheme } = useColorScheme();
 
 	const themeIcon = computed(() =>
 		resolvedTheme.value === 'dark' ? 'lucide-sun' : 'lucide-moon',
 	);
-
-	// Not frappe-ui's toggleColorScheme: that one branches on the preference, so
-	// the first click while the preference is `system` picks `dark` — which is
-	// what a system-dark page is already painted in, and the click looks dead.
-	// Flipping the painted scheme always changes something.
-	function toggleTheme() {
-		setColorScheme(resolvedTheme.value === 'dark' ? 'light' : 'dark');
-	}
 
 	return {
 		colorScheme,
 		resolvedTheme,
 		themeIcon,
 		setTheme: setColorScheme,
-		toggleTheme,
+		// frappe-ui's toggle flips the painted scheme, not the preference, so the
+		// first click on a system-dark page moves to light instead of looking dead.
+		toggleTheme: toggleColorScheme,
 	};
 }

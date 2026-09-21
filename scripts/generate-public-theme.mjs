@@ -5,207 +5,118 @@
  * The SPA gets frappe-ui tokens through the Tailwind v3 preset
  * (frappe-ui/tailwind). The public reader (wiki/templates, server-rendered)
  * runs a separate Tailwind v4 pipeline that used to carry a hand-copied
- * snapshot of the tokens — which drifted. This script reads the same
- * Figma-synced JSON the preset reads and emits a Tailwind v4 stylesheet, so
- * both surfaces share one source of truth: upgrade frappe-ui, rebuild, done.
+ * snapshot of the tokens — which drifted. This script reads frappe-ui's own
+ * token module and emits a Tailwind v4 stylesheet, so both surfaces share one
+ * source of truth: upgrade frappe-ui, rebuild, done.
  *
- * Mirrors frappe-ui/tailwind/colorPalette.js + plugin.js (which node can't
- * import directly — they use bare JSON imports). Emits:
- *   - @theme: radius, shadows (elevation), font sizes with v4 modifier vars,
- *     and the raw color palette (--color-*)
- *   - :root / [data-theme="dark"]: the semantic variables (--surface-*,
- *     --ink-*, --outline-*), raw palette vars, elevation + focus vars
- *   - @utility: text-<size>-<weight> merged text styles and focus-ring-*
- *     (purgeable — only the ones templates use reach tailwind.css)
+ * `frappe-ui/tailwind/tokens` (beta.76 and up) publishes the tokens as data,
+ * including `cssVariables`, the same variable blocks the v3 plugin writes. We
+ * used to mirror colorPalette.js and plugin.js by hand to get them; the mirror
+ * is gone. What is left is the v4 shaping the preset does not do for us:
+ * `@theme` scales and the merged `@utility` text styles.
  *
- * Input:  frontend/node_modules/frappe-ui/tailwind/colors.json (live oklch
- *         tokens — NOT generated/colors.json, which is a stale hex export)
- *         + frontend/node_modules/frappe-ui/tailwind/generated/{radius,
- *         typography,effects}.json
+ * Input:  frontend/node_modules/frappe-ui/tailwind/tokens.js
  * Output: wiki/public/css/frappe-ui-tokens.css
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const tokenDir = join(root, 'frontend/node_modules/frappe-ui/tailwind');
+const packageDir = join(root, 'frontend/node_modules/frappe-ui');
 const outFile = join(root, 'wiki/public/css/frappe-ui-tokens.css');
 
-const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+const {
+	colors,
+	cssVariables,
+	focusRing,
+	fontSize,
+	fontWeight,
+	radius,
+	shadows,
+	tracking,
+} = await import(pathToFileURL(join(packageDir, 'tailwind/tokens.js')).href);
 
-const colors = readJson(join(tokenDir, 'colors.json'));
-const radius = readJson(join(tokenDir, 'generated/radius.json'));
-const typography = readJson(join(tokenDir, 'generated/typography.json'));
-const effects = readJson(join(tokenDir, 'generated/effects.json'));
-const frappeUiVersion = readJson(
-	join(root, 'frontend/node_modules/frappe-ui/package.json'),
+const frappeUiVersion = JSON.parse(
+	readFileSync(join(packageDir, 'package.json'), 'utf8'),
 ).version;
 
-// Mirrors colorPalette.js#resolveColorReference.
-function resolveColorReference(reference) {
-	const [mode, color, shade] = reference.split('/');
-	if (mode === 'lightMode') return colors.lightMode[color][shade];
-	if (mode === 'darkMode') return colors.darkMode[color][shade];
-	if (mode === 'overlay') return colors.overlay[color][shade];
-	if (mode === 'neutral') return colors.neutral[color];
-	throw new Error(`Unresolvable color reference: ${reference}`);
-}
-
-function block(selector, vars, indent = '') {
+function block(selector, vars) {
 	const lines = Object.entries(vars).map(
-		([name, value]) => `${indent}\t${name}: ${value};`,
+		([name, value]) => `\t${name}: ${value};`,
 	);
-	return `${indent}${selector} {\n${lines.join('\n')}\n${indent}}`;
-}
-
-// --- Semantic variables (mirrors colorPalette.js#generateCSSVariables) ----
-
-function semanticVars(mode) {
-	const out = {};
-	for (const [category, entries] of Object.entries(
-		colors.themedVariables[mode],
-	)) {
-		for (const [name, reference] of Object.entries(entries)) {
-			out[`--${category}-${name}`] = resolveColorReference(reference);
-		}
-	}
-	return out;
-}
-
-function paletteVars(mode, prefix = '') {
-	const out = {};
-	for (const [color, shades] of Object.entries(colors[mode])) {
-		for (const [shade, value] of Object.entries(shades)) {
-			out[`--${prefix}${color}-${shade}`] = value;
-		}
-	}
-	return out;
-}
-
-// --- Effects (mirrors colorPalette.js#generateEffectVariables) ------------
-
-function shadowToOutline(shadow) {
-	const parts = shadow.trim().split(/\s+/);
-	return `${parts[3]} solid ${parts.slice(4).join(' ')}`;
-}
-
-function effectVars(mode) {
-	const out = {};
-	if (mode === 'light') {
-		// Elevation uses the light values in both modes (matches Figma).
-		for (const [step, value] of Object.entries(effects.elevation.light)) {
-			out[`--elevation-${step}`] = value;
-		}
-		for (const [name, value] of Object.entries(effects.elevation.custom)) {
-			out[`--elevation-${name}`] = value;
-		}
-	}
-	for (const [name, value] of Object.entries(effects.focus[mode])) {
-		out[`--focus-${name}`] = value;
-		out[`--focus-outline-${name}`] = shadowToOutline(value);
-	}
-	return out;
+	return `${selector} {\n${lines.join('\n')}\n}`;
 }
 
 // --- @theme scales ---------------------------------------------------------
 
 function radiusThemeVars() {
-	const out = {};
-	for (const [key, value] of Object.entries(radius)) {
-		if (key === 'DEFAULT') out['--radius'] = value;
-		else out[`--radius-${key}`] = value;
-	}
-	return out;
+	return Object.fromEntries(
+		Object.entries(radius).map(([key, value]) => [`--radius-${key}`, value]),
+	);
 }
 
 function shadowThemeVars() {
-	const out = { '--shadow-none': 'none' };
-	for (const [step, value] of Object.entries(effects.elevation.light)) {
-		if (step === 'base') out['--shadow'] = value;
-		else out[`--shadow-${step}`] = value;
-	}
-	for (const [name, value] of Object.entries(effects.elevation.custom)) {
-		out[`--shadow-${name}`] = value;
-	}
-	return out;
+	return Object.fromEntries(
+		Object.entries(shadows).map(([key, value]) => [
+			key === 'DEFAULT' ? '--shadow' : `--shadow-${key}`,
+			value,
+		]),
+	);
 }
 
-// Regular + paragraph sizes as v4 `--text-*` vars with modifier vars, the v4
-// equivalent of plugin.js#buildFontSize.
+// The v4 equivalent of the preset's font-size scale: one var per size, plus
+// the modifier vars v4 reads for line height, tracking and weight.
 function fontSizeThemeVars() {
 	const out = {};
-	const emit = (key, size, meta) => {
-		out[`--text-${key}`] = size;
-		if (meta.lineHeight) out[`--text-${key}--line-height`] = meta.lineHeight;
-		if (meta.letterSpacing)
-			out[`--text-${key}--letter-spacing`] = meta.letterSpacing;
-		if (meta.fontWeight) out[`--text-${key}--font-weight`] = meta.fontWeight;
-	};
-	for (const [key, [size, meta]] of Object.entries(typography.fontSize)) {
-		emit(key, size, meta);
-	}
-	for (const [key, p] of Object.entries(typography.paragraph || {})) {
-		const entry = typography.fontSize[key];
-		if (!entry) continue;
-		const [size, meta] = entry;
-		emit(`p-${key}`, size, { ...meta, ...p });
+	for (const [key, style] of Object.entries(fontSize)) {
+		out[`--text-${key}`] = style.fontSize;
+		out[`--text-${key}--line-height`] = style.lineHeight;
+		out[`--text-${key}--letter-spacing`] = style.letterSpacing;
+		out[`--text-${key}--font-weight`] = style.fontWeight;
 	}
 	return out;
 }
 
 function colorThemeVars() {
 	const out = {};
-	for (const [color, shades] of Object.entries(colors.lightMode)) {
+	for (const [color, shades] of Object.entries(colors.light)) {
 		for (const [shade, value] of Object.entries(shades)) {
 			out[`--color-${color}-${shade}`] = value;
 		}
 	}
-	for (const [shade, value] of Object.entries(colors.overlay.white)) {
-		out[`--color-white-overlay-${shade}`] = value;
-	}
-	for (const [shade, value] of Object.entries(colors.overlay.black)) {
-		out[`--color-black-overlay-${shade}`] = value;
+	for (const [tone, shades] of Object.entries(colors.overlay)) {
+		for (const [shade, value] of Object.entries(shades)) {
+			out[`--color-${tone}-overlay-${shade}`] = value;
+		}
 	}
 	return out;
 }
 
-// --- @utility text styles (mirrors plugin.js#buildTextStyleUtilities) ------
+// --- @utility text styles --------------------------------------------------
 
-const WEIGHT_VARIANTS = ['medium', 'semibold', 'bold', 'black'];
-
+// `text-base-medium` and friends: one class that sets size, line height,
+// weight and the weight's own tracking, which the scale above cannot express.
 function textStyleUtilities() {
 	const out = [];
-	const t = typography;
 	const groups = [
-		{
-			className: (s, w) => `text-${s}-${w}`,
-			tracking: t.tracking?.text || {},
-			lineHeight: (s) => t.fontSize[s]?.[1].lineHeight,
-		},
-		{
-			className: (s, w) => `text-p-${s}-${w}`,
-			tracking: t.tracking?.paragraph || {},
-			lineHeight: (s) => t.paragraph?.[s]?.lineHeight,
-		},
+		{ prefix: '', tracking: tracking.text },
+		{ prefix: 'p-', tracking: tracking.paragraph },
 	];
 	for (const group of groups) {
 		for (const [size, byWeight] of Object.entries(group.tracking)) {
-			const entry = t.fontSize[size];
-			if (!entry) continue;
-			const [fontSize] = entry;
-			const lineHeight = group.lineHeight(size);
-			const transform = t.textTransform?.[size];
-			for (const weight of WEIGHT_VARIANTS) {
-				if (!(weight in byWeight)) continue;
-				const props = {
-					'font-size': fontSize,
-					'line-height': lineHeight,
-					'font-weight': String(t.fontWeight[weight]),
-					'letter-spacing': byWeight[weight],
-					...(transform ? { 'text-transform': transform } : {}),
-				};
-				out.push(block(`@utility ${group.className(size, weight)}`, props));
+			const style = fontSize[`${group.prefix}${size}`];
+			if (!style) continue;
+			for (const [weight, letterSpacing] of Object.entries(byWeight)) {
+				if (weight === 'regular') continue;
+				out.push(
+					block(`@utility text-${group.prefix}${size}-${weight}`, {
+						'font-size': style.fontSize,
+						'line-height': style.lineHeight,
+						'font-weight': String(fontWeight[weight]),
+						'letter-spacing': letterSpacing,
+					}),
+				);
 			}
 		}
 	}
@@ -213,13 +124,15 @@ function textStyleUtilities() {
 }
 
 function focusRingUtilities() {
-	return Object.keys(effects.focus.light).map((name) => {
-		const className = name === 'default' ? 'focus-ring' : `focus-ring-${name}`;
-		return block(`@utility ${className}`, {
-			outline: `var(--focus-outline-${name})`,
-			'outline-offset': '0px',
-		});
-	});
+	return Object.keys(focusRing.light).map((name) =>
+		block(
+			`@utility ${name === 'default' ? 'focus-ring' : `focus-ring-${name}`}`,
+			{
+				outline: `var(--focus-outline-${name})`,
+				'outline-offset': '0px',
+			},
+		),
+	);
 }
 
 // --- Assemble ---------------------------------------------------------------
@@ -227,7 +140,7 @@ function focusRingUtilities() {
 const css = [
 	`/* GENERATED FILE — DO NOT EDIT.
  * Source: frappe-ui@${frappeUiVersion} tailwind tokens
- * (frontend/node_modules/frappe-ui/tailwind). Regenerate with:
+ * (frontend/node_modules/frappe-ui/tailwind/tokens.js). Regenerate with:
  *   node scripts/generate-public-theme.mjs
  * (runs automatically as part of \`yarn tailwind:build\`)
  */`,
@@ -237,17 +150,8 @@ const css = [
 		...fontSizeThemeVars(),
 		...colorThemeVars(),
 	}),
-	block(':root', {
-		...semanticVars('light'),
-		...paletteVars('lightMode'),
-		...effectVars('light'),
-		...radiusThemeVars(),
-	}),
-	block('[data-theme="dark"]', {
-		...semanticVars('dark'),
-		...paletteVars('darkMode', 'dark-'),
-		...effectVars('dark'),
-	}),
+	block(':root', cssVariables.light),
+	block('[data-theme="dark"]', cssVariables.dark),
 	...textStyleUtilities(),
 	...focusRingUtilities(),
 ].join('\n\n');
