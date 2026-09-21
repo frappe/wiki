@@ -66,6 +66,7 @@ import {
 	CodeBlock,
 	EditorContent,
 	EditorTableMenu,
+	Emoji,
 	Markdown,
 	useEditor,
 } from 'frappe-ui/editor';
@@ -674,6 +675,7 @@ const editor = useEditor({
 		VideoBlock.configure({
 			uploadFunction: uploadFile,
 		}),
+		Emoji,
 		// Slash commands
 		SlashCommands.configure({
 			suggestion: createSlashCommandsSuggestion(),
