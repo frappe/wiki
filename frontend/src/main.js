@@ -1,9 +1,11 @@
-import { createApp } from 'vue';
+import { telemetryPlugin } from '@framework/ui/telemetry/index.ts';
+import { createApp, watchEffect } from 'vue';
 
 import App from './App.vue';
 import router from './router';
 import { initSocket } from './socket';
 import { pinia } from './stores';
+import { useSessionStore } from './stores/session';
 
 import translationPlugin from './translation';
 
@@ -39,6 +41,15 @@ app.use(pinia);
 app.use(router);
 app.use(translationPlugin);
 app.use(resourcesPlugin);
+
+// Telemetry is for signed-in app users; the Jinja reader sends nothing.
+const session = useSessionStore();
+const stopTelemetry = watchEffect(() => {
+	if (session.isLoggedIn) {
+		app.use(telemetryPlugin, { app_name: 'wiki', router });
+		stopTelemetry();
+	}
+});
 
 const socket = initSocket();
 app.config.globalProperties.$socket = socket;
