@@ -24,6 +24,16 @@ export class PulseClient {
 }
 `;
 
+type Capture = {
+	event_name: string;
+	app: string;
+	props: Record<string, string>;
+};
+
+const recorded = () =>
+	(window as unknown as { __pulse?: { captures: Capture[] } }).__pulse
+		?.captures ?? [];
+
 test.describe('Telemetry', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.route(BOOT_CONFIG, (route) =>
@@ -59,13 +69,14 @@ test.describe('Telemetry', () => {
 
 		await page.goto(appUrl());
 		await expect
-			.poll(() => page.evaluate(() => window.__pulse?.captures.length ?? 0))
+			.poll(() => page.evaluate(recorded).then((c) => c.length))
 			.toBeGreaterThan(0);
 
-		const captures = await page.evaluate(() => window.__pulse.captures);
+		const captures = await page.evaluate(recorded);
 		const pageview = captures.find((c) => c.event_name === 'pageview');
-		expect(pageview.app).toBe('wiki');
-		expect(pageview.props.route).toMatch(/^\/[^ ]*$/);
+		expect(pageview?.app).toBe('wiki');
+		// The route pattern, never a title or a real page slug.
+		expect(pageview?.props.route).toMatch(/^\/[^ ]*$/);
 		expect(JSON.stringify(captures)).not.toContain(token);
 	});
 });
