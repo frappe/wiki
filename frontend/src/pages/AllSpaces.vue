@@ -77,10 +77,13 @@
 					     track list here has to stay in step with that choice. -->
 					<List
 						v-else
-						:columns="['auto', 'minmax(0,1fr)', '7rem', '4.5rem', '8rem']"
+						:columns="{
+							base: ['auto', 'minmax(0,1fr)', 'auto'],
+							sm: ['auto', 'minmax(0,1fr)', '7rem', '4.5rem', '8rem'],
+						}"
 						divider="inset"
 						:row-height="60"
-						class="-mx-3 w-full list-row-px-3 list-gap-3 max-sm:list-cols-[auto_minmax(0,1fr)_auto]"
+						class="-mx-3 w-full list-row-px-3 list-gap-3"
 					>
 						<!-- `!hidden`: the family sets `display: grid` at attribute
 						     specificity, which a plain `hidden` utility ties with and
@@ -92,8 +95,12 @@
 						     names the whole identity block, tile included, so it belongs
 						     at the row's edge -- which is also where the filter row above
 						     it starts. -->
+						<!-- `!grid-cols`: the header's track set is the List's own by
+						     construction, and the `columns` prop is the only supported way
+						     to set that. This header runs one track short on purpose (see
+						     above), so it overrides the inherited template directly. -->
 						<ListHeader
-							class="max-sm:!hidden list-cols-[minmax(0,1fr)_7rem_4.5rem_8rem]"
+							class="max-sm:!hidden !grid-cols-[minmax(0,1fr)_7rem_4.5rem_8rem]"
 						>
 							<ListHeaderCell>{{ __('Space') }}</ListHeaderCell>
 							<ListHeaderCell />
@@ -152,7 +159,7 @@
 							v-for="space in orderedSpaces"
 							v-else
 							:key="space.name"
-							:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
+							:route="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
 						>
 							<ListCell>
 								<SpaceAvatar
