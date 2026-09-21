@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 Date revised: 2026-09-21
-Status: **Draft, not started.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
+Status: **Phase 0 done. Phase 1 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
 
 ## Problem
 
@@ -44,7 +44,7 @@ On install the plugin calls `frappe.utils.telemetry.pulse.client.boot_config` (w
 | `frappe-ui/frappe` (`telemetryPlugin`) | Removed in frappe-ui `1.0.0-beta.41` (2026-08-09). CRM, Builder and LMS still import it because they pin older frappe-ui. |
 | `@framework/ui` (`frappe/ui/src/telemetry`) | Current home, since frappe/frappe#41671 (2026-08-08). Insights and Helpdesk `develop` use it. |
 
-Wiki ships frappe-ui `1.0.0-beta.55`, which has no `frappe-ui/frappe` export, so "the frappe-ui plugin" for wiki means `@framework/ui`. It is not on npm: raw source in the frappe repo, linked by relative path, compiled by the host app's Vite. Peer dependency is `frappe-ui >=1.0.0-beta.63`.
+Wiki ships frappe-ui `1.0.0-beta.76`, which has no `frappe-ui/frappe` export, so "the frappe-ui plugin" for wiki means `@framework/ui`. It is not on npm: raw source in the frappe repo, linked by relative path, compiled by the host app's Vite. Peer dependency is `frappe-ui >=1.0.0-beta.63`.
 
 ### Insights, the one worth copying
 
@@ -118,15 +118,22 @@ Events exist to answer these. An event that answers none stays in Planned.
 
 ### Phase 0: prerequisites
 
-1. **Upgrade frappe-ui from `1.0.0-beta.55` to the latest tag, `1.0.0-beta.76`** (npm `beta`; the npm `latest` tag still points at the old `0.1.x` line, so it is not what we want). `@framework/ui` needs at least beta.63, and there is no reason to land on a version that is already behind.
+**Done, 2026-09-21.**
 
-   This is its own spec and its own PR, landing before any telemetry code. The jump is 493 commits and the v1 API freeze happened inside it, so the breaking changes are real: charts (tooltip slot, identity field, `NumberCard` format, "a look is not a prop"), editor suggestion components, base component props, navigation destinations and shortcuts, list row state and slot names, overlays and dialogs, inputs and selection (`defineModel` owns the model event), shells, page header, data fetching contracts, and `FrappeRequestError` renamed to `FrappeResourceError`. Work from `docs/content/docs/migration.md` and `changelog.md` at beta.76, diffed against beta.55, the way `frappe_ui_beta45_upgrade.md` did.
+1. **Upgrade frappe-ui from `1.0.0-beta.55` to `1.0.0-beta.76`.** Done upstream as its own spec and PR (frappe/wiki#800, merged into `develop`), as planned. `@framework/ui` needs at least beta.63, so the floor is clear.
+2. **Link `@framework/ui` into `frontend/`.** Done. Two changes, both in `frontend/`:
+   - `package.json`: `"@framework/ui": "link:../../frappe/ui"`.
+   - `vite.config.js`: `frameworkUI()` from `@framework/ui/vite`, added to `plugins`.
 
-   Telemetry does not need any of those changes. It needs the version floor. So the upgrade is a prerequisite, not part of this work.
-2. Link `@framework/ui` into `frontend/`, the way helpdesk and insights do:
-   - `package.json`: `"@framework/ui": "link:../../frappe/ui"`
-   - `vite.config.js`: add `frameworkUI()` from `@framework/ui/vite`, and `@framework/ui` in `optimizeDeps.exclude`.
-   - Confirm dev server and `yarn build`, and that vue and frappe-ui resolve to one copy.
+   Three things came out different from the plan.
+
+   - **The bundled plugin, not a hand-written `dedupe` list.** Insights predates the plugin and dedupes by hand. `frameworkUI()` does that and one thing more: it re-runs the host app's resolver for bare imports inside the package. That second half is load-bearing here. `@framework/ui` lives in the frappe repo, which does not depend on frappe-ui, so a bare `frappe-ui` import inside it resolves to nothing without the plugin. Measured, resolving `frappe-ui` from `frappe/ui/src/telemetry/telemetry.ts`: `undefined` without the plugin, this app's copy with it. `vue` and `vue-router` resolve to this app's copies either way, because nothing else pulls a second one into the graph, but the dedupe keeps that true when one arrives.
+   - **`optimizeDeps.exclude` was not needed.** Vite does not pre-bundle a symlinked dependency, so `@framework/ui` is served as source already. Nothing added.
+   - **Subpath imports need the explicit file.** The `"./*"` export maps to `./src/*` with no extension resolution, so `@framework/ui/telemetry` fails to resolve and `@framework/ui/telemetry/index.ts` works. That is the form insights uses, and the form Phase 1 should use.
+
+   README step 2 (`tsconfig.json` paths) does not apply: the wiki frontend is plain JS and has no tsconfig.
+
+   Verified: `yarn build` green, `@framework/ui/telemetry/index.ts` imports and compiles from `src/main.js` (probe, reverted). Linking pulls `@framework/ui`'s own deps into `yarn.lock` (leaflet, cropperjs, vuedraggable and a second `sortablejs`). None of them reach the bundle unless a component that imports them is imported; telemetry imports none.
 
 ### Phase 1: tracer bullet
 
@@ -207,7 +214,7 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 ## Open questions
 
 1. **Frappe v16 builds.** `pyproject.toml` allows `frappe >=16.0.0-dev`, but `frappe/ui` exists only on frappe `develop`. After Phase 0 the wiki frontend will not build on a v16 bench. Helpdesk and insights accepted that. Can wiki `develop` require frappe `develop` too? If not, the fallback is a local copy of `ui/src/telemetry/pulse.ts` (about 30 lines: call `boot_config`, import the same CDN client) and a switch to `@framework/ui` later.
-2. **Who does the frappe-ui upgrade.** beta.55 to beta.76 is 493 commits across the v1 API freeze, so it is a separate spec and PR that blocks Phase 1. Does it get written now, or does telemetry wait?
+2. ~~**Who does the frappe-ui upgrade.**~~ Resolved: it landed upstream as frappe/wiki#800 before this branch rebased onto it.
 3. **Scan cost.** The `blocks_*` counts need a way to tell which block types a space uses without scanning every revision body. If wiki has no cheap source, drop question 6 from Phase 3 and measure block usage from the editor instead.
 4. **Event list.** Anything else the product team wants measured.
 
@@ -217,3 +224,4 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-20: Reworked around the insights `develop` model: catalogue file, question table, naming and privacy rules, per-half wrapper, daily site scan.
 - 2026-09-20: Added questions 9 to 13 and their events: space publish and unpublish, document kind on create, the generated avatar picker, meta image generation, and wiki size per space in the scan.
 - 2026-09-21: Phase 0 pins the frappe-ui target at the latest tag, `1.0.0-beta.76`, and calls the upgrade a separate blocking spec.
+- 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
