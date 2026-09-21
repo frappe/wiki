@@ -16,7 +16,7 @@
 						<MobileNavItem
 							v-if="userStore.isWikiManager"
 							:label="__('Overview')"
-							:to="{ name: 'Overview' }"
+							:route="{ name: 'Overview' }"
 							:active="route.name === 'Overview'"
 						>
 							<template #default="{ active }">
@@ -27,7 +27,7 @@
 						</MobileNavItem>
 						<MobileNavItem
 							:label="__('Spaces')"
-							:to="{ name: 'AllSpaces' }"
+							:route="{ name: 'AllSpaces' }"
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
@@ -38,7 +38,7 @@
 						</MobileNavItem>
 						<MobileNavItem
 							:label="__('Change Requests')"
-							:to="{ name: 'ChangeRequests' }"
+							:route="{ name: 'ChangeRequests' }"
 							:active="['ChangeRequests', 'ChangeRequestReview'].includes(route.name)"
 						>
 							<template #default="{ active }">

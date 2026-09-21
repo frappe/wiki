@@ -20,7 +20,7 @@
 					:key="item.label"
 					:label="item.label"
 					:icon="item.icon"
-					:to="item.to"
+					:route="item.to"
 					:active="item.routeNames.includes(route.name)"
 					:suffix="item.suffix?.value"
 				/>
@@ -48,7 +48,7 @@
 								v-for="space in group.spaces"
 								:key="space.name"
 								:label="space.space_name || space.name"
-								:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
+								:route="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
 								@contextmenu="openSpaceMenu(space)"
 							>
 								<template #prefix>
