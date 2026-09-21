@@ -1,8 +1,8 @@
 # Product Telemetry
 
 Date: 2026-09-19
-Date revised: 2026-09-21
-Status: **Phases 0, 1 and 2 done. Phase 3 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
+Date revised: 2026-09-22
+Status: **Done. Phases 0, 1, 2 and 3 all shipped.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
 
 ## Problem
 
@@ -198,7 +198,7 @@ A daily event's row keeps the properties of the day's *first* send, because the 
 
 ### Phase 3: daily site scan
 
-One scheduler job, `wiki/telemetry_scan.py`, sending `site_profile`. It answers questions 1, 3, 4, 5 and 6 for every site, including sites that installed wiki long ago and never trip a click event. It reads only wiki's own tables, and it sends nothing when telemetry is off.
+**Done, 2026-09-22.** One scheduler job, `wiki/telemetry_scan.py`, sending `site_profile`. It answers questions 1, 3, 4, 5 and 6 for every site, including sites that installed wiki long ago and never trip a click event. It reads only wiki's own tables, and it sends nothing when telemetry is off.
 
 | Group | Properties |
 |---|---|
@@ -214,7 +214,15 @@ One scheduler job, `wiki/telemetry_scan.py`, sending `site_profile`. It answers 
 
 The document and space counts are one grouped SQL query each, so the scan stays cheap on a big wiki. `documents_per_space_*` answers question 13 without ever naming a space: a median and a max, never a per-space list.
 
-One event, so it must stay under the 4096-byte cap. Split only if it grows.
+One event, so it must stay under the 4096-byte cap. Split only if it grows. It does not: a real site with 297 spaces and 1672 documents sends 1035 bytes of properties, and every property is a count, so the size does not grow with the wiki.
+
+Five things came out different from the plan.
+
+- **There is no `Wiki Page View Daily`.** Views live in the DuckDB mirror of `Web Page View` that `wiki/analytics_store.py` fills every ten minutes for the analytics dashboard. The scan reads it through one new function there, `site_activity`, and reports zeroes when a site has never ingested a view, so a missing mirror never costs the send.
+- **`published_days` has no source and `documents_per_space` needs the tree.** Documents are bucketed into spaces by nested-set position, not by `Wiki Document.wiki_space`: that field is a denormalization not every document carries, the same reason `space_published` counts the tree.
+- **The block counts run in SQL, and the content never leaves the query.** Five `LIKE`/`REGEXP` tests come back as booleans on each row, so the scan reads flags, not page bodies. That answers open question 3 without a revision scan: the current content of each document is enough to say which spaces write with a block. A PDF embed serializes as an image link to a `.pdf`, so `blocks_pdf` is a subset of `blocks_image`.
+- **`avatar_*` follows the reader's resolution order.** A space with both a generated mark and an icon counts once, as generated, exactly as `lib/spaceIdentity.js` draws it. Counting each field separately would have double-counted every space the picker ever rewrote.
+- **The consent gate is explicit.** `capture` already no-ops when telemetry is off, but the scan checks `is_pulse_enabled()` before it counts anything, so a site that opted out is never queried.
 
 ## Testing
 
@@ -240,7 +248,7 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 
 1. **Frappe v16 builds.** `pyproject.toml` allows `frappe >=16.0.0-dev`, but `frappe/ui` exists only on frappe `develop`. After Phase 0 the wiki frontend will not build on a v16 bench. Helpdesk and insights accepted that. Can wiki `develop` require frappe `develop` too? If not, the fallback is a local copy of `ui/src/telemetry/pulse.ts` (about 30 lines: call `boot_config`, import the same CDN client) and a switch to `@framework/ui` later.
 2. ~~**Who does the frappe-ui upgrade.**~~ Resolved: it landed upstream as frappe/wiki#800 before this branch rebased onto it.
-3. **Scan cost.** The `blocks_*` counts need a way to tell which block types a space uses without scanning every revision body. If wiki has no cheap source, drop question 6 from Phase 3 and measure block usage from the editor instead.
+3. ~~**Scan cost.**~~ Resolved: the block tests run as `LIKE`/`REGEXP` columns over the current content of each document, one query, no revision bodies read.
 4. **Event list.** Anything else the product team wants measured.
 
 ## Progress log
@@ -252,3 +260,4 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-21: Phase 1 done. `wiki/telemetry.py`, `active_site` from the app shell, the boot-served shared properties, `frontend/src/telemetry.js`, the plugin installed for signed-in SPA users, `docs/telemetry.md`, unit tests and one stubbed Playwright test.
 - 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
 - 2026-09-21: Phase 2 done. All thirteen events ship, with `error_kind` and `duration_bucket` helpers in `wiki/telemetry.py`, 21 unit tests (each verified by a temp revert), a Playwright test for the command palette, and a test that fails when an event the code sends is missing from `docs/telemetry.md`.
+- 2026-09-22: Phase 3 done. `wiki/telemetry_scan.py` sends `site_profile` from a daily scheduler job, with `analytics_store.site_activity` and `og_image.cached_card_count` behind it, 12 unit tests (verified by temp revert), and the property table in `docs/telemetry.md`. Open question 3 resolved.
