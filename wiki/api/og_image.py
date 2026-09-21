@@ -211,6 +211,11 @@ def _cache_dir() -> str:
 	return path
 
 
+def cached_card_count() -> int:
+	"""How many cards this site holds, for the telemetry scan."""
+	return len(glob.glob(os.path.join(_cache_dir(), "*.jpg")))
+
+
 def _is_safe_doc_key(doc_key: str | None) -> bool:
 	return bool(doc_key) and bool(DOC_KEY_PATTERN.match(doc_key))
 
