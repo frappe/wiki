@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 Date revised: 2026-09-21
-Status: **Phases 0 and 1 done. Phase 2 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
+Status: **Phases 0, 1 and 2 done. Phase 3 next.** Research against frappe `develop` (71d55e2), frappe-ui `main` @ `1.0.0-beta.76`, and insights / helpdesk / crm / builder / lms / gameplan `develop`.
 
 ## Problem
 
@@ -159,6 +159,8 @@ Two things came out different from the plan.
 
 ### Phase 2: shipping events
 
+**Done, 2026-09-21.** Thirteen events, eleven backend and two frontend, each with a unit test and the catalogue row `docs/telemetry.md` now carries. One Playwright test covers `command_palette_opened`; the table below is the plan as written, and the notes after it say where the build differed.
+
 | Event | Half | Fires when | Properties | Question |
 |---|---|---|---|---|
 | `space_created` | backend | `WikiSpace.after_insert` | `visibility: public, restricted` | 2 |
@@ -182,6 +184,17 @@ Notes on three of them.
 - `meta_image_generated` fires on generation, not on serving. A cache hit sends nothing, so the volume is bounded by documents and fingerprint changes, not by crawler traffic. `duration_bucket` is what tells us whether Chromium is affordable.
 
 `error_kind` and `duration_bucket` come from one function each, as in insights. `error_kind` is mapped from exception classes, never from the message.
+
+Six things came out different from the plan.
+
+- **`space_published` and `space_unpublished` carry the same two properties.** `published_days` would need a publish timestamp wiki does not store, and Pulse already timestamps both events, so the pair answers the question at query time. Both send `documents` and `age_days`.
+- **`documents` counts the nested set, not `Wiki Document.wiki_space`.** That field is a denormalization not every document carries (a root group is created before its space exists), so the count would have read 0 on a real space. `get_descendants_of` on the root group is the only count that is always right.
+- **`feedback_submitted` sends `sentiment`, not `helpful`.** The doctype records Good / Ok / Bad, which is a three-way answer a boolean would flatten. `has_comment` came with it: whether a reader also typed something is the difference between a click and a report. Both APIs land on one scale, and the star rating wins when there is one, because `type` also defaults to Ok.
+- **`command_palette_opened` is not daily.** The browser Pulse client's `capture` takes no `interval`, so the dedupe has to happen in the query. It fires from `useCommandPalette`, not from the component, so both ways in are counted once, where the palette actually opens.
+- **`github_sync_enabled` fires from `WikiSpace.after_insert`.** `git_synced` is immutable after creation (`validate_git_synced_immutable`), so there is no later hook to confirm: a git-synced space is enabled the moment it exists. `github_sync_failed` also carries `trigger` (`manual`, `webhook`), which the sync already knew and which separates a broken repo from a broken webhook. Its `error_kind` is `auth`, `network` or `other`; `conflict` has no meaning in a one-way sync.
+- **`document_created` tells git sync apart with `frappe.flags.in_wiki_git_sync`.** Both an import and a merge create documents through `_apply_merge_changes_only`, so the existing `in_apply_merge_revision` flag cannot separate them. A root group sends nothing: it is scaffolding, not something anyone authored.
+
+A daily event's row keeps the properties of the day's *first* send, because the queue dedupes on event name and user alone. `search_performed` therefore says someone searched that day and where they searched first, which is what question 7 asks.
 
 ### Phase 3: daily site scan
 
@@ -238,3 +251,4 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-21: Phase 0 pins the frappe-ui target at the latest tag, `1.0.0-beta.76`, and calls the upgrade a separate blocking spec.
 - 2026-09-21: Phase 1 done. `wiki/telemetry.py`, `active_site` from the app shell, the boot-served shared properties, `frontend/src/telemetry.js`, the plugin installed for signed-in SPA users, `docs/telemetry.md`, unit tests and one stubbed Playwright test.
 - 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
+- 2026-09-21: Phase 2 done. All thirteen events ship, with `error_kind` and `duration_bucket` helpers in `wiki/telemetry.py`, 21 unit tests (each verified by a temp revert), a Playwright test for the command palette, and a test that fails when an event the code sends is missing from `docs/telemetry.md`.
