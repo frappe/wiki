@@ -5,6 +5,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.website.utils import clear_cache as clear_website_cache
 
+from wiki.telemetry import capture
+
 _CHILD_ROW_META_FIELDS = {
 	"name",
 	"parent",
@@ -61,6 +63,31 @@ class WikiSpace(Document):
 	def validate(self):
 		self.remove_leading_slash_from_route()
 		self.validate_git_synced_immutable()
+
+	def after_insert(self):
+		capture("space_created", visibility="restricted" if self.roles else "public")
+		if self.git_synced:
+			capture("github_sync_enabled")
+
+	def on_update(self):
+		# A new space is `space_created`; only a later flip is a publish decision.
+		if self.get_doc_before_save() is None or not self.has_value_changed("is_published"):
+			return
+		capture(
+			"space_published" if self.is_published else "space_unpublished",
+			documents=self.document_count(),
+			age_days=frappe.utils.date_diff(None, self.creation),
+		)
+
+	def document_count(self) -> int:
+		"""The tree under the root group. `Wiki Document.wiki_space` is a
+		denormalization not every document carries, so the nested set is the
+		only count that is always right."""
+		from frappe.utils.nestedset import get_descendants_of
+
+		if not self.root_group:
+			return 0
+		return len(get_descendants_of("Wiki Document", self.root_group, ignore_permissions=True))
 
 	def on_trash(self):
 		self.delete_linked_content()

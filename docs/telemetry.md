@@ -54,9 +54,33 @@ Shipping events exist to answer these. An event that answers none of them is pla
 
 `pageview` comes from the shared `telemetryPlugin`, which wiki installs with the router. Wiki does not emit it itself.
 
+### What people do
+
+| Event | Half | Fires when | Properties | Question |
+|---|---|---|---|---|
+| `space_created` | backend | a Wiki Space is inserted | `visibility`: `public` when the space has no role rows, else `restricted` | 2 |
+| `space_published` | backend | `is_published` flips to 1 on an existing space | `documents`: the tree under the root group. `age_days`: days since the space was created | 9 |
+| `space_unpublished` | backend | the same flag flips to 0 | same two | 9 |
+| `document_created` | backend | a Wiki Document is inserted under a parent | `kind`: `page`, `group`, `tab`, `external_link`. `source`: `editor`, `git_sync` | 10 |
+| `change_request_created` | backend | `create_change_request` | | 2 |
+| `change_request_merged` | backend | a merge finishes, fast-forward or three-way | `items`: documents the CR touched. `reviewed`: approved by someone other than the author. `conflicts`: the merge raised any | 2, 4 |
+| `feedback_submitted` | backend | a Wiki Feedback row is inserted, from either API | `sentiment`: `good`, `ok`, `bad`. `has_comment`: the reader also typed something | 7 |
+| `search_performed` | backend, `interval="1d"` | a search runs in the app or on the reader | `surface`: `app`, `reader`. `hits`: the search found anything | 7 |
+| `command_palette_opened` | frontend | the palette is opened | `trigger`: `shortcut`, `click` | 7 |
+| `space_identity_set` | frontend | the identity picker closes on a choice | `kind`: `generated`, `icon`, `logo`. `style`: the DiceBear style on a generated mark, else empty. `rolls`: times Generate was pressed first | 11 |
+| `github_sync_enabled` | backend | a git-synced space is created; `git_synced` cannot be turned on later | | 5 |
+| `github_sync_failed` | backend | a sync run raises | `error_kind`: `auth` (401, 403, 404), `network`, `other`, mapped from the exception class and never from its message. `trigger`: `manual`, `webhook` | 5 |
+| `meta_image_generated` | backend | Chromium renders a card; a cache hit sends nothing | `outcome`: `ok`, `failed`. `trigger`: `warm`, `request`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
+
+Three things the shape of these events decides.
+
+- A daily event's row keeps the properties of the day's *first* send: the queue dedupes on name and user alone. So `search_performed` says someone searched that day and where they searched first, not how they searched all day.
+- `command_palette_opened` is not daily. The browser client has no interval, so every open is sent and the dedupe happens in the query.
+- How long a space stayed published is not a property. Pulse timestamps `space_published` and `space_unpublished`, so the pair answers it without wiki storing a publish date.
+
 ## Planned
 
-Everything in `specs/product_telemetry.md` phases 2 and 3: the shipping events and the daily `site_profile` scan. They land here as they ship.
+Everything in `specs/product_telemetry.md` phase 3: the daily `site_profile` scan. It lands here as it ships.
 
 ## Not tracked
 

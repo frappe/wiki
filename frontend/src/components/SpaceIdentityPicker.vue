@@ -136,6 +136,7 @@ import {
 	resolveSpaceIdentity,
 	SPACE_COLORS,
 } from '../lib/spaceIdentity.js';
+import { useTelemetry } from '../telemetry';
 import IconGrid from './IconGrid.vue';
 import SpaceAvatar from './SpaceAvatar.vue';
 
@@ -196,8 +197,25 @@ function choose(patch) {
 	emit('update', patch);
 }
 
+const rolls = ref(0);
+
+const MARK_KINDS = { avatar: 'generated', icon: 'icon', logo: 'logo' };
+
 watch(open, (isOpen) => {
-	if (!isOpen) pending.value = {};
+	if (isOpen) {
+		rolls.value = 0;
+		return;
+	}
+	const kind = MARK_KINDS[mark.value.mode];
+	if (kind && Object.keys(pending.value).length) {
+		useTelemetry().capture('space_identity_set', {
+			kind,
+			style: kind === 'generated' ? chosen.value.avatar_style || '' : '',
+			rolls: rolls.value,
+		});
+	}
+	pending.value = {};
+	rolls.value = 0;
 });
 
 // The tile that is showing is the tab you land on. A space that has never been
@@ -229,6 +247,7 @@ function pickIcon(next) {
  */
 async function generate() {
 	rolling.value = true;
+	rolls.value += 1;
 	try {
 		choose(generatedIdentityPatch({ avatar: await rollSpaceAvatar() }));
 	} catch (error) {

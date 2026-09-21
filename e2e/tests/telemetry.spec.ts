@@ -27,7 +27,7 @@ export class PulseClient {
 type Capture = {
 	event_name: string;
 	app: string;
-	props: Record<string, string>;
+	props: Record<string, string | number>;
 };
 
 const recorded = () =>
@@ -78,5 +78,53 @@ test.describe('Telemetry', () => {
 		// The route pattern, never a title or a real page slug.
 		expect(pageview?.props.route).toMatch(/^\/[^ ]*$/);
 		expect(JSON.stringify(captures)).not.toContain(token);
+	});
+
+	test('sends command_palette_opened with how it was opened', async ({
+		page,
+	}) => {
+		await page.goto(appUrl());
+		await expect
+			.poll(() => page.evaluate(recorded).then((c) => c.length))
+			.toBeGreaterThan(0);
+
+		await page.keyboard.press('ControlOrMeta+k');
+		await expect
+			.poll(() =>
+				page
+					.evaluate(recorded)
+					.then((c) =>
+						c.find((x) => x.event_name === 'command_palette_opened'),
+					),
+			)
+			.toMatchObject({ app: 'wiki', props: { trigger: 'shortcut' } });
+	});
+
+	test('sends space_identity_set once the picker closes on a choice', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto(space.url());
+		await page.waitForLoadState('networkidle');
+
+		await page.getByRole('button', { name: 'Space actions' }).click();
+		await page.getByRole('menuitem', { name: 'Space settings' }).click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog).toBeVisible();
+		await dialog.getByTestId('space-identity-trigger').click();
+		// Picking an icon is the choice that closes the popover, which is where
+		// the event fires.
+		await page.getByRole('option', { name: 'Knowledge', exact: true }).click();
+
+		await expect
+			.poll(() =>
+				page
+					.evaluate(recorded)
+					.then((c) => c.find((x) => x.event_name === 'space_identity_set')),
+			)
+			.toMatchObject({ app: 'wiki', props: { kind: 'icon', rolls: 0 } });
 	});
 });
