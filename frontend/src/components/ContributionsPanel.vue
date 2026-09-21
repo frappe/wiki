@@ -22,14 +22,14 @@
 		     the data lands. `list-row-px-3` sets the content inset on the List so
 		     the header, the rows, and the space headings between them all share it
 		     instead of drifting.
-		     Mobile collapses the table to a feed via a --list-columns override
-		     rather than scrolling sideways -- the track count here must stay in
-		     step with the columns that declare `mobile`. -->
+		     Mobile collapses the table to a feed via the `columns` prop's `base`
+		     tier rather than scrolling sideways -- the track count there must stay
+		     in step with the columns that declare `mobile`. -->
 		<List
 			v-else
 			:columns="tracks"
 			:row-height="60"
-			class="w-full pt-4 list-row-px-3 max-sm:list-cols-[minmax(0,1fr)_auto]"
+			class="w-full pt-4 list-row-px-3"
 		>
 			<!-- `!hidden`: the family sets `display: grid` at attribute specificity
 			     (to survive preflight resets), which a plain `hidden` utility ties
@@ -82,7 +82,7 @@
 				class="pt-2 first:pt-0"
 				sticky
 			>
-				<template #header>
+				<template #label>
 					<div class="flex min-w-0 items-center gap-2">
 						<SpaceAvatar :space="group.space" :label="group.label" size="xs" />
 						<span class="truncate text-sm-medium text-ink-gray-7">
@@ -97,7 +97,7 @@
 				<ListRow
 					v-for="row in group.rows"
 					:key="row.name"
-					:to="options.getRowRoute?.(row)"
+					:route="options.getRowRoute?.(row)"
 				>
 					<ListCell
 						v-for="col in columns"
@@ -211,7 +211,15 @@ const columns = computed(() => [
 	},
 ]);
 
-const tracks = computed(() => columns.value.map((col) => col.track));
+// `base` is the phone feed, `sm` up is the full table. The trailing mobile
+// column sizes to its content rather than to its desktop track.
+const tracks = computed(() => {
+	const mobileColumns = columns.value.filter((col) => col.mobile);
+	return {
+		base: mobileColumns.map((col, index) => (index === 0 ? col.track : 'auto')),
+		sm: columns.value.map((col) => col.track),
+	};
+});
 
 function headerCellClass(col) {
 	return col.align === 'right' ? 'justify-end' : '';

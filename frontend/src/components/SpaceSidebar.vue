@@ -34,7 +34,7 @@
 					:label="spaceName"
 					size="lg"
 				/>
-				<span class="min-w-0 flex-1 truncate text-base-medium text-ink-gray-8">
+				<span class="min-w-0 flex-1 truncate text-base-medium leading-tighter text-ink-gray-8">
 					{{ spaceName }}
 				</span>
 				<Dropdown :options="spaceActions" placement="right">

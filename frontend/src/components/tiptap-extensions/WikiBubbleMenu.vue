@@ -117,7 +117,13 @@ function shouldShowBubbleMenu({ editor, state }) {
 }
 
 // EditorBubbleMenu is positioned by Floating UI, so config goes through
-// `options`. By default flip measures against the viewport, which never sees
+// `options`. frappe-ui's own vocabulary is `side`/`align` plus booleans; the
+// rest of the bag is spread straight into TipTap, which is how the derivable
+// flip/shift/hide below still reach Floating UI. They have no supported
+// equivalent, so that passthrough is load-bearing: `bubble-menu.spec.ts` is
+// what tells us if a frappe-ui release starts filtering the bag.
+//
+// By default flip measures against the viewport, which never sees
 // the sticky toolbar — so a selection just under the toolbar places the menu
 // on top of it and never flips. We pin the flip/shift boundary to the scroll
 // container (whose top edge is the toolbar) and pad that top by the toolbar's
@@ -126,7 +132,7 @@ function shouldShowBubbleMenu({ editor, state }) {
 // is resolved at compute time, not at mount.
 const floatingOptions = computed(() => ({
 	strategy: 'fixed',
-	placement: 'top',
+	side: 'top',
 	offset: 8,
 	flip: () => ({
 		fallbackPlacements: ['bottom'],

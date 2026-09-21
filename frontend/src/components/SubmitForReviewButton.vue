@@ -25,7 +25,8 @@
 		v-model:open="showConfirmDialog"
 		:title="__('Submit for review')"
 		:message="confirmMessage"
-		:icon="{ name: 'lucide-git-branch', theme: 'blue' }"
+		icon="lucide-git-branch"
+		theme="blue"
 		:actions="confirmActions"
 	/>
 </template>

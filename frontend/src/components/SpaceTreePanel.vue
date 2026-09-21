@@ -28,7 +28,7 @@
 					variant="ghost"
 					icon="lucide-external-link"
 					:aria-label="__('View space')"
-					:link="'/' + spaceRoute"
+					:href="'/' + spaceRoute"
 				/>
 			</Tooltip>
 			<Tooltip :text="__('Space settings')">
