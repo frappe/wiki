@@ -16,7 +16,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | 2 | Where do new sites stop | funnel: `space_created`, `change_request_created`, `change_request_merged` |
 | 3 | Is wiki read, or only written | `site_profile.views_last_30d / editors_last_30d` |
 | 4 | Is the change request flow a review flow, or just a save button | `change_request_merged.reviewed`, `site_profile.change_requests_open` |
-| 5 | Is GitHub sync adopted, and does it work | `github_sync_enabled`, `github_sync_failed`, `site_profile.github_synced_spaces` |
+| 5 | Is GitHub sync adopted, and does it work | `space_created.git_synced`, `github_sync_failed`, `site_profile.github_synced_spaces` |
 | 6 | Which editor blocks earn their maintenance | `site_profile.blocks_*` |
 | 7 | Do readers use feedback and search | `feedback_submitted`, `search_performed` |
 | 8 | Does behaviour change after an upgrade | every event by `app_version` |
@@ -58,7 +58,7 @@ Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than lett
 
 | Event | Half | Fires when | Properties | Question |
 |---|---|---|---|---|
-| `space_created` | backend | a Wiki Space is inserted | `visibility`: `public` when the space has no role rows, else `restricted` | 2 |
+| `space_created` | backend | a Wiki Space is inserted | `visibility`: `public` when the space has no role rows, else `restricted`. `git_synced`: the space mirrors a GitHub repo, which is fixed at creation | 2, 5 |
 | `space_published` | backend | `is_published` flips to 1 on an existing space | `documents`: the tree under the root group. `age_days`: days since the space was created | 9 |
 | `space_unpublished` | backend | the same flag flips to 0 | same two | 9 |
 | `document_created` | backend | a Wiki Document is inserted under a parent | `kind`: `page`, `group`, `tab`, `external_link`. `source`: `editor`, `git_sync` | 10 |
@@ -68,7 +68,6 @@ Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than lett
 | `search_performed` | backend, `interval="1d"` | a search runs in the app or on the reader | `surface`: `app`, `reader`. `hits`: the search found anything | 7 |
 | `command_palette_opened` | frontend | the palette is opened | `trigger`: `shortcut`, `click` | 7 |
 | `space_identity_set` | frontend | the identity picker closes on a choice | `kind`: `generated`, `icon`, `logo`. `style`: the DiceBear style on a generated mark, else empty. `rolls`: times Generate was pressed first | 11 |
-| `github_sync_enabled` | backend | a git-synced space is created; `git_synced` cannot be turned on later | | 5 |
 | `github_sync_failed` | backend | a sync run raises | `error_kind`: `auth` (401, 403, 404), `network`, `other`, mapped from the exception class and never from its message. `trigger`: `manual`, `webhook` | 5 |
 | `meta_image_generated` | backend | a card is rendered **and** stored; a cache hit sends nothing | `outcome`: `ok`, `failed` — a card that renders but cannot be written is `failed`, since the next hit pays for Chromium again. `trigger`: `warm`, `request`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
 

@@ -104,7 +104,7 @@ Events exist to answer these. An event that answers none stays in Planned.
 | 2 | Where do new sites stop | funnel: `space_created`, `change_request_created`, `change_request_merged` |
 | 3 | Is wiki read, or only written | `site_profile.views_last_30d / editors_last_30d` |
 | 4 | Is the change request flow used as a review flow, or just a save button | `change_request_merged.reviewed`, `site_profile.change_requests_open` |
-| 5 | Is GitHub sync adopted, and does it work | `github_sync_enabled`, `github_sync_failed`, `site_profile.github_synced_spaces` |
+| 5 | Is GitHub sync adopted, and does it work | `space_created.git_synced`, `github_sync_failed`, `site_profile.github_synced_spaces` |
 | 6 | Which editor blocks earn their maintenance (mermaid, callouts, PDF embeds) | `site_profile.blocks_*` |
 | 7 | Do readers use feedback and search | `feedback_submitted`, `search_performed` |
 | 8 | Does behaviour change after an upgrade | every event by `app_version` |
@@ -159,14 +159,13 @@ Two things came out different from the plan.
 
 ### Phase 2: shipping events
 
-**Done, 2026-09-21.** Thirteen events, eleven backend and two frontend, each with a unit test and the catalogue row `docs/telemetry.md` now carries. One Playwright test covers `command_palette_opened`; the table below is the plan as written, and the notes after it say where the build differed.
+**Done, 2026-09-21.** Twelve events, ten backend and two frontend, each with a unit test and the catalogue row `docs/telemetry.md` now carries. One Playwright test covers `command_palette_opened`; the table below is the plan as written, and the notes after it say where the build differed.
 
 | Event | Half | Fires when | Properties | Question |
 |---|---|---|---|---|
-| `space_created` | backend | `WikiSpace.after_insert` | `visibility: public, restricted` | 2 |
+| `space_created` | backend | `WikiSpace.after_insert` | `visibility: public, restricted`, `git_synced: bool` | 2, 5 |
 | `change_request_created` | backend | `create_change_request` | | 2 |
 | `change_request_merged` | backend | `merge_change_request` | `items: int`, `reviewed: bool`, `conflicts: bool` | 2, 4 |
-| `github_sync_enabled` | backend | a space's GitHub sync is first saved (exact hook to be confirmed while building) | | 5 |
 | `github_sync_failed` | backend | a sync or webhook run fails | `error_kind: auth, network, conflict, other` | 5 |
 | `feedback_submitted` | backend | `wiki_feedback.submit_feedback` | `helpful: bool` if the doctype records one | 7 |
 | `search_performed` | backend, `interval="1d"` | `api/search.py:search_pages` | `surface: app, reader`, `hits: bool` | 7 |
@@ -191,7 +190,7 @@ Six things came out different from the plan.
 - **`documents` counts the nested set, not `Wiki Document.wiki_space`.** That field is a denormalization not every document carries (a root group is created before its space exists), so the count would have read 0 on a real space. `get_descendants_of` on the root group is the only count that is always right.
 - **`feedback_submitted` sends `sentiment`, not `helpful`.** The doctype records Good / Ok / Bad, which is a three-way answer a boolean would flatten. `has_comment` came with it: whether a reader also typed something is the difference between a click and a report. Both APIs land on one scale, and the star rating wins when there is one, because `type` also defaults to Ok.
 - **`command_palette_opened` is not daily.** The browser Pulse client's `capture` takes no `interval`, so the dedupe has to happen in the query. It fires from `useCommandPalette`, not from the component, so both ways in are counted once, where the palette actually opens.
-- **`github_sync_enabled` fires from `WikiSpace.after_insert`.** `git_synced` is immutable after creation (`validate_git_synced_immutable`), so there is no later hook to confirm: a git-synced space is enabled the moment it exists. `github_sync_failed` also carries `trigger` (`manual`, `webhook`), which the sync already knew and which separates a broken repo from a broken webhook. Its `error_kind` is `auth`, `network` or `other`; `conflict` has no meaning in a one-way sync.
+- **There is no `github_sync_enabled` event; `space_created` carries `git_synced`.** `git_synced` is immutable after creation (`validate_git_synced_immutable`), so a git-synced space is a kind of space, not a later decision, and a second event on the same insert says nothing the first one cannot. `github_sync_failed` also carries `trigger` (`manual`, `webhook`), which the sync already knew and which separates a broken repo from a broken webhook. Its `error_kind` is `auth`, `network` or `other`; `conflict` has no meaning in a one-way sync.
 - **`document_created` tells git sync apart with `frappe.flags.in_wiki_git_sync`.** Both an import and a merge create documents through `_apply_merge_changes_only`, so the existing `in_apply_merge_revision` flag cannot separate them. A root group sends nothing: it is scaffolding, not something anyone authored.
 
 A daily event's row keeps the properties of the day's *first* send, because the queue dedupes on event name and user alone. `search_performed` therefore says someone searched that day and where they searched first, which is what question 7 asks.

@@ -75,22 +75,19 @@ class TestShippedEvents(IntegrationTestCase):
 		with patch.object(wiki_space, "capture") as capture:
 			self.wiki.space()
 
-		capture.assert_called_once_with("space_created", visibility="public")
+		capture.assert_called_once_with("space_created", visibility="public", git_synced=False)
 
 	def test_a_space_with_roles_is_restricted(self):
 		with patch.object(wiki_space, "capture") as capture:
 			self.wiki.space(roles=[("Wiki Approver", "Read")])
 
-		capture.assert_called_once_with("space_created", visibility="restricted")
+		capture.assert_called_once_with("space_created", visibility="restricted", git_synced=False)
 
-	def test_a_git_synced_space_reports_its_sync_too(self):
+	def test_a_git_synced_space_says_so_on_the_event_that_creates_it(self):
 		with patch.object(wiki_space, "capture") as capture:
 			self.wiki.space(git_synced=1, repo_full_name="frappe/wiki", branch="develop")
 
-		self.assertEqual(
-			[call.args[0] for call in capture.call_args_list],
-			["space_created", "github_sync_enabled"],
-		)
+		capture.assert_called_once_with("space_created", visibility="public", git_synced=True)
 
 	def test_publishing_and_unpublishing_a_space_are_separate_events(self):
 		space = self.wiki.space(is_published=0)

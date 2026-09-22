@@ -65,9 +65,11 @@ class WikiSpace(Document):
 		self.validate_git_synced_immutable()
 
 	def after_insert(self):
-		capture("space_created", visibility="restricted" if self.roles else "public")
-		if self.git_synced:
-			capture("github_sync_enabled")
+		capture(
+			"space_created",
+			visibility="restricted" if self.roles else "public",
+			git_synced=bool(self.git_synced),
+		)
 
 	def on_update(self):
 		# A new space is `space_created`; only a later flip is a publish decision.
