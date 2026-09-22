@@ -34,12 +34,12 @@ OPEN_CR_STATUSES = ("Draft", "In Review", "Changes Requested", "Approved")
 # A PDF embed serializes as an image link to a .pdf, so `blocks_pdf` is a subset
 # of `blocks_image`.
 BLOCK_TESTS = {
-	"blocks_mermaid": ("content LIKE %s", "%```mermaid%"),
-	"blocks_callout": ("content LIKE %s", "%:::%"),
-	"blocks_pdf": ("content LIKE %s", "%.pdf)%"),
-	"blocks_image": ("content LIKE %s", "%![%"),
+	"blocks_mermaid": "%```mermaid%",
+	"blocks_callout": "%:::%",
+	"blocks_pdf": "%.pdf)%",
+	"blocks_image": "%![%",
 	# The delimiter row of a GFM table: `| --- |`, with or without alignment colons.
-	"blocks_table": ("content REGEXP %s", r"\|[[:space:]]*:?-{3,}"),
+	"blocks_table": r"\|[[:space:]]*:?-{3,}",
 }
 
 
@@ -202,14 +202,18 @@ def spread(sizes: list[int]) -> dict:
 def scan_documents() -> list[frappe._dict]:
 	"""Every document as flags only. The content itself never leaves the query:
 	the block tests run in SQL and come back as booleans."""
-	tests = ", ".join(f"{clause} AS {key}" for key, (clause, _) in BLOCK_TESTS.items())
-	values = [pattern for _, pattern in BLOCK_TESTS.values()]
 	return frappe.db.sql(
-		f"""
-		SELECT lft, is_group, is_tab, is_external_link, is_published, {tests}
+		"""
+		SELECT
+			lft, is_group, is_tab, is_external_link, is_published,
+			content LIKE %(blocks_mermaid)s AS blocks_mermaid,
+			content LIKE %(blocks_callout)s AS blocks_callout,
+			content LIKE %(blocks_pdf)s AS blocks_pdf,
+			content LIKE %(blocks_image)s AS blocks_image,
+			content REGEXP %(blocks_table)s AS blocks_table
 		FROM `tabWiki Document`
 		""",
-		values,
+		BLOCK_TESTS,
 		as_dict=True,
 	)
 

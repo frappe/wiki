@@ -25,14 +25,14 @@ export async function trackPageviews(router) {
 		if (!telemetry.isEnabled || to.fullPath === lastFullPath) return;
 		lastFullPath = to.fullPath;
 		const matched = to.matched[to.matched.length - 1];
-		capture('pageview', { route: matched?.path || to.path || '' });
+		capture('pageview', { route: matched?.path || 'unmatched' });
 	};
 
 	const stop = watch(
 		() => telemetry.isEnabled,
 		(enabled) => {
 			if (!enabled) return;
-			capturePageview(router.currentRoute.value);
+			router.isReady().then(() => capturePageview(router.currentRoute.value));
 			stop();
 		},
 		{ immediate: true },

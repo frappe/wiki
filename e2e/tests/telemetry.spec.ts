@@ -83,6 +83,25 @@ test.describe('Telemetry', () => {
 		expect(JSON.stringify(captures)).not.toContain(token);
 	});
 
+	test('reports an unmatched route as a constant, never the raw path', async ({
+		page,
+	}) => {
+		// The router has no catch-all, so this path matches no route.
+		const token = `Quillfeather${Date.now().toString(36)}`;
+		await page.goto(appUrl('spaces', token, token));
+
+		await expect
+			.poll(() =>
+				page
+					.evaluate(recorded)
+					.then((c) => c.find((x) => x.event_name === 'pageview')),
+			)
+			.toMatchObject({ props: { route: 'unmatched' } });
+
+		const captures = await page.evaluate(recorded);
+		expect(JSON.stringify(captures)).not.toContain(token);
+	});
+
 	test('sends command_palette_opened with how it was opened', async ({
 		page,
 	}) => {
