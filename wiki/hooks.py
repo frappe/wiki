@@ -153,6 +153,9 @@ scheduler_events = {
 			"wiki.analytics_store.ingest_recent_views",
 		],
 	},
+	"daily": [
+		"wiki.telemetry_scan.send_site_profile",
+	],
 }
 
 # scheduler_events = {

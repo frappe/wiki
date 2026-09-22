@@ -14,6 +14,7 @@ from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
+from wiki.telemetry import capture
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
@@ -139,6 +140,23 @@ class WikiDocument(NestedSet):
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
 		self.set_boilerplate_content()
+
+	def after_insert(self):
+		# A space's root group is scaffolding, not something anyone authored.
+		if not self.parent_wiki_document:
+			return
+		capture(
+			"document_created",
+			kind=self.document_kind(),
+			source="git_sync" if getattr(frappe.flags, "in_wiki_git_sync", False) else "editor",
+		)
+
+	def document_kind(self) -> str:
+		if self.is_external_link:
+			return "external_link"
+		if self.is_tab:
+			return "tab"
+		return "group" if self.is_group else "page"
 
 	def validate_unique_route_for_leaves(self):
 		"""Ensure no two leaf documents (non-groups) share the same route."""

@@ -15,6 +15,7 @@
 		"@dicebear/core": "10.7.0",
 		"@dicebear/styles": "10.6.0",
 		"@floating-ui/dom": "^1.6.0",
+		"@framework/ui": "link:../../frappe/ui",
 		"@pierre/diffs": "^1.2.11",
 		"@tiptap/core": "^3.29.2",
 		"@tiptap/extension-image": "^3.29.2",

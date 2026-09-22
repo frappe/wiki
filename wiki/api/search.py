@@ -1,5 +1,7 @@
 import frappe
 
+from wiki.telemetry import capture
+
 PAGE_SEARCH_LIMIT = 20
 
 
@@ -13,7 +15,7 @@ def search_pages(query: str) -> list[dict]:
 	# Routes hyphenate words, so "getting started" still finds `getting-started`.
 	# The slash skips the space's own segment, which every page in it shares.
 	route = query.replace(" ", "-")
-	return frappe.get_list(
+	pages = frappe.get_list(
 		"Wiki Document",
 		filters={
 			"route": ("like", f"%/%{route}%"),
@@ -33,3 +35,5 @@ def search_pages(query: str) -> list[dict]:
 		order_by="modified desc",
 		limit=PAGE_SEARCH_LIMIT,
 	)
+	capture("search_performed", interval="1d", surface="app", hits=bool(pages))
+	return pages

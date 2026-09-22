@@ -1,5 +1,7 @@
 import frappe
 
+from wiki.telemetry import capture
+
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def search(query: str, space: str | None = None) -> dict:
@@ -24,6 +26,8 @@ def search(query: str, space: str | None = None) -> dict:
 	result = search_engine.search(query, filters=filters)
 
 	hits = _filter_hits_by_space_visibility(result["results"])
+
+	capture("search_performed", interval="1d", surface="reader", hits=bool(hits))
 
 	return {
 		"results": [

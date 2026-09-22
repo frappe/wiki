@@ -27,7 +27,7 @@
 				<SidebarItem
 					:label="__('Search')"
 					icon="lucide-search"
-					@click="openCommandPalette"
+					@click="openCommandPalette('click')"
 				>
 					<template #suffix>
 						<KeyboardShortcut combo="Mod+K" class="mr-2 text-ink-gray-4" />

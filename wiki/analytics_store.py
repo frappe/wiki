@@ -199,6 +199,21 @@ def known_paths() -> list[str]:
 		return [path for (path,) in rows if path]
 
 
+def site_activity(start, end) -> tuple[int, int]:
+	"""Views and distinct visitors across every path, for the telemetry scan.
+
+	Unscoped by path on purpose: the scan asks how much this site is read at all,
+	not how one space is doing.
+	"""
+	with reader() as db:
+		views, visitors = db.execute(
+			f"SELECT COUNT(*), COUNT(DISTINCT NULLIF(visitor_id, '')) FROM {TABLE}"
+			" WHERE creation >= ? AND creation < ?",
+			[start, end],
+		).fetchone()
+	return int(views or 0), int(visitors or 0)
+
+
 def _in_scope(start: date, end: date, paths: tuple[str, ...]) -> tuple[str, list]:
 	"""Rows inside the inclusive date range and on one of `paths`."""
 	if not paths:
