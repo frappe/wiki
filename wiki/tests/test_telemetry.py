@@ -242,6 +242,17 @@ class TestShippedEvents(IntegrationTestCase):
 			"meta_image_generated", outcome="ok", trigger="request", duration_bucket="lt_1s"
 		)
 
+	def test_a_card_that_rendered_but_could_not_be_stored_is_reported_as_failed(self):
+		with (
+			patch.object(og_image, "generate_og_bytes", return_value=b"png"),
+			patch.object(og_image, "_write_cached", side_effect=OSError("disk full")),
+			patch.object(og_image, "capture") as capture,
+		):
+			with self.assertRaises(og_image.CardFailed):
+				og_image._generate_and_store("k3", {}, "fp", "/tmp/card.png", trigger="request")
+
+		self.assertEqual(capture.call_args.kwargs["outcome"], "failed")
+
 	def test_a_card_that_could_not_render_is_reported_as_failed(self):
 		with (
 			patch.object(og_image, "generate_og_bytes", side_effect=Exception("chromium died")),

@@ -334,6 +334,8 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 	started = time.monotonic()
 	try:
 		data = generate_og_bytes(ctx)
+		_write_cached(path, data)
+		_prune_old(doc_key, fingerprint)
 	except Exception:
 		cache.set(_failure_key(doc_key, fingerprint), b"1", ex=FAILURE_TTL)
 		capture(
@@ -353,9 +355,6 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 		trigger=trigger,
 		duration_bucket=duration_bucket(time.monotonic() - started),
 	)
-
-	_write_cached(path, data)
-	_prune_old(doc_key, fingerprint)
 	return data
 
 

@@ -52,7 +52,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | `active_site` | backend, `interval="1d"` | the `/wiki-app` SPA is served to a signed-in user | | 1 |
 | `pageview` | frontend | a router navigation, on sites younger than 15 days | `route`: the matched route pattern, never the URL | 1 |
 
-`pageview` comes from the shared `telemetryPlugin`, which wiki installs with the router. Wiki does not emit it itself.
+Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than letting the shared `telemetryPlugin` send it: the plugin's own pageview goes straight to the Pulse client and so carries neither `app_version` nor `entry`. The rule is the plugin's, read from the same place the plugin reads it: new sites only (`site_age <= 15` from `boot_config`), the matched route pattern, never a URL.
 
 ### What people do
 
@@ -70,7 +70,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | `space_identity_set` | frontend | the identity picker closes on a choice | `kind`: `generated`, `icon`, `logo`. `style`: the DiceBear style on a generated mark, else empty. `rolls`: times Generate was pressed first | 11 |
 | `github_sync_enabled` | backend | a git-synced space is created; `git_synced` cannot be turned on later | | 5 |
 | `github_sync_failed` | backend | a sync run raises | `error_kind`: `auth` (401, 403, 404), `network`, `other`, mapped from the exception class and never from its message. `trigger`: `manual`, `webhook` | 5 |
-| `meta_image_generated` | backend | Chromium renders a card; a cache hit sends nothing | `outcome`: `ok`, `failed`. `trigger`: `warm`, `request`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
+| `meta_image_generated` | backend | a card is rendered **and** stored; a cache hit sends nothing | `outcome`: `ok`, `failed` — a card that renders but cannot be written is `failed`, since the next hit pays for Chromium again. `trigger`: `warm`, `request`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
 
 Three things the shape of these events decides.
 

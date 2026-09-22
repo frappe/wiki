@@ -7,6 +7,7 @@ import { initSocket } from './socket';
 import { pinia } from './stores';
 import { useSessionStore } from './stores/session';
 
+import { trackPageviews } from './telemetry';
 import translationPlugin from './translation';
 
 import {
@@ -46,7 +47,8 @@ app.use(resourcesPlugin);
 const session = useSessionStore();
 const stopTelemetry = watchEffect(() => {
 	if (session.isLoggedIn) {
-		app.use(telemetryPlugin, { app_name: 'wiki', router });
+		app.use(telemetryPlugin, { app_name: 'wiki' });
+		trackPageviews(router);
 		stopTelemetry();
 	}
 });
