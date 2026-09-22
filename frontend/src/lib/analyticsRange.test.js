@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	daysIn,
 	drillDownRange,
+	hasDelta,
 	intervalFor,
 	presetRange,
 } from './analyticsRange.js';
@@ -54,4 +55,15 @@ test('a day has nothing to drill into', () => {
 		drillDownRange('2026-02-02', 'daily', ['2026-02-01', '2026-02-10']),
 		null,
 	);
+});
+
+test('hasDelta is false when no row carries a delta', () => {
+	assert.equal(hasDelta([{ delta: null }, { delta: undefined }, {}]), false);
+	assert.equal(hasDelta([]), false);
+	assert.equal(hasDelta(undefined), false);
+});
+
+test('hasDelta is true when any row carries a delta, including zero', () => {
+	assert.equal(hasDelta([{ delta: null }, { delta: 0 }]), true);
+	assert.equal(hasDelta([{ delta: -12.5 }]), true);
 });

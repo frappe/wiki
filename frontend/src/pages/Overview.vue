@@ -99,7 +99,7 @@
 								<Progress size="sm" :value="share(row.views)" />
 							</div>
 							<span :class="COUNT">{{ formatCount(row.views) }}</span>
-							<DeltaText :delta="row.delta" />
+							<DeltaText v-if="hasDelta(data.spaces)" :delta="row.delta" />
 						</router-link>
 					</section>
 
@@ -131,7 +131,7 @@
 								</span>
 							</span>
 							<span :class="COUNT">{{ formatCount(row.views) }}</span>
-							<DeltaText :delta="row.delta" />
+							<DeltaText v-if="hasDelta(data.top_pages)" :delta="row.delta" />
 						</router-link>
 					</section>
 
@@ -152,7 +152,7 @@
 								{{ row.referrer || __('Direct') }}
 							</span>
 							<span :class="COUNT">{{ formatCount(row.views) }}</span>
-							<DeltaText :delta="row.delta" />
+							<DeltaText v-if="hasDelta(data.top_referrers)" :delta="row.delta" />
 						</div>
 					</section>
 				</div>
@@ -164,6 +164,7 @@
 <script setup>
 import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import TrackingNotice from '@/components/Analytics/TrackingNotice.vue';
+import { hasDelta } from '@/lib/analyticsRange';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useWikiSettings } from '@/composables/useWikiSettings';
 import { useUserStore } from '@/stores/user';

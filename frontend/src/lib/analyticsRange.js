@@ -54,3 +54,9 @@ export function drillDownRange(bucket, interval, [from, to]) {
 	}
 	return [bucket < from ? from : bucket, end > to ? to : end];
 }
+
+export function hasDelta(rows) {
+	return (rows || []).some(
+		(row) => row.delta !== null && row.delta !== undefined,
+	);
+}
