@@ -45,12 +45,12 @@ app.use(resourcesPlugin);
 
 // Telemetry is for signed-in app users; the Jinja reader sends nothing.
 const session = useSessionStore();
-const stopTelemetry = watchEffect(() => {
-	if (session.isLoggedIn) {
-		app.use(telemetryPlugin, { app_name: 'wiki' });
-		trackPageviews(router);
-		stopTelemetry();
-	}
+let telemetryStarted = false;
+watchEffect(() => {
+	if (!session.isLoggedIn || telemetryStarted) return;
+	telemetryStarted = true;
+	app.use(telemetryPlugin, { app_name: 'wiki' });
+	trackPageviews(router);
 });
 
 const socket = initSocket();
