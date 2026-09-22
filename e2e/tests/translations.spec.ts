@@ -1,5 +1,11 @@
 import { expect, test } from '../fixtures';
-import { createDoc, deleteDoc, updateDoc } from '../helpers/frappe';
+import {
+	callMethod,
+	createDoc,
+	deleteDoc,
+	getDoc,
+	updateDoc,
+} from '../helpers/frappe';
 import { APP_BASE } from '../helpers/routes';
 
 type TranslationDoc = { name: string };
@@ -22,8 +28,18 @@ test.describe('Translations', () => {
 			},
 		);
 
+		const user = await callMethod<string>(
+			request,
+			'frappe.auth.get_logged_user',
+		);
+		const { language } = await getDoc<{ language: string | null }>(
+			request,
+			'User',
+			user,
+		);
+
 		try {
-			await updateDoc(request, 'User', 'Administrator', { language: 'es' });
+			await updateDoc(request, 'User', user, { language: 'es' });
 
 			// Long enough that the sidebar is certainly painted first.
 			await page.route('**/wiki.api.get_translations*', async (route) => {
@@ -45,7 +61,7 @@ test.describe('Translations', () => {
 				}),
 			).toBeVisible({ timeout: 15_000 });
 		} finally {
-			await updateDoc(request, 'User', 'Administrator', { language: '' });
+			await updateDoc(request, 'User', user, { language: language ?? '' });
 			await deleteDoc(request, 'Translation', translation.name);
 		}
 	});
