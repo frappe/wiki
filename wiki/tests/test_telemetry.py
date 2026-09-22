@@ -210,6 +210,11 @@ class TestShippedEvents(IntegrationTestCase):
 		capture.assert_called_once_with("search_performed", interval="1d", surface="app", hits=True)
 
 	def test_a_reader_search_reports_the_other_surface(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+
+		# The reader searches a SQLite index a fresh CI site has never built.
+		WikiSQLiteSearch().build_index()
+
 		with patch.object(reader_search, "capture") as capture:
 			reader_search.search("nothing-matches-this")
 
