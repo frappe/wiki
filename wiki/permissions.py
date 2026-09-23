@@ -114,6 +114,12 @@ def can_write_space(space, user=None) -> bool:
 	return any(role in user_roles for role, level in levels.items() if level == "Write")
 
 
+def can_delete_space(space, user=None) -> bool:
+	"""Needs write access to the space and a role that can delete Wiki Space."""
+	user = user or frappe.session.user
+	return can_write_space(space, user) and bool(frappe.has_permission("Wiki Space", "delete", user=user))
+
+
 def _space_accepts_contributions(space) -> bool:
 	"""Whether a space lets Read-tier users propose changes (raise CRs).
 
