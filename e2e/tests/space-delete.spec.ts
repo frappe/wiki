@@ -30,6 +30,17 @@ test.describe('Space Settings -> Delete Space', () => {
 			],
 		});
 
+		// CI serves the site over plain http, where the browser has no
+		// navigator.clipboard, so record what the page writes instead.
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: async (text: string) => {
+						(window as unknown as { copied: string }).copied = text;
+					},
+				},
+			});
+		});
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
@@ -48,14 +59,14 @@ test.describe('Space Settings -> Delete Space', () => {
 		await confirm.getByRole('textbox').fill(`${space.space_name}x`);
 		await expect(deleteButton).toBeDisabled();
 
-		// The name in the label copies itself, so it can be pasted into the box.
-		await page
-			.context()
-			.grantPermissions(['clipboard-read', 'clipboard-write']);
 		await confirm.getByRole('button', { name: space.space_name }).click();
-		await confirm.getByRole('textbox').fill('');
-		await page.keyboard.press('ControlOrMeta+V');
-		await expect(confirm.getByRole('textbox')).toHaveValue(space.space_name);
+		await expect
+			.poll(() =>
+				page.evaluate(() => (window as unknown as { copied?: string }).copied),
+			)
+			.toBe(space.space_name);
+
+		await confirm.getByRole('textbox').fill(space.space_name);
 		await deleteButton.click();
 
 		await expect(page).toHaveURL(/\/wiki-app\/?$/);
