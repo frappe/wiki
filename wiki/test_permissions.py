@@ -15,6 +15,7 @@ from wiki.permissions import (
 	_accessible_space_names,
 	_is_manager,
 	can_contribute_to_space,
+	can_delete_space,
 	can_read_space,
 	can_write_space,
 	wiki_cr_has_permission,
@@ -153,6 +154,21 @@ class TestWikiSpacePermissions(IntegrationTestCase):
 	def test_open_space_writable_only_by_approver(self):
 		self.assertTrue(can_write_space(self.open_space, self.approver))
 		self.assertFalse(can_write_space(self.open_space, self.outsider))
+
+	# --- can_delete_space ------------------------------------------------
+
+	def test_manager_deletes_any_space(self):
+		self.assertTrue(can_delete_space(self.restricted, self.manager))
+
+	def test_write_role_does_not_grant_delete(self):
+		self.assertFalse(can_delete_space(self.restricted, self.writer))
+
+	def test_read_role_does_not_grant_delete(self):
+		self.assertFalse(can_delete_space(self.restricted, self.reader))
+
+	def test_open_space_deletable_by_approver(self):
+		self.assertTrue(can_delete_space(self.open_space, self.approver))
+		self.assertFalse(can_delete_space(self.open_space, self.outsider))
 
 	# --- _accessible_space_names ----------------------------------------
 

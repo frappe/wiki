@@ -58,6 +58,7 @@
 		</SettingsRow>
 
 		<SettingsRow
+			v-if="spaceStore.canDeleteSpace"
 			:title="__('Delete Space')"
 			:description="__('Permanently delete this space and all its pages')"
 		>
@@ -141,6 +142,7 @@ import { useRouter } from 'vue-router';
 
 import { useSpaceIdentitySaver } from '../../composables/useSpaceIdentitySaver.js';
 import { useSpaceSettings } from '../../composables/useSpaceSettings.js';
+import { useSpaceStore } from '../../stores/space.js';
 import SpaceIdentityPicker from '../SpaceIdentityPicker.vue';
 
 const props = defineProps({
@@ -160,6 +162,7 @@ const showDeleteDialog = ref(false);
 const confirmName = ref('');
 
 const router = useRouter();
+const spaceStore = useSpaceStore();
 const { close: closeSettings } = useSpaceSettings();
 const savedName = computed(() => props.space.doc?.space_name || '');
 const confirmLabel = computed(() => __('Type {0} to confirm', []).split('{0}'));
