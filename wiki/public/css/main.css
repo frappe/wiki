@@ -396,6 +396,7 @@ body.image-viewer-open {
 .prose img + em {
   display: block;
   margin-top: 0.25rem;
+  margin-bottom: 1rem;
   font-size: 0.875rem;
   color: var(--ink-gray-6);
   text-align: center;
