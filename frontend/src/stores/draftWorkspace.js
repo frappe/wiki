@@ -213,8 +213,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hydratedCrName = null;
 	}
 
-	// Hydrate the workspace for a space: ensure CR exists, load tree + summary,
-	// and normalize into local state. Idempotent and de-duplicated per call.
+	// Hydrate the workspace for a space: load the user's open draft (or the
+	// published tree when there is none) and its summary into local state. The
+	// change request itself is only created on the first edit, by ensureCr.
+	// Idempotent and de-duplicated per call.
 	async function hydrate(targetSpaceId) {
 		if (!isEnabled.value || !targetSpaceId) return;
 
@@ -227,20 +229,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (spaceId.value !== targetSpaceId) reset();
 			spaceId.value = targetSpaceId;
 
-			await crStore.initChangeRequest(targetSpaceId);
-			if (hydratedCrName && hydratedCrName !== crName.value) {
-				reset({ keepTree: true });
-			}
-			hydratedCrName = crName.value;
-			if (!crName.value) return;
-
-			const [serverTree] = await Promise.all([
-				transport.fetchTree(crName.value),
-				crStore.loadChanges(),
-			]);
-
-			applyServerTree(serverTree);
-			applyChangesSummary(crStore.changes);
+			await loadWorkspace(targetSpaceId);
 			await restorePersistedDrafts();
 		})();
 
@@ -250,6 +239,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			isHydrating.value = false;
 			hydratePromise = null;
 		}
+	}
+
+	async function loadWorkspace(targetSpaceId) {
+		const workspace = await transport.fetchWorkspace(targetSpaceId);
+		crStore.currentChangeRequest = workspace.change_request;
+		if (hydratedCrName && hydratedCrName !== crName.value) {
+			reset({ keepTree: true });
+		}
+		hydratedCrName = crName.value;
+		if (!crName.value) crStore.clearChanges();
+		await crStore.loadChanges();
+		applyServerTree(workspace.tree);
+		applyChangesSummary(crStore.changes);
 	}
 
 	// Read any drafts persisted to IndexedDB for the current CR and
@@ -321,7 +323,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	async function reloadTree() {
-		if (!crName.value) return;
+		if (!crName.value) {
+			if (spaceId.value) await loadWorkspace(spaceId.value);
+			return;
+		}
 		const serverTree = await transport.fetchTree(crName.value);
 		applyServerTree(serverTree);
 	}
@@ -412,7 +417,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Load a single CR page into pagesByKey. Tmp pages live entirely on
 	// the client until their create syncs; we never call get_cr_page
 	// with a tmp key (the backend would 404).
-	async function loadCrPage(docKey) {
+	async function loadCrPage(docKey, publishedPage = null) {
 		if (!docKey) return null;
 		if (resolver.isTempKey(docKey)) {
 			// A create that landed before its opener read the buffer has already
@@ -430,7 +435,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		) {
 			return localPage;
 		}
-		if (!crName.value) return null;
+		// Without a draft the published document is the server copy. A buffer
+		// left over from a merged draft must not stand in for it.
+		if (!crName.value) {
+			return publishedPage ? applyFetchedPage(docKey, publishedPage) : null;
+		}
 		// Stale-while-revalidate: a clean, already-fetched buffer renders
 		// immediately; the server copy refreshes it in the background.
 		if (localPage && localPage.content != null) {
@@ -451,6 +460,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (!isEnabled.value || !spaceId.value) return false;
 		if (crName.value) return true;
 		await crStore.initChangeRequest(spaceId.value);
+		// The buffers typed before this belong to the new draft.
+		hydratedCrName = crName.value;
 		return !!crName.value;
 	}
 
