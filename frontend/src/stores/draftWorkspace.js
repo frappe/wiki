@@ -54,6 +54,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// space with no pages.
 	const hasLoadedTree = ref(false);
 	let hydratePromise = null;
+	let hydratedCrName = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
 	const crName = computed(() => crStore.currentChangeRequest?.name || null);
@@ -209,6 +210,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		saver.reset();
 		for (const k of Object.keys(changesByKey)) delete changesByKey[k];
 		transport.reset();
+		hydratedCrName = null;
 	}
 
 	// Hydrate the workspace for a space: ensure CR exists, load tree + summary,
@@ -226,6 +228,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			spaceId.value = targetSpaceId;
 
 			await crStore.initChangeRequest(targetSpaceId);
+			if (hydratedCrName && hydratedCrName !== crName.value) {
+				reset({ keepTree: true });
+			}
+			hydratedCrName = crName.value;
 			if (!crName.value) return;
 
 			const [serverTree] = await Promise.all([
