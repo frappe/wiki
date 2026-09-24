@@ -2,7 +2,7 @@
 
 Date: 2026-09-24
 Issue: https://github.com/frappe/wiki/issues/806
-Status: **Phase 1 implemented.** Phase 2 pending.
+Status: **Implemented.**
 
 ## Goal
 
@@ -69,7 +69,7 @@ Field to reader head to sitemap to UI, for a single page.
 - Playwright e2e: flip the switch, check the page head and the sitemap as
   Guest, then flip it back.
 
-### Phase 2: other crawler surfaces
+### Phase 2: other crawler surfaces (done)
 
 - `llms.txt`: leave hidden pages out of the space index through
   `get_noindex_documents()`, and drop the groups they leave empty.
@@ -94,3 +94,8 @@ Field to reader head to sitemap to UI, for a single page.
   empty set. The e2e `disable-indexing.spec.ts` passes on wiki.localhost:
   the switch saves, the flagged page's head has `noindex`, its sibling's
   does not, and the page leaves the sitemap.
+- 2026-09-24: Phase 2 implemented. The space index prunes hidden pages
+  and the groups they leave empty. `<route>.md` sends
+  `X-Robots-Tag: noindex`. `TestDisableIndexing` now has 5 tests, and the
+  llms.txt ones fail when `get_noindex_documents()` returns an empty set.
+  Full `test_wiki_document` module passes.

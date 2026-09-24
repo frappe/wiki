@@ -16,6 +16,7 @@ import frappe
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_first_published_page,
+	get_noindex_documents,
 	get_public_wiki_tree,
 )
 from wiki.permissions import can_read_space
@@ -42,8 +43,8 @@ def _site_llms_txt() -> str | None:
 	entries = []
 	for space in public_spaces():
 		landing = get_first_published_page(space.root_group)
-		if not landing:
-			# No page to read: the space's own index would be empty too.
+		if not landing or not build_space_llms_txt(space.name):
+			# No page to read, or every page is hidden from search engines.
 			continue
 
 		url = f"{frappe.utils.get_url('/' + space.route)}/llms.txt"
@@ -105,11 +106,12 @@ def _space_llms_txt(space: str) -> str | None:
 	if not frappe.db.exists("Wiki Document", space_doc.root_group):
 		return None
 
-	tree = get_public_wiki_tree(space_doc.root_group)
+	noindex_documents = get_noindex_documents()
+	tree = _indexable_nodes(get_public_wiki_tree(space_doc.root_group), noindex_documents)
 	if not tree:
 		return None
 
-	pages = _published_pages(space_doc.name)
+	pages = _published_pages(space_doc.name, noindex_documents)
 
 	# The reader renders one tree per space, so the index is one section titled
 	# after the space.
@@ -133,7 +135,20 @@ def _space_llms_txt(space: str) -> str | None:
 	return "\n".join(lines + body) + "\n"
 
 
-def _published_pages(space_name: str) -> dict:
+def _indexable_nodes(nodes: list, noindex_documents: set) -> list:
+	"""The tree without noindex documents, and without the groups they leave empty."""
+	indexable = []
+	for node in nodes:
+		if node["name"] in noindex_documents:
+			continue
+		indexable_children = _indexable_nodes(node["children"], noindex_documents)
+		if node["is_group"] and not indexable_children:
+			continue
+		indexable.append({**node, "children": indexable_children})
+	return indexable
+
+
+def _published_pages(space_name: str, noindex_documents: set) -> dict:
 	"""``{route: meta_description}`` for every published page in a space.
 
 	Doubles as the "is there a page at this route?" lookup that decides whether
@@ -147,9 +162,11 @@ def _published_pages(space_name: str) -> dict:
 			"is_group": 0,
 			"is_external_link": 0,
 		},
-		fields=["route", "meta_description"],
+		fields=["name", "route", "meta_description"],
 	)
-	return {row.route: row.meta_description for row in rows if row.route}
+	return {
+		row.route: row.meta_description for row in rows if row.route and row.name not in noindex_documents
+	}
 
 
 def _space_summary(root_group: str, pages: dict) -> str | None:

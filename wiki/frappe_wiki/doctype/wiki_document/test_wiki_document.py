@@ -662,6 +662,33 @@ class TestDisableIndexing(WikiDocumentTestBase):
 		self.assertNotIn(self.page.route, self._sitemap_routes())
 		self.assertIn(self.child.route, self._sitemap_routes())
 
+	def _request(self, path):
+		return _make_request(self.TEST_CLIENT, "get", path)
+
+	def test_flagged_page_leaves_the_space_llms_txt_with_its_empty_group(self):
+		self._flag(self.child)
+
+		space_index = self._request(f"/{self.space.route}/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{self.page.route}.md)", space_index)
+		self.assertNotIn(self.child.route, space_index)
+		self.assertNotIn("Guides", space_index)
+
+	def test_space_with_every_page_flagged_leaves_the_site_llms_txt(self):
+		space_index_path = f"/{self.space.route}/llms.txt"
+		self.assertIn(space_index_path, self._request("/llms.txt").get_data(as_text=True))
+
+		self._flag(self.page)
+		self._flag(self.child)
+
+		self.assertEqual(self._request(space_index_path).status_code, 404)
+		self.assertNotIn(space_index_path, self._request("/llms.txt").get_data(as_text=True))
+
+	def test_markdown_twin_of_a_hidden_page_sends_noindex(self):
+		self._flag(self.child)
+
+		self.assertEqual(self._request(f"/{self.child.route}.md").headers.get("X-Robots-Tag"), "noindex")
+		self.assertIsNone(self._request(f"/{self.page.route}.md").headers.get("X-Robots-Tag"))
+
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
 	"""
