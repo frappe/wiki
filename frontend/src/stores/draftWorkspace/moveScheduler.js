@@ -13,6 +13,7 @@ export function createMoveScheduler({
 	useBatchOperations,
 	crStore,
 	crName,
+	ensureCr,
 	scheduleSummaryRefresh,
 	errorMessage,
 }) {
@@ -37,9 +38,12 @@ export function createMoveScheduler({
 	async function flush() {
 		if (reorderInFlight) return;
 		if (pendingMoves.size === 0) return;
-		if (!crName()) return;
-
 		reorderInFlight = true;
+		// A drag can be the first edit in a space, before any change request.
+		if (!(await ensureCr())) {
+			reorderInFlight = false;
+			return;
+		}
 		const snapshot = Array.from(pendingMoves.entries());
 		pendingMoves.clear();
 

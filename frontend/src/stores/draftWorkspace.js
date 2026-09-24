@@ -109,9 +109,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// debounced so ordinary typing doesn't write on every transaction.
 	function persistEditorDraft(docKey, title, { immediate = false } = {}) {
 		const changeRequestName = crName.value;
-		if (!changeRequestName || !docKey) return;
+		if (!docKey) return;
 		const page = pageBuffers.get(docKey);
 		if (!page) return;
+		if (!changeRequestName) {
+			// Unsaved typing is the first edit. Open the draft so the typing has
+			// a change request to be kept under across a refresh.
+			if (pageBuffers.isDirty(page)) {
+				ensureCr()
+					.then((ok) => ok && persistEditorDraft(docKey, title, { immediate }))
+					.catch(() => {});
+			}
+			return;
+		}
 		const key = draftPersistKey(changeRequestName, docKey);
 		cancelDraftPersist(changeRequestName, docKey);
 		const persist = () => {
@@ -163,6 +173,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		useBatchOperations,
 		crStore,
 		crName: () => crName.value,
+		ensureCr,
 		scheduleSummaryRefresh,
 		errorMessage,
 	});
