@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { expect, test } from '../fixtures';
-import { getList } from '../helpers/frappe';
+import { callMethod, getList } from '../helpers/frappe';
 import { saveEditor } from '../helpers/wiki';
 
 /**
@@ -99,4 +99,44 @@ test('merging from a page shows the merged text, not the old one', async ({
 	await expect(page.locator('.ProseMirror').first()).toContainText(
 		'Content for Alpha merged',
 	);
+});
+
+test('two tabs editing at once share one draft', async ({
+	page,
+	context,
+	request,
+	wiki,
+}) => {
+	const space = await wiki.space({
+		pages: [{ title: 'Alpha' }, { title: 'Beta' }],
+	});
+	const otherTab = await context.newPage();
+	await page.goto(space.url('page', space.page('Alpha').name));
+	await otherTab.goto(space.url('page', space.page('Beta').name));
+	await expect(page.getByText('Content for Alpha')).toBeVisible();
+	await expect(otherTab.getByText('Content for Beta')).toBeVisible();
+
+	const editAndSave = async (tab: typeof page, text: string) => {
+		await tab.locator('.ProseMirror').first().click();
+		await tab.keyboard.press('End');
+		await tab.keyboard.type(text);
+		await saveEditor(tab);
+	};
+	await Promise.all([
+		editAndSave(page, ' from tab one'),
+		editAndSave(otherTab, ' from tab two'),
+	]);
+
+	const drafts = await changeRequests(request, space.name);
+	expect(drafts).toHaveLength(1);
+	await expect
+		.poll(async () => {
+			const changes = await callMethod<{ doc_key: string }[]>(
+				request,
+				'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
+				{ name: drafts[0].name, scope: 'summary' },
+			);
+			return changes.length;
+		})
+		.toBe(2);
 });

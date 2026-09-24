@@ -1,7 +1,7 @@
 # Draft on First Edit
 
 Date: 2026-09-24
-Status: In progress
+Status: Done
 Depends on: `fix/stale-change-request-drafts` (PR1, `_rebase_draft`)
 
 ## Problem
@@ -159,3 +159,16 @@ Tests:
 - Full e2e suite with `15d4d64` applied locally: 179 of 179 pass after that fix.
 - 48 reader-page e2e tests time out on `networkidle` without `15d4d64`. That
   fix goes in its own PR as planned.
+- Two tabs, first edit in both: reproduced. 4 of 8 e2e runs opened two
+  drafts, so each tab wrote to its own and one tab's edits were hidden on the
+  next open. Within one tab `initChangeRequest` does dedupe. The fix is in
+  `get_or_create_draft_change_request`. It locks the space row so the second
+  request waits for the first draft, then finds that draft with a locking
+  read. Both parts are needed. The DB runs REPEATABLE READ, so with the lock
+  alone the plain lookup still read an old snapshot and made two drafts.
+  `frappe.db.advisory_lock` would be narrower, but it is not on version-16,
+  which wiki still supports.
+- New unit test runs two DB connections with a slowed create: 2 drafts
+  without the fix, 1 with it. New e2e test edits two tabs at once and expects
+  one draft holding both pages. It fails 5 of 8 runs without the fix and
+  passed 22 of 22 with it.
