@@ -676,6 +676,15 @@ async function fetchConflicts() {
 	}
 }
 
+// The merge may have failed elsewhere, e.g. the space's Merge button.
+watch(
+	() => canReview.value && changeRequest.doc?.status === 'Approved',
+	(approved) => {
+		if (approved) fetchConflicts();
+	},
+	{ immediate: true },
+);
+
 // Go back to wherever the user actually came from — the originating list tab
 // (with its query preserved), the space editor, etc. Fall back to the list only
 // when opened directly (no history).
