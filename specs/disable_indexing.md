@@ -73,10 +73,13 @@ Field to reader head to sitemap to UI, for a single page.
 
 - `llms.txt`: leave hidden pages out of the space index through
   `get_noindex_documents()`, and drop the groups they leave empty.
-- `<route>.md`: send `X-Robots-Tag: noindex` for a hidden page, so the
-  markdown twin cannot be indexed in place of the HTML page.
+- Markdown: send `X-Robots-Tag: noindex` for a hidden page, from
+  `build_markdown_response()`, so both `<route>.md` and the page URL asked
+  for with `Accept: text/markdown` carry it.
 - The site `llms.txt` drops a space whose own index would be empty, so it
   never links to a 404.
+- Space summaries in both `llms.txt` files come from the first indexable
+  page, so a hidden landing page never lends its meta description.
 
 ## Out of scope
 
@@ -99,3 +102,7 @@ Field to reader head to sitemap to UI, for a single page.
   `X-Robots-Tag: noindex`. `TestDisableIndexing` now has 5 tests, and the
   llms.txt ones fail when `get_noindex_documents()` returns an empty set.
   Full `test_wiki_document` module passes.
+- 2026-09-24: Review fixes (Greptile on #807). Negotiated markdown now
+  sends the noindex header too, and a hidden landing page no longer gives
+  the space its description in the site `llms.txt`. Two new tests, both
+  failing before the fix. `TestDisableIndexing` has 7 tests.

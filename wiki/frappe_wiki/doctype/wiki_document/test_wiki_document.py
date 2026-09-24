@@ -689,6 +689,23 @@ class TestDisableIndexing(WikiDocumentTestBase):
 		self.assertEqual(self._request(f"/{self.child.route}.md").headers.get("X-Robots-Tag"), "noindex")
 		self.assertIsNone(self._request(f"/{self.page.route}.md").headers.get("X-Robots-Tag"))
 
+	def test_negotiated_markdown_of_a_hidden_page_sends_noindex(self):
+		self._flag(self.child)
+
+		response = _make_request(
+			self.TEST_CLIENT, "get", f"/{self.child.route}", headers={"Accept": "text/markdown"}
+		)
+		self.assertEqual(response.headers.get("X-Robots-Tag"), "noindex")
+
+	def test_site_llms_txt_skips_a_hidden_landing_page_description(self):
+		frappe.db.set_value("Wiki Document", self.page.name, "meta_description", "Hidden landing summary")
+		frappe.db.set_value("Wiki Document", self.child.name, "meta_description", "Indexable child summary")
+		self._flag(self.page)
+
+		site_index = self._request("/llms.txt").get_data(as_text=True)
+		self.assertNotIn("Hidden landing summary", site_index)
+		self.assertIn("Indexable child summary", site_index)
+
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
 	"""

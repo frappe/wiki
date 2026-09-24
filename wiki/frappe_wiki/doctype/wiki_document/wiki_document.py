@@ -745,6 +745,8 @@ def build_markdown_response(doc) -> Response:
 	response.data = doc.as_markdown()
 	response.headers["Content-Type"] = "text/markdown; charset=utf-8"
 	response.headers["Cache-Control"] = MARKDOWN_CACHE_CONTROL
+	if doc.disable_indexing:
+		response.headers["X-Robots-Tag"] = "noindex"
 	return response
 
 
@@ -927,15 +929,15 @@ def get_first_published_page(root_group: str) -> dict | None:
 	"""First non-group, non-external page in sidebar order — the document a
 	space URL should land on. Walks the same tree the sidebar renders, so the
 	two can't disagree."""
-	return _first_published_leaf(get_public_wiki_tree(root_group))
+	return first_published_leaf(get_public_wiki_tree(root_group))
 
 
-def _first_published_leaf(nodes: list) -> dict | None:
+def first_published_leaf(nodes: list) -> dict | None:
 	"""First non-group, non-external page in sidebar order within `nodes`."""
 	for node in nodes:
 		if not node["is_group"] and not node.get("is_external_link"):
 			return node
-		found = _first_published_leaf(node["children"])
+		found = first_published_leaf(node["children"])
 		if found:
 			return found
 	return None

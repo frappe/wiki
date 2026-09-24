@@ -147,10 +147,7 @@ class CrawlerRenderer(BaseRenderer):
 		# to probe for pages the reader itself would hide.
 		doc.check_space_access("read")
 		doc.check_published()
-		response = build_markdown_response(doc)
-		if doc.disable_indexing:
-			response.headers["X-Robots-Tag"] = "noindex"
-		return response
+		return build_markdown_response(doc)
 
 
 def _text_response(body: str) -> Response:
