@@ -810,9 +810,25 @@ function saveToDB() {
 	}
 }
 
+// The editor reads `content` only on mount. Show a newer saved copy if nothing
+// was typed, or autosave writes the stale text back.
 watch(
 	() => props.savedContent,
-	() => emitContentReady(),
+	(saved, previous) => {
+		const current = getMarkdown();
+		if (
+			saved != null &&
+			current !== undefined &&
+			current !== normalizeMarkdown(saved) &&
+			current === normalizeMarkdown(previous)
+		) {
+			editor.value.commands.setContent(saved, {
+				contentType: 'markdown',
+				emitUpdate: false,
+			});
+		}
+		emitContentReady();
+	},
 );
 
 // Expose methods for parent component
