@@ -542,6 +542,17 @@ def _build_markdown() -> MarkdownIt:
 
 	md.renderer.rules["image"] = image_render
 
+	def softbreak_render(tokens, idx, options, env):
+		# No <br> before a caption, so the `img + em` caption CSS still matches.
+		is_caption = (
+			0 < idx < len(tokens) - 1
+			and tokens[idx - 1].type == "image"
+			and tokens[idx + 1].type == "em_open"
+		)
+		return "\n" if is_caption else "<br />\n"
+
+	md.renderer.rules["softbreak"] = softbreak_render
+
 	# after("block"): tokens and their line maps exist, `state.src` is already
 	# normalized (CRLF collapsed, so it lines up with the maps), and we still run
 	# before the footnote plugin's `footnote_tail`, which reorders the token stream.

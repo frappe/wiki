@@ -166,6 +166,15 @@ class TestImageCaptionSupport(unittest.TestCase):
 		self.assertNotIn("<figure", result)
 		self.assertNotIn("<figcaption", result)
 
+	def test_caption_is_the_next_sibling_of_the_image(self):
+		"""The caption CSS is `img + em`, so no <br> may sit between them."""
+		result = render_markdown("![Alt](/files/test.jpg)\n*Caption*")
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+
+	def test_soft_break_after_image_still_breaks_before_plain_text(self):
+		result = render_markdown("![Alt](/files/test.jpg)\nnot a caption")
+		self.assertIn("<br />", result)
+
 	def test_image_without_caption(self):
 		"""Test that images without caption render as simple img tags."""
 		result = render_markdown("![](/files/test.jpg)")
