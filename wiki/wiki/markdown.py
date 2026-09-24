@@ -544,9 +544,11 @@ def _build_markdown() -> MarkdownIt:
 
 	def softbreak_render(tokens, idx, options, env):
 		# No <br> before a caption, so the `img + em` caption CSS still matches.
+		image_on_own_line = idx == 1 or (idx > 1 and tokens[idx - 2].type in ("softbreak", "hardbreak"))
 		is_caption = (
-			0 < idx < len(tokens) - 1
+			image_on_own_line
 			and tokens[idx - 1].type == "image"
+			and idx < len(tokens) - 1
 			and tokens[idx + 1].type == "em_open"
 		)
 		return "\n" if is_caption else "<br />\n"

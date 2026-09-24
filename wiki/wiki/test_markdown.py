@@ -171,6 +171,14 @@ class TestImageCaptionSupport(unittest.TestCase):
 		result = render_markdown("![Alt](/files/test.jpg)\n*Caption*")
 		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
 
+	def test_caption_after_image_on_its_own_line_inside_a_paragraph(self):
+		result = render_markdown("Some text\n![Alt](/files/test.jpg)\n*Caption*")
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+
+	def test_inline_image_does_not_turn_the_next_line_into_a_caption(self):
+		result = render_markdown("Click ![icon](/files/icon.png)\n*then save*")
+		self.assertIn('<img src="/files/icon.png" alt="icon" /><br />', result)
+
 	def test_soft_break_after_image_still_breaks_before_plain_text(self):
 		result = render_markdown("![Alt](/files/test.jpg)\nnot a caption")
 		self.assertIn("<br />", result)
