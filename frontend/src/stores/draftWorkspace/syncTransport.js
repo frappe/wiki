@@ -33,6 +33,9 @@ export function createSyncTransport({ crStore, crName }) {
 	// `get_cr_tree`.
 	const crSyncState = new Map();
 
+	const workspaceResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_draft_workspace',
+	});
 	const treeResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_tree',
 	});
@@ -55,6 +58,10 @@ export function createSyncTransport({ crStore, crName }) {
 		operationVersion.value = version;
 		const state = getCrState(name);
 		if (state) state.version = version;
+	}
+
+	async function fetchWorkspace(spaceId) {
+		return workspaceResource.submit({ wiki_space: spaceId });
 	}
 
 	async function fetchTree(name) {
@@ -167,6 +174,7 @@ export function createSyncTransport({ crStore, crName }) {
 	return {
 		operationVersion,
 		sync,
+		fetchWorkspace,
 		fetchTree,
 		fetchPage,
 		applyBatchOps,

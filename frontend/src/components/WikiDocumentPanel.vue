@@ -302,6 +302,11 @@ watch(
 		// request overlay. Until the capabilities land we cannot tell, and asking
 		// a reader's space for a change request answers 403.
 		if (!canEdit) return;
+		// After merge/archive the CR name changes. Reload first: with no draft
+		// left, the published doc is what the page loads from.
+		if (oldCrName && crName !== oldCrName) {
+			await wikiDoc.value.reload();
+		}
 		if (docKey) {
 			// Navigation cancels the previous page's debounced autosave;
 			// flush its buffer now. Failures surface via the sync pill.
@@ -310,10 +315,6 @@ watch(
 		} else {
 			currentCrPage.value = null;
 			loadedDocKey.value = null;
-		}
-		// After merge/archive, the CR name changes — reload wikiDoc to get updated route etc.
-		if (oldCrName && crName !== oldCrName) {
-			wikiDoc.value.reload();
 		}
 	},
 	{ immediate: true },
@@ -357,13 +358,11 @@ async function loadCrPage() {
 		draftStore.isEnabled &&
 		(draftStore.spaceId !== props.spaceId ||
 			draftStore.isHydrating ||
-			!crStore.currentChangeRequest)
+			!draftStore.hasLoadedTree)
 	) {
 		await draftStore.hydrate(props.spaceId);
 	}
-	const page = crStore.currentChangeRequest
-		? await draftStore.loadCrPage(docKey)
-		: null;
+	const page = await draftStore.loadCrPage(docKey, wikiDoc.value.doc);
 	if (pageLoad === latestPageLoad && wikiDoc.value.doc?.doc_key === docKey) {
 		currentCrPage.value = page;
 		loadedDocKey.value = docKey;

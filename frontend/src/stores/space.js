@@ -312,9 +312,6 @@ export const useSpaceStore = defineStore('space', () => {
 			await loadReadonlyTree();
 			return;
 		}
-		if (!crStore.currentChangeRequest?.name) {
-			return;
-		}
 		await draftStore.reloadTree();
 		await draftStore.reloadChanges();
 	}
