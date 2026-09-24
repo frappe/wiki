@@ -2,7 +2,7 @@
 
 Date: 2026-09-24
 Issue: https://github.com/frappe/wiki/issues/806
-Status: **Planned.**
+Status: **Phase 1 implemented.** Phase 2 pending.
 
 ## Goal
 
@@ -53,7 +53,7 @@ readable. Same idea as Frappe Builder's "Disable Indexing".
 
 ## Phases
 
-### Phase 1: tracer bullet
+### Phase 1: tracer bullet (done)
 
 Field to reader head to sitemap to UI, for a single page.
 
@@ -89,4 +89,8 @@ Field to reader head to sitemap to UI, for a single page.
 
 ## Progress log
 
-- 2026-09-24: Spec written.
+- 2026-09-24: Spec written. Phase 1 implemented. `TestDisableIndexing`
+  (2 tests) passes and fails when `get_noindex_documents()` returns an
+  empty set. The e2e `disable-indexing.spec.ts` passes on wiki.localhost:
+  the switch saves, the flagged page's head has `noindex`, its sibling's
+  does not, and the page leaves the sitemap.

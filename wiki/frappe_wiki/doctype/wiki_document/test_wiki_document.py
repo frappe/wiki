@@ -617,6 +617,52 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertNotIn('property="og:image"', html)
 
 
+class TestDisableIndexing(WikiDocumentTestBase):
+	"""GH-806: a page can opt out of search engines."""
+
+	TEST_CLIENT = get_test_client()
+	NOINDEX = '<meta name="robots" content="noindex">'
+
+	def setUp(self):
+		super().setUp()
+		route = f"noindex-{frappe.generate_hash(length=6)}"
+		self.space = create_test_wiki_space(self, "Noindex Space", route, None, roles=[("Guest", "Read")])
+		self.page = create_test_wiki_document(
+			self, "Plain Page", parent=self.space.root_group, slug=f"plain-{route}"
+		)
+		self.group = create_test_wiki_document(self, "Guides", parent=self.space.root_group, is_group=True)
+		self.child = create_test_wiki_document(
+			self, "Child Page", parent=self.group.name, slug=f"child-{route}"
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+	def _html(self, doc):
+		response = _make_request(self.TEST_CLIENT, "get", f"/{doc.route}", headers={"Accept": "text/html"})
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def _flag(self, doc):
+		doc.reload()
+		doc.disable_indexing = 1
+		doc.save()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+	def _sitemap_routes(self):
+		return _sitemap_routes(_make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True))
+
+	def test_pages_are_indexable_by_default(self):
+		self.assertNotIn(self.NOINDEX, self._html(self.page))
+		self.assertNotIn(self.NOINDEX, self._html(self.child))
+		self.assertIn(self.child.route, self._sitemap_routes())
+
+	def test_flagged_page_is_noindex_and_left_out_of_the_sitemap(self):
+		self._flag(self.page)
+
+		self.assertIn(self.NOINDEX, self._html(self.page))
+		self.assertNotIn(self.page.route, self._sitemap_routes())
+		self.assertIn(self.child.route, self._sitemap_routes())
+
+
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
 	"""
 	Unit tests for the BreadcrumbList JSON-LD emission in get_web_context().

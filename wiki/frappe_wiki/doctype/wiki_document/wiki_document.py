@@ -113,6 +113,7 @@ class WikiDocument(NestedSet):
 		from frappe.types import DF
 
 		content: DF.Code | None
+		disable_indexing: DF.Check
 		doc_key: DF.Data | None
 		is_group: DF.Check
 		is_published: DF.Check
@@ -483,6 +484,7 @@ class WikiDocument(NestedSet):
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
 			"breadcrumbs": None,
+			"disable_indexing": self.disable_indexing,
 		}
 
 		metatags = {
@@ -914,6 +916,11 @@ def get_landing_page_for_route(route: str) -> dict | None:
 		return None
 
 	return get_first_published_page(root_group) if root_group else None
+
+
+def get_noindex_documents() -> set[str]:
+	"""Names of every page hidden from search engines."""
+	return set(frappe.get_all("Wiki Document", filters={"disable_indexing": 1}, pluck="name"))
 
 
 def get_first_published_page(root_group: str) -> dict | None:
