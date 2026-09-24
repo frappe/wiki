@@ -42,10 +42,13 @@ test.describe('Pending deletion stays visible', () => {
 
 		await openNewPageDialog(page);
 		await page.getByLabel('Title').fill(pageTitle);
+		// The next step navigates away, which would abort a create still in flight.
+		const created = page.waitForResponse(/apply_cr_operations/);
 		await page
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
+		await created;
 
 		const liveDocs = async () =>
 			getList<{ name: string }>(request, 'Wiki Document', {

@@ -431,30 +431,15 @@ test.describe('Change Request Flow', () => {
 			name: initialDraft.name,
 		});
 
-		// Start a new change request and reorder pages inside the group
-		const draftResponsePromise = page.waitForResponse((response) => {
-			if (
-				!response
-					.url()
-					.includes(
-						'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
-					)
-			) {
-				return false;
-			}
-			if (response.request().method() !== 'POST') {
-				return false;
-			}
-			const postData = response.request().postData() || '';
-			return postData.includes(spaceId);
-		});
-
+		// Opening the space no longer opens a change request, so start one here.
 		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
 
-		const draftResponse = await draftResponsePromise;
-		const draftPayload = await draftResponse.json();
-		const draftChangeRequest = draftPayload?.message as { name: string };
+		const draftChangeRequest = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD}.get_or_create_draft_change_request`,
+			{ wiki_space: spaceId },
+		);
 		expect(draftChangeRequest?.name).toBeTruthy();
 
 		type CrTreeNode = {
