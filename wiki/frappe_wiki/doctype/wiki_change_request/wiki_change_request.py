@@ -557,7 +557,11 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	_assert_can_draft(wiki_space)
 	flush_pending_revision_syncs()
 
-	cr = _find_existing_draft(wiki_space)
+	# Two tabs can make their first edit at once. The space row lock makes the
+	# second wait for the first one's draft, and the locking read finds it: under
+	# REPEATABLE READ a plain read can come from a snapshot taken before it.
+	frappe.db.get_value("Wiki Space", wiki_space, "name", for_update=True)
+	cr = _find_existing_draft(wiki_space, for_update=True)
 	if cr:
 		_rebase_draft(cr)
 		return cr.as_dict()
@@ -577,9 +581,9 @@ def _assert_can_draft(wiki_space: str) -> None:
 	assert_space_writable(wiki_space)
 
 
-def _find_existing_draft(wiki_space: str) -> Document | None:
+def _find_existing_draft(wiki_space: str, for_update: bool = False) -> Document | None:
 	"""Find user's most relevant draft: prefer one with actual changes."""
-	existing = frappe.get_all(
+	existing = frappe.qb.get_query(
 		"Wiki Change Request",
 		filters={
 			"wiki_space": wiki_space,
@@ -588,7 +592,8 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 		},
 		fields=["name", "base_revision", "head_revision", "modified"],
 		order_by="modified desc",
-	)
+		for_update=for_update,
+	).run(as_dict=True)
 	if not existing:
 		return None
 
@@ -600,7 +605,7 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	if not selected:
 		selected = existing[0]
 
-	cr = frappe.get_doc("Wiki Change Request", selected["name"])
+	cr = frappe.get_doc("Wiki Change Request", selected["name"], for_update=for_update)
 	cr.check_permission("read")
 	return cr
 

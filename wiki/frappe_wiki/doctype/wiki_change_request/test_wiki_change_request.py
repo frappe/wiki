@@ -3,6 +3,8 @@
 
 import glob
 import os
+import time
+from threading import Barrier, Thread
 from unittest.mock import patch
 
 import frappe
@@ -2969,3 +2971,47 @@ class TestDeferredRevisionSync(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(self.space_revisions(), before + 1, "the commit should take exactly one snapshot")
 		self.assertFalse(_pending_revision_spaces())
+
+
+class TestDraftCreationConcurrency(WikiFixtureMixin, FrappeTestCase):
+	def test_two_first_edits_at_once_open_one_draft(self):
+		"""Two tabs of one user making their first edit together share one draft."""
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		module = "wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request"
+		real_create = create_change_request
+
+		def slow_create(*args, **kwargs):
+			# Widen the window between looking for a draft and inserting one.
+			time.sleep(0.5)
+			return real_create(*args, **kwargs)
+
+		site = frappe.local.site
+		user = frappe.session.user
+		start = Barrier(2)
+		names, errors = [], []
+
+		def first_edit():
+			frappe.init(site)
+			frappe.connect()
+			try:
+				frappe.set_user(user)
+				start.wait()
+				names.append(get_or_create_draft_change_request(space.name)["name"])
+				frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+			except Exception as error:
+				errors.append(error)
+			finally:
+				frappe.destroy()
+
+		with patch(f"{module}.create_change_request", side_effect=slow_create):
+			tabs = [Thread(target=first_edit) for _ in range(2)]
+			for tab in tabs:
+				tab.start()
+			for tab in tabs:
+				tab.join()
+
+		self.assertEqual(errors, [])
+		self.assertEqual(len(set(names)), 1)
+		self.assertEqual(frappe.db.count("Wiki Change Request", {"wiki_space": space.name}), 1)
