@@ -1,7 +1,7 @@
 # Draft on First Edit
 
 Date: 2026-09-24
-Status: Planned
+Status: In progress
 Depends on: `fix/stale-change-request-drafts` (PR1, `_rebase_draft`)
 
 ## Problem
@@ -129,3 +129,33 @@ Tests:
 - A live refresh when someone else merges while the space is open.
 
 ## Progress log
+
+### 2026-09-25
+
+- Phase 1 done. `get_draft_workspace` rebases an open outdated draft instead
+  of skipping stale empty drafts as `d9d83d3` did. New tests cover no draft on
+  open, an open draft's edited tree, the rebase on open, and the git-synced
+  refusal. On wiki.v2.localhost's 952-page space the endpoint takes 0.19 s cold
+  and 0.02 s warm, and hydrate fetches the tree once.
+- Phase 2 done. `hydrate` keeps PR1's `hydratedCrName` check inside
+  `loadWorkspace`. `ensureCr` records the new draft there too, or a draft
+  created by the first edit and then submitted would leave its buffers behind.
+- Found while running e2e: after a merge there is no draft, so a page loads
+  from the published doc. Two things went wrong:
+  - The draft editor, still mounted during `reset`, reconciles an empty
+    buffer. Before, the next draft's `get_cr_page` overwrote it. Now
+    `loadCrPage` takes the published doc and seeds the buffer from it when
+    there is no draft.
+  - Merging from a `/page/` route loaded the page before `wikiDoc.reload()`,
+    so it seeded the pre-merge text. The panel now reloads first.
+- Phase 3 done as planned. Temp revert of the typing path fails the reload
+  e2e.
+- Phase 4: `lazy-draft.spec.ts` renamed to `draft-on-first-edit.spec.ts`,
+  with the reload-before-autosave case and a merge-from-page case.
+  `local-first-store` passes unchanged. `spa-editor.mobile` flaked once: the
+  first create now runs two requests in a row and `networkidle` can settle
+  between them, so it waits for `apply_cr_operations` like
+  `pending-delete-visible` does.
+- Full e2e suite with `15d4d64` applied locally: 179 of 179 pass after that fix.
+- 48 reader-page e2e tests time out on `networkidle` without `15d4d64`. That
+  fix goes in its own PR as planned.
