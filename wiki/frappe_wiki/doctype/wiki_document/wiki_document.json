@@ -210,7 +210,8 @@
 			"description": "Prevent search engines from indexing this page",
 			"fieldname": "disable_indexing",
 			"fieldtype": "Check",
-			"label": "Disable Indexing"
+			"label": "Disable Indexing",
+			"search_index": 1
 		}
 	],
 	"grid_page_length": 50,
@@ -218,7 +219,7 @@
 	"is_tree": 1,
 	"links": [],
 	"make_attachments_public": 1,
-	"modified": "2026-09-24 00:00:00.000000",
+	"modified": "2026-09-24 17:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Document",
