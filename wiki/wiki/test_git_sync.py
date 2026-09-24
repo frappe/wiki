@@ -863,6 +863,14 @@ class TestGitSyncReadOnly(FrappeTestCase):
 		synced = _make_synced_space()
 		self.assertRaises(frappe.PermissionError, get_or_create_draft_change_request, synced.name)
 
+	def test_get_draft_workspace_blocked_on_synced_space(self):
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+			get_draft_workspace,
+		)
+
+		synced = _make_synced_space()
+		self.assertRaises(frappe.PermissionError, get_draft_workspace, synced.name)
+
 	def test_reorder_blocked_on_synced_space(self):
 		from wiki.api.wiki_space import reorder_wiki_documents
 

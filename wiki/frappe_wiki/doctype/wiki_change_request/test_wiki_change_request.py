@@ -23,6 +23,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_change_request,
 	get_cr_page,
 	get_cr_tree,
+	get_draft_workspace,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
 	has_revision_changes,
@@ -1154,6 +1155,42 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(cr.status, "Draft")
 		self.assertEqual(cr.base_revision, new_main.name)
 		self.assertEqual(cr.outdated, 0)
+
+	def test_get_draft_workspace_does_not_create_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertIsNone(workspace["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name}))
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		self.assertEqual([node["doc_key"] for node in workspace["tree"]["children"]], [page_key])
+
+	def test_get_draft_workspace_returns_open_draft(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "Open Draft")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"title": "Page A edited"})
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertEqual(workspace["change_request"]["name"], cr.name)
+		self.assertEqual(workspace["tree"]["children"][0]["title"], "Page A edited")
+
+	def test_get_draft_workspace_rebases_outdated_draft(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "Stale Draft")
+		new_main = create_revision_from_live_tree(space.name, message="advance main")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertEqual(workspace["change_request"]["name"], cr.name)
+		self.assertEqual(workspace["change_request"]["base_revision"], new_main.name)
+		self.assertEqual(frappe.db.count("Wiki Change Request", {"wiki_space": space.name}), 1)
 
 	def test_draft_opened_during_review_shows_merged_change(self):
 		space = create_test_wiki_space()
