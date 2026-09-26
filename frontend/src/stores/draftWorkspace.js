@@ -55,6 +55,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const hasLoadedTree = ref(false);
 	let hydratePromise = null;
 	let hydratedCrName = null;
+	// The oldest main revision any page was loaded from while there is no
+	// draft. Starting the draft there is safe; a newer base would let text
+	// loaded earlier overwrite what main changed since.
+	let loadedMainRevision = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
 	const crName = computed(() => crStore.currentChangeRequest?.name || null);
@@ -222,6 +226,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		for (const k of Object.keys(changesByKey)) delete changesByKey[k];
 		transport.reset();
 		hydratedCrName = null;
+		loadedMainRevision = null;
 	}
 
 	// Hydrate the workspace for a space: load the user's open draft (or the
@@ -259,6 +264,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			reset({ keepTree: true });
 		}
 		hydratedCrName = crName.value;
+		loadedMainRevision ||= workspace.main_revision || null;
 		if (!crName.value) crStore.clearChanges();
 		await crStore.loadChanges();
 		applyServerTree(workspace.tree);
@@ -470,7 +476,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function ensureCr() {
 		if (!isEnabled.value || !spaceId.value) return false;
 		if (crName.value) return true;
-		await crStore.initChangeRequest(spaceId.value);
+		// Typing so far was made against the loaded main, not today's main.
+		await crStore.initChangeRequest(spaceId.value, loadedMainRevision);
 		// The buffers typed before this belong to the new draft.
 		hydratedCrName = crName.value;
 		return !!crName.value;

@@ -548,12 +548,22 @@ def get_draft_workspace(wiki_space: str) -> dict[str, Any]:
 	main_revision = _ensure_main_revision(wiki_space)
 	return {
 		"change_request": None,
+		"main_revision": main_revision,
 		"tree": _build_revision_tree(wiki_space, head_revision=main_revision),
 	}
 
 
 @frappe.whitelist()
-def get_or_create_draft_change_request(wiki_space: str, title: str | None = None) -> dict[str, Any]:
+def get_or_create_draft_change_request(
+	wiki_space: str, title: str | None = None, base_revision: str | None = None
+) -> dict[str, Any]:
+	"""The draft the first edit goes into.
+
+	`base_revision` is the main revision the browser loaded its pages from. The
+	new draft starts there, so typing on a page main has changed since then
+	conflicts at merge instead of overwriting main. An existing draft is not
+	rebased here: another tab may hold typing made against its current base.
+	"""
 	_assert_can_draft(wiki_space)
 	flush_pending_revision_syncs()
 
@@ -563,12 +573,11 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	frappe.db.get_value("Wiki Space", wiki_space, "name", for_update=True)
 	cr = _find_existing_draft(wiki_space, for_update=True)
 	if cr:
-		_rebase_draft(cr)
 		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
-	return create_change_request(wiki_space, default_title).as_dict()
+	return create_change_request(wiki_space, default_title, base_revision=base_revision).as_dict()
 
 
 def _assert_can_draft(wiki_space: str) -> None:
@@ -873,7 +882,9 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 
 @frappe.whitelist()
-def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
+def create_change_request(
+	wiki_space: str, title: str, description: str | None = None, base_revision: str | None = None
+) -> Document:
 	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
@@ -884,7 +895,10 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	flush_pending_revision_syncs()
 
-	base_revision = _ensure_main_revision(wiki_space)
+	if base_revision:
+		_assert_main_line_revision(wiki_space, base_revision)
+	else:
+		base_revision = _ensure_main_revision(wiki_space)
 	head_revision = create_overlay_revision(base_revision, is_working=1)
 
 	cr = frappe.new_doc("Wiki Change Request")
@@ -899,6 +913,11 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", cr.name)
 	capture("change_request_created")
 	return cr
+
+
+def _assert_main_line_revision(wiki_space: str, revision: str) -> None:
+	if frappe.db.get_value("Wiki Revision", revision, ["wiki_space", "is_overlay"]) != (wiki_space, 0):
+		frappe.throw(_("A draft can only start from a published revision of this space."))
 
 
 def _ensure_main_revision(wiki_space: str) -> str:
