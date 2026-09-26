@@ -2489,6 +2489,7 @@ def with_content_blob(item: dict[str, Any] | None, content: str) -> dict[str, An
 
 
 def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]]) -> Document:
+	_assert_parents_are_groups(merged_items)
 	revision = frappe.new_doc("Wiki Revision")
 	revision.wiki_space = cr.wiki_space
 	revision.change_request = cr.name
@@ -2521,6 +2522,19 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 	recompute_revision_hashes(revision.name)
 	return revision
+
+
+def _assert_parents_are_groups(merged_items: dict[str, dict[str, Any]]) -> None:
+	# Each side can be valid alone: main turns an empty group into a page while
+	# a draft adds a page under it.
+	for item in merged_items.values():
+		parent = merged_items.get(item.get("parent_key"))
+		if parent and not parent.get("is_group"):
+			frappe.throw(
+				_("Cannot add {0} under {1} because {1} is no longer a group.").format(
+					frappe.bold(item.get("title")), frappe.bold(parent.get("title"))
+				)
+			)
 
 
 def apply_merge_revision(space: Document, revision: Document) -> None:

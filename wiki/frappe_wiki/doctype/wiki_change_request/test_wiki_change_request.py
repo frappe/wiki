@@ -1216,6 +1216,39 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", second, "base_revision"), old_base)
 
+	def test_rebased_draft_cannot_add_a_page_under_a_group_main_turned_into_a_page(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		first = get_or_create_draft_change_request(space.name)["name"]
+		update_cr_page(first, group_key, {"is_group": 0})
+		submit_change_request(first)
+
+		second = get_or_create_draft_change_request(space.name)["name"]
+		create_cr_page(second, group_key, "Child", "child")
+		_approve_and_merge(first)
+		get_or_create_draft_change_request(space.name)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
+			_approve_and_merge(second)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"parent_wiki_document": group.name}))
+
+	def test_stale_draft_cannot_add_a_page_under_a_group_main_turned_into_a_page(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		first = create_change_request(space.name, "Group to page")
+		update_cr_page(first.name, group_key, {"is_group": 0})
+		second = create_change_request(space.name, "Child under group")
+		create_cr_page(second.name, group_key, "Child", "child")
+		_approve_and_merge(first.name)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
+			_approve_and_merge(second.name)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"parent_wiki_document": group.name}))
+
 	def test_archive_change_request_sets_status(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")
