@@ -544,10 +544,8 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 
 	cr = _find_existing_draft(wiki_space)
 	if cr:
-		if _is_stale_empty_draft(cr, wiki_space):
-			_archive_stale_draft(cr)
-		else:
-			return cr.as_dict()
+		_rebase_draft(cr)
+		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
@@ -582,21 +580,35 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	return cr
 
 
-def _is_stale_empty_draft(cr: Document, wiki_space: str) -> bool:
-	"""True if the draft is outdated AND has no changes."""
-	main_revision = frappe.get_value("Wiki Space", wiki_space, "main_revision")
-	if not main_revision or not cr.base_revision or cr.base_revision == main_revision:
-		return False
-	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
-	return not has_revision_changes(cr.base_revision, cr.head_revision)
+def _rebase_draft(cr: Document) -> None:
+	"""Repoint the draft's overlay onto the current main, unless both changed the same page."""
+	main_revision = frappe.db.get_value("Wiki Space", cr.wiki_space, "main_revision")
+	if not main_revision or cr.base_revision == main_revision:
+		return
+	if not _can_rebase(cr, main_revision):
+		cr.db_set("outdated", 1)
+		return
 
-
-def _archive_stale_draft(cr: Document) -> None:
-	"""Archive a stale empty draft."""
 	frappe.db.set_value(
-		"Wiki Change Request",
-		cr.name,
-		{"status": "Archived", "archived_at": now_datetime()},
+		"Wiki Revision", cr.head_revision, {"parent_revision": main_revision, "hashes_stale": 1}
+	)
+	cr.db_set({"base_revision": main_revision, "outdated": 0})
+
+
+def _can_rebase(cr: Document, main_revision: str) -> bool:
+	if not frappe.db.get_value("Wiki Revision", cr.head_revision, "is_overlay"):
+		return False
+
+	overlay_items = get_revision_item_map(cr.head_revision)
+	main_items = get_revision_item_map(main_revision)
+	main_changed = _find_changed_keys(get_revision_item_map(cr.base_revision), main_items)
+	if main_changed & overlay_items.keys():
+		return False
+
+	# Don't orphan a page added under a group that main deleted.
+	return all(
+		not item.get("parent_key") or item["parent_key"] in overlay_items or item["parent_key"] in main_items
+		for item in overlay_items.values()
 	)
 
 
@@ -2477,6 +2489,7 @@ def with_content_blob(item: dict[str, Any] | None, content: str) -> dict[str, An
 
 
 def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]]) -> Document:
+	_assert_parents_are_groups(merged_items)
 	revision = frappe.new_doc("Wiki Revision")
 	revision.wiki_space = cr.wiki_space
 	revision.change_request = cr.name
@@ -2509,6 +2522,19 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 	recompute_revision_hashes(revision.name)
 	return revision
+
+
+def _assert_parents_are_groups(merged_items: dict[str, dict[str, Any]]) -> None:
+	# Each side can be valid alone: main turns an empty group into a page while
+	# a draft adds a page under it.
+	for item in merged_items.values():
+		parent = merged_items.get(item.get("parent_key"))
+		if parent and not parent.get("is_group"):
+			frappe.throw(
+				_("Cannot add {0} under {1} because {1} is no longer a group.").format(
+					frappe.bold(item.get("title")), frappe.bold(parent.get("title"))
+				)
+			)
 
 
 def apply_merge_revision(space: Document, revision: Document) -> None:
