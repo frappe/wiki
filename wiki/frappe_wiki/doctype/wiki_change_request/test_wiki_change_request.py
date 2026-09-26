@@ -1169,6 +1169,25 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
 		self.assertEqual([node["doc_key"] for node in workspace["tree"]["children"]], [page_key])
 
+	def test_get_draft_workspace_reuses_main_revision_seeded_by_another_tab(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		get_draft_workspace(space.name)
+		seeded = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		revisions = frappe.db.count("Wiki Revision", {"wiki_space": space.name})
+		get_value = frappe.db.get_value
+
+		def stale_snapshot(doctype, filters, fieldname, *args, **kwargs):
+			if doctype == "Wiki Space" and fieldname == "main_revision" and not kwargs.get("for_update"):
+				return None
+			return get_value(doctype, filters, fieldname, *args, **kwargs)
+
+		with patch.object(frappe.db, "get_value", side_effect=stale_snapshot):
+			get_draft_workspace(space.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "main_revision"), seeded)
+		self.assertEqual(frappe.db.count("Wiki Revision", {"wiki_space": space.name}), revisions)
+
 	def test_get_draft_workspace_returns_open_draft(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")

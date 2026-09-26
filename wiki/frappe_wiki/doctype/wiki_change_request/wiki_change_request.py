@@ -906,6 +906,12 @@ def _ensure_main_revision(wiki_space: str) -> str:
 	if main_revision:
 		return main_revision
 
+	# Two tabs can open a fresh space at once. Lock only here, so opening a
+	# space that already has a revision stays lock-free.
+	main_revision = frappe.db.get_value("Wiki Space", wiki_space, "main_revision", for_update=True)
+	if main_revision:
+		return main_revision
+
 	# Seed the first revision with elevated privileges so a Read-tier
 	# contributor (allowed to raise CRs) can bootstrap a fresh space.
 	main_revision = _bootstrap_main_revision(wiki_space).name
