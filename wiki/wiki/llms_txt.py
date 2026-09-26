@@ -15,7 +15,8 @@ import re
 import frappe
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
-	get_first_published_page,
+	first_published_leaf,
+	get_noindex_documents,
 	get_public_wiki_tree,
 )
 from wiki.permissions import can_read_space
@@ -39,18 +40,18 @@ def build_site_llms_txt() -> str | None:
 
 
 def _site_llms_txt() -> str | None:
+	noindex_documents = get_noindex_documents()
 	entries = []
 	for space in public_spaces():
-		landing = get_first_published_page(space.root_group)
+		tree = _indexable_nodes(get_public_wiki_tree(space.root_group), noindex_documents)
+		landing = first_published_leaf(tree)
 		if not landing:
 			# No page to read: the space's own index would be empty too.
 			continue
 
 		url = f"{frappe.utils.get_url('/' + space.route)}/llms.txt"
 		entry = f"- [{_label(space.space_name or space.name)}]({url})"
-		description = _one_line(
-			frappe.db.get_value("Wiki Document", {"route": landing["route"]}, "meta_description")
-		)
+		description = _one_line(frappe.db.get_value("Wiki Document", landing["name"], "meta_description"))
 		entries.append(f"{entry}: {description}" if description else entry)
 
 	if not entries:
@@ -105,11 +106,12 @@ def _space_llms_txt(space: str) -> str | None:
 	if not frappe.db.exists("Wiki Document", space_doc.root_group):
 		return None
 
-	tree = get_public_wiki_tree(space_doc.root_group)
+	noindex_documents = get_noindex_documents()
+	tree = _indexable_nodes(get_public_wiki_tree(space_doc.root_group), noindex_documents)
 	if not tree:
 		return None
 
-	pages = _published_pages(space_doc.name)
+	pages = _published_pages(space_doc.name, noindex_documents)
 
 	# The reader renders one tree per space, so the index is one section titled
 	# after the space.
@@ -125,7 +127,7 @@ def _space_llms_txt(space: str) -> str | None:
 		return None
 
 	lines = [f"# {_one_line(space_doc.space_name) or space_doc.name}", ""]
-	summary = _one_line(_space_summary(space_doc.root_group, pages))
+	summary = _one_line(_space_summary(tree, pages))
 	if summary:
 		lines += [f"> {summary}", ""]
 	lines.append(MARKDOWN_HINT)
@@ -133,7 +135,20 @@ def _space_llms_txt(space: str) -> str | None:
 	return "\n".join(lines + body) + "\n"
 
 
-def _published_pages(space_name: str) -> dict:
+def _indexable_nodes(nodes: list, noindex_documents: set) -> list:
+	"""The tree without noindex documents, and without the groups they leave empty."""
+	indexable = []
+	for node in nodes:
+		if node["name"] in noindex_documents:
+			continue
+		indexable_children = _indexable_nodes(node["children"], noindex_documents)
+		if node["is_group"] and not indexable_children:
+			continue
+		indexable.append({**node, "children": indexable_children})
+	return indexable
+
+
+def _published_pages(space_name: str, noindex_documents: set) -> dict:
 	"""``{route: meta_description}`` for every published page in a space.
 
 	Doubles as the "is there a page at this route?" lookup that decides whether
@@ -147,19 +162,23 @@ def _published_pages(space_name: str) -> dict:
 			"is_group": 0,
 			"is_external_link": 0,
 		},
-		fields=["route", "meta_description"],
+		fields=["name", "route", "meta_description"],
 	)
-	return {row.route: row.meta_description for row in rows if row.route}
+	return {
+		row.route: row.meta_description for row in rows if row.route and row.name not in noindex_documents
+	}
 
 
-def _space_summary(root_group: str, pages: dict) -> str | None:
-	"""The space's blockquote line: its landing page's meta description.
+def _space_summary(tree: list, pages: dict) -> str | None:
+	"""The space's blockquote line: its first indexable page's meta description.
 
 	Derived rather than a field on Wiki Space — the landing page's description
 	is already the space's public one-liner (it is what search engines show for
-	the space URL), so there is nothing extra for an editor to fill in.
+	the space URL), so there is nothing extra for an editor to fill in. `tree`
+	is already free of noindex pages, so a hidden landing page hands the line
+	to the next page instead of leaking its own description.
 	"""
-	landing = get_first_published_page(root_group)
+	landing = first_published_leaf(tree)
 	return pages.get(landing["route"]) if landing else None
 
 

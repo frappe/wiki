@@ -18,6 +18,7 @@ from frappe.utils import get_url, nowdate
 from frappe.website.router import get_pages
 from frappe.www.sitemap import get_public_pages_from_doctypes
 
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_noindex_documents
 from wiki.wiki.crawler_cache import SITEMAP, cached_index
 from wiki.wiki.llms_txt import public_spaces
 
@@ -55,7 +56,7 @@ def _sitemap_xml() -> str | None:
 
 
 def _wiki_links() -> list[tuple[str, str]]:
-	"""Published pages in Guest-readable spaces, as (url, lastmod) pairs.
+	"""Published, indexable pages in Guest-readable spaces, as (url, lastmod) pairs.
 
 	`.md` variants are deliberately absent: they are the same page in another
 	representation, which is duplicate content to a search engine.
@@ -72,13 +73,14 @@ def _wiki_links() -> list[tuple[str, str]]:
 			"is_group": 0,
 			"is_external_link": 0,
 		},
-		fields=["route", "modified"],
+		fields=["name", "route", "modified"],
 		ignore_permissions=True,
 	)
+	noindex_documents = get_noindex_documents()
 	return [
 		(get_url(quote(page.route.encode("utf-8"))), f"{page.modified:%Y-%m-%d}")
 		for page in pages
-		if page.route
+		if page.route and page.name not in noindex_documents
 	]
 
 

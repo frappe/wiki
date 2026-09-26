@@ -199,14 +199,18 @@ function choose(patch) {
 
 const rolls = ref(0);
 
-const MARK_KINDS = { avatar: 'generated', icon: 'icon', logo: 'logo' };
+const MARK_KINDS = new Map([
+	['avatar', 'generated'],
+	['icon', 'icon'],
+	['logo', 'logo'],
+]);
 
 watch(open, (isOpen) => {
 	if (isOpen) {
 		rolls.value = 0;
 		return;
 	}
-	const kind = MARK_KINDS[mark.value.mode];
+	const kind = MARK_KINDS.get(mark.value.mode);
 	if (kind && Object.keys(pending.value).length) {
 		useTelemetry().capture('space_identity_set', {
 			kind,
