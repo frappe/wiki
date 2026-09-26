@@ -257,7 +257,7 @@ export const useSpaceStore = defineStore('space', () => {
 			() => crStore.isChangeRequestMode,
 			canContribute,
 		],
-		async ([name, gitSynced, isMode, mayContribute], previous) => {
+		async ([name, gitSynced, isMode, mayContribute]) => {
 			if (!name || !isMode) return;
 			// Contributions can be switched off for a space, or withheld from this
 			// user. Opening a change request would be refused server-side, leaving
@@ -267,8 +267,10 @@ export const useSpaceStore = defineStore('space', () => {
 			// read-only tree path below instead.
 			if (gitSynced) return;
 
-			// A different space, not a different revision of the same one.
-			if (name !== previous?.[0]) {
+			// A different space, not a different revision of the same one. Asked of
+			// the draft store, not of `previous`: a page panel mounted first may
+			// already be hydrating this space, and resetting it would fetch twice.
+			if (draftStore.spaceId !== name) {
 				crStore.currentChangeRequest = null;
 				draftStore.reset();
 			}
