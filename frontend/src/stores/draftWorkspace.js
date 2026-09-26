@@ -2,6 +2,7 @@ import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
 	clearDraft as clearPersistedDraft,
 	clearDraftsForCr as clearPersistedDraftsForCr,
+	listDraftDocKeys,
 	loadDraftsForCr,
 	saveDraft as savePersistedDraft,
 } from '@/stores/draftPersistence';
@@ -258,7 +259,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	async function loadWorkspace(targetSpaceId) {
-		const workspace = await transport.fetchWorkspace(targetSpaceId);
+		const workspace = await transport.fetchWorkspace(
+			targetSpaceId,
+			await listDraftDocKeys(),
+		);
 		crStore.currentChangeRequest = workspace.change_request;
 		if (hydratedCrName && hydratedCrName !== crName.value) {
 			reset({ keepTree: true });

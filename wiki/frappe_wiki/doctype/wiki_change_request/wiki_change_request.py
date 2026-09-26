@@ -531,18 +531,19 @@ def has_revision_changes(base_revision: str | None, head_revision: str | None) -
 
 
 @frappe.whitelist()
-def get_draft_workspace(wiki_space: str) -> dict[str, Any]:
+def get_draft_workspace(wiki_space: str, unsaved_doc_keys: list[str] | None = None) -> dict[str, Any]:
 	"""The user's open draft and its tree, or the published tree when they have none.
 
 	Opening a space must not create a change request: that waits for the first
-	edit, through get_or_create_draft_change_request.
+	edit, through get_or_create_draft_change_request. `unsaved_doc_keys` are
+	pages the browser holds typing for that has not reached the server yet.
 	"""
 	_assert_can_draft(wiki_space)
 	flush_pending_revision_syncs()
 
 	cr = _find_existing_draft(wiki_space)
 	if cr:
-		_rebase_draft(cr)
+		_rebase_draft(cr, unsaved_doc_keys=set(unsaved_doc_keys or []))
 		return {"change_request": cr.as_dict(), "tree": get_cr_tree(cr.name)}
 
 	main_revision = _ensure_main_revision(wiki_space)
@@ -619,12 +620,12 @@ def _find_existing_draft(wiki_space: str, for_update: bool = False) -> Document 
 	return cr
 
 
-def _rebase_draft(cr: Document) -> None:
+def _rebase_draft(cr: Document, unsaved_doc_keys: set[str] | frozenset[str] = frozenset()) -> None:
 	"""Repoint the draft's overlay onto the current main, unless both changed the same page."""
 	main_revision = frappe.db.get_value("Wiki Space", cr.wiki_space, "main_revision")
 	if not main_revision or cr.base_revision == main_revision:
 		return
-	if not _can_rebase(cr, main_revision):
+	if not _can_rebase(cr, main_revision, unsaved_doc_keys):
 		cr.db_set("outdated", 1)
 		return
 
@@ -634,14 +635,14 @@ def _rebase_draft(cr: Document) -> None:
 	cr.db_set({"base_revision": main_revision, "outdated": 0})
 
 
-def _can_rebase(cr: Document, main_revision: str) -> bool:
+def _can_rebase(cr: Document, main_revision: str, unsaved_doc_keys: set[str] | frozenset[str]) -> bool:
 	if not frappe.db.get_value("Wiki Revision", cr.head_revision, "is_overlay"):
 		return False
 
 	overlay_items = get_revision_item_map(cr.head_revision)
 	main_items = get_revision_item_map(main_revision)
 	main_changed = _find_changed_keys(get_revision_item_map(cr.base_revision), main_items)
-	if main_changed & overlay_items.keys():
+	if main_changed & (overlay_items.keys() | unsaved_doc_keys):
 		return False
 
 	# Don't orphan a page added under a group that main deleted.
