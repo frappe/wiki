@@ -140,7 +140,9 @@ test('a reader opening a page never asks for a change request while capabilities
 	const page = await context.newPage();
 	const changeRequestCalls: string[] = [];
 	page.on('request', (req) => {
-		if (req.url().includes('get_or_create_draft_change_request')) {
+		if (
+			/get_or_create_draft_change_request|get_draft_workspace/.test(req.url())
+		) {
 			changeRequestCalls.push(req.url());
 		}
 	});

@@ -243,10 +243,10 @@ async function loadCrPage() {
 		if (page) {
 			setCrPageFromStore(docKey, page);
 		} else if (
-			draftStore.crName &&
+			draftStore.hasLoadedTree &&
 			!(crPage.value && crPage.value.doc_key === docKey)
 		) {
-			// We have a change request but the page resolved to nothing —
+			// The workspace is loaded but the page resolved to nothing —
 			// it's genuinely missing (deleted / bad URL), not still loading.
 			crPage.value = null;
 			loadFailed.value = true;
@@ -278,7 +278,14 @@ function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
 }
 
 onMounted(async () => {
-	if (props.spaceId) {
+	// Opening a page just created in this workspace must not refetch the tree:
+	// the server copy lands before the create does and drops its row.
+	if (
+		props.spaceId &&
+		(draftStore.spaceId !== props.spaceId ||
+			draftStore.isHydrating ||
+			!draftStore.hasLoadedTree)
+	) {
 		await draftStore.hydrate(props.spaceId);
 	}
 	// Restored IndexedDB drafts may belong to pages never revisited.

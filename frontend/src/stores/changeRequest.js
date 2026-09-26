@@ -102,7 +102,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		return currentChangeRequest.value;
 	}
 
-	async function initChangeRequest(spaceId) {
+	async function initChangeRequest(spaceId, baseRevision = null) {
 		if (!isChangeRequestMode.value || !spaceId) return null;
 
 		if (isLoadingChangeRequest.value && initChangeRequestPromise) {
@@ -113,6 +113,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		isLoadingChangeRequest.value = true;
 		initChangeRequestPromise = draftChangeRequestResource.submit({
 			wiki_space: spaceId,
+			base_revision: baseRevision,
 		});
 		try {
 			await initChangeRequestPromise;

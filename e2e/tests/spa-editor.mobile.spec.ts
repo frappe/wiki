@@ -53,11 +53,13 @@ test.describe('Mobile SPA', () => {
 
 		await openNewPageDialog(page);
 		await page.getByLabel('Title').fill(pageTitle);
+		// The next step navigates away, which would abort a create still in flight.
+		const created = page.waitForResponse(/apply_cr_operations/);
 		await page
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
-		await page.waitForLoadState('networkidle');
+		await created;
 
 		// --- Switch to a phone viewport at the space root ---
 		await page.setViewportSize(PHONE);
