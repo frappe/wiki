@@ -60,8 +60,11 @@ export function createSyncTransport({ crStore, crName }) {
 		if (state) state.version = version;
 	}
 
-	async function fetchWorkspace(spaceId) {
-		return workspaceResource.submit({ wiki_space: spaceId });
+	async function fetchWorkspace(spaceId, unsavedDocKeys) {
+		return workspaceResource.submit({
+			wiki_space: spaceId,
+			unsaved_doc_keys: unsavedDocKeys,
+		});
 	}
 
 	async function fetchTree(name) {

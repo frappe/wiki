@@ -1186,6 +1186,34 @@ class TestWikiChangeRequest(FrappeTestCase):
 			with self.assertRaisesRegex(frappe.ValidationError, "published revision"):
 				create_change_request(space.name, "Bad base", base_revision=revision)
 
+	def test_draft_with_unsaved_typing_on_a_page_main_changed_is_not_rebased(self):
+		space = create_test_wiki_space()
+		page_a = create_test_wiki_document(space.root_group, title="Page A", content="alpha")
+		page_b = create_test_wiki_document(space.root_group, title="Page B", content="beta")
+		key_a = frappe.get_value("Wiki Document", page_a.name, "doc_key")
+		key_b = frappe.get_value("Wiki Document", page_b.name, "doc_key")
+		cr = create_change_request(space.name, "Draft")
+		update_cr_page(cr.name, key_b, {"content": "beta draft"})
+
+		page_a.content = "alpha main"
+		page_a.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		get_draft_workspace(space.name, unsaved_doc_keys=[key_a])
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"), cr.base_revision
+		)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "outdated"), 1)
+
+		get_draft_workspace(space.name)
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"),
+			frappe.db.get_value("Wiki Space", space.name, "main_revision"),
+		)
+
 	def test_get_draft_workspace_does_not_create_change_request(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
