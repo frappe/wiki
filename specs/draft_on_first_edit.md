@@ -184,3 +184,19 @@ Tests:
   watcher's first run reset the store under it. Vue passes `[]` as `previous`
   there, so the watcher now asks the draft store which space it holds. New e2e
   test counts the fetches: 2 without the fix, 1 with it.
+
+### 2026-09-26 (edge-case pass)
+
+- Opening a page, then someone else merging a change to it, then typing,
+  merged the old text over main with no conflict. Develop reported a conflict
+  because its draft was already on the old base. The first edit now sends the
+  main revision the tab loaded (`get_draft_workspace` returns it), and the
+  draft starts there. The tab keeps the oldest one it loaded: an older base
+  only means a three-way merge, a newer one can drop main's change.
+- `get_or_create_draft_change_request` no longer rebases an existing draft.
+  Another tab may hold typing made against its current base. Rebasing now
+  happens only when a space opens.
+- Opening a page whose document a merge deleted showed a skeleton forever.
+  `WikiDocumentPanel` now shows "Page not found". The tree still lists a page
+  the draft edits, and it opens the draft copy.
+- Unit tests fail with each fix reverted; so do the new e2e tests.
