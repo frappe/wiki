@@ -176,7 +176,7 @@ export const WikiImage = Node.create({
 		const src = node.attrs?.src ?? '';
 		const alt = node.attrs?.alt ?? '';
 		const title = node.attrs?.title ?? '';
-		const caption = node.attrs?.caption ?? '';
+		const caption = (node.attrs?.caption ?? '').trim();
 
 		let md = title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
 
