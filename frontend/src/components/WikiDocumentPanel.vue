@@ -123,6 +123,13 @@
 			</div>
 		</div>
 
+		<div v-else-if="pageNotFound" class="h-full flex items-center justify-center text-ink-gray-5">
+			<div class="text-center">
+				<span class="lucide-alert-circle size-12 mx-auto mb-4 text-ink-gray-4" aria-hidden="true" />
+				<p>{{ __('Page not found') }}</p>
+			</div>
+		</div>
+
 		<!-- Content skeleton -->
 		<div v-else class="h-full flex flex-col">
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
@@ -274,6 +281,10 @@ function makeWikiDocResource(pageId) {
 }
 
 const wikiDoc = shallowRef(makeWikiDocResource(props.pageId));
+// A merge elsewhere can delete the page this URL points at.
+const pageNotFound = computed(
+	() => wikiDoc.value.get.error?.exc_type === 'DoesNotExistError',
+);
 
 const currentCrPage = ref(null);
 const loadedDocKey = ref(null);
