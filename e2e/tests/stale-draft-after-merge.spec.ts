@@ -202,3 +202,39 @@ test('unsaved typing on a page main changed keeps the draft on its old base', as
 
 	expect((await openDraft(request, space.name)).outdated).toBeTruthy();
 });
+
+test('a page main deleted under a draft that edits it', async ({
+	page,
+	request,
+	wiki,
+}) => {
+	const space = await wiki.space({
+		pages: [{ title: 'Alpha' }, { title: 'Beta' }],
+	});
+	const beta = space.page('Beta');
+	const editor = page.locator('.ProseMirror').first();
+	await page.goto(space.url('page', beta.name));
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.type(' mine');
+	const saved = page.waitForResponse(/apply_cr_operations/);
+	await saveEditor(page);
+	await saved;
+
+	await mergeElsewhere(request, space.name, (name) =>
+		callMethod(request, `${CR_METHOD}.delete_cr_page`, {
+			name,
+			doc_key: beta.doc_key,
+		}),
+	);
+
+	// Re-entering reopens Beta's page, whose document is gone.
+	await page.getByRole('link', { name: 'Back to All Spaces' }).click();
+	await page.locator(spaceLinkSelector(space.name)).first().click();
+	await expect(page.getByText('Page not found')).toBeVisible();
+
+	await page.locator('aside').getByText('Beta', { exact: true }).click();
+	await expect(page).toHaveURL(/\/draft\//);
+	await expect(editor).toContainText('Content for Beta mine');
+	expect((await openDraft(request, space.name)).outdated).toBeTruthy();
+});
