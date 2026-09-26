@@ -1142,10 +1142,12 @@ class TestWikiChangeRequest(FrappeTestCase):
 		current_main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
 		self.assertEqual(current_main, cr_doc.merge_revision)
 
-	def test_stale_empty_draft_is_rebased(self):
+	def test_first_edit_does_not_rebase_an_existing_draft(self):
+		# Another tab may hold typing made against the draft's current base.
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A", content="v1")
 		cr = create_change_request(space.name, "Stale Draft")
+		old_base = cr.base_revision
 
 		new_main = create_revision_from_live_tree(space.name, message="advance main")
 		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
@@ -1153,10 +1155,36 @@ class TestWikiChangeRequest(FrappeTestCase):
 		result = get_or_create_draft_change_request(space.name)
 
 		self.assertEqual(result.get("name"), cr.name)
-		cr.reload()
-		self.assertEqual(cr.status, "Draft")
-		self.assertEqual(cr.base_revision, new_main.name)
-		self.assertEqual(cr.outdated, 0)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"), old_base)
+
+	def test_first_edit_draft_starts_on_the_loaded_revision(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		loaded = get_draft_workspace(space.name)["main_revision"]
+
+		page.content = "main-change"
+		page.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		cr = get_or_create_draft_change_request(space.name, base_revision=loaded)["name"]
+		update_cr_page(cr, page_key, {"content": "v1 typed"})
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr, "base_revision"), loaded)
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr)
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "content"), "main-change")
+
+	def test_first_edit_draft_refuses_a_revision_from_elsewhere(self):
+		space = create_test_wiki_space()
+		other = create_test_wiki_space()
+		foreign = get_draft_workspace(other.name)["main_revision"]
+		overlay = create_change_request(space.name, "Overlay").head_revision
+
+		for revision in (foreign, overlay):
+			with self.assertRaisesRegex(frappe.ValidationError, "published revision"):
+				create_change_request(space.name, "Bad base", base_revision=revision)
 
 	def test_get_draft_workspace_does_not_create_change_request(self):
 		space = create_test_wiki_space()
@@ -1229,7 +1257,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		update_cr_page(second, key_b, {"content": "beta draft"})
 		_approve_and_merge(first)
 
-		self.assertEqual(get_or_create_draft_change_request(space.name)["name"], second)
+		self.assertEqual(get_draft_workspace(space.name)["change_request"]["name"], second)
 		self.assertEqual(get_cr_page(second, key_a)["content"], "alpha merged")
 		self.assertEqual(get_cr_page(second, key_b)["content"], "beta draft")
 		self.assertEqual([c["doc_key"] for c in diff_change_request(second)], [key_b])
@@ -1249,7 +1277,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
 		_approve_and_merge(first)
 
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		second_doc = frappe.get_doc("Wiki Change Request", second)
 		self.assertEqual(second_doc.base_revision, old_base)
@@ -1270,7 +1298,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
 		_approve_and_merge(first)
 
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", second, "base_revision"), old_base)
 
@@ -1286,7 +1314,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		second = get_or_create_draft_change_request(space.name)["name"]
 		create_cr_page(second, group_key, "Child", "child")
 		_approve_and_merge(first)
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
 			_approve_and_merge(second)
