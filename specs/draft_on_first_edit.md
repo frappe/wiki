@@ -172,3 +172,15 @@ Tests:
   without the fix, 1 with it. New e2e test edits two tabs at once and expects
   one draft holding both pages. It fails 5 of 8 runs without the fix and
   passed 22 of 22 with it.
+
+### 2026-09-26
+
+- Tested on a 99-doc space nested four levels deep. Opening and browsing
+  pages opens no draft. Typing, a create, a drag-move and two tabs at once
+  each open one. Time to content matches develop (about 730 ms), and server
+  CPU for 14 page opens dropped from about 1.7 s to 1.3 s.
+- Opening a page URL fetched the workspace twice, so the "fetched once" check
+  above did not hold. The page panel starts hydrating first, then the space
+  watcher's first run reset the store under it. Vue passes `[]` as `previous`
+  there, so the watcher now asks the draft store which space it holds. New e2e
+  test counts the fetches: 2 without the fix, 1 with it.

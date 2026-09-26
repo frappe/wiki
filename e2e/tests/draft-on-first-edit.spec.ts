@@ -45,6 +45,22 @@ test('opening a space creates no change request until the first edit', async ({
 		.toEqual([expect.objectContaining({ status: 'Draft' })]);
 });
 
+// The page panel starts hydrating before the space store's watcher runs. The
+// watcher used to reset the store under it, so the workspace was fetched twice.
+test('opening a page fetches the workspace once', async ({ page, wiki }) => {
+	const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+	let fetches = 0;
+	page.on('request', (request) => {
+		if (request.url().includes('get_draft_workspace')) fetches += 1;
+	});
+
+	await page.goto(space.url('page', space.page('Alpha').name));
+	await expect(page.getByText('Content for Alpha')).toBeVisible();
+	await page.waitForLoadState('networkidle');
+
+	expect(fetches).toBe(1);
+});
+
 test('typing opens the draft and survives a reload before autosave', async ({
 	page,
 	request,
