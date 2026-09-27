@@ -48,6 +48,13 @@ def fix_content_blobs():
 		pluck="revision",
 		distinct=True,
 	)
+	# Overlays hash the items they inherit from their base, but have no item rows for them.
+	if stale_revisions:
+		stale_revisions += frappe.get_all(
+			"Wiki Revision",
+			filters={"is_overlay": 1, "parent_revision": ("in", stale_revisions)},
+			pluck="name",
+		)
 	for name, fixed in fixes.items():
 		_replace_blob_content(name, fixed)
 

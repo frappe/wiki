@@ -10,7 +10,10 @@ from wiki.frappe_wiki.doctype.wiki_content_blob.patches.unescape_code_block_enti
 	execute,
 	unescape_code_blocks,
 )
-from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import create_revision_from_live_tree
+from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
+	create_overlay_revision,
+	create_revision_from_live_tree,
+)
 from wiki.tests.factory import make_space
 
 
@@ -75,3 +78,12 @@ class TestUnescapeCodeBlockEntitiesPatch(IntegrationTestCase):
 		self.assertEqual(blob_content, expected)
 		self.assertEqual(blob_hash, hashlib.sha256(expected.encode()).hexdigest())
 		self.assertEqual(frappe.db.get_value("Wiki Revision", revision.name, "hashes_stale"), 1)
+
+	def test_marks_overlays_that_inherit_a_changed_blob_stale(self):
+		space = make_space(pages=[{"title": "REST API", "content": fence("a &lt; b")}])
+		base = create_revision_from_live_tree(space.name, ignore_permissions=True)
+		overlay = create_overlay_revision(base.name, is_working=1)
+
+		execute()
+
+		self.assertEqual(frappe.db.get_value("Wiki Revision", overlay.name, "hashes_stale"), 1)
