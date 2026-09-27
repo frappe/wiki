@@ -38,5 +38,6 @@ class TestStripUnderlineMarkers(UnitTestCase):
 			"Run ``++i++`` there.",
 			"a ++ b ++ c",
 			"![img](data:image/png;base64,ab++cd++ef++)",
+			"[x](https://x.io/a++b++c)",
 		):
 			self.assertEqual(strip_underline_markers(content), content)

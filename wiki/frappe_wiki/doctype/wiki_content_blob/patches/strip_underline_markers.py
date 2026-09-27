@@ -17,11 +17,13 @@ from wiki.frappe_wiki.doctype.wiki_content_blob.patches.unescape_iframe_embeds i
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
 from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
 
-# Code fences, code spans and data URIs match first and are returned as-is.
+# Code fences, code spans, data URIs and link destinations match first and are
+# returned as-is. A destination wrapped whole in `++` is an underline, not a URL.
 MARKUP = re.compile(
 	r"(?P<fence>`{3,}|~{3,})[\s\S]*?(?P=fence)"
 	r"|(?P<tick>`+)[^\n]*?(?P=tick)"
 	r"|data:[^)\s]*"
+	r"|\]\((?!\+\+)[^)\s]*"
 	r"|(?<![+/=])\+\+(?=\S)(?P<text>[^+\n]*?\S)\+\+(?![+/=])"
 )
 
