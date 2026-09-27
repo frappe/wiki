@@ -34,6 +34,8 @@ class TestStripUnderlineMarkers(UnitTestCase):
 			"Written in C++ and C++ again.",
 			"Use `i++` and `++i` here.",
 			"```js\nfor (;;) { ++a++ }\n```",
+			"~~~\n++x++\n~~~",
+			"Run ``++i++`` there.",
 			"a ++ b ++ c",
 			"![img](data:image/png;base64,ab++cd++ef++)",
 		):

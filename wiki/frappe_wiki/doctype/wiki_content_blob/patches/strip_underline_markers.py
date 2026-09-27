@@ -15,16 +15,24 @@ from wiki.frappe_wiki.doctype.wiki_content_blob.patches.unescape_iframe_embeds i
 	_replace_blob_content,
 )
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_content_cache
+from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import enqueue_reindex
 
-UNDERLINE = re.compile(r"(?<![+/=])\+\+(?=\S)([^+\n]*?\S)\+\+(?![+/=])")
-PROTECTED = re.compile(r"(```[\s\S]*?```|`[^`\n]*`|data:[^)\s]*)")
+# Code fences, code spans and data URIs match first and are returned as-is.
+MARKUP = re.compile(
+	r"(?P<fence>`{3,}|~{3,})[\s\S]*?(?P=fence)"
+	r"|(?P<tick>`+)[^\n]*?(?P=tick)"
+	r"|data:[^)\s]*"
+	r"|(?<![+/=])\+\+(?=\S)(?P<text>[^+\n]*?\S)\+\+(?![+/=])"
+)
 
 
 def execute():
+	fixed_documents = []
 	for row in _rows_with_markers("Wiki Document"):
 		fixed = strip_underline_markers(row.content)
 		if fixed != row.content:
 			frappe.db.set_value("Wiki Document", row.name, "content", fixed, update_modified=False)
+			fixed_documents.append(row.name)
 
 	fixed_blobs = {}
 	for row in _rows_with_markers("Wiki Content Blob"):
@@ -44,17 +52,20 @@ def execute():
 		for name, fixed in fixed_blobs.items():
 			_replace_blob_content(name, fixed)
 		if stale_revisions:
+			# Overlays inherit their parent's items, so their hashes change too.
+			stale_revisions += frappe.get_all(
+				"Wiki Revision", filters={"parent_revision": ("in", stale_revisions)}, pluck="name"
+			)
 			frappe.db.set_value("Wiki Revision", {"name": ("in", stale_revisions)}, "hashes_stale", 1)
 
 	clear_wiki_content_cache()
+	# Raw set_value skips on_update, which is what normally re-indexes search.
+	if fixed_documents:
+		enqueue_reindex(fixed_documents)
 
 
 def strip_underline_markers(content: str) -> str:
-	parts = PROTECTED.split(content)
-	# re.split with one capture group puts the protected spans at odd indices.
-	for index in range(0, len(parts), 2):
-		parts[index] = UNDERLINE.sub(r"\1", parts[index])
-	return "".join(parts)
+	return MARKUP.sub(lambda match: match["text"] or match[0], content)
 
 
 def _rows_with_markers(doctype: str):
