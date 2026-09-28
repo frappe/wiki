@@ -113,6 +113,7 @@ class WikiDocument(NestedSet):
 		from frappe.types import DF
 
 		content: DF.Code | None
+		disable_indexing: DF.Check
 		doc_key: DF.Data | None
 		is_group: DF.Check
 		is_published: DF.Check
@@ -483,6 +484,7 @@ class WikiDocument(NestedSet):
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
 			"breadcrumbs": None,
+			"disable_indexing": self.disable_indexing,
 		}
 
 		metatags = {
@@ -743,6 +745,8 @@ def build_markdown_response(doc) -> Response:
 	response.data = doc.as_markdown()
 	response.headers["Content-Type"] = "text/markdown; charset=utf-8"
 	response.headers["Cache-Control"] = MARKDOWN_CACHE_CONTROL
+	if doc.disable_indexing:
+		response.headers["X-Robots-Tag"] = "noindex"
 	return response
 
 
@@ -916,19 +920,24 @@ def get_landing_page_for_route(route: str) -> dict | None:
 	return get_first_published_page(root_group) if root_group else None
 
 
+def get_noindex_documents() -> set[str]:
+	"""Names of every page hidden from search engines."""
+	return set(frappe.get_all("Wiki Document", filters={"disable_indexing": 1}, pluck="name"))
+
+
 def get_first_published_page(root_group: str) -> dict | None:
 	"""First non-group, non-external page in sidebar order — the document a
 	space URL should land on. Walks the same tree the sidebar renders, so the
 	two can't disagree."""
-	return _first_published_leaf(get_public_wiki_tree(root_group))
+	return first_published_leaf(get_public_wiki_tree(root_group))
 
 
-def _first_published_leaf(nodes: list) -> dict | None:
+def first_published_leaf(nodes: list) -> dict | None:
 	"""First non-group, non-external page in sidebar order within `nodes`."""
 	for node in nodes:
 		if not node["is_group"] and not node.get("is_external_link"):
 			return node
-		found = _first_published_leaf(node["children"])
+		found = first_published_leaf(node["children"])
 		if found:
 			return found
 	return None

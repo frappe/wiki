@@ -65,7 +65,23 @@
 								{{ __('Visible on the public site') }}
 							</span>
 						</div>
-						<Switch v-model="form.isPublished" :disabled="readonly" />
+						<Switch
+							v-model="form.isPublished"
+							:disabled="readonly"
+							:aria-label="__('Published')"
+						/>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex flex-col">
+							<span class="text-sm text-ink-gray-7">{{ __('Disable Indexing') }}</span>
+							<span class="text-xs text-ink-gray-5">
+								{{ __('Prevent search engines from indexing this page') }}
+							</span>
+						</div>
+						<Switch
+							v-model="form.disableIndexing"
+							:aria-label="__('Disable Indexing')"
+						/>
 					</div>
 				</section>
 
@@ -346,6 +362,7 @@ const form = reactive({
 	metaTitle: '',
 	metaDescription: '',
 	metaImage: '',
+	disableIndexing: false,
 });
 
 // The saved values every field is measured against — the panel is a form, not
@@ -358,6 +375,7 @@ const saved = computed(() => ({
 	metaTitle: props.docResource.doc?.meta_title || '',
 	metaDescription: props.docResource.doc?.meta_description || '',
 	metaImage: props.docResource.doc?.meta_image || '',
+	disableIndexing: Boolean(props.docResource.doc?.disable_indexing),
 }));
 
 // The title is also edited in the prose column, and the tree renames pages
@@ -374,7 +392,12 @@ watch(
 	{ immediate: true },
 );
 
-const META_FIELDS = ['metaTitle', 'metaDescription', 'metaImage'];
+const META_FIELDS = [
+	'metaTitle',
+	'metaDescription',
+	'metaImage',
+	'disableIndexing',
+];
 
 const isDirty = computed(() =>
 	Object.entries(saved.value).some(
@@ -517,6 +540,9 @@ function metaChanges() {
 		changes.meta_description = form.metaDescription;
 	}
 	if (form.metaImage !== current.metaImage) changes.meta_image = form.metaImage;
+	if (form.disableIndexing !== current.disableIndexing) {
+		changes.disable_indexing = form.disableIndexing ? 1 : 0;
+	}
 	return changes;
 }
 
