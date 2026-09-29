@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+import re
 from urllib.parse import quote, urlparse
 
 import frappe
@@ -30,6 +31,9 @@ WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
+# An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
+WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
 
 # Markdown is served under the page's own permissions, so a shared cache must
 # never hold it -- the same URL yields 404 for a reader without space access.
@@ -455,6 +459,7 @@ class WikiDocument(NestedSet):
 		# The TOC toggle is applied here, after the lookup, so it needs no cache
 		# invalidation.
 		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
+		rendered_content = resolve_wiki_links(rendered_content)
 		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
 			toc_headings = []
 
@@ -630,7 +635,7 @@ class WikiDocument(NestedSet):
 
 	def before_print(self, print_settings=None):
 		"""Render markdown content so the print format can drop it in as HTML."""
-		self.rendered_content_for_pdf = render_markdown(self.content or "")
+		self.rendered_content_for_pdf = resolve_wiki_links(render_markdown(self.content or ""))
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -853,6 +858,35 @@ def get_rendered_content(doc_name: str, content: str) -> tuple[str, list]:
 	html, toc = render_markdown_with_toc(content or "")
 	frappe.cache().hset(WIKI_CONTENT_CACHE_KEY, doc_name, {"html": html, "toc": toc})
 	return html, toc
+
+
+def resolve_wiki_links(html: str) -> str:
+	"""Point each internal link (`data-wiki-link`) at the target page's current route.
+
+	Runs after the render cache, so a page that moves or is unpublished never
+	leaves stale links in other pages' cached HTML. A link to a page that isn't
+	live renders as its plain label rather than a dead link.
+	"""
+	doc_keys = {doc_key for doc_key, _attrs, _label in WIKI_LINK_PATTERN.findall(html)}
+	if not doc_keys:
+		return html
+
+	routes = dict(
+		frappe.get_all(
+			"Wiki Document",
+			filters={"doc_key": ("in", doc_keys), "is_published": 1, "is_group": 0, "is_external_link": 0},
+			fields=["doc_key", "route"],
+			as_list=True,
+		)
+	)
+
+	def replace(match):
+		doc_key, attrs, label = match.groups()
+		if not routes.get(doc_key):
+			return label
+		return f'<a href="/{quote(routes[doc_key])}"{attrs}>{label}</a>'
+
+	return WIKI_LINK_PATTERN.sub(replace, html)
 
 
 def clear_wiki_content_cache(doc_name: str | None = None):

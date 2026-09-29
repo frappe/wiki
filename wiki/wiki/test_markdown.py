@@ -616,6 +616,30 @@ class TestTableRendering(unittest.TestCase):
 		self.assertIn("<code>dict[int, dict | list]</code>", result)
 
 
+class TestInternalLinkRendering(unittest.TestCase):
+	"""`[Label](wiki:<doc_key>)` renders with the key, for the reader to resolve."""
+
+	def test_internal_link_carries_the_key_not_an_href(self):
+		self.assertEqual(
+			render_markdown("See [Setup](wiki:a1b2c3d4e5f6)."),
+			'<p>See <a data-wiki-link="a1b2c3d4e5f6">Setup</a>.</p>\n',
+		)
+
+	def test_internal_link_keeps_its_title(self):
+		self.assertIn(
+			'<a data-wiki-link="a1b2" title="Guide">Setup</a>',
+			render_markdown('[Setup](wiki:a1b2 "Guide")'),
+		)
+
+	def test_external_links_are_untouched(self):
+		self.assertIn(
+			'<a href="https://wiki.example.com">x</a>', render_markdown("[x](https://wiki.example.com)")
+		)
+
+	def test_malformed_key_stays_a_plain_link(self):
+		self.assertIn('href="wiki:a%20b"', render_markdown("[x](<wiki:a b>)"))
+
+
 class TestTaskListRendering(unittest.TestCase):
 	"""Tests for task list rendering."""
 

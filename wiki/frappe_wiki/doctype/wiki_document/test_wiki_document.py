@@ -29,6 +29,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
+	resolve_wiki_links,
 	touch_space_last_edited,
 )
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
@@ -2905,6 +2906,50 @@ class TestRenderedContentCache(WikiDocumentTestBase):
 		doc.save()
 		# Content unchanged, so the rendered-content entry survives.
 		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+
+class TestInternalPageLinks(WikiDocumentTestBase):
+	"""`[Label](wiki:<doc_key>)` links follow the target page, not a fixed route."""
+
+	def setUp(self):
+		super().setUp()
+		self.space = self.wiki.space()
+		self.target = self.wiki.document(parent=self.space.root_group, title="Link Target")
+		self.source = self.wiki.document(
+			parent=self.space.root_group,
+			title="Link Source",
+			content=f"See [the target](wiki:{self.target.doc_key}).",
+		)
+
+	def rendered_source(self):
+		return self.source.get_web_context()["rendered_content"]
+
+	def test_link_resolves_to_the_target_route(self):
+		self.assertIn(f'<a href="/{self.target.route}">the target</a>', self.rendered_source())
+
+	def test_link_follows_a_route_change_without_a_source_edit(self):
+		self.rendered_source()
+		self.target.route = f"{self.space.route}/moved-target"
+		self.target.save()
+
+		self.assertIn(f'<a href="/{self.space.route}/moved-target">the target</a>', self.rendered_source())
+
+	def test_link_to_an_unpublished_page_renders_as_plain_text(self):
+		self.target.is_published = 0
+		self.target.save()
+
+		html = self.rendered_source()
+		self.assertIn("See the target.", html)
+		self.assertNotIn("data-wiki-link", html)
+
+	def test_link_to_an_unknown_page_renders_as_plain_text(self):
+		self.assertEqual(resolve_wiki_links('<a data-wiki-link="missing123">Gone</a>'), "Gone")
+
+	def test_html_without_internal_links_skips_the_lookup(self):
+		html = '<p><a href="https://example.com">out</a></p>'
+		with patch("frappe.get_all") as get_all:
+			self.assertEqual(resolve_wiki_links(html), html)
+		get_all.assert_not_called()
 
 
 class TestReaderRouteXSS(unittest.TestCase):
