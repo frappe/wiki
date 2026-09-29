@@ -69,7 +69,7 @@ test.describe('Space Settings -> Delete Space', () => {
 		await confirm.getByRole('textbox').fill(space.space_name);
 		await deleteButton.click();
 
-		await expect(page).toHaveURL(/\/wiki-app\/?$/);
+		await expect(page).toHaveURL(/\/wiki-app\/spaces$/);
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 		await expect(page.getByText(space.space_name, { exact: true })).toHaveCount(
 			0,
