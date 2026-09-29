@@ -9,7 +9,7 @@ test.describe('Command Palette', () => {
 			pages: [{ title: `${token} Deploy Guide`, is_published: false }],
 		});
 
-		await page.goto(appUrl());
+		await page.goto(appUrl('spaces'));
 		const palette = page.getByRole('dialog');
 		await expect(page.getByPlaceholder('Search spaces...')).toBeVisible({
 			timeout: 10000,
@@ -40,7 +40,7 @@ test.describe('Command Palette', () => {
 		const token = `Inkwell${Date.now().toString(36)}`;
 		const target = await wiki.space({ space_name: `${token} Space` });
 
-		await page.goto(appUrl());
+		await page.goto(appUrl('spaces'));
 		const palette = page.getByRole('dialog');
 		await expect(page.getByPlaceholder('Search spaces...')).toBeVisible({
 			timeout: 10000,
@@ -119,7 +119,7 @@ test.describe('Command Palette', () => {
 			await route.continue();
 		});
 
-		await page.goto(appUrl());
+		await page.goto(appUrl('spaces'));
 		const palette = page.getByRole('dialog');
 		await expect(page.getByPlaceholder('Search spaces...')).toBeVisible({
 			timeout: 10000,

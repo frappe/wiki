@@ -341,7 +341,7 @@ test.describe('Analytics dashboard', () => {
 		await page.goto('/wiki-app');
 		await expect(page.getByRole('link', { name: 'All Spaces' })).toBeVisible();
 		await page.getByRole('link', { name: 'Overview' }).click();
-		await expect(page).toHaveURL(/\/wiki-app\/overview$/);
+		await expect(page).toHaveURL(/\/wiki-app\/?$/);
 		await expect(page.getByTestId('overview-views')).toContainText('54,813');
 		await expect(
 			page.getByTestId('overview-open_change_requests'),

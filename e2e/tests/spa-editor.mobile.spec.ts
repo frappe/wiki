@@ -159,7 +159,7 @@ test.describe('Mobile SPA', () => {
 		await page.waitForLoadState('networkidle');
 
 		await tab('Overview').click();
-		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/overview$`));
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
 		await expect(tab('Overview')).toHaveAttribute('data-state', 'active');
 
 		await page.goto(appUrl('change-requests', draft.name));
