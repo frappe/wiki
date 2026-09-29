@@ -65,7 +65,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <span class="lucide-link-2off size-4" aria-hidden="true" />
+                        <span class="lucide-link-2-off size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
