@@ -162,18 +162,30 @@ function insertPageLink(chain, doc, range, page) {
 /**
  * Create a draft page and link its title. The title goes in at once; the link
  * waits for the page's real doc_key, because a `tmp_*` key saved into content
- * would point nowhere once the create lands. If the title was edited in the
- * meantime, the page still exists and only the link is skipped.
+ * would point nowhere once the create lands. The title's range follows every
+ * edit made meanwhile; if the title itself was edited, the page still exists
+ * and only the link is skipped.
  */
 async function createAndLink(editor, range, title, createPage) {
 	insertPageLink(editor.chain().focus(), editor.state.doc, range, { title });
-	const from = range.from;
-	const to = from + title.length;
+	let from = range.from;
+	let to = from + title.length;
+	// Text typed right at either edge lands outside the title.
+	const follow = ({ transaction }) => {
+		from = transaction.mapping.map(from, 1);
+		to = transaction.mapping.map(to, -1);
+	};
+	editor.on('transaction', follow);
 
-	const key = await createPage(title);
+	let key;
+	try {
+		key = await createPage(title);
+	} finally {
+		editor.off('transaction', follow);
+	}
 	if (!key || editor.isDestroyed) return;
 	const { doc, schema } = editor.state;
-	if (to > doc.content.size || doc.textBetween(from, to) !== title) return;
+	if (doc.textBetween(from, to) !== title) return;
 	editor.commands.command(({ tr }) => {
 		tr.addMark(
 			from,

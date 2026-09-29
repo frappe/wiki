@@ -51,4 +51,7 @@ Authors link to other pages by pasting the page's route today. When a page is mo
   - **Page glyph.** `wiki:` links in the editor show a page glyph and a soft underline, from the proto's CSS, in `wiki-editor-content.css`.
 - **Phase 4, e2e.** `e2e/tests/internal-page-links.spec.ts` picks a page with `[[`, merges, checks the published href, changes the target's route, and checks the href again. A second test retargets a link in the middle of a sentence with Backspace. Both passed 6 repeat runs each. A third test covers `/linkpage`, and two more cover the typed `[[Title]]` and the Create row. All five passed 3 repeat runs.
 - **Fixed along the way:** the link popup's Remove icon was `lucide-link-2off`, which renders nothing, so it is now `lucide-link-2-off`.
-
+- **Review fixes (Greptile on #817).**
+  - `resolve_wiki_links` now resolves only pages in the linking page's own space. Access is granted per space, so a hand-typed key to a page in a restricted space no longer puts that page's route into the HTML.
+  - Create-and-link maps the title's range through every edit made while the create is pending, so typing before the title no longer drops the link.
+  - Both have a regression test that failed before the fix.

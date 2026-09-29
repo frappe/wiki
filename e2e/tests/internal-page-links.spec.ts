@@ -192,4 +192,33 @@ test.describe('Internal page links', () => {
 			page.locator('aside').getByText('Release Notes', { exact: true }),
 		).toBeVisible();
 	});
+
+	test('a created page is linked even if text before it changes meanwhile', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Link Source', content: 'Read this' }],
+		});
+
+		await page.goto(space.url('page', space.page('Link Source').name));
+		const editor = page.locator('.ProseMirror').first();
+		await editor.click();
+
+		// Hold the create long enough to edit around it.
+		await page.route('**/*apply_cr_operations*', async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+			await route.continue();
+		});
+
+		await page.keyboard.press('End');
+		await page.keyboard.type(' [[Release Notes');
+		await page.keyboard.press('Enter');
+		await page.keyboard.press('Home');
+		await page.keyboard.type('Now ');
+
+		const link = editor.locator('a[href^="wiki:"]');
+		await expect(link).toHaveText('Release Notes', { timeout: 15000 });
+		await expect(editor).toContainText('Now Read this Release Notes');
+	});
 });
