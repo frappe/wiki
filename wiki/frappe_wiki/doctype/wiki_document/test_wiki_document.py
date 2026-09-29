@@ -2942,13 +2942,27 @@ class TestInternalPageLinks(WikiDocumentTestBase):
 		self.assertIn("See the target.", html)
 		self.assertNotIn("data-wiki-link", html)
 
+	def test_link_into_another_space_renders_as_plain_text(self):
+		# Space access is checked per space, so a reader of this page may not be
+		# allowed to see a page elsewhere, not even its route.
+		private_space = self.wiki.space(roles=[("System Manager", "Read")])
+		private_page = self.wiki.document(parent=private_space.root_group, title="Private Roadmap")
+		self.source.content = f"See [the roadmap](wiki:{private_page.doc_key})."
+		self.source.save()
+
+		html = self.rendered_source()
+		self.assertIn("See the roadmap.", html)
+		self.assertNotIn(private_page.route, html)
+
 	def test_link_to_an_unknown_page_renders_as_plain_text(self):
-		self.assertEqual(resolve_wiki_links('<a data-wiki-link="missing123">Gone</a>'), "Gone")
+		self.assertEqual(
+			resolve_wiki_links('<a data-wiki-link="missing123">Gone</a>', self.space.name), "Gone"
+		)
 
 	def test_html_without_internal_links_skips_the_lookup(self):
 		html = '<p><a href="https://example.com">out</a></p>'
 		with patch("frappe.get_all") as get_all:
-			self.assertEqual(resolve_wiki_links(html), html)
+			self.assertEqual(resolve_wiki_links(html, self.space.name), html)
 		get_all.assert_not_called()
 
 
