@@ -158,6 +158,7 @@ export interface WikiDocument {
 	name: string;
 	title: string;
 	route: string;
+	doc_key?: string;
 	content?: string;
 	wiki_space?: string;
 	parent_wiki_document?: string;
