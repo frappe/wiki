@@ -141,6 +141,16 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
+		title: 'Link to Page',
+		icon: 'lucide-file-symlink',
+		group: 'Insert',
+		keywords: ['linkpage', 'wiki link'],
+		// Typing the picker's own trigger opens it (see page-links.js).
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).insertContent('[[').run();
+		},
+	},
+	{
 		title: 'Horizontal Rule',
 		icon: 'lucide-minus',
 		group: 'Insert',

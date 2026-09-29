@@ -133,3 +133,26 @@
 	outline: 2px solid var(--primary, #171717);
 	outline-offset: 2px;
 }
+
+/* Internal page links (`wiki:<doc_key>`) read differently from external ones:
+   same colour, but a page glyph in front and a soft underline, so an author
+   knows the link stays inside the wiki. Ported from the wiki-proto Sketch. */
+.wiki-editor-content a[href^="wiki:"] {
+	text-decoration: none;
+	border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+	cursor: text;
+}
+
+.wiki-editor-content a[href^="wiki:"]::before {
+	content: "";
+	display: inline-block;
+	width: 0.85em;
+	height: 0.85em;
+	margin-right: 0.2em;
+	vertical-align: -0.08em;
+	background-color: currentColor;
+	opacity: 0.7;
+	--wiki-link-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3C/svg%3E");
+	-webkit-mask: var(--wiki-link-glyph) center / contain no-repeat;
+	mask: var(--wiki-link-glyph) center / contain no-repeat;
+}

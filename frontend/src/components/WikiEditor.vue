@@ -54,6 +54,7 @@ import {
 	computed,
 	createApp,
 	h,
+	inject,
 	onBeforeUnmount,
 	onMounted,
 	onUnmounted,
@@ -61,7 +62,11 @@ import {
 	shallowRef,
 	watch,
 } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
+import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import {
 	CodeBlock,
 	EditorContent,
@@ -72,6 +77,7 @@ import {
 } from 'frappe-ui/editor';
 import EditorTableOfContents from './EditorTableOfContents.vue';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
+import PageLinkList from './tiptap-extensions/PageLinkList.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
 import WikiToolbar from './tiptap-extensions/WikiToolbar.vue';
@@ -83,6 +89,13 @@ import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { canonicalizeMarkdown } from './tiptap-extensions/markdown-normalize.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
+import {
+	PageLinks,
+	docKeyFromHref,
+	findPageByTitle,
+	pickerItems,
+	linkablePages,
+} from './tiptap-extensions/page-links.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
@@ -146,6 +159,46 @@ const emit = defineEmits([
 	'content-change',
 	'content-ready',
 ]);
+
+const spaceTree = inject(SPACE_TREE_KEY, null);
+const spaceStore = useSpaceStore();
+const draftStore = useDraftWorkspaceStore();
+
+function spacePages() {
+	return linkablePages(spaceTree?.value?.children);
+}
+
+// A page created from the link picker goes in the open page's folder.
+async function createPageBesideThis(title) {
+	const trail = trailToNode(
+		spaceTree?.value?.children,
+		(node) => node.doc_key === props.documentKey,
+	);
+	const parentKey = trail?.at(-2)?.doc_key ?? null;
+	try {
+		const docKey = await draftStore.createNode({ parentKey, title }).promise;
+		toast.success(`Added “${title}” as a draft page in this change request`);
+		return docKey;
+	} catch {
+		toast.error(`Could not create “${title}”`);
+		return null;
+	}
+}
+const route = useRoute();
+const router = useRouter();
+
+// The page a `wiki:` link points at, with its editor URL. Null for any other
+// link, or when the page is no longer in this space.
+function linkedPage(href) {
+	const docKey = docKeyFromHref(href);
+	if (!docKey) return null;
+	const node = trailToNode(
+		spaceTree?.value?.children,
+		(candidate) => candidate.doc_key === docKey,
+	)?.at(-1);
+	const target = node && crumbRoute(node, route.params.spaceId);
+	return target ? { title: node.title, href: router.resolve(target).href } : null;
+}
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
@@ -423,6 +476,7 @@ function showLinkPopup({ editor: editorInstance, href, isNew, rect }) {
 		render() {
 			return h(LinkPopup, {
 				href: href || '',
+				page: linkedPage(href),
 				isNew,
 				onSave: (newHref) => {
 					editorInstance.chain().focus().setLink({ href: newHref }).run();
@@ -479,15 +533,13 @@ function hideLinkPopup() {
 }
 
 /**
- * Create suggestion configuration for slash commands
+ * A suggestion config whose menu is the `menu` component in a tippy popup. Shared by
+ * the "/" commands and the "[[" page links; `menuProps` adds each menu's own
+ * props from the suggestion's.
  */
-function createSlashCommandsSuggestion() {
+function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 	return {
-		items: ({ query }) => filterCommands(query),
-		// Suggestion dispatches onStart with `initialItems` and only delivers the
-		// real list in a follow-up onUpdate; without this the menu opens on a bare
-		// "/" showing "No commands found" until the first character is typed.
-		initialItems: SLASH_COMMANDS,
+		...suggestion,
 		render: () => {
 			let component;
 			let popup;
@@ -510,9 +562,10 @@ function createSlashCommandsSuggestion() {
 					// Mount synchronously: onUpdate fires right after onStart with the
 					// fetched items, and it skips re-rendering while `component.app` is
 					// null — an async mount here would swallow that first update.
-					const app = createApp(SlashCommandsList, {
+					const app = createApp(menu, {
 						items: props.items,
 						command: props.command,
+						...menuProps(props),
 					});
 					component.app = app;
 					component.vm = app.mount(container);
@@ -556,9 +609,10 @@ function createSlashCommandsSuggestion() {
 					// Re-render with new items
 					if (component?.app) {
 						component.app.unmount();
-						const app = createApp(SlashCommandsList, {
+						const app = createApp(menu, {
 							items: props.items,
 							command: props.command,
+							...menuProps(props),
 						});
 						component.app = app;
 						component.vm = app.mount(component.element);
@@ -637,6 +691,7 @@ const editor = useEditor({
 				rel: 'noopener noreferrer',
 			},
 			onOpenLinkEditor: showLinkPopup,
+			resolveHref: (href) => linkedPage(href)?.href ?? href,
 		}),
 		Markdown.configure({
 			markedOptions: {
@@ -680,7 +735,31 @@ const editor = useEditor({
 		Emoji,
 		// Slash commands
 		SlashCommands.configure({
-			suggestion: createSlashCommandsSuggestion(),
+			suggestion: createSuggestionMenu(
+				{
+					items: ({ query }) => filterCommands(query),
+					// The menu opens with these before the first query runs, so a bare
+					// "/" shows every command instead of "No commands found".
+					initialItems: SLASH_COMMANDS,
+				},
+				SlashCommandsList,
+			),
+		}),
+		PageLinks.configure({
+			suggestion: createSuggestionMenu(
+				{
+					items: ({ query }) =>
+						pickerItems(spacePages(), query, props.documentKey),
+				},
+				PageLinkList,
+				({ query }) => ({ query, spaceName: spaceStore.doc?.space_name }),
+			),
+			findPage: (title) =>
+				findPageByTitle(
+					spacePages().filter((page) => page.key !== props.documentKey),
+					title,
+				),
+			createPage: createPageBesideThis,
 		}),
 	],
 	onUpdate: handleContentChange,

@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+import re
 from urllib.parse import quote, urlparse
 
 import frappe
@@ -30,6 +31,9 @@ WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
+# An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
+WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
 
 # Markdown is served under the page's own permissions, so a shared cache must
 # never hold it -- the same URL yields 404 for a reader without space access.
@@ -305,6 +309,9 @@ class WikiDocument(NestedSet):
 			"Wiki Space", {"root_group": root_group}, ["name", "space_name", "route"], as_dict=True
 		)
 
+	def get_space_name(self) -> str | None:
+		return self.wiki_space or (self.get_wiki_space() or {}).get("name")
+
 	def get_edit_link(self) -> str:
 		wiki_space = self.get_wiki_space()
 		if not wiki_space:
@@ -363,7 +370,7 @@ class WikiDocument(NestedSet):
 		"""
 		from wiki.permissions import can_read_space, can_write_space
 
-		space = self.wiki_space or (self.get_wiki_space() or {}).get("name")
+		space = self.get_space_name()
 		if not space:
 			# Orphan documents stay readable by all (preserves chromeless pages).
 			return
@@ -455,6 +462,7 @@ class WikiDocument(NestedSet):
 		# The TOC toggle is applied here, after the lookup, so it needs no cache
 		# invalidation.
 		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
+		rendered_content = resolve_wiki_links(rendered_content, self.get_space_name())
 		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
 			toc_headings = []
 
@@ -630,7 +638,9 @@ class WikiDocument(NestedSet):
 
 	def before_print(self, print_settings=None):
 		"""Render markdown content so the print format can drop it in as HTML."""
-		self.rendered_content_for_pdf = render_markdown(self.content or "")
+		self.rendered_content_for_pdf = resolve_wiki_links(
+			render_markdown(self.content or ""), self.get_space_name()
+		)
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -853,6 +863,47 @@ def get_rendered_content(doc_name: str, content: str) -> tuple[str, list]:
 	html, toc = render_markdown_with_toc(content or "")
 	frappe.cache().hset(WIKI_CONTENT_CACHE_KEY, doc_name, {"html": html, "toc": toc})
 	return html, toc
+
+
+def resolve_wiki_links(html: str, wiki_space: str | None) -> str:
+	"""Point each internal link (`data-wiki-link`) at the target page's current route.
+
+	Runs after the render cache, so a page that moves or is unpublished never
+	leaves stale links in other pages' cached HTML. A link to a page that isn't
+	live renders as its plain label rather than a dead link.
+
+	Only pages in `wiki_space`, the linking page's own space, resolve. Access is
+	granted per space, so a reader of this page can read those; a page in
+	another space may be one they are not allowed to see, route included.
+	"""
+	doc_keys = {doc_key for doc_key, _attrs, _label in WIKI_LINK_PATTERN.findall(html)}
+	if not doc_keys:
+		return html
+
+	routes = {}
+	if wiki_space:
+		routes = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"doc_key": ("in", doc_keys),
+					"wiki_space": wiki_space,
+					"is_published": 1,
+					"is_group": 0,
+					"is_external_link": 0,
+				},
+				fields=["doc_key", "route"],
+				as_list=True,
+			)
+		)
+
+	def replace(match):
+		doc_key, attrs, label = match.groups()
+		if not routes.get(doc_key):
+			return label
+		return f'<a href="/{quote(routes[doc_key])}"{attrs}>{label}</a>'
+
+	return WIKI_LINK_PATTERN.sub(replace, html)
 
 
 def clear_wiki_content_cache(doc_name: str | None = None):

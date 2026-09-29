@@ -54,6 +54,8 @@ export const WikiLink = Mark.create({
 			},
 			// Callback function to show link popup
 			onOpenLinkEditor: null,
+			// Maps an href to the URL Cmd/Ctrl + Click opens.
+			resolveHref: (href) => href,
 		};
 	},
 
@@ -203,7 +205,10 @@ export const WikiLink = Mark.create({
 							const linkMark = marks.find((m) => m.type.name === 'link');
 
 							if (linkMark?.attrs.href) {
-								window.open(linkMark.attrs.href, '_blank');
+								window.open(
+									this.options.resolveHref(linkMark.attrs.href),
+									'_blank',
+								);
 								return true;
 							}
 						}
