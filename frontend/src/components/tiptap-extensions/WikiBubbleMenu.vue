@@ -40,6 +40,13 @@ const props = defineProps({
 
 const { isMobile } = useMobile();
 
+const UnderlineItem = {
+	icon: 'lucide-underline',
+	label: 'Underline',
+	action: (editor) => editor.chain().focus().toggleUnderline().run(),
+	isActive: (editor) => editor.isActive('underline'),
+};
+
 const CodeBlockItem = {
 	icon: 'lucide-square-code',
 	label: 'Code Block',
@@ -50,6 +57,7 @@ const CodeBlockItem = {
 const bubbleItems = [
 	Bold,
 	Italic,
+	UnderlineItem,
 	Strike,
 	InlineCode,
 	Separator,

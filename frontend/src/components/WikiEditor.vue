@@ -91,6 +91,7 @@ import {
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
@@ -627,6 +628,7 @@ const editor = useEditor({
 	editable: () => !props.readonly,
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
+		WikiUnderline,
 		WikiParagraph,
 		// Custom link extension with Cmd+K support
 		WikiLink.configure({

@@ -48,7 +48,7 @@ const emit = defineEmits(['uploadImage']);
 const imageInput = ref(null);
 
 // Atoms exist only for items whose command lives in frappe-ui's kits; the
-// rest (task list via @tiptap/extension-list, code block, PDF block,
+// rest (underline, task list via @tiptap/extension-list, code block, PDF block,
 // file-input image upload) get hand-rolled MenuItem objects with the same
 // shape.
 const TaskListItem = {
@@ -56,6 +56,13 @@ const TaskListItem = {
 	label: 'Task List',
 	action: (editor) => editor.chain().focus().toggleTaskList().run(),
 	isActive: (editor) => editor.isActive('taskList'),
+};
+
+const UnderlineItem = {
+	icon: 'lucide-underline',
+	label: 'Underline',
+	action: (editor) => editor.chain().focus().toggleUnderline().run(),
+	isActive: (editor) => editor.isActive('underline'),
 };
 
 const CodeBlockItem = {
@@ -98,6 +105,7 @@ const toolbarItems = [
 	Separator,
 	Bold,
 	Italic,
+	UnderlineItem,
 	Strike,
 	InlineCode,
 	Separator,

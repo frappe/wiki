@@ -29,6 +29,7 @@ import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // A read-only render of wiki markdown through the same TipTap extensions the
@@ -55,6 +56,7 @@ const editor = useEditor({
 	editable: false,
 	extensions: [
 		wikiStarterKit(),
+		WikiUnderline,
 		WikiLink.configure({
 			openOnClick: true,
 			HTMLAttributes: { rel: 'noopener noreferrer' },
