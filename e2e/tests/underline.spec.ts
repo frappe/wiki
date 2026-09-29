@@ -35,6 +35,35 @@ test.describe('Underline', () => {
 		await expect(page.locator('.ProseMirror u').first()).toHaveText('marked');
 	});
 
+	// The unit tests cover serialization only: parsing `<u>` needs a DOMParser,
+	// so the markdown round trip is checked here in a real browser.
+	test('an underlined link survives a markdown round trip', async ({
+		page,
+		wiki,
+	}) => {
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`underline-link-${Date.now()}`,
+		);
+		const markdown = '[<u>Frappe</u>](https://frappe.io)';
+
+		await page.evaluate((content) => {
+			(
+				window as unknown as {
+					wikiEditor: {
+						commands: { setContent: (c: string, o: object) => void };
+					};
+				}
+			).wikiEditor.commands.setContent(content, { contentType: 'markdown' });
+		}, markdown);
+
+		await expect(editor.locator('a[href="https://frappe.io"] u')).toHaveText(
+			'Frappe',
+		);
+		expect(await editorMarkdown(page)).toBe(markdown);
+	});
+
 	test('pasting a copied hyperlink does not underline it (#667)', async ({
 		page,
 		wiki,

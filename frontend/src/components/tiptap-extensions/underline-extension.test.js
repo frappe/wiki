@@ -46,7 +46,10 @@ test('underline over a link keeps the link syntax intact', () => {
 			{ type: 'underline' },
 		],
 	});
-	assert.doesNotMatch(buildManager().serialize(doc), /\+\+/);
+	assert.equal(
+		buildManager().serialize(doc),
+		'[<u>Frappe</u>](https://frappe.io)',
+	);
 });
 
 test('double plus in prose is not parsed as underline', () => {
