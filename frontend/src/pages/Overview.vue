@@ -167,7 +167,6 @@ import TrackingNotice from '@/components/Analytics/TrackingNotice.vue';
 import { hasDelta } from '@/lib/analyticsRange';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useWikiSettings } from '@/composables/useWikiSettings';
-import { useUserStore } from '@/stores/user';
 import {
 	PageHeader,
 	Progress,
@@ -180,7 +179,6 @@ import {
 } from 'frappe-ui';
 import { AreaChart, DonutChart, NumberCard } from 'frappe-ui/charts';
 import { computed, defineComponent, h, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
 
 const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-5 px-2';
 const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
@@ -204,8 +202,6 @@ const kpis = [
 	{ key: 'new_visitors', title: __('New visitors') },
 	{ key: 'open_change_requests', title: __('Open change requests') },
 ];
-
-if (!useUserStore().isWikiManager) useRouter().replace({ name: 'AllSpaces' });
 
 const space = ref('');
 const { analytics, preset, range } = useAnalytics(() =>
