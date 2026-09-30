@@ -171,7 +171,6 @@ test.describe('Change Request Flow', () => {
 		expect(routes.length).toBe(1);
 		const publicRoute = routes[0].route;
 		await page.goto(`/${publicRoute}`);
-		await page.waitForLoadState('networkidle');
 		await expect(page.getByText(initialContent)).toBeVisible({
 			timeout: 10000,
 		});
@@ -214,7 +213,6 @@ test.describe('Change Request Flow', () => {
 		expect(updatedRoutes.length).toBe(1);
 		const updatedRoute = updatedRoutes[0].route;
 		await page.goto(`/${updatedRoute}`);
-		await page.waitForLoadState('networkidle');
 		await expect(page.getByText(updatedContent)).toBeVisible({
 			timeout: 10000,
 		});

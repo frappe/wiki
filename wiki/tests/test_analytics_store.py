@@ -117,6 +117,45 @@ class TestAnalyticsStore(IntegrationTestCase):
 		self.assertEqual(store.ingest(), 0)
 		self.assertEqual(store.totals(*MARCH_2031, ("store/a", "store/b"))[0], 2)
 
+	def test_ingest_counts_new_visitors_against_views_mirrored_earlier(self):
+		# Fresh ids: other suites log views as v1 and v2 too.
+		returning, first_time = frappe.generate_hash(), frappe.generate_hash()
+		_log("store/a", "2031-03-10 09:00:00", visitor_id=returning)
+		store.rebuild()
+
+		_log("store/a", "2031-03-10 09:05:00", visitor_id=returning)
+		_log("store/a", "2031-03-10 09:06:00", visitor_id=first_time)
+		_log("store/a", "2031-03-10 09:07:00", visitor_id=first_time)
+		store.ingest()
+
+		self.assertEqual(store.totals(*MARCH_2031, ("store/a",)), (4, 2))
+
+	def test_ingest_leaves_rows_before_the_high_water_mark_alone(self):
+		_log("store/a", "2031-03-10 09:00:00")
+		_log("store/a", "2031-03-10 09:05:00")
+		store.rebuild()
+
+		# Marks the older row, so deriving it again would be visible.
+		with store.writer() as db:
+			db.execute(
+				f"UPDATE {store.DERIVED} SET path = 'store/untouched' WHERE creation < '2031-03-10 09:05:00'"
+			)
+		_log("store/a", "2031-03-10 09:10:00")
+		store.ingest()
+
+		self.assertEqual(store.totals(*MARCH_2031, ("store/untouched",))[0], 1)
+		self.assertEqual(store.totals(*MARCH_2031, ("store/a",))[0], 2)
+
+	def test_first_ingest_into_an_empty_mirror_derives_every_row(self):
+		_log("store/a", "2031-03-10 09:00:00")
+		with store.writer() as db:
+			db.execute(f"DROP TABLE {store.DERIVED}")
+			db.execute(f"DROP TABLE {store.TABLE}")
+
+		store.ingest()
+
+		self.assertEqual(store.totals(*MARCH_2031, ("store/a",))[0], 1)
+
 	def test_ingest_derives_again_when_the_derived_table_is_short(self):
 		_log("store/a", "2031-03-10 09:00:00")
 		store.rebuild()

@@ -270,6 +270,7 @@ function makeWikiDocResource(pageId) {
 		doctype: 'Wiki Document',
 		name: pageId,
 		auto: true,
+		whitelistedMethods: { updateMeta: 'update_meta' },
 	});
 }
 

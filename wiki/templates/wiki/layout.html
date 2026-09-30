@@ -12,7 +12,7 @@
 
     {% include "templates/includes/meta_block.html" %}
     {% if disable_indexing %}
-    <meta name="robots" content="noindex">
+    <meta name="robots" content="noindex" data-page-robots>
     {% endif %}
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">

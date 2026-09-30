@@ -2354,6 +2354,11 @@ magic-string@^0.30.21:
   dependencies:
     "@jridgewell/sourcemap-codec" "^1.5.5"
 
+"marked-tiptap@npm:marked@^17.0.1":
+  version "17.0.6"
+  resolved "https://registry.npmjs.org/marked/-/marked-17.0.6.tgz"
+  integrity sha512-gB0gkNafnonOw0obSTEGZTT86IuhILt2Wfx0mWH/1Au83kybTayroZ/V6nS25mN7u8ASy+5fMhgB3XPNrOZdmA==
+
 marked@^15.0.12:
   version "15.0.12"
   resolved "https://registry.npmjs.org/marked/-/marked-15.0.12.tgz"

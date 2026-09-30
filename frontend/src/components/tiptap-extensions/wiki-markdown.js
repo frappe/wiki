@@ -1,5 +1,5 @@
 import { Markdown } from '@tiptap/markdown';
-import { Marked } from 'marked';
+import { Marked } from 'marked-tiptap';
 
 export const WIKI_MARKED_OPTIONS = { breaks: true };
 

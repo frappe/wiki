@@ -26,6 +26,8 @@ type AnalyticsParams = {
 	document?: string;
 };
 
+type ImageLog = Window & { imageSources: string[] };
+
 function daysBetween(from: string, to: string) {
 	return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 }
@@ -338,6 +340,20 @@ test.describe('Analytics dashboard', () => {
 			});
 		});
 
+		// Chromium never reports favicon.ico loads to Playwright, so record every
+		// image the page inserts instead.
+		await page.addInitScript(() => {
+			const sources: string[] = [];
+			(window as ImageLog).imageSources = sources;
+			new MutationObserver((mutations) => {
+				for (const { addedNodes } of mutations)
+					for (const node of addedNodes)
+						if (node instanceof Element)
+							for (const img of [node, ...node.querySelectorAll('*')])
+								if (img instanceof HTMLImageElement) sources.push(img.src);
+			}).observe(document, { childList: true, subtree: true });
+		});
+
 		await page.goto('/wiki-app');
 		await expect(page.getByRole('link', { name: 'All Spaces' })).toBeVisible();
 		await page.getByRole('link', { name: 'Overview' }).click();
@@ -360,6 +376,13 @@ test.describe('Analytics dashboard', () => {
 		await expect(referrers).toContainText('github.com');
 		await expect(referrers).toContainText('+25%');
 		await expect(referrers).toContainText('Direct');
+		// Referrer hosts come from guests, so the page must never load from them.
+		const imageSources: string[] = await page.evaluate(
+			() => (window as ImageLog).imageSources,
+		);
+		expect(imageSources.filter((src) => src.includes('github.com'))).toEqual(
+			[],
+		);
 		expect(lastOf(chartRequests).space).toBeUndefined();
 		const chart = page.getByTestId('overview-chart');
 		await expect(chart).toContainText('Views');

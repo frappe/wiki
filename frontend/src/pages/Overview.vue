@@ -178,7 +178,7 @@ import {
 	usePageMeta,
 } from 'frappe-ui';
 import { AreaChart, DonutChart, NumberCard } from 'frappe-ui/charts';
-import { computed, defineComponent, h, ref, watch } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 
 const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-5 px-2';
 const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
@@ -288,24 +288,16 @@ function ListSkeleton() {
 	);
 }
 
-const ReferrerIcon = defineComponent({
-	props: ['host'],
-	setup(props) {
-		const failed = ref(false);
-		const icon = (name) =>
-			h('span', { class: `${name} size-5 shrink-0 text-ink-gray-5`, 'aria-hidden': 'true' });
-		return () => {
-			if (!props.host) return icon('lucide-log-in');
-			if (failed.value) return icon('lucide-globe');
-			return h('img', {
-				src: `https://${props.host}/favicon.ico`,
-				alt: '',
-				class: 'size-5 shrink-0 rounded-1 bg-white p-0.5',
-				onError: () => (failed.value = true),
-			});
-		};
-	},
-});
+// No favicon: referrer hosts come from guests, and loading one would tell that
+// host who opened this page and when.
+function ReferrerIcon({ host }) {
+	const name = host ? 'lucide-globe' : 'lucide-log-in';
+	return h('span', {
+		class: `${name} size-5 shrink-0 text-ink-gray-5`,
+		'aria-hidden': 'true',
+	});
+}
+ReferrerIcon.props = ['host'];
 
 function DeltaText({ delta }) {
 	const base = 'w-20 shrink-0 text-right text-sm tabular-nums';

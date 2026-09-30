@@ -11,7 +11,7 @@ rollup table, an extra index and a response cache to stay usable.
 
 import os
 import time
-from datetime import date
+from datetime import date, datetime
 
 import duckdb
 import frappe
@@ -48,8 +48,10 @@ SCHEMA = (
 	""",
 )
 
+# The rows from `$since` on. A row is a visitor's first view when it is first among those rows
+# and the visitor has none before `$since`, so rows older than that never need deriving again.
 DERIVE = f"""
-	CREATE OR REPLACE TABLE {DERIVED} AS
+	INSERT INTO {DERIVED}
 	SELECT
 		creation,
 		path,
@@ -60,9 +62,14 @@ DERIVE = f"""
 		CAST(
 			visitor_id <> ''
 			AND row_number() OVER (PARTITION BY visitor_id ORDER BY creation, name) = 1
+			AND NOT EXISTS (
+				SELECT 1 FROM {TABLE} earlier
+				WHERE earlier.visitor_id = {TABLE}.visitor_id AND earlier.creation < $since
+			)
 			AS INTEGER
 		) AS is_new_visitor
 	FROM {TABLE}
+	WHERE creation >= $since
 """
 
 
@@ -124,15 +131,20 @@ def ingest() -> int:
 
 	Rows older than the mark are never looked at, so a backdated `creation` is invisible to
 	this path. A backfill, or a test that backdates rows, has to call `rebuild` instead.
+
+	Only the rows from that second on are derived again. Deriving the whole log would hold the
+	write lock for longer than readers retry once it reaches a few million rows.
 	"""
 	with writer() as db:
 		since = db.execute(f"SELECT MAX(creation) FROM {TABLE}").fetchone()[0]
-		copied = _copy_rows(db, since)
 		mirrored, derived = db.execute(
 			f"SELECT (SELECT COUNT(*) FROM {TABLE}), (SELECT COUNT(*) FROM {DERIVED})"
 		).fetchone()
-		if copied or mirrored != derived:
-			db.execute(DERIVE)
+		copied = _copy_rows(db, since)
+		if mirrored != derived:
+			_derive(db)
+		elif copied:
+			_derive(db, since)
 		return copied
 
 
@@ -143,8 +155,15 @@ def rebuild() -> int:
 		db.execute(f"DROP TABLE IF EXISTS {TABLE}")
 		apply_schema(db)
 		copied = _copy_rows(db, None)
-		db.execute(DERIVE)
+		_derive(db)
 		return copied
+
+
+def _derive(db, since: datetime | None = None) -> None:
+	"""Derive the rows from `since` on, or every row when there is no high-water mark."""
+	since = since or datetime.min
+	db.execute(f"DELETE FROM {DERIVED} WHERE creation >= ?", [since])
+	db.execute(DERIVE, {"since": since})
 
 
 def _copy_rows(db, since) -> int:
