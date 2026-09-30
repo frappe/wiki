@@ -64,6 +64,11 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import {
+	createTrailingScheduler,
+	memoizeLast,
+	onEditorFlushRequest,
+} from '@/lib/editorContentSync';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -72,7 +77,6 @@ import {
 	EditorContent,
 	EditorTableMenu,
 	Emoji,
-	Markdown,
 	useEditor,
 } from 'frappe-ui/editor';
 import EditorTableOfContents from './EditorTableOfContents.vue';
@@ -96,6 +100,11 @@ import {
 	pickerItems,
 	linkablePages,
 } from './tiptap-extensions/page-links.js';
+import {
+	dataUrlToFile,
+	tagDataImagesInJSON,
+	tagDataImagesInSlice,
+} from './tiptap-extensions/paste-data-images.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
@@ -105,6 +114,7 @@ import {
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
@@ -202,6 +212,16 @@ function linkedPage(href) {
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
+
+// Reading the page as markdown serializes and re-parses the whole document.
+// Doing it on every keystroke made typing lag by seconds on large pages, so
+// edits are reported once typing pauses, and on blur, save and unmount.
+const contentSync = createTrailingScheduler({
+	delay: 300,
+	maxWait: 2000,
+	run: reportContentChange,
+});
+const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -301,6 +321,38 @@ async function insertAndUploadImage(file) {
 }
 
 /**
+ * Upload base64 images that arrived through a paste and swap in their file
+ * URLs. Until then the nodes are `loading`, so the base64 never serializes.
+ */
+function uploadPastedDataImages(uploads) {
+	for (const { uploadId, src } of uploads) {
+		dataUrlToFile(src)
+			.then(uploadFile)
+			.then((url) => {
+				updateImageNode(uploadId, { src: url, loading: false, error: null });
+			})
+			.catch((error) => {
+				updateImageNode(uploadId, {
+					loading: false,
+					error: error?.message || 'Failed to upload image',
+				});
+			});
+	}
+}
+
+// HTML from Google Docs, Notion or web pages can carry `<img src="data:…">`
+// with no file on the clipboard, so handlePaste's file branch never sees it.
+function transformPasted(slice) {
+	const tagged = tagDataImagesInSlice(slice);
+	// The tagged slice is inserted right after this returns; upload once the
+	// nodes are in the doc so updateImageNode can find them.
+	if (tagged.uploads.length) {
+		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
+	}
+	return tagged.slice;
+}
+
+/**
  * Patch the attributes of the in-flight PDF node identified by uploadId.
  */
 function updatePdfNode(uploadId, attrs) {
@@ -385,11 +437,11 @@ function handlePaste(_view, event) {
 
 	if (text && !html && editor.value?.markdown) {
 		event.preventDefault();
-		editor.value
-			.chain()
-			.focus()
-			.insertContent(text, { contentType: 'markdown' })
-			.run();
+		const { json, uploads } = tagDataImagesInJSON(
+			editor.value.markdown.parse(text),
+		);
+		editor.value.chain().focus().insertContent(json).run();
+		uploadPastedDataImages(uploads);
 		return true;
 	}
 
@@ -665,6 +717,8 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // both hook onBeforeUnmount, they run in registration order, and useEditor's
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
+	stopFlushRequests();
+	contentSync.cancel();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
@@ -693,11 +747,7 @@ const editor = useEditor({
 			onOpenLinkEditor: showLinkPopup,
 			resolveHref: (href) => linkedPage(href)?.href ?? href,
 		}),
-		Markdown.configure({
-			markedOptions: {
-				breaks: true,
-			},
-		}),
+		wikiMarkdown(),
 		PreserveBlankLines,
 		// Custom image extension with caption support
 		WikiImage.configure({
@@ -763,6 +813,7 @@ const editor = useEditor({
 		}),
 	],
 	onUpdate: handleContentChange,
+	onBlur: () => contentSync.flush(),
 });
 
 // useEditor doesn't take editorProps; set them on the created instance.
@@ -770,6 +821,7 @@ editor.value.setOptions({
 	editorProps: {
 		handlePaste,
 		handleDrop,
+		transformPasted,
 	},
 });
 
@@ -802,9 +854,18 @@ function normalizeMarkdown(content) {
 	return canonicalizeMarkdown(editor.value?.markdown, content);
 }
 
-function getMarkdown() {
+const normalizedSavedContent = memoizeLast(normalizeMarkdown);
+
+// Keyed on the doc, not the markdown string: the doc is immutable, and the
+// cache must also skip the serialize step.
+const markdownForDoc = memoizeLast(() => {
 	const markdown = editor.value?.getMarkdown();
 	return markdown === undefined ? undefined : normalizeMarkdown(markdown);
+});
+
+function getMarkdown() {
+	if (!editor.value) return undefined;
+	return markdownForDoc(editor.value.state.doc);
 }
 
 function emitContentChange(options = {}) {
@@ -821,7 +882,7 @@ function emitContentReady() {
 	emit(
 		'content-ready',
 		currentContent,
-		normalizeMarkdown(props.savedContent),
+		normalizedSavedContent(props.savedContent),
 		props.documentKey,
 	);
 }
@@ -831,12 +892,15 @@ function handleContentChange() {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
 	}
+	contentSync.schedule();
+}
 
+function reportContentChange() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
 
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	autosaveTimer = setTimeout(() => {
 		autosaveTimer = null;
@@ -846,6 +910,7 @@ function handleContentChange() {
 
 async function autoSave() {
 	if (!editor.value) return;
+	contentSync.cancel();
 
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
@@ -853,7 +918,7 @@ async function autoSave() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	emit('save', currentContent);
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
@@ -862,6 +927,7 @@ async function autoSave() {
 function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
+	contentSync.cancel();
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
@@ -880,7 +946,7 @@ function saveToDB() {
 	const markdown = getMarkdown();
 	if (markdown !== undefined) {
 		emitContentChange();
-		if (markdown !== normalizeMarkdown(props.savedContent)) {
+		if (markdown !== normalizedSavedContent(props.savedContent)) {
 			emit('save', markdown);
 		}
 		// "Save" means all of the user's work, not just this page.
