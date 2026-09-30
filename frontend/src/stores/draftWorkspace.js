@@ -129,11 +129,24 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		else draftPersistTimers.set(key, setTimeout(persist, 500));
 	}
 
+	// An upload still in flight serializes to nothing, so finalizing now would
+	// save the page without it.
+	const pendingUploads = ref(0);
+	async function trackUpload(upload) {
+		pendingUploads.value += 1;
+		try {
+			return await upload;
+		} finally {
+			pendingUploads.value -= 1;
+		}
+	}
+
 	const finalizationBlocker = computed(() => {
 		if (transport.sync.conflict) return 'conflict';
 		if (queue.hasFailedMutations.value || transport.sync.status === 'failed') {
 			return 'failed';
 		}
+		if (pendingUploads.value) return 'uploading';
 		if (queue.hasPendingMutations.value || transport.sync.status === 'saving') {
 			return 'pending';
 		}
@@ -1014,6 +1027,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasFailedMutations: queue.hasFailedMutations,
 		hasUnsavedEditorContent: pageBuffers.hasUnsavedEditorContent,
 		finalizationBlocker,
+		trackUpload,
 		// actions
 		hydrate,
 		reloadTree,

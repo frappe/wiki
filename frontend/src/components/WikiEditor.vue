@@ -238,13 +238,15 @@ let linkPopupApp = null;
 async function uploadFile(file) {
 	try {
 		const isImage = file.type.includes('image');
-		const result = await fileUploader.upload(file, {
-			private: false,
-			// Hit our handler directly (not via upload_file's `method` delegation,
-			// which would recurse). It converts PNG/JPEG to WebP when the Wiki
-			// Setting is enabled, returning the optimized file_url.
-			upload_endpoint: '/api/method/wiki.api.upload_wiki_asset',
-		});
+		const result = await draftStore.trackUpload(
+			fileUploader.upload(file, {
+				private: false,
+				// Hit our handler directly (not via upload_file's `method` delegation,
+				// which would recurse). It converts PNG/JPEG to WebP when the Wiki
+				// Setting is enabled, returning the optimized file_url.
+				upload_endpoint: '/api/method/wiki.api.upload_wiki_asset',
+			}),
+		);
 
 		toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
 		return result.file_url;
