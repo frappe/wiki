@@ -105,4 +105,37 @@ test.describe('Reader page view tracking', () => {
 			{ path: `/${beta}`, referrer: `${baseURL}/${gamma}` },
 		]);
 	});
+
+	test('logs each page it left, even when the visitor id resolves late', async ({
+		page,
+		baseURL,
+	}) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		const [alpha, beta, gamma] = ['Alpha', 'Beta', 'Gamma'].map(
+			(title) => space.page(title).route,
+		);
+		// Hold FingerprintJS so every log waits on the visitor id until the
+		// reader has already moved on.
+		let releaseFingerprint = () => {};
+		const fingerprintHeld = new Promise<void>((resolve) => {
+			releaseFingerprint = resolve;
+		});
+		await page.route('**/fingerprintjs.js', async (route) => {
+			await fingerprintHeld;
+			await route.continue();
+		});
+		const logs = recordViewLogs(page);
+
+		await page.goto(`/${alpha}`);
+		await sidebarLink(page, beta).click();
+		await expect(page).toHaveURL(`/${beta}`);
+		await sidebarLink(page, gamma).click();
+		await expect(page).toHaveURL(`/${gamma}`);
+		releaseFingerprint();
+
+		await expect.poll(() => logs.length).toBe(3);
+		expect(logs.map((log) => log.path).sort()).toEqual(
+			[`/${alpha}`, `/${beta}`, `/${gamma}`].sort(),
+		);
+	});
 });
