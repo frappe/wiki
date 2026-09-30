@@ -64,7 +64,11 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { createTrailingScheduler, memoizeLast } from '@/lib/editorContentSync';
+import {
+	createTrailingScheduler,
+	memoizeLast,
+	onEditorFlushRequest,
+} from '@/lib/editorContentSync';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -217,6 +221,7 @@ const contentSync = createTrailingScheduler({
 	maxWait: 2000,
 	run: reportContentChange,
 });
+const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -712,6 +717,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // both hook onBeforeUnmount, they run in registration order, and useEditor's
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
+	stopFlushRequests();
 	contentSync.cancel();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);

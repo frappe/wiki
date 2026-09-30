@@ -55,3 +55,19 @@ export function memoizeLast(fn) {
 		return lastValue;
 	};
 }
+
+const flushRequests = new EventTarget();
+
+/**
+ * Ask a mounted editor to report its pending edit now. Submit and merge read
+ * the draft store directly, and a button click does not always blur the
+ * editor first (Safari does not focus buttons), so they request a flush.
+ */
+export function requestEditorFlush() {
+	flushRequests.dispatchEvent(new Event('flush'));
+}
+
+export function onEditorFlushRequest(handler) {
+	flushRequests.addEventListener('flush', handler);
+	return () => flushRequests.removeEventListener('flush', handler);
+}

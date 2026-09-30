@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 
-import { createTrailingScheduler, memoizeLast } from './editorContentSync.js';
+import {
+	createTrailingScheduler,
+	memoizeLast,
+	onEditorFlushRequest,
+	requestEditorFlush,
+} from './editorContentSync.js';
 
 /**
  * WikiEditor used to serialize and re-parse the whole page on every
@@ -103,3 +108,24 @@ test('memoizeLast caches an undefined argument too', () => {
 	canonical(undefined);
 	assert.equal(parse.mock.callCount(), 1);
 });
+
+// Submit and merge read the draft store right away. A click on their buttons
+// does not always blur the editor first, so they must be able to pull the
+// pending edit in, or a merge inside the 300 ms window drops the last typing.
+test(
+	'a flush request reports the pending edit right away',
+	withTimers(() => {
+		const { run, sync } = scheduler();
+		const stop = onEditorFlushRequest(() => sync.flush());
+		sync.schedule();
+
+		requestEditorFlush();
+		assert.equal(run.mock.callCount(), 1);
+
+		stop();
+		sync.schedule();
+		requestEditorFlush();
+		assert.equal(run.mock.callCount(), 1);
+		sync.cancel();
+	}),
+);
