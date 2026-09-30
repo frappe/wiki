@@ -520,8 +520,11 @@ Per query, wiki-wide, at 1M rows (p50):
 The middle column is why the derived columns moved out of the view: its 30 day and 180 day numbers
 are the same, because the window ran over every mirrored row before any date filter could apply.
 
-`rebuild` of 1M rows takes 151s; the `DERIVE` step inside it takes 0.62s, which is what each
-scheduled ingest pays on top of copying new rows.
+`rebuild` of 1M rows takes 151s; the `DERIVE` step inside it takes 0.62s. Each scheduled ingest
+first paid that too, and it grows with the log: 1.85s at 5M rows, about the 2s readers retry for
+the write lock (PR #818 review). Ingest now derives only the rows from its high-water mark on, and
+a view there is new when its visitor has no earlier row. With 1000 new rows that takes 28ms at 1M
+and 84ms at 5M. A full derive runs only in `rebuild` or when the two tables' counts differ.
 
 #### Verified
 
