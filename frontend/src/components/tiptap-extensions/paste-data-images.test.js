@@ -7,6 +7,7 @@ import { Slice } from '@tiptap/pm/model';
 
 import { renderImageMarkdown } from './image-markdown.js';
 import {
+	dataUrlToFile,
 	isDataImageSrc,
 	tagDataImagesInJSON,
 	tagDataImagesInSlice,
@@ -162,4 +163,15 @@ test('an image whose upload failed is not serialized', () => {
 	});
 
 	assert.ok(!markdown.includes('data:image'), markdown);
+});
+
+// Two images pasted together were both uploaded as `pasted-image.png`, and
+// the page ended up showing the same image twice.
+test('each pasted image gets its own file name', async () => {
+	const first = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');
+	const second = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');
+
+	assert.notEqual(first.name, second.name);
+	assert.match(first.name, /^pasted-image-\w+\.png$/);
+	assert.equal(first.type, 'image/png');
 });

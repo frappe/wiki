@@ -58,8 +58,13 @@ export function tagDataImagesInJSON(json) {
 	return { json: walk(json), uploads };
 }
 
-export async function dataUrlToFile(dataUrl, name = 'pasted-image') {
+// Images pasted together upload in parallel; a shared name let one upload
+// replace the other on the server.
+export async function dataUrlToFile(dataUrl) {
 	const blob = await (await fetch(dataUrl)).blob();
 	const extension = blob.type.split('/')[1]?.split('+')[0] || 'png';
-	return new File([blob], `${name}.${extension}`, { type: blob.type });
+	const suffix = Math.random().toString(36).slice(2, 10);
+	return new File([blob], `pasted-image-${suffix}.${extension}`, {
+		type: blob.type,
+	});
 }

@@ -66,6 +66,33 @@ def _to_webp(path_or_url: str) -> str:
 	return os.path.splitext(path_or_url)[0] + ".webp"
 
 
+def _save_webp_without_overwrite(image, name: str) -> str:
+	"""Write `image` to a new file, never over an existing one.
+
+	generate_file_name only checks that the name is free. Two same-named
+	uploads converting at once (several images pasted together) both passed
+	that check, and the second write replaced the first image.
+	"""
+	from frappe.core.doctype.file.utils import get_file_name
+	from frappe.utils import get_files_path
+
+	for _ in range(5):
+		path = get_files_path(name)
+		try:
+			f = open(path, "xb")
+		except FileExistsError:
+			name = get_file_name(name, frappe.generate_hash(length=6))
+			continue
+		try:
+			with f:
+				image.save(f, "WEBP")
+		except Exception:
+			os.remove(path)
+			raise
+		return name
+	raise FileExistsError(name)
+
+
 def convert_file_to_webp(file_doc) -> str:
 	"""Convert a local PNG/JPEG File doc to WebP in place.
 
@@ -88,7 +115,7 @@ def convert_file_to_webp(file_doc) -> str:
 
 	try:
 		image, _, _ = get_local_image(file_url)
-		image.save(get_files_path(webp_name), "WEBP")
+		webp_name = _save_webp_without_overwrite(image, webp_name)
 	except Exception:
 		# Corrupt or unsupported image — keep the original upload rather than
 		# failing the whole request and losing the author's image.
