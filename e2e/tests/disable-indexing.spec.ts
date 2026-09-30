@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures';
-import { createDoc } from '../helpers/frappe';
+import { createDoc, getDoc, updateDoc } from '../helpers/frappe';
 
 /**
  * Disable Indexing on a page (#806).
@@ -139,4 +139,59 @@ test('a space writer hides a git-synced page from search engines', async ({
 		'noindex',
 	);
 	await context.close();
+});
+
+/**
+ * A site-wide robots tag from Wiki Settings' head HTML is not the page's own:
+ * sidebar navigation leaves it alone while it adds and removes noindex.
+ */
+test('sidebar navigation keeps a site-wide robots tag from head HTML', async ({
+	browser,
+	request,
+	wiki,
+	baseURL,
+}) => {
+	const space = await wiki.space({
+		roles: [{ role: 'Guest', permission_level: 'Read' }],
+		pages: [{ title: 'Hidden Page' }, { title: 'Visible Page' }],
+	});
+	const hidden = space.page('Hidden Page');
+	const visible = space.page('Visible Page');
+	await updateDoc(request, 'Wiki Document', hidden.name, {
+		disable_indexing: 1,
+	});
+	const settings = await getDoc<{ head_html: string | null }>(
+		request,
+		'Wiki Settings',
+		'Wiki Settings',
+	);
+	await updateDoc(request, 'Wiki Settings', 'Wiki Settings', {
+		head_html: '<meta name="robots" content="noarchive">',
+	});
+
+	try {
+		const guest = await browser.newContext({ baseURL });
+		const page = await guest.newPage();
+		await page.setViewportSize({ width: 1280, height: 900 });
+		const sidebarLink = (route: string) =>
+			page.locator(`.wiki-sidebar a[data-route="${route}"]`);
+		const siteWide = page.locator('meta[name="robots"][content="noarchive"]');
+		const noindex = page.locator('meta[name="robots"][content="noindex"]');
+
+		await page.goto(`/${visible.route}`);
+		await expect(siteWide).toHaveCount(1);
+		await sidebarLink(hidden.route).click();
+		await expect(page).toHaveURL(`/${hidden.route}`);
+		await expect(noindex).toHaveCount(1);
+		await expect(siteWide).toHaveCount(1);
+		await sidebarLink(visible.route).click();
+		await expect(page).toHaveURL(`/${visible.route}`);
+		await expect(noindex).toHaveCount(0);
+		await expect(siteWide).toHaveCount(1);
+		await guest.close();
+	} finally {
+		await updateDoc(request, 'Wiki Settings', 'Wiki Settings', {
+			head_html: settings.head_html ?? '',
+		});
+	}
 });

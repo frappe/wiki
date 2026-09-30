@@ -622,7 +622,7 @@ class TestDisableIndexing(WikiDocumentTestBase):
 	"""GH-806: a page can opt out of search engines."""
 
 	TEST_CLIENT = get_test_client()
-	NOINDEX = '<meta name="robots" content="noindex">'
+	NOINDEX = '<meta name="robots" content="noindex" data-page-robots>'
 
 	def setUp(self):
 		super().setUp()
