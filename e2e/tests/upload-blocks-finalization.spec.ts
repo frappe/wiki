@@ -95,3 +95,54 @@ test('submit for review waits until a failed upload is removed', async ({
 	await expect(failed).toHaveCount(0);
 	await expect(submit).toBeEnabled();
 });
+
+/**
+ * Markdown pasted as plain text can carry data-URI images, uploaded through
+ * their own path. A failed one must clear once removed, like any other.
+ */
+test('a failed image pasted as markdown stops blocking once removed', async ({
+	page,
+	wiki,
+}) => {
+	const space = await wiki.space({ pages: [{ title: 'Pasted Upload Page' }] });
+	const target = space.page('Pasted Upload Page');
+	await page.route('**/api/method/wiki.api.upload_wiki_asset', (route) =>
+		route.fulfill({ status: 500, body: '{}' }),
+	);
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto(space.url('page', target.name));
+	const editor = page.locator('.ProseMirror');
+	await expect(editor).toHaveAttribute('contenteditable', 'true', {
+		timeout: 15000,
+	});
+	await editor.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' edited');
+	await page.keyboard.press('Enter');
+	await page.evaluate(
+		(markdown) => {
+			const dom = document.querySelector('.ProseMirror') as HTMLElement;
+			const clipboardData = new DataTransfer();
+			clipboardData.setData('text/plain', markdown);
+			dom.dispatchEvent(
+				new ClipboardEvent('paste', {
+					clipboardData,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		},
+		`![pasted](data:image/png;base64,${PNG.toString('base64')})`,
+	);
+	const failed = page.locator('.wiki-image-error');
+	await expect(failed).toBeVisible({ timeout: 10000 });
+
+	const submit = page.getByRole('button', { name: 'Submit for Review' });
+	await expect(submit).toBeDisabled();
+
+	await failed.click();
+	await page.keyboard.press('Backspace');
+	await expect(failed).toHaveCount(0);
+	await expect(submit).toBeEnabled();
+});

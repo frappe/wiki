@@ -364,6 +364,7 @@ function forgetRemovedUploads() {
  */
 function uploadPastedDataImages(uploads) {
 	for (const { uploadId, src } of uploads) {
+		startUpload(uploadId);
 		uploadIntoNode(
 			uploadId,
 			() => dataUrlToFile(src).then(uploadFile),
@@ -380,7 +381,6 @@ function transformPasted(slice) {
 	// The tagged slice is inserted right after this returns; upload once the
 	// nodes are in the doc so updateImageNode can find them.
 	if (tagged.uploads.length) {
-		for (const { uploadId } of tagged.uploads) startUpload(uploadId);
 		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
 	}
 	return tagged.slice;
