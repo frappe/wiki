@@ -167,11 +167,21 @@ test('an image whose upload failed is not serialized', () => {
 
 // Two images pasted together were both uploaded as `pasted-image.png`, and
 // the page ended up showing the same image twice.
-test('each pasted image gets its own file name', async () => {
+test('each pasted image gets its own file name', async (t) => {
+	const draws = [0.25, 0.75];
+	t.mock.method(Math, 'random', () => draws.shift());
+
 	const first = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');
 	const second = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');
 
+	assert.equal(
+		first.name,
+		`pasted-image-${(0.25).toString(36).slice(2, 10)}.png`,
+	);
+	assert.equal(
+		second.name,
+		`pasted-image-${(0.75).toString(36).slice(2, 10)}.png`,
+	);
 	assert.notEqual(first.name, second.name);
-	assert.match(first.name, /^pasted-image-\w+\.png$/);
 	assert.equal(first.type, 'image/png');
 });
