@@ -146,6 +146,16 @@ class TestAnalyticsStore(IntegrationTestCase):
 		self.assertEqual(store.totals(*MARCH_2031, ("store/untouched",))[0], 1)
 		self.assertEqual(store.totals(*MARCH_2031, ("store/a",))[0], 2)
 
+	def test_first_ingest_into_an_empty_mirror_derives_every_row(self):
+		_log("store/a", "2031-03-10 09:00:00")
+		with store.writer() as db:
+			db.execute(f"DROP TABLE {store.DERIVED}")
+			db.execute(f"DROP TABLE {store.TABLE}")
+
+		store.ingest()
+
+		self.assertEqual(store.totals(*MARCH_2031, ("store/a",))[0], 1)
+
 	def test_ingest_derives_again_when_the_derived_table_is_short(self):
 		_log("store/a", "2031-03-10 09:00:00")
 		store.rebuild()

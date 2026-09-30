@@ -159,7 +159,9 @@ def rebuild() -> int:
 		return copied
 
 
-def _derive(db, since: datetime = datetime.min) -> None:
+def _derive(db, since: datetime | None = None) -> None:
+	"""Derive the rows from `since` on, or every row when there is no high-water mark."""
+	since = since or datetime.min
 	db.execute(f"DELETE FROM {DERIVED} WHERE creation >= ?", [since])
 	db.execute(DERIVE, {"since": since})
 
