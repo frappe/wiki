@@ -708,6 +708,57 @@ class TestDisableIndexing(WikiDocumentTestBase):
 		self.assertIn("Indexable child summary", site_index)
 
 
+class TestUpdateMeta(WikiDocumentTestBase):
+	"""The meta fields are wiki-side data, so a space writer edits them on a git-synced page too."""
+
+	READER_ROLE = "_Test Meta Reader"
+	WRITER_ROLE = "_Test Meta Writer"
+
+	def setUp(self):
+		super().setUp()
+		self.reader = self._user_with(self.READER_ROLE)
+		self.writer = self._user_with(self.WRITER_ROLE)
+		self.space = create_test_wiki_space(
+			self,
+			"Synced Meta Space",
+			f"synced-meta-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[(self.READER_ROLE, "Read"), (self.WRITER_ROLE, "Write")],
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+		self.page = create_test_wiki_document(self, "Synced Meta Page", parent=self.space.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+	def _user_with(self, role):
+		if not frappe.db.exists("Role", role):
+			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
+		email = f"{frappe.scrub(role).strip('_')}@example.com"
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
+			).insert()
+		frappe.get_doc("User", email).add_roles("Wiki User", role)
+		return email
+
+	def test_space_writer_updates_meta_on_a_git_synced_page(self):
+		frappe.set_user(self.writer)
+		frappe.get_doc("Wiki Document", self.page.name).update_meta(
+			meta_title="Synced title", disable_indexing=1
+		)
+
+		frappe.set_user("Administrator")
+		self.page.reload()
+		self.assertEqual(self.page.meta_title, "Synced title")
+		self.assertEqual(self.page.disable_indexing, 1)
+
+	def test_space_reader_cannot_update_meta(self):
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Nope")
+
+
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
 	"""
 	Unit tests for the BreadcrumbList JSON-LD emission in get_web_context().

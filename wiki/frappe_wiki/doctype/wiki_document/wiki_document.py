@@ -643,6 +643,33 @@ class WikiDocument(NestedSet):
 		)
 
 	@frappe.whitelist()
+	def update_meta(
+		self,
+		meta_title: str | None = None,
+		meta_description: str | None = None,
+		meta_image: str | None = None,
+		disable_indexing: int | None = None,
+	) -> None:
+		"""Write the fields no change request carries.
+
+		A git-synced page denies every document write, but the repo never carries
+		these fields, so a space writer may still set them here.
+		"""
+		from wiki.permissions import can_write_space
+
+		if not self.wiki_space or not can_write_space(self.wiki_space):
+			frappe.throw(_("You don't have permission to edit this page"), frappe.PermissionError)
+
+		values = {
+			"meta_title": meta_title,
+			"meta_description": meta_description,
+			"meta_image": meta_image,
+			"disable_indexing": disable_indexing,
+		}
+		self.update({field: value for field, value in values.items() if value is not None})
+		self.save(ignore_permissions=True)
+
+	@frappe.whitelist()
 	def get_children_count(self) -> int:
 		"""Get the count of children for this Wiki Document that the user can read."""
 		descendants = get_descendants_of("Wiki Document", self.name)

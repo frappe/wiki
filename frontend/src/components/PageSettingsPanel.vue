@@ -80,6 +80,7 @@
 						</div>
 						<Switch
 							v-model="form.disableIndexing"
+							:disabled="!canEditMeta"
 							:aria-label="__('Disable Indexing')"
 						/>
 					</div>
@@ -93,6 +94,7 @@
 						:label="__('Meta title')"
 						:placeholder="title"
 						:description="__('Leave empty to use the page title')"
+						:disabled="!canEditMeta"
 					/>
 					<FormControl
 						v-model="form.metaDescription"
@@ -101,6 +103,7 @@
 						:rows="3"
 						:placeholder="__('A short summary shown in search results and link previews')"
 						:description="descriptionHint"
+						:disabled="!canEditMeta"
 					/>
 					<div class="flex flex-col gap-1.5">
 						<label class="text-sm text-ink-gray-5">{{ __('Meta image') }}</label>
@@ -117,7 +120,7 @@
 									class="lucide-loader-2 size-5 animate-spin text-white"
 									aria-hidden="true"
 								/>
-								<template v-else>
+								<template v-else-if="canEditMeta">
 									<Button size="sm" variant="solid" @click="pickImage">
 										{{ __('Replace') }}
 									</Button>
@@ -131,7 +134,7 @@
 							v-else
 							type="button"
 							class="flex aspect-[1200/630] w-full flex-col items-center justify-center gap-1.5 rounded-5 border border-dashed border-outline-gray-3 bg-surface-gray-1 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
-							:disabled="isUploadingImage"
+							:disabled="isUploadingImage || !canEditMeta"
 							@click="pickImage"
 						>
 							<span
@@ -274,6 +277,7 @@ import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import { presetRange } from '@/lib/analyticsRange';
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useUserStore } from '@/stores/user';
 import {
 	Badge,
@@ -336,6 +340,7 @@ const emit = defineEmits(['close', 'node-updated']);
 
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+const spaceStore = useSpaceStore();
 const fileUploader = useFileUpload();
 
 const { openAnalytics } = useSpaceSettings();
@@ -398,6 +403,10 @@ const META_FIELDS = [
 	'metaImage',
 	'disableIndexing',
 ];
+
+// Meta fields are written to the document, which takes space write access.
+// Contributing through a change request is not enough.
+const canEditMeta = computed(() => spaceStore.canWriteSpace);
 
 const isDirty = computed(() =>
 	Object.entries(saved.value).some(
@@ -557,7 +566,7 @@ async function save() {
 			emit('node-updated');
 		}
 		if (Object.keys(meta).length) {
-			await props.docResource.setValue.submit(meta);
+			await props.docResource.updateMeta.submit(meta);
 		}
 		toast.success(__('Page settings saved'));
 		// Retry a preview that failed before this save fixed its inputs.
