@@ -64,6 +64,7 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { createTrailingScheduler, memoizeLast } from '@/lib/editorContentSync';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -207,6 +208,15 @@ function linkedPage(href) {
 
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
+
+// Reading the page as markdown serializes and re-parses the whole document.
+// Doing it on every keystroke made typing lag by seconds on large pages, so
+// edits are reported once typing pauses, and on blur, save and unmount.
+const contentSync = createTrailingScheduler({
+	delay: 300,
+	maxWait: 2000,
+	run: reportContentChange,
+});
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -702,6 +712,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // both hook onBeforeUnmount, they run in registration order, and useEditor's
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
+	contentSync.cancel();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
@@ -796,6 +807,7 @@ const editor = useEditor({
 		}),
 	],
 	onUpdate: handleContentChange,
+	onBlur: () => contentSync.flush(),
 });
 
 // useEditor doesn't take editorProps; set them on the created instance.
@@ -836,9 +848,18 @@ function normalizeMarkdown(content) {
 	return canonicalizeMarkdown(editor.value?.markdown, content);
 }
 
-function getMarkdown() {
+const normalizedSavedContent = memoizeLast(normalizeMarkdown);
+
+// Keyed on the doc, not the markdown string: the doc is immutable, and the
+// cache must also skip the serialize step.
+const markdownForDoc = memoizeLast(() => {
 	const markdown = editor.value?.getMarkdown();
 	return markdown === undefined ? undefined : normalizeMarkdown(markdown);
+});
+
+function getMarkdown() {
+	if (!editor.value) return undefined;
+	return markdownForDoc(editor.value.state.doc);
 }
 
 function emitContentChange(options = {}) {
@@ -855,7 +876,7 @@ function emitContentReady() {
 	emit(
 		'content-ready',
 		currentContent,
-		normalizeMarkdown(props.savedContent),
+		normalizedSavedContent(props.savedContent),
 		props.documentKey,
 	);
 }
@@ -865,12 +886,15 @@ function handleContentChange() {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
 	}
+	contentSync.schedule();
+}
 
+function reportContentChange() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
 
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	autosaveTimer = setTimeout(() => {
 		autosaveTimer = null;
@@ -880,6 +904,7 @@ function handleContentChange() {
 
 async function autoSave() {
 	if (!editor.value) return;
+	contentSync.cancel();
 
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
@@ -887,7 +912,7 @@ async function autoSave() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	emit('save', currentContent);
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
@@ -896,6 +921,7 @@ async function autoSave() {
 function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
+	contentSync.cancel();
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
@@ -914,7 +940,7 @@ function saveToDB() {
 	const markdown = getMarkdown();
 	if (markdown !== undefined) {
 		emitContentChange();
-		if (markdown !== normalizeMarkdown(props.savedContent)) {
+		if (markdown !== normalizedSavedContent(props.savedContent)) {
 			emit('save', markdown);
 		}
 		// "Save" means all of the user's work, not just this page.

@@ -79,4 +79,24 @@ synchronously (about 670 ms of blocked main thread per keystroke).
 - [x] Phase 1: `paste-data-images.js` (`transformPasted` + markdown paste
   path), `image-markdown.js` split for tests, `paste-data-images.test.js`
 - [x] Phase 2: `wiki-markdown.js` + `wiki-markdown.test.js`
-- [ ] Phase 3
+- [x] Phase 3: `lib/editorContentSync.js` (+ test), wired into `WikiEditor`
+
+## Results
+
+Local production builds, with a seeded page shaped like the production one
+(3 MB markdown, two 1.5 MB inline PNGs). The test types 24 characters with
+real key presses and records long tasks.
+
+| Build | Session | Time to type 24 chars | Longest task |
+| --- | --- | --- | --- |
+| `upstream/develop` | fresh load | 23.3 s | 971 ms |
+| `upstream/develop` | after 10 page opens | ~260 s | 2,197 ms |
+| this branch | fresh load | 0.68 s | 105 ms (one, after the pause) |
+| this branch | after 10 page opens | 0.69 s | 93 ms (one, after the pause) |
+
+Also checked in the browser:
+
+- Text typed just before navigating away (inside the 300 ms window) is kept,
+  after returning and after a reload.
+- A pasted HTML `<img src="data:image/png…">` is uploaded and its `src`
+  becomes a `/files/…` URL.
