@@ -51,6 +51,21 @@ test('hides a page from search engines from page settings', async ({
 	);
 	await guestPage.goto(`/${visible.route}`);
 	await expect(guestPage.locator('meta[name="robots"]')).toHaveCount(0);
+
+	// Sidebar navigation swaps the page in place, so the tag must follow it.
+	await guestPage.setViewportSize({ width: 1280, height: 900 });
+	const sidebarLink = (route: string) =>
+		guestPage.locator(`.wiki-sidebar a[data-route="${route}"]`);
+	await sidebarLink(hidden.route).click();
+	await expect(guestPage).toHaveURL(`/${hidden.route}`);
+	await expect(guestPage.locator('meta[name="robots"]')).toHaveAttribute(
+		'content',
+		'noindex',
+	);
+	await sidebarLink(visible.route).click();
+	await expect(guestPage).toHaveURL(`/${visible.route}`);
+	await expect(guestPage.locator('meta[name="robots"]')).toHaveCount(0);
+
 	const sitemap = await (await guest.request.get('/sitemap.xml')).text();
 	expect(sitemap).not.toContain(`/${hidden.route}<`);
 	expect(sitemap).toContain(`/${visible.route}<`);

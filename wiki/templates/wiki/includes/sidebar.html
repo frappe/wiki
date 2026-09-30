@@ -195,6 +195,17 @@
                 const titleEl = document.getElementById('wiki-page-title');
                 if (titleEl) titleEl.textContent = data.title;
 
+                // Crawlers that render JS see the head as it is after navigation
+                let robotsEl = document.querySelector('meta[name="robots"]');
+                if (data.disable_indexing && !robotsEl) {
+                    robotsEl = document.createElement('meta');
+                    robotsEl.name = 'robots';
+                    robotsEl.content = 'noindex';
+                    document.head.appendChild(robotsEl);
+                } else if (!data.disable_indexing) {
+                    robotsEl?.remove();
+                }
+
                 // Update content
                 const contentEl = document.getElementById('wiki-content');
                 if (contentEl) contentEl.innerHTML = data.rendered_content;
