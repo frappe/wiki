@@ -72,7 +72,6 @@ import {
 	EditorContent,
 	EditorTableMenu,
 	Emoji,
-	Markdown,
 	useEditor,
 } from 'frappe-ui/editor';
 import EditorTableOfContents from './EditorTableOfContents.vue';
@@ -110,6 +109,7 @@ import {
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
@@ -730,11 +730,7 @@ const editor = useEditor({
 			onOpenLinkEditor: showLinkPopup,
 			resolveHref: (href) => linkedPage(href)?.href ?? href,
 		}),
-		Markdown.configure({
-			markedOptions: {
-				breaks: true,
-			},
-		}),
+		wikiMarkdown(),
 		PreserveBlankLines,
 		// Custom image extension with caption support
 		WikiImage.configure({

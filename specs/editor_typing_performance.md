@@ -52,8 +52,11 @@ synchronously (about 670 ms of blocked main thread per keystroke).
 ### Phase 2: One `marked` instance per editor
 
 - Pass `marked: new Marked()` to `Markdown.configure` in `WikiEditor` and
-  `WikiContentViewer`. Tokenizers then belong to one editor and go away with
-  it.
+  `WikiContentViewer`, through one `wikiMarkdown()` helper. Tokenizers then
+  belong to one editor and go away with it.
+- `marked` becomes a direct dependency at `^17.0.1`, the range
+  `@tiptap/markdown` uses. `frappe-ui` still pulls `marked@15`, so the
+  transitive import would resolve to the wrong major.
 
 ### Phase 3: Take parsing off the keystroke path
 
@@ -75,5 +78,5 @@ synchronously (about 670 ms of blocked main thread per keystroke).
 
 - [x] Phase 1: `paste-data-images.js` (`transformPasted` + markdown paste
   path), `image-markdown.js` split for tests, `paste-data-images.test.js`
-- [ ] Phase 2
+- [x] Phase 2: `wiki-markdown.js` + `wiki-markdown.test.js`
 - [ ] Phase 3

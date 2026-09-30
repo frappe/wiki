@@ -14,12 +14,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@tiptap/extension-table';
-import {
-	CodeBlock,
-	EditorContent,
-	Markdown,
-	useEditor,
-} from 'frappe-ui/editor';
+import { CodeBlock, EditorContent, useEditor } from 'frappe-ui/editor';
 import { ref, watch } from 'vue';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
 import { IframeBlock } from './tiptap-extensions/iframe-block.js';
@@ -30,6 +25,7 @@ import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // A read-only render of wiki markdown through the same TipTap extensions the
@@ -61,7 +57,7 @@ const editor = useEditor({
 			openOnClick: true,
 			HTMLAttributes: { rel: 'noopener noreferrer' },
 		}),
-		Markdown.configure({ markedOptions: { breaks: true } }),
+		wikiMarkdown(),
 		PreserveBlankLines,
 		WikiImage.configure({ inline: false, allowBase64: true }),
 		Table.configure({ resizable: false, renderWrapper: true }),
