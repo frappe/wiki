@@ -42,9 +42,12 @@ synchronously (about 670 ms of blocked main thread per keystroke).
   the same path as file pastes (`uploadFile`) and swap `src` to the file URL.
 - While the upload runs, the image node has `loading: true`, so
   `renderMarkdown` does not write the base64 into content.
-- If the upload fails, remove the image node. Do not keep base64 in the doc.
-  Apply the same rule to the existing failed-upload path in
-  `insertAndUploadImage`.
+- If the upload fails, keep the node so the user sees "Upload failed", but
+  `renderMarkdown` skips images with `error` set, the same as `loading`. This
+  also closes the same leak in `insertAndUploadImage`, which kept the base64
+  preview after a failed upload.
+- Plain-text markdown pastes that contain `![](data:image/…)` get the same
+  treatment through `tagDataImagesInJSON`.
 
 ### Phase 2: One `marked` instance per editor
 
@@ -70,6 +73,7 @@ synchronously (about 670 ms of blocked main thread per keystroke).
 
 ## Progress
 
-- [ ] Phase 1
+- [x] Phase 1: `paste-data-images.js` (`transformPasted` + markdown paste
+  path), `image-markdown.js` split for tests, `paste-data-images.test.js`
 - [ ] Phase 2
 - [ ] Phase 3

@@ -96,6 +96,11 @@ import {
 	pickerItems,
 	linkablePages,
 } from './tiptap-extensions/page-links.js';
+import {
+	dataUrlToFile,
+	tagDataImagesInJSON,
+	tagDataImagesInSlice,
+} from './tiptap-extensions/paste-data-images.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
@@ -301,6 +306,38 @@ async function insertAndUploadImage(file) {
 }
 
 /**
+ * Upload base64 images that arrived through a paste and swap in their file
+ * URLs. Until then the nodes are `loading`, so the base64 never serializes.
+ */
+function uploadPastedDataImages(uploads) {
+	for (const { uploadId, src } of uploads) {
+		dataUrlToFile(src)
+			.then(uploadFile)
+			.then((url) => {
+				updateImageNode(uploadId, { src: url, loading: false, error: null });
+			})
+			.catch((error) => {
+				updateImageNode(uploadId, {
+					loading: false,
+					error: error?.message || 'Failed to upload image',
+				});
+			});
+	}
+}
+
+// HTML from Google Docs, Notion or web pages can carry `<img src="data:…">`
+// with no file on the clipboard, so handlePaste's file branch never sees it.
+function transformPasted(slice) {
+	const tagged = tagDataImagesInSlice(slice);
+	// The tagged slice is inserted right after this returns; upload once the
+	// nodes are in the doc so updateImageNode can find them.
+	if (tagged.uploads.length) {
+		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
+	}
+	return tagged.slice;
+}
+
+/**
  * Patch the attributes of the in-flight PDF node identified by uploadId.
  */
 function updatePdfNode(uploadId, attrs) {
@@ -385,11 +422,11 @@ function handlePaste(_view, event) {
 
 	if (text && !html && editor.value?.markdown) {
 		event.preventDefault();
-		editor.value
-			.chain()
-			.focus()
-			.insertContent(text, { contentType: 'markdown' })
-			.run();
+		const { json, uploads } = tagDataImagesInJSON(
+			editor.value.markdown.parse(text),
+		);
+		editor.value.chain().focus().insertContent(json).run();
+		uploadPastedDataImages(uploads);
 		return true;
 	}
 
@@ -770,6 +807,7 @@ editor.value.setOptions({
 	editorProps: {
 		handlePaste,
 		handleDrop,
+		transformPasted,
 	},
 });
 
