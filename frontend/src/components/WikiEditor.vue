@@ -238,15 +238,13 @@ let linkPopupApp = null;
 async function uploadFile(file) {
 	try {
 		const isImage = file.type.includes('image');
-		const result = await draftStore.trackUpload(
-			fileUploader.upload(file, {
-				private: false,
-				// Hit our handler directly (not via upload_file's `method` delegation,
-				// which would recurse). It converts PNG/JPEG to WebP when the Wiki
-				// Setting is enabled, returning the optimized file_url.
-				upload_endpoint: '/api/method/wiki.api.upload_wiki_asset',
-			}),
-		);
+		const result = await fileUploader.upload(file, {
+			private: false,
+			// Hit our handler directly (not via upload_file's `method` delegation,
+			// which would recurse). It converts PNG/JPEG to WebP when the Wiki
+			// Setting is enabled, returning the optimized file_url.
+			upload_endpoint: '/api/method/wiki.api.upload_wiki_asset',
+		});
 
 		toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
 		return result.file_url;
@@ -301,6 +299,7 @@ async function insertAndUploadImage(file) {
 	const uploadId = `upload-${Date.now()}-${Math.random()
 		.toString(36)
 		.slice(2, 9)}`;
+	startUpload(uploadId);
 
 	let preview = '';
 	try {
@@ -311,15 +310,52 @@ async function insertAndUploadImage(file) {
 
 	ed.chain().focus().setImage({ src: preview, uploadId, loading: true }).run();
 
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updateImageNode,
+		'Failed to upload image',
+	);
+}
+
+// The saved content holds an upload only once its node has the file URL.
+// Until then the upload blocks submit and merge, from the moment it starts.
+const editorUploadIds = new Set();
+
+function startUpload(uploadId) {
+	editorUploadIds.add(uploadId);
+	draftStore.setUploadState(uploadId, 'uploading');
+}
+
+async function uploadIntoNode(uploadId, upload, updateNode, errorMessage) {
 	try {
-		const url = await uploadFile(file);
-		updateImageNode(uploadId, { src: url, loading: false, error: null });
+		const url = await upload();
+		updateNode(uploadId, { src: url, loading: false, error: null });
+		editorUploadIds.delete(uploadId);
+		draftStore.clearUploads([uploadId]);
 	} catch (error) {
-		updateImageNode(uploadId, {
+		updateNode(uploadId, {
 			loading: false,
-			error: error?.message || 'Failed to upload image',
+			error: error?.message || errorMessage,
 		});
+		draftStore.setUploadState(uploadId, 'failed');
+		forgetRemovedUploads();
 	}
+}
+
+// A failed upload stops blocking once its node is removed from the page.
+function forgetRemovedUploads() {
+	const failed = [...editorUploadIds].filter(
+		(uploadId) => draftStore.uploads.get(uploadId) === 'failed',
+	);
+	if (!failed.length || !editor.value) return;
+	const onPage = new Set();
+	editor.value.state.doc.descendants((node) => {
+		if (node.attrs.uploadId) onPage.add(node.attrs.uploadId);
+	});
+	const removed = failed.filter((uploadId) => !onPage.has(uploadId));
+	for (const uploadId of removed) editorUploadIds.delete(uploadId);
+	draftStore.clearUploads(removed);
 }
 
 /**
@@ -328,17 +364,12 @@ async function insertAndUploadImage(file) {
  */
 function uploadPastedDataImages(uploads) {
 	for (const { uploadId, src } of uploads) {
-		dataUrlToFile(src)
-			.then(uploadFile)
-			.then((url) => {
-				updateImageNode(uploadId, { src: url, loading: false, error: null });
-			})
-			.catch((error) => {
-				updateImageNode(uploadId, {
-					loading: false,
-					error: error?.message || 'Failed to upload image',
-				});
-			});
+		uploadIntoNode(
+			uploadId,
+			() => dataUrlToFile(src).then(uploadFile),
+			updateImageNode,
+			'Failed to upload image',
+		);
 	}
 }
 
@@ -349,6 +380,7 @@ function transformPasted(slice) {
 	// The tagged slice is inserted right after this returns; upload once the
 	// nodes are in the doc so updateImageNode can find them.
 	if (tagged.uploads.length) {
+		for (const { uploadId } of tagged.uploads) startUpload(uploadId);
 		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
 	}
 	return tagged.slice;
@@ -388,20 +420,18 @@ async function insertAndUploadPdf(file) {
 		.toString(36)
 		.slice(2, 9)}`;
 
+	startUpload(uploadId);
 	ed.chain()
 		.focus()
 		.setPdf({ filename: file.name, uploadId, loading: true })
 		.run();
 
-	try {
-		const url = await uploadFile(file);
-		updatePdfNode(uploadId, { src: url, loading: false, error: null });
-	} catch (error) {
-		updatePdfNode(uploadId, {
-			loading: false,
-			error: error?.message || 'Failed to upload PDF',
-		});
-	}
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updatePdfNode,
+		'Failed to upload PDF',
+	);
 }
 
 /**
@@ -890,6 +920,7 @@ function emitContentReady() {
 }
 
 function handleContentChange() {
+	forgetRemovedUploads();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
@@ -999,6 +1030,8 @@ onUnmounted(() => {
 		handleSlashImageUploadEvent,
 	);
 	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	// Nodes leave with the editor, so its uploads can no longer reach the page.
+	draftStore.clearUploads(editorUploadIds);
 	// Hide any open link popup
 	hideLinkPopup();
 	// Clean up window reference

@@ -30,6 +30,9 @@ export function useChangeRequestActions() {
 		if (blocker === 'uploading') {
 			return __('Wait for uploads to finish before {0}', [action]);
 		}
+		if (blocker === 'upload-failed') {
+			return __('Remove failed uploads before {0}', [action]);
+		}
 		if (blocker === 'pending') {
 			return __('Wait for pending changes to sync before {0}', [action]);
 		}

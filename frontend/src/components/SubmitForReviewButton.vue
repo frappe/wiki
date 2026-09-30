@@ -97,6 +97,9 @@ const submitButtonTitle = computed(() => {
 	if (draftStore.finalizationBlocker === 'uploading') {
 		return __('Wait for uploads to finish before submitting');
 	}
+	if (draftStore.finalizationBlocker === 'upload-failed') {
+		return __('Remove failed uploads before submitting');
+	}
 	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before submitting');
 	}

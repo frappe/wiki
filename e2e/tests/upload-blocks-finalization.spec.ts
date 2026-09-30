@@ -55,3 +55,43 @@ test('submit for review waits for an image upload to finish', async ({
 	);
 	await expect(submit).toBeEnabled();
 });
+
+/**
+ * A failed upload stays on screen but never reaches saved content, so submit
+ * waits until the failed image is removed.
+ */
+test('submit for review waits until a failed upload is removed', async ({
+	page,
+	wiki,
+}) => {
+	const space = await wiki.space({ pages: [{ title: 'Failed Upload Page' }] });
+	const target = space.page('Failed Upload Page');
+	await page.route('**/api/method/wiki.api.upload_wiki_asset', (route) =>
+		route.fulfill({ status: 500, body: '{}' }),
+	);
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto(space.url('page', target.name));
+	const editor = page.locator('.ProseMirror');
+	await expect(editor).toHaveAttribute('contenteditable', 'true', {
+		timeout: 15000,
+	});
+	await editor.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' edited');
+	await page.locator('input.hidden-file-input').setInputFiles({
+		name: `e2e-upload-${Date.now()}.png`,
+		mimeType: 'image/png',
+		buffer: PNG,
+	});
+	const failed = page.locator('.wiki-image-error');
+	await expect(failed).toBeVisible({ timeout: 10000 });
+
+	const submit = page.getByRole('button', { name: 'Submit for Review' });
+	await expect(submit).toBeDisabled();
+
+	await failed.click();
+	await page.keyboard.press('Backspace');
+	await expect(failed).toHaveCount(0);
+	await expect(submit).toBeEnabled();
+});
