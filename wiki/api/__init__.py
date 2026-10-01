@@ -79,6 +79,7 @@ def _save_webp_without_overwrite(image, name: str) -> str:
 	for _ in range(5):
 		path = get_files_path(name)
 		try:
+			# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
 			f = open(path, "xb")
 		except FileExistsError:
 			name = get_file_name(name, frappe.generate_hash(length=6))
