@@ -11,6 +11,22 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
+# Wiki Document fields a revision snapshots. Changes to any other field leave revisions untouched.
+REVISION_FIELDS = (
+	"title",
+	"slug",
+	"route",
+	"is_group",
+	"is_tab",
+	"tab_icon",
+	"is_published",
+	"is_external_link",
+	"external_url",
+	"parent_wiki_document",
+	"sort_order",
+	"content",
+)
+
 
 class WikiRevision(Document):
 	pass
@@ -30,24 +46,7 @@ def create_revision_from_live_tree(
 
 	docs = frappe.get_all(
 		"Wiki Document",
-		fields=[
-			"name",
-			"doc_key",
-			"title",
-			"slug",
-			"route",
-			"is_group",
-			"is_tab",
-			"tab_icon",
-			"is_published",
-			"is_external_link",
-			"external_url",
-			"parent_wiki_document",
-			"sort_order",
-			"content",
-			"lft",
-			"rgt",
-		],
+		fields=["name", "doc_key", *REVISION_FIELDS, "lft", "rgt"],
 		filters={"lft": (">=", root.lft), "rgt": ("<=", root.rgt)},
 		order_by="lft asc",
 	)

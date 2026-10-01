@@ -1093,9 +1093,12 @@ def download_pdf(route: str):
 def on_wiki_document_update(doc, method):
 	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
 	from wiki.api.og_image import enqueue_og_warmup
+	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
 	touch_space_last_edited(stamp_wiki_space(doc))
-	_sync_document_to_revision(doc)
+	# A save that changes no snapshotted field would only produce an identical revision.
+	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
+		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
 	clear_wiki_tree_cache()
 	if doc.has_value_changed("content"):

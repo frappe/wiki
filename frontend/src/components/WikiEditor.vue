@@ -330,10 +330,12 @@ function startUpload(uploadId) {
 async function uploadIntoNode(uploadId, upload, updateNode, errorMessage) {
 	try {
 		const url = await upload();
+		if (!editor.value) return;
 		updateNode(uploadId, { src: url, loading: false, error: null });
 		editorUploadIds.delete(uploadId);
 		draftStore.clearUploads([uploadId]);
 	} catch (error) {
+		if (!editor.value) return;
 		updateNode(uploadId, {
 			loading: false,
 			error: error?.message || errorMessage,
