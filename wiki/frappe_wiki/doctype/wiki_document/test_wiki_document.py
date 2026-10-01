@@ -753,6 +753,32 @@ class TestUpdateMeta(WikiDocumentTestBase):
 		self.assertEqual(self.page.meta_title, "Synced title")
 		self.assertEqual(self.page.disable_indexing, 1)
 
+	def test_meta_only_save_creates_no_revision(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		flush_pending_revision_syncs()
+		revisions_before = frappe.db.count("Wiki Revision", {"wiki_space": self.space.name})
+
+		frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Only meta")
+		flush_pending_revision_syncs()
+
+		self.assertEqual(frappe.db.count("Wiki Revision", {"wiki_space": self.space.name}), revisions_before)
+
+	def test_content_save_creates_a_revision(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		flush_pending_revision_syncs()
+		revisions_before = frappe.db.count("Wiki Revision", {"wiki_space": self.space.name})
+
+		page = frappe.get_doc("Wiki Document", self.page.name)
+		page.content = "Changed content"
+		page.save()
+		flush_pending_revision_syncs()
+
+		self.assertEqual(
+			frappe.db.count("Wiki Revision", {"wiki_space": self.space.name}), revisions_before + 1
+		)
+
 	def test_space_reader_cannot_update_meta(self):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
