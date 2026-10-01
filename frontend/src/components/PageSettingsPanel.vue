@@ -65,7 +65,24 @@
 								{{ __('Visible on the public site') }}
 							</span>
 						</div>
-						<Switch v-model="form.isPublished" :disabled="readonly" />
+						<Switch
+							v-model="form.isPublished"
+							:disabled="readonly"
+							:aria-label="__('Published')"
+						/>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex flex-col">
+							<span class="text-sm text-ink-gray-7">{{ __('Disable Indexing') }}</span>
+							<span class="text-xs text-ink-gray-5">
+								{{ __('Prevent search engines from indexing this page') }}
+							</span>
+						</div>
+						<Switch
+							v-model="form.disableIndexing"
+							:disabled="!canEditMeta"
+							:aria-label="__('Disable Indexing')"
+						/>
 					</div>
 				</section>
 
@@ -77,6 +94,7 @@
 						:label="__('Meta title')"
 						:placeholder="title"
 						:description="__('Leave empty to use the page title')"
+						:disabled="!canEditMeta"
 					/>
 					<FormControl
 						v-model="form.metaDescription"
@@ -85,6 +103,7 @@
 						:rows="3"
 						:placeholder="__('A short summary shown in search results and link previews')"
 						:description="descriptionHint"
+						:disabled="!canEditMeta"
 					/>
 					<div class="flex flex-col gap-1.5">
 						<label class="text-sm text-ink-gray-5">{{ __('Meta image') }}</label>
@@ -101,7 +120,7 @@
 									class="lucide-loader-2 size-5 animate-spin text-white"
 									aria-hidden="true"
 								/>
-								<template v-else>
+								<template v-else-if="canEditMeta">
 									<Button size="sm" variant="solid" @click="pickImage">
 										{{ __('Replace') }}
 									</Button>
@@ -115,7 +134,7 @@
 							v-else
 							type="button"
 							class="flex aspect-[1200/630] w-full flex-col items-center justify-center gap-1.5 rounded-5 border border-dashed border-outline-gray-3 bg-surface-gray-1 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
-							:disabled="isUploadingImage"
+							:disabled="isUploadingImage || !canEditMeta"
 							@click="pickImage"
 						>
 							<span
@@ -199,6 +218,19 @@
 								{{ __('{0} min', [readingTime]) }}
 							</dd>
 						</div>
+						<div v-if="recentViews.data" class="flex justify-between gap-3">
+							<dt class="text-ink-gray-6">{{ __('Views, last 30 days') }}</dt>
+							<dd>
+								<button
+									type="button"
+									class="text-ink-gray-8 underline decoration-outline-gray-3 underline-offset-2 hover:decoration-ink-gray-5"
+									data-testid="page-views-link"
+									@click="openAnalytics({ document: docName, title })"
+								>
+									{{ recentViews.data.total_views.toLocaleString() }}
+								</button>
+							</dd>
+						</div>
 						<div v-if="lastEdited" class="flex justify-between gap-3">
 							<dt class="text-ink-gray-6">{{ __('Last edited') }}</dt>
 							<dd class="text-ink-gray-8">{{ lastEdited }}</dd>
@@ -241,8 +273,11 @@
 </template>
 
 <script setup>
+import { useSpaceSettings } from '@/composables/useSpaceSettings';
+import { presetRange } from '@/lib/analyticsRange';
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useUserStore } from '@/stores/user';
 import {
 	Badge,
@@ -251,6 +286,7 @@ import {
 	ScrollArea,
 	Switch,
 	Tooltip,
+	createResource,
 	dayjsLocal,
 	toast,
 	useFileUpload,
@@ -304,7 +340,20 @@ const emit = defineEmits(['close', 'node-updated']);
 
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
+const spaceStore = useSpaceStore();
 const fileUploader = useFileUpload();
+
+const { openAnalytics } = useSpaceSettings();
+
+const docName = computed(() => props.docResource.doc?.name);
+const recentViews = createResource({
+	url: 'wiki.api.analytics.get_analytics',
+	makeParams: () => {
+		const [from_date, to_date] = presetRange(30);
+		return { from_date, to_date, document: docName.value };
+	},
+});
+watch(docName, (name) => name && recentViews.reload(), { immediate: true });
 
 const isSaving = ref(false);
 const isUploadingImage = ref(false);
@@ -318,6 +367,7 @@ const form = reactive({
 	metaTitle: '',
 	metaDescription: '',
 	metaImage: '',
+	disableIndexing: false,
 });
 
 // The saved values every field is measured against — the panel is a form, not
@@ -330,6 +380,7 @@ const saved = computed(() => ({
 	metaTitle: props.docResource.doc?.meta_title || '',
 	metaDescription: props.docResource.doc?.meta_description || '',
 	metaImage: props.docResource.doc?.meta_image || '',
+	disableIndexing: Boolean(props.docResource.doc?.disable_indexing),
 }));
 
 // The title is also edited in the prose column, and the tree renames pages
@@ -346,7 +397,16 @@ watch(
 	{ immediate: true },
 );
 
-const META_FIELDS = ['metaTitle', 'metaDescription', 'metaImage'];
+const META_FIELDS = [
+	'metaTitle',
+	'metaDescription',
+	'metaImage',
+	'disableIndexing',
+];
+
+// Meta fields are written to the document, which takes space write access.
+// Contributing through a change request is not enough.
+const canEditMeta = computed(() => spaceStore.canWriteSpace);
 
 const isDirty = computed(() =>
 	Object.entries(saved.value).some(
@@ -489,6 +549,9 @@ function metaChanges() {
 		changes.meta_description = form.metaDescription;
 	}
 	if (form.metaImage !== current.metaImage) changes.meta_image = form.metaImage;
+	if (form.disableIndexing !== current.disableIndexing) {
+		changes.disable_indexing = form.disableIndexing ? 1 : 0;
+	}
 	return changes;
 }
 
@@ -503,7 +566,7 @@ async function save() {
 			emit('node-updated');
 		}
 		if (Object.keys(meta).length) {
-			await props.docResource.setValue.submit(meta);
+			await props.docResource.updateMeta.submit(meta);
 		}
 		toast.success(__('Page settings saved'));
 		// Retry a preview that failed before this save fixed its inputs.

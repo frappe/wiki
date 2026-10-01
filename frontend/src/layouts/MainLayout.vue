@@ -14,8 +14,20 @@
 				<template #nav>
 					<MobileNav>
 						<MobileNavItem
+							v-if="userStore.isWikiManager"
+							:label="__('Overview')"
+							:route="{ name: 'Overview' }"
+							:active="route.name === 'Overview'"
+						>
+							<template #default="{ active }">
+								<span
+									class="lucide-layout-grid size-6"
+									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
+							</template>
+						</MobileNavItem>
+						<MobileNavItem
 							:label="__('Spaces')"
-							:to="{ name: 'Overview' }"
+							:route="{ name: 'AllSpaces' }"
 							:active="isSpacesRoute"
 						>
 							<template #default="{ active }">
@@ -26,8 +38,8 @@
 						</MobileNavItem>
 						<MobileNavItem
 							:label="__('Change Requests')"
-							:to="{ name: 'ChangeRequests' }"
-							:active="route.name === 'ChangeRequests'"
+							:route="{ name: 'ChangeRequests' }"
+							:active="['ChangeRequests', 'ChangeRequestReview'].includes(route.name)"
 						>
 							<template #default="{ active }">
 								<span
@@ -116,7 +128,7 @@ const spaceId = computed(() => route.params.spaceId || null);
 
 // Spaces stays lit across every space route (overview + space details).
 const isSpacesRoute = computed(
-	() => route.name === 'Overview' || Boolean(spaceId.value),
+	() => route.name === 'AllSpaces' || Boolean(spaceId.value),
 );
 
 // The GitHub-App manifest flow redirects back here with ?github_app_created=1.

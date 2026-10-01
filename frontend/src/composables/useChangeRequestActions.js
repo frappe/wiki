@@ -1,5 +1,6 @@
 import { toast } from 'frappe-ui';
 
+import { requestEditorFlush } from '../lib/editorContentSync';
 import router from '../router';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -26,6 +27,12 @@ export function useChangeRequestActions() {
 		if (blocker === 'failed') {
 			return __('Resolve failed changes before {0}', [action]);
 		}
+		if (blocker === 'uploading') {
+			return __('Wait for uploads to finish before {0}', [action]);
+		}
+		if (blocker === 'upload-failed') {
+			return __('Remove failed uploads before {0}', [action]);
+		}
 		if (blocker === 'pending') {
 			return __('Wait for pending changes to sync before {0}', [action]);
 		}
@@ -36,6 +43,7 @@ export function useChangeRequestActions() {
 	}
 
 	async function submitForReview() {
+		requestEditorFlush();
 		// Nothing offers a Save button any more, so an unsaved buffer is not the
 		// user's problem to solve before submitting: drain it here, then judge
 		// the blockers that a flush cannot clear (conflicts, failed mutations).
@@ -102,6 +110,7 @@ export function useChangeRequestActions() {
 	}
 
 	async function mergeChangeRequest() {
+		requestEditorFlush();
 		if (spaceStore.isTreeReordering) {
 			toast.error(__('Please wait for reordering to finish before merging'));
 			return;

@@ -25,7 +25,8 @@
 		v-model:open="showConfirmDialog"
 		:title="__('Submit for review')"
 		:message="confirmMessage"
-		:icon="{ name: 'lucide-git-branch', theme: 'blue' }"
+		icon="lucide-git-branch"
+		theme="blue"
 		:actions="confirmActions"
 	/>
 </template>
@@ -92,6 +93,12 @@ const submitButtonTitle = computed(() => {
 	}
 	if (draftStore.finalizationBlocker === 'failed') {
 		return __('Resolve failed changes before submitting');
+	}
+	if (draftStore.finalizationBlocker === 'uploading') {
+		return __('Wait for uploads to finish before submitting');
+	}
+	if (draftStore.finalizationBlocker === 'upload-failed') {
+		return __('Remove failed uploads before submitting');
 	}
 	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before submitting');

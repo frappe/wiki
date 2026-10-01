@@ -226,7 +226,6 @@ test.describe('Wiki Editor', () => {
 		});
 		expect(routes.length).toBe(1);
 		await page.goto(`/${routes[0].route}`);
-		await page.waitForLoadState('networkidle');
 		await expect(
 			page.locator('#wiki-content, .prose').filter({ hasText: pageContent }),
 		).toBeVisible({ timeout: 10000 });

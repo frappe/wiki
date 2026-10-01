@@ -7,9 +7,13 @@ const routes = [
 		component: () => import('@/pages/Overview.vue'),
 	},
 	{
-		// The space list page retired into the sidebar; old links still land.
-		path: '/spaces',
+		path: '/overview',
 		redirect: { name: 'Overview' },
+	},
+	{
+		path: '/spaces',
+		name: 'AllSpaces',
+		component: () => import('@/pages/AllSpaces.vue'),
 	},
 	{
 		path: '/change-requests',
@@ -95,6 +99,8 @@ router.beforeEach(async (to, from, next) => {
 		window.location.href = `/login?redirect-to=/wiki-app${encodeURIComponent(
 			to.fullPath,
 		)}`;
+	} else if (to.name === 'Overview' && !userStore.isWikiManager) {
+		next({ name: 'AllSpaces', replace: true });
 	} else {
 		next();
 	}

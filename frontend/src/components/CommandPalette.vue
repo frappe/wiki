@@ -54,7 +54,7 @@
 					:key="item.key"
 					role="option"
 					:aria-selected="item === activeItem ? 'true' : 'false'"
-					class="flex cursor-pointer items-center rounded-4 px-2 py-2 text-base-medium text-ink-gray-7"
+					class="flex cursor-pointer items-center rounded-4 px-2 py-2 text-base-medium leading-tighter text-ink-gray-7"
 					:class="{ 'bg-surface-gray-3': item === activeItem }"
 					@click="select(item)"
 					@mousemove="activeKey = item.key"
@@ -220,10 +220,10 @@ const SPACE_BIAS = 1.5;
 
 const jumpTo = [
 	{
-		key: 'overview',
+		key: 'all-spaces',
 		label: __('All Spaces'),
 		icon: 'lucide-library',
-		route: { name: 'Overview' },
+		route: { name: 'AllSpaces' },
 	},
 	{
 		key: 'change-requests',
@@ -353,7 +353,7 @@ const actionItems = computed(() => [
 ]);
 
 async function createSpace() {
-	await router.push({ name: 'Overview' });
+	await router.push({ name: 'AllSpaces' });
 	requestNewSpace();
 }
 

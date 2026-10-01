@@ -11,6 +11,16 @@
             @keydown.escape="cancelEdit"
         />
         <a
+            v-else-if="page"
+            class="text-ink-gray-7 underline text-sm flex-1 truncate pl-1 flex items-center gap-1.5"
+            :title="page.title"
+            :href="page.href"
+            target="_blank"
+        >
+            <span class="lucide-file-text size-4 shrink-0" aria-hidden="true" />
+            <span class="truncate">{{ page.title }}</span>
+        </a>
+        <a
             v-else
             class="text-ink-gray-7 underline text-sm flex-1 truncate pl-1"
             :title="currentHref"
@@ -65,7 +75,7 @@
                     variant="subtle"
                 >
                     <template #icon>
-                        <span class="lucide-link-2off size-4" aria-hidden="true" />
+                        <span class="lucide-link-2-off size-4" aria-hidden="true" />
                     </template>
                 </Button>
             </template>
@@ -76,11 +86,17 @@
 <script setup>
 import { Button, TextInput, toast } from 'frappe-ui';
 import { nextTick, onMounted, ref, watch } from 'vue';
+import { docKeyFromHref } from './page-links.js';
 
 const props = defineProps({
 	href: {
 		type: String,
 		default: '',
+	},
+	// The wiki page an internal `wiki:` link points at: { title, href }.
+	page: {
+		type: Object,
+		default: null,
 	},
 	isNew: {
 		type: Boolean,
@@ -99,7 +115,7 @@ function isValidUrl(url) {
 	if (!url) return false;
 	try {
 		// Allow relative URLs or absolute URLs
-		if (url.startsWith('/') || url.startsWith('#')) {
+		if (url.startsWith('/') || url.startsWith('#') || docKeyFromHref(url)) {
 			return true;
 		}
 		new URL(url);
@@ -134,6 +150,7 @@ function saveLink() {
 	if (
 		!url.startsWith('/') &&
 		!url.startsWith('#') &&
+		!docKeyFromHref(url) &&
 		!url.match(/^[a-zA-Z]+:\/\//)
 	) {
 		url = `https://${url}`;

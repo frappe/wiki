@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures';
+import { createDoc } from '../helpers/frappe';
 import { APP_BASE, appUrl } from '../helpers/routes';
 
 /**
@@ -28,7 +29,14 @@ test.describe('Sidebar drill-in navigation', () => {
 		spaceA = a.name;
 		pageName = a.page(PAGE_TITLE).name;
 
-		spaceB = (await wikiSuite.space({ space_name: SPACE_B_NAME })).name;
+		// A page gives B a last-edited time; without one it sorts below every
+		// other space and falls off the sidebar's first page on a busy site.
+		spaceB = (
+			await wikiSuite.space({
+				space_name: SPACE_B_NAME,
+				pages: [{ title: 'Beta First Page' }],
+			})
+		).name;
 	});
 
 	test('library lists spaces, entering one replaces the column, back restores it', async ({
@@ -76,7 +84,7 @@ test.describe('Sidebar drill-in navigation', () => {
 
 		// Back out: the library returns whole, with both spaces.
 		await sidebar.locator('[aria-label="Back to All Spaces"]').first().click();
-		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/spaces$`));
 		await expect(alphaRow).toBeVisible();
 		await expect(betaRow).toBeVisible();
 		await expect(
@@ -84,16 +92,43 @@ test.describe('Sidebar drill-in navigation', () => {
 		).toHaveCount(0);
 	});
 
-	test('the retired /spaces list page redirects to the library', async ({
+	test('the app opens on the Overview, and /overview still lands there', async ({
 		page,
 	}) => {
-		// Old deep links have to keep working: the list page retired in phase 1
-		// and its path now redirects rather than 404ing.
-		await page.goto(appUrl('spaces'));
+		await page.goto(APP_BASE);
 		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
-		const sidebar = page.locator('[data-slot="sidebar"]');
-		await expect(
-			sidebar.locator(`a[href="${appUrl('spaces', spaceA)}"]`),
-		).toBeVisible();
+		await expect(page.getByTestId('overview-chart')).toBeVisible();
+
+		await page.goto(appUrl('overview'));
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
+		await expect(page.getByTestId('overview-chart')).toBeVisible();
+	});
+
+	test('a Wiki User opens the app on the library, not the Overview', async ({
+		browser,
+		request,
+	}, info) => {
+		const stamp = Date.now().toString(36);
+		const email = `e2e-landing-${stamp}@example.com`;
+		const password = `Landing-${stamp}!`;
+		await createDoc(request, 'User', {
+			email,
+			first_name: 'E2E Landing',
+			new_password: password,
+			send_welcome_email: 0,
+			roles: [{ role: 'Wiki User' }],
+		});
+
+		const context = await browser.newContext({
+			baseURL: info.project.use.baseURL,
+		});
+		await context.request.post('/api/method/login', {
+			form: { usr: email, pwd: password },
+		});
+		const page = await context.newPage();
+		await page.goto(APP_BASE);
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/spaces$`));
+
+		await context.close();
 	});
 });

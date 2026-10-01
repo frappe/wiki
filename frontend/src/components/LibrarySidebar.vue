@@ -20,14 +20,14 @@
 					:key="item.label"
 					:label="item.label"
 					:icon="item.icon"
-					:to="item.to"
+					:route="item.to"
 					:active="item.routeNames.includes(route.name)"
 					:suffix="item.suffix?.value"
 				/>
 				<SidebarItem
 					:label="__('Search')"
 					icon="lucide-search"
-					@click="openCommandPalette"
+					@click="openCommandPalette('click')"
 				>
 					<template #suffix>
 						<KeyboardShortcut combo="Mod+K" class="mr-2 text-ink-gray-4" />
@@ -48,7 +48,7 @@
 								v-for="space in group.spaces"
 								:key="space.name"
 								:label="space.space_name || space.name"
-								:to="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
+								:route="{ name: 'SpaceDetails', params: { spaceId: space.name } }"
 								@contextmenu="openSpaceMenu(space)"
 							>
 								<template #prefix>
@@ -254,26 +254,35 @@ const headerMenuItems = computed(() => [
 	{ label: __('Log out'), icon: 'lucide-log-out', onClick: logout },
 ]);
 
-const navItems = [
+const openChangeRequestCount = computed(() =>
+	openChangeRequests.data ? String(openChangeRequests.data) : '',
+);
+
+const navItems = computed(() => [
+	...(userStore.isWikiManager
+		? [
+				{
+					label: __('Overview'),
+					icon: 'lucide-layout-grid',
+					to: { name: 'Overview' },
+					routeNames: ['Overview'],
+				},
+			]
+		: []),
 	{
-		// The `Overview` route name is unchanged -- spec 04 still fills this page
-		// with wiki-wide analytics later. Until it does, the page is the space
-		// directory, so that is what the item is called.
 		label: __('All Spaces'),
 		icon: 'lucide-library',
-		to: { name: 'Overview' },
-		routeNames: ['Overview'],
+		to: { name: 'AllSpaces' },
+		routeNames: ['AllSpaces'],
 	},
 	{
 		label: __('Change Requests'),
 		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
 		routeNames: ['ChangeRequests', 'ChangeRequestReview'],
-		suffix: computed(() =>
-			openChangeRequests.data ? String(openChangeRequests.data) : '',
-		),
+		suffix: openChangeRequestCount,
 	},
-];
+]);
 
 function logout() {
 	sessionStore.logout.submit();

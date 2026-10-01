@@ -1,4 +1,5 @@
 import path from 'node:path';
+import frameworkUI from '@framework/ui/vite';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
 
@@ -44,6 +45,7 @@ export default defineConfig(async ({ command, mode }) => {
 					sourcemap: true,
 				},
 			}),
+			frameworkUI(),
 			vue(),
 		],
 		build: {

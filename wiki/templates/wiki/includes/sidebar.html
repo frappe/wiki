@@ -147,11 +147,7 @@
 
                 // Check prefetch cache first
                 if (this.prefetchCache[route]) {
-                    this.updateContent(this.prefetchCache[route]);
-                    this.currentRoute = route;
-                    if (pushState) {
-                        history.pushState({ route }, '', '/' + route);
-                    }
+                    this.showPage(route, this.prefetchCache[route], pushState);
                     return;
                 }
 
@@ -169,11 +165,7 @@
                     const data = await response.json();
 
                     if (data.message) {
-                        this.updateContent(data.message);
-                        this.currentRoute = route;
-                        if (pushState) {
-                            history.pushState({ route }, '', '/' + route);
-                        }
+                        this.showPage(route, data.message, pushState);
                     } else {
                         throw new Error('Invalid response');
                     }
@@ -185,11 +177,36 @@
                 }
             },
 
+            showPage(route, data, pushState) {
+                const previousUrl = window.location.origin + '/' + this.currentRoute;
+                this.updateContent(data);
+                this.currentRoute = route;
+                if (pushState) {
+                    history.pushState({ route }, '', '/' + route);
+                }
+                // Only after the URL changes: the view log reads the page path
+                // from the Referer header. Absent when view tracking is off.
+                window.wikiLogView?.(previousUrl);
+            },
+
             updateContent(data) {
                 // Update page title
                 document.title = data.title;
                 const titleEl = document.getElementById('wiki-page-title');
                 if (titleEl) titleEl.textContent = data.title;
+
+                // Crawlers that render JS see the head as it is after navigation.
+                // Only the page's own tag: head HTML may carry a site-wide one.
+                let robotsEl = document.querySelector('meta[data-page-robots]');
+                if (data.disable_indexing && !robotsEl) {
+                    robotsEl = document.createElement('meta');
+                    robotsEl.name = 'robots';
+                    robotsEl.content = 'noindex';
+                    robotsEl.dataset.pageRobots = '';
+                    document.head.appendChild(robotsEl);
+                } else if (!data.disable_indexing) {
+                    robotsEl?.remove();
+                }
 
                 // Update content
                 const contentEl = document.getElementById('wiki-content');

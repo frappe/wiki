@@ -6,6 +6,8 @@ from frappe.model.document import Document
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_email_address
 
+from wiki.telemetry import capture
+
 
 class WikiFeedback(Document):
 	# begin: auto-generated types
@@ -25,7 +27,18 @@ class WikiFeedback(Document):
 		wiki_page: DF.Link | None
 	# end: auto-generated types
 
-	pass
+	def after_insert(self):
+		capture("feedback_submitted", sentiment=self.sentiment(), has_comment=bool(self.feedback))
+
+	def sentiment(self) -> str:
+		"""One scale for both APIs. `type` carries the new one's Good / Ok / Bad,
+		but it also defaults to Ok, so a legacy row's star rating wins."""
+		rating = float(self.rating or 0)
+		if not rating:
+			return (self.type or "ok").lower()
+		if rating >= 0.8:
+			return "good"
+		return "ok" if rating >= 0.5 else "bad"
 
 
 def get_feedback_limit():

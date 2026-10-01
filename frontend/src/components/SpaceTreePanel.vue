@@ -11,7 +11,7 @@
 					variant="ghost"
 					icon="lucide-arrow-left"
 					:aria-label="__('Back to All Spaces')"
-					:route="{ name: 'Overview' }"
+					:route="{ name: 'AllSpaces' }"
 				/>
 			</Tooltip>
 			<div class="min-w-0 flex-1">
@@ -28,7 +28,7 @@
 					variant="ghost"
 					icon="lucide-external-link"
 					:aria-label="__('View space')"
-					:link="'/' + spaceRoute"
+					:href="'/' + spaceRoute"
 				/>
 			</Tooltip>
 			<Tooltip :text="__('Space settings')">

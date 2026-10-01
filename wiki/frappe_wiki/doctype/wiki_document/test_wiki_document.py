@@ -29,6 +29,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
+	resolve_wiki_links,
 	touch_space_last_edited,
 )
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
@@ -363,6 +364,12 @@ class TestSpaceLastEdited(WikiDocumentTestBase):
 	def last_edited(self, space):
 		return frappe.db.get_value("Wiki Space", space.name, "last_edited")
 
+	def test_a_new_space_is_stamped(self):
+		"""An empty space would otherwise sort below every other one in the sidebar."""
+		space = self.wiki.space()
+
+		self.assertIsNotNone(self.last_edited(space))
+
 	def test_saving_a_page_stamps_the_space(self):
 		space = self.wiki.space(pages=[{"title": "First Page"}])
 		before = self.last_edited(space)
@@ -609,6 +616,173 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 
 		self.assertRegex(html, r'name="twitter:card"\s*content="summary"')
 		self.assertNotIn('property="og:image"', html)
+
+
+class TestDisableIndexing(WikiDocumentTestBase):
+	"""GH-806: a page can opt out of search engines."""
+
+	TEST_CLIENT = get_test_client()
+	NOINDEX = '<meta name="robots" content="noindex" data-page-robots>'
+
+	def setUp(self):
+		super().setUp()
+		route = f"noindex-{frappe.generate_hash(length=6)}"
+		self.space = create_test_wiki_space(self, "Noindex Space", route, None, roles=[("Guest", "Read")])
+		self.page = create_test_wiki_document(
+			self, "Plain Page", parent=self.space.root_group, slug=f"plain-{route}"
+		)
+		self.group = create_test_wiki_document(self, "Guides", parent=self.space.root_group, is_group=True)
+		self.child = create_test_wiki_document(
+			self, "Child Page", parent=self.group.name, slug=f"child-{route}"
+		)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+	def _html(self, doc):
+		response = _make_request(self.TEST_CLIENT, "get", f"/{doc.route}", headers={"Accept": "text/html"})
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def _flag(self, doc):
+		doc.reload()
+		doc.disable_indexing = 1
+		doc.save()
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+	def _sitemap_routes(self):
+		return _sitemap_routes(_make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True))
+
+	def test_pages_are_indexable_by_default(self):
+		self.assertNotIn(self.NOINDEX, self._html(self.page))
+		self.assertNotIn(self.NOINDEX, self._html(self.child))
+		self.assertIn(self.child.route, self._sitemap_routes())
+
+	def test_flagged_page_is_noindex_and_left_out_of_the_sitemap(self):
+		self._flag(self.page)
+
+		self.assertIn(self.NOINDEX, self._html(self.page))
+		self.assertNotIn(self.page.route, self._sitemap_routes())
+		self.assertIn(self.child.route, self._sitemap_routes())
+
+	def _request(self, path):
+		return _make_request(self.TEST_CLIENT, "get", path)
+
+	def test_flagged_page_leaves_the_space_llms_txt_with_its_empty_group(self):
+		self._flag(self.child)
+
+		space_index = self._request(f"/{self.space.route}/llms.txt").get_data(as_text=True)
+		self.assertIn(f"/{self.page.route}.md)", space_index)
+		self.assertNotIn(self.child.route, space_index)
+		self.assertNotIn("Guides", space_index)
+
+	def test_space_with_every_page_flagged_leaves_the_site_llms_txt(self):
+		space_index_path = f"/{self.space.route}/llms.txt"
+		self.assertIn(space_index_path, self._request("/llms.txt").get_data(as_text=True))
+
+		self._flag(self.page)
+		self._flag(self.child)
+
+		self.assertEqual(self._request(space_index_path).status_code, 404)
+		self.assertNotIn(space_index_path, self._request("/llms.txt").get_data(as_text=True))
+
+	def test_markdown_twin_of_a_hidden_page_sends_noindex(self):
+		self._flag(self.child)
+
+		self.assertEqual(self._request(f"/{self.child.route}.md").headers.get("X-Robots-Tag"), "noindex")
+		self.assertIsNone(self._request(f"/{self.page.route}.md").headers.get("X-Robots-Tag"))
+
+	def test_negotiated_markdown_of_a_hidden_page_sends_noindex(self):
+		self._flag(self.child)
+
+		response = _make_request(
+			self.TEST_CLIENT, "get", f"/{self.child.route}", headers={"Accept": "text/markdown"}
+		)
+		self.assertEqual(response.headers.get("X-Robots-Tag"), "noindex")
+
+	def test_site_llms_txt_skips_a_hidden_landing_page_description(self):
+		frappe.db.set_value("Wiki Document", self.page.name, "meta_description", "Hidden landing summary")
+		frappe.db.set_value("Wiki Document", self.child.name, "meta_description", "Indexable child summary")
+		self._flag(self.page)
+
+		site_index = self._request("/llms.txt").get_data(as_text=True)
+		self.assertNotIn("Hidden landing summary", site_index)
+		self.assertIn("Indexable child summary", site_index)
+
+
+class TestUpdateMeta(WikiDocumentTestBase):
+	"""The meta fields are wiki-side data, so a space writer edits them on a git-synced page too."""
+
+	READER_ROLE = "_Test Meta Reader"
+	WRITER_ROLE = "_Test Meta Writer"
+
+	def setUp(self):
+		super().setUp()
+		self.reader = self._user_with(self.READER_ROLE)
+		self.writer = self._user_with(self.WRITER_ROLE)
+		self.space = create_test_wiki_space(
+			self,
+			"Synced Meta Space",
+			f"synced-meta-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[(self.READER_ROLE, "Read"), (self.WRITER_ROLE, "Write")],
+			git_synced=True,
+			repo_full_name="acme/docs",
+			branch="main",
+		)
+		self.page = create_test_wiki_document(self, "Synced Meta Page", parent=self.space.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+	def _user_with(self, role):
+		if not frappe.db.exists("Role", role):
+			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
+		email = f"{frappe.scrub(role).strip('_')}@example.com"
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
+			).insert()
+		frappe.get_doc("User", email).add_roles("Wiki User", role)
+		return email
+
+	def test_space_writer_updates_meta_on_a_git_synced_page(self):
+		frappe.set_user(self.writer)
+		frappe.get_doc("Wiki Document", self.page.name).update_meta(
+			meta_title="Synced title", disable_indexing=1
+		)
+
+		frappe.set_user("Administrator")
+		self.page.reload()
+		self.assertEqual(self.page.meta_title, "Synced title")
+		self.assertEqual(self.page.disable_indexing, 1)
+
+	def test_meta_only_save_creates_no_revision(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		flush_pending_revision_syncs()
+		revisions_before = frappe.db.count("Wiki Revision", {"wiki_space": self.space.name})
+
+		frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Only meta")
+		flush_pending_revision_syncs()
+
+		self.assertEqual(frappe.db.count("Wiki Revision", {"wiki_space": self.space.name}), revisions_before)
+
+	def test_content_save_creates_a_revision(self):
+		from wiki.api.wiki_space import flush_pending_revision_syncs
+
+		flush_pending_revision_syncs()
+		revisions_before = frappe.db.count("Wiki Revision", {"wiki_space": self.space.name})
+
+		page = frappe.get_doc("Wiki Document", self.page.name)
+		page.content = "Changed content"
+		page.save()
+		flush_pending_revision_syncs()
+
+		self.assertEqual(
+			frappe.db.count("Wiki Revision", {"wiki_space": self.space.name}), revisions_before + 1
+		)
+
+	def test_space_reader_cannot_update_meta(self):
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Nope")
 
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
@@ -2809,6 +2983,64 @@ class TestRenderedContentCache(WikiDocumentTestBase):
 		doc.save()
 		# Content unchanged, so the rendered-content entry survives.
 		self.assertIsNotNone(frappe.cache().hget(WIKI_CONTENT_CACHE_KEY, doc.name))
+
+
+class TestInternalPageLinks(WikiDocumentTestBase):
+	"""`[Label](wiki:<doc_key>)` links follow the target page, not a fixed route."""
+
+	def setUp(self):
+		super().setUp()
+		self.space = self.wiki.space()
+		self.target = self.wiki.document(parent=self.space.root_group, title="Link Target")
+		self.source = self.wiki.document(
+			parent=self.space.root_group,
+			title="Link Source",
+			content=f"See [the target](wiki:{self.target.doc_key}).",
+		)
+
+	def rendered_source(self):
+		return self.source.get_web_context()["rendered_content"]
+
+	def test_link_resolves_to_the_target_route(self):
+		self.assertIn(f'<a href="/{self.target.route}">the target</a>', self.rendered_source())
+
+	def test_link_follows_a_route_change_without_a_source_edit(self):
+		self.rendered_source()
+		self.target.route = f"{self.space.route}/moved-target"
+		self.target.save()
+
+		self.assertIn(f'<a href="/{self.space.route}/moved-target">the target</a>', self.rendered_source())
+
+	def test_link_to_an_unpublished_page_renders_as_plain_text(self):
+		self.target.is_published = 0
+		self.target.save()
+
+		html = self.rendered_source()
+		self.assertIn("See the target.", html)
+		self.assertNotIn("data-wiki-link", html)
+
+	def test_link_into_another_space_renders_as_plain_text(self):
+		# Space access is checked per space, so a reader of this page may not be
+		# allowed to see a page elsewhere, not even its route.
+		private_space = self.wiki.space(roles=[("System Manager", "Read")])
+		private_page = self.wiki.document(parent=private_space.root_group, title="Private Roadmap")
+		self.source.content = f"See [the roadmap](wiki:{private_page.doc_key})."
+		self.source.save()
+
+		html = self.rendered_source()
+		self.assertIn("See the roadmap.", html)
+		self.assertNotIn(private_page.route, html)
+
+	def test_link_to_an_unknown_page_renders_as_plain_text(self):
+		self.assertEqual(
+			resolve_wiki_links('<a data-wiki-link="missing123">Gone</a>', self.space.name), "Gone"
+		)
+
+	def test_html_without_internal_links_skips_the_lookup(self):
+		html = '<p><a href="https://example.com">out</a></p>'
+		with patch("frappe.get_all") as get_all:
+			self.assertEqual(resolve_wiki_links(html, self.space.name), html)
+		get_all.assert_not_called()
 
 
 class TestReaderRouteXSS(unittest.TestCase):

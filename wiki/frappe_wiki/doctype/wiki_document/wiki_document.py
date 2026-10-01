@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+import re
 from urllib.parse import quote, urlparse
 
 import frappe
@@ -14,6 +15,7 @@ from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
+from wiki.telemetry import capture
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
@@ -29,6 +31,9 @@ WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
+# An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
+WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
 
 # Markdown is served under the page's own permissions, so a shared cache must
 # never hold it -- the same URL yields 404 for a reader without space access.
@@ -112,6 +117,7 @@ class WikiDocument(NestedSet):
 		from frappe.types import DF
 
 		content: DF.Code | None
+		disable_indexing: DF.Check
 		doc_key: DF.Data | None
 		is_group: DF.Check
 		is_published: DF.Check
@@ -139,6 +145,23 @@ class WikiDocument(NestedSet):
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
 		self.set_boilerplate_content()
+
+	def after_insert(self):
+		# A space's root group is scaffolding, not something anyone authored.
+		if not self.parent_wiki_document:
+			return
+		capture(
+			"document_created",
+			kind=self.document_kind(),
+			source="git_sync" if getattr(frappe.flags, "in_wiki_git_sync", False) else "editor",
+		)
+
+	def document_kind(self) -> str:
+		if self.is_external_link:
+			return "external_link"
+		if self.is_tab:
+			return "tab"
+		return "group" if self.is_group else "page"
 
 	def validate_unique_route_for_leaves(self):
 		"""Ensure no two leaf documents (non-groups) share the same route."""
@@ -286,6 +309,9 @@ class WikiDocument(NestedSet):
 			"Wiki Space", {"root_group": root_group}, ["name", "space_name", "route"], as_dict=True
 		)
 
+	def get_space_name(self) -> str | None:
+		return self.wiki_space or (self.get_wiki_space() or {}).get("name")
+
 	def get_edit_link(self) -> str:
 		wiki_space = self.get_wiki_space()
 		if not wiki_space:
@@ -344,7 +370,7 @@ class WikiDocument(NestedSet):
 		"""
 		from wiki.permissions import can_read_space, can_write_space
 
-		space = self.wiki_space or (self.get_wiki_space() or {}).get("name")
+		space = self.get_space_name()
 		if not space:
 			# Orphan documents stay readable by all (preserves chromeless pages).
 			return
@@ -436,6 +462,7 @@ class WikiDocument(NestedSet):
 		# The TOC toggle is applied here, after the lookup, so it needs no cache
 		# invalidation.
 		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
+		rendered_content = resolve_wiki_links(rendered_content, self.get_space_name())
 		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
 			toc_headings = []
 
@@ -465,6 +492,7 @@ class WikiDocument(NestedSet):
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
 			"breadcrumbs": None,
+			"disable_indexing": self.disable_indexing,
 		}
 
 		metatags = {
@@ -610,7 +638,36 @@ class WikiDocument(NestedSet):
 
 	def before_print(self, print_settings=None):
 		"""Render markdown content so the print format can drop it in as HTML."""
-		self.rendered_content_for_pdf = render_markdown(self.content or "")
+		self.rendered_content_for_pdf = resolve_wiki_links(
+			render_markdown(self.content or ""), self.get_space_name()
+		)
+
+	@frappe.whitelist()
+	def update_meta(
+		self,
+		meta_title: str | None = None,
+		meta_description: str | None = None,
+		meta_image: str | None = None,
+		disable_indexing: int | None = None,
+	) -> None:
+		"""Write the fields no change request carries.
+
+		A git-synced page denies every document write, but the repo never carries
+		these fields, so a space writer may still set them here.
+		"""
+		from wiki.permissions import can_write_space
+
+		if not self.wiki_space or not can_write_space(self.wiki_space):
+			frappe.throw(_("You don't have permission to edit this page"), frappe.PermissionError)
+
+		values = {
+			"meta_title": meta_title,
+			"meta_description": meta_description,
+			"meta_image": meta_image,
+			"disable_indexing": disable_indexing,
+		}
+		self.update({field: value for field, value in values.items() if value is not None})
+		self.save(ignore_permissions=True)
 
 	@frappe.whitelist()
 	def get_children_count(self) -> int:
@@ -702,6 +759,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		frappe.db.commit()  # nosemgrep
 
 		context["csrf_token"] = csrf_token
+		context["enable_view_tracking"] = frappe.get_website_settings("enable_view_tracking")
 
 		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)
@@ -724,6 +782,8 @@ def build_markdown_response(doc) -> Response:
 	response.data = doc.as_markdown()
 	response.headers["Content-Type"] = "text/markdown; charset=utf-8"
 	response.headers["Cache-Control"] = MARKDOWN_CACHE_CONTROL
+	if doc.disable_indexing:
+		response.headers["X-Robots-Tag"] = "noindex"
 	return response
 
 
@@ -832,6 +892,47 @@ def get_rendered_content(doc_name: str, content: str) -> tuple[str, list]:
 	return html, toc
 
 
+def resolve_wiki_links(html: str, wiki_space: str | None) -> str:
+	"""Point each internal link (`data-wiki-link`) at the target page's current route.
+
+	Runs after the render cache, so a page that moves or is unpublished never
+	leaves stale links in other pages' cached HTML. A link to a page that isn't
+	live renders as its plain label rather than a dead link.
+
+	Only pages in `wiki_space`, the linking page's own space, resolve. Access is
+	granted per space, so a reader of this page can read those; a page in
+	another space may be one they are not allowed to see, route included.
+	"""
+	doc_keys = {doc_key for doc_key, _attrs, _label in WIKI_LINK_PATTERN.findall(html)}
+	if not doc_keys:
+		return html
+
+	routes = {}
+	if wiki_space:
+		routes = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"doc_key": ("in", doc_keys),
+					"wiki_space": wiki_space,
+					"is_published": 1,
+					"is_group": 0,
+					"is_external_link": 0,
+				},
+				fields=["doc_key", "route"],
+				as_list=True,
+			)
+		)
+
+	def replace(match):
+		doc_key, attrs, label = match.groups()
+		if not routes.get(doc_key):
+			return label
+		return f'<a href="/{quote(routes[doc_key])}"{attrs}>{label}</a>'
+
+	return WIKI_LINK_PATTERN.sub(replace, html)
+
+
 def clear_wiki_content_cache(doc_name: str | None = None):
 	"""Drop the rendered-content cache — one document's entry, or all of it.
 
@@ -897,19 +998,24 @@ def get_landing_page_for_route(route: str) -> dict | None:
 	return get_first_published_page(root_group) if root_group else None
 
 
+def get_noindex_documents() -> set[str]:
+	"""Names of every page hidden from search engines."""
+	return set(frappe.get_all("Wiki Document", filters={"disable_indexing": 1}, pluck="name"))
+
+
 def get_first_published_page(root_group: str) -> dict | None:
 	"""First non-group, non-external page in sidebar order — the document a
 	space URL should land on. Walks the same tree the sidebar renders, so the
 	two can't disagree."""
-	return _first_published_leaf(get_public_wiki_tree(root_group))
+	return first_published_leaf(get_public_wiki_tree(root_group))
 
 
-def _first_published_leaf(nodes: list) -> dict | None:
+def first_published_leaf(nodes: list) -> dict | None:
 	"""First non-group, non-external page in sidebar order within `nodes`."""
 	for node in nodes:
 		if not node["is_group"] and not node.get("is_external_link"):
 			return node
-		found = _first_published_leaf(node["children"])
+		found = first_published_leaf(node["children"])
 		if found:
 			return found
 	return None
@@ -987,9 +1093,12 @@ def download_pdf(route: str):
 def on_wiki_document_update(doc, method):
 	"""Stamp the owning Wiki Space and sync desk edits to the revision system."""
 	from wiki.api.og_image import enqueue_og_warmup
+	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
 	touch_space_last_edited(stamp_wiki_space(doc))
-	_sync_document_to_revision(doc)
+	# A save that changes no snapshotted field would only produce an identical revision.
+	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
+		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
 	clear_wiki_tree_cache()
 	if doc.has_value_changed("content"):

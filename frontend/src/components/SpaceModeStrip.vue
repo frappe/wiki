@@ -384,6 +384,12 @@ const mergeButtonTitle = computed(() => {
 	if (draftStore.finalizationBlocker === 'failed') {
 		return __('Resolve failed changes before merging');
 	}
+	if (draftStore.finalizationBlocker === 'uploading') {
+		return __('Wait for uploads to finish before merging');
+	}
+	if (draftStore.finalizationBlocker === 'upload-failed') {
+		return __('Remove failed uploads before merging');
+	}
 	if (draftStore.finalizationBlocker === 'pending') {
 		return __('Wait for pending changes to sync before merging');
 	}

@@ -27,7 +27,9 @@ def execute():
 		.run()
 	)
 
-	for space in frappe.get_all("Wiki Space", fields=["name", "modified"]):
+	for space in frappe.get_all(
+		"Wiki Space", filters={"last_edited": ["is", "not set"]}, fields=["name", "modified"]
+	):
 		frappe.db.set_value(
 			"Wiki Space",
 			space.name,

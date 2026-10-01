@@ -54,6 +54,7 @@ import {
 	computed,
 	createApp,
 	h,
+	inject,
 	onBeforeUnmount,
 	onMounted,
 	onUnmounted,
@@ -61,16 +62,26 @@ import {
 	shallowRef,
 	watch,
 } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
+import {
+	createTrailingScheduler,
+	memoizeLast,
+	onEditorFlushRequest,
+} from '@/lib/editorContentSync';
+import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import {
 	CodeBlock,
 	EditorContent,
 	EditorTableMenu,
-	Markdown,
+	Emoji,
 	useEditor,
 } from 'frappe-ui/editor';
 import EditorTableOfContents from './EditorTableOfContents.vue';
 import LinkPopup from './tiptap-extensions/LinkPopup.vue';
+import PageLinkList from './tiptap-extensions/PageLinkList.vue';
 import SlashCommandsList from './tiptap-extensions/SlashCommandsList.vue';
 import WikiBubbleMenu from './tiptap-extensions/WikiBubbleMenu.vue';
 import WikiToolbar from './tiptap-extensions/WikiToolbar.vue';
@@ -82,6 +93,18 @@ import { WikiImage } from './tiptap-extensions/image-extension.js';
 import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { canonicalizeMarkdown } from './tiptap-extensions/markdown-normalize.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
+import {
+	PageLinks,
+	docKeyFromHref,
+	findPageByTitle,
+	pickerItems,
+	linkablePages,
+} from './tiptap-extensions/page-links.js';
+import {
+	dataUrlToFile,
+	tagDataImagesInJSON,
+	tagDataImagesInSlice,
+} from './tiptap-extensions/paste-data-images.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import {
@@ -90,6 +113,8 @@ import {
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
@@ -145,8 +170,58 @@ const emit = defineEmits([
 	'content-ready',
 ]);
 
+const spaceTree = inject(SPACE_TREE_KEY, null);
+const spaceStore = useSpaceStore();
+const draftStore = useDraftWorkspaceStore();
+
+function spacePages() {
+	return linkablePages(spaceTree?.value?.children);
+}
+
+// A page created from the link picker goes in the open page's folder.
+async function createPageBesideThis(title) {
+	const trail = trailToNode(
+		spaceTree?.value?.children,
+		(node) => node.doc_key === props.documentKey,
+	);
+	const parentKey = trail?.at(-2)?.doc_key ?? null;
+	try {
+		const docKey = await draftStore.createNode({ parentKey, title }).promise;
+		toast.success(`Added “${title}” as a draft page in this change request`);
+		return docKey;
+	} catch {
+		toast.error(`Could not create “${title}”`);
+		return null;
+	}
+}
+const route = useRoute();
+const router = useRouter();
+
+// The page a `wiki:` link points at, with its editor URL. Null for any other
+// link, or when the page is no longer in this space.
+function linkedPage(href) {
+	const docKey = docKeyFromHref(href);
+	if (!docKey) return null;
+	const node = trailToNode(
+		spaceTree?.value?.children,
+		(candidate) => candidate.doc_key === docKey,
+	)?.at(-1);
+	const target = node && crumbRoute(node, route.params.spaceId);
+	return target ? { title: node.title, href: router.resolve(target).href } : null;
+}
+
 const AUTOSAVE_DELAY = 10 * 1000;
 let autosaveTimer = null;
+
+// Reading the page as markdown serializes and re-parses the whole document.
+// Doing it on every keystroke made typing lag by seconds on large pages, so
+// edits are reported once typing pauses, and on blur, save and unmount.
+const contentSync = createTrailingScheduler({
+	delay: 300,
+	maxWait: 2000,
+	run: reportContentChange,
+});
+const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -224,6 +299,7 @@ async function insertAndUploadImage(file) {
 	const uploadId = `upload-${Date.now()}-${Math.random()
 		.toString(36)
 		.slice(2, 9)}`;
+	startUpload(uploadId);
 
 	let preview = '';
 	try {
@@ -234,15 +310,82 @@ async function insertAndUploadImage(file) {
 
 	ed.chain().focus().setImage({ src: preview, uploadId, loading: true }).run();
 
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updateImageNode,
+		'Failed to upload image',
+	);
+}
+
+// The saved content holds an upload only once its node has the file URL.
+// Until then the upload blocks submit and merge, from the moment it starts.
+const editorUploadIds = new Set();
+
+function startUpload(uploadId) {
+	editorUploadIds.add(uploadId);
+	draftStore.setUploadState(uploadId, 'uploading');
+}
+
+async function uploadIntoNode(uploadId, upload, updateNode, errorMessage) {
 	try {
-		const url = await uploadFile(file);
-		updateImageNode(uploadId, { src: url, loading: false, error: null });
+		const url = await upload();
+		if (!editor.value) return;
+		updateNode(uploadId, { src: url, loading: false, error: null });
+		editorUploadIds.delete(uploadId);
+		draftStore.clearUploads([uploadId]);
 	} catch (error) {
-		updateImageNode(uploadId, {
+		if (!editor.value) return;
+		updateNode(uploadId, {
 			loading: false,
-			error: error?.message || 'Failed to upload image',
+			error: error?.message || errorMessage,
 		});
+		draftStore.setUploadState(uploadId, 'failed');
+		forgetRemovedUploads();
 	}
+}
+
+// A failed upload stops blocking once its node is removed from the page.
+function forgetRemovedUploads() {
+	const failed = [...editorUploadIds].filter(
+		(uploadId) => draftStore.uploads.get(uploadId) === 'failed',
+	);
+	if (!failed.length || !editor.value) return;
+	const onPage = new Set();
+	editor.value.state.doc.descendants((node) => {
+		if (node.attrs.uploadId) onPage.add(node.attrs.uploadId);
+	});
+	const removed = failed.filter((uploadId) => !onPage.has(uploadId));
+	for (const uploadId of removed) editorUploadIds.delete(uploadId);
+	draftStore.clearUploads(removed);
+}
+
+/**
+ * Upload base64 images that arrived through a paste and swap in their file
+ * URLs. Until then the nodes are `loading`, so the base64 never serializes.
+ */
+function uploadPastedDataImages(uploads) {
+	for (const { uploadId, src } of uploads) {
+		startUpload(uploadId);
+		uploadIntoNode(
+			uploadId,
+			() => dataUrlToFile(src).then(uploadFile),
+			updateImageNode,
+			'Failed to upload image',
+		);
+	}
+}
+
+// HTML from Google Docs, Notion or web pages can carry `<img src="data:…">`
+// with no file on the clipboard, so handlePaste's file branch never sees it.
+function transformPasted(slice) {
+	const tagged = tagDataImagesInSlice(slice);
+	// The tagged slice is inserted right after this returns; upload once the
+	// nodes are in the doc so updateImageNode can find them.
+	if (tagged.uploads.length) {
+		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
+	}
+	return tagged.slice;
 }
 
 /**
@@ -279,20 +422,18 @@ async function insertAndUploadPdf(file) {
 		.toString(36)
 		.slice(2, 9)}`;
 
+	startUpload(uploadId);
 	ed.chain()
 		.focus()
 		.setPdf({ filename: file.name, uploadId, loading: true })
 		.run();
 
-	try {
-		const url = await uploadFile(file);
-		updatePdfNode(uploadId, { src: url, loading: false, error: null });
-	} catch (error) {
-		updatePdfNode(uploadId, {
-			loading: false,
-			error: error?.message || 'Failed to upload PDF',
-		});
-	}
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updatePdfNode,
+		'Failed to upload PDF',
+	);
 }
 
 /**
@@ -330,11 +471,11 @@ function handlePaste(_view, event) {
 
 	if (text && !html && editor.value?.markdown) {
 		event.preventDefault();
-		editor.value
-			.chain()
-			.focus()
-			.insertContent(text, { contentType: 'markdown' })
-			.run();
+		const { json, uploads } = tagDataImagesInJSON(
+			editor.value.markdown.parse(text),
+		);
+		editor.value.chain().focus().insertContent(json).run();
+		uploadPastedDataImages(uploads);
 		return true;
 	}
 
@@ -421,6 +562,7 @@ function showLinkPopup({ editor: editorInstance, href, isNew, rect }) {
 		render() {
 			return h(LinkPopup, {
 				href: href || '',
+				page: linkedPage(href),
 				isNew,
 				onSave: (newHref) => {
 					editorInstance.chain().focus().setLink({ href: newHref }).run();
@@ -477,15 +619,13 @@ function hideLinkPopup() {
 }
 
 /**
- * Create suggestion configuration for slash commands
+ * A suggestion config whose menu is the `menu` component in a tippy popup. Shared by
+ * the "/" commands and the "[[" page links; `menuProps` adds each menu's own
+ * props from the suggestion's.
  */
-function createSlashCommandsSuggestion() {
+function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 	return {
-		items: ({ query }) => filterCommands(query),
-		// Suggestion dispatches onStart with `initialItems` and only delivers the
-		// real list in a follow-up onUpdate; without this the menu opens on a bare
-		// "/" showing "No commands found" until the first character is typed.
-		initialItems: SLASH_COMMANDS,
+		...suggestion,
 		render: () => {
 			let component;
 			let popup;
@@ -508,9 +648,10 @@ function createSlashCommandsSuggestion() {
 					// Mount synchronously: onUpdate fires right after onStart with the
 					// fetched items, and it skips re-rendering while `component.app` is
 					// null — an async mount here would swallow that first update.
-					const app = createApp(SlashCommandsList, {
+					const app = createApp(menu, {
 						items: props.items,
 						command: props.command,
+						...menuProps(props),
 					});
 					component.app = app;
 					component.vm = app.mount(container);
@@ -554,9 +695,10 @@ function createSlashCommandsSuggestion() {
 					// Re-render with new items
 					if (component?.app) {
 						component.app.unmount();
-						const app = createApp(SlashCommandsList, {
+						const app = createApp(menu, {
 							items: props.items,
 							command: props.command,
+							...menuProps(props),
 						});
 						component.app = app;
 						component.vm = app.mount(component.element);
@@ -609,6 +751,8 @@ function createSlashCommandsSuggestion() {
 // both hook onBeforeUnmount, they run in registration order, and useEditor's
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
+	stopFlushRequests();
+	contentSync.cancel();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
@@ -626,6 +770,7 @@ const editor = useEditor({
 	editable: () => !props.readonly,
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
+		WikiUnderline,
 		WikiParagraph,
 		// Custom link extension with Cmd+K support
 		WikiLink.configure({
@@ -634,12 +779,9 @@ const editor = useEditor({
 				rel: 'noopener noreferrer',
 			},
 			onOpenLinkEditor: showLinkPopup,
+			resolveHref: (href) => linkedPage(href)?.href ?? href,
 		}),
-		Markdown.configure({
-			markedOptions: {
-				breaks: true,
-			},
-		}),
+		wikiMarkdown(),
 		PreserveBlankLines,
 		// Custom image extension with caption support
 		WikiImage.configure({
@@ -674,12 +816,38 @@ const editor = useEditor({
 		VideoBlock.configure({
 			uploadFunction: uploadFile,
 		}),
+		Emoji,
 		// Slash commands
 		SlashCommands.configure({
-			suggestion: createSlashCommandsSuggestion(),
+			suggestion: createSuggestionMenu(
+				{
+					items: ({ query }) => filterCommands(query),
+					// The menu opens with these before the first query runs, so a bare
+					// "/" shows every command instead of "No commands found".
+					initialItems: SLASH_COMMANDS,
+				},
+				SlashCommandsList,
+			),
+		}),
+		PageLinks.configure({
+			suggestion: createSuggestionMenu(
+				{
+					items: ({ query }) =>
+						pickerItems(spacePages(), query, props.documentKey),
+				},
+				PageLinkList,
+				({ query }) => ({ query, spaceName: spaceStore.doc?.space_name }),
+			),
+			findPage: (title) =>
+				findPageByTitle(
+					spacePages().filter((page) => page.key !== props.documentKey),
+					title,
+				),
+			createPage: createPageBesideThis,
 		}),
 	],
 	onUpdate: handleContentChange,
+	onBlur: () => contentSync.flush(),
 });
 
 // useEditor doesn't take editorProps; set them on the created instance.
@@ -687,6 +855,7 @@ editor.value.setOptions({
 	editorProps: {
 		handlePaste,
 		handleDrop,
+		transformPasted,
 	},
 });
 
@@ -719,9 +888,18 @@ function normalizeMarkdown(content) {
 	return canonicalizeMarkdown(editor.value?.markdown, content);
 }
 
-function getMarkdown() {
+const normalizedSavedContent = memoizeLast(normalizeMarkdown);
+
+// Keyed on the doc, not the markdown string: the doc is immutable, and the
+// cache must also skip the serialize step.
+const markdownForDoc = memoizeLast(() => {
 	const markdown = editor.value?.getMarkdown();
 	return markdown === undefined ? undefined : normalizeMarkdown(markdown);
+});
+
+function getMarkdown() {
+	if (!editor.value) return undefined;
+	return markdownForDoc(editor.value.state.doc);
 }
 
 function emitContentChange(options = {}) {
@@ -738,22 +916,26 @@ function emitContentReady() {
 	emit(
 		'content-ready',
 		currentContent,
-		normalizeMarkdown(props.savedContent),
+		normalizedSavedContent(props.savedContent),
 		props.documentKey,
 	);
 }
 
 function handleContentChange() {
+	forgetRemovedUploads();
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
 		autosaveTimer = null;
 	}
+	contentSync.schedule();
+}
 
+function reportContentChange() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
 
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	autosaveTimer = setTimeout(() => {
 		autosaveTimer = null;
@@ -763,6 +945,7 @@ function handleContentChange() {
 
 async function autoSave() {
 	if (!editor.value) return;
+	contentSync.cancel();
 
 	// Notify components to sync their content before we read it
 	document.dispatchEvent(new CustomEvent('wiki-editor-before-save'));
@@ -770,7 +953,7 @@ async function autoSave() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	emitContentChange();
-	if (currentContent === normalizeMarkdown(props.savedContent)) return;
+	if (currentContent === normalizedSavedContent(props.savedContent)) return;
 
 	emit('save', currentContent);
 	document.dispatchEvent(new CustomEvent('wiki-editor-after-save'));
@@ -779,6 +962,7 @@ async function autoSave() {
 function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
+	contentSync.cancel();
 	// Clear any pending autosave
 	if (autosaveTimer) {
 		clearTimeout(autosaveTimer);
@@ -797,7 +981,7 @@ function saveToDB() {
 	const markdown = getMarkdown();
 	if (markdown !== undefined) {
 		emitContentChange();
-		if (markdown !== normalizeMarkdown(props.savedContent)) {
+		if (markdown !== normalizedSavedContent(props.savedContent)) {
 			emit('save', markdown);
 		}
 		// "Save" means all of the user's work, not just this page.
@@ -848,6 +1032,8 @@ onUnmounted(() => {
 		handleSlashImageUploadEvent,
 	);
 	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	// Nodes leave with the editor, so its uploads can no longer reach the page.
+	draftStore.clearUploads(editorUploadIds);
 	// Hide any open link popup
 	hideLinkPopup();
 	// Clean up window reference

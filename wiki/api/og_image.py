@@ -18,6 +18,7 @@ import glob
 import hashlib
 import os
 import re
+import time
 
 import frappe
 from frappe import _
@@ -25,6 +26,7 @@ from frappe.rate_limiter import rate_limit
 from frappe.utils.preview import get_preview_from_html
 from werkzeug.wrappers import Response
 
+from wiki.telemetry import capture, duration_bucket
 from wiki.utils import lucide_svg, space_mark
 
 # Bumped whenever the card template or its token block changes; it is part of
@@ -209,6 +211,11 @@ def _cache_dir() -> str:
 	return path
 
 
+def cached_card_count() -> int:
+	"""How many cards this site holds, for the telemetry scan."""
+	return len(glob.glob(os.path.join(_cache_dir(), "*.jpg")))
+
+
 def _is_safe_doc_key(doc_key: str | None) -> bool:
 	return bool(doc_key) and bool(DOC_KEY_PATTERN.match(doc_key))
 
@@ -307,7 +314,7 @@ def _failure_key(doc_key: str, fingerprint: str) -> str:
 	return frappe.cache().make_key(f"wiki_og_fail:{doc_key}:{fingerprint}")
 
 
-def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str) -> bytes:
+def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, trigger: str) -> bytes:
 	"""Render one card, at most once at a time across the whole bench.
 
 	Chromium is expensive and its cold start is measured in seconds, so a
@@ -324,17 +331,30 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str) ->
 	if not cache.set(lock, b"1", nx=True, ex=LOCK_TTL):
 		raise CardBusy
 
+	started = time.monotonic()
 	try:
 		data = generate_og_bytes(ctx)
+		_write_cached(path, data)
+		_prune_old(doc_key, fingerprint)
 	except Exception:
 		cache.set(_failure_key(doc_key, fingerprint), b"1", ex=FAILURE_TTL)
+		capture(
+			"meta_image_generated",
+			outcome="failed",
+			trigger=trigger,
+			duration_bucket=duration_bucket(time.monotonic() - started),
+		)
 		frappe.log_error("Wiki OG image generation failed")
 		raise CardFailed
 	finally:
 		cache.delete(lock)
 
-	_write_cached(path, data)
-	_prune_old(doc_key, fingerprint)
+	capture(
+		"meta_image_generated",
+		outcome="ok",
+		trigger=trigger,
+		duration_bucket=duration_bucket(time.monotonic() - started),
+	)
 	return data
 
 
@@ -414,7 +434,7 @@ def warm_og_image(name: str) -> None:
 	try:
 		# Same lock and failure keys as the request path, so a worker and a
 		# crawler never both launch Chromium for one card.
-		_generate_and_store(doc.doc_key, _og_context(doc), fingerprint, path)
+		_generate_and_store(doc.doc_key, _og_context(doc), fingerprint, path, trigger="warm")
 	except (CardBusy, CardFailed):
 		# Serving never depends on the warm-up; the request path retries.
 		pass
@@ -451,7 +471,7 @@ def og_image(route: str, v: str | None = None):
 	data = _read_cached(path)
 	if data is None:
 		try:
-			data = _generate_and_store(doc.doc_key, ctx, fp, path)
+			data = _generate_and_store(doc.doc_key, ctx, fp, path, trigger="request")
 		except CardBusy:
 			return _transient_response(503, {"Retry-After": "5"})
 		except CardFailed:

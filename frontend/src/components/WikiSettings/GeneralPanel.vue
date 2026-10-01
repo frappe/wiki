@@ -26,11 +26,14 @@
 				)
 			"
 		/>
+
+		<ViewTrackingToggle />
 	</div>
 </template>
 
 <script setup>
 import SettingToggle from './SettingToggle.vue';
+import ViewTrackingToggle from './ViewTrackingToggle.vue';
 
 defineProps({
 	settings: {

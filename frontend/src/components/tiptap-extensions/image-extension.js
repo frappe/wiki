@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import ImageNodeView from './ImageNodeView.vue';
+import { renderImageMarkdown } from './image-markdown.js';
 import { isPdfUrl } from './pdf-block.js';
 import { isVideoUrl } from './video-block.js';
 
@@ -165,28 +166,7 @@ export const WikiImage = Node.create({
 	// Render to markdown using Stack Overflow caption pattern:
 	// ![alt](src "title")
 	// *caption*
-	renderMarkdown: (node) => {
-		// Skip images still uploading/optimizing — their `src` is a transient
-		// base64 preview that must never be written to saved content. Once the
-		// upload resolves, `loading` clears and the node re-serializes normally.
-		if (node.attrs?.loading) {
-			return '';
-		}
-
-		const src = node.attrs?.src ?? '';
-		const alt = node.attrs?.alt ?? '';
-		const title = node.attrs?.title ?? '';
-		const caption = node.attrs?.caption ?? '';
-
-		let md = title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
-
-		// Add caption on next line (no blank line) if present
-		if (caption) {
-			md += `\n*${caption}*`;
-		}
-
-		return md;
-	},
+	renderMarkdown: renderImageMarkdown,
 
 	addNodeView() {
 		return VueNodeViewRenderer(ImageNodeView);

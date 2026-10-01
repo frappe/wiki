@@ -47,6 +47,8 @@ def slugify(text: str) -> str:
 	return text
 
 
+WIKI_LINK_PREFIX = "wiki:"
+
 # Default titles for each callout type
 DEFAULT_TITLES = {
 	"note": "Note",
@@ -541,6 +543,32 @@ def _build_markdown() -> MarkdownIt:
 		return s + " />"
 
 	md.renderer.rules["image"] = image_render
+
+	def softbreak_render(tokens, idx, options, env):
+		# No <br> before a caption, so the `img + em` caption CSS still matches.
+		image_on_own_line = idx == 1 or (idx > 1 and tokens[idx - 2].type in ("softbreak", "hardbreak"))
+		is_caption = (
+			image_on_own_line
+			and tokens[idx - 1].type == "image"
+			and idx < len(tokens) - 1
+			and tokens[idx + 1].type == "em_open"
+		)
+		return "\n" if is_caption else "<br />\n"
+
+	md.renderer.rules["softbreak"] = softbreak_render
+
+	def link_open_render(tokens, idx, options, env):
+		# An internal link names the page, not its route: `[Label](wiki:<doc_key>)`.
+		# It renders with the key alone, and the reader fills in the page's
+		# current route after the render cache (resolve_wiki_links).
+		tok = tokens[idx]
+		href = tok.attrGet("href") or ""
+		doc_key = href[len(WIKI_LINK_PREFIX) :]
+		if href.startswith(WIKI_LINK_PREFIX) and re.fullmatch(r"\w+", doc_key):
+			tok.attrs = {"data-wiki-link": doc_key, **{k: v for k, v in tok.attrs.items() if k != "href"}}
+		return md.renderer.renderToken(tokens, idx, options, env)
+
+	md.renderer.rules["link_open"] = link_open_render
 
 	# after("block"): tokens and their line maps exist, `state.src` is already
 	# normalized (CRLF collapsed, so it lines up with the maps), and we still run

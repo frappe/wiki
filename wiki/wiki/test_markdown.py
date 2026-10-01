@@ -166,6 +166,23 @@ class TestImageCaptionSupport(unittest.TestCase):
 		self.assertNotIn("<figure", result)
 		self.assertNotIn("<figcaption", result)
 
+	def test_caption_is_the_next_sibling_of_the_image(self):
+		"""The caption CSS is `img + em`, so no <br> may sit between them."""
+		result = render_markdown("![Alt](/files/test.jpg)\n*Caption*")
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+
+	def test_caption_after_image_on_its_own_line_inside_a_paragraph(self):
+		result = render_markdown("Some text\n![Alt](/files/test.jpg)\n*Caption*")
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+
+	def test_inline_image_does_not_turn_the_next_line_into_a_caption(self):
+		result = render_markdown("Click ![icon](/files/icon.png)\n*then save*")
+		self.assertIn('<img src="/files/icon.png" alt="icon" /><br />', result)
+
+	def test_soft_break_after_image_still_breaks_before_plain_text(self):
+		result = render_markdown("![Alt](/files/test.jpg)\nnot a caption")
+		self.assertIn("<br />", result)
+
 	def test_image_without_caption(self):
 		"""Test that images without caption render as simple img tags."""
 		result = render_markdown("![](/files/test.jpg)")
@@ -597,6 +614,30 @@ class TestTableRendering(unittest.TestCase):
 		result = render_markdown(content)
 		self.assertIn("<table>", result)
 		self.assertIn("<code>dict[int, dict | list]</code>", result)
+
+
+class TestInternalLinkRendering(unittest.TestCase):
+	"""`[Label](wiki:<doc_key>)` renders with the key, for the reader to resolve."""
+
+	def test_internal_link_carries_the_key_not_an_href(self):
+		self.assertEqual(
+			render_markdown("See [Setup](wiki:a1b2c3d4e5f6)."),
+			'<p>See <a data-wiki-link="a1b2c3d4e5f6">Setup</a>.</p>\n',
+		)
+
+	def test_internal_link_keeps_its_title(self):
+		self.assertIn(
+			'<a data-wiki-link="a1b2" title="Guide">Setup</a>',
+			render_markdown('[Setup](wiki:a1b2 "Guide")'),
+		)
+
+	def test_external_links_are_untouched(self):
+		self.assertIn(
+			'<a href="https://wiki.example.com">x</a>', render_markdown("[x](https://wiki.example.com)")
+		)
+
+	def test_malformed_key_stays_a_plain_link(self):
+		self.assertIn('href="wiki:a%20b"', render_markdown("[x](<wiki:a b>)"))
 
 
 class TestTaskListRendering(unittest.TestCase):

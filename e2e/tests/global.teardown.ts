@@ -29,3 +29,23 @@ teardown('sweep leftover e2e spaces', async ({ request }) => {
 		}
 	}
 });
+
+/**
+ * Sweep the throwaway users specs sign in as. They seed `e2e-*@example.com`
+ * accounts and never delete them, so every run would otherwise add more.
+ */
+teardown('sweep e2e users', async ({ request }) => {
+	const users = await getList<{ name: string }>(request, 'User', {
+		fields: ['name'],
+		filters: { name: ['like', 'e2e-%@example.com'] },
+		limit: 0,
+	}).catch(() => []);
+
+	for (const user of users) {
+		try {
+			await deleteDoc(request, 'User', user.name);
+		} catch (error) {
+			console.warn(`failed to sweep user ${user.name}:`, error);
+		}
+	}
+});

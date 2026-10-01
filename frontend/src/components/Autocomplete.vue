@@ -58,7 +58,7 @@
             v-for="(opt, i) in displayedOptions"
             :key="opt.value"
             type="button"
-            class="flex w-full items-center px-3 py-1.5 text-left text-base text-ink-gray-8 hover:bg-surface-gray-2"
+            class="flex w-full items-center px-3 py-1.5 text-left text-base leading-tighter text-ink-gray-8 hover:bg-surface-gray-2"
             :class="{ 'bg-surface-gray-2': i === highlighted }"
             @mousedown.prevent="select(opt)"
             @mousemove="highlighted = i"

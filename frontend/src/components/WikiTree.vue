@@ -2,6 +2,7 @@
 	<Tree
 		class="wiki-tree"
 		:nodes="treeNodes"
+		v-model:expanded="expandedKeys"
 		node-key="doc_key"
 		guides="none"
 		:draggable="!readonly && !searchActive"
@@ -178,24 +179,32 @@ function toggleExpanded(name) {
 	expandedNodes.value[name] = !expandedNodes.value[name];
 }
 
-// Tree reads/writes each node's `expanded` field and mutates node order is
-// left to us via @drag-end, so we hand it a derived copy of the store tree:
-// `label` feeds the drag ghost + keyboard typeahead, `expanded` is resolved
-// from the persisted map. Held in a ref so the
-// copies are reactive and Tree's own keyboard toggles still render.
+// Tree takes the open set as keys and never writes to the nodes we hand it.
+// Ours is persisted as a map, so adapt both ways rather than migrate what is
+// already in everyone's localStorage.
+const expandedKeys = computed({
+	get: () =>
+		Object.keys(expandedNodes.value).filter((key) => expandedNodes.value[key]),
+	set: (keys) => {
+		expandedNodes.value = Object.fromEntries(keys.map((key) => [key, true]));
+	},
+});
+
+// Node order is left to us via @drag-end, so we hand Tree a derived copy of
+// the store tree: `label` feeds the drag ghost and keyboard typeahead. Held in
+// a ref so the copies stay reactive.
 const treeNodes = ref([]);
 
 function mapNodes(nodes) {
 	return (nodes || []).map((node) => ({
 		...node,
 		label: node.title,
-		expanded: isNodeExpanded(node.doc_key),
 		children: node.children?.length ? mapNodes(node.children) : undefined,
 	}));
 }
 
 watch(
-	[() => props.items, expandedNodes],
+	() => props.items,
 	() => {
 		treeNodes.value = mapNodes(props.items);
 	},

@@ -129,11 +129,25 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		else draftPersistTimers.set(key, setTimeout(persist, 500));
 	}
 
+	// Uploads the saved content does not hold yet, by upload id: 'uploading',
+	// or 'failed' while the failed node is still on screen. Either serializes
+	// to nothing, so finalizing now would save the page without it.
+	const uploads = reactive(new Map());
+	function setUploadState(uploadId, state) {
+		uploads.set(uploadId, state);
+	}
+	function clearUploads(uploadIds) {
+		for (const uploadId of uploadIds) uploads.delete(uploadId);
+	}
+	const uploadStates = computed(() => new Set(uploads.values()));
+
 	const finalizationBlocker = computed(() => {
 		if (transport.sync.conflict) return 'conflict';
 		if (queue.hasFailedMutations.value || transport.sync.status === 'failed') {
 			return 'failed';
 		}
+		if (uploadStates.value.has('uploading')) return 'uploading';
+		if (uploadStates.value.has('failed')) return 'upload-failed';
 		if (queue.hasPendingMutations.value || transport.sync.status === 'saving') {
 			return 'pending';
 		}
@@ -1014,6 +1028,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasFailedMutations: queue.hasFailedMutations,
 		hasUnsavedEditorContent: pageBuffers.hasUnsavedEditorContent,
 		finalizationBlocker,
+		uploads,
+		setUploadState,
+		clearUploads,
 		// actions
 		hydrate,
 		reloadTree,

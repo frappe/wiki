@@ -11,6 +11,9 @@
     </title>
 
     {% include "templates/includes/meta_block.html" %}
+    {% if disable_indexing %}
+    <meta name="robots" content="noindex" data-page-robots>
+    {% endif %}
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">
     <link rel="alternate" type="text/markdown" href="{{ canonical_url }}.md">
@@ -120,6 +123,7 @@
     <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
     <script src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
     <script defer src="/assets/wiki/js/mermaid-renderer.js?v={{ get_asset_hash('public/js/mermaid-renderer.js') }}"></script>
+    {% if enable_view_tracking %}{% include "templates/wiki/includes/page_view.html" %}{% endif %}
 </body>
 {% block scripts %} {% endblock %}
 </html>

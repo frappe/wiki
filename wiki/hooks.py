@@ -147,11 +147,16 @@ default_log_clearing_doctypes = {
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"cron": {
-# 		"*/15 * * * *": ["wiki.wiki.doctype.wiki_page.search.build_index_in_background"],
-# 	},
-# }
+scheduler_events = {
+	"cron": {
+		"*/10 * * * *": [
+			"wiki.analytics_store.ingest_recent_views",
+		],
+	},
+	"daily": [
+		"wiki.telemetry_scan.send_site_profile",
+	],
+}
 
 # scheduler_events = {
 # 	"all": [
