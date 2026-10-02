@@ -66,5 +66,9 @@ The caption keeps the existing `*caption*` line, so caption parsing and styling 
   - The menu shows only in the editor. `WikiContentViewer` passes no `uploadImage`, so it has no menu.
   - "Replace image" sets the light file and clears the dark one, so one file serves both modes.
   - Fixed along the way: a selected image drew two outlines, and the ring used an undefined `--primary`, so it was invisible in dark mode. It now uses `--ink-gray-9`.
-- [ ] Phase 3
+- [x] Phase 3
+  - markdown-it reads `<picture>` as a raw HTML block that runs to the next blank line, so the `*caption*` line was swallowed into it and showed as literal asterisks. A custom `html_block` renderer matches the exact shape the editor writes and emits `<p><picture>…</picture>\n<em>caption</em></p>`, the same shape as a plain image with a caption. Any other HTML block passes through unchanged, and a `<picture>` inside a code fence stays code.
+  - Tailwind Typography puts the image margins on `picture`, not on the `img` inside it, so the caption rule is `picture:has(+ em)`.
+  - `image-viewer.js` opens `currentSrc`, so zooming a dark image shows the dark file.
+  - The theme sync script also reruns when SPA navigation swaps `#wiki-content`.
 - [ ] Phase 4

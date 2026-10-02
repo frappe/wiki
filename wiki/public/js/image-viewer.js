@@ -9,7 +9,8 @@
       img.dataset.viewerBound = "true";
       img.style.cursor = "zoom-in";
       img.addEventListener("click", () => {
-        viewerImg.src = img.src;
+        // currentSrc is the dark file when a <picture> is showing it.
+        viewerImg.src = img.currentSrc || img.src;
         viewerImg.alt = img.alt || "";
         viewer.classList.add("active");
         document.body.classList.add("image-viewer-open");

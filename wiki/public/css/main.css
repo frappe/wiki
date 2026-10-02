@@ -388,12 +388,16 @@ body.image-viewer-open {
    ![alt text](image.jpg)
    *caption text*
    (no blank line between image and caption)
+   An image with a dark mode file renders as <picture>, which takes the
+   image's place before the caption.
 */
-.prose img:has(+ em) {
+.prose img:has(+ em),
+.prose picture:has(+ em) {
   margin-bottom: 0;
 }
 
-.prose img + em {
+.prose img + em,
+.prose picture + em {
   display: block;
   margin-top: 0.25rem;
   margin-bottom: 1rem;

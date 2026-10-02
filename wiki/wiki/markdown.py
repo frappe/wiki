@@ -487,6 +487,16 @@ def _render_blank_line(tokens, idx, options, env) -> str:
 	return '<p class="wiki-blank-line" aria-hidden="true"><br></p>\n'
 
 
+# The exact `<picture>` the editor writes for an image with a dark mode file,
+# plus its optional `*caption*` line. markdown-it reads it as one raw HTML block,
+# caption included, so the caption would otherwise show as literal asterisks.
+PICTURE_BLOCK_PATTERN = re.compile(
+	r'<picture>\s*<source srcset="(?P<dark_src>[^"]*)" media="\(prefers-color-scheme: dark\)">\s*'
+	r'<img src="(?P<src>[^"]*)" alt="(?P<alt>[^"]*)"(?: title="(?P<title>[^"]*)")?\s*/?>\s*</picture>'
+	r"(?:\n\*(?P<caption>[^*\n]+)\*)?\s*"
+)
+
+
 def _build_markdown() -> MarkdownIt:
 	"""Build a configured markdown-it-py instance with our render overrides."""
 	md = (
@@ -543,6 +553,24 @@ def _build_markdown() -> MarkdownIt:
 		return s + " />"
 
 	md.renderer.rules["image"] = image_render
+
+	def html_block_render(tokens, idx, options, env):
+		match = PICTURE_BLOCK_PATTERN.fullmatch(tokens[idx].content)
+		if not match:
+			return tokens[idx].content
+		# Same shape as a plain image with a caption, so the caption CSS is shared.
+		alt = _remove_script_tags(match["alt"])
+		title = _remove_script_tags(match["title"])
+		title_attr = f' title="{title}"' if title else ""
+		caption = match["caption"]
+		caption_html = f"\n<em>{md.renderInline(caption)}</em>" if caption else ""
+		return (
+			f'<p><picture><source srcset="{match["dark_src"]}" media="(prefers-color-scheme: dark)">'
+			f'<img src="{match["src"]}" alt="{alt}"{title_attr} /></picture>'
+			f"{caption_html}</p>\n"
+		)
+
+	md.renderer.rules["html_block"] = html_block_render
 
 	def softbreak_render(tokens, idx, options, env):
 		# No <br> before a caption, so the `img + em` caption CSS still matches.
