@@ -3,6 +3,8 @@
 
 import glob
 import os
+import time
+from threading import Barrier, Thread
 from unittest.mock import patch
 
 import frappe
@@ -23,6 +25,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_change_request,
 	get_cr_page,
 	get_cr_tree,
+	get_draft_workspace,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
 	has_revision_changes,
@@ -1139,10 +1142,12 @@ class TestWikiChangeRequest(FrappeTestCase):
 		current_main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
 		self.assertEqual(current_main, cr_doc.merge_revision)
 
-	def test_stale_empty_draft_is_rebased(self):
+	def test_first_edit_does_not_rebase_an_existing_draft(self):
+		# Another tab may hold typing made against the draft's current base.
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A", content="v1")
 		cr = create_change_request(space.name, "Stale Draft")
+		old_base = cr.base_revision
 
 		new_main = create_revision_from_live_tree(space.name, message="advance main")
 		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
@@ -1150,10 +1155,119 @@ class TestWikiChangeRequest(FrappeTestCase):
 		result = get_or_create_draft_change_request(space.name)
 
 		self.assertEqual(result.get("name"), cr.name)
-		cr.reload()
-		self.assertEqual(cr.status, "Draft")
-		self.assertEqual(cr.base_revision, new_main.name)
-		self.assertEqual(cr.outdated, 0)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"), old_base)
+
+	def test_first_edit_draft_starts_on_the_loaded_revision(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		loaded = get_draft_workspace(space.name)["main_revision"]
+
+		page.content = "main-change"
+		page.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		cr = get_or_create_draft_change_request(space.name, base_revision=loaded)["name"]
+		update_cr_page(cr, page_key, {"content": "v1 typed"})
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr, "base_revision"), loaded)
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr)
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "content"), "main-change")
+
+	def test_first_edit_draft_refuses_a_revision_from_elsewhere(self):
+		space = create_test_wiki_space()
+		other = create_test_wiki_space()
+		foreign = get_draft_workspace(other.name)["main_revision"]
+		overlay = create_change_request(space.name, "Overlay").head_revision
+
+		for revision in (foreign, overlay):
+			with self.assertRaisesRegex(frappe.ValidationError, "published revision"):
+				create_change_request(space.name, "Bad base", base_revision=revision)
+
+	def test_draft_with_unsaved_typing_on_a_page_main_changed_is_not_rebased(self):
+		space = create_test_wiki_space()
+		page_a = create_test_wiki_document(space.root_group, title="Page A", content="alpha")
+		page_b = create_test_wiki_document(space.root_group, title="Page B", content="beta")
+		key_a = frappe.get_value("Wiki Document", page_a.name, "doc_key")
+		key_b = frappe.get_value("Wiki Document", page_b.name, "doc_key")
+		cr = create_change_request(space.name, "Draft")
+		update_cr_page(cr.name, key_b, {"content": "beta draft"})
+
+		page_a.content = "alpha main"
+		page_a.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		get_draft_workspace(space.name, unsaved_doc_keys=[key_a])
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"), cr.base_revision
+		)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "outdated"), 1)
+
+		get_draft_workspace(space.name)
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, "base_revision"),
+			frappe.db.get_value("Wiki Space", space.name, "main_revision"),
+		)
+
+	def test_get_draft_workspace_does_not_create_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertIsNone(workspace["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name}))
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		self.assertEqual([node["doc_key"] for node in workspace["tree"]["children"]], [page_key])
+
+	def test_get_draft_workspace_reuses_main_revision_seeded_by_another_tab(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		get_draft_workspace(space.name)
+		seeded = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		revisions = frappe.db.count("Wiki Revision", {"wiki_space": space.name})
+		get_value = frappe.db.get_value
+
+		def stale_snapshot(doctype, filters, fieldname, *args, **kwargs):
+			if doctype == "Wiki Space" and fieldname == "main_revision" and not kwargs.get("for_update"):
+				return None
+			return get_value(doctype, filters, fieldname, *args, **kwargs)
+
+		with patch.object(frappe.db, "get_value", side_effect=stale_snapshot):
+			get_draft_workspace(space.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "main_revision"), seeded)
+		self.assertEqual(frappe.db.count("Wiki Revision", {"wiki_space": space.name}), revisions)
+
+	def test_get_draft_workspace_returns_open_draft(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "Open Draft")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"title": "Page A edited"})
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertEqual(workspace["change_request"]["name"], cr.name)
+		self.assertEqual(workspace["tree"]["children"][0]["title"], "Page A edited")
+
+	def test_get_draft_workspace_rebases_outdated_draft(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "Stale Draft")
+		new_main = create_revision_from_live_tree(space.name, message="advance main")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		workspace = get_draft_workspace(space.name)
+
+		self.assertEqual(workspace["change_request"]["name"], cr.name)
+		self.assertEqual(workspace["change_request"]["base_revision"], new_main.name)
+		self.assertEqual(frappe.db.count("Wiki Change Request", {"wiki_space": space.name}), 1)
 
 	def test_draft_opened_during_review_shows_merged_change(self):
 		space = create_test_wiki_space()
@@ -1171,7 +1285,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		update_cr_page(second, key_b, {"content": "beta draft"})
 		_approve_and_merge(first)
 
-		self.assertEqual(get_or_create_draft_change_request(space.name)["name"], second)
+		self.assertEqual(get_draft_workspace(space.name)["change_request"]["name"], second)
 		self.assertEqual(get_cr_page(second, key_a)["content"], "alpha merged")
 		self.assertEqual(get_cr_page(second, key_b)["content"], "beta draft")
 		self.assertEqual([c["doc_key"] for c in diff_change_request(second)], [key_b])
@@ -1191,7 +1305,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
 		_approve_and_merge(first)
 
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		second_doc = frappe.get_doc("Wiki Change Request", second)
 		self.assertEqual(second_doc.base_revision, old_base)
@@ -1212,7 +1326,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
 		_approve_and_merge(first)
 
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", second, "base_revision"), old_base)
 
@@ -1228,7 +1342,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		second = get_or_create_draft_change_request(space.name)["name"]
 		create_cr_page(second, group_key, "Child", "child")
 		_approve_and_merge(first)
-		get_or_create_draft_change_request(space.name)
+		get_draft_workspace(space.name)
 
 		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
 			_approve_and_merge(second)
@@ -2932,3 +3046,47 @@ class TestDeferredRevisionSync(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(self.space_revisions(), before + 1, "the commit should take exactly one snapshot")
 		self.assertFalse(_pending_revision_spaces())
+
+
+class TestDraftCreationConcurrency(WikiFixtureMixin, FrappeTestCase):
+	def test_two_first_edits_at_once_open_one_draft(self):
+		"""Two tabs of one user making their first edit together share one draft."""
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		module = "wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request"
+		real_create = create_change_request
+
+		def slow_create(*args, **kwargs):
+			# Widen the window between looking for a draft and inserting one.
+			time.sleep(0.5)
+			return real_create(*args, **kwargs)
+
+		site = frappe.local.site
+		user = frappe.session.user
+		start = Barrier(2)
+		names, errors = [], []
+
+		def first_edit():
+			frappe.init(site)
+			frappe.connect()
+			try:
+				frappe.set_user(user)
+				start.wait()
+				names.append(get_or_create_draft_change_request(space.name)["name"])
+				frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+			except Exception as error:
+				errors.append(error)
+			finally:
+				frappe.destroy()
+
+		with patch(f"{module}.create_change_request", side_effect=slow_create):
+			tabs = [Thread(target=first_edit) for _ in range(2)]
+			for tab in tabs:
+				tab.start()
+			for tab in tabs:
+				tab.join()
+
+		self.assertEqual(errors, [])
+		self.assertEqual(len(set(names)), 1)
+		self.assertEqual(frappe.db.count("Wiki Change Request", {"wiki_space": space.name}), 1)

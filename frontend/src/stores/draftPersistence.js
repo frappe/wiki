@@ -61,6 +61,24 @@ export async function clearDraftsForCr(crName) {
 	}
 }
 
+// Doc keys with persisted drafts under any CR. Read before we know which CR
+// the space opens on, so the server does not rebase a draft under them.
+export async function listDraftDocKeys() {
+	try {
+		const allKeys = await keys(wikiDraftStore);
+		return [
+			...new Set(
+				allKeys
+					.filter((k) => typeof k === 'string' && k.startsWith(PREFIX))
+					.map((k) => k.slice(k.indexOf(':', PREFIX.length) + 1)),
+			),
+		];
+	} catch (err) {
+		console.warn('[draftPersistence] listDraftDocKeys failed', err);
+		return [];
+	}
+}
+
 // Read every persisted draft for the given CR. Returns an array of
 // `{ docKey, content, title, savedAt }`. Used by `hydrate` to restore
 // dirty editor state after a refresh.

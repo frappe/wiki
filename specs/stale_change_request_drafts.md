@@ -100,3 +100,8 @@ checks the review page lists conflicts from a merge started elsewhere.
   `_can_rebase` over 776 real outdated drafts takes 46 ms. 732 of those 776
   would rebase. The browser flow passes on the 952-page space, and the e2e
   spec passes on this site too.
+- 2026-09-26: typing kept in IndexedDB is not in the overlay, so the rebase on
+  reload moved the draft under it and the typing was saved over main's newer
+  text. `get_draft_workspace` now takes `unsaved_doc_keys` (every doc key with
+  a persisted draft) and treats them as touched. Unit test and e2e test fail
+  with it reverted.
