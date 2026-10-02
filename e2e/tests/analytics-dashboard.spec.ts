@@ -220,7 +220,7 @@ test.describe('Analytics dashboard', () => {
 			timeout: 15000,
 		});
 		const viewsLink = page.getByTestId('page-views-link');
-		await expect(viewsLink).toHaveText('42 views in 30 days');
+		await expect(viewsLink).toHaveText('42 views in last 30 days');
 		// The meta line asks for the total alone, not the full dashboard numbers.
 		expect(requests).toHaveLength(0);
 		await viewsLink.click();

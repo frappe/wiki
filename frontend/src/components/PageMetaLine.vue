@@ -62,8 +62,8 @@ const parts = computed(() => {
 	if (typeof views === 'number') {
 		const label =
 			views === 1
-				? __('1 view in 30 days')
-				: __('{0} views in 30 days', [views.toLocaleString()]);
+				? __('1 view in last 30 days')
+				: __('{0} views in last 30 days', [views.toLocaleString()]);
 		result.push({ key: 'views', label });
 	}
 	if (props.doc.modified) {
