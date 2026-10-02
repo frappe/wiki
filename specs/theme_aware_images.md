@@ -71,4 +71,7 @@ The caption keeps the existing `*caption*` line, so caption parsing and styling 
   - Tailwind Typography puts the image margins on `picture`, not on the `img` inside it, so the caption rule is `picture:has(+ em)`.
   - `image-viewer.js` opens `currentSrc`, so zooming a dark image shows the dark file.
   - The theme sync script also reruns when SPA navigation swaps `#wiki-content`.
-- [ ] Phase 4
+- [x] Phase 4
+  - `e2e/tests/theme-aware-images.spec.ts`: an author uploads an image, adds a dark version through the menu (the real file chooser), adds a caption and publishes. The reader page shows the light file in a light wiki on a dark OS, the dark file after the theme toggle, the caption under the `<picture>`, and the dark file in the zoom viewer. A second test removes the dark version and checks the markdown goes back to `![](...)`.
+  - With the theme sync script disabled, the reader test fails because a dark OS picks the dark file.
+  - `makeUniquePng` moved from `webp-conversion.spec.ts` to `e2e/helpers/png.ts` and takes a colour, so both specs share it.
