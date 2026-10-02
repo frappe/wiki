@@ -61,6 +61,10 @@ The caption keeps the existing `*caption*` line, so caption parsing and styling 
   - `darkSrc` round-trips through HTML as `data-dark-src`, so copy and paste inside the editor keeps it.
   - The `srcset` value gets spaces and commas percent-encoded, because `srcset` splits on both.
   - Only a `<picture>` with exactly one dark `<source>` and one `<img>` becomes an image. Any other `<picture>` falls to the editor's generic HTML handling, which escapes it. That escaping is existing behavior for all raw HTML blocks.
-- [ ] Phase 2
+- [x] Phase 2
+  - `WikiEditor` passes `uploadImage` to the image extension. It reuses `uploadFile` and blocks submit while it runs. The node keeps its current file until the new URL arrives, so a failed upload leaves the image as it was.
+  - The menu shows only in the editor. `WikiContentViewer` passes no `uploadImage`, so it has no menu.
+  - "Replace image" sets the light file and clears the dark one, so one file serves both modes.
+  - Fixed along the way: a selected image drew two outlines, and the ring used an undefined `--primary`, so it was invisible in dark mode. It now uses `--ink-gray-9`.
 - [ ] Phase 3
 - [ ] Phase 4

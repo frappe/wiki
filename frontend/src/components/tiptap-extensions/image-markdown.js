@@ -117,11 +117,12 @@ export function renderImageMarkdown(node) {
 	const title = node.attrs?.title ?? '';
 	const caption = (node.attrs?.caption ?? '').trim();
 
-	let md = darkSrc
-		? renderPicture({ src, darkSrc, alt, title })
-		: title
-		  ? `![${alt}](${src} "${title}")`
-		  : `![${alt}](${src})`;
+	let md = `![${alt}](${src})`;
+	if (darkSrc) {
+		md = renderPicture({ src, darkSrc, alt, title });
+	} else if (title) {
+		md = `![${alt}](${src} "${title}")`;
+	}
 
 	// Add caption on next line (no blank line) if present
 	if (caption) {

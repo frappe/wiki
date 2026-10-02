@@ -38,6 +38,7 @@ export const WikiImage = Node.create({
 			inline: false,
 			allowBase64: true,
 			HTMLAttributes: {},
+			uploadImage: null,
 		};
 	},
 
