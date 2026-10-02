@@ -24,8 +24,11 @@
 <script setup>
 import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import { countWords, readingMinutes } from '@/lib/readingStats';
+import { useDocumentVisibility, useIntervalFn } from '@vueuse/core';
 import { createResource, dayjsLocal } from 'frappe-ui';
 import { computed } from 'vue';
+
+const INGEST_INTERVAL_MS = 10 * 60 * 1000;
 
 const props = defineProps({
 	doc: {
@@ -51,6 +54,11 @@ const recentViews = createResource({
 	cache: ['page-views', docName],
 	auto: true,
 });
+
+const visibility = useDocumentVisibility();
+useIntervalFn(() => {
+	if (visibility.value === 'visible') recentViews.reload();
+}, INGEST_INTERVAL_MS);
 
 const parts = computed(() => {
 	const result = [];

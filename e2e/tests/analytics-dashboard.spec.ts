@@ -203,6 +203,31 @@ test.describe('Analytics dashboard', () => {
 		expect(requests.at(-1)).toMatchObject({ space: space.name });
 	});
 
+	test("the page's meta line refreshes its count while the page stays open", async ({
+		page,
+	}) => {
+		await page.clock.install();
+		let views = 42;
+		await page.route(
+			'**/api/method/wiki.api.analytics.get_page_views',
+			(route) =>
+				route.fulfill({
+					contentType: 'application/json',
+					body: JSON.stringify({ message: views }),
+				}),
+		);
+
+		await page.goto(space.url('page', space.page('Beta').name));
+		const viewsLink = page.getByTestId('page-views-link');
+		await expect(viewsLink).toHaveText('42 views in last 30 days', {
+			timeout: 15000,
+		});
+
+		views = 43;
+		await page.clock.runFor('10:00');
+		await expect(viewsLink).toHaveText('43 views in last 30 days');
+	});
+
 	test("the page's meta line opens its analytics", async ({ page }) => {
 		const requests = await stubAnalytics(page, space);
 		const beta = space.page('Beta');
