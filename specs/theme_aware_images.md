@@ -56,7 +56,11 @@ The caption keeps the existing `*caption*` line, so caption parsing and styling 
 
 ## Progress
 
-- [ ] Phase 1
+- [x] Phase 1
+  - Tokenizer and serializer live in `image-markdown.js` so `node --test` can load them. `isVideoUrl` and `isPdfUrl` moved to `media-urls.js` for the same reason.
+  - `darkSrc` round-trips through HTML as `data-dark-src`, so copy and paste inside the editor keeps it.
+  - The `srcset` value gets spaces and commas percent-encoded, because `srcset` splits on both.
+  - Only a `<picture>` with exactly one dark `<source>` and one `<img>` becomes an image. Any other `<picture>` falls to the editor's generic HTML handling, which escapes it. That escaping is existing behavior for all raw HTML blocks.
 - [ ] Phase 2
 - [ ] Phase 3
 - [ ] Phase 4
