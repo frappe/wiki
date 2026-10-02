@@ -91,6 +91,7 @@
 										/>
 									</div>
 								</div>
+								<PageMetaLine :key="wikiDoc.doc.name" :doc="wikiDoc.doc" :title="displayTitle" :content="editorContent" />
 							</div>
 						</template>
 					</WikiEditor>
@@ -224,6 +225,7 @@ import {
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRecentPages } from '../composables/useRecentPages';
+import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
