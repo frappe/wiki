@@ -1084,7 +1084,8 @@ def download_pdf(route: str):
 	finally:
 		frappe.local.flags.ignore_print_permissions = False
 
-	frappe.local.response.filename = f"{doc.slug or doc.name}.pdf"
+	# Named after the URL the reader downloaded from. The slug can lag behind a route edited since.
+	frappe.local.response.filename = f"{route.rsplit('/', 1)[-1]}.pdf"
 	frappe.local.response.filecontent = pdf_file
 	frappe.local.response.content_type = "application/pdf"
 	frappe.local.response.type = "download"

@@ -113,7 +113,6 @@
 					:doc-key="wikiDoc.doc?.doc_key"
 					:readonly="readonly"
 					:title="displayTitle"
-					:slug="displaySlug"
 					:route="displayRoute"
 					:published="displayPublished"
 					:content="editorContent"
@@ -431,12 +430,6 @@ const {
 	close: closePageSettings,
 	toggle: togglePageSettings,
 } = usePageSettingsPanel();
-
-// Slug has no draft buffer — nothing but the settings panel edits it — so the
-// CR overlay is the newest copy until the request merges.
-const displaySlug = computed(
-	() => currentCrPage.value?.slug || wikiDoc.value.doc?.slug || '',
-);
 
 const spaceTree = inject(SPACE_TREE_KEY, null);
 

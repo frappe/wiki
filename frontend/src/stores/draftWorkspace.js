@@ -700,8 +700,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						fields,
 					},
 				]);
-				// Pick up server-recomputed metadata (notably route, when
-				// title/slug changed and the caller didn't pin a route).
+				// Pick up the server's copy of the route and title: it
+				// sanitizes a route the caller pinned.
 				const item = (result?.items || []).find((it) => it.doc_key === realKey);
 				if (item) {
 					const fresh =

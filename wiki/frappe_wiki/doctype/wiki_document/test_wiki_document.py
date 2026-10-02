@@ -1960,6 +1960,25 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertEqual(frappe.local.response.filecontent, b"%PDF-test%")
 		self.assertEqual(frappe.local.response.filename, "downloadable-page.pdf")
 
+	def test_download_pdf_is_named_after_the_route_not_a_stale_slug(self):
+		root_group = create_test_wiki_document(self, "Root PDF Renamed", is_group=True)
+		page = create_test_wiki_document(
+			self, "Renamed Page", parent=root_group.name, content="Body", slug="old-slug"
+		)
+		create_test_wiki_space(
+			self, "PDF Renamed Space", "pdf-renamed-space", root_group.name, roles=[("Guest", "Read")]
+		)
+		page.db_set("route", "pdf-renamed-space/new-route")
+		frappe.local.response = frappe._dict()
+
+		with patch(
+			"wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_print",
+			return_value=b"%PDF-test%",
+		):
+			download_pdf(route="pdf-renamed-space/new-route")
+
+		self.assertEqual(frappe.local.response.filename, "new-route.pdf")
+
 	def test_download_pdf_blocks_private_page_for_guest(self):
 		# A space with no role rows is open to logged-in users only; an anonymous
 		# Guest is denied and gets a 404 (existence is not leaked).
