@@ -25,8 +25,8 @@
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
 			<div class="flex flex-col gap-6">
-				<!-- On a git-synced page the repo owns the title, the slug, the
-				     route and whether the page ships: the next sync rewrites
+				<!-- On a git-synced page the repo owns the title, the route
+				     and whether the page ships: the next sync rewrites
 				     anything typed here. The social preview below is wiki-side
 				     data the repo never carries, so it stays editable. -->
 				<section class="flex flex-col gap-3">
@@ -41,13 +41,6 @@
 						type="text"
 						:label="__('Title')"
 						:placeholder="__('Untitled')"
-						:disabled="readonly"
-					/>
-					<FormControl
-						v-model="form.slug"
-						type="text"
-						:label="__('Slug')"
-						:placeholder="__('page-slug')"
 						:disabled="readonly"
 					/>
 					<FormControl
@@ -317,10 +310,6 @@ const props = defineProps({
 		type: String,
 		default: '',
 	},
-	slug: {
-		type: String,
-		default: '',
-	},
 	route: {
 		type: String,
 		default: '',
@@ -361,7 +350,6 @@ const imageInput = ref(null);
 
 const form = reactive({
 	title: '',
-	slug: '',
 	route: '',
 	isPublished: false,
 	metaTitle: '',
@@ -374,7 +362,6 @@ const form = reactive({
 // a set of live controls, so nothing lands until Save.
 const saved = computed(() => ({
 	title: props.title || '',
-	slug: props.slug || '',
 	route: props.route || '',
 	isPublished: Boolean(props.published),
 	metaTitle: props.docResource.doc?.meta_title || '',
@@ -529,9 +516,6 @@ function nodeChanges() {
 	const current = saved.value;
 	if (form.title.trim() && form.title !== current.title) {
 		changes.title = form.title.trim();
-	}
-	if (form.slug.trim() && form.slug !== current.slug) {
-		changes.slug = form.slug.trim();
 	}
 	const route = form.route.trim().replace(/^\/+/, '');
 	if (route && route !== current.route) changes.route = route;
