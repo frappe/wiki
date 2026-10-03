@@ -6,10 +6,10 @@
 {# Page Actions Dropdown - Split button with Edit action and dropdown for more options
    Usage:
    {{ page_actions_dropdown(edit_href="/edit/page") }}
-       {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown()") }}
+       {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown()") }}
    {{ dropdown_end() }}
 #}
-{% macro page_actions_dropdown(edit_href="", edit_text="Edit", show_edit=True, edit_external=False) %}
+{% macro page_actions_dropdown(edit_href="", edit_text=_("Edit"), show_edit=True, edit_external=False) %}
     {#- Split button: two frappe-ui gray-outline Buttons (size md) sharing one
         border box, so the pair matches Button's h-8 / rounded-4 / colour
         recipe while still reading as a single control. -#}
@@ -33,12 +33,12 @@
                 <template x-if="copied">
                     {{ render_icon("check", "w-4 h-4 text-[var(--ink-green-7)]") }}
                 </template>
-                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
             </button>
             {% endif %}
             <!-- Dropdown toggle button -->
             <button @click="open = !open"
-                    aria-label="More page actions"
+                    aria-label="{{ _("More page actions") }}"
                     :aria-expanded="open"
                     class="{{ split_segment }} w-8 border-l border-[var(--outline-gray-2)] cursor-pointer">
                 <span class="inline-flex" :class="{ 'rotate-180': open }">{{ render_icon("chevron-down", "transition-transform duration-200") }}</span>
@@ -77,8 +77,8 @@
         </template>
     </span>
     <div class="flex-1 min-w-0">
-        <div class="truncate" x-text="downloadInProgress ? 'Preparing…' : 'Download'"></div>
-        <div class="truncate text-p-sm text-[var(--ink-gray-5)]">Download this page as a PDF</div>
+        <div class="truncate" x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download") | tojson }}'></div>
+        <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ _("Download this page as a PDF") }}</div>
     </div>
 </button>
 {% endmacro %}
