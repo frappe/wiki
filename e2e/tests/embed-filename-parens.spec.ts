@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { APP_BASE, spaceLinkSelector } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { expect, test } from '../fixtures';
+import { createDraftAndOpenEditor } from '../helpers/wiki';
 
 /**
  * Covers frappe/wiki#757.
@@ -36,45 +35,16 @@ declare global {
 	}
 }
 
-/**
- * Create a draft page and open the editor. Mirrors the helper in
- * iframe-embed.spec.ts — duplicated here rather than exported so changes
- * to one test don't ripple into others.
- */
-async function createDraftAndOpenEditor(
-	page: import('@playwright/test').Page,
-	title: string,
-) {
-	await page.goto(APP_BASE);
-	await page.waitForLoadState('networkidle');
-
-	const spaceLink = page.locator(spaceLinkSelector()).first();
-	await expect(spaceLink).toBeVisible({ timeout: 5000 });
-	await spaceLink.click();
-	await page.waitForLoadState('networkidle');
-
-	await openNewPageDialog(page);
-
-	await page.getByLabel('Title').fill(title);
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
-
-	await page.locator('aside').getByText(title, { exact: true }).click();
-
-	const editor = page.locator('.ProseMirror, [contenteditable="true"]');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-
-	await page.waitForFunction(() => window.wikiEditor !== undefined, {
-		timeout: 10000,
-	});
-	return editor;
-}
-
 test.describe('Embed filenames with spaces and parens', () => {
 	test('parses a PDF whose filename has spaces and parens into a node', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `pdf-parens-parse-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`pdf-parens-parse-${Date.now()}`,
+		);
 
 		const result = await page.evaluate((markdown) => {
 			window.wikiEditor.commands.setContent(markdown, {
@@ -97,9 +67,11 @@ test.describe('Embed filenames with spaces and parens', () => {
 
 	test('renders the PDF card rather than the raw markdown', async ({
 		page,
+		wiki,
 	}) => {
 		const editor = await createDraftAndOpenEditor(
 			page,
+			await wiki.space(),
 			`pdf-parens-render-${Date.now()}`,
 		);
 
@@ -120,8 +92,13 @@ test.describe('Embed filenames with spaces and parens', () => {
 
 	test('round-trips the PDF markdown without truncating the URL', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `pdf-parens-roundtrip-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`pdf-parens-roundtrip-${Date.now()}`,
+		);
 
 		const { md1, md2 } = await page.evaluate((markdown) => {
 			window.wikiEditor.commands.setContent(markdown, {
@@ -141,8 +118,13 @@ test.describe('Embed filenames with spaces and parens', () => {
 
 	test('parses a video whose filename has spaces and parens into a node', async ({
 		page,
+		wiki,
 	}) => {
-		await createDraftAndOpenEditor(page, `video-parens-parse-${Date.now()}`);
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`video-parens-parse-${Date.now()}`,
+		);
 
 		const result = await page.evaluate((markdown) => {
 			window.wikiEditor.commands.setContent(markdown, {
