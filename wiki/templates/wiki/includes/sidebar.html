@@ -281,7 +281,7 @@
                 // Keep this markup identical to includes/toc.html — the two are
                 // the server-render / SPA-render halves of the same component.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">' + {{ _("On this page") | tojson }} + '</span>';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">' + escapeHtml({{ _("On this page") | tojson }}) + '</span>';
                 // Same rule as the Jinja half: h3s only indent when the page
                 // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
                 const hasH2 = headings.some(heading => heading.level === 2);
