@@ -42,7 +42,7 @@
                         <template x-if="copied">
                             {{ render_icon("check", "w-4 h-4 text-green-600") }}
                         </template>
-                        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
                     </button>
                 </div>
             </div>
