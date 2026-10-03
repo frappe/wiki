@@ -105,3 +105,18 @@ The selected image gets Gameplan's soft ring (`ring-2 ring-outline-gray-3 ring-o
 5. Markdown round trip for `width` and `align`. Unit and Python tests.
 6. Node view: menu, caption switch, alignment, resize, ring.
 7. Reader alignment CSS. E2E update.
+
+### Progress
+
+- [x] Phase 5
+  - A `<picture>` with only an `<img>` is now an image too, so width and alignment reuse the same tokenizer and the same `markdown.py` renderer.
+  - Width is rounded to whole pixels. Height is not saved: the image keeps its ratio with `height: auto`.
+  - An unknown `data-align` is dropped in the editor and left as raw HTML by the reader.
+- [x] Phase 6
+  - The resize grip and every command go through `toRaw(props.editor)`. Through tiptap's reactive proxy, ProseMirror throws "Applying a mismatched transaction", which silently broke the resize and the caption's Enter and arrow keys. `CalloutBlockView` had the same bug on Enter in the title (fixed in its own commit, with an e2e test).
+  - The frappe-ui menu renders the caption switch without an accessible name, so tests find it by the `switch` role.
+  - The image border is gone in the editor and reader, and the radius is `--radius-4` (8px), as in Gameplan. Captions stay italic in the editor to match the reader's `<em>`.
+- [x] Phase 7
+  - Reader images are now centered, matching the editor. They used to sit left while their caption was centered.
+  - A left or right aligned `<picture>` makes its `<p>` `fit-content`, so the caption stays under the image.
+  - E2E: an author toggles the caption, aligns right, resizes with the grip and publishes; the reader shows the width, the caption and a right-aligned image.

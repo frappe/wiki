@@ -29,13 +29,18 @@ function png(name: string, color: [number, number, number]) {
 	return { name, mimeType: 'image/png', buffer: makeUniquePng(8, color) };
 }
 
+async function openImageMenu(page: Page) {
+	await page.locator('img.wiki-image').first().click();
+	await page.getByRole('button', { name: 'Image options' }).click();
+}
+
 async function chooseFromImageMenu(
 	page: Page,
 	item: string,
 	file: ReturnType<typeof png>,
 ) {
-	await page.locator('img.wiki-image').first().click();
-	await page.getByRole('button', { name: 'Image options' }).click();
+	await openImageMenu(page);
+	await page.getByRole('menuitem', { name: 'Replace image' }).hover();
 	const chooser = page.waitForEvent('filechooser');
 	await page.getByRole('menuitem', { name: item }).click();
 	await (await chooser).setFiles(file);
@@ -91,7 +96,7 @@ test.describe('Theme-aware images', () => {
 				timeout: 20000,
 			})
 			.toMatch(/<picture>\n {2}<source srcset="\/files\/[^"]*-dark-/);
-		await page.getByPlaceholder('Add caption...').fill('Settings page');
+		await page.getByPlaceholder('Add a caption').fill('Settings page');
 
 		await expect(editorImage).toHaveAttribute('src', /-light-/);
 		await page.emulateMedia({ colorScheme: 'dark' });
@@ -167,13 +172,105 @@ test.describe('Theme-aware images', () => {
 		const markdown = () => page.evaluate(() => window.wikiEditor.getMarkdown());
 		await expect.poll(markdown, { timeout: 20000 }).toContain('<picture>');
 
-		await page.locator('img.wiki-image').first().click();
-		await page.getByRole('button', { name: 'Image options' }).click();
+		await openImageMenu(page);
+		await page.getByRole('menuitem', { name: 'Replace image' }).hover();
 		await page
 			.getByRole('menuitem', { name: 'Remove dark mode image' })
 			.click();
 
 		await expect.poll(markdown).toMatch(/!\[\]\(\/files\/[^)]*-only-/);
 		expect(await markdown()).not.toContain('<picture>');
+	});
+
+	test('an author aligns, resizes and captions an image for readers', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const stamp = Date.now();
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`image-options-${stamp}`,
+		);
+		const docKey = await currentDraftDocKey(page);
+		await page.locator('input.hidden-file-input').setInputFiles({
+			name: `${FILE_PREFIX}-wide-${stamp}.png`,
+			mimeType: 'image/png',
+			buffer: makeUniquePng(400, [90, 140, 90]),
+		});
+		const image = page.locator('img.wiki-image').first();
+		await expect(image).toHaveAttribute('src', /\/files\//, { timeout: 20000 });
+		const markdown = () => page.evaluate(() => window.wikiEditor.getMarkdown());
+
+		const caption = page.getByPlaceholder('Add a caption');
+		await caption.fill('Draft caption');
+		await openImageMenu(page);
+		await page.getByRole('menu').getByRole('switch').click();
+		await expect(caption).toBeHidden();
+		await expect.poll(markdown).not.toContain('Draft caption');
+		await page.keyboard.press('Escape');
+
+		await openImageMenu(page);
+		await page.getByRole('menu').getByRole('switch').click();
+		await page.keyboard.press('Escape');
+		await caption.fill('Green square');
+
+		await openImageMenu(page);
+		await page.getByRole('menuitem', { name: 'Right' }).click();
+
+		await image.click();
+		const box = await image.boundingBox();
+		const grip = page.getByRole('button', { name: 'Resize image' });
+		const gripBox = await grip.boundingBox();
+		if (!box || !gripBox) throw new Error('image is not laid out');
+		await page.mouse.move(gripBox.x + 10, gripBox.y + 10);
+		await page.mouse.down();
+		await page.mouse.move(gripBox.x + 10 - 200, gripBox.y + 10, { steps: 5 });
+		await page.mouse.up();
+		await expect
+			.poll(async () => (await image.boundingBox())?.width)
+			.toBe(box.width - 200);
+
+		const width = Math.round(box.width - 200);
+		await expect
+			.poll(markdown)
+			.toContain(
+				`width="${width}" data-align="right">\n</picture>\n*Green square*`,
+			);
+
+		await saveEditor(page);
+		await page.waitForLoadState('networkidle');
+		const submitButton = page.getByRole('button', {
+			name: 'Submit for Review',
+		});
+		await expect(submitButton).toBeEnabled({ timeout: 10000 });
+		await submitButton.click();
+		await page.getByRole('button', { name: 'Submit' }).click();
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, { timeout: 10000 });
+		await publishChangeRequestFromReview(page);
+
+		const [published] = await getList<{ route: string }>(
+			request,
+			'Wiki Document',
+			{ fields: ['route'], filters: { doc_key: docKey }, limit: 1 },
+		);
+		const reader = await page.context().newPage();
+		await reader.goto(`/${published.route}`);
+		const readerImage = reader.locator('#wiki-content picture img');
+		await expect(readerImage).toHaveAttribute('width', String(width));
+		await expect(reader.locator('#wiki-content picture + em')).toHaveText(
+			'Green square',
+		);
+		const imageBox = await readerImage.boundingBox();
+		const contentBox = await reader
+			.locator('#wiki-content picture')
+			.boundingBox();
+		if (!imageBox || !contentBox)
+			throw new Error('reader image is not laid out');
+		expect(Math.round(imageBox.x + imageBox.width)).toBe(
+			Math.round(contentBox.x + contentBox.width),
+		);
+		await reader.close();
 	});
 });
