@@ -22,6 +22,8 @@ const ImageSchemaOnly = Node.create({
 			alt: { default: null },
 			title: { default: null },
 			caption: { default: null },
+			width: { default: null },
+			align: { default: null },
 		};
 	},
 	renderHTML({ HTMLAttributes }) {
@@ -36,6 +38,8 @@ const ImageSchemaOnly = Node.create({
 			title: token.title,
 			alt: token.text,
 			caption: token.caption || null,
+			width: token.width || null,
+			align: token.align || null,
 		}),
 	renderMarkdown: renderImageMarkdown,
 });
@@ -133,4 +137,76 @@ test('a <picture> without a dark source is not read as an image', () => {
 	].join('\n');
 
 	assert.equal(imageAttrs(manager, markdown), undefined);
+});
+
+const SIZED = [
+	'<picture>',
+	'  <img src="/files/shot.png" alt="Settings page" width="480" data-align="left">',
+	'</picture>',
+	'*The settings page*',
+].join('\n');
+
+test('a width or alignment saves the image as <picture> without a source', () => {
+	const markdown = renderImageMarkdown({
+		attrs: {
+			src: '/files/shot.png',
+			alt: 'Settings page',
+			caption: 'The settings page',
+			width: 480,
+			align: 'left',
+		},
+	});
+
+	assert.equal(markdown, SIZED);
+});
+
+test('width and alignment round-trip', () => {
+	const manager = createManager();
+	const attrs = imageAttrs(manager, SIZED);
+
+	assert.equal(attrs.width, 480);
+	assert.equal(attrs.align, 'left');
+	assert.equal(attrs.darkSrc, null);
+	assert.equal(manager.serialize(manager.parse(SIZED)).trim(), SIZED);
+});
+
+test('width and alignment sit on the img next to a dark source', () => {
+	const manager = createManager();
+	const markdown = renderImageMarkdown({
+		attrs: {
+			src: '/files/shot.png',
+			darkSrc: '/files/shot-dark.png',
+			alt: '',
+			width: 300.6,
+			align: 'right',
+		},
+	});
+	const attrs = imageAttrs(manager, markdown);
+
+	assert.ok(
+		markdown.includes(
+			'<img src="/files/shot.png" alt="" width="301" data-align="right">',
+		),
+	);
+	assert.equal(attrs.darkSrc, '/files/shot-dark.png');
+	assert.equal(attrs.width, 301);
+	assert.equal(attrs.align, 'right');
+});
+
+test('center alignment alone keeps the plain markdown image', () => {
+	const markdown = renderImageMarkdown({
+		attrs: { src: '/files/shot.png', alt: 'Settings', align: 'center' },
+	});
+
+	assert.equal(markdown, '![Settings](/files/shot.png)');
+});
+
+test('an unknown alignment is dropped', () => {
+	const attrs = imageAttrs(
+		createManager(),
+		'<picture>\n  <img src="/files/shot.png" alt="" data-align="middle">\n</picture>',
+	);
+
+	assert.equal(attrs.src, '/files/shot.png');
+	assert.equal(attrs.align, null);
 });

@@ -16,6 +16,7 @@ const IMAGE_PATTERN =
 const PICTURE_PATTERN = /^<picture>\s*([\s\S]*?)\s*<\/picture>/;
 const CAPTION_PATTERN = /^\n\*([^*]+)\*/;
 const DARK_MEDIA = '(prefers-color-scheme: dark)';
+const ALIGNMENTS = ['left', 'center', 'right'];
 
 /**
  * Custom marked tokenizer for an image followed by an optional caption line.
@@ -64,7 +65,15 @@ function matchImage(src) {
 	const href = (hrefRaw || '').trim();
 	if (isVideoUrl(href) || isPdfUrl(href)) return null;
 
-	return { raw, text: alt || '', href, title: title || null, darkSrc: null };
+	return {
+		raw,
+		text: alt || '',
+		href,
+		title: title || null,
+		darkSrc: null,
+		width: null,
+		align: null,
+	};
 }
 
 // Only the exact shape we write is claimed, so a <picture> with sources we do
@@ -74,18 +83,23 @@ function matchPicture(src) {
 	if (!match) return null;
 
 	const tags = match[1].split(/>\s*/).filter(Boolean);
-	if (tags.length !== 2) return null;
+	if (tags.length > 2) return null;
 
-	const source = parseTag(tags[0], 'source');
-	const img = parseTag(tags[1], 'img');
-	if (!source?.srcset || source.media !== DARK_MEDIA || !img?.src) return null;
+	const img = parseTag(tags.at(-1), 'img');
+	const source = tags.length === 2 ? parseTag(tags[0], 'source') : {};
+	if (!img?.src || !source) return null;
+	if (tags.length === 2 && (!source.srcset || source.media !== DARK_MEDIA)) {
+		return null;
+	}
 
 	return {
 		raw: match[0],
 		text: img.alt ?? '',
 		href: img.src,
 		title: img.title ?? null,
-		darkSrc: source.srcset,
+		darkSrc: source.srcset ?? null,
+		width: Number(img.width) || null,
+		align: ALIGNMENTS.includes(img['data-align']) ? img['data-align'] : null,
 	};
 }
 
@@ -116,10 +130,12 @@ export function renderImageMarkdown(node) {
 	const alt = node.attrs?.alt ?? '';
 	const title = node.attrs?.title ?? '';
 	const caption = (node.attrs?.caption ?? '').trim();
+	const width = node.attrs?.width ?? null;
+	const align = node.attrs?.align === 'center' ? null : node.attrs?.align;
 
 	let md = `![${alt}](${src})`;
-	if (darkSrc) {
-		md = renderPicture({ src, darkSrc, alt, title });
+	if (darkSrc || width || align) {
+		md = renderPicture({ src, darkSrc, alt, title, width, align });
 	} else if (title) {
 		md = `![${alt}](${src} "${title}")`;
 	}
@@ -132,19 +148,25 @@ export function renderImageMarkdown(node) {
 	return md;
 }
 
-function renderPicture({ src, darkSrc, alt, title }) {
-	// srcset splits candidates on commas and descriptors on spaces, so both
-	// must be percent-encoded or a Frappe filename with either would not load.
-	const srcset = darkSrc.replaceAll(' ', '%20').replaceAll(',', '%2C');
-	const titleAttribute = title ? ` title="${escapeAttribute(title)}"` : '';
-	return [
-		'<picture>',
-		`  <source srcset="${escapeAttribute(srcset)}" media="${DARK_MEDIA}">`,
-		`  <img src="${escapeAttribute(src)}" alt="${escapeAttribute(
-			alt,
-		)}"${titleAttribute}>`,
-		'</picture>',
-	].join('\n');
+function renderPicture({ src, darkSrc, alt, title, width, align }) {
+	let imgAttributes = `src="${escapeAttribute(src)}" alt="${escapeAttribute(
+		alt,
+	)}"`;
+	if (title) imgAttributes += ` title="${escapeAttribute(title)}"`;
+	if (width) imgAttributes += ` width="${Math.round(width)}"`;
+	if (align) imgAttributes += ` data-align="${escapeAttribute(align)}"`;
+
+	const lines = ['<picture>'];
+	if (darkSrc) {
+		// srcset splits candidates on commas and descriptors on spaces, so both
+		// must be percent-encoded or a Frappe filename with either would not load.
+		const srcset = darkSrc.replaceAll(' ', '%20').replaceAll(',', '%2C');
+		lines.push(
+			`  <source srcset="${escapeAttribute(srcset)}" media="${DARK_MEDIA}">`,
+		);
+	}
+	lines.push(`  <img ${imgAttributes}>`, '</picture>');
+	return lines.join('\n');
 }
 
 function escapeAttribute(value) {

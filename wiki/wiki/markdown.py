@@ -488,11 +488,13 @@ def _render_blank_line(tokens, idx, options, env) -> str:
 
 
 # The exact `<picture>` the editor writes for an image with a dark mode file,
-# plus its optional `*caption*` line. markdown-it reads it as one raw HTML block,
-# caption included, so the caption would otherwise show as literal asterisks.
+# a width or an alignment, plus its optional `*caption*` line. markdown-it reads
+# it as one raw HTML block, caption included, so the caption would otherwise
+# show as literal asterisks.
 PICTURE_BLOCK_PATTERN = re.compile(
-	r'<picture>\s*<source srcset="(?P<dark_src>[^"]*)" media="\(prefers-color-scheme: dark\)">\s*'
-	r'<img src="(?P<src>[^"]*)" alt="(?P<alt>[^"]*)"(?: title="(?P<title>[^"]*)")?\s*/?>\s*</picture>'
+	r'<picture>\s*(?:<source srcset="(?P<dark_src>[^"]*)" media="\(prefers-color-scheme: dark\)">\s*)?'
+	r'<img src="(?P<src>[^"]*)" alt="(?P<alt>[^"]*)"(?: title="(?P<title>[^"]*)")?'
+	r'(?: width="(?P<width>\d+)")?(?: data-align="(?P<align>left|center|right)")?\s*/?>\s*</picture>'
 	r"(?:\n\*(?P<caption>[^*\n]+)\*)?\s*"
 )
 
@@ -561,12 +563,20 @@ def _build_markdown() -> MarkdownIt:
 		# Same shape as a plain image with a caption, so the caption CSS is shared.
 		alt = _remove_script_tags(match["alt"])
 		title = _remove_script_tags(match["title"])
-		title_attr = f' title="{title}"' if title else ""
+		img_attrs = f' title="{title}"' if title else ""
+		if match["width"]:
+			img_attrs += f' width="{match["width"]}"'
+		if match["align"]:
+			img_attrs += f' data-align="{match["align"]}"'
+		source = (
+			f'<source srcset="{match["dark_src"]}" media="(prefers-color-scheme: dark)">'
+			if match["dark_src"] is not None
+			else ""
+		)
 		caption = match["caption"]
 		caption_html = f"\n<em>{md.renderInline(caption)}</em>" if caption else ""
 		return (
-			f'<p><picture><source srcset="{match["dark_src"]}" media="(prefers-color-scheme: dark)">'
-			f'<img src="{match["src"]}" alt="{alt}"{title_attr} /></picture>'
+			f'<p><picture>{source}<img src="{match["src"]}" alt="{alt}"{img_attrs} /></picture>'
 			f"{caption_html}</p>\n"
 		)
 

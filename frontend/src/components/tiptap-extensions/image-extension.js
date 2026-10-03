@@ -23,7 +23,7 @@ const inputRegex =
  *
  * - alt: For accessibility (screen readers)
  * - caption: Visible caption text below the image
- * - darkSrc: Optional dark mode version, saved as a `<picture>` block
+ * - darkSrc, width, align: saved on a `<picture>` block when any is set
  */
 
 export const WikiImage = Node.create({
@@ -64,6 +64,12 @@ export const WikiImage = Node.create({
 			},
 			width: {
 				default: null,
+			},
+			align: {
+				default: null,
+				parseHTML: (element) => element.getAttribute('data-align'),
+				renderHTML: (attributes) =>
+					attributes.align ? { 'data-align': attributes.align } : {},
 			},
 			height: {
 				default: null,
@@ -115,6 +121,8 @@ export const WikiImage = Node.create({
 			title: token.title,
 			alt: token.text,
 			caption: token.caption || null,
+			width: token.width || null,
+			align: token.align || null,
 		});
 	},
 

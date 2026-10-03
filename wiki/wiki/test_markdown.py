@@ -1008,3 +1008,22 @@ class TestThemeAwareImages(unittest.TestCase):
 		result = render_markdown('<div class="note">Raw</div>')
 
 		self.assertIn('<div class="note">Raw</div>', result)
+
+	def test_width_and_alignment_are_kept(self):
+		result = render_markdown(
+			"<picture>\n"
+			'  <img src="/files/shot.png" alt="Settings" width="480" data-align="left">\n'
+			"</picture>\n"
+			"*Caption*"
+		)
+
+		self.assertIn(
+			'<p><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left" /></picture>'
+			"\n<em>Caption</em></p>",
+			result,
+		)
+
+	def test_unknown_alignment_is_not_claimed(self):
+		result = render_markdown('<picture>\n  <img src="/files/shot.png" alt="" data-align="x">\n</picture>')
+
+		self.assertNotIn('data-align="x" />', result)
