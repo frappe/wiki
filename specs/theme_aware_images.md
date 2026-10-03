@@ -75,3 +75,33 @@ The caption keeps the existing `*caption*` line, so caption parsing and styling 
   - `e2e/tests/theme-aware-images.spec.ts`: an author uploads an image, adds a dark version through the menu (the real file chooser), adds a caption and publishes. The reader page shows the light file in a light wiki on a dark OS, the dark file after the theme toggle, the caption under the `<picture>`, and the dark file in the zoom viewer. A second test removes the dark version and checks the markdown goes back to `![](...)`.
   - With the theme sync script disabled, the reader test fails because a dark OS picks the dark file.
   - `makeUniquePng` moved from `webp-conversion.spec.ts` to `e2e/helpers/png.ts` and takes a colour, so both specs share it.
+
+## Follow-up: Gameplan-style image options
+
+### Why?
+
+The image menu only replaced files. Authors also want to hide or show the caption, align the image and resize it, the way Gameplan does. The menu should look like Gameplan's too.
+
+### What?
+
+Select an image and two buttons appear on it, the same 28px dark buttons Gameplan uses:
+
+- Top right: a `...` menu.
+  - Caption: a switch that shows or hides the caption field. Turning it off clears the caption.
+  - Align: Left, Center, Right. Center is the default.
+  - Replace image: a submenu with For both modes, For light mode, For dark mode, and Remove dark mode image when one is set.
+- Bottom right: a resize grip. Dragging it changes the width and keeps the aspect ratio.
+
+The selected image gets Gameplan's soft ring (`ring-2 ring-outline-gray-3 ring-offset-2`) and `rounded-4` corners instead of the dark outline.
+
+### How?
+
+- Saved format: an image with a dark file, a width, or a left or right alignment saves as `<picture>`. The dark `<source>` is optional. The `<img>` carries `width="480"` and `data-align="left|right"` when set. frappe-ui's prose already styles `img[data-align]`. An image with none of these keeps saving as `![alt](src)`.
+- `ImageNodeView.vue` mirrors frappe-ui's `MediaNodeView` and `MediaToolbar`. Those files are not exported, so the wiki keeps its own node view with the same classes and menu shape.
+- `markdown.py` accepts the same `<picture>` shape with the optional source and attributes. The reader CSS aligns `img[data-align]` inside a `<picture>`.
+
+### Phases
+
+5. Markdown round trip for `width` and `align`. Unit and Python tests.
+6. Node view: menu, caption switch, alignment, resize, ring.
+7. Reader alignment CSS. E2E update.
