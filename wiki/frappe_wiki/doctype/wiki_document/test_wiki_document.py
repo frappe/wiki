@@ -618,6 +618,84 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		self.assertNotIn('property="og:image"', html)
 
 
+class TestRenderedPageTranslations(WikiDocumentTestBase):
+	"""
+	The reader chrome strings ("Last updated", "On this page", ...) go through
+	``_()`` so site Translation records apply. The SPA half of the sidebar
+	builds the same strings in JavaScript, so the translated text must be
+	emitted as a JSON literal there and HTML-escaped before it reaches
+	``innerHTML``.
+	"""
+
+	TEST_CLIENT = get_test_client()
+	LANG = "fr"
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _translate(self, source, translated):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Translation",
+				"language": self.LANG,
+				"source_text": source,
+				"translated_text": translated,
+			}
+		).insert(ignore_permissions=True)
+		# Translation.on_update / on_trash drop the merged cache for the language.
+		self.wiki.track("Translation", doc)
+		return doc
+
+	def _render(self, doc):
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{doc.route}",
+			headers={"Accept": "text/html", "Accept-Language": self.LANG},
+		)
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def _public_doc(self, prefix):
+		space = create_test_wiki_space(
+			self, "Translated Space", self._unique(prefix), None, roles=[("Guest", "Read")]
+		)
+		return create_test_wiki_document(
+			self, "Translated Doc", parent=space.root_group, slug=self._unique(f"{prefix}-doc")
+		)
+
+	def test_last_updated_and_toc_label_use_site_translations(self):
+		self._translate("Last updated {0}", "Mis a jour {0}")
+		self._translate("On this page", "Sur cette page")
+		doc = self._public_doc("i18n")
+
+		html = self._render(doc)
+
+		# Server render: the sentence keeps its relative-time argument.
+		self.assertRegex(html, r"Mis a jour \S[^<]*</div>")
+		self.assertNotIn("Last updated", html)
+		# SPA render: the same sentence is a JSON literal with the placeholder intact.
+		self.assertIn("\"Mis a jour {0}\".replace('{0}', data.last_updated)", html)
+		# TOC label in both the Jinja and the JavaScript halves.
+		self.assertIn(">Sur cette page</span>", html)
+		self.assertIn("escapeHtml(\"Sur cette page\")", html)
+		self.assertNotIn("On this page", html)
+
+	def test_translated_toc_label_is_escaped_in_both_halves(self):
+		self._translate("On this page", "<b>Ici</b>")
+		doc = self._public_doc("i18n-esc")
+
+		html = self._render(doc)
+
+		# Frappe's Jinja env does not autoescape, so the Jinja half escapes explicitly ...
+		self.assertIn(">&lt;b&gt;Ici&lt;/b&gt;</span>", html)
+		# ... and the SPA string goes through escapeHtml() before innerHTML, with
+		# tojson keeping the markup out of the inline script.
+		self.assertIn("escapeHtml(\"\\u003cb\\u003eIci\\u003c/b\\u003e\")", html)
+		self.assertNotIn("<b>Ici</b>", html)
+
+
 class TestDisableIndexing(WikiDocumentTestBase):
 	"""GH-806: a page can opt out of search engines."""
 

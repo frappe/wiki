@@ -51,7 +51,7 @@
                     class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] transition-colors duration-200">
                 <div class="flex items-center gap-2">
                     {{ render_icon("list") }}
-                    <span>{{ _("On this page") }}</span>
+                    <span>{{ _("On this page") | e }}</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[var(--ink-gray-5)] truncate max-w-32" x-text="activeTocText"></span>
