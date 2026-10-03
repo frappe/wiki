@@ -229,7 +229,7 @@
                 // Update last updated
                 const lastUpdatedEl = document.getElementById('wiki-last-updated');
                 if (lastUpdatedEl) {
-                    lastUpdatedEl.textContent = 'Last updated ' + data.last_updated;
+                    lastUpdatedEl.textContent = {{ _("Last updated {0}") | tojson }}.replace('{0}', data.last_updated);
                     if (data.last_updated_on) {
                         lastUpdatedEl.setAttribute('title', data.last_updated_on);
                         lastUpdatedEl.setAttribute('data-timestamp', data.last_updated_on);
@@ -281,7 +281,7 @@
                 // Keep this markup identical to includes/toc.html — the two are
                 // the server-render / SPA-render halves of the same component.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">' + escapeHtml({{ _("On this page") | tojson }}) + '</span>';
                 // Same rule as the Jinja half: h3s only indent when the page
                 // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
                 const hasH2 = headings.some(heading => heading.level === 2);

@@ -1,15 +1,15 @@
 <!-- Feedback Widget -->
 <div x-data="feedbackWidget('{{ doc.name }}')" class="flex flex-col items-start sm:items-end">
     <div class="flex flex-col items-start sm:items-center gap-2">
-        <span class="text-sm text-[var(--ink-gray-5)]">Was this helpful?</span>
+        <span class="text-sm text-[var(--ink-gray-5)]">{{ _("Was this helpful?") }}</span>
 
         <!-- Reaction Buttons (pill-shaped toggle group) -->
         {% set reactions = [
-            {"type": "Bad", "mouth": '<path d="M16 16s-1.5-2-4-2-4 2-4 2"/>'},
-            {"type": "Ok", "mouth": '<line x1="8" y1="15" x2="16" y2="15"/>'},
-            {"type": "Good", "mouth": '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>'}
+            {"type": "Bad", "label": _("Bad"), "mouth": '<path d="M16 16s-1.5-2-4-2-4 2-4 2"/>'},
+            {"type": "Ok", "label": _("Ok"), "mouth": '<line x1="8" y1="15" x2="16" y2="15"/>'},
+            {"type": "Good", "label": _("Good"), "mouth": '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>'}
         ] %}
-        <fieldset class="inline-flex rounded-full bg-[var(--surface-gray-2)] p-0.5" role="radiogroup" aria-label="Feedback rating">
+        <fieldset class="inline-flex rounded-full bg-[var(--surface-gray-2)] p-0.5" role="radiogroup" aria-label="{{ _("Feedback rating") }}">
             {% for reaction in reactions %}
             <button type="button"
                     @click="selectFeedback('{{ reaction.type }}')"
@@ -18,7 +18,7 @@
                     class="p-1.5 rounded-full transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     role="radio"
                     :aria-checked="feedbackType === '{{ reaction.type }}'"
-                    aria-label="{{ reaction.type }}">
+                    aria-label="{{ reaction.label }}">
                 <svg class="w-4 h-4" :class="feedbackType === '{{ reaction.type }}' ? 'text-[var(--ink-gray-9)]' : 'text-[var(--ink-gray-5)]'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     {{ reaction.mouth | safe }}
@@ -41,7 +41,7 @@
                       x-model="comment"
                       name="feedback"
                       :disabled="submitted"
-                      placeholder="Anything you'd like to add?"
+                      placeholder="{{ _("Anything you'd like to add?") }}"
                       rows="3"
                       class="w-full px-4 py-3 pr-20 text-sm rounded-7 border border-[var(--outline-gray-2)] bg-[var(--surface-base)] text-[var(--ink-gray-9)] placeholder-[var(--ink-gray-4)] focus:outline-none focus:ring-2 focus:ring-[var(--outline-gray-3)] resize-none disabled:opacity-60"></textarea>
 
@@ -51,7 +51,7 @@
                         type="submit"
                         :disabled="submitting"
                         class="px-2.5 py-1 text-xs-medium rounded-1 bg-[var(--surface-gray-3)] text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-4)] hover:text-[var(--ink-gray-9)] transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span x-show="!submitting">Submit</span>
+                    <span x-show="!submitting">{{ _("Submit") }}</span>
                     <span x-show="submitting" class="flex items-center gap-1">
                         <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -64,7 +64,7 @@
                         <circle cx="12" cy="12" r="10"/>
                         <path d="M9 12l2 2 4-4"/>
                     </svg>
-                    Thanks!
+                    {{ _("Thanks!") }}
                 </span>
             </div>
         </form>

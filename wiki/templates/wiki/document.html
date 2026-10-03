@@ -32,7 +32,7 @@
                         <template x-if="downloadInProgress">
                             {{ render_icon("loader", "w-4 h-4 animate-spin") }}
                         </template>
-                        <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
+                        <span x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download") | tojson }}'></span>
                     </button>
                     <button @click="copyMarkdown()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-6 hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
@@ -42,7 +42,7 @@
                         <template x-if="copied">
                             {{ render_icon("check", "w-4 h-4 text-green-600") }}
                         </template>
-                        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
                     </button>
                 </div>
             </div>
@@ -52,10 +52,10 @@
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                     {{ download_action_item() }}
                     {% if can_edit %}
-                    {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                    {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                     {% endif %}
-                    {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                    {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                 {{ dropdown_end() }}
             </div>
             <div class="flex items-center justify-between gap-4">
@@ -66,10 +66,10 @@
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                         {{ download_action_item() }}
                         {% if can_edit %}
-                        {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                        {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                         {% endif %}
-                        {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                        {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
                     {{ dropdown_end() }}
                 </div>
             </div>
@@ -119,7 +119,7 @@
         <!-- Last Updated & Feedback Widget -->
         <div class="mt-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div id="wiki-last-updated" class="text-sm text-[var(--ink-gray-5)]" title="{{ last_updated_on }}" data-timestamp="{{ last_updated_on }}">
-                Last updated {{ last_updated }}
+                {{ _("Last updated {0}").format(last_updated) }}
             </div>
             {% if wiki_space and wiki_space.enable_feedback_collection %}
             {% include "templates/wiki/includes/feedback_widget.html" %}

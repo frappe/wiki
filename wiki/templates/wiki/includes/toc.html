@@ -14,7 +14,7 @@
        Mirrored by the nav-store's SPA re-render in includes/sidebar.html — edit both. #}
     <nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">
         <!-- Transparent border keeps the label on the same left edge as the links. -->
-        <span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>
+        <span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">{{ _("On this page") | e }}</span>
         {% for heading in toc_headings %}
         <a href="#{{ heading.id }}"
            data-toc-link="{{ heading.id }}"
