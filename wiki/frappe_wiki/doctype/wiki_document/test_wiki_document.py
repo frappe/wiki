@@ -679,7 +679,7 @@ class TestRenderedPageTranslations(WikiDocumentTestBase):
 		self.assertIn("\"Mis a jour {0}\".replace('{0}', data.last_updated)", html)
 		# TOC label in both the Jinja and the JavaScript halves.
 		self.assertIn(">Sur cette page</span>", html)
-		self.assertIn("escapeHtml(\"Sur cette page\")", html)
+		self.assertIn('escapeHtml("Sur cette page")', html)
 		self.assertNotIn("On this page", html)
 
 	def test_translated_toc_label_is_escaped_in_both_halves(self):
@@ -692,7 +692,7 @@ class TestRenderedPageTranslations(WikiDocumentTestBase):
 		self.assertIn(">&lt;b&gt;Ici&lt;/b&gt;</span>", html)
 		# ... and the SPA string goes through escapeHtml() before innerHTML, with
 		# tojson keeping the markup out of the inline script.
-		self.assertIn("escapeHtml(\"\\u003cb\\u003eIci\\u003c/b\\u003e\")", html)
+		self.assertIn('escapeHtml("\\u003cb\\u003eIci\\u003c/b\\u003e")', html)
 		self.assertNotIn("<b>Ici</b>", html)
 
 
