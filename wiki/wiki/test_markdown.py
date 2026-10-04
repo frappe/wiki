@@ -1018,10 +1018,25 @@ class TestThemeAwareImages(unittest.TestCase):
 		)
 
 		self.assertIn(
-			'<p><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left" /></picture>'
+			'<p data-align="left"><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left" /></picture>'
 			"\n<em>Caption</em></p>",
 			result,
 		)
+
+	def test_consecutive_pictures_keep_their_captions(self):
+		"""With no blank line between them, markdown-it reads both as one HTML block."""
+		result = render_markdown(f"{self.PICTURE}\n*Light*\n{self.PICTURE.replace('shot', 'other')}\n*Other*")
+
+		self.assertEqual(result.count("<p><picture>"), 2)
+		self.assertIn("</picture>\n<em>Light</em></p>", result)
+		self.assertIn("</picture>\n<em>Other</em></p>", result)
+		self.assertNotIn("*Light*", result)
+
+	def test_picture_block_with_other_html_passes_through(self):
+		result = render_markdown(f'{self.PICTURE}\n<div class="note">Raw</div>')
+
+		self.assertIn('<div class="note">Raw</div>', result)
+		self.assertNotIn("<p><picture>", result)
 
 	def test_unknown_alignment_is_not_claimed(self):
 		result = render_markdown('<picture>\n  <img src="/files/shot.png" alt="" data-align="x">\n</picture>')

@@ -557,9 +557,19 @@ def _build_markdown() -> MarkdownIt:
 	md.renderer.rules["image"] = image_render
 
 	def html_block_render(tokens, idx, options, env):
-		match = PICTURE_BLOCK_PATTERN.fullmatch(tokens[idx].content)
-		if not match:
-			return tokens[idx].content
+		# Pictures with no blank line between them arrive as one HTML block.
+		content = tokens[idx].content
+		pictures = []
+		position = 0
+		while position < len(content):
+			match = PICTURE_BLOCK_PATTERN.match(content, position)
+			if not match:
+				return content
+			pictures.append(render_picture(match))
+			position = match.end()
+		return "".join(pictures)
+
+	def render_picture(match):
 		# Same shape as a plain image with a caption, so the caption CSS is shared.
 		alt = _remove_script_tags(match["alt"])
 		title = _remove_script_tags(match["title"])
@@ -575,8 +585,10 @@ def _build_markdown() -> MarkdownIt:
 		)
 		caption = match["caption"]
 		caption_html = f"\n<em>{md.renderInline(caption)}</em>" if caption else ""
+		# On the <p> too, so the PDF renderer (no :has()) can align image and caption together.
+		paragraph_attrs = f' data-align="{match["align"]}"' if match["align"] else ""
 		return (
-			f'<p><picture>{source}<img src="{match["src"]}" alt="{alt}"{img_attrs} /></picture>'
+			f'<p{paragraph_attrs}><picture>{source}<img src="{match["src"]}" alt="{alt}"{img_attrs} /></picture>'
 			f"{caption_html}</p>\n"
 		)
 

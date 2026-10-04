@@ -123,3 +123,6 @@ The selected image gets Gameplan's soft ring (`ring-2 ring-outline-gray-3 ring-o
 - [x] Manual pass on a copy of a production wiki
   - Reader HTML is byte-identical to develop for all 6464 pages, and the editor's markdown round trip is identical on a sample of 35 media pages.
   - Fixed: clearing a saved caption hid its field mid-edit, and a caption brought back by undo after "Caption off" stayed hidden in the editor while still being published. The field now shows whenever the image has a caption, and stays open while the author edits it.
+- [x] Review follow-ups
+  - Two `<picture>` images with no blank line between them form one HTML block. The reader now renders each one with its caption, instead of passing the block through raw.
+  - The PDF (wkhtmltopdf) had no image alignment, and its old WebKit has no `:has()`. An aligned picture's `<p>` now carries `data-align` too, so the reader and the print format share a plain `p[data-align]` rule.

@@ -389,12 +389,13 @@ body.image-viewer-open {
 }
 
 /* Keeps the caption under a left or right aligned image. */
-.prose p:has(> picture > img[data-align]) {
+.prose p[data-align="left"],
+.prose p[data-align="right"] {
   width: fit-content;
   max-width: 100%;
 }
 
-.prose p:has(> picture > img[data-align="right"]) {
+.prose p[data-align="right"] {
   margin-left: auto;
 }
 
