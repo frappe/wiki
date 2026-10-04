@@ -281,7 +281,7 @@ import { useMobile } from '@/composables/useMobile';
 import { useNewSpaceRequest } from '@/composables/useNewSpaceRequest';
 import { useSpaceLibrary } from '@/composables/useSpaceLibrary';
 import { useUserStore } from '@/stores/user';
-import { useRouteQuery } from '@vueuse/router';
+import { useStorage } from '@vueuse/core';
 import {
 	Button,
 	PageHeader,
@@ -320,7 +320,11 @@ watch(
 	{ immediate: true },
 );
 
-const publishQuery = useRouteQuery('tab', 'published');
+const lastPublishState = useStorage(
+	'wiki:spaces-publish-state',
+	'published',
+	sessionStorage,
+);
 
 // The directory is the one surface that shows the figures, so it is the one
 // that asks for them.
@@ -335,10 +339,10 @@ const {
 	isPinned,
 } = useSpaceLibrary({
 	withStats: true,
-	initialPublishState: publishQuery.value,
+	initialPublishState: lastPublishState.value,
 });
 watch(publishState, (value) => {
-	publishQuery.value = value;
+	lastPublishState.value = value;
 });
 
 const publishOptions = [
