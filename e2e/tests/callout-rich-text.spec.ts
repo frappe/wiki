@@ -152,6 +152,30 @@ test.describe('Callout rich text', () => {
 		expect(markdown).toContain(':::tip\nwritten in place\n:::');
 	});
 
+	test('enter in the title moves the cursor into the body', async ({
+		page,
+		wiki,
+	}) => {
+		const editor = await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			'Callout title enter',
+		);
+
+		await editor.click();
+		await page.keyboard.type('/note');
+		await expect(
+			page.locator('.slash-commands-list').getByText('Note', { exact: true }),
+		).toBeVisible({ timeout: 5000 });
+		await page.keyboard.press('Enter');
+		await page.locator('input.callout-title').click();
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('body text');
+
+		const markdown = await page.evaluate(() => window.wikiEditor.getMarkdown());
+		expect(markdown).toContain(':::note\nbody text\n:::');
+	});
+
 	test('the title is editable in place', async ({ page, wiki }) => {
 		await createDraftAndOpenEditor(page, await wiki.space(), 'Callout title');
 

@@ -113,6 +113,26 @@
              class="min-w-[45rem] max-w-[60vw] max-h-[80vh] object-contain cursor-zoom-out max-[768px]:min-w-[100vw]" />
     </div>
 
+    <!-- A <picture>'s dark <source> follows the OS, but the reader picks the wiki
+         theme. Point each one at the current theme, after SPA navigation too. -->
+    <script>
+        (function () {
+            function syncPictureSources() {
+                const media = document.documentElement.getAttribute('data-theme') === 'dark' ? 'all' : 'not all';
+                document
+                    .querySelectorAll('picture source[media="(prefers-color-scheme: dark)"], picture source[data-dark-source]')
+                    .forEach((source) => {
+                        source.dataset.darkSource = '';
+                        if (source.media !== media) source.media = media;
+                    });
+            }
+            syncPictureSources();
+            new MutationObserver(syncPictureSources).observe(document.documentElement, { attributeFilter: ['data-theme'] });
+            const content = document.getElementById('wiki-content');
+            if (content) new MutationObserver(syncPictureSources).observe(content, { childList: true, subtree: true });
+        })();
+    </script>
+
     <!-- Wiki-owned highlight.js (highlight.js/lib/common — same language set as
          the frappe-ui editor), so the public reader tokenises 1-1 with the
          editor and the shared frappe-ui-code.css theme. Must load before

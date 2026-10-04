@@ -957,3 +957,88 @@ class TestBlankLinePreservation(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class TestThemeAwareImages(unittest.TestCase):
+	"""An image with a dark mode file is saved as a <picture> block."""
+
+	PICTURE = (
+		"<picture>\n"
+		'  <source srcset="/files/shot-dark.png" media="(prefers-color-scheme: dark)">\n'
+		'  <img src="/files/shot.png" alt="Settings page">\n'
+		"</picture>"
+	)
+
+	def test_picture_keeps_both_sources(self):
+		result = render_markdown(self.PICTURE)
+
+		self.assertIn(
+			'<p><picture><source srcset="/files/shot-dark.png" media="(prefers-color-scheme: dark)">'
+			'<img src="/files/shot.png" alt="Settings page" /></picture></p>',
+			result,
+		)
+
+	def test_caption_is_the_next_sibling_of_the_picture(self):
+		"""markdown-it reads the caption line as part of the raw HTML block."""
+		result = render_markdown(self.PICTURE + "\n*The `settings` page*")
+
+		self.assertRegex(result, r"</picture>\s*<em>The <code>settings</code> page</em></p>")
+		self.assertNotIn("*The", result)
+
+	def test_title_is_kept(self):
+		result = render_markdown(self.PICTURE.replace('alt="Settings page"', 'alt="" title="Settings"'))
+
+		self.assertIn('<img src="/files/shot.png" alt="" title="Settings" />', result)
+
+	def test_alt_removes_script_tags(self):
+		result = render_markdown(
+			self.PICTURE.replace('alt="Settings page"', 'alt="<script>alert(1)</script>Settings"')
+		)
+
+		self.assertIn('alt="Settings"', result)
+		self.assertNotIn("<script>", result)
+
+	def test_picture_inside_a_code_fence_stays_code(self):
+		result = render_markdown(f"```html\n{self.PICTURE}\n```")
+
+		self.assertIn("&lt;picture&gt;", result)
+		self.assertNotIn("<picture>", result)
+
+	def test_other_html_blocks_pass_through(self):
+		result = render_markdown('<div class="note">Raw</div>')
+
+		self.assertIn('<div class="note">Raw</div>', result)
+
+	def test_width_and_alignment_are_kept(self):
+		result = render_markdown(
+			"<picture>\n"
+			'  <img src="/files/shot.png" alt="Settings" width="480" data-align="left">\n'
+			"</picture>\n"
+			"*Caption*"
+		)
+
+		self.assertIn(
+			'<p data-align="left"><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left" /></picture>'
+			"\n<em>Caption</em></p>",
+			result,
+		)
+
+	def test_consecutive_pictures_keep_their_captions(self):
+		"""With no blank line between them, markdown-it reads both as one HTML block."""
+		result = render_markdown(f"{self.PICTURE}\n*Light*\n{self.PICTURE.replace('shot', 'other')}\n*Other*")
+
+		self.assertEqual(result.count("<p><picture>"), 2)
+		self.assertIn("</picture>\n<em>Light</em></p>", result)
+		self.assertIn("</picture>\n<em>Other</em></p>", result)
+		self.assertNotIn("*Light*", result)
+
+	def test_picture_block_with_other_html_passes_through(self):
+		result = render_markdown(f'{self.PICTURE}\n<div class="note">Raw</div>')
+
+		self.assertIn('<div class="note">Raw</div>', result)
+		self.assertNotIn("<p><picture>", result)
+
+	def test_unknown_alignment_is_not_claimed(self):
+		result = render_markdown('<picture>\n  <img src="/files/shot.png" alt="" data-align="x">\n</picture>')
+
+		self.assertNotIn('data-align="x" />', result)

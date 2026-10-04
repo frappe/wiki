@@ -10,28 +10,9 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import VideoBlockView from './VideoBlockView.vue';
+import { isVideoUrl } from './media-urls.js';
 
-/**
- * Video extensions that should be rendered as video players
- */
-export const VIDEO_EXTENSIONS = [
-	'.mp4',
-	'.webm',
-	'.ogg',
-	'.mov',
-	'.avi',
-	'.mkv',
-	'.m4v',
-];
-
-/**
- * Check if a URL is a video URL based on file extension
- */
-export function isVideoUrl(url) {
-	if (!url) return false;
-	const cleanUrl = String(url).split(/[?#]/)[0].toLowerCase();
-	return VIDEO_EXTENSIONS.some((ext) => cleanUrl.endsWith(ext));
-}
+export { VIDEO_EXTENSIONS, isVideoUrl } from './media-urls.js';
 
 export const VideoBlock = Node.create({
 	name: 'videoBlock',

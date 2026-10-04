@@ -1,9 +1,10 @@
 import { Node, mergeAttributes, nodeInputRule } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import ImageNodeView from './ImageNodeView.vue';
-import { renderImageMarkdown } from './image-markdown.js';
-import { isPdfUrl } from './pdf-block.js';
-import { isVideoUrl } from './video-block.js';
+import {
+	imageCaptionTokenizer,
+	renderImageMarkdown,
+} from './image-markdown.js';
 
 // Markdown image regex: ![alt](src "title")
 // The src allows spaces and one level of balanced parens so Frappe filenames
@@ -22,62 +23,8 @@ const inputRegex =
  *
  * - alt: For accessibility (screen readers)
  * - caption: Visible caption text below the image
+ * - darkSrc, width, align: saved on a `<picture>` block when any is set
  */
-
-/**
- * Custom marked tokenizer that matches image followed by caption on next line.
- * Pattern: ![alt](src "title")\n*caption*
- */
-const imageCaptionTokenizer = {
-	name: 'wikiImage',
-	level: 'block',
-
-	start(src) {
-		return src.indexOf('![');
-	},
-
-	tokenize(src, tokens, lexer) {
-		// Match: ![alt](src) or ![alt](src "title") optionally followed by \n*caption*
-		// The URL allows spaces and one level of balanced parens so Frappe
-		// filenames like `/files/CleanShot 2026-05-27 at 00.06.09@2x.png` or
-		// `/files/image (24).png` survive (otherwise spaces / inner `)` break it).
-		// The URL group is non-greedy so a trailing quoted title is still split
-		// off instead of being absorbed into the src.
-		const imagePattern =
-			/^!\[([^\]]*)\]\(((?:[^()"]|\([^()"]*\))+?)(?:\s+"([^"]*)")?\)/;
-		const captionPattern = /^\n\*([^*]+)\*/;
-
-		const imageMatch = imagePattern.exec(src);
-		if (!imageMatch) {
-			return undefined;
-		}
-
-		const [imageRaw, alt, hrefRaw, title] = imageMatch;
-		const href = (hrefRaw || '').trim();
-		if (isVideoUrl(href) || isPdfUrl(href)) {
-			return undefined;
-		}
-		let caption = null;
-		let raw = imageRaw;
-
-		// Check for caption on next line
-		const remaining = src.slice(imageRaw.length);
-		const captionMatch = captionPattern.exec(remaining);
-		if (captionMatch) {
-			caption = captionMatch[1];
-			raw += captionMatch[0];
-		}
-
-		return {
-			type: 'wikiImage',
-			raw,
-			text: alt || '',
-			href: href || '',
-			title: title || null,
-			caption: caption,
-		};
-	},
-};
 
 export const WikiImage = Node.create({
 	name: 'image',
@@ -91,6 +38,7 @@ export const WikiImage = Node.create({
 			inline: false,
 			allowBase64: true,
 			HTMLAttributes: {},
+			uploadImage: null,
 		};
 	},
 
@@ -108,8 +56,20 @@ export const WikiImage = Node.create({
 			caption: {
 				default: null,
 			},
+			darkSrc: {
+				default: null,
+				parseHTML: (element) => element.getAttribute('data-dark-src'),
+				renderHTML: (attributes) =>
+					attributes.darkSrc ? { 'data-dark-src': attributes.darkSrc } : {},
+			},
 			width: {
 				default: null,
+			},
+			align: {
+				default: null,
+				parseHTML: (element) => element.getAttribute('data-align'),
+				renderHTML: (attributes) =>
+					attributes.align ? { 'data-align': attributes.align } : {},
 			},
 			height: {
 				default: null,
@@ -157,15 +117,15 @@ export const WikiImage = Node.create({
 	parseMarkdown: (token, helpers) => {
 		return helpers.createNode('image', {
 			src: token.href,
+			darkSrc: token.darkSrc || null,
 			title: token.title,
 			alt: token.text,
 			caption: token.caption || null,
+			width: token.width || null,
+			align: token.align || null,
 		});
 	},
 
-	// Render to markdown using Stack Overflow caption pattern:
-	// ![alt](src "title")
-	// *caption*
 	renderMarkdown: renderImageMarkdown,
 
 	addNodeView() {
