@@ -21,7 +21,19 @@ const FILE_PREFIX = 'e2e-theme-image';
 
 declare global {
 	interface Window {
-		wikiEditor: { getMarkdown: () => string };
+		wikiEditor: {
+			commands: {
+				setContent: (
+					content: string,
+					options?: { contentType?: string },
+				) => void;
+			};
+			getMarkdown: () => string;
+			getJSON: () => {
+				type: string;
+				content?: { type: string; attrs?: Record<string, unknown> }[];
+			};
+		};
 	}
 }
 
@@ -180,6 +192,43 @@ test.describe('Theme-aware images', () => {
 
 		await expect.poll(markdown).toMatch(/!\[\]\(\/files\/[^)]*-only-/);
 		expect(await markdown()).not.toContain('<picture>');
+	});
+
+	test('a saved caption stays editable when cleared or restored by undo', async ({
+		page,
+		wiki,
+	}) => {
+		await createDraftAndOpenEditor(
+			page,
+			await wiki.space(),
+			`image-caption-edit-${Date.now()}`,
+		);
+		await page.evaluate(() =>
+			window.wikiEditor.commands.setContent(
+				'![](/assets/wiki/images/wiki-logo.png)\n*Old caption*',
+				{ contentType: 'markdown' },
+			),
+		);
+		const caption = page.getByRole('textbox', { name: 'Caption' });
+		const markdown = () => page.evaluate(() => window.wikiEditor.getMarkdown());
+
+		await caption.click();
+		await caption.press('End');
+		for (const _ of 'Old caption') await caption.press('Backspace');
+		await expect(caption).toBeFocused();
+		await page.keyboard.type('New caption');
+		await expect.poll(markdown).toContain('*New caption*');
+		// Past ProseMirror's 500ms newGroupDelay, so undo reverts only the toggle.
+		await page.waitForTimeout(600);
+
+		await openImageMenu(page);
+		await page.getByRole('menu').getByRole('switch').click();
+		await page.keyboard.press('Escape');
+		await expect(caption).toBeHidden();
+		await page.locator('img.wiki-image').first().click();
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(markdown).toContain('*New caption*');
+		await expect(caption).toHaveValue('New caption');
 	});
 
 	test('an author aligns, resizes and captions an image for readers', async ({

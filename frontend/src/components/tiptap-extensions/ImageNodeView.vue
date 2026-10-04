@@ -138,7 +138,7 @@ const isReplacing = ref(false);
 const menuOpen = ref(false);
 const dragWidth = ref(null);
 // Only images added in this session have an uploadId.
-const captionToggle = ref(props.node.attrs.uploadId ? true : null);
+const captionOpen = ref(!!props.node.attrs.uploadId);
 
 const isUploading = computed(
 	() => props.node.attrs.loading || isReplacing.value,
@@ -148,7 +148,7 @@ const hasFile = computed(
 );
 const frameWidth = computed(() => dragWidth.value ?? props.node.attrs.width);
 const showCaption = computed(
-	() => captionToggle.value ?? !!props.node.attrs.caption,
+	() => captionOpen.value || !!props.node.attrs.caption,
 );
 
 const alignClass = computed(
@@ -234,8 +234,8 @@ const replaceOptions = computed(() => [
 ]);
 
 function toggleCaption() {
-	captionToggle.value = !showCaption.value;
-	if (captionToggle.value) {
+	captionOpen.value = !showCaption.value;
+	if (captionOpen.value) {
 		nextTick(() => captionInput.value?.focus());
 	} else if (props.node.attrs.caption) {
 		caption.value = '';
@@ -332,6 +332,8 @@ watch(
 );
 
 function updateCaption() {
+	// Keeps the field open while the author clears it to retype.
+	captionOpen.value = true;
 	props.updateAttributes({ caption: caption.value });
 }
 

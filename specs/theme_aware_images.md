@@ -120,3 +120,6 @@ The selected image gets Gameplan's soft ring (`ring-2 ring-outline-gray-3 ring-o
   - Reader images are now centered, matching the editor. They used to sit left while their caption was centered.
   - A left or right aligned `<picture>` makes its `<p>` `fit-content`, so the caption stays under the image.
   - E2E: an author toggles the caption, aligns right, resizes with the grip and publishes; the reader shows the width, the caption and a right-aligned image.
+- [x] Manual pass on a copy of a production wiki
+  - Reader HTML is byte-identical to develop for all 6464 pages, and the editor's markdown round trip is identical on a sample of 35 media pages.
+  - Fixed: clearing a saved caption hid its field mid-edit, and a caption brought back by undo after "Caption off" stayed hidden in the editor while still being published. The field now shows whenever the image has a caption, and stays open while the author edits it.
