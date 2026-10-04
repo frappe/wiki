@@ -51,7 +51,7 @@
                     class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--ink-gray-7)] hover:bg-[var(--surface-gray-2)] transition-colors duration-200">
                 <div class="flex items-center gap-2">
                     {{ render_icon("list") }}
-                    <span>On this page</span>
+                    <span>{{ _("On this page") | e }}</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[var(--ink-gray-5)] truncate max-w-32" x-text="activeTocText"></span>
@@ -91,7 +91,7 @@
     <button @click="toggleSidebar()"
             x-show="!sidebarOpen"
             data-testid="mobile-menu-toggle"
-            aria-label="Open navigation menu"
+            aria-label="{{ _("Open navigation menu") }}"
             :aria-expanded="sidebarOpen"
             class="fixed bottom-4 right-4 z-30 shadow-2xl inline-flex items-center justify-center gap-2 shrink-0 h-10 px-3 rounded-5 text-lg-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
         {{ render_icon("menu", "w-5 h-5") }}
@@ -146,13 +146,13 @@
                 {% if wiki_spaces_for_switcher and wiki_spaces_for_switcher|length > 1 %}
                 <button @click="spaceSwitcherOpen = !spaceSwitcherOpen"
                         class="p-1.5 rounded-4 hover:bg-[var(--surface-gray-2)] transition-colors duration-200 flex-shrink-0"
-                        title="Switch wiki space">
+                        title="{{ _("Switch wiki space") }}">
                     <span class="inline-flex" :class="{ 'rotate-180': spaceSwitcherOpen }">{{ render_icon("chevrons-up-down", "text-[var(--ink-gray-5)] transition-transform duration-200") }}</span>
                 </button>
                 {% endif %}
             </div>
             <button @click="closeSidebar()"
-                    aria-label="Close sidebar"
+                    aria-label="{{ _("Close sidebar") }}"
                     class="p-2 text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] rounded-5 transition-colors duration-200 flex-shrink-0">
                 {{ render_icon("x") }}
             </button>
