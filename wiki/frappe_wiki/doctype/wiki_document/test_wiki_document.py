@@ -2570,6 +2570,35 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 			"groups are not served at their own route",
 		)
 
+	def test_sitemap_keeps_the_site_sitemap_rules(self):
+		"""Site links come from the www/sitemap page that would serve the route, not a
+		rebuild of frappe's list, so an app overriding that page keeps its rules."""
+		tree = self._space_with_tree()
+		site_sitemap = {"links": [{"loc": "https://example.com/kept", "lastmod": None}]}
+
+		with patch("frappe.www.sitemap.get_context", return_value=site_sitemap):
+			body = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
+
+		ElementTree.fromstring(body)
+		routes = _sitemap_routes(body)
+		self.assertIn("<loc>https://example.com/kept</loc>\n\t</url>", body, "no made-up lastmod")
+		self.assertIn(tree.intro.route, routes)
+		self.assertNotIn("about", routes, "frappe's own www pages come only through that page")
+
+	def test_sitemap_is_rebuilt_when_the_website_cache_is_cleared(self):
+		"""The site's other pages change without a wiki write, but always clear the website cache."""
+		from frappe.website.utils import clear_cache as clear_website_cache
+
+		self._space_with_tree()
+		_make_request(self.TEST_CLIENT, "get", "/sitemap.xml")
+		site_sitemap = {"links": [{"loc": "https://example.com/published-later", "lastmod": "2026-10-05"}]}
+
+		with patch("frappe.www.sitemap.get_context", return_value=site_sitemap):
+			clear_website_cache("published-later")
+			body = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
+
+		self.assertIn("https://example.com/published-later", body)
+
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
 	"""
