@@ -33,7 +33,7 @@ Use Tracer bullets comes from the Pragmatic Programmer. When building systems, y
 
 ## Agent skill
 
-* `skills/frappe-wiki-authoring/` documents the change-request API for agents. When you change a whitelisted method in `wiki_change_request.py` (name, params, return shape, an operation type), update `reference/api.md` and, if it wraps the method, `scripts/wikitool/` in the same PR. Run its tests: `python3 -m unittest discover -s skills/frappe-wiki-authoring/scripts/tests`.
+* `skills/frappe-wiki-skill/` documents the change-request API for agents. When you change a whitelisted method in `wiki_change_request.py` (name, params, return shape, an operation type), update `reference/api.md` and, if it wraps the method, `scripts/wikitool/` in the same PR. Run its tests: `python3 -m unittest discover -s skills/frappe-wiki-skill/scripts/tests`.
 
 ## Pull Requests
 

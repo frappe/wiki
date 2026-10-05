@@ -1,5 +1,5 @@
 ---
-name: frappe-wiki-authoring
+name: frappe-wiki-skill
 description: Frappe Wiki authoring and publishing through change requests, with the wikictl.py helper over frappectl. Use when the user wants to add, edit, restructure, sync or delete wiki pages; names a wiki space ("the Buzz wiki", "our handbook", "our docs"); or mentions Wiki Change Request, wiki CR, or apply_cr_operations.
 ---
 

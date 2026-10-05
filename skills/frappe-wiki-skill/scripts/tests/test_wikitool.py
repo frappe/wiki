@@ -1,6 +1,6 @@
 """Offline tests for the parts of wikictl that hold logic.
 
-python3 -m unittest discover -s skills/frappe-wiki-authoring/scripts/tests
+python3 -m unittest discover -s skills/frappe-wiki-skill/scripts/tests
 """
 
 import sys

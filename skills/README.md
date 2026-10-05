@@ -4,7 +4,7 @@ Skills for AI coding agents that work against a live Frappe Wiki site.
 
 | Skill | What it does |
 |---|---|
-| [frappe-wiki-authoring](frappe-wiki-authoring/) | Write, sync and publish wiki pages through change requests, over `frappectl` |
+| [frappe-wiki-skill](frappe-wiki-skill/) | Write, sync and publish wiki pages through change requests, over `frappectl` |
 
 A skill is one folder. `SKILL.md` is the procedure. `reference/` is the contract it works
 against. `README.md` says how to point an agent at it.

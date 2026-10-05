@@ -1,4 +1,4 @@
-# frappe-wiki-authoring
+# frappe-wiki-skill
 
 A skill that lets a coding agent write and publish Frappe Wiki pages on a live site
 through change requests. It works over `frappectl`, needs no wiki source, and installs
@@ -18,7 +18,7 @@ The [`skills`](https://www.npmjs.com/package/skills) CLI installs it for every a
 finds:
 
 ```sh
-npx skills add frappe/wiki --skill frappe-wiki-authoring -g
+npx skills add frappe/wiki --skill frappe-wiki-skill -g
 ```
 
 `-g` installs it for your user. Leave it out to install it in the current project only.
@@ -33,7 +33,7 @@ drift from the API it documents.
 
 ```sh
 git clone https://github.com/frappe/wiki
-SKILL=$PWD/wiki/skills/frappe-wiki-authoring
+SKILL=$PWD/wiki/skills/frappe-wiki-skill
 ```
 
 ### 2. Point the agent at it
@@ -47,7 +47,7 @@ Link the skill into the agent's skills folder:
 
 ```sh
 mkdir -p ~/.claude/skills
-ln -s "$SKILL" ~/.claude/skills/frappe-wiki-authoring
+ln -s "$SKILL" ~/.claude/skills/frappe-wiki-skill
 ```
 
 The agent reads the `description` in `SKILL.md` and uses the skill when a task fits.
@@ -79,7 +79,7 @@ should be `frappectl -s <your-site> auth whoami`, then `wikictl spaces`.
 ## Develop
 
 ```sh
-python3 -m unittest discover -s skills/frappe-wiki-authoring/scripts/tests
+python3 -m unittest discover -s skills/frappe-wiki-skill/scripts/tests
 ```
 
 The tool uses the standard library only, and Python 3.10 or later.
