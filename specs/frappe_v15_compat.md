@@ -10,7 +10,7 @@ Wiki v3 only installs on Frappe v16 and later. Many sites still run v15 and ask 
 
 One codebase that installs, upgrades and runs on Frappe v15 and v16+.
 
-- Same features on both, except auto-generated OG images. They need the headless-Chromium renderer that ships with Frappe v16 (`frappe.utils.preview`). On v15 the cards are off: no `og:image` tag for them, the endpoint returns 404, and the Wiki Settings toggle is hidden. An uploaded meta image still works.
+- Same features on both. Auto-generated OG images use the headless-Chromium renderer that ships with Frappe v16 (`frappe.utils.preview`). v15 has none, so there satori draws the card instead (see [og_cards_without_chromium.md](og_cards_without_chromium.md)). With neither renderer the cards are off: no `og:image` tag for them, the endpoint returns 404, and the Wiki Settings toggle is hidden. An uploaded meta image still works.
 - CI runs server and UI tests on Frappe `version-15` as well as `develop`.
 
 Out of scope: framework-side gaps that wiki cannot fix on its own.
@@ -25,7 +25,7 @@ Detect the feature where an API is simply missing. Check the version only where 
 | Break on v15 | Fix |
 |---|---|
 | `requires-python >=3.14`, `frappe >=16` | `requires-python >=3.10`, `frappe >=15.0.0,<=17.0.0-dev` |
-| `frappe.utils.preview` import fails, so every reader page 500s | Guarded import in `wiki/api/og_image.py`. `cards_supported()` is false without it, and `cards_enabled()` gates the tag, the endpoint and the warm-up. The boot flag `meta_images_supported` hides the settings toggle |
+| `frappe.utils.preview` import fails, so every reader page 500s | Guarded import in `wiki/api/og_image.py`. `cards_supported()` is false without it unless satori is available, and `cards_enabled()` gates the tag, the endpoint and the warm-up. The boot flag `meta_images_supported` hides the settings toggle |
 | `frappe.local.response_headers` missing, so `/wiki-app` 500s | `hasattr` guard. The robots meta tag in `wiki-app.html` already covers it |
 | `search_pages` 500s: `Column 'modified' in ORDER BY is ambiguous` | Qualify `order_by` with the table name |
 | `SQLiteSearch.index_doc` appends a row on every save, so search shows duplicates | `WikiSQLiteSearch.index_doc` removes the old row first, on v15 only. On develop `index_doc` queues, so deleting first would hide the page until the queue drains |
