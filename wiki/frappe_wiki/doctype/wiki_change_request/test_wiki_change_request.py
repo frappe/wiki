@@ -1139,54 +1139,115 @@ class TestWikiChangeRequest(FrappeTestCase):
 		current_main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
 		self.assertEqual(current_main, cr_doc.merge_revision)
 
-	def test_stale_empty_draft_is_auto_archived(self):
-		"""Phase 6: An outdated draft with no changes should be archived and replaced."""
+	def test_stale_empty_draft_is_rebased(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A", content="v1")
-
-		# Create a draft CR (this also initializes main_revision)
 		cr = create_change_request(space.name, "Stale Draft")
-		old_cr_name = cr.name
 
-		# Advance main_revision so the draft becomes outdated
 		new_main = create_revision_from_live_tree(space.name, message="advance main")
 		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
 
-		# The draft has no changes (head == base hashes), so it should be archived
 		result = get_or_create_draft_change_request(space.name)
 
-		old_cr = frappe.get_doc("Wiki Change Request", old_cr_name)
-		self.assertEqual(old_cr.status, "Archived")
-		self.assertIsNotNone(old_cr.archived_at)
+		self.assertEqual(result.get("name"), cr.name)
+		cr.reload()
+		self.assertEqual(cr.status, "Draft")
+		self.assertEqual(cr.base_revision, new_main.name)
+		self.assertEqual(cr.outdated, 0)
 
-		# A new CR should have been created
-		self.assertNotEqual(result.get("name"), old_cr_name)
-		new_cr = frappe.get_doc("Wiki Change Request", result.get("name"))
-		self.assertEqual(new_cr.status, "Draft")
-
-	def test_stale_draft_with_changes_is_kept(self):
-		"""Phase 6: An outdated draft that has actual changes should NOT be archived."""
+	def test_draft_opened_during_review_shows_merged_change(self):
 		space = create_test_wiki_space()
-		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		page_a = create_test_wiki_document(space.root_group, title="Page A", content="alpha")
+		page_b = create_test_wiki_document(space.root_group, title="Page B", content="beta")
+		key_a = frappe.get_value("Wiki Document", page_a.name, "doc_key")
+		key_b = frappe.get_value("Wiki Document", page_b.name, "doc_key")
 
-		cr = create_change_request(space.name, "Draft With Changes")
-		cr_name = cr.name
+		first = get_or_create_draft_change_request(space.name)["name"]
+		update_cr_page(first, key_a, {"content": "alpha merged"})
+		submit_change_request(first)
 
-		# Make an edit in the CR so it has real changes
-		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
-		update_cr_page(cr.name, page_key, {"content": "v2-from-cr"})
+		second = get_or_create_draft_change_request(space.name)["name"]
+		self.assertNotEqual(second, first)
+		update_cr_page(second, key_b, {"content": "beta draft"})
+		_approve_and_merge(first)
 
-		# Advance main_revision so the draft becomes outdated
-		new_main = create_revision_from_live_tree(space.name, message="advance main")
-		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+		self.assertEqual(get_or_create_draft_change_request(space.name)["name"], second)
+		self.assertEqual(get_cr_page(second, key_a)["content"], "alpha merged")
+		self.assertEqual(get_cr_page(second, key_b)["content"], "beta draft")
+		self.assertEqual([c["doc_key"] for c in diff_change_request(second)], [key_b])
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", second, "outdated"), 0)
 
-		# The draft has changes, so it should be kept (not archived)
-		result = get_or_create_draft_change_request(space.name)
+	def test_draft_touching_a_merged_page_is_not_rebased(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="alpha")
+		key = frappe.get_value("Wiki Document", page.name, "doc_key")
 
-		self.assertEqual(result.get("name"), cr_name)
-		kept_cr = frappe.get_doc("Wiki Change Request", cr_name)
-		self.assertNotEqual(kept_cr.status, "Archived")
-		self.assertEqual(kept_cr.outdated, 1)
+		first = get_or_create_draft_change_request(space.name)["name"]
+		update_cr_page(first, key, {"content": "alpha merged"})
+		submit_change_request(first)
+
+		second = get_or_create_draft_change_request(space.name)["name"]
+		update_cr_page(second, key, {"content": "alpha other"})
+		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
+		_approve_and_merge(first)
+
+		get_or_create_draft_change_request(space.name)
+
+		second_doc = frappe.get_doc("Wiki Change Request", second)
+		self.assertEqual(second_doc.base_revision, old_base)
+		self.assertEqual(second_doc.outdated, 1)
+		self.assertEqual(get_cr_page(second, key)["content"], "alpha other")
+
+	def test_draft_page_under_a_group_removed_on_main_is_not_rebased(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		first = get_or_create_draft_change_request(space.name)["name"]
+		delete_cr_page(first, group_key)
+		submit_change_request(first)
+
+		second = get_or_create_draft_change_request(space.name)["name"]
+		create_cr_page(second, group_key, "Child", "child")
+		old_base = frappe.db.get_value("Wiki Change Request", second, "base_revision")
+		_approve_and_merge(first)
+
+		get_or_create_draft_change_request(space.name)
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", second, "base_revision"), old_base)
+
+	def test_rebased_draft_cannot_add_a_page_under_a_group_main_turned_into_a_page(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		first = get_or_create_draft_change_request(space.name)["name"]
+		update_cr_page(first, group_key, {"is_group": 0})
+		submit_change_request(first)
+
+		second = get_or_create_draft_change_request(space.name)["name"]
+		create_cr_page(second, group_key, "Child", "child")
+		_approve_and_merge(first)
+		get_or_create_draft_change_request(space.name)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
+			_approve_and_merge(second)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"parent_wiki_document": group.name}))
+
+	def test_stale_draft_cannot_add_a_page_under_a_group_main_turned_into_a_page(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+
+		first = create_change_request(space.name, "Group to page")
+		update_cr_page(first.name, group_key, {"is_group": 0})
+		second = create_change_request(space.name, "Child under group")
+		create_cr_page(second.name, group_key, "Child", "child")
+		_approve_and_merge(first.name)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "no longer a group"):
+			_approve_and_merge(second.name)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"parent_wiki_document": group.name}))
 
 	def test_archive_change_request_sets_status(self):
 		space = create_test_wiki_space()
