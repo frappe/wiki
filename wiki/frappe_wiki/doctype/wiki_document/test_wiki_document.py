@@ -15,7 +15,6 @@ from urllib.parse import quote, urlparse
 from xml.etree import ElementTree
 
 import frappe
-from frappe.tests import IntegrationTestCase
 from frappe.utils import get_test_client
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
@@ -32,6 +31,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	resolve_wiki_links,
 	touch_space_last_edited,
 )
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
@@ -575,12 +575,13 @@ class TestRenderedPageMetaTags(WikiDocumentTestBase):
 		)
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
-		response = _make_request(
-			self.TEST_CLIENT,
-			"get",
-			f"/{doc.route}",
-			headers={"Accept": "text/html"},
-		)
+		with patch("wiki.api.og_image.get_preview_from_html", return_value=FAKE_JPEG):
+			response = _make_request(
+				self.TEST_CLIENT,
+				"get",
+				f"/{doc.route}",
+				headers={"Accept": "text/html"},
+			)
 
 		self.assertEqual(response.status_code, 200)
 		html = response.get_data(as_text=True)
@@ -2619,7 +2620,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 
 		from wiki.wiki.sitemap import _framework_links
 
-		app = frappe.get_active_apps()[-1]
+		app = frappe.get_installed_apps()[-1]
 		override_dir = tempfile.mkdtemp()
 		self.addCleanup(shutil.rmtree, override_dir)
 		Path(override_dir, "www").mkdir()
@@ -2943,6 +2944,22 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 		search.drop_index()
 		search.build_index()
 		return search
+
+	def test_reindexing_a_page_keeps_one_row(self):
+		root = create_test_wiki_document(self, "Root Reindex", is_group=True)
+		page = create_test_wiki_document(self, "Reindexed Page", parent=root.name, content="reindex_term")
+		create_test_wiki_space(self, "Reindex Space", "reindex-gate", root.name)
+		search = self._build_index()
+
+		search.index_doc("Wiki Document", page.name)
+		search.index_doc("Wiki Document", page.name)
+
+		rows = search.sql(
+			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+			(f"Wiki Document:{page.name}",),
+			read_only=True,
+		)
+		self.assertEqual(rows[0]["c"], 1)
 
 	def test_search_hides_docs_in_unpublished_space(self):
 		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
@@ -3360,6 +3377,19 @@ class TestOGImageEndpoint(OGImageTestBase):
 		self.assertEqual(response.status_code, 404)
 		self.renderer.assert_not_called()
 
+	def test_returns_404_without_a_renderer(self):
+		doc = self._published_page("og-endpoint-no-renderer")
+
+		# Frappe v15 has no frappe.utils.preview to render the card with.
+		with (
+			patch("wiki.api.og_image.get_preview_from_html", None),
+			patch("wiki.api.og_image._generate_and_store") as generate,
+		):
+			response = self._get(doc.route)
+
+		self.assertEqual(response.status_code, 404)
+		generate.assert_not_called()
+
 	def test_cards_are_never_shared_cacheable(self):
 		"""The URL carries no identity, so a `public` Cache-Control would let a
 		CDN keep serving a card — title, breadcrumb, space name — after the page
@@ -3597,6 +3627,15 @@ class TestOGImageMetaTags(OGImageTestBase):
 		doc = self._published_page("og-meta-toggle-off")
 
 		with self.change_settings("Wiki Settings", {"auto_generate_meta_images": 0}):
+			metatags = doc.get_web_context()["metatags"]
+
+		self.assertNotIn("og:image", metatags)
+		self.assertEqual(metatags["twitter:card"], "summary")
+
+	def test_no_renderer_emits_no_image_tags(self):
+		doc = self._published_page("og-meta-no-renderer")
+
+		with patch("wiki.api.og_image.get_preview_from_html", None):
 			metatags = doc.get_web_context()["metatags"]
 
 		self.assertNotIn("og:image", metatags)

@@ -17,6 +17,7 @@
 		/>
 
 		<SettingToggle
+			v-if="metaImagesSupported"
 			:settings="settings"
 			fieldname="auto_generate_meta_images"
 			:title="__('Auto Generate Meta Images')"
@@ -34,6 +35,9 @@
 <script setup>
 import SettingToggle from './SettingToggle.vue';
 import ViewTrackingToggle from './ViewTrackingToggle.vue';
+
+// The card renderer needs Frappe v16; v15 sites have nothing to switch on.
+const metaImagesSupported = window.meta_images_supported;
 
 defineProps({
 	settings: {

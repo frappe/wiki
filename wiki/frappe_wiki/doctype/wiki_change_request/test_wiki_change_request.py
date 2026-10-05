@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
-from frappe.tests.utils import FrappeTestCase
 
 from wiki.api.wiki_space import _pending_revision_spaces
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
@@ -44,6 +43,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
 )
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
 
 
@@ -2507,7 +2507,10 @@ class TestWikiChangeRequestOGWarmup(FrappeTestCase):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Old Title")
 
-		with patch("frappe.enqueue") as enqueue:
+		with (
+			patch("wiki.api.og_image.get_preview_from_html", return_value=b"\xff\xd8\xff"),
+			patch("frappe.enqueue") as enqueue,
+		):
 			self._rename_via_merge(page, "New Title")
 
 		og_jobs = [

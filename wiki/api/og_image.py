@@ -23,11 +23,16 @@ import time
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils.preview import get_preview_from_html
 from werkzeug.wrappers import Response
 
 from wiki.telemetry import capture, duration_bucket
 from wiki.utils import lucide_svg, space_mark
+
+try:
+	from frappe.utils.preview import get_preview_from_html
+except ImportError:
+	# The headless-Chromium renderer ships with Frappe v16; on v15 cards are off.
+	get_preview_from_html = None
 
 # Bumped whenever the card template or its token block changes; it is part of
 # the cache fingerprint, so a bump invalidates every cached card for free.
@@ -358,8 +363,14 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 	return data
 
 
-def _cards_enabled() -> bool:
-	return bool(frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"))
+def cards_supported() -> bool:
+	return get_preview_from_html is not None
+
+
+def cards_enabled() -> bool:
+	return cards_supported() and bool(
+		frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images")
+	)
 
 
 def _has_card(doc) -> tuple[str, str] | None:
@@ -390,7 +401,7 @@ def enqueue_og_warmup(doc) -> None:
 	import of a whole wiki into a Chromium storm. Bulk pre-generation is a
 	separate problem.
 	"""
-	if not _cards_enabled():
+	if not cards_enabled():
 		return
 
 	before = doc.get_doc_before_save()
@@ -419,7 +430,7 @@ def enqueue_og_warmup(doc) -> None:
 
 def warm_og_image(name: str) -> None:
 	"""Render and cache a document's card ahead of the first request."""
-	if not _cards_enabled():
+	if not cards_enabled():
 		return
 
 	doc = frappe.get_cached_doc("Wiki Document", name)
@@ -454,7 +465,7 @@ def og_image(route: str, v: str | None = None):
 	``Content-Disposition: attachment``, which no ``og:image`` consumer accepts.
 	"""
 	doc = _resolve_doc(route)
-	if not _cards_enabled():
+	if not cards_enabled():
 		# The kill switch has to stop Chromium launching, not just stop the tag
 		# being emitted -- otherwise a site that turned cards off still pays for
 		# every crawler that remembers an old og:image URL.

@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import frappe
 import requests
-from frappe.tests import IntegrationTestCase
 
 from wiki import telemetry
 from wiki.api import og_image
@@ -20,6 +19,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_document import search as reader_search
 from wiki.frappe_wiki.doctype.wiki_document import wiki_document
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import WikiFixtures
 from wiki.wiki import git_sync
 from wiki.wiki.doctype.wiki_feedback import wiki_feedback

@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 
 /**
@@ -12,9 +13,19 @@ import { expect, test } from '../fixtures';
  * That renderer is therefore not guaranteed on the CI site: a 503 (another
  * worker holds the render lock) or a 404 (the render failed and is negatively
  * cached) is treated as "renderer unavailable" and skips the byte assertions.
- * The og:image tag itself is asserted unconditionally — that part is pure
- * template work and must never regress.
+ * The og:image tag itself is asserted whenever the site can render cards —
+ * that part is pure template work and must never regress. Frappe v15 ships no
+ * renderer, so there the page must advertise no card at all.
  */
+async function cardsSupported(page: Page) {
+	await page.goto('/wiki-app');
+	return page.evaluate(
+		() =>
+			(window as unknown as { meta_images_supported?: boolean })
+				.meta_images_supported,
+	);
+}
+
 test.describe('Generated OG image', () => {
 	let pageUrl: string;
 
@@ -36,6 +47,7 @@ test.describe('Generated OG image', () => {
 		page,
 		request,
 	}) => {
+		test.skip(!(await cardsSupported(page)), 'Cards need Frappe v16');
 		await page.goto(pageUrl);
 
 		const ogImage = await page
@@ -55,5 +67,16 @@ test.describe('Generated OG image', () => {
 		expect(response.status()).toBe(200);
 		expect(response.headers()['content-type']).toBe('image/jpeg');
 		expect((await response.body()).byteLength).toBeGreaterThan(0);
+	});
+
+	test('without a renderer the page advertises no card', async ({ page }) => {
+		test.skip(await cardsSupported(page), 'This site can render cards');
+		await page.goto(pageUrl);
+
+		await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
+		await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+			'content',
+			'summary',
+		);
 	});
 });
