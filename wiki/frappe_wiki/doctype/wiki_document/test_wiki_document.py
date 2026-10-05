@@ -3697,15 +3697,16 @@ class TestOGImageTokenDrift(unittest.TestCase):
 			"node_modules",
 			"frappe-ui",
 			"tailwind",
-			"generated",
-			"colors.json",
+			"tokens",
+			"colors.js",
 		)
 		if not os.path.exists(colors_path):
 			# The Python CI job installs no frontend dependencies.
 			raise unittest.SkipTest("frappe-ui is not installed")
 
 		with open(colors_path) as f:
-			colors = json.load(f)
+			# A generated module whose whole body is `export default {<JSON>}`.
+			colors = json.loads(f.read().split("export default", 1)[1])
 
 		template = frappe.get_app_path("wiki", "templates", "wiki", "og_image.html")
 		with open(template) as f:
