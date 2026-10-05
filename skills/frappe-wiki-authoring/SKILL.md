@@ -81,6 +81,10 @@ for anything the tool does not cover.
    It lists the page as a conflict and exits 1. Show the user both versions (`cat` and
    the local file). Use `--force` only when they say so.
 
+   The first sync of a folder into pages that already exist has no record yet. Every page
+   whose text differs is then a conflict, even when nobody edited it. Expect this, compare,
+   and ask the user before `--force`.
+
    Content is **raw markdown**. HTML is stored as it is and shows as literal text. The wiki
    shows the page title above the content, so do not start a page with a `#` heading.
 5. Review.

@@ -12,6 +12,20 @@ holds the command reference and the raw API.
 **Give this page to your agent and ask it to set the skill up.** The steps are written for
 the agent. You can also do them by hand.
 
+### Quick install
+
+The [`skills`](https://www.npmjs.com/package/skills) CLI installs it for every agent it
+finds:
+
+```sh
+npx skills add frappe/wiki --skill frappe-wiki-authoring -g
+```
+
+`-g` installs it for your user. Leave it out to install it in the current project only.
+`npx skills update` gets new versions. Then go to step 3 to give it a site.
+
+To install by hand instead, do steps 1 and 2.
+
 ### 1. Get the skill
 
 Each agent gets a link to one copy, so `git pull` updates the skill. The skill then cannot
