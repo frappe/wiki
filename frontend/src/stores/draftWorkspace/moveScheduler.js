@@ -13,6 +13,7 @@ export function createMoveScheduler({
 	useBatchOperations,
 	crStore,
 	crName,
+	ensureCr,
 	scheduleSummaryRefresh,
 	errorMessage,
 }) {
@@ -37,8 +38,6 @@ export function createMoveScheduler({
 	async function flush() {
 		if (reorderInFlight) return;
 		if (pendingMoves.size === 0) return;
-		if (!crName()) return;
-
 		reorderInFlight = true;
 		const snapshot = Array.from(pendingMoves.entries());
 		pendingMoves.clear();
@@ -52,6 +51,8 @@ export function createMoveScheduler({
 
 		const failedKeys = [];
 		try {
+			// A drag can be the first edit in a space, before any change request.
+			if (!(await ensureCr())) throw new Error('No change request');
 			if (useBatchOperations) {
 				// Pack every drag (and its parent's full sibling order)
 				// into a single atomic batch so the backend sees one

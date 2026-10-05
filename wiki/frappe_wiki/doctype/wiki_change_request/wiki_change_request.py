@@ -531,7 +531,57 @@ def has_revision_changes(base_revision: str | None, head_revision: str | None) -
 
 
 @frappe.whitelist()
-def get_or_create_draft_change_request(wiki_space: str, title: str | None = None) -> dict[str, Any]:
+def get_draft_workspace(wiki_space: str, unsaved_doc_keys: list[str] | None = None) -> dict[str, Any]:
+	"""The user's open draft and its tree, or the published tree when they have none.
+
+	Opening a space must not create a change request: that waits for the first
+	edit, through get_or_create_draft_change_request. `unsaved_doc_keys` are
+	pages the browser holds typing for that has not reached the server yet.
+	"""
+	_assert_can_draft(wiki_space)
+	flush_pending_revision_syncs()
+
+	cr = _find_existing_draft(wiki_space)
+	if cr:
+		_rebase_draft(cr, unsaved_doc_keys=set(unsaved_doc_keys or []))
+		return {"change_request": cr.as_dict(), "tree": get_cr_tree(cr.name)}
+
+	main_revision = _ensure_main_revision(wiki_space)
+	return {
+		"change_request": None,
+		"main_revision": main_revision,
+		"tree": _build_revision_tree(wiki_space, head_revision=main_revision),
+	}
+
+
+@frappe.whitelist()
+def get_or_create_draft_change_request(
+	wiki_space: str, title: str | None = None, base_revision: str | None = None
+) -> dict[str, Any]:
+	"""The draft the first edit goes into.
+
+	`base_revision` is the main revision the browser loaded its pages from. The
+	new draft starts there, so typing on a page main has changed since then
+	conflicts at merge instead of overwriting main. An existing draft is not
+	rebased here: another tab may hold typing made against its current base.
+	"""
+	_assert_can_draft(wiki_space)
+	flush_pending_revision_syncs()
+
+	# Two tabs can make their first edit at once. The space row lock makes the
+	# second wait for the first one's draft, and the locking read finds it: under
+	# REPEATABLE READ a plain read can come from a snapshot taken before it.
+	frappe.db.get_value("Wiki Space", wiki_space, "name", for_update=True)
+	cr = _find_existing_draft(wiki_space, for_update=True)
+	if cr:
+		return cr.as_dict()
+
+	space = frappe.get_doc("Wiki Space", wiki_space)
+	default_title = title or f"Draft Changes - {space.space_name}"
+	return create_change_request(wiki_space, default_title, base_revision=base_revision).as_dict()
+
+
+def _assert_can_draft(wiki_space: str) -> None:
 	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
@@ -540,21 +590,10 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	_assert_space_accepts_contributions(wiki_space)
 	assert_space_writable(wiki_space)
 
-	flush_pending_revision_syncs()
 
-	cr = _find_existing_draft(wiki_space)
-	if cr:
-		_rebase_draft(cr)
-		return cr.as_dict()
-
-	space = frappe.get_doc("Wiki Space", wiki_space)
-	default_title = title or f"Draft Changes - {space.space_name}"
-	return create_change_request(wiki_space, default_title).as_dict()
-
-
-def _find_existing_draft(wiki_space: str) -> Document | None:
+def _find_existing_draft(wiki_space: str, for_update: bool = False) -> Document | None:
 	"""Find user's most relevant draft: prefer one with actual changes."""
-	existing = frappe.get_all(
+	existing = frappe.qb.get_query(
 		"Wiki Change Request",
 		filters={
 			"wiki_space": wiki_space,
@@ -563,7 +602,8 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 		},
 		fields=["name", "base_revision", "head_revision", "modified"],
 		order_by="modified desc",
-	)
+		for_update=for_update,
+	).run(as_dict=True)
 	if not existing:
 		return None
 
@@ -575,17 +615,17 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	if not selected:
 		selected = existing[0]
 
-	cr = frappe.get_doc("Wiki Change Request", selected["name"])
+	cr = frappe.get_doc("Wiki Change Request", selected["name"], for_update=for_update)
 	cr.check_permission("read")
 	return cr
 
 
-def _rebase_draft(cr: Document) -> None:
+def _rebase_draft(cr: Document, unsaved_doc_keys: set[str] | frozenset[str] = frozenset()) -> None:
 	"""Repoint the draft's overlay onto the current main, unless both changed the same page."""
 	main_revision = frappe.db.get_value("Wiki Space", cr.wiki_space, "main_revision")
 	if not main_revision or cr.base_revision == main_revision:
 		return
-	if not _can_rebase(cr, main_revision):
+	if not _can_rebase(cr, main_revision, unsaved_doc_keys):
 		cr.db_set("outdated", 1)
 		return
 
@@ -595,14 +635,14 @@ def _rebase_draft(cr: Document) -> None:
 	cr.db_set({"base_revision": main_revision, "outdated": 0})
 
 
-def _can_rebase(cr: Document, main_revision: str) -> bool:
+def _can_rebase(cr: Document, main_revision: str, unsaved_doc_keys: set[str] | frozenset[str]) -> bool:
 	if not frappe.db.get_value("Wiki Revision", cr.head_revision, "is_overlay"):
 		return False
 
 	overlay_items = get_revision_item_map(cr.head_revision)
 	main_items = get_revision_item_map(main_revision)
 	main_changed = _find_changed_keys(get_revision_item_map(cr.base_revision), main_items)
-	if main_changed & overlay_items.keys():
+	if main_changed & (overlay_items.keys() | unsaved_doc_keys):
 		return False
 
 	# Don't orphan a page added under a group that main deleted.
@@ -665,15 +705,35 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
 
-	root_group = frappe.db.get_value("Wiki Space", cr.wiki_space, "root_group")
-	operation_version = int(cr.operation_version or 0)
+	change_map = {
+		change.get("doc_key"): change.get("change_type")
+		for change in (diff_change_request(cr.name, scope="summary") or [])
+		if change.get("doc_key")
+	}
+	return _build_revision_tree(
+		cr.wiki_space,
+		head_revision=cr.head_revision,
+		base_revision=cr.base_revision,
+		change_map=change_map,
+		operation_version=int(cr.operation_version or 0),
+	)
+
+
+def _build_revision_tree(
+	wiki_space: str,
+	head_revision: str,
+	base_revision: str | None = None,
+	change_map: dict[str, str] | None = None,
+	operation_version: int = 0,
+) -> dict[str, Any]:
+	root_group = frappe.db.get_value("Wiki Space", wiki_space, "root_group")
 	if not root_group:
 		return {"children": [], "root_group": None, "operation_version": operation_version}
 
 	root_key = frappe.get_value("Wiki Document", root_group, "doc_key")
-	effective_items = get_effective_revision_item_map(cr.head_revision)
+	effective_items = get_effective_revision_item_map(head_revision)
 
-	base_items = get_revision_item_map(cr.base_revision) if cr.base_revision else {}
+	base_items = get_revision_item_map(base_revision) if base_revision else {}
 
 	doc_map: dict[str, dict[str, Any]] = {}
 	for item in effective_items.values():
@@ -718,11 +778,6 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 			node["document_name"] = mapped.get("name")
 			node["route"] = mapped.get("route")
 
-	change_map = {
-		change.get("doc_key"): change.get("change_type")
-		for change in (diff_change_request(cr.name, scope="summary") or [])
-		if change.get("doc_key")
-	}
 	if change_map:
 		for node in doc_map.values():
 			change_type = change_map.get(node.get("doc_key"))
@@ -828,7 +883,9 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 
 
 @frappe.whitelist()
-def create_change_request(wiki_space: str, title: str, description: str | None = None) -> Document:
+def create_change_request(
+	wiki_space: str, title: str, description: str | None = None, base_revision: str | None = None
+) -> Document:
 	from wiki.permissions import assert_space_writable, can_read_space
 
 	if not can_read_space(wiki_space):
@@ -839,15 +896,10 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	flush_pending_revision_syncs()
 
-	space = frappe.get_doc("Wiki Space", wiki_space)
-	if not space.main_revision:
-		# Seed the first revision with elevated privileges so a Read-tier
-		# contributor (allowed to raise CRs) can bootstrap a fresh space.
-		main_revision = _bootstrap_main_revision(wiki_space)
-		frappe.db.set_value("Wiki Space", wiki_space, "main_revision", main_revision.name)
-		space.main_revision = main_revision.name
-
-	base_revision = space.main_revision
+	if base_revision:
+		_assert_main_line_revision(wiki_space, base_revision)
+	else:
+		base_revision = _ensure_main_revision(wiki_space)
 	head_revision = create_overlay_revision(base_revision, is_working=1)
 
 	cr = frappe.new_doc("Wiki Change Request")
@@ -862,6 +914,29 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", cr.name)
 	capture("change_request_created")
 	return cr
+
+
+def _assert_main_line_revision(wiki_space: str, revision: str) -> None:
+	if frappe.db.get_value("Wiki Revision", revision, ["wiki_space", "is_overlay"]) != (wiki_space, 0):
+		frappe.throw(_("A draft can only start from a published revision of this space."))
+
+
+def _ensure_main_revision(wiki_space: str) -> str:
+	main_revision = frappe.db.get_value("Wiki Space", wiki_space, "main_revision")
+	if main_revision:
+		return main_revision
+
+	# Two tabs can open a fresh space at once. Lock only here, so opening a
+	# space that already has a revision stays lock-free.
+	main_revision = frappe.db.get_value("Wiki Space", wiki_space, "main_revision", for_update=True)
+	if main_revision:
+		return main_revision
+
+	# Seed the first revision with elevated privileges so a Read-tier
+	# contributor (allowed to raise CRs) can bootstrap a fresh space.
+	main_revision = _bootstrap_main_revision(wiki_space).name
+	frappe.db.set_value("Wiki Space", wiki_space, "main_revision", main_revision)
+	return main_revision
 
 
 def _bootstrap_main_revision(wiki_space: str) -> Document:
