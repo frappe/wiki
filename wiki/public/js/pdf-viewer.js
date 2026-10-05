@@ -18,11 +18,23 @@
 	const PDFJS_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.min.js';
 	const WORKER_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.worker.min.js';
 
+	const SKELETON_LINES =
+		'<div class="space-y-4">' +
+		['w-3/4', 'w-full', 'w-5/6', 'w-full', 'w-2/3', 'w-full mt-6', 'w-4/5', 'w-full', 'w-3/4']
+			.map(
+				(width) =>
+					`<div class="h-4 ${width} animate-pulse rounded-4 bg-[var(--surface-gray-3)]"></div>`,
+			)
+			.join('') +
+		'</div>';
 	const CARD_LOADER =
-		'<div data-role="loader" class="flex h-48 items-center justify-center">' +
-		'<div class="size-5 animate-spin rounded-full border-2 border-[var(--outline-gray-3)] border-t-[var(--ink-gray-7)]"></div></div>';
+		'<div data-role="loader" class="wiki-pdf-page aspect-[1/1.414] bg-[var(--surface-base)] p-[8%]">' +
+		SKELETON_LINES +
+		'</div>';
 	const MODAL_LOADER =
-		'<div class="my-auto size-6 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>';
+		'<div data-role="loader" class="wiki-pdf-modal-page aspect-[1/1.414] w-[714px] shrink-0 !bg-[var(--surface-base)] p-[8%]">' +
+		SKELETON_LINES +
+		'</div>';
 
 	let pdfjsPromise = null;
 	const docCache = new Map();

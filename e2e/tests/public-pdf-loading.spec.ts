@@ -57,7 +57,7 @@ async function openPdfPageWithHeldRequest(page: Page, wiki: WikiFactory) {
 }
 
 test.describe('Public PDF embed', () => {
-	test('shows a spinner in the card until the first page is rendered', async ({
+	test('shows a page skeleton in the card until the first page is rendered', async ({
 		page,
 		wiki,
 	}) => {
@@ -66,7 +66,7 @@ test.describe('Public PDF embed', () => {
 		const card = page.locator('.wiki-pdf-embed');
 		const scroll = card.locator('.wiki-pdf-scroll');
 		const loader = scroll.locator('[data-role="loader"]');
-		await expect(loader.locator('.animate-spin')).toBeVisible();
+		await expect(loader).toBeVisible();
 		expect((await scroll.boundingBox())?.height).toBeGreaterThan(150);
 
 		releasePdf();
@@ -77,7 +77,7 @@ test.describe('Public PDF embed', () => {
 		await expect(card.locator('[data-role="pages"]')).toHaveText('1 page');
 	});
 
-	test('shows a spinner in the viewer until the first page is rendered', async ({
+	test('shows a page skeleton in the viewer until the first page is rendered', async ({
 		page,
 		wiki,
 	}) => {
@@ -86,13 +86,13 @@ test.describe('Public PDF embed', () => {
 		await page.locator('.wiki-pdf-embed [data-role="open"]').click();
 
 		const viewer = page.locator('.wiki-pdf-modal-scroll');
-		const spinner = viewer.locator('.animate-spin');
-		await expect(spinner).toBeVisible();
+		const loader = viewer.locator('[data-role="loader"]');
+		await expect(loader).toBeVisible();
 		await expect(page.locator('.wiki-pdf-modal-zoom')).toHaveText('120%');
 
 		releasePdf();
 
 		await expect(viewer.locator('canvas.wiki-pdf-modal-page')).toHaveCount(1);
-		await expect(spinner).toHaveCount(0);
+		await expect(loader).toHaveCount(0);
 	});
 });
