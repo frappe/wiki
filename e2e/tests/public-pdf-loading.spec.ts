@@ -1,4 +1,6 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import type { WikiFactory } from '../helpers/factory';
 
 /**
  * Covers frappe/wiki#830.
@@ -33,30 +35,33 @@ function minimalPdf(): string {
 	return body;
 }
 
+async function openPdfPageWithHeldRequest(page: Page, wiki: WikiFactory) {
+	const space = await wiki.space({
+		pages: [{ title: 'PDF Page', content: `![loading-state.pdf](${PDF_URL})` }],
+	});
+
+	let releasePdf = () => {};
+	const pdfHeld = new Promise<void>((resolve) => {
+		releasePdf = resolve;
+	});
+	await page.route(`**${PDF_URL}`, async (route) => {
+		await pdfHeld;
+		await route.fulfill({
+			contentType: 'application/pdf',
+			body: minimalPdf(),
+		});
+	});
+
+	await page.goto(`/${space.page('PDF Page').route}`);
+	return releasePdf;
+}
+
 test.describe('Public PDF embed', () => {
-	test('shows a spinner until the first page is rendered', async ({
+	test('shows a spinner in the card until the first page is rendered', async ({
 		page,
 		wiki,
 	}) => {
-		const space = await wiki.space({
-			pages: [
-				{ title: 'PDF Page', content: `![loading-state.pdf](${PDF_URL})` },
-			],
-		});
-
-		let releasePdf = () => {};
-		const pdfHeld = new Promise<void>((resolve) => {
-			releasePdf = resolve;
-		});
-		await page.route(`**${PDF_URL}`, async (route) => {
-			await pdfHeld;
-			await route.fulfill({
-				contentType: 'application/pdf',
-				body: minimalPdf(),
-			});
-		});
-
-		await page.goto(`/${space.page('PDF Page').route}`);
+		const releasePdf = await openPdfPageWithHeldRequest(page, wiki);
 
 		const card = page.locator('.wiki-pdf-embed');
 		const scroll = card.locator('.wiki-pdf-scroll');
@@ -70,5 +75,24 @@ test.describe('Public PDF embed', () => {
 		await expect(loader).toHaveCount(0);
 		await expect(scroll.locator('canvas.wiki-pdf-page')).toHaveCount(1);
 		await expect(card.locator('[data-role="pages"]')).toHaveText('1 page');
+	});
+
+	test('shows a spinner in the viewer until the first page is rendered', async ({
+		page,
+		wiki,
+	}) => {
+		const releasePdf = await openPdfPageWithHeldRequest(page, wiki);
+
+		await page.locator('.wiki-pdf-embed [data-role="open"]').click();
+
+		const viewer = page.locator('.wiki-pdf-modal-scroll');
+		const spinner = viewer.locator('.animate-spin');
+		await expect(spinner).toBeVisible();
+		await expect(page.locator('.wiki-pdf-modal-zoom')).toHaveText('120%');
+
+		releasePdf();
+
+		await expect(viewer.locator('canvas.wiki-pdf-modal-page')).toHaveCount(1);
+		await expect(spinner).toHaveCount(0);
 	});
 });
