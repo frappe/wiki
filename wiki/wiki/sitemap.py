@@ -6,17 +6,18 @@
 frappe's own sitemap (frappe/www/sitemap.py) walks doctypes that have a web
 view, guest view enabled, and a published field. Wiki Document has none of
 those -- it renders through a page_renderer -- so no wiki route has ever been
-listed. This rebuilds the framework's list and adds the wiki's own routes to it,
-so taking over the route loses nothing that was there before.
+listed. This takes the site's own list from the www/sitemap page that would
+serve the route without the wiki (frappe's, or an app's override of it) and adds
+the wiki's own routes to it, so taking over the route loses nothing that was
+there before, including what that page chose to leave out.
 """
 
 from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 import frappe
-from frappe.utils import get_url, nowdate
-from frappe.website.router import get_pages
-from frappe.www.sitemap import get_public_pages_from_doctypes
+from frappe.utils import get_url
+from frappe.website.page_renderers.template_page import TemplatePage
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_noindex_documents
 from wiki.wiki.crawler_cache import SITEMAP, cached_index
@@ -43,16 +44,19 @@ def _sitemap_xml() -> str | None:
 	for loc, lastmod in _framework_links() + wiki_links:
 		links[loc] = lastmod
 
-	entries = "\n".join(
-		f"\t<url>\n\t\t<loc>{escape(loc)}</loc>\n\t\t<lastmod>{lastmod}</lastmod>\n\t</url>"
-		for loc, lastmod in links.items()
-	)
+	entries = "\n".join(_url_entry(loc, lastmod) for loc, lastmod in links.items())
 	return (
 		'<?xml version="1.0" encoding="UTF-8"?>\n'
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 		f"{entries}\n"
 		"</urlset>\n"
 	)
+
+
+def _url_entry(loc: str, lastmod: str | None) -> str:
+	# A page with no reliable change date is listed without one, not with today's.
+	lastmod_tag = f"\n\t\t<lastmod>{lastmod}</lastmod>" if lastmod else ""
+	return f"\t<url>\n\t\t<loc>{escape(loc)}</loc>{lastmod_tag}\n\t</url>"
 
 
 def _wiki_links() -> list[tuple[str, str]]:
@@ -84,15 +88,21 @@ def _wiki_links() -> list[tuple[str, str]]:
 	]
 
 
-def _framework_links() -> list[tuple[str, str]]:
-	"""Exactly what frappe.www.sitemap would have emitted on its own."""
-	links = [
-		(get_url(quote(page.name.encode("utf-8"))), nowdate())
-		for page in get_pages().values()
-		if page.sitemap
-	]
-	links += [
-		(get_url(quote((route or "").encode("utf-8"))), f"{data['modified']:%Y-%m-%d}")
-		for route, data in get_public_pages_from_doctypes().items()
-	]
-	return links
+def _framework_links() -> list[tuple[str, str | None]]:
+	"""The site's own sitemap links, as the www/sitemap page that would serve the
+	route without the wiki builds them.
+
+	That is frappe's, unless an app overrides it: Builder's leaves out noindex,
+	login-only and redirecting pages. Rebuilding frappe's list here instead would
+	quietly put those back.
+	"""
+	page = TemplatePage("sitemap.xml")
+	if not page.can_render():
+		return []
+	page.set_pymodule()
+	if not page.pymodule_name:
+		return []
+
+	context = frappe._dict()
+	context = frappe.get_module(page.pymodule_name).get_context(context) or context
+	return [(link["loc"], link.get("lastmod")) for link in context.get("links") or []]
