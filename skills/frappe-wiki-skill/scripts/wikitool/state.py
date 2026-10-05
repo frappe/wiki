@@ -22,13 +22,15 @@ class SyncState:
 		self.path = folder / FILE
 		self.target = {"site": site, "space_root": space_root, "at": at}
 
-	def load(self, cr: str, is_merged: Callable[[str], bool]) -> dict[str, str]:
-		"""The hash to expect per path: merged records in order, then this CR's."""
-		expected: dict[str, str] = {}
+	def load(self, cr: str, merged_at: Callable[[str], str | None]) -> dict[str, str]:
+		"""The hash to expect per path: merged records in merge order, then this CR's.
+
+		Main holds whatever merged last, which need not be what synced last."""
 		runs = self._runs()
-		for run in runs:
-			if run["cr"] != cr and is_merged(run["cr"]):
-				expected.update(run["pages"])
+		merged = [(when, run) for run in runs if run["cr"] != cr and (when := merged_at(run["cr"]))]
+		expected: dict[str, str] = {}
+		for _, run in sorted(merged, key=lambda pair: pair[0]):
+			expected.update(run["pages"])
 		for run in runs:
 			if run["cr"] == cr:
 				expected.update(run["pages"])

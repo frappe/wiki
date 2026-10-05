@@ -118,7 +118,7 @@ def sync(s: Session, args):
 	tree = s.tree()
 	at = tree.normalize(args.at or "")
 	state = SyncState(folder, s.site, tree.root_key, at)
-	last = state.load(s.cr, lambda cr: _merged(s, cr))
+	last = state.load(s.cr, lambda cr: _merged_at(s, cr))
 	plan = SyncPlan(
 		tree, lambda key: s.wiki.page(s.cr, key).get("content") or "", args.reorder, last, args.force
 	)
@@ -185,11 +185,12 @@ def _verify_live(s: Session, changes: list[dict]):
 	print(f"verified: {len(expected)} page(s) live")
 
 
-def _merged(s: Session, cr: str) -> bool:
+def _merged_at(s: Session, cr: str) -> str | None:
 	try:
-		return s.wiki.get_cr(cr)["status"] == "Merged"
+		c = s.wiki.get_cr(cr)
 	except WikiError:  # deleted, or no longer readable
-		return False
+		return None
+	return str(c.get("merged_at") or c["modified"]) if c["status"] == "Merged" else None
 
 
 def _writable_space(s: Session, phrase: str) -> dict:

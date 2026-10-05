@@ -190,13 +190,26 @@ class StateTest(unittest.TestCase):
 			state.save("merged-cr", {"a": "m", "b": "m"})
 			state.save("archived-cr", {"a": "x", "c": "x"})
 			state.save("current", {"b": "now"})
-			got = state.load("current", lambda cr: cr == "merged-cr")
+			got = state.load("current", lambda cr: "2026-01-01" if cr == "merged-cr" else None)
 		self.assertEqual(got, {"a": "m", "b": "now"})
+
+	def test_the_latest_merge_wins_not_the_latest_sync(self):
+		with tempfile.TemporaryDirectory() as d:
+			state = SyncState(Path(d), "site", ROOT, "guides")
+			state.save("synced-first-merged-last", {"a": "first"})
+			state.save("synced-last-merged-first", {"a": "last"})
+			merged = {
+				"synced-first-merged-last": "2026-03-02 10:00",
+				"synced-last-merged-first": "2026-03-01 10:00",
+			}
+			self.assertEqual(state.load("new", merged.get), {"a": "first"})
 
 	def test_a_record_for_another_target_is_ignored(self):
 		with tempfile.TemporaryDirectory() as d:
 			SyncState(Path(d), "site", ROOT, "guides").save("cr", {"a": "h"})
-			self.assertEqual(SyncState(Path(d), "site", ROOT, "other").load("cr", lambda cr: True), {})
+			self.assertEqual(
+				SyncState(Path(d), "site", ROOT, "other").load("cr", lambda cr: "2026-01-01"), {}
+			)
 
 
 class LocalOrderTest(unittest.TestCase):

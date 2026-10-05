@@ -135,8 +135,9 @@ published: false
 Sync keeps `.wikictl-sync.json` in the folder. For each change request it records, per
 page and group, a hash of the title, publish flag and text that sync wrote. An item is
 changed only when the wiki still holds what a trusted record says. A record is trusted when
-its change request is the current one or was merged. A record from an archived draft never
-reached main, so it is ignored.
+its change request is the current one or was merged. Merged records apply in the order they
+merged, because main holds what merged last. A record from an archived draft never reached
+main, so it is ignored.
 
 The file belongs to one site and one `--at` path. The first sync to a new target finds no
 record, so every existing item that differs is a conflict. Compare them, then use
