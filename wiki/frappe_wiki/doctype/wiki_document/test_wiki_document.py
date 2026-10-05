@@ -4,6 +4,7 @@
 import functools
 import glob
 import json
+import math
 import os
 import re
 import typing
@@ -17,6 +18,7 @@ from xml.etree import ElementTree
 import frappe
 from frappe.utils import get_test_client
 
+from wiki.api import og_satori
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	APP_ROUTE,
 	WIKI_CONTENT_CACHE_KEY,
@@ -3380,9 +3382,9 @@ class TestOGImageEndpoint(OGImageTestBase):
 	def test_returns_404_without_a_renderer(self):
 		doc = self._published_page("og-endpoint-no-renderer")
 
-		# Frappe v15 has no frappe.utils.preview to render the card with.
+		# Frappe v15 without Node or the satori packages.
 		with (
-			patch("wiki.api.og_image.get_preview_from_html", None),
+			patch("wiki.api.og_image.card_renderer", return_value=None),
 			patch("wiki.api.og_image._generate_and_store") as generate,
 		):
 			response = self._get(doc.route)
@@ -3635,7 +3637,7 @@ class TestOGImageMetaTags(OGImageTestBase):
 	def test_no_renderer_emits_no_image_tags(self):
 		doc = self._published_page("og-meta-no-renderer")
 
-		with patch("wiki.api.og_image.get_preview_from_html", None):
+		with patch("wiki.api.og_image.card_renderer", return_value=None):
 			metatags = doc.get_web_context()["metatags"]
 
 		self.assertNotIn("og:image", metatags)
@@ -3728,3 +3730,42 @@ class TestOGImageTokenDrift(unittest.TestCase):
 				expected,
 				f"{var} drifted from frappe-ui's {ref}; update the template and bump TEMPLATE_VERSION",
 			)
+			satori_hex = og_satori.COLORS.get(var.removeprefix("--"))
+			if satori_hex:
+				self.assertEqual(
+					satori_hex,
+					oklch_to_hex(expected),
+					f"{var} drifted in og_satori.COLORS; update it and bump TEMPLATE_VERSION",
+				)
+		self.assertLessEqual({f"--{key}" for key in og_satori.COLORS}, self.TOKEN_REFS.keys())
+
+	def test_oklch_to_hex(self):
+		self.assertEqual(oklch_to_hex("oklch(1 0 0)"), "#ffffff")
+		self.assertEqual(oklch_to_hex("oklch(0 0 0)"), "#000000")
+		self.assertEqual(oklch_to_hex("#AbCdEf"), "#abcdef")
+		# Pure sRGB red, as published by the CSS Color 4 spec.
+		self.assertEqual(oklch_to_hex("oklch(0.6279554 0.2576833 29.2338851)"), "#ff0000")
+
+
+def oklch_to_hex(value: str) -> str:
+	"""CSS Color 4's OKLCH to sRGB conversion, for colours satori cannot parse."""
+	if value.startswith("#"):
+		return value.lower()
+	lightness, chroma, hue = (float(part) for part in value[len("oklch(") : -1].split())
+	a = chroma * math.cos(math.radians(hue))
+	b = chroma * math.sin(math.radians(hue))
+	l_cube = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
+	m_cube = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
+	s_cube = (lightness - 0.0894841775 * a - 1.2914855480 * b) ** 3
+	linear = (
+		4.0767416621 * l_cube - 3.3077115913 * m_cube + 0.2309699292 * s_cube,
+		-1.2684380046 * l_cube + 2.6097574011 * m_cube - 0.3413193965 * s_cube,
+		-0.0041960863 * l_cube - 0.7034186147 * m_cube + 1.7076147010 * s_cube,
+	)
+
+	def encode(channel):
+		channel = min(1.0, max(0.0, channel))
+		srgb = 12.92 * channel if channel <= 0.0031308 else 1.055 * channel ** (1 / 2.4) - 0.055
+		return f"{round(srgb * 255):02x}"
+
+	return "#" + "".join(encode(channel) for channel in linear)

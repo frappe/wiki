@@ -36,7 +36,7 @@
 import SettingToggle from './SettingToggle.vue';
 import ViewTrackingToggle from './ViewTrackingToggle.vue';
 
-// The card renderer needs Frappe v16; v15 sites have nothing to switch on.
+// A site with neither Chromium nor Node and satori has no card renderer.
 const metaImagesSupported = window.meta_images_supported;
 
 defineProps({

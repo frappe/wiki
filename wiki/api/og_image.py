@@ -11,7 +11,8 @@ Rendering goes through ``frappe.utils.preview``, which drives the same headless
 Chromium the PDF generator already runs -- no extra dependency and no
 microservice hop. That helper is deliberately *not* whitelisted (screenshotting
 arbitrary HTML server-side is an SSRF surface), so it is only ever called here
-with HTML we build ourselves.
+with HTML we build ourselves. Frappe v15 has no such helper, so there the card
+is drawn by satori instead (see ``wiki.api.og_satori``).
 """
 
 import glob
@@ -25,13 +26,14 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from werkzeug.wrappers import Response
 
+from wiki.api import og_satori
 from wiki.telemetry import capture, duration_bucket
 from wiki.utils import lucide_svg, space_mark
 
 try:
 	from frappe.utils.preview import get_preview_from_html
 except ImportError:
-	# The headless-Chromium renderer ships with Frappe v16; on v15 cards are off.
+	# The headless-Chromium renderer ships with Frappe v16.
 	get_preview_from_html = None
 
 # Bumped whenever the card template or its token block changes; it is part of
@@ -191,6 +193,8 @@ def og_fingerprint(ctx: dict) -> str:
 	"""
 	parts = [
 		TEMPLATE_VERSION,
+		# A site that moves from v15 to v16 redraws its satori cards in Chromium.
+		card_renderer() or "",
 		ctx["title"],
 		ctx["breadcrumb_trail"],
 		ctx["space_name"],
@@ -300,6 +304,8 @@ def render_og_html(ctx: dict) -> str:
 
 
 def generate_og_bytes(ctx: dict) -> bytes:
+	if card_renderer() == "satori":
+		return og_satori.render_jpeg(ctx, OG_WIDTH, OG_HEIGHT)
 	return get_preview_from_html(render_og_html(ctx), format="jpg", width=OG_WIDTH, height=OG_HEIGHT)
 
 
@@ -347,6 +353,7 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 			"meta_image_generated",
 			outcome="failed",
 			trigger=trigger,
+			renderer=card_renderer(),
 			duration_bucket=duration_bucket(time.monotonic() - started),
 		)
 		frappe.log_error("Wiki OG image generation failed")
@@ -358,13 +365,22 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 		"meta_image_generated",
 		outcome="ok",
 		trigger=trigger,
+		renderer=card_renderer(),
 		duration_bucket=duration_bucket(time.monotonic() - started),
 	)
 	return data
 
 
+def card_renderer() -> str | None:
+	if get_preview_from_html is not None:
+		return "chromium"
+	if og_satori.available():
+		return "satori"
+	return None
+
+
 def cards_supported() -> bool:
-	return get_preview_from_html is not None
+	return card_renderer() is not None
 
 
 def cards_enabled() -> bool:

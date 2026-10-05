@@ -233,6 +233,7 @@ class TestShippedEvents(IntegrationTestCase):
 
 	def test_a_rendered_card_reports_its_outcome_and_cost(self):
 		with (
+			patch.object(og_image, "card_renderer", return_value="satori"),
 			patch.object(og_image, "generate_og_bytes", return_value=b"png"),
 			patch.object(og_image, "_write_cached"),
 			patch.object(og_image, "_prune_old"),
@@ -241,7 +242,11 @@ class TestShippedEvents(IntegrationTestCase):
 			og_image._generate_and_store("k1", {}, "fp", "/tmp/card.png", trigger="request")
 
 		capture.assert_called_once_with(
-			"meta_image_generated", outcome="ok", trigger="request", duration_bucket="lt_1s"
+			"meta_image_generated",
+			outcome="ok",
+			trigger="request",
+			renderer="satori",
+			duration_bucket="lt_1s",
 		)
 
 	def test_a_card_that_rendered_but_could_not_be_stored_is_reported_as_failed(self):

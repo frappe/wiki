@@ -5,17 +5,17 @@ import { expect, test } from '../fixtures';
  * Auto-generated OG (meta) images.
  *
  * A page with no uploaded meta_image emits an og:image pointing at
- * wiki.api.og_image.og_image, which screenshots a branded card with the
- * server-side headless Chromium. This is the only place that renderer is
- * exercised for real — every Python test patches it, since CI installs no
+ * wiki.api.og_image.og_image, which renders a branded card with the
+ * server-side headless Chromium on Frappe v16, or with satori in Node on v15.
+ * The Python tests patch the Chromium renderer, since CI installs no
  * server-side Chromium.
  *
- * That renderer is therefore not guaranteed on the CI site: a 503 (another
- * worker holds the render lock) or a 404 (the render failed and is negatively
- * cached) is treated as "renderer unavailable" and skips the byte assertions.
- * The og:image tag itself is asserted whenever the site can render cards —
- * that part is pure template work and must never regress. Frappe v15 ships no
- * renderer, so there the page must advertise no card at all.
+ * So a renderer is not guaranteed on the CI site: a 503 (another worker holds
+ * the render lock) or a 404 (the render failed and is negatively cached) is
+ * treated as "renderer unavailable" and skips the byte assertions. The
+ * og:image tag itself is asserted whenever the site can render cards — that
+ * part is pure template work and must never regress. A site with neither
+ * renderer must advertise no card at all.
  */
 async function cardsSupported(page: Page) {
 	await page.goto('/wiki-app');
@@ -47,7 +47,7 @@ test.describe('Generated OG image', () => {
 		page,
 		request,
 	}) => {
-		test.skip(!(await cardsSupported(page)), 'Cards need Frappe v16');
+		test.skip(!(await cardsSupported(page)), 'Cards need Chromium or satori');
 		await page.goto(pageUrl);
 
 		const ogImage = await page
@@ -61,7 +61,7 @@ test.describe('Generated OG image', () => {
 
 		const response = await request.get(ogImage as string);
 		if (response.status() === 503 || response.status() === 404) {
-			test.skip(true, 'No server-side Chromium on this site');
+			test.skip(true, 'No working card renderer on this site');
 		}
 
 		expect(response.status()).toBe(200);
