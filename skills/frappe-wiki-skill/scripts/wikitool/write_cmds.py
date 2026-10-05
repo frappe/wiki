@@ -49,12 +49,18 @@ def write(s: Session, args):
 	batch = Batch()
 	node = tree.find(path)
 	if node:
-		if node.is_group and not args.group:
-			raise WikiError(f"'{path}' is a group; groups hold no content")
-		changed_title = title if title and title != node.title else None
-		batch.update_content(node.key, body, changed_title, label=path)
+		if node.is_group != args.group:
+			kind = "group" if node.is_group else "page"
+			raise WikiError(f"'{path}' is a {kind}; {'add' if node.is_group else 'drop'} --group to match it")
+		fields = {}
+		if title and title != node.title:
+			fields["title"] = title
 		if node.is_published != published:
-			batch.update_fields(node.key, {"is_published": int(published)}, label=path)
+			fields["is_published"] = int(published)
+		if not node.is_group:
+			batch.update_content(node.key, body, fields.pop("title", None), label=path)
+		if fields:
+			batch.update_fields(node.key, fields, label=path)
 	else:
 		parent_path, _, slug = path.rpartition("/")
 		parent_key = _ensure_parents(tree, batch, parent_path, args.parents)
@@ -87,9 +93,7 @@ def move(s: Session, args):
 	tree = s.tree()
 	node = tree.get(args.path)
 	batch = Batch()
-	batch.move(
-		node.key, tree.key_of(tree.normalize(args.parent)), args.index, label=f"{node.path} → {args.parent}/"
-	)
+	batch.move(node.key, _group_key(tree, args.parent), args.index, label=f"{node.path} → {args.parent}/")
 	s.apply(batch)
 
 
@@ -114,8 +118,9 @@ def sync(s: Session, args):
 	tree = s.tree()
 	at = tree.normalize(args.at or "")
 	state = SyncState(folder, s.site, tree.root_key, at)
+	last = state.load(s.cr, lambda cr: _merged(s, cr))
 	plan = SyncPlan(
-		tree, lambda key: s.wiki.page(s.cr, key).get("content") or "", args.reorder, state.load(), args.force
+		tree, lambda key: s.wiki.page(s.cr, key).get("content") or "", args.reorder, last, args.force
 	)
 	plan.build(read_folder(folder), at)
 	print(f"{plan.unchanged} unchanged")
@@ -131,7 +136,7 @@ def sync(s: Session, args):
 		print("dry run: nothing sent")
 		return
 	s.apply(plan.batch)
-	state.save(plan.synced)
+	state.save(s.cr, plan.synced)
 	if plan.conflicts:
 		raise WikiError(f"{len(plan.conflicts)} page(s) skipped as conflicts")
 
@@ -140,14 +145,12 @@ def publish(s: Session, args):
 	cr = s.wiki.get_cr(s.cr)
 	if cr["status"] not in (*EDITABLE, "In Review", "Approved"):
 		raise WikiError(f"{s.cr} is {cr['status']}; nothing to publish")
-	if s.wiki.is_outdated(s.cr):
-		raise WikiError(
-			"main moved since this change request started. Merging may conflict: "
-			"read reference/api.md § Merge conflicts and ask the user first."
-		)
+	outdated = s.wiki.is_outdated(s.cr)
 	changes = s.wiki.diff(s.cr) or []
 	for r in changes:
 		print(f"{r['change_type']:>9}  {r.get('title')}")
+	if outdated:
+		print("main moved since this change request started. The server tries a three-way merge.")
 	if not args.yes:
 		print(
 			f"{len(changes)} change(s). Merging publishes them live and cannot be undone.\n"
@@ -160,7 +163,14 @@ def publish(s: Session, args):
 		status = "In Review"
 	if status == "In Review":
 		s.wiki.transition(s.cr, "approve")
-	revision = s.wiki.transition(s.cr, "merge")
+	try:
+		revision = s.wiki.transition(s.cr, "merge")
+	except WikiError as e:
+		if "conflict" not in str(e).lower():
+			raise
+		raise WikiError(
+			f"{e}\nNothing went live. Run `conflicts`, and read SKILL.md § Merge conflicts before resolving."
+		) from e
 	print(f"merged {s.cr} → revision {revision}")
 	_verify_live(s, changes)
 
@@ -175,6 +185,13 @@ def _verify_live(s: Session, changes: list[dict]):
 	print(f"verified: {len(expected)} page(s) live")
 
 
+def _merged(s: Session, cr: str) -> bool:
+	try:
+		return s.wiki.get_cr(cr)["status"] == "Merged"
+	except WikiError:  # deleted, or no longer readable
+		return False
+
+
 def _writable_space(s: Session, phrase: str) -> dict:
 	sp = s.space(phrase)
 	if sp.get("git_synced"):
@@ -186,15 +203,25 @@ def _writable_space(s: Session, phrase: str) -> dict:
 
 def _ensure_parents(tree, batch: Batch, parent_path: str, create: bool) -> str:
 	if not parent_path or tree.find(parent_path):
-		return tree.key_of(parent_path)
+		return _group_key(tree, parent_path)
 	if not create:
 		raise WikiError(f"no group at '{parent_path}'. Pass --parents to create it. {tree.hint(parent_path)}")
 	key, walked = tree.root_key, ""
 	for slug in parent_path.split("/"):
 		walked = f"{walked}/{slug}" if walked else slug
-		node = tree.find(walked)
-		key = node.key if node else batch.create(key, title_from_slug(slug), slug, group=True, label=walked)
+		if tree.find(walked):
+			key = _group_key(tree, walked)
+		else:
+			key = batch.create(key, title_from_slug(slug), slug, group=True, label=walked)
 	return key
+
+
+def _group_key(tree, path: str) -> str:
+	"""Only a group (or the space root) can hold pages."""
+	path = tree.normalize(path)
+	if path and not tree.get(path).is_group:
+		raise WikiError(f"'{path}' is a page, not a group; pages cannot hold other pages")
+	return tree.key_of(path)
 
 
 def _subtree(node) -> list[str]:

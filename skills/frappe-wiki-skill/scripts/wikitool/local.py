@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .client import WikiError
+
 GROUP_FILE = "_group.md"
 
 
@@ -44,11 +46,10 @@ def read_folder(folder: Path) -> list[LocalNode]:
 			meta, _ = split_front_matter(_read(entry / GROUP_FILE))
 			node = _node(entry.name, meta, True, "")
 			node.children = read_folder(entry)
-			items.append((meta.get("order"), entry.name, node))
+			items.append((_order(meta, entry / GROUP_FILE), entry.name, node))
 		elif entry.suffix == ".md":
 			meta, body = split_front_matter(entry.read_text())
-			items.append((meta.get("order"), entry.stem, _node(entry.stem, meta, False, body)))
-	# Ordered items first, by their number; the rest by name.
+			items.append((_order(meta, entry), entry.stem, _node(entry.stem, meta, False, body)))
 	items.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 0, t[1]))
 	return [node for _, _, node in items]
 
@@ -74,6 +75,13 @@ def split_front_matter(text: str) -> tuple[dict, str]:
 def title_from_slug(slug: str) -> str:
 	words = slug.replace("_", "-").split("-")
 	return " ".join(words).capitalize()
+
+
+def _order(meta: dict, source: Path):
+	order = meta.get("order")
+	if order is not None and not isinstance(order, int):
+		raise WikiError(f"{source}: order must be a whole number, got '{order}'")
+	return order
 
 
 def _node(slug: str, meta: dict, is_group: bool, body: str) -> LocalNode:

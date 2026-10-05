@@ -12,8 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from wikitool.client import WikiError
 from wikitool.local import read_folder, split_front_matter, title_from_slug
-from wikitool.sync import SyncPlan, content_hash
+from wikitool.ops import Batch
+from wikitool.state import SyncState
+from wikitool.sync import SyncPlan, item_hash
 from wikitool.tree import Tree
+from wikitool.write_cmds import _ensure_parents, _group_key
 
 ROOT = "aaaaaaaaaaaa"
 
@@ -110,7 +113,7 @@ class SyncTest(unittest.TestCase):
 		self.assertEqual(p.unchanged, 1)
 
 	def test_changed_content_and_title_go_in_one_update(self):
-		last = {"guides/install": content_hash("old")}
+		last = {"guides/install": item_hash("Install", True, "old")}
 		p = self.plan(
 			{"install.md": "---\ntitle: Installing\n---\nnew"},
 			{"cccccccccccc": "old"},
@@ -143,7 +146,7 @@ class SyncTest(unittest.TestCase):
 		self.assertEqual(self.plan(files, contents, reorder=False).batch.ops, [])
 
 	def test_a_page_edited_on_the_wiki_is_a_conflict(self):
-		last = {"guides/install": content_hash("what we wrote")}
+		last = {"guides/install": item_hash("Install", True, "what we wrote")}
 		p = self.plan(
 			{"install.md": "mine"}, {"cccccccccccc": "a person edited this"}, at="guides", last=last
 		)
@@ -157,11 +160,67 @@ class SyncTest(unittest.TestCase):
 	def test_force_overwrites_and_records_the_new_hash(self):
 		p = self.plan({"install.md": "mine"}, {"cccccccccccc": "theirs"}, at="guides", force=True)
 		self.assertEqual(p.batch.ops[0]["type"], "update_content")
-		self.assertEqual(p.synced["guides/install"], content_hash("mine"))
+		self.assertEqual(p.synced["guides/install"], item_hash("Install", True, "mine"))
+
+	def test_a_title_edited_on_the_wiki_is_a_conflict(self):
+		# The wiki says "Install"; the last sync wrote "Setup" with the same text.
+		last = {"guides/install": item_hash("Setup", True, "same")}
+		p = self.plan(
+			{"install.md": "---\ntitle: Setup\n---\nsame"}, {"cccccccccccc": "same"}, at="guides", last=last
+		)
+		self.assertEqual(p.conflicts, ["guides/install"])
+		self.assertEqual(p.batch.ops, [])
+
+	def test_a_group_edited_on_the_wiki_is_a_conflict_but_its_pages_still_sync(self):
+		files = {"guides/_group.md": "---\ntitle: How-tos\n---\n", "guides/new.md": "n"}
+		last = {"guides": item_hash("How-tos", True, "")}
+		p = self.plan(files, {}, last=last)
+		self.assertIn("guides", p.conflicts)
+		self.assertEqual([o["slug"] for o in p.batch.ops if o["type"] == "create_node"], ["new"])
 
 	def test_page_versus_group_mismatch_is_refused(self):
 		with self.assertRaisesRegex(WikiError, "is a group on the wiki"):
 			self.plan({"guides.md": "x"}, {})
+
+
+class StateTest(unittest.TestCase):
+	def test_only_the_current_and_merged_records_are_trusted(self):
+		with tempfile.TemporaryDirectory() as d:
+			state = SyncState(Path(d), "site", ROOT, "guides")
+			state.save("merged-cr", {"a": "m", "b": "m"})
+			state.save("archived-cr", {"a": "x", "c": "x"})
+			state.save("current", {"b": "now"})
+			got = state.load("current", lambda cr: cr == "merged-cr")
+		self.assertEqual(got, {"a": "m", "b": "now"})
+
+	def test_a_record_for_another_target_is_ignored(self):
+		with tempfile.TemporaryDirectory() as d:
+			SyncState(Path(d), "site", ROOT, "guides").save("cr", {"a": "h"})
+			self.assertEqual(SyncState(Path(d), "site", ROOT, "other").load("cr", lambda cr: True), {})
+
+
+class LocalOrderTest(unittest.TestCase):
+	def test_a_non_number_order_names_the_file(self):
+		with tempfile.TemporaryDirectory() as d:
+			(Path(d) / "a.md").write_text("---\norder: first\n---\nx")
+			(Path(d) / "b.md").write_text("---\norder: 2\n---\ny")
+			with self.assertRaisesRegex(WikiError, "a.md: order must be a whole number"):
+				read_folder(Path(d))
+
+
+class ParentTest(unittest.TestCase):
+	def setUp(self):
+		self.tree = Tree(payload())
+
+	def test_a_page_cannot_be_a_parent(self):
+		with self.assertRaisesRegex(WikiError, "'intro' is a page"):
+			_group_key(self.tree, "intro")
+		with self.assertRaisesRegex(WikiError, "'guides/install' is a page"):
+			_ensure_parents(self.tree, Batch(), "guides/install/deeper", create=True)
+
+	def test_groups_and_the_root_can_be_parents(self):
+		self.assertEqual(_group_key(self.tree, "guides"), "bbbbbbbbbbbb")
+		self.assertEqual(_group_key(self.tree, ""), ROOT)
 
 
 if __name__ == "__main__":

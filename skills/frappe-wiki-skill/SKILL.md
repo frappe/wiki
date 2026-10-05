@@ -77,12 +77,12 @@ for anything the tool does not cover.
    wikictl set guides/old-name title="New title" slug=new-name
    wikictl mv guides/setup/install guides/start
    ```
-   `sync` does not overwrite a page that someone edited on the wiki since the last sync.
-   It lists the page as a conflict and exits 1. Show the user both versions (`cat` and
+   `sync` does not overwrite a page or group that someone edited on the wiki since the
+   last sync: its text, title or publish flag. It lists it as a conflict and exits 1. Show the user both versions (`cat` and
    the local file). Use `--force` only when they say so.
 
    The first sync of a folder into pages that already exist has no record yet. Every page
-   whose text differs is then a conflict, even when nobody edited it. Expect this, compare,
+   or group that differs is then a conflict, even when nobody edited it. Expect this, compare,
    and ask the user before `--force`.
 
    Content is **raw markdown**. HTML is stored as it is and shows as literal text. The wiki
@@ -112,8 +112,10 @@ These actions have no undo. Ask the user first. Everything else can be reversed 
 
 ## Merge conflicts
 
-`publish` refuses when main moved after the CR started (`outdated`). Resolution is per
-whole page, there is no rebase, and the names are **reversed from git**:
+When main moved after the CR started (`outdated`), `publish` warns and the server tries a
+three-way merge. Changes that do not overlap merge cleanly. Overlapping ones stop the
+merge, nothing goes live, and `wikictl conflicts` lists them. Resolution is per whole page,
+there is no rebase, and the names are **reversed from git**:
 
 > **`ours` = what is already live on main. `theirs` = the change request's work.**
 

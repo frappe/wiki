@@ -129,23 +129,28 @@ published: false
 | Update | Content, title and publish flag, when they differ. |
 | Order | New pages go in folder order. With `--reorder`, existing pages move into folder order too. Items with `order` come first, then the rest by name. |
 | Delete | Never. Pages that exist only on the wiki are listed as "left alone". Use `rm`. |
-| Protect | A page edited on the wiki since the last sync is skipped and listed as a conflict. The command then exits 1. `--force` overwrites it. |
+| Protect | A page or group whose text, title or publish flag changed on the wiki since the last sync is skipped and listed as a conflict. Its children still sync. The command then exits 1. `--force` overwrites it. |
 | Preview | `-n` prints the operations and sends nothing. |
 
-Sync keeps `.wikictl-sync.json` in the folder. It records, for each page, the hash of the
-content the wiki held after the last sync. A page is replaced only when the wiki still
-holds that content. The record belongs to one site and one `--at` path. The first sync to
-a new target finds no record, so every existing page whose text differs is a conflict.
-Compare them, then use `--force`. Commit the file with the folder when other people sync it
-too.
+Sync keeps `.wikictl-sync.json` in the folder. For each change request it records, per
+page and group, a hash of the title, publish flag and text that sync wrote. An item is
+changed only when the wiki still holds what a trusted record says. A record is trusted when
+its change request is the current one or was merged. A record from an archived draft never
+reached main, so it is ignored.
+
+The file belongs to one site and one `--at` path. The first sync to a new target finds no
+record, so every existing item that differs is a conflict. Compare them, then use
+`--force`. Commit the file with the folder when other people sync it too.
 
 Sync reads every existing page once to compare content. On a large subtree, sync the
 smallest folder that holds your change.
 
 ## Publishing
 
-`publish` checks that the CR is not outdated, then prints the change list. With `--yes`,
-it submits, approves and merges, skipping the steps already done. Then it checks that
+`publish` prints the change list, and a warning when the CR is outdated. With `--yes`, it
+submits, approves and merges, skipping the steps already done. On an outdated CR the server
+tries a three-way merge. If pages conflict, nothing goes live and the command points to
+`conflicts`. Then it checks that
 every added or modified page is a live document, and exits 1 if one is not.
 
 ## Tests

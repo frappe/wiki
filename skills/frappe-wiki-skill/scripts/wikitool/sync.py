@@ -4,9 +4,10 @@ Matching is by slug. Missing pages and groups are created, changed titles,
 content and publish flags are updated. Pages that exist only on the wiki are
 reported, never deleted: deletion cascades and is the caller's call.
 
-A page someone edited on the wiki is not overwritten. `last` maps each path to
-the content hash the previous sync left there. A page is replaced only when the
-wiki still holds that content, or with `force`. Anything else is a conflict.
+A page or group someone edited on the wiki is not overwritten. `last` maps each
+path to the hash of what the previous sync left there: title, publish flag and,
+for a page, content. An item is changed only when the wiki still holds exactly
+that, or with `force`. Anything else is a conflict.
 """
 
 from __future__ import annotations
@@ -68,8 +69,7 @@ class SyncPlan:
 				self.batch.reorder(parent_key, wanted_order, label=base or "/")
 
 	def _create(self, wanted: LocalNode, parent_key: str, index: int, path: str) -> str:
-		if not wanted.is_group:
-			self.synced[path] = content_hash(wanted.content)
+		self.synced[path] = item_hash(wanted.title, wanted.published, wanted.content)
 		return self.batch.create(
 			parent_key,
 			wanted.title,
@@ -85,36 +85,34 @@ class SyncPlan:
 		if node.is_group != wanted.is_group:
 			kind = "group" if node.is_group else "page"
 			raise WikiError(f"'{path}' is a {kind} on the wiki but not locally; rename one side")
-		if not wanted.is_group and not self._content_may_change(wanted, node, path):
+		live_content = "" if node.is_group else self.fetch_content(node.key)
+		live = item_hash(node.title, node.is_published, live_content)
+		want = item_hash(wanted.title, wanted.published, wanted.content)
+		if live == want:
+			self.synced[path] = live
+			self.unchanged += 1
 			return node.key
-		ops_before = len(self.batch.ops)
+		if not (self.force or self.last.get(path) == live):
+			self.conflicts.append(path)
+			return node.key  # its children are still synced
+
 		fields = {}
 		if node.title != wanted.title:
 			fields["title"] = wanted.title
 		if node.is_published != wanted.published:
 			fields["is_published"] = int(wanted.published)
-		if self.synced.get(path) != content_hash(wanted.content) and not wanted.is_group:
+		if live_content != wanted.content:
 			self.batch.update_content(node.key, wanted.content, fields.pop("title", None), label=path)
-			self.synced[path] = content_hash(wanted.content)
 		if fields:
 			self.batch.update_fields(node.key, fields, label=path)
-		if len(self.batch.ops) == ops_before:
-			self.unchanged += 1
+		self.synced[path] = want
 		return node.key
-
-	def _content_may_change(self, wanted: LocalNode, node: Node, path: str) -> bool:
-		"""Record what the wiki holds. False means: leave this page alone."""
-		on_wiki = content_hash(self.fetch_content(node.key))
-		if on_wiki == content_hash(wanted.content) or self.force or self.last.get(path) == on_wiki:
-			self.synced[path] = on_wiki
-			return True
-		self.conflicts.append(path)
-		return False
 
 	@staticmethod
 	def _live(nodes: list[Node]) -> list[Node]:
 		return [n for n in nodes if not n.is_deleted]
 
 
-def content_hash(text: str) -> str:
+def item_hash(title: str, published: bool, content: str) -> str:
+	text = f"{title}\n{int(bool(published))}\n{content}"
 	return hashlib.sha256(text.encode()).hexdigest()[:16]
