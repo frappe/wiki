@@ -2090,6 +2090,15 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 
 
+def _site_sitemap_module() -> str:
+	"""The www/sitemap module that would serve /sitemap.xml on this site without the wiki."""
+	from frappe.website.page_renderers.template_page import TemplatePage
+
+	page = TemplatePage("sitemap.xml")
+	page.set_pymodule()
+	return page.pymodule_name
+
+
 def _sitemap_routes(xml: str) -> set:
 	"""Routes listed in a sitemap, without the host it was served under."""
 	return {urlparse(loc).path.lstrip("/") for loc in re.findall(r"<loc>([^<]+)</loc>", xml)}
@@ -2576,7 +2585,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		tree = self._space_with_tree()
 		site_sitemap = {"links": [{"loc": "https://example.com/kept", "lastmod": None}]}
 
-		with patch("frappe.www.sitemap.get_context", return_value=site_sitemap):
+		with patch(f"{_site_sitemap_module()}.get_context", return_value=site_sitemap):
 			body = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
 
 		ElementTree.fromstring(body)
@@ -2593,11 +2602,39 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		_make_request(self.TEST_CLIENT, "get", "/sitemap.xml")
 		site_sitemap = {"links": [{"loc": "https://example.com/published-later", "lastmod": "2026-10-05"}]}
 
-		with patch("frappe.www.sitemap.get_context", return_value=site_sitemap):
+		with patch(f"{_site_sitemap_module()}.get_context", return_value=site_sitemap):
 			clear_website_cache("published-later")
 			body = _make_request(self.TEST_CLIENT, "get", "/sitemap.xml").get_data(as_text=True)
 
 		self.assertIn("https://example.com/published-later", body)
+
+	def test_sitemap_takes_site_links_from_the_last_installed_override(self):
+		"""An app installed after frappe that overrides www/sitemap wins, as it would
+		serve /sitemap.xml without the wiki."""
+		import shutil
+		import sys
+		import tempfile
+		from pathlib import Path
+		from types import ModuleType
+
+		from wiki.wiki.sitemap import _framework_links
+
+		app = frappe.get_active_apps()[-1]
+		override_dir = tempfile.mkdtemp()
+		self.addCleanup(shutil.rmtree, override_dir)
+		Path(override_dir, "www").mkdir()
+		for filename in ("sitemap.xml", "sitemap.py"):
+			Path(override_dir, "www", filename).touch()
+
+		override = ModuleType(f"{app}.www.sitemap")
+		override.get_context = lambda context: {"links": [{"loc": "https://example.com/override"}]}
+		get_app_path = frappe.get_app_path
+
+		def app_path(name, *joins):
+			return str(Path(override_dir, *joins)) if name == app else get_app_path(name, *joins)
+
+		with patch.dict(sys.modules, {override.__name__: override}), patch("frappe.get_app_path", app_path):
+			self.assertEqual(_framework_links(), [("https://example.com/override", None)])
 
 
 class TestStale404CacheInvalidation(WikiDocumentTestBase):
