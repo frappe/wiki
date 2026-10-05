@@ -18,6 +18,12 @@
 	const PDFJS_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.min.js';
 	const WORKER_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.worker.min.js';
 
+	const CARD_LOADER =
+		'<div data-role="loader" class="flex h-48 items-center justify-center">' +
+		'<div class="size-5 animate-spin rounded-full border-2 border-[var(--outline-gray-3)] border-t-[var(--ink-gray-7)]"></div></div>';
+	const MODAL_LOADER =
+		'<div class="my-auto size-6 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>';
+
 	let pdfjsPromise = null;
 	const docCache = new Map();
 
@@ -71,15 +77,17 @@
 				canvas.height = Math.floor(viewport.height);
 				canvas.style.width = '100%';
 				canvas.style.height = 'auto';
-				scroll.appendChild(canvas);
 				await page.render({
 					canvasContext: canvas.getContext('2d'),
 					viewport,
 				}).promise;
+				scroll.querySelector('[data-role="loader"]')?.remove();
+				scroll.appendChild(canvas);
 			}
 			card.classList.add('is-ready');
 		} catch (err) {
 			scroll.dataset.rendered = '';
+			scroll.querySelector('[data-role="loader"]')?.remove();
 			card.classList.add('is-unavailable');
 			console.error('[wiki-pdf] inline render failed', err);
 		}
@@ -137,7 +145,9 @@
 		modalUrl = url;
 		modalScale = 1.2;
 		m.querySelector('.wiki-pdf-modal-name').textContent = filename || 'PDF';
+		m.querySelector('.wiki-pdf-modal-zoom').textContent = `${Math.round(modalScale * 100)}%`;
 		m.querySelector('[data-act="download"]').href = url;
+		m.querySelector('.wiki-pdf-modal-scroll').innerHTML = MODAL_LOADER;
 		m.classList.add('active');
 		document.body.classList.add('wiki-pdf-modal-open');
 
@@ -159,7 +169,6 @@
 		modal.querySelector('.wiki-pdf-modal-zoom').textContent = `${Math.round(
 			modalScale * 100,
 		)}%`;
-		scroll.innerHTML = '';
 		const dpr = window.devicePixelRatio || 1;
 
 		for (let i = 1; i <= modalDoc.numPages; i++) {
@@ -174,9 +183,10 @@
 			canvas.style.height = `${Math.floor(viewport.height)}px`;
 			const ctx = canvas.getContext('2d');
 			ctx.scale(dpr, dpr);
-			scroll.appendChild(canvas);
 			await page.render({ canvasContext: ctx, viewport }).promise;
 			if (token !== renderToken) return;
+			if (i === 1) scroll.replaceChildren(canvas);
+			else scroll.appendChild(canvas);
 		}
 	}
 
@@ -219,6 +229,9 @@
 	function bindCard(card) {
 		if (card.dataset.pdfBound) return;
 		card.dataset.pdfBound = 'true';
+		card
+			.querySelector('[data-role="scroll"]')
+			?.insertAdjacentHTML('beforeend', CARD_LOADER);
 
 		card.querySelector('[data-role="open"]')?.addEventListener('click', () =>
 			openModal(card.getAttribute('data-src'), card.getAttribute('data-filename')),
