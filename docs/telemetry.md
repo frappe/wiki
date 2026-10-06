@@ -42,7 +42,6 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | Property | Source | Value |
 |---|---|---|
 | `app_version` | `wiki.__version__`, backend directly, frontend from the SPA boot payload | e.g. `3.2.1` |
-| `entry` | same | `saas_trial` when the site has a Frappe Cloud team, else `self_hosted` |
 | site, user, team, timestamp | Pulse client | automatic |
 
 ## Events
@@ -52,7 +51,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | `active_site` | backend, `interval="1d"` | the `/wiki-app` SPA is served to a signed-in user | | 1 |
 | `pageview` | frontend | a router navigation, on sites younger than 15 days | `route`: the matched route pattern, never the URL | 1 |
 
-Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than letting the shared `telemetryPlugin` send it: the plugin's own pageview goes straight to the Pulse client and so carries neither `app_version` nor `entry`. The rule is the plugin's, read from the same place the plugin reads it: new sites only (`site_age <= 15` from `boot_config`), the matched route pattern, never a URL.
+Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than letting the shared `telemetryPlugin` send it: the plugin's own pageview goes straight to the Pulse client and so does not carry `app_version`. The rule is the plugin's, read from the same place the plugin reads it: new sites only (`site_age <= 15` from `boot_config`), the matched route pattern, never a URL.
 
 ### What people do
 
@@ -85,12 +84,11 @@ One event a day, from `wiki/telemetry_scan.py`. It answers for every site that r
 |---|---|---|---|
 | `site_profile` | backend | the daily scheduler job | 1, 3, 4, 5, 6, 9, 10, 11, 12, 13 |
 
-Its properties, on top of the two every event carries.
+Its properties, on top of `app_version`, which every event carries.
 
 | Group | Property | Value |
 |---|---|---|
-| Identity | `frappe_cloud` | the site has a Frappe Cloud team |
-| | `site_age_days` | days since the site was created |
+| Identity | `site_age_days` | days since the site was created |
 | | `wiki_installed_days_ago` | days since wiki was installed, null if unknown |
 | Timeline | `first_space_days_ago`, `first_page_days_ago`, `last_merge_days_ago` | days since each first happened, null when it never did |
 | Spaces | `spaces`, `published_spaces`, `restricted_spaces`, `github_synced_spaces`, `spaces_with_tabs`, `spaces_accepting_contributions`, `spaces_with_feedback_on` | counts of spaces |
