@@ -4,8 +4,8 @@
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.wiki.report.wiki_broken_links import wiki_broken_links
 from wiki.wiki.report.wiki_broken_links.wiki_broken_links import (
 	BROWSER_USER_AGENT,

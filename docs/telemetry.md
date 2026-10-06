@@ -69,7 +69,7 @@ Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than lett
 | `command_palette_opened` | frontend | the palette is opened | `trigger`: `shortcut`, `click` | 7 |
 | `space_identity_set` | frontend | the identity picker closes on a choice | `kind`: `generated`, `icon`, `logo`. `style`: the DiceBear style on a generated mark, else empty. `rolls`: times Generate was pressed first | 11 |
 | `github_sync_failed` | backend | a sync run raises | `error_kind`: `auth` (401, 403, 404), `network`, `other`, mapped from the exception class and never from its message. `trigger`: `manual`, `webhook` | 5 |
-| `meta_image_generated` | backend | a card is rendered **and** stored; a cache hit sends nothing | `outcome`: `ok`, `failed` — a card that renders but cannot be written is `failed`, since the next hit pays for Chromium again. `trigger`: `warm`, `request`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
+| `meta_image_generated` | backend | a card is rendered **and** stored; a cache hit sends nothing | `outcome`: `ok`, `failed` — a card that renders but cannot be written is `failed`, since the next hit pays for Chromium again. `trigger`: `warm`, `request`. `renderer`: `chromium`, `satori`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
 
 Three things the shape of these events decides.
 

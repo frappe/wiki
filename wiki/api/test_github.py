@@ -9,9 +9,9 @@ import frappe
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from frappe.tests.utils import FrappeTestCase
 
 from wiki.api import github
+from wiki.tests import WikiTestCase as FrappeTestCase
 
 
 def _rsa_keypair():

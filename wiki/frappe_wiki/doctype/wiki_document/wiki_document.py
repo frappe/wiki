@@ -16,6 +16,7 @@ from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
 from wiki.telemetry import capture
+from wiki.utils import fingerprint_js_url
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
@@ -567,11 +568,11 @@ class WikiDocument(NestedSet):
 		Returns a path rather than an absolute URL so MetaTags absolutizes it
 		through get_url() -- that is what keeps it right on custom domains.
 		"""
-		from wiki.api.og_image import _og_context, og_fingerprint
+		from wiki.api.og_image import _og_context, cards_enabled, og_fingerprint
 
 		if self.is_group or self.is_external_link or not self.is_published or not self.route:
 			return None
-		if not frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"):
+		if not cards_enabled():
 			return None
 		if not self.get_wiki_space():
 			return None
@@ -760,6 +761,7 @@ class WikiDocumentRenderer(BaseRenderer):
 
 		context["csrf_token"] = csrf_token
 		context["enable_view_tracking"] = frappe.get_website_settings("enable_view_tracking")
+		context["fingerprint_js_url"] = fingerprint_js_url()
 
 		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)

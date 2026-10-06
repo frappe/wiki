@@ -4,9 +4,9 @@
 import os
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from wiki.patches.remove_stale_spa_entry import STALE_ENTRY, execute
+from wiki.tests import WikiTestCase as UnitTestCase
 
 
 class TestRemoveStaleSpaEntry(UnitTestCase):
