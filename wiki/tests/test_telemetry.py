@@ -34,10 +34,11 @@ class TestTelemetry(IntegrationTestCase):
 			telemetry.capture("space_created", visibility="public")
 
 		capture.assert_called_once()
-		properties = capture.call_args.kwargs["properties"]
 		self.assertEqual(capture.call_args.args, ("space_created", "wiki"))
-		self.assertEqual(properties["visibility"], "public")
-		self.assertEqual(properties["app_version"], frappe.get_attr("wiki.__version__"))
+		self.assertEqual(
+			capture.call_args.kwargs["properties"],
+			{"app_version": frappe.get_attr("wiki.__version__"), "visibility": "public"},
+		)
 
 	def test_a_failing_send_does_not_fail_the_action(self):
 		with patch.object(telemetry.frappe_telemetry, "capture", side_effect=Exception("pulse down")):
