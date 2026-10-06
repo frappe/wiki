@@ -109,6 +109,7 @@
             loading: false,
             currentRoute: '{{ doc.route if doc else "" }}',
             prefetchCache: {},
+            prefetchTimer: null,
 
             init() {
                 // Handle browser back/forward
@@ -121,7 +122,12 @@
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
             },
 
-            async prefetch(route) {
+            prefetch(route) {
+                clearTimeout(this.prefetchTimer);
+                this.prefetchTimer = setTimeout(() => this.fetchIntoCache(route), 100);
+            },
+
+            async fetchIntoCache(route) {
                 if (route === this.currentRoute || this.prefetchCache[route]) return;
 
                 try {
