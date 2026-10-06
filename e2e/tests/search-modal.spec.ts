@@ -143,4 +143,56 @@ test.describe('Search Modal', () => {
 		await lightAction.click();
 		await expect(html).toHaveAttribute('data-theme', 'light');
 	});
+
+	test('keeps hidden results out of keyboard selection while searching', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Stale Host', content: 'Host page for stale results.' }],
+		});
+		const hostPage = space.page('Stale Host');
+
+		await page.route(SEARCH_API, async (route) => {
+			const query = new URL(route.request().url()).searchParams.get('query');
+			if (query === 'dark') {
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				return route.fulfill({ json: { message: { results: [], total: 0 } } });
+			}
+			return route.fulfill({
+				json: {
+					message: {
+						results: [
+							{
+								name: 'stale',
+								title: 'Stale result',
+								route: 'stale-result-route',
+								content: 'Should not be selectable once hidden.',
+								score: 1,
+							},
+						],
+						total: 1,
+					},
+				},
+			});
+		});
+		await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto(`/${hostPage.route}`);
+		await page.waitForLoadState('networkidle');
+
+		const searchInput = page.locator(SEARCH_INPUT);
+		await page.getByRole('button', { name: 'Open search' }).click();
+		await searchInput.fill('stale');
+		await expect(page.getByTestId('search-result')).toHaveCount(1);
+
+		await searchInput.fill('dark');
+		await expect(page.getByTestId('search-result')).toHaveCount(0);
+		await expect(page.getByTestId('search-theme-dark')).toBeVisible();
+
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Enter');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+		await expect(page).toHaveURL(new RegExp(`/${hostPage.route}$`));
+	});
 });

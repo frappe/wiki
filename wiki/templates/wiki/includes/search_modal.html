@@ -305,7 +305,8 @@
 
             handleKeydown(e) {
                 const themes = this.matchedThemes;
-                const count = themes.length + this.results.length;
+                const pages = this.loading ? [] : this.results;
+                const count = themes.length + pages.length;
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     this.selectedIndex = Math.min(this.selectedIndex + 1, Math.max(count - 1, 0));
@@ -315,9 +316,9 @@
                 } else if (e.key === 'Enter' && this.selectedIndex < themes.length) {
                     e.preventDefault();
                     this.setTheme(themes[this.selectedIndex]);
-                } else if (e.key === 'Enter' && this.results.length > 0) {
+                } else if (e.key === 'Enter' && pages.length > 0) {
                     e.preventDefault();
-                    const route = this.results[this.selectedIndex - themes.length].route;
+                    const route = pages[this.selectedIndex - themes.length].route;
                     if (e.metaKey || e.ctrlKey) {
                         window.open('/' + route, '_blank', 'noopener');
                     } else {
