@@ -1993,7 +1993,13 @@ class TestGetPageData(WikiDocumentTestBase):
 			page.get_web_context()
 
 		self.assertEqual(ancestors.call_count, 1)
-		space_lookups = [call for call in get_value.call_args_list if call.args[0] == "Wiki Space"]
+
+		def is_space_lookup_by_filters(call):
+			# Frappe v15 loads documents with keyword arguments only.
+			params = dict(zip(("doctype", "filters"), call.args, strict=False)) | call.kwargs
+			return params.get("doctype") == "Wiki Space" and isinstance(params.get("filters"), dict)
+
+		space_lookups = [call for call in get_value.call_args_list if is_space_lookup_by_filters(call)]
 		self.assertEqual(len(space_lookups), 1)
 
 	def test_memo_ends_with_the_render(self):
