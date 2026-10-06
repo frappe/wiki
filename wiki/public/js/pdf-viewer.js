@@ -18,6 +18,24 @@
 	const PDFJS_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.min.js';
 	const WORKER_SRC = '/assets/wiki/js/vendor/pdfjs/pdf.worker.min.js';
 
+	const SKELETON_LINES =
+		'<div class="space-y-4">' +
+		['w-3/4', 'w-full', 'w-5/6', 'w-full', 'w-2/3', 'w-full mt-6', 'w-4/5', 'w-full', 'w-3/4']
+			.map(
+				(width) =>
+					`<div class="h-4 ${width} animate-pulse rounded-4 bg-[var(--surface-gray-3)]"></div>`,
+			)
+			.join('') +
+		'</div>';
+	const CARD_LOADER =
+		'<div data-role="loader" class="wiki-pdf-page aspect-[1/1.414] bg-[var(--surface-base)] p-[8%]">' +
+		SKELETON_LINES +
+		'</div>';
+	const MODAL_LOADER =
+		'<div data-role="loader" class="wiki-pdf-modal-page aspect-[1/1.414] w-[714px] shrink-0 !bg-[var(--surface-base)] p-[8%]">' +
+		SKELETON_LINES +
+		'</div>';
+
 	let pdfjsPromise = null;
 	const docCache = new Map();
 
@@ -71,15 +89,17 @@
 				canvas.height = Math.floor(viewport.height);
 				canvas.style.width = '100%';
 				canvas.style.height = 'auto';
-				scroll.appendChild(canvas);
 				await page.render({
 					canvasContext: canvas.getContext('2d'),
 					viewport,
 				}).promise;
+				scroll.querySelector('[data-role="loader"]')?.remove();
+				scroll.appendChild(canvas);
 			}
 			card.classList.add('is-ready');
 		} catch (err) {
 			scroll.dataset.rendered = '';
+			scroll.querySelector('[data-role="loader"]')?.remove();
 			card.classList.add('is-unavailable');
 			console.error('[wiki-pdf] inline render failed', err);
 		}
@@ -137,7 +157,9 @@
 		modalUrl = url;
 		modalScale = 1.2;
 		m.querySelector('.wiki-pdf-modal-name').textContent = filename || 'PDF';
+		m.querySelector('.wiki-pdf-modal-zoom').textContent = `${Math.round(modalScale * 100)}%`;
 		m.querySelector('[data-act="download"]').href = url;
+		m.querySelector('.wiki-pdf-modal-scroll').innerHTML = MODAL_LOADER;
 		m.classList.add('active');
 		document.body.classList.add('wiki-pdf-modal-open');
 
@@ -159,7 +181,6 @@
 		modal.querySelector('.wiki-pdf-modal-zoom').textContent = `${Math.round(
 			modalScale * 100,
 		)}%`;
-		scroll.innerHTML = '';
 		const dpr = window.devicePixelRatio || 1;
 
 		for (let i = 1; i <= modalDoc.numPages; i++) {
@@ -174,9 +195,10 @@
 			canvas.style.height = `${Math.floor(viewport.height)}px`;
 			const ctx = canvas.getContext('2d');
 			ctx.scale(dpr, dpr);
-			scroll.appendChild(canvas);
 			await page.render({ canvasContext: ctx, viewport }).promise;
 			if (token !== renderToken) return;
+			if (i === 1) scroll.replaceChildren(canvas);
+			else scroll.appendChild(canvas);
 		}
 	}
 
@@ -219,6 +241,9 @@
 	function bindCard(card) {
 		if (card.dataset.pdfBound) return;
 		card.dataset.pdfBound = 'true';
+		card
+			.querySelector('[data-role="scroll"]')
+			?.insertAdjacentHTML('beforeend', CARD_LOADER);
 
 		card.querySelector('[data-role="open"]')?.addEventListener('click', () =>
 			openModal(card.getAttribute('data-src'), card.getAttribute('data-filename')),
