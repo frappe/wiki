@@ -102,4 +102,45 @@ test.describe('Search Modal', () => {
 		await page.keyboard.press('Enter');
 		await page.waitForURL(`**/${targetPage.route}`, { timeout: 10000 });
 	});
+
+	test('switches theme from the search query', async ({ page, wiki }) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Theme Host', content: 'Host page for theme actions.' }],
+		});
+		const hostPage = space.page('Theme Host');
+
+		await page.route(SEARCH_API, (route) =>
+			route.fulfill({ json: { message: { results: [], total: 0 } } }),
+		);
+		await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto(`/${hostPage.route}`);
+		await page.waitForLoadState('networkidle');
+
+		const html = page.locator('html');
+		const searchInput = page.locator(SEARCH_INPUT);
+		const darkAction = page.getByTestId('search-theme-dark');
+		const lightAction = page.getByTestId('search-theme-light');
+		await expect(html).toHaveAttribute('data-theme', 'light');
+
+		await page.getByRole('button', { name: 'Open search' }).click();
+		await searchInput.fill('dark');
+		await expect(darkAction).toBeVisible();
+		await expect(lightAction).toBeHidden();
+		await expect(page.getByText('No results for')).toBeHidden();
+
+		await page.keyboard.press('Enter');
+		await expect(searchInput).toBeHidden();
+		await expect(html).toHaveAttribute('data-theme', 'dark');
+		expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe(
+			'dark',
+		);
+
+		await page.getByRole('button', { name: 'Open search' }).click();
+		await searchInput.fill('theme');
+		await expect(darkAction).toBeVisible();
+		await expect(lightAction).toBeVisible();
+		await lightAction.click();
+		await expect(html).toHaveAttribute('data-theme', 'light');
+	});
 });

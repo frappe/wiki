@@ -55,6 +55,30 @@
 
             <!-- Results -->
             <div class="max-h-96 overflow-auto border-t border-[var(--outline-gray-1)] [[data-theme=dark]_&]:border-[var(--outline-gray-2)]">
+                <template x-if="matchedThemes.length > 0">
+                    <div class="mt-3 mb-2" data-testid="search-actions">
+                        <div class="px-4.5 py-1.5 text-sm text-[var(--ink-gray-5)]">{{ _("Actions") }}</div>
+                        <ul>
+                            {% for theme, label, icon in [("dark", _("Theme: Dark"), "moon-star"), ("light", _("Theme: Light"), "sun")] %}
+                            <li x-show="matchedThemes.includes('{{ theme }}')" class="px-2.5">
+                                <button type="button"
+                                        data-testid="search-theme-{{ theme }}"
+                                        @click="setTheme('{{ theme }}')"
+                                        @mouseenter="selectedIndex = matchedThemes.indexOf('{{ theme }}')"
+                                        :class="selectedIndex === matchedThemes.indexOf('{{ theme }}') ? 'bg-[var(--surface-gray-3)]' : ''"
+                                        class="flex w-full items-center gap-3 rounded-4 px-2 py-2 text-left outline-none cursor-pointer">
+                                    {{ render_icon(icon, "shrink-0 text-[var(--ink-gray-6)]") }}
+                                    <span class="flex-1 text-base font-medium text-[var(--ink-gray-7)]">{{ label }}</span>
+                                    <span x-show="($store.theme.isDark ? 'dark' : 'light') === '{{ theme }}'" class="flex">
+                                        {{ render_icon("check", "shrink-0 text-[var(--ink-gray-6)]") }}
+                                    </span>
+                                </button>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </template>
+
                 <!-- Loading State -->
                 <template x-if="loading">
                     <div class="flex items-center justify-center my-8">
@@ -70,7 +94,7 @@
                 </template>
 
                 <!-- No Results State -->
-                <template x-if="!loading && query && results.length === 0 && !error">
+                <template x-if="!loading && query && results.length === 0 && matchedThemes.length === 0 && !error">
                     <div class="my-8 text-center text-base text-[var(--ink-gray-6)]">
                         {{ _("No results for") }} "<b class="text-[var(--ink-gray-9)]" x-text="query"></b>"
                     </div>
@@ -89,8 +113,8 @@
                                 <a :href="'/' + result.route"
                                    data-testid="search-result"
                                    @click.prevent="navigateTo(result.route)"
-                                   @mouseenter="selectedIndex = index"
-                                   :class="selectedIndex === index ? 'bg-[var(--surface-gray-3)]' : ''"
+                                   @mouseenter="selectedIndex = matchedThemes.length + index"
+                                   :class="selectedIndex === matchedThemes.length + index ? 'bg-[var(--surface-gray-3)]' : ''"
                                    class="flex w-full min-w-0 items-start gap-3 rounded-4 px-2 py-2 outline-none cursor-pointer">
                                     {{ render_icon("file-text", "mt-0.5 shrink-0 text-[var(--ink-gray-6)]") }}
                                     <span class="flex min-w-0 flex-1 flex-col gap-1">
@@ -168,6 +192,19 @@
             error: null,
             selectedIndex: 0,
             space: '{{ wiki_space.root_group if wiki_space else "" }}',
+
+            get matchedThemes() {
+                const words = this.query.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+                if (words.join('').length < 2) return [];
+                return ['dark', 'light'].filter((theme) =>
+                    words.every((word) => [theme, 'theme', 'mode'].some((keyword) => keyword.startsWith(word)))
+                );
+            },
+
+            setTheme(theme) {
+                this.close();
+                Alpine.store('theme').set(theme);
+            },
 
             open() {
                 this.isOpen = true;
@@ -254,6 +291,9 @@
                 // Keyboard navigation — bind once so removeEventListener
                 // actually detaches the same function reference
                 this.boundKeydown = this.handleKeydown.bind(this);
+                this.$watch('query', () => {
+                    this.selectedIndex = 0;
+                });
                 this.$watch('isOpen', (value) => {
                     if (value) {
                         document.addEventListener('keydown', this.boundKeydown);
@@ -264,15 +304,20 @@
             },
 
             handleKeydown(e) {
+                const themes = this.matchedThemes;
+                const count = themes.length + this.results.length;
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    this.selectedIndex = Math.min(this.selectedIndex + 1, this.results.length - 1);
+                    this.selectedIndex = Math.min(this.selectedIndex + 1, Math.max(count - 1, 0));
                 } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+                } else if (e.key === 'Enter' && this.selectedIndex < themes.length) {
+                    e.preventDefault();
+                    this.setTheme(themes[this.selectedIndex]);
                 } else if (e.key === 'Enter' && this.results.length > 0) {
                     e.preventDefault();
-                    const route = this.results[this.selectedIndex].route;
+                    const route = this.results[this.selectedIndex - themes.length].route;
                     if (e.metaKey || e.ctrlKey) {
                         window.open('/' + route, '_blank', 'noopener');
                     } else {

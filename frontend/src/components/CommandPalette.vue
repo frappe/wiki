@@ -157,7 +157,7 @@ const spaceStore = useSpaceStore();
 const { showCommandPalette, close, toggle } = useCommandPalette();
 const { open: openWikiSettings } = useWikiSettings();
 const { open: openSpaceSettings } = useSpaceSettings();
-const { themeIcon, toggleTheme } = useTheme();
+const { themeIcon, toggleTheme, setTheme } = useTheme();
 const { requestNewPage } = useNewPageRequest();
 const { requestNewSpace } = useNewSpaceRequest();
 const { recentPages } = useRecentPages();
@@ -339,9 +339,25 @@ const actionItems = computed(() => [
 	{
 		key: 'toggle-theme',
 		label: __('Toggle theme'),
-		search: 'toggle theme dark light mode appearance',
+		search: 'toggle theme mode appearance',
 		icon: themeIcon.value,
 		onClick: toggleTheme,
+	},
+	{
+		key: 'theme-dark',
+		label: __('Theme: Dark'),
+		search: 'theme dark mode appearance',
+		icon: 'lucide-moon',
+		onClick: () => setTheme('dark'),
+		queryOnly: true,
+	},
+	{
+		key: 'theme-light',
+		label: __('Theme: Light'),
+		search: 'theme light mode appearance',
+		icon: 'lucide-sun',
+		onClick: () => setTheme('light'),
+		queryOnly: true,
 	},
 	{
 		key: 'logout',

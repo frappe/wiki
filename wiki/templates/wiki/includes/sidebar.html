@@ -59,8 +59,10 @@
         Alpine.store('theme', {
             isDark: initialIsDark,
             toggle() {
-                this.isDark = !this.isDark;
-                const newTheme = this.isDark ? 'dark' : 'light';
+                this.set(this.isDark ? 'light' : 'dark');
+            },
+            set(newTheme) {
+                this.isDark = newTheme === 'dark';
                 const root = document.documentElement;
                 // Suppress transitions for the swap itself, else every element
                 // with a colour transition animates and the page flashes. Two
