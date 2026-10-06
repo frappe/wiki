@@ -97,6 +97,7 @@
                 <a href="/{{ prev_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo({{ prev_doc.route | tojson | forceescape }})"
                    @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
+                   @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
                     {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
                     <span class="truncate">{{ prev_doc.title }}</span>
@@ -107,6 +108,7 @@
                 <a href="/{{ next_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
                    @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
+                   @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
                     <span class="truncate">{{ next_doc.title }}</span>
                     {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}

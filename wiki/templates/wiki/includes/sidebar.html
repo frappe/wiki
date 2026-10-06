@@ -127,6 +127,10 @@
                 this.prefetchTimer = setTimeout(() => this.fetchIntoCache(route), 100);
             },
 
+            cancelPrefetch() {
+                clearTimeout(this.prefetchTimer);
+            },
+
             async fetchIntoCache(route) {
                 if (route === this.currentRoute || this.prefetchCache[route]) return;
 
@@ -332,6 +336,7 @@
                             <a href="/${esc(prevDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(prevDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(prevDoc.route)})"
+                               @mouseleave="$store.navigation.cancelPrefetch()"
                                class="${navLinkClasses}">
                                 ${arrowLeft}
                                 <span class="truncate">${esc(prevDoc.title)}</span>
@@ -346,6 +351,7 @@
                             <a href="/${esc(nextDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
+                               @mouseleave="$store.navigation.cancelPrefetch()"
                                class="${navLinkClasses}">
                                 <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}

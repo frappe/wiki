@@ -55,6 +55,7 @@
                         <a href="/{{ node.route }}"
                            @click.prevent="$store.navigation.navigateTo({{ node.route | tojson | forceescape }})"
                            @mouseenter="$store.navigation.prefetch({{ node.route | tojson | forceescape }})"
+                           @mouseleave="$store.navigation.cancelPrefetch()"
                            class="wiki-item-content wiki-link group w-full flex items-center {{ row_geometry }} px-2 text-[var(--ink-gray-7)] no-underline transition-colors duration-200"
                            :class="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'bg-[var(--surface-gray-2)] text-[var(--ink-gray-8)]' : 'hover:bg-[var(--surface-gray-2)] hover:text-[var(--ink-gray-8)]'"
                            :aria-current="$store.navigation.currentRoute === {{ node.route | tojson | forceescape }} ? 'page' : false"
