@@ -95,6 +95,9 @@ export function createSyncTransport({ crStore, crName }) {
 
 	async function submitBatch(submitCr, operations) {
 		const state = getCrState(submitCr);
+		if (state.version === null) {
+			throw versionConflict(submitCr, 'This draft could not be loaded.');
+		}
 		const result = await crStore.applyOperations(
 			submitCr,
 			state.version,
@@ -112,16 +115,10 @@ export function createSyncTransport({ crStore, crName }) {
 						operationVersion.value = state.version;
 					}
 				}
-				if (crName() === submitCr) {
-					sync.status = 'failed';
-					sync.error = result.message || 'This draft has changed elsewhere.';
-					sync.conflict = true;
-				}
-				const err = new Error(
+				throw versionConflict(
+					submitCr,
 					result.message || 'This draft has changed elsewhere.',
 				);
-				err.code = 'version_conflict';
-				throw err;
 			}
 			throw new Error(result.message || 'Batch sync failed');
 		}
@@ -136,6 +133,17 @@ export function createSyncTransport({ crStore, crName }) {
 			sync.conflict = false;
 		}
 		return result;
+	}
+
+	function versionConflict(submitCr, message) {
+		if (crName() === submitCr) {
+			sync.status = 'failed';
+			sync.error = message;
+			sync.conflict = true;
+		}
+		const err = new Error(message);
+		err.code = 'version_conflict';
+		return err;
 	}
 
 	function markSaving() {

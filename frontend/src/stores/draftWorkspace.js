@@ -673,8 +673,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return promise;
 	}
 
+	async function findNodeOnceLoaded(docKey) {
+		if (!hasLoadedTree.value && hydratePromise) {
+			await hydratePromise.catch(() => {});
+		}
+		return treeModel.findNode(docKey);
+	}
+
 	async function updateNode(docKey, fields) {
-		const node = treeModel.findNode(docKey);
+		const node = await findNodeOnceLoaded(docKey);
 		if (!node) return;
 
 		// Apply locally first so the UI reflects the change immediately.
@@ -952,7 +959,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// server, just drop the local node and the failed-create mutation rather
 	// than calling delete_cr_page with a tmp_* key.
 	async function deleteNode(docKey) {
-		const node = treeModel.findNode(docKey);
+		const node = await findNodeOnceLoaded(docKey);
 		if (!node) return;
 		node.localStatus = 'pending_delete';
 		treeModel.setSubtreeDeleted(docKey, true);

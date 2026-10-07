@@ -1,5 +1,21 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import { callMethod } from '../helpers';
+
+const CR_METHOD =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
+
+async function readCrPage(page: Page, docKey: string) {
+	const crName = await page.evaluate(
+		// @ts-expect-error test-only hook
+		() => window.__draftStore.crName,
+	);
+	return callMethod<{ title: string; content: string }>(
+		page.request,
+		`${CR_METHOD}.get_cr_page`,
+		{ name: crName, doc_key: docKey },
+	);
+}
 
 function stallTree(page: Page) {
 	const held: Route[] = [];
@@ -79,7 +95,68 @@ test.describe('Edit from the public page', () => {
 		await releaseTree();
 		const response = await batch;
 		expect(sentBeforeTree).toBe(false);
-		expect((await response.json()).message?.ok).not.toBe(false);
+		expect((await response.json()).message?.ok).toBe(true);
+		const saved = await readCrPage(page, seeded.doc_key as string);
+		expect(saved.content).toContain(typed);
+	});
+
+	test('a title changed before the tree lands is saved', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Early Title ${Date.now()}`;
+		const renamed = `${title} renamed`;
+		const space = await wiki.space({ pages: [{ title }] });
+		const seeded = space.page(title);
+
+		const releaseTree = stallTree(page);
+		await page.goto(space.url('page', seeded.name));
+		await expect(
+			page.locator('.ProseMirror[contenteditable="true"]'),
+		).toBeVisible({ timeout: 15000 });
+
+		const titleInput = page.getByPlaceholder('Page title');
+		await titleInput.fill(renamed);
+		await titleInput.blur();
+		await releaseTree();
+
+		await expect(
+			page.locator('aside').getByText(renamed, { exact: true }),
+		).toBeVisible();
+		await expect
+			.poll(
+				async () => (await readCrPage(page, seeded.doc_key as string)).title,
+			)
+			.toBe(renamed);
+	});
+
+	test('a save is held back when the tree fails to load', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Tree Fails ${Date.now()}`;
+		const space = await wiki.space({ pages: [{ title }] });
+
+		let batchSent = false;
+		page.on('request', (request) => {
+			if (request.url().includes('apply_cr_operations')) batchSent = true;
+		});
+		await page.route('**/api/method/**get_cr_tree*', (route) =>
+			route.fulfill({ status: 500, body: '{}' }),
+		);
+		await page.goto(space.url('page', space.page(title).name));
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+		await expect(editor).toBeVisible({ timeout: 15000 });
+
+		await editor.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' typed without a version');
+		await page.keyboard.press('ControlOrMeta+s');
+
+		await expect(
+			page.getByRole('button', { name: 'Reload latest', exact: true }),
+		).toBeVisible();
+		expect(batchSent).toBe(false);
 	});
 
 	test('an unsaved draft of the page reopens after a reload', async ({
