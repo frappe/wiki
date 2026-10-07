@@ -91,7 +91,6 @@ Same rules as insights, restated so this repo has them.
 | Property | Source | Value |
 |---|---|---|
 | `app_version` | backend default, frontend from the SPA boot payload | `wiki.__version__` |
-| `entry` | backend, cached daily, frontend from boot | `saas_trial` when the site has a Frappe Cloud team, else `self_hosted` |
 | site, user, team, timestamp | Pulse client | automatic |
 
 ## Questions
@@ -201,7 +200,7 @@ A daily event's row keeps the properties of the day's *first* send, because the 
 
 | Group | Properties |
 |---|---|
-| Identity | `frappe_cloud: bool`, `site_age_days`, `wiki_installed_days_ago` |
+| Identity | `site_age_days`, `wiki_installed_days_ago` |
 | Timeline | `first_space_days_ago`, `first_page_days_ago`, `last_merge_days_ago` |
 | Spaces | `spaces`, `published_spaces`, `restricted_spaces`, `github_synced_spaces`, `spaces_with_tabs`, `spaces_accepting_contributions`, `spaces_with_feedback_on` |
 | Documents | `documents`, `published_documents`, `documents_group`, `documents_tab`, `documents_external_link`, `documents_per_space_median`, `documents_per_space_max` |
@@ -260,3 +259,4 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
 - 2026-09-21: Phase 2 done. All thirteen events ship, with `error_kind` and `duration_bucket` helpers in `wiki/telemetry.py`, 21 unit tests (each verified by a temp revert), a Playwright test for the command palette, and a test that fails when an event the code sends is missing from `docs/telemetry.md`.
 - 2026-09-22: Phase 3 done. `wiki/telemetry_scan.py` sends `site_profile` from a daily scheduler job, with `analytics_store.site_activity` and `og_image.cached_card_count` behind it, 12 unit tests (verified by temp revert), and the property table in `docs/telemetry.md`. Open question 3 resolved.
+- 2026-10-06: Dropped `entry` and `site_profile.frappe_cloud`. Both read `fc_team`, which press writes only since 2026-07-01, and every site that reports to Pulse is on Frappe Cloud anyway. No question reads either. Same root cause as frappe/insights#1456.

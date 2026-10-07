@@ -3,15 +3,13 @@ puts on all of them."""
 
 from contextlib import suppress
 
-import frappe
 from frappe.utils import telemetry as frappe_telemetry
-from frappe.utils.caching import site_cache
 
 import wiki
 
 
 def default_properties() -> dict:
-	return {"app_version": wiki.__version__, "entry": get_entry()}
+	return {"app_version": wiki.__version__}
 
 
 def capture(event: str, interval: str | None = None, **props):
@@ -23,12 +21,6 @@ def capture(event: str, interval: str | None = None, **props):
 			properties={**default_properties(), **props},
 			interval=interval,
 		)
-
-
-@site_cache(ttl=24 * 60 * 60)
-def get_entry() -> str:
-	"""How the site came to run Wiki."""
-	return "saas_trial" if frappe.conf.get("fc_team") else "self_hosted"
 
 
 def error_kind(exception: BaseException) -> str:
