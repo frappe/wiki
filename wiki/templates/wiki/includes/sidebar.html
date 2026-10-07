@@ -335,14 +335,14 @@
                     }
 
                     if (nextDoc) {
-                        // No margin utility for the lone-next case: the flex
-                        // container's justify-between leaves a single child at
-                        // the start, which is where it belongs.
+                        // ml-auto keeps a lone next link on the right: the
+                        // container's justify-between would otherwise leave a
+                        // single child at the start (frappe/wiki#841).
                         html += `
                             <a href="/${esc(nextDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
-                               class="${navLinkClasses}">
+                               class="${navLinkClasses} ml-auto">
                                 <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}
                             </a>`;

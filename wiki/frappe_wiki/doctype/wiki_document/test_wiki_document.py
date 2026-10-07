@@ -699,6 +699,71 @@ class TestRenderedPageTranslations(WikiDocumentTestBase):
 		self.assertNotIn("<b>Ici</b>", html)
 
 
+class TestRenderedPageNavButtons(WikiDocumentTestBase):
+	"""
+	The prev/next pills share one flex container with ``justify-between``.
+	With a single child that alone leaves it at the start, so the next link
+	carries ``ml-auto`` to stay on the right on a space's first page
+	(frappe/wiki#841). The sidebar's SPA half rebuilds the same markup in an
+	inline script, so both the Jinja render and that template string are
+	checked.
+	"""
+
+	TEST_CLIENT = get_test_client()
+
+	def _unique(self, prefix):
+		return f"{prefix}-{frappe.generate_hash(length=6)}"
+
+	def _two_page_space(self, prefix):
+		space = create_test_wiki_space(
+			self, "Nav Space", self._unique(prefix), None, roles=[("Guest", "Read")]
+		)
+		first = create_test_wiki_document(
+			self, "First Page", parent=space.root_group, slug=self._unique(f"{prefix}-a"), sort_order=0
+		)
+		last = create_test_wiki_document(
+			self, "Last Page", parent=space.root_group, slug=self._unique(f"{prefix}-b"), sort_order=1
+		)
+		return first, last
+
+	def _render(self, doc):
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		response = _make_request(self.TEST_CLIENT, "get", f"/{doc.route}", headers={"Accept": "text/html"})
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def _nav_links(self, html):
+		nav = re.search(r'<nav id="wiki-nav-buttons".*?</nav>', html, re.S).group(0)
+		return re.findall(r'<a href="/([^"]+)"[^>]*class="([^"]*)"', nav)
+
+	def test_lone_next_link_is_pushed_right_on_first_page(self):
+		first, last = self._two_page_space("nav-first")
+
+		links = self._nav_links(self._render(first))
+
+		self.assertEqual([route for route, _ in links], [last.route])
+		self.assertIn("ml-auto", links[0][1].split())
+
+	def test_lone_prev_link_stays_left_on_last_page(self):
+		first, last = self._two_page_space("nav-last")
+
+		links = self._nav_links(self._render(last))
+
+		self.assertEqual([route for route, _ in links], [first.route])
+		self.assertNotIn("ml-auto", links[0][1].split())
+
+	def test_spa_render_mirrors_next_link_alignment(self):
+		first, _ = self._two_page_space("nav-spa")
+
+		html = self._render(first)
+		script = html[html.index("updateNavButtons(prevDoc, nextDoc)") :]
+		prev_block = script[script.index("if (prevDoc)") : script.index("if (nextDoc)")]
+		next_block = script[script.index("if (nextDoc)") :][:1200]
+
+		self.assertIn('class="${navLinkClasses} ml-auto"', next_block)
+		self.assertNotIn("ml-auto", prev_block)
+
+
 class TestDisableIndexing(WikiDocumentTestBase):
 	"""GH-806: a page can opt out of search engines."""
 
