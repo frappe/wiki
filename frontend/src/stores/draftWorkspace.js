@@ -149,7 +149,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 		if (uploadStates.value.has('uploading')) return 'uploading';
 		if (uploadStates.value.has('failed')) return 'upload-failed';
-		if (queue.hasPendingMutations.value || transport.sync.status === 'saving') {
+		if (
+			!hasLoadedTree.value ||
+			queue.hasPendingMutations.value ||
+			transport.sync.status === 'saving'
+		) {
 			return 'pending';
 		}
 		if (pageBuffers.hasUnsavedEditorContent.value) return 'unsaved';

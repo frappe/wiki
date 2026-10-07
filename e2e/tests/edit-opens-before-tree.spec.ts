@@ -130,6 +130,40 @@ test.describe('Edit from the public page', () => {
 			.toBe(renamed);
 	});
 
+	test('submit waits for a title change made before the tree loads', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Early Submit ${Date.now()}`;
+		const space = await wiki.space({ pages: [{ title }] });
+		const seeded = space.page(title);
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+
+		await page.goto(space.url('page', seeded.name));
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		await editor.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' saved change');
+		await page.keyboard.press('ControlOrMeta+s');
+		await expect(page.getByTestId('sync-state-alert')).toBeHidden({
+			timeout: 10000,
+		});
+
+		const releaseTree = stallTree(page);
+		await page.reload();
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		const titleInput = page.getByPlaceholder('Page title');
+		await titleInput.fill(`${title} renamed`);
+		await titleInput.blur();
+
+		const submit = page.getByRole('button', { name: 'Submit for Review' });
+		await expect(submit).toBeVisible();
+		await expect(submit).toBeDisabled();
+
+		await releaseTree();
+		await expect(submit).toBeEnabled();
+	});
+
 	test('a save is held back when the tree fails to load', async ({
 		page,
 		wiki,
