@@ -253,7 +253,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				crStore.loadChanges(),
 			]);
 			transport.holdBatches(crName.value, treeLoaded);
-			const [serverTree] = await treeLoaded;
+			const [serverTree] = await treeLoaded.catch((error) => {
+				transport.markFailed('This draft could not be loaded.');
+				throw error;
+			});
 
 			applyServerTree(serverTree);
 			applyChangesSummary(crStore.changes);

@@ -164,6 +164,41 @@ test.describe('Edit from the public page', () => {
 		await expect(submit).toBeEnabled();
 	});
 
+	test('a failed tree load offers Reload latest, which unblocks submit', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Tree Retry ${Date.now()}`;
+		const space = await wiki.space({ pages: [{ title }] });
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+
+		await page.goto(space.url('page', space.page(title).name));
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		await editor.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' saved change');
+		await page.keyboard.press('ControlOrMeta+s');
+		await expect(page.getByTestId('sync-state-alert')).toBeHidden({
+			timeout: 10000,
+		});
+
+		await page.route('**/api/method/**get_cr_tree*', (route) =>
+			route.fulfill({ status: 500, body: '{}' }),
+		);
+		await page.reload();
+		const reloadLatest = page.getByRole('button', {
+			name: 'Reload latest',
+			exact: true,
+		});
+		await expect(reloadLatest).toBeVisible({ timeout: 15000 });
+
+		await page.unroute('**/api/method/**get_cr_tree*');
+		await reloadLatest.click();
+		await expect(
+			page.getByRole('button', { name: 'Submit for Review' }),
+		).toBeEnabled();
+	});
+
 	test('a save is held back when the tree fails to load', async ({
 		page,
 		wiki,
