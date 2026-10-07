@@ -57,6 +57,11 @@ export function createSyncTransport({ crStore, crName }) {
 		if (state) state.version = version;
 	}
 
+	function holdBatches(name, promise) {
+		const state = getCrState(name);
+		state.tail = Promise.all([state.tail, promise]).catch(() => {});
+	}
+
 	async function fetchTree(name) {
 		return treeResource.submit({ name });
 	}
@@ -169,6 +174,7 @@ export function createSyncTransport({ crStore, crName }) {
 		sync,
 		fetchTree,
 		fetchPage,
+		holdBatches,
 		applyBatchOps,
 		recordServerVersion,
 		getCrState,

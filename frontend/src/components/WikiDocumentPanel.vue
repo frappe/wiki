@@ -361,7 +361,7 @@ async function loadCrPage() {
 			draftStore.isHydrating ||
 			!crStore.currentChangeRequest)
 	) {
-		await draftStore.hydrate(props.spaceId);
+		await draftStore.hydrateForPage(props.spaceId, docKey);
 	}
 	const page = crStore.currentChangeRequest
 		? await draftStore.loadCrPage(docKey)

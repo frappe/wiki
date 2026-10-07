@@ -54,6 +54,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// space with no pages.
 	const hasLoadedTree = ref(false);
 	let hydratePromise = null;
+	let changeRequestReady = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
 	const crName = computed(() => crStore.currentChangeRequest?.name || null);
@@ -239,17 +240,20 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (spaceId.value !== targetSpaceId) reset();
 			spaceId.value = targetSpaceId;
 
-			await crStore.initChangeRequest(targetSpaceId);
+			changeRequestReady = loadChangeRequest(targetSpaceId);
+			const drafts = await changeRequestReady;
 			if (!crName.value) return;
 
-			const [serverTree] = await Promise.all([
+			const treeLoaded = Promise.all([
 				transport.fetchTree(crName.value),
 				crStore.loadChanges(),
 			]);
+			transport.holdBatches(crName.value, treeLoaded);
+			const [serverTree] = await treeLoaded;
 
 			applyServerTree(serverTree);
 			applyChangesSummary(crStore.changes);
-			await restorePersistedDrafts();
+			await restorePersistedDrafts(drafts);
 		})();
 
 		try {
@@ -257,7 +261,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		} finally {
 			isHydrating.value = false;
 			hydratePromise = null;
+			changeRequestReady = null;
 		}
+	}
+
+	async function loadChangeRequest(targetSpaceId) {
+		await crStore.initChangeRequest(targetSpaceId);
+		return crName.value ? loadDraftsForCr(crName.value) : [];
+	}
+
+	async function hydrateForPage(targetSpaceId, docKey) {
+		const hydration = hydrate(targetSpaceId);
+		const drafts = await (changeRequestReady ?? hydration);
+		if (drafts?.some((draft) => draft.docKey === docKey)) await hydration;
 	}
 
 	// Read any drafts persisted to IndexedDB for the current CR and
@@ -269,10 +285,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Entries whose `docKey` no longer corresponds to a real tree node
 	// are ignored — they're orphans from deleted pages or from tmp_*
 	// creates that never reached the server.
-	async function restorePersistedDrafts() {
-		if (!crName.value) return;
-		const drafts = await loadDraftsForCr(crName.value);
-		if (!drafts.length) return;
+	async function restorePersistedDrafts(drafts) {
+		if (!crName.value || !drafts.length) return;
 		await Promise.all(
 			drafts.map(async (draft) => {
 				const { docKey, content, title } = draft;
@@ -445,8 +459,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			revalidateCrPage(docKey);
 			return localPage;
 		}
-		const result = await transport.fetchPage(crName.value, docKey);
-		return applyFetchedPage(docKey, result);
+		return fetchCrPage(docKey);
+	}
+
+	const pageFetches = new Map();
+	function fetchCrPage(docKey) {
+		const key = `${crName.value}:${docKey}`;
+		if (pageFetches.has(key)) return pageFetches.get(key);
+		const promise = transport
+			.fetchPage(crName.value, docKey)
+			.then((result) => applyFetchedPage(docKey, result))
+			.finally(() => pageFetches.delete(key));
+		pageFetches.set(key, promise);
+		return promise;
 	}
 
 	function updateLocalPageContent(docKey, content, title = null) {
@@ -1018,6 +1043,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		operationVersion: transport.operationVersion,
 		sync: transport.sync,
 		isHydrating,
+		hydrateForPage,
 		hasLoadedTree,
 		tempKeyResolutions: resolver.tempKeyResolutions,
 		// getters
