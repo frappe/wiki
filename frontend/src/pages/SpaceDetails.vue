@@ -42,7 +42,7 @@
                     :space-loaded="spaceStore.isLoaded"
                     :tree-data="spaceStore.treeData"
                     :change-type-map="spaceStore.changeTypeMap"
-                    :readonly="spaceStore.isReadonly"
+                    :readonly="spaceStore.isReadonly || spaceStore.isTreeStale"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="spaceStore.refreshTree"
