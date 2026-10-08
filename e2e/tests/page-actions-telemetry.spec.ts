@@ -19,6 +19,7 @@ export class PulseClient {
 `;
 
 declare global {
+	const readerTelemetry: Record<string, unknown>;
 	interface Window {
 		pulseOptions?: Record<string, unknown>;
 		pulseEvents?: {
@@ -33,20 +34,6 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 	const space = await wiki.space({ pages: [{ title: 'Telemetry Page' }] });
 	const route = space.page('Telemetry Page').route;
 
-	await page.route(`**/${route}`, async (request) => {
-		const response = await request.fetch();
-		const html = await response.text();
-		const rewritten = html.replace(
-			/const readerTelemetry = .*?;\n/,
-			`const readerTelemetry = ${JSON.stringify(telemetry)};\n`,
-		);
-		expect(rewritten).not.toBe(html);
-		await request.fulfill({
-			status: response.status(),
-			contentType: 'text/html; charset=utf-8',
-			body: rewritten,
-		});
-	});
 	await page.route(PULSE_CLIENT_URL, (request) =>
 		request.fulfill({
 			contentType: 'text/javascript',
@@ -63,6 +50,12 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 	await page.goto(`/${route}`);
 	await expect(page.locator('#wiki-page-title')).toBeVisible();
+
+	// Overrides whatever Pulse config this site has. The binding is const, its object is not.
+	await page.evaluate(
+		(config) => Object.assign(readerTelemetry, config),
+		telemetry,
+	);
 
 	// Keep the Ask AI links from leaving for chatgpt.com / claude.ai.
 	await page.evaluate(() => {
