@@ -380,8 +380,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	async function reloadTree() {
-		if (!crName.value) return;
-		const serverTree = await transport.fetchTree(crName.value);
+		const requestCr = crName.value;
+		const requestSpace = spaceId.value;
+		if (!requestCr) return;
+		const serverTree = await transport.fetchTree(requestCr);
+		// The change request can outlive a space switch until the new one loads.
+		if (crName.value !== requestCr || spaceId.value !== requestSpace) return;
 		applyServerTree(serverTree);
 	}
 
@@ -501,11 +505,16 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	const pageFetches = new Map();
 	function fetchCrPage(docKey) {
-		const key = `${crName.value}:${docKey}`;
+		const requestCr = crName.value;
+		const key = `${requestCr}:${docKey}`;
 		if (pageFetches.has(key)) return pageFetches.get(key);
 		const promise = transport
-			.fetchPage(crName.value, docKey)
-			.then((result) => applyFetchedPage(docKey, result))
+			.fetchPage(requestCr, docKey)
+			.then((result) =>
+				crName.value === requestCr
+					? applyFetchedPage(docKey, result)
+					: loadCrPage(docKey),
+			)
 			.finally(() => pageFetches.delete(key));
 		pageFetches.set(key, promise);
 		return promise;

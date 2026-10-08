@@ -564,7 +564,7 @@ def _build_markdown() -> MarkdownIt:
 		while position < len(content):
 			match = PICTURE_BLOCK_PATTERN.match(content, position)
 			if not match:
-				return content
+				return "".join(pictures) + content[position:]
 			pictures.append(render_picture(match))
 			position = match.end()
 		return "".join(pictures)
