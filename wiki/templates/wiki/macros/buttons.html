@@ -84,7 +84,7 @@
 {% endmacro %}
 
 {% macro page_action_item(text="", description="", icon="", href="", href_expr="", click="", target="") %}
-    {% if click %}
+    {% if click and not href_expr %}
     <button @click="{{ click }}" class="{{ menu_row }} cursor-pointer">
         {% if icon %}
         <span class="flex shrink-0 items-center justify-center">{{ render_icon(icon, "text-[var(--ink-gray-5)]") }}</span>
@@ -98,7 +98,7 @@
     </button>
     {% else %}
     {# href_expr reads window.location, which is not reactive: recompute on click so SPA nav gets the current URL, not the load-time one #}
-    <a {% if href_expr %}:href="{{ href_expr }}" @click="$el.href = {{ href_expr }}"{% else %}href="{{ href }}"{% endif %}
+    <a {% if href_expr %}:href="{{ href_expr }}" @click="$el.href = {{ href_expr }}{% if click %}; {{ click }}{% endif %}"{% else %}href="{{ href }}"{% endif %}
        {% if target %}target="{{ target }}" rel="noopener noreferrer"{% endif %}
        class="{{ menu_row }} no-underline">
         {% if icon %}

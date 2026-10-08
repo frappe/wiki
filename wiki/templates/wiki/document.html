@@ -54,8 +54,8 @@
                     {% if can_edit %}
                     {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                     {% endif %}
-                    {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                    {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
                 {{ dropdown_end() }}
             </div>
             <div class="flex items-center justify-between gap-4">
@@ -68,8 +68,8 @@
                         {% if can_edit %}
                         {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                         {% endif %}
-                        {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                        {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
                     {{ dropdown_end() }}
                 </div>
             </div>
@@ -136,6 +136,25 @@
 </div>
 
 <script>
+    const readerTelemetry = {{ telemetry | tojson }};
+    let readerPulse;
+
+    // Loaded on first use, so a reader who never opens the page actions menu pays nothing.
+    function capturePageAction(action) {
+        if (!readerTelemetry.enabled) return;
+        readerPulse ||= import(readerTelemetry.client_url).then(({ PulseClient }) => new PulseClient({
+            host: readerTelemetry.host,
+            apiKey: readerTelemetry.key,
+            site: readerTelemetry.site,
+            user: readerTelemetry.user,
+            team: readerTelemetry.team,
+            enabled: true,
+        }));
+        readerPulse
+            .then((client) => client.capture('page_action_used', 'wiki', { action, app_version: readerTelemetry.app_version }))
+            .catch(() => { readerPulse = undefined; });
+    }
+
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
@@ -159,6 +178,7 @@
 
             copyMarkdown() {
                 navigator.clipboard.writeText(this.markdown).then(() => {
+                    capturePageAction('copy');
                     this.copied = true;
                     setTimeout(() => {
                         this.copied = false;
@@ -191,6 +211,7 @@
                     link.click();
                     link.remove();
                     URL.revokeObjectURL(objectUrl);
+                    capturePageAction('download');
                 } catch (err) {
                     console.error('Failed to download PDF:', err);
                     window.frappe?.show_alert?.({

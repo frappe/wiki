@@ -25,6 +25,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 | 11 | Is the generated avatar picker used, and which styles survive a save | `space_identity_set`, `site_profile.avatar_*` |
 | 12 | Are generated meta images worth the Chromium cost | `meta_image_generated`, `site_profile.meta_images_*` |
 | 13 | How big does a wiki get, and how is it split across spaces | `site_profile.documents`, `documents_per_space_median`, `documents_per_space_max` |
+| 14 | Do readers use the page actions menu, and which AI do they reach for | `page_action_used.action` |
 
 ## Rules
 
@@ -33,7 +34,7 @@ Shipping events exist to answer these. An event that answers none of them is pla
 - Low cardinality only. Never page titles, slugs, space names, content, search terms, emails or document names. Count them, never name them.
 - The user is always the anonymized id frappe and the Pulse client add. Wiki never passes a user.
 - Backend is the default for anything that changes data. The frontend sends only what the server never sees.
-- Reader pages send nothing. The plugin is installed in the `/wiki-app` SPA only, and only for a signed-in user.
+- The plugin is installed in the `/wiki-app` SPA only, and only for a signed-in user. Reader pages send only `page_action_used`, through the Pulse client loaded on the first menu click.
 - Facts about the site come from a daily scan, never from a request path.
 - Backend sends through `wiki.telemetry.capture(event, **props)`, frontend through `frontend/src/telemetry.js`'s `useTelemetry().capture(event, props)`. Both add the properties every event carries. Daily events pass `interval="1d"`, which keeps one row per user per day and ignores properties.
 
@@ -68,13 +69,15 @@ Wiki sends `pageview` itself, from `frontend/src/telemetry.js`, rather than lett
 | `command_palette_opened` | frontend | the palette is opened | `trigger`: `shortcut`, `click` | 7 |
 | `space_identity_set` | frontend | the identity picker closes on a choice | `kind`: `generated`, `icon`, `logo`. `style`: the DiceBear style on a generated mark, else empty. `rolls`: times Generate was pressed first | 11 |
 | `github_sync_failed` | backend | a sync run raises | `error_kind`: `auth` (401, 403, 404), `network`, `other`, mapped from the exception class and never from its message. `trigger`: `manual`, `webhook` | 5 |
+| `page_action_used` | reader | a reader picks an item from the page actions menu | `action`: `download`, `copy`, `chatgpt`, `claude` | 14 |
 | `meta_image_generated` | backend | a card is rendered **and** stored; a cache hit sends nothing | `outcome`: `ok`, `failed` — a card that renders but cannot be written is `failed`, since the next hit pays for Chromium again. `trigger`: `warm`, `request`. `renderer`: `chromium`, `satori`. `duration_bucket`: `lt_1s`, `1_3s`, `3_10s`, `gt_10s` | 12 |
 
-Three things the shape of these events decides.
+Four things the shape of these events decides.
 
 - A daily event's row keeps the properties of the day's *first* send: the queue dedupes on name and user alone. So `search_performed` says someone searched that day and where they searched first, not how they searched all day.
 - `command_palette_opened` is not daily. The browser client has no interval, so every open is sent and the dedupe happens in the query.
 - How long a space stayed published is not a property. Pulse timestamps `space_published` and `space_unpublished`, so the pair answers it without wiki storing a publish date.
+- `page_action_used` comes from the reader, which has no SPA boot. The page carries the Pulse `boot_config` and imports the client on the first menu click, so a reader who never opens the menu loads nothing. A guest has no user: Pulse derives a daily anonymous id at ingest, the way it does on frappe.io.
 
 ### What a site holds
 
@@ -114,5 +117,5 @@ Nothing. Every event in `specs/product_telemetry.md` ships.
 
 ## Not tracked
 
-- Anything a guest does on the published reader. No browser telemetry is loaded there.
+- Anything else a guest does on the published reader.
 - Page, space and document names, and search terms. They are counted, never named.
