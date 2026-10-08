@@ -283,12 +283,17 @@ test.describe('Switching spaces while the tree loads', () => {
 			).toBeVisible({ timeout: 15000 });
 
 			const [oldTree] = held;
+			const oldTreeDone = page.waitForEvent(
+				'requestfinished',
+				(request) => request === oldTree.request(),
+			);
 			if (outcome === 'fails') {
 				await oldTree.fulfill({ status: 500, body: '{}' });
 			} else {
 				await oldTree.continue();
 			}
-			await page.waitForTimeout(1500);
+			await oldTreeDone;
+			await page.waitForTimeout(500);
 
 			await expect(
 				aside.getByText(`Second ${stamp}`, { exact: true }),
@@ -345,8 +350,13 @@ test.describe('Switching spaces while the tree loads', () => {
 			timeout: 15000,
 		});
 
+		const staleTreeDone = page.waitForEvent(
+			'requestfinished',
+			(request) => request === held[0].request(),
+		);
 		await held[0].continue();
-		await page.waitForTimeout(1500);
+		await staleTreeDone;
+		await page.waitForTimeout(500);
 
 		await expect(
 			aside.getByText(`Second ${stamp}`, { exact: true }),
