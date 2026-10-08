@@ -85,3 +85,40 @@ export async function loadDraftsForCr(crName) {
 		return [];
 	}
 }
+
+const TREE_PREFIX = 'tree:';
+
+function makeTreeKey(user, spaceId) {
+	return `${TREE_PREFIX}${user}:${spaceId}`;
+}
+
+export async function saveTreeSnapshot(user, spaceId, tree) {
+	if (!user || !spaceId || !tree) return;
+	try {
+		await set(makeTreeKey(user, spaceId), tree, wikiDraftStore);
+	} catch (err) {
+		console.warn('[draftPersistence] saveTreeSnapshot failed', err);
+	}
+}
+
+export async function loadTreeSnapshot(user, spaceId) {
+	if (!user || !spaceId) return null;
+	try {
+		return (await get(makeTreeKey(user, spaceId), wikiDraftStore)) ?? null;
+	} catch (err) {
+		console.warn('[draftPersistence] loadTreeSnapshot failed', err);
+		return null;
+	}
+}
+
+export async function clearTreeSnapshots() {
+	try {
+		const allKeys = await keys(wikiDraftStore);
+		const snapshots = allKeys.filter(
+			(k) => typeof k === 'string' && k.startsWith(TREE_PREFIX),
+		);
+		await Promise.all(snapshots.map((k) => del(k, wikiDraftStore)));
+	} catch (err) {
+		console.warn('[draftPersistence] clearTreeSnapshots failed', err);
+	}
+}

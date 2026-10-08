@@ -3,11 +3,13 @@ import {
 	clearDraft as clearPersistedDraft,
 	clearDraftsForCr as clearPersistedDraftsForCr,
 	loadDraftsForCr,
+	loadTreeSnapshot,
 	saveDraft as savePersistedDraft,
+	saveTreeSnapshot,
 } from '@/stores/draftPersistence';
 import { useUserStore } from '@/stores/user';
 import { defineStore } from 'pinia';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, toRaw } from 'vue';
 import { createMoveScheduler } from './draftWorkspace/moveScheduler';
 import { createOperationQueue } from './draftWorkspace/operationQueue';
 import { createPageBuffers } from './draftWorkspace/pageBuffers';
@@ -53,6 +55,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// show a skeleton instead of mistaking the pre-hydration empty tree for a
 	// space with no pages.
 	const hasLoadedTree = ref(false);
+	const staleTreeModel = createTreeModel();
+	const hasStaleTree = ref(false);
 	let hydratePromise = null;
 	let latestHydrate = 0;
 	let changeRequestReady = null;
@@ -199,9 +203,26 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	function applyServerTree(serverTree) {
 		treeModel.applyServerTree(serverTree);
 		hasLoadedTree.value = true;
+		dropStaleTree();
+		saveTreeSnapshot(userStore.data?.name, spaceId.value, toRaw(serverTree));
 		if (typeof serverTree?.operation_version === 'number') {
 			transport.recordServerVersion(crName.value, serverTree.operation_version);
 		}
+	}
+
+	function dropStaleTree() {
+		hasStaleTree.value = false;
+		staleTreeModel.reset();
+	}
+
+	async function paintStaleTree(targetSpaceId, run) {
+		const snapshot = await loadTreeSnapshot(
+			userStore.data?.name,
+			targetSpaceId,
+		);
+		if (!snapshot || run !== latestHydrate || hasLoadedTree.value) return;
+		staleTreeModel.applyServerTree(snapshot);
+		hasStaleTree.value = true;
 	}
 
 	function applyChangesSummary(changes) {
@@ -221,6 +242,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			spaceId.value = null;
 			hasLoadedTree.value = false;
 			treeModel.reset();
+			dropStaleTree();
 		}
 		pageBuffers.reset();
 		resolver.reset();
@@ -245,6 +267,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hydratePromise = (async () => {
 			if (spaceId.value !== targetSpaceId) reset();
 			spaceId.value = targetSpaceId;
+			if (!hasLoadedTree.value) paintStaleTree(targetSpaceId, run);
 
 			changeRequestReady = loadChangeRequest(targetSpaceId);
 			const drafts = await changeRequestReady;
@@ -1066,6 +1089,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		isHydrating,
 		hydrateForPage,
 		hasLoadedTree,
+		hasStaleTree,
+		staleTreeAsLegacy: staleTreeModel.treeAsLegacy,
 		tempKeyResolutions: resolver.tempKeyResolutions,
 		// getters
 		isEnabled,
