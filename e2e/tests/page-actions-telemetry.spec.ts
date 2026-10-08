@@ -47,7 +47,12 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 			request.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4' }),
 	);
 
-	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+	// CI serves plain http on a non-localhost host, which has no navigator.clipboard.
+	await page.addInitScript(() => {
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { writeText: async () => {} },
+		});
+	});
 	await page.goto(`/${route}`);
 	await expect(page.locator('#wiki-page-title')).toBeVisible();
 
