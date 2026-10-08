@@ -41,7 +41,11 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 			`const readerTelemetry = ${JSON.stringify(telemetry)};\n`,
 		);
 		expect(rewritten).not.toBe(html);
-		await request.fulfill({ response, body: rewritten });
+		await request.fulfill({
+			status: response.status(),
+			contentType: 'text/html; charset=utf-8',
+			body: rewritten,
+		});
 	});
 	await page.route(PULSE_CLIENT_URL, (request) =>
 		request.fulfill({
@@ -79,17 +83,13 @@ async function pickPageAction(
 	page: Page,
 	{ text, closesMenu }: (typeof ACTIONS)[number],
 ) {
-	const toggle = page
-		.getByRole('button', { name: 'More page actions' })
-		.locator('visible=true');
+	// The desktop menu beside the title; the mobile copy above it is hidden by CSS.
+	const menu = page.locator('#wiki-page-title + div');
+	const toggle = menu.getByRole('button', { name: 'More page actions' });
 	if ((await toggle.getAttribute('aria-expanded')) !== 'true')
 		await toggle.click();
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-	await page
-		.locator('a:visible, button:visible')
-		.filter({ hasText: text })
-		.first()
-		.click();
+	await menu.locator('a, button').filter({ hasText: text }).click();
 	// Download closes the menu only once the PDF arrives, so wait it out.
 	await expect(toggle).toHaveAttribute('aria-expanded', String(!closesMenu));
 }
