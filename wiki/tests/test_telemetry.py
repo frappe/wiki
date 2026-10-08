@@ -62,6 +62,27 @@ class TestTelemetry(IntegrationTestCase):
 	def test_the_boot_payload_carries_the_shared_properties(self):
 		self.assertEqual(wiki_app.get_boot()["telemetry"], telemetry.default_properties())
 
+	def test_the_reader_gets_the_pulse_config_with_the_shared_properties(self):
+		with patch(
+			"frappe.utils.telemetry.pulse.client.boot_config",
+			create=True,
+			return_value={"enabled": True, "key": "k"},
+		):
+			config = telemetry.reader_config()
+
+		self.assertEqual(config, {"enabled": True, "key": "k", **telemetry.default_properties()})
+
+	def test_the_reader_gets_nothing_when_telemetry_is_off_or_broken(self):
+		with patch(
+			"frappe.utils.telemetry.pulse.client.boot_config", create=True, return_value={"enabled": False}
+		):
+			self.assertEqual(telemetry.reader_config(), {"enabled": False})
+
+		with patch(
+			"frappe.utils.telemetry.pulse.client.boot_config", create=True, side_effect=Exception("no pulse")
+		):
+			self.assertEqual(telemetry.reader_config(), {"enabled": False})
+
 
 class TestShippedEvents(IntegrationTestCase):
 	"""One test per Phase 2 event: it fires once, with the properties
@@ -280,6 +301,7 @@ class TestEventCatalogue(IntegrationTestCase):
 		sources = list((app_root / "wiki").rglob("*.py"))
 		for suffix in ("*.js", "*.vue"):
 			sources += list((app_root / "frontend" / "src").rglob(suffix))
+		sources += list((app_root / "wiki" / "templates").rglob("*.html"))
 		sent = set()
 		for source in sources:
 			if "test" in source.name:

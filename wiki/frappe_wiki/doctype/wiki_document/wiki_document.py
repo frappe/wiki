@@ -16,7 +16,7 @@ from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
-from wiki.telemetry import capture
+from wiki.telemetry import capture, reader_config
 from wiki.utils import fingerprint_js_url
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
@@ -826,6 +826,7 @@ class WikiDocumentRenderer(BaseRenderer):
 		context["csrf_token"] = csrf_token
 		context["enable_view_tracking"] = frappe.get_website_settings("enable_view_tracking")
 		context["fingerprint_js_url"] = fingerprint_js_url()
+		context["telemetry"] = reader_config()
 
 		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)

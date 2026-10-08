@@ -12,6 +12,17 @@ def default_properties() -> dict:
 	return {"app_version": wiki.__version__}
 
 
+def reader_config() -> dict:
+	"""Pulse client config for the reader, which has no SPA boot to carry it."""
+	with suppress(Exception):
+		from frappe.utils.telemetry.pulse.client import boot_config
+
+		config = boot_config()
+		if config.get("enabled"):
+			return {**config, **default_properties()}
+	return {"enabled": False}
+
+
 def capture(event: str, interval: str | None = None, **props):
 	"""Send one event. Telemetry never fails the action it reports on."""
 	with suppress(Exception):
