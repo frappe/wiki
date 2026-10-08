@@ -26,6 +26,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	mark_hashes_stale,
 	recompute_revision_hashes,
 )
+from wiki.permissions import assert_space_writable
 from wiki.telemetry import capture
 
 
@@ -1430,7 +1431,7 @@ def approve_change_request(name: str) -> None:
 	cr.status = "Approved"
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()
-	cr.save()
+	cr.save(ignore_permissions=True)
 	cr.add_comment("Comment", _("Approved this change request."))
 	_notify_cr_owner(cr, _("Your change request “{0}” was approved.").format(cr.title))
 
@@ -1458,7 +1459,7 @@ def request_changes(name: str, comment: str) -> None:
 	cr.review_comment = comment
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()
-	cr.save()
+	cr.save(ignore_permissions=True)
 	cr.add_comment("Comment", _("Requested changes: {0}").format(comment))
 	_notify_cr_owner(cr, _("Changes were requested on your change request “{0}”.").format(cr.title))
 
@@ -1488,7 +1489,7 @@ def reject_change_request(name: str, comment: str) -> None:
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()
 	cr.rejected_at = now_datetime()
-	cr.save()
+	cr.save(ignore_permissions=True)
 	cr.add_comment("Comment", _("Rejected this change request: {0}").format(comment))
 	_notify_cr_owner(cr, _("Your change request “{0}” was rejected.").format(cr.title))
 
@@ -1527,6 +1528,7 @@ def merge_change_request(name: str) -> str:
 	# finalized so a re-fired request can't re-merge or revive a closed CR.
 	_assert_status(cr, {"Approved"})
 
+	assert_space_writable(cr.wiki_space)
 	flush_pending_revision_syncs()
 
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
@@ -1619,6 +1621,7 @@ def retry_merge_after_resolution(name: str) -> str:
 			frappe.PermissionError,
 		)
 
+	assert_space_writable(cr.wiki_space)
 	flush_pending_revision_syncs()
 
 	space = frappe.get_doc("Wiki Space", cr.wiki_space)
@@ -1935,7 +1938,7 @@ def _delete_wiki_documents(doc_keys: Iterable[str], key_to_name: dict[str, str],
 			delete_docs.append((lft, doc_key, doc_name))
 	delete_docs.sort(key=lambda x: x[0], reverse=True)
 	for _lft, doc_key, doc_name in delete_docs:
-		frappe.delete_doc("Wiki Document", doc_name, force=True)
+		frappe.delete_doc("Wiki Document", doc_name, force=True, ignore_permissions=True)
 		del key_to_name[doc_key]
 
 
@@ -2134,6 +2137,8 @@ def _apply_merge_changes_only(
 				existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
 				if existing_name:
 					doc = frappe.get_doc("Wiki Document", existing_name)
+					# A revision must not claim a document outside its space.
+					doc.check_permission("write")
 				else:
 					doc = frappe.new_doc("Wiki Document")
 					doc.doc_key = doc_key
@@ -2157,11 +2162,13 @@ def _apply_merge_changes_only(
 			content_blob = item.get("content_blob")
 			doc.content = blob_contents.get(content_blob, "") if content_blob else ""
 
+			# Space write access was checked by the merge endpoint. Wiki User
+			# deliberately has no direct Wiki Document create/write permission.
 			if doc.is_new():
-				doc.insert()
+				doc.insert(ignore_permissions=True)
 				key_to_name[doc_key] = doc.name
 			else:
-				doc.save()
+				doc.save(ignore_permissions=True)
 
 	# Delete AFTER saves — children must be reparented before parents are deleted
 	_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
@@ -2180,7 +2187,7 @@ def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	cr.merge_revision = merge_revision.name
 	cr.merged_by = frappe.session.user
 	cr.merged_at = now_datetime()
-	cr.save()
+	cr.save(ignore_permissions=True)
 
 	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
 	clear_wiki_tree_cache()

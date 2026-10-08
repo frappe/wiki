@@ -2483,6 +2483,163 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(tree2.get("operation_version"), 1)
 
 
+class TestSpaceWriterMerge(FrappeTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+		self.role = "_Test Wiki Publisher"
+		if not frappe.db.exists("Role", self.role):
+			frappe.get_doc({"doctype": "Role", "role_name": self.role}).insert()
+		self.writer = create_user("space-publisher@example.com", "Wiki User", self.role)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def _space(self):
+		return make_space(roles=[("Wiki User", "Read"), (self.role, "Write")])
+
+	def _change_request(self, space):
+		page = make_document(parent=space.root_group, title="Rename Me")
+		deleted = make_document(parent=space.root_group, title="Delete Me")
+		frappe.set_user(self.writer.name)
+		cr = create_change_request(space.name, "Publish as a space writer")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		new_key = create_cr_page(cr.name, root_key, "New Page", content="Published content")
+		update_cr_page(cr.name, page.doc_key, {"title": "Renamed Page"})
+		delete_cr_page(cr.name, deleted.doc_key)
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+		return cr, new_key, page, deleted
+
+	def _assert_published(self, space, cr, new_key, page, deleted):
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "merged_by"), self.writer.name)
+		published = frappe.get_doc("Wiki Document", {"doc_key": new_key})
+		self.assertEqual(published.wiki_space, space.name)
+		self.assertEqual(published.content, "Published content")
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "title"), "Renamed Page")
+		self.assertFalse(frappe.db.exists("Wiki Document", deleted.name))
+		# Publishing must not grant the writer unrestricted Desk writes.
+		self.assertFalse(frappe.has_permission("Wiki Document", "write", doc=published))
+
+	def test_space_writer_can_fast_forward_publish(self):
+		space = self._space()
+		cr, new_key, page, deleted = self._change_request(space)
+		merge_change_request(cr.name)
+		self._assert_published(space, cr, new_key, page, deleted)
+
+	def test_space_writer_can_three_way_publish(self):
+		space = self._space()
+		unrelated = make_document(parent=space.root_group, title="Unrelated")
+		cr, new_key, page, deleted = self._change_request(space)
+
+		frappe.set_user("Administrator")
+		other = create_change_request(space.name, "Concurrent edit")
+		update_cr_page(other.name, unrelated.doc_key, {"content": "Concurrent content"})
+		submit_change_request(other.name)
+		approve_change_request(other.name)
+		merge_change_request(other.name)
+		self.assertNotEqual(cr.base_revision, frappe.db.get_value("Wiki Space", space.name, "main_revision"))
+
+		frappe.set_user(self.writer.name)
+		merge_change_request(cr.name)
+		self._assert_published(space, cr, new_key, page, deleted)
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", unrelated.name, "content"), "Concurrent content"
+		)
+
+	def test_space_writer_can_review_and_publish_another_authors_request(self):
+		space = self._space()
+		cr = create_change_request(space.name, "Contributed by another author")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		key = create_cr_page(cr.name, root_key, "Contributed Page", content="Contribution")
+		submit_change_request(cr.name)
+
+		frappe.set_user(self.writer.name)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "merged_by"), self.writer.name)
+		self.assertEqual(frappe.db.get_value("Wiki Document", {"doc_key": key}, "content"), "Contribution")
+
+	def test_space_writer_can_request_changes_from_another_author(self):
+		space = self._space()
+		cr = create_change_request(space.name, "Another author's request")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		create_cr_page(cr.name, root_key, "Contributed Page")
+		submit_change_request(cr.name)
+		frappe.set_user(self.writer.name)
+		request_changes(cr.name, "Please revise")
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Changes Requested")
+
+	def test_space_writer_can_reject_another_authors_request(self):
+		space = self._space()
+		cr = create_change_request(space.name, "Another author's request")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		create_cr_page(cr.name, root_key, "Contributed Page")
+		submit_change_request(cr.name)
+		frappe.set_user(self.writer.name)
+		reject_change_request(cr.name, "Out of scope")
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Rejected")
+
+	def test_merge_cannot_claim_a_document_from_another_space(self):
+		foreign_space = make_space(roles=[("Wiki User", "Read")])
+		foreign_page = make_document(parent=foreign_space.root_group, title="Other Space Page")
+		space = self._space()
+		frappe.set_user(self.writer.name)
+		cr = create_change_request(space.name, "Invalid cross-space document key")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		key = create_cr_page(cr.name, root_key, "Claimed Page", content="Must not replace another space")
+		# Simulate a malformed stored revision; merge must still constrain its writes.
+		item = frappe.db.get_value(
+			"Wiki Revision Item", {"revision": cr.head_revision, "doc_key": key}, "name"
+		)
+		frappe.db.set_value("Wiki Revision Item", item, "doc_key", foreign_page.doc_key)
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+		with self.assertRaises(frappe.PermissionError):
+			merge_change_request(cr.name)
+		foreign_page.reload()
+		self.assertEqual(foreign_page.wiki_space, foreign_space.name)
+		self.assertEqual(foreign_page.parent_wiki_document, foreign_space.root_group)
+		self.assertNotEqual(foreign_page.content, "Must not replace another space")
+
+	def test_git_synced_space_cannot_be_published(self):
+		space = self._space()
+		page = make_document(parent=space.root_group, title="Synced Page")
+		frappe.set_user(self.writer.name)
+		cr = create_change_request(space.name, "Request predating Git sync")
+		update_cr_page(cr.name, page.doc_key, {"content": "Must not overwrite Git"})
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+
+		frappe.set_user("Administrator")
+		space.db_set("git_synced", 1)
+		frappe.clear_cache(doctype="Wiki Space")
+		frappe.set_user(self.writer.name)
+		for merge in (merge_change_request, retry_merge_after_resolution):
+			with self.subTest(merge=merge.__name__), self.assertRaises(frappe.PermissionError):
+				merge(cr.name)
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "content"), page.content)
+
+	def test_write_access_in_another_space_does_not_allow_publish(self):
+		self._space()
+		read_only_space = make_space(roles=[("Wiki User", "Read")])
+		cr = create_change_request(read_only_space.name, "Read-only contribution")
+		root_key = frappe.db.get_value("Wiki Document", read_only_space.root_group, "doc_key")
+		key = create_cr_page(cr.name, root_key, "Unpublished Page", content="Must stay a draft")
+		submit_change_request(cr.name)
+
+		frappe.set_user(self.writer.name)
+		with self.assertRaises(frappe.PermissionError):
+			approve_change_request(cr.name)
+		frappe.set_user("Administrator")
+		approve_change_request(cr.name)
+		frappe.set_user(self.writer.name)
+		with self.assertRaises(frappe.PermissionError):
+			merge_change_request(cr.name)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"doc_key": key}))
+
+
 class TestWikiChangeRequestOGWarmup(FrappeTestCase):
 	"""Merging is the main way a live page's title changes, so it is the main
 	way a generated OG card goes stale. No merge-specific code exists for this:
