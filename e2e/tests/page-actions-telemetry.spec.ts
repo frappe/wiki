@@ -50,8 +50,10 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 			body: STUB_CLIENT,
 		}),
 	);
-	await page.route('**/wiki_document.download_pdf?*', (request) =>
-		request.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4' }),
+	await page.route(
+		'**/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_pdf?*',
+		(request) =>
+			request.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4' }),
 	);
 
 	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -73,8 +75,10 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 	});
 }
 
-async function pickPageAction(page: Page, text: string) {
-	// Copy and Download close the menu, the Ask AI links leave it open.
+async function pickPageAction(
+	page: Page,
+	{ text, closesMenu }: (typeof ACTIONS)[number],
+) {
 	const toggle = page
 		.getByRole('button', { name: 'More page actions' })
 		.locator('visible=true');
@@ -86,13 +90,15 @@ async function pickPageAction(page: Page, text: string) {
 		.filter({ hasText: text })
 		.first()
 		.click();
+	// Download closes the menu only once the PDF arrives, so wait it out.
+	await expect(toggle).toHaveAttribute('aria-expanded', String(!closesMenu));
 }
 
 const ACTIONS = [
-	{ text: 'Download', action: 'download' },
-	{ text: 'Copy page', action: 'copy' },
-	{ text: 'Open in ChatGPT', action: 'chatgpt' },
-	{ text: 'Open in Claude', action: 'claude' },
+	{ text: 'Download', action: 'download', closesMenu: true },
+	{ text: 'Copy page', action: 'copy', closesMenu: true },
+	{ text: 'Open in ChatGPT', action: 'chatgpt', closesMenu: false },
+	{ text: 'Open in Claude', action: 'claude', closesMenu: false },
 ];
 
 test.describe('Page actions telemetry', () => {
@@ -111,13 +117,13 @@ test.describe('Page actions telemetry', () => {
 			app_version: '9.9.9',
 		});
 
-		for (const { text, action } of ACTIONS) {
-			await pickPageAction(page, text);
+		for (const item of ACTIONS) {
+			await pickPageAction(page, item);
 			await expect
 				.poll(() =>
 					page.evaluate(() => window.pulseEvents?.at(-1)?.props.action),
 				)
-				.toBe(action);
+				.toBe(item.action);
 		}
 
 		const events = await page.evaluate(() => window.pulseEvents);
@@ -149,8 +155,8 @@ test.describe('Page actions telemetry', () => {
 				scriptRequests.push(request.url());
 		});
 
-		for (const { text } of ACTIONS) {
-			await pickPageAction(page, text);
+		for (const item of ACTIONS) {
+			await pickPageAction(page, item);
 		}
 		await page.waitForTimeout(500);
 
