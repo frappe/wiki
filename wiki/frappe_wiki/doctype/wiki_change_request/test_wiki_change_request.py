@@ -42,6 +42,8 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
+	get_effective_revision_item_map,
+	get_revision_item_map,
 )
 from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.tests.factory import WikiFixtureMixin, make_document, make_space
@@ -584,6 +586,26 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		keys = {node["doc_key"] for node in get_cr_tree(cr.name)["children"]}
 		self.assertNotIn(page_key, keys)
+
+	def test_get_cr_tree_loads_each_revision_once(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "CR Tree Loads Once")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		page_key = create_cr_page(cr.name, parent_key=root_key, title="Added")
+
+		module = "wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request"
+		with (
+			patch(f"{module}.get_revision_item_map", wraps=get_revision_item_map) as base_loader,
+			patch(
+				f"{module}.get_effective_revision_item_map", wraps=get_effective_revision_item_map
+			) as head_loader,
+		):
+			tree = get_cr_tree(cr.name)
+
+		self.assertEqual(base_loader.call_count, 1)
+		self.assertEqual(head_loader.call_count, 1)
+		node = next(node for node in tree["children"] if node["doc_key"] == page_key)
+		self.assertEqual(node["_changeType"], "added")
 
 	def test_restore_cr_page_clears_deletion(self):
 		space = create_test_wiki_space()
