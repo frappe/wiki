@@ -2498,13 +2498,21 @@ class TestSpaceWriterMerge(FrappeTestCase):
 	def _space(self):
 		return make_space(roles=[("Wiki User", "Read"), (self.role, "Write")])
 
+	def _root_key(self, space):
+		return frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+
+	def _submitted_request(self, space, title, content=None):
+		cr = create_change_request(space.name, title)
+		key = create_cr_page(cr.name, self._root_key(space), "Contributed Page", content=content)
+		submit_change_request(cr.name)
+		return cr, key
+
 	def _change_request(self, space):
 		page = make_document(parent=space.root_group, title="Rename Me")
 		deleted = make_document(parent=space.root_group, title="Delete Me")
 		frappe.set_user(self.writer.name)
 		cr = create_change_request(space.name, "Publish as a space writer")
-		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
-		new_key = create_cr_page(cr.name, root_key, "New Page", content="Published content")
+		new_key = create_cr_page(cr.name, self._root_key(space), "New Page", content="Published content")
 		update_cr_page(cr.name, page.doc_key, {"title": "Renamed Page"})
 		delete_cr_page(cr.name, deleted.doc_key)
 		submit_change_request(cr.name)
@@ -2550,10 +2558,7 @@ class TestSpaceWriterMerge(FrappeTestCase):
 
 	def test_space_writer_can_review_and_publish_another_authors_request(self):
 		space = self._space()
-		cr = create_change_request(space.name, "Contributed by another author")
-		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
-		key = create_cr_page(cr.name, root_key, "Contributed Page", content="Contribution")
-		submit_change_request(cr.name)
+		cr, key = self._submitted_request(space, "Contributed by another author", content="Contribution")
 
 		frappe.set_user(self.writer.name)
 		approve_change_request(cr.name)
@@ -2563,20 +2568,14 @@ class TestSpaceWriterMerge(FrappeTestCase):
 
 	def test_space_writer_can_request_changes_from_another_author(self):
 		space = self._space()
-		cr = create_change_request(space.name, "Another author's request")
-		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
-		create_cr_page(cr.name, root_key, "Contributed Page")
-		submit_change_request(cr.name)
+		cr, _ = self._submitted_request(space, "Another author's request")
 		frappe.set_user(self.writer.name)
 		request_changes(cr.name, "Please revise")
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Changes Requested")
 
 	def test_space_writer_can_reject_another_authors_request(self):
 		space = self._space()
-		cr = create_change_request(space.name, "Another author's request")
-		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
-		create_cr_page(cr.name, root_key, "Contributed Page")
-		submit_change_request(cr.name)
+		cr, _ = self._submitted_request(space, "Another author's request")
 		frappe.set_user(self.writer.name)
 		reject_change_request(cr.name, "Out of scope")
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Rejected")
@@ -2587,8 +2586,9 @@ class TestSpaceWriterMerge(FrappeTestCase):
 		space = self._space()
 		frappe.set_user(self.writer.name)
 		cr = create_change_request(space.name, "Invalid cross-space document key")
-		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
-		key = create_cr_page(cr.name, root_key, "Claimed Page", content="Must not replace another space")
+		key = create_cr_page(
+			cr.name, self._root_key(space), "Claimed Page", content="Must not replace another space"
+		)
 		# Simulate a malformed stored revision; merge must still constrain its writes.
 		item = frappe.db.get_value(
 			"Wiki Revision Item", {"revision": cr.head_revision, "doc_key": key}, "name"
@@ -2624,10 +2624,9 @@ class TestSpaceWriterMerge(FrappeTestCase):
 	def test_write_access_in_another_space_does_not_allow_publish(self):
 		self._space()
 		read_only_space = make_space(roles=[("Wiki User", "Read")])
-		cr = create_change_request(read_only_space.name, "Read-only contribution")
-		root_key = frappe.db.get_value("Wiki Document", read_only_space.root_group, "doc_key")
-		key = create_cr_page(cr.name, root_key, "Unpublished Page", content="Must stay a draft")
-		submit_change_request(cr.name)
+		cr, key = self._submitted_request(
+			read_only_space, "Read-only contribution", content="Must stay a draft"
+		)
 
 		frappe.set_user(self.writer.name)
 		with self.assertRaises(frappe.PermissionError):
