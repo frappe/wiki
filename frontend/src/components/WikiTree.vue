@@ -248,7 +248,7 @@ function handleRowClick(node) {
 
 	// External links open edit dialog instead of navigating
 	if (node.is_external_link) {
-		emit('edit-external-link', node);
+		if (!props.readonly) emit('edit-external-link', node);
 		return;
 	}
 

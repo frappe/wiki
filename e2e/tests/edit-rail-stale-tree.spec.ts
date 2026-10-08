@@ -36,9 +36,14 @@ function treeSnapshotKeys(page: Page) {
 	);
 }
 
-function addRowToSnapshot(page: Page, key: string, title: string) {
+function addRowToSnapshot(
+	page: Page,
+	key: string,
+	title: string,
+	fields: Record<string, unknown> = {},
+) {
 	return page.evaluate(
-		([key, title]) =>
+		([key, title, fields]) =>
 			new Promise<void>((resolve, reject) => {
 				const open = indexedDB.open('wiki-drafts');
 				open.onerror = () => reject(open.error);
@@ -57,6 +62,7 @@ function addRowToSnapshot(page: Page, key: string, title: string) {
 							title,
 							label: title,
 							children: [],
+							...fields,
 						});
 						const write = store.put(tree, key);
 						write.onsuccess = () => resolve();
@@ -64,7 +70,7 @@ function addRowToSnapshot(page: Page, key: string, title: string) {
 					};
 				};
 			}),
-		[key, title],
+		[key, title, fields] as const,
 	);
 }
 
@@ -156,6 +162,34 @@ test.describe('Editor rail from the last visit', () => {
 		await releaseTree();
 		await expect(newPageButton(page)).toBeVisible();
 		expect(page.url()).toContain(pageName);
+	});
+
+	test('an external link in the saved tree cannot be edited', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Stale Link ${Date.now()}`;
+		const space = await wiki.space({ pages: [{ title }] });
+		const snapshotKey = `tree:Administrator:${space.name}`;
+		const rail = page.getByRole('complementary');
+
+		await page.goto(space.url('page', space.page(title).name));
+		await expect(rail.getByText(title, { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect.poll(() => treeSnapshotKeys(page)).toContain(snapshotKey);
+		await addRowToSnapshot(page, snapshotKey, 'Stale External Link', {
+			is_external_link: 1,
+			external_url: 'https://example.com',
+		});
+
+		const releaseTree = stallTree(page);
+		await page.reload();
+		await rail.getByText('Stale External Link', { exact: true }).click();
+		await expect(
+			page.getByRole('heading', { name: 'Edit External Link' }),
+		).toHaveCount(0);
+		await releaseTree();
 	});
 
 	test('logging out clears the saved trees', async ({ page, wiki }) => {
