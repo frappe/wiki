@@ -6,8 +6,8 @@ import os
 from io import BytesIO
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.tests.factory import WikiFixtureMixin
 
 

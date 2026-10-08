@@ -281,6 +281,7 @@ import { useMobile } from '@/composables/useMobile';
 import { useNewSpaceRequest } from '@/composables/useNewSpaceRequest';
 import { useSpaceLibrary } from '@/composables/useSpaceLibrary';
 import { useUserStore } from '@/stores/user';
+import { useStorage } from '@vueuse/core';
 import {
 	Button,
 	PageHeader,
@@ -319,6 +320,12 @@ watch(
 	{ immediate: true },
 );
 
+const lastPublishState = useStorage(
+	'wiki:spaces-publish-state',
+	'published',
+	sessionStorage,
+);
+
 // The directory is the one surface that shows the figures, so it is the one
 // that asks for them.
 const {
@@ -330,7 +337,13 @@ const {
 	isEmptyWiki,
 	restrictedSpaces,
 	isPinned,
-} = useSpaceLibrary({ withStats: true, initialPublishState: 'published' });
+} = useSpaceLibrary({
+	withStats: true,
+	initialPublishState: lastPublishState.value,
+});
+watch(publishState, (value) => {
+	lastPublishState.value = value;
+});
 
 const publishOptions = [
 	{ label: __('All'), value: 'all' },

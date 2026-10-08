@@ -32,7 +32,7 @@ def search_pages(query: str) -> list[dict]:
 			"wiki_space.space_name as space_name",
 			"wiki_space.route as space_route",
 		],
-		order_by="modified desc",
+		order_by="`tabWiki Document`.modified desc",
 		limit=PAGE_SEARCH_LIMIT,
 	)
 	capture("search_performed", interval="1d", surface="app", hits=bool(pages))

@@ -3,15 +3,24 @@ puts on all of them."""
 
 from contextlib import suppress
 
-import frappe
 from frappe.utils import telemetry as frappe_telemetry
-from frappe.utils.caching import site_cache
 
 import wiki
 
 
 def default_properties() -> dict:
-	return {"app_version": wiki.__version__, "entry": get_entry()}
+	return {"app_version": wiki.__version__}
+
+
+def reader_config() -> dict:
+	"""Pulse client config for the reader, which has no SPA boot to carry it."""
+	with suppress(Exception):
+		from frappe.utils.telemetry.pulse.client import boot_config
+
+		config = boot_config()
+		if config.get("enabled"):
+			return {**config, **default_properties()}
+	return {"enabled": False}
 
 
 def capture(event: str, interval: str | None = None, **props):
@@ -23,12 +32,6 @@ def capture(event: str, interval: str | None = None, **props):
 			properties={**default_properties(), **props},
 			interval=interval,
 		)
-
-
-@site_cache(ttl=24 * 60 * 60)
-def get_entry() -> str:
-	"""How the site came to run Wiki."""
-	return "saas_trial" if frappe.conf.get("fc_team") else "self_hosted"
 
 
 def error_kind(exception: BaseException) -> str:

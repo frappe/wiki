@@ -13,7 +13,7 @@
 import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3';
 import { Button, Dropdown } from 'frappe-ui';
-import { computed } from 'vue';
+import { computed, toRaw } from 'vue';
 import { DEFAULT_TITLES } from './callout-markdown.js';
 
 const props = defineProps({
@@ -89,8 +89,9 @@ function restoreDefaultTitle(event) {
 }
 
 // Enter in the title moves into the body, the way Tab-to-next-field would.
+// The reactive proxy fails ProseMirror's "mismatched transaction" check.
 function focusBody() {
-	props.editor.commands.focus(props.getPos() + 1);
+	toRaw(props.editor).commands.focus(props.getPos() + 1);
 }
 
 function changeType(newType) {

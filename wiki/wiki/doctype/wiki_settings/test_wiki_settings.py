@@ -2,7 +2,8 @@
 # See license.txt
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+
+from wiki.tests import WikiTestCase as FrappeTestCase
 
 
 class TestWikiSettings(FrappeTestCase):

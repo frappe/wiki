@@ -2,9 +2,9 @@
 # See license.txt
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils.nestedset import get_descendants_of
 
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.tests.factory import WikiFixtureMixin
 from wiki.wiki.doctype.wiki_space.patches.v3 import (
 	migrate_orphan_pages_to_wiki_document,

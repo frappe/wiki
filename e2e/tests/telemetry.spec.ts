@@ -79,7 +79,7 @@ test.describe('Telemetry', () => {
 		expect(pageview?.props.route).toMatch(/^\/[^ ]*$/);
 		// Sent through wiki's wrapper, so it carries what every event carries.
 		expect(pageview?.props.app_version).toBeTruthy();
-		expect(pageview?.props.entry).toBeTruthy();
+		expect(pageview?.props).not.toHaveProperty('entry');
 		expect(JSON.stringify(captures)).not.toContain(token);
 	});
 

@@ -2,10 +2,10 @@
 # See license.txt
 
 import frappe
-from frappe.tests import IntegrationTestCase
 from frappe.utils import getdate
 
 from wiki import analytics_store as store
+from wiki.tests import WikiTestCase as IntegrationTestCase
 
 MARCH = (getdate("2026-03-01"), getdate("2026-03-31"))
 MARCH_2031 = (getdate("2031-03-01"), getdate("2031-03-31"))

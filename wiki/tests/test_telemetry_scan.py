@@ -5,10 +5,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from wiki import telemetry_scan
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import WikiFixtures
 
 

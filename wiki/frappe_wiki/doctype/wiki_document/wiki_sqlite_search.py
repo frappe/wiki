@@ -4,6 +4,9 @@ from typing import ClassVar
 import frappe
 from frappe.search.sqlite_search import SQLiteSearch
 
+# Frappe v15 inserts a new row on every index_doc and never drops the old one.
+INDEX_DOC_APPENDS = int(frappe.__version__.split(".", 1)[0]) < 16
+
 
 class WikiSQLiteSearch(SQLiteSearch):
 	INDEX_NAME = "wiki_search.db"
@@ -40,6 +43,11 @@ class WikiSQLiteSearch(SQLiteSearch):
 			if prepared.get("content"):
 				prepared["content"] = self._strip_markdown(prepared["content"])
 		return prepared
+
+	def index_doc(self, doctype, docname):
+		if INDEX_DOC_APPENDS:
+			self.remove_doc(doctype, docname)
+		super().index_doc(doctype, docname)
 
 	def _strip_markdown(self, text):
 		"""Convert markdown to plain text for cleaner search indexing"""

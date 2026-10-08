@@ -2,11 +2,12 @@
 # See license.txt
 
 import frappe
-from frappe.tests import IntegrationTestCase
+from frappe.utils import add_days, nowdate
 
 from wiki import analytics_store as store
 from wiki.api import analytics
 from wiki.api.analytics import get_view_tracking, set_view_tracking
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import WikiFixtures, unique_route
 
 READER_ROLE = "_Test Analytics Reader"
@@ -226,6 +227,24 @@ class TestGetAnalytics(IntegrationTestCase):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
 			get_analytics("2026-03-01", "2026-03-31", document=page.name)
+
+	def test_page_views_count_the_last_30_days_of_one_page(self):
+		page = self.fixtures.document(parent=self.space.root_group, title="Analytics Recent")
+		today = nowdate()
+		_log_view(page.route, f"{today} 09:00:00")
+		_log_view(page.route, f"{add_days(today, -29)} 09:00:00")
+		_log_view(page.route, f"{add_days(today, -30)} 09:00:00")
+		_log_view(f"{page.route}/child", f"{today} 09:00:00")
+		store.rebuild()
+		frappe.set_user(self.writer)
+
+		self.assertEqual(analytics.get_page_views(page.name), 2)
+
+	def test_page_views_deny_space_reader(self):
+		page = self.fixtures.document(parent=self.space.root_group, title="Analytics Recent Hidden")
+		frappe.set_user(self.reader)
+		with self.assertRaises(frappe.PermissionError):
+			analytics.get_page_views(page.name)
 
 	def test_wiki_wide_scope_is_for_managers_only(self):
 		_log_view(f"{self.route}/a", "2026-03-10 09:00:00")

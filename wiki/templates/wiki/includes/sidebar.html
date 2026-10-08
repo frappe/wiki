@@ -59,8 +59,10 @@
         Alpine.store('theme', {
             isDark: initialIsDark,
             toggle() {
-                this.isDark = !this.isDark;
-                const newTheme = this.isDark ? 'dark' : 'light';
+                this.set(this.isDark ? 'light' : 'dark');
+            },
+            set(newTheme) {
+                this.isDark = newTheme === 'dark';
                 const root = document.documentElement;
                 // Suppress transitions for the swap itself, else every element
                 // with a colour transition animates and the page flashes. Two
@@ -109,6 +111,7 @@
             loading: false,
             currentRoute: '{{ doc.route if doc else "" }}',
             prefetchCache: {},
+            prefetchTimer: null,
 
             init() {
                 // Handle browser back/forward
@@ -121,7 +124,16 @@
                 history.replaceState({ route: this.currentRoute }, '', window.location.pathname + window.location.hash);
             },
 
-            async prefetch(route) {
+            prefetch(route) {
+                clearTimeout(this.prefetchTimer);
+                this.prefetchTimer = setTimeout(() => this.fetchIntoCache(route), 100);
+            },
+
+            cancelPrefetch() {
+                clearTimeout(this.prefetchTimer);
+            },
+
+            async fetchIntoCache(route) {
                 if (route === this.currentRoute || this.prefetchCache[route]) return;
 
                 try {
@@ -229,7 +241,7 @@
                 // Update last updated
                 const lastUpdatedEl = document.getElementById('wiki-last-updated');
                 if (lastUpdatedEl) {
-                    lastUpdatedEl.textContent = 'Last updated ' + data.last_updated;
+                    lastUpdatedEl.textContent = {{ _("Last updated {0}") | tojson }}.replace('{0}', data.last_updated);
                     if (data.last_updated_on) {
                         lastUpdatedEl.setAttribute('title', data.last_updated_on);
                         lastUpdatedEl.setAttribute('data-timestamp', data.last_updated_on);
@@ -281,7 +293,7 @@
                 // Keep this markup identical to includes/toc.html — the two are
                 // the server-render / SPA-render halves of the same component.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">On this page</span>';
+                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">' + escapeHtml({{ _("On this page") | tojson }}) + '</span>';
                 // Same rule as the Jinja half: h3s only indent when the page
                 // also has an h2 (frappe-ui docs' `h3 && h2Exists`).
                 const hasH2 = headings.some(heading => heading.level === 2);
@@ -326,6 +338,7 @@
                             <a href="/${esc(prevDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(prevDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(prevDoc.route)})"
+                               @mouseleave="$store.navigation.cancelPrefetch()"
                                class="${navLinkClasses}">
                                 ${arrowLeft}
                                 <span class="truncate">${esc(prevDoc.title)}</span>
@@ -340,6 +353,7 @@
                             <a href="/${esc(nextDoc.route)}"
                                @click.prevent="$store.navigation.navigateTo(${jsRoute(nextDoc.route)})"
                                @mouseenter="$store.navigation.prefetch(${jsRoute(nextDoc.route)})"
+                               @mouseleave="$store.navigation.cancelPrefetch()"
                                class="${navLinkClasses}">
                                 <span class="truncate">${esc(nextDoc.title)}</span>
                                 ${arrowRight}

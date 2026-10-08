@@ -28,7 +28,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-    name: Server
+      matrix:
+        include:
+          - frappe-branch: version-15
+            python-version: '3.11'
+            test-args: ''
+          - frappe-branch: develop
+            python-version: '3.14'
+            test-args: '--test-category all'
+    name: Server (${{ matrix.frappe-branch }})
 
     services:
       redis-cache:
@@ -49,7 +57,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Find tests
         run: |
@@ -57,12 +65,12 @@ jobs:
           grep -rn "def test" > /dev/null
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: ${{ matrix.python-version }}
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           check-latest: true
@@ -94,7 +102,7 @@ jobs:
       - name: Setup
         run: |
           pip install frappe-bench
-          bench init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/frappe-bench
+          bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
@@ -113,8 +121,6 @@ jobs:
         working-directory: /home/runner/frappe-bench
         run: |
           bench --site test_site set-config allow_tests true
-          # --test-category defaults to `unit`, which skipped every
-          # IntegrationTestCase in the app -- 130 tests of ~410 ran.
-          bench --site test_site run-tests --app wiki --test-category all
+          bench --site test_site run-tests --app wiki ${{ matrix.test-args }}
         env:
           TYPE: server

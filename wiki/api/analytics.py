@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
-from frappe.utils import add_months, date_diff, get_url, getdate
+from frappe.utils import add_days, add_months, date_diff, get_url, getdate
 
 from wiki import analytics_store as store
 from wiki.permissions import _is_manager, can_write_space
@@ -13,6 +13,7 @@ MAX_RANGE_DAYS = 400
 TOP_LIMIT = 20
 OVERVIEW_LIMIT = 5
 OPEN_CHANGE_REQUEST_STATUSES = ("In Review", "Changes Requested", "Approved")
+PAGE_VIEWS_DAYS = 30
 
 
 @frappe.whitelist()
@@ -28,6 +29,14 @@ def get_analytics(
 	routes, is_page = _scope_routes(space, document)
 	result = count_views(start, end, interval, tuple(routes), is_page, urlparse(get_url()).netloc)
 	return {**result, "tracking_enabled": bool(frappe.get_website_settings("enable_view_tracking"))}
+
+
+@frappe.whitelist()
+def get_page_views(document: str) -> int:
+	"""Views of one page over the last 30 days, for the editor's meta line."""
+	routes = _scope_routes(None, document)[0]
+	end = getdate()
+	return store.totals(add_days(end, 1 - PAGE_VIEWS_DAYS), end, tuple(routes))[0]
 
 
 @frappe.whitelist()

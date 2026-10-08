@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div x-data="wikiPage" x-init="$store.navigation.init()" class="flex-1 min-w-0 flex">
+<div x-data="wikiPage" class="flex-1 min-w-0 flex">
     <!-- Main Content Area -->
     <main class="flex-1 min-w-0 px-4 py-6 lg:px-6 lg:py-8 xl:px-12 flex justify-center">
         <article class="min-w-0 w-full transition-opacity duration-300 xl:max-w-[85ch]"
@@ -32,7 +32,7 @@
                         <template x-if="downloadInProgress">
                             {{ render_icon("loader", "w-4 h-4 animate-spin") }}
                         </template>
-                        <span x-text="downloadInProgress ? 'Preparing…' : 'Download'"></span>
+                        <span x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download") | tojson }}'></span>
                     </button>
                     <button @click="copyMarkdown()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-6 hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
@@ -42,7 +42,7 @@
                         <template x-if="copied">
                             {{ render_icon("check", "w-4 h-4 text-green-600") }}
                         </template>
-                        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
                     </button>
                 </div>
             </div>
@@ -52,10 +52,10 @@
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                     {{ download_action_item() }}
                     {% if can_edit %}
-                    {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                    {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                     {% endif %}
-                    {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                    {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
+                    {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
                 {{ dropdown_end() }}
             </div>
             <div class="flex items-center justify-between gap-4">
@@ -66,10 +66,10 @@
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
                         {{ download_action_item() }}
                         {% if can_edit %}
-                        {{ page_action_item(text="Copy page", description="Copy page as Markdown for LLMs", icon="clipboard", click="copyMarkdown(); open = false") }}
+                        {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                         {% endif %}
-                        {{ page_action_item(text="Open in ChatGPT", description="Ask ChatGPT about this page", icon="openai", href_expr="getAIUrl('openai')", target="_blank") }}
-                        {{ page_action_item(text="Open in Claude", description="Ask Claude about this page", icon="claude", href_expr="getAIUrl('claude')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
+                        {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
                     {{ dropdown_end() }}
                 </div>
             </div>
@@ -97,6 +97,7 @@
                 <a href="/{{ prev_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo({{ prev_doc.route | tojson | forceescape }})"
                    @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
+                   @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
                     {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
                     <span class="truncate">{{ prev_doc.title }}</span>
@@ -107,6 +108,7 @@
                 <a href="/{{ next_doc.route }}"
                    @click.prevent="$store.navigation.navigateTo({{ next_doc.route | tojson | forceescape }})"
                    @mouseenter="$store.navigation.prefetch({{ next_doc.route | tojson | forceescape }})"
+                   @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
                     <span class="truncate">{{ next_doc.title }}</span>
                     {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
@@ -119,7 +121,7 @@
         <!-- Last Updated & Feedback Widget -->
         <div class="mt-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div id="wiki-last-updated" class="text-sm text-[var(--ink-gray-5)]" title="{{ last_updated_on }}" data-timestamp="{{ last_updated_on }}">
-                Last updated {{ last_updated }}
+                {{ _("Last updated {0}").format(last_updated) }}
             </div>
             {% if wiki_space and wiki_space.enable_feedback_collection %}
             {% include "templates/wiki/includes/feedback_widget.html" %}
@@ -134,6 +136,25 @@
 </div>
 
 <script>
+    const readerTelemetry = {{ telemetry | tojson }};
+    let readerPulse;
+
+    // Loaded on first use, so a reader who never opens the page actions menu pays nothing.
+    function capturePageAction(action) {
+        if (!readerTelemetry.enabled) return;
+        readerPulse ||= import(readerTelemetry.client_url).then(({ PulseClient }) => new PulseClient({
+            host: readerTelemetry.host,
+            apiKey: readerTelemetry.key,
+            site: readerTelemetry.site,
+            user: readerTelemetry.user,
+            team: readerTelemetry.team,
+            enabled: true,
+        }));
+        readerPulse
+            .then((client) => client.capture('page_action_used', 'wiki', { action, app_version: readerTelemetry.app_version }))
+            .catch(() => { readerPulse = undefined; });
+    }
+
     // Initialize page content store and wikiPage component for reactive updates during navigation
     document.addEventListener('alpine:init', () => {
         Alpine.store('pageContent', {
@@ -157,6 +178,7 @@
 
             copyMarkdown() {
                 navigator.clipboard.writeText(this.markdown).then(() => {
+                    capturePageAction('copy');
                     this.copied = true;
                     setTimeout(() => {
                         this.copied = false;
@@ -189,6 +211,7 @@
                     link.click();
                     link.remove();
                     URL.revokeObjectURL(objectUrl);
+                    capturePageAction('download');
                 } catch (err) {
                     console.error('Failed to download PDF:', err);
                     window.frappe?.show_alert?.({

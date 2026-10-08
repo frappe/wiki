@@ -45,7 +45,8 @@
 	border: 1px solid var(--ink-gray-3);
 	border-radius: 0.375rem;
 }
-.wiki-rendered img + em {
+.wiki-rendered img + em,
+.wiki-rendered picture + em {
 	display: block;
 	margin-top: 0.25rem;
 	font-size: 0.875rem;

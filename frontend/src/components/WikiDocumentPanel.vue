@@ -91,6 +91,7 @@
 										/>
 									</div>
 								</div>
+								<PageMetaLine :key="wikiDoc.doc.name" :doc="wikiDoc.doc" :title="displayTitle" :content="editorContent" />
 							</div>
 						</template>
 					</WikiEditor>
@@ -113,7 +114,6 @@
 					:doc-key="wikiDoc.doc?.doc_key"
 					:readonly="readonly"
 					:title="displayTitle"
-					:slug="displaySlug"
 					:route="displayRoute"
 					:published="displayPublished"
 					:content="editorContent"
@@ -225,6 +225,7 @@ import {
 import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRecentPages } from '../composables/useRecentPages';
+import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
@@ -360,7 +361,7 @@ async function loadCrPage() {
 			draftStore.isHydrating ||
 			!crStore.currentChangeRequest)
 	) {
-		await draftStore.hydrate(props.spaceId);
+		await draftStore.hydrateForPage(props.spaceId, docKey);
 	}
 	const page = crStore.currentChangeRequest
 		? await draftStore.loadCrPage(docKey)
@@ -431,12 +432,6 @@ const {
 	close: closePageSettings,
 	toggle: togglePageSettings,
 } = usePageSettingsPanel();
-
-// Slug has no draft buffer — nothing but the settings panel edits it — so the
-// CR overlay is the newest copy until the request merges.
-const displaySlug = computed(
-	() => currentCrPage.value?.slug || wikiDoc.value.doc?.slug || '',
-);
 
 const spaceTree = inject(SPACE_TREE_KEY, null);
 

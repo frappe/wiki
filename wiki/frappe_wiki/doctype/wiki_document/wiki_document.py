@@ -3,6 +3,7 @@
 
 import json
 import re
+from functools import wraps
 from urllib.parse import quote, urlparse
 
 import frappe
@@ -15,7 +16,8 @@ from frappe.website.utils import clear_cache as clear_website_cache
 from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
-from wiki.telemetry import capture
+from wiki.telemetry import capture, reader_config
+from wiki.utils import fingerprint_js_url
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
@@ -105,6 +107,27 @@ def sanitize_route(route: str | None) -> str:
 		return ""
 	segments = (slugify_segment(segment) for segment in route.split("/"))
 	return "/".join(segment for segment in segments if segment)
+
+
+def memoize_tree_lookups(method):
+	"""Reuse a page's ancestors and space for the length of one render.
+
+	A render asks for them through half a dozen helpers, each a query or two. The
+	memo lives only for the call: a cached instance can outlive a move of its
+	ancestors, so a longer-lived memo would go stale.
+	"""
+
+	@wraps(method)
+	def wrapper(self, *args, **kwargs):
+		if "_tree_memo" in self.__dict__:
+			return method(self, *args, **kwargs)
+		self._tree_memo = {}
+		try:
+			return method(self, *args, **kwargs)
+		finally:
+			del self._tree_memo
+
+	return wrapper
 
 
 class WikiDocument(NestedSet):
@@ -300,14 +323,28 @@ class WikiDocument(NestedSet):
 			return ancestors[-1]
 		return self.parent_wiki_document
 
+	def get_ancestors(self) -> list[str]:
+		memo = self.__dict__.get("_tree_memo")
+		if memo is None:
+			return super().get_ancestors()
+		if "ancestors" not in memo:
+			memo["ancestors"] = super().get_ancestors()
+		return memo["ancestors"]
+
 	def get_wiki_space(self) -> dict | None:
 		"""Get the Wiki Space this document belongs to."""
+		memo = self.__dict__.get("_tree_memo")
+		if memo is not None and "wiki_space" in memo:
+			return memo["wiki_space"]
 		root_group = self.get_root_group()
-		if not root_group:
-			return None
-		return frappe.get_cached_value(
-			"Wiki Space", {"root_group": root_group}, ["name", "space_name", "route"], as_dict=True
+		# get_cached_value can't cache a lookup by filters, so resolve the name and read by it.
+		space_name = root_group and frappe.db.get_value("Wiki Space", {"root_group": root_group}, "name")
+		wiki_space = space_name and frappe.get_cached_value(
+			"Wiki Space", space_name, ["name", "space_name", "route"], as_dict=True
 		)
+		if memo is not None:
+			memo["wiki_space"] = wiki_space or None
+		return wiki_space or None
 
 	def get_space_name(self) -> str | None:
 		return self.wiki_space or (self.get_wiki_space() or {}).get("name")
@@ -452,19 +489,47 @@ class WikiDocument(NestedSet):
 			},
 		}
 
+	def get_rendered_content_and_toc(self) -> tuple[str, list]:
+		# The TOC toggle is applied after the cache lookup, so flipping it needs no invalidation.
+		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
+		rendered_content = resolve_wiki_links(rendered_content, self.get_space_name())
+		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
+			toc_headings = []
+		return rendered_content, toc_headings
+
+	@memoize_tree_lookups
+	def get_navigation_data(self) -> dict:
+		"""What client-side navigation swaps into an already rendered page.
+
+		The sidebar tree and space switcher are already on the page, and on a large
+		space they are hundreds of KB, so they stay out of this payload.
+		"""
+		self.check_space_access("read")
+		self.check_published()
+		rendered_content, toc_headings = self.get_rendered_content_and_toc()
+		_, adjacent_docs = self.get_tree_and_navigation()
+		return {
+			"title": self.title,
+			"route": self.route,
+			"rendered_content": rendered_content,
+			"toc_headings": toc_headings,
+			"raw_markdown": self.content or "",
+			"prev_doc": adjacent_docs["prev"],
+			"next_doc": adjacent_docs["next"],
+			"edit_link": self.get_edit_link(),
+			"last_updated": pretty_date(self.modified),
+			"last_updated_on": self.get_formatted("modified"),
+			"disable_indexing": self.disable_indexing,
+		}
+
+	@memoize_tree_lookups
 	def get_web_context(self) -> dict:
 		"""Get all context needed to render this Wiki Document."""
 		self.check_space_access("read")
 		self.check_published()
 		wiki_space = self.get_wiki_space()
 
-		# Rendered HTML + TOC from the per-document cache (see get_rendered_content).
-		# The TOC toggle is applied here, after the lookup, so it needs no cache
-		# invalidation.
-		rendered_content, toc_headings = get_rendered_content(self.name, self.content or "")
-		rendered_content = resolve_wiki_links(rendered_content, self.get_space_name())
-		if not frappe.db.get_single_value("Wiki Settings", "enable_table_of_contents"):
-			toc_headings = []
+		rendered_content, toc_headings = self.get_rendered_content_and_toc()
 
 		# Ancestor nodes that should be expanded in the sidebar tree on initial render
 		expanded_nodes = set(self.get_ancestors()) if self.lft else set()
@@ -567,11 +632,11 @@ class WikiDocument(NestedSet):
 		Returns a path rather than an absolute URL so MetaTags absolutizes it
 		through get_url() -- that is what keeps it right on custom domains.
 		"""
-		from wiki.api.og_image import _og_context, og_fingerprint
+		from wiki.api.og_image import _og_context, cards_enabled, og_fingerprint
 
 		if self.is_group or self.is_external_link or not self.is_published or not self.route:
 			return None
-		if not frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"):
+		if not cards_enabled():
 			return None
 		if not self.get_wiki_space():
 			return None
@@ -760,6 +825,8 @@ class WikiDocumentRenderer(BaseRenderer):
 
 		context["csrf_token"] = csrf_token
 		context["enable_view_tracking"] = frappe.get_website_settings("enable_view_tracking")
+		context["fingerprint_js_url"] = fingerprint_js_url()
+		context["telemetry"] = reader_config()
 
 		html = frappe.render_template("templates/wiki/document.html", context)
 		response = self.build_response(html)
@@ -1048,7 +1115,7 @@ def get_breadcrumbs(name: str) -> dict:
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_page_data(route: str) -> dict:
-	"""Returns all data needed to render a page dynamically for client-side navigation."""
+	"""Page data for client-side navigation between pages of an already rendered space."""
 	doc_name = frappe.db.get_value(
 		"Wiki Document", {"route": route, "is_published": 1, "is_external_link": 0}, "name"
 	)
@@ -1056,7 +1123,7 @@ def get_page_data(route: str) -> dict:
 		frappe.throw(frappe._("Page not found"), frappe.DoesNotExistError)
 
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
-	return doc.get_web_context()
+	return doc.get_navigation_data()
 
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
@@ -1084,7 +1151,8 @@ def download_pdf(route: str):
 	finally:
 		frappe.local.flags.ignore_print_permissions = False
 
-	frappe.local.response.filename = f"{doc.slug or doc.name}.pdf"
+	# Named after the URL the reader downloaded from. The slug can lag behind a route edited since.
+	frappe.local.response.filename = f"{route.rsplit('/', 1)[-1]}.pdf"
 	frappe.local.response.filecontent = pdf_file
 	frappe.local.response.content_type = "application/pdf"
 	frappe.local.response.type = "download"

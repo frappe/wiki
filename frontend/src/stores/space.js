@@ -164,8 +164,17 @@ export const useSpaceStore = defineStore('space', () => {
 				: null;
 		}
 		if (draftStore.spaceId !== spaceId.value) return null;
-		return draftStore.hasLoadedTree ? draftStore.treeAsLegacy : null;
+		if (draftStore.hasLoadedTree) return draftStore.treeAsLegacy;
+		return draftStore.hasStaleTree ? draftStore.staleTreeAsLegacy : null;
 	});
+
+	const isTreeStale = computed(
+		() =>
+			!isReadonly.value &&
+			draftStore.spaceId === spaceId.value &&
+			!draftStore.hasLoadedTree &&
+			draftStore.hasStaleTree,
+	);
 
 	const changeTypeMap = computed(() => {
 		const map = new Map();
@@ -334,6 +343,7 @@ export const useSpaceStore = defineStore('space', () => {
 		selectedPageId,
 		selectedDraftKey,
 		treeData,
+		isTreeStale,
 		changeTypeMap,
 		isTreeReordering,
 		setTreeReordering,

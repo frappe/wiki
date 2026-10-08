@@ -3,7 +3,7 @@
         let visitorId;
 
         function getVisitorId() {
-            visitorId ||= import('/assets/frappe/js/lib/fingerprintjs.js')
+            visitorId ||= import({{ fingerprint_js_url | tojson }})
                 .then((fingerprint) => fingerprint.load())
                 .then((agent) => agent.get())
                 .then((result) => result.visitorId);
