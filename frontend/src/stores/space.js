@@ -169,7 +169,11 @@ export const useSpaceStore = defineStore('space', () => {
 	});
 
 	const isTreeStale = computed(
-		() => !draftStore.hasLoadedTree && draftStore.hasStaleTree,
+		() =>
+			!isReadonly.value &&
+			draftStore.spaceId === spaceId.value &&
+			!draftStore.hasLoadedTree &&
+			draftStore.hasStaleTree,
 	);
 
 	const changeTypeMap = computed(() => {

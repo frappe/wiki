@@ -68,6 +68,33 @@ function addRowToSnapshot(page: Page, key: string, title: string) {
 	);
 }
 
+function markDeletedInSnapshot(page: Page, key: string, documentName: string) {
+	return page.evaluate(
+		([key, documentName]) =>
+			new Promise<void>((resolve, reject) => {
+				const open = indexedDB.open('wiki-drafts');
+				open.onerror = () => reject(open.error);
+				open.onsuccess = () => {
+					const store = open.result
+						.transaction('drafts', 'readwrite')
+						.objectStore('drafts');
+					const read = store.get(key);
+					read.onsuccess = () => {
+						const tree = read.result;
+						const row = tree.children.find(
+							(node) => node.document_name === documentName,
+						);
+						row.is_deleted = true;
+						const write = store.put(tree, key);
+						write.onsuccess = () => resolve();
+						write.onerror = () => reject(write.error);
+					};
+				};
+			}),
+		[key, documentName],
+	);
+}
+
 test.describe('Editor rail from the last visit', () => {
 	test('paints the last tree read-only, then swaps in the fresh one', async ({
 		page,
@@ -99,6 +126,36 @@ test.describe('Editor rail from the last visit', () => {
 		await expect(
 			rail.getByText('Only In The Snapshot', { exact: true }),
 		).toHaveCount(0);
+	});
+
+	test('a page deleted only in the saved tree stays open', async ({
+		page,
+		wiki,
+	}) => {
+		const title = `Restored Page ${Date.now()}`;
+		const space = await wiki.space({
+			pages: [{ title: `First ${Date.now()}` }, { title }],
+		});
+		const snapshotKey = `tree:Administrator:${space.name}`;
+		const pageName = space.page(title).name;
+		const pageUrl = space.url('page', pageName);
+		const rail = page.getByRole('complementary');
+
+		await page.goto(pageUrl);
+		await expect(rail.getByText(title, { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect.poll(() => treeSnapshotKeys(page)).toContain(snapshotKey);
+		await markDeletedInSnapshot(page, snapshotKey, pageName);
+
+		const releaseTree = stallTree(page);
+		await page.reload();
+		await expect(rail.getByText(title, { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await releaseTree();
+		await expect(newPageButton(page)).toBeVisible();
+		expect(page.url()).toContain(pageName);
 	});
 
 	test('logging out clears the saved trees', async ({ page, wiki }) => {

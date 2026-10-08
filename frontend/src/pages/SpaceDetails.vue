@@ -320,7 +320,7 @@ let autoOpening = false;
 function autoOpenPage() {
 	if (autoOpening || route.name !== 'SpaceDetails') return;
 	const tree = spaceStore.treeData;
-	if (!tree) return;
+	if (!tree || spaceStore.isTreeStale) return;
 
 	const remembered = localStorage.getItem(lastPageKey());
 	// A page staged for deletion is still in the tree, so the remembered one has
@@ -347,6 +347,8 @@ function autoOpenPage() {
 
 // treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
 // as it — and the route — settle.
+// The saved tree from the last visit can be out of date, so only the fresh
+// tree may redirect.
 watch([() => spaceStore.treeData, () => route.name], autoOpenPage, {
 	immediate: true,
 });
@@ -362,7 +364,8 @@ watch(
 		() => route.params.pageId,
 	],
 	([tree, name, pageId]) => {
-		if (name !== 'SpacePage' || !tree || !pageId) return;
+		if (name !== 'SpacePage' || !tree || !pageId || spaceStore.isTreeStale)
+			return;
 		const node = findNodeByDocumentName(tree.children, pageId);
 		if (!node?.is_deleted) return;
 		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
