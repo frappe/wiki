@@ -299,4 +299,77 @@ test.describe('Switching spaces while the tree loads', () => {
 			await expect(page.getByTestId('sync-state-alert')).toBeHidden();
 		});
 	}
+
+	test("Reload latest for the old space leaves the new space's tree alone", async ({
+		page,
+		wiki,
+	}) => {
+		const stamp = Date.now();
+		const first = await wiki.space({ pages: [{ title: `First ${stamp}` }] });
+		const second = await wiki.space({ pages: [{ title: `Second ${stamp}` }] });
+
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+		await page.goto(first.url('page', first.page(`First ${stamp}`).name));
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		await editor.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' saved change');
+		await page.keyboard.press('ControlOrMeta+s');
+		await expect(page.getByTestId('sync-state-alert')).toBeHidden({
+			timeout: 10000,
+		});
+
+		let treeRequests = 0;
+		const held: Route[] = [];
+		await page.route('**/api/method/**get_cr_tree*', (route) => {
+			treeRequests += 1;
+			if (treeRequests === 1) route.fulfill({ status: 500, body: '{}' });
+			else if (treeRequests === 2) held.push(route);
+			else route.continue();
+		});
+		await page.reload();
+		const reloadLatest = page.getByRole('button', {
+			name: 'Reload latest',
+			exact: true,
+		});
+		await expect(reloadLatest).toBeVisible({ timeout: 15000 });
+		await reloadLatest.click();
+		await expect.poll(() => held.length).toBe(1);
+
+		await page.locator('[aria-label="Back to All Spaces"]').click();
+		await page.locator(spaceLinkSelector(second.name)).first().click();
+		const aside = page.locator('aside');
+		await expect(
+			aside.getByText(`Second ${stamp}`, { exact: true }),
+		).toBeVisible({
+			timeout: 15000,
+		});
+
+		await held[0].continue();
+		await page.waitForTimeout(1500);
+
+		await expect(
+			aside.getByText(`Second ${stamp}`, { exact: true }),
+		).toBeVisible();
+		await expect(
+			aside.getByText(`First ${stamp}`, { exact: true }),
+		).toHaveCount(0);
+		const savedTree = await page.evaluate(
+			(key) =>
+				new Promise<string>((resolve, reject) => {
+					const open = indexedDB.open('wiki-drafts');
+					open.onerror = () => reject(open.error);
+					open.onsuccess = () => {
+						const read = open.result
+							.transaction('drafts')
+							.objectStore('drafts')
+							.get(key);
+						read.onsuccess = () => resolve(JSON.stringify(read.result));
+					};
+				}),
+			`tree:Administrator:${second.name}`,
+		);
+		expect(savedTree).toContain(`Second ${stamp}`);
+		expect(savedTree).not.toContain(`First ${stamp}`);
+	});
 });
