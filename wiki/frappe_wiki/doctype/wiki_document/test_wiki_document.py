@@ -1946,6 +1946,70 @@ class TestExternalLinkExclusions(WikiDocumentTestBase):
 		self.assertEqual(context["title"], "Normal PageData Page")
 
 
+class TestGetPageData(WikiDocumentTestBase):
+	def make_page(self):
+		root_group = create_test_wiki_document(self, "Root PageData Payload", is_group=True)
+		page = create_test_wiki_document(self, "PageData Payload Page", parent=root_group.name)
+		create_test_wiki_document(self, "PageData Payload Next", parent=root_group.name)
+		create_test_wiki_space(self, "PageData Payload Space", "pagedata-payload", root_group.name)
+		page.reload()
+		return page
+
+	def test_returns_only_what_navigation_swaps_in(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_page_data
+
+		page = self.make_page()
+		data = get_page_data(route=page.route)
+
+		self.assertEqual(
+			set(data),
+			{
+				"title",
+				"route",
+				"rendered_content",
+				"toc_headings",
+				"raw_markdown",
+				"prev_doc",
+				"next_doc",
+				"edit_link",
+				"last_updated",
+				"last_updated_on",
+				"disable_indexing",
+			},
+		)
+		self.assertEqual(data["next_doc"]["title"], "PageData Payload Next")
+		self.assertIn("Content for PageData Payload Page", data["rendered_content"])
+
+	def test_render_looks_up_ancestors_and_space_once(self):
+		from frappe.utils.nestedset import NestedSet
+
+		page = self.make_page()
+		with (
+			patch.object(
+				NestedSet, "get_ancestors", autospec=True, return_value=page.get_ancestors()
+			) as ancestors,
+			patch.object(frappe.db, "get_value", wraps=frappe.db.get_value) as get_value,
+		):
+			page.get_web_context()
+
+		self.assertEqual(ancestors.call_count, 1)
+
+		def is_space_lookup_by_filters(call):
+			# Frappe v15 loads documents with keyword arguments only.
+			params = dict(zip(("doctype", "filters"), call.args, strict=False)) | call.kwargs
+			return params.get("doctype") == "Wiki Space" and isinstance(params.get("filters"), dict)
+
+		space_lookups = [call for call in get_value.call_args_list if is_space_lookup_by_filters(call)]
+		self.assertEqual(len(space_lookups), 1)
+
+	def test_memo_ends_with_the_render(self):
+		page = self.make_page()
+		page.get_web_context()
+
+		with patch.object(page, "get_root_group", return_value=None):
+			self.assertIsNone(page.get_wiki_space())
+
+
 class TestContentPreservation(WikiDocumentTestBase):
 	"""Server-side guarantee: raw HTML in the content field round-trips untouched.
 
