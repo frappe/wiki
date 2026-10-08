@@ -110,3 +110,15 @@ export async function loadTreeSnapshot(user, spaceId) {
 		return null;
 	}
 }
+
+export async function clearTreeSnapshots() {
+	try {
+		const allKeys = await keys(wikiDraftStore);
+		const snapshots = allKeys.filter(
+			(k) => typeof k === 'string' && k.startsWith(TREE_PREFIX),
+		);
+		await Promise.all(snapshots.map((k) => del(k, wikiDraftStore)));
+	} catch (err) {
+		console.warn('[draftPersistence] clearTreeSnapshots failed', err);
+	}
+}
