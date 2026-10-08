@@ -54,6 +54,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// space with no pages.
 	const hasLoadedTree = ref(false);
 	let hydratePromise = null;
+	let latestHydrate = 0;
 	let changeRequestReady = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
@@ -240,6 +241,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 
 		isHydrating.value = true;
+		const run = ++latestHydrate;
 		hydratePromise = (async () => {
 			if (spaceId.value !== targetSpaceId) reset();
 			spaceId.value = targetSpaceId;
@@ -254,9 +256,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			]);
 			transport.holdBatches(crName.value, treeLoaded);
 			const [serverTree] = await treeLoaded.catch((error) => {
-				transport.markFailed('This draft could not be loaded.');
+				if (run === latestHydrate) {
+					transport.markFailed('This draft could not be loaded.');
+				}
 				throw error;
 			});
+			if (run !== latestHydrate) return;
 
 			applyServerTree(serverTree);
 			applyChangesSummary(crStore.changes);
@@ -266,9 +271,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		try {
 			await hydratePromise;
 		} finally {
-			isHydrating.value = false;
-			hydratePromise = null;
-			changeRequestReady = null;
+			if (run === latestHydrate) {
+				isHydrating.value = false;
+				hydratePromise = null;
+				changeRequestReady = null;
+			}
 		}
 	}
 

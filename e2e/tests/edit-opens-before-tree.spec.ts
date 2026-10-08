@@ -1,6 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { callMethod } from '../helpers';
+import { spaceLinkSelector } from '../helpers/routes';
 
 const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
@@ -248,4 +249,54 @@ test.describe('Edit from the public page', () => {
 		await expect(editor).toContainText(typed, { timeout: 15000 });
 		await expect(page.getByText('Unsaved changes')).toBeVisible();
 	});
+});
+
+test.describe('Switching spaces while the tree loads', () => {
+	for (const outcome of ['fails', 'arrives'] as const) {
+		test(`the old space's tree ${outcome} without touching the new space`, async ({
+			page,
+			wiki,
+		}) => {
+			const stamp = Date.now();
+			const first = await wiki.space({ pages: [{ title: `First ${stamp}` }] });
+			const second = await wiki.space({
+				pages: [{ title: `Second ${stamp}` }],
+			});
+
+			const held: Route[] = [];
+			await page.route('**/api/method/**get_cr_tree*', (route) => {
+				if (held.length === 0) held.push(route);
+				else route.continue();
+			});
+
+			await page.goto(first.url('page', first.page(`First ${stamp}`).name));
+			await expect(
+				page.locator('.ProseMirror[contenteditable="true"]'),
+			).toBeVisible({ timeout: 15000 });
+			await expect.poll(() => held.length).toBe(1);
+
+			await page.locator('[aria-label="Back to All Spaces"]').click();
+			await page.locator(spaceLinkSelector(second.name)).first().click();
+			const aside = page.locator('aside');
+			await expect(
+				aside.getByText(`Second ${stamp}`, { exact: true }),
+			).toBeVisible({ timeout: 15000 });
+
+			const [oldTree] = held;
+			if (outcome === 'fails') {
+				await oldTree.fulfill({ status: 500, body: '{}' });
+			} else {
+				await oldTree.continue();
+			}
+			await page.waitForTimeout(1500);
+
+			await expect(
+				aside.getByText(`Second ${stamp}`, { exact: true }),
+			).toBeVisible();
+			await expect(
+				aside.getByText(`First ${stamp}`, { exact: true }),
+			).toHaveCount(0);
+			await expect(page.getByTestId('sync-state-alert')).toBeHidden();
+		});
+	}
 });
