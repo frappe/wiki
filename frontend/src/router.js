@@ -80,7 +80,7 @@ const router = createRouter({
 	routes,
 });
 
-router.beforeEach(async (to, from, next) => {
+router.beforeResolve(async (to, from, next) => {
 	const { useSessionStore } = await import('@/stores/session');
 	const { useUserStore } = await import('@/stores/user');
 	const sessionStore = useSessionStore();
