@@ -12,7 +12,7 @@
 	>
 		<template #item="{ node }">
 			<div
-				class="group flex min-w-0 flex-1 items-center gap-1.5 py-1.5"
+				class="group flex min-h-10 min-w-0 flex-1 items-center gap-1.5 py-1.5"
 				:class="getRowClasses(node)"
 				:data-selected="isSelected(node) || undefined"
 				@click.stop="handleRowClick(node)"
