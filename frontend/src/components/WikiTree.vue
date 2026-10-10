@@ -159,6 +159,7 @@ const emit = defineEmits([
 	'edit-external-link',
 	'drag-state-change',
 	'reveal-group',
+	'download-pdfs',
 ]);
 
 const router = useRouter();
@@ -392,6 +393,11 @@ function getDropdownOptions(node) {
 					label: __('Rename'),
 					icon: 'lucide-edit-2',
 					onClick: () => emit('rename', node),
+				},
+				{
+					label: __('Download PDFs'),
+					icon: 'lucide-download',
+					onClick: () => emit('download-pdfs', node),
 				},
 			],
 		);

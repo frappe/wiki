@@ -64,6 +64,7 @@
 				@edit-external-link="openEditExternalLinkDialog"
 				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
+				@download-pdfs="downloadGroupPdfs"
 			/>
 		</ScrollArea>
 
@@ -257,6 +258,7 @@ import {
 	ScrollArea,
 	TextInput,
 	Tooltip,
+	toast,
 } from 'frappe-ui';
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue';
 import SpaceIcon from './SpaceIcon.vue';
@@ -475,6 +477,16 @@ watch(
 
 function handleDragStateChange(isDragging) {
 	isDragActive.value = isDragging;
+}
+
+function downloadGroupPdfs(node) {
+	toast({
+		title: __('Preparing Download'),
+		text: __('Generating PDFs for the group...'),
+		icon: 'lucide-download',
+	});
+	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_bulk_pdf?route=${encodeURIComponent(node.route)}`;
+	window.location.href = url;
 }
 
 onBeforeUnmount(() => {

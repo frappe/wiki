@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { Button, Dropdown, Sidebar, Tooltip } from 'frappe-ui';
+import { Button, Dropdown, Sidebar, Tooltip, toast } from 'frappe-ui';
 import { computed } from 'vue';
 
 import { useSpaceIdentitySaver } from '../composables/useSpaceIdentitySaver.js';
@@ -122,6 +122,11 @@ const spaceActions = computed(() => {
 			icon: 'lucide-external-link',
 			onClick: () => window.open(`/${spaceStore.doc.route}`, '_blank'),
 		});
+		options.push({
+			label: __('Download Space (PDFs)'),
+			icon: 'lucide-download',
+			onClick: () => downloadBulkPdf(spaceStore.doc.route),
+		});
 	}
 	if (spaceStore.isGitSynced) {
 		options.push({
@@ -132,4 +137,14 @@ const spaceActions = computed(() => {
 	}
 	return options;
 });
+
+function downloadBulkPdf(route) {
+	toast({
+		title: __('Preparing Download'),
+		text: __('Generating PDFs for the space...'),
+		icon: 'lucide-download',
+	});
+	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_bulk_pdf?route=${encodeURIComponent(route)}`;
+	window.location.href = url;
+}
 </script>
