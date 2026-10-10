@@ -1,8 +1,10 @@
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 
+import io
 import json
 import re
+import zipfile
 from urllib.parse import quote, urlparse
 
 import frappe
@@ -1088,6 +1090,57 @@ def download_pdf(route: str):
 	frappe.local.response.filename = f"{route.rsplit('/', 1)[-1]}.pdf"
 	frappe.local.response.filecontent = pdf_file
 	frappe.local.response.content_type = "application/pdf"
+	frappe.local.response.type = "download"
+
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_bulk_pdf(route: str):
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_space_access("read")
+	doc.check_published()
+
+	if not doc.is_group:
+		frappe.throw(_("Bulk download is only available for Spaces or Groups"))
+
+	tree = get_public_wiki_tree(doc.name)
+
+	zip_buffer = io.BytesIO()
+	frappe.local.flags.ignore_print_permissions = True
+	try:
+		with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+			def _add_nodes_to_zip(nodes, current_path=""):
+				for node in nodes:
+					if not node["is_group"] and not node.get("is_external_link"):
+						leaf_doc = frappe.get_cached_doc("Wiki Document", node["name"])
+						pdf_file = get_print(
+							doctype="Wiki Document",
+							print_format=WIKI_DOCUMENT_PRINT_FORMAT,
+							doc=leaf_doc,
+							as_pdf=True,
+							no_letterhead=1,
+						)
+						filename = f"{node['title'].replace('/', '-')} ({node['route'].rsplit('/', 1)[-1]}).pdf"
+						file_path = f"{current_path}{filename}" if current_path else filename
+						zip_file.writestr(file_path, pdf_file)
+
+					if node.get("children"):
+						new_path = f"{current_path}{node['title'].replace('/', '-')}/" if current_path else f"{node['title'].replace('/', '-')}/"
+						_add_nodes_to_zip(node["children"], new_path)
+
+			_add_nodes_to_zip(tree)
+	finally:
+		frappe.local.flags.ignore_print_permissions = False
+
+	filename = f"{route.rsplit('/', 1)[-1] or 'export'}.zip"
+	frappe.local.response.filename = filename
+	frappe.local.response.filecontent = zip_buffer.getvalue()
+	frappe.local.response.content_type = "application/zip"
 	frappe.local.response.type = "download"
 
 
