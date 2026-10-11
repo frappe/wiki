@@ -719,6 +719,7 @@ class TestGitSyncApply(FrappeTestCase):
 					"- [Relative](./print-formats)\n"
 					"- [Folder](/api/)\n"
 					"- [File wins](/guide)\n"
+					"- [File over group](/topic)\n"
 					"- [Home](/)\n"
 					"- [Site path](/app/todo)\n"
 				),
@@ -726,6 +727,9 @@ class TestGitSyncApply(FrappeTestCase):
 				"docs/api/index.md": "# API",
 				"docs/guide.md": "# Guide",
 				"docs/guide/README.md": "# Guide Folder",
+				# A folder with no landing is a group keyed by the folder path itself.
+				"docs/topic.md": "# Topic",
+				"docs/topic/setup.md": "# Setup",
 			}
 		)
 		repo.install(self)
@@ -747,6 +751,7 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertIn(f"[Relative](/{print_route})", content)
 		self.assertIn(f"[Folder](/{by_path['docs/api/index.md'].route})", content)
 		self.assertIn(f"[File wins](/{by_path['docs/guide.md'].route})", content)
+		self.assertIn(f"[File over group](/{by_path['docs/topic.md'].route})", content)
 		self.assertIn(f"[Home](/{space.route})", content)
 		self.assertIn("[Site path](/app/todo)", content)
 

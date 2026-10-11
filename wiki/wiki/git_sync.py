@@ -248,13 +248,17 @@ def _rewrite_image_links(
 def get_link_targets(src_to_route: dict[str, str]) -> dict[str, str]:
 	"""Map every path a page link may use to its route: the file, its extension-less
 	stem, and (for ``index``/``README``) its folder. A file wins over a same-named folder."""
-	targets = dict(src_to_route)
 	markdown_paths = [path for path in src_to_route if path.lower().endswith(MARKDOWN_EXTENSIONS)]
-	for path in markdown_paths:
-		targets.setdefault(posixpath.splitext(path)[0], src_to_route[path])
+	# Later writes win: folder groups, then folder landings, then files.
+	targets = {
+		path: route for path, route in src_to_route.items() if not path.lower().endswith(MARKDOWN_EXTENSIONS)
+	}
 	for path in markdown_paths:
 		if posixpath.basename(path).lower() in LANDING_BASENAMES:
-			targets.setdefault(posixpath.dirname(path), src_to_route[path])
+			targets[posixpath.dirname(path)] = src_to_route[path]
+	for path in markdown_paths:
+		targets[posixpath.splitext(path)[0]] = src_to_route[path]
+		targets[path] = src_to_route[path]
 	return targets
 
 
