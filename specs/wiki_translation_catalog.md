@@ -1,7 +1,7 @@
 # Wiki Translation Catalog
 
 Date: 2026-10-01
-Status: **In progress.** Phases 0 and 1 done. Builds on [crowdin_translation_sync.md](crowdin_translation_sync.md) and replaces the stopgap in PR [#804](https://github.com/frappe/wiki/pull/804).
+Status: **In progress.** Phases 0 to 2 done. Phase 3 is for a frappe org maintainer. Builds on [crowdin_translation_sync.md](crowdin_translation_sync.md) and replaces the stopgap in PR [#804](https://github.com/frappe/wiki/pull/804).
 
 ## Problem
 
@@ -161,3 +161,4 @@ Phases 0 to 2 do not depend on phase 3. The seeded catalog works without Crowdin
 - 2026-10-01: Spec drafted. Trial `generate-pot-file` run found 871 strings, about 133 covered by frappe for `es`.
 - 2026-10-11: Phase 0 done. POT has 898 strings. Seeding `es` from frappe filled 136. Boot carries `translated_messages`, `translation.js` reads it. On `wiki.localhost` with Administrator in `es`, the sidebar shows "Resumen" and "Buscar" on first paint and no translation request is made. The post-mount fetch still exists as the fallback for the Vite dev server, which renders no boot.
 - 2026-10-11: Phase 1 done. Seeded 36 locales, 92 to 147 strings each (`ko` only 3). Skipped `uk`, `bg`, `km` and `ro`: frappe's own `.po` files for them have no translations, so wiki's would be bare POT copies. Crowdin creates them once someone translates. Added `crowdin.yml`, `generate-pot-file.yml` and `update_pot_file.sh` from LMS.
+- 2026-10-11: Phase 2 done. Removed `wiki.api.get_translations` and the post-mount fetch. `get_translated_messages` is now whitelisted (GET, guests allowed) and `ensureTranslations()` in `translation.js` calls it before `app.mount()` when there is no boot. Checked on the Vite dev server: the request fires before mount. `wiki/tests/test_translations.py` fails when the catalog goes back to `get_all_translations`. `e2e/tests/translations.spec.ts` fails when the boot key is removed. #804 is still open and can be closed once this merges. Public reader pages never called the old API.

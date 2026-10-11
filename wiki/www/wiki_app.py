@@ -51,6 +51,7 @@ def get_boot():
 	)
 
 
+@frappe.whitelist(methods=["GET"], allow_guest=True)
 def get_translated_messages() -> dict:
 	lang = frappe.local.lang
 	messages = get_translations_from_apps(lang, ["wiki"])
