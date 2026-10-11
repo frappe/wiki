@@ -584,6 +584,8 @@ def build_nodes_from_config(
 	  ``label`` the folder's contents nest under that group (the folder's
 	  ``README``/``index`` becomes the group's landing); without one they splice
 	  inline at this position. Curated entries and ``autogenerate`` can be mixed.
+	* A group or labelled ``autogenerate`` may set ``"slug"`` for its URL segment;
+	  without it the label is used.
 
 	Paths are relative to the docs folder (``docs_subdir``) — the same folder the
 	config lives in. Only referenced files are synced; a missing file is skipped.
@@ -644,7 +646,7 @@ def build_nodes_from_config(
 			}
 		)
 
-	def add_group(label: str, parent_dir: str) -> str:
+	def add_group(label: str, parent_dir: str, slug: str | None = None) -> str:
 		dir_key = f"{parent_dir}/{label}" if parent_dir else label
 		nodes.append(
 			{
@@ -656,7 +658,7 @@ def build_nodes_from_config(
 				"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
 				"landing_path": None,
 				"title": label,
-				"slug": label,
+				"slug": slug or label,
 				"content": "",
 				"is_published": 1,
 				"order": None,
@@ -665,7 +667,9 @@ def build_nodes_from_config(
 		)
 		return dir_key
 
-	def add_autogenerate(directory: str | None, parent_dir: str, label: str | None) -> None:
+	def add_autogenerate(
+		directory: str | None, parent_dir: str, label: str | None, slug: str | None = None
+	) -> None:
 		sub_prefix = full(directory or "")
 		inf_nodes, inf_root_content, inf_root_landing = build_nodes(
 			repo, tree_entries, sub_prefix, token, space
@@ -682,7 +686,7 @@ def build_nodes_from_config(
 					"source_path": inf_root_landing or f"{WIKI_CONFIG_FILENAME}#{dir_key}",
 					"landing_path": inf_root_landing,
 					"title": label,
-					"slug": label,
+					"slug": slug or label,
 					"content": inf_root_content or "",
 					"is_published": 1,
 					"order": None,
@@ -721,10 +725,19 @@ def build_nodes_from_config(
 				add_leaf(entry, parent_dir)
 			elif isinstance(entry, dict):
 				if isinstance(entry.get("autogenerate"), dict):
-					add_autogenerate(entry["autogenerate"].get("directory"), parent_dir, entry.get("label"))
+					add_autogenerate(
+						entry["autogenerate"].get("directory"),
+						parent_dir,
+						entry.get("label"),
+						entry.get("slug"),
+					)
 				elif isinstance(entry.get("items"), list):
 					# A labelled group nests its items; a label-less one splices inline.
-					child_dir = add_group(entry["label"], parent_dir) if entry.get("label") else parent_dir
+					child_dir = (
+						add_group(entry["label"], parent_dir, entry.get("slug"))
+						if entry.get("label")
+						else parent_dir
+					)
 					walk(entry["items"], child_dir)
 				elif entry.get("page") or entry.get("path"):
 					add_leaf(entry.get("page") or entry.get("path"), parent_dir, label=entry.get("label"))

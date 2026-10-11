@@ -557,6 +557,41 @@ class TestGitSyncApply(FrappeTestCase):
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
 
+	def test_config_group_slug_sets_route_segment(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		config = {
+			"sidebar": [
+				{"label": "Tutorial (Build an App)", "slug": "tutorial", "items": ["tutorial/setup.md"]},
+				{"label": "API Reference", "slug": "api", "autogenerate": {"directory": "api"}},
+				{"label": "No Slug", "items": ["intro.md"]},
+			],
+		}
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.json": json.dumps(config),
+				"docs/tutorial/setup.md": "# Setup",
+				"docs/api/auth.md": "# Auth",
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		route_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"source_path": ["in", ["docs/tutorial/setup.md", "docs/api/auth.md", "docs/intro.md"]]
+				},
+				fields=["source_path", "route"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(route_of["docs/tutorial/setup.md"], f"{space.route}/tutorial/setup")
+		self.assertEqual(route_of["docs/api/auth.md"], f"{space.route}/api/auth")
+		self.assertEqual(route_of["docs/intro.md"], f"{space.route}/no-slug/intro")
+
 	def test_sync_stores_loaded_config_on_space(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")

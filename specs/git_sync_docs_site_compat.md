@@ -48,5 +48,5 @@ The sync reads `.wiki.yml` or `.wiki.yaml` (YAML), or `.wiki.json` (JSON), from 
 ## Progress
 
 - [x] TB1 — Docs-site link resolution: `get_link_targets` adds stem and folder aliases once per sync; `/`-rooted links resolve from the docs folder; `.html` is stripped. Unit test temp-revert verified.
-- [ ] TB2 — Group `slug`
+- [x] TB2 — Group `slug`: `add_group` and labelled `autogenerate` take an optional `slug`; identity still uses the label chain. Unit test temp-revert verified.
 - [ ] TB3 — YAML config
