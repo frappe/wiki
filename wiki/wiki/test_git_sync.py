@@ -181,6 +181,37 @@ class TestGitSyncConfig(FrappeTestCase):
 		repo.install(self)
 		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
 
+	def test_load_wiki_config_parses_yaml(self):
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.yml": (
+					"# Sidebar order\n"
+					"sidebar:\n"
+					"  - intro.md\n"
+					"  - label: Guides\n"
+					"    slug: guides\n"
+					"    items:\n"
+					"      - guides/setup.md\n"
+				),
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		self.assertEqual(
+			load_wiki_config("acme/docs", repo.tree(), "docs"),
+			{"sidebar": ["intro.md", {"label": "Guides", "slug": "guides", "items": ["guides/setup.md"]}]},
+		)
+
+	def test_load_wiki_config_raises_on_malformed_yaml(self):
+		repo = _FakeRepo({"docs/.wiki.yaml": "sidebar: [unclosed"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
+	def test_load_wiki_config_raises_on_multiple_files(self):
+		repo = _FakeRepo({"docs/.wiki.yml": "sidebar: []", "docs/.wiki.json": '{"sidebar": []}'})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
 	def test_config_drives_order_titles_and_nesting(self):
 		config = {
 			"sidebar": [
@@ -591,6 +622,25 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertEqual(route_of["docs/tutorial/setup.md"], f"{space.route}/tutorial/setup")
 		self.assertEqual(route_of["docs/api/auth.md"], f"{space.route}/api/auth")
 		self.assertEqual(route_of["docs/intro.md"], f"{space.route}/no-slug/intro")
+
+	def test_switching_config_to_yaml_keeps_groups(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		files = {"docs/guides/setup.md": "# Setup"}
+		repo = _FakeRepo(
+			{**files, "docs/.wiki.json": json.dumps({"sidebar": [{"Guides": ["guides/setup.md"]}]})}
+		)
+		repo.install(self)
+		sync_space(space.name)
+		before = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		repo.files = {**files, "docs/.wiki.yml": "sidebar:\n  - Guides:\n      - guides/setup.md\n"}
+		repo.head_sha = "sha2"
+		sync_space(space.name)
+		after = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		self.assertEqual(before.name, after.name)
+		self.assertEqual(before.doc_key, after.doc_key)
 
 	def test_sync_stores_loaded_config_on_space(self):
 		space = _make_synced_space()

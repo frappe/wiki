@@ -1,7 +1,7 @@
 # Git Sync: Docs Site Compatibility
 
 Date: 2026-10-11
-Status: **In progress.**
+Status: **Implemented.**
 
 ## Goal
 
@@ -49,4 +49,4 @@ The sync reads `.wiki.yml` or `.wiki.yaml` (YAML), or `.wiki.json` (JSON), from 
 
 - [x] TB1 — Docs-site link resolution: `get_link_targets` adds stem and folder aliases once per sync; `/`-rooted links resolve from the docs folder; `.html` is stripped. Unit test temp-revert verified.
 - [x] TB2 — Group `slug`: `add_group` and labelled `autogenerate` take an optional `slug`; identity still uses the label chain. Unit test temp-revert verified.
-- [ ] TB3 — YAML config
+- [x] TB3 — YAML config: `load_wiki_config` reads `.wiki.yml`, `.wiki.yaml` or `.wiki.json` and fails on more than one. The settings preview stays JSON (the `wiki_config` Code field). Unit tests temp-revert verified.

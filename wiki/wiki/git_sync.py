@@ -44,7 +44,10 @@ from wiki.telemetry import capture, error_kind
 GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
 LANDING_BASENAMES = ("readme.md", "index.md", "readme.mdx", "index.mdx")
-WIKI_CONFIG_FILENAME = ".wiki.json"
+WIKI_CONFIG_FILENAMES = (".wiki.yml", ".wiki.yaml", ".wiki.json")
+# Prefix of a file-less sidebar group's source_path. Fixed, not the config file's
+# name, so switching the config format does not recreate every group.
+SIDEBAR_GROUP_SOURCE_PREFIX = ".wiki.json"
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif")
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
@@ -530,34 +533,35 @@ def build_nodes(
 
 
 # --------------------------------------------------------------------------- #
-# .wiki.json structure override
+# Sidebar config (.wiki.yml / .wiki.json) structure override
 # --------------------------------------------------------------------------- #
 def load_wiki_config(
 	repo: str, tree_entries: list[dict[str, Any]], docs_subdir: str | None = None, token: str | None = None
 ) -> dict[str, Any] | None:
-	"""Return the parsed ``.wiki.json`` from inside the docs folder, or ``None``.
+	"""Return the parsed sidebar config from inside the docs folder, or ``None``.
 
-	The config lives *in the docs folder* (``{docs_subdir}/.wiki.json``, or the
-	repo root when no docs folder is set) — the docs folder is the root of the
-	wiki's content, so its ``sidebar`` paths are relative to it. A malformed
-	config is surfaced (raises) rather than silently ignored, so the sync records
-	a clear error instead of falling back to inference unexpectedly.
+	The config is ``.wiki.yml``/``.wiki.yaml`` (YAML) or ``.wiki.json`` (JSON) *in the
+	docs folder* (or the repo root when no docs folder is set) — the docs folder is
+	the root of the wiki's content, so its ``sidebar`` paths are relative to it. More
+	than one config file, or a malformed one, raises rather than falling back to
+	inference, so the sync records a clear error.
 	"""
 	prefix = (docs_subdir or "").strip("/")
-	config_path = f"{prefix}/{WIKI_CONFIG_FILENAME}" if prefix else WIKI_CONFIG_FILENAME
-	sha = next(
-		(e.get("sha") for e in tree_entries if e.get("type") == "blob" and e.get("path") == config_path),
-		None,
-	)
-	if not sha:
+	sha_by_path = {e.get("path"): e.get("sha") for e in tree_entries if e.get("type") == "blob"}
+	found = [name for name in WIKI_CONFIG_FILENAMES if posixpath.join(prefix, name) in sha_by_path]
+	if not found:
 		return None
-	raw = _fetch_blob(repo, sha, token)
+	if len(found) > 1:
+		frappe.throw(_("Found {0}. Keep only one sidebar config file.").format(", ".join(found)))
+
+	filename = found[0]
+	raw = _fetch_blob(repo, sha_by_path[posixpath.join(prefix, filename)], token) or "{}"
 	try:
-		config = json.loads(raw or "{}")
-	except json.JSONDecodeError as exc:
-		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_FILENAME, str(exc)))
+		config = json.loads(raw) if filename.endswith(".json") else yaml.safe_load(raw)
+	except (json.JSONDecodeError, yaml.YAMLError) as exc:
+		frappe.throw(_("Invalid {0}: {1}").format(filename, str(exc)))
 	if not isinstance(config, dict):
-		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_FILENAME))
+		frappe.throw(_("{0} must contain a mapping with a sidebar key.").format(filename))
 	return config
 
 
@@ -569,7 +573,7 @@ def build_nodes_from_config(
 	token: str | None = None,
 	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
-	"""Drive structure from an explicit ``.wiki.json`` ``sidebar`` (Astro Starlight-shaped).
+	"""Drive structure from the sidebar config's ``sidebar`` list (Astro Starlight-shaped).
 
 	``sidebar`` is an ordered list; each entry is one of:
 
@@ -655,7 +659,7 @@ def build_nodes_from_config(
 				"parent_dir": parent_dir,
 				# No file backs a sidebar group, so its identity is the (stable)
 				# sidebar title-chain; it carries no editable source.
-				"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+				"source_path": f"{SIDEBAR_GROUP_SOURCE_PREFIX}#{dir_key}",
 				"landing_path": None,
 				"title": label,
 				"slug": slug or label,
@@ -683,7 +687,7 @@ def build_nodes_from_config(
 					"parent_dir": parent_dir,
 					# Reuse the folder's README/index landing so the group gets
 					# landing content + an "Edit on GitHub" target.
-					"source_path": inf_root_landing or f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+					"source_path": inf_root_landing or f"{SIDEBAR_GROUP_SOURCE_PREFIX}#{dir_key}",
 					"landing_path": inf_root_landing,
 					"title": label,
 					"slug": slug or label,
@@ -859,7 +863,7 @@ def _sync_to_live(
 		root_content = _rewrite_internal_links(root_content, root_source_path, link_targets, docs_root)
 
 	# Sibling order: nodes with an explicit front-matter order come first, sorted
-	# by that number; the rest fall back to alphabetical (the `.wiki.json` nav path
+	# by that number; the rest fall back to alphabetical (the sidebar config path
 	# carries no order, so its zero-padded `seg` counter drives order as before).
 	def _order_key(node: dict[str, Any]) -> tuple[int, float, str]:
 		order = node.get("order")
@@ -1080,7 +1084,7 @@ def _record_success(space_name: str, commit_sha: str) -> None:
 
 
 def _record_config(space_name: str, config: dict[str, Any] | None) -> None:
-	"""Persist the latest loaded ``.wiki.json`` (pretty-printed) for the settings preview."""
+	"""Persist the latest loaded sidebar config (as pretty-printed JSON) for the settings preview."""
 	frappe.db.set_value(
 		"Wiki Space",
 		space_name,
