@@ -1,0 +1,5 @@
+preserve_hierarchy: true
+
+files:
+  - source: /wiki/locale/main.pot
+    translation: /wiki/locale/%two_letters_code%.po
