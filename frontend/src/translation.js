@@ -3,7 +3,7 @@ import { createResource } from 'frappe-ui';
 export default function translationPlugin(app) {
 	app.config.globalProperties.__ = translate;
 	window.__ = translate;
-	if (!window.translatedMessages) fetchTranslations();
+	if (!window.translated_messages) fetchTranslations();
 }
 
 function format(message, replace) {
@@ -13,7 +13,7 @@ function format(message, replace) {
 }
 
 function translate(message, replace, context = null) {
-	const translatedMessages = window.translatedMessages || {};
+	const translatedMessages = window.translated_messages || {};
 	let translatedMessage = '';
 
 	if (context) {
@@ -40,7 +40,7 @@ function fetchTranslations() {
 		url: 'wiki.api.get_translations',
 		auto: true,
 		transform: (data) => {
-			window.translatedMessages = data;
+			window.translated_messages = data;
 		},
 	});
 }
