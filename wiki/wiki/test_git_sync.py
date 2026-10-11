@@ -13,6 +13,7 @@ from wiki.wiki.git_sync import (
 	build_nodes_from_config,
 	load_wiki_config,
 	strip_front_matter,
+	strip_title_heading,
 	sync_space,
 )
 
@@ -178,6 +179,37 @@ class TestGitSyncConfig(FrappeTestCase):
 
 	def test_load_wiki_config_raises_on_malformed_json(self):
 		repo = _FakeRepo({"docs/.wiki.json": "{not json"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
+	def test_load_wiki_config_parses_yaml(self):
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.yml": (
+					"# Sidebar order\n"
+					"sidebar:\n"
+					"  - intro.md\n"
+					"  - label: Guides\n"
+					"    slug: guides\n"
+					"    items:\n"
+					"      - guides/setup.md\n"
+				),
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		self.assertEqual(
+			load_wiki_config("acme/docs", repo.tree(), "docs"),
+			{"sidebar": ["intro.md", {"label": "Guides", "slug": "guides", "items": ["guides/setup.md"]}]},
+		)
+
+	def test_load_wiki_config_raises_on_malformed_yaml(self):
+		repo = _FakeRepo({"docs/.wiki.yaml": "sidebar: [unclosed"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
+	def test_load_wiki_config_raises_on_multiple_files(self):
+		repo = _FakeRepo({"docs/.wiki.yml": "sidebar: []", "docs/.wiki.json": '{"sidebar": []}'})
 		repo.install(self)
 		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
 
@@ -557,6 +589,60 @@ class TestGitSyncApply(FrappeTestCase):
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
 
+	def test_config_group_slug_sets_route_segment(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		config = {
+			"sidebar": [
+				{"label": "Tutorial (Build an App)", "slug": "tutorial", "items": ["tutorial/setup.md"]},
+				{"label": "API Reference", "slug": "api", "autogenerate": {"directory": "api"}},
+				{"label": "No Slug", "items": ["intro.md"]},
+			],
+		}
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.json": json.dumps(config),
+				"docs/tutorial/setup.md": "# Setup",
+				"docs/api/auth.md": "# Auth",
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		route_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"source_path": ["in", ["docs/tutorial/setup.md", "docs/api/auth.md", "docs/intro.md"]]
+				},
+				fields=["source_path", "route"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(route_of["docs/tutorial/setup.md"], f"{space.route}/tutorial/setup")
+		self.assertEqual(route_of["docs/api/auth.md"], f"{space.route}/api/auth")
+		self.assertEqual(route_of["docs/intro.md"], f"{space.route}/no-slug/intro")
+
+	def test_switching_config_to_yaml_keeps_groups(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		files = {"docs/guides/setup.md": "# Setup"}
+		repo = _FakeRepo(
+			{**files, "docs/.wiki.json": json.dumps({"sidebar": [{"Guides": ["guides/setup.md"]}]})}
+		)
+		repo.install(self)
+		sync_space(space.name)
+		before = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		repo.files = {**files, "docs/.wiki.yml": "sidebar:\n  - Guides:\n      - guides/setup.md\n"}
+		repo.head_sha = "sha2"
+		sync_space(space.name)
+		after = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		self.assertEqual(before.name, after.name)
+		self.assertEqual(before.doc_key, after.doc_key)
+
 	def test_sync_stores_loaded_config_on_space(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
@@ -618,6 +704,56 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertIn("](nope.md)", content)
 		# The raw ".md" target must not survive as a real internal link.
 		self.assertNotIn("](getting-started/install.md)", content)
+
+	def test_docs_site_style_links_rewritten_to_routes(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/README.md": "# Home",
+				"docs/desk/reports.md": (
+					"# Reports\n"
+					"- [Root-relative](/desk/print-formats)\n"
+					"- [Anchor](/desk/print-formats#letterhead)\n"
+					"- [Html](/desk/print-formats.html)\n"
+					"- [Relative](./print-formats)\n"
+					"- [Folder](/api/)\n"
+					"- [File wins](/guide)\n"
+					"- [File over group](/topic)\n"
+					"- [Home](/)\n"
+					"- [Site path](/app/todo)\n"
+				),
+				"docs/desk/print-formats.md": "# Print Formats",
+				"docs/api/index.md": "# API",
+				"docs/guide.md": "# Guide",
+				"docs/guide/README.md": "# Guide Folder",
+				# A folder with no landing is a group keyed by the folder path itself.
+				"docs/topic.md": "# Topic",
+				"docs/topic/setup.md": "# Setup",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		docs = frappe.get_all(
+			"Wiki Document",
+			fields=["source_path", "route", "content"],
+			filters=[["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+		)
+		by_path = {d.source_path: d for d in docs}
+		print_route = by_path["docs/desk/print-formats.md"].route
+		content = by_path["docs/desk/reports.md"].content
+
+		self.assertIn(f"[Root-relative](/{print_route})", content)
+		self.assertIn(f"[Anchor](/{print_route}#letterhead)", content)
+		self.assertIn(f"[Html](/{print_route})", content)
+		self.assertIn(f"[Relative](/{print_route})", content)
+		self.assertIn(f"[Folder](/{by_path['docs/api/index.md'].route})", content)
+		self.assertIn(f"[File wins](/{by_path['docs/guide.md'].route})", content)
+		self.assertIn(f"[File over group](/{by_path['docs/topic.md'].route})", content)
+		self.assertIn(f"[Home](/{space.route})", content)
+		self.assertIn("[Site path](/app/todo)", content)
 
 	def test_autogenerate_syncs_folder_into_group(self):
 		space = _make_synced_space()
@@ -1103,6 +1239,38 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 		)[0]
 		self.assertEqual(doc.title, "Getting Started")
 		self.assertNotIn("---", doc.content)
+
+	def test_strip_title_heading_drops_only_a_matching_leading_h1(self):
+		self.assertEqual(strip_title_heading("# Reports\n\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("\n# Reports\r\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("# Reports", "Reports"), "# Reports")
+		# A different H1, or an H1 after other content, is real content.
+		self.assertEqual(strip_title_heading("# Other\nBody", "Reports"), "# Other\nBody")
+		self.assertEqual(strip_title_heading("Intro\n# Reports", "Reports"), "Intro\n# Reports")
+		self.assertEqual(strip_title_heading("## Reports\nBody", "Reports"), "## Reports\nBody")
+
+	def test_title_heading_not_repeated_in_live_document(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/reports.md": "---\ntitle: Reports\n---\n\n# Reports\n\nA report is a view.",
+				"docs/guide/README.md": "# Guide\n\nLanding body",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		content_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={"source_path": ["in", ["docs/reports.md", "docs/guide/README.md"]]},
+				fields=["source_path", "content"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(content_of["docs/reports.md"], "A report is a view.")
+		self.assertEqual(content_of["docs/guide/README.md"], "Landing body")
 
 	def test_front_matter_is_published_flag(self):
 		# `published: false` (and `draft: true`) mark a node unpublished; a node
