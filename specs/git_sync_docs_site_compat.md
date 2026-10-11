@@ -45,8 +45,13 @@ A link that matches no synced file stays unchanged, so links to site paths (`/ap
 
 The sync reads `.wiki.yml` or `.wiki.yaml` (YAML), or `.wiki.json` (JSON), from the docs folder. The schema is the same. More than one config file fails the sync with a clear error. Malformed YAML or a non-mapping fails the sync, like JSON today. Synthetic group `source_path`s keep the `.wiki.json#` prefix so that switching formats does not recreate groups.
 
+### TB4 — Do not repeat the page title
+
+The reader shows the page title above the content, and docs pages also start with `# Title`, so the title shows twice. During sync, a leading H1 that equals the page title is removed from the content. A heading-only page keeps its H1, because an empty page gets placeholder content.
+
 ## Progress
 
 - [x] TB1 — Docs-site link resolution: `get_link_targets` adds stem and folder aliases once per sync; `/`-rooted links resolve from the docs folder; `.html` is stripped. Unit test temp-revert verified.
 - [x] TB2 — Group `slug`: `add_group` and labelled `autogenerate` take an optional `slug`; identity still uses the label chain. Unit test temp-revert verified.
 - [x] TB3 — YAML config: `load_wiki_config` reads `.wiki.yml`, `.wiki.yaml` or `.wiki.json` and fails on more than one. The settings preview stays JSON (the `wiki_config` Code field). Unit tests temp-revert verified.
+- [x] TB4 — Do not repeat the page title: `strip_title_heading` runs for every node in `_sync_to_live`. Unit and sync tests, temp-revert verified.

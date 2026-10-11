@@ -309,6 +309,18 @@ def _extract_title(content: str) -> str | None:
 	return None
 
 
+def strip_title_heading(content: str, title: str) -> str:
+	"""Drop a leading H1 that repeats the page title, which the reader already shows.
+
+	A heading-only page keeps its H1, since an empty page gets placeholder content.
+	"""
+	first_line, _, rest = (content or "").lstrip().partition("\n")
+	match = H1_PATTERN.match(first_line.strip())
+	if not match or match.group(1).strip() != (title or "").strip() or not rest.strip():
+		return content
+	return rest.lstrip("\r\n")
+
+
 def _humanize(name: str) -> str:
 	return name.replace("-", " ").replace("_", " ").strip().title()
 
@@ -857,7 +869,7 @@ def _sync_to_live(
 	docs_root = (space.docs_subdir or "").strip("/")
 	for node in nodes:
 		node["content"] = _rewrite_internal_links(
-			node["content"], node["source_path"], link_targets, docs_root
+			strip_title_heading(node["content"], node["title"]), node["source_path"], link_targets, docs_root
 		)
 	if root_content and root_source_path:
 		root_content = _rewrite_internal_links(root_content, root_source_path, link_targets, docs_root)

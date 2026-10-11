@@ -13,6 +13,7 @@ from wiki.wiki.git_sync import (
 	build_nodes_from_config,
 	load_wiki_config,
 	strip_front_matter,
+	strip_title_heading,
 	sync_space,
 )
 
@@ -1233,6 +1234,38 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 		)[0]
 		self.assertEqual(doc.title, "Getting Started")
 		self.assertNotIn("---", doc.content)
+
+	def test_strip_title_heading_drops_only_a_matching_leading_h1(self):
+		self.assertEqual(strip_title_heading("# Reports\n\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("\n# Reports\r\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("# Reports", "Reports"), "# Reports")
+		# A different H1, or an H1 after other content, is real content.
+		self.assertEqual(strip_title_heading("# Other\nBody", "Reports"), "# Other\nBody")
+		self.assertEqual(strip_title_heading("Intro\n# Reports", "Reports"), "Intro\n# Reports")
+		self.assertEqual(strip_title_heading("## Reports\nBody", "Reports"), "## Reports\nBody")
+
+	def test_title_heading_not_repeated_in_live_document(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/reports.md": "---\ntitle: Reports\n---\n\n# Reports\n\nA report is a view.",
+				"docs/guide/README.md": "# Guide\n\nLanding body",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		content_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={"source_path": ["in", ["docs/reports.md", "docs/guide/README.md"]]},
+				fields=["source_path", "content"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(content_of["docs/reports.md"], "A report is a view.")
+		self.assertEqual(content_of["docs/guide/README.md"], "Landing body")
 
 	def test_front_matter_is_published_flag(self):
 		# `published: false` (and `draft: true`) mark a node unpublished; a node
