@@ -242,14 +242,31 @@ def _rewrite_image_links(
 	return MD_IMAGE_PATTERN.sub(repl, content)
 
 
-def _rewrite_internal_links(content: str, source_path: str, src_to_route: dict[str, str]) -> str:
+def get_link_targets(src_to_route: dict[str, str]) -> dict[str, str]:
+	"""Map every path a page link may use to its route: the file, its extension-less
+	stem, and (for ``index``/``README``) its folder. A file wins over a same-named folder."""
+	targets = dict(src_to_route)
+	markdown_paths = [path for path in src_to_route if path.lower().endswith(MARKDOWN_EXTENSIONS)]
+	for path in markdown_paths:
+		targets.setdefault(posixpath.splitext(path)[0], src_to_route[path])
+	for path in markdown_paths:
+		if posixpath.basename(path).lower() in LANDING_BASENAMES:
+			targets.setdefault(posixpath.dirname(path), src_to_route[path])
+	return targets
+
+
+def _rewrite_internal_links(
+	content: str, source_path: str, link_targets: dict[str, str], docs_root: str = ""
+) -> str:
 	"""Rewrite repo-relative Markdown page links to their live wiki routes.
 
 	``[text](getting-started/install.md)`` on ``docs/index.md`` becomes
-	``[text](/my-space/getting-started/install)`` — resolved relative to the source
-	file's directory and looked up in the ``source_path → route`` map built once all
-	routes are known. A trailing ``#fragment`` is preserved. External links, in-page
-	anchors, and links to non-synced files are left untouched.
+	``[text](/my-space/getting-started/install)``. A relative link resolves from the
+	source file's folder; a ``/``-rooted link resolves from ``docs_root``, as docs
+	sites do. Paths are looked up in ``link_targets`` (see ``get_link_targets``), so
+	extension-less, ``.html`` and folder links resolve too. A trailing ``#fragment``
+	is preserved. External links, in-page anchors, and links to non-synced files are
+	left untouched.
 	"""
 	if not content or not source_path:
 		return content
@@ -264,8 +281,12 @@ def _rewrite_internal_links(content: str, source_path: str, src_to_route: dict[s
 		path_part, _, fragment = url.partition("#")
 		if not path_part:
 			return match.group(0)
-		resolved = posixpath.normpath(posixpath.join(base_dir, path_part))
-		route = src_to_route.get(resolved)
+		if path_part.startswith("/"):
+			resolved = posixpath.normpath(posixpath.join(docs_root, path_part.lstrip("/")))
+		else:
+			resolved = posixpath.normpath(posixpath.join(base_dir, path_part))
+		resolved = "" if resolved == "." else resolved.removesuffix(".html")
+		route = link_targets.get(resolved)
 		if not route:
 			return match.group(0)
 		new_url = f"/{route}" + (f"#{fragment}" if fragment else "")
@@ -815,10 +836,14 @@ def _sync_to_live(
 	src_to_route = {node["source_path"]: route_for[node["doc_key"]] for node in nodes}
 	if root_source_path:
 		src_to_route[root_source_path] = space.route
+	link_targets = get_link_targets(src_to_route)
+	docs_root = (space.docs_subdir or "").strip("/")
 	for node in nodes:
-		node["content"] = _rewrite_internal_links(node["content"], node["source_path"], src_to_route)
+		node["content"] = _rewrite_internal_links(
+			node["content"], node["source_path"], link_targets, docs_root
+		)
 	if root_content and root_source_path:
-		root_content = _rewrite_internal_links(root_content, root_source_path, src_to_route)
+		root_content = _rewrite_internal_links(root_content, root_source_path, link_targets, docs_root)
 
 	# Sibling order: nodes with an explicit front-matter order come first, sorted
 	# by that number; the rest fall back to alphabetical (the `.wiki.json` nav path

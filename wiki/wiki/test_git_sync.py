@@ -619,6 +619,51 @@ class TestGitSyncApply(FrappeTestCase):
 		# The raw ".md" target must not survive as a real internal link.
 		self.assertNotIn("](getting-started/install.md)", content)
 
+	def test_docs_site_style_links_rewritten_to_routes(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/README.md": "# Home",
+				"docs/desk/reports.md": (
+					"# Reports\n"
+					"- [Root-relative](/desk/print-formats)\n"
+					"- [Anchor](/desk/print-formats#letterhead)\n"
+					"- [Html](/desk/print-formats.html)\n"
+					"- [Relative](./print-formats)\n"
+					"- [Folder](/api/)\n"
+					"- [File wins](/guide)\n"
+					"- [Home](/)\n"
+					"- [Site path](/app/todo)\n"
+				),
+				"docs/desk/print-formats.md": "# Print Formats",
+				"docs/api/index.md": "# API",
+				"docs/guide.md": "# Guide",
+				"docs/guide/README.md": "# Guide Folder",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		docs = frappe.get_all(
+			"Wiki Document",
+			fields=["source_path", "route", "content"],
+			filters=[["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+		)
+		by_path = {d.source_path: d for d in docs}
+		print_route = by_path["docs/desk/print-formats.md"].route
+		content = by_path["docs/desk/reports.md"].content
+
+		self.assertIn(f"[Root-relative](/{print_route})", content)
+		self.assertIn(f"[Anchor](/{print_route}#letterhead)", content)
+		self.assertIn(f"[Html](/{print_route})", content)
+		self.assertIn(f"[Relative](/{print_route})", content)
+		self.assertIn(f"[Folder](/{by_path['docs/api/index.md'].route})", content)
+		self.assertIn(f"[File wins](/{by_path['docs/guide.md'].route})", content)
+		self.assertIn(f"[Home](/{space.route})", content)
+		self.assertIn("[Site path](/app/todo)", content)
+
 	def test_autogenerate_syncs_folder_into_group(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
