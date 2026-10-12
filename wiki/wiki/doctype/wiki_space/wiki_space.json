@@ -21,6 +21,7 @@
   "avatar_seed",
   "favicon",
   "enable_feedback_collection",
+  "allow_pdf_download",
   "show_in_switcher",
   "is_published",
   "section_break_z5nn",
@@ -250,6 +251,13 @@
   },
   {
    "default": "1",
+   "description": "Show the Download action that saves a page as PDF",
+   "fieldname": "allow_pdf_download",
+   "fieldtype": "Check",
+   "label": "Allow PDF Download?"
+  },
+  {
+   "default": "1",
    "fieldname": "show_in_switcher",
    "fieldtype": "Check",
    "in_standard_filter": 1,
@@ -350,7 +358,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-11 12:00:00.000000",
+ "modified": "2026-10-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
