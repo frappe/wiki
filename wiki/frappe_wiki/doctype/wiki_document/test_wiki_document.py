@@ -85,6 +85,19 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 	return doc
 
 
+def make_wiki_user(role):
+	"""A Wiki User who also holds ``role``."""
+	if not frappe.db.exists("Role", role):
+		frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
+	email = f"{frappe.scrub(role).strip('_')}@example.com"
+	if not frappe.db.exists("User", email):
+		frappe.get_doc(
+			{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
+		).insert()
+	frappe.get_doc("User", email).add_roles("Wiki User", role)
+	return email
+
+
 class WikiDocumentTestBase(WikiFixtureMixin, IntegrationTestCase):
 	"""Base class for Wiki Document tests; `self.wiki` cleans up after each one.
 
@@ -259,6 +272,36 @@ class TestGetWebContext(WikiDocumentTestBase):
 		self.assertIn("Another Visible", space_names)
 		# At least our 2 visible test spaces should be included
 		self.assertGreaterEqual(len(switcher_spaces), 2)
+
+	def test_wiki_spaces_for_switcher_hides_spaces_the_user_cannot_read(self):
+		reader = make_wiki_user("_Test Switcher Reader")
+		make_wiki_user("_Test Switcher Other")
+		readable = create_test_wiki_space(
+			self, "Readable Space", "readable-space", None, roles=[("_Test Switcher Reader", "Read")]
+		)
+		create_test_wiki_space(
+			self, "Forbidden Space", "forbidden-space", None, roles=[("_Test Switcher Other", "Read")]
+		)
+		create_test_wiki_space(self, "Open Space", "open-space", None)
+		page = create_test_wiki_document(self, "Readable Page", parent=readable.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(reader)
+		space_names = [s["space_name"] for s in page.get_web_context()["wiki_spaces_for_switcher"]]
+
+		self.assertIn("Readable Space", space_names)
+		self.assertIn("Open Space", space_names)
+		self.assertNotIn("Forbidden Space", space_names)
+
+	def test_wiki_spaces_for_switcher_hides_unpublished_spaces(self):
+		current = create_test_wiki_space(self, "Current Space", "current-space", None)
+		create_test_wiki_space(self, "Draft Space", "draft-space", None, is_published=False)
+		page = create_test_wiki_document(self, "Current Page", parent=current.root_group)
+
+		space_names = [s["space_name"] for s in page.get_web_context()["wiki_spaces_for_switcher"]]
+
+		self.assertIn("Current Space", space_names)
+		self.assertNotIn("Draft Space", space_names)
 
 	def test_orphan_document_without_wiki_space(self):
 		"""
@@ -797,8 +840,8 @@ class TestUpdateMeta(WikiDocumentTestBase):
 
 	def setUp(self):
 		super().setUp()
-		self.reader = self._user_with(self.READER_ROLE)
-		self.writer = self._user_with(self.WRITER_ROLE)
+		self.reader = make_wiki_user(self.READER_ROLE)
+		self.writer = make_wiki_user(self.WRITER_ROLE)
 		self.space = create_test_wiki_space(
 			self,
 			"Synced Meta Space",
@@ -811,17 +854,6 @@ class TestUpdateMeta(WikiDocumentTestBase):
 		)
 		self.page = create_test_wiki_document(self, "Synced Meta Page", parent=self.space.root_group)
 		self.addCleanup(frappe.set_user, "Administrator")
-
-	def _user_with(self, role):
-		if not frappe.db.exists("Role", role):
-			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
-		email = f"{frappe.scrub(role).strip('_')}@example.com"
-		if not frappe.db.exists("User", email):
-			frappe.get_doc(
-				{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
-			).insert()
-		frappe.get_doc("User", email).add_roles("Wiki User", role)
-		return email
 
 	def test_space_writer_updates_meta_on_a_git_synced_page(self):
 		frappe.set_user(self.writer)
