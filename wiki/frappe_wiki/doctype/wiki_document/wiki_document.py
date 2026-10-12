@@ -398,6 +398,33 @@ class WikiDocument(NestedSet):
 			return True
 		return can_write_space(wiki_space_doc.name, user)
 
+	def get_switcher_spaces(self, current_space: str) -> list[dict]:
+		"""Published spaces the user can read, so the switcher never links to a 404."""
+		from wiki.permissions import _accessible_space_names, _is_manager
+
+		filters = {"is_published": 1}
+		if not _is_manager():
+			filters["name"] = ("in", list(_accessible_space_names()))
+
+		return frappe.get_all(
+			"Wiki Space",
+			fields=[
+				"name",
+				"space_name",
+				"route",
+				"light_mode_logo",
+				# The identity fields the switcher's mark resolves
+				# through wiki.utils.space_mark -- see spec 03.
+				"app_switcher_logo",
+				"space_icon",
+				"space_color",
+				"avatar",
+			],
+			filters=filters,
+			or_filters={"show_in_switcher": 1, "name": current_space},
+			order_by="switcher_order asc, space_name asc",
+		)
+
 	def check_space_access(self, ptype="read", user=None):
 		"""Gate content access by the owning Wiki Space's role configuration.
 
@@ -594,23 +621,7 @@ class WikiDocument(NestedSet):
 			{
 				"wiki_space": wiki_space_doc,
 				"can_edit": self._can_show_edit(wiki_space_doc),
-				"wiki_spaces_for_switcher": frappe.get_all(
-					"Wiki Space",
-					fields=[
-						"name",
-						"space_name",
-						"route",
-						"light_mode_logo",
-						# The identity fields the switcher's mark resolves
-						# through wiki.utils.space_mark -- see spec 03.
-						"app_switcher_logo",
-						"space_icon",
-						"space_color",
-						"avatar",
-					],
-					or_filters={"show_in_switcher": 1, "name": wiki_space["name"]},
-					order_by="switcher_order asc, space_name asc",
-				),
+				"wiki_spaces_for_switcher": self.get_switcher_spaces(wiki_space["name"]),
 				"navbar_items": process_navbar_items(wiki_space_doc.navbar_items)
 				if wiki_space_doc.navbar_items
 				else [],
