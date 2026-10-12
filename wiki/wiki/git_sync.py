@@ -44,7 +44,10 @@ from wiki.telemetry import capture, error_kind
 GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
 LANDING_BASENAMES = ("readme.md", "index.md", "readme.mdx", "index.mdx")
-WIKI_CONFIG_FILENAME = ".wiki.json"
+WIKI_CONFIG_FILENAMES = (".wiki.yml", ".wiki.yaml", ".wiki.json")
+# Prefix of a file-less sidebar group's source_path. Fixed, not the config file's
+# name, so switching the config format does not recreate every group.
+SIDEBAR_GROUP_SOURCE_PREFIX = ".wiki.json"
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".avif")
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)\s*#*\s*$")
@@ -242,14 +245,35 @@ def _rewrite_image_links(
 	return MD_IMAGE_PATTERN.sub(repl, content)
 
 
-def _rewrite_internal_links(content: str, source_path: str, src_to_route: dict[str, str]) -> str:
+def get_link_targets(src_to_route: dict[str, str]) -> dict[str, str]:
+	"""Map every path a page link may use to its route: the file, its extension-less
+	stem, and (for ``index``/``README``) its folder. A file wins over a same-named folder."""
+	markdown_paths = [path for path in src_to_route if path.lower().endswith(MARKDOWN_EXTENSIONS)]
+	# Later writes win: folder groups, then folder landings, then files.
+	targets = {
+		path: route for path, route in src_to_route.items() if not path.lower().endswith(MARKDOWN_EXTENSIONS)
+	}
+	for path in markdown_paths:
+		if posixpath.basename(path).lower() in LANDING_BASENAMES:
+			targets[posixpath.dirname(path)] = src_to_route[path]
+	for path in markdown_paths:
+		targets[posixpath.splitext(path)[0]] = src_to_route[path]
+		targets[path] = src_to_route[path]
+	return targets
+
+
+def _rewrite_internal_links(
+	content: str, source_path: str, link_targets: dict[str, str], docs_root: str = ""
+) -> str:
 	"""Rewrite repo-relative Markdown page links to their live wiki routes.
 
 	``[text](getting-started/install.md)`` on ``docs/index.md`` becomes
-	``[text](/my-space/getting-started/install)`` — resolved relative to the source
-	file's directory and looked up in the ``source_path → route`` map built once all
-	routes are known. A trailing ``#fragment`` is preserved. External links, in-page
-	anchors, and links to non-synced files are left untouched.
+	``[text](/my-space/getting-started/install)``. A relative link resolves from the
+	source file's folder; a ``/``-rooted link resolves from ``docs_root``, as docs
+	sites do. Paths are looked up in ``link_targets`` (see ``get_link_targets``), so
+	extension-less, ``.html`` and folder links resolve too. A trailing ``#fragment``
+	is preserved. External links, in-page anchors, and links to non-synced files are
+	left untouched.
 	"""
 	if not content or not source_path:
 		return content
@@ -264,8 +288,12 @@ def _rewrite_internal_links(content: str, source_path: str, src_to_route: dict[s
 		path_part, _, fragment = url.partition("#")
 		if not path_part:
 			return match.group(0)
-		resolved = posixpath.normpath(posixpath.join(base_dir, path_part))
-		route = src_to_route.get(resolved)
+		if path_part.startswith("/"):
+			resolved = posixpath.normpath(posixpath.join(docs_root, path_part.lstrip("/")))
+		else:
+			resolved = posixpath.normpath(posixpath.join(base_dir, path_part))
+		resolved = "" if resolved == "." else resolved.removesuffix(".html")
+		route = link_targets.get(resolved)
 		if not route:
 			return match.group(0)
 		new_url = f"/{route}" + (f"#{fragment}" if fragment else "")
@@ -283,6 +311,18 @@ def _extract_title(content: str) -> str | None:
 		if match:
 			return match.group(1).strip()
 	return None
+
+
+def strip_title_heading(content: str, title: str) -> str:
+	"""Drop a leading H1 that repeats the page title, which the reader already shows.
+
+	A heading-only page keeps its H1, since an empty page gets placeholder content.
+	"""
+	first_line, _, rest = (content or "").lstrip().partition("\n")
+	match = H1_PATTERN.match(first_line.strip())
+	if not match or match.group(1).strip() != (title or "").strip() or not rest.strip():
+		return content
+	return rest.lstrip("\r\n")
 
 
 def _humanize(name: str) -> str:
@@ -509,34 +549,35 @@ def build_nodes(
 
 
 # --------------------------------------------------------------------------- #
-# .wiki.json structure override
+# Sidebar config (.wiki.yml / .wiki.json) structure override
 # --------------------------------------------------------------------------- #
 def load_wiki_config(
 	repo: str, tree_entries: list[dict[str, Any]], docs_subdir: str | None = None, token: str | None = None
 ) -> dict[str, Any] | None:
-	"""Return the parsed ``.wiki.json`` from inside the docs folder, or ``None``.
+	"""Return the parsed sidebar config from inside the docs folder, or ``None``.
 
-	The config lives *in the docs folder* (``{docs_subdir}/.wiki.json``, or the
-	repo root when no docs folder is set) — the docs folder is the root of the
-	wiki's content, so its ``sidebar`` paths are relative to it. A malformed
-	config is surfaced (raises) rather than silently ignored, so the sync records
-	a clear error instead of falling back to inference unexpectedly.
+	The config is ``.wiki.yml``/``.wiki.yaml`` (YAML) or ``.wiki.json`` (JSON) *in the
+	docs folder* (or the repo root when no docs folder is set) — the docs folder is
+	the root of the wiki's content, so its ``sidebar`` paths are relative to it. More
+	than one config file, or a malformed one, raises rather than falling back to
+	inference, so the sync records a clear error.
 	"""
 	prefix = (docs_subdir or "").strip("/")
-	config_path = f"{prefix}/{WIKI_CONFIG_FILENAME}" if prefix else WIKI_CONFIG_FILENAME
-	sha = next(
-		(e.get("sha") for e in tree_entries if e.get("type") == "blob" and e.get("path") == config_path),
-		None,
-	)
-	if not sha:
+	sha_by_path = {e.get("path"): e.get("sha") for e in tree_entries if e.get("type") == "blob"}
+	found = [name for name in WIKI_CONFIG_FILENAMES if posixpath.join(prefix, name) in sha_by_path]
+	if not found:
 		return None
-	raw = _fetch_blob(repo, sha, token)
+	if len(found) > 1:
+		frappe.throw(_("Found {0}. Keep only one sidebar config file.").format(", ".join(found)))
+
+	filename = found[0]
+	raw = _fetch_blob(repo, sha_by_path[posixpath.join(prefix, filename)], token) or "{}"
 	try:
-		config = json.loads(raw or "{}")
-	except json.JSONDecodeError as exc:
-		frappe.throw(_("Invalid {0}: {1}").format(WIKI_CONFIG_FILENAME, str(exc)))
+		config = json.loads(raw) if filename.endswith(".json") else yaml.safe_load(raw)
+	except (json.JSONDecodeError, yaml.YAMLError) as exc:
+		frappe.throw(_("Invalid {0}: {1}").format(filename, str(exc)))
 	if not isinstance(config, dict):
-		frappe.throw(_("{0} must be a JSON object.").format(WIKI_CONFIG_FILENAME))
+		frappe.throw(_("{0} must contain a mapping with a sidebar key.").format(filename))
 	return config
 
 
@@ -548,7 +589,7 @@ def build_nodes_from_config(
 	token: str | None = None,
 	space: frappe.Document | None = None,
 ) -> tuple[list[dict[str, Any]], str | None, str | None]:
-	"""Drive structure from an explicit ``.wiki.json`` ``sidebar`` (Astro Starlight-shaped).
+	"""Drive structure from the sidebar config's ``sidebar`` list (Astro Starlight-shaped).
 
 	``sidebar`` is an ordered list; each entry is one of:
 
@@ -563,6 +604,8 @@ def build_nodes_from_config(
 	  ``label`` the folder's contents nest under that group (the folder's
 	  ``README``/``index`` becomes the group's landing); without one they splice
 	  inline at this position. Curated entries and ``autogenerate`` can be mixed.
+	* A group or labelled ``autogenerate`` may set ``"slug"`` for its URL segment;
+	  without it the label is used.
 
 	Paths are relative to the docs folder (``docs_subdir``) — the same folder the
 	config lives in. Only referenced files are synced; a missing file is skipped.
@@ -623,7 +666,7 @@ def build_nodes_from_config(
 			}
 		)
 
-	def add_group(label: str, parent_dir: str) -> str:
+	def add_group(label: str, parent_dir: str, slug: str | None = None) -> str:
 		dir_key = f"{parent_dir}/{label}" if parent_dir else label
 		nodes.append(
 			{
@@ -632,10 +675,10 @@ def build_nodes_from_config(
 				"parent_dir": parent_dir,
 				# No file backs a sidebar group, so its identity is the (stable)
 				# sidebar title-chain; it carries no editable source.
-				"source_path": f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+				"source_path": f"{SIDEBAR_GROUP_SOURCE_PREFIX}#{dir_key}",
 				"landing_path": None,
 				"title": label,
-				"slug": label,
+				"slug": slug or label,
 				"content": "",
 				"is_published": 1,
 				"order": None,
@@ -644,7 +687,9 @@ def build_nodes_from_config(
 		)
 		return dir_key
 
-	def add_autogenerate(directory: str | None, parent_dir: str, label: str | None) -> None:
+	def add_autogenerate(
+		directory: str | None, parent_dir: str, label: str | None, slug: str | None = None
+	) -> None:
 		sub_prefix = full(directory or "")
 		inf_nodes, inf_root_content, inf_root_landing = build_nodes(
 			repo, tree_entries, sub_prefix, token, space
@@ -658,10 +703,10 @@ def build_nodes_from_config(
 					"parent_dir": parent_dir,
 					# Reuse the folder's README/index landing so the group gets
 					# landing content + an "Edit on GitHub" target.
-					"source_path": inf_root_landing or f"{WIKI_CONFIG_FILENAME}#{dir_key}",
+					"source_path": inf_root_landing or f"{SIDEBAR_GROUP_SOURCE_PREFIX}#{dir_key}",
 					"landing_path": inf_root_landing,
 					"title": label,
-					"slug": label,
+					"slug": slug or label,
 					"content": inf_root_content or "",
 					"is_published": 1,
 					"order": None,
@@ -700,10 +745,19 @@ def build_nodes_from_config(
 				add_leaf(entry, parent_dir)
 			elif isinstance(entry, dict):
 				if isinstance(entry.get("autogenerate"), dict):
-					add_autogenerate(entry["autogenerate"].get("directory"), parent_dir, entry.get("label"))
+					add_autogenerate(
+						entry["autogenerate"].get("directory"),
+						parent_dir,
+						entry.get("label"),
+						entry.get("slug"),
+					)
 				elif isinstance(entry.get("items"), list):
 					# A labelled group nests its items; a label-less one splices inline.
-					child_dir = add_group(entry["label"], parent_dir) if entry.get("label") else parent_dir
+					child_dir = (
+						add_group(entry["label"], parent_dir, entry.get("slug"))
+						if entry.get("label")
+						else parent_dir
+					)
 					walk(entry["items"], child_dir)
 				elif entry.get("page") or entry.get("path"):
 					add_leaf(entry.get("page") or entry.get("path"), parent_dir, label=entry.get("label"))
@@ -815,13 +869,17 @@ def _sync_to_live(
 	src_to_route = {node["source_path"]: route_for[node["doc_key"]] for node in nodes}
 	if root_source_path:
 		src_to_route[root_source_path] = space.route
+	link_targets = get_link_targets(src_to_route)
+	docs_root = (space.docs_subdir or "").strip("/")
 	for node in nodes:
-		node["content"] = _rewrite_internal_links(node["content"], node["source_path"], src_to_route)
+		node["content"] = _rewrite_internal_links(
+			strip_title_heading(node["content"], node["title"]), node["source_path"], link_targets, docs_root
+		)
 	if root_content and root_source_path:
-		root_content = _rewrite_internal_links(root_content, root_source_path, src_to_route)
+		root_content = _rewrite_internal_links(root_content, root_source_path, link_targets, docs_root)
 
 	# Sibling order: nodes with an explicit front-matter order come first, sorted
-	# by that number; the rest fall back to alphabetical (the `.wiki.json` nav path
+	# by that number; the rest fall back to alphabetical (the sidebar config path
 	# carries no order, so its zero-padded `seg` counter drives order as before).
 	def _order_key(node: dict[str, Any]) -> tuple[int, float, str]:
 		order = node.get("order")
@@ -1042,7 +1100,7 @@ def _record_success(space_name: str, commit_sha: str) -> None:
 
 
 def _record_config(space_name: str, config: dict[str, Any] | None) -> None:
-	"""Persist the latest loaded ``.wiki.json`` (pretty-printed) for the settings preview."""
+	"""Persist the latest loaded sidebar config (as pretty-printed JSON) for the settings preview."""
 	frappe.db.set_value(
 		"Wiki Space",
 		space_name,
