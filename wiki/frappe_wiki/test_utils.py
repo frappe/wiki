@@ -1,9 +1,12 @@
-import frappe
-from frappe.tests.utils import FrappeTestCase
+from unittest.mock import patch
 
+import frappe
+
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.utils import (
 	DEFAULT_SPACE_ICON,
 	SPACE_COLORS,
+	fingerprint_js_url,
 	lucide_svg,
 	space_color_theme,
 	space_mark,
@@ -104,3 +107,17 @@ class TestSpaceMark(FrappeTestCase):
 		for name, expected in (("SPACE-1", "red"), ("05hi0prpqb", "violet"), ("", "gray")):
 			with self.subTest(name=name):
 				self.assertEqual(space_color_theme("", name), expected)
+
+
+class TestFingerprintJsUrl(FrappeTestCase):
+	def setUp(self):
+		fingerprint_js_url.cache_clear()
+		self.addCleanup(fingerprint_js_url.cache_clear)
+
+	def test_uses_the_copy_frappe_bundles(self):
+		with patch("wiki.utils.os.path.exists", return_value=True):
+			self.assertEqual(fingerprint_js_url(), "/assets/frappe/js/lib/fingerprintjs.js")
+
+	def test_falls_back_to_the_cdn_when_frappe_bundles_none(self):
+		with patch("wiki.utils.os.path.exists", return_value=False):
+			self.assertEqual(fingerprint_js_url(), "https://openfpcdn.io/fingerprintjs/v3")

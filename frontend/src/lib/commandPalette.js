@@ -26,7 +26,11 @@ export function buildResultGroups(
 	if (!q) {
 		return [
 			{ id: 'jump', title: titles.jump, items: jumpTo },
-			{ id: 'actions', title: titles.actions, items: actions || [] },
+			{
+				id: 'actions',
+				title: titles.actions,
+				items: (actions || []).filter((action) => !action.queryOnly),
+			},
 			{ id: 'recent', title: titles.recent, items: recent || [] },
 		].filter((group) => group.items.length);
 	}

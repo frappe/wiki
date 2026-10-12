@@ -1,4 +1,5 @@
 import { getCookieUser } from '@/lib/cookieUser';
+import { clearTreeSnapshots } from '@/stores/draftPersistence';
 import { useUserStore } from '@/stores/user';
 import { createResource } from 'frappe-ui';
 import { defineStore } from 'pinia';
@@ -27,9 +28,10 @@ export const useSessionStore = defineStore('session', () => {
 
 	const logout = createResource({
 		url: 'logout',
-		onSuccess() {
+		async onSuccess() {
 			useUserStore().reset();
 			user.value = getCookieUser();
+			await clearTreeSnapshots();
 			window.location.href = '/login';
 		},
 	});

@@ -11,7 +11,8 @@ Rendering goes through ``frappe.utils.preview``, which drives the same headless
 Chromium the PDF generator already runs -- no extra dependency and no
 microservice hop. That helper is deliberately *not* whitelisted (screenshotting
 arbitrary HTML server-side is an SSRF surface), so it is only ever called here
-with HTML we build ourselves.
+with HTML we build ourselves. Frappe v15 has no such helper, so there the card
+is drawn by satori instead (see ``wiki.api.og_satori``).
 """
 
 import glob
@@ -23,11 +24,17 @@ import time
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils.preview import get_preview_from_html
 from werkzeug.wrappers import Response
 
+from wiki.api import og_satori
 from wiki.telemetry import capture, duration_bucket
 from wiki.utils import lucide_svg, space_mark
+
+try:
+	from frappe.utils.preview import get_preview_from_html
+except ImportError:
+	# The headless-Chromium renderer ships with Frappe v16.
+	get_preview_from_html = None
 
 # Bumped whenever the card template or its token block changes; it is part of
 # the cache fingerprint, so a bump invalidates every cached card for free.
@@ -186,6 +193,8 @@ def og_fingerprint(ctx: dict) -> str:
 	"""
 	parts = [
 		TEMPLATE_VERSION,
+		# A site that moves from v15 to v16 redraws its satori cards in Chromium.
+		card_renderer() or "",
 		ctx["title"],
 		ctx["breadcrumb_trail"],
 		ctx["space_name"],
@@ -295,6 +304,8 @@ def render_og_html(ctx: dict) -> str:
 
 
 def generate_og_bytes(ctx: dict) -> bytes:
+	if card_renderer() == "satori":
+		return og_satori.render_jpeg(ctx, OG_WIDTH, OG_HEIGHT)
 	return get_preview_from_html(render_og_html(ctx), format="jpg", width=OG_WIDTH, height=OG_HEIGHT)
 
 
@@ -342,6 +353,7 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 			"meta_image_generated",
 			outcome="failed",
 			trigger=trigger,
+			renderer=card_renderer(),
 			duration_bucket=duration_bucket(time.monotonic() - started),
 		)
 		frappe.log_error("Wiki OG image generation failed")
@@ -353,13 +365,28 @@ def _generate_and_store(doc_key: str, ctx: dict, fingerprint: str, path: str, tr
 		"meta_image_generated",
 		outcome="ok",
 		trigger=trigger,
+		renderer=card_renderer(),
 		duration_bucket=duration_bucket(time.monotonic() - started),
 	)
 	return data
 
 
-def _cards_enabled() -> bool:
-	return bool(frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images"))
+def card_renderer() -> str | None:
+	if get_preview_from_html is not None:
+		return "chromium"
+	if og_satori.available():
+		return "satori"
+	return None
+
+
+def cards_supported() -> bool:
+	return card_renderer() is not None
+
+
+def cards_enabled() -> bool:
+	return cards_supported() and bool(
+		frappe.get_cached_value("Wiki Settings", "Wiki Settings", "auto_generate_meta_images")
+	)
 
 
 def _has_card(doc) -> tuple[str, str] | None:
@@ -390,7 +417,7 @@ def enqueue_og_warmup(doc) -> None:
 	import of a whole wiki into a Chromium storm. Bulk pre-generation is a
 	separate problem.
 	"""
-	if not _cards_enabled():
+	if not cards_enabled():
 		return
 
 	before = doc.get_doc_before_save()
@@ -419,7 +446,7 @@ def enqueue_og_warmup(doc) -> None:
 
 def warm_og_image(name: str) -> None:
 	"""Render and cache a document's card ahead of the first request."""
-	if not _cards_enabled():
+	if not cards_enabled():
 		return
 
 	doc = frappe.get_cached_doc("Wiki Document", name)
@@ -454,7 +481,7 @@ def og_image(route: str, v: str | None = None):
 	``Content-Disposition: attachment``, which no ``og:image`` consumer accepts.
 	"""
 	doc = _resolve_doc(route)
-	if not _cards_enabled():
+	if not cards_enabled():
 		# The kill switch has to stop Chromium launching, not just stop the tag
 		# being emitted -- otherwise a site that turned cards off still pays for
 		# every crawler that remembers an old og:image URL.

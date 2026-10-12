@@ -55,7 +55,7 @@
 					<!-- One navigation column that drills: the library at the top
 					     level, the space itself once you are inside one. -->
 					<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
-					<LibrarySidebar v-else />
+					<LibrarySidebar v-else-if="isRouteReady" />
 				</template>
 				<slot></slot>
 			</DesktopShell>
@@ -101,7 +101,7 @@
 <script setup>
 import { useUserStore } from '@/stores/user';
 import { DesktopShell, MobileNav, MobileNavItem, MobileShell } from 'frappe-ui';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import CommandPalette from '../components/CommandPalette.vue';
 import LibrarySidebar from '../components/LibrarySidebar.vue';
@@ -125,6 +125,12 @@ const isLoading = computed(() => userStore.isLoading);
 const hasAccess = computed(() => userStore.canAccessWiki);
 
 const spaceId = computed(() => route.params.spaceId || null);
+
+const isRouteReady = ref(false);
+const markRouteReady = () => {
+	isRouteReady.value = true;
+};
+router.isReady().then(markRouteReady, markRouteReady);
 
 // Spaces stays lit across every space route (overview + space details).
 const isSpacesRoute = computed(

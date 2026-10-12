@@ -12,7 +12,8 @@ test.describe('Spaces -> publish filter', () => {
 		const unpublished = page.getByRole('radio', { name: 'Unpublished' });
 		await unpublished.click();
 
-		await page.locator(spaceLinkSelector(space.name)).last().click();
+		// The sidebar holds a hidden link to the same space, so wait for the list row.
+		await page.locator(`${spaceLinkSelector(space.name)}[role="row"]`).click();
 		await expect(page).toHaveURL(SPACE_URL_RE);
 
 		await page.goBack();

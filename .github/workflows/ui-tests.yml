@@ -15,12 +15,18 @@ jobs:
   ui-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    name: Playwright E2E Tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    name: Playwright E2E Tests (${{ matrix.frappe-branch }}, ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     strategy:
       fail-fast: false
       matrix:
+        frappe-branch: [version-15, develop]
         shardIndex: [1, 2, 3, 4]
         shardTotal: [4]
+        include:
+          - frappe-branch: version-15
+            python-version: "3.11"
+          - frappe-branch: develop
+            python-version: "3.14"
 
     services:
       redis-cache:
@@ -46,7 +52,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python-version }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -94,7 +100,7 @@ jobs:
       - name: Setup Bench
         run: |
           pip install frappe-bench
-          bench init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/frappe-bench
+          bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
@@ -141,7 +147,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: blob-report-${{ matrix.shardIndex }}
+          name: blob-report-${{ matrix.frappe-branch }}-${{ matrix.shardIndex }}
           path: blob-report/
           retention-days: 3
 
@@ -149,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-results-${{ matrix.shardIndex }}
+          name: test-results-${{ matrix.frappe-branch }}-${{ matrix.shardIndex }}
           path: test-results/
           retention-days: 7
 
@@ -169,7 +175,11 @@ jobs:
     needs: ui-tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    name: Merge Playwright Reports
+    name: Merge Playwright Reports (${{ matrix.frappe-branch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        frappe-branch: [version-15, develop]
 
     steps:
       - name: Clone
@@ -188,7 +198,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all-blob-reports
-          pattern: blob-report-*
+          pattern: blob-report-${{ matrix.frappe-branch }}-*
           merge-multiple: true
 
       - name: Merge Reports
@@ -197,6 +207,6 @@ jobs:
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.frappe-branch }}
           path: playwright-report/
           retention-days: 7

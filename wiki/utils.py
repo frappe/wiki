@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from functools import lru_cache
 
@@ -71,6 +72,14 @@ def get_asset_hash(path: str) -> str:
 			return get_content_hash(f.read())
 	except OSError:
 		return ""
+
+
+@lru_cache
+def fingerprint_js_url() -> str:
+	# Frappe v16 bundles FingerprintJS; v15's own website_script.js loads it from the CDN.
+	if os.path.exists(frappe.get_app_path("frappe", "public", "js", "lib", "fingerprintjs.js")):
+		return "/assets/frappe/js/lib/fingerprintjs.js"
+	return "https://openfpcdn.io/fingerprintjs/v3"
 
 
 def check_app_permission():

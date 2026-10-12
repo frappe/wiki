@@ -122,3 +122,43 @@ test('matches an action by an alias it does not render', () => {
 		['actions', ['Toggle theme']],
 	]);
 });
+
+test('hides query-only actions for an empty query', () => {
+	const actions = [
+		{ key: 'toggle-theme', label: 'Toggle theme' },
+		{ key: 'theme-dark', label: 'Theme: Dark', queryOnly: true },
+	];
+	assert.deepEqual(labels(build('', { actions })), [
+		['jump', ['All Spaces']],
+		['actions', ['Toggle theme']],
+		['recent', ['Release notes']],
+	]);
+});
+
+test('matches only the theme named in the query', () => {
+	const actions = [
+		{
+			key: 'toggle-theme',
+			label: 'Toggle theme',
+			search: 'toggle theme mode appearance',
+		},
+		{
+			key: 'theme-dark',
+			label: 'Theme: Dark',
+			search: 'theme dark mode appearance',
+			queryOnly: true,
+		},
+		{
+			key: 'theme-light',
+			label: 'Theme: Light',
+			search: 'theme light mode appearance',
+			queryOnly: true,
+		},
+	];
+	assert.deepEqual(labels(build('light', { actions })), [
+		['actions', ['Theme: Light']],
+	]);
+	assert.deepEqual(labels(build('dark', { actions })), [
+		['actions', ['Theme: Dark']],
+	]);
+});

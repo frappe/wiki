@@ -201,4 +201,34 @@ test.describe('Command Palette', () => {
 			'https://example.com',
 		);
 	});
+
+	test('sets the theme named in the query', async ({ page }) => {
+		await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+		await page.goto(appUrl());
+		const html = page.locator('html');
+		await expect(html).toHaveAttribute('data-theme', 'light', {
+			timeout: 10000,
+		});
+
+		const palette = page.getByRole('dialog');
+		const option = (name: string) => palette.getByRole('option', { name });
+		const openPalette = () =>
+			page.getByRole('button', { name: 'Search', exact: true }).click();
+
+		await openPalette();
+		await expect(option('Theme: Dark')).toBeHidden();
+
+		await palette.getByRole('combobox').fill('dark');
+		await expect(option('Theme: Dark')).toBeVisible();
+		await expect(option('Theme: Light')).toBeHidden();
+		await page.keyboard.press('Enter');
+		await expect(palette).toBeHidden();
+		await expect(html).toHaveAttribute('data-theme', 'dark');
+
+		await openPalette();
+		await palette.getByRole('combobox').fill('light');
+		await expect(option('Theme: Light')).toBeVisible();
+		await page.keyboard.press('Enter');
+		await expect(html).toHaveAttribute('data-theme', 'light');
+	});
 });

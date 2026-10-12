@@ -6,6 +6,7 @@ import router from './router';
 import { initSocket } from './socket';
 import { pinia } from './stores';
 import { useSessionStore } from './stores/session';
+import { useUserStore } from './stores/user';
 
 import { trackPageviews } from './telemetry';
 import translationPlugin from './translation';
@@ -39,6 +40,10 @@ const app = createApp(App);
 setConfig('resourceFetcher', frappeRequest);
 
 app.use(pinia);
+
+const userStore = useUserStore();
+if (!userStore.data) userStore.fetch().catch(() => {});
+
 app.use(router);
 app.use(translationPlugin);
 app.use(resourcesPlugin);

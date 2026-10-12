@@ -1,8 +1,8 @@
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from wiki.api.search import search_pages
 from wiki.test_permissions import _ensure_role, _ensure_user
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import make_space, unique_route
 
 READER_ROLE = "_Test Page Search Reader"

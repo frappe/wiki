@@ -1032,11 +1032,12 @@ class TestThemeAwareImages(unittest.TestCase):
 		self.assertIn("</picture>\n<em>Other</em></p>", result)
 		self.assertNotIn("*Light*", result)
 
-	def test_picture_block_with_other_html_passes_through(self):
-		result = render_markdown(f'{self.PICTURE}\n<div class="note">Raw</div>')
+	def test_picture_followed_by_other_html_keeps_its_caption(self):
+		result = render_markdown(f'{self.PICTURE}\n*Light*\n<div class="note">Raw</div>')
 
+		self.assertIn("</picture>\n<em>Light</em></p>", result)
 		self.assertIn('<div class="note">Raw</div>', result)
-		self.assertNotIn("<p><picture>", result)
+		self.assertNotIn("*Light*", result)
 
 	def test_unknown_alignment_is_not_claimed(self):
 		result = render_markdown('<picture>\n  <img src="/files/shot.png" alt="" data-align="x">\n</picture>')

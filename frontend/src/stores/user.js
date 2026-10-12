@@ -40,8 +40,12 @@ export const useUserStore = defineStore('user', () => {
 		return Boolean(userResource.data?.is_logged_in);
 	});
 
+	let pendingFetch = null;
 	function fetch() {
-		return userResource.fetch();
+		pendingFetch ??= userResource.fetch().finally(() => {
+			pendingFetch = null;
+		});
+		return pendingFetch;
 	}
 
 	function reload() {

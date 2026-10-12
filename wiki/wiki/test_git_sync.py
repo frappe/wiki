@@ -5,8 +5,8 @@ import hashlib
 import json
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
+from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.wiki import git_sync
 from wiki.wiki.git_sync import (
 	build_nodes,

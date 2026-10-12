@@ -2,12 +2,12 @@
 # See license.txt
 
 import frappe
-from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, nowdate
 
 from wiki import analytics_store as store
 from wiki.api import analytics
 from wiki.api.analytics import get_view_tracking, set_view_tracking
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import WikiFixtures, unique_route
 
 READER_ROLE = "_Test Analytics Reader"

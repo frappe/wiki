@@ -81,7 +81,6 @@ def collect() -> dict:
 
 def identity() -> dict:
 	return {
-		"frappe_cloud": bool(frappe.conf.get("fc_team")),
 		"site_age_days": site_age() or 0,
 		"wiki_installed_days_ago": days_since(
 			frappe.db.get_value("Installed Application", {"app_name": "wiki"}, "creation")

@@ -708,7 +708,7 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 
 	change_map = {
 		change.get("doc_key"): change.get("change_type")
-		for change in (diff_change_request(cr.name, scope="summary") or [])
+		for change in _diff_revision_items(base_items, effective_items)
 		if change.get("doc_key")
 	}
 	if change_map:
@@ -1262,6 +1262,15 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 	cr = frappe.get_doc("Wiki Change Request", name)
 	base_items = get_revision_item_map(cr.base_revision)
 	head_items = get_effective_revision_item_map(cr.head_revision)
+	return _diff_revision_items(base_items, head_items, scope, doc_key)
+
+
+def _diff_revision_items(
+	base_items: dict[str, dict[str, Any]],
+	head_items: dict[str, dict[str, Any]],
+	scope: str = "summary",
+	doc_key: str | None = None,
+):
 	base_contents: dict[str, str] = {}
 	head_contents: dict[str, str] = {}
 

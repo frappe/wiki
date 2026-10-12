@@ -9,7 +9,6 @@ hook entry points (query conditions + has_permission) and the role editor API.
 """
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from wiki.permissions import (
 	_accessible_space_names,
@@ -22,6 +21,7 @@ from wiki.permissions import (
 	wiki_document_has_permission,
 	wiki_space_has_permission,
 )
+from wiki.tests import WikiTestCase as IntegrationTestCase
 from wiki.tests.factory import make_space
 
 
