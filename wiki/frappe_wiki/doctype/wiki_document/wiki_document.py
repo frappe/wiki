@@ -583,6 +583,7 @@ class WikiDocument(NestedSet):
 			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
+			"show_ai_actions": False,
 			"breadcrumbs": None,
 			"disable_indexing": self.disable_indexing,
 		}
@@ -614,6 +615,8 @@ class WikiDocument(NestedSet):
 		if not wiki_space:
 			return context
 
+		from wiki.permissions import can_read_space
+
 		wiki_space_doc = frappe.get_cached_doc("Wiki Space", wiki_space.name)
 		nested_tree, adjacent_docs = self.get_tree_and_navigation()
 
@@ -621,6 +624,7 @@ class WikiDocument(NestedSet):
 			{
 				"wiki_space": wiki_space_doc,
 				"can_edit": self._can_show_edit(wiki_space_doc),
+				"show_ai_actions": can_read_space(wiki_space_doc.name, "Guest"),
 				"wiki_spaces_for_switcher": self.get_switcher_spaces(wiki_space["name"]),
 				"navbar_items": process_navbar_items(wiki_space_doc.navbar_items)
 				if wiki_space_doc.navbar_items

@@ -402,6 +402,24 @@ class TestGetWebContext(WikiDocumentTestBase):
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
 
+	def test_ai_actions_shown_in_public_space(self):
+		root_group = create_test_wiki_document(self, "AI Public Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Public Page", parent=root_group.name)
+		create_test_wiki_space(
+			self, "AI Public Space", "ai-public-space", root_group.name, roles=[("Guest", "Read")]
+		)
+
+		doc.reload()
+		self.assertTrue(doc.get_web_context()["show_ai_actions"])
+
+	def test_ai_actions_hidden_in_space_guests_cannot_read(self):
+		root_group = create_test_wiki_document(self, "AI Private Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Private Page", parent=root_group.name)
+		create_test_wiki_space(self, "AI Private Space", "ai-private-space", root_group.name)
+
+		doc.reload()
+		self.assertFalse(doc.get_web_context()["show_ai_actions"])
+
 
 class TestSpaceLastEdited(WikiDocumentTestBase):
 	"""Wiki Space.last_edited moves with the pages inside it, not with the space."""
