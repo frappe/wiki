@@ -1,62 +1,47 @@
-# When updating this file, please also update the linter_workflow_template in frappe/utils/boilerplate.py
 name: Linters
 
 on:
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: linters-wiki-${{ github.event.number }}
+  cancel-in-progress: true
+
 jobs:
-  commit-lint:
-    name: 'Semantic Commits'
+  linters:
+    name: 'Linters'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 200
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           check-latest: true
 
-      - name: Check commit titles
-        run: |
-          npm install @commitlint/cli @commitlint/config-conventional
-          npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
-
-  linter:
-    name: 'Semgrep Rules'
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: pip
 
-      - name: Download Semgrep rules
-        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
 
       - name: Run Semgrep rules
+        if: ${{ !cancelled() }}
         run: |
+          git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
           pip install semgrep
           semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
 
-  precommit:
-    name: 'Pre-Commit'
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: pip
-      - uses: pre-commit/action@v3.0.1
+      - name: Check commit titles
+        if: ${{ !cancelled() }}
+        run: |
+          npm install @commitlint/cli @commitlint/config-conventional
+          npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}

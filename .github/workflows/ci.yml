@@ -24,7 +24,7 @@ on:
       - 'docs/**'
 
 concurrency:
-  group: develop-wiki-${{ github.event.number }}
+  group: ci-wiki-${{ github.event.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -63,11 +63,6 @@ jobs:
       - name: Clone
         uses: actions/checkout@v4
 
-      - name: Find tests
-        run: |
-          echo "Finding tests"
-          grep -rn "def test" > /dev/null
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -79,14 +74,11 @@ jobs:
           node-version: 24
           check-latest: true
 
-      - name: Cache pip
-        uses: actions/cache@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py', '**/setup.cfg') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
+          enable-cache: true
+          cache-dependency-glob: '**/pyproject.toml'
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -105,7 +97,7 @@ jobs:
 
       - name: Setup
         run: |
-          pip install frappe-bench
+          uv tool install frappe-bench
           bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
@@ -113,11 +105,13 @@ jobs:
       - name: Install
         working-directory: /home/runner/frappe-bench
         run: |
-          bench get-app wiki $GITHUB_WORKSPACE
+          bench get-app --skip-assets wiki $GITHUB_WORKSPACE
           bench setup requirements --dev
+          bench build &> build.log &
+          build_pid=$!
           bench new-site --db-root-password root --admin-password admin test_site
           bench --site test_site install-app wiki
-          bench build
+          wait $build_pid || { cat build.log; exit 1; }
         env:
           CI: 'Yes'
 
