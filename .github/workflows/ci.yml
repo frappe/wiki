@@ -12,12 +12,16 @@ on:
       - '**.vue'
       - '**.css'
       - '**.ts'
+      - '**.md'
+      - 'docs/**'
   pull_request:
     paths-ignore:
       - '**.js'
       - '**.vue'
       - '**.css'
       - '**.ts'
+      - '**.md'
+      - 'docs/**'
 
 concurrency:
   group: develop-wiki-${{ github.event.number }}
