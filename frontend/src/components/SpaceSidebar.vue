@@ -122,11 +122,18 @@ const spaceActions = computed(() => {
 			icon: 'lucide-external-link',
 			onClick: () => window.open(`/${spaceStore.doc.route}`, '_blank'),
 		});
-		options.push({
-			label: __('Download Space (PDFs)'),
-			icon: 'lucide-download',
-			onClick: () => downloadBulkPdf(spaceStore.doc.route),
-		});
+		if (spaceStore.canWriteSpace || spaceStore.doc?.allow_pdf_download !== 0) {
+			options.push({
+				label: __('Download Space (ZIP)'),
+				icon: 'lucide-download',
+				onClick: () => downloadBulkPdf(spaceStore.doc.route),
+			});
+			options.push({
+				label: __('Download Space (Merged PDF)'),
+				icon: 'lucide-file-text',
+				onClick: () => downloadMergedPdf(spaceStore.doc.route),
+			});
+		}
 	}
 	if (spaceStore.isGitSynced) {
 		options.push({
@@ -145,6 +152,16 @@ function downloadBulkPdf(route) {
 		icon: 'lucide-download',
 	});
 	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_bulk_pdf?route=${encodeURIComponent(route)}`;
+	window.location.href = url;
+}
+
+function downloadMergedPdf(route) {
+	toast({
+		title: __('Preparing Download'),
+		text: __('Generating merged PDF for the space...'),
+		icon: 'lucide-download',
+	});
+	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_merged_pdf?route=${encodeURIComponent(route)}`;
 	window.location.href = url;
 }
 </script>

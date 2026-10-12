@@ -50,16 +50,38 @@ Based on the architecture of the Frappe Wiki app (`ARCHITECTURE.md` and codebase
 1. In `wiki/templates/wiki/document.html` and `macros/buttons.html`, duplicate the logic for `downloadPage()` to `downloadSpace()`.
 2. Update the Alpine component to handle the ZIP download endpoint and toggle a `downloadSpaceInProgress` loading state.
 
-### Phase 4: Testing & Spec Checks
-1. **Unit Tests (Backend)**: Add tests to `test_wiki_document.py` to verify:
-   - `download_bulk_pdf` returns a valid zip file.
-   - The zip file contains the correct number of PDFs.
-   - Nested folder paths inside the zip match the tree hierarchy.
-   - Unauthorized users (without read access) are thrown a 403 / PermissionError.
-2. **Playwright Tests (E2E)**: Add an e2e test in `apps/wiki/e2e/tests/` to verify that clicking the bulk export button triggers the download.
-3. **Documentation**: Update any specs if needed (though this is an additive feature).
+### Phase 4: Space PDF Download Control & Guest Permission Gating
+1. **DocType Field**: Added `allow_pdf_download` (Check, default 1) to `Wiki Space` schema (`wiki_space.json`).
+2. **Frontend Settings**: Added "Allow PDF Download" toggle to `frontend/src/components/SpaceSettings/AccessPanel.vue`, synced with the backend API `set_space_pdf_download`.
+3. **Reader Gating Fix**: Gated all PDF download actions (`downloadPage`, `downloadSpace`, `downloadSpaceMergedPdf`) behind `can_download_pdf` (`allow_pdf_download or can_write`) in `templates/wiki/document.html`. Resolved bug where `can_edit` evaluated to `True` for guests when `allow_contributions` was enabled.
+4. **Backend Security**: Enforced `_assert_pdf_download_allowed` in `download_pdf`, `download_bulk_pdf`, and `download_merged_pdf` to block unauthenticated guest downloads when the space toggle is off.
 
-## 4. Risks & Mitigations
-- **Performance/Timeout**: Generating 50+ PDFs sequentially in a single request might trigger web server timeouts (gunicorn/nginx). 
-  - *Mitigation for v1*: Keep it synchronous to match existing architecture, but warn the user in the UI. 
-  - *Future enhancement*: Implement a background job using `frappe.enqueue`, notify the user when the ZIP is ready via Frappe real-time, and store the file in the `File` doctype.
+### Phase 5: Single Merged PDF Download for Space and Groups
+1. **Merged PDF Endpoint**: Added `@frappe.whitelist(allow_guest=True) def download_merged_pdf(route: str)` using `pypdf` (`PdfWriter` and `PdfReader`). Concatenates all published leaf page PDFs into a single merged PDF file in tree order.
+2. **Bulk Endpoint Support**: Updated `download_bulk_pdf(route, format)` to delegate to `download_merged_pdf` when `format="merged_pdf"`.
+3. **Public Reader UI**:
+   - Added `download_space_merged_pdf_action_item` macro in `templates/wiki/macros/buttons.html`.
+   - Added `downloadSpaceMergedPdf()` Alpine method in `templates/wiki/document.html`.
+4. **Workspace SPA UI**:
+   - Added "Download Space (Merged PDF)" action in `frontend/src/components/SpaceSidebar.vue`.
+   - Added "Download Merged PDF" action to group menus in `frontend/src/components/WikiTree.vue`, handled in `WikiDocumentList.vue`.
+   - Built frontend assets via `npm run build`.
+
+### Phase 6: Print Format Optimization (Eliminating Trailing Blank Page)
+1. **Print Template**: Removed redundant `<div class="page-break">` root wrapper from `wiki/frappe_wiki/print_format/standard_wiki_document/standard_wiki_document.html`.
+2. **Page Count Verification**: Confirmed single-page documents render to exactly 1 page instead of 2 with an empty trailing page, and merged multi-document PDFs no longer append alternating blank pages.
+
+## 4. Testing & Verification Status
+- **Backend Unit Tests**:
+  - `TestPDFDownloadSetting.test_allow_pdf_download_toggle_and_gating`: Verifies toggle updates, guest web context gating, API PermissionError rejection when disabled, and writer bypass.
+  - `TestWikiDocumentBulkPdfDownload.test_bulk_pdf_generates_valid_zip`: Verifies zip archive generation with nested hierarchy.
+  - `TestWikiDocumentBulkPdfDownload.test_bulk_pdf_generates_valid_merged_pdf`: Verifies single merged PDF generation with `pypdf` page stitching.
+  - `TestWikiDocumentPdfDownload.test_standard_wiki_document_print_format_has_no_root_page_break`: Verifies template does not wrap document in `.page-break`.
+- **E2E Playwright Tests (`e2e/tests/bulk-pdf-export.spec.ts`)**:
+  - Verifies Reader dropdown displays single-page PDF, ZIP, and Merged PDF actions when enabled.
+  - Verifies Reader dropdown hides all PDF download actions from Guest when disabled (even with contributions ON).
+  - Verifies Manager retains download options when disabled for readers.
+  - Verifies Space Settings Access tab surfaces the "Allow PDF Download" toggle.
+  - Verifies Space Sidebar menu surfaces both ZIP and Merged PDF download items.
+- **Skills Regression**: `python3 -m unittest discover -s skills/frappe-wiki-skill/scripts/tests` passed (26 tests).
+- **Live Verification**: Verified HTML output and HTTP responses on local server for both enabled and disabled states.

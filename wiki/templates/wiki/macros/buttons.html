@@ -77,8 +77,48 @@
         </template>
     </span>
     <div class="flex-1 min-w-0">
-        <div class="truncate" x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download") | tojson }}'></div>
+        <div class="truncate" x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download Page") | tojson }}'></div>
         <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ _("Download this page as a PDF") }}</div>
+    </div>
+</button>
+{% endmacro %}
+
+{% macro download_space_action_item() %}
+<button @click="downloadSpace().finally(() => open = false)"
+        :disabled="downloadSpaceInProgress"
+        :aria-busy="downloadSpaceInProgress"
+        class="{{ menu_row }} cursor-pointer disabled:cursor-wait disabled:opacity-70">
+    <span class="flex shrink-0 items-center justify-center">
+        <template x-if="!downloadSpaceInProgress">
+            {{ render_icon("download", "text-[var(--ink-gray-5)]") }}
+        </template>
+        <template x-if="downloadSpaceInProgress">
+            {{ render_icon("loader", "text-[var(--ink-gray-5)] animate-spin") }}
+        </template>
+    </span>
+    <div class="flex-1 min-w-0">
+        <div class="truncate" x-text='downloadSpaceInProgress ? {{ _("Preparing ZIP…") | tojson }} : {{ _("Download Space (ZIP)") | tojson }}'></div>
+        <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ _("Download entire space as ZIP of PDFs") }}</div>
+    </div>
+</button>
+{% endmacro %}
+
+{% macro download_space_merged_pdf_action_item() %}
+<button @click="downloadSpaceMergedPdf().finally(() => open = false)"
+        :disabled="downloadSpaceMergedInProgress"
+        :aria-busy="downloadSpaceMergedInProgress"
+        class="{{ menu_row }} cursor-pointer disabled:cursor-wait disabled:opacity-70">
+    <span class="flex shrink-0 items-center justify-center">
+        <template x-if="!downloadSpaceMergedInProgress">
+            {{ render_icon("file-text", "text-[var(--ink-gray-5)]") }}
+        </template>
+        <template x-if="downloadSpaceMergedInProgress">
+            {{ render_icon("loader", "text-[var(--ink-gray-5)] animate-spin") }}
+        </template>
+    </span>
+    <div class="flex-1 min-w-0">
+        <div class="truncate" x-text='downloadSpaceMergedInProgress ? {{ _("Preparing PDF…") | tojson }} : {{ _("Download Space (Merged PDF)") | tojson }}'></div>
+        <div class="truncate text-p-sm text-[var(--ink-gray-5)]">{{ _("Download entire space as single merged PDF") }}</div>
     </div>
 </button>
 {% endmacro %}

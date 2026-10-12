@@ -87,9 +87,7 @@
 	border-color: var(--outline-gray-4);
 	background-color: var(--surface-base);
 	color: var(--ink-gray-9);
-	transition:
-		border-color 0.15s ease,
-		box-shadow 0.15s ease;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .wiki-editor-content ul[data-type="taskList"] input[type="checkbox"]:hover {

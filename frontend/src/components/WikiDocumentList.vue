@@ -65,6 +65,7 @@
 				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
 				@download-pdfs="downloadGroupPdfs"
+				@download-merged-pdf="downloadGroupMergedPdf"
 			/>
 		</ScrollArea>
 
@@ -486,6 +487,16 @@ function downloadGroupPdfs(node) {
 		icon: 'lucide-download',
 	});
 	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_bulk_pdf?route=${encodeURIComponent(node.route)}`;
+	window.location.href = url;
+}
+
+function downloadGroupMergedPdf(node) {
+	toast({
+		title: __('Preparing Download'),
+		text: __('Generating merged PDF for the group...'),
+		icon: 'lucide-download',
+	});
+	const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_merged_pdf?route=${encodeURIComponent(node.route)}`;
 	window.location.href = url;
 }
 

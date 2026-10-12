@@ -103,6 +103,7 @@
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -160,11 +161,13 @@ const emit = defineEmits([
 	'drag-state-change',
 	'reveal-group',
 	'download-pdfs',
+	'download-merged-pdf',
 ]);
 
 const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
+const spaceStore = useSpaceStore();
 const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
 const storageKey = computed(
@@ -394,13 +397,20 @@ function getDropdownOptions(node) {
 					icon: 'lucide-edit-2',
 					onClick: () => emit('rename', node),
 				},
-				{
-					label: __('Download PDFs'),
-					icon: 'lucide-download',
-					onClick: () => emit('download-pdfs', node),
-				},
 			],
 		);
+		if (spaceStore.canWriteSpace || spaceStore.doc?.allow_pdf_download !== 0) {
+			options.push({
+				label: __('Download PDFs (ZIP)'),
+				icon: 'lucide-download',
+				onClick: () => emit('download-pdfs', node),
+			});
+			options.push({
+				label: __('Download Merged PDF'),
+				icon: 'lucide-file-text',
+				onClick: () => emit('download-merged-pdf', node),
+			});
+		}
 	}
 
 	if (!node.is_group) {

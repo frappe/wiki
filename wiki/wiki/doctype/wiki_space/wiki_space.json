@@ -36,6 +36,7 @@
   "roles",
   "contributions_section",
   "allow_contributions",
+  "allow_pdf_download",
   "version_3_tab",
   "root_group",
   "enable_tabs",
@@ -189,6 +190,13 @@
    "fieldname": "allow_contributions",
    "fieldtype": "Check",
    "label": "Accept Contributions"
+  },
+  {
+   "default": "1",
+   "description": "Allow any reader with read access to download the entire Space or a Group as a ZIP of PDFs.",
+   "fieldname": "allow_pdf_download",
+   "fieldtype": "Check",
+   "label": "Allow PDF Download"
   },
   {
    "fieldname": "version_3_tab",
@@ -350,7 +358,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-06 16:12:13.356514",
+ "modified": "2026-10-10 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
