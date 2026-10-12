@@ -2156,6 +2156,89 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 
+	def test_standard_wiki_document_print_format_has_no_root_page_break(self):
+		template_path = frappe.get_app_path("wiki", "frappe_wiki", "print_format", "standard_wiki_document", "standard_wiki_document.html")
+		with open(template_path) as f:
+			content = f.read()
+		self.assertNotIn('<div class="page-break">', content)
+
+
+class TestWikiDocumentBulkPdfDownload(WikiDocumentTestBase):
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_bulk_pdf_generates_valid_zip(self):
+		import io
+		import zipfile
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import download_bulk_pdf
+
+		root_group = create_test_wiki_document(self, "Root Bulk PDF", is_group=True)
+		page1 = create_test_wiki_document(self, "Page 1", parent=root_group.name, content="Body 1", slug="page-1")
+		nested_group = create_test_wiki_document(self, "Nested Group", parent=root_group.name, is_group=True, slug="nested")
+		page2 = create_test_wiki_document(self, "Page 2", parent=nested_group.name, content="Body 2", slug="page-2")
+		
+		space = create_test_wiki_space(self, "Bulk PDF Space", "bulk-space", root_group.name, roles=[("Guest", "Read")])
+		frappe.set_user("Guest")
+		frappe.local.response = frappe._dict()
+
+		with patch("wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_print", return_value=b"%PDF-test%") as mocked_get_print:
+			download_bulk_pdf(route=space.route)
+
+		self.assertEqual(mocked_get_print.call_count, 2)
+		self.assertEqual(frappe.local.response.type, "download")
+		self.assertEqual(frappe.local.response.content_type, "application/zip")
+		
+		zip_data = io.BytesIO(frappe.local.response.filecontent)
+		with zipfile.ZipFile(zip_data, "r") as zf:
+			files = zf.namelist()
+			self.assertEqual(len(files), 2)
+			self.assertIn("Page 1 (page-1).pdf", files)
+			self.assertIn("Nested Group/Page 2 (page-2).pdf", files)
+
+	def test_bulk_pdf_requires_group_or_space(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import download_bulk_pdf
+
+		root_group = create_test_wiki_document(self, "Root Bulk PDF Not Group", is_group=True)
+		page = create_test_wiki_document(self, "Page 1", parent=root_group.name, content="Body 1", slug="page-1")
+		create_test_wiki_space(self, "Bulk PDF Space Not Group", "bulk-space-2", root_group.name, roles=[("Guest", "Read")])
+		frappe.set_user("Guest")
+		frappe.local.response = frappe._dict()
+
+		with self.assertRaises(frappe.ValidationError):
+			download_bulk_pdf(route=page.route)
+
+	def test_bulk_pdf_generates_valid_merged_pdf(self):
+		import io
+		from pypdf import PdfReader, PdfWriter
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import download_merged_pdf
+
+		root_group = create_test_wiki_document(self, "Root Merged PDF", is_group=True)
+		page1 = create_test_wiki_document(self, "Merged Page 1", parent=root_group.name, content="Body 1", slug="m-page-1")
+		page2 = create_test_wiki_document(self, "Merged Page 2", parent=root_group.name, content="Body 2", slug="m-page-2")
+
+		space = create_test_wiki_space(self, "Merged PDF Space", "merged-space", root_group.name, roles=[("Guest", "Read")])
+		frappe.set_user("Guest")
+		frappe.local.response = frappe._dict()
+
+		# Generate a dummy single-page PDF bytes for mock
+		writer = PdfWriter()
+		writer.add_blank_page(width=100, height=100)
+		buf = io.BytesIO()
+		writer.write(buf)
+		dummy_pdf = buf.getvalue()
+
+		with patch("wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_print", return_value=dummy_pdf) as mocked_get_print:
+			download_merged_pdf(route=space.route)
+
+		self.assertEqual(mocked_get_print.call_count, 2)
+		self.assertEqual(frappe.local.response.type, "download")
+		self.assertEqual(frappe.local.response.content_type, "application/pdf")
+		self.assertEqual(frappe.local.response.filename, "merged-space.pdf")
+
+		merged_reader = PdfReader(io.BytesIO(frappe.local.response.filecontent))
+		self.assertEqual(len(merged_reader.pages), 2)
+
 
 def _site_sitemap_module() -> str:
 	"""The www/sitemap module that would serve /sitemap.xml on this site without the wiki."""
@@ -3724,6 +3807,68 @@ class TestOGImageMetaTags(OGImageTestBase):
 		self.assertIsNone(group.get_og_image_url())
 		self.assertIsNone(external.get_og_image_url())
 		self.assertIsNone(orphan.get_og_image_url())
+
+
+class TestPDFDownloadSetting(WikiDocumentTestBase):
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_allow_pdf_download_toggle_and_gating(self):
+		from wiki.api.wiki_space import set_space_pdf_download
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			download_bulk_pdf,
+			download_merged_pdf,
+			download_pdf,
+		)
+
+		root_group = create_test_wiki_document(self, "Root PDF Gating", is_group=True)
+		doc = create_test_wiki_document(self, "PDF Gating Page", parent=root_group.name, content="Content", slug="pdf-gating")
+		space = create_test_wiki_space(self, "PDF Gating Space", "pdf-gating-space", root_group.name, roles=[("Guest", "Read")])
+		space_name = space.name
+		space_doc = frappe.get_doc("Wiki Space", space_name)
+
+		# Turn PDF download on
+		frappe.set_user("Administrator")
+		set_space_pdf_download(space_name, 1)
+		space_doc.reload()
+		self.assertEqual(space_doc.allow_pdf_download, 1)
+
+		# Guest should be able to access context
+		frappe.set_user("Guest")
+		ctx = doc.get_web_context()
+		self.assertTrue(ctx.get("allow_pdf_download"))
+		self.assertTrue(ctx.get("can_download_pdf"))
+
+		# Turn PDF download off
+		frappe.set_user("Administrator")
+		set_space_pdf_download(space_name, 0)
+		space_doc.reload()
+		self.assertEqual(space_doc.allow_pdf_download, 0)
+
+		# Guest should be denied PDF download
+		frappe.set_user("Guest")
+		ctx = doc.get_web_context()
+		self.assertFalse(ctx.get("allow_pdf_download"))
+		self.assertFalse(ctx.get("can_download_pdf"))
+
+		with self.assertRaises(frappe.PermissionError):
+			download_pdf(doc.route)
+
+		with self.assertRaises(frappe.PermissionError):
+			download_bulk_pdf(doc.route)
+
+		with self.assertRaises(frappe.PermissionError):
+			download_merged_pdf(doc.route)
+
+		# Administrator (writer) can still download
+		frappe.set_user("Administrator")
+		with patch("wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_print", return_value=b"%PDF-test%"):
+			download_pdf(doc.route)
+		self.assertEqual(frappe.local.response.type, "download")
+
+		# Reset setting back to 1
+		set_space_pdf_download(space_name, 1)
 
 
 class TestOGImageTokenDrift(unittest.TestCase):

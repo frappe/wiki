@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils.nestedset import get_descendants_of
+from frappe.website.utils import clear_cache as clear_website_cache
 
 
 @frappe.whitelist()
@@ -56,6 +57,21 @@ def set_space_contributions(space_id: str, allow: int | str | bool) -> bool:
 	space.allow_contributions = value
 	space.save()
 	return bool(value)
+
+
+@frappe.whitelist()
+def set_space_pdf_download(space_id: str, allow: int | str | bool) -> bool:
+	"""Toggle whether a Wiki Space allows readers to download group/space PDFs."""
+	allow = frappe.parse_json(allow) if isinstance(allow, str) else allow
+	value = 1 if allow else 0
+
+	space = frappe.get_doc("Wiki Space", space_id)
+	space.check_permission("write")
+	space.db_set("allow_pdf_download", value)
+	space.clear_cache()
+	clear_website_cache()
+	return bool(value)
+
 
 
 OPEN_ROLES = {"Guest", "All"}

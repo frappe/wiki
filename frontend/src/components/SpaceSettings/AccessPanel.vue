@@ -113,6 +113,19 @@
 					@update:modelValue="updateFeedbackSetting"
 				/>
 			</SettingsRow>
+
+			<SettingsRow
+				:title="__('Allow PDF Download')"
+				:description="
+					__('Allow readers to download the entire Space or Groups as ZIP of PDFs')
+				"
+			>
+				<Switch
+					v-model="allowPdfDownload"
+					:disabled="!canManageAccess || savingPdfDownload"
+					@update:modelValue="updatePdfDownloadSetting"
+				/>
+			</SettingsRow>
 		</div>
 
 		<!-- Primary Save, below the message, aligned right -->
@@ -164,6 +177,8 @@ const savingRoles = ref(false);
 // Legacy spaces (created before this toggle) have a null column; treat as on.
 const allowContributions = ref(true);
 const savingContributions = ref(false);
+const allowPdfDownload = ref(true);
+const savingPdfDownload = ref(false);
 const enableFeedbackCollection = ref(false);
 const savingFeedback = ref(false);
 // Git-synced spaces are read-only; the toggle is moot and the server rejects it.
@@ -208,6 +223,8 @@ watch(
 				doc.allow_contributions == null
 					? true
 					: Boolean(doc.allow_contributions);
+			allowPdfDownload.value =
+				doc.allow_pdf_download == null ? true : Boolean(doc.allow_pdf_download);
 			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
 			spaceCapabilities.submit({ space: props.spaceId });
 		}
@@ -298,6 +315,10 @@ const contributionsResource = createResource({
 	url: 'wiki.api.wiki_space.set_space_contributions',
 });
 
+const pdfDownloadResource = createResource({
+	url: 'wiki.api.wiki_space.set_space_pdf_download',
+});
+
 async function updateContributions(value) {
 	savingContributions.value = true;
 	try {
@@ -331,6 +352,26 @@ async function updateFeedbackSetting(value) {
 		);
 	} finally {
 		savingFeedback.value = false;
+	}
+}
+
+async function updatePdfDownloadSetting(value) {
+	savingPdfDownload.value = true;
+	try {
+		await pdfDownloadResource.submit({
+			space_id: props.spaceId,
+			allow: value ? 1 : 0,
+		});
+		toast.success(
+			value ? __('PDF download enabled') : __('PDF download disabled'),
+		);
+	} catch (error) {
+		allowPdfDownload.value = !value;
+		toast.error(
+			error.messages?.[0] || __('Failed to update PDF download setting'),
+		);
+	} finally {
+		savingPdfDownload.value = false;
 	}
 }
 

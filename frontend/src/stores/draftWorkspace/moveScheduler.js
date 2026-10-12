@@ -73,7 +73,7 @@ export function createMoveScheduler({
 					const newIndex = parentList
 						? parentList.findIndex(
 								(n) => n.docKey === realKey || n.docKey === docKey,
-						  )
+							)
 						: 0;
 					const muId =
 						moveMutations.find((m) => m.payload?.docKey === docKey)?.id ||
@@ -90,7 +90,7 @@ export function createMoveScheduler({
 						const siblingKeys = parentList
 							? await Promise.all(
 									parentList.map((n) => resolver.resolveDocKey(n.docKey)),
-							  )
+								)
 							: [];
 						const filteredSiblings = siblingKeys.filter(Boolean);
 						if (filteredSiblings.length) {
@@ -128,7 +128,7 @@ export function createMoveScheduler({
 					const newIndex = parentList
 						? parentList.findIndex(
 								(n) => n.docKey === realKey || n.docKey === docKey,
-						  )
+							)
 						: 0;
 
 					await crStore.movePage(
@@ -144,7 +144,7 @@ export function createMoveScheduler({
 					const siblingKeys = parentList
 						? await Promise.all(
 								parentList.map((n) => resolver.resolveDocKey(n.docKey)),
-						  )
+							)
 						: [];
 					const filteredSiblings = siblingKeys.filter(Boolean);
 					if (filteredSiblings.length) {

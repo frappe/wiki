@@ -97,8 +97,8 @@ import {
 	PageLinks,
 	docKeyFromHref,
 	findPageByTitle,
-	pickerItems,
 	linkablePages,
+	pickerItems,
 } from './tiptap-extensions/page-links.js';
 import {
 	dataUrlToFile,
@@ -112,8 +112,8 @@ import {
 	SlashCommands,
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
-import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
@@ -207,7 +207,9 @@ function linkedPage(href) {
 		(candidate) => candidate.doc_key === docKey,
 	)?.at(-1);
 	const target = node && crumbRoute(node, route.params.spaceId);
-	return target ? { title: node.title, href: router.resolve(target).href } : null;
+	return target
+		? { title: node.title, href: router.resolve(target).href }
+		: null;
 }
 
 const AUTOSAVE_DELAY = 10 * 1000;

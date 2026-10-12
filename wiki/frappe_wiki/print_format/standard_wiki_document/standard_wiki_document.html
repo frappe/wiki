@@ -192,32 +192,30 @@
 {% set space = breadcrumbs.space %}
 {# Skip the first ancestor — it's the wiki space's root group, already represented by the space name. #}
 {% set ancestors = breadcrumbs.ancestors[1:] if breadcrumbs.ancestors else [] %}
-<div class="page-break">
-	<div class="wiki-document-shell">
-		<header class="wiki-document-header">
-			{% if space or ancestors %}
-			<div class="wiki-document-eyebrow">
-				{% if space %}{{ space.space_name }}{% endif %}
-				{% for ancestor in ancestors %}
-					<span class="sep">›</span>{{ ancestor.title }}
-				{% endfor %}
-			</div>
-			{% endif %}
-
-			<h1 class="wiki-document-title">{{ doc.title }}</h1>
-
-			<div class="wiki-document-meta">
-				<div class="row">
-					<div class="col-xs-3">
-						<label>{{ _("Last Updated") }}</label>
-					</div>
-					<div class="col-xs-9">{{ doc.get_formatted("modified") }}</div>
-				</div>
-			</div>
-		</header>
-
-		<div class="wiki-document-content">
-			{{ doc.rendered_content_for_pdf or "" }}
+<div class="wiki-document-shell">
+	<header class="wiki-document-header">
+		{% if space or ancestors %}
+		<div class="wiki-document-eyebrow">
+			{% if space %}{{ space.space_name }}{% endif %}
+			{% for ancestor in ancestors %}
+				<span class="sep">›</span>{{ ancestor.title }}
+			{% endfor %}
 		</div>
+		{% endif %}
+
+		<h1 class="wiki-document-title">{{ doc.title }}</h1>
+
+		<div class="wiki-document-meta">
+			<div class="row">
+				<div class="col-xs-3">
+					<label>{{ _("Last Updated") }}</label>
+				</div>
+				<div class="col-xs-9">{{ doc.get_formatted("modified") }}</div>
+			</div>
+		</div>
+	</header>
+
+	<div class="wiki-document-content">
+		{{ doc.rendered_content_for_pdf or "" }}
 	</div>
 </div>

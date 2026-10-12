@@ -1,5 +1,5 @@
 {% extends "templates/wiki/layout.html" %}
-{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
+{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, download_space_action_item, download_space_merged_pdf_action_item, dropdown_end %}
 
 {% block title %}
     {{ metatags.title if metatags and metatags.title else doc.title }}
@@ -22,6 +22,7 @@
             <div class="flex items-center justify-between gap-4">
                 <h1 id="wiki-page-title" class="text-4xl-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
                 <div class="flex items-center gap-2">
+                    {% if can_download_pdf %}
                     <button @click="downloadPage()"
                             :disabled="downloadInProgress"
                             :aria-busy="downloadInProgress"
@@ -34,6 +35,7 @@
                         </template>
                         <span x-text='downloadInProgress ? {{ _("Preparing…") | tojson }} : {{ _("Download") | tojson }}'></span>
                     </button>
+                    {% endif %}
                     <button @click="copyMarkdown()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm-medium text-[var(--ink-gray-7)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] rounded-6 hover:bg-[var(--surface-gray-1)] transition-colors duration-200 cursor-pointer">
                         <template x-if="!copied">
@@ -50,7 +52,13 @@
             <!-- Mobile: Edit above title -->
             <div class="flex justify-start mb-4 sm:hidden">
                 {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
+                    {% if can_download_pdf %}
                     {{ download_action_item() }}
+                    {% if wiki_space %}
+                    {{ download_space_action_item() }}
+                    {{ download_space_merged_pdf_action_item() }}
+                    {% endif %}
+                    {% endif %}
                     {% if can_edit %}
                     {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                     {% endif %}
@@ -64,7 +72,13 @@
                 <!-- Desktop: Edit beside title -->
                 <div class="hidden sm:block">
                     {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
+                        {% if can_download_pdf %}
                         {{ download_action_item() }}
+                        {% if wiki_space %}
+                        {{ download_space_action_item() }}
+                        {{ download_space_merged_pdf_action_item() }}
+                        {% endif %}
+                        {% endif %}
                         {% if can_edit %}
                         {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                         {% endif %}
@@ -171,6 +185,8 @@
             // wikiDocument properties
             copied: false,
             downloadInProgress: false,
+            downloadSpaceInProgress: false,
+            downloadSpaceMergedInProgress: false,
 
             get markdown() {
                 return this.$store.pageContent?.markdown || '';
@@ -220,6 +236,74 @@
                     });
                 } finally {
                     this.downloadInProgress = false;
+                }
+            },
+
+            async downloadSpace() {
+                if (this.downloadSpaceInProgress) return;
+                this.downloadSpaceInProgress = true;
+
+                const spaceRoute = "{{ wiki_space.route if wiki_space else '' }}";
+                if (!spaceRoute) return;
+
+                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_bulk_pdf?route=${encodeURIComponent(spaceRoute)}`;
+
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        throw new Error(`Failed to download space PDF: ${response.status}`);
+                    }
+
+                    const objectUrl = URL.createObjectURL(await response.blob());
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = `${spaceRoute.split('/').pop() || 'space'}.zip`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                } catch (err) {
+                    console.error('Failed to download space PDF:', err);
+                    window.frappe?.show_alert?.({
+                        message: __('Unable to download space right now.'),
+                        indicator: 'red'
+                    });
+                } finally {
+                    this.downloadSpaceInProgress = false;
+                }
+            },
+
+            async downloadSpaceMergedPdf() {
+                if (this.downloadSpaceMergedInProgress) return;
+                this.downloadSpaceMergedInProgress = true;
+
+                const spaceRoute = "{{ wiki_space.route if wiki_space else '' }}";
+                if (!spaceRoute) return;
+
+                const url = `/api/method/wiki.frappe_wiki.doctype.wiki_document.wiki_document.download_merged_pdf?route=${encodeURIComponent(spaceRoute)}`;
+
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        throw new Error(`Failed to download merged space PDF: ${response.status}`);
+                    }
+
+                    const objectUrl = URL.createObjectURL(await response.blob());
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = `${spaceRoute.split('/').pop() || 'space'}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                } catch (err) {
+                    console.error('Failed to download merged space PDF:', err);
+                    window.frappe?.show_alert?.({
+                        message: __('Unable to download merged space PDF right now.'),
+                        indicator: 'red'
+                    });
+                } finally {
+                    this.downloadSpaceMergedInProgress = false;
                 }
             },
 

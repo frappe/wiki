@@ -1,8 +1,10 @@
 # Copyright (c) 2025, Frappe and contributors
 # For license information, please see license.txt
 
+import io
 import json
 import re
+import zipfile
 from functools import wraps
 from urllib.parse import quote, urlparse
 
@@ -556,6 +558,7 @@ class WikiDocument(NestedSet):
 			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
+			"can_download_pdf": True,
 			"breadcrumbs": None,
 			"disable_indexing": self.disable_indexing,
 		}
@@ -590,10 +593,18 @@ class WikiDocument(NestedSet):
 		wiki_space_doc = frappe.get_cached_doc("Wiki Space", wiki_space.name)
 		nested_tree, adjacent_docs = self.get_tree_and_navigation()
 
+		from wiki.permissions import can_write_space
+
+		can_write = bool(can_write_space(wiki_space_doc.name))
+		allow_pdf = bool(getattr(wiki_space_doc, "allow_pdf_download", 1))
+		can_download_pdf = allow_pdf or can_write
+
 		context.update(
 			{
 				"wiki_space": wiki_space_doc,
 				"can_edit": self._can_show_edit(wiki_space_doc),
+				"allow_pdf_download": allow_pdf,
+				"can_download_pdf": can_download_pdf,
 				"wiki_spaces_for_switcher": frappe.get_all(
 					"Wiki Space",
 					fields=[
@@ -1126,6 +1137,16 @@ def get_page_data(route: str) -> dict:
 	return doc.get_navigation_data()
 
 
+def _assert_pdf_download_allowed(doc):
+	from wiki.permissions import can_write_space
+	space_name = doc.get_space_name()
+	if not space_name:
+		return
+	space_doc = frappe.get_cached_doc("Wiki Space", space_name)
+	if getattr(space_doc, "allow_pdf_download", 1) == 0 and not can_write_space(space_name):
+		frappe.throw(_("PDF download is disabled for this space"), frappe.PermissionError)
+
+
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def download_pdf(route: str):
 	doc_name = frappe.db.get_value(
@@ -1137,6 +1158,7 @@ def download_pdf(route: str):
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
 	doc.check_space_access("read")
 	doc.check_published()
+	_assert_pdf_download_allowed(doc)
 
 	# Guests can't print by default; we've already authorized them above via check_space_access.
 	frappe.local.flags.ignore_print_permissions = True
@@ -1154,6 +1176,143 @@ def download_pdf(route: str):
 	# Named after the URL the reader downloaded from. The slug can lag behind a route edited since.
 	frappe.local.response.filename = f"{route.rsplit('/', 1)[-1]}.pdf"
 	frappe.local.response.filecontent = pdf_file
+	frappe.local.response.content_type = "application/pdf"
+	frappe.local.response.type = "download"
+
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_bulk_pdf(route: str, format: str = "zip"):
+	if format in ("merged_pdf", "pdf"):
+		return download_merged_pdf(route)
+
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		space_root = frappe.db.get_value("Wiki Space", {"route": route}, "root_group")
+		if space_root:
+			doc_name = space_root
+
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_space_access("read")
+	_assert_pdf_download_allowed(doc)
+
+	if not doc.is_group:
+		frappe.throw(_("Bulk download is only available for Spaces or Groups"))
+
+	space = doc.get_wiki_space()
+	if space:
+		space_doc = frappe.get_cached_doc("Wiki Space", space["name"])
+		if not space_doc.is_published:
+			frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	tree = get_public_wiki_tree(doc.name)
+
+	zip_buffer = io.BytesIO()
+	frappe.local.flags.ignore_print_permissions = True
+	try:
+		with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+			def _add_nodes_to_zip(nodes, current_path=""):
+				for node in nodes:
+					if not node["is_group"] and not node.get("is_external_link"):
+						leaf_doc = frappe.get_cached_doc("Wiki Document", node["name"])
+						pdf_file = get_print(
+							doctype="Wiki Document",
+							print_format=WIKI_DOCUMENT_PRINT_FORMAT,
+							doc=leaf_doc,
+							as_pdf=True,
+							no_letterhead=1,
+						)
+						filename = f"{node['title'].replace('/', '-')} ({node['route'].rsplit('/', 1)[-1]}).pdf"
+						file_path = f"{current_path}{filename}" if current_path else filename
+						zip_file.writestr(file_path, pdf_file)
+
+					if node.get("children"):
+						new_path = f"{current_path}{node['title'].replace('/', '-')}/" if current_path else f"{node['title'].replace('/', '-')}/"
+						_add_nodes_to_zip(node["children"], new_path)
+
+			_add_nodes_to_zip(tree)
+	finally:
+		frappe.local.flags.ignore_print_permissions = False
+
+	filename = f"{route.rsplit('/', 1)[-1] or 'export'}.zip"
+	frappe.local.response.filename = filename
+	frappe.local.response.filecontent = zip_buffer.getvalue()
+	frappe.local.response.content_type = "application/zip"
+	frappe.local.response.type = "download"
+
+
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def download_merged_pdf(route: str):
+	from pypdf import PdfWriter, PdfReader
+
+	doc_name = frappe.db.get_value(
+		"Wiki Document", {"route": route, "is_external_link": 0}, "name"
+	)
+	if not doc_name:
+		space_root = frappe.db.get_value("Wiki Space", {"route": route}, "root_group")
+		if space_root:
+			doc_name = space_root
+
+	if not doc_name:
+		frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_cached_doc("Wiki Document", doc_name)
+	doc.check_space_access("read")
+	_assert_pdf_download_allowed(doc)
+
+	if not doc.is_group:
+		frappe.throw(_("Bulk download is only available for Spaces or Groups"))
+
+	space = doc.get_wiki_space()
+	if space:
+		space_doc = frappe.get_cached_doc("Wiki Space", space["name"])
+		if not space_doc.is_published:
+			frappe.throw(_("Page not found"), frappe.DoesNotExistError)
+
+	tree = get_public_wiki_tree(doc.name)
+
+	writer = PdfWriter()
+	has_pages = False
+	frappe.local.flags.ignore_print_permissions = True
+	try:
+		def _add_nodes_to_merged_pdf(nodes):
+			nonlocal has_pages
+			for node in nodes:
+				if not node["is_group"] and not node.get("is_external_link"):
+					leaf_doc = frappe.get_cached_doc("Wiki Document", node["name"])
+					pdf_file = get_print(
+						doctype="Wiki Document",
+						print_format=WIKI_DOCUMENT_PRINT_FORMAT,
+						doc=leaf_doc,
+						as_pdf=True,
+						no_letterhead=1,
+					)
+					if pdf_file:
+						reader = PdfReader(io.BytesIO(pdf_file))
+						for page in reader.pages:
+							writer.add_page(page)
+						has_pages = True
+
+				if node.get("children"):
+					_add_nodes_to_merged_pdf(node["children"])
+
+		_add_nodes_to_merged_pdf(tree)
+	finally:
+		frappe.local.flags.ignore_print_permissions = False
+
+	if not has_pages:
+		frappe.throw(_("No published pages found to generate PDF"))
+
+	pdf_buffer = io.BytesIO()
+	writer.write(pdf_buffer)
+
+	filename = f"{route.rsplit('/', 1)[-1] or 'export'}.pdf"
+	frappe.local.response.filename = filename
+	frappe.local.response.filecontent = pdf_buffer.getvalue()
 	frappe.local.response.content_type = "application/pdf"
 	frappe.local.response.type = "download"
 

@@ -23,8 +23,8 @@ import { WikiLink } from './tiptap-extensions/link-extension.js';
 import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
-import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 

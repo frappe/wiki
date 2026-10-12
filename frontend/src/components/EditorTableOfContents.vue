@@ -280,7 +280,10 @@ watch(activeIndex, async (index) => {
 	if (!row) return;
 	if (row.offsetTop < rail.scrollTop) {
 		rail.scrollTop = row.offsetTop;
-	} else if (row.offsetTop + row.offsetHeight > rail.scrollTop + rail.clientHeight) {
+	} else if (
+		row.offsetTop + row.offsetHeight >
+		rail.scrollTop + rail.clientHeight
+	) {
 		rail.scrollTop = row.offsetTop + row.offsetHeight - rail.clientHeight;
 	}
 });

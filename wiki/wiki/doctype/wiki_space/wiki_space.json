@@ -36,6 +36,7 @@
   "roles",
   "contributions_section",
   "allow_contributions",
+  "allow_pdf_download",
   "version_3_tab",
   "root_group",
   "enable_tabs",
@@ -189,6 +190,13 @@
    "fieldname": "allow_contributions",
    "fieldtype": "Check",
    "label": "Accept Contributions"
+  },
+  {
+   "default": "1",
+   "description": "Allow any reader with read access to download the entire Space or a Group as a ZIP of PDFs.",
+   "fieldname": "allow_pdf_download",
+   "fieldtype": "Check",
+   "label": "Allow PDF Download"
   },
   {
    "fieldname": "version_3_tab",

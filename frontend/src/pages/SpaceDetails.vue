@@ -358,17 +358,16 @@ watch([() => spaceStore.treeData, () => route.name], autoOpenPage, {
 // deleted in the draft. Its overlay is gone, so the editor would sit on a
 // skeleton forever. Fall back to the space, which opens the first live page.
 watch(
-	[
-		() => spaceStore.treeData,
-		() => route.name,
-		() => route.params.pageId,
-	],
+	[() => spaceStore.treeData, () => route.name, () => route.params.pageId],
 	([tree, name, pageId]) => {
 		if (name !== 'SpacePage' || !tree || !pageId || spaceStore.isTreeStale)
 			return;
 		const node = findNodeByDocumentName(tree.children, pageId);
 		if (!node?.is_deleted) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );

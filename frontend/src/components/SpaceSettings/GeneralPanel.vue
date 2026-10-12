@@ -129,13 +129,13 @@
 <script setup>
 import {
 	Button,
-	createResource,
 	Dialog,
 	FormControl,
 	SettingsRow,
 	Switch,
-	toast,
 	Tooltip,
+	createResource,
+	toast,
 } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
