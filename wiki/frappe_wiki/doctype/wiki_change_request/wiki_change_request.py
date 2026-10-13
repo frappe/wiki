@@ -13,7 +13,7 @@ from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.api.wiki_space import flush_pending_revision_syncs
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route, validate_external_url
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -358,6 +358,7 @@ def _create_cr_item(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
 
+	validate_external_url(external_url)
 	if is_tab:
 		_assert_can_manage_tabs(cr)
 		_assert_valid_tab(cr, parent_key=parent_key, is_group=is_group)
@@ -403,6 +404,7 @@ def _update_cr_item(
 	}
 	if updates.get("route"):
 		updates["route"] = sanitize_route(updates["route"])
+	validate_external_url(updates.get("external_url"))
 	updates.update(
 		{
 			field: int(bool(fields[field]))
@@ -605,7 +607,7 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 	filters: dict[str, Any] = {"wiki_space": wiki_space}
 	if status:
 		filters["status"] = status
-	return frappe.get_all(
+	return frappe.get_list(
 		"Wiki Change Request",
 		filters=filters,
 		fields=[
@@ -1260,6 +1262,7 @@ def _sibling_position_map(item_map: dict[str, dict[str, Any]]) -> dict[str, int]
 @frappe.whitelist()
 def diff_change_request(name: str, scope: str = "summary", doc_key: str | None = None):
 	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
 	base_items = get_revision_item_map(cr.base_revision)
 	head_items = get_effective_revision_item_map(cr.head_revision)
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
@@ -1627,6 +1630,7 @@ def retry_merge_after_resolution(name: str) -> str:
 			_("You do not have permission to merge in this space."),
 			frappe.PermissionError,
 		)
+	_assert_status(cr, {"Approved"})
 
 	flush_pending_revision_syncs()
 

@@ -943,6 +943,20 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 				with self.subTest(payload=payload, endpoint=endpoint.__name__):
 					self.assertRaises(frappe.FrappeTypeError, endpoint, payload)
 
+	def test_restricted_space_is_hidden_from_outsiders(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_breadcrumbs
+		from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
+
+		space = create_test_wiki_space(self)
+		space.append("roles", {"role": "Wiki Manager", "permission_level": "Read"})
+		space.save()
+		page = create_wiki_document(self, space.root_group, "Hidden page")
+
+		frappe.set_user(create_test_user("restricted-outsider@example.com", ["Wiki User"]).name)
+		self.assertNotIn(space.route, get_all_spaces())
+		with self.assertRaises(frappe.PermissionError):
+			get_breadcrumbs(page.name)
+
 
 # Helper functions
 

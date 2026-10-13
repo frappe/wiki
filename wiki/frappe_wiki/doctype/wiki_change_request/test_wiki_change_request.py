@@ -750,6 +750,48 @@ class TestWikiChangeRequest(FrappeTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	def test_other_users_draft_is_not_readable(self):
+		space = create_test_wiki_space()
+		cr = self._cr_with_change(space, "Private draft")
+
+		frappe.set_user(create_user("cr-other-reader@example.com", "Wiki User").name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				diff_change_request(cr.name)
+			self.assertEqual(list_change_requests(space.name), [])
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_retry_merge_requires_approval(self):
+		space = create_test_wiki_space()
+		cr = self._cr_with_change(space, "Unreviewed draft")
+
+		with self.assertRaises(frappe.ValidationError):
+			retry_merge_after_resolution(cr.name)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
+
+	def test_external_link_rejects_unsafe_url(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Links")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		link_key = create_cr_page(
+			cr.name, root_key, "Docs", is_external_link=1, external_url="https://frappe.io"
+		)
+
+		for url in (
+			"javascript:alert(1)",
+			" JavaScript:alert(1)",
+			"javascript&#58;alert(1)",
+			"data:text/html,x",
+		):
+			with self.subTest(url=url):
+				with self.assertRaises(frappe.ValidationError):
+					create_cr_page(cr.name, root_key, "Bad", is_external_link=1, external_url=url)
+				with self.assertRaises(frappe.ValidationError):
+					update_cr_page(cr.name, link_key, {"external_url": url})
+				with self.assertRaises(frappe.ValidationError):
+					make_document(parent=space.root_group, title="Bad", is_external_link=1, external_url=url)
+
 	def test_request_changes_sets_status_and_comment(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")
