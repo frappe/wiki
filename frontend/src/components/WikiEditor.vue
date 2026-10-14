@@ -41,12 +41,7 @@
 <script setup>
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
-import {
-	Table,
-	TableCell,
-	TableHeader,
-	TableRow,
-} from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { onKeyStroke, useElementSize } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
@@ -113,6 +108,7 @@ import {
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
@@ -800,7 +796,7 @@ const editor = useEditor({
 			allowBase64: true,
 			uploadImage: uploadImageVariant,
 		}),
-		Table.configure({
+		WikiTable.configure({
 			resizable: true,
 			renderWrapper: true,
 		}),
@@ -920,15 +916,18 @@ function emitContentChange(options = {}) {
 	emit('content-change', content, props.documentKey, options);
 }
 
+let reconciledSavedContent;
+
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
+	reconciledSavedContent = normalizedSavedContent(props.savedContent);
 	emit(
 		'content-ready',
 		currentContent,
-		normalizedSavedContent(props.savedContent),
+		reconciledSavedContent,
 		props.documentKey,
 	);
 }
@@ -1006,7 +1005,10 @@ function saveToDB() {
 
 watch(
 	() => props.savedContent,
-	() => emitContentReady(),
+	(savedContent) => {
+		if (savedContent === reconciledSavedContent) return;
+		emitContentReady();
+	},
 );
 
 // Expose methods for parent component
