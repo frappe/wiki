@@ -525,6 +525,60 @@ class TestWikiChangeRequest(FrappeTestCase):
 		conflict_count = frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name})
 		self.assertGreater(conflict_count, 0)
 
+	def test_repeated_merge_attempt_replaces_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5b")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+
+		for _attempt in range(2):
+			with self.assertRaises(frappe.ValidationError):
+				_approve_and_merge(cr.name)
+
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 1)
+
+	def test_retry_rejects_merged_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5c")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		_approve_and_merge(cr.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			retry_merge_after_resolution(cr.name)
+		self.assertEqual(frappe.db.count("Wiki Revision", {"change_request": cr.name, "is_merge": 1}), 1)
+
+	def test_merge_endpoints_lock_cr_row_for_update(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5d")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
+
+		def locked_cr(get_value):
+			return any(
+				call.args[:2] == ("Wiki Change Request", cr.name) and call.kwargs.get("for_update")
+				for call in get_value.call_args_list
+			)
+
+		with patch.object(frappe.db, "get_value", wraps=frappe.db.get_value) as get_value:
+			merge_change_request(cr.name)
+		self.assertTrue(locked_cr(get_value), "merge_change_request must load the CR via _lock_and_load_cr")
+
+		with patch.object(frappe.db, "get_value", wraps=frappe.db.get_value) as get_value:
+			with self.assertRaises(frappe.ValidationError):
+				retry_merge_after_resolution(cr.name)
+		self.assertTrue(
+			locked_cr(get_value), "retry_merge_after_resolution must load the CR via _lock_and_load_cr"
+		)
+
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")
