@@ -525,6 +525,35 @@ class TestWikiChangeRequest(FrappeTestCase):
 		conflict_count = frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name})
 		self.assertGreater(conflict_count, 0)
 
+	def test_repeated_merge_attempt_replaces_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5b")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+
+		for _attempt in range(2):
+			with self.assertRaises(frappe.ValidationError):
+				_approve_and_merge(cr.name)
+
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 1)
+
+	def test_retry_rejects_merged_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5c")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		_approve_and_merge(cr.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			retry_merge_after_resolution(cr.name)
+		self.assertEqual(frappe.db.count("Wiki Revision", {"change_request": cr.name, "is_merge": 1}), 1)
+
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")

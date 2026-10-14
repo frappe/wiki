@@ -1525,7 +1525,7 @@ def withdraw_change_request(name: str) -> None:
 
 @frappe.whitelist()
 def merge_change_request(name: str) -> str:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge change requests in this space."),
@@ -1621,12 +1621,13 @@ def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 @frappe.whitelist()
 def retry_merge_after_resolution(name: str) -> str:
 	"""Retry a merge after all conflicts have been resolved."""
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge in this space."),
 			frappe.PermissionError,
 		)
+	_assert_status(cr, {"Approved"})
 
 	flush_pending_revision_syncs()
 
@@ -1839,6 +1840,8 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 			merged_items.pop(key, None)
 
 	if conflicts:
+		# A fresh attempt recomputes every conflict against the current main.
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 		for conflict in conflicts:
 			conflict_doc = frappe.new_doc("Wiki Merge Conflict")
 			conflict_doc.change_request = cr.name
