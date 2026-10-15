@@ -262,15 +262,12 @@ def reorder_wiki_documents(
 	frappe.flags.in_reorder_wiki_documents = True
 	try:
 		if parent_changed:
-			frappe.db.set_value("Wiki Document", doc_name, "parent_wiki_document", new_parent)
+			move_wiki_document(doc, new_parent)
 
 		# Batch update sort_order for all siblings
 		_batch_update_sort_order(siblings_list)
 
-		# Only rebuild the tree if parent changed (structural change)
-		# For simple reorders, sort_order is sufficient
 		if parent_changed:
-			rebuild_wiki_tree()
 			# A move can change the owning space; re-stamp the moved subtree.
 			from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 				stamp_wiki_space_subtree,
@@ -288,6 +285,18 @@ def reorder_wiki_documents(
 	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
 
 	return {"is_contribution": False}
+
+
+def move_wiki_document(doc, new_parent: str | None) -> None:
+	from frappe.utils.nestedset import update_move_node
+
+	doc.parent_wiki_document = new_parent
+	update_move_node(doc, "parent_wiki_document")
+	frappe.db.set_value(
+		"Wiki Document",
+		doc.name,
+		{"parent_wiki_document": new_parent, "old_parent": new_parent},
+	)
 
 
 def _batch_update_sort_order(siblings: list[str]) -> None:
@@ -395,57 +404,3 @@ def _sync_main_revision_for_space(space_name: str | None) -> None:
 		parent_revision=space.main_revision,
 	)
 	frappe.db.set_value("Wiki Space", space.name, "main_revision", revision.name)
-
-
-def rebuild_wiki_tree():
-	"""Rebuild the Wiki Document tree ordering siblings by sort_order field."""
-	from frappe.query_builder import Order
-	from frappe.query_builder.functions import Coalesce
-
-	doctype = "Wiki Document"
-	parent_field = "parent_wiki_document"
-	table = frappe.qb.DocType(doctype)
-
-	# Get all root nodes (no parent), ordered by sort_order then name
-	roots = (
-		frappe.qb.from_(table)
-		.where((table.parent_wiki_document == "") | (table.parent_wiki_document.isnull()))
-		.orderby(Coalesce(table.sort_order, 0), order=Order.asc)
-		.orderby(table.name, order=Order.asc)
-		.select(table.name)
-	).run(pluck="name")
-
-	frappe.db.auto_commit_on_many_writes = 1
-
-	right = 1
-	for root in roots:
-		right = _rebuild_wiki_node(doctype, root, right, parent_field)
-
-	frappe.db.auto_commit_on_many_writes = 0
-
-
-def _rebuild_wiki_node(doctype: str, name: str, left: int, parent_field: str) -> int:
-	"""Rebuild a single node and its children, ordering by sort_order."""
-	from frappe.query_builder import Order
-	from frappe.query_builder.functions import Coalesce
-
-	right = left + 1
-	table = frappe.qb.DocType(doctype)
-	parent_col = getattr(table, parent_field)
-
-	# Get children ordered by sort_order then name
-	children = (
-		frappe.qb.from_(table)
-		.where(parent_col == name)
-		.orderby(Coalesce(table.sort_order, 0), order=Order.asc)
-		.orderby(table.name, order=Order.asc)
-		.select(table.name)
-	).run(pluck="name")
-
-	for child in children:
-		right = _rebuild_wiki_node(doctype, child, right, parent_field)
-
-	# Update lft and rgt
-	frappe.db.set_value(doctype, name, {"lft": left, "rgt": right}, update_modified=False)
-
-	return right + 1
