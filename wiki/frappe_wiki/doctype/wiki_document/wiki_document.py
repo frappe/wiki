@@ -34,6 +34,8 @@ WIKI_TREE_CACHE_KEY = "wiki_public_tree"
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
 
+EXTERNAL_LINK_SCHEMES = ("http", "https", "mailto")
+
 # An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
 WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
 
@@ -109,6 +111,12 @@ def sanitize_route(route: str | None) -> str:
 	return "/".join(segment for segment in segments if segment)
 
 
+def validate_external_url(url: str | None) -> None:
+	# HTML escaping can't stop a `javascript:` href, so only known schemes are allowed.
+	if url and urlparse(url.strip()).scheme.lower() not in EXTERNAL_LINK_SCHEMES:
+		frappe.throw(_("External links must start with http://, https:// or mailto:"))
+
+
 def memoize_tree_lookups(method):
 	"""Reuse a page's ancestors and space for the length of one render.
 
@@ -167,6 +175,8 @@ class WikiDocument(NestedSet):
 		self.set_route()
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
+		if self.has_value_changed("external_url"):
+			validate_external_url(self.external_url)
 		self.set_boilerplate_content()
 
 	def after_insert(self):
@@ -1121,6 +1131,7 @@ def clear_wiki_tree_cache():
 def get_breadcrumbs(name: str) -> dict:
 	"""Get the breadcrumb trail for a Wiki Document including space info."""
 	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
 	return doc.get_breadcrumbs()
 
 
