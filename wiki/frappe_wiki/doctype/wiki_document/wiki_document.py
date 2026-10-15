@@ -112,7 +112,7 @@ def sanitize_route(route: str | None) -> str:
 
 
 def validate_external_url(url: str | None) -> None:
-	# The sidebar puts this URL into the page without escaping it, so a URL with no scheme is unsafe too.
+	# HTML escaping can't stop a `javascript:` href, so only known schemes are allowed.
 	if url and urlparse(url.strip()).scheme.lower() not in EXTERNAL_LINK_SCHEMES:
 		frappe.throw(_("External links must start with http://, https:// or mailto:"))
 
