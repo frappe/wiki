@@ -794,9 +794,7 @@ def _sync_to_live(
 	Returns the change counts (``created``/``updated``/``deleted``/``moved``) the
 	apply produced, so the caller can record them on the sync log.
 	"""
-	live_revision = create_revision_from_live_tree(
-		space.name, message="git-sync: live snapshot", ignore_permissions=True
-	)
+	live_revision = create_revision_from_live_tree(space.name, message="git-sync: live snapshot")
 	prev_items = get_revision_item_map(live_revision.name)
 
 	root_doc_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
