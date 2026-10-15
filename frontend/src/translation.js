@@ -1,4 +1,7 @@
 import { createResource } from 'frappe-ui';
+import { shallowRef } from 'vue';
+
+const messages = shallowRef(window.translatedMessages || {});
 
 export default function translationPlugin(app) {
 	app.config.globalProperties.__ = translate;
@@ -13,7 +16,7 @@ function format(message, replace) {
 }
 
 function translate(message, replace, context = null) {
-	const translatedMessages = window.translatedMessages || {};
+	const translatedMessages = messages.value;
 	let translatedMessage = '';
 
 	if (context) {
@@ -41,6 +44,7 @@ function fetchTranslations() {
 		auto: true,
 		transform: (data) => {
 			window.translatedMessages = data;
+			messages.value = data;
 		},
 	});
 }
