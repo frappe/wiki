@@ -1,9 +1,19 @@
-import { createResource } from 'frappe-ui';
-
 export default function translationPlugin(app) {
 	app.config.globalProperties.__ = translate;
 	window.__ = translate;
-	if (!window.translatedMessages) fetchTranslations();
+}
+
+// The Vite dev server serves index.html without the boot, so fetch the catalog before mount.
+export async function ensureTranslations() {
+	if (window.translated_messages) return;
+	try {
+		const response = await fetch(
+			'/api/method/wiki.www.wiki_app.get_translated_messages',
+		);
+		window.translated_messages = (await response.json()).message || {};
+	} catch {
+		window.translated_messages = {};
+	}
 }
 
 function format(message, replace) {
@@ -13,7 +23,7 @@ function format(message, replace) {
 }
 
 function translate(message, replace, context = null) {
-	const translatedMessages = window.translatedMessages || {};
+	const translatedMessages = window.translated_messages || {};
 	let translatedMessage = '';
 
 	if (context) {
@@ -33,14 +43,4 @@ function translate(message, replace, context = null) {
 	}
 
 	return format(translatedMessage, replace);
-}
-
-function fetchTranslations() {
-	createResource({
-		url: 'wiki.api.get_translations',
-		auto: true,
-		transform: (data) => {
-			window.translatedMessages = data;
-		},
-	});
 }

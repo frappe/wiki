@@ -2,6 +2,7 @@
 # See license.txt
 
 import frappe
+from frappe.translate import get_translations_from_apps, get_user_translations
 from frappe.utils import get_system_timezone
 
 from wiki.api.og_image import cards_supported
@@ -45,8 +46,17 @@ def get_boot():
 			"asset_hashes": get_asset_hashes(),
 			"meta_images_supported": cards_supported(),
 			"telemetry": default_properties(),
+			"translated_messages": get_translated_messages(),
 		}
 	)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_translated_messages() -> dict:
+	lang = frappe.local.lang
+	messages = get_translations_from_apps(lang, ["wiki"])
+	messages.update(get_user_translations(lang) or {})
+	return messages
 
 
 def get_asset_hashes() -> dict:

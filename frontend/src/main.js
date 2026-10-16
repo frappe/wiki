@@ -9,7 +9,7 @@ import { useSessionStore } from './stores/session';
 import { useUserStore } from './stores/user';
 
 import { trackPageviews } from './telemetry';
-import translationPlugin from './translation';
+import translationPlugin, { ensureTranslations } from './translation';
 
 import {
 	Badge,
@@ -65,4 +65,4 @@ for (const key in globalComponents) {
 	app.component(key, globalComponents[key]);
 }
 
-app.mount('#app');
+ensureTranslations().then(() => app.mount('#app'));
