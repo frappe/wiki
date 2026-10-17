@@ -57,17 +57,19 @@ Page content and tree edits in the SPA go through a change request. The one exce
 
 ### Lifecycle
 
-| From                     | Action                    | To                | Who                                     |
-| ------------------------ | ------------------------- | ----------------- | --------------------------------------- |
-| Draft, Changes Requested | `submit_change_request`   | In Review         | Author                                  |
-| In Review                | `withdraw_change_request` | Draft             | Author or manager                       |
-| In Review                | `approve_change_request`  | Approved          | Space writer                            |
-| In Review, Approved      | `request_changes`         | Changes Requested | Space writer                            |
-| In Review, Approved      | `reject_change_request`   | Rejected (final)  | Space writer                            |
-| Approved                 | `merge_change_request`    | Merged            | Space writer                            |
-| Any                      | `archive_change_request`  | Archived          | Anyone with write on the change request |
+| From                     | Action                    | To                | Who                   |
+| ------------------------ | ------------------------- | ----------------- | --------------------- |
+| Draft, Changes Requested | `submit_change_request`   | In Review         | Change request writer |
+| In Review                | `withdraw_change_request` | Draft             | Author or manager     |
+| In Review                | `approve_change_request`  | Approved          | Space writer          |
+| In Review, Approved      | `request_changes`         | Changes Requested | Space writer          |
+| In Review, Approved      | `reject_change_request`   | Rejected (final)  | Space writer          |
+| Approved                 | `merge_change_request`    | Merged            | Space writer          |
+| Any                      | `archive_change_request`  | Archived          | Change request writer |
 
-- The author can edit only in **Draft** and **Changes Requested** (`_assert_editable`).
+- "Change request writer" means write permission on the change request (`wiki_cr_has_permission`): the user can contribute to its space. The server does not check that they own it.
+- "Space writer" means Write access to the space (`can_write_space`).
+- A change request can be edited only in **Draft** and **Changes Requested** (`_assert_editable`), by any change request writer.
 - `submit_change_request` throws if the draft changes nothing.
 - `request_changes` and `reject_change_request` need a comment. It is stored in `review_comment`.
 - Merge needs **Approved**. Approval and merge are two separate actions.
