@@ -69,7 +69,7 @@ const visible = computed(() => {
 	if (spaceStore.isGitSynced) return false;
 	if (!crStore.isChangeRequestMode) return false;
 	if (crStore.finalizing) return false;
-	// Autosave takes ten seconds to turn typing into a change row. Counting an
+	// Autosave waits for a pause before typing becomes a change row. Counting an
 	// unsaved buffer as submittable work keeps the button from disappearing in
 	// that window — there is no Save button left to fill it.
 	if (crStore.changeCount === 0 && !draftStore.hasUnsavedEditorContent) {
