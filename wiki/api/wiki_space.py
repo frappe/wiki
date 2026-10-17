@@ -258,6 +258,10 @@ def reorder_wiki_documents(
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
 		frappe.throw(_("You do not have permission to reorder this document"))
 
+	# Merges lock the space before its pages, so take locks in the same order.
+	if old_space:
+		lock_wiki_space(old_space)
+
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
 
