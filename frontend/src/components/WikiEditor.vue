@@ -206,18 +206,22 @@ function linkedPage(href) {
 	return target ? { title: node.title, href: router.resolve(target).href } : null;
 }
 
-const AUTOSAVE_DELAY = 10 * 1000;
-let autosaveTimer = null;
-
 // Reading the page as markdown serializes and re-parses the whole document.
 // Doing it on every keystroke made typing lag by seconds on large pages, so
 // edits are reported once typing pauses, and on blur, save and unmount.
 const contentSync = createTrailingScheduler({
 	delay: 300,
 	maxWait: 2000,
-	run: reportContentChange,
+	run: emitContentChange,
 });
 const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
+
+// The max wait saves a page that is typed into without a pause.
+const autosave = createTrailingScheduler({
+	delay: 2000,
+	maxWait: 10000,
+	run: autoSave,
+});
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -760,10 +764,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 onBeforeUnmount(() => {
 	stopFlushRequests();
 	contentSync.cancel();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 	emitContentChange({ persistImmediately: true });
 });
 
@@ -934,24 +935,8 @@ function emitContentReady() {
 
 function handleContentChange() {
 	forgetRemovedUploads();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
 	contentSync.schedule();
-}
-
-function reportContentChange() {
-	const currentContent = getMarkdown();
-	if (currentContent === undefined) return;
-	emitContentChange();
-
-	if (currentContent === normalizedSavedContent(props.savedContent)) return;
-
-	autosaveTimer = setTimeout(() => {
-		autosaveTimer = null;
-		autoSave();
-	}, AUTOSAVE_DELAY);
+	autosave.schedule();
 }
 
 async function autoSave() {
@@ -974,11 +959,7 @@ function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
 	contentSync.cancel();
-	// Clear any pending autosave
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 
 	if (!editor.value) {
 		toast.error('Editor is not ready');
