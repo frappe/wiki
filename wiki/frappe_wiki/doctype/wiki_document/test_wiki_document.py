@@ -3066,6 +3066,22 @@ class TestWikiTreeCache(WikiDocumentTestBase):
 		self.assertFalse(self._is_cached(target))
 		self.assertTrue(self._is_cached(other))
 
+	def test_deleting_a_child_after_a_desk_group_move_clears_the_new_space(self):
+		source, target = self._cached_space("gm-a"), self._cached_space("gm-b")
+		group = create_test_wiki_document(self, "Moved Group", parent=source.root, is_group=True)
+		child = create_test_wiki_document(self, "Moved Child", parent=group.name, slug="tc-gm-child")
+
+		group.reload()
+		group.parent_wiki_document = target.root
+		group.save()
+		self.assertEqual(frappe.db.get_value("Wiki Document", child.name, "wiki_space"), target.space)
+
+		get_public_wiki_tree(target.root)
+		child.reload()
+		child.delete()
+
+		self.assertFalse(self._is_cached(target))
+
 	def test_reorder_move_clears_old_and_new_space(self):
 		from wiki.api.wiki_space import reorder_wiki_documents
 

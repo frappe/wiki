@@ -1118,8 +1118,10 @@ def clear_wiki_tree_cache(*spaces: str | None):
 	if root_groups:
 
 		def clear():
+			# v15's RedisWrapper.hdel takes a single field.
 			for key in (WIKI_TREE_CACHE_KEY, WIKI_FULL_TREE_CACHE_KEY):
-				frappe.cache().hdel(key, root_groups)
+				for root_group in root_groups:
+					frappe.cache().hdel(key, root_group)
 
 		clear()
 		frappe.db.after_commit.add(clear)
@@ -1186,13 +1188,14 @@ def on_wiki_document_update(doc, method):
 	from wiki.api.og_image import enqueue_og_warmup
 	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
-	space = stamp_wiki_space(doc)
+	previous = doc.get_doc_before_save()
+	moved = previous and previous.parent_wiki_document != doc.parent_wiki_document
+	space = stamp_wiki_space_subtree(doc.name) if moved else stamp_wiki_space(doc)
 	touch_space_last_edited(space)
 	# A save that changes no snapshotted field would only produce an identical revision.
 	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
 		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
-	previous = doc.get_doc_before_save()
 	# A move also stales the tree of the space the page left.
 	clear_wiki_tree_cache(space, previous and previous.wiki_space)
 	if doc.has_value_changed("content"):
