@@ -249,12 +249,17 @@ def reorder_wiki_documents(
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
+	space_name = _get_wiki_space_for_document(doc.name)
 
-	assert_space_writable(_get_wiki_space_for_document(doc.name))
+	assert_space_writable(space_name)
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
 		frappe.throw(_("You do not have permission to reorder this document"))
+
+	# Merges lock the space before its pages, so take locks in the same order.
+	if space_name:
+		lock_wiki_space(space_name)
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent

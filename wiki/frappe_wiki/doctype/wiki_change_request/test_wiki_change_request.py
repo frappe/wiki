@@ -2,13 +2,15 @@
 # See license.txt
 
 import glob
+import json
 import os
+import re
 from unittest.mock import patch
 
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
 
-from wiki.api.wiki_space import _pending_revision_spaces, flush_pending_revision_syncs
+from wiki.api.wiki_space import _pending_revision_spaces
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	apply_cr_operations,
 	approve_change_request,
@@ -601,12 +603,44 @@ class TestWikiChangeRequest(FrappeTestCase):
 			with self.assertRaises(frappe.TimestampMismatchError):
 				retry_merge_after_resolution(cr.name)
 			page.content = "direct edit"
-			page.save()
 			with self.assertRaises(frappe.TimestampMismatchError):
-				flush_pending_revision_syncs()
+				page.save()
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Approved")
 		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "main_revision"), main_revision)
+
+	def test_page_writers_lock_the_space_before_the_page(self):
+		"""Merges lock the space, then pages. The reverse order deadlocks with them."""
+		from wiki.api import wiki_space
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space = create_test_wiki_space()
+		first = create_test_wiki_document(space.root_group, title="Page A")
+		second = create_test_wiki_document(space.root_group, title="Page B")
+		events = []
+		lock = wiki_space.lock_wiki_space
+		sql = frappe.db.sql
+
+		def record_lock(space_name):
+			events.append("lock space")
+			return lock(space_name)
+
+		def record_page_write(query, *args, **kwargs):
+			if re.match(r"\s*(update|insert into)\s+`tabWiki Document`", str(query), re.IGNORECASE):
+				events.append("write page")
+			return sql(query, *args, **kwargs)
+
+		with (
+			patch.object(wiki_space, "lock_wiki_space", side_effect=record_lock),
+			patch.object(frappe.db, "sql", side_effect=record_page_write),
+		):
+			reorder_wiki_documents(second.name, space.root_group, 0, json.dumps([second.name, first.name]))
+			self.assertEqual(events[:2], ["lock space", "write page"], "reorder")
+
+			events.clear()
+			first.title = "Page A v2"
+			first.save()
+			self.assertEqual(events[:2], ["lock space", "write page"], "desk save")
 
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()
