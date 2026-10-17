@@ -2195,7 +2195,7 @@ def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	cr.save()
 
 	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(cr.wiki_space)
 	capture(
 		"change_request_merged",
 		items=frappe.db.count("Wiki Revision Item", {"revision": cr.head_revision}),
@@ -2533,7 +2533,7 @@ def apply_merge_revision(space: Document, revision: Document) -> None:
 		frappe.flags.in_apply_merge_revision = False
 
 	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(space.name)
 
 
 def _apply_merge_revision(space: Document, revision: Document) -> None:

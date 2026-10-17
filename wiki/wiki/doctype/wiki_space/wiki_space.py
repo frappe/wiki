@@ -300,7 +300,7 @@ class WikiSpace(Document):
 
 		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
 
-		clear_wiki_tree_cache()
+		clear_wiki_tree_cache(self.name)
 
 		return {"updated_count": updated_count}
 

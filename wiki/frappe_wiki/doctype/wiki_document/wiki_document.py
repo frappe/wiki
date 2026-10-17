@@ -29,7 +29,9 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 # e2e/helpers/routes.ts.
 APP_ROUTE = "wiki-app"
 
+# Sidebar trees, keyed by the space's root group. The full tree keeps unpublished pages.
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
+WIKI_FULL_TREE_CACHE_KEY = "wiki_full_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
@@ -942,7 +944,7 @@ def build_nested_wiki_tree(documents: list[str]):
 def get_public_wiki_tree(root_group: str) -> list:
 	"""Return the published sidebar tree for a root group, cached in Redis.
 
-	The cache is invalidated on any Wiki Document change (see
+	The cache is invalidated on any change to the space's documents (see
 	clear_wiki_tree_cache), so a hit always reflects the committed tree.
 	"""
 	tree = frappe.cache().hget(WIKI_TREE_CACHE_KEY, root_group)
@@ -1099,18 +1101,28 @@ def first_published_leaf(nodes: list) -> dict | None:
 	return None
 
 
-def clear_wiki_tree_cache():
-	"""Drop all cached sidebar trees.
+def clear_wiki_tree_cache(*spaces: str | None):
+	"""Drop the cached sidebar trees of `spaces`.
 
-	Cleared wholesale rather than per space: a move can pull a subtree from one
-	space into another, staling both trees while the document only knows its
-	new space. Cleared again after commit to close the race where another
-	worker re-caches from pre-commit DB state.
+	A move stales two trees, so callers pass both the old and the new space.
+	Cleared again after commit to close the race where another worker
+	re-caches from pre-commit DB state.
 	"""
 	from wiki.wiki.crawler_cache import clear_crawler_cache
 
-	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
-	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+	root_groups = [
+		root_group
+		for space in set(spaces)
+		if space and (root_group := frappe.get_cached_value("Wiki Space", space, "root_group"))
+	]
+	if root_groups:
+
+		def clear():
+			for key in (WIKI_TREE_CACHE_KEY, WIKI_FULL_TREE_CACHE_KEY):
+				frappe.cache().hdel(key, root_groups)
+
+		clear()
+		frappe.db.after_commit.add(clear)
 
 	# llms.txt and sitemap.xml are built from this same tree, so they go stale
 	# at exactly the same moments.
@@ -1174,12 +1186,15 @@ def on_wiki_document_update(doc, method):
 	from wiki.api.og_image import enqueue_og_warmup
 	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
-	touch_space_last_edited(stamp_wiki_space(doc))
+	space = stamp_wiki_space(doc)
+	touch_space_last_edited(space)
 	# A save that changes no snapshotted field would only produce an identical revision.
 	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
 		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
-	clear_wiki_tree_cache()
+	previous = doc.get_doc_before_save()
+	# A move also stales the tree of the space the page left.
+	clear_wiki_tree_cache(space, previous and previous.wiki_space)
 	if doc.has_value_changed("content"):
 		clear_wiki_content_cache(doc.name)
 	_drop_from_search_index_on_unpublish(doc)
@@ -1242,7 +1257,7 @@ def on_wiki_document_trash(doc, method):
 	touch_space_last_edited(doc.get("wiki_space"))
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(doc.get("wiki_space"))
 	clear_wiki_content_cache(doc.name)
 	_drop_generated_og_cards(doc)
 
