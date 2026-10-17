@@ -8,7 +8,7 @@ from unittest.mock import patch
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
 
-from wiki.api.wiki_space import _pending_revision_spaces
+from wiki.api.wiki_space import _pending_revision_spaces, flush_pending_revision_syncs
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	apply_cr_operations,
 	approve_change_request,
@@ -578,6 +578,35 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertTrue(
 			locked_cr(get_value), "retry_merge_after_resolution must load the CR via _lock_and_load_cr"
 		)
+
+	def test_main_revision_writers_refuse_a_stale_snapshot(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5e")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		main_revision = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		get_doc = frappe.get_doc
+
+		# The locked read sees a revision another writer committed after this snapshot.
+		def get_doc_after_concurrent_merge(*args, **kwargs):
+			doc = get_doc(*args, **kwargs)
+			if args[:1] == ("Wiki Space",) and kwargs.get("for_update"):
+				doc.main_revision = "committed-elsewhere"
+			return doc
+
+		with patch("frappe.get_doc", side_effect=get_doc_after_concurrent_merge):
+			with self.assertRaises(frappe.TimestampMismatchError):
+				_approve_and_merge(cr.name)
+			with self.assertRaises(frappe.TimestampMismatchError):
+				retry_merge_after_resolution(cr.name)
+			page.content = "direct edit"
+			page.save()
+			with self.assertRaises(frappe.TimestampMismatchError):
+				flush_pending_revision_syncs()
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Approved")
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "main_revision"), main_revision)
 
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()

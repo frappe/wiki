@@ -379,6 +379,21 @@ def flush_pending_revision_syncs() -> None:
 			_sync_main_revision_for_space(space_name)
 
 
+def lock_wiki_space(space_name: str):
+	"""Lock a Wiki Space before moving `main_revision`.
+
+	After a lock wait, plain reads still use the old snapshot, so refuse rather
+	than build on it.
+	"""
+	space = frappe.get_doc("Wiki Space", space_name, for_update=True)
+	if frappe.db.get_value("Wiki Space", space_name, "main_revision") != space.main_revision:
+		frappe.throw(
+			_("Another change was just published to this space. Please try again."),
+			frappe.TimestampMismatchError,
+		)
+	return space
+
+
 def _sync_main_revision_for_space(space_name: str | None) -> None:
 	"""Refresh main_revision after direct edits to keep CRs aligned with live tree."""
 	if not space_name:
@@ -388,7 +403,7 @@ def _sync_main_revision_for_space(space_name: str | None) -> None:
 		create_revision_from_live_tree,
 	)
 
-	space = frappe.get_doc("Wiki Space", space_name)
+	space = lock_wiki_space(space_name)
 	revision = create_revision_from_live_tree(
 		space.name,
 		message="Direct reorder",
