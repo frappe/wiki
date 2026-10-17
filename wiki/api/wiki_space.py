@@ -174,13 +174,14 @@ def get_wiki_tree(space_id: str) -> dict:
 	if not space.root_group:
 		return {"children": [], "root_group": None}
 
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WIKI_FULL_TREE_CACHE_KEY
+
 	root_group = space.root_group
-	descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
-
-	if not descendants:
-		return {"children": [], "root_group": root_group}
-
-	tree = _build_wiki_tree_for_api(descendants)
+	tree = frappe.cache().hget(WIKI_FULL_TREE_CACHE_KEY, root_group)
+	if tree is None:
+		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
+		tree = _build_wiki_tree_for_api(descendants) if descendants else []
+		frappe.cache().hset(WIKI_FULL_TREE_CACHE_KEY, root_group, tree)
 	return {"children": tree, "root_group": root_group}
 
 
@@ -250,7 +251,8 @@ def reorder_wiki_documents(
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
 
-	assert_space_writable(_get_wiki_space_for_document(doc.name))
+	old_space = _get_wiki_space_for_document(doc.name)
+	assert_space_writable(old_space)
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
@@ -282,10 +284,11 @@ def reorder_wiki_documents(
 
 	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
 
+	new_space = _get_wiki_space_for_document(doc.name)
 	# Reorders bypass on_update (raw sort_order writes), so bust the tree cache here.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(old_space, new_space)
 
-	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
+	_sync_main_revision_for_space(new_space)
 
 	return {"is_contribution": False}
 
