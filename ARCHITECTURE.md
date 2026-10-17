@@ -3,8 +3,8 @@
 ## Overview
 
 - `wiki/` is the Frappe app (Python).
-- `frontend/` is the editor SPA (Vue 3, Pinia, Frappe UI). It is served at `/wiki-app`.
-- Readers see server-rendered Jinja pages at each page's own route. The SPA is only for people who edit.
+- `frontend/` is the SPA (Vue 3, Pinia, Frappe UI). It is served at `/wiki-app`.
+- Readers see server-rendered Jinja pages at each page's own route. The SPA is the app for logged-in users: browsing spaces, editing and review.
 - The schema lives in `wiki/**/doctype/*/*.json`. Read the JSON when this file and the code disagree.
 
 ## DocTypes
@@ -76,7 +76,8 @@ Page content and tree edits in the SPA go through a change request. The one exce
 
 ### Creating a draft
 
-- The SPA calls `get_or_create_draft_change_request` when a user opens a space. It returns the user's open draft for that space, or creates one.
+- When a user opens a space they can contribute to, and the space is not git-synced, the SPA calls `get_or_create_draft_change_request`. It returns the user's open draft for that space, or creates one.
+- Otherwise the space is read-only for that user. `space.js` loads the live tree with `get_wiki_tree` and opens no draft.
 - A draft whose base is behind `main_revision` and that changes nothing is archived, and a fresh one is created.
 - `create_change_request` sets `base_revision` to the space's `main_revision` and creates an empty overlay on top of it as `head_revision`.
 - If the space has no `main_revision` yet, it snapshots the live tree first.
@@ -117,7 +118,7 @@ Both paths then:
 The live tree can also change without a change request. Each path keeps `main_revision` in step.
 
 - **Desk edits**: a Wiki Document save that changes a revision field calls `queue_main_revision_sync`. Before the transaction commits, `flush_pending_revision_syncs` snapshots each touched space once and sets a new `main_revision`. Code that reads `main_revision` flushes first, so it never sees a pending snapshot.
-- **Direct reorder** (`reorder_wiki_documents`): moves documents with raw writes, rebuilds the nested set, then snapshots the space right away.
+- **Direct reorder** (`reorder_wiki_documents`): moves documents with raw writes, rebuilds the nested set only if the parent changes, then snapshots the space right away.
 - **Git sync** (`wiki/wiki/git_sync.py`): builds a target revision from the repo, then applies it with the same `_apply_merge_changes_only` step as a merge. A git-synced space is read-only in the wiki (`assert_space_writable`). The repo is the source of truth.
 
 ## Permissions
