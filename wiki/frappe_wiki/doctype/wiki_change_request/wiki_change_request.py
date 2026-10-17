@@ -12,7 +12,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
-from wiki.api.wiki_space import flush_pending_revision_syncs
+from wiki.api.wiki_space import flush_pending_revision_syncs, lock_wiki_space
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
@@ -1538,7 +1538,7 @@ def merge_change_request(name: str) -> str:
 
 	flush_pending_revision_syncs()
 
-	space = frappe.get_doc("Wiki Space", cr.wiki_space)
+	space = lock_wiki_space(cr.wiki_space)
 
 	if cr.base_revision == space.main_revision:
 		return _fast_forward_merge(cr, space)
@@ -1631,7 +1631,7 @@ def retry_merge_after_resolution(name: str) -> str:
 
 	flush_pending_revision_syncs()
 
-	space = frappe.get_doc("Wiki Space", cr.wiki_space)
+	space = lock_wiki_space(cr.wiki_space)
 
 	# Verify all conflicts are resolved
 	open_conflicts = frappe.db.count("Wiki Merge Conflict", {"change_request": name, "status": "Open"})

@@ -2,7 +2,9 @@
 # See license.txt
 
 import glob
+import json
 import os
+import re
 from unittest.mock import patch
 
 import frappe
@@ -578,6 +580,67 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertTrue(
 			locked_cr(get_value), "retry_merge_after_resolution must load the CR via _lock_and_load_cr"
 		)
+
+	def test_main_revision_writers_refuse_a_stale_snapshot(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5e")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		main_revision = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		get_doc = frappe.get_doc
+
+		# The locked read sees a revision another writer committed after this snapshot.
+		def get_doc_after_concurrent_merge(*args, **kwargs):
+			doc = get_doc(*args, **kwargs)
+			if args[:1] == ("Wiki Space",) and kwargs.get("for_update"):
+				doc.main_revision = "committed-elsewhere"
+			return doc
+
+		with patch("frappe.get_doc", side_effect=get_doc_after_concurrent_merge):
+			with self.assertRaises(frappe.TimestampMismatchError):
+				_approve_and_merge(cr.name)
+			with self.assertRaises(frappe.TimestampMismatchError):
+				retry_merge_after_resolution(cr.name)
+			page.content = "direct edit"
+			with self.assertRaises(frappe.TimestampMismatchError):
+				page.save()
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Approved")
+		self.assertEqual(frappe.db.get_value("Wiki Space", space.name, "main_revision"), main_revision)
+
+	def test_page_writers_lock_the_space_before_the_page(self):
+		"""Merges lock the space, then pages. The reverse order deadlocks with them."""
+		from wiki.api import wiki_space
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space = create_test_wiki_space()
+		first = create_test_wiki_document(space.root_group, title="Page A")
+		second = create_test_wiki_document(space.root_group, title="Page B")
+		events = []
+		lock = wiki_space.lock_wiki_space
+		sql = frappe.db.sql
+
+		def record_lock(space_name):
+			events.append("lock space")
+			return lock(space_name)
+
+		def record_page_write(query, *args, **kwargs):
+			if re.match(r"\s*(update|insert into)\s+`tabWiki Document`", str(query), re.IGNORECASE):
+				events.append("write page")
+			return sql(query, *args, **kwargs)
+
+		with (
+			patch.object(wiki_space, "lock_wiki_space", side_effect=record_lock),
+			patch.object(frappe.db, "sql", side_effect=record_page_write),
+		):
+			reorder_wiki_documents(second.name, space.root_group, 0, json.dumps([second.name, first.name]))
+			self.assertEqual(events[:2], ["lock space", "write page"], "reorder")
+
+			events.clear()
+			first.title = "Page A v2"
+			first.save()
+			self.assertEqual(events[:2], ["lock space", "write page"], "desk save")
 
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()

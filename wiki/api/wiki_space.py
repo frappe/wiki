@@ -249,12 +249,17 @@ def reorder_wiki_documents(
 	siblings_list = json.loads(siblings) if isinstance(siblings, str) else siblings
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
+	space_name = _get_wiki_space_for_document(doc.name)
 
-	assert_space_writable(_get_wiki_space_for_document(doc.name))
+	assert_space_writable(space_name)
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
 		frappe.throw(_("You do not have permission to reorder this document"))
+
+	# Merges lock the space before its pages, so take locks in the same order.
+	if space_name:
+		lock_wiki_space(space_name)
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
@@ -379,6 +384,21 @@ def flush_pending_revision_syncs() -> None:
 			_sync_main_revision_for_space(space_name)
 
 
+def lock_wiki_space(space_name: str):
+	"""Lock a Wiki Space before moving `main_revision`.
+
+	After a lock wait, plain reads still use the old snapshot, so refuse rather
+	than build on it.
+	"""
+	space = frappe.get_doc("Wiki Space", space_name, for_update=True)
+	if frappe.db.get_value("Wiki Space", space_name, "main_revision") != space.main_revision:
+		frappe.throw(
+			_("Another change was just published to this space. Please try again."),
+			frappe.TimestampMismatchError,
+		)
+	return space
+
+
 def _sync_main_revision_for_space(space_name: str | None) -> None:
 	"""Refresh main_revision after direct edits to keep CRs aligned with live tree."""
 	if not space_name:
@@ -388,7 +408,7 @@ def _sync_main_revision_for_space(space_name: str | None) -> None:
 		create_revision_from_live_tree,
 	)
 
-	space = frappe.get_doc("Wiki Space", space_name)
+	space = lock_wiki_space(space_name)
 	revision = create_revision_from_live_tree(
 		space.name,
 		message="Direct reorder",
