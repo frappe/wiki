@@ -1301,8 +1301,9 @@ class TestWikiWebpConversion(FrappeTestCase):
 			f.write(b"the other request's image")
 		self.webp_paths = [taken_path]
 
+		file_doc = self.upload_png((0, 255, 0))
 		with patch("frappe.core.doctype.file.utils.generate_file_name", return_value=taken_name):
-			url = convert_file_to_webp(self.upload_png((0, 255, 0)))
+			url = convert_file_to_webp(file_doc)
 		self.webp_paths.append(get_files_path(url.split("/files/")[-1]))
 
 		self.assertNotEqual(url, f"/files/{taken_name}")
