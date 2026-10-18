@@ -173,8 +173,8 @@ def _bump_operation_version(cr: Document) -> int:
 
 	Called by both the batch endpoint and every legacy mutating RPC so the
 	version is a true monotonic counter for any write to the CR head
-	revision. Without this, a legacy client (or `useBatchOperations = false`
-	on the frontend) could change state without bumping the version, and a
+	revision. Without this, a client on the per-page RPCs (such as an agent)
+	could change state without bumping the version, and a
 	subsequent batch with a stale `base_version` would still be accepted —
 	silently overwriting the legacy write.
 
