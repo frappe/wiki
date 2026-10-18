@@ -12,6 +12,7 @@
    The reader highlights with client-side hljs, so the same .hljs-* selectors
    apply. Replaces the old hljs-github-light.css (light-only) stylesheet. */
 @import "./frappe-ui-code.css";
+@import "./diagrams.css";
 
 @utility no-scrollbar {
   @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
@@ -102,9 +103,8 @@ body {
    isn't code any more — present it as a centered figure: the diagram floats on
    a soft surface with breathing room, not crammed top-left in a code box. */
 .prose pre.mermaid[data-processed] {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* Block, not flex: Pele lays its error line out below the drawing. */
+  display: block;
   padding: 2rem 1.5rem;
   margin: 1.5rem 0;
   background-color: var(--surface-gray-1) !important;
@@ -117,9 +117,8 @@ body {
   line-height: normal;
 }
 
-.prose pre.mermaid[data-processed] svg {
-  max-width: 100%;
-  height: auto;
+.prose pre.mermaid[data-processed] > svg {
+  margin-inline: auto;
 }
 
 /* Pre-hydration / no-JS: the raw source is showing — keep it a readable,
