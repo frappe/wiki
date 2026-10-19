@@ -171,6 +171,7 @@ class WikiDocument(NestedSet):
 	# end: auto-generated types
 
 	def validate(self):
+		self.lock_wiki_space()
 		self.set_doc_key()
 		self.set_slug()
 		self.set_sort_order_for_new_document()
@@ -180,6 +181,17 @@ class WikiDocument(NestedSet):
 		if self.has_value_changed("external_url"):
 			validate_external_url(self.external_url)
 		self.set_boilerplate_content()
+
+	def lock_wiki_space(self):
+		# Merges lock the space before its pages, so take locks in the same order.
+		if frappe.flags.in_apply_merge_revision:
+			return
+
+		from wiki.api.wiki_space import _get_wiki_space_for_document, lock_wiki_space
+
+		space_name = _get_wiki_space_for_document(self.parent_wiki_document or self.name)
+		if space_name:
+			lock_wiki_space(space_name)
 
 	def after_insert(self):
 		# A space's root group is scaffolding, not something anyone authored.
