@@ -29,10 +29,14 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 # e2e/helpers/routes.ts.
 APP_ROUTE = "wiki-app"
 
+# Sidebar trees, keyed by the space's root group. The full tree keeps unpublished pages.
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
+WIKI_FULL_TREE_CACHE_KEY = "wiki_full_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
+EXTERNAL_LINK_SCHEMES = ("http", "https", "mailto")
 
 # An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
 WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
@@ -109,6 +113,12 @@ def sanitize_route(route: str | None) -> str:
 	return "/".join(segment for segment in segments if segment)
 
 
+def validate_external_url(url: str | None) -> None:
+	# HTML escaping can't stop a `javascript:` href, so only known schemes are allowed.
+	if url and urlparse(url.strip()).scheme.lower() not in EXTERNAL_LINK_SCHEMES:
+		frappe.throw(_("External links must start with http://, https:// or mailto:"))
+
+
 def memoize_tree_lookups(method):
 	"""Reuse a page's ancestors and space for the length of one render.
 
@@ -167,6 +177,8 @@ class WikiDocument(NestedSet):
 		self.set_route()
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
+		if self.has_value_changed("external_url"):
+			validate_external_url(self.external_url)
 		self.set_boilerplate_content()
 
 	def after_insert(self):
@@ -942,7 +954,7 @@ def build_nested_wiki_tree(documents: list[str]):
 def get_public_wiki_tree(root_group: str) -> list:
 	"""Return the published sidebar tree for a root group, cached in Redis.
 
-	The cache is invalidated on any Wiki Document change (see
+	The cache is invalidated on any change to the space's documents (see
 	clear_wiki_tree_cache), so a hit always reflects the committed tree.
 	"""
 	tree = frappe.cache().hget(WIKI_TREE_CACHE_KEY, root_group)
@@ -1099,18 +1111,30 @@ def first_published_leaf(nodes: list) -> dict | None:
 	return None
 
 
-def clear_wiki_tree_cache():
-	"""Drop all cached sidebar trees.
+def clear_wiki_tree_cache(*spaces: str | None):
+	"""Drop the cached sidebar trees of `spaces`.
 
-	Cleared wholesale rather than per space: a move can pull a subtree from one
-	space into another, staling both trees while the document only knows its
-	new space. Cleared again after commit to close the race where another
-	worker re-caches from pre-commit DB state.
+	A move stales two trees, so callers pass both the old and the new space.
+	Cleared again after commit to close the race where another worker
+	re-caches from pre-commit DB state.
 	"""
 	from wiki.wiki.crawler_cache import clear_crawler_cache
 
-	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
-	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+	root_groups = [
+		root_group
+		for space in set(spaces)
+		if space and (root_group := frappe.get_cached_value("Wiki Space", space, "root_group"))
+	]
+	if root_groups:
+
+		def clear():
+			# v15's RedisWrapper.hdel takes a single field.
+			for key in (WIKI_TREE_CACHE_KEY, WIKI_FULL_TREE_CACHE_KEY):
+				for root_group in root_groups:
+					frappe.cache().hdel(key, root_group)
+
+		clear()
+		frappe.db.after_commit.add(clear)
 
 	# llms.txt and sitemap.xml are built from this same tree, so they go stale
 	# at exactly the same moments.
@@ -1121,6 +1145,7 @@ def clear_wiki_tree_cache():
 def get_breadcrumbs(name: str) -> dict:
 	"""Get the breadcrumb trail for a Wiki Document including space info."""
 	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
 	return doc.get_breadcrumbs()
 
 
@@ -1174,12 +1199,16 @@ def on_wiki_document_update(doc, method):
 	from wiki.api.og_image import enqueue_og_warmup
 	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
-	touch_space_last_edited(stamp_wiki_space(doc))
+	previous = doc.get_doc_before_save()
+	moved = previous and previous.parent_wiki_document != doc.parent_wiki_document
+	space = stamp_wiki_space_subtree(doc.name) if moved else stamp_wiki_space(doc)
+	touch_space_last_edited(space)
 	# A save that changes no snapshotted field would only produce an identical revision.
 	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
 		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
-	clear_wiki_tree_cache()
+	# A move also stales the tree of the space the page left.
+	clear_wiki_tree_cache(space, previous and previous.wiki_space)
 	if doc.has_value_changed("content"):
 		clear_wiki_content_cache(doc.name)
 	_drop_from_search_index_on_unpublish(doc)
@@ -1242,7 +1271,7 @@ def on_wiki_document_trash(doc, method):
 	touch_space_last_edited(doc.get("wiki_space"))
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(doc.get("wiki_space"))
 	clear_wiki_content_cache(doc.name)
 	_drop_generated_og_cards(doc)
 

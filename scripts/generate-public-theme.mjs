@@ -15,7 +15,11 @@
  * is gone. What is left is the v4 shaping the preset does not do for us:
  * `@theme` scales and the merged `@utility` text styles.
  *
+ * The chart ramps (`--chart-categorical-*` and friends) are not in that
+ * module; they ship as plain CSS with frappe-ui/charts, so they are copied in.
+ *
  * Input:  frontend/node_modules/frappe-ui/tailwind/tokens.js
+ *         frontend/node_modules/frappe-ui/src/charts/style.css
  * Output: wiki/public/css/frappe-ui-tokens.css
  */
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -25,6 +29,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const packageDir = join(root, 'frontend/node_modules/frappe-ui');
 const outFile = join(root, 'wiki/public/css/frappe-ui-tokens.css');
+const chartTokensFile = join(packageDir, 'src/charts/style.css');
 
 const {
 	colors,
@@ -154,6 +159,7 @@ const css = [
 	block('[data-theme="dark"]', cssVariables.dark),
 	...textStyleUtilities(),
 	...focusRingUtilities(),
+	readFileSync(chartTokensFile, 'utf8').trim(),
 ].join('\n\n');
 
 writeFileSync(outFile, `${css}\n`);

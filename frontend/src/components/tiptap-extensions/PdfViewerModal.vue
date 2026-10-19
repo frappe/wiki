@@ -8,8 +8,9 @@
  * equivalent in wiki/public/js/pdf-viewer.js.
  */
 
-import { onMounted, onUnmounted, ref } from 'vue';
-import VuePdfEmbed from 'vue-pdf-embed';
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
+
+const VuePdfEmbed = defineAsyncComponent(() => import('vue-pdf-embed'));
 
 const props = defineProps({
 	src: {

@@ -943,6 +943,20 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 				with self.subTest(payload=payload, endpoint=endpoint.__name__):
 					self.assertRaises(frappe.FrappeTypeError, endpoint, payload)
 
+	def test_restricted_space_is_hidden_from_outsiders(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_breadcrumbs
+		from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
+
+		space = create_test_wiki_space(self)
+		space.append("roles", {"role": "Wiki Manager", "permission_level": "Read"})
+		space.save()
+		page = create_wiki_document(self, space.root_group, "Hidden page")
+
+		frappe.set_user(create_test_user("restricted-outsider@example.com", ["Wiki User"]).name)
+		self.assertNotIn(space.route, get_all_spaces())
+		with self.assertRaises(frappe.PermissionError):
+			get_breadcrumbs(page.name)
+
 
 # Helper functions
 
@@ -1301,8 +1315,9 @@ class TestWikiWebpConversion(FrappeTestCase):
 			f.write(b"the other request's image")
 		self.webp_paths = [taken_path]
 
+		file_doc = self.upload_png((0, 255, 0))
 		with patch("frappe.core.doctype.file.utils.generate_file_name", return_value=taken_name):
-			url = convert_file_to_webp(self.upload_png((0, 255, 0)))
+			url = convert_file_to_webp(file_doc)
 		self.webp_paths.append(get_files_path(url.split("/files/")[-1]))
 
 		self.assertNotEqual(url, f"/files/{taken_name}")
