@@ -333,7 +333,7 @@ test.describe('Local-first draft workspace', () => {
 		// Baseline: nothing pending, Submit is enabled.
 		await expect(submitButton).toBeEnabled({ timeout: 5000 });
 
-		// Type into the editor. Autosave is debounced 10s, so the change is
+		// Type into the editor. Autosave waits for 2s of idle, so the change is
 		// purely local — no apply_cr_operations call is in flight yet.
 		await page.evaluate((content) => {
 			window.wikiEditor.commands.setContent(content, {
