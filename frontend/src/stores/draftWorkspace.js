@@ -30,19 +30,12 @@ import {
 
 // Local-first workspace store. Owns optimistic UI state for the active change
 // request. Sync flushes through the batched `apply_cr_operations` endpoint
-// (see specs/local_first_editor_migration_step_2.md). The legacy per-action
-// CR RPCs remain wired up under `useBatchOperations = false` for rollout
-// safety and will be removed once the batch path is stable in production.
+// (see specs/local_first_editor_migration_step_2.md).
 //
 // This file is the coordinator: it composes the sub-modules under
 // `./draftWorkspace/`, owns the user-facing action surface (createNode,
 // updateNode, etc.), and exposes the same public API consumers used
 // before the split.
-
-// Toggle to fall back to the Step 1 per-RPC sync path during rollout. Flip to
-// false to bypass `apply_cr_operations` and use create_cr_page / update_cr_page
-// / move_cr_page / reorder_cr_children / delete_cr_page directly.
-const useBatchOperations = true;
 
 export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const crStore = useChangeRequestStore();
@@ -183,8 +176,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		queue,
 		treeModel,
 		transport,
-		useBatchOperations,
-		crStore,
 		crName: () => crName.value,
 		scheduleSummaryRefresh,
 		errorMessage,
@@ -634,48 +625,28 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 				queue.setStatus(mutation.id, 'syncing');
 
-				let realKey = null;
-				let route = null;
-				let documentName = null;
-				if (useBatchOperations) {
-					const result = await transport.applyBatchOps([
-						{
-							id: mutation.id,
-							type: 'create_node',
-							temp_key: tempKey,
-							parent_key: resolvedParent,
-							title: payload.title,
-							content: payload.content || '',
-							is_group: !!payload.isGroup,
-							is_external_link: !!payload.isExternalLink,
-							external_url: payload.externalUrl ?? null,
-							route: payload.route ?? null,
-						},
-					]);
-					realKey = result?.temp_key_map?.[tempKey] || null;
-					if (realKey) {
-						const item = (result.items || []).find(
-							(it) => it.doc_key === realKey,
-						);
-						route = item?.route || null;
-						documentName = item?.document_name || null;
-					}
-				} else {
-					const result = await crStore.createPage(
-						crName.value,
-						resolvedParent,
-						payload.title,
-						payload.content,
-						payload.isGroup,
-						payload.isExternalLink,
-						payload.externalUrl,
-						payload.route ?? null,
-					);
-					realKey = typeof result === 'string' ? result : result?.doc_key;
-					route = result?.route || null;
-				}
+				const result = await transport.applyBatchOps([
+					{
+						id: mutation.id,
+						type: 'create_node',
+						temp_key: tempKey,
+						parent_key: resolvedParent,
+						title: payload.title,
+						content: payload.content || '',
+						is_group: !!payload.isGroup,
+						is_external_link: !!payload.isExternalLink,
+						external_url: payload.externalUrl ?? null,
+						route: payload.route ?? null,
+					},
+				]);
+				const realKey = result?.temp_key_map?.[tempKey] || null;
 
 				if (realKey) {
+					const item = (result.items || []).find(
+						(it) => it.doc_key === realKey,
+					);
+					const route = item?.route || null;
+					const documentName = item?.document_name || null;
 					const node = treeModel.findNode(tempKey);
 					if (node) {
 						node.docKey = realKey;
@@ -769,33 +740,28 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const realKey = await resolver.resolveDocKey(docKey);
 			if (!realKey) throw new Error('Pending create did not resolve');
 			if (!(await ensureCr())) throw new Error('No change request');
-			if (useBatchOperations) {
-				const result = await transport.applyBatchOps([
-					{
-						id: mutation.id,
-						type: 'update_node',
-						doc_key: realKey,
-						fields,
-					},
-				]);
-				// Pick up the server's copy of the route and title: it
-				// sanitizes a route the caller pinned.
-				const item = (result?.items || []).find((it) => it.doc_key === realKey);
-				if (item) {
-					const fresh =
-						treeModel.findNode(realKey) || treeModel.findNode(docKey);
-					if (fresh) {
-						if (item.route) fresh.route = item.route;
-						if (item.title != null) fresh.title = item.title;
-					}
-					const buf = pageBuffers.get(realKey) || pageBuffers.get(docKey);
-					if (buf) {
-						if (item.route) buf.route = item.route;
-						if (item.title != null) buf.title = item.title;
-					}
+			const result = await transport.applyBatchOps([
+				{
+					id: mutation.id,
+					type: 'update_node',
+					doc_key: realKey,
+					fields,
+				},
+			]);
+			// Pick up the server's copy of the route and title: it
+			// sanitizes a route the caller pinned.
+			const item = (result?.items || []).find((it) => it.doc_key === realKey);
+			if (item) {
+				const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
+				if (fresh) {
+					if (item.route) fresh.route = item.route;
+					if (item.title != null) fresh.title = item.title;
 				}
-			} else {
-				await crStore.updatePage(crName.value, realKey, fields);
+				const buf = pageBuffers.get(realKey) || pageBuffers.get(docKey);
+				if (buf) {
+					if (item.route) buf.route = item.route;
+					if (item.title != null) buf.title = item.title;
+				}
 			}
 			const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
@@ -912,20 +878,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		queue.setStatus(mutation.id, 'syncing');
 		try {
 			if (!(await ensureCr())) throw new Error('No change request');
-			if (useBatchOperations) {
-				const op = {
-					id: mutation.id,
-					type: 'update_content',
-					doc_key: realKey,
-					content,
-				};
-				if (title != null) op.title = title;
-				await transport.applyBatchOps([op]);
-			} else {
-				const fields = { content };
-				if (title != null) fields.title = title;
-				await crStore.updatePage(crName.value, realKey, fields);
-			}
+			const op = {
+				id: mutation.id,
+				type: 'update_content',
+				doc_key: realKey,
+				content,
+			};
+			if (title != null) op.title = title;
+			await transport.applyBatchOps([op]);
 
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
@@ -1032,17 +992,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				}
 			}
 			if (!(await ensureCr())) throw new Error('No change request');
-			if (useBatchOperations) {
-				await transport.applyBatchOps([
-					{
-						id: mutation.id,
-						type: 'delete_node',
-						doc_key: resolvedKey,
-					},
-				]);
-			} else {
-				await crStore.deletePage(crName.value, resolvedKey);
-			}
+			await transport.applyBatchOps([
+				{
+					id: mutation.id,
+					type: 'delete_node',
+					doc_key: resolvedKey,
+				},
+			]);
 			const synced = treeModel.findNode(docKey);
 			if (synced) synced.localStatus = null;
 			queue.clear(mutation.id);
@@ -1069,13 +1025,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		try {
 			const resolvedKey = resolver.resolveKey(docKey) || docKey;
 			if (!(await ensureCr())) throw new Error('No change request');
-			if (useBatchOperations) {
-				await transport.applyBatchOps([
-					{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
-				]);
-			} else {
-				await crStore.restorePage(crName.value, resolvedKey);
-			}
+			await transport.applyBatchOps([
+				{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
+			]);
 			queue.clear(mutation.id);
 			scheduleSummaryRefresh();
 		} catch (err) {
