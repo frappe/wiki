@@ -1127,6 +1127,47 @@ class TestWikiChangeRequest(FrappeTestCase):
 		_approve_and_merge(cr.name)
 		frappe.set_user("Administrator")
 
+	def test_approver_fast_forward_merge_publishes_content(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 12b")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+
+		approver = create_user("merge-approver@example.com", "Wiki User", "Wiki Approver")
+		frappe.set_user(approver.name)
+		try:
+			_approve_and_merge(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(frappe.db.get_value("Wiki Document", page.name, "content"), "v2")
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+
+	def test_approver_three_way_merge_publishes_content(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="line1\nline2\nline3\n")
+		cr = create_change_request(space.name, "CR 12c")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "line1-cr\nline2\nline3\n"})
+
+		page.content = "line1\nline2\nline3-main\n"
+		page.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		approver = create_user("merge-approver@example.com", "Wiki User", "Wiki Approver")
+		frappe.set_user(approver.name)
+		try:
+			_approve_and_merge(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", page.name, "content"), "line1-cr\nline2\nline3-main\n"
+		)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+
 	def test_get_cr_tree_returns_children(self):
 		space = create_test_wiki_space()
 		page1 = create_test_wiki_document(space.root_group, title="Page A")
