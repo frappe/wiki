@@ -402,6 +402,24 @@ class TestGetWebContext(WikiDocumentTestBase):
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
 
+	def test_ai_actions_shown_in_public_space(self):
+		root_group = create_test_wiki_document(self, "AI Public Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Public Page", parent=root_group.name)
+		create_test_wiki_space(
+			self, "AI Public Space", "ai-public-space", root_group.name, roles=[("Guest", "Read")]
+		)
+
+		doc.reload()
+		self.assertTrue(doc.get_web_context()["show_ai_actions"])
+
+	def test_ai_actions_hidden_in_space_guests_cannot_read(self):
+		root_group = create_test_wiki_document(self, "AI Private Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Private Page", parent=root_group.name)
+		create_test_wiki_space(self, "AI Private Space", "ai-private-space", root_group.name)
+
+		doc.reload()
+		self.assertFalse(doc.get_web_context()["show_ai_actions"])
+
 
 class TestSpaceLastEdited(WikiDocumentTestBase):
 	"""Wiki Space.last_edited moves with the pages inside it, not with the space."""
@@ -2187,6 +2205,54 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 		page.before_print()
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
+
+	def test_download_pdf_blocked_when_space_turns_it_off(self):
+		root_group = create_test_wiki_document(self, "Root PDF Off", is_group=True)
+		page = create_test_wiki_document(self, "No Download Page", parent=root_group.name)
+		space = create_test_wiki_space(
+			self, "PDF Off Space", "pdf-off-space", root_group.name, roles=[("Guest", "Read")]
+		)
+		space.db_set("allow_pdf_download", 0)
+
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.PermissionError):
+			download_pdf(route=page.route)
+
+
+class TestRenderedPageActions(WikiDocumentTestBase):
+	TEST_CLIENT = get_test_client()
+
+	def _render_public_page(self, prefix, **space_values):
+		space = create_test_wiki_space(
+			self,
+			"Page Actions Space",
+			f"{prefix}-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[("Guest", "Read")],
+		)
+		space.db_set(space_values)
+		doc = create_test_wiki_document(self, "Page Actions Doc", parent=space.root_group)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		response = _make_request(self.TEST_CLIENT, "get", f"/{doc.route}", headers={"Accept": "text/html"})
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def test_download_action_shown_by_default(self):
+		html = self._render_public_page("pdf-on")
+		self.assertIn("downloadPage().finally", html)
+
+	def test_download_action_hidden_when_space_turns_it_off(self):
+		html = self._render_public_page("pdf-off", allow_pdf_download=0)
+		self.assertNotIn("downloadPage().finally", html)
+
+	def test_menu_toggle_hidden_when_menu_has_no_items(self):
+		html = frappe.render_template(
+			'{% from "templates/wiki/macros/buttons.html" import page_actions_dropdown, dropdown_end %}'
+			"{{ page_actions_dropdown(show_edit=False, show_menu=False) }}{{ dropdown_end() }}",
+			{},
+		)
+		self.assertNotIn("More page actions", html)
 
 
 def _site_sitemap_module() -> str:

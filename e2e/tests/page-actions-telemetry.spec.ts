@@ -31,7 +31,10 @@ declare global {
 }
 
 async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
-	const space = await wiki.space({ pages: [{ title: 'Telemetry Page' }] });
+	const space = await wiki.space({
+		roles: [{ role: 'Guest', permission_level: 'Read' }],
+		pages: [{ title: 'Telemetry Page' }],
+	});
 	const route = space.page('Telemetry Page').route;
 
 	await page.route(PULSE_CLIENT_URL, (request) =>
