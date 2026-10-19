@@ -3444,6 +3444,24 @@ class TestReaderRouteXSS(unittest.TestCase):
 		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
 		self._assert_route_is_safe(html)
 
+	def test_sidebar_tree_macro_escapes_quotes_in_link_attributes(self):
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes) }}"
+		)
+		node = {
+			"is_group": 0,
+			"is_external_link": 1,
+			"name": "n1",
+			"route": "n1",
+			"external_url": 'https://example.com/" onmouseover="alert(1)',
+			"title": 'x" onfocus="alert(2)" autofocus="',
+			"children": [],
+		}
+		html = frappe.render_template(template, {"nodes": [node]})
+		self.assertIn('href="https://example.com/&#34; onmouseover=&#34;alert(1)"', html)
+		self.assertIn('title="x&#34; onfocus=&#34;alert(2)&#34; autofocus=&#34;"', html)
+
 	def test_script_context_uses_bare_tojson_not_forceescape(self):
 		"""Inside a <script> block the browser does not HTML-decode, so a value
 		interpolated as a JS literal must use bare `tojson` (which escapes
