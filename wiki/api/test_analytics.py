@@ -25,11 +25,19 @@ def _ensure_user(email: str, role: str) -> str:
 	return email
 
 
+def _page_views():
+	_, _, connection = store.page_view_source()
+	return connection
+
+
 def _log_view(path: str, creation: str, visitor_id: str | None = None, referrer: str | None = None) -> None:
 	view = frappe.get_doc(
 		{"doctype": "Web Page View", "path": path, "visitor_id": visitor_id, "referrer": referrer}
 	).insert(ignore_permissions=True)
-	frappe.db.set_value("Web Page View", view.name, "creation", creation, update_modified=False)
+	_page_views().sql(
+		"UPDATE `tabWeb Page View` SET creation = %(creation)s WHERE name = %(name)s",
+		{"creation": creation, "name": view.name},
+	)
 
 
 def get_analytics(*args, **kwargs):
@@ -66,7 +74,7 @@ class TestGetAnalytics(IntegrationTestCase):
 		# tearDown commits, so a test that flips tracking must not leave it flipped.
 		frappe.db.set_single_value("Website Settings", "enable_view_tracking", self.tracking_before)
 		self.fixtures.destroy_all()
-		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
+		_page_views().delete("Web Page View", {"path": ("like", "analytics%")})
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 
@@ -306,15 +314,15 @@ class TestGetOverview(IntegrationTestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 		self.fixtures.destroy_all()
-		frappe.db.delete("Web Page View", {"path": ("like", "analytics%")})
+		_page_views().delete("Web Page View", {"path": ("like", "analytics%")})
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 
 	def test_compares_each_number_against_the_previous_window(self):
 		for hour in (9, 10):
-			_log_view(f"{self.route}/a", f"2031-03-03 {hour}:00:00", visitor_id=f"old-{hour}")
+			_log_view(f"{self.route}/a", f"2031-03-03 {hour:02d}:00:00", visitor_id=f"old-{hour}")
 		for hour in (9, 10, 11):
-			_log_view(f"{self.route}/a", f"2031-03-10 {hour}:00:00", visitor_id=f"new-{hour}")
+			_log_view(f"{self.route}/a", f"2031-03-10 {hour:02d}:00:00", visitor_id=f"new-{hour}")
 		_log_view(f"{self.route}/v2/b", "2031-03-11 09:00:00")
 		_log_view("analytics-not-a-wiki-page", "2031-03-11 09:00:00")
 
@@ -336,7 +344,9 @@ class TestGetOverview(IntegrationTestCase):
 		_log_view(f"{self.route}/a", "2031-03-03 09:00:00", referrer="https://www.google.com/")
 		_log_view(f"{self.route}/a", "2031-03-03 10:00:00", referrer="https://www.google.com/")
 		for hour in (9, 10, 11):
-			_log_view(f"{self.route}/a", f"2031-03-10 {hour}:00:00", referrer="https://www.google.com/?q=a")
+			_log_view(
+				f"{self.route}/a", f"2031-03-10 {hour:02d}:00:00", referrer="https://www.google.com/?q=a"
+			)
 		_log_view(f"{self.route}/v2/b", "2031-03-11 09:00:00", referrer="https://github.com/frappe/wiki")
 		_log_view(f"{self.route}/a", "2031-03-12 09:00:00", referrer="")
 		_log_view(f"{self.route}/a", "2031-03-12 10:00:00", referrer=f"{own}/{self.route}/v2/b")

@@ -46,7 +46,9 @@ test.describe('Page actions – AI link URL', () => {
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		const space = await wiki.space();
+		const space = await wiki.space({
+			roles: [{ role: 'Guest', permission_level: 'Read' }],
+		});
 		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 

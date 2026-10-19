@@ -13,7 +13,7 @@ from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.api.wiki_space import flush_pending_revision_syncs
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route, validate_external_url
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -173,8 +173,8 @@ def _bump_operation_version(cr: Document) -> int:
 
 	Called by both the batch endpoint and every legacy mutating RPC so the
 	version is a true monotonic counter for any write to the CR head
-	revision. Without this, a legacy client (or `useBatchOperations = false`
-	on the frontend) could change state without bumping the version, and a
+	revision. Without this, a client on the per-page RPCs (such as an agent)
+	could change state without bumping the version, and a
 	subsequent batch with a stale `base_version` would still be accepted —
 	silently overwriting the legacy write.
 
@@ -358,6 +358,7 @@ def _create_cr_item(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
 
+	validate_external_url(external_url)
 	if is_tab:
 		_assert_can_manage_tabs(cr)
 		_assert_valid_tab(cr, parent_key=parent_key, is_group=is_group)
@@ -403,6 +404,7 @@ def _update_cr_item(
 	}
 	if updates.get("route"):
 		updates["route"] = sanitize_route(updates["route"])
+	validate_external_url(updates.get("external_url"))
 	updates.update(
 		{
 			field: int(bool(fields[field]))
@@ -605,7 +607,7 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 	filters: dict[str, Any] = {"wiki_space": wiki_space}
 	if status:
 		filters["status"] = status
-	return frappe.get_all(
+	return frappe.get_list(
 		"Wiki Change Request",
 		filters=filters,
 		fields=[
@@ -1260,6 +1262,7 @@ def _sibling_position_map(item_map: dict[str, dict[str, Any]]) -> dict[str, int]
 @frappe.whitelist()
 def diff_change_request(name: str, scope: str = "summary", doc_key: str | None = None):
 	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
 	base_items = get_revision_item_map(cr.base_revision)
 	head_items = get_effective_revision_item_map(cr.head_revision)
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
@@ -1525,7 +1528,7 @@ def withdraw_change_request(name: str) -> None:
 
 @frappe.whitelist()
 def merge_change_request(name: str) -> str:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge change requests in this space."),
@@ -1621,12 +1624,13 @@ def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 @frappe.whitelist()
 def retry_merge_after_resolution(name: str) -> str:
 	"""Retry a merge after all conflicts have been resolved."""
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge in this space."),
 			frappe.PermissionError,
 		)
+	_assert_status(cr, {"Approved"})
 
 	flush_pending_revision_syncs()
 
@@ -1839,6 +1843,8 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 			merged_items.pop(key, None)
 
 	if conflicts:
+		# A fresh attempt recomputes every conflict against the current main.
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 		for conflict in conflicts:
 			conflict_doc = frappe.new_doc("Wiki Merge Conflict")
 			conflict_doc.change_request = cr.name
@@ -2192,7 +2198,7 @@ def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	cr.save()
 
 	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(cr.wiki_space)
 	capture(
 		"change_request_merged",
 		items=frappe.db.count("Wiki Revision Item", {"revision": cr.head_revision}),
@@ -2530,7 +2536,7 @@ def apply_merge_revision(space: Document, revision: Document) -> None:
 		frappe.flags.in_apply_merge_revision = False
 
 	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(space.name)
 
 
 def _apply_merge_revision(space: Document, revision: Document) -> None:

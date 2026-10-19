@@ -8,12 +8,7 @@
 
 <script setup>
 import { TaskItem, TaskList } from '@tiptap/extension-list';
-import {
-	Table,
-	TableCell,
-	TableHeader,
-	TableRow,
-} from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { CodeBlock, EditorContent, useEditor } from 'frappe-ui/editor';
 import { ref, watch } from 'vue';
 import { CalloutBlock } from './tiptap-extensions/callout-block.js';
@@ -24,6 +19,7 @@ import { MermaidBlock } from './tiptap-extensions/mermaid-block.js';
 import { PdfBlock } from './tiptap-extensions/pdf-block.js';
 import { PreserveBlankLines } from './tiptap-extensions/preserve-blank-lines.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
@@ -60,7 +56,7 @@ const editor = useEditor({
 		wikiMarkdown(),
 		PreserveBlankLines,
 		WikiImage.configure({ inline: false, allowBase64: true }),
-		Table.configure({ resizable: false, renderWrapper: true }),
+		WikiTable.configure({ resizable: false, renderWrapper: true }),
 		TableRow,
 		TableCell,
 		TableHeader,
