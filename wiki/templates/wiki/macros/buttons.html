@@ -9,7 +9,7 @@
        {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown()") }}
    {{ dropdown_end() }}
 #}
-{% macro page_actions_dropdown(edit_href="", edit_text=_("Edit"), show_edit=True, edit_external=False) %}
+{% macro page_actions_dropdown(edit_href="", edit_text=_("Edit"), show_edit=True, edit_external=False, show_menu=True) %}
     {#- Split button: two frappe-ui gray-outline Buttons (size md) sharing one
         border box, so the pair matches Button's h-8 / rounded-4 / colour
         recipe while still reading as a single control. -#}
@@ -36,6 +36,7 @@
                 <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
             </button>
             {% endif %}
+            {% if show_menu %}
             <!-- Dropdown toggle button -->
             <button @click="open = !open"
                     aria-label="{{ _("More page actions") }}"
@@ -43,6 +44,7 @@
                     class="{{ split_segment }} w-8 border-l border-[var(--outline-gray-2)] cursor-pointer">
                 <span class="inline-flex" :class="{ 'rotate-180': open }">{{ render_icon("chevron-down", "transition-transform duration-200") }}</span>
             </button>
+            {% endif %}
         </div>
 
         {#- Menu surface: frappe-ui Menu content + its p-1.5 group padding. -#}

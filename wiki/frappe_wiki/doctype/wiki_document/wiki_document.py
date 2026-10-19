@@ -1152,6 +1152,9 @@ def download_pdf(route: str):
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
 	doc.check_space_access("read")
 	doc.check_published()
+	space = doc.get_space_name()
+	if space and not frappe.get_cached_value("Wiki Space", space, "allow_pdf_download"):
+		frappe.throw(_("PDF download is turned off for this space"), frappe.PermissionError)
 
 	# Guests can't print by default; we've already authorized them above via check_space_access.
 	frappe.local.flags.ignore_print_permissions = True
