@@ -380,7 +380,7 @@ def _create_cr_item(
 	item.is_deleted = 0
 	# An author-supplied route always wins, but is never trusted verbatim.
 	item.route = sanitize_route(route) if route else _compute_cr_route(cr, parent_key, item.slug, item_map)
-	item.insert()
+	item.insert(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -426,7 +426,7 @@ def _update_cr_item(
 	# when the page is created and owns it from then on. Moving it is an explicit
 	# `route` edit, never a side effect of renaming.
 
-	item.save()
+	item.save(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -444,7 +444,7 @@ def _set_cr_item_deleted(cr: Document, doc_key: str, is_deleted: bool) -> list[s
 	flag = 1 if is_deleted else 0
 	item = frappe.get_doc("Wiki Revision Item", item_name)
 	item.is_deleted = flag
-	item.save()
+	item.save(ignore_permissions=True)
 
 	affected = [doc_key]
 	effective_items = get_effective_revision_item_map(cr.head_revision)
@@ -485,7 +485,7 @@ def _move_cr_item(
 	item.parent_key = parent_key
 	if order_index is not None:
 		item.order_index = order_index
-	item.save()
+	item.save(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -831,9 +831,7 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
-		# Seed the first revision with elevated privileges so a Read-tier
-		# contributor (allowed to raise CRs) can bootstrap a fresh space.
-		main_revision = _bootstrap_main_revision(wiki_space)
+		main_revision = create_revision_from_live_tree(wiki_space, message="Initial main")
 		frappe.db.set_value("Wiki Space", wiki_space, "main_revision", main_revision.name)
 		space.main_revision = main_revision.name
 
@@ -852,18 +850,6 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", cr.name)
 	capture("change_request_created")
 	return cr
-
-
-def _bootstrap_main_revision(wiki_space: str) -> Document:
-	"""Create a fresh space's initial main revision with elevated privileges.
-
-	The revision-creation path inserts Wiki Revision / Wiki Revision Item docs
-	that a plain Wiki User can't create. The caller has already verified the
-	user can *read* the space (Phase 4 read gate), so we seed the first revision
-	with `ignore_permissions` — keeping the real `created_by` and the current
-	session intact (no `set_user`).
-	"""
-	return create_revision_from_live_tree(wiki_space, message="Initial main", ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -2501,7 +2487,7 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 	revision.is_working = 0
 	revision.created_by = frappe.session.user
 	revision.created_at = now_datetime()
-	revision.insert()
+	revision.insert(ignore_permissions=True)
 
 	for item in merged_items.values():
 		new_item = frappe.new_doc("Wiki Revision Item")
@@ -2520,7 +2506,7 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 		new_item.order_index = item.get("order_index")
 		new_item.content_blob = item.get("content_blob")
 		new_item.is_deleted = 0
-		new_item.insert()
+		new_item.insert(ignore_permissions=True)
 
 	recompute_revision_hashes(revision.name)
 	return revision
