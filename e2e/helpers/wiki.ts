@@ -197,9 +197,9 @@ export async function currentDraftDocKey(page: Page): Promise<string> {
  *
  * The editor header has no Save button — autosave owns the save path and the
  * dirty dot on the title reports it — so a spec that needs the buffer on the
- * server presses the manual-flush shortcut instead of waiting out the ten
- * second autosave. Clicking the body first puts focus inside the editor, which
- * is where the shortcut is bound.
+ * server presses the manual-flush shortcut instead of waiting for autosave.
+ * Clicking the body first puts focus inside the editor, which is where the
+ * shortcut is bound.
  */
 export async function saveEditor(page: Page) {
 	await page.locator('.ProseMirror').first().click();

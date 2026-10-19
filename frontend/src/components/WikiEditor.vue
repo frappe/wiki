@@ -41,13 +41,9 @@
 <script setup>
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
-import {
-	Table,
-	TableCell,
-	TableHeader,
-	TableRow,
-} from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
+import { Selection } from '@tiptap/pm/state';
 import { onKeyStroke, useElementSize } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
@@ -59,7 +55,6 @@ import {
 	onMounted,
 	onUnmounted,
 	ref,
-	shallowRef,
 	watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -113,6 +108,7 @@ import {
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
@@ -210,18 +206,22 @@ function linkedPage(href) {
 	return target ? { title: node.title, href: router.resolve(target).href } : null;
 }
 
-const AUTOSAVE_DELAY = 10 * 1000;
-let autosaveTimer = null;
-
 // Reading the page as markdown serializes and re-parses the whole document.
 // Doing it on every keystroke made typing lag by seconds on large pages, so
 // edits are reported once typing pauses, and on blur, save and unmount.
 const contentSync = createTrailingScheduler({
 	delay: 300,
 	maxWait: 2000,
-	run: reportContentChange,
+	run: emitContentChange,
 });
 const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
+
+// The max wait saves a page that is typed into without a pause.
+const autosave = createTrailingScheduler({
+	delay: 2000,
+	maxWait: 10000,
+	run: autoSave,
+});
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -764,20 +764,11 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 onBeforeUnmount(() => {
 	stopFlushRequests();
 	contentSync.cancel();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 	emitContentChange({ persistImmediately: true });
 });
 
-// Seeds the editor and receives serialized markdown on every update; the
-// save flow reads normalized markdown from the editor directly instead.
-const editorContent = shallowRef(props.content || '');
-
 const editor = useEditor({
-	content: editorContent,
-	format: 'markdown',
 	editable: () => !props.readonly,
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
@@ -800,7 +791,7 @@ const editor = useEditor({
 			allowBase64: true,
 			uploadImage: uploadImageVariant,
 		}),
-		Table.configure({
+		WikiTable.configure({
 			resizable: true,
 			renderWrapper: true,
 		}),
@@ -862,6 +853,16 @@ const editor = useEditor({
 	onBlur: () => contentSync.flush(),
 });
 
+// Set content once: a `content` ref turns the whole page into markdown on every key press.
+editor.value
+	.chain()
+	.setContent(props.content || '', { emitUpdate: false, contentType: 'markdown' })
+	.command(({ tr }) => {
+		tr.setSelection(Selection.atStart(tr.doc));
+		return true;
+	})
+	.run();
+
 // useEditor doesn't take editorProps; set them on the created instance.
 editor.value.setOptions({
 	editorProps: {
@@ -920,39 +921,26 @@ function emitContentChange(options = {}) {
 	emit('content-change', content, props.documentKey, options);
 }
 
+let reconciledSavedContent;
+
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
+	reconciledSavedContent = normalizedSavedContent(props.savedContent);
 	emit(
 		'content-ready',
 		currentContent,
-		normalizedSavedContent(props.savedContent),
+		reconciledSavedContent,
 		props.documentKey,
 	);
 }
 
 function handleContentChange() {
 	forgetRemovedUploads();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
 	contentSync.schedule();
-}
-
-function reportContentChange() {
-	const currentContent = getMarkdown();
-	if (currentContent === undefined) return;
-	emitContentChange();
-
-	if (currentContent === normalizedSavedContent(props.savedContent)) return;
-
-	autosaveTimer = setTimeout(() => {
-		autosaveTimer = null;
-		autoSave();
-	}, AUTOSAVE_DELAY);
+	autosave.schedule();
 }
 
 async function autoSave() {
@@ -975,11 +963,7 @@ function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
 	contentSync.cancel();
-	// Clear any pending autosave
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 
 	if (!editor.value) {
 		toast.error('Editor is not ready');
@@ -1006,7 +990,10 @@ function saveToDB() {
 
 watch(
 	() => props.savedContent,
-	() => emitContentReady(),
+	(savedContent) => {
+		if (savedContent === reconciledSavedContent) return;
+		emitContentReady();
+	},
 );
 
 // Expose methods for parent component

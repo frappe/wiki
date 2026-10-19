@@ -28,6 +28,7 @@ from frappe import _
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
+from wiki.api.wiki_space import lock_wiki_space
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	_apply_merge_changes_only,
 	_classify_changes,
@@ -794,6 +795,7 @@ def _sync_to_live(
 	Returns the change counts (``created``/``updated``/``deleted``/``moved``) the
 	apply produced, so the caller can record them on the sync log.
 	"""
+	space = lock_wiki_space(space.name)
 	live_revision = create_revision_from_live_tree(space.name, message="git-sync: live snapshot")
 	prev_items = get_revision_item_map(live_revision.name)
 

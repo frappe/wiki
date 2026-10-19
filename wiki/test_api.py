@@ -830,8 +830,8 @@ class TestWikiDocumentOrderingE2E(WikiFixtureMixin, FrappeTestCase):
 		self.assertEqual(child3.parent_wiki_document, group.name)
 
 
-class TestRebuildWikiTree(WikiFixtureMixin, FrappeTestCase):
-	"""Tests for the rebuild_wiki_tree function."""
+class TestReorderParentChange(WikiFixtureMixin, FrappeTestCase):
+	"""A parent change moves only the affected subtree in the nested set."""
 
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -840,32 +840,58 @@ class TestRebuildWikiTree(WikiFixtureMixin, FrappeTestCase):
 		frappe.set_user("Administrator")
 		frappe.db.rollback()
 
-	def test_rebuild_respects_sort_order(self):
-		"""Test that rebuild_wiki_tree respects sort_order field."""
+	def move(self, doc_name: str, new_parent: str):
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		return reorder_wiki_documents(doc_name, new_parent, 0, json.dumps([doc_name]))
+
+	def count_move_queries(self, doc_name: str, new_parent: str) -> int:
+		from unittest.mock import patch
+
+		with patch.object(frappe.db, "sql", wraps=frappe.db.sql) as sql:
+			self.move(doc_name, new_parent)
+		return sql.call_count
+
+	def test_move_keeps_nested_set_valid(self):
 		space = create_test_wiki_space(self)
+		group_a = create_wiki_document(self, space.root_group, "Group A", is_group=True)
+		group_b = create_wiki_document(self, space.root_group, "Group B", is_group=True)
+		page = create_wiki_document(self, group_a.name, "Page", is_group=True)
+		child = create_wiki_document(self, page.name, "Child")
 
-		# Create pages with explicit sort orders (reverse alphabetical)
-		page_c = create_wiki_document(self, space.root_group, "Page C")
-		page_b = create_wiki_document(self, space.root_group, "Page B")
-		page_a = create_wiki_document(self, space.root_group, "Page A")
+		self.move(page.name, group_b.name)
 
-		# Set sort orders to put them in reverse order
-		frappe.db.set_value("Wiki Document", page_c.name, "sort_order", 0)
-		frappe.db.set_value("Wiki Document", page_b.name, "sort_order", 1)
-		frappe.db.set_value("Wiki Document", page_a.name, "sort_order", 2)
+		for doc in (group_a, group_b, page, child):
+			doc.reload()
+		self.assertEqual(page.parent_wiki_document, group_b.name)
+		self.assertEqual(page.old_parent, group_b.name)
+		self.assertTrue(group_b.lft < page.lft < child.lft < child.rgt < page.rgt < group_b.rgt)
+		self.assertEqual(group_a.rgt, group_a.lft + 1)
 
-		from wiki.api.wiki_space import rebuild_wiki_tree
+	def test_move_into_own_descendant_is_rejected(self):
+		from frappe.utils.nestedset import NestedSetRecursionError
 
-		rebuild_wiki_tree()
+		space = create_test_wiki_space(self)
+		group = create_wiki_document(self, space.root_group, "Group", is_group=True)
+		child = create_wiki_document(self, group.name, "Child", is_group=True)
 
-		# Reload and check lft values
-		page_c.reload()
-		page_b.reload()
-		page_a.reload()
+		with self.assertRaises(NestedSetRecursionError):
+			self.move(group.name, child.name)
 
-		# Page C should have lowest lft (comes first)
-		self.assertLess(page_c.lft, page_b.lft)
-		self.assertLess(page_b.lft, page_a.lft)
+	def test_move_cost_does_not_grow_with_site_size(self):
+		space = create_test_wiki_space(self)
+		group_a = create_wiki_document(self, space.root_group, "Group A", is_group=True)
+		group_b = create_wiki_document(self, space.root_group, "Group B", is_group=True)
+		page = create_wiki_document(self, group_a.name, "Page")
+
+		self.move(page.name, group_b.name)
+		baseline = self.count_move_queries(page.name, group_a.name)
+
+		other_space = create_test_wiki_space(self)
+		for index in range(20):
+			create_wiki_document(self, other_space.root_group, f"Other {index}")
+
+		self.assertEqual(self.count_move_queries(page.name, group_b.name), baseline)
 
 
 class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
@@ -942,6 +968,20 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 			for endpoint in (get_restricted_spaces, get_space_stats):
 				with self.subTest(payload=payload, endpoint=endpoint.__name__):
 					self.assertRaises(frappe.FrappeTypeError, endpoint, payload)
+
+	def test_restricted_space_is_hidden_from_outsiders(self):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import get_breadcrumbs
+		from wiki.wiki.doctype.wiki_settings.wiki_settings import get_all_spaces
+
+		space = create_test_wiki_space(self)
+		space.append("roles", {"role": "Wiki Manager", "permission_level": "Read"})
+		space.save()
+		page = create_wiki_document(self, space.root_group, "Hidden page")
+
+		frappe.set_user(create_test_user("restricted-outsider@example.com", ["Wiki User"]).name)
+		self.assertNotIn(space.route, get_all_spaces())
+		with self.assertRaises(frappe.PermissionError):
+			get_breadcrumbs(page.name)
 
 
 # Helper functions
@@ -1301,8 +1341,9 @@ class TestWikiWebpConversion(FrappeTestCase):
 			f.write(b"the other request's image")
 		self.webp_paths = [taken_path]
 
+		file_doc = self.upload_png((0, 255, 0))
 		with patch("frappe.core.doctype.file.utils.generate_file_name", return_value=taken_name):
-			url = convert_file_to_webp(self.upload_png((0, 255, 0)))
+			url = convert_file_to_webp(file_doc)
 		self.webp_paths.append(get_files_path(url.split("/files/")[-1]))
 
 		self.assertNotEqual(url, f"/files/{taken_name}")

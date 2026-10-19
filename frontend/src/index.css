@@ -5,6 +5,10 @@
    barrels are marked side-effectful, so each family's CSS ships with the
    subpath import itself. */
 @import "./wiki-rendered.css";
+/* frappe-ui ships its chart color ramps only with frappe-ui/charts, which would
+   pull echarts into the editor; the diagrams need just the tokens. */
+@import "../node_modules/frappe-ui/src/charts/style.css";
+@import "../../wiki/public/css/diagrams.css";
 
 /* Tell the browser which theme its native UI (scrollbars, form controls)
    should use — without this, dark mode gets glaring light scrollbars. */
