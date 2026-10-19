@@ -391,7 +391,6 @@ class TestRevisionDataAccess(IntegrationTestCase):
 			get_cr_page,
 		)
 
-		self._docs = []
 		self._spaces = []
 		self.space = _make_space(self, "WSAC Revisions", [(READER_ROLE, "Read")])
 		root_key = frappe.db.get_value(
@@ -428,7 +427,7 @@ class TestRevisionDataAccess(IntegrationTestCase):
 					item.insert()
 
 	def test_non_managers_cannot_read_revision_data(self):
-		for user in (self.reader, self.approver):
+		for user in (self.reader, self.outsider, self.approver):
 			for doctype in REVISION_DOCTYPES:
 				with self.subTest(user=user, doctype=doctype):
 					self.assertFalse(frappe.has_permission(doctype, "read", user=user))
