@@ -43,6 +43,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
+import { Selection } from '@tiptap/pm/state';
 import { onKeyStroke, useElementSize } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
@@ -54,7 +55,6 @@ import {
 	onMounted,
 	onUnmounted,
 	ref,
-	shallowRef,
 	watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -768,13 +768,7 @@ onBeforeUnmount(() => {
 	emitContentChange({ persistImmediately: true });
 });
 
-// Seeds the editor and receives serialized markdown on every update; the
-// save flow reads normalized markdown from the editor directly instead.
-const editorContent = shallowRef(props.content || '');
-
 const editor = useEditor({
-	content: editorContent,
-	format: 'markdown',
 	editable: () => !props.readonly,
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
@@ -858,6 +852,16 @@ const editor = useEditor({
 	onUpdate: handleContentChange,
 	onBlur: () => contentSync.flush(),
 });
+
+// Set content once: a `content` ref turns the whole page into markdown on every key press.
+editor.value
+	.chain()
+	.setContent(props.content || '', { emitUpdate: false, contentType: 'markdown' })
+	.command(({ tr }) => {
+		tr.setSelection(Selection.atStart(tr.doc));
+		return true;
+	})
+	.run();
 
 // useEditor doesn't take editorProps; set them on the created instance.
 editor.value.setOptions({
