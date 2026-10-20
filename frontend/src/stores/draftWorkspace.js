@@ -226,7 +226,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	// Hydrate the workspace for a space: ensure CR exists, load tree + summary,
 	// and normalize into local state. Idempotent and de-duplicated per call.
-	async function hydrate(targetSpaceId) {
+	// `changeRequest` is the draft the space bootstrap already loaded.
+	async function hydrate(targetSpaceId, changeRequest = null) {
 		if (!isEnabled.value || !targetSpaceId) return;
 
 		if (hydratePromise && spaceId.value === targetSpaceId) {
@@ -240,7 +241,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			spaceId.value = targetSpaceId;
 			if (!hasLoadedTree.value) paintStaleTree(targetSpaceId, run);
 
-			changeRequestReady = loadChangeRequest(targetSpaceId);
+			changeRequestReady = loadChangeRequest(targetSpaceId, changeRequest);
 			const drafts = await changeRequestReady;
 			if (!crName.value) return;
 
@@ -272,8 +273,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
-	async function loadChangeRequest(targetSpaceId) {
-		await crStore.initChangeRequest(targetSpaceId);
+	async function loadChangeRequest(targetSpaceId, changeRequest) {
+		if (changeRequest) crStore.currentChangeRequest = changeRequest;
+		else await crStore.initChangeRequest(targetSpaceId);
 		return crName.value ? loadDraftsForCr(crName.value) : [];
 	}
 

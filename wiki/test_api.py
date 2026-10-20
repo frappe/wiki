@@ -987,6 +987,63 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 # Helper functions
 
 
+class TestSpaceBootstrap(WikiFixtureMixin, FrappeTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_an_editor_gets_their_draft(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertEqual(bootstrap["doc"]["name"], space.name)
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertEqual(bootstrap["change_request"]["wiki_space"], space.name)
+		self.assertEqual(bootstrap["change_request"]["owner"], "Administrator")
+
+	def test_a_reader_who_cannot_contribute_gets_no_draft(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(
+			pages=[{"title": "Alpha"}],
+			roles=[("Wiki User", "Read")],
+			allow_contributions=0,
+		)
+		reader = create_test_user("bootstrap-reader@example.com", ["Wiki User"]).name
+		frappe.set_user(reader)
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertFalse(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name, "owner": reader}))
+
+	def test_a_git_synced_space_gets_no_draft(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(git_synced=1, repo_full_name="acme/docs", branch="main")
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+
+	def test_an_outsider_is_refused(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(roles=[("Wiki Manager", "Read")])
+		frappe.set_user(create_test_user("bootstrap-outsider@example.com", ["Wiki User"]).name)
+
+		with self.assertRaises(frappe.PermissionError):
+			get_space_bootstrap(space.name)
+
+
 class TestAppBoot(FrappeTestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
