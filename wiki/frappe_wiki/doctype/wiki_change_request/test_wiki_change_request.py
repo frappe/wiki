@@ -2292,6 +2292,30 @@ class TestWikiChangeRequest(FrappeTestCase):
 				],
 			)
 
+	def test_apply_cr_operations_returns_change_summary(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Summary", content="Original")
+		cr = create_change_request(space.name, "Batch CR Summary")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+
+		edited = apply_cr_operations(
+			cr.name,
+			base_version=0,
+			operations=[{"type": "update_content", "doc_key": page_key, "content": "Edited"}],
+		)
+		self.assertEqual(edited["changes"], diff_change_request(cr.name))
+		self.assertEqual(
+			[(change["doc_key"], change["change_type"]) for change in edited["changes"]],
+			[(page_key, "modified")],
+		)
+
+		reverted = apply_cr_operations(
+			cr.name,
+			base_version=edited["current_version"],
+			operations=[{"type": "update_content", "doc_key": page_key, "content": "Original"}],
+		)
+		self.assertEqual(reverted["changes"], [])
+
 	def test_apply_cr_operations_increments_operation_version(self):
 		space = create_test_wiki_space()
 		cr = create_change_request(space.name, "Batch CR 9")

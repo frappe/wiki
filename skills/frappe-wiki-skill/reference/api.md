@@ -77,7 +77,8 @@ Success:
  "temp_key_map": {"tmp-1": "487291614eed"},
  "items": [ /* serialized, with content for touched keys */ ],
  "deleted_doc_keys": ["..."],
- "change_summary": {"count": 1, "by_type": {"create_node": 1}}}
+ "change_summary": {"count": 1, "by_type": {"create_node": 1}},
+ "changes": [ /* same as diff_change_request summary, after this batch */ ]}
 ```
 
 Stale — **HTTP 200, exit code 0**:

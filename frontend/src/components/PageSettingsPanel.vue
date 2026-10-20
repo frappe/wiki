@@ -309,7 +309,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['close', 'node-updated']);
+const emit = defineEmits(['close']);
 
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
@@ -519,7 +519,6 @@ async function save() {
 		if (Object.keys(node).length) {
 			if (!props.docKey) throw new Error(__('No active change request'));
 			await draftStore.updateNode(props.docKey, node);
-			emit('node-updated');
 		}
 		if (Object.keys(meta).length) {
 			await props.docResource.updateMeta.submit(meta);

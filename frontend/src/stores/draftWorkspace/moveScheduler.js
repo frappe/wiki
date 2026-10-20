@@ -7,7 +7,6 @@ export function createMoveScheduler({
 	treeModel,
 	transport,
 	crName,
-	scheduleSummaryRefresh,
 	errorMessage,
 }) {
 	// Tracks the latest target per docKey so rapid drags collapse into
@@ -106,7 +105,6 @@ export function createMoveScheduler({
 					queue.clear(m.id);
 				}
 			}
-			scheduleSummaryRefresh();
 		} catch (err) {
 			for (const m of moveMutations) {
 				queue.setStatus(m.id, 'failed', errorMessage(err));
