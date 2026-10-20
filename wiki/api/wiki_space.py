@@ -165,6 +165,28 @@ def get_space_stats(spaces: list[str]) -> dict:
 	return stats
 
 
+@frappe.whitelist(methods=["POST"])
+def get_space_bootstrap(space_id: str) -> dict:
+	"""The space, the user's capabilities in it and, if they may edit, their draft change request.
+
+	The tree stays a separate request: the editor opens without it, and a failed tree load can be
+	retried on its own. POST because it may create the draft.
+	"""
+	from frappe.client import get as get_doc_for_client
+
+	from wiki.api import get_space_capabilities
+	from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+		get_or_create_draft_change_request,
+	)
+
+	doc = get_doc_for_client("Wiki Space", space_id)
+	capabilities = get_space_capabilities(space_id)
+	bootstrap = {"doc": doc, "capabilities": capabilities, "change_request": None}
+	if capabilities["can_contribute"] and not doc.get("git_synced"):
+		bootstrap["change_request"] = get_or_create_draft_change_request(space_id)
+	return bootstrap
+
+
 @frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""

@@ -431,13 +431,7 @@ test.describe('Change Request Flow', () => {
 
 		// Start a new change request and reorder pages inside the group
 		const draftResponsePromise = page.waitForResponse((response) => {
-			if (
-				!response
-					.url()
-					.includes(
-						'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
-					)
-			) {
+			if (!response.url().includes('wiki.api.wiki_space.get_space_bootstrap')) {
 				return false;
 			}
 			if (response.request().method() !== 'POST') {
@@ -452,7 +446,9 @@ test.describe('Change Request Flow', () => {
 
 		const draftResponse = await draftResponsePromise;
 		const draftPayload = await draftResponse.json();
-		const draftChangeRequest = draftPayload?.message as { name: string };
+		const draftChangeRequest = draftPayload?.message?.change_request as {
+			name: string;
+		};
 		expect(draftChangeRequest?.name).toBeTruthy();
 
 		type CrTreeNode = {

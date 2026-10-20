@@ -110,14 +110,17 @@ test('a reader who may contribute still gets New page', async ({
 	await context.close();
 });
 
-async function delayCapabilities(page: Page) {
-	await page.route('**/wiki.api.get_space_capabilities', async (route) => {
-		await new Promise((resolve) => setTimeout(resolve, 3000));
-		await route.continue();
-	});
+async function delayBootstrap(page: Page) {
+	await page.route(
+		'**/wiki.api.wiki_space.get_space_bootstrap',
+		async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 3000));
+			await route.continue();
+		},
+	);
 }
 
-test('a reader opening a page never asks for a change request while capabilities load', async ({
+test('a reader opening a page never asks for a change request while the space loads', async ({
 	browser,
 	request,
 	wiki,
@@ -144,15 +147,15 @@ test('a reader opening a page never asks for a change request while capabilities
 			changeRequestCalls.push(req.url());
 		}
 	});
-	await delayCapabilities(page);
-	const spaceLoaded = page.waitForResponse((res) =>
-		res.url().includes('doctype=Wiki+Space&'),
+	await delayBootstrap(page);
+	const pageLoaded = page.waitForResponse((res) =>
+		res.url().includes('doctype=Wiki+Document&'),
 	);
 	await page.goto(space.url('page', space.page('Alpha').name));
-	await spaceLoaded;
+	await pageLoaded;
 
-	// Still inside the capability delay: the space is up, the answer is not.
-	// A one-shot check, since a retrying one would wait out the delay.
+	// Still inside the bootstrap delay: the page is up, the capabilities are
+	// not. A one-shot check, since a retrying one would wait out the delay.
 	await page.waitForTimeout(1500);
 	expect(await page.getByText('Drafting Changes').isVisible()).toBe(false);
 	await expect(page.getByText('Read-only')).toBeVisible({ timeout: 15000 });
@@ -163,7 +166,7 @@ test('a reader opening a page never asks for a change request while capabilities
 	await context.close();
 });
 
-test('a contributor opening a page can still edit once capabilities load', async ({
+test('a contributor opening a page can still edit once the space loads', async ({
 	browser,
 	request,
 	wiki,
@@ -183,7 +186,7 @@ test('a contributor opening a page can still edit once capabilities load', async
 		password,
 	);
 	const page = await context.newPage();
-	await delayCapabilities(page);
+	await delayBootstrap(page);
 	await page.goto(space.url('page', space.page('Alpha').name));
 
 	await expect(page.getByText('Drafting Changes')).toBeVisible({

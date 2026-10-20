@@ -28,7 +28,7 @@ export const useSpaceStore = defineStore('space', () => {
 	const selectedDraftKey = computed(() => route.value.params.docKey || null);
 
 	// createDocumentResource caches by doctype+name, so re-entering a space
-	// reuses the loaded document instead of refetching it.
+	// shows the loaded document until the bootstrap below refreshes it.
 	const space = ref(null);
 	watch(
 		spaceId,
@@ -37,7 +37,7 @@ export const useSpaceStore = defineStore('space', () => {
 				? createDocumentResource({
 						doctype: 'Wiki Space',
 						name: id,
-						auto: true,
+						auto: false,
 						whitelistedMethods: {
 							updateRoutes: 'update_routes',
 							cloneWikiSpace: 'clone_wiki_space_in_background',
@@ -84,22 +84,39 @@ export const useSpaceStore = defineStore('space', () => {
 	const canEdit = computed(
 		() => !isGitSynced.value && canContribute.value === true,
 	);
-	const capabilitiesResource = createResource({
-		url: 'wiki.api.get_space_capabilities',
-		onSuccess: (data) => {
-			canWriteSpace.value = Boolean(data?.can_write);
-			canDeleteSpace.value = Boolean(data?.can_delete);
-			canContribute.value = Boolean(data?.can_contribute);
-		},
+	// The space document, the capabilities and the user's draft, in one round
+	// trip instead of three in a row.
+	const bootstrapResource = createResource({
+		url: 'wiki.api.wiki_space.get_space_bootstrap',
 	});
+
+	// Held until the hydrate watcher below takes it. Taken once: a later
+	// trigger, such as a settings change, fetches fresh.
+	let bootstrapDraft = null;
+	function takeBootstrapDraft(id) {
+		const draft = bootstrapDraft?.wiki_space === id ? bootstrapDraft : null;
+		bootstrapDraft = null;
+		return draft;
+	}
 
 	watch(
 		spaceId,
-		(id) => {
+		async (id) => {
 			canWriteSpace.value = false;
 			canDeleteSpace.value = false;
 			canContribute.value = null;
-			if (id) capabilitiesResource.submit({ space: id });
+			bootstrapDraft = null;
+			if (!id) return;
+			const data = await bootstrapResource
+				.submit({ space_id: id })
+				.catch(() => null);
+			if (!data || id !== spaceId.value) return;
+			bootstrapDraft = data.change_request;
+			space.value.setDoc(data.doc);
+			space.value.originalDoc = JSON.parse(JSON.stringify(data.doc));
+			canWriteSpace.value = Boolean(data.capabilities.can_write);
+			canDeleteSpace.value = Boolean(data.capabilities.can_delete);
+			canContribute.value = Boolean(data.capabilities.can_contribute);
 		},
 		{ immediate: true },
 	);
@@ -282,7 +299,7 @@ export const useSpaceStore = defineStore('space', () => {
 				draftStore.reset();
 			}
 
-			await draftStore.hydrate(spaceId.value);
+			await draftStore.hydrate(spaceId.value, takeBootstrapDraft(name));
 		},
 		{ immediate: true },
 	);
