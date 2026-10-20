@@ -193,6 +193,19 @@ class WikiDocument(NestedSet):
 		if space_name:
 			lock_wiki_space(space_name)
 
+	def on_update(self):
+		# Each update_nsm shifts lft/rgt across the whole table; bulk writers renumber once at the end.
+		if frappe.flags.defer_wiki_nested_set:
+			self.validate_ledger()
+			return
+		super().on_update()
+
+	def on_trash(self, allow_root_deletion=False):
+		if frappe.flags.defer_wiki_nested_set:
+			self.validate_if_child_exists()
+			return
+		super().on_trash(allow_root_deletion)
+
 	def after_insert(self):
 		# A space's root group is scaffolding, not something anyone authored.
 		if not self.parent_wiki_document:
@@ -1283,6 +1296,69 @@ def stamp_wiki_space_subtree(root_doc_name):
 	for name in names:
 		frappe.db.set_value("Wiki Document", name, "wiki_space", space_name, update_modified=False)
 	return space_name
+
+
+def rebuild_space_nested_set(space_name: str) -> None:
+	"""Renumber one space's lft/rgt from parent links, after writes under `defer_wiki_nested_set`.
+
+	Frappe's rebuild_tree renumbers every space in the table. Here only this
+	space is renumbered, and the spaces after it shift by its change in size.
+	"""
+	WikiDocument = frappe.qb.DocType("Wiki Document")
+	root_group = frappe.db.get_value("Wiki Space", space_name, "root_group")
+	# Locks the root row, so a concurrent insert in an earlier space cannot shift this space mid-rebuild.
+	root_lft, root_rgt = frappe.db.get_value("Wiki Document", root_group, ["lft", "rgt"], for_update=True)
+
+	# Pages added or moved in during the bulk write have no lft in range yet, but carry the space stamp.
+	rows = (
+		frappe.qb.from_(WikiDocument)
+		.select(
+			WikiDocument.name,
+			WikiDocument.parent_wiki_document,
+			WikiDocument.old_parent,
+			WikiDocument.sort_order,
+			WikiDocument.lft,
+			WikiDocument.rgt,
+		)
+		.where(WikiDocument.lft.between(root_lft, root_rgt) | (WikiDocument.wiki_space == space_name))
+		.run(as_dict=True)
+	)
+	children = {}
+	for row in sorted(rows, key=lambda row: (row.sort_order or 0, row.name)):
+		children.setdefault(row.parent_wiki_document, []).append(row)
+
+	numbers = {}
+	new_root_rgt = _number_subtree(root_group, root_lft, children, numbers)
+
+	updates = {}
+	for row in rows:
+		if row.name not in numbers:
+			continue
+		# update_nsm keeps old_parent equal to the parent; a stale one turns the next save into a move.
+		new = {**numbers[row.name], "old_parent": row.parent_wiki_document or ""}
+		current = {"lft": row.lft, "rgt": row.rgt, "old_parent": row.old_parent or ""}
+		# A page moved in from a later space is about to be shifted, so its current lft is no guide.
+		if row.lft > root_rgt or current != new:
+			updates[row.name] = new
+
+	if shift := new_root_rgt - root_rgt:
+		(
+			frappe.qb.update(WikiDocument)
+			.set(WikiDocument.lft, WikiDocument.lft + shift)
+			.set(WikiDocument.rgt, WikiDocument.rgt + shift)
+			.where(WikiDocument.lft > root_rgt)
+			.run()
+		)
+	frappe.db.bulk_update("Wiki Document", updates, update_modified=False)
+	frappe.clear_document_cache("Wiki Document")
+
+
+def _number_subtree(name: str, left: int, children: dict, numbers: dict) -> int:
+	right = left + 1
+	for child in children.get(name, []):
+		right = _number_subtree(child.name, right, children, numbers) + 1
+	numbers[name] = {"lft": left, "rgt": right}
+	return right
 
 
 def on_wiki_document_trash(doc, method):
