@@ -87,6 +87,38 @@ test.describe('Reader sidebar tree', () => {
 		).toBe(true);
 	});
 
+	test('the tree still works when the browser blocks storage', async ({
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(window, 'localStorage', {
+				get() {
+					throw new DOMException('Storage is blocked', 'SecurityError');
+				},
+			});
+		});
+		await page.goto(`/${deepPage.route}`);
+		await page.evaluate(() => {
+			(window as unknown as { samePage: boolean }).samePage = true;
+		});
+
+		await sidebar(page).getByText('Reference', { exact: true }).click();
+		await expect(
+			sidebar(page).getByRole('link', { name: 'API', exact: true }),
+		).toBeVisible();
+
+		await sidebar(page).getByRole('link', { name: 'FAQ' }).click();
+		await expect(page.locator('#wiki-page-title')).toHaveText('FAQ');
+		await expect(
+			sidebar(page).getByRole('link', { name: 'FAQ' }),
+		).toHaveAttribute('aria-current', 'page');
+		expect(
+			await page.evaluate(
+				() => (window as unknown as { samePage?: boolean }).samePage,
+			),
+		).toBe(true);
+	});
+
 	test('a modifier click opens the page in a new tab', async ({ page }) => {
 		await page.goto(`/${deepPage.route}`);
 

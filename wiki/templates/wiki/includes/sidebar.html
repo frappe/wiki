@@ -49,7 +49,9 @@
                 root.classList.add('no-transition');
                 root.setAttribute('data-theme', newTheme);
                 // frappe-ui's key, so this toggle and the editor SPA agree.
-                localStorage.setItem('theme', newTheme);
+                try {
+                    localStorage.setItem('theme', newTheme);
+                } catch (e) {}
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         root.classList.remove('no-transition');
@@ -334,7 +336,10 @@
     const WIKI_TREE_EXPANDED_KEY = '_x_expandedStates';
 
     function initWikiTree(tree) {
-        const expanded = JSON.parse(localStorage.getItem(WIKI_TREE_EXPANDED_KEY) || '{}');
+        let expanded = {};
+        try {
+            expanded = JSON.parse(localStorage.getItem(WIKI_TREE_EXPANDED_KEY)) || {};
+        } catch (e) {}
         tree.querySelectorAll('details[data-node-id]').forEach((group) => {
             if (expanded[group.dataset.nodeId]) group.open = true;
         });
@@ -342,7 +347,9 @@
         // `toggle` does not bubble, so listen in the capture phase.
         tree.addEventListener('toggle', (event) => {
             expanded[event.target.dataset.nodeId] = event.target.open;
-            localStorage.setItem(WIKI_TREE_EXPANDED_KEY, JSON.stringify(expanded));
+            try {
+                localStorage.setItem(WIKI_TREE_EXPANDED_KEY, JSON.stringify(expanded));
+            } catch (e) {}
         }, true);
 
         const pageLink = (event) => event.target.closest('a.wiki-link:not(.wiki-external-link)');
