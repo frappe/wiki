@@ -34,16 +34,19 @@ async function contentSaveSettled(page: Page) {
 	);
 }
 
-async function savedContent(page: Page, docKey: string) {
+async function savedPage(page: Page, docKey: string) {
 	const crName = await page.evaluate(
 		() => (window as EditorWindow).__draftStore?.crName,
 	);
-	const crPage = await callMethod<{ content: string }>(
+	return callMethod<{ title: string; content: string }>(
 		page.request,
 		`${CR_METHOD}.get_cr_page`,
 		{ name: crName, doc_key: docKey },
 	);
-	return crPage.content;
+}
+
+async function savedContent(page: Page, docKey: string) {
+	return (await savedPage(page, docKey)).content;
 }
 
 function syncAlert(page: Page) {
@@ -171,4 +174,44 @@ test.describe('Draft version conflict', () => {
 			'Start. From A.',
 		);
 	});
+
+	for (const recovery of ['Reload latest', 'a browser reload']) {
+		test(`${recovery} keeps a rename made in another tab`, async ({
+			context,
+			wiki,
+		}) => {
+			const space = await wiki.space({
+				pages: [{ title: 'Shared', content: 'Start.' }],
+			});
+			const shared = space.page('Shared');
+			const url = space.url('page', shared.name);
+			const tabA = await context.newPage();
+			const tabB = await context.newPage();
+			await openEditor(tabA, url);
+			await openEditor(tabB, url);
+
+			const renamed = tabA.waitForResponse(
+				(response) =>
+					response.url().includes('apply_cr_operations') &&
+					(response.request().postData() ?? '').includes('update_node'),
+			);
+			const titleInput = tabA.getByPlaceholder('Page title');
+			await titleInput.fill('Renamed');
+			await titleInput.blur();
+			await renamed;
+
+			await typeAtEnd(tabB, ' From B.');
+			await save(tabB);
+			await expect(syncAlert(tabB)).toContainText('Changed elsewhere');
+
+			if (recovery === 'Reload latest') await reloadLatest(tabB);
+			else await openEditor(tabB, url);
+			await expect(tabB.getByPlaceholder('Page title')).toHaveValue('Renamed');
+			await save(tabB);
+			expect(await savedPage(tabB, shared.doc_key)).toMatchObject({
+				title: 'Renamed',
+				content: 'Start. From B.',
+			});
+		});
+	}
 });

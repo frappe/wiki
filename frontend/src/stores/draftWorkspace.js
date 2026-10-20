@@ -320,7 +320,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (!crName.value || !drafts.length) return;
 		await Promise.all(
 			drafts.map(async (draft) => {
-				const { docKey, content, title } = draft;
+				const { docKey, content } = draft;
 				if (!docKey || content == null) return;
 				// Only restore for keys that still exist server-side. tmp_*
 				// orphans (lost creates) are out of scope for this v1.
@@ -335,9 +335,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				// hydrate (and survive an IndexedDB clear once re-persisted), so
 				// drop it instead of reseeding dirty state.
 				let serverContent = null;
+				let serverTitle = null;
 				try {
 					const result = await transport.fetchPage(crName.value, docKey);
 					serverContent = result?.content ?? '';
+					serverTitle = result?.title || null;
 				} catch (_err) {
 					// Couldn't reach the server — fall through and restore
 					// conservatively so we never silently discard real work.
@@ -355,6 +357,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					serverContent != null &&
 					draft.serverContent !== undefined &&
 					!pageBuffers.isBasedOn(draft, serverContent);
+				// Saves send the title, so a stale one would undo a rename made elsewhere.
+				const title = serverTitle ?? draft.title;
 				const base = {
 					serverContent: changedElsewhere ? draft.serverContent : serverContent,
 					sentContent: draft.sentContent ?? null,
@@ -451,6 +455,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		) {
 			page.serverContent = serverContent;
 			page.sentContent = null;
+			// Saves send the title, so a stale one would undo a rename made elsewhere.
+			page.title = result?.title || '';
+			page.route = result?.route || '';
+			page.isPublished = toPublished(result?.is_published);
 			return;
 		}
 		const shown = page.localContent ?? page.content;
