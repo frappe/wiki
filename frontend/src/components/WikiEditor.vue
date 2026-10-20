@@ -63,6 +63,7 @@ import {
 	createTrailingScheduler,
 	memoizeLast,
 	onEditorFlushRequest,
+	onEditorReloadRequest,
 } from '@/lib/editorContentSync';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -215,6 +216,12 @@ const contentSync = createTrailingScheduler({
 	run: emitContentChange,
 });
 const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
+const stopReloadRequests = onEditorReloadRequest(({ docKey, content }) => {
+	if (docKey !== props.documentKey || !editor.value) return;
+	contentSync.cancel();
+	autosave.cancel();
+	seedContent(content);
+});
 
 // The max wait saves a page that is typed into without a pause.
 const autosave = createTrailingScheduler({
@@ -763,6 +770,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
 	stopFlushRequests();
+	stopReloadRequests();
 	contentSync.cancel();
 	autosave.cancel();
 	emitContentChange({ persistImmediately: true });
@@ -854,14 +862,18 @@ const editor = useEditor({
 });
 
 // Set content once: a `content` ref turns the whole page into markdown on every key press.
-editor.value
-	.chain()
-	.setContent(props.content || '', { emitUpdate: false, contentType: 'markdown' })
-	.command(({ tr }) => {
-		tr.setSelection(Selection.atStart(tr.doc));
-		return true;
-	})
-	.run();
+seedContent(props.content);
+
+function seedContent(content) {
+	editor.value
+		.chain()
+		.setContent(content || '', { emitUpdate: false, contentType: 'markdown' })
+		.command(({ tr }) => {
+			tr.setSelection(Selection.atStart(tr.doc));
+			return true;
+		})
+		.run();
+}
 
 // useEditor doesn't take editorProps; set them on the created instance.
 editor.value.setOptions({

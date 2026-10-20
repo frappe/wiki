@@ -473,6 +473,8 @@ async function saveContent(content) {
 			editableTitle.value,
 		);
 	} catch (error) {
+		// The sync alert says so and stays up; a toast per blocked autosave would not.
+		if (error.code === 'version_conflict') return;
 		console.error('Error saving draft:', error);
 		// Inline failure UX comes in task #7; keep a toast for now so the
 		// user isn't left wondering whether their save worked.

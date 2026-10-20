@@ -1,3 +1,4 @@
+import { requestEditorReload } from '@/lib/editorContentSync';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
 	clearDraft as clearPersistedDraft,
@@ -119,6 +120,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					content: page.localContent,
 					title: title ?? page.title,
 					savedContent: page.content,
+					serverContent: page.serverContent,
+					sentContent: page.sentContent,
 				});
 			} else {
 				clearPersistedDraft(changeRequestName, docKey);
@@ -317,7 +320,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (!crName.value || !drafts.length) return;
 		await Promise.all(
 			drafts.map(async (draft) => {
-				const { docKey, content, title } = draft;
+				const { docKey, content } = draft;
 				if (!docKey || content == null) return;
 				// Only restore for keys that still exist server-side. tmp_*
 				// orphans (lost creates) are out of scope for this v1.
@@ -332,9 +335,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				// hydrate (and survive an IndexedDB clear once re-persisted), so
 				// drop it instead of reseeding dirty state.
 				let serverContent = null;
+				let serverTitle = null;
 				try {
 					const result = await transport.fetchPage(crName.value, docKey);
 					serverContent = result?.content ?? '';
+					serverTitle = result?.title || null;
 				} catch (_err) {
 					// Couldn't reach the server — fall through and restore
 					// conservatively so we never silently discard real work.
@@ -347,6 +352,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					return;
 				}
 
+				// Drafts saved before the base was recorded have no `serverContent`.
+				const changedElsewhere =
+					serverContent != null &&
+					draft.serverContent !== undefined &&
+					!pageBuffers.isBasedOn(draft, serverContent);
+				// Saves send the title, so a stale one would undo a rename made elsewhere.
+				const title = serverTitle ?? draft.title;
+				const base = {
+					serverContent: changedElsewhere ? draft.serverContent : serverContent,
+					sentContent: draft.sentContent ?? null,
+				};
 				const page = pageBuffers.get(docKey);
 				if (!page) {
 					pageBuffers.setPage(
@@ -356,6 +372,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							title,
 							content: serverContent,
 							localContent: content,
+							...base,
 							node,
 						}),
 					);
@@ -363,8 +380,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					page.localContent = content;
 					if (title) page.title = title;
 					if (serverContent != null) page.content = serverContent;
+					Object.assign(page, base);
 					page.saveStatus = 'idle';
 					page.error = null;
+				}
+				if (changedElsewhere) {
+					transport.flagConflict(
+						crName.value,
+						__('This draft has changed elsewhere. Reload latest.'),
+					);
 				}
 			}),
 		);
@@ -403,11 +427,45 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function reloadFromServer() {
 		if (!crName.value) return;
 		await Promise.all([reloadTree(), reloadChanges()]);
+		await Promise.all(Object.keys(pageBuffers.pagesByKey).map(reloadPage));
 		queue.clearFailed();
 		for (const key of Object.keys(pageBuffers.pagesByKey)) {
 			pageBuffers.clearFailedFlag(key);
 		}
+		transport.clearConflict(crName.value);
 		transport.markIdle();
+	}
+
+	// Runs after the tree fetch, so the version it recorded is no newer than
+	// the page copies fetched here.
+	async function reloadPage(docKey) {
+		const node = treeModel.findNode(docKey);
+		if (!node || node.isDeleted) {
+			pageBuffers.deletePage(docKey);
+			clearEditorDraft(crName.value, docKey);
+			return;
+		}
+		const result = await transport.fetchPage(crName.value, docKey);
+		const page = pageBuffers.get(docKey);
+		if (!page) return;
+		const serverContent = result?.content || '';
+		if (
+			pageBuffers.isDirty(page) &&
+			pageBuffers.isBasedOn(page, serverContent)
+		) {
+			page.serverContent = serverContent;
+			page.sentContent = null;
+			// Saves send the title, so a stale one would undo a rename made elsewhere.
+			page.title = result?.title || '';
+			page.route = result?.route || '';
+			page.isPublished = toPublished(result?.is_published);
+			return;
+		}
+		const shown = page.localContent ?? page.content;
+		pageBuffers.clearLocalContent(docKey);
+		applyFetchedPage(docKey, result);
+		clearEditorDraft(crName.value, docKey);
+		if (shown !== serverContent) requestEditorReload(docKey, serverContent);
 	}
 
 	// Apply a fetched CR page snapshot to its buffer. A dirty buffer keeps the
@@ -427,6 +485,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			route: result?.route || '',
 			content: result?.content || '',
 			localContent: null,
+			serverContent: result?.content || '',
+			sentContent: null,
 			isPublished: toPublished(result?.is_published),
 			saveStatus: 'idle',
 			error: null,
@@ -581,6 +641,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				title,
 				route: localRoute,
 				content,
+				serverContent: content || '',
+				sentContent: null,
 				isPublished,
 				saveStatus: 'idle',
 				error: null,
@@ -890,6 +952,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				targetPage.content = content;
+				targetPage.serverContent = content;
+				targetPage.sentContent = null;
 				if (title != null) targetPage.title = title;
 				if (targetPage.localContent === content) {
 					targetPage.localContent = null;
@@ -921,6 +985,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				if (targetPage.localContent == null) targetPage.localContent = content;
+				if (err.code !== 'version_conflict') targetPage.sentContent = content;
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
 				persistEditorDraft(realKey, targetPage.title, { immediate: true });

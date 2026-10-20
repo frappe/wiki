@@ -673,6 +673,8 @@ async function saveContent(content) {
 		// lands in task #7.
 		await loadCrPage();
 	} catch (error) {
+		// The sync alert says so and stays up; a toast per blocked autosave would not.
+		if (error.code === 'version_conflict') return;
 		console.error('Error saving change request:', error);
 		toast.error(
 			error.messages?.[0] || error.message || __('Error saving draft'),
