@@ -76,7 +76,8 @@ Page content and tree edits in the SPA go through a change request. The one exce
 
 ### Creating a draft
 
-- When a user opens a space they can contribute to, and the space is not git-synced, the SPA calls `get_or_create_draft_change_request`. It returns the user's open draft for that space, or creates one.
+- Opening a space calls `get_space_bootstrap` (`wiki/api/wiki_space.py`). It returns the space, the user's capabilities in it and, if they can contribute and the space is not git-synced, their draft from `get_or_create_draft_change_request`. That returns the user's open draft for that space, or creates one.
+- The draft tree (`get_cr_tree`) and its change summary load after the bootstrap, as separate requests. The editor opens without waiting for them, and a failed tree load offers Reload latest.
 - Otherwise the space is read-only for that user. `space.js` loads the live tree with `get_wiki_tree` and opens no draft.
 - A draft whose base is behind `main_revision` and that changes nothing is archived, and a fresh one is created.
 - `create_change_request` sets `base_revision` to the space's `main_revision` and creates an empty overlay on top of it as `head_revision`.
@@ -148,7 +149,7 @@ Code: `wiki/permissions.py`, wired through `has_permission` and `permission_quer
 
 ## Frontend
 
-- Entry: `frontend/src/main.js`, `App.vue`, `router.js`. Vite builds into `wiki/public/frontend` and writes `wiki/www/wiki-app.html`. `wiki/www/wiki_app.py` adds boot data (CSRF token, site info).
+- Entry: `frontend/src/main.js`, `App.vue`, `router.js`. Vite builds into `wiki/public/frontend` and writes `wiki/www/wiki-app.html`. `wiki/www/wiki_app.py` adds boot data (CSRF token, site info, and the user from `get_user_info`, so the app does not fetch it).
 - Pages: `Overview`, `AllSpaces`, `Contributions` (change request list), `ContributionReview` (diff and review), `SpaceDetails` (the editor shell).
 - Inside a space:
   - `WikiDocumentPanel` opens a page that exists in the live tree.
