@@ -546,6 +546,25 @@ class TestWikiChangeRequest(FrappeTestCase):
 		assert_nested_set_follows_parents(self, space.root_group, expected_size=7)
 		assert_nested_set_follows_parents(self, later_space.root_group, expected_size=2)
 
+	def test_merge_renumbers_the_space_a_page_is_pulled_back_from(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Wanderer")
+		other_space = create_test_wiki_space()
+		create_test_wiki_document(other_space.root_group, title="Resident")
+		cr = create_change_request(space.name, "Rename")
+		update_cr_page(cr.name, frappe.get_value("Wiki Document", page.name, "doc_key"), {"title": "Renamed"})
+		reorder_wiki_documents(page.name, other_space.root_group, 0, json.dumps([page.name]))
+
+		_approve_and_merge(cr.name)
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", page.name, "parent_wiki_document"), space.root_group
+		)
+		assert_nested_set_follows_parents(self, space.root_group, expected_size=2)
+		assert_nested_set_follows_parents(self, other_space.root_group, expected_size=2)
+
 	def test_merge_conflict_content_creates_conflict(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
@@ -3237,7 +3256,7 @@ def assert_nested_set_follows_parents(test, root_group: str, expected_size: int)
 	root_lft, root_rgt = frappe.db.get_value("Wiki Document", root_group, ["lft", "rgt"])
 	docs = frappe.get_all(
 		"Wiki Document",
-		filters={"lft": ("between", [root_lft, root_rgt])},
+		filters={"lft": (">=", root_lft), "rgt": ("<=", root_rgt)},
 		fields=["name", "parent_wiki_document", "old_parent", "lft", "rgt"],
 	)
 	by_name = {doc.name: doc for doc in docs}

@@ -12,7 +12,11 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
-from wiki.api.wiki_space import flush_pending_revision_syncs, lock_wiki_space
+from wiki.api.wiki_space import (
+	_get_wiki_space_for_document,
+	flush_pending_revision_syncs,
+	lock_wiki_space,
+)
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	rebuild_space_nested_set,
 	resolve_wiki_links,
@@ -2274,13 +2278,16 @@ def _apply_merge_changes_only(
 	full_save_keys = structural_keys | added_keys
 	frappe.flags.defer_wiki_nested_set = True
 	try:
-		_save_changed_documents(space, new_items, full_save_keys, key_to_name, root_doc_key, blob_contents)
+		left_spaces = _save_changed_documents(
+			space, new_items, full_save_keys, key_to_name, root_doc_key, blob_contents
+		)
 		# Delete AFTER saves — children must be reparented before parents are deleted
 		_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
 	finally:
 		frappe.flags.defer_wiki_nested_set = False
 	if full_save_keys or deleted_keys:
-		rebuild_space_nested_set(space.name)
+		for space_name in {space.name, *left_spaces}:
+			rebuild_space_nested_set(space_name)
 
 	# Reconcile sort_order for unchanged items whose live value drifted
 	_reconcile_sort_order(new_items, key_to_name, changed_keys)
@@ -2295,7 +2302,12 @@ def _save_changed_documents(
 	key_to_name: dict[str, str],
 	root_doc_key: str,
 	blob_contents: dict[str, str],
-) -> None:
+) -> set[str]:
+	"""Save added and restructured pages, and return the other spaces any of them were pulled from."""
+	left_spaces: set[str] = set()
+	if not full_save_keys:
+		return left_spaces
+
 	ordered_keys = build_tree_order(new_items)
 	for doc_key in ordered_keys:
 		if doc_key not in full_save_keys:
@@ -2319,6 +2331,8 @@ def _save_changed_documents(
 			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
 			if existing_name:
 				doc = frappe.get_doc("Wiki Document", existing_name)
+				if left_space := _get_wiki_space_for_document(existing_name):
+					left_spaces.add(left_space)
 			else:
 				doc = frappe.new_doc("Wiki Document")
 				doc.doc_key = doc_key
@@ -2347,6 +2361,8 @@ def _save_changed_documents(
 			key_to_name[doc_key] = doc.name
 		else:
 			doc.save()
+
+	return left_spaces
 
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
