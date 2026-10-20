@@ -3480,20 +3480,7 @@ class TestReaderRouteXSS(unittest.TestCase):
 	double-quoted HTML attribute. Without both, a route like `x'),alert(1)//`
 	breaks out of the JS string and runs for every reader (stored XSS)."""
 
-	# A route crafted to break out of a single-quoted JS string literal.
-	PAYLOAD = "s/x'),alert(document.domain)//"
-
-	def _assert_route_is_safe(self, html):
-		# The vulnerable pattern is a single-quoted JS literal; after the fix
-		# every call passes a double-quoted, entity-encoded literal instead.
-		self.assertNotIn("navigateTo('", html)
-		# The route's own single quote is unicode-escaped by tojson, so it can
-		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
-		self.assertNotIn("//')", html)
-		self.assertIn("\\u0027", html)
-
-	def test_sidebar_tree_macro_escapes_route_in_alpine_expressions(self):
-		"""render_wiki_tree feeds node.route into navigateTo/prefetch/:class."""
+	def test_sidebar_tree_macro_keeps_route_and_title_out_of_scripts(self):
 		template = (
 			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
 			"{{ render_wiki_tree(nodes) }}"
@@ -3502,13 +3489,31 @@ class TestReaderRouteXSS(unittest.TestCase):
 			"is_group": 0,
 			"is_external_link": 0,
 			"name": "n1",
-			"route": self.PAYLOAD,
-			"title": "Evil",
+			"route": 'x" onmouseover="alert(1)',
+			"title": "<img src=x onerror=alert(2)>",
 			"children": [],
 		}
 		html = frappe.render_template(template, {"nodes": [node]})
-		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
-		self._assert_route_is_safe(html)
+		self.assertIn('href="/x&#34; onmouseover=&#34;alert(1)"', html)
+		self.assertIn("&lt;img src=x onerror=alert(2)&gt;</a>", html)
+		self.assertNotIn("@click", html)
+		self.assertNotIn("<img", html)
+
+	def test_sidebar_tree_macro_opens_ancestors_and_marks_current_page(self):
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes, current_route='s/deep', expanded_nodes=expanded) }}"
+		)
+		page = {"is_group": 0, "is_external_link": 0, "name": "p1", "title": "Deep", "children": []}
+		nodes = [
+			{"is_group": 1, "name": "g1", "title": "Open", "children": [{**page, "route": "s/deep"}]},
+			{"is_group": 1, "name": "g2", "title": "Shut", "children": [{**page, "route": "s/other"}]},
+		]
+		html = frappe.render_template(template, {"nodes": nodes, "expanded": {"g1"}})
+		self.assertIn('<details data-node-id="g1" open>', html)
+		self.assertIn('<details data-node-id="g2">', html)
+		self.assertIn('href="/s/deep" title="Deep" aria-current="page"', html)
+		self.assertEqual(html.count("aria-current"), 1)
 
 	def test_sidebar_tree_macro_escapes_quotes_in_link_attributes(self):
 		template = (
