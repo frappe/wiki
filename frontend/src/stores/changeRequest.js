@@ -203,16 +203,23 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 
 	// Batched mutation entrypoint. The backend applies the whole list atomically
 	// inside its request transaction, returns a temp_key_map for any newly
-	// created nodes, the canonical affected items, deleted doc_keys, and the
-	// new operation_version. Callers should pass the last `operation_version`
+	// created nodes, the canonical affected items, deleted doc_keys, the
+	// change summary and the new operation_version. Callers should pass the last `operation_version`
 	// they observed as `baseVersion` so the server can detect concurrent edits
 	// and respond with a structured `version_conflict` instead of clobbering.
 	async function applyOperations(changeRequestName, baseVersion, operations) {
-		return await applyOperationsResource.submit({
+		const result = await applyOperationsResource.submit({
 			name: changeRequestName,
 			base_version: baseVersion,
 			operations,
 		});
+		if (
+			result?.changes &&
+			currentChangeRequest.value?.name === changeRequestName
+		) {
+			changesResource.data = result.changes;
+		}
+		return result;
 	}
 
 	return {

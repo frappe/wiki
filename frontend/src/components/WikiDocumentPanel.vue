@@ -118,7 +118,6 @@
 					:published="displayPublished"
 					:content="editorContent"
 					@close="closePageSettings"
-					@node-updated="loadCrPage"
 				/>
 			</div>
 		</div>
@@ -576,7 +575,6 @@ async function renamePage(close) {
 	isRenaming.value = true;
 	try {
 		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
-		await loadCrPage();
 		close();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
@@ -619,7 +617,6 @@ async function saveTitleIfChanged() {
 	if (!wikiDoc.value.doc?.doc_key) return;
 	try {
 		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
-		await loadCrPage();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
 	}
@@ -632,7 +629,6 @@ async function togglePublish() {
 		await draftStore.updateNode(wikiDoc.value.doc.doc_key, {
 			is_published: newStatus,
 		});
-		await loadCrPage();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating publish status'));
 	}
@@ -668,10 +664,6 @@ async function saveContent(content) {
 			content,
 			editableTitle.value,
 		);
-		// Refresh the CR overlay snapshot so the panel's title/route/etc.
-		// stay in sync with the change we just wrote. Inline failure UX
-		// lands in task #7.
-		await loadCrPage();
 	} catch (error) {
 		// The sync alert says so and stays up; a toast per blocked autosave would not.
 		if (error.code === 'version_conflict') return;

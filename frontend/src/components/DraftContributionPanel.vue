@@ -434,7 +434,6 @@ async function saveTitleIfChanged() {
 	if (!crPage.value?.doc_key) return;
 	try {
 		await draftStore.updateNode(crPage.value.doc_key, { title: newTitle });
-		await loadCrPage();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
 	}
@@ -455,7 +454,6 @@ async function saveRoute(close) {
 	isSavingRoute.value = true;
 	try {
 		await draftStore.updateNode(crPage.value.doc_key, { route: newRoute });
-		await loadCrPage();
 		close();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating route'));

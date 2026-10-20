@@ -43,7 +43,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const userStore = useUserStore();
 
 	const spaceId = ref(null);
-	const changesByKey = reactive({});
 	const isHydrating = ref(false);
 	// False until the first server tree lands (and after reset). Lets the UI
 	// show a skeleton instead of mistaking the pre-hydration empty tree for a
@@ -161,26 +160,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return null;
 	});
 
-	let summaryRefreshTimer = null;
-	function scheduleSummaryRefresh(delay = 1000) {
-		if (summaryRefreshTimer) clearTimeout(summaryRefreshTimer);
-		summaryRefreshTimer = setTimeout(async () => {
-			summaryRefreshTimer = null;
-			try {
-				await reloadChanges();
-			} catch (_err) {
-				// Summary refresh is best-effort; durable state lives in the store.
-			}
-		}, delay);
-	}
-
 	const mover = createMoveScheduler({
 		resolver,
 		queue,
 		treeModel,
 		transport,
 		crName: () => crName.value,
-		scheduleSummaryRefresh,
 		errorMessage,
 	});
 
@@ -219,13 +204,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasStaleTree.value = true;
 	}
 
-	function applyChangesSummary(changes) {
-		for (const k of Object.keys(changesByKey)) delete changesByKey[k];
-		for (const change of changes || []) {
-			if (change?.doc_key) changesByKey[change.doc_key] = change;
-		}
-	}
-
 	// `keepTree` drops the draft session (buffers, queue, change badges) but
 	// leaves the rendered tree standing, so the next hydrate swaps it in one
 	// paint. Without it the sidebar blanks to a skeleton for the length of a
@@ -243,7 +221,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		queue.reset();
 		mover.reset();
 		saver.reset();
-		for (const k of Object.keys(changesByKey)) delete changesByKey[k];
 		transport.reset();
 	}
 
@@ -281,7 +258,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (run !== latestHydrate) return;
 
 			applyServerTree(serverTree);
-			applyChangesSummary(crStore.changes);
 			await restorePersistedDrafts(drafts);
 		})();
 
@@ -406,7 +382,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	async function reloadChanges() {
 		await crStore.loadChanges();
-		applyChangesSummary(crStore.changes);
 	}
 
 	// "Reload latest" recovery. Adopts server tree + change-summary as
@@ -724,7 +699,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					resolver.resolve(tempKey, realKey);
 				}
 				queue.clear(mutation.id);
-				scheduleSummaryRefresh();
 				return realKey || null;
 			} catch (err) {
 				const node = treeModel.findNode(tempKey);
@@ -828,7 +802,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
 			queue.clear(mutation.id);
-			scheduleSummaryRefresh();
 		} catch (err) {
 			const fresh =
 				treeModel.findNode(docKey) ||
@@ -980,7 +953,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				transport.markSaved();
 			}
 			queue.clear(mutation.id);
-			scheduleSummaryRefresh();
 		} catch (err) {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
@@ -1067,7 +1039,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const synced = treeModel.findNode(docKey);
 			if (synced) synced.localStatus = null;
 			queue.clear(mutation.id);
-			scheduleSummaryRefresh();
 		} catch (err) {
 			const fresh = treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
@@ -1094,7 +1065,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
 			]);
 			queue.clear(mutation.id);
-			scheduleSummaryRefresh();
 		} catch (err) {
 			treeModel.setSubtreeDeleted(docKey, true);
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
@@ -1108,7 +1078,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		rootKey: treeModel.rootKey,
 		tree: treeModel.tree,
 		pagesByKey: pageBuffers.pagesByKey,
-		changesByKey,
 		pending: queue.pending,
 		operationVersion: transport.operationVersion,
 		sync: transport.sync,
@@ -1140,7 +1109,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		reset,
 		discardPersistedDraftsForCr,
 		ensureCr,
-		scheduleSummaryRefresh,
 		resolveDocKey: resolver.resolveDocKey,
 		createNode,
 		updateNode,

@@ -1180,6 +1180,10 @@ def apply_cr_operations(
 		"items": items,
 		"deleted_doc_keys": list(deleted_doc_keys),
 		"change_summary": {"count": len(operations), "by_type": by_type},
+		"changes": _diff_revision_items(
+			get_revision_item_map(cr.base_revision),
+			get_effective_revision_item_map(cr.head_revision),
+		),
 	}
 
 
