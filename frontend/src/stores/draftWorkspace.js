@@ -1,3 +1,4 @@
+import { requestEditorReload } from '@/lib/editorContentSync';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
 	clearDraft as clearPersistedDraft,
@@ -119,6 +120,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					content: page.localContent,
 					title: title ?? page.title,
 					savedContent: page.content,
+					serverContent: page.serverContent,
+					sentContent: page.sentContent,
 				});
 			} else {
 				clearPersistedDraft(changeRequestName, docKey);
@@ -347,6 +350,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					return;
 				}
 
+				// Drafts saved before the base was recorded have no `serverContent`.
+				const changedElsewhere =
+					serverContent != null &&
+					draft.serverContent !== undefined &&
+					!pageBuffers.isBasedOn(draft, serverContent);
+				const base = {
+					serverContent: changedElsewhere ? draft.serverContent : serverContent,
+					sentContent: draft.sentContent ?? null,
+				};
 				const page = pageBuffers.get(docKey);
 				if (!page) {
 					pageBuffers.setPage(
@@ -356,6 +368,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 							title,
 							content: serverContent,
 							localContent: content,
+							...base,
 							node,
 						}),
 					);
@@ -363,8 +376,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					page.localContent = content;
 					if (title) page.title = title;
 					if (serverContent != null) page.content = serverContent;
+					Object.assign(page, base);
 					page.saveStatus = 'idle';
 					page.error = null;
+				}
+				if (changedElsewhere) {
+					transport.flagConflict(
+						crName.value,
+						__('This draft has changed elsewhere. Reload latest.'),
+					);
 				}
 			}),
 		);
@@ -403,11 +423,41 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function reloadFromServer() {
 		if (!crName.value) return;
 		await Promise.all([reloadTree(), reloadChanges()]);
+		await Promise.all(Object.keys(pageBuffers.pagesByKey).map(reloadPage));
 		queue.clearFailed();
 		for (const key of Object.keys(pageBuffers.pagesByKey)) {
 			pageBuffers.clearFailedFlag(key);
 		}
+		transport.clearConflict(crName.value);
 		transport.markIdle();
+	}
+
+	// Runs after the tree fetch, so the version it recorded is no newer than
+	// the page copies fetched here.
+	async function reloadPage(docKey) {
+		const node = treeModel.findNode(docKey);
+		if (!node || node.isDeleted) {
+			pageBuffers.deletePage(docKey);
+			clearEditorDraft(crName.value, docKey);
+			return;
+		}
+		const result = await transport.fetchPage(crName.value, docKey);
+		const page = pageBuffers.get(docKey);
+		if (!page) return;
+		const serverContent = result?.content || '';
+		if (
+			pageBuffers.isDirty(page) &&
+			pageBuffers.isBasedOn(page, serverContent)
+		) {
+			page.serverContent = serverContent;
+			page.sentContent = null;
+			return;
+		}
+		const shown = page.localContent ?? page.content;
+		pageBuffers.clearLocalContent(docKey);
+		applyFetchedPage(docKey, result);
+		clearEditorDraft(crName.value, docKey);
+		if (shown !== serverContent) requestEditorReload(docKey, serverContent);
 	}
 
 	// Apply a fetched CR page snapshot to its buffer. A dirty buffer keeps the
@@ -427,6 +477,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			route: result?.route || '',
 			content: result?.content || '',
 			localContent: null,
+			serverContent: result?.content || '',
+			sentContent: null,
 			isPublished: toPublished(result?.is_published),
 			saveStatus: 'idle',
 			error: null,
@@ -581,6 +633,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				title,
 				route: localRoute,
 				content,
+				serverContent: content || '',
+				sentContent: null,
 				isPublished,
 				saveStatus: 'idle',
 				error: null,
@@ -890,6 +944,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				targetPage.content = content;
+				targetPage.serverContent = content;
+				targetPage.sentContent = null;
 				if (title != null) targetPage.title = title;
 				if (targetPage.localContent === content) {
 					targetPage.localContent = null;
@@ -921,6 +977,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				if (targetPage.localContent == null) targetPage.localContent = content;
+				if (err.code !== 'version_conflict') targetPage.sentContent = content;
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
 				persistEditorDraft(realKey, targetPage.title, { immediate: true });

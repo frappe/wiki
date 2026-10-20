@@ -44,7 +44,7 @@ export function createSyncTransport({ crStore, crName }) {
 		if (!name) return null;
 		let state = crSyncState.get(name);
 		if (!state) {
-			state = { tail: Promise.resolve(), version: null };
+			state = { tail: Promise.resolve(), version: null, conflict: null };
 			crSyncState.set(name, state);
 		}
 		return state;
@@ -98,6 +98,7 @@ export function createSyncTransport({ crStore, crName }) {
 		if (state.version === null) {
 			throw versionConflict(submitCr, 'This draft could not be loaded.');
 		}
+		if (state.conflict) throw versionConflict(submitCr, state.conflict);
 		const result = await crStore.applyOperations(
 			submitCr,
 			state.version,
@@ -109,16 +110,11 @@ export function createSyncTransport({ crStore, crName }) {
 		}
 		if (result.ok === false) {
 			if (result.error === 'version_conflict') {
-				if (typeof result.current_version === 'number') {
-					state.version = result.current_version;
-					if (crName() === submitCr) {
-						operationVersion.value = state.version;
-					}
-				}
-				throw versionConflict(
-					submitCr,
-					result.message || 'This draft has changed elsewhere.',
-				);
+				// Keep the old version: adopting the server's would let the next
+				// save overwrite whatever changed elsewhere.
+				const message = result.message || 'This draft has changed elsewhere.';
+				state.conflict = message;
+				throw versionConflict(submitCr, message);
 			}
 			throw new Error(result.message || 'Batch sync failed');
 		}
@@ -136,14 +132,30 @@ export function createSyncTransport({ crStore, crName }) {
 	}
 
 	function versionConflict(submitCr, message) {
-		if (crName() === submitCr) {
+		showConflict(submitCr, message);
+		const err = new Error(message);
+		err.code = 'version_conflict';
+		return err;
+	}
+
+	function showConflict(name, message) {
+		if (crName() === name) {
 			sync.status = 'failed';
 			sync.error = message;
 			sync.conflict = true;
 		}
-		const err = new Error(message);
-		err.code = 'version_conflict';
-		return err;
+	}
+
+	// A set `conflict` blocks every batch for the change request until
+	// `clearConflict`, which only a refetch of the draft may call.
+	function flagConflict(name, message) {
+		getCrState(name).conflict = message;
+		showConflict(name, message);
+	}
+
+	function clearConflict(name) {
+		getCrState(name).conflict = null;
+		if (crName() === name) sync.conflict = false;
 	}
 
 	function markSaving() {
@@ -175,6 +187,8 @@ export function createSyncTransport({ crStore, crName }) {
 		sync.error = null;
 		sync.conflict = false;
 		// crSyncState is intentionally preserved — see comment at declaration.
+		// Its conflicts are not: the next hydrate rechecks restored drafts.
+		for (const state of crSyncState.values()) state.conflict = null;
 	}
 
 	return {
@@ -186,6 +200,8 @@ export function createSyncTransport({ crStore, crName }) {
 		applyBatchOps,
 		recordServerVersion,
 		getCrState,
+		flagConflict,
+		clearConflict,
 		markSaving,
 		markSaved,
 		markFailed,

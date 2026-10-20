@@ -30,6 +30,8 @@ export function restoredDraftBuffer({
 	title,
 	content,
 	localContent,
+	serverContent,
+	sentContent,
 	node,
 }) {
 	return {
@@ -38,6 +40,8 @@ export function restoredDraftBuffer({
 		route: node?.route || '',
 		content,
 		localContent,
+		serverContent,
+		sentContent,
 		isPublished: toPublished(node?.isPublished),
 		saveStatus: 'idle',
 		error: null,

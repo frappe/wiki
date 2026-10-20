@@ -71,3 +71,21 @@ export function onEditorFlushRequest(handler) {
 	flushRequests.addEventListener('flush', handler);
 	return () => flushRequests.removeEventListener('flush', handler);
 }
+
+const reloadRequests = new EventTarget();
+
+/**
+ * Show the server copy in the open editor. "Reload latest" replaced the
+ * page's draft, and the editor only reads its content prop when it mounts.
+ */
+export function requestEditorReload(docKey, content) {
+	reloadRequests.dispatchEvent(
+		new CustomEvent('reload', { detail: { docKey, content } }),
+	);
+}
+
+export function onEditorReloadRequest(handler) {
+	const listener = (event) => handler(event.detail);
+	reloadRequests.addEventListener('reload', listener);
+	return () => reloadRequests.removeEventListener('reload', listener);
+}

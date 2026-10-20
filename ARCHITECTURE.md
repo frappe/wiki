@@ -88,6 +88,7 @@ Page content and tree edits in the SPA go through a change request. The one exce
 - A batch runs in one transaction, so it applies fully or not at all.
 - A new page gets a `tmp_*` key on the client. The server assigns the real `doc_key` and returns the mapping in `temp_key_map`.
 - Each change request has an `operation_version`. The client sends the version it last saw as `base_version`. If the server is ahead, it returns `version_conflict` and applies nothing.
+- After a conflict the client blocks every save until the user clicks Reload latest. Reload keeps local edits to a page only if its server copy has not changed since this tab loaded or saved it. Otherwise the server copy replaces them. A browser reload restores drafts with the same check.
 - `_lock_and_load_cr` takes a row lock on the change request, so two writers to one draft run one after the other.
 - `get_cr_tree` and `get_cr_page` read the draft. `diff_change_request` returns the change summary and page diffs for review.
 
