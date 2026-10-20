@@ -987,6 +987,28 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 # Helper functions
 
 
+class TestAppBoot(FrappeTestCase):
+	def tearDown(self):
+		frappe.set_user("Administrator")
+
+	def test_the_boot_carries_the_user(self):
+		from wiki.www.wiki_app import get_boot
+
+		boot = get_boot()
+
+		self.assertEqual(boot["user_info"]["name"], "Administrator")
+		self.assertIn({"role": "System Manager"}, boot["user_info"]["roles"])
+		# wiki-app.html renders each boot key with Jinja's plain-json `tojson`.
+		json.dumps(boot)
+
+	def test_the_boot_marks_a_guest_as_logged_out(self):
+		from wiki.www.wiki_app import get_boot
+
+		frappe.set_user("Guest")
+
+		self.assertEqual(get_boot()["user_info"], {"is_logged_in": False})
+
+
 class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 	"""Tests for get_space_stats, which backs the All Spaces directory columns."""
 
