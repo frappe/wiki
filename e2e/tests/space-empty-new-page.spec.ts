@@ -1,11 +1,13 @@
 import { expect, test } from '../fixtures';
+import { startEditing } from '../helpers/wiki';
 
 /**
  * An empty space's content column offers "New page". The dialog that creates
  * one lives in the tree, in the sidebar — a sibling column, not an ancestor —
  * so the button hands its request to a module-scoped flag the tree consumes.
- * This exercises that hand-off end to end: press the button in <main>, get the
- * tree's dialog, and land in the editor on the page it made.
+ * This exercises that hand-off end to end: press the button in <main>, start
+ * a change request, get the tree's dialog, and land in the editor on the page
+ * it made.
  */
 test.describe('Empty space — New page from the content column', () => {
 	test('creates the first page and opens it in the editor', async ({
@@ -25,6 +27,7 @@ test.describe('Empty space — New page from the content column', () => {
 		await content
 			.getByRole('button', { name: 'New page', exact: true })
 			.click();
+		await startEditing(page, 'Add the first page');
 
 		const title = `First Page ${Date.now()}`;
 		const dialog = page.getByRole('dialog');

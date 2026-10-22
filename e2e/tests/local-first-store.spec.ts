@@ -4,7 +4,7 @@ import { type WikiFactory, uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog, saveEditor } from '../helpers/wiki';
+import { editPage, openNewPageDialog, saveEditor } from '../helpers/wiki';
 
 /**
  * The sidebar's sync alert only speaks when something is in flight or wrong;
@@ -76,6 +76,12 @@ async function createSpaceViaUI(page: Page, wiki: WikiFactory) {
 		.click();
 	await page.waitForLoadState('networkidle');
 	await expect(page).toHaveURL(SPACE_URL_RE);
+	const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
+	wiki.adopt(spaceId);
+	// A new space opens in read mode; with a change request open, the reload
+	// hydrates the draft store through the space bootstrap.
+	await wiki.changeRequest({ name: spaceId });
+	await page.reload();
 	// `networkidle` can fire before draftStore.hydrate finishes setting
 	// rootKey. Without this wait, the create dialog falls back to
 	// `space.doc.root_group` (a Frappe document name) instead of the CR's
@@ -83,8 +89,6 @@ async function createSpaceViaUI(page: Page, wiki: WikiFactory) {
 	await page.waitForFunction(() => Boolean(window.__draftStore?.rootKey), {
 		timeout: 10000,
 	});
-	const spaceId = page.url().split(`${appUrl('spaces')}/`)[1];
-	wiki.adopt(spaceId);
 	return { spaceId };
 }
 
@@ -537,6 +541,7 @@ test.describe('Local-first draft workspace', () => {
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\/[^/?#]+/, { timeout: 10000 });
+		await editPage(page, 'Edit the merged page');
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')

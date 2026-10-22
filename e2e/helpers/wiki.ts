@@ -28,11 +28,15 @@ export async function clickSidebarAddOption(
 	option: 'New Page' | 'New Group' | 'External Link',
 ) {
 	if (option === 'New Page') {
-		await newPageButton(page).click();
+		await openNewPageDialog(page);
 		return;
 	}
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
+	await answerEditDialogIfAsked(
+		page,
+		option === 'New Group' ? /Create New Group/ : /External Link/,
+	);
 }
 
 /**
@@ -50,9 +54,56 @@ export function newPageButton(page: Page) {
 
 /**
  * Start creating a page from the sidebar. Leaves the create dialog open.
+ *
+ * In read mode the button asks for a change request first; that dialog is
+ * answered here so callers only ever see the create dialog.
  */
 export async function openNewPageDialog(page: Page) {
 	await newPageButton(page).click();
+	await answerEditDialogIfAsked(page, /Create New (Page|Group)/);
+}
+
+/** The "New change request" dialog Edit and every read-mode write open. */
+export function editDialog(page: Page) {
+	return page.getByRole('dialog').filter({ hasText: 'New change request' });
+}
+
+/** Name the change request in the open Edit dialog and start editing. */
+export async function startEditing(page: Page, title = 'E2E change') {
+	const dialog = editDialog(page);
+	await dialog.getByLabel('Title').fill(title);
+	await dialog.getByRole('button', { name: 'Start editing' }).click();
+	await expect(dialog).toBeHidden({ timeout: 15000 });
+}
+
+/** Click the page header's Edit and wait for the editor. */
+export async function editPage(page: Page, title = 'E2E change') {
+	await page
+		.getByRole('main')
+		.getByRole('button', { name: 'Edit', exact: true })
+		.click();
+	await startEditing(page, title);
+	await expect(
+		page.locator('.ProseMirror[contenteditable="true"]'),
+	).toBeVisible({ timeout: 15000 });
+}
+
+/** Pick an item from the open page's header menu. */
+export async function openPageMenuItem(page: Page, item: string) {
+	await page.getByRole('button', { name: 'Page actions' }).click();
+	await page.getByRole('menuitem', { name: item }).click();
+}
+
+/**
+ * After an action that may need a change request: answer the Edit dialog if it
+ * appeared, or carry on once `next` (the action's own dialog) shows instead.
+ */
+export async function answerEditDialogIfAsked(page: Page, next: RegExp) {
+	const nextDialog = page.getByRole('dialog').filter({ hasText: next });
+	await expect(editDialog(page).or(nextDialog)).toBeVisible({
+		timeout: 15000,
+	});
+	if (await editDialog(page).isVisible()) await startEditing(page);
 }
 
 /**

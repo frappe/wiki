@@ -31,6 +31,7 @@ test.describe('Save requests', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Autosave', content: 'Start.' }],
 		});
+		await wiki.changeRequest(space);
 		await openEditor(page, space.url('page', space.page('Autosave').name));
 		const calls = recordMethodCalls(page);
 
@@ -50,6 +51,7 @@ test.describe('Save requests', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Old title', content: 'Body.' }],
 		});
+		await wiki.changeRequest(space);
 		await openEditor(page, space.url('page', space.page('Old title').name));
 		const calls = recordMethodCalls(page);
 

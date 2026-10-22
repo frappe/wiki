@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { destroySpacesByRoute, uniqueRoute } from '../helpers/factory';
 import { getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { answerEditDialogIfAsked, openNewPageDialog } from '../helpers/wiki';
 
 /**
  * A page deleted in an unmerged change request keeps its row, struck through
@@ -110,6 +110,8 @@ async function deleteFromTree(
 	await page.waitForLoadState('networkidle');
 	await openRowMenu(page, title);
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	// Read mode asks for a change request first.
+	await answerEditDialogIfAsked(page, /Delete/);
 	await page
 		.getByRole('dialog')
 		.getByRole('button', { name: /Delete/ })
