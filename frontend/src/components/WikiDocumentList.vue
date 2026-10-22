@@ -87,7 +87,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(() => openCreateDialog(rootNode, false))">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -246,6 +246,7 @@
 
 <script setup>
 import { useNewPageRequest } from '@/composables/useNewPageRequest';
+import { useStartEditing } from '@/composables/useStartEditing';
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -303,6 +304,13 @@ const props = defineProps({
 const emit = defineEmits(['reorder-state-change']);
 
 const draftStore = useDraftWorkspaceStore();
+const { requireEditing } = useStartEditing();
+
+// In read mode, creating anything asks for a change request first.
+async function whenEditing(action) {
+	if (await requireEditing()) action();
+}
+
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
 // parent group after a create is actually visible in the tree.
 const expandedNodes = useStorage(
@@ -424,7 +432,9 @@ watch(
 	newPageRequested,
 	(requested) => {
 		if (!requested || props.readonly) return;
-		if (consumeNewPageRequest()) openCreateDialog(props.rootNode, false);
+		if (consumeNewPageRequest()) {
+			whenEditing(() => openCreateDialog(props.rootNode, false));
+		}
 	},
 	{ immediate: true },
 );
@@ -434,12 +444,12 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () => openCreateDialog(props.rootNode, true),
+		onClick: () => whenEditing(() => openCreateDialog(props.rootNode, true)),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () => openExternalLinkDialog(props.rootNode),
+		onClick: () => whenEditing(() => openExternalLinkDialog(props.rootNode)),
 	},
 ];
 

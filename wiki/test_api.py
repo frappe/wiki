@@ -995,7 +995,7 @@ class TestSpaceBootstrap(WikiFixtureMixin, FrappeTestCase):
 		frappe.set_user("Administrator")
 		frappe.db.rollback()
 
-	def test_an_editor_gets_their_draft(self):
+	def test_opening_a_space_starts_no_change_request(self):
 		from wiki.api.wiki_space import get_space_bootstrap
 
 		space = self.wiki.space(pages=[{"title": "Alpha"}])
@@ -1004,8 +1004,45 @@ class TestSpaceBootstrap(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(bootstrap["doc"]["name"], space.name)
 		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
-		self.assertEqual(bootstrap["change_request"]["wiki_space"], space.name)
-		self.assertEqual(bootstrap["change_request"]["owner"], "Administrator")
+		self.assertIsNone(bootstrap["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name}))
+
+	def test_an_editor_gets_the_change_request_they_started(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertEqual(bootstrap["change_request"]["name"], cr.name)
+		self.assertEqual(bootstrap["change_request"]["title"], "Fix the intro")
+
+	def test_a_change_request_in_review_is_not_returned(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+
+		self.assertIsNone(get_space_bootstrap(space.name)["change_request"])
+
+	def test_a_stale_empty_draft_is_skipped_and_left_alone(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import create_revision_from_live_tree
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Abandoned")
+		newer_main = create_revision_from_live_tree(space.name, message="advance main")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", newer_main.name)
+
+		self.assertIsNone(get_space_bootstrap(space.name)["change_request"])
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, ["status", "outdated"]), ("Draft", 0)
+		)
 
 	def test_a_reader_who_cannot_contribute_gets_no_draft(self):
 		from wiki.api.wiki_space import get_space_bootstrap

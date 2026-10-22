@@ -380,7 +380,7 @@ class WikiDocument(NestedSet):
 		github_url = self._get_github_edit_url(wiki_space.name)
 		if github_url is not None:
 			return github_url
-		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}"
+		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}?edit=1"
 
 	def _get_github_edit_url(self, space_name: str) -> str | None:
 		"""Edit target for a git-synced space: the source file in GitHub's editor.

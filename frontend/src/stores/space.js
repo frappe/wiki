@@ -8,6 +8,8 @@ import { useChangeRequestStore } from './changeRequest';
 import { useDraftWorkspaceStore } from './draftWorkspace';
 import { toPublished } from './draftWorkspace/utils';
 
+const EDITABLE_STATUSES = ['Draft', 'Changes Requested'];
+
 /**
  * The space the app is currently in: its document, its tree, and its sync
  * state.
@@ -84,20 +86,33 @@ export const useSpaceStore = defineStore('space', () => {
 	const canEdit = computed(
 		() => !isGitSynced.value && canContribute.value === true,
 	);
+
+	const isEditing = computed(() => {
+		const changeRequest = crStore.currentChangeRequest;
+		if (!canEdit.value || changeRequest?.wiki_space !== spaceId.value) {
+			return false;
+		}
+		return (
+			Boolean(crStore.finalizing) ||
+			EDITABLE_STATUSES.includes(changeRequest.status)
+		);
+	});
+	const isReading = computed(() => canEdit.value && !isEditing.value);
+	const showsLiveTree = computed(() => isReadonly.value || isReading.value);
+
+	const readonlyTreeResource = createResource({
+		url: 'wiki.api.wiki_space.get_wiki_tree',
+		method: 'GET',
+	});
+
+	const readonlyTreeSpaceId = ref(null);
+
 	// The space document, the capabilities and the user's draft, in one round
 	// trip instead of three in a row.
 	const bootstrapResource = createResource({
 		url: 'wiki.api.wiki_space.get_space_bootstrap',
+		method: 'GET',
 	});
-
-	// Held until the hydrate watcher below takes it. Taken once: a later
-	// trigger, such as a settings change, fetches fresh.
-	let bootstrapDraft = null;
-	function takeBootstrapDraft(id) {
-		const draft = bootstrapDraft?.wiki_space === id ? bootstrapDraft : null;
-		bootstrapDraft = null;
-		return draft;
-	}
 
 	watch(
 		spaceId,
@@ -105,54 +120,65 @@ export const useSpaceStore = defineStore('space', () => {
 			canWriteSpace.value = false;
 			canDeleteSpace.value = false;
 			canContribute.value = null;
-			bootstrapDraft = null;
 			if (!id) return;
+			const changeRequest = crStore.currentChangeRequest;
+			if (changeRequest && changeRequest.wiki_space !== id) stopEditing();
 			const data = await bootstrapResource
 				.submit({ space_id: id })
 				.catch(() => null);
 			if (!data || id !== spaceId.value) return;
-			bootstrapDraft = data.change_request;
 			space.value.setDoc(data.doc);
 			space.value.originalDoc = JSON.parse(JSON.stringify(data.doc));
 			canWriteSpace.value = Boolean(data.capabilities.can_write);
 			canDeleteSpace.value = Boolean(data.capabilities.can_delete);
 			canContribute.value = Boolean(data.capabilities.can_contribute);
+			if (data.change_request) draftStore.hydrate(id, data.change_request);
+			else if (crStore.currentChangeRequest) stopEditing();
 		},
 		{ immediate: true },
 	);
 
-	const readonlyTreeResource = createResource({
-		url: 'wiki.api.wiki_space.get_wiki_tree',
+	const createChangeRequestResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_change_request',
 	});
 
-	// The space the loaded readonly tree belongs to. The resource holds the
-	// previous space's tree until the new one lands, so track the owner and let
-	// `treeData` reject a stale cross-space tree.
-	const readonlyTreeSpaceId = ref(null);
+	async function startEditing({ title, description }) {
+		const id = spaceId.value;
+		const changeRequest = await createChangeRequestResource.submit({
+			wiki_space: id,
+			title,
+			description,
+		});
+		await draftStore.hydrate(id, changeRequest);
+		return changeRequest;
+	}
 
-	// Adapt get_wiki_tree's (name-keyed) shape into the snake_case shape the tree
-	// components consume. The Wiki Document `name` doubles as both the navigation
-	// target (document_name) and the row key (doc_key) here — synced trees have
-	// no CR overlay, so the internal doc_key is never needed.
+	function stopEditing() {
+		crStore.currentChangeRequest = null;
+		crStore.clearChanges();
+		draftStore.reset({ keepTree: true });
+		readonlyTreeSpaceId.value = null;
+	}
+
 	function adaptReadonlyNode(node) {
 		return {
-			doc_key: node.name,
+			doc_key: node.doc_key,
 			document_name: node.name,
 			title: node.title,
 			route: node.route,
 			is_group: !!node.is_group,
 			is_published: toPublished(node.is_published),
-			is_external_link: false,
-			external_url: null,
+			is_external_link: Boolean(node.is_external_link),
+			external_url: node.external_url || null,
 			children: (node.children || []).map(adaptReadonlyNode),
 		};
 	}
 
-	const readonlyTreeData = computed(() => {
+	const liveTreeData = computed(() => {
 		const data = readonlyTreeResource.data;
-		if (!data) return null;
+		if (!data || readonlyTreeSpaceId.value !== spaceId.value) return null;
 		return {
-			root_group: data.root_group || '',
+			root_group: data.root_key || '',
 			children: (data.children || []).map(adaptReadonlyNode),
 		};
 	});
@@ -163,33 +189,27 @@ export const useSpaceStore = defineStore('space', () => {
 		readonlyTreeSpaceId.value = target;
 	}
 
-	// Tree, page drafts, and pending mutations live in the draft workspace store.
-	// We hydrate it on space load and after merge/archive transitions; routine
-	// edits update the store optimistically without a server round-trip.
-	// `treeAsLegacy` is an empty-but-truthy object before hydration, so gate on
-	// `hasLoadedTree` — otherwise the sidebar flashes "No pages yet" instead of
-	// the loading skeleton while the tree is being fetched.
+	const hasDraftTree = computed(
+		() => draftStore.spaceId === spaceId.value && draftStore.hasLoadedTree,
+	);
+
 	const treeData = computed(() => {
-		// Both sources outlive a space switch: the readonly resource keeps the old
-		// space's tree until the new fetch lands, and draftStore is a global
-		// singleton still hydrated for the previous space. Returning a stale tree
-		// here makes auto-open navigate into the wrong space's page, so gate each
-		// on belonging to the current space.
-		if (isReadonly.value) {
-			return readonlyTreeSpaceId.value === spaceId.value
-				? readonlyTreeData.value
-				: null;
+		if (showsLiveTree.value) {
+			if (liveTreeData.value || !hasDraftTree.value) return liveTreeData.value;
+			return draftStore.treeAsLegacy;
 		}
+		if (hasDraftTree.value) return draftStore.treeAsLegacy;
+		if (liveTreeData.value) return liveTreeData.value;
 		if (draftStore.spaceId !== spaceId.value) return null;
-		if (draftStore.hasLoadedTree) return draftStore.treeAsLegacy;
 		return draftStore.hasStaleTree ? draftStore.staleTreeAsLegacy : null;
 	});
 
 	const isTreeStale = computed(
 		() =>
-			!isReadonly.value &&
+			!showsLiveTree.value &&
+			!hasDraftTree.value &&
+			!liveTreeData.value &&
 			draftStore.spaceId === spaceId.value &&
-			!draftStore.hasLoadedTree &&
 			draftStore.hasStaleTree,
 	);
 
@@ -269,53 +289,11 @@ export const useSpaceStore = defineStore('space', () => {
 	// riding a component's lifecycle.
 	useSocket()?.on('wiki_git_sync_update', onSyncRealtime);
 
-	// Keyed on the two fields that decide which workspace to build — never on
-	// `doc` itself. `setValue` replaces the document with a fresh object on
-	// every field write, so watching the document made a logo shuffle, a rename
-	// or a publish toggle look exactly like a move to another space: the change
-	// request was dropped, the draft workspace reset and the tree refetched,
-	// flashing the sidebar and the breadcrumbs for a change that touched
-	// neither. Sources are passed as an array so Vue compares them one by one.
 	watch(
-		[
-			() => doc.value?.name,
-			() => doc.value?.git_synced,
-			() => crStore.isChangeRequestMode,
-			canContribute,
-		],
-		async ([name, gitSynced, isMode, mayContribute], previous) => {
-			if (!name || !isMode) return;
-			// Contributions can be switched off for a space, or withheld from this
-			// user. Opening a change request would be refused server-side, leaving
-			// the tree stuck on its loading skeleton.
-			if (mayContribute !== true) return;
-			// Synced spaces never open a change request — they hydrate the
-			// read-only tree path below instead.
-			if (gitSynced) return;
-
-			// A different space, not a different revision of the same one.
-			if (name !== previous?.[0]) {
-				crStore.currentChangeRequest = null;
-				draftStore.reset();
-			}
-
-			await draftStore.hydrate(spaceId.value, takeBootstrapDraft(name));
-		},
-		{ immediate: true },
-	);
-
-	// Read-only tree hydration: git-synced spaces, and anyone who cannot open a
-	// change request here. Loads the published live tree (no CR) and, for a
-	// never-synced space (e.g. just created), kicks off the first sync so its
-	// content appears without a manual click.
-	// Same keying as above, and for the same reason: a field write on a synced
-	// space must not refetch its tree.
-	watch(
-		[() => doc.value?.name, () => doc.value?.git_synced, canContribute],
-		async ([name, gitSynced, mayContribute]) => {
+		[() => doc.value?.name, () => doc.value?.git_synced, showsLiveTree],
+		async ([name, gitSynced, live]) => {
 			const currentDoc = doc.value;
-			if (!name || !currentDoc) return;
-			if (!gitSynced && mayContribute !== false) return;
+			if (!name || !currentDoc || !live) return;
 			await loadReadonlyTree();
 			if (!gitSynced) return;
 			// First-ever sync of a freshly-created space: kick it once, silently —
@@ -334,7 +312,7 @@ export const useSpaceStore = defineStore('space', () => {
 	);
 
 	async function refreshTree() {
-		if (isReadonly.value) {
+		if (showsLiveTree.value) {
 			await loadReadonlyTree();
 			return;
 		}
@@ -357,6 +335,10 @@ export const useSpaceStore = defineStore('space', () => {
 		canContribute,
 		isReadonly,
 		canEdit,
+		isEditing,
+		isReading,
+		startEditing,
+		stopEditing,
 		selectedPageId,
 		selectedDraftKey,
 		treeData,

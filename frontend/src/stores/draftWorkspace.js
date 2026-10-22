@@ -224,9 +224,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		transport.reset();
 	}
 
-	// Hydrate the workspace for a space: ensure CR exists, load tree + summary,
-	// and normalize into local state. Idempotent and de-duplicated per call.
-	// `changeRequest` is the draft the space bootstrap already loaded.
 	async function hydrate(targetSpaceId, changeRequest = null) {
 		if (!isEnabled.value || !targetSpaceId) return;
 
@@ -241,7 +238,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			spaceId.value = targetSpaceId;
 			if (!hasLoadedTree.value) paintStaleTree(targetSpaceId, run);
 
-			changeRequestReady = loadChangeRequest(targetSpaceId, changeRequest);
+			changeRequestReady = loadChangeRequest(changeRequest);
 			const drafts = await changeRequestReady;
 			if (!crName.value) return;
 
@@ -273,9 +270,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
-	async function loadChangeRequest(targetSpaceId, changeRequest) {
+	async function loadChangeRequest(changeRequest) {
 		if (changeRequest) crStore.currentChangeRequest = changeRequest;
-		else await crStore.initChangeRequest(targetSpaceId);
 		return crName.value ? loadDraftsForCr(crName.value) : [];
 	}
 
@@ -554,11 +550,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return pageBuffers.updateLocalContent(docKey, realKey, content, title);
 	}
 
-	async function ensureCr() {
-		if (!isEnabled.value || !spaceId.value) return false;
-		if (crName.value) return true;
-		await crStore.initChangeRequest(spaceId.value);
-		return !!crName.value;
+	function ensureCr() {
+		return Boolean(isEnabled.value && spaceId.value && crName.value);
 	}
 
 	// Insert node locally with pending_create *before* awaiting anything,

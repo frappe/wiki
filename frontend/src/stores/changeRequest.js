@@ -5,15 +5,13 @@ import { computed, ref } from 'vue';
 
 export const useChangeRequestStore = defineStore('changeRequest', () => {
 	const currentChangeRequest = ref(null);
-	const isLoadingChangeRequest = ref(false);
-	// 'merging' | 'withdrawing' | null, for the whole round trip including the
-	// rehydrate that follows it. The CR walks Draft -> In Review -> Approved ->
-	// merged on the way, and the banner would otherwise render each of those in
-	// turn — a flash of "Approved! Ready to merge." on the way to a merge the
-	// user already asked for. Owned by whoever runs the flow (SpaceDetails),
-	// because it has to outlive the call itself.
+	// 'merging' | 'withdrawing' | 'submitting' | null, for the whole round
+	// trip including what follows it. The CR walks Draft -> In Review ->
+	// Approved -> merged on the way, and the banner would otherwise render each
+	// of those in turn — a flash of "Approved! Ready to merge." on the way to a
+	// merge the user already asked for. Owned by whoever runs the flow, because
+	// it has to outlive the call itself.
 	const finalizing = ref(null);
-	let initChangeRequestPromise = null;
 	let loadChangesPromise = null;
 
 	const isChangeRequestMode = computed(
@@ -25,18 +23,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_change_request',
 		onSuccess(data) {
 			currentChangeRequest.value = data;
-		},
-	});
-
-	const draftChangeRequestResource = createResource({
-		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
-		onSuccess(data) {
-			currentChangeRequest.value = data;
-			isLoadingChangeRequest.value = false;
-		},
-		onError(error) {
-			console.error('Failed to get/create change request:', error);
-			isLoadingChangeRequest.value = false;
 		},
 	});
 
@@ -66,6 +52,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.approve_change_request',
 	});
 
+	const updateChangeRequestResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.update_change_request',
+	});
+
 	const applyOperationsResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.apply_cr_operations',
 	});
@@ -76,33 +66,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 			name: currentChangeRequest.value.name,
 		});
 		return currentChangeRequest.value;
-	}
-
-	async function initChangeRequest(spaceId) {
-		if (!isChangeRequestMode.value || !spaceId) return null;
-
-		if (isLoadingChangeRequest.value && initChangeRequestPromise) {
-			await initChangeRequestPromise;
-			return currentChangeRequest.value;
-		}
-
-		isLoadingChangeRequest.value = true;
-		initChangeRequestPromise = draftChangeRequestResource.submit({
-			wiki_space: spaceId,
-		});
-		try {
-			await initChangeRequestPromise;
-		} finally {
-			initChangeRequestPromise = null;
-		}
-		return currentChangeRequest.value;
-	}
-
-	async function ensureChangeRequest(spaceId) {
-		if (!currentChangeRequest.value) {
-			await initChangeRequest(spaceId);
-		}
-		return !!currentChangeRequest.value;
 	}
 
 	async function loadChanges() {
@@ -120,6 +83,16 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 			});
 
 		return loadChangesPromise;
+	}
+
+	async function updateChangeRequest({ title, description }) {
+		if (!currentChangeRequest.value) return;
+		await updateChangeRequestResource.submit({
+			name: currentChangeRequest.value.name,
+			title,
+			description,
+		});
+		await refreshChangeRequest();
 	}
 
 	async function submitForReview() {
@@ -224,7 +197,6 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 
 	return {
 		currentChangeRequest,
-		isLoadingChangeRequest,
 		finalizing,
 		isChangeRequestMode,
 		hasActiveChangeRequest,
@@ -236,8 +208,7 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 		isArchiving,
 		isMerging,
 		refreshChangeRequest,
-		initChangeRequest,
-		ensureChangeRequest,
+		updateChangeRequest,
 		loadChanges,
 		clearChanges,
 		submitForReview,

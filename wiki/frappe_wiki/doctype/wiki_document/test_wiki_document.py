@@ -474,7 +474,7 @@ class TestEditLink(WikiDocumentTestBase):
 		space = create_test_wiki_space(self, "Edit Link Space", "edit-link-space", root_group.name)
 
 		doc.reload()
-		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}")
+		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}?edit=1")
 
 	def test_synced_space_links_to_github_editor(self):
 		root_group = create_test_wiki_document(self, "Synced Edit Root", is_group=True)

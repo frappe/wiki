@@ -44,7 +44,19 @@
 						</template>
 						{{ __('Edit on GitHub') }}
 					</Button>
-					<SubmitForReviewButton v-if="!readonly" />
+					<Button
+						v-if="spaceStore.isReading"
+						variant="solid"
+						@click="editPage"
+					>
+						<template #prefix>
+							<span class="lucide-pencil size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit') }}
+					</Button>
+					<!-- The phone header has no room for it; the strip above carries it. -->
+					<MergeChangeRequestButton v-if="!isMobile" />
+					<SubmitForReviewButton />
 					<Dropdown v-if="menuOptions.length" :options="menuOptions">
 						<Button
 							variant="ghost"
@@ -64,14 +76,14 @@
 				     the sticky toolbar, and the bubble menu and the outline rail
 				     both measure against it. -->
 				<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
-					<WikiEditor v-if="editorKey" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="readonly" :show-outline="!showPageSettings" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<WikiEditor v-if="editorKey" ref="editor" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="!isEditing" :autofocus="focusEditor" :show-outline="!showPageSettings" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 						<template #title>
 							<div class="pt-10">
 								<div class="flex items-start gap-3">
 									<input
 										type="text"
 										v-model="editableTitle"
-										:readonly="readonly"
+										:readonly="!isEditing"
 										class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 										:placeholder="__('Page title')"
 										@blur="saveTitleIfChanged"
@@ -112,7 +124,7 @@
 					v-if="showPageSettings"
 					:doc-resource="wikiDoc"
 					:doc-key="wikiDoc.doc?.doc_key"
-					:readonly="readonly"
+					:readonly="!isEditing"
 					:title="displayTitle"
 					:route="displayRoute"
 					:published="displayPublished"
@@ -201,6 +213,7 @@
 
 <script setup>
 import { usePageSettingsPanel } from '@/composables/usePageSettingsPanel';
+import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
@@ -221,9 +234,11 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
-import { computed, inject, ref, shallowRef, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, inject, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useMobile } from '../composables/useMobile';
 import { useRecentPages } from '../composables/useRecentPages';
+import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
@@ -238,8 +253,6 @@ const props = defineProps({
 		type: String,
 		required: false,
 	},
-	// Git-synced space: the page is owned by the repo. Render it for reading
-	// only — no change request, no editing affordances, no save path.
 	readonly: {
 		type: Boolean,
 		default: false,
@@ -255,11 +268,40 @@ const isRenaming = ref(false);
 const showDeleteDialog = ref(false);
 const isDeleting = ref(false);
 
+const route = useRoute();
 const router = useRouter();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { recordVisit } = useRecentPages();
+const { requireEditing } = useStartEditing();
+const { isMobile } = useMobile();
+
+const isEditing = computed(() => spaceStore.isEditing);
+const showsLivePage = computed(() => props.readonly || spaceStore.isReading);
+
+const editor = useTemplateRef('editor');
+const focusEditor = ref(false);
+
+async function editPage() {
+	if (!(await requireEditing())) return;
+	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
+	else focusEditor.value = true;
+}
+
+async function whenEditing(action) {
+	if (await requireEditing()) action();
+}
+
+watch(
+	[() => route.query.edit, () => spaceStore.canContribute],
+	([edit, mayContribute]) => {
+		if (!edit || mayContribute === null) return;
+		router.replace({ query: { ...route.query, edit: undefined } });
+		editPage();
+	},
+	{ immediate: true },
+);
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -287,6 +329,7 @@ watch(
 			latestPageLoad += 1;
 			currentCrPage.value = null;
 			loadedDocKey.value = null;
+			focusEditor.value = false;
 			wikiDoc.value = makeWikiDocResource(newPageId);
 		}
 	},
@@ -296,26 +339,21 @@ watch(
 	[
 		() => crStore.currentChangeRequest?.name,
 		() => wikiDoc.value.doc?.doc_key,
-		() => spaceStore.canEdit,
+		isEditing,
 	],
-	async ([crName, docKey, canEdit], [oldCrName]) => {
-		// Read-only pages render straight from the published doc, with no change
-		// request overlay. Until the capabilities land we cannot tell, and asking
-		// a reader's space for a change request answers 403.
-		if (!canEdit) return;
-		if (docKey) {
-			// Navigation cancels the previous page's debounced autosave;
-			// flush its buffer now. Failures surface via the sync pill.
-			draftStore.flushDirtyPages(docKey).catch(() => {});
-			await loadCrPage();
-		} else {
+	async ([, docKey, editing]) => {
+		// Read mode renders straight from the published doc, with no change
+		// request overlay. Dropping the overlay keeps the next Edit from
+		// mounting this session's copy before its own loads.
+		if (!editing || !docKey) {
 			currentCrPage.value = null;
 			loadedDocKey.value = null;
+			return;
 		}
-		// After merge/archive, the CR name changes — reload wikiDoc to get updated route etc.
-		if (oldCrName && crName !== oldCrName) {
-			wikiDoc.value.reload();
-		}
+		// Navigation cancels the previous page's debounced autosave;
+		// flush its buffer now. Failures surface via the sync pill.
+		draftStore.flushDirtyPages(docKey).catch(() => {});
+		await loadCrPage();
 	},
 	{ immediate: true },
 );
@@ -325,7 +363,7 @@ function onEditorContentChange(
 	docKey = wikiDoc.value.doc?.doc_key,
 	options = {},
 ) {
-	if (props.readonly) return;
+	if (!isEditing.value) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.recordEditorContent(docKey, content, title, options);
@@ -336,7 +374,7 @@ function onEditorContentReady(
 	savedContent,
 	docKey = wikiDoc.value.doc?.doc_key,
 ) {
-	if (props.readonly) return;
+	if (!isEditing.value) return;
 	if (!docKey) return;
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
@@ -494,22 +532,19 @@ const savedContent = computed(() => {
 });
 
 const editorKey = computed(() => {
-	// Read-only pages have no CR overlay to wait for: mount the viewer as soon
-	// as the published doc for this page is loaded.
-	if (props.readonly) {
-		return wikiDoc.value.doc?.name === props.pageId ? props.pageId : null;
-	}
+	const doc = wikiDoc.value.doc;
+	if (doc?.name !== props.pageId) return null;
+	// The live page has no CR overlay to wait for. The viewer reads its content
+	// once, so a revalidation that brings newer content remounts it.
+	if (showsLivePage.value) return `read:${props.pageId}:${doc.modified}`;
 	// Gate on the loaded overlay matching the current doc — NOT on
 	// `isLoadingCrPage`. A background revalidation (after a save / title /
 	// route / publish edit) flips that flag without changing the page, and
 	// keying off it would tear down and remount the live editor mid-edit.
 	// `loadedDocKey` is reset on a real page switch, which is what should
 	// actually remount the editor.
-	if (
-		wikiDoc.value.doc?.name === props.pageId &&
-		wikiDoc.value.doc?.doc_key === loadedDocKey.value
-	) {
-		return props.pageId;
+	if (isEditing.value && doc.doc_key === loadedDocKey.value) {
+		return `edit:${props.pageId}`;
 	}
 	return null;
 });
@@ -530,34 +565,31 @@ const githubEditUrl = computed(() => {
 	});
 });
 
+// A synced page has no editable state here — the repo owns it, and the
+// header already offers the trip to GitHub. In read mode each action asks for
+// a change request first.
 const menuOptions = computed(() => {
-	const options = [];
-	// A synced page has no editable state here — the repo owns it, and the
-	// header already offers the trip to GitHub.
-	if (!props.readonly) {
-		options.push(
-			{
-				label: __('Rename'),
-				icon: 'lucide-pencil',
-				onClick: openRenameDialog,
-			},
-			{
-				label: displayPublished.value ? __('Unpublish') : __('Publish'),
-				icon: 'lucide-upload-cloud',
-				onClick: togglePublish,
-			},
-		);
-	}
-	if (!props.readonly) {
-		options.push({
+	if (!spaceStore.canEdit) return [];
+	return [
+		{
+			label: __('Rename'),
+			icon: 'lucide-pencil',
+			onClick: () => whenEditing(openRenameDialog),
+		},
+		{
+			label: displayPublished.value ? __('Unpublish') : __('Publish'),
+			icon: 'lucide-upload-cloud',
+			onClick: () => whenEditing(togglePublish),
+		},
+		{
 			label: __('Delete'),
 			icon: 'lucide-trash-2',
-			onClick: () => {
-				showDeleteDialog.value = true;
-			},
-		});
-	}
-	return options;
+			onClick: () =>
+				whenEditing(() => {
+					showDeleteDialog.value = true;
+				}),
+		},
+	];
 });
 
 function openRenameDialog() {
@@ -611,7 +643,7 @@ async function deletePage(close) {
 }
 
 async function saveTitleIfChanged() {
-	if (props.readonly) return;
+	if (!isEditing.value) return;
 	const newTitle = editableTitle.value.trim();
 	if (!newTitle || newTitle === displayTitle.value) return;
 	if (!wikiDoc.value.doc?.doc_key) return;
@@ -641,7 +673,7 @@ function openPage() {
 // Drain dirty buffers for pages other than the one on screen; the open
 // page's saves go through the editor instead.
 async function flushOtherDirtyPages() {
-	if (props.readonly) return;
+	if (!isEditing.value) return;
 	const failures = await draftStore.flushDirtyPages(wikiDoc.value.doc?.doc_key);
 	if (failures.length) {
 		const error = failures[0];
@@ -652,7 +684,7 @@ async function flushOtherDirtyPages() {
 }
 
 async function saveContent(content) {
-	if (props.readonly) return;
+	if (!isEditing.value) return;
 	if (!wikiDoc.value.doc?.doc_key) {
 		toast.error(__('No active change request'));
 		return;

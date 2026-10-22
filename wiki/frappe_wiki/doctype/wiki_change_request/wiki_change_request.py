@@ -545,15 +545,28 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	flush_pending_revision_syncs()
 
 	cr = _find_existing_draft(wiki_space)
-	if cr:
-		if _is_stale_empty_draft(cr, wiki_space):
+	if cr and _is_outdated(cr):
+		frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
+		if not has_revision_changes(cr.base_revision, cr.head_revision):
 			_archive_stale_draft(cr)
-		else:
-			return cr.as_dict()
+			cr = None
+	if cr:
+		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
 	return create_change_request(wiki_space, default_title).as_dict()
+
+
+def get_editable_change_request(wiki_space: str) -> dict[str, Any] | None:
+	"""The user's Draft or Changes Requested change request in the space, without writing anything.
+
+	A stale empty draft is skipped rather than archived, so the user lands in read mode.
+	"""
+	cr = _find_existing_draft(wiki_space)
+	if not cr or _is_stale_empty_draft(cr):
+		return None
+	return cr.as_dict()
 
 
 def _find_existing_draft(wiki_space: str) -> Document | None:
@@ -584,13 +597,13 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	return cr
 
 
-def _is_stale_empty_draft(cr: Document, wiki_space: str) -> bool:
-	"""True if the draft is outdated AND has no changes."""
-	main_revision = frappe.get_value("Wiki Space", wiki_space, "main_revision")
-	if not main_revision or not cr.base_revision or cr.base_revision == main_revision:
-		return False
-	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
-	return not has_revision_changes(cr.base_revision, cr.head_revision)
+def _is_outdated(cr: Document) -> bool:
+	main_revision = frappe.get_value("Wiki Space", cr.wiki_space, "main_revision")
+	return bool(main_revision and cr.base_revision and cr.base_revision != main_revision)
+
+
+def _is_stale_empty_draft(cr: Document) -> bool:
+	return _is_outdated(cr) and not has_revision_changes(cr.base_revision, cr.head_revision)
 
 
 def _archive_stale_draft(cr: Document) -> None:

@@ -8,7 +8,7 @@
 		:variant="variant"
 		:theme="theme"
 		:size="size"
-		:loading="crStore.isSubmitting"
+		:loading="crStore.finalizing === 'submitting'"
 		:disabled="submitDisabled"
 		:title="submitButtonTitle"
 		@click="showConfirmDialog = true"
@@ -28,12 +28,26 @@
 		icon="lucide-git-branch"
 		theme="blue"
 		:actions="confirmActions"
-	/>
+	>
+		
+		<template v-if="needsTitle" #default>
+			<div class="space-y-4">
+				<p class="text-p-base text-ink-gray-7">{{ confirmMessage }}</p>
+				<FormControl
+					v-model="newTitle"
+					:label="__('Title')"
+					type="text"
+					:placeholder="__('What did you change?')"
+					autofocus
+				/>
+			</div>
+		</template>
+	</Dialog>
 </template>
 
 <script setup>
-import { Button, Dialog } from 'frappe-ui';
-import { computed, ref } from 'vue';
+import { Button, Dialog, FormControl, toast } from 'frappe-ui';
+import { computed, ref, watch } from 'vue';
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -62,13 +76,21 @@ const spaceStore = useSpaceStore();
 const crActions = useChangeRequestActions();
 
 const showConfirmDialog = ref(false);
+const newTitle = ref('');
 
-// A submitted or merging change request has nothing left to submit, and a
-// synced space never opens one at all.
+const GENERATED_TITLE_PREFIX = 'Draft Changes - ';
+const needsTitle = computed(() =>
+	crStore.currentChangeRequest?.title?.startsWith(GENERATED_TITLE_PREFIX),
+);
+
+watch(showConfirmDialog, (open) => {
+	if (open) newTitle.value = '';
+});
+
+// A submitted or merging change request has nothing left to submit.
 const visible = computed(() => {
-	if (spaceStore.isGitSynced) return false;
-	if (!crStore.isChangeRequestMode) return false;
-	if (crStore.finalizing) return false;
+	if (!spaceStore.isEditing) return false;
+	if (crStore.finalizing) return crStore.finalizing === 'submitting';
 	// Autosave waits for a pause before typing becomes a change row. Counting an
 	// unsaved buffer as submittable work keeps the button from disappearing in
 	// that window — there is no Save button left to fill it.
@@ -126,11 +148,20 @@ const confirmActions = computed(() => [
 		label: __('Submit'),
 		variant: 'solid',
 		loading: crStore.isSubmitting,
+		disabled: needsTitle.value && !newTitle.value.trim(),
 		onClick: ({ close }) => confirmSubmit(close),
 	},
 ]);
 
-function confirmSubmit(closeDialog) {
+async function confirmSubmit(closeDialog) {
+	if (needsTitle.value) {
+		try {
+			await crStore.updateChangeRequest({ title: newTitle.value.trim() });
+		} catch (error) {
+			toast.error(error.messages?.[0] || __('Error updating title'));
+			return;
+		}
+	}
 	closeDialog();
 	crActions.submitForReview();
 }
