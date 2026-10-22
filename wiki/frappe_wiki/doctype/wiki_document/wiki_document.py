@@ -1165,6 +1165,24 @@ def get_breadcrumbs(name: str) -> dict:
 	return doc.get_breadcrumbs()
 
 
+@frappe.whitelist(methods=["GET"])
+def get_page_html(name: str) -> dict:
+	"""Rendered HTML and outline for the app's read mode.
+
+	Includes unpublished pages, since space readers see them in the app.
+	The outline ignores the reader's TOC setting, like the editor.
+	"""
+	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
+	html, toc = get_rendered_content(doc.name, doc.content or "")
+	return {
+		"html": resolve_wiki_links(html, doc.get_space_name()),
+		"toc": toc,
+		"modified": doc.modified,
+		"modified_by": doc.modified_by,
+	}
+
+
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_page_data(route: str) -> dict:
 	"""Page data for client-side navigation between pages of an already rendered space."""

@@ -50,6 +50,8 @@
 						v-if="spaceStore.isReading"
 						variant="solid"
 						@click="editPage"
+						@mouseenter="loadEditor"
+						@focus="loadEditor"
 					>
 						<template #prefix>
 							<span class="lucide-pencil size-4" aria-hidden="true" />
@@ -79,7 +81,7 @@
 				     the sticky toolbar, and the bubble menu and the outline rail
 				     both measure against it. -->
 				<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
-					<WikiEditor v-if="editorKey" ref="editor" :key="editorKey" :content="editorContent" :document-key="wikiDoc.doc?.doc_key" :saved-content="savedContent" :readonly="!isEditing" :autofocus="focusEditor" :show-outline="!showPageSettings" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
+					<component :is="showsLivePage ? WikiPageReader : WikiEditor" v-if="editorKey" ref="editor" :key="editorKey" v-bind="pageViewProps" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 						<template #title>
 							<div class="pt-10">
 								<div class="flex items-start gap-3">
@@ -109,7 +111,7 @@
 								<PageMetaLine :key="wikiDoc.doc.name" :doc="wikiDoc.doc" :title="displayTitle" :content="editorContent" />
 							</div>
 						</template>
-					</WikiEditor>
+					</component>
 					<!-- Editor body skeleton while the CR page overlay loads -->
 					<div v-else class="mx-auto w-full max-w-3xl space-y-4 px-8 pt-10">
 						<Skeleton class="h-4 w-3/4 rounded-4" />
@@ -234,11 +236,20 @@ import {
 	Skeleton,
 	Tooltip,
 	createDocumentResource,
+	createResource,
 	getCachedDocumentResource,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
-import { computed, inject, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+	computed,
+	defineAsyncComponent,
+	inject,
+	ref,
+	shallowRef,
+	useTemplateRef,
+	watch,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMobile } from '../composables/useMobile';
 import { useRecentPages } from '../composables/useRecentPages';
@@ -247,7 +258,7 @@ import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
-import WikiEditor from './WikiEditor.vue';
+import WikiPageReader from './WikiPageReader.vue';
 
 const props = defineProps({
 	pageId: {
@@ -279,7 +290,7 @@ const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { recordVisit } = useRecentPages();
-const { requireEditing } = useStartEditing();
+const { request: startEditingRequest, requireEditing } = useStartEditing();
 const { isMobile } = useMobile();
 
 const isEditing = computed(() => spaceStore.isEditing);
@@ -287,6 +298,23 @@ const showsLivePage = computed(() => props.readonly || spaceStore.isReading);
 
 const editor = useTemplateRef('editor');
 const focusEditor = ref(false);
+
+const editorReady = ref(false);
+function loadEditor() {
+	return import('./WikiEditor.vue').then((module) => {
+		editorReady.value = true;
+		return module;
+	});
+}
+const WikiEditor = defineAsyncComponent(loadEditor);
+
+watch(
+	[isEditing, startEditingRequest],
+	([editing, request]) => {
+		if (editing || request) loadEditor();
+	},
+	{ immediate: true },
+);
 
 async function editPage() {
 	// Set before the dialog closes: the editor often mounts while it is still leaving.
@@ -326,6 +354,36 @@ function makeWikiDocResource(pageId) {
 }
 
 const wikiDoc = shallowRef(makeWikiDocResource(props.pageId));
+
+function makePageHtmlResource(pageId) {
+	return createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_document.wiki_document.get_page_html',
+		method: 'GET',
+		params: { name: pageId },
+		cache: ['page-html', pageId],
+		auto: true,
+	});
+}
+
+const pageHtml = shallowRef(null);
+
+watch(
+	[() => props.pageId, isEditing],
+	([pageId, editing]) => {
+		if (!editing) pageHtml.value = makePageHtmlResource(pageId);
+	},
+	{ immediate: true },
+);
+
+watch(
+	() => [wikiDoc.value.doc?.name, wikiDoc.value.doc?.modified],
+	([name, modified], [previousName, previousModified]) => {
+		if (name !== previousName || !previousModified) return;
+		if (modified !== previousModified && !isEditing.value) {
+			pageHtml.value?.reload();
+		}
+	},
+);
 
 const currentCrPage = ref(null);
 const loadedDocKey = ref(null);
@@ -552,10 +610,31 @@ const editorKey = computed(() => {
 	// keying off it would tear down and remount the live editor mid-edit.
 	// `loadedDocKey` is reset on a real page switch, which is what should
 	// actually remount the editor.
-	if (isEditing.value && doc.doc_key === loadedDocKey.value) {
+	if (
+		isEditing.value &&
+		editorReady.value &&
+		doc.doc_key === loadedDocKey.value
+	) {
 		return `edit:${props.pageId}`;
 	}
 	return null;
+});
+
+const pageViewProps = computed(() => {
+	if (showsLivePage.value) {
+		return {
+			html: pageHtml.value?.data?.html ?? null,
+			toc: pageHtml.value?.data?.toc ?? [],
+			showOutline: !showPageSettings.value,
+		};
+	}
+	return {
+		content: editorContent.value,
+		documentKey: wikiDoc.value.doc?.doc_key,
+		savedContent: savedContent.value,
+		autofocus: focusEditor.value,
+		showOutline: !showPageSettings.value,
+	};
 });
 
 // "Edit on GitHub" target for a synced page — built from the space's repo/branch
