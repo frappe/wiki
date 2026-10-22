@@ -284,9 +284,13 @@ const editor = useTemplateRef('editor');
 const focusEditor = ref(false);
 
 async function editPage() {
-	if (!(await requireEditing())) return;
+	// Set before the dialog closes: the editor often mounts while it is still leaving.
+	focusEditor.value = true;
+	if (!(await requireEditing())) {
+		focusEditor.value = false;
+		return;
+	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
-	else focusEditor.value = true;
 }
 
 async function whenEditing(action) {

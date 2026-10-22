@@ -39,6 +39,16 @@ function recordWrites(page: Page) {
 	return writes;
 }
 
+interface TiptapEditor {
+	state: {
+		doc: {
+			content: { size: number };
+			textBetween(from: number, to: number): string;
+		};
+		selection: { from: number };
+	};
+}
+
 function editableEditor(page: Page) {
 	return page.locator('.ProseMirror[contenteditable="true"]');
 }
@@ -99,6 +109,42 @@ test.describe('Explicit edit', () => {
 		await expect(page.getByText('Draft ·')).toHaveCount(0);
 		expect(writes).toEqual([]);
 		expect(await changeRequestsIn(request, space.name)).toEqual([]);
+	});
+
+	test('the editor takes focus with the caret at the end of the page', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		// Text after the caret when the editor first takes focus. The editor
+		// often mounts before the Edit dialog has finished closing.
+		await page.addInitScript(() => {
+			document.addEventListener(
+				'focusin',
+				(event) => {
+					const editor = (event.target as { editor?: TiptapEditor }).editor;
+					if (!editor || 'textAfterCaret' in window) return;
+					const { doc, selection } = editor.state;
+					Object.assign(window, {
+						textAfterCaret: doc.textBetween(selection.from, doc.content.size),
+					});
+				},
+				true,
+			);
+		});
+		await page.goto(space.url('page', space.page('Alpha').name));
+
+		await editPage(page, 'Typed early');
+		await page.keyboard.type(' Early.');
+
+		await expect(editableEditor(page)).toContainText(
+			'Content for Alpha Early.',
+		);
+		expect(
+			await page.evaluate(
+				() => (window as { textAfterCaret?: string }).textAfterCaret,
+			),
+		).toBe('');
 	});
 
 	test('Edit names the change, then type, submit and land back in read mode', async ({
