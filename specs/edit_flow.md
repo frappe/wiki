@@ -170,3 +170,36 @@ The combined prototype covers Reading, Editing and In review, the Edit dialog in
 - Several drafts per user per space.
 - Per-page versions and the operation log (3.1).
 - Delta revisions (3.6). History reads full snapshots.
+
+## Progress
+
+### Part 1: Explicit Edit (2026-10-21)
+
+Done:
+
+- `get_space_bootstrap` is a GET and returns the user's open draft or `null`, through `get_editable_change_request`. A stale empty draft is skipped, not archived. `_is_stale_empty_draft` no longer writes `outdated`; `get_or_create_draft_change_request` does that itself.
+- Patch `archive_empty_drafts` archives Draft change requests with no changes. On wiki.localhost it archived 73 and kept 127 with changes.
+- `get_wiki_tree` returns each row's `doc_key` and the root's `root_key`, so the live tree and a draft's tree share row keys, expanded state and the create target. It is a GET too. A patch line drops the cached trees that lack `doc_key`.
+- `get_edit_link` adds `?edit=1`.
+- Space store: `isEditing`, `isReading`, `startEditing`, `stopEditing`. Reading and synced spaces show the live tree. The draft store no longer creates a change request; `ensureCr` only checks one is open.
+- `StartEditingDialog` and `useStartEditing().requireEditing()`. It resolves after the dialog has closed, so the next dialog or the editor can take focus.
+- Page header: Edit in Reading; Merge (users who can merge) and Submit for review in Editing. On mobile, Merge sits in the strip, since the header has no room.
+- Page menu, tree row menus, the tree footer and New page from the command palette or the empty space all ask for a change request first. No drag in Reading.
+- Strip: change request title (click to edit title and description), status, page count. Discard is offered with no changes too, as the way out of an Edit you did not need. Merge left the strip.
+- Submit asks for a title when the draft still has a generated `Draft Changes - ` one.
+- Merge and discard land in Reading. Merge reloads the open page first, so the viewer opens on merged content.
+- A draft route outside Editing goes to the space.
+- The read-only editor no longer reports content changes. It used to, on unmount, which marked the page dirty the moment Edit swapped it for the editor.
+
+- The space's welcome view carries Submit and Merge while editing, since a change that is only an external link or a group opens no page.
+- The live tree returns `is_external_link` and `external_url`. Before, read mode treated an external link as a page.
+- Submit holds `finalizing` until the review page is up, or the draft route redirect raced it.
+- After a merge the draft's tree stays on screen until the fresh live tree lands.
+- The editor gets `autofocus` only when Edit asks for it. An explicit `autofocus: false` changes how TipTap starts and dropped the trailing paragraph after a table.
+
+Tests: unit tests for bootstrap and the patch (the three new bootstrap tests fail on the old code). `e2e/tests/edit-flow.spec.ts` covers every Playwright case in the bullet. The specs that assumed the auto-draft now open a change request with `wiki.changeRequest(space)` or go through Edit (`editPage`, `startEditing`, `openNewPageDialog`).
+
+Full suite on wiki.localhost: 204 passed, 46 failed, none from this change:
+
+- 45 public reader pages time out on `networkidle`. `page_view.html` sends `make_view_log` with `keepalive: true`, and Chromium never reports a keepalive fetch as finished. Separate fix.
+- `command-palette` "sets the theme named in the query" fails on develop too.
