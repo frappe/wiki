@@ -666,6 +666,50 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 	)
 
 
+_SUBMITTED_STATUSES = ("In Review", "Changes Requested", "Approved")
+
+
+@frappe.whitelist(methods=["GET"])
+def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
+	"""Everyone's submitted change requests in the space plus the user's own draft, with the pages each changes.
+
+	Other users' drafts stay out: a draft is unfinished work.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(wiki_space):
+		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	fields = ["name", "title", "status", "owner", "modified", "base_revision", "head_revision"]
+	rows = frappe.get_list(
+		"Wiki Change Request",
+		filters={"wiki_space": wiki_space, "status": ("in", _SUBMITTED_STATUSES)},
+		fields=fields,
+	)
+	draft = get_editable_change_request(wiki_space)
+	if draft and draft.status == "Draft":
+		rows.append(frappe._dict({field: draft.get(field) for field in fields}))
+
+	users = {
+		user.name: user
+		for user in frappe.get_all(
+			"User",
+			filters={"name": ("in", list({row.owner for row in rows}))},
+			fields=["name", "full_name", "user_image"],
+		)
+	}
+	for row in rows:
+		changes = _diff_revision_items(
+			get_revision_item_map(row.pop("base_revision")),
+			get_effective_revision_item_map(row.pop("head_revision")),
+		)
+		row.changed_doc_keys = [change["doc_key"] for change in changes]
+		owner = users.get(row.owner) or {}
+		row.owner_name = owner.get("full_name") or row.owner
+		row.owner_image = owner.get("user_image")
+	return sorted(rows, key=lambda row: row.modified, reverse=True)
+
+
 @frappe.whitelist()
 def update_change_request(name: str, title: str | None = None, description: str | None = None) -> None:
 	cr = frappe.get_doc("Wiki Change Request", name)
