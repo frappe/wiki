@@ -80,9 +80,13 @@ test.describe('Command Palette', () => {
 		});
 
 		await page.goto(space.url('page', space.page(`${token} Runbook`).name));
-		await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('page-reader')).toBeVisible({
+			timeout: 10000,
+		});
 		await page.goto(space.url('page', space.page(`${token} Changelog`).name));
-		await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('page-reader')).toBeVisible({
+			timeout: 10000,
+		});
 
 		const palette = page.getByRole('dialog');
 		await page.keyboard.press('ControlOrMeta+k');
