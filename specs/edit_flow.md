@@ -24,7 +24,7 @@ All three meet at one point: the space gets a real read mode. Read mode shows th
 - `_find_existing_draft` picks the user's Draft or Changes Requested change request in the space. One editable change request per user per space. A change request in review does not count, so a new draft is created on the next space open.
 - The SPA already has a read-only path: git-synced spaces and users who cannot contribute (`spaceStore.isReadonly`). It loads the live tree (`get_wiki_tree`, cached per space since #879) and renders the page with `WikiEditor` in read-only mode. The editor chunk still loads.
 - `SpaceModeStrip` shows the draft: title, page count, View changes, Discard, Submit, Withdraw, Merge (for managers).
-- Change request permissions (`wiki/permissions.py:263`): any space reader can read any change request in the space. Any contributor can write one.
+- Change request permissions (`wiki/permissions.py:263`): the hooks let any space reader read a change request in the space, but the Wiki User DocPerm has `if_owner`, so a plain contributor reads only their own. Approvers and managers read all of them. Any contributor can write one.
 - Revisions: the main chain of a space is every revision with `is_overlay = 0` and `is_working = 0`. A merge writes one with `is_merge = 1` and `change_request` set. Desk edits and live reorders write "Direct reorder" revisions with no change request. Each revision holds one Wiki Revision Item per page (full snapshot, not a delta). Index: `(revision, doc_key)`.
 - `DiffViewer.vue` (`@pierre/diffs`) already renders split and unified markdown diffs for the change request review page.
 
@@ -102,7 +102,9 @@ Which change requests show:
 - Draft: your own only. A draft is unfinished work and has no title worth reading until it is submitted.
 - Merged, Rejected, Archived: no. History covers merged ones (Part 4).
 
-Data: `list_change_requests(wiki_space, status)` already exists and is permission-checked through `get_list`. Add `changed_doc_keys` to each row, from the same summary `diff_change_request` builds (13.6 ms median on a 1,021-item space). The page count is its length. One call per space feeds the header count, the panel groups and the page notice: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
+Data: a new GET `list_open_change_requests(wiki_space)` returns the rows above, each with `changed_doc_keys` from the same summary `diff_change_request` builds (13.6 ms median on a 1,021-item space), and the author's name and image. The page count is its length. `list_change_requests` stays as it is: it lists every status, so a summary per row would cost a diff for every merged change request.
+
+Permissions: a plain contributor (Wiki User) must be able to read others' submitted change requests, or the panel and the notice never warn them. Wiki User gets a second DocPerm row with `read` and no `if_owner`; write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. One call per space feeds the header count, the panel groups and the page notice: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
 
 **Page notice.** In Reading, when other open change requests change the current page, a bar under the header shows "2 open change requests change this page" with a dropdown to each. This is the warning that stops a second author editing the same page blind. The bar hides while the change requests panel is open, since the panel's first group says the same thing.
 
@@ -138,7 +140,7 @@ Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page
 1. **Title first, not on submit.** The prototype had both variants. Start-first wins: Edit is the moment of intent, the title tells reviewers and other authors (Part 3) what is in flight from the start, and it removes the untitled drafts.
 2. **One editable change request per user per space.** Same as today. The draft store, IndexedDB drafts and the strip all assume one current change request. Several parallel drafts per space is a separate feature.
 3. **Read mode shows the live page, not the draft.** In Editing you see your draft in the editor. Reading never mixes in draft content, so it can use the cached HTML.
-4. **Others' drafts stay hidden.** Only submitted work is public in the change requests panel.
+4. **Others' drafts stay hidden.** Only submitted work is public in the change requests panel. Submitted work is readable by every space reader, the review page included. Draft and Archived change requests are readable only by their author and managers.
 5. **History is for space readers.** They can already read every page and every change request in the space.
 6. **Change requests live in a page header panel, not the sidebar.** The prototype tried five placements: a sidebar section, sidebar tabs, a bottom tray, a popover in the space header and a popover beside history. A sidebar section pushed the page tree down. Tabs hid the tree. The tray and the popovers had no room to group by page. The panel reuses the right slot history already needs, keeps the tree whole, and has room for "Changing this page".
 7. **Users who can merge get "Merge" beside "Submit for review".** For small fixes. Shown only when `_can_merge(space)` is true. It reuses `approveAndMergeChangeRequest`, which the strip already uses: submit, approve, merge. The change request still exists and keeps its title, so history shows "merged #<cr>" like any other merge.
@@ -158,7 +160,7 @@ Each bullet is one PR against `develop`, with tests that fail on the old code.
    - Playwright: a Reading page view loads no editor chunk. Mermaid, PDF, code copy and images render. Read, Edit, type, save.
    - Pixel check of Reading against the public reader for the same page, light and dark.
    - Numbers before and after.
-3. **Change requests in the space.** `changed_doc_keys` on `list_change_requests`, the header button and panel, then the page notice.
+3. **Change requests in the space.** `list_open_change_requests` with `changed_doc_keys`, the header button and panel, then the page notice.
    - Unit: others' drafts are not listed. Counts match `diff_change_request`.
    - Playwright: user B's submitted change request shows for user A in the panel under "Changing this page", with its page notice. The panel and history replace each other in the right slot.
 4. **Version history, read only.** History API, panel, page scope, diff. `source_commit` on Wiki Revision, set by git sync.
@@ -247,3 +249,27 @@ Tests: `TestGetPageHtml` (HTML and outline, unpublished page, outsider refused).
 Full suite on wiki.localhost with view tracking off: 253 passed, 1 skipped, 1 failed. The failure is `command-palette` "sets the theme named in the query": the site has leftover "CR Preview Highlight" spaces, so "light" matches a space ranked above the Actions group.
 
 Correction to Part 1's note: the `networkidle` timeouts are not the `keepalive` flag. With view tracking on and a signed-in user, `make_view_log` never reports finished to Playwright, even with `keepalive` off or the request fulfilled by a route. The server answers in 9 ms. Guests are not affected. Still a separate fix.
+
+### Part 3: Change requests in the space (2026-10-22)
+
+Done:
+
+- `list_open_change_requests(wiki_space)` is a GET. It returns everyone's In Review, Changes Requested and Approved change requests in the space, plus the user's own open draft, each with `changed_doc_keys`, `owner_name` and `owner_image`. A stale empty draft is left out, as in bootstrap.
+- A plain contributor could not read anyone else's change request: the Wiki User DocPerm has `if_owner`. Wiki User now has a second row with `read` only, so submitted change requests open for every space reader, the review page included. Write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. Approvers lose sight of other people's drafts, which they had before.
+- The page header has a Change requests button with the open count, in both states. Hidden on git-synced spaces.
+- `ChangeRequestsPanel` groups the list into "Changing this page" and "Elsewhere in this space", or "In this space" when none touch the page. A row opens the review page. The list reloads when the panel opens and when the user's own change request starts, submits, merges or is discarded, once per action: a merge walks Draft, In Review, Approved and Merged, and reloading at each step sent 7 requests where 3 do.
+- `PageChangeRequestsNotice` shows in Reading when open change requests change the page, with a menu to each. It hides while the panel is open.
+- `usePageSettingsPanel` became `useSidePanel`: page settings and change requests share one slot, and history will join them.
+- On a phone a side panel covers the page. Before, page settings squeezed the article into a 38 px strip.
+- Page settings showed "From the repo" on every page in Reading, since Part 1 passes `readonly` there. It now shows only on a git-synced space.
+- The status badge colours moved into `lib/changeRequestStatus.js`, replacing two copies.
+
+Measured on `perf-big-1000` (1,021 items) with 5 open change requests, rolled back after: `list_open_change_requests` takes 58 ms median, 11.6 ms per change request.
+
+Tests: `test_contributor_reads_submitted_change_requests_but_not_drafts` fails with either half of the permission change reverted. Two more unit tests cover the own draft, `changed_doc_keys` against `diff_change_request`, and an outsider. `e2e/tests/space-change-requests.spec.ts`: a contributor sees another user's submitted change request in the notice and under "Changing this page", not their draft, and opens its review page; the panel and page settings replace each other; on a phone the panel covers the page.
+
+`edit-flow` and `contributions-disabled` counted every call to the change request module as a write; they now count only non-GET calls, since the panel reads the list on page load.
+
+Related specs on wiki.localhost (`edit-flow`, `read-mode`, `change-request-flow`, `page-settings-meta`, `disable-indexing`, `spa-editor.mobile`, `mobile-view`, `contributions-disabled`, both git sync specs, `page-route-editable`): all pass. `mobile-view` needs view tracking off; the `networkidle` hang from Part 2 is still open.
+
+Fixed in Part 1 while testing this: the Edit focus race. On a cold cache, `edit-flow` "a user who can merge" failed about 1 run in 6 to 8: typing right after Edit landed at the start of the page. The editor often mounts before the Edit dialog has finished closing, and with no autofocus asked for, TipTap still focuses it on mount, at the start. The move to the end only came once the dialog had gone. Edit now asks for the end before the dialog closes. "The editor takes focus with the caret at the end of the page" covers it; the merge test passed 8 cold runs in a row after.
