@@ -136,6 +136,9 @@ test.describe('Change requests in the space', () => {
 			.getByRole('button', { name: 'Page settings', exact: true })
 			.click();
 		await expect(page.getByTestId('page-settings-panel')).toBeVisible();
+		await expect(page.getByTestId('page-settings-panel')).not.toContainText(
+			'From the repo',
+		);
 		await expect(panel).toHaveCount(0);
 
 		await changeRequestsButton.click();
@@ -144,5 +147,15 @@ test.describe('Change requests in the space', () => {
 
 		await panel.getByRole('button', { name: 'Close change requests' }).click();
 		await expect(panel).toHaveCount(0);
+	});
+
+	test('on a phone the side panel covers the page', async ({ page, wiki }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await page.goto(space.url('page', space.page('Alpha').name));
+
+		await page.getByRole('button', { name: '0 open change requests' }).click();
+		const box = await page.getByTestId('change-requests-panel').boundingBox();
+		expect(box?.width).toBe(390);
 	});
 });

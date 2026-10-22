@@ -93,7 +93,7 @@
 			<!-- The panel takes the right edge of the row, so the scroller it
 			     sits beside is narrower than the window — which is what the
 			     editor measures to decide between the outline's two variants. -->
-			<div class="flex min-h-0 flex-1">
+			<div class="relative flex min-h-0 flex-1">
 				<!-- The one scroller on this page: the editor body scrolls under
 				     the sticky toolbar, and the bubble menu and the outline rail
 				     both measure against it. -->
@@ -144,6 +144,7 @@
 				</ScrollArea>
 				<PageSettingsPanel
 					v-if="showPageSettings"
+					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
 					:doc-resource="wikiDoc"
 					:doc-key="wikiDoc.doc?.doc_key"
 					:readonly="!isEditing"
@@ -155,6 +156,7 @@
 				/>
 				<ChangeRequestsPanel
 					v-else-if="openPanel === 'change-requests'"
+					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
 					:change-requests="changeRequests"
 					:doc-key="wikiDoc.doc?.doc_key"
 					@close="closeSidePanel"
