@@ -10,7 +10,7 @@
 				<div v-if="changeRequest.doc" class="min-w-0">
 					<div class="flex items-center gap-2">
 						<h1 class="truncate text-lg-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
-						<Badge :variant="'subtle'" :theme="getStatusTheme(changeRequest.doc.status)" size="sm">
+						<Badge :variant="'subtle'" :theme="statusTheme(changeRequest.doc.status)" size="sm">
 							{{ changeRequest.doc.status }}
 						</Badge>
 					</div>
@@ -448,6 +448,7 @@ import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { statusTheme } from '@/lib/changeRequestStatus';
 import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useSpaceStore } from '@/stores/space';
@@ -946,27 +947,6 @@ async function handleWithdraw() {
 		changeRequest.reload();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error withdrawing change request'));
-	}
-}
-
-function getStatusTheme(status) {
-	switch (status) {
-		case 'Draft':
-			return 'blue';
-		case 'In Review':
-			return 'amber';
-		case 'Changes Requested':
-			return 'red';
-		case 'Approved':
-			return 'green';
-		case 'Merged':
-			return 'green';
-		case 'Rejected':
-			return 'red';
-		case 'Archived':
-			return 'gray';
-		default:
-			return 'gray';
 	}
 }
 
