@@ -54,6 +54,15 @@ export function useChangeRequestActions() {
 		return false;
 	}
 
+	// The review page reads the saved change request, so unsaved edits go first.
+	async function viewChanges() {
+		if (!(await flushUnsavedPages())) return;
+		await router.push({
+			name: 'ChangeRequestReview',
+			params: { changeRequestId: crStore.currentChangeRequest.name },
+		});
+	}
+
 	async function submitForReview() {
 		if (!(await flushUnsavedPages())) return;
 		const blockerMessage = finalizationError(__('submitting'));
@@ -163,6 +172,7 @@ export function useChangeRequestActions() {
 	}
 
 	return {
+		viewChanges,
 		submitForReview,
 		discardChangeRequest,
 		mergeChangeRequest,

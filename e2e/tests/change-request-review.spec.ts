@@ -1,5 +1,6 @@
 import { expect, test } from '../fixtures';
 import { callMethod } from '../helpers/frappe';
+import { editPage } from '../helpers/wiki';
 
 const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
@@ -96,6 +97,30 @@ test.describe('Change request review', () => {
 
 		await viewButton(page, 'Markdown').click();
 		await expect(installation).toContainText('## Upgrade from v15');
+	});
+
+	test('View changes in the strip opens the review, unsaved edits included', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await page.goto(space.url('page', space.page('Alpha').name));
+		await editPage(page, 'Quick fix');
+		await page.keyboard.type(' Fixed.');
+		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+
+		await page.keyboard.type(' Again.');
+		await page
+			.locator('aside')
+			.getByRole('button', { name: 'More actions' })
+			.click();
+		await page.getByRole('menuitem', { name: /View changes/ }).click();
+
+		await expect(page).toHaveURL(/\/change-requests\//);
+		const diff = page.getByTestId('page-diff').filter({ hasText: 'Alpha' });
+		await expect(diff.locator('ins').last()).toContainText('Again');
 	});
 });
 
