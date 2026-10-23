@@ -25,7 +25,9 @@ The prototype shows every changed page at once, rendered as the reader renders i
 
 ### Page
 
-Below the existing page header, as in the prototype:
+The review opens inside its space, at `/spaces/<space>/change-requests/<name>`, so the sidebar keeps the space, the mode strip and the page tree, as in the prototype. Its bar reads "<space> / Change requests / <title>" with the review actions on the right. The old `/change-requests/<name>` link looks up the space and redirects there.
+
+Below that bar:
 
 - Status badge, title, author avatar and name, "opened <time> · <n> pages", then the description.
 - "Changes" with "Show changes only" and a view switch: **Side by side**, **Inline**, **Markdown**.
