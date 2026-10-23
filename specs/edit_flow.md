@@ -273,3 +273,34 @@ Tests: `test_contributor_reads_submitted_change_requests_but_not_drafts` fails w
 Related specs on wiki.localhost (`edit-flow`, `read-mode`, `change-request-flow`, `page-settings-meta`, `disable-indexing`, `spa-editor.mobile`, `mobile-view`, `contributions-disabled`, both git sync specs, `page-route-editable`): all pass. `mobile-view` needs view tracking off; the `networkidle` hang from Part 2 is still open.
 
 Fixed in Part 1 while testing this: the Edit focus race. On a cold cache, `edit-flow` "a user who can merge" failed about 1 run in 6 to 8: typing right after Edit landed at the start of the page. The editor often mounts before the Edit dialog has finished closing, and with no autofocus asked for, TipTap still focuses it on mount, at the start. The move to the end only came once the dialog had gone. Edit now asks for the end before the dialog closes. "The editor takes focus with the caret at the end of the page" covers it; the merge test passed 8 cold runs in a row after.
+
+### Part 4: Version history (2026-10-23)
+
+Done:
+
+- `wiki/api/history.py`: `get_page_history`, `get_space_history` and `get_revision_changes`, all GET and all behind `can_read_space`. The main chain is every revision that is neither working nor overlay, in `created_at` order; git sync writes its revisions with no parent, so `parent_revision` cannot be walked. A new index on Wiki Revision `(wiki_space, created_at)` serves it.
+- Page history keeps a revision when the page's content, title, route, publish state or existence changed. Each version says how: added, deleted, renamed (with the old title), moved, edited, published, unpublished.
+- Space history skips a revision with the same hashes as the one before it (git sync's live snapshot) and does not count the root group as a page the first version added.
+- `get_revision_changes` diffs a version against the main revision before it, in the shape the review returns, so `PageDiff` renders it. It refuses working and overlay revisions: those are change requests, with their own permissions. The review's page builder became `rendered_changes`, shared by both.
+- Wiki Revision has `source_commit`. Git sync sets it to the commit it applied.
+- `HistoryPanel`: This page or Whole space, "Current version", versions grouped by Today, Yesterday, This week and Earlier. A row shows who, what kind of version (merged, edited in Desk, synced from <commit>, saved the first version), the change request title and what changed, or the page count for the space. "Show more" asks for a longer list.
+- `VersionDiff` takes the main area while a version is selected: Side by side, Inline, Markdown and "Show changes only", the same switch as the review (`useDiffView`, shared now), and a link to the change request or the commit on GitHub.
+- The page header has a history button in both states, git-synced spaces included. "Edited <time>" under the title opens the panel too.
+- The page stays mounted under the diff (`v-show`), so a draft being typed keeps its unsaved text. The change request notice hides while a version is shown. Another panel, closing history or another page returns to the page. On a phone, picking a version closes the panel so the diff is visible.
+
+Measured on `perf-big-1000` (1,021 items) with 60 merges added, rolled back after (81 main revisions):
+
+| Call | Median of 5 |
+| --- | --- |
+| `get_page_history` (31 versions) | 1.4 ms |
+| `get_space_history` (first 50 versions) | 368 ms |
+| `get_revision_changes`, one page | 17.7 ms |
+| `get_revision_changes`, whole version | 16.8 ms |
+
+Space history costs about 3.5 ms per version at 1,021 items, half loading the two item maps, half diffing them (74 ms for the space's own 21 versions). It only loads when Whole space is picked. Keeping a change summary on write (3.3) makes it one query.
+
+Fixed on the way: on a touch screen the code block's language label and copy button are always shown, and they covered the first line of code in read mode and the public reader. The toolbar now has its own row there.
+
+Tests: `wiki/api/test_history.py` (6): page history keeps only revisions that changed the page, space history counts pages, pagination, the diff against the previous version, a working copy is refused, an outsider gets 403. `test_sync_revision_stores_source_commit` in `test_git_sync.py`. Both history tests that pin the fix fail with it reverted. `e2e/tests/version-history.spec.ts`: two merges on a page list in the panel and the other page's merge does not, the diff marks the edit and links to its change request, Whole space shows the other page; unsaved edits survive a trip to a version; a git sync row says "synced from abc1234", the rename, and links the commit. `read-mode` "the code toolbar sits above the code" fails on the old CSS. `git-sync-readonly` allows the history link under the title.
+
+Related specs on wiki.localhost: `git-sync-readonly`, `git-sync-edit-on-github`, `change-request-review`, `change-request-flow`, `edit-flow`, `read-mode`, `space-change-requests`, `page-settings-meta`, `spa-editor.mobile`, `contributions-disabled`, `page-route-editable`, `disable-indexing`, `version-history`: 57 passed. `mobile-view`: 17 passed with view tracking off; the `networkidle` hang from Part 2 is still open.
