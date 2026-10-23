@@ -13,7 +13,11 @@ from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.api.wiki_space import flush_pending_revision_syncs, lock_wiki_space
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route, validate_external_url
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	resolve_wiki_links,
+	sanitize_route,
+	validate_external_url,
+)
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -27,6 +31,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	recompute_revision_hashes,
 )
 from wiki.telemetry import capture
+from wiki.wiki.markdown import render_markdown
 
 
 class WikiChangeRequest(Document):
@@ -690,24 +695,35 @@ def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
 	if draft and draft.status == "Draft":
 		rows.append(frappe._dict({field: draft.get(field) for field in fields}))
 
-	users = {
-		user.name: user
-		for user in frappe.get_all(
-			"User",
-			filters={"name": ("in", list({row.owner for row in rows}))},
-			fields=["name", "full_name", "user_image"],
-		)
-	}
+	users = _user_cards({row.owner for row in rows})
 	for row in rows:
 		changes = _diff_revision_items(
 			get_revision_item_map(row.pop("base_revision")),
 			get_effective_revision_item_map(row.pop("head_revision")),
 		)
 		row.changed_doc_keys = [change["doc_key"] for change in changes]
-		owner = users.get(row.owner) or {}
-		row.owner_name = owner.get("full_name") or row.owner
-		row.owner_image = owner.get("user_image")
+		row.owner_name = users[row.owner]["full_name"]
+		row.owner_image = users[row.owner]["image"]
 	return sorted(rows, key=lambda row: row.modified, reverse=True)
+
+
+def _user_cards(users: set[str]) -> dict[str, dict[str, str | None]]:
+	"""Name and image for each user, falling back to the user ID for one that is gone."""
+	found = {
+		user.name: user
+		for user in frappe.get_all(
+			"User",
+			filters={"name": ("in", list(users))},
+			fields=["name", "full_name", "user_image"],
+		)
+	}
+	return {
+		user: {
+			"full_name": (found.get(user) or {}).get("full_name") or user,
+			"image": (found.get(user) or {}).get("user_image"),
+		}
+		for user in users
+	}
 
 
 @frappe.whitelist()
@@ -1336,6 +1352,49 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 	base_items = get_revision_item_map(cr.base_revision)
 	head_items = get_effective_revision_item_map(cr.head_revision)
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_change_request_review(name: str) -> dict[str, Any]:
+	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
+	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
+	base_items = get_revision_item_map(cr.base_revision)
+	head_items = get_effective_revision_item_map(cr.head_revision)
+	changes = _diff_revision_items(base_items, head_items)
+
+	keys = [change["doc_key"] for change in changes]
+	base_contents = get_contents_for_items({key: base_items[key] for key in keys if key in base_items})
+	head_contents = get_contents_for_items({key: head_items[key] for key in keys if key in head_items})
+
+	pages = []
+	for change in changes:
+		key = change["doc_key"]
+		page = {
+			**change,
+			"base": _rendered_side(base_items.get(key), base_contents.get(key), cr.wiki_space),
+			"head": _rendered_side(head_items.get(key), head_contents.get(key), cr.wiki_space),
+		}
+		if change["change_type"] == "reordered":
+			page["location"] = {
+				"base": _node_location(base_items, key),
+				"head": _node_location(head_items, key),
+			}
+		pages.append(page)
+	return {"author": _user_cards({cr.owner})[cr.owner], "pages": pages}
+
+
+def _rendered_side(
+	item: dict[str, Any] | None, content: str | None, wiki_space: str
+) -> dict[str, Any] | None:
+	if not item or item.get("is_deleted"):
+		return None
+	content = content or ""
+	return {
+		"title": item.get("title"),
+		"content": content,
+		"html": resolve_wiki_links(render_markdown(content), wiki_space),
+	}
 
 
 def _diff_revision_items(
