@@ -12,9 +12,13 @@ export function useSidePanel() {
 		openPanel.value = openPanel.value === name ? null : name;
 	}
 
+	function open(name) {
+		openPanel.value = name;
+	}
+
 	function close() {
 		openPanel.value = null;
 	}
 
-	return { openPanel, toggle, close };
+	return { openPanel, toggle, open, close };
 }

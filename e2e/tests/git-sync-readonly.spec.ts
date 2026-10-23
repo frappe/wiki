@@ -61,11 +61,11 @@ test.describe('Git-synced space (read-only)', () => {
 		await expect(page.locator('[contenteditable="true"]')).toHaveCount(0);
 
 		// No Save button and no editor toolbar in read-only mode. The view
-		// count under the title is a link to analytics, not an edit control.
+		// count and edit time under the title open analytics and history, not edits.
 		await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
 		await expect(
 			page.locator(
-				'.wiki-editor-container button:not([data-testid="page-views-link"])',
+				'.wiki-editor-container button:not([data-testid="page-views-link"], [data-testid="page-history-link"])',
 			),
 		).toHaveCount(0);
 	});

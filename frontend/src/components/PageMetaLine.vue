@@ -16,12 +16,24 @@
 				<span class="lucide-chart-no-axes-column size-3.5" aria-hidden="true" />
 				{{ part.label }}
 			</button>
+			<button
+				v-else-if="part.key === 'edited'"
+				type="button"
+				class="-mx-1 inline-flex items-center gap-1 rounded-1 px-1 hover:bg-surface-gray-2 hover:text-ink-gray-7"
+				:title="__('Open version history')"
+				data-testid="page-history-link"
+				@click="openSidePanel('history')"
+			>
+				<span class="lucide-history size-3.5" aria-hidden="true" />
+				{{ part.label }}
+			</button>
 			<span v-else>{{ part.label }}</span>
 		</template>
 	</div>
 </template>
 
 <script setup>
+import { useSidePanel } from '@/composables/useSidePanel';
 import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import { countWords, readingMinutes } from '@/lib/readingStats';
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core';
@@ -46,6 +58,7 @@ const props = defineProps({
 });
 
 const { openAnalytics } = useSpaceSettings();
+const { open: openSidePanel } = useSidePanel();
 
 const docName = props.doc.name;
 const recentViews = createResource({

@@ -35,6 +35,16 @@
 								{{ changeRequests.length }}
 							</Button>
 						</Tooltip>
+						<Tooltip :text="__('Version history')">
+							<Button
+								:variant="openPanel === 'history' ? 'subtle' : 'ghost'"
+								:aria-label="__('Version history')"
+								:aria-pressed="openPanel === 'history'"
+								@click="toggleHistory"
+							>
+								<span class="lucide-history size-4" aria-hidden="true" />
+							</Button>
+						</Tooltip>
 						<!-- Shown for a synced page too: its meta title, description and
 						     social card are wiki-side fields the repo never carries, so
 						     they are still this app's to edit. -->
@@ -98,7 +108,8 @@
 				<!-- The one scroller on this page: the editor body scrolls under
 				     the sticky toolbar, and the bubble menu and the outline rail
 				     both measure against it. -->
-				<ScrollArea class="min-h-0 flex-1" viewport-class="pb-10">
+				<!-- Hidden, not unmounted, so an open editor keeps its state behind a version's diff. -->
+				<ScrollArea v-show="!selectedVersion" class="min-h-0 flex-1" viewport-class="pb-10">
 					<component :is="showsLivePage ? WikiPageReader : WikiEditor" v-if="editorKey" ref="editor" :key="editorKey" v-bind="pageViewProps" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 						<template #title>
 							<div class="pt-10">
@@ -143,6 +154,13 @@
 						<Skeleton class="h-4 w-3/4 rounded-4" />
 					</div>
 				</ScrollArea>
+				<VersionDiff
+					v-if="selectedVersion"
+					:space-id="spaceId"
+					:version="selectedVersion"
+					:doc-key="historyScope === 'page' ? wikiDoc.doc?.doc_key : null"
+					@back="selectedVersion = null"
+				/>
 				<PageSettingsPanel
 					v-if="showPageSettings"
 					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
@@ -162,6 +180,15 @@
 					:change-requests="changeRequests"
 					:doc-key="wikiDoc.doc?.doc_key"
 					@close="closeSidePanel"
+				/>
+				<HistoryPanel
+					v-else-if="openPanel === 'history'"
+					v-model:scope="historyScope"
+					v-model:selected="selectedVersion"
+					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
+					:space-id="spaceId"
+					:doc-key="wikiDoc.doc?.doc_key"
+					@close="toggleHistory"
 				/>
 			</div>
 		</div>
@@ -283,11 +310,13 @@ import { useMobile } from '../composables/useMobile';
 import { useRecentPages } from '../composables/useRecentPages';
 import ChangeRequestsPanel from './ChangeRequestsPanel.vue';
 import FinishEditingButton from './FinishEditingButton.vue';
+import HistoryPanel from './HistoryPanel.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import PageChangeRequestsNotice from './PageChangeRequestsNotice.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
+import VersionDiff from './VersionDiff.vue';
 import WikiPageReader from './WikiPageReader.vue';
 
 const props = defineProps({
@@ -313,6 +342,8 @@ const editableRenameTitle = ref('');
 const isRenaming = ref(false);
 const showDeleteDialog = ref(false);
 const isDeleting = ref(false);
+const historyScope = ref('page');
+const selectedVersion = ref(null);
 
 const route = useRoute();
 const router = useRouter();
@@ -424,6 +455,7 @@ watch(
 	(newPageId) => {
 		if (newPageId) {
 			latestPageLoad += 1;
+			selectedVersion.value = null;
 			currentCrPage.value = null;
 			loadedDocKey.value = null;
 			focusEditor.value = false;
@@ -580,9 +612,25 @@ const pageChangeRequests = computed(() =>
 const showChangeRequestsNotice = computed(
 	() =>
 		!isEditing.value &&
+		!selectedVersion.value &&
 		pageChangeRequests.value.length > 0 &&
 		openPanel.value !== 'change-requests',
 );
+
+function toggleHistory() {
+	toggleSidePanel('history');
+	if (openPanel.value !== 'history') selectedVersion.value = null;
+}
+
+// The panel covers the page on a phone, so it steps aside for the diff.
+watch(selectedVersion, (version) => {
+	if (version && isMobile.value) closeSidePanel();
+});
+
+// Another panel in the slot means the page is back on screen.
+watch(openPanel, (panel) => {
+	if (panel && panel !== 'history') selectedVersion.value = null;
+});
 
 function toggleChangeRequests() {
 	toggleSidePanel('change-requests');
