@@ -39,7 +39,7 @@
 						<MobileNavItem
 							:label="__('Change Requests')"
 							:route="{ name: 'ChangeRequests' }"
-							:active="['ChangeRequests', 'ChangeRequestReview'].includes(route.name)"
+							:active="route.name === 'ChangeRequests'"
 						>
 							<template #default="{ active }">
 								<span

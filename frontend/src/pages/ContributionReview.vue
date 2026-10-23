@@ -1,13 +1,9 @@
 <template>
 	<div class="flex flex-col h-full">
-		<!-- Renders into the shell's PageHeaderTarget on all breakpoints (the
-		     action cluster needs the full row even on a phone). -->
-		<PageHeader>
-			<Button variant="ghost" icon-left="lucide-arrow-left" @click="goBack">
-				{{ __('Back') }}
-			</Button>
+		<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
+			<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
 
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-2">
 				<Button
 					v-if="canEditInReview"
 					variant="outline"
@@ -61,7 +57,7 @@
 					{{ __('Withdraw') }}
 				</Button>
 			</div>
-		</PageHeader>
+		</div>
 
 		<div class="flex-1 overflow-auto">
 		<div class="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-5">
@@ -323,12 +319,12 @@ import { useUserStore } from '@/stores/user';
 import {
 	Avatar,
 	Badge,
+	Breadcrumbs,
 	Button,
 	Dialog,
 	Dropdown,
 	FormControl,
 	LoadingIndicator,
-	PageHeader,
 	Switch,
 	TabButtons,
 	createDocumentResource,
@@ -356,6 +352,10 @@ const DiffViewer = defineAsyncComponent(
 );
 
 const props = defineProps({
+	spaceId: {
+		type: String,
+		required: true,
+	},
 	changeRequestId: {
 		type: String,
 		required: true,
@@ -477,6 +477,35 @@ const withdrawResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.withdraw_change_request',
 });
 
+const spaceStore = useSpaceStore();
+const breadcrumbs = computed(() => [
+	{
+		label: spaceStore.doc?.space_name || props.spaceId,
+		route: { name: 'SpaceDetails', params: { spaceId: props.spaceId } },
+	},
+	{ label: __('Change requests'), route: { name: 'ChangeRequests' } },
+	{ label: changeRequest.doc?.title || props.changeRequestId },
+]);
+
+watch(
+	() => changeRequest.doc?.status,
+	(status, before) => {
+		if (before && status !== before) spaceStore.reload();
+	},
+);
+
+// A link can name the wrong space; the sidebar must show the one being changed.
+watch(
+	() => changeRequest.doc?.wiki_space,
+	(space) => {
+		if (space && space !== props.spaceId)
+			router.replace({
+				name: 'SpaceChangeRequest',
+				params: { spaceId: space, changeRequestId: props.changeRequestId },
+			});
+	},
+);
+
 const userStore = useUserStore();
 const crStore = useChangeRequestStore();
 const isOwner = computed(
@@ -524,7 +553,6 @@ const canEditInReview = computed(() => {
 	);
 });
 
-const spaceStore = useSpaceStore();
 const startingEdit = ref(false);
 
 // Opens the space on the first page the change request touches, in the editor.
@@ -662,21 +690,6 @@ async function fetchConflicts() {
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error loading conflicts'));
 	}
-}
-
-// Go back to wherever the user actually came from — the originating list tab
-// (with its query preserved), the space editor, etc. Fall back to the list only
-// when opened directly (no history).
-function goBackInFlow(fallback) {
-	if (window.history.state?.back) {
-		router.back();
-	} else {
-		router.push(fallback);
-	}
-}
-
-function goBack() {
-	goBackInFlow({ name: 'ChangeRequests' });
 }
 
 // Merge an already-Approved CR. On a merge-conflict ValidationError the CR

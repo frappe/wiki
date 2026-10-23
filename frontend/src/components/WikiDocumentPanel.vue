@@ -88,6 +88,7 @@
 			</div>
 			<PageChangeRequestsNotice
 				v-if="showChangeRequestsNotice"
+				:space-id="spaceId"
 				:change-requests="pageChangeRequests"
 			/>
 			<!-- The panel takes the right edge of the row, so the scroller it
@@ -157,6 +158,7 @@
 				<ChangeRequestsPanel
 					v-else-if="openPanel === 'change-requests'"
 					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
+					:space-id="spaceId"
 					:change-requests="changeRequests"
 					:doc-key="wikiDoc.doc?.doc_key"
 					@close="closeSidePanel"

@@ -23,6 +23,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 const props = defineProps({
+	spaceId: { type: String, required: true },
 	changeRequests: { type: Array, required: true },
 });
 
@@ -42,8 +43,8 @@ const options = computed(() =>
 		icon: 'lucide-git-pull-request',
 		onClick: () =>
 			router.push({
-				name: 'ChangeRequestReview',
-				params: { changeRequestId: changeRequest.name },
+				name: 'SpaceChangeRequest',
+				params: { spaceId: props.spaceId, changeRequestId: changeRequest.name },
 			}),
 	})),
 );

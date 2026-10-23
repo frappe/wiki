@@ -879,7 +879,7 @@ test.describe('Change Request Flow', () => {
 		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
 	});
 
-	test('back from review returns to the originating tab', async ({
+	test('a change request opened from the list shows inside its space', async ({
 		page,
 		wiki,
 	}) => {
@@ -888,19 +888,15 @@ test.describe('Change Request Flow', () => {
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
-		// Enter the CR from a specific tab (not the default 'my').
 		await page.goto(appUrl('change-requests?tab=all'));
 		await page.waitForLoadState('networkidle');
 		await page.locator(`a[href*="${crName}"]`).first().click();
 		await expect(page).toHaveURL(
-			new RegExp(`${APP_BASE}/change-requests/${crName}$`),
+			new RegExp(`/spaces/[^/]+/change-requests/${crName}$`),
 		);
 
-		// Back from review lands on the originating tab, query preserved.
-		await page.getByRole('button', { name: 'Back', exact: true }).click();
-		await expect(page).toHaveURL(
-			new RegExp(`${APP_BASE}/change-requests\\?tab=all`),
-		);
+		await page.getByRole('link', { name: 'Change requests' }).click();
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/change-requests$`));
 	});
 
 	test('merging from the editor keeps the tree up and the banner steady', async ({

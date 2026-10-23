@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures';
 import { callMethod } from '../helpers/frappe';
-import { editPage } from '../helpers/wiki';
+import { editPage, publishChangeRequestFromReview } from '../helpers/wiki';
 
 const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
@@ -53,13 +53,20 @@ test.describe('Change request review', () => {
 			fields: { title: 'Settings' },
 		});
 
+		// An old link lands on the review inside its space, next to the page tree.
 		await page.goto(`/wiki-app/change-requests/${changeRequest.name}`);
+		await expect(page).toHaveURL(
+			new RegExp(
+				`/spaces/${space.name}/change-requests/${changeRequest.name}$`,
+			),
+		);
+		await expect(page.locator('aside').getByText('Installation')).toBeVisible();
 
 		await expect(
 			page.getByRole('heading', { name: 'Document the v16 upgrade' }),
 		).toBeVisible();
 		await expect(page.getByText('Adds an upgrade section.')).toBeVisible();
-		await expect(page.getByText('· 2 pages')).toBeVisible();
+		await expect(page.getByRole('main').getByText('· 2 pages')).toBeVisible();
 
 		const installation = page
 			.getByTestId('page-diff')
@@ -97,6 +104,35 @@ test.describe('Change request review', () => {
 
 		await viewButton(page, 'Markdown').click();
 		await expect(installation).toContainText('## Upgrade from v15');
+	});
+
+	test('merging on the review updates the space sidebar', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Configuration' }] });
+		const changeRequest = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD}.create_change_request`,
+			{ wiki_space: space.name, title: 'Rename configuration' },
+		);
+		await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+			name: changeRequest.name,
+			doc_key: space.page('Configuration').doc_key,
+			fields: { title: 'Settings' },
+		});
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: changeRequest.name,
+		});
+
+		await page.goto(`/wiki-app/change-requests/${changeRequest.name}`);
+		const sidebar = page.locator('aside');
+		await expect(sidebar.getByText('Configuration')).toBeVisible();
+
+		await publishChangeRequestFromReview(page);
+		await expect(sidebar.getByText('Settings')).toBeVisible();
+		await expect(sidebar.getByText('Configuration')).toHaveCount(0);
 	});
 
 	test('View changes in the strip opens the review, unsaved edits included', async ({

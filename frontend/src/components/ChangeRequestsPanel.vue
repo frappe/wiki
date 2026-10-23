@@ -39,8 +39,8 @@
 					v-for="changeRequest in group.changeRequests"
 					:key="changeRequest.name"
 					:to="{
-						name: 'ChangeRequestReview',
-						params: { changeRequestId: changeRequest.name },
+						name: 'SpaceChangeRequest',
+						params: { spaceId, changeRequestId: changeRequest.name },
 					}"
 					class="flex items-start gap-2 rounded-4 px-2 py-1.5 hover:bg-surface-gray-2"
 				>
@@ -87,6 +87,7 @@ import {
 import { computed } from 'vue';
 
 const props = defineProps({
+	spaceId: { type: String, required: true },
 	changeRequests: { type: Array, required: true },
 	docKey: { type: String, default: null },
 });

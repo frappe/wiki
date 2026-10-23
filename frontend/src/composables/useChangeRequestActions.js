@@ -58,8 +58,11 @@ export function useChangeRequestActions() {
 	async function viewChanges() {
 		if (!(await flushUnsavedPages())) return;
 		await router.push({
-			name: 'ChangeRequestReview',
-			params: { changeRequestId: crStore.currentChangeRequest.name },
+			name: 'SpaceChangeRequest',
+			params: {
+				spaceId: spaceStore.spaceId,
+				changeRequestId: crStore.currentChangeRequest.name,
+			},
 		});
 	}
 
@@ -76,8 +79,8 @@ export function useChangeRequestActions() {
 			toast.success(__('Change request submitted for review'));
 			if (result?.name) {
 				await router.push({
-					name: 'ChangeRequestReview',
-					params: { changeRequestId: result.name },
+					name: 'SpaceChangeRequest',
+					params: { spaceId: spaceStore.spaceId, changeRequestId: result.name },
 				});
 			}
 		} catch (error) {
@@ -145,8 +148,8 @@ export function useChangeRequestActions() {
 					error.messages?.[0] || __('Merge conflict — resolve it to continue'),
 				);
 				router.push({
-					name: 'ChangeRequestReview',
-					params: { changeRequestId: changeRequestName },
+					name: 'SpaceChangeRequest',
+					params: { spaceId, changeRequestId: changeRequestName },
 				});
 				return;
 			}
@@ -165,8 +168,11 @@ export function useChangeRequestActions() {
 		}
 		const changeRequestName = crStore.currentChangeRequest?.name;
 		await router.push({
-			name: 'ChangeRequestReview',
-			params: { changeRequestId: changeRequestName },
+			name: 'SpaceChangeRequest',
+			params: {
+				spaceId: spaceStore.spaceId,
+				changeRequestId: changeRequestName,
+			},
 		});
 		await spaceStore.stopEditingInReview();
 	}
