@@ -110,6 +110,11 @@
   .wiki-rendered .code-block-toolbar {
     opacity: 1;
   }
+
+  /* Always shown on touch, so it gets its own row instead of covering the first line. */
+  .wiki-rendered pre.code-block-enhanced {
+    padding-top: 2.25rem;
+  }
 }
 
 /* Language label — plain text, like the editor's read-only badge */
