@@ -535,22 +535,17 @@ test.describe('Change Request Flow', () => {
 		await page.waitForLoadState('networkidle');
 
 		const changeCard = page
-			.locator('div.border.border-outline-gray-2.rounded-6.overflow-hidden')
+			.getByTestId('page-diff')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
 		await expect(
 			changeCard.getByText('Reordered', { exact: true }),
 		).toBeVisible();
 
-		// Expanding a reorder shows a structural before/after (its position changed)
-		// rather than the content Diff/Preview toggle, which is meaningless here.
-		await changeCard.getByText(movedTitle, { exact: true }).click();
-		await expect(changeCard.getByRole('button', { name: 'Diff' })).toHaveCount(
+		// A reorder shows where the page sat and where it sits now, not a content diff.
+		await expect(changeCard.getByText('Before', { exact: true })).toHaveCount(
 			0,
 		);
-		await expect(
-			changeCard.getByRole('button', { name: 'Preview' }),
-		).toHaveCount(0);
 		await expect(
 			changeCard.getByText(/Position \d+ \/ \d+/).first(),
 		).toBeVisible();
@@ -859,12 +854,10 @@ test.describe('Change Request Flow', () => {
 		expect(routerErrors).toEqual([]);
 	});
 
-	test('inline preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
+	test('the review highlights the syntax of code blocks', async ({
 		page,
 		wiki,
 	}) => {
-		// A fenced Python block — the inline Preview must render it through the same
-		// read-only TipTap viewer the editor uses, which highlights via lowlight.
 		const code = '```python\nimport os\nprint(os.getcwd())\n```';
 		const { pageTitle } = await createSpaceWithDraftPage(
 			page,
@@ -874,22 +867,15 @@ test.describe('Change Request Flow', () => {
 		await setEditorContentAndSave(page, code);
 		await submitForReviewFromEditor(page);
 
-		// Expand the changed page row and switch its inline view to Preview.
-		await page.getByText(pageTitle, { exact: true }).first().click();
-		await page
-			.getByRole('button', { name: 'Preview', exact: true })
-			.first()
-			.click();
+		const diff = page.getByTestId('page-diff').filter({ hasText: pageTitle });
 
-		// lowlight wraps tokens in `hljs-*` spans; raw server HTML (the old
-		// v-html path) produces none. Their presence proves the TipTap viewer ran.
-		await expect(page.locator('pre code')).toContainText('import os');
+		// highlight.js wraps tokens in `hljs-*` spans; the server HTML has none.
+		await expect(diff.locator('pre code')).toContainText('import os');
 		await expect(
-			page.locator('pre code span[class*="hljs-"]').first(),
+			diff.locator('pre code span[class*="hljs-"]').first(),
 		).toBeVisible({ timeout: 10000 });
 
-		// The language picker is an editing affordance — it must not leak into the
-		// read-only preview.
+		// The language picker is an editing affordance; it must not leak into the review.
 		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
 	});
 

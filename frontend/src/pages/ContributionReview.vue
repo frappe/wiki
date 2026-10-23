@@ -3,31 +3,9 @@
 		<!-- Renders into the shell's PageHeaderTarget on all breakpoints (the
 		     action cluster needs the full row even on a phone). -->
 		<PageHeader>
-			<div class="flex min-w-0 items-center gap-4">
-				<Button variant="ghost" icon-left="lucide-arrow-left" @click="goBack">
-					{{ __('Back') }}
-				</Button>
-				<div v-if="changeRequest.doc" class="min-w-0">
-					<div class="flex items-center gap-2">
-						<h1 class="truncate text-lg-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
-						<Badge :variant="'subtle'" :theme="statusTheme(changeRequest.doc.status)" size="sm">
-							{{ changeRequest.doc.status }}
-						</Badge>
-					</div>
-					<div class="flex items-center gap-3 mt-0.5">
-						<p class="text-sm text-ink-gray-5">
-							{{ changeRequest.doc.wiki_space }}
-							<span v-if="changeRequest.doc.owner">
-								&middot; {{ __('by') }} {{ changeRequest.doc.owner }}
-							</span>
-						</p>
-						<div v-if="assignees" class="flex items-center gap-1.5 text-sm text-ink-gray-5">
-							<span>&middot;</span>
-							<AssigneeAvatars :assign="assignees" />
-						</div>
-					</div>
-				</div>
-			</div>
+			<Button variant="ghost" icon-left="lucide-arrow-left" @click="goBack">
+				{{ __('Back') }}
+			</Button>
 
 			<div class="flex items-center gap-2">
 				<Button
@@ -85,7 +63,36 @@
 			</div>
 		</PageHeader>
 
-		<div class="flex-1 overflow-auto p-4">
+		<div class="flex-1 overflow-auto">
+		<div class="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-5">
+			<div v-if="changeRequest.doc" class="mb-8">
+				<Badge variant="subtle" :theme="statusTheme(changeRequest.doc.status)">
+					{{ changeRequest.doc.status }}
+				</Badge>
+				<h1 class="mt-2 text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+				<div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-gray-5">
+					<Avatar
+						:image="review.data?.author.image"
+						:label="authorName"
+						size="sm"
+					/>
+					<span class="text-ink-gray-7">{{ authorName }}</span>
+					<span>
+						{{ __('opened {0}', [dayjsLocal(changeRequest.doc.creation).fromNow()]) }}
+						<template v-if="pages.length">· {{ pageCount }}</template>
+					</span>
+					<template v-if="assignees">
+						<span>&middot;</span>
+						<AssigneeAvatars :assign="assignees" />
+					</template>
+				</div>
+				<p
+					v-if="changeRequest.doc.description"
+					class="mt-4 max-w-3xl whitespace-pre-line text-p-base text-ink-gray-7"
+				>
+					{{ changeRequest.doc.description }}
+				</p>
+			</div>
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts"
@@ -179,151 +186,39 @@
 					</div>
 				</template>
 
-				<!-- Normal changes list -->
 				<template v-else>
-					<h3 class="text-lg-medium text-ink-gray-8">
-						{{ __('Changes') }} ({{ changes.data?.length || 0 }})
-					</h3>
+					<div class="flex flex-wrap items-center gap-3">
+						<h3 class="text-lg-semibold text-ink-gray-8">{{ __('Changes') }}</h3>
+						<Switch
+							v-if="view !== 'markdown'"
+							v-model="changesOnly"
+							:label="__('Show changes only')"
+							class="ml-auto"
+						/>
+						<TabButtons v-model="view" :options="viewOptions" />
+					</div>
 
-					<div v-if="changes.loading" class="flex items-center justify-center py-8">
+					<div v-if="review.loading && !review.data" class="flex items-center justify-center py-8">
 						<LoadingIndicator class="size-8" />
 					</div>
 
-					<div v-else-if="changes.data?.length" class="space-y-3">
-						<div
-							v-for="change in changes.data"
-							:key="change.doc_key"
-							class="border border-outline-gray-2 rounded-6 overflow-hidden"
-						>
-							<div
-								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
-								@click="toggleChange(change.doc_key)"
-							>
-								<div class="flex items-center gap-3">
-									<div
-										class="flex items-center justify-center size-8 rounded-full shrink-0"
-										:class="getChangeIconClass(change.change_type)"
-									>
-										<span :class="getChangeIcon(change.change_type)" class="size-4" aria-hidden="true" />
-									</div>
-									<div>
-										<div class="flex items-center gap-2">
-											<span class="font-medium text-ink-gray-9">
-												{{ change.title || __('Untitled') }}
-											</span>
-											<Badge variant="subtle" :theme="getChangeTheme(change.change_type)" size="sm">
-												{{ getChangeLabel(change.change_type) }}
-											</Badge>
-										</div>
-										<p class="text-sm text-ink-gray-5">
-											{{ getChangeDescription(change.change_type, change.is_group, change.is_external_link) }}
-										</p>
-										<p v-if="change.is_external_link && change.external_url" class="text-sm text-ink-gray-5 mt-0.5">
-											<a :href="change.external_url" target="_blank" rel="noopener noreferrer" class="text-ink-blue-link hover:underline">
-												{{ change.external_url }}
-											</a>
-										</p>
-									</div>
-								</div>
-								<span
-									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
-									:class="{ 'rotate-180': expandedChanges.has(change.doc_key) }" aria-hidden="true" />
-							</div>
-
-							<div v-if="expandedChanges.has(change.doc_key)" class="border-t border-outline-gray-2">
-								<!-- A reorder is a structural move, not a content edit, so show where
-								     the page sat vs. where it sits now instead of an empty content diff. -->
-								<template v-if="change.change_type === 'reordered'">
-									<div v-if="diffsByDocKey[change.doc_key]" class="flex items-center gap-3 flex-wrap p-4 text-sm">
-										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-6">
-											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.base, change.title) }}</span>
-											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.base)" variant="subtle" theme="gray" size="sm">
-												{{ positionLabel(diffsByDocKey[change.doc_key].location?.base) }}
-											</Badge>
-										</div>
-										<span class="lucide-arrow-right size-4 text-ink-gray-4 shrink-0" aria-hidden="true" />
-										<div class="flex items-center gap-2 px-3 py-2 rounded-5 bg-surface-gray-2 text-ink-gray-8 font-medium">
-											<span>{{ locationPath(diffsByDocKey[change.doc_key].location?.head, change.title) }}</span>
-											<Badge v-if="positionLabel(diffsByDocKey[change.doc_key].location?.head)" variant="subtle" theme="amber" size="sm">
-												{{ positionLabel(diffsByDocKey[change.doc_key].location?.head) }}
-											</Badge>
-										</div>
-									</div>
-									<div v-else class="flex items-center justify-center py-8">
-										<LoadingIndicator class="size-6" />
-									</div>
-								</template>
-								<template v-else>
-								<div class="flex items-center justify-end gap-1 px-4 pt-3">
-									<Button
-										size="sm"
-										:variant="viewModeFor(change.doc_key) === 'diff' ? 'subtle' : 'ghost'"
-										@click.stop="setViewMode(change.doc_key, 'diff')"
-									>
-										{{ __('Diff') }}
-									</Button>
-									<Button
-										size="sm"
-										:variant="viewModeFor(change.doc_key) === 'preview' ? 'subtle' : 'ghost'"
-										@click.stop="setViewMode(change.doc_key, 'preview')"
-									>
-										{{ __('Preview') }}
-									</Button>
-								</div>
-								<div class="p-4 relative z-0 isolate">
-									<template v-if="viewModeFor(change.doc_key) === 'preview'">
-										<div
-											v-if="diffsByDocKey[change.doc_key]"
-											class="grid grid-cols-1 lg:grid-cols-2 gap-px bg-outline-gray-2 border border-outline-gray-2 rounded-6 overflow-hidden"
-										>
-											<section class="bg-surface-base min-w-0">
-												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs-medium text-ink-gray-5">{{ __('Current') }}</span>
-													<Badge v-if="!diffsByDocKey[change.doc_key].base" variant="subtle" theme="green" size="sm">{{ __('New page') }}</Badge>
-												</header>
-												<div class="px-4 py-4">
-													<p v-if="!diffsByDocKey[change.doc_key].base" class="text-sm text-ink-gray-5 italic">
-														{{ __('No published version yet.') }}
-													</p>
-													<WikiContentViewer v-else :content="diffsByDocKey[change.doc_key].base?.content || ''" />
-												</div>
-											</section>
-											<section class="bg-surface-base min-w-0">
-												<header class="flex items-center gap-2 px-4 h-9 border-b border-outline-gray-2 bg-surface-gray-1">
-													<span class="text-xs-medium text-ink-gray-5">{{ __('Proposed') }}</span>
-												</header>
-												<div class="px-4 py-4">
-													<WikiContentViewer :content="diffsByDocKey[change.doc_key].head?.content || ''" />
-												</div>
-											</section>
-										</div>
-										<div v-else class="flex items-center justify-center py-8">
-											<LoadingIndicator class="size-6" />
-										</div>
-									</template>
-									<template v-else>
-										<DiffViewer
-											v-if="diffsByDocKey[change.doc_key]"
-											:old-content="diffsByDocKey[change.doc_key]?.base?.content || ''"
-											:new-content="diffsByDocKey[change.doc_key]?.head?.content || ''"
-											:file-name="change.title || change.doc_key"
-											language="markdown"
-										/>
-										<div v-else class="flex items-center justify-center py-8">
-											<LoadingIndicator class="size-6" />
-										</div>
-									</template>
-								</div>
-								</template>
-							</div>
-						</div>
+					<div v-else-if="pages.length" class="space-y-4">
+						<PageDiff
+							v-for="page in pages"
+							:key="page.doc_key"
+							:page="page"
+							:view="view"
+							:changes-only="changesOnly"
+						/>
 					</div>
 
-					<div v-else class="text-center py-8 text-ink-gray-5">
-						{{ __('No changes in this change request.') }}
+					<div v-else class="flex flex-col items-center gap-2 rounded-5 border border-dashed border-outline-gray-2 py-12 text-center">
+						<p class="text-base text-ink-gray-7">{{ __('No changes yet') }}</p>
+						<p class="text-p-sm text-ink-gray-5">{{ __('Edit a page and it shows up here.') }}</p>
 					</div>
 				</template>
 			</div>
+		</div>
 		</div>
 
 		<Dialog v-model:open="showApproveMergeDialog" size="md">
@@ -426,6 +321,7 @@
 <script setup>
 import { useUserStore } from '@/stores/user';
 import {
+	Avatar,
 	Badge,
 	Button,
 	Dialog,
@@ -433,33 +329,31 @@ import {
 	FormControl,
 	LoadingIndicator,
 	PageHeader,
+	Switch,
+	TabButtons,
 	createDocumentResource,
 	createResource,
+	dayjsLocal,
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
-import DiffViewer from '@/components/DiffViewer.vue';
-import WikiContentViewer from '@/components/WikiContentViewer.vue';
+import PageDiff from '@/components/PageDiff.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
-import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useMobile } from '@/composables/useMobile';
 import { statusTheme } from '@/lib/changeRequestStatus';
 import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useSpaceStore } from '@/stores/space';
 
-const {
-	getChangeIcon,
-	getChangeIconClass,
-	getChangeTheme,
-	getChangeLabel,
-	getChangeDescription,
-} = useChangeTypeDisplay();
+const DiffViewer = defineAsyncComponent(
+	() => import('@/components/DiffViewer.vue'),
+);
 
 const props = defineProps({
 	changeRequestId: {
@@ -474,12 +368,24 @@ const requestChangesComment = ref('');
 const showRejectDialog = ref(false);
 const rejectComment = ref('');
 const showAssignDialog = ref(false);
-const expandedChanges = reactive(new Set());
-const diffsByDocKey = reactive({});
-// Per-row Diff/Preview toggle. Preview renders the base/head markdown through a
-// read-only WikiContentViewer (the same TipTap config as the editor), so it
-// matches what readers see rather than showing a markdown diff.
-const viewModeByDocKey = reactive({});
+const { isMobile } = useMobile();
+const chosenView = ref('split');
+// A phone has no room for two columns.
+const view = computed({
+	get: () =>
+		isMobile.value && chosenView.value === 'split' ? 'inline' : chosenView.value,
+	set: (value) => {
+		chosenView.value = value;
+	},
+});
+const changesOnly = ref(false);
+const viewOptions = computed(() =>
+	[
+		{ value: 'split', label: __('Side by side'), icon: 'lucide-columns-2' },
+		{ value: 'inline', label: __('Inline'), icon: 'lucide-rows-2' },
+		{ value: 'markdown', label: __('Markdown'), icon: 'lucide-code' },
+	].filter((option) => !isMobile.value || option.value !== 'split'),
+);
 
 // Conflict resolution state
 const hasConflicts = ref(false);
@@ -510,11 +416,21 @@ usePageMeta(() => {
 	return { title: `${changeRequest.doc.title} | Frappe Wiki` };
 });
 
-const changes = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
-	params: { name: props.changeRequestId, scope: 'summary' },
+const review = createResource({
+	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_change_request_review',
+	method: 'GET',
+	params: { name: props.changeRequestId },
 	auto: true,
 });
+const pages = computed(() => review.data?.pages ?? []);
+const authorName = computed(
+	() => review.data?.author.full_name || changeRequest.doc?.owner,
+);
+const pageCount = computed(() =>
+	pages.value.length === 1
+		? __('1 page')
+		: __('{0} pages', [pages.value.length]),
+);
 
 // `_assign` is a native column that `frappe.client.get` (the document resource)
 // strips out, so it is fetched separately to surface the current assignees.
@@ -528,10 +444,6 @@ const assigneesResource = createResource({
 	auto: true,
 });
 const assignees = computed(() => assigneesResource.data?._assign || '');
-
-const diffResource = createResource({
-	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.diff_change_request',
-});
 
 const mergeResource = createResource({
 	url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.merge_change_request',
@@ -621,7 +533,7 @@ async function handleEdit() {
 	startingEdit.value = true;
 	try {
 		await spaceStore.editInReview(doc);
-		const page = (changes.data || []).find(
+		const page = pages.value.find(
 			(change) =>
 				change.change_type !== 'deleted' &&
 				!change.is_group &&
@@ -767,47 +679,6 @@ function goBack() {
 	goBackInFlow({ name: 'ChangeRequests' });
 }
 
-// Reorder display: a breadcrumb of ancestor titles ending in the page itself.
-function locationPath(location, title) {
-	const segments = [...(location?.path || []), title].filter(Boolean);
-	return segments.join('  /  ');
-}
-
-function positionLabel(location) {
-	if (!location || !location.position) return '';
-	return `${__('Position')} ${location.position} / ${location.total}`;
-}
-
-function viewModeFor(docKey) {
-	return viewModeByDocKey[docKey] || 'diff';
-}
-
-function setViewMode(docKey, mode) {
-	// Both Diff and Preview read from the already-loaded page diff (base/head
-	// markdown), so switching is purely a view toggle.
-	viewModeByDocKey[docKey] = mode;
-}
-
-async function toggleChange(docKey) {
-	if (expandedChanges.has(docKey)) {
-		expandedChanges.delete(docKey);
-		return;
-	}
-	expandedChanges.add(docKey);
-	if (!diffsByDocKey[docKey]) {
-		try {
-			const result = await diffResource.submit({
-				name: props.changeRequestId,
-				scope: 'page',
-				doc_key: docKey,
-			});
-			diffsByDocKey[docKey] = result;
-		} catch (error) {
-			toast.error(error.messages?.[0] || __('Error loading diff'));
-		}
-	}
-}
-
 // Merge an already-Approved CR. On a merge-conflict ValidationError the CR
 // stays Approved and the conflict-resolution flow takes over.
 async function mergeNow() {
@@ -818,7 +689,7 @@ async function mergeNow() {
 			crStore.currentChangeRequest = null;
 		}
 		changeRequest.reload();
-		await changes.submit({ name: props.changeRequestId, scope: 'summary' });
+		review.reload();
 		return true;
 	} catch (error) {
 		const msg = error.messages?.[0] || '';
@@ -908,7 +779,7 @@ async function handleResolveAndMerge() {
 			crStore.currentChangeRequest = null;
 		}
 		changeRequest.reload();
-		await changes.submit({ name: props.changeRequestId, scope: 'summary' });
+		review.reload();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error resolving conflicts'));
 	} finally {
