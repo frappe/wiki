@@ -78,3 +78,20 @@ One PR against `develop`, stacked on Part 3.
 - Moved block detection.
 - Version history diffs (`edit_flow.md` Part 4). They should reuse this view.
 
+## Progress
+
+### 2026-10-22
+
+Done:
+
+- `get_change_request_review(name)` is a GET: the author's name and image, and every changed page with both sides as markdown and as reader HTML. `list_open_change_requests` and it share `_user_cards` for names and images.
+- `lib/blockDiff.js`: `splitBlocks` (top-level elements, one block per list item kept in its list, numbering out of the key), `diffBlocks` (LCS on the key, removed and added runs paired by position), word tokens for `p`, `h1` to `h6`, `li` and `pre` (tags, entities, words, punctuation and spaces are separate tokens), `renderSide`, `renderInline`, `foldUnchanged`, `summarize`. Past 250,000 LCS cells an edited block shows whole.
+- `PageDiff.vue` renders one card per page inside `.wiki-rendered`: Side by side with hatched gaps, Inline, or Markdown (`DiffViewer`, now without its own file header). Added and deleted pages always show inline; a reorder keeps the old and new location; a group or link shows its description. Mermaid draws through the reader's renderer; code blocks without word marks get syntax highlighting.
+- `ContributionReview.vue`: status, title, author, time, page count, assignees and description at the top of the page; the view switch and "Show changes only"; every page open. A phone gets Inline and Markdown only. The conflict list and the review actions are unchanged.
+- `DiffViewer` is loaded on demand. The review page chunk went from 448 KB to 27 KB (raw); the diff library loads only for Markdown or conflicts.
+- `WikiContentViewer` had no other user after Preview went, and is deleted.
+- The strip's "View changes" opened a "Pending Changes" dialog that listed the pages and showed none of the changes. It now saves unsaved edits and opens the review page, as in the prototype. The dialog is gone.
+
+Fixed on the way: `renderMermaid` read each diagram's source after awaiting the loader, so a second call in the meantime took the same diagrams and fed the first call's drawn labels to Pele ("No diagram type detected"). It now claims the diagrams and reads their source before the await. The reader shares the module. `mermaidRenderer.test.js` fails without the fix.
+
+Tests: `TestWikiChangeRequest` `test_change_request_review_renders_both_sides` and `test_change_request_review_refuses_an_outsider`. `blockDiff.test.js` (12) and `mermaidRenderer.test.js`. `e2e/tests/change-request-review.spec.ts`: word marks, the added section, the old title of a renamed page, Inline, "Show changes only" and Markdown. "View changes" lands on the review with an edit typed just before it; the test fails without the save. `change-request-flow`: the reorder test reads the new card; the Preview highlighting test now checks the review highlights code.
