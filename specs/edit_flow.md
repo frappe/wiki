@@ -110,22 +110,22 @@ Permissions: a plain contributor (Wiki User) must be able to read others' submit
 
 ### Part 4: Version history (issue #622)
 
-**Entry points.** A history button in the page header (both states) and "Last modified <time>" under the article. Both open the history panel on the right, where the page settings panel sits today. History, page settings and change requests (Part 3) share the slot, one at a time.
+**Entry points.** A history button in the page header (both states) and the "Edited <time>" part of the meta line under the title. Both open the history panel on the right, where the page settings panel sits today. History, page settings and change requests (Part 3) share the slot, one at a time.
 
 **Panel.** As in the prototype:
 
 - Scope toggle: This page, Whole space.
 - "Current version" at the top, then versions grouped by Today, Yesterday, This week, Earlier.
-- Each row: author, "merged #<cr>", "edited in Desk" or "synced from <commit>" (decision 8), change request title, time, and what changed (edited, renamed from X, added, deleted).
-- Selecting a version shows its diff in the main area: split or inline, "Show changes only". Reuse `DiffViewer.vue` (markdown diff), not the prototype's block diff.
+- Each row: author, "merged", "edited in Desk", "synced from <commit>" (decision 8) or "first version", then the change request title, time, and what changed (edited, renamed from X, moved, added, deleted, published, unpublished). Whole space shows the page count instead. Change request names are hashes, so the row shows the title, not "#<cr>".
+- Selecting a version shows its diff in the main area with the review's `PageDiff` (`change_request_review.md`): Side by side, Inline, Markdown, "Show changes only". The bar above it links to the change request or the commit.
 
-**Data.** New `wiki/api/history.py`, both whitelisted, both check `can_read_space`:
+**Data.** New `wiki/api/history.py`, all GET, all check `can_read_space`. The main chain is read in `created_at` order, not by `parent_revision`: git sync writes its revisions with no parent. A new index on Wiki Revision `(wiki_space, created_at)` serves it.
 
-- `get_page_history(wiki_space, doc_key, limit, start)`: main-chain revisions of the space, newest first, joined to their item for `doc_key`. Keep a revision only where the item's `content_blob`, `title`, `route`, `is_published` or `is_deleted` differs from the previous kept one. Returns revision name, change request (name, title), `source_commit`, author (`created_by`), `created_at`, change type, old title.
-- `get_space_history(wiki_space, limit, start)`: main-chain revisions with a change request, a Desk edit or a sync, with the list of pages each one changed (diff against the parent revision's items, as `diff_change_request` does).
-- `get_revision_page(revision, doc_key)`: the item's content and title, for the diff. Diff target is the previous kept version.
+- `get_page_history(wiki_space, doc_key, start, limit)`: main-chain revisions of the space joined to their item for `doc_key`, newest first. Keep a revision only where the item's `content_blob`, `title`, `route`, `is_published` or `is_deleted` differs from the previous kept one. Each version: revision, source (`merge`, `sync`, `desk`, `initial`), change request name and title, `source_commit`, author (name, image), `created_at`, changes, old title.
+- `get_space_history(wiki_space, start, limit)`: main-chain revisions, newest first, with the number of pages each changed against the one before it (`_diff_revision_items`, as the review uses). A revision with the same tree and content hashes as the one before it is skipped: git sync takes a live snapshot first that changes nothing. The space's root group is not counted as a page the first version added.
+- `get_revision_changes(revision, doc_key=None)`: every page the version changed against the previous main revision, or only `doc_key`, in the shape `get_change_request_review` returns, so `PageDiff` renders it. A working or overlay revision is refused: those are change requests, which have their own permissions.
 
-These run as the session user. The revision doctypes stay manager-only: the API reads them with `ignore_permissions` after the space check, like `get_cr_tree` reads overlay items.
+Both lists return `{versions, more}`. These run as the session user. The revision doctypes stay manager-only: the API reads them with `frappe.qb` and `get_all` after the space check, like `get_cr_tree` reads overlay items.
 
 Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page's history query reads one row per main revision of the space through the `(revision, doc_key)` index. Paginate at 50. Measure on `perf-big-1000`.
 
@@ -144,7 +144,7 @@ Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page
 5. **History is for space readers.** They can already read every page and every change request in the space.
 6. **Change requests live in a page header panel, not the sidebar.** The prototype tried five placements: a sidebar section, sidebar tabs, a bottom tray, a popover in the space header and a popover beside history. A sidebar section pushed the page tree down. Tabs hid the tree. The tray and the popovers had no room to group by page. The panel reuses the right slot history already needs, keeps the tree whole, and has room for "Changing this page".
 7. **Users who can merge get "Merge" beside "Submit for review".** For small fixes. Shown only when `_can_merge(space)` is true. It reuses `approveAndMergeChangeRequest`, which the strip already uses: submit, approve, merge. The change request still exists and keeps its title, so history shows "merged #<cr>" like any other merge.
-8. **Git sync shows in history as "Synced from <commit>".** Sync writes a main-chain merge revision with no change request. A new `source_commit` field on Wiki Revision holds the commit sync applied (`head_sha` in `git_sync.py`). The row links to the commit when the space has a repo URL. Sync revisions written before this field show "Synced from Git". A synced space is read-only in the SPA, so its history has no Restore.
+8. **Git sync shows in history as "Synced from <commit>".** Sync writes a main-chain merge revision with no change request. A new `source_commit` field on Wiki Revision holds the commit sync applied (`head_sha` in `git_sync.py`). The row links to the commit on GitHub. Sync revisions written before this field show "Synced from Git". A synced space is read-only in the SPA, so its history has no Restore.
 9. **History is SPA only.** The public reader gets no history link. Readers who want history open the space in the SPA.
 10. **A change request in review stays editable for its author and for users who can merge.** Withdraw already let the author pull it back, but it made them resubmit and dropped the reviewer's place in the queue. Editing in place works like pushing to an open pull request. Anyone else who can contribute is still blocked once it is submitted (`can_edit_in_review`, enforced in `_assert_editable`).
 
