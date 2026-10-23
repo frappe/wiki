@@ -777,6 +777,25 @@ class TestGitSyncApply(FrappeTestCase):
 		children = {d.source_path for d in docs if d.parent_wiki_document == group.name}
 		self.assertEqual(children, {"docs/api/auth.md", "docs/api/users.md"})
 
+	def test_sync_revision_stores_source_commit(self):
+		from wiki.api.history import get_space_history
+
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/intro.md": "# Intro"}, head_sha="sha1")
+		repo.install(self)
+		sync_space(space.name)
+		repo.files = {"docs/intro.md": "# Intro\nmore"}
+		repo.head_sha = "sha2"
+		sync_space(space.name)
+
+		main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		self.assertEqual(frappe.db.get_value("Wiki Revision", main, "source_commit"), "sha2")
+		self.assertEqual(
+			[(v["source"], v["source_commit"]) for v in get_space_history(space.name)["versions"]],
+			[("sync", "sha2"), ("sync", "sha1")],
+		)
+
 	def test_noop_sync_when_head_sha_unchanged(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")

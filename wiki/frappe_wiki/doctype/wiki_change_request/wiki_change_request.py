@@ -695,7 +695,7 @@ def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
 	if draft and draft.status == "Draft":
 		rows.append(frappe._dict({field: draft.get(field) for field in fields}))
 
-	users = _user_cards({row.owner for row in rows})
+	users = user_cards({row.owner for row in rows})
 	for row in rows:
 		changes = _diff_revision_items(
 			get_revision_item_map(row.pop("base_revision")),
@@ -707,7 +707,7 @@ def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
 	return sorted(rows, key=lambda row: row.modified, reverse=True)
 
 
-def _user_cards(users: set[str]) -> dict[str, dict[str, str | None]]:
+def user_cards(users: set[str]) -> dict[str, dict[str, str | None]]:
 	"""Name and image for each user, falling back to the user ID for one that is gone."""
 	found = {
 		user.name: user
@@ -1359,9 +1359,24 @@ def get_change_request_review(name: str) -> dict[str, Any]:
 	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
-	base_items = get_revision_item_map(cr.base_revision)
-	head_items = get_effective_revision_item_map(cr.head_revision)
+	pages = rendered_changes(
+		get_revision_item_map(cr.base_revision),
+		get_effective_revision_item_map(cr.head_revision),
+		cr.wiki_space,
+	)
+	return {"author": user_cards({cr.owner})[cr.owner], "pages": pages}
+
+
+def rendered_changes(
+	base_items: dict[str, dict[str, Any]],
+	head_items: dict[str, dict[str, Any]],
+	wiki_space: str,
+	doc_key: str | None = None,
+) -> list[dict[str, Any]]:
+	"""Each changed page with both sides rendered, or only `doc_key` when given."""
 	changes = _diff_revision_items(base_items, head_items)
+	if doc_key:
+		changes = [change for change in changes if change["doc_key"] == doc_key]
 
 	keys = [change["doc_key"] for change in changes]
 	base_contents = get_contents_for_items({key: base_items[key] for key in keys if key in base_items})
@@ -1372,8 +1387,8 @@ def get_change_request_review(name: str) -> dict[str, Any]:
 		key = change["doc_key"]
 		page = {
 			**change,
-			"base": _rendered_side(base_items.get(key), base_contents.get(key), cr.wiki_space),
-			"head": _rendered_side(head_items.get(key), head_contents.get(key), cr.wiki_space),
+			"base": _rendered_side(base_items.get(key), base_contents.get(key), wiki_space),
+			"head": _rendered_side(head_items.get(key), head_contents.get(key), wiki_space),
 		}
 		if change["change_type"] == "reordered":
 			page["location"] = {
@@ -1381,7 +1396,7 @@ def get_change_request_review(name: str) -> dict[str, Any]:
 				"head": _node_location(head_items, key),
 			}
 		pages.append(page)
-	return {"author": _user_cards({cr.owner})[cr.owner], "pages": pages}
+	return pages
 
 
 def _rendered_side(
