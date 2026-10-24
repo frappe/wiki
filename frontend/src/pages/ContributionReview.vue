@@ -184,12 +184,11 @@
 
 				<template v-else>
 					<div class="flex flex-wrap items-center gap-3">
-						<h3 class="text-lg-semibold text-ink-gray-8">{{ __('Changes') }}</h3>
+						<h3 class="me-auto text-lg-semibold text-ink-gray-8">{{ __('Changes') }}</h3>
 						<Switch
 							v-if="view !== 'markdown'"
 							v-model="changesOnly"
 							:label="__('Show changes only')"
-							class="ml-auto"
 						/>
 						<TabButtons v-model="view" :options="viewOptions" />
 					</div>
