@@ -66,6 +66,14 @@ Git-synced spaces and users who cannot contribute stay in Reading with no Edit b
 
 **Submit, withdraw, discard, merge.** Unchanged, except Merge moves from the strip to the page header (decision 7). After a merge, a discard or a submit, the user is back in Reading. No new draft is created.
 
+**Editing a change request in review.** The review page of an In Review or Approved change request shows **Edit** to its author and to users who can merge (decision 10). Edit opens the space in the editor on that change request, on the first page it changes.
+
+- The status stays In Review. The first edit to an Approved change request moves it back to In Review and logs "Edited after approval. Back in review." on its timeline, so an approval only covers what the approver saw.
+- The strip shows the title, "In review" or "Approved" and the page count. It offers no Discard: the change request may be someone else's.
+- The header shows **Done editing** in place of Submit, plus Merge for users who can merge. Done editing goes back to the review page. Merge lands where any merge lands.
+- The choice survives a reload in the same tab: the SPA keeps the change request name in `sessionStorage` and passes it to `get_space_bootstrap(space_id, change_request)`, which returns it while the user may still edit it.
+- Leaving it, by Done editing or Merge, brings back the user's own draft if they have one.
+
 **Strip.** In Editing the strip shows the change request title (click to edit title and description, `update_change_request`), status and page count. In Reading there is no strip. The space's open change requests, the user's own included, live in the page header panel (Part 3).
 
 ### Part 2: Read mode without the editor (roadmap 2.8)
@@ -136,6 +144,7 @@ Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page
 7. **Users who can merge get "Merge" beside "Submit for review".** For small fixes. Shown only when `_can_merge(space)` is true. It reuses `approveAndMergeChangeRequest`, which the strip already uses: submit, approve, merge. The change request still exists and keeps its title, so history shows "merged #<cr>" like any other merge.
 8. **Git sync shows in history as "Synced from <commit>".** Sync writes a main-chain merge revision with no change request. A new `source_commit` field on Wiki Revision holds the commit sync applied (`head_sha` in `git_sync.py`). The row links to the commit when the space has a repo URL. Sync revisions written before this field show "Synced from Git". A synced space is read-only in the SPA, so its history has no Restore.
 9. **History is SPA only.** The public reader gets no history link. Readers who want history open the space in the SPA.
+10. **A change request in review stays editable for its author and for users who can merge.** Withdraw already let the author pull it back, but it made them resubmit and dropped the reviewer's place in the queue. Editing in place works like pushing to an open pull request. Anyone else who can contribute is still blocked once it is submitted (`can_edit_in_review`, enforced in `_assert_editable`).
 
 ## Tracer bullets
 
@@ -198,6 +207,8 @@ Done:
 - The editor gets `autofocus` only when Edit asks for it. An explicit `autofocus: false` changes how TipTap starts and dropped the trailing paragraph after a table.
 
 Tests: unit tests for bootstrap and the patch (the three new bootstrap tests fail on the old code). `e2e/tests/edit-flow.spec.ts` covers every Playwright case in the bullet. The specs that assumed the auto-draft now open a change request with `wiki.changeRequest(space)` or go through Edit (`editPage`, `startEditing`, `openNewPageDialog`).
+
+Editing a change request in review (2026-10-24, decision 10): Edit on the review page, `can_edit_in_review`, Approved back to In Review on edit, `get_space_bootstrap(change_request=)`, the In review and Approved strip, Done editing. Unit tests for the backend rule and bootstrap fail on the old code. Playwright: a reviewer edits across a reload and finishes, an edit sends Approved back to In Review, an author who cannot merge edits without Merge.
 
 Full suite on wiki.localhost: 204 passed, 46 failed, none from this change:
 
