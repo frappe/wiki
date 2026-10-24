@@ -30,6 +30,16 @@
 			</div>
 
 			<div class="flex items-center gap-2">
+				<Button
+					v-if="canEditInReview"
+					variant="outline"
+					icon-left="lucide-pencil"
+					:loading="startingEdit"
+					@click="handleEdit"
+				>
+					{{ __('Edit') }}
+				</Button>
+
 				<template v-if="canReview">
 					<Button
 						v-if="hasConflicts"
@@ -436,8 +446,10 @@ import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
+import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useSpaceStore } from '@/stores/space';
 
 const {
 	getChangeIcon,
@@ -588,6 +600,47 @@ const canReview = computed(() => {
 const canWithdraw = computed(() => {
 	return isOwner.value && changeRequest.doc?.status === 'In Review';
 });
+
+// Mirrors can_edit_in_review on the server, which enforces it.
+const canEditInReview = computed(() => {
+	return (
+		capabilities.value.can_contribute &&
+		(isOwner.value || capabilities.value.can_write) &&
+		['In Review', 'Approved'].includes(changeRequest.doc?.status)
+	);
+});
+
+const spaceStore = useSpaceStore();
+const startingEdit = ref(false);
+
+// Opens the space on the first page the change request touches, in the editor.
+async function handleEdit() {
+	const doc = changeRequest.doc;
+	startingEdit.value = true;
+	try {
+		await spaceStore.editInReview(doc);
+		const page = (changes.data || []).find(
+			(change) =>
+				change.change_type !== 'deleted' &&
+				!change.is_group &&
+				!change.is_external_link,
+		);
+		const pageId = page ? await documentNameFor(page.doc_key) : null;
+		const spaceId = doc.wiki_space;
+		if (pageId) {
+			await router.push({ name: 'SpacePage', params: { spaceId, pageId } });
+		} else if (page) {
+			await router.push({
+				name: 'DraftChangeRequest',
+				params: { spaceId, docKey: page.doc_key },
+			});
+		} else {
+			await router.push({ name: 'SpaceDetails', params: { spaceId } });
+		}
+	} finally {
+		startingEdit.value = false;
+	}
+}
 
 // Secondary reviewer decisions live in the three-dots menu so the header keeps a
 // single primary action.

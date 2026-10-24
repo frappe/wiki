@@ -9,6 +9,11 @@ import { useDraftWorkspaceStore } from './draftWorkspace';
 import { toPublished } from './draftWorkspace/utils';
 
 const EDITABLE_STATUSES = ['Draft', 'Changes Requested'];
+const REVIEW_STATUSES = ['In Review', 'Approved'];
+
+// Per tab, so a reload comes back to the change request in review the user was
+// editing, and another tab is not pulled into it.
+const reviewEditKey = (spaceId) => `wiki:editing-in-review:${spaceId}`;
 
 /**
  * The space the app is currently in: its document, its tree, and its sync
@@ -87,6 +92,19 @@ export const useSpaceStore = defineStore('space', () => {
 		() => !isGitSynced.value && canContribute.value === true,
 	);
 
+	// A change request in review is edited only after its Edit button, never
+	// because the user happens to own one.
+	const reviewEditName = ref(null);
+	const isEditingInReview = computed(() => {
+		const changeRequest = crStore.currentChangeRequest;
+		return (
+			canEdit.value &&
+			changeRequest?.wiki_space === spaceId.value &&
+			changeRequest.name === reviewEditName.value &&
+			REVIEW_STATUSES.includes(changeRequest.status)
+		);
+	});
+
 	const isEditing = computed(() => {
 		const changeRequest = crStore.currentChangeRequest;
 		if (!canEdit.value || changeRequest?.wiki_space !== spaceId.value) {
@@ -94,7 +112,8 @@ export const useSpaceStore = defineStore('space', () => {
 		}
 		return (
 			Boolean(crStore.finalizing) ||
-			EDITABLE_STATUSES.includes(changeRequest.status)
+			EDITABLE_STATUSES.includes(changeRequest.status) ||
+			isEditingInReview.value
 		);
 	});
 	const isReading = computed(() => canEdit.value && !isEditing.value);
@@ -114,26 +133,37 @@ export const useSpaceStore = defineStore('space', () => {
 		method: 'GET',
 	});
 
+	async function bootstrap(id) {
+		const inReview = sessionStorage.getItem(reviewEditKey(id));
+		const params = { space_id: id };
+		if (inReview) params.change_request = inReview;
+		const data = await bootstrapResource.submit(params).catch(() => null);
+		if (!data || id !== spaceId.value) return;
+		space.value.setDoc(data.doc);
+		space.value.originalDoc = JSON.parse(JSON.stringify(data.doc));
+		canWriteSpace.value = Boolean(data.capabilities.can_write);
+		canDeleteSpace.value = Boolean(data.capabilities.can_delete);
+		canContribute.value = Boolean(data.capabilities.can_contribute);
+		const changeRequest = data.change_request;
+		if (inReview && changeRequest?.name !== inReview) {
+			sessionStorage.removeItem(reviewEditKey(id));
+		}
+		reviewEditName.value =
+			inReview && changeRequest?.name === inReview ? inReview : null;
+		if (changeRequest) draftStore.hydrate(id, changeRequest);
+		else if (crStore.currentChangeRequest) stopEditing();
+	}
+
 	watch(
 		spaceId,
-		async (id) => {
+		(id) => {
 			canWriteSpace.value = false;
 			canDeleteSpace.value = false;
 			canContribute.value = null;
 			if (!id) return;
 			const changeRequest = crStore.currentChangeRequest;
 			if (changeRequest && changeRequest.wiki_space !== id) stopEditing();
-			const data = await bootstrapResource
-				.submit({ space_id: id })
-				.catch(() => null);
-			if (!data || id !== spaceId.value) return;
-			space.value.setDoc(data.doc);
-			space.value.originalDoc = JSON.parse(JSON.stringify(data.doc));
-			canWriteSpace.value = Boolean(data.capabilities.can_write);
-			canDeleteSpace.value = Boolean(data.capabilities.can_delete);
-			canContribute.value = Boolean(data.capabilities.can_contribute);
-			if (data.change_request) draftStore.hydrate(id, data.change_request);
-			else if (crStore.currentChangeRequest) stopEditing();
+			bootstrap(id);
 		},
 		{ immediate: true },
 	);
@@ -151,6 +181,24 @@ export const useSpaceStore = defineStore('space', () => {
 		});
 		await draftStore.hydrate(id, changeRequest);
 		return changeRequest;
+	}
+
+	async function editInReview(changeRequest) {
+		const id = changeRequest.wiki_space;
+		sessionStorage.setItem(reviewEditKey(id), changeRequest.name);
+		reviewEditName.value = changeRequest.name;
+		// Entering the space bootstraps it; only an open space needs this here.
+		if (id === spaceId.value) await draftStore.hydrate(id, changeRequest);
+	}
+
+	// Back to the user's own draft, if they have one.
+	async function stopEditingInReview() {
+		const id = crStore.currentChangeRequest?.wiki_space;
+		if (!id) return;
+		sessionStorage.removeItem(reviewEditKey(id));
+		reviewEditName.value = null;
+		stopEditing();
+		if (id === spaceId.value) await bootstrap(id);
 	}
 
 	function stopEditing() {
@@ -336,9 +384,12 @@ export const useSpaceStore = defineStore('space', () => {
 		isReadonly,
 		canEdit,
 		isEditing,
+		isEditingInReview,
 		isReading,
 		startEditing,
 		stopEditing,
+		editInReview,
+		stopEditingInReview,
 		selectedPageId,
 		selectedDraftKey,
 		treeData,

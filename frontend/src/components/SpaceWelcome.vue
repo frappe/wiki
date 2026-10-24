@@ -6,6 +6,7 @@
         >
             <MergeChangeRequestButton v-if="!isMobile" />
             <SubmitForReviewButton />
+            <FinishEditingButton />
         </div>
 
         <!-- A git-synced space pulls its pages from GitHub on first open, so until
@@ -60,6 +61,7 @@ import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useSpaceStore } from '@/stores/space';
 import { Button, usePageMeta } from 'frappe-ui';
 import { computed } from 'vue';
+import FinishEditingButton from './FinishEditingButton.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 

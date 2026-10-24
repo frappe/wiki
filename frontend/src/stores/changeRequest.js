@@ -191,6 +191,10 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 			currentChangeRequest.value?.name === changeRequestName
 		) {
 			changesResource.data = result.changes;
+			// The server sends an approved change request back to review on edit.
+			if (currentChangeRequest.value.status === 'Approved') {
+				await refreshChangeRequest();
+			}
 		}
 		return result;
 	}

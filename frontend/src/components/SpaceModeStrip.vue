@@ -416,8 +416,11 @@ async function saveDetails() {
 }
 
 // Offered with no changes too: it is how you leave edit mode after an Edit you
-// did not need.
-const canShowDiscard = computed(() => !crStore.finalizing);
+// did not need. A change request in review may be someone else's work, so it
+// is left with Done editing, never archived from here.
+const canShowDiscard = computed(
+	() => !crStore.finalizing && !spaceStore.isEditingInReview,
+);
 
 const menuOptions = computed(() => {
 	const options = [];
@@ -440,7 +443,7 @@ const menuOptions = computed(() => {
 	return options;
 });
 
-// Only editable change requests reach the strip; the rest are read mode.
+// Only change requests being edited reach the strip; the rest are read mode.
 const STRIP_CONFIG = {
 	Draft: {
 		class: 'bg-surface-gray-2 text-ink-gray-8',
@@ -449,6 +452,14 @@ const STRIP_CONFIG = {
 	'Changes Requested': {
 		class: 'bg-surface-red-2 text-ink-red-7',
 		label: __('Changes requested'),
+	},
+	'In Review': {
+		class: 'bg-surface-amber-2 text-ink-amber-7',
+		label: __('In review'),
+	},
+	Approved: {
+		class: 'bg-surface-green-2 text-ink-green-7',
+		label: __('Approved'),
 	},
 };
 

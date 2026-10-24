@@ -149,8 +149,11 @@ Archived ◀── archive (from any status)
 | `$CR.merge_change_request` | `name` | `{Approved}` → `Merged` | `_can_merge`; returns merge revision name |
 | `$CR.archive_change_request` | `name` | any → `Archived` | `write`, no status guard |
 
-Content is editable only in `Draft` and `Changes Requested` (`_EDITABLE_STATUSES`, enforced by
-`_assert_editable` on every mutation).
+Content is editable in `Draft` and `Changes Requested` (`_EDITABLE_STATUSES`). In `In Review`
+and `Approved` only the owner and users who pass `_can_merge` may edit (`can_edit_in_review`).
+The status stays `In Review`, and an edit to an `Approved` CR moves it back to `In Review`, so
+it has to be approved again before it can merge. `_assert_editable` enforces this on every
+mutation.
 
 Merge picks its path: `base_revision == space.main_revision` → `_fast_forward_merge`;
 otherwise `_three_way_merge`.

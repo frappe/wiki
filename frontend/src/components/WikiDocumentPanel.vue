@@ -57,6 +57,7 @@
 					<!-- The phone header has no room for it; the strip above carries it. -->
 					<MergeChangeRequestButton v-if="!isMobile" />
 					<SubmitForReviewButton />
+					<FinishEditingButton />
 					<Dropdown v-if="menuOptions.length" :options="menuOptions">
 						<Button
 							variant="ghost"
@@ -238,6 +239,7 @@ import { computed, inject, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMobile } from '../composables/useMobile';
 import { useRecentPages } from '../composables/useRecentPages';
+import FinishEditingButton from './FinishEditingButton.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';

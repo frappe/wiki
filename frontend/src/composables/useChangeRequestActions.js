@@ -107,6 +107,7 @@ export function useChangeRequestActions() {
 		const spaceId = spaceStore.spaceId;
 		const docKey = spaceStore.selectedDraftKey;
 		const changeRequestName = crStore.currentChangeRequest?.name;
+		const wasInReview = spaceStore.isEditingInReview;
 		crStore.finalizing = 'merging';
 		try {
 			await crStore.approveAndMergeChangeRequest();
@@ -119,7 +120,8 @@ export function useChangeRequestActions() {
 			if (openPage) {
 				await getCachedDocumentResource('Wiki Document', openPage)?.reload();
 			}
-			spaceStore.stopEditing();
+			if (wasInReview) await spaceStore.stopEditingInReview();
+			else spaceStore.stopEditing();
 			if (mergedPage) {
 				await router.replace({
 					name: 'SpacePage',
@@ -145,10 +147,30 @@ export function useChangeRequestActions() {
 		}
 	}
 
-	return { submitForReview, discardChangeRequest, mergeChangeRequest };
+	async function finishEditingInReview() {
+		if (!(await flushUnsavedPages())) return;
+		const blockerMessage = finalizationError(__('finishing'));
+		if (blockerMessage) {
+			toast.error(blockerMessage);
+			return;
+		}
+		const changeRequestName = crStore.currentChangeRequest?.name;
+		await router.push({
+			name: 'ChangeRequestReview',
+			params: { changeRequestId: changeRequestName },
+		});
+		await spaceStore.stopEditingInReview();
+	}
+
+	return {
+		submitForReview,
+		discardChangeRequest,
+		mergeChangeRequest,
+		finishEditingInReview,
+	};
 }
 
-async function documentNameFor(docKey) {
+export async function documentNameFor(docKey) {
 	const result = await call('frappe.client.get_value', {
 		doctype: 'Wiki Document',
 		filters: { doc_key: docKey },

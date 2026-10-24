@@ -1029,6 +1029,36 @@ class TestSpaceBootstrap(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertIsNone(get_space_bootstrap(space.name)["change_request"])
 
+	def test_a_change_request_in_review_is_returned_when_asked_for(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		draft = create_change_request(space.name, "Another draft")
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+
+		bootstrap = get_space_bootstrap(space.name, change_request=cr.name)
+
+		self.assertEqual(bootstrap["change_request"]["name"], cr.name)
+		self.assertEqual(
+			get_space_bootstrap(space.name, change_request="missing")["change_request"]["name"], draft.name
+		)
+
+	def test_a_change_request_in_review_is_not_resumed_by_a_contributor_who_cannot_edit_it(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+		frappe.set_user(create_test_user("bootstrap-contributor@example.com", ["Wiki User"]).name)
+
+		bootstrap = get_space_bootstrap(space.name, change_request=cr.name)
+
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+
 	def test_a_stale_empty_draft_is_skipped_and_left_alone(self):
 		from wiki.api.wiki_space import get_space_bootstrap
 		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request

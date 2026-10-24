@@ -102,6 +102,7 @@ def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None
 
 # Statuses in which the CR head revision may still be mutated by its author.
 _EDITABLE_STATUSES = {"Draft", "Changes Requested"}
+_REVIEW_STATUSES = {"In Review", "Approved"}
 
 
 def _assert_status(cr: Document, allowed: set[str]) -> None:
@@ -113,18 +114,33 @@ def _assert_status(cr: Document, allowed: set[str]) -> None:
 		)
 
 
+def can_edit_in_review(cr: Document, user: str | None = None) -> bool:
+	"""Whether the user may change an `In Review` or `Approved` CR without pulling it back.
+
+	The author can, and so can anyone who could merge it.
+	"""
+	user = user or frappe.session.user
+	return cr.status in _REVIEW_STATUSES and (cr.owner == user or _can_merge(cr.wiki_space, user))
+
+
 def _assert_editable(cr: Document) -> None:
 	"""Block any head-revision mutation once the CR has left an editable state.
 
-	A CR is only editable while it is a `Draft` or has `Changes Requested`.
-	Once it is `In Review` / `Approved` / `Merged` / `Rejected` the content is
-	frozen so a reviewer never sees a moving target.
+	Any contributor may edit a `Draft` or `Changes Requested` CR. An `In Review`
+	or `Approved` CR stays open to its author and to users who can merge it,
+	and an edit sends an `Approved` CR back to `In Review`, so an approval only
+	ever covers the content it saw. `Merged` / `Rejected` / `Archived` are frozen.
 	"""
-	if cr.status not in _EDITABLE_STATUSES:
+	if cr.status in _EDITABLE_STATUSES:
+		return
+	if not can_edit_in_review(cr):
 		frappe.throw(
 			_("This change request is {0} and is locked for editing.").format(cr.status),
 			frappe.ValidationError,
 		)
+	if cr.status == "Approved":
+		cr.db_set("status", "In Review", update_modified=False)
+		cr.add_comment("Comment", _("Edited after approval. Back in review."))
 
 
 def _notify_cr_owner(cr: Document, subject: str) -> None:
@@ -558,11 +574,18 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	return create_change_request(wiki_space, default_title).as_dict()
 
 
-def get_editable_change_request(wiki_space: str) -> dict[str, Any] | None:
+def get_editable_change_request(wiki_space: str, change_request: str | None = None) -> dict[str, Any] | None:
 	"""The user's Draft or Changes Requested change request in the space, without writing anything.
 
-	A stale empty draft is skipped rather than archived, so the user lands in read mode.
+	`change_request` names an In Review or Approved one the user is editing; it wins when they
+	may still edit it. A stale empty draft is skipped rather than archived, so the user lands in
+	read mode.
 	"""
+	if change_request and frappe.db.exists("Wiki Change Request", change_request):
+		cr = frappe.get_doc("Wiki Change Request", change_request)
+		if cr.wiki_space == wiki_space and can_edit_in_review(cr) and cr.has_permission("write"):
+			return cr.as_dict()
+
 	cr = _find_existing_draft(wiki_space)
 	if not cr or _is_stale_empty_draft(cr):
 		return None

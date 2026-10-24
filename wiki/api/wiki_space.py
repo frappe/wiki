@@ -166,12 +166,12 @@ def get_space_stats(spaces: list[str]) -> dict:
 
 
 @frappe.whitelist(methods=["GET"])
-def get_space_bootstrap(space_id: str) -> dict:
+def get_space_bootstrap(space_id: str, change_request: str | None = None) -> dict:
 	"""The space, the user's capabilities in it and, if they are editing, their change request.
 
 	Opening a space never starts a change request: the user does that with Edit. The tree stays
 	a separate request: the editor opens without it, and a failed tree load can be retried on
-	its own.
+	its own. `change_request` resumes editing a change request that is in review.
 	"""
 	from frappe.client import get as get_doc_for_client
 
@@ -184,7 +184,7 @@ def get_space_bootstrap(space_id: str) -> dict:
 	capabilities = get_space_capabilities(space_id)
 	bootstrap = {"doc": doc, "capabilities": capabilities, "change_request": None}
 	if capabilities["can_contribute"] and not doc.get("git_synced"):
-		bootstrap["change_request"] = get_editable_change_request(space_id)
+		bootstrap["change_request"] = get_editable_change_request(space_id, change_request)
 	return bootstrap
 
 

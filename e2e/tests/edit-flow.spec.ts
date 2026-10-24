@@ -1,6 +1,7 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
-import { createDoc, getList } from '../helpers/frappe';
+import { callMethod, createDoc, getList } from '../helpers/frappe';
+import { appUrl } from '../helpers/routes';
 import {
 	editDialog,
 	editPage,
@@ -384,5 +385,179 @@ test.describe('Explicit edit', () => {
 			title: 'Edit Alpha',
 			status: 'In Review',
 		});
+	});
+});
+
+async function changeRequestInReview(
+	request: APIRequestContext,
+	cr: { name: string },
+	docKey: string,
+	content: string,
+) {
+	await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+		name: cr.name,
+		doc_key: docKey,
+		fields: { content },
+	});
+	await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+		name: cr.name,
+	});
+}
+
+async function crPageContent(
+	request: APIRequestContext,
+	cr: { name: string },
+	docKey: string,
+) {
+	const page = await callMethod<{ content: string }>(
+		request,
+		`${CR_METHOD}.get_cr_page`,
+		{ name: cr.name, doc_key: docKey },
+	);
+	return page.content;
+}
+
+async function typeAtEnd(page: Page, text: string) {
+	const editor = editableEditor(page);
+	await expect(editor).toBeVisible({ timeout: 15000 });
+	await editor.click();
+	await page.keyboard.press('Control+End');
+	await page.keyboard.type(text);
+}
+
+test.describe('Editing a change request in review', () => {
+	test('a reviewer edits it in place, across a reload, and is done', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const alpha = space.page('Alpha');
+		const cr = await wiki.changeRequest(space, 'Polish Alpha');
+		await changeRequestInReview(
+			request,
+			cr,
+			alpha.doc_key,
+			'Content for Alpha Proposed.',
+		);
+
+		await page.goto(appUrl('change-requests', cr.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+
+		await expect(page).toHaveURL(new RegExp(`/page/${alpha.name}`));
+		await expect(page.getByText('In review · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+		await typeAtEnd(page, ' Reviewed.');
+		await expect
+			.poll(() => crPageContent(request, cr, alpha.doc_key), {
+				timeout: 15000,
+			})
+			.toContain('Proposed. Reviewed.');
+
+		await page.reload();
+		await expect(editableEditor(page)).toContainText('Proposed. Reviewed.', {
+			timeout: 15000,
+		});
+		await page.getByRole('button', { name: 'More actions' }).first().click();
+		await expect(
+			page.getByRole('menuitem', { name: 'Discard Changes' }),
+		).toHaveCount(0);
+		await page.keyboard.press('Escape');
+
+		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
+		expect(await changeRequestsIn(request, space.name)).toEqual([
+			expect.objectContaining({ name: cr.name, status: 'In Review' }),
+		]);
+
+		await page.goto(space.url('page', alpha.name));
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible({ timeout: 15000 });
+		await expect(editableEditor(page)).toHaveCount(0);
+	});
+
+	test('an edit sends an approved change request back to review', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const alpha = space.page('Alpha');
+		const cr = await wiki.changeRequest(space, 'Approve Alpha');
+		await changeRequestInReview(
+			request,
+			cr,
+			alpha.doc_key,
+			'Content for Alpha Approved.',
+		);
+		await callMethod(request, `${CR_METHOD}.approve_change_request`, {
+			name: cr.name,
+		});
+
+		await page.goto(appUrl('change-requests', cr.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await expect(page.getByText('Approved · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+		await typeAtEnd(page, ' Then changed.');
+
+		await expect(page.getByText('In review · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+		expect(await changeRequestsIn(request, space.name)).toEqual([
+			expect.objectContaining({ name: cr.name, status: 'In Review' }),
+		]);
+	});
+
+	test('an author who cannot merge edits it but sees no Merge', async ({
+		browser,
+		request,
+		wiki,
+	}, info) => {
+		const stamp = Date.now().toString(36);
+		const { email, password } = await seedContributor(request, stamp);
+		const space = await wiki.space({
+			roles: [{ role: 'Wiki User', permission_level: 'Read' }],
+			pages: [{ title: 'Alpha' }],
+		});
+		const alpha = space.page('Alpha');
+		const context = await signIn(
+			browser,
+			info.project.use.baseURL,
+			email,
+			password,
+		);
+		const authored = await callMethod<{ name: string }>(
+			context.request,
+			`${CR_METHOD}.create_change_request`,
+			{ wiki_space: space.name, title: 'Suggest Alpha' },
+		);
+		await changeRequestInReview(
+			context.request,
+			authored,
+			alpha.doc_key,
+			'Content for Alpha Suggested.',
+		);
+		const page = await context.newPage();
+
+		await page.goto(appUrl('change-requests', authored.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await typeAtEnd(page, ' More.');
+
+		await expect(
+			header(page).getByRole('button', { name: 'Done editing' }),
+		).toBeVisible();
+		await expect(
+			header(page).getByRole('button', { name: 'Merge' }),
+		).toHaveCount(0);
+		await expect
+			.poll(() => crPageContent(request, authored, alpha.doc_key), {
+				timeout: 15000,
+			})
+			.toContain('Suggested. More.');
+
+		await context.close();
 	});
 });
