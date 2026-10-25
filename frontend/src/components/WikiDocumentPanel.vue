@@ -11,29 +11,31 @@
 					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
 						{{ __('Read-only') }}
 					</Badge>
-					<Tooltip :text="__('View live')">
-						<Button
-							v-if="displayPublished"
-							variant="ghost"
-							:aria-label="__('View live')"
-							@click="openPage"
-						>
-							<span class="lucide-eye size-4" aria-hidden="true" />
-						</Button>
-					</Tooltip>
-					<!-- Shown for a synced page too: its meta title, description and
-					     social card are wiki-side fields the repo never carries, so
-					     they are still this app's to edit. -->
-					<Tooltip :text="__('Page settings')">
-						<Button
-							:variant="showPageSettings ? 'subtle' : 'ghost'"
-							:aria-label="__('Page settings')"
-							:aria-pressed="showPageSettings"
-							@click="togglePageSettings"
-						>
-							<span class="lucide-panel-right size-4" aria-hidden="true" />
-						</Button>
-					</Tooltip>
+					<div class="mr-2 flex items-center gap-1">
+						<Tooltip :text="__('View live')">
+							<Button
+								v-if="displayPublished"
+								variant="ghost"
+								:aria-label="__('View live')"
+								@click="openPage"
+							>
+								<span class="lucide-eye size-4" aria-hidden="true" />
+							</Button>
+						</Tooltip>
+						<!-- Shown for a synced page too: its meta title, description and
+						     social card are wiki-side fields the repo never carries, so
+						     they are still this app's to edit. -->
+						<Tooltip :text="__('Page settings')">
+							<Button
+								:variant="showPageSettings ? 'subtle' : 'ghost'"
+								:aria-label="__('Page settings')"
+								:aria-pressed="showPageSettings"
+								@click="togglePageSettings"
+							>
+								<span class="lucide-panel-right size-4" aria-hidden="true" />
+							</Button>
+						</Tooltip>
+					</div>
 					<Button
 						v-if="readonly && githubEditUrl"
 						variant="outline"
@@ -216,6 +218,7 @@
 import { usePageSettingsPanel } from '@/composables/usePageSettingsPanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
+import { destructiveMenuOption } from '@/lib/menu';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -578,22 +581,34 @@ const menuOptions = computed(() => {
 	if (!spaceStore.canEdit) return [];
 	return [
 		{
-			label: __('Rename'),
-			icon: 'lucide-pencil',
-			onClick: () => whenEditing(openRenameDialog),
+			group: __('Page'),
+			hideLabel: true,
+			options: [
+				{
+					label: __('Rename'),
+					icon: 'lucide-pencil',
+					onClick: () => whenEditing(openRenameDialog),
+				},
+				{
+					label: displayPublished.value ? __('Unpublish') : __('Publish'),
+					icon: 'lucide-upload-cloud',
+					onClick: () => whenEditing(togglePublish),
+				},
+			],
 		},
 		{
-			label: displayPublished.value ? __('Unpublish') : __('Publish'),
-			icon: 'lucide-upload-cloud',
-			onClick: () => whenEditing(togglePublish),
-		},
-		{
-			label: __('Delete'),
-			icon: 'lucide-trash-2',
-			onClick: () =>
-				whenEditing(() => {
-					showDeleteDialog.value = true;
+			group: __('Danger'),
+			hideLabel: true,
+			options: [
+				destructiveMenuOption({
+					label: __('Delete'),
+					icon: 'lucide-trash-2',
+					onClick: () =>
+						whenEditing(() => {
+							showDeleteDialog.value = true;
+						}),
 				}),
+			],
 		},
 	];
 });

@@ -66,7 +66,7 @@ defineProps({
 	},
 	size: {
 		type: String,
-		default: 'md',
+		default: 'sm',
 	},
 });
 
