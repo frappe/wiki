@@ -523,6 +523,39 @@ test.describe('Editing a change request in review', () => {
 		);
 	});
 
+	test('a page it adds offers Done editing', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const cr = await wiki.changeRequest(space, 'Add Beta');
+		const tree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD}.get_cr_tree`,
+			{ name: cr.name },
+		);
+		await callMethod(request, `${CR_METHOD}.create_cr_page`, {
+			name: cr.name,
+			parent_key: tree.root_group,
+			title: 'Beta',
+			content: 'Content for Beta.',
+		});
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: cr.name,
+		});
+
+		await page.goto(appUrl('change-requests', cr.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await expect(page).toHaveURL(/\/draft\//);
+		await expect(editableEditor(page)).toContainText('Content for Beta.', {
+			timeout: 15000,
+		});
+
+		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
+	});
+
 	test('an edit sends an approved change request back to review', async ({
 		page,
 		request,

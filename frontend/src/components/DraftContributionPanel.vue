@@ -7,6 +7,7 @@
 				<div class="flex shrink-0 items-center gap-2">
 					<MergeChangeRequestButton v-if="!isMobile" />
 					<SubmitForReviewButton />
+					<FinishEditingButton />
 					<Dropdown :options="menuOptions">
 						<Button
 							variant="ghost"
@@ -152,6 +153,7 @@ import {
 import { computed, inject, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMobile } from '../composables/useMobile';
+import FinishEditingButton from './FinishEditingButton.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
