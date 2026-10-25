@@ -478,6 +478,51 @@ test.describe('Editing a change request in review', () => {
 		await expect(editableEditor(page)).toHaveCount(0);
 	});
 
+	test('editing it after your own draft in the space shows its text, not yours', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const alpha = space.page('Alpha');
+		const cr = await wiki.changeRequest(space, 'Review Alpha');
+		await changeRequestInReview(
+			request,
+			cr,
+			alpha.doc_key,
+			'Content for Alpha Theirs.',
+		);
+
+		await page.goto(space.url('page', alpha.name));
+		await editPage(page, 'My own draft');
+		await typeAtEnd(page, ' Mine.');
+		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+
+		await page.getByRole('link', { name: 'Back to All Spaces' }).click();
+		await page.getByRole('link', { name: 'Change Requests' }).click();
+		await page.getByText('Review Alpha').click();
+		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+
+		await expect(page.getByText('In review · 1 page changed')).toBeVisible({
+			timeout: 15000,
+		});
+		const editor = editableEditor(page);
+		await expect(editor).toContainText('Theirs.', { timeout: 15000 });
+		await expect(editor).not.toContainText('Mine.');
+		await typeAtEnd(page, ' Reviewed.');
+		await expect
+			.poll(() => crPageContent(request, cr, alpha.doc_key), {
+				timeout: 15000,
+			})
+			.toContain('Theirs. Reviewed.');
+		expect(await crPageContent(request, cr, alpha.doc_key)).not.toContain(
+			'Mine.',
+		);
+	});
+
 	test('an edit sends an approved change request back to review', async ({
 		page,
 		request,

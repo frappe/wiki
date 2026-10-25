@@ -227,7 +227,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	async function hydrate(targetSpaceId, changeRequest = null) {
 		if (!isEnabled.value || !targetSpaceId) return;
 
-		if (hydratePromise && spaceId.value === targetSpaceId) {
+		// Page buffers are keyed by doc_key, so another request's text would open in this one.
+		const switchesRequest =
+			Boolean(crName.value && changeRequest) &&
+			changeRequest.name !== crName.value;
+		if (hydratePromise && spaceId.value === targetSpaceId && !switchesRequest) {
 			return hydratePromise;
 		}
 
@@ -235,6 +239,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const run = ++latestHydrate;
 		hydratePromise = (async () => {
 			if (spaceId.value !== targetSpaceId) reset();
+			else if (switchesRequest) reset({ keepTree: true });
 			spaceId.value = targetSpaceId;
 			if (!hasLoadedTree.value) paintStaleTree(targetSpaceId, run);
 
