@@ -33,12 +33,12 @@
 				<Button
 					v-if="canEditInReview"
 					variant="outline"
-					icon-left="lucide-pencil"
+					icon="lucide-pencil"
+					:aria-label="__('Edit')"
+					:title="__('Edit')"
 					:loading="startingEdit"
 					@click="handleEdit"
-				>
-					{{ __('Edit') }}
-				</Button>
+				/>
 
 				<template v-if="canReview">
 					<Button
@@ -67,9 +67,9 @@
 						{{ __('Approve') }}
 					</Button>
 
-					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
-						<Button variant="ghost" :title="__('More actions')">
-							<span class="lucide-more-vertical size-4" aria-hidden="true" />
+					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
+						<Button variant="subtle" :title="__('More actions')">
+							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</template>
@@ -448,6 +448,7 @@ import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useSpaceStore } from '@/stores/space';
 
@@ -642,58 +643,79 @@ async function handleEdit() {
 	}
 }
 
-// Secondary reviewer decisions live in the three-dots menu so the header keeps a
-// single primary action.
+// Approve stays in the header, so the menu only carries the combined Approve & merge.
 const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
-	const options = [];
 	const status = changeRequest.doc?.status;
-	// The header primary button is Approve-only (the two-person path: approve now,
-	// merge later via the Merge button). The combined self-serve Approve & Merge
-	// lives here in the menu for reviewers who want to publish in one step.
-	if (status === 'In Review') {
-		options.push({
-			label: __('Approve & Merge'),
-			icon: 'lucide-check-circle',
-			onClick: () => {
-				showApproveMergeDialog.value = true;
+	const groups = [];
+	if (['In Review', 'Approved'].includes(status)) {
+		const decisions = [
+			{
+				label: __('Request changes'),
+				description: __('Send feedback to the author'),
+				icon: 'lucide-message-circle',
+				onClick: () => {
+					showRequestChangesDialog.value = true;
+				},
 			},
+		];
+		if (status === 'In Review') {
+			decisions.unshift({
+				label: __('Approve & merge'),
+				description: __('Approve and merge in one step'),
+				icon: 'lucide-git-merge',
+				onClick: () => {
+					showApproveMergeDialog.value = true;
+				},
+			});
+		}
+		groups.push(
+			{ group: __('Review decision'), options: decisions },
+			{
+				group: __('Reviewers'),
+				options: [
+					{
+						label: __('Assign reviewer'),
+						icon: 'lucide-user-plus',
+						onClick: () => {
+							showAssignDialog.value = true;
+						},
+					},
+				],
+			},
+		);
+	}
+	// Authors who can also review have no standalone Withdraw button.
+	if (canWithdraw.value) {
+		groups.push({
+			group: __('Author'),
+			hideLabel: true,
+			options: [
+				{
+					label: __('Withdraw'),
+					icon: 'lucide-rotate-ccw',
+					onClick: handleWithdraw,
+				},
+			],
 		});
 	}
 	if (['In Review', 'Approved'].includes(status)) {
-		options.push({
-			label: __('Request Changes'),
-			icon: 'lucide-message-square',
-			onClick: () => {
-				showRequestChangesDialog.value = true;
-			},
-		});
-		options.push({
-			label: __('Reject'),
-			icon: 'lucide-x-circle',
-			onClick: () => {
-				showRejectDialog.value = true;
-			},
-		});
-		options.push({
-			label: __('Assign reviewer'),
-			icon: 'lucide-user-plus',
-			onClick: () => {
-				showAssignDialog.value = true;
-			},
+		groups.push({
+			group: __('Reject'),
+			hideLabel: true,
+			options: [
+				destructiveMenuOption({
+					label: __('Reject review'),
+					description: __('Decline this review'),
+					icon: 'lucide-circle-x',
+					onClick: () => {
+						showRejectDialog.value = true;
+					},
+				}),
+			],
 		});
 	}
-	// The standalone Withdraw button is only shown to authors who can't review;
-	// surface the same action here so an author who *can* review (e.g. a manager
-	// reviewing their own CR) can still pull it back to Draft from the menu.
-	if (canWithdraw.value) {
-		options.push({
-			label: __('Withdraw'),
-			icon: 'lucide-rotate-ccw',
-			onClick: handleWithdraw,
-		});
-	}
-	return options;
+	return groups;
 });
 
 function setResolution(conflictName, value) {
