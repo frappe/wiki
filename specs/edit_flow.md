@@ -6,6 +6,7 @@ Status: **Draft spec**. Takes over roadmap items 2.4 (create the draft on first 
 Prototypes:
 
 - **Final, all parts combined:** [wiki-edit-flow](https://sketch.netchamp.dev/u/gajjug004/wiki-edit-flow). Demo pills: Role (Contributor, Reader) and Change request (Reading, Editing, In review).
+- Page header and change request warning: [wiki-page-header-and-change-request-notice](https://sketch.netchamp.dev/u/gajjug004/wiki-page-header-and-change-request-notice) (variant "header-only"). Supersedes the page notice in the combined prototype.
 - Earlier, superseded by the above: edit flow [wiki-change-request-flow](https://sketch.netchamp.dev/u/gajjug004/wiki-change-request-flow) (variant "start-first"), version history [wiki-version-history](https://sketch.netchamp.dev/u/gajjug004/wiki-version-history).
 
 ## Why
@@ -92,7 +93,9 @@ Target: a page view in Reading loads no `wiki-starterkit` and no `WikiEditor` ch
 
 ### Part 3: Change requests in the space
 
-**Change requests panel.** A "Change requests" button with the open count sits in the page header, beside the history button, in both states. It opens a panel on the right in the slot that history and page settings use (Part 4). The panel lists the space's open change requests in two groups: "Changing this page" first, then "Elsewhere in this space". When none touch the page, one group headed "In this space". Rows: title, author avatar, status badge, page count, updated time. A row opens the review page (`/change-requests/<name>`). Empty state: "No open change requests".
+**Change requests panel.** A "Change requests" button sits in the page header, beside the history button, in both states. It opens a panel on the right in the slot that history and page settings use (Part 4). The panel lists the space's open change requests in two groups: "Changing this page" first, then "Elsewhere in this space". When none touch the page, one group headed "In this space". Rows: title, author avatar, status badge, page count, updated time. A row opens the review page (`/change-requests/<name>`). Empty state: "No open change requests".
+
+The button's count is the open change requests that change this page, with a dot when there are any. Its tooltip and label give the space total too: "2 open on this page, 3 in this space". A space-wide count beside a page-wide one read as a mismatch.
 
 The sidebar stays for the page tree. No change requests section there.
 
@@ -104,9 +107,11 @@ Which change requests show:
 
 Data: a new GET `list_open_change_requests(wiki_space)` returns the rows above, each with `changed_doc_keys` from the same summary `diff_change_request` builds (13.6 ms median on a 1,021-item space), and the author's name and image. The page count is its length. `list_change_requests` stays as it is: it lists every status, so a summary per row would cost a diff for every merged change request.
 
-Permissions: a plain contributor (Wiki User) must be able to read others' submitted change requests, or the panel and the notice never warn them. Wiki User gets a second DocPerm row with `read` and no `if_owner`; write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. One call per space feeds the header count, the panel groups and the page notice: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
+Permissions: a plain contributor (Wiki User) must be able to read others' submitted change requests, or the panel and the notice never warn them. Wiki User gets a second DocPerm row with `read` and no `if_owner`; write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. One call per space feeds the header count, the panel groups and the warning on Edit: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
 
-**Page notice.** In Reading, when other open change requests change the current page, a bar under the header shows "2 open change requests change this page" with a dropdown to each. This is the warning that stops a second author editing the same page blind. The bar hides while the change requests panel is open, since the panel's first group says the same thing.
+**Warning on Edit.** When open change requests change the current page, the Edit dialog lists them above the title field: "2 open change requests already change this page", each linking to its review page. This is the warning that stops a second author editing the same page blind, shown at the moment they decide to edit. Edit from the tree or the page list asks for no page, so it shows no warning.
+
+**Page header.** Breadcrumbs, then "Open live page" as a small icon beside the title for a published page. On the right: change requests, history, page settings (a settings icon), Edit (subtle in Reading, since reading is the main task there) and the page menu. The meta line under the title leaves out the view count while it is zero.
 
 ### Part 4: Version history (issue #622)
 
@@ -147,6 +152,7 @@ Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page
 8. **Git sync shows in history as "Synced from <commit>".** Sync writes a main-chain merge revision with no change request. A new `source_commit` field on Wiki Revision holds the commit sync applied (`head_sha` in `git_sync.py`). The row links to the commit on GitHub. Sync revisions written before this field show "Synced from Git". A synced space is read-only in the SPA, so its history has no Restore.
 9. **History is SPA only.** The public reader gets no history link. Readers who want history open the space in the SPA.
 10. **A change request in review stays editable for its author and for users who can merge.** Withdraw already let the author pull it back, but it made them resubmit and dropped the reviewer's place in the queue. Editing in place works like pushing to an open pull request. Anyone else who can contribute is still blocked once it is submitted (`can_edit_in_review`, enforced in `_assert_editable`).
+11. **The change request warning lives in the Edit dialog, not a banner.** A bar under the header took a row on every page view, in amber, for readers who will never edit. The header count and its dot keep the open change requests visible; the full warning waits for the moment someone starts to edit.
 
 ## Tracer bullets
 
