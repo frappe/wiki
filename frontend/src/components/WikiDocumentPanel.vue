@@ -6,33 +6,43 @@
 			     owned by the repo, so it offers the round trip to GitHub
 			     instead of an edit flow. -->
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
-				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+				<div class="flex min-w-0 flex-1 items-center gap-1">
+					<Breadcrumbs :items="breadcrumbs" class="min-w-0" />
+					<Tooltip v-if="displayPublished" :text="__('Open live page')">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="shrink-0 text-ink-gray-5"
+							:aria-label="__('Open live page')"
+							@click="openPage"
+						>
+							<span class="lucide-external-link size-3.5" aria-hidden="true" />
+						</Button>
+					</Tooltip>
+				</div>
 				<div class="flex shrink-0 items-center gap-2">
 					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
 						{{ __('Read-only') }}
 					</Badge>
 					<div class="mr-2 flex items-center gap-1">
-						<Tooltip :text="__('View live')">
-							<Button
-								v-if="displayPublished"
-								variant="ghost"
-								:aria-label="__('View live')"
-								@click="openPage"
-							>
-								<span class="lucide-eye size-4" aria-hidden="true" />
-							</Button>
-						</Tooltip>
-						<Tooltip v-if="!spaceStore.isGitSynced" :text="__('Change requests')">
+						<Tooltip v-if="!spaceStore.isGitSynced" :text="changeRequestsLabel">
 							<Button
 								:variant="openPanel === 'change-requests' ? 'subtle' : 'ghost'"
-								:aria-label="__('{0} open change requests', [changeRequests.length])"
+								:aria-label="changeRequestsLabel"
 								:aria-pressed="openPanel === 'change-requests'"
 								@click="toggleChangeRequests"
 							>
 								<template #prefix>
-									<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+									<span class="relative inline-flex">
+										<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+										<span
+											v-if="pageChangeRequests.length"
+											class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-surface-blue-5"
+											aria-hidden="true"
+										/>
+									</span>
 								</template>
-								{{ changeRequests.length }}
+								{{ pageChangeRequests.length }}
 							</Button>
 						</Tooltip>
 						<Tooltip :text="__('Version history')">
@@ -55,7 +65,7 @@
 								:aria-pressed="showPageSettings"
 								@click="toggleSidePanel('settings')"
 							>
-								<span class="lucide-panel-right size-4" aria-hidden="true" />
+								<span class="lucide-settings-2 size-4" aria-hidden="true" />
 							</Button>
 						</Tooltip>
 					</div>
@@ -71,7 +81,7 @@
 					</Button>
 					<Button
 						v-if="spaceStore.isReading"
-						variant="solid"
+						variant="subtle"
 						@click="editPage"
 						@mouseenter="loadEditor"
 						@focus="loadEditor"
@@ -607,6 +617,12 @@ const {
 } = useOpenChangeRequests(() => props.spaceId);
 const pageChangeRequests = computed(() =>
 	changingPage(wikiDoc.value.doc?.doc_key),
+);
+const changeRequestsLabel = computed(() =>
+	__('{0} open on this page, {1} in this space', [
+		pageChangeRequests.value.length,
+		changeRequests.value.length,
+	]),
 );
 // The panel's first group says the same thing.
 const showChangeRequestsNotice = computed(

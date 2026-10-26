@@ -91,7 +91,7 @@ test.describe('Change requests in the space', () => {
 			await page.keyboard.press('Escape');
 
 			await page
-				.getByRole('button', { name: '2 open change requests' })
+				.getByRole('button', { name: '1 open on this page, 2 in this space' })
 				.click();
 			const panel = page.getByTestId('change-requests-panel');
 			const thisPage = panel.getByRole('region', {
@@ -126,7 +126,7 @@ test.describe('Change requests in the space', () => {
 		await page.goto(space.url('page', space.page('Alpha').name));
 
 		const changeRequestsButton = page.getByRole('button', {
-			name: '0 open change requests',
+			name: '0 open on this page, 0 in this space',
 		});
 		await changeRequestsButton.click();
 		const panel = page.getByTestId('change-requests-panel');
@@ -154,7 +154,9 @@ test.describe('Change requests in the space', () => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await page.getByRole('button', { name: '0 open change requests' }).click();
+		await page
+			.getByRole('button', { name: '0 open on this page, 0 in this space' })
+			.click();
 		const box = await page.getByTestId('change-requests-panel').boundingBox();
 		expect(box?.width).toBe(390);
 	});
