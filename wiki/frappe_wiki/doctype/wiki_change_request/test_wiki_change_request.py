@@ -543,6 +543,42 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 1)
 
+	def test_edit_after_failed_merge_clears_stale_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5d")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+
+		update_cr_page(cr.name, page_key, {"content": "main-change"})
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 0)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+
+	def test_request_changes_clears_stale_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5e")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+
+		request_changes(cr.name, "Rebase on the latest main.")
+
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 0)
+
 	def test_retry_rejects_merged_change_request(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")

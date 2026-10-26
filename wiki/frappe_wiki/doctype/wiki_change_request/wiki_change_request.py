@@ -140,6 +140,7 @@ def _assert_editable(cr: Document) -> None:
 		)
 	if cr.status == "Approved":
 		cr.db_set("status", "In Review", update_modified=False)
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 		cr.add_comment("Comment", _("Edited after approval. Back in review."))
 
 
@@ -1493,6 +1494,7 @@ def request_changes(name: str, comment: str) -> None:
 	_assert_status(cr, {"In Review", "Approved"})
 
 	cr.status = "Changes Requested"
+	frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 	cr.review_comment = comment
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()
