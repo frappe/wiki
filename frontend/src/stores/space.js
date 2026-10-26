@@ -269,6 +269,8 @@ export const useSpaceStore = defineStore('space', () => {
 
 	const changeTypeMap = computed(() => {
 		const map = new Map();
+		// A merge from the review page clears the change request but not its changes.
+		if (showsLiveTree.value) return map;
 		for (const change of crStore.changes) {
 			map.set(change.doc_key, change.change_type);
 		}

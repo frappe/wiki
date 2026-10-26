@@ -478,6 +478,52 @@ test.describe('Editing a change request in review', () => {
 		await expect(editableEditor(page)).toHaveCount(0);
 	});
 
+	test('merging it from its review leaves no change marks on the tree', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const alpha = space.page('Alpha');
+		const cr = await wiki.changeRequest(space, 'Polish Alpha');
+		await changeRequestInReview(
+			request,
+			cr,
+			alpha.doc_key,
+			'Content for Alpha Proposed.',
+		);
+		const alphaRow = page.locator('aside [role="treeitem"]', {
+			hasText: 'Alpha',
+		});
+
+		await page.goto(space.url('change-requests', cr.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await expect(alphaRow.getByLabel('Modified', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+
+		await header(page)
+			.getByRole('button', { name: /open on this page/ })
+			.click();
+		await page.getByRole('link', { name: /Polish Alpha/ }).click();
+		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
+		await header(page)
+			.getByRole('button', { name: 'Approve', exact: true })
+			.click();
+		await header(page)
+			.getByRole('button', { name: 'Merge', exact: true })
+			.click();
+		await expect(page.getByText('Change request merged')).toBeVisible();
+
+		await alphaRow.click();
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible({ timeout: 15000 });
+		await expect(alphaRow.getByLabel('Modified', { exact: true })).toHaveCount(
+			0,
+		);
+	});
+
 	test('editing it after your own draft in the space shows its text, not yours', async ({
 		page,
 		request,
