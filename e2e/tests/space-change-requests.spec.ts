@@ -6,8 +6,8 @@ const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
- * The space's open change requests, in the page header panel and as a warning
- * when Edit starts on a page they change (specs/edit_flow.md, part 3).
+ * The space's open change requests are listed in the page header panel
+ * (specs/edit_flow.md, part 3).
  */
 
 async function changeRequestEditing(
@@ -84,12 +84,8 @@ test.describe('Change requests in the space', () => {
 
 			await page.getByRole('button', { name: 'Edit', exact: true }).click();
 			const dialog = page.getByRole('dialog');
-			const warning = dialog.getByTestId('page-change-requests-warning');
-			await expect(warning).toContainText(
-				'1 open change request already changes this page',
-			);
-			await expect(warning.getByRole('link')).toHaveCount(1);
-			await expect(warning.getByRole('link')).toContainText('Fix Alpha');
+			await expect(dialog).not.toContainText('open change request');
+			await expect(dialog).not.toContainText('Fix Alpha');
 			await dialog.getByRole('button', { name: 'Cancel' }).click();
 			await expect(dialog).toHaveCount(0);
 

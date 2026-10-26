@@ -384,19 +384,15 @@ watch(
 async function editPage() {
 	// Set before the dialog closes: the editor often mounts while it is still leaving.
 	focusEditor.value = true;
-	if (!(await requirePageEditing())) {
+	if (!(await requireEditing())) {
 		focusEditor.value = false;
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
 }
 
-function requirePageEditing() {
-	return requireEditing({ changeRequests: pageChangeRequests.value });
-}
-
 async function whenEditing(action) {
-	if (await requirePageEditing()) action();
+	if (await requireEditing()) action();
 }
 
 watch(
