@@ -201,7 +201,7 @@ test.describe('Command Palette', () => {
 		).toBeVisible();
 		await page.keyboard.press('ControlOrMeta+k');
 		await expect(palette).toBeHidden();
-		await page.getByRole('button', { name: 'Edit' }).click();
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page.getByPlaceholder('https://example.com')).toHaveValue(
 			'https://example.com',
 		);
