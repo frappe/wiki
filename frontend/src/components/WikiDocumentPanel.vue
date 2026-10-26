@@ -106,11 +106,6 @@
 					</Dropdown>
 				</div>
 			</div>
-			<PageChangeRequestsNotice
-				v-if="showChangeRequestsNotice"
-				:space-id="spaceId"
-				:change-requests="pageChangeRequests"
-			/>
 			<!-- The panel takes the right edge of the row, so the scroller it
 			     sits beside is narrower than the window — which is what the
 			     editor measures to decide between the outline's two variants. -->
@@ -322,7 +317,6 @@ import ChangeRequestsPanel from './ChangeRequestsPanel.vue';
 import FinishEditingButton from './FinishEditingButton.vue';
 import HistoryPanel from './HistoryPanel.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
-import PageChangeRequestsNotice from './PageChangeRequestsNotice.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
@@ -390,15 +384,19 @@ watch(
 async function editPage() {
 	// Set before the dialog closes: the editor often mounts while it is still leaving.
 	focusEditor.value = true;
-	if (!(await requireEditing())) {
+	if (!(await requirePageEditing())) {
 		focusEditor.value = false;
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
 }
 
+function requirePageEditing() {
+	return requireEditing({ changeRequests: pageChangeRequests.value });
+}
+
 async function whenEditing(action) {
-	if (await requireEditing()) action();
+	if (await requirePageEditing()) action();
 }
 
 watch(
@@ -623,14 +621,6 @@ const changeRequestsLabel = computed(() =>
 		pageChangeRequests.value.length,
 		changeRequests.value.length,
 	]),
-);
-// The panel's first group says the same thing.
-const showChangeRequestsNotice = computed(
-	() =>
-		!isEditing.value &&
-		!selectedVersion.value &&
-		pageChangeRequests.value.length > 0 &&
-		openPanel.value !== 'change-requests',
 );
 
 function toggleHistory() {

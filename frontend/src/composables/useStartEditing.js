@@ -6,7 +6,9 @@ const request = ref(null);
 export function useStartEditing() {
 	const spaceStore = useSpaceStore();
 
-	function requireEditing() {
+	// A page's Edit passes the open change requests that change it, so the
+	// dialog can warn before a second author edits the same page.
+	function requireEditing({ changeRequests = [] } = {}) {
 		if (spaceStore.isEditing) return Promise.resolve(true);
 		if (!spaceStore.isReading) return Promise.resolve(false);
 		if (request.value) return request.value.promise;
@@ -14,7 +16,7 @@ export function useStartEditing() {
 		const promise = new Promise((done) => {
 			resolve = done;
 		});
-		request.value = { promise, resolve };
+		request.value = { promise, resolve, changeRequests };
 		return promise;
 	}
 

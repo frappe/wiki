@@ -6,8 +6,8 @@ const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
- * The space's open change requests, in the page header panel and as a notice
- * on the pages they change (specs/edit_flow.md, part 3).
+ * The space's open change requests, in the page header panel and as a warning
+ * when Edit starts on a page they change (specs/edit_flow.md, part 3).
  */
 
 async function changeRequestEditing(
@@ -82,13 +82,16 @@ test.describe('Change requests in the space', () => {
 			const page = await context.newPage();
 			await page.goto(space.url('page', alpha.name));
 
-			const notice = page.getByTestId('page-change-requests-notice');
-			await expect(notice).toContainText(
-				'1 open change request changes this page',
+			await page.getByRole('button', { name: 'Edit', exact: true }).click();
+			const dialog = page.getByRole('dialog');
+			const warning = dialog.getByTestId('page-change-requests-warning');
+			await expect(warning).toContainText(
+				'1 open change request already changes this page',
 			);
-			await notice.getByRole('button', { name: 'View' }).click();
-			await expect(page.getByRole('menuitem')).toHaveText(['Fix Alpha']);
-			await page.keyboard.press('Escape');
+			await expect(warning.getByRole('link')).toHaveCount(1);
+			await expect(warning.getByRole('link')).toContainText('Fix Alpha');
+			await dialog.getByRole('button', { name: 'Cancel' }).click();
+			await expect(dialog).toHaveCount(0);
 
 			await page
 				.getByRole('button', { name: '1 open on this page, 2 in this space' })
@@ -106,7 +109,6 @@ test.describe('Change requests in the space', () => {
 			await expect(elsewhere.getByRole('link')).toHaveCount(1);
 			await expect(elsewhere.getByRole('link')).toContainText('Rewrite Beta');
 			await expect(panel).not.toContainText('Unfinished Alpha');
-			await expect(notice).toHaveCount(0);
 
 			await thisPage.getByRole('link').click();
 			await expect(
