@@ -24,7 +24,29 @@
 					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
 						{{ __('Read-only') }}
 					</Badge>
-					<div class="mr-2 flex items-center gap-1">
+					<Button
+						v-if="readonly && githubEditUrl"
+						variant="outline"
+						@click="openGithubEdit"
+					>
+						<template #prefix>
+							<span class="lucide-pencil size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit on GitHub') }}
+					</Button>
+					<Button
+						v-if="spaceStore.isReading"
+						variant="subtle"
+						@click="editPage"
+						@mouseenter="loadEditor"
+						@focus="loadEditor"
+					>
+						<template #prefix>
+							<span class="lucide-pencil size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit') }}
+					</Button>
+					<div class="flex items-center gap-1">
 						<Tooltip v-if="!spaceStore.isGitSynced" :text="changeRequestsLabel">
 							<Button
 								:variant="openPanel === 'change-requests' ? 'subtle' : 'ghost'"
@@ -69,32 +91,13 @@
 							</Button>
 						</Tooltip>
 					</div>
-					<Button
-						v-if="readonly && githubEditUrl"
-						variant="outline"
-						@click="openGithubEdit"
-					>
-						<template #prefix>
-							<span class="lucide-pencil size-4" aria-hidden="true" />
-						</template>
-						{{ __('Edit on GitHub') }}
-					</Button>
-					<Button
-						v-if="spaceStore.isReading"
-						variant="subtle"
-						@click="editPage"
-						@mouseenter="loadEditor"
-						@focus="loadEditor"
-					>
-						<template #prefix>
-							<span class="lucide-pencil size-4" aria-hidden="true" />
-						</template>
-						{{ __('Edit') }}
-					</Button>
-					<!-- The phone header has no room for it; the strip above carries it. -->
-					<MergeChangeRequestButton v-if="!isMobile" />
-					<SubmitForReviewButton />
-					<FinishEditingButton />
+					<!-- Each button decides its own visibility; empty:hidden drops the divider when none show. -->
+					<div class="ml-1 flex items-center gap-2 border-l border-outline-gray-2 pl-3 empty:hidden">
+						<!-- The phone header has no room for it; the strip above carries it. -->
+						<MergeChangeRequestButton v-if="!isMobile" />
+						<SubmitForReviewButton />
+						<FinishEditingButton />
+					</div>
 					<Dropdown v-if="menuOptions.length" :options="menuOptions">
 						<Button
 							variant="ghost"
