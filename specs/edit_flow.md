@@ -107,11 +107,9 @@ Which change requests show:
 
 Data: a new GET `list_open_change_requests(wiki_space)` returns the rows above, each with `changed_doc_keys` from the same summary `diff_change_request` builds (13.6 ms median on a 1,021-item space), and the author's name and image. The page count is its length. `list_change_requests` stays as it is: it lists every status, so a summary per row would cost a diff for every merged change request.
 
-Permissions: a plain contributor (Wiki User) must be able to read others' submitted change requests, or the panel and the notice never warn them. Wiki User gets a second DocPerm row with `read` and no `if_owner`; write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. One call per space feeds the header count, the panel groups and the warning on Edit: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
+Permissions: a plain contributor (Wiki User) must be able to read others' submitted change requests for the panel to show them. Wiki User gets a second DocPerm row with `read` and no `if_owner`; write stays owner-only. The hooks hide Draft and Archived change requests from everyone but their author and managers. One call per space feeds the header count and panel groups: the SPA filters by the current `doc_key`, so there is no per-page endpoint. Open change requests per space are few, so N summaries per call is fine. 3.3 (change summary kept on write) makes it one query later.
 
-**Warning on Edit.** When open change requests change the current page, the Edit dialog lists them above the title field: "2 open change requests already change this page", each linking to its review page. This is the warning that stops a second author editing the same page blind, shown at the moment they decide to edit. Edit from the tree or the page list asks for no page, so it shows no warning.
-
-**Page header.** Breadcrumbs, then "Open live page" as a small icon beside the title for a published page. On the right: change requests, history, page settings (a settings icon), Edit (subtle in Reading, since reading is the main task there) and the page menu. The meta line under the title leaves out the view count while it is zero.
+**Page header.** Breadcrumbs, then "Open live page" as a small icon beside the title for a published page. On the right: Edit (subtle in Reading, since reading is the main task there), then change requests, history, page settings (a settings icon) and the page menu. Edit comes first so the main action in Reading is the first thing past the title. While editing, a divider sets Merge and Submit for review apart from the page tools: they act on the whole change request, not this page. The meta line under the title leaves out the view count while it is zero.
 
 ### Part 4: Version history (issue #622)
 
@@ -152,7 +150,7 @@ Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page
 8. **Git sync shows in history as "Synced from <commit>".** Sync writes a main-chain merge revision with no change request. A new `source_commit` field on Wiki Revision holds the commit sync applied (`head_sha` in `git_sync.py`). The row links to the commit on GitHub. Sync revisions written before this field show "Synced from Git". A synced space is read-only in the SPA, so its history has no Restore.
 9. **History is SPA only.** The public reader gets no history link. Readers who want history open the space in the SPA.
 10. **A change request in review stays editable for its author and for users who can merge.** Withdraw already let the author pull it back, but it made them resubmit and dropped the reviewer's place in the queue. Editing in place works like pushing to an open pull request. Anyone else who can contribute is still blocked once it is submitted (`can_edit_in_review`, enforced in `_assert_editable`).
-11. **The change request warning lives in the Edit dialog, not a banner.** A bar under the header took a row on every page view, in amber, for readers who will never edit. The header count and its dot keep the open change requests visible; the full warning waits for the moment someone starts to edit.
+11. **Open change requests show in the header only, not in a banner or the Edit dialog.** A bar under the header took a row on every page view, in amber, for readers who will never edit. A list in the Edit dialog put a second step between the author and the editor. The header count and its dot keep the open change requests visible, and the panel lists them.
 
 ## Tracer bullets
 
@@ -311,17 +309,19 @@ Tests: `wiki/api/test_history.py` (6): page history keeps only revisions that ch
 
 Related specs on wiki.localhost: `git-sync-readonly`, `git-sync-edit-on-github`, `change-request-review`, `change-request-flow`, `edit-flow`, `read-mode`, `space-change-requests`, `page-settings-meta`, `spa-editor.mobile`, `contributions-disabled`, `page-route-editable`, `disable-indexing`, `version-history`: 57 passed. `mobile-view`: 17 passed with view tracking off; the `networkidle` hang from Part 2 is still open.
 
-### Page header and the warning on Edit (2026-10-26)
+### Page header and change requests (2026-10-26)
 
 Done:
 
-- The page notice is gone. The Edit dialog lists the open change requests that change the page, each linking to its review. `requireEditing` takes the page's change requests; Edit and the page menu pass them, the tree and the page list do not.
+- The page notice is gone. Open change requests that change the page show in the header count and panel only. The Edit dialog does not list them.
 - The Change requests button counts this page's open change requests, with a dot when there are any. Its tooltip and label read "2 open on this page, 3 in this space".
-- "Open live page" moved from the toolbar to a small icon beside the breadcrumb title. Page settings has a settings icon. Edit is subtle in Reading.
+- "Open live page" moved from the toolbar to a small icon beside the breadcrumb title. Page settings has a settings icon. Edit is subtle in Reading and comes first among the header actions.
 - The meta line leaves out "0 views in last 30 days".
 
-Tests: `space-change-requests` checks the warning in the Edit dialog and the new button label. `analytics-dashboard` "the page's meta line leaves out a view count of zero". Both fail on the old code: it has no `page-change-requests-warning` and shows a zero count.
+Tests: `space-change-requests` checks the new button label, and that the Edit dialog stays clear while the panel lists the change requests. `analytics-dashboard` "the page's meta line leaves out a view count of zero" fails on the old code, which shows a zero count.
 
 Fixed on the way: `command-palette` "shares the shortcut with the editor link popup" failed since Part 4. `getByRole('button', { name: 'Edit' })` also matched "Edited <time>" under the title. It now asks for the exact name.
+
+Fixed on the way: after a change request was edited in review and then merged from its review page, the tree kept its change dots in Reading. The review page clears the change request but not its changes, and the tree marked them whatever the mode. The space store's `changeTypeMap` is now empty whenever the live tree shows. `edit-flow` "merging it from its review leaves no change marks on the tree" fails on the old code.
 
 Related specs on wiki.localhost: `space-change-requests`, `edit-flow`, `version-history`, `page-settings-meta`, `contributions-disabled`, `disable-indexing`, the `analytics-dashboard` meta line tests and `command-palette` "shares the shortcut": 37 passed. Two of them hit a fixture deadlock with two workers and passed when rerun alone. `git-sync-readonly` "renders read-only" and two `analytics-dashboard` tests time out on `networkidle`, with and without this change: the hang from Part 2 is still open.
