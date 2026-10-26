@@ -310,3 +310,18 @@ Fixed on the way: on a touch screen the code block's language label and copy but
 Tests: `wiki/api/test_history.py` (6): page history keeps only revisions that changed the page, space history counts pages, pagination, the diff against the previous version, a working copy is refused, an outsider gets 403. `test_sync_revision_stores_source_commit` in `test_git_sync.py`. Both history tests that pin the fix fail with it reverted. `e2e/tests/version-history.spec.ts`: two merges on a page list in the panel and the other page's merge does not, the diff marks the edit and links to its change request, Whole space shows the other page; unsaved edits survive a trip to a version; a git sync row says "synced from abc1234", the rename, and links the commit. `read-mode` "the code toolbar sits above the code" fails on the old CSS. `git-sync-readonly` allows the history link under the title.
 
 Related specs on wiki.localhost: `git-sync-readonly`, `git-sync-edit-on-github`, `change-request-review`, `change-request-flow`, `edit-flow`, `read-mode`, `space-change-requests`, `page-settings-meta`, `spa-editor.mobile`, `contributions-disabled`, `page-route-editable`, `disable-indexing`, `version-history`: 57 passed. `mobile-view`: 17 passed with view tracking off; the `networkidle` hang from Part 2 is still open.
+
+### Page header and the warning on Edit (2026-10-26)
+
+Done:
+
+- The page notice is gone. The Edit dialog lists the open change requests that change the page, each linking to its review. `requireEditing` takes the page's change requests; Edit and the page menu pass them, the tree and the page list do not.
+- The Change requests button counts this page's open change requests, with a dot when there are any. Its tooltip and label read "2 open on this page, 3 in this space".
+- "Open live page" moved from the toolbar to a small icon beside the breadcrumb title. Page settings has a settings icon. Edit is subtle in Reading.
+- The meta line leaves out "0 views in last 30 days".
+
+Tests: `space-change-requests` checks the warning in the Edit dialog and the new button label. `analytics-dashboard` "the page's meta line leaves out a view count of zero". Both fail on the old code: it has no `page-change-requests-warning` and shows a zero count.
+
+Fixed on the way: `command-palette` "shares the shortcut with the editor link popup" failed since Part 4. `getByRole('button', { name: 'Edit' })` also matched "Edited <time>" under the title. It now asks for the exact name.
+
+Related specs on wiki.localhost: `space-change-requests`, `edit-flow`, `version-history`, `page-settings-meta`, `contributions-disabled`, `disable-indexing`, the `analytics-dashboard` meta line tests and `command-palette` "shares the shortcut": 37 passed. Two of them hit a fixture deadlock with two workers and passed when rerun alone. `git-sync-readonly` "renders read-only" and two `analytics-dashboard` tests time out on `networkidle`, with and without this change: the hang from Part 2 is still open.
