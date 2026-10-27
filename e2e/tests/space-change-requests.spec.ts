@@ -93,20 +93,18 @@ test.describe('Change requests in the space', () => {
 				.getByRole('button', { name: '1 open on this page, 2 in this space' })
 				.click();
 			const panel = page.getByTestId('change-requests-panel');
-			const thisPage = panel.getByRole('region', {
-				name: 'Changing this page',
-			});
-			const elsewhere = panel.getByRole('region', {
-				name: 'Elsewhere in this space',
-			});
-			await expect(thisPage.getByRole('link')).toHaveCount(1);
-			await expect(thisPage.getByRole('link')).toContainText('Fix Alpha');
-			await expect(thisPage.getByRole('link')).toContainText('In Review');
-			await expect(elsewhere.getByRole('link')).toHaveCount(1);
-			await expect(elsewhere.getByRole('link')).toContainText('Rewrite Beta');
+			const links = panel.getByRole('link');
+			await expect(links).toHaveCount(2);
+			await expect(panel).toContainText('Rewrite Beta');
 			await expect(panel).not.toContainText('Unfinished Alpha');
 
-			await thisPage.getByRole('link').click();
+			await panel
+				.getByRole('radio', { name: 'This page', exact: true })
+				.click();
+			await expect(links).toHaveCount(1);
+			await expect(links).toContainText('Fix Alpha');
+			await expect(links).toContainText('In Review');
+			await links.click();
 			await expect(
 				page.getByRole('heading', { name: 'Fix Alpha', level: 1 }),
 			).toBeVisible();

@@ -309,7 +309,7 @@ async function saveDetails() {
 
 // Offered with no changes too: it is how you leave edit mode after an Edit you
 // did not need. A change request in review may be someone else's work, so it
-// is left with Done editing, never archived from here.
+// is left with Save, never archived from here.
 const canShowDiscard = computed(
 	() => !crStore.finalizing && !spaceStore.isEditingInReview,
 );

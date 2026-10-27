@@ -139,7 +139,7 @@ const emit = defineEmits(['close']);
 
 const scopeOptions = [
 	{ value: 'page', label: __('This page') },
-	{ value: 'space', label: __('Whole space') },
+	{ value: 'space', label: __('Space') },
 ];
 
 function makeHistory(limit) {

@@ -96,7 +96,7 @@ test.describe('Version history', () => {
 		).toBeVisible();
 		// The side panel is a workspace preference, so it is still open on the way back.
 		await page.goBack();
-		await panel.getByRole('radio', { name: 'Whole space' }).click();
+		await panel.getByRole('radio', { name: 'Space', exact: true }).click();
 		await expect(versions.nth(1)).toContainText('Answer more');
 		await versions.nth(1).click();
 		await expect(diff.getByTestId('page-diff')).toContainText('FAQ');

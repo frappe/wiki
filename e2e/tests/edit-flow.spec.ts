@@ -465,7 +465,9 @@ test.describe('Editing a change request in review', () => {
 		).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
 		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
 		expect(await changeRequestsIn(request, space.name)).toEqual([
 			expect.objectContaining({ name: cr.name, status: 'In Review' }),
@@ -569,11 +571,7 @@ test.describe('Editing a change request in review', () => {
 		);
 	});
 
-	test('a page it adds offers Done editing', async ({
-		page,
-		request,
-		wiki,
-	}) => {
+	test('a page it adds offers Save', async ({ page, request, wiki }) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		const cr = await wiki.changeRequest(space, 'Add Beta');
 		const tree = await callMethod<{ root_group: string }>(
@@ -598,7 +596,9 @@ test.describe('Editing a change request in review', () => {
 			timeout: 15000,
 		});
 
-		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
 		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
 	});
 
@@ -671,7 +671,7 @@ test.describe('Editing a change request in review', () => {
 		await typeAtEnd(page, ' More.');
 
 		await expect(
-			header(page).getByRole('button', { name: 'Done editing' }),
+			header(page).getByRole('button', { name: 'Save', exact: true }),
 		).toBeVisible();
 		await expect(
 			header(page).getByRole('button', { name: 'Merge' }),
