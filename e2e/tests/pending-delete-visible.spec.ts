@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { destroySpacesByRoute, uniqueRoute } from '../helpers/factory';
 import { getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { answerEditDialogIfAsked, openNewPageDialog } from '../helpers/wiki';
+import { openNewPageDialog, showSidebarActions } from '../helpers/wiki';
 
 /**
  * A page deleted in an unmerged change request keeps its row, struck through
@@ -91,11 +91,12 @@ test.describe('Pending deletion stays visible', () => {
 	});
 });
 
-/** Open the row's three-dots menu in the sidebar tree. */
+/** Open the row's three-dots menu in the sidebar tree, which shows in edit mode. */
 async function openRowMenu(
 	page: import('@playwright/test').Page,
 	title: string,
 ) {
+	await showSidebarActions(page);
 	const row = page.locator('aside div.group', { hasText: title }).last();
 	await row.hover();
 	await row.getByRole('button').last().click();
@@ -110,8 +111,6 @@ async function deleteFromTree(
 	await page.waitForLoadState('networkidle');
 	await openRowMenu(page, title);
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	// Read mode asks for a change request first.
-	await answerEditDialogIfAsked(page, /Delete/);
 	await page
 		.getByRole('dialog')
 		.getByRole('button', { name: /Delete/ })

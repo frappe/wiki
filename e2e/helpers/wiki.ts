@@ -31,6 +31,7 @@ export async function clickSidebarAddOption(
 		await openNewPageDialog(page);
 		return;
 	}
+	await showSidebarActions(page);
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
 	await answerEditDialogIfAsked(
@@ -40,8 +41,8 @@ export async function clickSidebarAddOption(
 }
 
 /**
- * The sidebar's own "New page" button, which renders whether or not the space
- * already has pages. Scoped to the sidebar: an empty space draws a second
+ * The sidebar's own "New page" button: shown in edit mode, and in read mode
+ * only while the space has no pages. Scoped to the sidebar: an empty space draws a second
  * "New page" in the content column (spec 02 phase 5), so the name alone is
  * ambiguous there. The mobile tree lives in a drawer that is an aside too.
  */
@@ -53,12 +54,28 @@ export function newPageButton(page: Page) {
 }
 
 /**
+ * The sidebar's add and row actions show only in edit mode, so a space with
+ * pages is put into edit mode through the page header first.
+ */
+export async function showSidebarActions(page: Page) {
+	const edit = page
+		.getByRole('main')
+		.getByRole('button', { name: 'Edit', exact: true });
+	await expect(newPageButton(page).or(edit)).toBeVisible({ timeout: 15000 });
+	if (await newPageButton(page).isVisible()) return;
+	await edit.click();
+	await startEditing(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
+}
+
+/**
  * Start creating a page from the sidebar. Leaves the create dialog open.
  *
- * In read mode the button asks for a change request first; that dialog is
- * answered here so callers only ever see the create dialog.
+ * In an empty space the button opens a change request on its own; any Edit
+ * dialog that still appears is answered so callers only see the create dialog.
  */
 export async function openNewPageDialog(page: Page) {
+	await showSidebarActions(page);
 	await newPageButton(page).click();
 	await answerEditDialogIfAsked(page, /Create New (Page|Group)/);
 }
@@ -94,6 +111,7 @@ export async function openTreeRowMenuItem(
 	title: string,
 	item: string,
 ) {
+	await showSidebarActions(page);
 	const row = page
 		.locator('aside [role="treeitem"]', { hasText: title })
 		.first();

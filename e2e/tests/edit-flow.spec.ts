@@ -4,6 +4,7 @@ import { callMethod, createDoc, getList } from '../helpers/frappe';
 import {
 	editDialog,
 	editPage,
+	newPageButton,
 	openTreeRowMenuItem,
 	startEditing,
 } from '../helpers/wiki';
@@ -209,7 +210,7 @@ test.describe('Explicit edit', () => {
 		expect(await changeRequestsIn(request, space.name)).toEqual([]);
 	});
 
-	test('Rename in read mode asks for a change request first', async ({
+	test('row actions show only in edit mode', async ({
 		page,
 		request,
 		wiki,
@@ -217,15 +218,23 @@ test.describe('Explicit edit', () => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
-		await startEditing(page, 'Rename Alpha');
+		const aside = page.locator('aside');
+		await expect(aside.getByText('Alpha', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(
+			aside.locator('[role="treeitem"] .lucide-more-horizontal'),
+		).toHaveCount(0);
+		await expect(newPageButton(page)).toHaveCount(0);
 
+		await editPage(page, 'Rename Alpha');
+		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
 		const rename = page.getByRole('dialog').filter({ hasText: 'Change Title' });
 		await rename.getByLabel('Title').fill('Alpha Renamed');
 		await rename.getByRole('button', { name: 'Save' }).click();
 
 		await expect(
-			page.locator('aside').getByText('Alpha Renamed', { exact: true }),
+			aside.getByText('Alpha Renamed', { exact: true }),
 		).toBeVisible();
 		const [changeRequest] = await changeRequestsIn(request, space.name);
 		expect(changeRequest).toMatchObject({
