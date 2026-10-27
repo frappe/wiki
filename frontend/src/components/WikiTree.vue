@@ -5,7 +5,7 @@
 		v-model:expanded="expandedKeys"
 		node-key="doc_key"
 		guides="none"
-		:draggable="!readonly && !searchActive"
+		:draggable="!readonly && spaceStore.isEditing && !searchActive"
 		:move="allowMove"
 		@drag-start="onDragStart"
 		@drag-end="onDragEnd"
@@ -101,8 +101,10 @@
 
 <script setup>
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useStartEditing } from '@/composables/useStartEditing';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -126,7 +128,8 @@ const props = defineProps({
 		default: null,
 	},
 	// Read-only spaces (git-synced) render the tree for browsing only: no
-	// drag-reorder, no row actions, no add-page/group affordances.
+	// drag-reorder, no row actions, no add-page/group affordances. Read mode
+	// keeps the actions but not the drag: a drop cannot wait on a dialog.
 	readonly: {
 		type: Boolean,
 		default: false,
@@ -164,6 +167,8 @@ const emit = defineEmits([
 const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
+const spaceStore = useSpaceStore();
+const { requireEditing } = useStartEditing();
 const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
 const storageKey = computed(
@@ -248,7 +253,7 @@ function handleRowClick(node) {
 
 	// External links open edit dialog instead of navigating
 	if (node.is_external_link) {
-		if (!props.readonly) emit('edit-external-link', node);
+		if (!props.readonly) whenEditing(() => emit('edit-external-link', node))();
 		return;
 	}
 
@@ -357,6 +362,13 @@ async function restore(node) {
 	}
 }
 
+// In read mode a row action asks for a change request first.
+function whenEditing(action) {
+	return async () => {
+		if (await requireEditing()) action();
+	};
+}
+
 function getDropdownOptions(node) {
 	const options = [];
 
@@ -365,7 +377,7 @@ function getDropdownOptions(node) {
 			{
 				label: __('Restore'),
 				icon: 'lucide-rotate-ccw',
-				onClick: () => restore(node),
+				onClick: whenEditing(() => restore(node)),
 			},
 		];
 	}
@@ -376,22 +388,22 @@ function getDropdownOptions(node) {
 				{
 					label: __('New Page'),
 					icon: 'lucide-file-plus',
-					onClick: () => emit('create', node.doc_key, false),
+					onClick: whenEditing(() => emit('create', node.doc_key, false)),
 				},
 				{
 					label: __('New Group'),
 					icon: 'lucide-folder-plus',
-					onClick: () => emit('create', node.doc_key, true),
+					onClick: whenEditing(() => emit('create', node.doc_key, true)),
 				},
 				{
 					label: __('External Link'),
 					icon: 'lucide-link',
-					onClick: () => emit('external-link', node.doc_key),
+					onClick: whenEditing(() => emit('external-link', node.doc_key)),
 				},
 				{
 					label: __('Rename'),
 					icon: 'lucide-edit-2',
-					onClick: () => emit('rename', node),
+					onClick: whenEditing(() => emit('rename', node)),
 				},
 			],
 		);
@@ -401,12 +413,12 @@ function getDropdownOptions(node) {
 		options.push({
 			label: __('Change Title'),
 			icon: 'lucide-edit-2',
-			onClick: () => emit('rename', node),
+			onClick: whenEditing(() => emit('rename', node)),
 		});
 		options.push({
 			label: node.is_published ? __('Unpublish') : __('Publish'),
 			icon: node.is_published ? 'lucide-eye-off' : 'lucide-eye',
-			onClick: () => togglePublish(node),
+			onClick: whenEditing(() => togglePublish(node)),
 		});
 	}
 
@@ -419,7 +431,7 @@ function getDropdownOptions(node) {
 					label: __('Delete'),
 					icon: 'lucide-trash-2',
 					theme: 'red',
-					onClick: () => emit('delete', node),
+					onClick: whenEditing(() => emit('delete', node)),
 				},
 			],
 		});

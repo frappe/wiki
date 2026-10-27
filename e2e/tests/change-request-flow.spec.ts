@@ -12,6 +12,7 @@ import {
 	clickSidebarAddOption,
 	createSpaceViaDialog,
 	currentDraftDocKey,
+	editPage,
 	openNewPageDialog,
 	saveEditor,
 } from '../helpers/wiki';
@@ -179,7 +180,7 @@ test.describe('Change Request Flow', () => {
 		await page.goto(spaceUrl);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await expect(editor).toBeVisible({ timeout: 10000 });
+		await editPage(page, 'Update the page');
 
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
@@ -430,26 +431,13 @@ test.describe('Change Request Flow', () => {
 		});
 
 		// Start a new change request and reorder pages inside the group
-		const draftResponsePromise = page.waitForResponse((response) => {
-			if (!response.url().includes('wiki.api.wiki_space.get_space_bootstrap')) {
-				return false;
-			}
-			if (response.request().method() !== 'POST') {
-				return false;
-			}
-			const postData = response.request().postData() || '';
-			return postData.includes(spaceId);
-		});
+		const draftChangeRequest = await wiki.changeRequest(
+			{ name: spaceId },
+			'Reorder the group',
+		);
 
 		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
-
-		const draftResponse = await draftResponsePromise;
-		const draftPayload = await draftResponse.json();
-		const draftChangeRequest = draftPayload?.message?.change_request as {
-			name: string;
-		};
-		expect(draftChangeRequest?.name).toBeTruthy();
 
 		type CrTreeNode = {
 			title?: string;

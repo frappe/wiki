@@ -24,6 +24,7 @@ test.describe('Editor keystroke cost', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Keystroke Cost', content: CONTENT }],
 		});
+		await wiki.changeRequest(space);
 		await page.goto(space.url('page', space.page('Keystroke Cost').name));
 		const editor = page.locator('.ProseMirror').first();
 		await expect(editor).toContainText('Last heading', { timeout: 15000 });

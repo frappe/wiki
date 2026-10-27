@@ -153,6 +153,7 @@ test.describe('Command Palette', () => {
 				},
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Hello').name));
 		const editor = page.locator('.ProseMirror');

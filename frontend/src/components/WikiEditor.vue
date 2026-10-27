@@ -151,6 +151,12 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// Put the caret at the end of the page once mounted, for an editor opened
+	// by Edit.
+	autofocus: {
+		type: Boolean,
+		default: false,
+	},
 	// The outline stands down when something wider has claimed the right of
 	// the page — the page settings panel. Two lists of the page at once is one
 	// too many.
@@ -778,6 +784,9 @@ onBeforeUnmount(() => {
 
 const editor = useEditor({
 	editable: () => !props.readonly,
+	// Only when asked: an explicit `autofocus: false` changes how TipTap starts
+	// up and drops the trailing paragraph after a table.
+	...(props.autofocus && { autofocus: 'end' }),
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
 		WikiUnderline,
@@ -928,6 +937,7 @@ function getMarkdown() {
 }
 
 function emitContentChange(options = {}) {
+	if (props.readonly) return;
 	const content = getMarkdown();
 	if (content === undefined) return;
 	emit('content-change', content, props.documentKey, options);
@@ -938,6 +948,7 @@ let reconciledSavedContent;
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
+	if (props.readonly) return;
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
 	reconciledSavedContent = normalizedSavedContent(props.savedContent);
@@ -1012,6 +1023,7 @@ watch(
 defineExpose({
 	saveToDB,
 	getMarkdown,
+	focusEnd: () => editor.value?.commands.focus('end'),
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save

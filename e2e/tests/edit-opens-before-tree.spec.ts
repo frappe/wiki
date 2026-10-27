@@ -38,6 +38,7 @@ test.describe('Edit from the public page', () => {
 		const space = await wiki.space({
 			pages: [{ title, content: 'Body before the tree lands.' }],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(`/${space.page(title).route}`);
 		const releaseTree = stallTree(page);
@@ -71,6 +72,7 @@ test.describe('Edit from the public page', () => {
 		const title = `Early Save ${Date.now()}`;
 		const typed = `typed early ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const seeded = space.page(title);
 
 		const releaseTree = stallTree(page);
@@ -108,6 +110,7 @@ test.describe('Edit from the public page', () => {
 		const title = `Early Title ${Date.now()}`;
 		const renamed = `${title} renamed`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const seeded = space.page(title);
 
 		const releaseTree = stallTree(page);
@@ -137,6 +140,7 @@ test.describe('Edit from the public page', () => {
 	}) => {
 		const title = `Early Submit ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const seeded = space.page(title);
 		const editor = page.locator('.ProseMirror[contenteditable="true"]');
 
@@ -171,6 +175,7 @@ test.describe('Edit from the public page', () => {
 	}) => {
 		const title = `Tree Retry ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const editor = page.locator('.ProseMirror[contenteditable="true"]');
 
 		await page.goto(space.url('page', space.page(title).name));
@@ -206,6 +211,7 @@ test.describe('Edit from the public page', () => {
 	}) => {
 		const title = `Tree Fails ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 
 		let batchSent = false;
 		page.on('request', (request) => {
@@ -236,6 +242,7 @@ test.describe('Edit from the public page', () => {
 		const title = `Draft Reload ${Date.now()}`;
 		const typed = `unsaved ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page(title).name));
 		const editor = page.locator('.ProseMirror[contenteditable="true"]');
@@ -262,6 +269,8 @@ test.describe('Switching spaces while the tree loads', () => {
 			const second = await wiki.space({
 				pages: [{ title: `Second ${stamp}` }],
 			});
+			await wiki.changeRequest(first);
+			await wiki.changeRequest(second);
 
 			const held: Route[] = [];
 			await page.route('**/api/method/**get_cr_tree*', (route) => {
@@ -312,6 +321,8 @@ test.describe('Switching spaces while the tree loads', () => {
 		const stamp = Date.now();
 		const first = await wiki.space({ pages: [{ title: `First ${stamp}` }] });
 		const second = await wiki.space({ pages: [{ title: `Second ${stamp}` }] });
+		await wiki.changeRequest(first);
+		await wiki.changeRequest(second);
 
 		const editor = page.locator('.ProseMirror[contenteditable="true"]');
 		await page.goto(first.url('page', first.page(`First ${stamp}`).name));

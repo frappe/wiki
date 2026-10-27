@@ -14,6 +14,7 @@ test('submit for review waits for an image upload to finish', async ({
 	wiki,
 }) => {
 	const space = await wiki.space({ pages: [{ title: 'Upload Page' }] });
+	await wiki.changeRequest(space);
 	const target = space.page('Upload Page');
 
 	let releaseUpload = () => {};
@@ -65,6 +66,7 @@ test('submit for review waits until a failed upload is removed', async ({
 	wiki,
 }) => {
 	const space = await wiki.space({ pages: [{ title: 'Failed Upload Page' }] });
+	await wiki.changeRequest(space);
 	const target = space.page('Failed Upload Page');
 	await page.route('**/api/method/wiki.api.upload_wiki_asset', (route) =>
 		route.fulfill({ status: 500, body: '{}' }),
@@ -105,6 +107,7 @@ test('a failed image pasted as markdown stops blocking once removed', async ({
 	wiki,
 }) => {
 	const space = await wiki.space({ pages: [{ title: 'Pasted Upload Page' }] });
+	await wiki.changeRequest(space);
 	const target = space.page('Pasted Upload Page');
 	await page.route('**/api/method/wiki.api.upload_wiki_asset', (route) =>
 		route.fulfill({ status: 500, body: '{}' }),
@@ -158,6 +161,7 @@ test('an upload that fails after leaving the page does not block submit', async 
 	const space = await wiki.space({
 		pages: [{ title: 'Left Upload Page' }, { title: 'Next Upload Page' }],
 	});
+	await wiki.changeRequest(space);
 	const left = space.page('Left Upload Page');
 	const next = space.page('Next Upload Page');
 

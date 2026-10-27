@@ -22,6 +22,7 @@ test.describe('Internal page links', () => {
 				},
 			],
 		});
+		await wiki.changeRequest(space);
 		const source = space.page('Link Source');
 		const target = space.page('Setup Guide');
 
@@ -71,6 +72,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Deploy Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -117,6 +119,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Setup Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -152,6 +155,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Setup Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -173,6 +177,7 @@ test.describe('Internal page links', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Link Source', content: 'Read this' }],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -200,6 +205,7 @@ test.describe('Internal page links', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Link Source', content: 'Read this' }],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();

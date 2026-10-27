@@ -72,6 +72,7 @@ test.describe('Draft version conflict', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Shared', content: 'Start.' }],
 		});
+		await wiki.changeRequest(space);
 		const shared = space.page('Shared');
 		const url = space.url('page', shared.name);
 		const tabA = await context.newPage();
@@ -120,6 +121,7 @@ test.describe('Draft version conflict', () => {
 				{ title: 'Beta', content: 'Beta.' },
 			],
 		});
+		await wiki.changeRequest(space);
 		const alpha = space.page('Alpha');
 		const beta = space.page('Beta');
 		const tabA = await context.newPage();
@@ -149,6 +151,7 @@ test.describe('Draft version conflict', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Shared', content: 'Start.' }],
 		});
+		await wiki.changeRequest(space);
 		const shared = space.page('Shared');
 		const url = space.url('page', shared.name);
 		const tabA = await context.newPage();
@@ -183,6 +186,7 @@ test.describe('Draft version conflict', () => {
 			const space = await wiki.space({
 				pages: [{ title: 'Shared', content: 'Start.' }],
 			});
+			await wiki.changeRequest(space);
 			const shared = space.page('Shared');
 			const url = space.url('page', shared.name);
 			const tabA = await context.newPage();

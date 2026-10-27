@@ -102,6 +102,7 @@ def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None
 
 # Statuses in which the CR head revision may still be mutated by its author.
 _EDITABLE_STATUSES = {"Draft", "Changes Requested"}
+_REVIEW_STATUSES = {"In Review", "Approved"}
 
 
 def _assert_status(cr: Document, allowed: set[str]) -> None:
@@ -113,18 +114,34 @@ def _assert_status(cr: Document, allowed: set[str]) -> None:
 		)
 
 
+def can_edit_in_review(cr: Document, user: str | None = None) -> bool:
+	"""Whether the user may change an `In Review` or `Approved` CR without pulling it back.
+
+	The author can, and so can anyone who could merge it.
+	"""
+	user = user or frappe.session.user
+	return cr.status in _REVIEW_STATUSES and (cr.owner == user or _can_merge(cr.wiki_space, user))
+
+
 def _assert_editable(cr: Document) -> None:
 	"""Block any head-revision mutation once the CR has left an editable state.
 
-	A CR is only editable while it is a `Draft` or has `Changes Requested`.
-	Once it is `In Review` / `Approved` / `Merged` / `Rejected` the content is
-	frozen so a reviewer never sees a moving target.
+	Any contributor may edit a `Draft` or `Changes Requested` CR. An `In Review`
+	or `Approved` CR stays open to its author and to users who can merge it,
+	and an edit sends an `Approved` CR back to `In Review`, so an approval only
+	ever covers the content it saw. `Merged` / `Rejected` / `Archived` are frozen.
 	"""
-	if cr.status not in _EDITABLE_STATUSES:
+	if cr.status in _EDITABLE_STATUSES:
+		return
+	if not can_edit_in_review(cr):
 		frappe.throw(
 			_("This change request is {0} and is locked for editing.").format(cr.status),
 			frappe.ValidationError,
 		)
+	if cr.status == "Approved":
+		cr.db_set("status", "In Review", update_modified=False)
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
+		cr.add_comment("Comment", _("Edited after approval. Back in review."))
 
 
 def _notify_cr_owner(cr: Document, subject: str) -> None:
@@ -545,15 +562,35 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	flush_pending_revision_syncs()
 
 	cr = _find_existing_draft(wiki_space)
-	if cr:
-		if _is_stale_empty_draft(cr, wiki_space):
+	if cr and _is_outdated(cr):
+		frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
+		if not has_revision_changes(cr.base_revision, cr.head_revision):
 			_archive_stale_draft(cr)
-		else:
-			return cr.as_dict()
+			cr = None
+	if cr:
+		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
 	return create_change_request(wiki_space, default_title).as_dict()
+
+
+def get_editable_change_request(wiki_space: str, change_request: str | None = None) -> dict[str, Any] | None:
+	"""The user's Draft or Changes Requested change request in the space, without writing anything.
+
+	`change_request` names an In Review or Approved one the user is editing; it wins when they
+	may still edit it. A stale empty draft is skipped rather than archived, so the user lands in
+	read mode.
+	"""
+	if change_request and frappe.db.exists("Wiki Change Request", change_request):
+		cr = frappe.get_doc("Wiki Change Request", change_request)
+		if cr.wiki_space == wiki_space and can_edit_in_review(cr) and cr.has_permission("write"):
+			return cr.as_dict()
+
+	cr = _find_existing_draft(wiki_space)
+	if not cr or _is_stale_empty_draft(cr):
+		return None
+	return cr.as_dict()
 
 
 def _find_existing_draft(wiki_space: str) -> Document | None:
@@ -584,13 +621,13 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	return cr
 
 
-def _is_stale_empty_draft(cr: Document, wiki_space: str) -> bool:
-	"""True if the draft is outdated AND has no changes."""
-	main_revision = frappe.get_value("Wiki Space", wiki_space, "main_revision")
-	if not main_revision or not cr.base_revision or cr.base_revision == main_revision:
-		return False
-	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
-	return not has_revision_changes(cr.base_revision, cr.head_revision)
+def _is_outdated(cr: Document) -> bool:
+	main_revision = frappe.get_value("Wiki Space", cr.wiki_space, "main_revision")
+	return bool(main_revision and cr.base_revision and cr.base_revision != main_revision)
+
+
+def _is_stale_empty_draft(cr: Document) -> bool:
+	return _is_outdated(cr) and not has_revision_changes(cr.base_revision, cr.head_revision)
 
 
 def _archive_stale_draft(cr: Document) -> None:
@@ -1457,6 +1494,7 @@ def request_changes(name: str, comment: str) -> None:
 	_assert_status(cr, {"In Review", "Approved"})
 
 	cr.status = "Changes Requested"
+	frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 	cr.review_comment = comment
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()

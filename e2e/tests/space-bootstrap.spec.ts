@@ -16,6 +16,7 @@ test.describe('Space bootstrap', () => {
 		wiki,
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await wiki.changeRequest(space);
 		const calls = recordApiCalls(page);
 
 		await page.goto(space.url());
@@ -31,6 +32,7 @@ test.describe('Space bootstrap', () => {
 		expect(called('get_user_info')).toEqual([]);
 		expect(called('get_space_capabilities')).toEqual([]);
 		expect(called('get_or_create_draft_change_request')).toEqual([]);
+		expect(called('create_change_request')).toEqual([]);
 		expect(called('doctype=Wiki+Space&')).toEqual([]);
 	});
 });

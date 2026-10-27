@@ -3,6 +3,7 @@ import {
 	clickSidebarAddOption,
 	createDraftAndOpenEditor,
 	saveEditor,
+	startEditing,
 } from '../helpers/wiki';
 
 /**
@@ -72,9 +73,8 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge
-		// Submit for Review lives in the editor header, and adding an external
-		// link opens no editor. The sidebar's Merge is the manager's one-click
-		// path -- it walks the CR through submit, approve and merge.
+		// Adding an external link opens no page, so Merge comes from the space's
+		// own header. It walks the CR through submit, approve and merge.
 		const mergeButton = page.getByRole('button', {
 			name: 'Merge',
 			exact: true,
@@ -98,8 +98,10 @@ test.describe('External Links', () => {
 		const newBadge = itemRow.getByText('New');
 		await expect(newBadge).not.toBeVisible();
 
-		// Click on the external link - should open edit dialog, not navigate
+		// Click on the external link - should open edit dialog, not navigate.
+		// Editing it needs a change request, which read mode asks for first.
 		await sidebarItem.click();
+		await startEditing(page, 'Edit the link');
 
 		// Verify the edit dialog appears
 		const editDialog = page.getByRole('dialog');
@@ -156,9 +158,8 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items
-		// Submit for Review lives in the editor header, and adding an external
-		// link opens no editor. The sidebar's Merge is the manager's one-click
-		// path -- it walks the CR through submit, approve and merge.
+		// Adding an external link opens no page, so Merge comes from the space's
+		// own header. It walks the CR through submit, approve and merge.
 		const mergeButton = page.getByRole('button', {
 			name: 'Merge',
 			exact: true,

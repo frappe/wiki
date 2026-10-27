@@ -165,25 +165,26 @@ def get_space_stats(spaces: list[str]) -> dict:
 	return stats
 
 
-@frappe.whitelist(methods=["POST"])
-def get_space_bootstrap(space_id: str) -> dict:
-	"""The space, the user's capabilities in it and, if they may edit, their draft change request.
+@frappe.whitelist(methods=["GET"])
+def get_space_bootstrap(space_id: str, change_request: str | None = None) -> dict:
+	"""The space, the user's capabilities in it and, if they are editing, their change request.
 
-	The tree stays a separate request: the editor opens without it, and a failed tree load can be
-	retried on its own. POST because it may create the draft.
+	Opening a space never starts a change request: the user does that with Edit. The tree stays
+	a separate request: the editor opens without it, and a failed tree load can be retried on
+	its own. `change_request` resumes editing a change request that is in review.
 	"""
 	from frappe.client import get as get_doc_for_client
 
 	from wiki.api import get_space_capabilities
 	from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
-		get_or_create_draft_change_request,
+		get_editable_change_request,
 	)
 
 	doc = get_doc_for_client("Wiki Space", space_id)
 	capabilities = get_space_capabilities(space_id)
 	bootstrap = {"doc": doc, "capabilities": capabilities, "change_request": None}
 	if capabilities["can_contribute"] and not doc.get("git_synced"):
-		bootstrap["change_request"] = get_or_create_draft_change_request(space_id)
+		bootstrap["change_request"] = get_editable_change_request(space_id, change_request)
 	return bootstrap
 
 
@@ -194,7 +195,7 @@ def get_wiki_tree(space_id: str) -> dict:
 	space.check_permission("read")
 
 	if not space.root_group:
-		return {"children": [], "root_group": None}
+		return {"children": [], "root_group": None, "root_key": None}
 
 	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WIKI_FULL_TREE_CACHE_KEY
 
@@ -204,7 +205,9 @@ def get_wiki_tree(space_id: str) -> dict:
 		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
 		tree = _build_wiki_tree_for_api(descendants) if descendants else []
 		frappe.cache().hset(WIKI_FULL_TREE_CACHE_KEY, root_group, tree)
-	return {"children": tree, "root_group": root_group}
+	# The root's doc_key is what a change request's tree calls its root.
+	root_key = frappe.db.get_value("Wiki Document", root_group, "doc_key")
+	return {"children": tree, "root_group": root_group, "root_key": root_key}
 
 
 def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
@@ -213,8 +216,11 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 		"Wiki Document",
 		fields=[
 			"name",
+			"doc_key",
 			"title",
 			"is_group",
+			"is_external_link",
+			"external_url",
 			"parent_wiki_document",
 			"route",
 			"is_published",

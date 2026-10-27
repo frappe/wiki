@@ -30,6 +30,16 @@
 			</div>
 
 			<div class="flex items-center gap-2">
+				<Button
+					v-if="canEditInReview"
+					variant="outline"
+					icon="lucide-pencil"
+					:aria-label="__('Edit')"
+					:title="__('Edit')"
+					:loading="startingEdit"
+					@click="handleEdit"
+				/>
+
 				<template v-if="canReview">
 					<Button
 						v-if="hasConflicts"
@@ -57,9 +67,9 @@
 						{{ __('Approve') }}
 					</Button>
 
-					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions">
-						<Button variant="ghost" :title="__('More actions')">
-							<span class="lucide-more-vertical size-4" aria-hidden="true" />
+					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
+						<Button variant="subtle" :title="__('More actions')">
+							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
 						</Button>
 					</Dropdown>
 				</template>
@@ -436,8 +446,11 @@ import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import DiffViewer from '@/components/DiffViewer.vue';
 import WikiContentViewer from '@/components/WikiContentViewer.vue';
+import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
+import { useSpaceStore } from '@/stores/space';
 
 const {
 	getChangeIcon,
@@ -589,58 +602,120 @@ const canWithdraw = computed(() => {
 	return isOwner.value && changeRequest.doc?.status === 'In Review';
 });
 
-// Secondary reviewer decisions live in the three-dots menu so the header keeps a
-// single primary action.
+// Mirrors can_edit_in_review on the server, which enforces it.
+const canEditInReview = computed(() => {
+	return (
+		capabilities.value.can_contribute &&
+		(isOwner.value || capabilities.value.can_write) &&
+		['In Review', 'Approved'].includes(changeRequest.doc?.status)
+	);
+});
+
+const spaceStore = useSpaceStore();
+const startingEdit = ref(false);
+
+// Opens the space on the first page the change request touches, in the editor.
+async function handleEdit() {
+	const doc = changeRequest.doc;
+	startingEdit.value = true;
+	try {
+		await spaceStore.editInReview(doc);
+		const page = (changes.data || []).find(
+			(change) =>
+				change.change_type !== 'deleted' &&
+				!change.is_group &&
+				!change.is_external_link,
+		);
+		const pageId = page ? await documentNameFor(page.doc_key) : null;
+		const spaceId = doc.wiki_space;
+		if (pageId) {
+			await router.push({ name: 'SpacePage', params: { spaceId, pageId } });
+		} else if (page) {
+			await router.push({
+				name: 'DraftChangeRequest',
+				params: { spaceId, docKey: page.doc_key },
+			});
+		} else {
+			await router.push({ name: 'SpaceDetails', params: { spaceId } });
+		}
+	} finally {
+		startingEdit.value = false;
+	}
+}
+
+// Approve stays in the header, so the menu only carries the combined Approve & merge.
 const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
-	const options = [];
 	const status = changeRequest.doc?.status;
-	// The header primary button is Approve-only (the two-person path: approve now,
-	// merge later via the Merge button). The combined self-serve Approve & Merge
-	// lives here in the menu for reviewers who want to publish in one step.
-	if (status === 'In Review') {
-		options.push({
-			label: __('Approve & Merge'),
-			icon: 'lucide-check-circle',
-			onClick: () => {
-				showApproveMergeDialog.value = true;
+	const groups = [];
+	if (['In Review', 'Approved'].includes(status)) {
+		const decisions = [
+			{
+				label: __('Request changes'),
+				description: __('Send feedback to the author'),
+				icon: 'lucide-message-circle',
+				onClick: () => {
+					showRequestChangesDialog.value = true;
+				},
 			},
+		];
+		if (status === 'In Review') {
+			decisions.unshift({
+				label: __('Approve & merge'),
+				description: __('Approve and merge in one step'),
+				icon: 'lucide-git-merge',
+				onClick: () => {
+					showApproveMergeDialog.value = true;
+				},
+			});
+		}
+		groups.push(
+			{ group: __('Review decision'), options: decisions },
+			{
+				group: __('Reviewers'),
+				options: [
+					{
+						label: __('Assign reviewer'),
+						icon: 'lucide-user-plus',
+						onClick: () => {
+							showAssignDialog.value = true;
+						},
+					},
+				],
+			},
+		);
+	}
+	// Authors who can also review have no standalone Withdraw button.
+	if (canWithdraw.value) {
+		groups.push({
+			group: __('Author'),
+			hideLabel: true,
+			options: [
+				{
+					label: __('Withdraw'),
+					icon: 'lucide-rotate-ccw',
+					onClick: handleWithdraw,
+				},
+			],
 		});
 	}
 	if (['In Review', 'Approved'].includes(status)) {
-		options.push({
-			label: __('Request Changes'),
-			icon: 'lucide-message-square',
-			onClick: () => {
-				showRequestChangesDialog.value = true;
-			},
-		});
-		options.push({
-			label: __('Reject'),
-			icon: 'lucide-x-circle',
-			onClick: () => {
-				showRejectDialog.value = true;
-			},
-		});
-		options.push({
-			label: __('Assign reviewer'),
-			icon: 'lucide-user-plus',
-			onClick: () => {
-				showAssignDialog.value = true;
-			},
+		groups.push({
+			group: __('Reject'),
+			hideLabel: true,
+			options: [
+				destructiveMenuOption({
+					label: __('Reject review'),
+					description: __('Decline this review'),
+					icon: 'lucide-circle-x',
+					onClick: () => {
+						showRejectDialog.value = true;
+					},
+				}),
+			],
 		});
 	}
-	// The standalone Withdraw button is only shown to authors who can't review;
-	// surface the same action here so an author who *can* review (e.g. a manager
-	// reviewing their own CR) can still pull it back to Draft from the menu.
-	if (canWithdraw.value) {
-		options.push({
-			label: __('Withdraw'),
-			icon: 'lucide-rotate-ccw',
-			onClick: handleWithdraw,
-		});
-	}
-	return options;
+	return groups;
 });
 
 function setResolution(conflictName, value) {

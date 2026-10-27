@@ -543,6 +543,42 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 1)
 
+	def test_edit_after_failed_merge_clears_stale_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5d")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+
+		update_cr_page(cr.name, page_key, {"content": "main-change"})
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 0)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Merged")
+
+	def test_request_changes_clears_stale_conflicts(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
+		cr = create_change_request(space.name, "CR 5e")
+
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		update_cr_page(cr.name, page_key, {"content": "cr-change"})
+		page.content = "main-change"
+		page.save()
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+
+		request_changes(cr.name, "Rebase on the latest main.")
+
+		self.assertEqual(frappe.db.count("Wiki Merge Conflict", {"change_request": cr.name}), 0)
+
 	def test_retry_rejects_merged_change_request(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
@@ -843,15 +879,58 @@ class TestWikiChangeRequest(FrappeTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			merge_change_request(cr.name)
 
-	def test_in_review_cr_is_locked_for_editing(self):
-		space = create_test_wiki_space()
-		create_test_wiki_document(space.root_group, title="Page A")
+	def _read_level_approver(self):
+		"""Can write any change request, but cannot merge in a space that gives Approvers Read."""
+		return create_user("cr-read-level-approver@example.com", "Wiki User", "Wiki Approver")
+
+	def test_in_review_cr_is_locked_for_other_contributors(self):
+		space = make_space(roles=[("Wiki Approver", "Read")])
 		cr = self._cr_with_change(space, "CR 11b")
 		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
-
 		submit_change_request(cr.name)
+
+		frappe.set_user(self._read_level_approver().name)
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				create_cr_page(cr.name, root_key, "Another Page", content="nope")
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_author_edits_in_review_cr_without_leaving_review(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		author = create_user("cr-review-author@example.com", "Wiki User")
+		frappe.set_user(author.name)
+		try:
+			cr = self._cr_with_change(space, "CR 11b2")
+			root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+			submit_change_request(cr.name)
+
+			create_cr_page(cr.name, root_key, "Follow-up Page", content="more")
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
+		titles = {item.get("title") for item in get_effective_revision_item_map(cr.head_revision).values()}
+		self.assertIn("Follow-up Page", titles)
+
+	def test_writer_edit_sends_approved_cr_back_to_review(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11b3")
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+
+		frappe.set_user(create_user("cr-review-writer@example.com", "Wiki User", "Wiki Approver").name)
+		try:
+			create_cr_page(cr.name, root_key, "Reviewer Fix", content="typo fixed")
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
 		with self.assertRaises(frappe.ValidationError):
-			create_cr_page(cr.name, root_key, "Another Page", content="nope")
+			merge_change_request(cr.name)
 
 	def test_approve_requires_write_access(self):
 		space = create_test_wiki_space()
@@ -932,19 +1011,25 @@ class TestWikiChangeRequest(FrappeTestCase):
 			request_changes(cr.name, "   ")
 
 	def test_changes_requested_reopens_editing(self):
-		space = create_test_wiki_space()
-		create_test_wiki_document(space.root_group, title="Page A")
+		space = make_space(roles=[("Wiki Approver", "Read")])
 		cr = self._cr_with_change(space, "CR 11f")
 		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
 		submit_change_request(cr.name)
+		contributor = self._read_level_approver().name
 
-		# Locked while In Review ...
-		with self.assertRaises(frappe.ValidationError):
-			create_cr_page(cr.name, root_key, "Blocked Page", content="no")
+		frappe.set_user(contributor)
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				create_cr_page(cr.name, root_key, "Blocked Page", content="no")
+		finally:
+			frappe.set_user("Administrator")
 
-		# ... and editable again once changes are requested.
 		request_changes(cr.name, "needs work")
-		create_cr_page(cr.name, root_key, "Revised Page", content="ok")
+		frappe.set_user(contributor)
+		try:
+			create_cr_page(cr.name, root_key, "Revised Page", content="ok")
+		finally:
+			frappe.set_user("Administrator")
 
 	def test_request_changes_requires_write_access(self):
 		space = create_test_wiki_space()
@@ -1021,13 +1106,8 @@ class TestWikiChangeRequest(FrappeTestCase):
 		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
 		submit_change_request(cr.name)
 
-		# Locked while In Review ...
-		with self.assertRaises(frappe.ValidationError):
-			create_cr_page(cr.name, root_key, "Blocked", content="no")
-
 		withdraw_change_request(cr.name)
 
-		# ... back to Draft and editable again.
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Draft")
 		create_cr_page(cr.name, root_key, "Revised", content="ok")
 
