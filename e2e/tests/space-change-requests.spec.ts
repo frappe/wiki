@@ -109,6 +109,51 @@ test.describe('Change requests in the space', () => {
 		}
 	});
 
+	test('the change requests panel filters by status', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha' }, { title: 'Beta' }],
+		});
+		const alpha = space.page('Alpha');
+		await submittedChangeRequest(request, space, alpha, 'Fix Alpha');
+		await changeRequestEditing(
+			request,
+			space,
+			space.page('Beta'),
+			'Draft Beta',
+		);
+		await page.goto(space.url('page', alpha.name));
+
+		await page
+			.getByRole('button', { name: '1 open on this page, 2 in this space' })
+			.click();
+		const panel = page.getByTestId('change-requests-panel');
+		const links = panel.getByRole('link');
+		const filterBy = async (status: string) => {
+			await panel.getByRole('button', { name: /^Status:/ }).click();
+			await page.getByRole('menuitem', { name: status, exact: true }).click();
+			await expect(
+				panel.getByRole('button', { name: `Status: ${status}` }),
+			).toBeVisible();
+		};
+
+		await expect(links).toHaveCount(2);
+
+		await filterBy('In Review');
+		await expect(links).toHaveCount(1);
+		await expect(panel).toContainText('Fix Alpha');
+
+		await filterBy('Draft');
+		await expect(links).toHaveCount(1);
+		await expect(panel).toContainText('Draft Beta');
+
+		await filterBy('Approved');
+		await expect(panel).toContainText('No change requests with this status');
+	});
+
 	test('the change requests panel and page settings share the right slot', async ({
 		page,
 		wiki,
