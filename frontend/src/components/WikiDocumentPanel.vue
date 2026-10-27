@@ -54,7 +54,7 @@
 								:aria-pressed="openPanel === 'change-requests'"
 								@click="toggleChangeRequests"
 							>
-								<template #prefix>
+								<template #icon>
 									<span class="relative inline-flex">
 										<span class="lucide-git-pull-request size-4" aria-hidden="true" />
 										<span
@@ -64,7 +64,6 @@
 										/>
 									</span>
 								</template>
-								{{ pageChangeRequests.length }}
 							</Button>
 						</Tooltip>
 						<Tooltip :text="__('Version history')">
@@ -74,7 +73,9 @@
 								:aria-pressed="openPanel === 'history'"
 								@click="toggleHistory"
 							>
-								<span class="lucide-history size-4" aria-hidden="true" />
+								<template #icon>
+									<span class="lucide-history size-4" aria-hidden="true" />
+								</template>
 							</Button>
 						</Tooltip>
 						<!-- Shown for a synced page too: its meta title, description and
@@ -87,7 +88,9 @@
 								:aria-pressed="showPageSettings"
 								@click="toggleSidePanel('settings')"
 							>
-								<span class="lucide-settings-2 size-4" aria-hidden="true" />
+								<template #icon>
+									<span class="lucide-settings-2 size-4" aria-hidden="true" />
+								</template>
 							</Button>
 						</Tooltip>
 					</div>

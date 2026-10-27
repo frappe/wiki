@@ -14,25 +14,46 @@
 				:aria-label="__('Close change requests')"
 				@click="emit('close')"
 			>
-				<span class="lucide-x size-4" aria-hidden="true" />
+				<template #icon>
+					<span class="lucide-x size-4" aria-hidden="true" />
+				</template>
 			</Button>
+		</div>
+		<div class="flex shrink-0 items-center gap-2 px-3 pt-3">
+			<Dropdown :options="statusMenu">
+				<Button variant="outline">
+					<template #prefix>
+						<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+					</template>
+					{{ __('Status: {0}', [selectedStatus.label]) }}
+					<template #suffix>
+						<span class="lucide-chevron-down size-4" aria-hidden="true" />
+					</template>
+				</Button>
+			</Dropdown>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-10 pt-2">
 			<div
-				v-if="!changeRequests.length"
+				v-if="!visibleChangeRequests.length"
 				class="flex flex-col items-center gap-2 px-4 py-16 text-center"
 			>
 				<div class="rounded-full bg-surface-gray-2 p-3 text-ink-gray-5">
 					<span class="lucide-git-pull-request size-6" aria-hidden="true" />
 				</div>
-				<p class="text-base text-ink-gray-7">{{ __('No open change requests') }}</p>
-				<p class="text-p-sm text-ink-gray-5">
+				<p class="text-base text-ink-gray-7">
+					{{
+						isFiltered
+							? __('No change requests with this status')
+							: __('No open change requests')
+					}}
+				</p>
+				<p v-if="!isFiltered" class="text-p-sm text-ink-gray-5">
 					{{ __('Submitted change requests in this space show up here.') }}
 				</p>
 			</div>
 			<RouterLink
-				v-for="changeRequest in changeRequests"
+				v-for="changeRequest in visibleChangeRequests"
 				:key="changeRequest.name"
 				:to="{
 					name: 'SpaceChangeRequest',
@@ -75,16 +96,45 @@ import {
 	Avatar,
 	Badge,
 	Button,
+	Dropdown,
 	ScrollArea,
 	dayjsLocal,
 } from 'frappe-ui';
+import { computed, ref } from 'vue';
 
-defineProps({
+const props = defineProps({
 	spaceId: { type: String, required: true },
 	changeRequests: { type: Array, required: true },
 });
 
 const emit = defineEmits(['close']);
+
+const status = ref('all');
+const statusOptions = [
+	{ label: __('All'), value: 'all' },
+	...['Draft', 'In Review', 'Changes Requested', 'Approved'].map((value) => ({
+		label: __(value),
+		value,
+	})),
+];
+const selectedStatus = computed(() =>
+	statusOptions.find((option) => option.value === status.value),
+);
+const statusMenu = statusOptions.map((option) => ({
+	label: option.label,
+	onClick: () => {
+		status.value = option.value;
+	},
+}));
+
+const isFiltered = computed(() => status.value !== 'all');
+const visibleChangeRequests = computed(() =>
+	isFiltered.value
+		? props.changeRequests.filter(
+				(changeRequest) => changeRequest.status === status.value,
+			)
+		: props.changeRequests,
+);
 
 function pageCount(changeRequest) {
 	const count = changeRequest.changed_doc_keys.length;
