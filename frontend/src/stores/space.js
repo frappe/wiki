@@ -133,7 +133,7 @@ export const useSpaceStore = defineStore('space', () => {
 		method: 'GET',
 	});
 
-	async function bootstrap(id) {
+	async function loadSpace(id) {
 		const inReview = sessionStorage.getItem(reviewEditKey(id));
 		const params = { space_id: id };
 		if (inReview) params.change_request = inReview;
@@ -156,17 +156,23 @@ export const useSpaceStore = defineStore('space', () => {
 
 	watch(
 		spaceId,
-		(id) => {
+		async (id) => {
 			canWriteSpace.value = false;
 			canDeleteSpace.value = false;
 			canContribute.value = null;
 			if (!id) return;
 			const changeRequest = crStore.currentChangeRequest;
 			if (changeRequest && changeRequest.wiki_space !== id) stopEditing();
-			bootstrap(id);
+			await loadSpace(id);
 		},
 		{ immediate: true },
 	);
+
+	// A review inside the space can merge or reopen the draft the space shows.
+	async function reload() {
+		await loadSpace(spaceId.value);
+		if (showsLiveTree.value) await loadReadonlyTree();
+	}
 
 	const createChangeRequestResource = createResource({
 		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_change_request',
@@ -198,7 +204,7 @@ export const useSpaceStore = defineStore('space', () => {
 		sessionStorage.removeItem(reviewEditKey(id));
 		reviewEditName.value = null;
 		stopEditing();
-		if (id === spaceId.value) await bootstrap(id);
+		if (id === spaceId.value) await loadSpace(id);
 	}
 
 	function stopEditing() {
@@ -263,6 +269,8 @@ export const useSpaceStore = defineStore('space', () => {
 
 	const changeTypeMap = computed(() => {
 		const map = new Map();
+		// A merge from the review page clears the change request but not its changes.
+		if (showsLiveTree.value) return map;
 		for (const change of crStore.changes) {
 			map.set(change.doc_key, change.change_type);
 		}
@@ -400,5 +408,6 @@ export const useSpaceStore = defineStore('space', () => {
 		syncing,
 		syncNow,
 		refreshTree,
+		reload,
 	};
 });

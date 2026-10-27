@@ -1,11 +1,11 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { callMethod, createDoc, getList } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
 import {
 	editDialog,
 	editPage,
-	openPageMenuItem,
+	newPageButton,
+	openTreeRowMenuItem,
 	startEditing,
 } from '../helpers/wiki';
 
@@ -33,6 +33,7 @@ function recordWrites(page: Page) {
 	const writes: string[] = [];
 	page.on('request', (request) => {
 		const url = request.url();
+		if (request.method() === 'GET') return;
 		if (url.includes(CR_METHOD) || url.includes('apply_cr_operations')) {
 			writes.push(url);
 		}
@@ -209,7 +210,7 @@ test.describe('Explicit edit', () => {
 		expect(await changeRequestsIn(request, space.name)).toEqual([]);
 	});
 
-	test('Rename in read mode asks for a change request first', async ({
+	test('row actions show only in edit mode', async ({
 		page,
 		request,
 		wiki,
@@ -217,15 +218,23 @@ test.describe('Explicit edit', () => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await openPageMenuItem(page, 'Rename');
-		await startEditing(page, 'Rename Alpha');
+		const aside = page.locator('aside');
+		await expect(aside.getByText('Alpha', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(
+			aside.locator('[role="treeitem"] .lucide-more-horizontal'),
+		).toHaveCount(0);
+		await expect(newPageButton(page)).toHaveCount(0);
 
-		const rename = page.getByRole('dialog').filter({ hasText: 'Rename Page' });
+		await editPage(page, 'Rename Alpha');
+		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
+		const rename = page.getByRole('dialog').filter({ hasText: 'Change Title' });
 		await rename.getByLabel('Title').fill('Alpha Renamed');
-		await rename.getByRole('button', { name: 'Rename' }).click();
+		await rename.getByRole('button', { name: 'Save' }).click();
 
 		await expect(
-			page.locator('aside').getByText('Alpha Renamed', { exact: true }),
+			aside.getByText('Alpha Renamed', { exact: true }),
 		).toBeVisible();
 		const [changeRequest] = await changeRequestsIn(request, space.name);
 		expect(changeRequest).toMatchObject({
@@ -441,7 +450,7 @@ test.describe('Editing a change request in review', () => {
 			'Content for Alpha Proposed.',
 		);
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 
 		await expect(page).toHaveURL(new RegExp(`/page/${alpha.name}`));
@@ -465,7 +474,9 @@ test.describe('Editing a change request in review', () => {
 		).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
-		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
 		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
 		expect(await changeRequestsIn(request, space.name)).toEqual([
 			expect.objectContaining({ name: cr.name, status: 'In Review' }),
@@ -476,6 +487,52 @@ test.describe('Editing a change request in review', () => {
 			header(page).getByRole('button', { name: 'Edit', exact: true }),
 		).toBeVisible({ timeout: 15000 });
 		await expect(editableEditor(page)).toHaveCount(0);
+	});
+
+	test('merging it from its review leaves no change marks on the tree', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const alpha = space.page('Alpha');
+		const cr = await wiki.changeRequest(space, 'Polish Alpha');
+		await changeRequestInReview(
+			request,
+			cr,
+			alpha.doc_key,
+			'Content for Alpha Proposed.',
+		);
+		const alphaRow = page.locator('aside [role="treeitem"]', {
+			hasText: 'Alpha',
+		});
+
+		await page.goto(space.url('change-requests', cr.name));
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await expect(alphaRow.getByLabel('Modified', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+
+		await header(page)
+			.getByRole('button', { name: /open on this page/ })
+			.click();
+		await page.getByRole('link', { name: /Polish Alpha/ }).click();
+		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
+		await header(page)
+			.getByRole('button', { name: 'Approve', exact: true })
+			.click();
+		await header(page)
+			.getByRole('button', { name: 'Merge', exact: true })
+			.click();
+		await expect(page.getByText('Change request merged')).toBeVisible();
+
+		await alphaRow.click();
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible({ timeout: 15000 });
+		await expect(alphaRow.getByLabel('Modified', { exact: true })).toHaveCount(
+			0,
+		);
 	});
 
 	test('editing it after your own draft in the space shows its text, not yours', async ({
@@ -523,11 +580,7 @@ test.describe('Editing a change request in review', () => {
 		);
 	});
 
-	test('a page it adds offers Done editing', async ({
-		page,
-		request,
-		wiki,
-	}) => {
+	test('a page it adds offers Save', async ({ page, request, wiki }) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		const cr = await wiki.changeRequest(space, 'Add Beta');
 		const tree = await callMethod<{ root_group: string }>(
@@ -545,14 +598,16 @@ test.describe('Editing a change request in review', () => {
 			name: cr.name,
 		});
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page).toHaveURL(/\/draft\//);
 		await expect(editableEditor(page)).toContainText('Content for Beta.', {
 			timeout: 15000,
 		});
 
-		await header(page).getByRole('button', { name: 'Done editing' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
 		await expect(page).toHaveURL(new RegExp(`/change-requests/${cr.name}`));
 	});
 
@@ -574,7 +629,7 @@ test.describe('Editing a change request in review', () => {
 			name: cr.name,
 		});
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page.getByText('Approved · 1 page changed')).toBeVisible({
 			timeout: 15000,
@@ -620,12 +675,12 @@ test.describe('Editing a change request in review', () => {
 		);
 		const page = await context.newPage();
 
-		await page.goto(appUrl('change-requests', authored.name));
+		await page.goto(space.url('change-requests', authored.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await typeAtEnd(page, ' More.');
 
 		await expect(
-			header(page).getByRole('button', { name: 'Done editing' }),
+			header(page).getByRole('button', { name: 'Save', exact: true }),
 		).toBeVisible();
 		await expect(
 			header(page).getByRole('button', { name: 'Merge' }),

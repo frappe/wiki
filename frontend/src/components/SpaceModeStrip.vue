@@ -171,104 +171,6 @@
 			</div>
 		</template>
 	</Dialog>
-
-	<Dialog v-model:open="showChangesDialog" size="lg">
-		<template #title>
-			<div class="flex items-center gap-2">
-				<span
-					class="lucide-git-branch size-5 text-ink-gray-5"
-					aria-hidden="true"
-				/>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Pending Changes') }}
-				</h3>
-			</div>
-		</template>
-		<template #default>
-			<div class="space-y-3 max-h-[60vh] overflow-y-auto">
-				<div
-					v-for="change in crStore.changes"
-					:key="change.doc_key"
-					class="flex items-start gap-3 p-3 rounded-6 border border-outline-gray-2 hover:bg-surface-gray-1"
-				>
-					<div
-						class="flex items-center justify-center size-8 rounded-full shrink-0"
-						:class="getChangeIconClass(change.change_type)"
-					>
-						<span
-							:class="getChangeIcon(change.change_type)"
-							class="size-4"
-							aria-hidden="true"
-						/>
-					</div>
-
-					<div class="flex-1 min-w-0">
-						<div class="flex items-center gap-2">
-							<span class="font-medium text-ink-gray-9 truncate">
-								{{ change.title || __('Untitled') }}
-							</span>
-							<Badge
-								variant="subtle"
-								:theme="getChangeTheme(change.change_type)"
-								size="sm"
-							>
-								{{ getChangeLabel(change.change_type) }}
-							</Badge>
-						</div>
-						<p class="text-sm text-ink-gray-5 mt-0.5">
-							{{
-								getChangeDescription(
-									change.change_type,
-									change.is_group,
-									change.is_external_link,
-								)
-							}}
-						</p>
-						<p
-							v-if="change.is_external_link && change.external_url"
-							class="text-sm text-ink-gray-5 mt-0.5 truncate"
-						>
-							<a
-								:href="change.external_url"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="text-ink-blue-link hover:underline"
-							>
-								{{ change.external_url }}
-							</a>
-						</p>
-					</div>
-
-					<div class="flex items-center gap-1 text-ink-gray-4 shrink-0">
-						<span
-							v-if="change.is_group"
-							class="lucide-folder size-4"
-							aria-hidden="true"
-						/>
-						<span
-							v-else-if="change.is_external_link"
-							class="lucide-link size-4"
-							aria-hidden="true"
-						/>
-						<span v-else class="lucide-file-text size-4" aria-hidden="true" />
-					</div>
-				</div>
-
-				<div
-					v-if="crStore.changes.length === 0"
-					class="text-center py-8 text-ink-gray-5"
-				>
-					{{ __('No pending changes') }}
-				</div>
-			</div>
-		</template>
-		<template #actions="{ close }">
-			<div class="flex justify-end">
-				<Button variant="outline" @click="close">{{ __('Close') }}</Button>
-			</div>
-		</template>
-	</Dialog>
-
 </template>
 
 <script setup>
@@ -284,7 +186,6 @@ import {
 import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
-import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
 import { useMobile } from '../composables/useMobile';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
@@ -298,13 +199,6 @@ defineProps({
 	showSyncState: { type: Boolean, default: false },
 });
 
-const {
-	getChangeIcon,
-	getChangeIconClass,
-	getChangeTheme,
-	getChangeLabel,
-	getChangeDescription,
-} = useChangeTypeDisplay();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
@@ -381,8 +275,6 @@ watch(
 	},
 );
 
-const showChangesDialog = ref(false);
-
 const changeRequestTitle = computed(
 	() => crStore.currentChangeRequest?.title || __('Untitled change request'),
 );
@@ -417,7 +309,7 @@ async function saveDetails() {
 
 // Offered with no changes too: it is how you leave edit mode after an Edit you
 // did not need. A change request in review may be someone else's work, so it
-// is left with Done editing, never archived from here.
+// is left with Save, never archived from here.
 const canShowDiscard = computed(
 	() => !crStore.finalizing && !spaceStore.isEditingInReview,
 );
@@ -427,10 +319,8 @@ const menuOptions = computed(() => {
 	if (crStore.changeCount > 0) {
 		options.push({
 			label: __('View changes ({0})', [crStore.changeCount]),
-			icon: 'lucide-list',
-			onClick: () => {
-				showChangesDialog.value = true;
-			},
+			icon: 'lucide-git-compare',
+			onClick: crActions.viewChanges,
 		});
 	}
 	if (canShowDiscard.value) {

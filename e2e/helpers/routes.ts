@@ -35,5 +35,7 @@ export function spaceLinkSelector(spaceId?: string): string {
 /** Matches a URL sitting on some space — for `toHaveURL`. */
 export const SPACE_URL_RE = new RegExp(`${APP_BASE}/spaces/`);
 
-/** Matches a URL sitting on some change request — for `toHaveURL`. */
-export const CHANGE_REQUEST_URL_RE = new RegExp(`${APP_BASE}/change-requests/`);
+/** Matches a URL sitting on some change request, inside its space — for `toHaveURL`. */
+export const CHANGE_REQUEST_URL_RE = new RegExp(
+	`${APP_BASE}/spaces/[^/]+/change-requests/`,
+);

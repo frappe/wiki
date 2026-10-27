@@ -180,3 +180,31 @@ test.describe('Read mode', () => {
 		await expect(reader(page).getByText('Content for Beta')).toBeVisible();
 	});
 });
+
+test.describe('Read mode on a touch screen', () => {
+	test.use({
+		hasTouch: true,
+		isMobile: true,
+		viewport: { width: 390, height: 844 },
+	});
+
+	test('the code toolbar sits above the code, not on it', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [
+				{
+					title: 'Setup',
+					content: '```bash\nbench get-app wiki --branch develop\n```',
+				},
+			],
+		});
+
+		await openPage(page, space, 'Setup');
+		const block = reader(page).locator('pre.code-block-enhanced');
+		const toolbar = await block.locator('.code-block-toolbar').boundingBox();
+		const code = await block.locator('code').boundingBox();
+		expect(toolbar.y + toolbar.height).toBeLessThanOrEqual(code.y);
+	});
+});

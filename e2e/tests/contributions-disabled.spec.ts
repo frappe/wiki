@@ -79,7 +79,7 @@ test('a reader who cannot contribute gets the read-only tree, not a dead New pag
 	await context.close();
 });
 
-test('a reader who may contribute still gets New page', async ({
+test('a reader who may contribute gets Edit, and New page from the palette', async ({
 	browser,
 	request,
 	wiki,
@@ -100,9 +100,9 @@ test('a reader who may contribute still gets New page', async ({
 	);
 	const page = await context.newPage();
 	await page.goto(space.url());
-	await expect(page.getByRole('button', { name: 'New page' })).toBeVisible({
-		timeout: 15000,
-	});
+	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
+	// The sidebar adds pages in edit mode only.
+	await expect(page.getByRole('button', { name: 'New page' })).toBeHidden();
 
 	const palette = page.getByRole('dialog');
 	await page.keyboard.press('ControlOrMeta+k');
@@ -150,7 +150,7 @@ test('a reader opening a page never asks for a change request while the space lo
 	const page = await context.newPage();
 	const changeRequestCalls: string[] = [];
 	page.on('request', (req) => {
-		if (req.url().includes('wiki_change_request.')) {
+		if (req.method() !== 'GET' && req.url().includes('wiki_change_request.')) {
 			changeRequestCalls.push(req.url());
 		}
 	});

@@ -32,6 +32,11 @@ class WikiRevision(Document):
 	pass
 
 
+def on_doctype_update():
+	# Version history reads a space's main chain in time order.
+	frappe.db.add_index("Wiki Revision", ["wiki_space", "created_at"])
+
+
 def create_revision_from_live_tree(
 	wiki_space: str,
 	message: str | None = None,

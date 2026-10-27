@@ -971,7 +971,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Record the editor's canonical markdown immediately so submit/merge
 	// gating observes the same snapshot that will be persisted and saved.
 	function recordEditorContent(docKey, content, title, options = {}) {
-		if (!docKey) return;
+		// An editor still mounted after a merge or discard reports its last content.
+		if (!docKey || !crName.value) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
 		pageBuffers.ensure(realKey, { title: title || '' });
 		pageBuffers.setLocalContent(realKey, content);
@@ -984,7 +985,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// markdown with its configured parser. Rebasing here prevents harmless
 	// markdown round-trip differences from manufacturing dirty state.
 	function reconcileEditorContent(docKey, content, savedContent, title) {
-		if (!docKey) return;
+		if (!docKey || !crName.value) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
 		const page = pageBuffers.reconcileEditorContent(
 			realKey,

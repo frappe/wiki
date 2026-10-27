@@ -3,8 +3,13 @@ import {
 	clickSidebarAddOption,
 	createDraftAndOpenEditor,
 	saveEditor,
-	startEditing,
 } from '../helpers/wiki';
+
+declare global {
+	interface Window {
+		__opened: string[];
+	}
+}
 
 /**
  * Tests for the external link feature in wiki.
@@ -48,7 +53,7 @@ test.describe('External Links', () => {
 		await expect(newBadge).toBeVisible();
 	});
 
-	test('should show external link with link icon after merge and open edit dialog on click', async ({
+	test('a merged external link opens its URL when reading and its settings when editing', async ({
 		page,
 		wiki,
 	}) => {
@@ -98,10 +103,23 @@ test.describe('External Links', () => {
 		const newBadge = itemRow.getByText('New');
 		await expect(newBadge).not.toBeVisible();
 
-		// Click on the external link - should open edit dialog, not navigate.
-		// Editing it needs a change request, which read mode asks for first.
+		// Reading, the link opens its URL.
+		await page.evaluate(() => {
+			window.__opened = [];
+			window.open = (url) => {
+				window.__opened.push(String(url));
+				return null;
+			};
+		});
 		await sidebarItem.click();
-		await startEditing(page, 'Edit the link');
+		expect(await page.evaluate(() => window.__opened)).toEqual([
+			externalLinkUrl,
+		]);
+
+		// Editing, it opens its settings instead.
+		await wiki.changeRequest(space, 'Edit the link');
+		await page.reload();
+		await sidebarItem.click();
 
 		// Verify the edit dialog appears
 		const editDialog = page.getByRole('dialog');

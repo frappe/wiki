@@ -55,11 +55,16 @@
                  scrolls under its sticky toolbar instead of the whole panel
                  sliding inside a second one. -->
             <main class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-base">
-                <router-view
-                    :space-id="spaceId"
-                    :readonly="spaceStore.isReadonly"
-                    @refresh="spaceStore.refreshTree"
-                />
+                <!-- The review loads one change request per mount. -->
+                <router-view v-slot="{ Component, route: child }">
+                    <component
+                        :is="Component"
+                        :key="child.params.changeRequestId"
+                        :space-id="spaceId"
+                        :readonly="spaceStore.isReadonly"
+                        @refresh="spaceStore.refreshTree"
+                    />
+                </router-view>
             </main>
         </div>
 

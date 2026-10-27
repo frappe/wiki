@@ -46,9 +46,11 @@ directly as `parent_key`.
 |---|---|---|
 | `$CR.get_change_request` | `name` | Full CR dict |
 | `$CR.list_change_requests` | `wiki_space`, `status?` | `[{name, title, status, base_revision, head_revision, merge_revision, outdated, modified, merged_at, merged_by, owner, ...}]`, newest first |
+| `$CR.list_open_change_requests` | `wiki_space` | Everyone's `In Review` / `Changes Requested` / `Approved` CRs plus your own open draft: `[{name, title, status, owner, owner_name, owner_image, modified, changed_doc_keys}]`, newest first. GET. |
 | `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int}` |
 | `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content}` |
 | `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides |
+| `$CR.get_change_request_review` | `name` | `{author: {full_name, image}, pages: [{doc_key, change_type, title, ..., base, head, location?}]}`; each side is `{title, content, html}` or null. Every changed page in one call. GET. |
 | `$CR.check_outdated` | `name` | `0` \| `1`; also persisted to `outdated` |
 | `$CR.check_route_available` | `wiki_space`, `route`, `cr_name?`, `exclude_doc_key?` | `{route: <sanitized>, available: bool}` — **advisory only** |
 | `wiki.api.get_space_capabilities` | `space` | `{can_read, can_write, can_contribute, can_delete}` |
