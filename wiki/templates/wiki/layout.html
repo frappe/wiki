@@ -106,43 +106,32 @@
         </div>
     </div>
     
-    <!-- Image lightbox overlay -->
-    <div id="image-viewer"
-         class="fixed inset-0 z-[9999] flex items-center justify-center cursor-zoom-out opacity-0 invisible transition-opacity duration-150 ease-in-out bg-[color-mix(in_srgb,var(--surface-base)_90%,transparent)]">
-        <img id="image-viewer-img"
-             class="min-w-[45rem] max-w-[60vw] max-h-[80vh] object-contain cursor-zoom-out max-[768px]:min-w-[100vw]" />
-    </div>
-
-    <!-- A <picture>'s dark <source> follows the OS, but the reader picks the wiki
-         theme. Point each one at the current theme, after SPA navigation too. -->
-    <script>
-        (function () {
-            function syncPictureSources() {
-                const media = document.documentElement.getAttribute('data-theme') === 'dark' ? 'all' : 'not all';
-                document
-                    .querySelectorAll('picture source[media="(prefers-color-scheme: dark)"], picture source[data-dark-source]')
-                    .forEach((source) => {
-                        source.dataset.darkSource = '';
-                        if (source.media !== media) source.media = media;
-                    });
-            }
-            syncPictureSources();
-            new MutationObserver(syncPictureSources).observe(document.documentElement, { attributeFilter: ['data-theme'] });
-            const content = document.getElementById('wiki-content');
-            if (content) new MutationObserver(syncPictureSources).observe(content, { childList: true, subtree: true });
-        })();
-    </script>
-
     <!-- Wiki-owned highlight.js (highlight.js/lib/common — same language set as
          the frappe-ui editor), so the public reader tokenises 1-1 with the
-         editor and the shared frappe-ui-code.css theme. Must load before
-         code-blocks.js, which calls window.hljs.highlightAll(). -->
+         editor and the shared frappe-ui-code.css theme. -->
     <script src="/assets/wiki/js/wiki-highlight.bundle.js?v={{ get_asset_hash('public/js/wiki-highlight.bundle.js') }}"></script>
-    <script src="/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}"></script>
-    <script src="/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}"></script>
-    <script defer src="/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}"></script>
     <script src="/assets/wiki/js/mermaid-loader.js?v={{ get_asset_hash('public/js/mermaid-loader.js') }}"></script>
-    <script defer src="/assets/wiki/js/mermaid-renderer.js?v={{ get_asset_hash('public/js/mermaid-renderer.js') }}"></script>
+    <!-- The app's read mode imports these modules too. -->
+    <script type="module">
+        import { enhanceCodeBlocks } from "/assets/wiki/js/code-blocks.js?v={{ get_asset_hash('public/js/code-blocks.js') }}";
+        import { bindImageViewer } from "/assets/wiki/js/image-viewer.js?v={{ get_asset_hash('public/js/image-viewer.js') }}";
+        import { renderMermaid } from "/assets/wiki/js/mermaid-renderer.js?v={{ get_asset_hash('public/js/mermaid-renderer.js') }}";
+        import { bindPdfEmbeds } from "/assets/wiki/js/pdf-viewer.js?v={{ get_asset_hash('public/js/pdf-viewer.js') }}";
+        import { bindThemeImages } from "/assets/wiki/js/theme-images.js?v={{ get_asset_hash('public/js/theme-images.js') }}";
+
+        const content = document.getElementById('wiki-content');
+        if (content) {
+            bindImageViewer(content);
+            bindPdfEmbeds(content);
+            bindThemeImages(content);
+            // sidebar.html calls this after client-side navigation.
+            window.wikiEnhanceContent = () => {
+                enhanceCodeBlocks(content, window.hljs);
+                renderMermaid(content, window.wikiGetMermaid);
+            };
+            window.wikiEnhanceContent();
+        }
+    </script>
     {% if enable_view_tracking %}{% include "templates/wiki/includes/page_view.html" %}{% endif %}
 </body>
 {% block scripts %} {% endblock %}

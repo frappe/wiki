@@ -82,7 +82,7 @@ In Reading the page renders the cached server HTML. The editor chunk loads only 
 
 - New whitelisted `get_page_html(name)`: `doc.check_permission("read")`, then `get_rendered_content` (Redis cached) and `resolve_wiki_links`. Returns `html`, `toc`, `modified`, `modified_by`. Works for unpublished pages: the SPA shows them to space readers today.
 - `WikiDocumentPanel` picks `WikiPageReader` (new, small) in Reading and `WikiEditor` in Editing. `WikiEditor` becomes a `defineAsyncComponent` import, so its chunk and `wiki-starterkit` load on Edit.
-- `WikiPageReader` renders the HTML inside `.wiki-rendered` and runs the reader's block scripts from `wiki/public/js/`: code block copy, image viewer, mermaid, PDF viewer. Port them as ES modules the SPA and the reader both import, rather than copying. Callout styles move into `wiki-rendered.css` from `main.css`.
+- `WikiPageReader` renders the HTML inside `.wiki-rendered` and runs the reader's block scripts from `wiki/public/js/`: code block copy, image viewer, mermaid, PDF viewer. Port them as ES modules the SPA and the reader both import, rather than copying. The reader's content styles (callouts, code blocks, tables, images, PDF cards) move out of `main.css` into one `wiki/public/css/wiki-rendered.css`, scoped to `.wiki-rendered`, which both surfaces import.
 - The outline uses the server `toc`.
 - Prefetch: hovering Edit, or opening the Edit dialog, starts the editor chunk download, so the editor is ready by the time the user confirms the title.
 
@@ -214,3 +214,36 @@ Full suite on wiki.localhost: 204 passed, 46 failed, none from this change:
 
 - 45 public reader pages time out on `networkidle`. `page_view.html` sends `make_view_log` with `keepalive: true`, and Chromium never reports a keepalive fetch as finished. Separate fix.
 - `command-palette` "sets the theme named in the query" fails on develop too.
+
+### Part 2: Read mode HTML (2026-10-22)
+
+Done:
+
+- `get_page_html(name)` is a GET. It checks read permission on the document, then returns the Redis-cached HTML with wiki links resolved, the `toc`, `modified` and `modified_by`. The outline ignores the reader's TOC setting, as the editor's does.
+- The reader's content scripts are ES modules with one exported function each, taking the content root: `enhanceCodeBlocks`, `bindImageViewer`, `bindPdfEmbeds`, `renderMermaid`, and a new `bindThemeImages` for `<picture>` dark sources. `layout.html` imports them in one module script and exposes `wikiEnhanceContent` for the reader's client-side navigation. The image viewer builds its own overlay, so the markup left `layout.html`.
+- `wiki/public/css/wiki-rendered.css` holds every content rule that was in `main.css`, scoped to `.wiki-rendered`. The reader's `#wiki-content` and the app's read mode both carry the class. The generated `frappe-ui-code.css` is scoped to `.wiki-rendered` too, so the app imports it without touching the editor.
+- The reader's PDF modal is now `wiki-pdf-viewer*`. It shared `wiki-pdf-modal*` with the editor's `PdfViewerModal`, and their rules conflict (`display: none` against `flex`).
+- `WikiPageReader` renders the HTML in the editor's layout, with the outline from `toc` (`EditorTableOfContents` takes `headings` when there is no editor). Links to pages in the space open in the app; other web links open in a new tab.
+- `WikiDocumentPanel` fetches the HTML beside the document, not after it, cached per page. `WikiEditor` is an async import. Its chunk starts loading on Edit hover or focus, when the Edit dialog opens, and when the space is already in Editing.
+- The rail and strip choice moved into `useOutlineLayout`, shared by the editor and the reader.
+
+Measured on `perf-763510` (Administrator, 100 ms latency, median of 5, raw bytes since the local server does not gzip):
+
+| | Before | After |
+| --- | --- | --- |
+| Time to article visible | 840 ms | 742 ms |
+| JS loaded | 2,544 KB | 1,571 KB |
+| `wiki-starterkit` + `WikiEditor` chunks | 997 KB | not loaded |
+
+Fetching the HTML only once the document arrived was slower than before (933 ms), which is why the panel starts both requests together.
+
+Pixel check, kitchen sink page (text, lists, tasks, quote, code, callouts, table, theme image with caption, mermaid, PDF):
+
+- Public reader before and after this change: identical in light and dark.
+- App read mode against the public reader at the same width: identical apart from antialiasing, with one difference that predates this change. `theme.css` dims every reader image in dark mode (`brightness(0.8) contrast(1.2)`); the app never has.
+
+Tests: `TestGetPageHtml` (HTML and outline, unpublished page, outsider refused). `e2e/tests/read-mode.spec.ts`: a page view loads no editor chunk until Edit, code/image/PDF/mermaid behave as in the reader, the outline comes from the server, and a page link stays in the app. Updated `git-sync-readonly`, `git-sync-edit-on-github`, `command-palette` and `public-pdf-loading` for read mode and the renamed PDF viewer.
+
+Full suite on wiki.localhost with view tracking off: 253 passed, 1 skipped, 1 failed. The failure is `command-palette` "sets the theme named in the query": the site has leftover "CR Preview Highlight" spaces, so "light" matches a space ranked above the Actions group.
+
+Correction to Part 1's note: the `networkidle` timeouts are not the `keepalive` flag. With view tracking on and a signed-in user, `make_view_log` never reports finished to Playwright, even with `keepalive` off or the request fulfilled by a route. The server answers in 9 ms. Guests are not affected. Still a separate fix.

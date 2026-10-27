@@ -85,14 +85,14 @@ test.describe('Public PDF embed', () => {
 
 		await page.locator('.wiki-pdf-embed [data-role="open"]').click();
 
-		const viewer = page.locator('.wiki-pdf-modal-scroll');
+		const viewer = page.locator('.wiki-pdf-viewer-scroll');
 		const loader = viewer.locator('[data-role="loader"]');
 		await expect(loader).toBeVisible();
-		await expect(page.locator('.wiki-pdf-modal-zoom')).toHaveText('120%');
+		await expect(page.locator('.wiki-pdf-viewer-zoom')).toHaveText('120%');
 
 		releasePdf();
 
-		await expect(viewer.locator('canvas.wiki-pdf-modal-page')).toHaveCount(1);
+		await expect(viewer.locator('canvas.wiki-pdf-viewer-page')).toHaveCount(1);
 		await expect(loader).toHaveCount(0);
 	});
 });
