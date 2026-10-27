@@ -1,7 +1,6 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { callMethod, createDoc, getList } from '../helpers/frappe';
-import { appUrl } from '../helpers/routes';
 import {
 	editDialog,
 	editPage,
@@ -442,7 +441,7 @@ test.describe('Editing a change request in review', () => {
 			'Content for Alpha Proposed.',
 		);
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 
 		await expect(page).toHaveURL(new RegExp(`/page/${alpha.name}`));
@@ -546,7 +545,7 @@ test.describe('Editing a change request in review', () => {
 			name: cr.name,
 		});
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page).toHaveURL(/\/draft\//);
 		await expect(editableEditor(page)).toContainText('Content for Beta.', {
@@ -575,7 +574,7 @@ test.describe('Editing a change request in review', () => {
 			name: cr.name,
 		});
 
-		await page.goto(appUrl('change-requests', cr.name));
+		await page.goto(space.url('change-requests', cr.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page.getByText('Approved · 1 page changed')).toBeVisible({
 			timeout: 15000,
@@ -621,7 +620,7 @@ test.describe('Editing a change request in review', () => {
 		);
 		const page = await context.newPage();
 
-		await page.goto(appUrl('change-requests', authored.name));
+		await page.goto(space.url('change-requests', authored.name));
 		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await typeAtEnd(page, ' More.');
 

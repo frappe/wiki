@@ -22,6 +22,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	delete_cr_page,
 	diff_change_request,
 	get_change_request,
+	get_change_request_review,
 	get_cr_page,
 	get_cr_tree,
 	get_merge_conflicts,
@@ -959,6 +960,43 @@ class TestWikiChangeRequest(FrappeTestCase):
 		)
 		self.assertIn(page_key, rows[0].changed_doc_keys)
 		self.assertEqual(len(rows[0].changed_doc_keys), 2)
+
+	def test_change_request_review_renders_both_sides(self):
+		space = create_test_wiki_space()
+		edited = create_test_wiki_document(space.root_group, title="Page A", content="Hello world")
+		removed = create_test_wiki_document(space.root_group, title="Page B", content="Going away")
+		edited_key = frappe.get_value("Wiki Document", edited.name, "doc_key")
+		removed_key = frappe.get_value("Wiki Document", removed.name, "doc_key")
+		cr = self._cr_with_change(space, "Rewrite")
+		update_cr_page(cr.name, edited_key, {"content": "Hello **wiki**", "title": "Page A2"})
+		delete_cr_page(cr.name, removed_key)
+
+		review = get_change_request_review(cr.name)
+		pages = {page["doc_key"]: page for page in review["pages"]}
+
+		self.assertEqual(review["author"]["full_name"], "Administrator")
+		self.assertEqual(len(pages), 3)
+		page = pages[edited_key]
+		self.assertEqual((page["base"]["title"], page["head"]["title"]), ("Page A", "Page A2"))
+		self.assertEqual(page["base"]["content"], "Hello world")
+		self.assertIn("<p>Hello world</p>", page["base"]["html"])
+		self.assertIn("<strong>wiki</strong>", page["head"]["html"])
+		self.assertIsNone(pages[removed_key]["head"])
+		self.assertIn("Going away", pages[removed_key]["base"]["html"])
+		added = next(page for page in pages.values() if page["change_type"] == "added")
+		self.assertIsNone(added["base"])
+		self.assertIn("hello", added["head"]["html"])
+
+	def test_change_request_review_refuses_an_outsider(self):
+		space = make_space(roles=[("Wiki Manager", "Read")])
+		cr = self._cr_with_change(space, "Private")
+
+		frappe.set_user(create_user("cr-pages-outsider@example.com", "Wiki User").name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				get_change_request_review(cr.name)
+		finally:
+			frappe.set_user("Administrator")
 
 	def test_open_change_requests_refuse_an_outsider(self):
 		space = make_space(roles=[("Wiki Manager", "Read")])

@@ -36,6 +36,10 @@ const props = defineProps({
 		type: String,
 		default: 'split',
 	},
+	showHeader: {
+		type: Boolean,
+		default: true,
+	},
 });
 
 const wrapper = ref(null);
@@ -62,6 +66,7 @@ function renderDiff() {
 		diffStyle: props.diffStyle,
 		lineDiffType: 'word',
 		themeType: themeType.value,
+		disableFileHeader: !props.showHeader,
 	});
 
 	diffInstance.render({
