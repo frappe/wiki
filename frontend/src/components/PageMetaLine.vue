@@ -80,7 +80,7 @@ const parts = computed(() => {
 		result.push({ key: 'reading', label: __('{0} min read', [minutes]) });
 	}
 	const views = recentViews.data;
-	if (typeof views === 'number') {
+	if (views > 0) {
 		const label =
 			views === 1
 				? __('1 view in last 30 days')

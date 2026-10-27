@@ -6,33 +6,65 @@
 			     owned by the repo, so it offers the round trip to GitHub
 			     instead of an edit flow. -->
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
-				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+				<div class="flex min-w-0 flex-1 items-center gap-1">
+					<Breadcrumbs :items="breadcrumbs" class="min-w-0" />
+					<Tooltip v-if="displayPublished" :text="__('Open live page')">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="shrink-0 text-ink-gray-5"
+							:aria-label="__('Open live page')"
+							@click="openPage"
+						>
+							<span class="lucide-external-link size-3.5" aria-hidden="true" />
+						</Button>
+					</Tooltip>
+				</div>
 				<div class="flex shrink-0 items-center gap-2">
 					<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
 						{{ __('Read-only') }}
 					</Badge>
-					<div class="mr-2 flex items-center gap-1">
-						<Tooltip :text="__('View live')">
-							<Button
-								v-if="displayPublished"
-								variant="ghost"
-								:aria-label="__('View live')"
-								@click="openPage"
-							>
-								<span class="lucide-eye size-4" aria-hidden="true" />
-							</Button>
-						</Tooltip>
-						<Tooltip v-if="!spaceStore.isGitSynced" :text="__('Change requests')">
+					<Button
+						v-if="readonly && githubEditUrl"
+						variant="outline"
+						@click="openGithubEdit"
+					>
+						<template #prefix>
+							<span class="lucide-pencil size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit on GitHub') }}
+					</Button>
+					<Button
+						v-if="spaceStore.isReading"
+						variant="subtle"
+						@click="editPage"
+						@mouseenter="loadEditor"
+						@focus="loadEditor"
+					>
+						<template #prefix>
+							<span class="lucide-pencil size-4" aria-hidden="true" />
+						</template>
+						{{ __('Edit') }}
+					</Button>
+					<div class="flex items-center gap-1">
+						<Tooltip v-if="!spaceStore.isGitSynced" :text="changeRequestsLabel">
 							<Button
 								:variant="openPanel === 'change-requests' ? 'subtle' : 'ghost'"
-								:aria-label="__('{0} open change requests', [changeRequests.length])"
+								:aria-label="changeRequestsLabel"
 								:aria-pressed="openPanel === 'change-requests'"
 								@click="toggleChangeRequests"
 							>
 								<template #prefix>
-									<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+									<span class="relative inline-flex">
+										<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+										<span
+											v-if="pageChangeRequests.length"
+											class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-surface-blue-5"
+											aria-hidden="true"
+										/>
+									</span>
 								</template>
-								{{ changeRequests.length }}
+								{{ pageChangeRequests.length }}
 							</Button>
 						</Tooltip>
 						<Tooltip :text="__('Version history')">
@@ -55,52 +87,19 @@
 								:aria-pressed="showPageSettings"
 								@click="toggleSidePanel('settings')"
 							>
-								<span class="lucide-panel-right size-4" aria-hidden="true" />
+								<span class="lucide-settings-2 size-4" aria-hidden="true" />
 							</Button>
 						</Tooltip>
 					</div>
-					<Button
-						v-if="readonly && githubEditUrl"
-						variant="outline"
-						@click="openGithubEdit"
-					>
-						<template #prefix>
-							<span class="lucide-pencil size-4" aria-hidden="true" />
-						</template>
-						{{ __('Edit on GitHub') }}
-					</Button>
-					<Button
-						v-if="spaceStore.isReading"
-						variant="solid"
-						@click="editPage"
-						@mouseenter="loadEditor"
-						@focus="loadEditor"
-					>
-						<template #prefix>
-							<span class="lucide-pencil size-4" aria-hidden="true" />
-						</template>
-						{{ __('Edit') }}
-					</Button>
-					<!-- The phone header has no room for it; the strip above carries it. -->
-					<MergeChangeRequestButton v-if="!isMobile" />
-					<SubmitForReviewButton />
-					<FinishEditingButton />
-					<Dropdown v-if="menuOptions.length" :options="menuOptions">
-						<Button
-							variant="ghost"
-							:title="__('Page actions')"
-							:aria-label="__('Page actions')"
-						>
-							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
+					<!-- Each button decides its own visibility; empty:hidden drops the divider when none show. -->
+					<div class="ml-1 flex items-center gap-2 border-l border-outline-gray-2 pl-3 empty:hidden">
+						<!-- The phone header has no room for it; the strip above carries it. -->
+						<MergeChangeRequestButton v-if="!isMobile" />
+						<SubmitForReviewButton />
+						<FinishEditingButton />
+					</div>
 				</div>
 			</div>
-			<PageChangeRequestsNotice
-				v-if="showChangeRequestsNotice"
-				:space-id="spaceId"
-				:change-requests="pageChangeRequests"
-			/>
 			<!-- The panel takes the right edge of the row, so the scroller it
 			     sits beside is narrower than the window — which is what the
 			     editor measures to decide between the outline's two variants. -->
@@ -158,7 +157,6 @@
 					v-if="selectedVersion"
 					:space-id="spaceId"
 					:version="selectedVersion"
-					:doc-key="historyScope === 'page' ? wikiDoc.doc?.doc_key : null"
 					@back="selectedVersion = null"
 				/>
 				<PageSettingsPanel
@@ -173,23 +171,34 @@
 					:content="editorContent"
 					@close="closeSidePanel"
 				/>
-				<ChangeRequestsPanel
-					v-else-if="openPanel === 'change-requests'"
-					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
-					:space-id="spaceId"
-					:change-requests="changeRequests"
-					:doc-key="wikiDoc.doc?.doc_key"
-					@close="closeSidePanel"
-				/>
-				<HistoryPanel
-					v-else-if="openPanel === 'history'"
-					v-model:scope="historyScope"
-					v-model:selected="selectedVersion"
-					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
-					:space-id="spaceId"
-					:doc-key="wikiDoc.doc?.doc_key"
-					@close="toggleHistory"
-				/>
+				<Teleport defer to="#wiki-side-panel" :disabled="isMobile">
+					<Transition
+						enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
+						enter-from-class="translate-x-6 opacity-0"
+						leave-active-class="transition duration-150 ease-in motion-reduce:transition-none"
+						leave-to-class="translate-x-6 opacity-0"
+					>
+						<div
+							v-if="openPanel === 'change-requests' || openPanel === 'history'"
+							class="flex max-md:absolute max-md:inset-0 max-md:z-10 max-md:bg-surface-base"
+						>
+							<ChangeRequestsPanel
+								v-if="openPanel === 'change-requests'"
+								class="max-md:w-full"
+								:space-id="spaceId"
+								:change-requests="changeRequests"
+								@close="closeSidePanel"
+							/>
+							<HistoryPanel
+								v-else
+								v-model:selected="selectedVersion"
+								class="max-md:w-full"
+								:space-id="spaceId"
+								@close="toggleHistory"
+							/>
+						</div>
+					</Transition>
+				</Teleport>
 			</div>
 		</div>
 
@@ -217,56 +226,6 @@
 				<Skeleton class="h-4 w-3/4 rounded-4" />
 			</div>
 		</div>
-		<Dialog v-model:open="showRenameDialog" size="sm">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Rename Page') }}</h3>
-			</template>
-			<template #default>
-				<FormControl
-					v-model="editableRenameTitle"
-					:label="__('Title')"
-					type="text"
-					:placeholder="__('Page title')"
-				/>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isRenaming" @click="renamePage(close)">
-						{{ __('Rename') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
-		<Dialog v-model:open="showDeleteDialog" size="sm">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Delete') }} "{{ displayTitle || __('Untitled') }}"
-				</h3>
-			</template>
-			<template #default>
-				<p class="text-ink-gray-7">
-					{{
-						__(
-							'The page is removed from the space when this change request is merged.',
-						)
-					}}
-				</p>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button
-						variant="solid"
-						theme="red"
-						:loading="isDeleting"
-						@click="deletePage(close)"
-					>
-						{{ __('Save Delete Draft') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
 	</div>
 </template>
 
@@ -275,7 +234,6 @@ import { useOpenChangeRequests } from '@/composables/useOpenChangeRequests';
 import { useSidePanel } from '@/composables/useSidePanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
-import { destructiveMenuOption } from '@/lib/menu';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -284,9 +242,6 @@ import {
 	Badge,
 	Breadcrumbs,
 	Button,
-	Dialog,
-	Dropdown,
-	FormControl,
 	ScrollArea,
 	Skeleton,
 	Tooltip,
@@ -312,7 +267,6 @@ import ChangeRequestsPanel from './ChangeRequestsPanel.vue';
 import FinishEditingButton from './FinishEditingButton.vue';
 import HistoryPanel from './HistoryPanel.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
-import PageChangeRequestsNotice from './PageChangeRequestsNotice.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
@@ -337,12 +291,6 @@ const props = defineProps({
 const emit = defineEmits(['refresh']);
 
 const editableTitle = ref('');
-const showRenameDialog = ref(false);
-const editableRenameTitle = ref('');
-const isRenaming = ref(false);
-const showDeleteDialog = ref(false);
-const isDeleting = ref(false);
-const historyScope = ref('page');
 const selectedVersion = ref(null);
 
 const route = useRoute();
@@ -385,10 +333,6 @@ async function editPage() {
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
-}
-
-async function whenEditing(action) {
-	if (await requireEditing()) action();
 }
 
 watch(
@@ -608,13 +552,11 @@ const {
 const pageChangeRequests = computed(() =>
 	changingPage(wikiDoc.value.doc?.doc_key),
 );
-// The panel's first group says the same thing.
-const showChangeRequestsNotice = computed(
-	() =>
-		!isEditing.value &&
-		!selectedVersion.value &&
-		pageChangeRequests.value.length > 0 &&
-		openPanel.value !== 'change-requests',
+const changeRequestsLabel = computed(() =>
+	__('{0} open on this page, {1} in this space', [
+		pageChangeRequests.value.length,
+		changeRequests.value.length,
+	]),
 );
 
 function toggleHistory() {
@@ -756,90 +698,9 @@ const githubEditUrl = computed(() => {
 // A synced page has no editable state here — the repo owns it, and the
 // header already offers the trip to GitHub. In read mode each action asks for
 // a change request first.
-const menuOptions = computed(() => {
-	if (!spaceStore.canEdit) return [];
-	return [
-		{
-			group: __('Page'),
-			hideLabel: true,
-			options: [
-				{
-					label: __('Rename'),
-					icon: 'lucide-pencil',
-					onClick: () => whenEditing(openRenameDialog),
-				},
-				{
-					label: displayPublished.value ? __('Unpublish') : __('Publish'),
-					icon: 'lucide-upload-cloud',
-					onClick: () => whenEditing(togglePublish),
-				},
-			],
-		},
-		{
-			group: __('Danger'),
-			hideLabel: true,
-			options: [
-				destructiveMenuOption({
-					label: __('Delete'),
-					icon: 'lucide-trash-2',
-					onClick: () =>
-						whenEditing(() => {
-							showDeleteDialog.value = true;
-						}),
-				}),
-			],
-		},
-	];
-});
-
-function openRenameDialog() {
-	editableRenameTitle.value = displayTitle.value;
-	showRenameDialog.value = true;
-}
-
-async function renamePage(close) {
-	const newTitle = editableRenameTitle.value.trim();
-	if (!newTitle || newTitle === displayTitle.value) {
-		close();
-		return;
-	}
-	if (!wikiDoc.value.doc?.doc_key) return;
-	isRenaming.value = true;
-	try {
-		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
-		close();
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating title'));
-	} finally {
-		isRenaming.value = false;
-	}
-}
-
 function openGithubEdit() {
 	if (!githubEditUrl.value) return;
 	window.open(githubEditUrl.value, '_blank', 'noopener');
-}
-
-// Deleting the open page leaves the editor pointing at nothing, so hand the
-// route back to the space, which reopens the next page it can find.
-async function deletePage(close) {
-	const docKey = wikiDoc.value.doc?.doc_key;
-	if (!docKey) {
-		close();
-		return;
-	}
-	close();
-	isDeleting.value = true;
-	try {
-		await draftStore.deleteNode(docKey);
-		if (props.spaceId) {
-			router.push({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
-		}
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error creating draft'));
-	} finally {
-		isDeleting.value = false;
-	}
 }
 
 async function saveTitleIfChanged() {
@@ -851,18 +712,6 @@ async function saveTitleIfChanged() {
 		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
-	}
-}
-
-async function togglePublish() {
-	if (!wikiDoc.value.doc?.doc_key) return;
-	const newStatus = displayPublished.value ? 0 : 1;
-	try {
-		await draftStore.updateNode(wikiDoc.value.doc.doc_key, {
-			is_published: newStatus,
-		});
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating publish status'));
 	}
 }
 

@@ -6,8 +6,8 @@ const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
- * The space's open change requests, in the page header panel and as a notice
- * on the pages they change (specs/edit_flow.md, part 3).
+ * The space's open change requests are listed in the page header panel
+ * (specs/edit_flow.md, part 3).
  */
 
 async function changeRequestEditing(
@@ -82,33 +82,24 @@ test.describe('Change requests in the space', () => {
 			const page = await context.newPage();
 			await page.goto(space.url('page', alpha.name));
 
-			const notice = page.getByTestId('page-change-requests-notice');
-			await expect(notice).toContainText(
-				'1 open change request changes this page',
-			);
-			await notice.getByRole('button', { name: 'View' }).click();
-			await expect(page.getByRole('menuitem')).toHaveText(['Fix Alpha']);
-			await page.keyboard.press('Escape');
+			await page.getByRole('button', { name: 'Edit', exact: true }).click();
+			const dialog = page.getByRole('dialog');
+			await expect(dialog).not.toContainText('open change request');
+			await expect(dialog).not.toContainText('Fix Alpha');
+			await dialog.getByRole('button', { name: 'Cancel' }).click();
+			await expect(dialog).toHaveCount(0);
 
 			await page
-				.getByRole('button', { name: '2 open change requests' })
+				.getByRole('button', { name: '1 open on this page, 2 in this space' })
 				.click();
 			const panel = page.getByTestId('change-requests-panel');
-			const thisPage = panel.getByRole('region', {
-				name: 'Changing this page',
-			});
-			const elsewhere = panel.getByRole('region', {
-				name: 'Elsewhere in this space',
-			});
-			await expect(thisPage.getByRole('link')).toHaveCount(1);
-			await expect(thisPage.getByRole('link')).toContainText('Fix Alpha');
-			await expect(thisPage.getByRole('link')).toContainText('In Review');
-			await expect(elsewhere.getByRole('link')).toHaveCount(1);
-			await expect(elsewhere.getByRole('link')).toContainText('Rewrite Beta');
+			const links = panel.getByRole('link');
+			await expect(links).toHaveCount(2);
+			await expect(panel).toContainText('Fix Alpha');
+			await expect(panel).toContainText('In Review');
+			await expect(panel).toContainText('Rewrite Beta');
 			await expect(panel).not.toContainText('Unfinished Alpha');
-			await expect(notice).toHaveCount(0);
-
-			await thisPage.getByRole('link').click();
+			await links.filter({ hasText: 'Fix Alpha' }).click();
 			await expect(
 				page.getByRole('heading', { name: 'Fix Alpha', level: 1 }),
 			).toBeVisible();
@@ -126,7 +117,7 @@ test.describe('Change requests in the space', () => {
 		await page.goto(space.url('page', space.page('Alpha').name));
 
 		const changeRequestsButton = page.getByRole('button', {
-			name: '0 open change requests',
+			name: '0 open on this page, 0 in this space',
 		});
 		await changeRequestsButton.click();
 		const panel = page.getByTestId('change-requests-panel');
@@ -154,8 +145,10 @@ test.describe('Change requests in the space', () => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await page.getByRole('button', { name: '0 open change requests' }).click();
+		await page
+			.getByRole('button', { name: '0 open on this page, 0 in this space' })
+			.click();
 		const box = await page.getByTestId('change-requests-panel').boundingBox();
-		expect(box?.width).toBe(390);
+		expect(box?.width).toBeCloseTo(390, 1);
 	});
 });

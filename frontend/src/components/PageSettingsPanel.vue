@@ -12,15 +12,13 @@
 			<span class="truncate text-base-medium text-ink-gray-8">
 				{{ __('Page settings') }}
 			</span>
-			<Tooltip :text="__('Close page settings')">
-				<Button
-					variant="ghost"
-					:aria-label="__('Close page settings')"
-					@click="emit('close')"
-				>
-					<span class="lucide-x size-4" aria-hidden="true" />
-				</Button>
-			</Tooltip>
+			<Button
+				variant="ghost"
+				:aria-label="__('Close page settings')"
+				@click="emit('close')"
+			>
+				<span class="lucide-x size-4" aria-hidden="true" />
+			</Button>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
@@ -263,7 +261,6 @@ import {
 	FormControl,
 	ScrollArea,
 	Switch,
-	Tooltip,
 	dayjsLocal,
 	toast,
 	useFileUpload,

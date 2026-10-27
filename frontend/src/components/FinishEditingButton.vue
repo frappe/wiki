@@ -7,7 +7,7 @@
 		:loading="finishing"
 		@click="finish"
 	>
-		{{ __('Done editing') }}
+		{{ __('Save') }}
 	</Button>
 </template>
 

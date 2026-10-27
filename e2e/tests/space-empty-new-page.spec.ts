@@ -1,13 +1,13 @@
 import { expect, test } from '../fixtures';
-import { startEditing } from '../helpers/wiki';
+import { editDialog } from '../helpers/wiki';
 
 /**
  * An empty space's content column offers "New page". The dialog that creates
  * one lives in the tree, in the sidebar — a sibling column, not an ancestor —
  * so the button hands its request to a module-scoped flag the tree consumes.
- * This exercises that hand-off end to end: press the button in <main>, start
- * a change request, get the tree's dialog, and land in the editor on the page
- * it made.
+ * This exercises that hand-off end to end: press the button in <main>, get the
+ * tree's dialog under an "Add initial content" change request opened without asking,
+ * and land in the editor on the page it made.
  */
 test.describe('Empty space — New page from the content column', () => {
 	test('creates the first page and opens it in the editor', async ({
@@ -27,11 +27,14 @@ test.describe('Empty space — New page from the content column', () => {
 		await content
 			.getByRole('button', { name: 'New page', exact: true })
 			.click();
-		await startEditing(page, 'Add the first page');
 
 		const title = `First Page ${Date.now()}`;
 		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
+		await expect(dialog).toContainText('Create New Page');
+		await expect(editDialog(page)).toHaveCount(0);
+		await expect(
+			page.locator('aside').getByText('Add initial content', { exact: true }),
+		).toBeVisible();
 		await dialog.getByLabel('Title').fill(title);
 		await dialog.getByRole('button', { name: 'Save' }).click();
 
@@ -49,5 +52,39 @@ test.describe('Empty space — New page from the content column', () => {
 		await expect(page.getByPlaceholder('Page title')).toHaveValue(title, {
 			timeout: 15000,
 		});
+	});
+
+	test('merging the first page right after typing leaves no unsaved marks', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+		await page.goto(space.url());
+		await expect(page.locator('aside >> text=No pages yet')).toBeVisible({
+			timeout: 15000,
+		});
+
+		await page
+			.locator('main')
+			.getByRole('button', { name: 'New page', exact: true })
+			.click();
+		const dialog = page.getByRole('dialog');
+		await dialog.getByLabel('Title').fill(`First Page ${Date.now()}`);
+		await dialog.getByRole('button', { name: 'Save' }).click();
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
+
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+		await editor.click();
+		await page.keyboard.type('Merged without waiting for autosave');
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+
+		await page.waitForURL(/\/page\//, { timeout: 15000 });
+		await expect(
+			page.getByText('Merged without waiting for autosave'),
+		).toBeVisible();
+		await expect(page.getByTestId('sync-state-alert')).toHaveCount(0);
+		await expect(
+			page.getByRole('status', { name: 'Unsaved changes' }),
+		).toHaveCount(0);
 	});
 });
