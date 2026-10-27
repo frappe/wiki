@@ -340,7 +340,7 @@ import AssignDialog from '@/components/AssignDialog.vue';
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import PageDiff from '@/components/PageDiff.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
-import { useMobile } from '@/composables/useMobile';
+import { useDiffView } from '@/composables/useDiffView';
 import { statusTheme } from '@/lib/changeRequestStatus';
 import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
@@ -367,24 +367,7 @@ const requestChangesComment = ref('');
 const showRejectDialog = ref(false);
 const rejectComment = ref('');
 const showAssignDialog = ref(false);
-const { isMobile } = useMobile();
-const chosenView = ref('split');
-// A phone has no room for two columns.
-const view = computed({
-	get: () =>
-		isMobile.value && chosenView.value === 'split' ? 'inline' : chosenView.value,
-	set: (value) => {
-		chosenView.value = value;
-	},
-});
-const changesOnly = ref(false);
-const viewOptions = computed(() =>
-	[
-		{ value: 'split', label: __('Side by side'), icon: 'lucide-columns-2' },
-		{ value: 'inline', label: __('Inline'), icon: 'lucide-rows-2' },
-		{ value: 'markdown', label: __('Markdown'), icon: 'lucide-code' },
-	].filter((option) => !isMobile.value || option.value !== 'split'),
-);
+const { view, changesOnly, viewOptions } = useDiffView();
 
 // Conflict resolution state
 const hasConflicts = ref(false);
