@@ -139,6 +139,7 @@ test.describe('Editor tables (#872)', () => {
 		const space = await wiki.space({
 			pages: CASES.map(({ title, content }) => ({ title, content })),
 		});
+		await wiki.changeRequest(space);
 
 		for (const { title, tables, types = [] } of CASES) {
 			await test.step(title, async () => {
@@ -185,6 +186,7 @@ test.describe('Editor tables (#872)', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Insert After Table', content: TABLE_A }],
 		});
+		await wiki.changeRequest(space);
 		const url = space.url('page', space.page('Insert After Table').name);
 		await openEditor(page, url);
 

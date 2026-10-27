@@ -380,7 +380,7 @@ class WikiDocument(NestedSet):
 		github_url = self._get_github_edit_url(wiki_space.name)
 		if github_url is not None:
 			return github_url
-		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}"
+		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}?edit=1"
 
 	def _get_github_edit_url(self, space_name: str) -> str | None:
 		"""Edit target for a git-synced space: the source file in GitHub's editor.
@@ -1163,6 +1163,24 @@ def get_breadcrumbs(name: str) -> dict:
 	doc = frappe.get_cached_doc("Wiki Document", name)
 	doc.check_permission("read")
 	return doc.get_breadcrumbs()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_page_html(name: str) -> dict:
+	"""Rendered HTML and outline for the app's read mode.
+
+	Includes unpublished pages, since space readers see them in the app.
+	The outline ignores the reader's TOC setting, like the editor.
+	"""
+	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
+	html, toc = get_rendered_content(doc.name, doc.content or "")
+	return {
+		"html": resolve_wiki_links(html, doc.get_space_name()),
+		"toc": toc,
+		"modified": doc.modified,
+		"modified_by": doc.modified_by,
+	}
 
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method

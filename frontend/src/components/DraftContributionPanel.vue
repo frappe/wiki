@@ -5,7 +5,9 @@
 				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
 
 				<div class="flex shrink-0 items-center gap-2">
+					<MergeChangeRequestButton v-if="!isMobile" />
 					<SubmitForReviewButton />
+					<FinishEditingButton />
 					<Dropdown :options="menuOptions">
 						<Button
 							variant="ghost"
@@ -133,7 +135,6 @@
 
 <script setup>
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
-import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import {
 	Badge,
@@ -149,8 +150,11 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useMobile } from '../composables/useMobile';
+import FinishEditingButton from './FinishEditingButton.vue';
+import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
 import WikiEditor from './WikiEditor.vue';
 
@@ -173,8 +177,8 @@ const editableRoute = ref('');
 const showRouteDialog = ref(false);
 const isSavingRoute = ref(false);
 
-const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
+const { isMobile } = useMobile();
 
 const crPage = ref(null);
 // Becomes true only once we've confirmed the page genuinely doesn't exist,
@@ -277,14 +281,21 @@ function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
 	};
 }
 
-onMounted(async () => {
-	if (props.spaceId) {
-		await draftStore.hydrate(props.spaceId);
-	}
-	// Restored IndexedDB drafts may belong to pages never revisited.
-	draftStore.flushDirtyPages(props.docKey).catch(() => {});
-	await loadCrPage();
-});
+// The space store opens the change request; a direct load lands here first.
+watch(
+	() => draftStore.crName,
+	async (name) => {
+		if (!name) return;
+		// A draft of this page saved in IndexedDB is restored during hydration.
+		if (draftStore.isHydrating) {
+			await draftStore.hydrateForPage(props.spaceId, props.docKey);
+		}
+		// Restored IndexedDB drafts may belong to pages never revisited.
+		draftStore.flushDirtyPages(props.docKey).catch(() => {});
+		await loadCrPage();
+	},
+	{ immediate: true },
+);
 
 watch(
 	() => props.docKey,
@@ -321,18 +332,6 @@ function onEditorContentReady(content, savedContent, docKey = props.docKey) {
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
 }
-
-watch(
-	() => props.spaceId,
-	async (newSpaceId) => {
-		if (newSpaceId) {
-			crStore.currentChangeRequest = null;
-			draftStore.reset();
-			await draftStore.hydrate(newSpaceId);
-			await loadCrPage();
-		}
-	},
-);
 
 // Once the create syncs, swap the URL from /draft/tmp_* to /draft/realKey.
 // Without this the panel would stay on a temp key after sync, and any

@@ -789,6 +789,7 @@ def _sync_to_live(
 	nodes: list[dict[str, Any]],
 	root_content: str | None,
 	root_source_path: str | None = None,
+	source_commit: str | None = None,
 ) -> dict[str, int]:
 	"""Build a target revision from inferred nodes and apply it to the live tree.
 
@@ -898,6 +899,7 @@ def _sync_to_live(
 	target = frappe.new_doc("Wiki Revision")
 	target.wiki_space = space.name
 	target.message = "git-sync: repo snapshot"
+	target.source_commit = source_commit
 	target.is_merge = 1
 	target.is_working = 0
 	target.created_by = frappe.session.user
@@ -1054,7 +1056,7 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 			nodes, root_content, _root_landing = build_nodes(
 				space.repo_full_name, tree, space.docs_subdir, token, space=space
 			)
-		counts = _sync_to_live(space, nodes, root_content, _root_landing)
+		counts = _sync_to_live(space, nodes, root_content, _root_landing, head_sha)
 		_record_success(space_name, head_sha)
 		_finalize_sync_log(log_name, "Success", commit_sha=head_sha, counts=counts)
 	except Exception as exception:

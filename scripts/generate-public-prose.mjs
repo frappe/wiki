@@ -59,14 +59,15 @@ console.log('generate-public-prose: wrote wiki/public/css/frappe-ui-prose.css');
 // Code blocks: frappe-ui's editor CodeBlock ships its pre shell + the GitHub
 // light/dark highlight.js theme as plain CSS scoped to `.ProseMirror`. The
 // reader highlights with client-side hljs too (same `.hljs-*` classes), so a
-// scope rewrite to `.prose` gives the public page the exact editor look.
+// scope rewrite to `.wiki-rendered` gives the reader and the app's read mode
+// the exact editor look.
 const codeCss = readFileSync(codeBlockSrc, 'utf8').replaceAll(
 	'.ProseMirror',
-	'.prose',
+	'.wiki-rendered',
 );
 writeFileSync(
 	codeOutFile,
-	`/* Generated from frappe-ui CodeBlockComponent.css (scope .ProseMirror → .prose)
+	`/* Generated from frappe-ui CodeBlockComponent.css (scope .ProseMirror → .wiki-rendered)
    by scripts/generate-public-prose.mjs — do not edit. */
 ${codeCss}`,
 );

@@ -27,6 +27,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	clear_wiki_tree_cache,
 	download_pdf,
 	get_landing_redirect_for_route,
+	get_page_html,
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
@@ -474,7 +475,7 @@ class TestEditLink(WikiDocumentTestBase):
 		space = create_test_wiki_space(self, "Edit Link Space", "edit-link-space", root_group.name)
 
 		doc.reload()
-		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}")
+		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}?edit=1")
 
 	def test_synced_space_links_to_github_editor(self):
 		root_group = create_test_wiki_document(self, "Synced Edit Root", is_group=True)
@@ -914,6 +915,55 @@ class TestUpdateMeta(WikiDocumentTestBase):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
 			frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Nope")
+
+
+class TestGetPageHtml(WikiDocumentTestBase):
+	def test_returns_rendered_html_and_outline(self):
+		space = create_test_wiki_space(
+			self, "Page Html Space", f"page-html-{frappe.generate_hash(length=6)}", None
+		)
+		target = create_test_wiki_document(self, "Html Target", parent=space.root_group, slug="html-target")
+		doc = create_test_wiki_document(
+			self,
+			"Html Page",
+			parent=space.root_group,
+			content=f"## Setup\n\nSee [the target](wiki:{target.doc_key}).",
+		)
+		target.reload()
+
+		page = get_page_html(doc.name)
+
+		self.assertIn('<h2 id="setup"', page["html"])
+		self.assertIn(f'href="/{target.route}"', page["html"])
+		self.assertEqual(page["toc"], [{"id": "setup", "text": "Setup", "level": 2}])
+		self.assertEqual(page["modified_by"], "Administrator")
+
+	def test_unpublished_page_is_readable(self):
+		space = create_test_wiki_space(
+			self, "Draft Html Space", f"draft-html-{frappe.generate_hash(length=6)}", None
+		)
+		doc = create_test_wiki_document(
+			self, "Hidden Page", parent=space.root_group, is_published=False, content="Not live yet"
+		)
+
+		self.assertIn("Not live yet", get_page_html(doc.name)["html"])
+
+	def test_outsider_is_refused(self):
+		make_wiki_user("_Test Page Html Other")
+		outsider = make_wiki_user("_Test Page Html Outsider")
+		space = create_test_wiki_space(
+			self,
+			"Closed Html Space",
+			f"closed-html-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[("_Test Page Html Other", "Read")],
+		)
+		doc = create_test_wiki_document(self, "Closed Page", parent=space.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(outsider)
+		with self.assertRaises(frappe.PermissionError):
+			get_page_html(doc.name)
 
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):

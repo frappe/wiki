@@ -13,7 +13,11 @@ from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.api.wiki_space import flush_pending_revision_syncs, lock_wiki_space
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route, validate_external_url
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	resolve_wiki_links,
+	sanitize_route,
+	validate_external_url,
+)
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	create_overlay_revision,
@@ -27,6 +31,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	recompute_revision_hashes,
 )
 from wiki.telemetry import capture
+from wiki.wiki.markdown import render_markdown
 
 
 class WikiChangeRequest(Document):
@@ -102,6 +107,7 @@ def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None
 
 # Statuses in which the CR head revision may still be mutated by its author.
 _EDITABLE_STATUSES = {"Draft", "Changes Requested"}
+_REVIEW_STATUSES = {"In Review", "Approved"}
 
 
 def _assert_status(cr: Document, allowed: set[str]) -> None:
@@ -113,18 +119,34 @@ def _assert_status(cr: Document, allowed: set[str]) -> None:
 		)
 
 
+def can_edit_in_review(cr: Document, user: str | None = None) -> bool:
+	"""Whether the user may change an `In Review` or `Approved` CR without pulling it back.
+
+	The author can, and so can anyone who could merge it.
+	"""
+	user = user or frappe.session.user
+	return cr.status in _REVIEW_STATUSES and (cr.owner == user or _can_merge(cr.wiki_space, user))
+
+
 def _assert_editable(cr: Document) -> None:
 	"""Block any head-revision mutation once the CR has left an editable state.
 
-	A CR is only editable while it is a `Draft` or has `Changes Requested`.
-	Once it is `In Review` / `Approved` / `Merged` / `Rejected` the content is
-	frozen so a reviewer never sees a moving target.
+	Any contributor may edit a `Draft` or `Changes Requested` CR. An `In Review`
+	or `Approved` CR stays open to its author and to users who can merge it,
+	and an edit sends an `Approved` CR back to `In Review`, so an approval only
+	ever covers the content it saw. `Merged` / `Rejected` / `Archived` are frozen.
 	"""
-	if cr.status not in _EDITABLE_STATUSES:
+	if cr.status in _EDITABLE_STATUSES:
+		return
+	if not can_edit_in_review(cr):
 		frappe.throw(
 			_("This change request is {0} and is locked for editing.").format(cr.status),
 			frappe.ValidationError,
 		)
+	if cr.status == "Approved":
+		cr.db_set("status", "In Review", update_modified=False)
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
+		cr.add_comment("Comment", _("Edited after approval. Back in review."))
 
 
 def _notify_cr_owner(cr: Document, subject: str) -> None:
@@ -545,15 +567,35 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	flush_pending_revision_syncs()
 
 	cr = _find_existing_draft(wiki_space)
-	if cr:
-		if _is_stale_empty_draft(cr, wiki_space):
+	if cr and _is_outdated(cr):
+		frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
+		if not has_revision_changes(cr.base_revision, cr.head_revision):
 			_archive_stale_draft(cr)
-		else:
-			return cr.as_dict()
+			cr = None
+	if cr:
+		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
 	return create_change_request(wiki_space, default_title).as_dict()
+
+
+def get_editable_change_request(wiki_space: str, change_request: str | None = None) -> dict[str, Any] | None:
+	"""The user's Draft or Changes Requested change request in the space, without writing anything.
+
+	`change_request` names an In Review or Approved one the user is editing; it wins when they
+	may still edit it. A stale empty draft is skipped rather than archived, so the user lands in
+	read mode.
+	"""
+	if change_request and frappe.db.exists("Wiki Change Request", change_request):
+		cr = frappe.get_doc("Wiki Change Request", change_request)
+		if cr.wiki_space == wiki_space and can_edit_in_review(cr) and cr.has_permission("write"):
+			return cr.as_dict()
+
+	cr = _find_existing_draft(wiki_space)
+	if not cr or _is_stale_empty_draft(cr):
+		return None
+	return cr.as_dict()
 
 
 def _find_existing_draft(wiki_space: str) -> Document | None:
@@ -584,13 +626,13 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	return cr
 
 
-def _is_stale_empty_draft(cr: Document, wiki_space: str) -> bool:
-	"""True if the draft is outdated AND has no changes."""
-	main_revision = frappe.get_value("Wiki Space", wiki_space, "main_revision")
-	if not main_revision or not cr.base_revision or cr.base_revision == main_revision:
-		return False
-	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
-	return not has_revision_changes(cr.base_revision, cr.head_revision)
+def _is_outdated(cr: Document) -> bool:
+	main_revision = frappe.get_value("Wiki Space", cr.wiki_space, "main_revision")
+	return bool(main_revision and cr.base_revision and cr.base_revision != main_revision)
+
+
+def _is_stale_empty_draft(cr: Document) -> bool:
+	return _is_outdated(cr) and not has_revision_changes(cr.base_revision, cr.head_revision)
 
 
 def _archive_stale_draft(cr: Document) -> None:
@@ -628,6 +670,61 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 		],
 		order_by="modified desc",
 	)
+
+
+_SUBMITTED_STATUSES = ("In Review", "Changes Requested", "Approved")
+
+
+@frappe.whitelist(methods=["GET"])
+def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
+	"""Everyone's submitted change requests in the space plus the user's own draft, with the pages each changes.
+
+	Other users' drafts stay out: a draft is unfinished work.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(wiki_space):
+		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	fields = ["name", "title", "status", "owner", "modified", "base_revision", "head_revision"]
+	rows = frappe.get_list(
+		"Wiki Change Request",
+		filters={"wiki_space": wiki_space, "status": ("in", _SUBMITTED_STATUSES)},
+		fields=fields,
+	)
+	draft = get_editable_change_request(wiki_space)
+	if draft and draft.status == "Draft":
+		rows.append(frappe._dict({field: draft.get(field) for field in fields}))
+
+	users = user_cards({row.owner for row in rows})
+	for row in rows:
+		changes = _diff_revision_items(
+			get_revision_item_map(row.pop("base_revision")),
+			get_effective_revision_item_map(row.pop("head_revision")),
+		)
+		row.changed_doc_keys = [change["doc_key"] for change in changes]
+		row.owner_name = users[row.owner]["full_name"]
+		row.owner_image = users[row.owner]["image"]
+	return sorted(rows, key=lambda row: row.modified, reverse=True)
+
+
+def user_cards(users: set[str]) -> dict[str, dict[str, str | None]]:
+	"""Name and image for each user, falling back to the user ID for one that is gone."""
+	found = {
+		user.name: user
+		for user in frappe.get_all(
+			"User",
+			filters={"name": ("in", list(users))},
+			fields=["name", "full_name", "user_image"],
+		)
+	}
+	return {
+		user: {
+			"full_name": (found.get(user) or {}).get("full_name") or user,
+			"image": (found.get(user) or {}).get("user_image"),
+		}
+		for user in users
+	}
 
 
 @frappe.whitelist()
@@ -1258,6 +1355,64 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
 
 
+@frappe.whitelist(methods=["GET"])
+def get_change_request_review(name: str) -> dict[str, Any]:
+	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
+	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
+	pages = rendered_changes(
+		get_revision_item_map(cr.base_revision),
+		get_effective_revision_item_map(cr.head_revision),
+		cr.wiki_space,
+	)
+	return {"author": user_cards({cr.owner})[cr.owner], "pages": pages}
+
+
+def rendered_changes(
+	base_items: dict[str, dict[str, Any]],
+	head_items: dict[str, dict[str, Any]],
+	wiki_space: str,
+	doc_key: str | None = None,
+) -> list[dict[str, Any]]:
+	"""Each changed page with both sides rendered, or only `doc_key` when given."""
+	changes = _diff_revision_items(base_items, head_items)
+	if doc_key:
+		changes = [change for change in changes if change["doc_key"] == doc_key]
+
+	keys = [change["doc_key"] for change in changes]
+	base_contents = get_contents_for_items({key: base_items[key] for key in keys if key in base_items})
+	head_contents = get_contents_for_items({key: head_items[key] for key in keys if key in head_items})
+
+	pages = []
+	for change in changes:
+		key = change["doc_key"]
+		page = {
+			**change,
+			"base": _rendered_side(base_items.get(key), base_contents.get(key), wiki_space),
+			"head": _rendered_side(head_items.get(key), head_contents.get(key), wiki_space),
+		}
+		if change["change_type"] == "reordered":
+			page["location"] = {
+				"base": _node_location(base_items, key),
+				"head": _node_location(head_items, key),
+			}
+		pages.append(page)
+	return pages
+
+
+def _rendered_side(
+	item: dict[str, Any] | None, content: str | None, wiki_space: str
+) -> dict[str, Any] | None:
+	if not item or item.get("is_deleted"):
+		return None
+	content = content or ""
+	return {
+		"title": item.get("title"),
+		"content": content,
+		"html": resolve_wiki_links(render_markdown(content), wiki_space),
+	}
+
+
 def _diff_revision_items(
 	base_items: dict[str, dict[str, Any]],
 	head_items: dict[str, dict[str, Any]],
@@ -1457,6 +1612,7 @@ def request_changes(name: str, comment: str) -> None:
 	_assert_status(cr, {"In Review", "Approved"})
 
 	cr.status = "Changes Requested"
+	frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 	cr.review_comment = comment
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()

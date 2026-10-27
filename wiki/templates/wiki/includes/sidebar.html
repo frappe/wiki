@@ -221,15 +221,7 @@
                     Alpine.store('feedback').refresh();
                 }
 
-                if (typeof initCodeBlocks === 'function') {
-                    initCodeBlocks();
-                } else if (typeof hljs !== 'undefined') {
-                    hljs.highlightAll();
-                }
-
-                if (typeof renderWikiMermaid === 'function' && contentEl) {
-                    renderWikiMermaid(contentEl);
-                }
+                window.wikiEnhanceContent?.();
 
                 window.scrollTo(0, 0);
             },

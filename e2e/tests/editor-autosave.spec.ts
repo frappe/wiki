@@ -53,6 +53,7 @@ test.describe('Editor autosave', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Pause', content: 'Start.' }],
 		});
+		await wiki.changeRequest(space);
 		const seeded = space.page('Pause');
 		await openEditor(page, space.url('page', seeded.name));
 		const saves = recordContentSaves(page);
@@ -71,6 +72,7 @@ test.describe('Editor autosave', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Typing', content: 'Start.' }],
 		});
+		await wiki.changeRequest(space);
 		const seeded = space.page('Typing');
 		await openEditor(page, space.url('page', seeded.name));
 		const saves = recordContentSaves(page);

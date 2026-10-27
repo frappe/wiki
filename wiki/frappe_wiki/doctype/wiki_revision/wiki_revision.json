@@ -10,6 +10,7 @@
 		"parent_revision",
 		"column_break_main",
 		"message",
+		"source_commit",
 		"is_merge",
 		"is_working",
 		"is_overlay",
@@ -50,6 +51,13 @@
 			"fieldname": "message",
 			"fieldtype": "Data",
 			"label": "Message"
+		},
+		{
+			"description": "The commit a git sync applied",
+			"fieldname": "source_commit",
+			"fieldtype": "Data",
+			"label": "Source Commit",
+			"read_only": 1
 		},
 		{
 			"default": "0",
@@ -115,7 +123,7 @@
 		}
 	],
 	"links": [],
-	"modified": "2026-10-13 17:30:00.000000",
+	"modified": "2026-10-23 12:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Revision",

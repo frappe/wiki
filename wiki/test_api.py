@@ -987,6 +987,152 @@ class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
 # Helper functions
 
 
+class TestSpaceBootstrap(WikiFixtureMixin, FrappeTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def test_opening_a_space_starts_no_change_request(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertEqual(bootstrap["doc"]["name"], space.name)
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name}))
+
+	def test_an_editor_gets_the_change_request_they_started(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertEqual(bootstrap["change_request"]["name"], cr.name)
+		self.assertEqual(bootstrap["change_request"]["title"], "Fix the intro")
+
+	def test_a_change_request_in_review_is_not_returned(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+
+		self.assertIsNone(get_space_bootstrap(space.name)["change_request"])
+
+	def test_a_change_request_in_review_is_returned_when_asked_for(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		draft = create_change_request(space.name, "Another draft")
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+
+		bootstrap = get_space_bootstrap(space.name, change_request=cr.name)
+
+		self.assertEqual(bootstrap["change_request"]["name"], cr.name)
+		self.assertEqual(
+			get_space_bootstrap(space.name, change_request="missing")["change_request"]["name"], draft.name
+		)
+
+	def test_a_change_request_in_review_is_not_resumed_by_a_contributor_who_cannot_edit_it(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Fix the intro")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "In Review")
+		frappe.set_user(create_test_user("bootstrap-contributor@example.com", ["Wiki User"]).name)
+
+		bootstrap = get_space_bootstrap(space.name, change_request=cr.name)
+
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+
+	def test_a_stale_empty_draft_is_skipped_and_left_alone(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+		from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import create_change_request
+		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import create_revision_from_live_tree
+
+		space = self.wiki.space(pages=[{"title": "Alpha"}])
+		cr = create_change_request(space.name, "Abandoned")
+		newer_main = create_revision_from_live_tree(space.name, message="advance main")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", newer_main.name)
+
+		self.assertIsNone(get_space_bootstrap(space.name)["change_request"])
+		self.assertEqual(
+			frappe.db.get_value("Wiki Change Request", cr.name, ["status", "outdated"]), ("Draft", 0)
+		)
+
+	def test_a_reader_who_cannot_contribute_gets_no_draft(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(
+			pages=[{"title": "Alpha"}],
+			roles=[("Wiki User", "Read")],
+			allow_contributions=0,
+		)
+		reader = create_test_user("bootstrap-reader@example.com", ["Wiki User"]).name
+		frappe.set_user(reader)
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertFalse(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+		self.assertFalse(frappe.db.exists("Wiki Change Request", {"wiki_space": space.name, "owner": reader}))
+
+	def test_a_git_synced_space_gets_no_draft(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(git_synced=1, repo_full_name="acme/docs", branch="main")
+
+		bootstrap = get_space_bootstrap(space.name)
+
+		self.assertTrue(bootstrap["capabilities"]["can_contribute"])
+		self.assertIsNone(bootstrap["change_request"])
+
+	def test_an_outsider_is_refused(self):
+		from wiki.api.wiki_space import get_space_bootstrap
+
+		space = self.wiki.space(roles=[("Wiki Manager", "Read")])
+		frappe.set_user(create_test_user("bootstrap-outsider@example.com", ["Wiki User"]).name)
+
+		with self.assertRaises(frappe.PermissionError):
+			get_space_bootstrap(space.name)
+
+
+class TestAppBoot(FrappeTestCase):
+	def tearDown(self):
+		frappe.set_user("Administrator")
+
+	def test_the_boot_carries_the_user(self):
+		from wiki.www.wiki_app import get_boot
+
+		boot = get_boot()
+
+		self.assertEqual(boot["user_info"]["name"], "Administrator")
+		self.assertIn({"role": "System Manager"}, boot["user_info"]["roles"])
+		# wiki-app.html renders each boot key with Jinja's plain-json `tojson`.
+		json.dumps(boot)
+
+	def test_the_boot_marks_a_guest_as_logged_out(self):
+		from wiki.www.wiki_app import get_boot
+
+		frappe.set_user("Guest")
+
+		self.assertEqual(get_boot()["user_info"], {"is_logged_in": False})
+
+
 class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 	"""Tests for get_space_stats, which backs the All Spaces directory columns."""
 

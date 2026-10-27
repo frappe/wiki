@@ -279,7 +279,7 @@ const navItems = computed(() => [
 		label: __('Change Requests'),
 		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
-		routeNames: ['ChangeRequests', 'ChangeRequestReview'],
+		routeNames: ['ChangeRequests'],
 		suffix: openChangeRequestCount,
 	},
 ]);

@@ -224,12 +224,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		transport.reset();
 	}
 
-	// Hydrate the workspace for a space: ensure CR exists, load tree + summary,
-	// and normalize into local state. Idempotent and de-duplicated per call.
-	async function hydrate(targetSpaceId) {
+	async function hydrate(targetSpaceId, changeRequest = null) {
 		if (!isEnabled.value || !targetSpaceId) return;
 
-		if (hydratePromise && spaceId.value === targetSpaceId) {
+		// Page buffers are keyed by doc_key, so another request's text would open in this one.
+		const switchesRequest =
+			Boolean(crName.value && changeRequest) &&
+			changeRequest.name !== crName.value;
+		if (hydratePromise && spaceId.value === targetSpaceId && !switchesRequest) {
 			return hydratePromise;
 		}
 
@@ -237,10 +239,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const run = ++latestHydrate;
 		hydratePromise = (async () => {
 			if (spaceId.value !== targetSpaceId) reset();
+			else if (switchesRequest) reset({ keepTree: true });
 			spaceId.value = targetSpaceId;
 			if (!hasLoadedTree.value) paintStaleTree(targetSpaceId, run);
 
-			changeRequestReady = loadChangeRequest(targetSpaceId);
+			changeRequestReady = loadChangeRequest(changeRequest);
 			const drafts = await changeRequestReady;
 			if (!crName.value) return;
 
@@ -272,8 +275,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 	}
 
-	async function loadChangeRequest(targetSpaceId) {
-		await crStore.initChangeRequest(targetSpaceId);
+	async function loadChangeRequest(changeRequest) {
+		if (changeRequest) crStore.currentChangeRequest = changeRequest;
 		return crName.value ? loadDraftsForCr(crName.value) : [];
 	}
 
@@ -552,11 +555,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return pageBuffers.updateLocalContent(docKey, realKey, content, title);
 	}
 
-	async function ensureCr() {
-		if (!isEnabled.value || !spaceId.value) return false;
-		if (crName.value) return true;
-		await crStore.initChangeRequest(spaceId.value);
-		return !!crName.value;
+	function ensureCr() {
+		return Boolean(isEnabled.value && spaceId.value && crName.value);
 	}
 
 	// Insert node locally with pending_create *before* awaiting anything,
@@ -971,7 +971,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Record the editor's canonical markdown immediately so submit/merge
 	// gating observes the same snapshot that will be persisted and saved.
 	function recordEditorContent(docKey, content, title, options = {}) {
-		if (!docKey) return;
+		// An editor still mounted after a merge or discard reports its last content.
+		if (!docKey || !crName.value) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
 		pageBuffers.ensure(realKey, { title: title || '' });
 		pageBuffers.setLocalContent(realKey, content);
@@ -984,7 +985,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// markdown with its configured parser. Rebasing here prevents harmless
 	// markdown round-trip differences from manufacturing dirty state.
 	function reconcileEditorContent(docKey, content, savedContent, title) {
-		if (!docKey) return;
+		if (!docKey || !crName.value) return;
 		const realKey = resolver.resolveKey(docKey) || docKey;
 		const page = pageBuffers.reconcileEditorContent(
 			realKey,
