@@ -40,7 +40,10 @@
             // useColorScheme; `wiki-theme` is what both surfaces used before and
             // is still read so an existing preference survives. frappe-ui also
             // stores 'system', which resolves against the OS.
-            const stored = localStorage.getItem('theme') || localStorage.getItem('wiki-theme');
+            let stored = null;
+            try {
+                stored = localStorage.getItem('theme') || localStorage.getItem('wiki-theme');
+            } catch(e) {}
             const theme = stored === 'dark' || stored === 'light'
                 ? stored
                 : stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches
