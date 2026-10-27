@@ -7,7 +7,7 @@ const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
- * Version history of a page and its space, in the page header panel
+ * Version history of the space, in the page header panel
  * (specs/edit_flow.md, part 4).
  */
 
@@ -40,7 +40,7 @@ async function mergeEdit(
 }
 
 test.describe('Version history', () => {
-	test('lists the merges that changed the page and shows their diff', async ({
+	test('lists every merge in the space and shows their diff', async ({
 		page,
 		request,
 		wiki,
@@ -80,9 +80,9 @@ test.describe('Version history', () => {
 		const panel = page.getByTestId('history-panel');
 		const versions = panel.getByTestId('history-version');
 		await expect(versions.nth(0)).toContainText('Name the site');
-		await expect(versions.nth(0)).toContainText('edited');
-		await expect(versions.nth(1)).toContainText('Explain the bench');
-		await expect(panel).not.toContainText('Answer more');
+		await expect(versions.nth(0)).toContainText('1 page');
+		await expect(versions.nth(1)).toContainText('Answer more');
+		await expect(versions.nth(2)).toContainText('Explain the bench');
 
 		await versions.nth(0).click();
 		const diff = page.getByTestId('version-diff');
@@ -96,8 +96,6 @@ test.describe('Version history', () => {
 		).toBeVisible();
 		// The side panel is a workspace preference, so it is still open on the way back.
 		await page.goBack();
-		await panel.getByRole('radio', { name: 'Space', exact: true }).click();
-		await expect(versions.nth(1)).toContainText('Answer more');
 		await versions.nth(1).click();
 		await expect(diff.getByTestId('page-diff')).toContainText('FAQ');
 		await expect(diff.locator('ins')).toHaveText(['away']);
@@ -204,7 +202,7 @@ test.describe('Version history', () => {
 
 		const latest = page.getByTestId('history-version').first();
 		await expect(latest).toContainText('synced from abc1234');
-		await expect(latest).toContainText('renamed from Synced Page');
+		await expect(latest).toContainText('1 page');
 		await latest.click();
 		await expect(
 			page

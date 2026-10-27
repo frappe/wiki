@@ -95,16 +95,11 @@ test.describe('Change requests in the space', () => {
 			const panel = page.getByTestId('change-requests-panel');
 			const links = panel.getByRole('link');
 			await expect(links).toHaveCount(2);
+			await expect(panel).toContainText('Fix Alpha');
+			await expect(panel).toContainText('In Review');
 			await expect(panel).toContainText('Rewrite Beta');
 			await expect(panel).not.toContainText('Unfinished Alpha');
-
-			await panel
-				.getByRole('radio', { name: 'This page', exact: true })
-				.click();
-			await expect(links).toHaveCount(1);
-			await expect(links).toContainText('Fix Alpha');
-			await expect(links).toContainText('In Review');
-			await links.click();
+			await links.filter({ hasText: 'Fix Alpha' }).click();
 			await expect(
 				page.getByRole('heading', { name: 'Fix Alpha', level: 1 }),
 			).toBeVisible();

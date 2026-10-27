@@ -166,7 +166,6 @@
 					v-if="selectedVersion"
 					:space-id="spaceId"
 					:version="selectedVersion"
-					:doc-key="historyScope === 'page' ? wikiDoc.doc?.doc_key : null"
 					@back="selectedVersion = null"
 				/>
 				<PageSettingsPanel
@@ -197,16 +196,13 @@
 								class="max-md:w-full"
 								:space-id="spaceId"
 								:change-requests="changeRequests"
-								:doc-key="wikiDoc.doc?.doc_key"
 								@close="closeSidePanel"
 							/>
 							<HistoryPanel
 								v-else
-								v-model:scope="historyScope"
 								v-model:selected="selectedVersion"
 								class="max-md:w-full"
 								:space-id="spaceId"
-								:doc-key="wikiDoc.doc?.doc_key"
 								@close="toggleHistory"
 							/>
 						</div>
@@ -363,7 +359,6 @@ const editableRenameTitle = ref('');
 const isRenaming = ref(false);
 const showDeleteDialog = ref(false);
 const isDeleting = ref(false);
-const historyScope = ref('page');
 const selectedVersion = ref(null);
 
 const route = useRoute();

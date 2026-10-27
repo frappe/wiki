@@ -9,40 +9,30 @@
 			<span class="truncate text-base-medium text-ink-gray-8">
 				{{ __('Change requests') }}
 			</span>
-			<Tooltip :text="__('Close change requests')">
-				<Button
-					variant="ghost"
-					:aria-label="__('Close change requests')"
-					@click="emit('close')"
-				>
-					<span class="lucide-x size-4" aria-hidden="true" />
-				</Button>
-			</Tooltip>
-		</div>
-
-		<div class="px-3 pt-3">
-			<TabButtons v-model="scope" :options="scopeOptions" fluid />
+			<Button
+				variant="ghost"
+				:aria-label="__('Close change requests')"
+				@click="emit('close')"
+			>
+				<span class="lucide-x size-4" aria-hidden="true" />
+			</Button>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-10 pt-2">
 			<div
-				v-if="!shown.length"
+				v-if="!changeRequests.length"
 				class="flex flex-col items-center gap-2 px-4 py-16 text-center"
 			>
 				<div class="rounded-full bg-surface-gray-2 p-3 text-ink-gray-5">
 					<span class="lucide-git-pull-request size-6" aria-hidden="true" />
 				</div>
-				<p class="text-base text-ink-gray-7">
-					{{ scope === 'page'
-						? __('No open change requests on this page')
-						: __('No open change requests') }}
-				</p>
-				<p v-if="scope === 'space'" class="text-p-sm text-ink-gray-5">
+				<p class="text-base text-ink-gray-7">{{ __('No open change requests') }}</p>
+				<p class="text-p-sm text-ink-gray-5">
 					{{ __('Submitted change requests in this space show up here.') }}
 				</p>
 			</div>
 			<RouterLink
-				v-for="changeRequest in shown"
+				v-for="changeRequest in changeRequests"
 				:key="changeRequest.name"
 				:to="{
 					name: 'SpaceChangeRequest',
@@ -86,35 +76,15 @@ import {
 	Badge,
 	Button,
 	ScrollArea,
-	TabButtons,
-	Tooltip,
 	dayjsLocal,
 } from 'frappe-ui';
-import { computed, ref } from 'vue';
 
-const props = defineProps({
+defineProps({
 	spaceId: { type: String, required: true },
 	changeRequests: { type: Array, required: true },
-	docKey: { type: String, default: null },
 });
 
 const emit = defineEmits(['close']);
-
-const pageChangeRequests = computed(() =>
-	props.changeRequests.filter((changeRequest) =>
-		changeRequest.changed_doc_keys.includes(props.docKey),
-	),
-);
-
-const scopeOptions = [
-	{ value: 'page', label: __('This page') },
-	{ value: 'space', label: __('Space') },
-];
-const scope = ref('space');
-
-const shown = computed(() =>
-	scope.value === 'page' ? pageChangeRequests.value : props.changeRequests,
-);
 
 function pageCount(changeRequest) {
 	const count = changeRequest.changed_doc_keys.length;
