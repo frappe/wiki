@@ -46,6 +46,7 @@ directly as `parent_key`.
 |---|---|---|
 | `$CR.get_change_request` | `name` | Full CR dict |
 | `$CR.list_change_requests` | `wiki_space`, `status?` | `[{name, title, status, base_revision, head_revision, merge_revision, outdated, modified, merged_at, merged_by, owner, ...}]`, newest first |
+| `$CR.list_open_change_requests` | `wiki_space` | Everyone's `In Review` / `Changes Requested` / `Approved` CRs plus your own open draft: `[{name, title, status, owner, owner_name, owner_image, modified, changed_doc_keys}]`, newest first. GET. |
 | `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int}` |
 | `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content}` |
 | `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides |

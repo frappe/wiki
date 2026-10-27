@@ -150,7 +150,7 @@ test('a reader opening a page never asks for a change request while the space lo
 	const page = await context.newPage();
 	const changeRequestCalls: string[] = [];
 	page.on('request', (req) => {
-		if (req.url().includes('wiki_change_request.')) {
+		if (req.method() !== 'GET' && req.url().includes('wiki_change_request.')) {
 			changeRequestCalls.push(req.url());
 		}
 	});

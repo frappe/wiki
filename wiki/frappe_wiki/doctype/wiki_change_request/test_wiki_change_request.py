@@ -28,6 +28,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_or_create_draft_change_request,
 	has_revision_changes,
 	list_change_requests,
+	list_open_change_requests,
 	merge_change_request,
 	merge_content_three_way,
 	move_cr_page,
@@ -919,6 +920,53 @@ class TestWikiChangeRequest(FrappeTestCase):
 			with self.assertRaises(frappe.PermissionError):
 				diff_change_request(cr.name)
 			self.assertEqual(list_change_requests(space.name), [])
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_contributor_reads_submitted_change_requests_but_not_drafts(self):
+		space = create_test_wiki_space()
+		submitted = self._cr_with_change(space, "Submitted")
+		submit_change_request(submitted.name)
+		draft = self._cr_with_change(space, "Unfinished")
+
+		frappe.set_user(create_user("cr-space-contributor@example.com", "Wiki User").name)
+		try:
+			self.assertEqual(get_change_request(submitted.name)["name"], submitted.name)
+			self.assertFalse(frappe.has_permission("Wiki Change Request", "read", doc=draft.name))
+			self.assertEqual(
+				[row.name for row in list_open_change_requests(space.name)],
+				[submitted.name],
+			)
+			self.assertFalse(frappe.has_permission("Wiki Change Request", "write", doc=submitted.name))
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_open_change_requests_list_own_draft_with_changed_pages(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		draft = self._cr_with_change(space, "Mine")
+		update_cr_page(draft.name, page_key, {"content": "edited"})
+		merged = self._cr_with_change(space, "Merged")
+		frappe.db.set_value("Wiki Change Request", merged.name, "status", "Merged")
+
+		rows = list_open_change_requests(space.name)
+
+		self.assertEqual([row.name for row in rows], [draft.name])
+		self.assertCountEqual(
+			rows[0].changed_doc_keys,
+			[change["doc_key"] for change in diff_change_request(draft.name)],
+		)
+		self.assertIn(page_key, rows[0].changed_doc_keys)
+		self.assertEqual(len(rows[0].changed_doc_keys), 2)
+
+	def test_open_change_requests_refuse_an_outsider(self):
+		space = make_space(roles=[("Wiki Manager", "Read")])
+
+		frappe.set_user(create_user("cr-space-outsider@example.com", "Wiki User").name)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				list_open_change_requests(space.name)
 		finally:
 			frappe.set_user("Administrator")
 

@@ -32,7 +32,7 @@
 				<section class="flex flex-col gap-3">
 					<div class="flex items-baseline justify-between gap-2">
 						<h4 class="text-xs text-ink-gray-5">{{ __('General') }}</h4>
-						<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
+						<Badge v-if="spaceStore.isGitSynced" variant="subtle" theme="gray" size="sm">
 							{{ __('From the repo') }}
 						</Badge>
 					</div>

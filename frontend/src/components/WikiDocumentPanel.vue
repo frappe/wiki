@@ -22,6 +22,19 @@
 								<span class="lucide-eye size-4" aria-hidden="true" />
 							</Button>
 						</Tooltip>
+						<Tooltip v-if="!spaceStore.isGitSynced" :text="__('Change requests')">
+							<Button
+								:variant="openPanel === 'change-requests' ? 'subtle' : 'ghost'"
+								:aria-label="__('{0} open change requests', [changeRequests.length])"
+								:aria-pressed="openPanel === 'change-requests'"
+								@click="toggleChangeRequests"
+							>
+								<template #prefix>
+									<span class="lucide-git-pull-request size-4" aria-hidden="true" />
+								</template>
+								{{ changeRequests.length }}
+							</Button>
+						</Tooltip>
 						<!-- Shown for a synced page too: its meta title, description and
 						     social card are wiki-side fields the repo never carries, so
 						     they are still this app's to edit. -->
@@ -30,7 +43,7 @@
 								:variant="showPageSettings ? 'subtle' : 'ghost'"
 								:aria-label="__('Page settings')"
 								:aria-pressed="showPageSettings"
-								@click="togglePageSettings"
+								@click="toggleSidePanel('settings')"
 							>
 								<span class="lucide-panel-right size-4" aria-hidden="true" />
 							</Button>
@@ -73,10 +86,14 @@
 					</Dropdown>
 				</div>
 			</div>
+			<PageChangeRequestsNotice
+				v-if="showChangeRequestsNotice"
+				:change-requests="pageChangeRequests"
+			/>
 			<!-- The panel takes the right edge of the row, so the scroller it
 			     sits beside is narrower than the window — which is what the
 			     editor measures to decide between the outline's two variants. -->
-			<div class="flex min-h-0 flex-1">
+			<div class="relative flex min-h-0 flex-1">
 				<!-- The one scroller on this page: the editor body scrolls under
 				     the sticky toolbar, and the bubble menu and the outline rail
 				     both measure against it. -->
@@ -127,6 +144,7 @@
 				</ScrollArea>
 				<PageSettingsPanel
 					v-if="showPageSettings"
+					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
 					:doc-resource="wikiDoc"
 					:doc-key="wikiDoc.doc?.doc_key"
 					:readonly="!isEditing"
@@ -134,7 +152,14 @@
 					:route="displayRoute"
 					:published="displayPublished"
 					:content="editorContent"
-					@close="closePageSettings"
+					@close="closeSidePanel"
+				/>
+				<ChangeRequestsPanel
+					v-else-if="openPanel === 'change-requests'"
+					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
+					:change-requests="changeRequests"
+					:doc-key="wikiDoc.doc?.doc_key"
+					@close="closeSidePanel"
 				/>
 			</div>
 		</div>
@@ -217,7 +242,8 @@
 </template>
 
 <script setup>
-import { usePageSettingsPanel } from '@/composables/usePageSettingsPanel';
+import { useOpenChangeRequests } from '@/composables/useOpenChangeRequests';
+import { useSidePanel } from '@/composables/useSidePanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
 import { destructiveMenuOption } from '@/lib/menu';
@@ -253,8 +279,10 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { useMobile } from '../composables/useMobile';
 import { useRecentPages } from '../composables/useRecentPages';
+import ChangeRequestsPanel from './ChangeRequestsPanel.vue';
 import FinishEditingButton from './FinishEditingButton.vue';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
+import PageChangeRequestsNotice from './PageChangeRequestsNotice.vue';
 import PageMetaLine from './PageMetaLine.vue';
 import PageSettingsPanel from './PageSettingsPanel.vue';
 import SubmitForReviewButton from './SubmitForReviewButton.vue';
@@ -530,12 +558,34 @@ watch(
 );
 
 // The panel is module-scoped state: it stays open across page switches, and
-// the toggle that owns it lives in this header.
+// the toggles that own it live in this header.
 const {
-	isOpen: showPageSettings,
-	close: closePageSettings,
-	toggle: togglePageSettings,
-} = usePageSettingsPanel();
+	openPanel,
+	close: closeSidePanel,
+	toggle: toggleSidePanel,
+} = useSidePanel();
+const showPageSettings = computed(() => openPanel.value === 'settings');
+
+const {
+	changeRequests,
+	changingPage,
+	reload: reloadChangeRequests,
+} = useOpenChangeRequests(() => props.spaceId);
+const pageChangeRequests = computed(() =>
+	changingPage(wikiDoc.value.doc?.doc_key),
+);
+// The panel's first group says the same thing.
+const showChangeRequestsNotice = computed(
+	() =>
+		!isEditing.value &&
+		pageChangeRequests.value.length > 0 &&
+		openPanel.value !== 'change-requests',
+);
+
+function toggleChangeRequests() {
+	toggleSidePanel('change-requests');
+	if (openPanel.value === 'change-requests') reloadChangeRequests();
+}
 
 const spaceTree = inject(SPACE_TREE_KEY, null);
 
@@ -625,7 +675,7 @@ const pageViewProps = computed(() => {
 		return {
 			html: pageHtml.value?.data?.html ?? null,
 			toc: pageHtml.value?.data?.toc ?? [],
-			showOutline: !showPageSettings.value,
+			showOutline: !openPanel.value,
 		};
 	}
 	return {
@@ -633,7 +683,7 @@ const pageViewProps = computed(() => {
 		documentKey: wikiDoc.value.doc?.doc_key,
 		savedContent: savedContent.value,
 		autofocus: focusEditor.value,
-		showOutline: !showPageSettings.value,
+		showOutline: !openPanel.value,
 	};
 });
 

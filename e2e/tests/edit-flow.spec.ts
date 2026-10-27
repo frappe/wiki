@@ -33,6 +33,7 @@ function recordWrites(page: Page) {
 	const writes: string[] = [];
 	page.on('request', (request) => {
 		const url = request.url();
+		if (request.method() === 'GET') return;
 		if (url.includes(CR_METHOD) || url.includes('apply_cr_operations')) {
 			writes.push(url);
 		}
