@@ -4,7 +4,7 @@ import { callMethod, createDoc, getList } from '../helpers/frappe';
 import {
 	editDialog,
 	editPage,
-	openPageMenuItem,
+	openTreeRowMenuItem,
 	startEditing,
 } from '../helpers/wiki';
 
@@ -217,12 +217,12 @@ test.describe('Explicit edit', () => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await openPageMenuItem(page, 'Rename');
+		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
 		await startEditing(page, 'Rename Alpha');
 
-		const rename = page.getByRole('dialog').filter({ hasText: 'Rename Page' });
+		const rename = page.getByRole('dialog').filter({ hasText: 'Change Title' });
 		await rename.getByLabel('Title').fill('Alpha Renamed');
-		await rename.getByRole('button', { name: 'Rename' }).click();
+		await rename.getByRole('button', { name: 'Save' }).click();
 
 		await expect(
 			page.locator('aside').getByText('Alpha Renamed', { exact: true }),

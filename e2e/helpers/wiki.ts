@@ -88,9 +88,17 @@ export async function editPage(page: Page, title = 'E2E change') {
 	).toBeVisible({ timeout: 15000 });
 }
 
-/** Pick an item from the open page's header menu. */
-export async function openPageMenuItem(page: Page, item: string) {
-	await page.getByRole('button', { name: 'Page actions' }).click();
+/** Pick an item from a page's row menu in the sidebar tree. */
+export async function openTreeRowMenuItem(
+	page: Page,
+	title: string,
+	item: string,
+) {
+	const row = page
+		.locator('aside [role="treeitem"]', { hasText: title })
+		.first();
+	await row.hover();
+	await row.locator('> div').first().locator('button').last().click();
 	await page.getByRole('menuitem', { name: item }).click();
 }
 

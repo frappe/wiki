@@ -426,6 +426,7 @@ function getDropdownOptions(node) {
 	if (!hasChildren) {
 		options.push({
 			group: __('Danger'),
+			hideLabel: true,
 			options: [
 				{
 					label: __('Delete'),

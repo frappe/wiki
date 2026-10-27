@@ -98,15 +98,6 @@
 						<SubmitForReviewButton />
 						<FinishEditingButton />
 					</div>
-					<Dropdown v-if="menuOptions.length" :options="menuOptions">
-						<Button
-							variant="ghost"
-							:title="__('Page actions')"
-							:aria-label="__('Page actions')"
-						>
-							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
 				</div>
 			</div>
 			<!-- The panel takes the right edge of the row, so the scroller it
@@ -235,56 +226,6 @@
 				<Skeleton class="h-4 w-3/4 rounded-4" />
 			</div>
 		</div>
-		<Dialog v-model:open="showRenameDialog" size="sm">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">{{ __('Rename Page') }}</h3>
-			</template>
-			<template #default>
-				<FormControl
-					v-model="editableRenameTitle"
-					:label="__('Title')"
-					type="text"
-					:placeholder="__('Page title')"
-				/>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isRenaming" @click="renamePage(close)">
-						{{ __('Rename') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
-		<Dialog v-model:open="showDeleteDialog" size="sm">
-			<template #title>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Delete') }} "{{ displayTitle || __('Untitled') }}"
-				</h3>
-			</template>
-			<template #default>
-				<p class="text-ink-gray-7">
-					{{
-						__(
-							'The page is removed from the space when this change request is merged.',
-						)
-					}}
-				</p>
-			</template>
-			<template #actions="{ close }">
-				<div class="flex justify-end gap-2">
-					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button
-						variant="solid"
-						theme="red"
-						:loading="isDeleting"
-						@click="deletePage(close)"
-					>
-						{{ __('Save Delete Draft') }}
-					</Button>
-				</div>
-			</template>
-		</Dialog>
 	</div>
 </template>
 
@@ -293,7 +234,6 @@ import { useOpenChangeRequests } from '@/composables/useOpenChangeRequests';
 import { useSidePanel } from '@/composables/useSidePanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
-import { destructiveMenuOption } from '@/lib/menu';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -302,9 +242,6 @@ import {
 	Badge,
 	Breadcrumbs,
 	Button,
-	Dialog,
-	Dropdown,
-	FormControl,
 	ScrollArea,
 	Skeleton,
 	Tooltip,
@@ -354,11 +291,6 @@ const props = defineProps({
 const emit = defineEmits(['refresh']);
 
 const editableTitle = ref('');
-const showRenameDialog = ref(false);
-const editableRenameTitle = ref('');
-const isRenaming = ref(false);
-const showDeleteDialog = ref(false);
-const isDeleting = ref(false);
 const selectedVersion = ref(null);
 
 const route = useRoute();
@@ -401,10 +333,6 @@ async function editPage() {
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
-}
-
-async function whenEditing(action) {
-	if (await requireEditing()) action();
 }
 
 watch(
@@ -770,90 +698,9 @@ const githubEditUrl = computed(() => {
 // A synced page has no editable state here — the repo owns it, and the
 // header already offers the trip to GitHub. In read mode each action asks for
 // a change request first.
-const menuOptions = computed(() => {
-	if (!spaceStore.canEdit) return [];
-	return [
-		{
-			group: __('Page'),
-			hideLabel: true,
-			options: [
-				{
-					label: __('Rename'),
-					icon: 'lucide-pencil',
-					onClick: () => whenEditing(openRenameDialog),
-				},
-				{
-					label: displayPublished.value ? __('Unpublish') : __('Publish'),
-					icon: 'lucide-upload-cloud',
-					onClick: () => whenEditing(togglePublish),
-				},
-			],
-		},
-		{
-			group: __('Danger'),
-			hideLabel: true,
-			options: [
-				destructiveMenuOption({
-					label: __('Delete'),
-					icon: 'lucide-trash-2',
-					onClick: () =>
-						whenEditing(() => {
-							showDeleteDialog.value = true;
-						}),
-				}),
-			],
-		},
-	];
-});
-
-function openRenameDialog() {
-	editableRenameTitle.value = displayTitle.value;
-	showRenameDialog.value = true;
-}
-
-async function renamePage(close) {
-	const newTitle = editableRenameTitle.value.trim();
-	if (!newTitle || newTitle === displayTitle.value) {
-		close();
-		return;
-	}
-	if (!wikiDoc.value.doc?.doc_key) return;
-	isRenaming.value = true;
-	try {
-		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
-		close();
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating title'));
-	} finally {
-		isRenaming.value = false;
-	}
-}
-
 function openGithubEdit() {
 	if (!githubEditUrl.value) return;
 	window.open(githubEditUrl.value, '_blank', 'noopener');
-}
-
-// Deleting the open page leaves the editor pointing at nothing, so hand the
-// route back to the space, which reopens the next page it can find.
-async function deletePage(close) {
-	const docKey = wikiDoc.value.doc?.doc_key;
-	if (!docKey) {
-		close();
-		return;
-	}
-	close();
-	isDeleting.value = true;
-	try {
-		await draftStore.deleteNode(docKey);
-		if (props.spaceId) {
-			router.push({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
-		}
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error creating draft'));
-	} finally {
-		isDeleting.value = false;
-	}
 }
 
 async function saveTitleIfChanged() {
@@ -865,18 +712,6 @@ async function saveTitleIfChanged() {
 		await draftStore.updateNode(wikiDoc.value.doc.doc_key, { title: newTitle });
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating title'));
-	}
-}
-
-async function togglePublish() {
-	if (!wikiDoc.value.doc?.doc_key) return;
-	const newStatus = displayPublished.value ? 0 : 1;
-	try {
-		await draftStore.updateNode(wikiDoc.value.doc.doc_key, {
-			is_published: newStatus,
-		});
-	} catch (error) {
-		toast.error(error.messages?.[0] || __('Error updating publish status'));
 	}
 }
 
