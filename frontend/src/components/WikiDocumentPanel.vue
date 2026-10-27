@@ -157,6 +157,7 @@
 					v-if="selectedVersion"
 					:space-id="spaceId"
 					:version="selectedVersion"
+					:doc-key="historyScope === 'page' ? wikiDoc.doc?.doc_key : null"
 					@back="selectedVersion = null"
 				/>
 				<PageSettingsPanel
@@ -191,9 +192,11 @@
 							/>
 							<HistoryPanel
 								v-else
+								v-model:scope="historyScope"
 								v-model:selected="selectedVersion"
 								class="max-md:w-full"
 								:space-id="spaceId"
+								:doc-key="wikiDoc.doc?.doc_key"
 								@close="toggleHistory"
 							/>
 						</div>
@@ -291,6 +294,7 @@ const props = defineProps({
 const emit = defineEmits(['refresh']);
 
 const editableTitle = ref('');
+const historyScope = ref('page');
 const selectedVersion = ref(null);
 
 const route = useRoute();

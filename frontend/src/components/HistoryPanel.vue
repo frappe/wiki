@@ -18,6 +18,10 @@
 			</Button>
 		</div>
 
+		<div class="px-3 pt-3">
+			<TabButtons v-model="scope" :options="scopeOptions" fluid />
+		</div>
+
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-10 pt-2">
 			<button
 				type="button"
@@ -113,6 +117,7 @@ import {
 	Button,
 	ScrollArea,
 	Skeleton,
+	TabButtons,
 	createResource,
 	dayjsLocal,
 } from 'frappe-ui';
@@ -122,24 +127,36 @@ const PAGE_SIZE = 50;
 
 const props = defineProps({
 	spaceId: { type: String, required: true },
+	docKey: { type: String, default: null },
 });
 
+const scope = defineModel('scope', { type: String, default: 'page' });
 const selected = defineModel('selected', { type: Object, default: null });
 const emit = defineEmits(['close']);
 
+const scopeOptions = [
+	{ value: 'page', label: __('This page') },
+	{ value: 'space', label: __('All pages') },
+];
+
 function makeHistory(limit) {
+	const isPage = scope.value === 'page';
 	return createResource({
-		url: 'wiki.api.history.get_space_history',
+		url: isPage
+			? 'wiki.api.history.get_page_history'
+			: 'wiki.api.history.get_space_history',
 		method: 'GET',
-		params: { wiki_space: props.spaceId, limit },
-		cache: ['version-history', props.spaceId, limit],
+		params: isPage
+			? { wiki_space: props.spaceId, doc_key: props.docKey, limit }
+			: { wiki_space: props.spaceId, limit },
+		cache: ['version-history', scope.value, props.spaceId, props.docKey, limit],
 		auto: true,
 	});
 }
 
 const history = shallowRef(null);
 watch(
-	() => props.spaceId,
+	[scope, () => props.spaceId, () => props.docKey],
 	() => {
 		history.value = makeHistory(PAGE_SIZE);
 	},
@@ -152,6 +169,10 @@ function showMore() {
 }
 
 const versions = computed(() => history.value?.data?.versions ?? []);
+
+watch(scope, () => {
+	selected.value = null;
+});
 
 const groups = computed(() => {
 	const byLabel = new Map();
@@ -171,17 +192,33 @@ function dayLabel(value) {
 	return __('Earlier');
 }
 
+const CHANGE_LABELS = {
+	added: () => __('added'),
+	deleted: () => __('deleted'),
+	renamed: (version) => __('renamed from {0}', [version.old_title]),
+	moved: () => __('moved'),
+	edited: () => __('edited'),
+	published: () => __('published'),
+	unpublished: () => __('unpublished'),
+};
+
 function versionMeta(version) {
 	const date = dayjsLocal(version.created_at);
 	const when = date.isSame(dayjsLocal(), 'day')
 		? date.format('h:mm A')
 		: date.format('D MMM, h:mm A');
-	return `${when} · ${pageCount(version)}`;
+	return `${when} · ${scope.value === 'space' ? pageCount(version) : changeSummary(version)}`;
 }
 
 function pageCount(version) {
 	return version.page_count === 1
 		? __('1 page')
 		: __('{0} pages', [version.page_count]);
+}
+
+function changeSummary(version) {
+	return version.changes
+		.map((change) => CHANGE_LABELS[change](version))
+		.join(', ');
 }
 </script>
