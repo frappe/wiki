@@ -509,6 +509,62 @@ class TestWikiChangeRequest(FrappeTestCase):
 		cr_doc = frappe.get_doc("Wiki Change Request", cr.name)
 		self.assertEqual(cr_doc.status, "Merged")
 
+	def test_structural_merge_renumbers_nested_set_once(self):
+		space = create_test_wiki_space()
+		group_a = create_test_wiki_document(space.root_group, title="Group A", is_group=1)
+		group_b = create_test_wiki_document(space.root_group, title="Group B", is_group=1)
+		moved = create_test_wiki_document(group_a.name, title="Moved")
+		removed = create_test_wiki_document(group_a.name, title="Removed")
+		later_space = create_test_wiki_space()
+		create_test_wiki_document(later_space.root_group, title="Later Page")
+
+		root_key, group_b_key, moved_key, removed_key = (
+			frappe.get_value("Wiki Document", doc, "doc_key")
+			for doc in (space.root_group, group_b.name, moved.name, removed.name)
+		)
+		cr = create_change_request(space.name, "Restructure")
+		new_group_key = create_cr_page(cr.name, root_key, "Group C", is_group=1, content="")
+		create_cr_page(cr.name, new_group_key, "New Page", content="new")
+		move_cr_page(cr.name, moved_key, group_b_key)
+		delete_cr_page(cr.name, removed_key)
+
+		with patch("frappe.utils.nestedset.update_nsm") as update_nsm:
+			_approve_and_merge(cr.name)
+
+		update_nsm.assert_not_called()
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", moved.name, "parent_wiki_document"), group_b.name
+		)
+		self.assertFalse(frappe.db.exists("Wiki Document", removed.name))
+		assert_nested_set_follows_parents(self, space.root_group, expected_size=6)
+		assert_nested_set_follows_parents(self, later_space.root_group, expected_size=2)
+		root_rgt = frappe.db.get_value("Wiki Document", space.root_group, "rgt")
+		self.assertEqual(frappe.db.get_value("Wiki Document", later_space.root_group, "lft"), root_rgt + 1)
+
+		# A normal insert after the merge goes through update_nsm, which trusts the numbering.
+		create_test_wiki_document(group_b.name, title="After Merge")
+		assert_nested_set_follows_parents(self, space.root_group, expected_size=7)
+		assert_nested_set_follows_parents(self, later_space.root_group, expected_size=2)
+
+	def test_merge_renumbers_the_space_a_page_is_pulled_back_from(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Wanderer")
+		other_space = create_test_wiki_space()
+		create_test_wiki_document(other_space.root_group, title="Resident")
+		cr = create_change_request(space.name, "Rename")
+		update_cr_page(cr.name, frappe.get_value("Wiki Document", page.name, "doc_key"), {"title": "Renamed"})
+		reorder_wiki_documents(page.name, other_space.root_group, 0, json.dumps([page.name]))
+
+		_approve_and_merge(cr.name)
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Document", page.name, "parent_wiki_document"), space.root_group
+		)
+		assert_nested_set_follows_parents(self, space.root_group, expected_size=2)
+		assert_nested_set_follows_parents(self, other_space.root_group, expected_size=2)
+
 	def test_merge_conflict_content_creates_conflict(self):
 		space = create_test_wiki_space()
 		page = create_test_wiki_document(space.root_group, title="Page A", content="v1")
@@ -3193,6 +3249,26 @@ def create_test_wiki_space():
 
 def create_test_wiki_document(parent, title="Test Page", content="Content", is_group: int = 0):
 	return make_document(parent=parent, title=title, content=content, is_group=is_group)
+
+
+def assert_nested_set_follows_parents(test, root_group: str, expected_size: int):
+	"""lft/rgt agree with parent links, have no gaps, and old_parent matches the parent."""
+	root_lft, root_rgt = frappe.db.get_value("Wiki Document", root_group, ["lft", "rgt"])
+	docs = frappe.get_all(
+		"Wiki Document",
+		filters={"lft": (">=", root_lft), "rgt": ("<=", root_rgt)},
+		fields=["name", "parent_wiki_document", "old_parent", "lft", "rgt"],
+	)
+	by_name = {doc.name: doc for doc in docs}
+	test.assertEqual(len(docs), expected_size)
+	test.assertEqual(root_rgt - root_lft + 1, 2 * expected_size)
+	test.assertEqual(len({doc.lft for doc in docs} | {doc.rgt for doc in docs}), 2 * expected_size)
+	for doc in docs:
+		test.assertEqual(doc.old_parent or "", doc.parent_wiki_document or "")
+		if doc.name == root_group:
+			continue
+		parent = by_name[doc.parent_wiki_document]
+		test.assertTrue(parent.lft < doc.lft < doc.rgt < parent.rgt, doc.name)
 
 
 def get_revision_item(revision, doc_key):

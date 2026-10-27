@@ -12,8 +12,13 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
-from wiki.api.wiki_space import flush_pending_revision_syncs, lock_wiki_space
+from wiki.api.wiki_space import (
+	_get_wiki_space_for_document,
+	flush_pending_revision_syncs,
+	lock_wiki_space,
+)
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	rebuild_space_nested_set,
 	resolve_wiki_links,
 	sanitize_route,
 	validate_external_url,
@@ -2271,66 +2276,93 @@ def _apply_merge_changes_only(
 
 	# Structural changes and additions need full save (process in tree order)
 	full_save_keys = structural_keys | added_keys
-	if full_save_keys:
-		ordered_keys = build_tree_order(new_items)
-		for doc_key in ordered_keys:
-			if doc_key not in full_save_keys:
-				continue
-
-			item = new_items[doc_key]
-			if item.get("is_deleted"):
-				continue
-
-			parent_name = None
-			if doc_key == root_doc_key:
-				parent_name = None
-			elif item.get("parent_key"):
-				parent_name = key_to_name.get(item.get("parent_key"))
-			elif space.root_group:
-				parent_name = space.root_group
-
-			if doc_key in key_to_name:
-				doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
-			else:
-				existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
-				if existing_name:
-					doc = frappe.get_doc("Wiki Document", existing_name)
-				else:
-					doc = frappe.new_doc("Wiki Document")
-					doc.doc_key = doc_key
-
-			doc.title = item.get("title")
-			doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
-			if item.get("route"):
-				doc.route = item["route"]
-			doc.is_group = item.get("is_group")
-			doc.is_tab = item.get("is_tab")
-			doc.tab_icon = item.get("tab_icon")
-			doc.is_published = item.get("is_published")
-			doc.is_external_link = item.get("is_external_link")
-			doc.external_url = item.get("external_url")
-			if doc_key == root_doc_key:
-				doc.parent_wiki_document = None
-			else:
-				doc.parent_wiki_document = parent_name or space.root_group
-			doc.sort_order = item.get("order_index") or 0
-
-			content_blob = item.get("content_blob")
-			doc.content = blob_contents.get(content_blob, "") if content_blob else ""
-
-			if doc.is_new():
-				doc.insert()
-				key_to_name[doc_key] = doc.name
-			else:
-				doc.save()
-
-	# Delete AFTER saves — children must be reparented before parents are deleted
-	_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
+	frappe.flags.defer_wiki_nested_set = True
+	try:
+		left_spaces = _save_changed_documents(
+			space, new_items, full_save_keys, key_to_name, root_doc_key, blob_contents
+		)
+		# Delete AFTER saves — children must be reparented before parents are deleted
+		_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
+	finally:
+		frappe.flags.defer_wiki_nested_set = False
+	if full_save_keys or deleted_keys:
+		for space_name in {space.name, *left_spaces}:
+			rebuild_space_nested_set(space_name)
 
 	# Reconcile sort_order for unchanged items whose live value drifted
 	_reconcile_sort_order(new_items, key_to_name, changed_keys)
 
 	frappe.db.set_value("Wiki Space", space.name, "main_revision", merge_revision.name)
+
+
+def _save_changed_documents(
+	space: Document,
+	new_items: dict[str, dict[str, Any]],
+	full_save_keys: set[str],
+	key_to_name: dict[str, str],
+	root_doc_key: str,
+	blob_contents: dict[str, str],
+) -> set[str]:
+	"""Save added and restructured pages, and return the other spaces any of them were pulled from."""
+	left_spaces: set[str] = set()
+	if not full_save_keys:
+		return left_spaces
+
+	ordered_keys = build_tree_order(new_items)
+	for doc_key in ordered_keys:
+		if doc_key not in full_save_keys:
+			continue
+
+		item = new_items[doc_key]
+		if item.get("is_deleted"):
+			continue
+
+		parent_name = None
+		if doc_key == root_doc_key:
+			parent_name = None
+		elif item.get("parent_key"):
+			parent_name = key_to_name.get(item.get("parent_key"))
+		elif space.root_group:
+			parent_name = space.root_group
+
+		if doc_key in key_to_name:
+			doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
+		else:
+			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
+			if existing_name:
+				doc = frappe.get_doc("Wiki Document", existing_name)
+				if left_space := _get_wiki_space_for_document(existing_name):
+					left_spaces.add(left_space)
+			else:
+				doc = frappe.new_doc("Wiki Document")
+				doc.doc_key = doc_key
+
+		doc.title = item.get("title")
+		doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
+		if item.get("route"):
+			doc.route = item["route"]
+		doc.is_group = item.get("is_group")
+		doc.is_tab = item.get("is_tab")
+		doc.tab_icon = item.get("tab_icon")
+		doc.is_published = item.get("is_published")
+		doc.is_external_link = item.get("is_external_link")
+		doc.external_url = item.get("external_url")
+		if doc_key == root_doc_key:
+			doc.parent_wiki_document = None
+		else:
+			doc.parent_wiki_document = parent_name or space.root_group
+		doc.sort_order = item.get("order_index") or 0
+
+		content_blob = item.get("content_blob")
+		doc.content = blob_contents.get(content_blob, "") if content_blob else ""
+
+		if doc.is_new():
+			doc.insert()
+			key_to_name[doc_key] = doc.name
+		else:
+			doc.save()
+
+	return left_spaces
 
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
@@ -2670,99 +2702,3 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 
 	recompute_revision_hashes(revision.name)
 	return revision
-
-
-def apply_merge_revision(space: Document, revision: Document) -> None:
-	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
-
-	frappe.flags.in_apply_merge_revision = True
-	try:
-		_apply_merge_revision(space, revision)
-	finally:
-		frappe.flags.in_apply_merge_revision = False
-
-	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache(space.name)
-
-
-def _apply_merge_revision(space: Document, revision: Document) -> None:
-	items = get_revision_item_map(revision.name)
-	ordered_keys = build_tree_order(items)
-	root_doc_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
-
-	# Get all docs in this wiki space using nested set model
-	root_lft, root_rgt = frappe.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
-	space_docs = frappe.get_all(
-		"Wiki Document",
-		fields=["name", "doc_key"],
-		filters=[
-			["lft", ">=", root_lft],
-			["rgt", "<=", root_rgt],
-			["doc_key", "is", "set"],
-		],
-	)
-	key_to_name = {doc["doc_key"]: doc["name"] for doc in space_docs}
-
-	# Collect docs to delete (exist in space but not in merge revision)
-	delete_doc_keys: set[str] = set()
-	for doc_key in list(key_to_name):
-		if doc_key == root_doc_key:
-			continue
-		if doc_key not in items:
-			delete_doc_keys.add(doc_key)
-
-	for doc_key in ordered_keys:
-		item = items[doc_key]
-		if item.get("is_deleted"):
-			continue
-
-		parent_name = None
-		if doc_key == root_doc_key:
-			parent_name = None
-		elif item.get("parent_key"):
-			parent_name = key_to_name.get(item.get("parent_key"))
-		elif space.root_group:
-			parent_name = space.root_group
-
-		if doc_key in key_to_name:
-			doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
-		else:
-			# Check if a document with this doc_key exists outside the space's tree
-			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
-			if existing_name:
-				doc = frappe.get_doc("Wiki Document", existing_name)
-			else:
-				doc = frappe.new_doc("Wiki Document")
-				doc.doc_key = doc_key
-
-		doc.title = item.get("title")
-		doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
-		if item.get("route"):
-			doc.route = item["route"]
-		doc.is_group = item.get("is_group")
-		doc.is_tab = item.get("is_tab")
-		doc.tab_icon = item.get("tab_icon")
-		doc.is_published = item.get("is_published")
-		doc.is_external_link = item.get("is_external_link")
-		doc.external_url = item.get("external_url")
-		if doc_key == root_doc_key:
-			doc.parent_wiki_document = None
-		else:
-			doc.parent_wiki_document = parent_name or space.root_group
-		doc.sort_order = item.get("order_index") or 0
-
-		content_blob = item.get("content_blob")
-		if content_blob:
-			content = frappe.get_value("Wiki Content Blob", content_blob, "content")
-			doc.content = content
-
-		if doc.is_new():
-			doc.insert()
-			key_to_name[doc_key] = doc.name
-		else:
-			doc.save()
-
-	# Delete AFTER saves — children must be reparented before parents are deleted
-	_delete_wiki_documents(delete_doc_keys, key_to_name, root_doc_key)
-
-	frappe.db.set_value("Wiki Space", space.name, "main_revision", revision.name)
