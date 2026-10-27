@@ -181,23 +181,37 @@
 					:content="editorContent"
 					@close="closeSidePanel"
 				/>
-				<ChangeRequestsPanel
-					v-else-if="openPanel === 'change-requests'"
-					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
-					:space-id="spaceId"
-					:change-requests="changeRequests"
-					:doc-key="wikiDoc.doc?.doc_key"
-					@close="closeSidePanel"
-				/>
-				<HistoryPanel
-					v-else-if="openPanel === 'history'"
-					v-model:scope="historyScope"
-					v-model:selected="selectedVersion"
-					class="max-sm:absolute max-sm:inset-0 max-sm:z-10 max-sm:w-full bg-surface-base"
-					:space-id="spaceId"
-					:doc-key="wikiDoc.doc?.doc_key"
-					@close="toggleHistory"
-				/>
+				<Teleport defer to="#wiki-side-panel" :disabled="isMobile">
+					<Transition
+						enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
+						enter-from-class="translate-x-6 opacity-0"
+						leave-active-class="transition duration-150 ease-in motion-reduce:transition-none"
+						leave-to-class="translate-x-6 opacity-0"
+					>
+						<div
+							v-if="openPanel === 'change-requests' || openPanel === 'history'"
+							class="flex max-md:absolute max-md:inset-0 max-md:z-10 max-md:bg-surface-base"
+						>
+							<ChangeRequestsPanel
+								v-if="openPanel === 'change-requests'"
+								class="max-md:w-full"
+								:space-id="spaceId"
+								:change-requests="changeRequests"
+								:doc-key="wikiDoc.doc?.doc_key"
+								@close="closeSidePanel"
+							/>
+							<HistoryPanel
+								v-else
+								v-model:scope="historyScope"
+								v-model:selected="selectedVersion"
+								class="max-md:w-full"
+								:space-id="spaceId"
+								:doc-key="wikiDoc.doc?.doc_key"
+								@close="toggleHistory"
+							/>
+						</div>
+					</Transition>
+				</Teleport>
 			</div>
 		</div>
 

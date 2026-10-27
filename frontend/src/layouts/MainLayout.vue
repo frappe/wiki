@@ -50,15 +50,18 @@
 					</MobileNav>
 				</template>
 			</MobileShell>
-			<DesktopShell v-else class="wiki-desktop-shell h-full">
-				<template #sidebar>
-					<!-- One navigation column that drills: the library at the top
-					     level, the space itself once you are inside one. -->
-					<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
-					<LibrarySidebar v-else-if="isRouteReady" />
-				</template>
-				<slot></slot>
-			</DesktopShell>
+			<div v-else class="flex h-full">
+				<DesktopShell class="wiki-desktop-shell h-full min-w-0 flex-1">
+					<template #sidebar>
+						<!-- One navigation column that drills: the library at the top
+						     level, the space itself once you are inside one. -->
+						<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
+						<LibrarySidebar v-else-if="isRouteReady" />
+					</template>
+					<slot></slot>
+				</DesktopShell>
+				<div id="wiki-side-panel" class="flex" />
+			</div>
 		</template>
 		<div
 			v-else

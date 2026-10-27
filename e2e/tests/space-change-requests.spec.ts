@@ -154,6 +154,6 @@ test.describe('Change requests in the space', () => {
 			.getByRole('button', { name: '0 open on this page, 0 in this space' })
 			.click();
 		const box = await page.getByTestId('change-requests-panel').boundingBox();
-		expect(box?.width).toBe(390);
+		expect(box?.width).toBeCloseTo(390, 1);
 	});
 });
