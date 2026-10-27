@@ -53,4 +53,38 @@ test.describe('Empty space — New page from the content column', () => {
 			timeout: 15000,
 		});
 	});
+
+	test('merging the first page right after typing leaves no unsaved marks', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+		await page.goto(space.url());
+		await expect(page.locator('aside >> text=No pages yet')).toBeVisible({
+			timeout: 15000,
+		});
+
+		await page
+			.locator('main')
+			.getByRole('button', { name: 'New page', exact: true })
+			.click();
+		const dialog = page.getByRole('dialog');
+		await dialog.getByLabel('Title').fill(`First Page ${Date.now()}`);
+		await dialog.getByRole('button', { name: 'Save' }).click();
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
+
+		const editor = page.locator('.ProseMirror[contenteditable="true"]');
+		await editor.click();
+		await page.keyboard.type('Merged without waiting for autosave');
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+
+		await page.waitForURL(/\/page\//, { timeout: 15000 });
+		await expect(
+			page.getByText('Merged without waiting for autosave'),
+		).toBeVisible();
+		await expect(page.getByTestId('sync-state-alert')).toHaveCount(0);
+		await expect(
+			page.getByRole('status', { name: 'Unsaved changes' }),
+		).toHaveCount(0);
+	});
 });
