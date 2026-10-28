@@ -26,7 +26,7 @@ All three meet at one point: the space gets a real read mode. Read mode shows th
 - The SPA already has a read-only path: git-synced spaces and users who cannot contribute (`spaceStore.isReadonly`). It loads the live tree (`get_wiki_tree`, cached per space since #879) and renders the page with `WikiEditor` in read-only mode. The editor chunk still loads.
 - `SpaceModeStrip` shows the draft: title, page count, View changes, Discard, Submit, Withdraw, Merge (for managers).
 - Change request permissions (`wiki/permissions.py:263`): the hooks let any space reader read a change request in the space, but the Wiki User DocPerm has `if_owner`, so a plain contributor reads only their own. Approvers and managers read all of them. Any contributor can write one.
-- Revisions: the main chain of a space is every revision with `is_overlay = 0` and `is_working = 0`. A merge writes one with `is_merge = 1` and `change_request` set. Desk edits and live reorders write "Direct reorder" revisions with no change request. Each revision holds one Wiki Revision Item per page (full snapshot, not a delta). Index: `(revision, doc_key)`.
+- Revisions: the main chain of a space is every revision with `is_working = 0`. A merge writes one with `is_merge = 1` and `change_request` set. Desk edits and live reorders write "Direct reorder" revisions with no change request. Most of them are overlays that hold only the pages they changed, with a full checkpoint now and then (`specs/delta_revisions.md`). Index: `(revision, doc_key)`.
 - `DiffViewer.vue` (`@pierre/diffs`) already renders split and unified markdown diffs for the change request review page.
 
 ## Design
@@ -126,11 +126,11 @@ Permissions: a plain contributor (Wiki User) must be able to read others' submit
 
 - `get_page_history(wiki_space, doc_key, start, limit)`: main-chain revisions of the space joined to their item for `doc_key`, newest first. Keep a revision only where the item's `content_blob`, `title`, `route`, `is_published` or `is_deleted` differs from the previous kept one. Each version: revision, source (`merge`, `sync`, `desk`, `initial`), change request name and title, `source_commit`, author (name, image), `created_at`, changes, old title.
 - `get_space_history(wiki_space, start, limit)`: main-chain revisions, newest first, with the number of pages each changed against the one before it (`_diff_revision_items`, as the review uses). A revision with the same tree and content hashes as the one before it is skipped: git sync takes a live snapshot first that changes nothing. The space's root group is not counted as a page the first version added.
-- `get_revision_changes(revision, doc_key=None)`: every page the version changed against the previous main revision, or only `doc_key`, in the shape `get_change_request_review` returns, so `PageDiff` renders it. A working or overlay revision is refused: those are change requests, which have their own permissions.
+- `get_revision_changes(revision, doc_key=None)`: every page the version changed against the previous main revision, or only `doc_key`, in the shape `get_change_request_review` returns, so `PageDiff` renders it. A working revision is refused: that is a change request, which has its own permissions.
 
 Both lists return `{versions, more}`. These run as the session user. The revision doctypes stay manager-only: the API reads them with `frappe.qb` and `get_all` after the space check, like `get_cr_tree` reads overlay items.
 
-Cost: one Wiki Revision Item row per page per revision (3.6 not done), so a page's history query reads one row per main revision of the space through the `(revision, doc_key)` index. Paginate at 50. Measure on `perf-big-1000`.
+Cost: a page's history query reads at most one row per main revision of the space through the `(revision, doc_key)` index. An overlay with no row for the page left it as it was. Paginate at 50. Measure on `perf-big-1000`.
 
 **Restore.** Restore is a change request, never a direct write.
 
@@ -184,7 +184,6 @@ The combined prototype covers Reading, Editing and In review, the Edit dialog in
 
 - Several drafts per user per space.
 - Per-page versions and the operation log (3.1).
-- Delta revisions (3.6). History reads full snapshots.
 
 ## Progress
 

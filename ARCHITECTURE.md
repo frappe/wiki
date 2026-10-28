@@ -42,11 +42,12 @@
 
 A revision is either full or an overlay.
 
-- **Full revision**: one item row for every page in the space. `main_revision` and merge revisions are full.
-- **Overlay revision** (`is_overlay = 1`): holds only the items that differ from its `parent_revision`. A change request's head revision is an overlay.
-  - `get_effective_revision_item_map` reads the parent's items, then lays the overlay's items on top.
-  - `ensure_overlay_item` copies an item from the parent the first time it is edited (copy on write). So a new change request costs one row, whatever the size of the space.
-  - A deleted page is an overlay item with `is_deleted = 1`.
+- **Full revision**: one item row for every page in the space. The first snapshot of a space is full, and so is every checkpoint.
+- **Overlay revision** (`is_overlay = 1`): holds only the items that differ from its `parent_revision`. A deleted page is an item with `is_deleted = 1` (a tombstone).
+  - A change request's head revision is a working overlay on its `base_revision`. `ensure_overlay_item` copies an item into it the first time it is edited (copy on write), so a new change request costs one row, whatever the size of the space.
+  - Merges, Desk snapshots and git syncs are overlays on the `main_revision` they replace. `create_revision` writes them, and writes a full checkpoint instead once the overlay rows in the chain would reach the page count. So a revision costs rows in proportion to its change, and a read loads at most about two snapshots.
+- `get_revision_item_map` reads any revision: one recursive CTE walks `parent_revision` down to the first full revision, one query loads the items of that chain, and each overlay is laid over the one before. A tombstone in a committed revision removes the page; one in a working revision stays, so the change request lists the page as deleted. `get_revision_item` does the same for one page.
+- Items are written with `frappe.db.bulk_insert`, and `get_or_create_content_blobs` looks up and creates blobs in bulk.
 - Each revision keeps `tree_hash`, `content_hash` and `doc_count`. Writes set `hashes_stale`, and `ensure_revision_hashes` recomputes on the next read. `has_revision_changes` compares the hashes to tell whether a change request changes anything.
 
 Code: `wiki/frappe_wiki/doctype/wiki_revision/wiki_revision.py`.

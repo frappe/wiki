@@ -32,14 +32,13 @@ from wiki.api.wiki_space import lock_wiki_space
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	_apply_merge_changes_only,
 	_classify_changes,
-	_find_changed_keys,
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
+	changed_doc_keys,
+	create_revision,
 	create_revision_from_live_tree,
 	get_or_create_content_blobs,
 	get_revision_item_map,
-	insert_revision_items,
-	recompute_revision_hashes,
 )
 from wiki.telemetry import capture, error_kind
 
@@ -798,7 +797,9 @@ def _sync_to_live(
 	apply produced, so the caller can record them on the sync log.
 	"""
 	space = lock_wiki_space(space.name)
-	live_revision = create_revision_from_live_tree(space.name, message="git-sync: live snapshot")
+	live_revision = create_revision_from_live_tree(
+		space.name, message="git-sync: live snapshot", parent_revision=space.main_revision
+	)
 	prev_items = get_revision_item_map(live_revision.name)
 
 	root_doc_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
@@ -897,16 +898,6 @@ def _sync_to_live(
 		for index, node in enumerate(group):
 			node["sort_order"] = index
 
-	target = frappe.new_doc("Wiki Revision")
-	target.wiki_space = space.name
-	target.message = "git-sync: repo snapshot"
-	target.source_commit = source_commit
-	target.is_merge = 1
-	target.is_working = 0
-	target.created_by = frappe.session.user
-	target.created_at = now_datetime()
-	target.insert(ignore_permissions=True)
-
 	items = []
 	if root_prev:
 		# Root group is mirrored unchanged unless the repo root carries a landing file.
@@ -934,23 +925,24 @@ def _sync_to_live(
 			}
 		)
 	blobs = get_or_create_content_blobs(item["content"] or "" for item in items)
-	insert_revision_items(
-		target.name,
-		(
-			{
+	target = create_revision(
+		space.name,
+		{
+			item["doc_key"]: {
 				**item,
 				"is_tab": 0,
 				"tab_icon": None,
 				"is_external_link": 0,
 				"external_url": None,
 				"content_blob": blobs[item["content"] or ""],
-				"is_deleted": 0,
 			}
 			for item in items
-		),
+		},
+		live_revision.name,
+		message="git-sync: repo snapshot",
+		source_commit=source_commit,
+		is_merge=1,
 	)
-
-	recompute_revision_hashes(target.name)
 
 	counts = _diff_counts(prev_items, get_revision_item_map(target.name))
 
@@ -993,7 +985,7 @@ def _diff_counts(
 	actually applies. A re-parented page (changed ``parent_key``) is a *move*; any
 	other structural or content edit is an *update*.
 	"""
-	changed = _find_changed_keys(prev_items, new_items)
+	changed = changed_doc_keys(prev_items, new_items)
 	content_only, structural, added, deleted = _classify_changes(prev_items, new_items, changed)
 	moved = {
 		k for k in structural if (prev_items.get(k) or {}).get("parent_key") != new_items[k].get("parent_key")
