@@ -86,6 +86,7 @@ class TestDeltaRevisions(WikiTestCase):
 		# Four pages with the root: three one-row overlays, then 3 + 1 rows reach four.
 		self.assertEqual([merge.is_overlay for merge in merges], [1, 1, 1, 0, 1])
 		self.assertEqual(len(self.stored_rows(merges[3])), 4)
+		self.assertEqual([merge.checkpoint_revision for merge in merges[3:]], [None, merges[3].name])
 		self.assertEqual(self.content(merges[4], "Page 0"), "v5")
 		self.assertEqual(self.content(merges[2], "Page 0"), "v3")
 

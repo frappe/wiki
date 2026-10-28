@@ -35,7 +35,7 @@ A revision with no parent (the first snapshot, older revisions) stays full. Exis
 
 `get_revision_item_map(revision)` returns the tree the revision stands for, whatever its storage:
 
-1. One recursive CTE walks `parent_revision` from the revision while the revision is an overlay, down to the first full one.
+1. Each overlay stores `checkpoint_revision`, the full revision its chain starts from. One query builder query loads the checkpoint and every revision on it, and `parent_revision` is walked in Python from the revision down to the checkpoint. A recursive CTE would need `frappe.qb.with_(recursive=True)`, which Frappe v15 does not have. A patch sets `checkpoint_revision = parent_revision` on existing overlays: they all sit on a full revision.
 2. One `get_all` loads the items of every revision in that chain.
 3. Items are laid on top of each other, oldest first. A tombstone in a committed revision removes the page. A tombstone in a working revision (a change request head) stays, so the change request still shows the page as deleted.
 
@@ -93,7 +93,7 @@ A revision with no parent (the first snapshot, older revisions) stays full. Exis
 - [x] Spec
 - [x] Benchmark before
 - [x] Bulk insert for every full snapshot (`insert_revision_items`, `get_or_create_content_blobs`). `clone_revision` removed.
-- [x] Chain-aware reads: `_revision_chain` (recursive CTE), `get_revision_item_map`, `get_revision_item`. `get_effective_revision_item_map` removed.
+- [x] Chain-aware reads: `_revision_chain` (`checkpoint_revision`, query builder), `get_revision_item_map`, `get_revision_item`. `get_effective_revision_item_map` removed.
 - [x] Merges, Desk snapshots and git sync written by `create_revision` as deltas, with checkpoints
 - [x] History reads overlays
 - [x] Tests: `test_wiki_revision.py` (5), all fail with the change reverted. `test_merge_reconciles_stale_sort_order` reads the main revision through its chain. The history test for page versions fails without the overlay skip.

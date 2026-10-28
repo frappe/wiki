@@ -130,6 +130,7 @@ def create_revision(
 		{
 			"wiki_space": wiki_space,
 			"parent_revision": parent_revision,
+			"checkpoint_revision": _checkpoint_of(parent_revision) if is_overlay else None,
 			"is_overlay": is_overlay,
 			"created_by": frappe.session.user,
 			"created_at": now_datetime(),
@@ -184,6 +185,7 @@ def create_overlay_revision(
 	revision.wiki_space = base.wiki_space
 	revision.change_request = change_request
 	revision.parent_revision = base_revision
+	revision.checkpoint_revision = base.checkpoint_revision if base.is_overlay else base_revision
 	revision.message = base.message
 	revision.is_merge = 0
 	revision.is_working = 1 if is_working else 0
@@ -435,23 +437,33 @@ def _item_row(item: dict[str, Any]) -> dict[str, Any]:
 
 def _revision_chain(revision: str) -> list[dict[str, Any]]:
 	"""The revisions whose items make up `revision`, oldest first: a full revision, then each overlay on it."""
-	return frappe.db.sql(
-		"""
-		WITH RECURSIVE chain AS (
-			SELECT name, parent_revision, is_overlay, is_working, 0 AS depth
-			FROM `tabWiki Revision`
-			WHERE name = %(revision)s
-			UNION ALL
-			SELECT parent.name, parent.parent_revision, parent.is_overlay, parent.is_working, chain.depth + 1
-			FROM `tabWiki Revision` parent
-			JOIN chain ON parent.name = chain.parent_revision
-			WHERE chain.is_overlay = 1
-		)
-		SELECT name, is_overlay, is_working FROM chain ORDER BY depth DESC
-		""",
-		{"revision": revision},
-		as_dict=True,
+	fields = ["name", "parent_revision", "is_overlay", "is_working", "checkpoint_revision"]
+	head = frappe.db.get_value("Wiki Revision", revision, fields, as_dict=True)
+	if not head:
+		return []
+	if not head.is_overlay:
+		return [head]
+
+	Revision = frappe.qb.DocType("Wiki Revision")
+	checkpoint = head.checkpoint_revision
+	links = (
+		frappe.qb.from_(Revision)
+		.select(*fields)
+		.where((Revision.checkpoint_revision == checkpoint) | (Revision.name == checkpoint))
+		.run(as_dict=True)
 	)
+	by_name = {link.name: link for link in links}
+	chain = [head]
+	while chain[-1].is_overlay and (parent := by_name.get(chain[-1].parent_revision)):
+		chain.append(parent)
+	return chain[::-1]
+
+
+def _checkpoint_of(revision: str) -> str:
+	parent = frappe.db.get_value(
+		"Wiki Revision", revision, ["is_overlay", "checkpoint_revision"], as_dict=True
+	)
+	return parent.checkpoint_revision if parent.is_overlay else revision
 
 
 def _lay_over(chain: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
