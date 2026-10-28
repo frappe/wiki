@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from typing import Any
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import now_datetime
+from frappe.model.naming import make_autoname
+from frappe.utils import cint, now_datetime
 from frappe.website.utils import cleanup_page_name
 
 # Wiki Document fields a revision snapshots. Changes to any other field leave revisions untouched.
@@ -26,6 +28,24 @@ REVISION_FIELDS = (
 	"sort_order",
 	"content",
 )
+
+ITEM_FIELDS = (
+	"doc_key",
+	"title",
+	"slug",
+	"route",
+	"is_group",
+	"is_tab",
+	"tab_icon",
+	"is_published",
+	"is_external_link",
+	"external_url",
+	"parent_key",
+	"order_index",
+	"content_blob",
+	"is_deleted",
+)
+INT_ITEM_FIELDS = {"is_group", "is_tab", "is_published", "is_external_link", "order_index", "is_deleted"}
 
 
 class WikiRevision(Document):
@@ -67,6 +87,7 @@ def create_revision_from_live_tree(
 			)
 
 	name_to_key = {doc["name"]: doc["doc_key"] for doc in docs}
+	blobs = get_or_create_content_blobs(doc.get("content") or "" for doc in docs)
 
 	revision = frappe.new_doc("Wiki Revision")
 	revision.wiki_space = wiki_space
@@ -79,26 +100,19 @@ def create_revision_from_live_tree(
 	revision.created_at = now_datetime()
 	revision.insert(ignore_permissions=True)
 
-	for doc in docs:
-		content = doc.get("content") or ""
-		content_blob = get_or_create_content_blob(content)
-		item = frappe.new_doc("Wiki Revision Item")
-		item.revision = revision.name
-		item.doc_key = doc.get("doc_key")
-		item.title = doc.get("title")
-		item.slug = doc.get("slug") or cleanup_page_name(doc.get("title") or "")
-		item.route = doc.get("route")
-		item.is_group = doc.get("is_group")
-		item.is_tab = doc.get("is_tab")
-		item.tab_icon = doc.get("tab_icon")
-		item.is_published = doc.get("is_published")
-		item.is_external_link = doc.get("is_external_link")
-		item.external_url = doc.get("external_url")
-		item.parent_key = name_to_key.get(doc.get("parent_wiki_document"))
-		item.order_index = doc.get("sort_order") or 0
-		item.content_blob = content_blob
-		item.is_deleted = 0
-		item.insert(ignore_permissions=True)
+	insert_revision_items(
+		revision.name,
+		(
+			{
+				**doc,
+				"slug": doc.get("slug") or cleanup_page_name(doc.get("title") or ""),
+				"parent_key": name_to_key.get(doc.get("parent_wiki_document")),
+				"order_index": doc.get("sort_order"),
+				"content_blob": blobs[doc.get("content") or ""],
+			}
+			for doc in docs
+		),
+	)
 
 	recompute_revision_hashes(revision.name)
 	return revision
@@ -129,66 +143,73 @@ def create_overlay_revision(
 	return revision
 
 
-def clone_revision(
-	base_revision: str,
-	change_request: str | None = None,
-	parent_revision: str | None = None,
-	is_working: int = 0,
-) -> Document:
-	base = frappe.get_doc("Wiki Revision", base_revision)
-	new_revision = frappe.new_doc("Wiki Revision")
-	new_revision.wiki_space = base.wiki_space
-	new_revision.change_request = change_request
-	new_revision.parent_revision = parent_revision or base_revision
-	new_revision.message = base.message
-	new_revision.is_merge = 0
-	new_revision.is_working = 1 if is_working else 0
-	new_revision.created_by = frappe.session.user
-	new_revision.created_at = now_datetime()
-	new_revision.insert(ignore_permissions=True)
-
-	items = frappe.get_all(
+def insert_revision_items(revision: str, items: Iterable[dict[str, Any]]) -> None:
+	"""Write a revision's items in bulk. The values come from other revisions or live pages, so per-row link checks add nothing."""
+	now = now_datetime()
+	user = frappe.session.user
+	frappe.db.bulk_insert(
 		"Wiki Revision Item",
-		fields=[
-			"doc_key",
-			"title",
-			"slug",
-			"route",
-			"is_group",
-			"is_tab",
-			"tab_icon",
-			"is_published",
-			"is_external_link",
-			"external_url",
-			"parent_key",
-			"order_index",
-			"content_blob",
-			"is_deleted",
-		],
-		filters={"revision": base_revision},
+		["name", "creation", "modified", "owner", "modified_by", "revision", *ITEM_FIELDS],
+		(
+			(
+				make_autoname("hash", "Wiki Revision Item"),
+				now,
+				now,
+				user,
+				user,
+				revision,
+				*(
+					cint(item.get(field)) if field in INT_ITEM_FIELDS else item.get(field)
+					for field in ITEM_FIELDS
+				),
+			)
+			for item in items
+		),
 	)
 
-	for item in items:
-		new_item = frappe.new_doc("Wiki Revision Item")
-		new_item.revision = new_revision.name
-		new_item.doc_key = item["doc_key"]
-		new_item.title = item.get("title")
-		new_item.slug = item.get("slug")
-		new_item.route = item.get("route")
-		new_item.is_group = item.get("is_group")
-		new_item.is_tab = item.get("is_tab")
-		new_item.tab_icon = item.get("tab_icon")
-		new_item.is_published = item.get("is_published")
-		new_item.is_external_link = item.get("is_external_link")
-		new_item.external_url = item.get("external_url")
-		new_item.parent_key = item.get("parent_key")
-		new_item.order_index = item.get("order_index")
-		new_item.content_blob = item.get("content_blob")
-		new_item.is_deleted = item.get("is_deleted")
-		new_item.insert(ignore_permissions=True)
 
-	recompute_revision_hashes(new_revision.name)
-	return new_revision
+def get_or_create_content_blobs(contents: Iterable[str], content_type: str = "markdown") -> dict[str, str]:
+	"""Map each content to its blob name, with one query for the existing blobs and one insert for the rest."""
+	by_hash = {hashlib.sha256(content.encode("utf-8")).hexdigest(): content for content in contents}
+	if not by_hash:
+		return {}
+	existing = dict(
+		frappe.get_all(
+			"Wiki Content Blob",
+			filters={"hash": ("in", list(by_hash))},
+			fields=["hash", "name"],
+			as_list=True,
+		)
+	)
+	now = now_datetime()
+	user = frappe.session.user
+	rows = []
+	for hash_value, content in by_hash.items():
+		if hash_value in existing:
+			continue
+		existing[hash_value] = make_autoname("hash", "Wiki Content Blob")
+		size = len(content.encode("utf-8"))
+		rows.append(
+			(existing[hash_value], now, now, user, user, hash_value, content, content_type, size, user, now)
+		)
+	frappe.db.bulk_insert(
+		"Wiki Content Blob",
+		[
+			"name",
+			"creation",
+			"modified",
+			"owner",
+			"modified_by",
+			"hash",
+			"content",
+			"content_type",
+			"size",
+			"created_by",
+			"created_at",
+		],
+		rows,
+	)
+	return {content: existing[hash_value] for hash_value, content in by_hash.items()}
 
 
 def get_or_create_content_blob(content: str, content_type: str = "markdown") -> str:

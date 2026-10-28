@@ -32,6 +32,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	get_effective_revision_item_map,
 	get_or_create_content_blob,
 	get_revision_item_map,
+	insert_revision_items,
 	mark_hashes_stale,
 	recompute_revision_hashes,
 )
@@ -2681,24 +2682,7 @@ def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]])
 	revision.created_at = now_datetime()
 	revision.insert(ignore_permissions=True)
 
-	for item in merged_items.values():
-		new_item = frappe.new_doc("Wiki Revision Item")
-		new_item.revision = revision.name
-		new_item.doc_key = item.get("doc_key")
-		new_item.title = item.get("title")
-		new_item.slug = item.get("slug")
-		new_item.route = item.get("route")
-		new_item.is_group = item.get("is_group")
-		new_item.is_tab = item.get("is_tab")
-		new_item.tab_icon = item.get("tab_icon")
-		new_item.is_published = item.get("is_published")
-		new_item.is_external_link = item.get("is_external_link")
-		new_item.external_url = item.get("external_url")
-		new_item.parent_key = item.get("parent_key")
-		new_item.order_index = item.get("order_index")
-		new_item.content_blob = item.get("content_blob")
-		new_item.is_deleted = 0
-		new_item.insert(ignore_permissions=True)
+	insert_revision_items(revision.name, merged_items.values())
 
 	recompute_revision_hashes(revision.name)
 	return revision

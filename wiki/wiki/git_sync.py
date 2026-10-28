@@ -36,8 +36,9 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
-	get_or_create_content_blob,
+	get_or_create_content_blobs,
 	get_revision_item_map,
+	insert_revision_items,
 	recompute_revision_hashes,
 )
 from wiki.telemetry import capture, error_kind
@@ -906,49 +907,48 @@ def _sync_to_live(
 	target.created_at = now_datetime()
 	target.insert(ignore_permissions=True)
 
-	def add_item(doc_key, title, slug, route, is_group, is_published, parent_key, order_index, content):
-		item = frappe.new_doc("Wiki Revision Item")
-		item.revision = target.name
-		item.doc_key = doc_key
-		item.title = title
-		item.slug = slug
-		item.route = route
-		item.is_group = is_group
-		item.is_published = is_published
-		item.is_external_link = 0
-		item.parent_key = parent_key
-		item.order_index = order_index or 0
-		item.content_blob = get_or_create_content_blob(content or "")
-		item.is_deleted = 0
-		item.insert(ignore_permissions=True)
-
-	# Root group is mirrored unchanged unless the repo root carries a landing file.
+	items = []
 	if root_prev:
-		add_item(
-			root_doc_key,
-			root_prev.get("title"),
-			root_prev.get("slug"),
-			root_prev.get("route"),
-			1,
-			root_prev.get("is_published"),
-			None,
-			root_prev.get("order_index"),
-			root_content if root_content is not None else _blob_content(root_prev),
+		# Root group is mirrored unchanged unless the repo root carries a landing file.
+		items.append(
+			{
+				**root_prev,
+				"is_group": 1,
+				"parent_key": None,
+				"content": root_content if root_content is not None else _blob_content(root_prev),
+			}
 		)
-
 	for node in nodes:
 		key = node["doc_key"]
-		add_item(
-			key,
-			node["title"],
-			slug_for[key],
-			route_for[key],
-			node["is_group"],
-			node.get("is_published", 1),
-			node["parent_key"],
-			node["sort_order"],
-			node["content"],
+		items.append(
+			{
+				"doc_key": key,
+				"title": node["title"],
+				"slug": slug_for[key],
+				"route": route_for[key],
+				"is_group": node["is_group"],
+				"is_published": node.get("is_published", 1),
+				"parent_key": node["parent_key"],
+				"order_index": node["sort_order"],
+				"content": node["content"],
+			}
 		)
+	blobs = get_or_create_content_blobs(item["content"] or "" for item in items)
+	insert_revision_items(
+		target.name,
+		(
+			{
+				**item,
+				"is_tab": 0,
+				"tab_icon": None,
+				"is_external_link": 0,
+				"external_url": None,
+				"content_blob": blobs[item["content"] or ""],
+				"is_deleted": 0,
+			}
+			for item in items
+		),
+	)
 
 	recompute_revision_hashes(target.name)
 
