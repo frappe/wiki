@@ -213,3 +213,7 @@ scheduler_events = {
 website_route_rules = [
 	{"from_route": "/wiki-app/<path:app_path>", "to_route": "wiki-app"},
 ]
+
+# Expose method source code through the API discovery endpoints. Safe for open
+# source apps and helps API clients understand what a method does.
+expose_discovery_source = True
