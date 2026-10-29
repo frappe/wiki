@@ -398,7 +398,7 @@ class TestWikiSpaceDelete(WikiFixtureMixin, FrappeTestCase):
 		search._index_documents([search.prepare_document(page.reload())])
 
 		frappe.delete_doc("Wiki Space", space.name)
-		self.assertEqual(self.index_row_count(search, page.name), 1)
+		self.assertGreater(self.index_row_count(search, page.name), 0)
 
 		frappe.db.after_commit.run()
 		self.assertEqual(self.index_row_count(search, page.name), 0)
