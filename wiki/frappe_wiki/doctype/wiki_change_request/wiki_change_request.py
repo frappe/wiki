@@ -18,6 +18,7 @@ from wiki.api.wiki_space import (
 	lock_wiki_space,
 )
 from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	lock_wiki_tree,
 	rebuild_space_nested_set,
 	resolve_wiki_links,
 	sanitize_route,
@@ -2228,6 +2229,9 @@ def _apply_merge_changes_only(
 	content_only_keys, structural_keys, added_keys, deleted_keys = _classify_changes(
 		prev_items, new_items, changed_keys
 	)
+	full_save_keys = structural_keys | added_keys
+	if full_save_keys or deleted_keys:
+		lock_wiki_tree()
 
 	# Batch-load content blobs for all non-deleted changed items (1 query)
 	need_content_keys = content_only_keys | structural_keys | added_keys
@@ -2275,7 +2279,6 @@ def _apply_merge_changes_only(
 		touch_space_last_edited(space.name)
 
 	# Structural changes and additions need full save (process in tree order)
-	full_save_keys = structural_keys | added_keys
 	frappe.flags.defer_wiki_nested_set = True
 	try:
 		left_spaces = _save_changed_documents(

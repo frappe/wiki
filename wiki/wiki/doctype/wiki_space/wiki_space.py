@@ -105,8 +105,13 @@ class WikiSpace(Document):
 		"""
 		from frappe.utils.nestedset import get_descendants_of
 
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import lock_wiki_tree
+
+		lock_wiki_tree()
 		previous_flag = frappe.flags.in_apply_merge_revision
+		previous_defer = frappe.flags.defer_wiki_nested_set
 		frappe.flags.in_apply_merge_revision = True
+		frappe.flags.defer_wiki_nested_set = True
 		try:
 			doc_names = []
 			if self.root_group and frappe.db.exists("Wiki Document", self.root_group):
@@ -139,6 +144,7 @@ class WikiSpace(Document):
 					frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
 		finally:
 			frappe.flags.in_apply_merge_revision = previous_flag
+			frappe.flags.defer_wiki_nested_set = previous_defer
 
 	def remove_leading_slash_from_route(self):
 		if self.route and self.route.startswith("/"):
