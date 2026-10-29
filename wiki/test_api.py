@@ -1138,6 +1138,38 @@ class TestAppBoot(FrappeTestCase):
 
 		self.assertEqual(get_boot()["user_info"], {"is_logged_in": False})
 
+	def test_the_boot_carries_the_request_language(self):
+		from wiki.www.wiki_app import get_boot
+
+		self.use_request_language("ar")
+
+		self.assertEqual(get_boot()["lang"], "ar")
+
+	def test_translations_follow_the_request_language(self):
+		from wiki.api import get_translations
+
+		# Administrator and users with a cleared language follow the request language.
+		user = create_test_user("translations-system-lang@example.com", ["Wiki User"])
+		frappe.db.set_value("User", user.name, "language", None)
+		translation = frappe.get_doc(
+			{
+				"doctype": "Translation",
+				"language": "fr",
+				"source_text": "Wiki RTL boot check",
+				"translated_text": "Verification RTL du wiki",
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(translation.delete, ignore_permissions=True)
+		frappe.set_user(user.name)
+		self.use_request_language("fr")
+
+		self.assertEqual(get_translations().get("Wiki RTL boot check"), "Verification RTL du wiki")
+
+	def use_request_language(self, lang):
+		previous = frappe.local.lang
+		frappe.local.lang = lang
+		self.addCleanup(setattr, frappe.local, "lang", previous)
+
 
 class TestSpaceStats(WikiFixtureMixin, FrappeTestCase):
 	"""Tests for get_space_stats, which backs the All Spaces directory columns."""
