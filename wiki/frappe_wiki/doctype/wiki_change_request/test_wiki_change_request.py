@@ -46,7 +46,6 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	create_revision_from_live_tree,
-	get_effective_revision_item_map,
 	get_revision_item_map,
 )
 from wiki.tests import WikiTestCase as FrappeTestCase
@@ -110,9 +109,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(overlay_count, 0)
 
 		# But the effective tree has all items (root + page)
-		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import get_effective_revision_item_map
-
-		effective = get_effective_revision_item_map(cr.head_revision)
+		effective = get_revision_item_map(cr.head_revision)
 		self.assertEqual(len(effective), 2)
 
 	def test_create_update_page_in_cr(self):
@@ -841,16 +838,11 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page_key = create_cr_page(cr.name, parent_key=root_key, title="Added")
 
 		module = "wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request"
-		with (
-			patch(f"{module}.get_revision_item_map", wraps=get_revision_item_map) as base_loader,
-			patch(
-				f"{module}.get_effective_revision_item_map", wraps=get_effective_revision_item_map
-			) as head_loader,
-		):
+		with patch(f"{module}.get_revision_item_map", wraps=get_revision_item_map) as loader:
 			tree = get_cr_tree(cr.name)
 
-		self.assertEqual(base_loader.call_count, 1)
-		self.assertEqual(head_loader.call_count, 1)
+		loaded = sorted(call.args[0] for call in loader.call_args_list)
+		self.assertEqual(loaded, sorted([cr.base_revision, cr.head_revision]))
 		node = next(node for node in tree["children"] if node["doc_key"] == page_key)
 		self.assertEqual(node["_changeType"], "added")
 
@@ -1005,7 +997,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 			frappe.set_user("Administrator")
 
 		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "In Review")
-		titles = {item.get("title") for item in get_effective_revision_item_map(cr.head_revision).values()}
+		titles = {item.get("title") for item in get_revision_item_map(cr.head_revision).values()}
 		self.assertIn("Follow-up Page", titles)
 
 	def test_writer_edit_sends_approved_cr_back_to_review(self):
@@ -1579,7 +1571,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 			create_revision_from_live_tree,
-			get_effective_revision_item_map,
+			get_revision_item_map,
 		)
 
 		main_rev = create_revision_from_live_tree(space.name, message="Initial")
@@ -1594,7 +1586,7 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		# The CR's effective tree should contain the desk-edited content
 		page_key = frappe.db.get_value("Wiki Document", page.name, "doc_key")
-		effective = get_effective_revision_item_map(cr.head_revision)
+		effective = get_revision_item_map(cr.head_revision)
 		item = effective.get(page_key)
 		self.assertIsNotNone(item)
 		content_blob = item.get("content_blob")
@@ -2121,11 +2113,8 @@ class TestWikiChangeRequest(FrappeTestCase):
 		# The reconciliation step should have fixed page_a's sort_order
 		page_a.reload()
 		actual = page_a.sort_order
-		expected = frappe.get_value(
-			"Wiki Revision Item",
-			{"revision": frappe.get_value("Wiki Space", space.name, "main_revision"), "doc_key": page_a_key},
-			"order_index",
-		)
+		main_revision = frappe.get_value("Wiki Space", space.name, "main_revision")
+		expected = get_revision_item_map(main_revision)[page_a_key]["order_index"]
 		self.assertEqual(
 			actual,
 			expected,

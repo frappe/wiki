@@ -1,9 +1,9 @@
 """Version history of a space and its pages.
 
-A space's main chain is every revision that is neither a change request's
-working copy nor an overlay: merges, git syncs, Desk edits and the first
-snapshot. Git sync writes its revisions with no parent, so the chain is read in
-time order rather than by walking `parent_revision`.
+A space's main chain is every revision that is not a change request's working
+copy: merges, git syncs, Desk edits and the first snapshot. Most of them are
+overlays that store only the pages they changed. The chain is read in time
+order, since older git syncs wrote their revisions with no parent.
 """
 
 from __future__ import annotations
@@ -33,6 +33,9 @@ def get_page_history(wiki_space: str, doc_key: str, start: int = 0, limit: int =
 	previous = None
 	for revision in _main_chain(wiki_space, doc_key):
 		item = {field: revision.pop(field) for field in PAGE_FIELDS}
+		# An overlay with no row for the page left it as it was.
+		if revision.pop("is_overlay") and item["title"] is None:
+			continue
 		changes = _page_changes(previous, item)
 		if changes:
 			old_title = previous["title"] if "renamed" in changes else None
@@ -66,11 +69,9 @@ def get_space_history(wiki_space: str, start: int = 0, limit: int = 50) -> dict[
 @frappe.whitelist(methods=["GET"])
 def get_revision_changes(revision: str, doc_key: str | None = None) -> dict[str, Any]:
 	"""What a version changed against the one before it, rendered like the change request review."""
-	row = frappe.db.get_value(
-		"Wiki Revision", revision, ["wiki_space", "is_working", "is_overlay"], as_dict=True
-	)
-	# A working or overlay revision is someone's change request, which has its own permissions.
-	if not row or row.is_working or row.is_overlay:
+	row = frappe.db.get_value("Wiki Revision", revision, ["wiki_space", "is_working"], as_dict=True)
+	# A working revision is someone's change request, which has its own permissions.
+	if not row or row.is_working:
 		frappe.throw(_("Version {0} not found").format(revision), frappe.DoesNotExistError)
 	_check_read(row.wiki_space)
 
@@ -106,7 +107,6 @@ def _main_chain(wiki_space: str, doc_key: str | None = None) -> list[dict[str, A
 		)
 		.where(Revision.wiki_space == wiki_space)
 		.where(Revision.is_working == 0)
-		.where(Revision.is_overlay == 0)
 		.orderby(Revision.created_at)
 		.orderby(Revision.creation)
 	)
@@ -115,7 +115,7 @@ def _main_chain(wiki_space: str, doc_key: str | None = None) -> list[dict[str, A
 		query = (
 			query.left_join(Item)
 			.on((Item.revision == Revision.name) & (Item.doc_key == doc_key))
-			.select(*(Item[field] for field in PAGE_FIELDS))
+			.select(Revision.is_overlay, *(Item[field] for field in PAGE_FIELDS))
 		)
 	else:
 		query = query.select(Revision.tree_hash, Revision.content_hash)

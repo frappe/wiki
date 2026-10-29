@@ -878,20 +878,26 @@ class TestReorderParentChange(WikiFixtureMixin, FrappeTestCase):
 		with self.assertRaises(NestedSetRecursionError):
 			self.move(group.name, child.name)
 
-	def test_move_cost_does_not_grow_with_site_size(self):
+	def count_second_move_queries(self) -> int:
+		# A fresh space each time, so both counts see the same revision chain.
 		space = create_test_wiki_space(self)
 		group_a = create_wiki_document(self, space.root_group, "Group A", is_group=True)
 		group_b = create_wiki_document(self, space.root_group, "Group B", is_group=True)
 		page = create_wiki_document(self, group_a.name, "Page")
 
 		self.move(page.name, group_b.name)
-		baseline = self.count_move_queries(page.name, group_a.name)
+		return self.count_move_queries(page.name, group_a.name)
+
+	def test_move_cost_does_not_grow_with_site_size(self):
+		# The first run fills the site caches that earlier tests cleared.
+		self.count_second_move_queries()
+		baseline = self.count_second_move_queries()
 
 		other_space = create_test_wiki_space(self)
 		for index in range(20):
 			create_wiki_document(self, other_space.root_group, f"Other {index}")
 
-		self.assertEqual(self.count_move_queries(page.name, group_b.name), baseline)
+		self.assertEqual(self.count_second_move_queries(), baseline)
 
 
 class TestRestrictedSpaces(WikiFixtureMixin, FrappeTestCase):
