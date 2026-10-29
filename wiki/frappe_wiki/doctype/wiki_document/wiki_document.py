@@ -1266,14 +1266,14 @@ def on_wiki_document_update(doc, method):
 
 
 def _drop_from_search_index_on_unpublish(doc):
-	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_doc_from_index
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_docs_from_index
 
 	if doc.has_value_changed("is_published") and not doc.is_published:
 		# The index lives in a separate SQLite file, outside this transaction.
 		# Deferring until after commit keeps the row when the save rolls back;
 		# on rollback the callback queue is discarded.
 		docname = doc.name
-		frappe.db.after_commit.add(lambda: remove_doc_from_index(docname))
+		frappe.db.after_commit.add(lambda: remove_docs_from_index([docname]))
 
 
 def stamp_wiki_space(doc):
