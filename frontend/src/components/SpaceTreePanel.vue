@@ -79,7 +79,7 @@
 				<div
 					v-for="i in 4"
 					:key="'nested-' + i"
-					class="flex items-center gap-2 px-2 py-1.5 rounded-4 ml-6"
+					class="flex items-center gap-2 px-2 py-1.5 rounded-4 ms-6"
 				>
 					<Skeleton class="size-4 rounded-4 shrink-0" />
 					<Skeleton

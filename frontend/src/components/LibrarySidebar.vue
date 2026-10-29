@@ -30,7 +30,7 @@
 					@click="openCommandPalette('click')"
 				>
 					<template #suffix>
-						<KeyboardShortcut combo="Mod+K" class="mr-2 text-ink-gray-4" />
+						<KeyboardShortcut combo="Mod+K" class="me-2 text-ink-gray-4" />
 					</template>
 				</SidebarItem>
 
@@ -60,7 +60,7 @@
 								</template>
 								<!-- No unpublished icon: the Unpublished section already says it. -->
 								<template #suffix>
-									<span class="mr-2 flex items-center gap-1">
+									<span class="me-2 flex items-center gap-1">
 										<Tooltip v-if="isPinned(space.name)" :text="__('Pinned to top')">
 											<span class="lucide-pin size-3.5 text-ink-gray-5" aria-hidden="true" />
 										</Tooltip>

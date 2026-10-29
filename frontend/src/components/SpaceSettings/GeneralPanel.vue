@@ -79,7 +79,7 @@
 						<p class="text-p-base text-ink-gray-7">
 							{{ __('This cannot be undone. Deleting the space also removes:') }}
 						</p>
-						<ul class="list-disc space-y-1 pl-5 text-p-sm text-ink-gray-5">
+						<ul class="list-disc space-y-1 ps-5 text-p-sm text-ink-gray-5">
 							<li>{{ pagesLabel }}</li>
 							<li>{{ __('Their revision history') }}</li>
 							<li>{{ __('Every change request') }}</li>

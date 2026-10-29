@@ -31,7 +31,7 @@
             <MobileDrawer
                 v-if="isMobile"
                 :open="mobileTreeOpen"
-                side="left"
+                side="start"
                 :title="__('Pages')"
                 @update:open="mobileTreeOpen = $event"
             >

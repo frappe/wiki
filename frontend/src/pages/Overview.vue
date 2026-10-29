@@ -118,7 +118,7 @@
 							:title="`/${row.path}`"
 						>
 							<span class="flex min-w-0 flex-1 items-baseline gap-3">
-								<span class="w-4 shrink-0 text-right text-sm tabular-nums text-ink-gray-5">
+								<span class="w-4 shrink-0 text-end text-sm tabular-nums text-ink-gray-5">
 									{{ i + 1 }}
 								</span>
 								<span class="min-w-0 flex-1">
@@ -183,7 +183,7 @@ import { computed, h, ref, watch } from 'vue';
 const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-5 px-2';
 const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
 const COUNT =
-	'w-16 shrink-0 text-right text-base tabular-nums text-ink-gray-8';
+	'w-16 shrink-0 text-end text-base tabular-nums text-ink-gray-8';
 const EMPTY = 'py-8 text-center text-sm text-ink-gray-5';
 
 const RANGE_LABELS = {
@@ -300,7 +300,7 @@ function ReferrerIcon({ host }) {
 ReferrerIcon.props = ['host'];
 
 function DeltaText({ delta }) {
-	const base = 'w-20 shrink-0 text-right text-sm tabular-nums';
+	const base = 'w-20 shrink-0 text-end text-sm tabular-nums';
 	if (delta === null || delta === undefined) return h('span', { class: base });
 	if (delta === 0)
 		return h('span', { class: `${base} text-ink-gray-5` }, __('No change'));
