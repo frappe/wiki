@@ -1316,6 +1316,10 @@ def stamp_wiki_space_subtree(root_doc_name):
 	return space_name
 
 
+def lock_wiki_tree() -> None:
+	frappe.db.get_value("DocType", "Wiki Document", "name", for_update=True)
+
+
 def rebuild_space_nested_set(space_name: str) -> None:
 	"""Renumber one space's lft/rgt from parent links, after writes under `defer_wiki_nested_set`.
 

@@ -736,6 +736,42 @@ class TestWikiChangeRequest(FrappeTestCase):
 			first.save()
 			self.assertEqual(events[:2], ["lock space", "write page"], "desk save")
 
+	def test_structural_merge_locks_the_tree_before_the_first_page_write(self):
+		"""The nested set spans every space, so merges in different spaces deadlock without it."""
+		from wiki.frappe_wiki.doctype.wiki_change_request import wiki_change_request
+
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Page A")
+		events = []
+		lock = wiki_change_request.lock_wiki_tree
+		sql = frappe.db.sql
+
+		def record_lock():
+			events.append("lock tree")
+			return lock()
+
+		def record_page_write(query, *args, **kwargs):
+			if re.match(r"\s*(update|insert into)\s+`tabWiki Document`", str(query), re.IGNORECASE):
+				events.append("write page")
+			return sql(query, *args, **kwargs)
+
+		structural = create_change_request(space.name, "Add page")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		create_cr_page(structural.name, root_key, "Page B", content="new")
+		content_only = create_change_request(space.name, "Edit page")
+		update_cr_page(content_only.name, page.doc_key, {"content": "edited"})
+
+		with (
+			patch.object(wiki_change_request, "lock_wiki_tree", side_effect=record_lock),
+			patch.object(frappe.db, "sql", side_effect=record_page_write),
+		):
+			_approve_and_merge(structural.name)
+			self.assertEqual(events[:2], ["lock tree", "write page"], "structural merge")
+
+			events.clear()
+			_approve_and_merge(content_only.name)
+			self.assertNotIn("lock tree", events, "content-only merge")
+
 	def test_check_outdated_sets_flag(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")

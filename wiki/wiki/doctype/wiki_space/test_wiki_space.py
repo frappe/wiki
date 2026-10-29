@@ -5,7 +5,7 @@ import frappe
 from frappe.utils.nestedset import get_descendants_of
 
 from wiki.tests import WikiTestCase as FrappeTestCase
-from wiki.tests.factory import WikiFixtureMixin
+from wiki.tests.factory import WikiFixtureMixin, make_space
 from wiki.wiki.doctype.wiki_space.patches.v3 import (
 	migrate_orphan_pages_to_wiki_document,
 	migrate_to_new_tree_document_structure,
@@ -312,3 +312,16 @@ class TestWikiSpaceMigration(WikiFixtureMixin, FrappeTestCase):
 
 	def tearDown(self):
 		frappe.db.rollback()
+
+
+class TestWikiSpaceDelete(WikiFixtureMixin, FrappeTestCase):
+	def test_delete_leaves_other_spaces_numbering_alone(self):
+		"""Shifting every later page per deleted page locked the whole tree, so deletes deadlocked with merges."""
+		deleted = make_space(pages=[{"title": "Page A"}, {"title": "Page B"}])
+		kept = self.wiki.space(pages=[{"title": "Page C"}])
+		before = frappe.db.get_value("Wiki Document", kept.root_group, ["lft", "rgt"])
+
+		frappe.delete_doc("Wiki Space", deleted.name, force=True)
+
+		self.assertFalse(frappe.db.exists("Wiki Document", {"wiki_space": deleted.name}))
+		self.assertEqual(frappe.db.get_value("Wiki Document", kept.root_group, ["lft", "rgt"]), before)
