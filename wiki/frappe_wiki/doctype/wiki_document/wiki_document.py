@@ -1343,6 +1343,7 @@ def rebuild_space_nested_set(space_name: str) -> None:
 			WikiDocument.rgt,
 		)
 		.where(WikiDocument.lft.between(root_lft, root_rgt) | (WikiDocument.wiki_space == space_name))
+		.for_update()
 		.run(as_dict=True)
 	)
 	children = {}
