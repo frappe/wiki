@@ -3387,3 +3387,44 @@ class TestDeferredRevisionSync(WikiFixtureMixin, FrappeTestCase):
 
 		self.assertEqual(self.space_revisions(), before + 1, "the commit should take exactly one snapshot")
 		self.assertFalse(_pending_revision_spaces())
+
+
+class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
+	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
+		"""A merge that waits on the tree lock still holds the snapshot from before it waited,
+		so a plain read misses the shift the merge ahead of it committed."""
+		from frappe.database import get_db
+
+		earlier = self.wiki.space(pages=[{"title": "Earlier"}])
+		later = self.wiki.space(pages=[{"title": "Later"}])
+		cr = create_change_request(later.name, "Add pages")
+		root_key = frappe.db.get_value("Wiki Document", later.root_group, "doc_key")
+		for title in ("New A", "New B"):
+			create_cr_page(cr.name, root_key, title, content="new")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		earlier_rgt = frappe.db.get_value("Wiki Document", earlier.root_group, "rgt")
+		conf = frappe.conf
+		other = get_db(
+			socket=conf.db_socket,
+			host=conf.db_host,
+			port=conf.db_port,
+			user=conf.db_user or conf.db_name,
+			password=conf.db_password,
+			cur_db_name=conf.db_name,
+		)
+		other.connect()
+		try:
+			# What a merge adding five pages to the earlier space does to every space after it.
+			other.sql("update `tabWiki Document` set lft = lft + 10 where lft > %s", earlier_rgt)
+			other.sql("update `tabWiki Document` set rgt = rgt + 10 where rgt >= %s", earlier_rgt)
+			other.commit()
+		finally:
+			other.close()
+
+		merge_change_request(cr.name)
+		# Ends the stale snapshot, so the check below reads what the merge left.
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		assert_nested_set_follows_parents(self, later.root_group, expected_size=4)
