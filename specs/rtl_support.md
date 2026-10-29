@@ -32,18 +32,23 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 
 - Reader (`templates/wiki/layout.html`): `<html lang="{{ frappe.lang }}" dir="{{ 'rtl' if is_rtl() else 'ltr' }}">`.
 - SPA (`frontend/index.html`): same attributes. `get_boot()` adds `lang`.
-- `wiki.api.get_translations` uses `frappe.local.lang`. Today it reads `User.language`, which is empty for users who follow the system language, so they get no translations at all.
+- `wiki.api.get_translations` uses `frappe.local.lang`. Today it reads `User.language`, which is empty for Administrator and for any user whose language was cleared, so they get no translations at all.
 
 ### SPA
 
 - Wrap the app in reka-ui's `ConfigProvider` with `dir` from `<html dir>`. frappe-ui's `ScrollArea` and other reka components default to `ltr` without it, which keeps editor content LTR inside an RTL page.
-- Replace physical Tailwind classes (`ml-`, `pl-`, `left-`, `border-l`, `text-left`, ...) with logical ones (`ms-`, `ps-`, `start-`, `border-s`, `text-start`). Flip directional icons with `rtl:rotate-180` / `rtl:-scale-x-100`.
+- Replace physical Tailwind classes (`ml-`, `pl-`, `left-`, `border-l`, `text-left`, ...) with logical ones (`ms-`, `ps-`, `start-`, `border-s`, `text-start`).
+- One CSS rule in `index.css` mirrors the directional lucide icons (arrows, chevrons, `panel-left`) under `:dir(rtl)`. frappe-ui renders `icon="lucide-*"` as a class span, so this also covers icon Buttons.
+- tippy.js (slash menu, link popup) uses Popper, which has no RTL support, so the placement is `bottom-end` in RTL.
+- `MobileDrawer` sides become `start` / `end`.
+- Explicit image alignment (`data-align` left / right) and the image resize handle stay physical.
 
 ### Reader
 
 - Same class swap in `templates/wiki/**`.
 - Physical properties in `main.css` and `wiki-rendered.css` become logical (`padding-inline-start`, `inset-inline-end`, ...). Prose CSS from frappe-ui is already logical.
-- `pre` gets `direction: ltr` in both the reader and the editor.
+- `pre` gets `direction: ltr` in the reader and read mode. The editable code block (frappe-ui's `.code-block-container`) gets it in `wiki-editor-content.css`.
+- Keyboard hints (`Ctrl K`) get `dir="ltr"` so they do not read `K Ctrl`.
 
 ## Phases
 
@@ -54,7 +59,14 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 
 ## Progress
 
-- [ ] Phase 1
-- [ ] Phase 2
-- [ ] Phase 3
-- [ ] Phase 4
+- [x] Phase 1
+  - A user with an empty `User.language` (Administrator by default) got no SPA translations. Frappe fills `language` from the system default when a user is created, so most users were fine. Fixed by the switch to `frappe.local.lang`.
+  - Dev server serves `index.html` raw, so `lang` / `dir` only resolve in a build, same as Helpdesk and LMS.
+- [x] Phase 2
+- [x] Phase 3
+- [x] Phase 4
+  - Playwright Test's `browser.newContext()` inherits the signed-in `storageState`. A guest context needs `storageState: { cookies: [], origins: [] }`.
+
+## Known gaps
+
+frappe-ui components still use physical classes (about 110 in 42 files): `SidebarItem` icon gap, `PageHeaderMobile` prefix side, `KeyboardShortcut` key order, the editor toolbar's undo / redo icons. They need a frappe-ui fix.
