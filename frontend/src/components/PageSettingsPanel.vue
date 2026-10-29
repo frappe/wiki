@@ -3,7 +3,7 @@
 	     the fields here describe what is on screen, and the social preview is
 	     worth watching while the meta fields change. -->
 	<aside
-		class="flex h-full w-[352px] shrink-0 flex-col border-l border-outline-gray-2"
+		class="flex h-full w-[352px] shrink-0 flex-col border-s border-outline-gray-2"
 		data-testid="page-settings-panel"
 	>
 		<div

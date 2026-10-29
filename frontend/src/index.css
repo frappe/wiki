@@ -23,6 +23,18 @@ html[data-theme="light"] {
 	color-scheme: light;
 }
 
+/* Directional icons point the way the page reads. */
+:dir(rtl)
+	:is(
+		.lucide-arrow-left,
+		.lucide-arrow-right,
+		.lucide-chevron-left,
+		.lucide-chevron-right,
+		.lucide-panel-left
+	) {
+	scale: -1 1;
+}
+
 /* The `.no-transition` rule that used to sit here now comes from
    frappe-ui/style.css, and useColorScheme applies the class across a swap
    itself. */

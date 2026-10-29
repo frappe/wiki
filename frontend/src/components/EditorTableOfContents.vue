@@ -8,7 +8,7 @@
 	<div
 		v-if="variant === 'rail'"
 		ref="rootRef"
-		class="pointer-events-none absolute inset-y-0 right-0 w-[208px] py-6 pr-4"
+		class="pointer-events-none absolute inset-y-0 end-0 w-[208px] py-6 pe-4"
 		data-testid="editor-toc-rail"
 	>
 		<nav
@@ -33,9 +33,9 @@
 				:key="entry.pos ?? entry.id"
 				type="button"
 				data-testid="editor-toc-link"
-				class="shrink-0 truncate rounded-4 py-1 pr-2 text-left"
+				class="shrink-0 truncate rounded-4 py-1 pe-2 text-start"
 				:class="[
-					entry.level >= 3 && hasH2 ? 'pl-5' : 'pl-2',
+					entry.level >= 3 && hasH2 ? 'ps-5' : 'ps-2',
 					index === activeIndex
 						? 'bg-surface-gray-2 text-ink-gray-9'
 						: 'text-ink-gray-6 hover:bg-surface-gray-2 hover:text-ink-gray-8',
@@ -86,7 +86,7 @@
 					:key="entry.pos ?? entry.id"
 					type="button"
 					data-testid="editor-toc-link"
-					class="flex w-full items-center gap-2 py-2 pr-4 text-left text-sm"
+					class="flex w-full items-center gap-2 py-2 pe-4 text-start text-sm"
 					:class="index === activeIndex
 						? 'bg-surface-gray-2 font-medium text-ink-gray-9'
 						: 'text-ink-gray-6'"

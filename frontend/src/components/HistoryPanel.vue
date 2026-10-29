@@ -1,6 +1,6 @@
 <template>
 	<aside
-		class="flex h-full w-[352px] shrink-0 flex-col border-l border-outline-gray-2"
+		class="flex h-full w-[352px] shrink-0 flex-col border-s border-outline-gray-2"
 		data-testid="history-panel"
 	>
 		<div
@@ -25,7 +25,7 @@
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-10 pt-2">
 			<button
 				type="button"
-				class="flex w-full items-center gap-2 rounded-4 px-2 py-1.5 text-left"
+				class="flex w-full items-center gap-2 rounded-4 px-2 py-1.5 text-start"
 				:class="selected ? 'hover:bg-surface-gray-2' : 'bg-surface-gray-3'"
 				@click="selected = null"
 			>
@@ -70,7 +70,7 @@
 						v-for="version in group.versions"
 						:key="version.revision"
 						type="button"
-						class="flex w-full items-start gap-2 rounded-4 px-2 py-1.5 text-left"
+						class="flex w-full items-start gap-2 rounded-4 px-2 py-1.5 text-start"
 						:class="
 							selected?.revision === version.revision
 								? 'bg-surface-gray-3'

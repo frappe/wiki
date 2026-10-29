@@ -24,7 +24,7 @@
                 type="button"
                 role="option"
                 :aria-selected="index === selectedIndex"
-                class="flex w-full items-center gap-2.5 rounded-4 px-2 py-1.5 text-left"
+                class="flex w-full items-center gap-2.5 rounded-4 px-2 py-1.5 text-start"
                 :class="[
                     index === selectedIndex ? 'bg-surface-gray-3' : '',
                     item.create && hasPages ? 'mt-1' : '',
