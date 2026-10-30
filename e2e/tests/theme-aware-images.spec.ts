@@ -157,6 +157,7 @@ test.describe('Theme-aware images', () => {
 			'src',
 			/-dark-/,
 		);
+		await expect(reader.locator('#image-viewer-img')).toHaveCSS('filter', 'none');
 		await reader.close();
 	});
 
