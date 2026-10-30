@@ -1,0 +1,83 @@
+# Sidebar order for the Frappe Wiki docs. GitHub Sync reads this file; only the pages listed here are synced.
+sidebar:
+  - label: Introduction
+    slug: introduction
+    items:
+      - introduction/what-is-frappe-wiki.md
+      - introduction/install-frappe-wiki.md
+      - introduction/find-your-way-around.md
+      - introduction/roles-and-permissions.md
+      - introduction/work-with-ai-agents.md
+  - label: Quick Start
+    slug: quick-start
+    items:
+      - quick-start/create-a-space.md
+      - quick-start/write-your-first-page.md
+      - quick-start/submit-for-review.md
+      - quick-start/review-and-merge.md
+      - quick-start/share-and-read-it.md
+  - label: Spaces
+    slug: spaces
+    items:
+      - spaces/create-a-space.md
+      - spaces/space-appearance.md
+      - spaces/who-can-read-and-write.md
+      - spaces/space-switcher.md
+  - label: Authoring Content
+    slug: authoring-content
+    items:
+      - authoring-content/edit-a-page.md
+      - authoring-content/format-text.md
+      - authoring-content/callouts.md
+      - authoring-content/images.md
+      - authoring-content/diagrams.md
+      - authoring-content/pdfs-and-videos.md
+      - authoring-content/link-to-other-pages.md
+      - authoring-content/organize-pages.md
+      - authoring-content/page-settings.md
+  - label: Change Requests
+    slug: change-requests
+    items:
+      - change-requests/what-is-a-change-request.md
+      - change-requests/submit-for-review.md
+      - change-requests/review-a-change.md
+      - change-requests/merge-and-resolve-conflicts.md
+      - change-requests/page-history.md
+      - change-requests/contributions-from-readers.md
+  - label: Reading
+    slug: reading
+    items:
+      - reading/browse-a-space.md
+      - reading/search.md
+      - reading/light-and-dark-mode.md
+      - reading/download-as-pdf.md
+      - reading/give-feedback.md
+  - label: Analytics
+    slug: analytics
+    items:
+      - analytics/page-views.md
+      - analytics/reader-feedback.md
+      - analytics/view-tracking.md
+  - label: GitHub Sync
+    slug: github-sync
+    items:
+      - github-sync/connect-a-repository.md
+      - github-sync/folder-structure.md
+      - github-sync/images-and-links.md
+      - github-sync/sync-a-space.md
+      - github-sync/edit-on-github.md
+  - label: SEO & AEO
+    slug: seo-and-aeo
+    items:
+      - seo-and-aeo/meta-tags.md
+      - seo-and-aeo/social-cards.md
+      - seo-and-aeo/hide-from-search-engines.md
+      - seo-and-aeo/sitemap.md
+      - seo-and-aeo/markdown-and-llms-txt.md
+  - label: Administration
+    slug: administration
+    items:
+      - administration/wiki-settings.md
+      - administration/translations.md
+      - administration/migrate-from-wiki-v2.md
+      - administration/telemetry.md
