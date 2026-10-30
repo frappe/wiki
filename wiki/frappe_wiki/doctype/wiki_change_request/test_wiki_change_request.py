@@ -3390,6 +3390,12 @@ class TestDeferredRevisionSync(WikiFixtureMixin, FrappeTestCase):
 
 
 class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
+	def setUp(self):
+		if frappe.db.db_type == "sqlite":
+			# SQLite fails a write from a stale snapshot outright, so the merge never renumbers from old rows.
+			self.skipTest("SQLite has no row locks to wait on")
+		super().setUp()
+
 	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
 		"""A merge that waits on the tree lock still holds the snapshot from before it waited,
 		so a plain read misses the shift the merge ahead of it committed."""

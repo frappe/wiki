@@ -108,7 +108,8 @@ class TestDeltaRevisions(WikiTestCase):
 		original = frappe.db.sql
 
 		def counting(query, *args, **kwargs):
-			if str(query).lstrip().upper().startswith("INSERT INTO `TABWIKI REVISION ITEM`"):
+			statement = str(query).lstrip().upper().replace('"', "`")
+			if statement.startswith("INSERT INTO `TABWIKI REVISION ITEM`"):
 				inserts.append(query)
 			return original(query, *args, **kwargs)
 
