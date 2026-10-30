@@ -1517,6 +1517,22 @@ class TestLocalDocsPreview(FrappeTestCase):
 		self.assertEqual(third.name, first.name)
 		self.assertEqual([page.title for page in self.pages(third)], ["Set up"])
 
+	def test_preview_matches_a_space_that_syncs_a_docs_folder(self):
+		space = _make_synced_space(docs_subdir="docs")
+		frappe.db.set_value("Wiki Space", space.name, "route", self.route)
+
+		preview_local_docs(self.folder, self.route)
+
+		pages = frappe.get_all(
+			"Wiki Document",
+			filters={"route": ["like", f"{self.route}/%"], "is_group": 0},
+			fields=["title", "source_path"],
+		)
+		# The paths match the repository, so the pages and their Edit on GitHub links stay right.
+		self.assertEqual(
+			[(page.title, page.source_path) for page in pages], [("Setup", "docs/guides/setup.md")]
+		)
+
 	def test_preview_refuses_a_space_that_is_not_synced(self):
 		space = frappe.get_doc(
 			{"doctype": "Wiki Space", "space_name": "Handwritten", "route": self.route}
