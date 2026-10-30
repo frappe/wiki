@@ -59,6 +59,10 @@ FRONT_MATTER_PATTERN = re.compile(r"^﻿?---[ \t]*\r?\n(.*?)\r?\n(?:---|\.\.\.)[
 # Markdown image: ![alt](src "optional title"). Groups: 1=prefix "![alt](",
 # 2=src (optionally <>-wrapped), 3=optional title, 4=closing ")".
 MD_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
+# HTML image tags, such as the <source>/<img> pair in a light/dark <picture>, and the
+# src/srcset attributes inside one. Groups: 1=prefix up to the quote, 2=quote, 3=value.
+HTML_IMAGE_TAG_PATTERN = re.compile(r"<(?:img|source)\b[^>]*>", re.IGNORECASE)
+HTML_IMAGE_ATTR_PATTERN = re.compile(r"""(\s(?:src|srcset)\s*=\s*)(["'])(.*?)\2""", re.IGNORECASE | re.DOTALL)
 # Markdown link: [text](url "title"). Same groups as the image pattern, but the
 # negative lookbehind on "!" excludes images (already handled separately).
 MD_LINK_PATTERN = re.compile(r"(?<!!)(\[[^\]]*\]\(\s*)(<[^>]+>|[^)\s]+)(\s+[^)]*)?(\))")
@@ -213,37 +217,55 @@ def _rewrite_image_links(
 	space: frappe.Document | None,
 	token: str | None = None,
 ) -> str:
-	"""Rewrite repo-relative Markdown image links to imported ``/files/…`` URLs.
+	"""Rewrite repo-relative image links to imported ``/files/…`` URLs.
 
-	Each ``![alt](src)`` whose ``src`` resolves (relative to the source file's
-	directory) to an image blob in the repo tree is imported and the link
-	rewritten in place — *before* the content is hashed into a blob, so the
-	deduped blob already carries final, stable URLs. ``space=None`` (pure
-	inference, no sync target) is a no-op.
+	Covers Markdown ``![alt](src)`` and the ``src``/``srcset`` of HTML ``<img>`` and
+	``<source>`` tags, which is how a ``<picture>`` gives an image a dark version.
+	Each path that resolves (relative to the source file's directory) to an image
+	blob in the repo tree is imported and rewritten in place — *before* the content
+	is hashed into a blob, so the deduped blob already carries final, stable URLs.
+	``space=None`` (pure inference, no sync target) is a no-op.
 	"""
 	if not content or not space or not source_path:
 		return content
 
 	base_dir = posixpath.dirname(source_path)
 
-	def repl(match: re.Match) -> str:
-		raw = match.group(2)
-		src = raw.strip("<>").strip()
+	def imported_url(src: str) -> str | None:
 		if not _is_repo_relative(src):
-			return match.group(0)
+			return None
 		resolved = posixpath.normpath(posixpath.join(base_dir, src))
 		# A "../" that climbs above the repo root can't be in the tree.
 		if resolved.startswith("..") or not resolved.lower().endswith(IMAGE_EXTENSIONS):
-			return match.group(0)
+			return None
 		blob_sha = sha_by_path.get(resolved)
 		if not blob_sha:
-			return match.group(0)
-		url = _import_repo_image(space, resolved, blob_sha, repo, token)
+			return None
+		return _import_repo_image(space, resolved, blob_sha, repo, token)
+
+	def markdown_image(match: re.Match) -> str:
+		url = imported_url(match.group(2).strip("<>").strip())
 		if not url:
 			return match.group(0)
 		return f"{match.group(1)}{url}{match.group(3) or ''}{match.group(4)}"
 
-	return MD_IMAGE_PATTERN.sub(repl, content)
+	def html_attribute(match: re.Match) -> str:
+		# A srcset holds comma-separated candidates, each a URL and an optional descriptor.
+		candidates, changed = [], False
+		for candidate in match.group(3).split(","):
+			src, _, descriptor = candidate.strip().partition(" ")
+			url = imported_url(src)
+			changed = changed or bool(url)
+			candidates.append(f"{url} {descriptor}".strip() if url else candidate.strip())
+		if not changed:
+			return match.group(0)
+		return f"{match.group(1)}{match.group(2)}{', '.join(candidates)}{match.group(2)}"
+
+	def html_tag(match: re.Match) -> str:
+		return HTML_IMAGE_ATTR_PATTERN.sub(html_attribute, match.group(0))
+
+	content = MD_IMAGE_PATTERN.sub(markdown_image, content)
+	return HTML_IMAGE_TAG_PATTERN.sub(html_tag, content)
 
 
 def get_link_targets(src_to_route: dict[str, str]) -> dict[str, str]:
