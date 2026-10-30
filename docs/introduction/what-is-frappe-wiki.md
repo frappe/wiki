@@ -4,8 +4,8 @@ title: What is Frappe Wiki
 Frappe Wiki is an open-source app for wikis and documentation. It runs on the Frappe Framework, next to the other Frappe apps on your site. People sign in with their account on the site.
 
 <picture>
-  <source srcset="../images/introduction/hero-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="../images/introduction/hero-light.webp" alt="A page of the Company Handbook open in the Frappe Wiki editor">
+  <source srcset="../images/introduction/overview-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="../images/introduction/overview-light.webp" alt="The Company Handbook in Frappe Wiki, open on the First 90 days page with the page tree, a timeline diagram and the table of contents">
 </picture>
 
 You use Frappe Wiki for product guides, help centers, company handbooks and team notes. Writers work in the app. Readers read the published pages on your site.

@@ -5,7 +5,7 @@ The space switcher lets readers move from one space to another in the reader. It
 
 <picture>
   <source srcset="../images/spaces/reader-switcher-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="../images/spaces/reader-switcher-light.webp" alt="The space switcher open in the reader header, with two spaces and a check mark next to the current one">
+  <img src="../images/spaces/reader-switcher-light.webp" alt="The space switcher open in the reader header, with the spaces and a check mark next to the current one">
 </picture>
 
 ## What readers see
