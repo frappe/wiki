@@ -8,7 +8,7 @@ import {
 	sidebarTop,
 	spaceIds,
 	unassign,
-	waitForSpace,
+	waitForClone,
 	waitIdle,
 } from '../lib.mjs';
 
@@ -49,7 +49,7 @@ async function createConflict({ api, state }) {
 		method: 'clone_wiki_space_in_background',
 		args: JSON.stringify({ new_space_route: CONFLICT_ROUTE }),
 	});
-	state.conflictSpace = await waitForSpace(api, CONFLICT_ROUTE);
+	state.conflictSpace = await waitForClone(api, state.handbook, CONFLICT_ROUTE);
 	const docKey = await api.getValue('Wiki Document', { route: `${CONFLICT_ROUTE}/it-and-security/devices` }, 'doc_key');
 
 	const edit = async (title, refresh) => {
@@ -146,7 +146,7 @@ export const shots = [
 		teardown: ({ api }) => deleteConflictSpace(api),
 		async steps(page) {
 			await page.getByRole('button', { name: 'Merge', exact: true }).click();
-			await page.getByText(/Merge Conflicts/i).first().waitFor();
+			await page.getByText(/Merge Conflicts/i).first().waitFor({ timeout: 120000 });
 			await page.getByText('Devices', { exact: true }).last().click();
 			await waitIdle(page);
 		},

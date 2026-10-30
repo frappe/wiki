@@ -1,6 +1,7 @@
 import { SPACES, columnOf, dialog, openSpaceSettings, openWikiSettings, syncSpace, waitIdle } from '../lib.mjs';
 
 const IMAGE_PAGE = 'introduction/what-is-frappe-wiki';
+const REPOSITORY = { repo_full_name: 'frappe/wiki', branch: 'docs/user-guide', docs_subdir: 'docs' };
 
 /** The first synced space whose sync imported the images of the hero page. Frappe Wiki Docs comes first. */
 async function spaceWithImages(api) {
@@ -19,10 +20,24 @@ export async function setup(run) {
 	state.route = await api.getValue('Wiki Space', { name: state.space }, 'route');
 	state.page = await api.pageId(`${state.route}/github-sync/connect-a-repository`);
 	state.imageRoute = await spaceWithImages(api);
-	if (run.theme === 'light') {
-		const logs = await api.getList('Wiki Git Sync Log', { filters: { wiki_space: state.space } });
-		if (logs.length < 2) await syncSpace(api, state.space);
-	}
+	state.repository = await api.getDoc('Wiki Space', state.space).then(({ repo_full_name, branch, docs_subdir }) => ({
+		repo_full_name,
+		branch,
+		docs_subdir,
+	}));
+	if (!state.repository.repo_full_name) await api.setValues('Wiki Space', state.space, REPOSITORY);
+	const logs = await api.getList('Wiki Git Sync Log', { filters: { wiki_space: state.space } });
+	if (logs.length < 2) await syncSpace(api, state.space);
+}
+
+/** A space filled by a local docs preview has no repository; show the one it previews while the shots run. */
+export async function teardown({ api, state }) {
+	if (!state.repository || state.repository.repo_full_name) return;
+	await api.call('frappe.client.set_value', {
+		doctype: 'Wiki Space',
+		name: state.space,
+		fieldname: JSON.stringify(state.repository),
+	});
 }
 
 const spaceUrl = ({ state }) => `/wiki-app/spaces/${state.space}`;

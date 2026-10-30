@@ -541,16 +541,21 @@ export async function mainDownTo(page, locator, padding = 24) {
 	return { x: Math.floor(column.x), y: 0, width: Math.ceil(column.width), height };
 }
 
-export async function waitForSpace(api, route, timeout = 120000) {
+/** Wait until a cloned space has as many documents as its source. */
+export async function waitForClone(api, source, route, timeout = 180000) {
+	const count = async (space) =>
+		(await api.getList('Wiki Document', { filters: { wiki_space: space } })).length;
+	const expected = await count(source);
 	const deadline = Date.now() + timeout;
 	while (Date.now() < deadline) {
 		const space = await api.getValue('Wiki Space', { route });
-		if (space && (await api.getValue('Wiki Document', { wiki_space: space, route: ['like', `${route}/%`] }))) {
+		if (space && (await count(space)) >= expected) {
+			await new Promise((resolve) => setTimeout(resolve, 3000));
 			return space;
 		}
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 	}
-	throw new Error(`Space at /${route} was not created in time`);
+	throw new Error(`The copy of the space at /${route} was not complete in time`);
 }
 
 /** Run a sync of a git-synced space and wait until it is done. */
@@ -582,7 +587,7 @@ const STAGE = {
 	},
 };
 export const FRAMED_VIEWPORT = { width: 1280, height: 800 };
-const HALF = { width: 640, height: 400, maxHeight: 520 };
+const HALF = { width: 640, height: 400, maxHeight: 400 };
 
 /** Stage padding per side: crop edges on the viewport edge get padding, the others bleed. */
 function paddingOf(crop, viewport) {
