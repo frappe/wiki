@@ -97,54 +97,68 @@ class WikiSpace(Document):
 	def delete_linked_content(self):
 		"""Remove everything that links back to this space so it can be deleted.
 
-		Wiki Documents (the whole tree under the root group), their Wiki Revisions
-		and Revision Items, plus sync logs and change requests all carry a Link to
-		the space, so without this a space with any content raises ``LinkExistsError``.
-		Document deletion is run under ``in_apply_merge_revision`` so the on-trash
-		revision sync doesn't regenerate revisions while we tear them down.
+		These rows are internal, so they go with one statement per DocType
+		instead of a `delete_doc` each, which writes a backup and a feed comment
+		and queues a job per row. The page side effects run once for the space.
 		"""
-		from frappe.utils.nestedset import get_descendants_of
-
-		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import lock_wiki_tree
+		from wiki.api.og_image import clear_cached_cards
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+			WIKI_CONTENT_CACHE_KEY,
+			clear_wiki_tree_cache,
+			lock_wiki_tree,
+		)
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_docs_from_index
 
 		lock_wiki_tree()
-		previous_flag = frappe.flags.in_apply_merge_revision
-		previous_defer = frappe.flags.defer_wiki_nested_set
-		frappe.flags.in_apply_merge_revision = True
-		frappe.flags.defer_wiki_nested_set = True
-		try:
-			doc_names = []
-			if self.root_group and frappe.db.exists("Wiki Document", self.root_group):
-				# Leaf-first (descendants before the root group) so the nested set
-				# never blocks on a node that still has children.
-				doc_names = get_descendants_of("Wiki Document", self.root_group, ignore_permissions=True)
-				doc_names.append(self.root_group)
-			# Defensive: catch any document pointing at the space but outside the tree.
-			doc_names += frappe.get_all(
-				"Wiki Document", filters={"wiki_space": self.name}, pluck="name", limit=0
-			)
-			for name in dict.fromkeys(doc_names):
-				if frappe.db.exists("Wiki Document", name):
-					frappe.delete_doc("Wiki Document", name, force=True, ignore_permissions=True)
+		pages = self.get_documents()
+		page_names = [page.name for page in pages]
+		doc_keys = [page.doc_key for page in pages if page.doc_key]
+		ChangeRequest = frappe.qb.DocType("Wiki Change Request")
+		Revision = frappe.qb.DocType("Wiki Revision")
+		change_requests = (
+			frappe.qb.from_(ChangeRequest)
+			.select(ChangeRequest.name)
+			.where(ChangeRequest.wiki_space == self.name)
+		)
+		revisions = frappe.qb.from_(Revision).select(Revision.name).where(Revision.wiki_space == self.name)
 
-			revisions = frappe.get_all(
-				"Wiki Revision", filters={"wiki_space": self.name}, pluck="name", limit=0
-			)
-			if revisions:
-				items = frappe.get_all(
-					"Wiki Revision Item", filters={"revision": ["in", revisions]}, pluck="name", limit=0
-				)
-				for item in items:
-					frappe.delete_doc("Wiki Revision Item", item, force=True, ignore_permissions=True)
-				for revision in revisions:
-					frappe.delete_doc("Wiki Revision", revision, force=True, ignore_permissions=True)
+		# The deleted range stays as a gap in the nested set, which it tolerates.
+		delete_rows("Wiki Merge Conflict", "change_request", change_requests)
+		delete_rows("Wiki Change Request", "wiki_space", [self.name])
+		delete_rows("Wiki Revision Item", "revision", revisions)
+		delete_rows("Wiki Revision", "wiki_space", [self.name])
+		delete_rows("Wiki Feedback", "wiki_document", page_names)
+		delete_rows("Wiki Document", "name", page_names)
+		delete_rows("Wiki Git Sync Log", "wiki_space", [self.name])
 
-			for doctype in ("Wiki Git Sync Log", "Wiki Change Request"):
-				for name in frappe.get_all(doctype, filters={"wiki_space": self.name}, pluck="name", limit=0):
-					frappe.delete_doc(doctype, name, force=True, ignore_permissions=True)
-		finally:
-			frappe.flags.in_apply_merge_revision = previous_flag
-			frappe.flags.defer_wiki_nested_set = previous_defer
+		def clear_content_cache():
+			# v15's RedisWrapper.hdel takes a single field.
+			for name in page_names:
+				frappe.cache().hdel(WIKI_CONTENT_CACHE_KEY, name)
+
+		clear_wiki_tree_cache(self.name)
+		clear_content_cache()
+		frappe.db.after_commit.add(clear_content_cache)
+		clear_website_cache()
+		frappe.db.after_commit.add(clear_website_cache)
+		# Files and the search index live outside the transaction, so a rollback must not touch them.
+		frappe.db.after_commit.add(lambda: [clear_cached_cards(doc_key) for doc_key in doc_keys])
+		frappe.db.after_commit.add(lambda: remove_docs_from_index(page_names))
+
+	def get_documents(self) -> list[dict]:
+		"""The tree under the root group, plus any document stamped with this space outside it."""
+		WikiDocument = frappe.qb.DocType("Wiki Document")
+		in_space = WikiDocument.wiki_space == self.name
+		if self.root_group and (
+			bounds := frappe.db.get_value("Wiki Document", self.root_group, ["lft", "rgt"])
+		):
+			in_space |= WikiDocument.lft.between(*bounds)
+		return (
+			frappe.qb.from_(WikiDocument)
+			.select(WikiDocument.name, WikiDocument.doc_key)
+			.where(in_space)
+			.run(as_dict=True)
+		)
 
 	def remove_leading_slash_from_route(self):
 		if self.route and self.route.startswith("/"):
@@ -492,6 +506,46 @@ def _clone_route(route: str, old_base: str, new_base: str):
 
 	prefix = f"{old_base}/"
 	if route.startswith(prefix):
-		return f"{new_base}{route[len(old_base):]}"
+		return f"{new_base}{route[len(old_base) :]}"
 
 	return route
+
+
+# The `delete_dynamic_links` targets that delete rows. Wiki rows are never linked
+# from Communication or Activity Log, the targets it only unlinks.
+REFERENCE_FIELDS = (
+	("Communication Link", "link_doctype", "link_name"),
+	("Submission Queue", "ref_doctype", "ref_docname"),
+	("ToDo", "reference_type", "reference_name"),
+	("Email Unsubscribe", "reference_doctype", "reference_name"),
+	("DocShare", "share_doctype", "share_name"),
+	("Version", "ref_doctype", "docname"),
+	("Comment", "reference_doctype", "reference_name"),
+	("View Log", "reference_doctype", "reference_name"),
+	("Document Follow", "ref_doctype", "ref_docname"),
+	("Notification Log", "document_type", "document_name"),
+)
+
+
+def delete_rows(doctype: str, field: str, values) -> None:
+	"""Delete the rows whose `field` is in `values`, a list or a subquery, and the
+	framework rows that reference them.
+
+	Skips `delete_doc`, so no permission check, hooks, backup or feed comment.
+	Names stay in SQL: passing 60k revision item names as parameters took seconds.
+	"""
+	if isinstance(values, list) and not values:
+		return
+	table = frappe.qb.DocType(doctype)
+	condition = table[field].isin(values)
+	names = frappe.qb.from_(table).select(table.name).where(condition)
+	for reference_doctype, doctype_field, name_field in REFERENCE_FIELDS:
+		reference = frappe.qb.DocType(reference_doctype)
+		(
+			frappe.qb.from_(reference)
+			.delete()
+			.where(reference[doctype_field] == doctype)
+			.where(reference[name_field].isin(names))
+			.run()
+		)
+	frappe.qb.from_(table).delete().where(condition).run()
