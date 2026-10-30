@@ -20,7 +20,7 @@ import json
 import posixpath
 import re
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import frappe
@@ -98,10 +98,13 @@ class LocalFolder:
 	"""A docs folder on disk, read the way the sync reads a GitHub tree, to preview docs before a push.
 
 	Blob SHAs are git's blob hashes, so an unchanged image keeps its SHA and reuses its imported File.
+	Paths start with ``docs_subdir``, as they do in the repository, so a space that also syncs from
+	GitHub matches the same pages.
 	"""
 
-	def __init__(self, path: str | Path):
+	def __init__(self, path: str | Path, docs_subdir: str | None = None):
 		self.path = Path(path).resolve()
+		self.docs_subdir = PurePosixPath((docs_subdir or "").strip("/"))
 		if not self.path.is_dir():
 			frappe.throw(_("{0} is not a folder.").format(self.path))
 		self.paths_by_sha: dict[str, Path] = {}
@@ -123,7 +126,7 @@ class LocalFolder:
 		entries, folders = [], set()
 		self.paths_by_sha = {}
 		for file in self.files():
-			relative = file.relative_to(self.path)
+			relative = self.docs_subdir / file.relative_to(self.path).as_posix()
 			for parent in reversed(relative.parents[:-1]):
 				if parent not in folders:
 					folders.add(parent)
@@ -1154,7 +1157,8 @@ def preview_local_docs(path: str | Path, route: str, space_name: str | None = No
 	if not frappe.conf.developer_mode:
 		frappe.throw(_("Previewing local docs needs developer mode."))
 
-	folder = LocalFolder(path)
+	docs_subdir = frappe.db.get_value("Wiki Space", {"route": route.strip("/")}, "docs_subdir")
+	folder = LocalFolder(path, docs_subdir)
 	space = get_local_preview_space(route, space_name)
 	sync_space(space.name, trigger="Local", folder=folder)
 	space.reload()
