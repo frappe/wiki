@@ -51,6 +51,16 @@ Author Content in Markdown: Write and format content effortlessly using Markdown
 
 - [**RedisSearch**](https://github.com/RediSearch/RediSearch): A powerful search and indexing engine built on top of Redis.
 
+### Compatibility
+
+This app is compatible with the following versions of Frappe:
+
+| Wiki branch       | Stability | Frappe branch |
+| :---------------- | :-------- | :------------ |
+| master - v2.x     | stable    | v15.x         |
+| version-3 - v3.x  | stable    | v15.x & v16.x |
+| develop - nightly | unstable  | develop       |
+
 ## Production Setup
 
 ### Managed Hosting
