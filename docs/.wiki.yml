@@ -65,6 +65,7 @@ sidebar:
       - github-sync/folder-structure.md
       - github-sync/images-and-links.md
       - github-sync/sync-a-space.md
+      - github-sync/preview-docs-locally.md
       - github-sync/edit-on-github.md
   - label: SEO & AEO
     slug: seo-and-aeo
