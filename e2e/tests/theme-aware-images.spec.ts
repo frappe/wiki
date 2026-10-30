@@ -150,14 +150,20 @@ test.describe('Theme-aware images', () => {
 		await expect(reader.locator('html')).toHaveAttribute('data-theme', 'dark');
 		await expect.poll(() => shownFile(reader)).toMatch(/-dark-/);
 		// The dark file is made for a dark page, so the reader does not dim it like a light image.
-		await expect(reader.locator('#wiki-content picture img')).toHaveCSS('filter', 'none');
+		await expect(reader.locator('#wiki-content picture img')).toHaveCSS(
+			'filter',
+			'none',
+		);
 
 		await reader.locator('#wiki-content picture img').click();
 		await expect(reader.locator('#image-viewer-img')).toHaveAttribute(
 			'src',
 			/-dark-/,
 		);
-		await expect(reader.locator('#image-viewer-img')).toHaveCSS('filter', 'none');
+		await expect(reader.locator('#image-viewer-img')).toHaveCSS(
+			'filter',
+			'none',
+		);
 		await reader.close();
 	});
 
