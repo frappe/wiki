@@ -136,6 +136,7 @@
         }
     </script>
     {% if enable_view_tracking %}{% include "templates/wiki/includes/page_view.html" %}{% endif %}
+    {% if live_reload %}{% include "templates/wiki/includes/live_reload.html" %}{% endif %}
 </body>
 {% block scripts %} {% endblock %}
 </html>
