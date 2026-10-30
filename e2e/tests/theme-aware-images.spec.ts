@@ -208,7 +208,7 @@ test.describe('Theme-aware images', () => {
 		);
 		await page.evaluate(() =>
 			window.wikiEditor.commands.setContent(
-				'![](/assets/wiki/images/wiki-logo.png)\n*Old caption*',
+				'![](/assets/wiki/images/frappe-wiki-logo.svg)\n*Old caption*',
 				{ contentType: 'markdown' },
 			),
 		);

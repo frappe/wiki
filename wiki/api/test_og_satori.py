@@ -149,7 +149,7 @@ class TestSatoriCard(IntegrationTestCase):
 	def test_asset_paths_cannot_leave_the_assets_directory(self):
 		self.assertIsNone(og_satori._read_asset("/assets/../site_config.json"))
 		self.assertIsNone(og_satori._read_asset("/assets/wiki/../../../../etc/passwd"))
-		self.assertTrue(og_satori._read_asset("/assets/wiki/images/wiki-logo.png"))
+		self.assertTrue(og_satori._read_asset("/assets/wiki/images/frappe-wiki-logo.svg"))
 
 	def test_node_failure_is_a_failed_card(self):
 		failures = (
