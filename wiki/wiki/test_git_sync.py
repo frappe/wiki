@@ -3,15 +3,20 @@
 
 import hashlib
 import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
 import frappe
 
 from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.wiki import git_sync
 from wiki.wiki.git_sync import (
+	LocalFolder,
 	build_nodes,
 	build_nodes_from_config,
 	load_wiki_config,
+	preview_local_docs,
 	strip_front_matter,
 	strip_title_heading,
 	sync_space,
@@ -73,11 +78,17 @@ class _FakeRepo:
 		val = self.files[self._path_for(sha)]
 		return val if isinstance(val, bytes) else val.encode()
 
-	def install(self, monkeypatch_target):
-		git_sync._fetch_head_sha = lambda repo, branch, token=None: self.head_sha
-		git_sync._fetch_tree = lambda repo, ref, token=None: self.tree()
-		git_sync._fetch_blob = lambda repo, sha, token=None: self.blob(sha)
-		git_sync._fetch_blob_bytes = lambda repo, sha, token=None: self.blob_bytes(sha)
+	def install(self, test):
+		fakes = {
+			"_fetch_head_sha": lambda repo, branch, token=None: self.head_sha,
+			"_fetch_tree": lambda repo, ref, token=None: self.tree(),
+			"_fetch_blob": lambda repo, sha, token=None: self.blob(sha),
+			"_fetch_blob_bytes": lambda repo, sha, token=None: self.blob_bytes(sha),
+		}
+		for name, fake in fakes.items():
+			patcher = patch.object(git_sync, name, fake)
+			patcher.start()
+			test.addCleanup(patcher.stop)
 
 
 class TestGitSyncInference(FrappeTestCase):
@@ -1433,3 +1444,90 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 			order_by="sort_order asc",
 		)
 		self.assertEqual([d.source_path for d in docs], ["docs/b.md", "docs/a.md", "docs/c.md"])
+
+
+class TestLocalDocsPreview(FrappeTestCase):
+	"""A docs folder on disk syncs through the same engine as a GitHub repo."""
+
+	def setUp(self):
+		self.folder = Path(tempfile.mkdtemp())
+		self.write(".wiki.yml", "sidebar:\n  - label: Guides\n    items:\n      - guides/setup.md\n")
+		self.write(
+			"guides/setup.md", "---\ntitle: Setup\n---\nRead [the FAQ](faq.md).\n\n![Logo](../img/logo.png)\n"
+		)
+		self.write("guides/faq.md", "# FAQ\nNot in the sidebar, so not synced.\n")
+		(self.folder / "img").mkdir()
+		(self.folder / "img/logo.png").write_bytes(_PNG_1x1)
+		(self.folder / ".git").mkdir()
+		self.write(".git/HEAD", "ref: refs/heads/main\n")
+		self.route = f"preview-{frappe.generate_hash(length=6)}"
+		developer_mode = patch.dict(frappe.conf, {"developer_mode": 1})
+		developer_mode.start()
+		self.addCleanup(developer_mode.stop)
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def write(self, path, content):
+		(self.folder / path).parent.mkdir(parents=True, exist_ok=True)
+		(self.folder / path).write_text(content)
+
+	def pages(self, space):
+		return frappe.get_all(
+			"Wiki Document",
+			filters={"route": ["like", f"{space.route}/%"], "is_group": 0},
+			fields=["title", "content"],
+		)
+
+	def test_folder_reads_like_a_repo_tree(self):
+		folder = LocalFolder(self.folder)
+		tree = folder.get_tree()
+		blobs = {entry["path"]: entry["sha"] for entry in tree if entry["type"] == "blob"}
+
+		self.assertIn(".wiki.yml", blobs)
+		self.assertNotIn(".git/HEAD", blobs)
+		self.assertIn({"path": "guides", "type": "tree", "sha": ""}, tree)
+		# git's own blob hash, so the SHA matches what GitHub reports for the same file.
+		self.assertEqual(
+			blobs["img/logo.png"], hashlib.sha1(b"blob %d\0" % len(_PNG_1x1) + _PNG_1x1).hexdigest()
+		)
+		self.assertEqual(folder.get_blob_bytes(blobs["img/logo.png"]), _PNG_1x1)
+
+	def test_preview_creates_a_synced_space_with_the_folder_pages(self):
+		space = preview_local_docs(self.folder, self.route)
+
+		self.assertTrue(space.git_synced)
+		self.assertEqual(space.last_sync_status, "Success")
+		pages = self.pages(space)
+		self.assertEqual([page.title for page in pages], ["Setup"])
+		self.assertRegex(pages[0].content, r"!\[Logo\]\(/files/gitimg-[^)]+\)")
+		log = frappe.get_last_doc("Wiki Git Sync Log", filters={"wiki_space": space.name})
+		self.assertEqual(log.trigger, "Local")
+
+	def test_preview_reuses_the_space_and_skips_an_unchanged_folder(self):
+		first = preview_local_docs(self.folder, self.route)
+		second = preview_local_docs(self.folder, self.route)
+
+		self.assertEqual(first.name, second.name)
+		log = frappe.get_last_doc("Wiki Git Sync Log", filters={"wiki_space": first.name})
+		self.assertEqual(log.status, "No Change")
+
+		self.write("guides/setup.md", "---\ntitle: Set up\n---\nChanged.\n")
+		third = preview_local_docs(self.folder, self.route)
+		self.assertEqual(third.name, first.name)
+		self.assertEqual([page.title for page in self.pages(third)], ["Set up"])
+
+	def test_preview_refuses_a_space_that_is_not_synced(self):
+		space = frappe.get_doc(
+			{"doctype": "Wiki Space", "space_name": "Handwritten", "route": self.route}
+		).insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			preview_local_docs(self.folder, self.route)
+		self.assertEqual(self.pages(space), [])
+
+	def test_preview_needs_developer_mode(self):
+		with patch.dict(frappe.conf, {"developer_mode": 0}):
+			with self.assertRaises(frappe.ValidationError):
+				preview_local_docs(self.folder, self.route)
+		self.assertFalse(frappe.db.exists("Wiki Space", {"route": self.route}))
