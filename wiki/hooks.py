@@ -10,7 +10,7 @@ app_license = "MIT"
 add_to_apps_screen = [
 	{
 		"name": "wiki",
-		"logo": "/assets/wiki/images/wiki-logo.png",
+		"logo": "/assets/wiki/images/frappe-wiki-logo.svg",
 		"title": "Wiki",
 		"route": "/wiki-app",
 		"has_permission": "wiki.utils.check_app_permission",

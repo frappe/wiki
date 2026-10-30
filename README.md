@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="80" alt="wiki" src="https://github.com/user-attachments/assets/4869d211-fae2-4e93-8275-de433556feb0" />
+<img width="80" alt="Frappe Wiki" src="wiki/public/images/frappe-wiki-logo.svg" />
 <h1>Frappe Wiki</h1>
 
 **Open Source Documentation Tool**

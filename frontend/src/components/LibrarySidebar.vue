@@ -10,7 +10,7 @@
 		<SidebarHeader
 			:title="__('Frappe Wiki')"
 			:subtitle="userStore.data?.full_name"
-			logo="/assets/wiki/images/wiki-logo.png"
+			logo="/assets/wiki/images/frappe-wiki-logo.svg"
 			:menu-items="headerMenuItems"
 		/>
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-1">
