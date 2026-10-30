@@ -61,6 +61,8 @@ This app is compatible with the following versions of Frappe:
 | version-3 - v3.x  | stable    | v15.x & v16.x |
 | develop - nightly | unstable  | develop       |
 
+On Frappe develop, Wiki also runs on SQLite (`bench new-site --db-type sqlite`). Frappe still marks SQLite support as experimental.
+
 ## Production Setup
 
 ### Managed Hosting
