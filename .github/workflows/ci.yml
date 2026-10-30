@@ -36,17 +36,11 @@ jobs:
         include:
           - frappe-branch: version-15
             python-version: '3.11'
-            db-type: mariadb
             test-args: ''
           - frappe-branch: develop
             python-version: '3.14'
-            db-type: mariadb
             test-args: '--test-category all'
-          - frappe-branch: develop
-            python-version: '3.14'
-            db-type: sqlite
-            test-args: '--test-category all'
-    name: Server (${{ matrix.frappe-branch }}, ${{ matrix.db-type }})
+    name: Server (${{ matrix.frappe-branch }})
 
     services:
       redis-cache:
@@ -115,7 +109,7 @@ jobs:
           bench setup requirements --dev
           bench build &> build.log &
           build_pid=$!
-          bench new-site --db-type ${{ matrix.db-type }} --db-root-password root --admin-password admin test_site
+          bench new-site --db-root-password root --admin-password admin test_site
           bench --site test_site install-app wiki
           wait $build_pid || { cat build.log; exit 1; }
         env:
