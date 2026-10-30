@@ -673,10 +673,18 @@ class WikiDocument(NestedSet):
 				# Escape "<" so user-supplied titles can't close the
 				# <script> element the template embeds this JSON into.
 				"breadcrumbs": json.dumps(self.get_breadcrumb_list(wiki_space)).replace("<", "\\u003c"),
+				"live_reload": self.get_live_reload(wiki_space_doc),
 			}
 		)
 
 		return context
+
+	def get_live_reload(self, wiki_space_doc) -> dict | None:
+		"""In developer mode, a git-synced page reloads itself after each sync, such as a local docs preview."""
+		if not frappe.conf.developer_mode or not wiki_space_doc.git_synced:
+			return None
+		sha = frappe.db.get_value("Wiki Space", wiki_space_doc.name, "last_synced_commit_sha")
+		return {"space": wiki_space_doc.name, "sha": sha}
 
 	def get_og_image_url(self) -> str | None:
 		"""Path to this page's auto-generated OG card, or None when it has none.

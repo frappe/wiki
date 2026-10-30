@@ -3,6 +3,19 @@ from frappe import _
 from frappe.utils.nestedset import get_descendants_of
 
 
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def get_sync_sha(space: str) -> str | None:
+	"""The commit a git-synced space last synced, for reader pages that reload after a sync.
+
+	Developer mode only, so a production site never answers it. Readers who cannot read the space get nothing.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not frappe.conf.developer_mode or not can_read_space(space):
+		return None
+	return frappe.db.get_value("Wiki Space", {"name": space, "git_synced": 1}, "last_synced_commit_sha")
+
+
 @frappe.whitelist()
 def get_space_roles(space_id: str) -> list[dict]:
 	"""Return the configured access-control role rows for a Wiki Space."""
