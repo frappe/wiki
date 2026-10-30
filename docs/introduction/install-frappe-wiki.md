@@ -1,7 +1,7 @@
 ---
 title: Install Frappe Wiki
 ---
-You can install Frappe Wiki on Frappe Cloud or on a site that you host yourself.
+You can use Frappe Wiki on Frappe Cloud, or host it yourself with Frappe Pilot.
 
 ## Supported versions
 
@@ -13,30 +13,41 @@ You can install Frappe Wiki on Frappe Cloud or on a site that you host yourself.
 
 This guide is for Frappe Wiki v3. If you use Wiki v2, see [Migrate from Wiki v2](../administration/migrate-from-wiki-v2.md).
 
-## Install on Frappe Cloud
+## Frappe Cloud (recommended)
 
 1. Open the [Wiki app on the Frappe Cloud Marketplace](https://frappecloud.com/marketplace/apps/wiki).
 2. Follow the steps to add the app to a new or existing site.
 
 Frappe Cloud does the installation, upgrades and backups for you.
 
-## Install on your own bench
+## Self-hosting
 
-You need a working bench. To set one up, see the [Frappe installation guide](https://frappeframework.com/docs/user/en/installation).
+Use [Frappe Pilot](https://github.com/frappe/pilot#readme) to host Frappe Wiki on your own server. Pilot installs and manages benches and sites, and sets up production for you.
 
-1. In your `frappe-bench` folder, get the app:
+1. Install Pilot and create a bench. Follow the steps in the [Pilot README](https://github.com/frappe/pilot#readme). In the commands below, put the name of your bench in place of `<bench>`.
+2. Get the app. `version-3` is the stable branch of Wiki v3:
 
-   ```
-   bench get-app https://github.com/frappe/wiki
-   ```
-
-2. Install the app on your site. Put your site name in place of `<site>`:
-
-   ```
-   bench --site <site> install-app wiki
+   ```sh
+   pilot -b <bench> get-app https://github.com/frappe/wiki --branch version-3
    ```
 
-To get v3 on a stable bench, add `--branch version-3` to `bench get-app`.
+3. If you do not have a site yet, create one. Put your site name in place of `<site>`:
+
+   ```sh
+   pilot -b <bench> new-site <site>
+   ```
+
+4. Install the app on the site:
+
+   ```sh
+   pilot -b <bench> install-app <site> wiki
+   ```
+
+To serve the site on a domain with TLS, see the production steps in the [Pilot README](https://github.com/frappe/pilot#readme).
+
+:::note[You already use the bench CLI]
+On a bench that you manage with the `bench` command, run `bench get-app https://github.com/frappe/wiki --branch version-3`, then `bench --site <site> install-app wiki`.
+:::
 
 ## Open the app
 
