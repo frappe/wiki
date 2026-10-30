@@ -5,6 +5,7 @@ on:
     # Mondays, 10:00 IST
     - cron: '30 4 * * 1'
   workflow_dispatch:
+  pull_request:
 
 concurrency:
   group: sqlite-tests-wiki-${{ github.ref }}
