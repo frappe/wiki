@@ -19,17 +19,6 @@ The card is 1200 × 630 pixels, in JPEG format. It always has a light background
 
 The card uses the page title, not the meta title. You cannot change the layout or the colors.
 
-## When the card changes
-
-The wiki makes a new card when one of these changes:
-
-- The page title.
-- The groups above the page, for example when you move the page.
-- The space name.
-- The space logo or icon.
-
-A change to the page content does not change the card. After a merge or a sync that changes the title or the position of a page, the wiki makes the new card in the background. Other cards are made when someone asks for them the first time. The first request can take a few seconds.
-
 ## Use your own image
 
 Upload a **Meta image** in **Page settings**. Your image always replaces the social card on that page. See [Meta title, description and image](meta-tags.md).
