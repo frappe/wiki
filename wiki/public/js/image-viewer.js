@@ -12,6 +12,7 @@ export function bindImageViewer(root) {
         // currentSrc is the dark file when a <picture> is showing it.
         viewerImg.src = img.currentSrc || img.src;
         viewerImg.alt = img.alt || "";
+        viewerImg.toggleAttribute("data-theme-aware", Boolean(img.closest("picture")));
         viewer.classList.add("active");
         document.body.classList.add("image-viewer-open");
       });
