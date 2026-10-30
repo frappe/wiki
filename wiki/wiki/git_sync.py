@@ -15,10 +15,12 @@ real auth (TB4) can be slotted in without touching the merge logic.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import posixpath
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import frappe
@@ -92,7 +94,59 @@ def _github_headers(token: str | None) -> dict[str, str]:
 	return headers
 
 
-def _fetch_head_sha(repo: str, branch: str, token: str | None = None) -> str:
+class LocalFolder:
+	"""A docs folder on disk, read the way the sync reads a GitHub tree, to preview docs before a push.
+
+	Blob SHAs are git's blob hashes, so an unchanged image keeps its SHA and reuses its imported File.
+	"""
+
+	def __init__(self, path: str | Path):
+		self.path = Path(path).resolve()
+		if not self.path.is_dir():
+			frappe.throw(_("{0} is not a folder.").format(self.path))
+		self.paths_by_sha: dict[str, Path] = {}
+
+	def files(self) -> list[Path]:
+		"""Every file, skipping hidden folders such as .git (hidden files such as .wiki.yml stay)."""
+		return sorted(
+			file
+			for file in self.path.rglob("*")
+			if file.is_file()
+			and not any(part.startswith(".") for part in file.relative_to(self.path).parts[:-1])
+		)
+
+	def get_stamp(self) -> tuple:
+		"""Path, size and modification time of every file: cheap to compare between polls."""
+		return tuple((str(file), file.stat().st_size, file.stat().st_mtime_ns) for file in self.files())
+
+	def get_tree(self) -> list[dict[str, Any]]:
+		entries, folders = [], set()
+		self.paths_by_sha = {}
+		for file in self.files():
+			relative = file.relative_to(self.path)
+			for parent in reversed(relative.parents[:-1]):
+				if parent not in folders:
+					folders.add(parent)
+					entries.append({"path": parent.as_posix(), "type": "tree", "sha": ""})
+			content = file.read_bytes()
+			sha = hashlib.sha1(b"blob %d\0" % len(content) + content).hexdigest()
+			self.paths_by_sha[sha] = file
+			entries.append({"path": relative.as_posix(), "type": "blob", "sha": sha})
+		return entries
+
+	@property
+	def head_sha(self) -> str:
+		"""One hash of every path and blob SHA, standing in for the commit SHA."""
+		listing = "\n".join(f"{entry['path']} {entry['sha']}" for entry in self.get_tree())
+		return hashlib.sha1(listing.encode()).hexdigest()
+
+	def get_blob_bytes(self, sha: str) -> bytes:
+		return self.paths_by_sha[sha].read_bytes()
+
+
+def _fetch_head_sha(repo: str | LocalFolder, branch: str, token: str | None = None) -> str:
+	if isinstance(repo, LocalFolder):
+		return repo.head_sha
 	resp = requests.get(
 		f"{GITHUB_API}/repos/{repo}/git/ref/heads/{branch}",
 		headers=_github_headers(token),
@@ -102,7 +156,9 @@ def _fetch_head_sha(repo: str, branch: str, token: str | None = None) -> str:
 	return resp.json()["object"]["sha"]
 
 
-def _fetch_tree(repo: str, ref: str, token: str | None = None) -> list[dict[str, Any]]:
+def _fetch_tree(repo: str | LocalFolder, ref: str, token: str | None = None) -> list[dict[str, Any]]:
+	if isinstance(repo, LocalFolder):
+		return repo.get_tree()
 	resp = requests.get(
 		f"{GITHUB_API}/repos/{repo}/git/trees/{ref}?recursive=1",
 		headers=_github_headers(token),
@@ -120,7 +176,9 @@ def _fetch_tree(repo: str, ref: str, token: str | None = None) -> list[dict[str,
 	return data.get("tree", [])
 
 
-def _fetch_blob(repo: str, sha: str, token: str | None = None) -> str:
+def _fetch_blob(repo: str | LocalFolder, sha: str, token: str | None = None) -> str:
+	if isinstance(repo, LocalFolder):
+		return repo.get_blob_bytes(sha).decode("utf-8")
 	resp = requests.get(
 		f"{GITHUB_API}/repos/{repo}/git/blobs/{sha}",
 		headers=_github_headers(token),
@@ -133,8 +191,10 @@ def _fetch_blob(repo: str, sha: str, token: str | None = None) -> str:
 	return data.get("content") or ""
 
 
-def _fetch_blob_bytes(repo: str, sha: str, token: str | None = None) -> bytes:
+def _fetch_blob_bytes(repo: str | LocalFolder, sha: str, token: str | None = None) -> bytes:
 	"""Fetch a raw (binary) blob — for images, which must not be utf-8 decoded."""
+	if isinstance(repo, LocalFolder):
+		return repo.get_blob_bytes(sha)
 	resp = requests.get(
 		f"{GITHUB_API}/repos/{repo}/git/blobs/{sha}",
 		headers=_github_headers(token),
@@ -1023,8 +1083,10 @@ def _diff_counts(
 # --------------------------------------------------------------------------- #
 # Entry point (enqueued by Wiki Space.sync_now)
 # --------------------------------------------------------------------------- #
-def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual") -> None:
-	"""Sync one git-synced Wiki Space from its GitHub repo. Safe to enqueue.
+def sync_space(
+	space_name: str, token: str | None = None, trigger: str = "Manual", folder: LocalFolder | None = None
+) -> None:
+	"""Sync one git-synced Wiki Space from its GitHub repo, or from ``folder`` on disk. Safe to enqueue.
 
 	``trigger`` records what kicked the run (``Manual`` button vs ``Webhook`` push)
 	so the sync log surfaces real-time delivery.
@@ -1035,7 +1097,7 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 
 	log_name = _start_sync_log(space_name, trigger)
 
-	if not space.repo_full_name or not space.branch:
+	if not folder and (not space.repo_full_name or not space.branch):
 		message = _("Repository and branch are required for git sync.")
 		_record_error(space_name, message)
 		_finalize_sync_log(log_name, "Error", error=message)
@@ -1048,27 +1110,28 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 
 	try:
 		# Private repos: mint a short-lived installation token on demand (never stored).
-		if token is None and space.github_installation_id:
+		if token is None and not folder and space.github_installation_id:
 			from wiki.api.github import installation_access_token
 
 			token = installation_access_token(space.github_installation_id)
 
-		head_sha = _fetch_head_sha(space.repo_full_name, space.branch, token)
+		repo = folder or space.repo_full_name
+		head_sha = _fetch_head_sha(repo, space.branch, token)
 		if head_sha and head_sha == space.last_synced_commit_sha:
 			_record_success(space_name, head_sha)
 			_finalize_sync_log(log_name, "No Change", commit_sha=head_sha)
 			return
 
-		tree = _fetch_tree(space.repo_full_name, head_sha, token)
-		config = load_wiki_config(space.repo_full_name, tree, space.docs_subdir, token)
+		tree = _fetch_tree(repo, head_sha, token)
+		config = load_wiki_config(repo, tree, space.docs_subdir, token)
 		_record_config(space_name, config)
 		if config and config.get("sidebar"):
 			nodes, root_content, _root_landing = build_nodes_from_config(
-				space.repo_full_name, tree, config, space.docs_subdir, token, space=space
+				repo, tree, config, space.docs_subdir, token, space=space
 			)
 		else:
 			nodes, root_content, _root_landing = build_nodes(
-				space.repo_full_name, tree, space.docs_subdir, token, space=space
+				repo, tree, space.docs_subdir, token, space=space
 			)
 		counts = _sync_to_live(space, nodes, root_content, _root_landing, head_sha)
 		_record_success(space_name, head_sha)
@@ -1081,6 +1144,43 @@ def sync_space(space_name: str, token: str | None = None, trigger: str = "Manual
 		error = frappe.get_traceback(with_context=False)
 		_record_error(space_name, error)
 		_finalize_sync_log(log_name, "Error", error=error)
+
+
+def preview_local_docs(path: str | Path, route: str, space_name: str | None = None) -> frappe.Document:
+	"""Sync a docs folder on disk into the git-synced space at ``route``, creating the space if needed.
+
+	Developer mode only: it is for authors who want to see their docs before they push.
+	"""
+	if not frappe.conf.developer_mode:
+		frappe.throw(_("Previewing local docs needs developer mode."))
+
+	folder = LocalFolder(path)
+	space = get_local_preview_space(route, space_name)
+	sync_space(space.name, trigger="Local", folder=folder)
+	space.reload()
+	return space
+
+
+def get_local_preview_space(route: str, space_name: str | None = None) -> frappe.Document:
+	"""The git-synced space at ``route``. A new one is created when the route is free."""
+	route = route.strip("/")
+	existing = frappe.db.get_value("Wiki Space", {"route": route}, ["name", "git_synced"], as_dict=True)
+	if existing and not existing.git_synced:
+		frappe.throw(
+			_("The space at /{0} is not git-synced, so a preview cannot replace its pages.").format(route)
+		)
+	if existing:
+		return frappe.get_doc("Wiki Space", existing.name)
+
+	return frappe.get_doc(
+		{
+			"doctype": "Wiki Space",
+			"space_name": space_name or route.replace("-", " ").replace("/", " ").title(),
+			"route": route,
+			"git_synced": 1,
+			"is_published": 1,
+		}
+	).insert()
 
 
 def _publish_sync_status(space_name: str, status: str, after_commit: bool = True) -> None:

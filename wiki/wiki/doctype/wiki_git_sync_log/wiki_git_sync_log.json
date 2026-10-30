@@ -48,7 +48,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Trigger",
-   "options": "Manual\nWebhook\nScheduled",
+   "options": "Manual\nWebhook\nScheduled\nLocal",
    "read_only": 1
   },
   {
@@ -130,7 +130,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-06-21 00:00:00.000000",
+ "modified": "2026-10-30 14:30:00.000000",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Git Sync Log",
