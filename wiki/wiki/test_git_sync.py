@@ -1122,6 +1122,62 @@ class TestGitSyncImages(FrappeTestCase):
 		self.assertIn("./gone.png", content)
 		self.assertEqual(self._files_for(space), [])
 
+	def test_picture_light_and_dark_images_imported(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		md = (
+			"# P\n<picture>\n"
+			'  <source srcset="img/shot-dark.png" media="(prefers-color-scheme: dark)">\n'
+			'  <img src="img/shot-light.png" alt="Editor">\n'
+			"</picture>"
+		)
+		repo = _FakeRepo(
+			{
+				"docs/p.md": md,
+				"docs/img/shot-dark.png": _PNG_1x1,
+				"docs/img/shot-light.png": _PNG_1x1 + b"\x00",
+			}
+		)
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(
+			content, r'<source srcset="/files/gitimg-[^"]+\.png" media="\(prefers-color-scheme: dark\)">'
+		)
+		self.assertRegex(content, r'<img src="/files/gitimg-[^"]+\.png" alt="Editor">')
+		self.assertEqual(len(self._files_for(space)), 2)
+
+	def test_srcset_candidates_keep_their_descriptors(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo(
+			{
+				"docs/p.md": "# P\n<img srcset='a.png 1x, https://x.test/a@2x.png 2x' src='a.png'>",
+				"docs/a.png": _PNG_1x1,
+			}
+		)
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(
+			content,
+			r"<img srcset='/files/gitimg-[^ ]+\.png 1x, https://x\.test/a@2x\.png 2x' src='/files/gitimg-[^']+\.png'>",
+		)
+
+	def test_html_images_outside_the_repo_untouched(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		md = '# P\n<img src="https://x.test/a.png"> <img src="/files/b.png"> <img src="gone.png"> <source srcset="a.png,b.png 2x">'
+		repo = _FakeRepo({"docs/p.md": md})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertEqual(content, md)
+		self.assertEqual(self._files_for(space), [])
+
 	def test_reimport_is_sha_idempotent(self):
 		self._set_webp(False)
 		space = _make_synced_space()
