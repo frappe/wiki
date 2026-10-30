@@ -97,11 +97,20 @@ export const shots = [
 		crop: (page) => dialog(page, 'Settings'),
 	},
 	{
-		name: 'create-page-dialog',
+		name: 'empty-space',
 		user: 'grace',
 		continue: true,
 		async steps(page) {
 			await page.keyboard.press('Escape');
+			await page.getByText('Create your first page', { exact: true }).waitFor();
+			await waitIdle(page);
+		},
+	},
+	{
+		name: 'create-page-dialog',
+		user: 'grace',
+		continue: true,
+		async steps(page) {
 			await page.getByRole('button', { name: 'New page' }).first().click();
 			await dialog(page).getByLabel('Title').fill('How we deploy');
 		},

@@ -5,6 +5,13 @@ In this step, Grace writes the page **How we deploy** in the Engineering Handboo
 
 ## Create the page
 
+A new space has no pages. The sidebar says **No pages yet**, and the page area has a **New page** button.
+
+<picture>
+  <source srcset="../images/quick-start/empty-space-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="../images/quick-start/empty-space-light.webp" alt="The empty Engineering Handbook space, with No pages yet in the sidebar and a New page button in the page area">
+</picture>
+
 1. In the sidebar, click **Engineering Handbook** to open the space.
 2. Click **New page**.
 3. In **Title**, type `How we deploy`. The **Route** fills in as `engineering/how-we-deploy`.
