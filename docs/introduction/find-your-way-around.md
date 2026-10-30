@@ -14,7 +14,7 @@ Open `/wiki-app` on your site. The sidebar on the left lists everything in the w
 
 - **Overview** shows page views, new visitors, open change requests, top pages and top referrers. Only Wiki Managers and System Managers see it.
 - **All Spaces** lists every space you can read, with a search box and a filter for published and unpublished spaces.
-- **Change Requests** lists change requests in tabs: **My Change Requests**, **Assigned to me** and, for Wiki Managers, **All in review**. The number next to it shows how many open change requests you can see.
+- **Change Requests** lists change requests in tabs: **My Change Requests**, **Assigned to me** and, for Wiki Managers, **All in review**.
 - **Search** opens the command palette. You can also press `Ctrl+K`, or `Cmd+K` on a Mac. Type to find a page, or to run a command such as **New page** or **Toggle theme**.
 - **Spaces** lists the spaces themselves. Right-click a space to pin it to the top, open its settings or copy its link. Wiki Managers also see unpublished spaces, in a separate **Unpublished** section.
 - **New Space**, at the bottom, opens the dialog to create a space. Only Wiki Managers and System Managers see it.
