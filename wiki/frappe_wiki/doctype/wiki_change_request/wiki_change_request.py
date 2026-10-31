@@ -576,12 +576,22 @@ def get_editable_change_request(wiki_space: str, change_request: str | None = No
 
 def _find_existing_draft(wiki_space: str) -> Document | None:
 	"""Find user's most relevant draft: prefer one with actual changes."""
+	statuses = ["Draft", "Changes Requested"]
+	if _can_merge(wiki_space):
+		# Merge chains submit -> approve -> merge as separate requests. If the chain
+		# dies part-way the CR is left In Review / Approved, and without this it
+		# would never reach the editor again: a fresh draft is created instead and
+		# the unfinished one is orphaned. Only for mergers, so an author waiting on
+		# a reviewer can still start a new draft alongside it.
+		statuses += ["In Review", "Approved"]
+
 	existing = frappe.get_all(
 		"Wiki Change Request",
 		filters={
 			"wiki_space": wiki_space,
-			"status": ("in", ["Draft", "Changes Requested"]),
+			"status": ("in", statuses),
 			"owner": frappe.session.user,
+			"merge_revision": ("is", "not set"),
 		},
 		fields=["name", "base_revision", "head_revision", "modified"],
 		order_by="modified desc",

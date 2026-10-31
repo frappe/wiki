@@ -62,7 +62,10 @@ directly as `parent_key`.
 ### `$CR.get_or_create_draft_change_request`
 Params `wiki_space`, `title?` → CR dict. Reuses the caller's newest `Draft` /
 `Changes Requested` CR in that space, preferring one that already has changes; archives a
-stale empty draft first. Bootstraps `main_revision` if the space has none.
+stale empty draft first. Bootstraps `main_revision` if the space has none. If the caller can
+merge into the space, an unmerged `In Review` / `Approved` CR of theirs (a merge that died
+part-way) is reused too — it is locked for edits, so check `status` and merge it or start a
+new CR.
 
 ### `$CR.create_change_request`
 Params `wiki_space`, `title` (required), `description?` → CR doc. Always fresh.
