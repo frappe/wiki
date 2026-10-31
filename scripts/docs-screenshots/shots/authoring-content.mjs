@@ -1,8 +1,8 @@
 import {
 	caretAtEnd,
 	columnOf,
-	dialog,
 	deleteDrafts,
+	dialog,
 	endOfSection,
 	scrollToTop,
 	spaceIds,
@@ -12,14 +12,19 @@ import {
 } from '../lib.mjs';
 
 const DRAFT = 'Update device rules';
-const DRAFT_DESCRIPTION = 'Add the Linux laptop option and the 48-hour update rule.';
+const DRAFT_DESCRIPTION =
+	'Add the Linux laptop option and the 48-hour update rule.';
 
 export async function setup(run) {
 	const { api } = run;
 	run.state = await spaceIds(api);
 	run.state.devices = await api.pageId('handbook/it-and-security/devices');
-	run.state.expenses = await api.pageId('handbook/pay-and-expenses/expense-policy');
-	run.state.incident = await api.pageId('handbook/it-and-security/report-a-security-incident');
+	run.state.expenses = await api.pageId(
+		'handbook/pay-and-expenses/expense-policy',
+	);
+	run.state.incident = await api.pageId(
+		'handbook/it-and-security/report-a-security-incident',
+	);
 	await deleteDrafts(api, 'grace', run.state.handbook, [DRAFT]);
 }
 
@@ -27,7 +32,10 @@ export async function teardown({ api, state }) {
 	await deleteDrafts(api, 'grace', state.handbook, [DRAFT]);
 }
 
-const pageUrl = (key) => ({ state }) => `/wiki-app/spaces/${state.handbook}/page/${state[key]}`;
+const pageUrl =
+	(key) =>
+	({ state }) =>
+		`/wiki-app/spaces/${state.handbook}/page/${state[key]}`;
 async function editing(page) {
 	await startEditing(page, DRAFT, DRAFT_DESCRIPTION);
 	await waitSaved(page);
@@ -39,14 +47,19 @@ export const shots = [
 		user: 'grace',
 		url: pageUrl('devices'),
 		async crop(page) {
-			await page.getByRole('main').getByRole('button', { name: 'Edit', exact: true }).click();
+			await page
+				.getByRole('main')
+				.getByRole('button', { name: 'Edit', exact: true })
+				.click();
 			const newRequest = dialog(page, 'New change request');
 			await newRequest.getByLabel(/^Title/).fill(DRAFT);
 			await newRequest.getByLabel('Description').fill(DRAFT_DESCRIPTION);
 			return newRequest;
 		},
 		async teardown(run, page) {
-			await dialog(page, 'New change request').getByRole('button', { name: 'Start editing' }).click();
+			await dialog(page, 'New change request')
+				.getByRole('button', { name: 'Start editing' })
+				.click();
 			await page.locator('.wiki-toolbar').waitFor();
 			await waitIdle(page);
 		},
@@ -61,7 +74,10 @@ export const shots = [
 			await last.click();
 			await page.keyboard.press('End');
 			await page.keyboard.type(' Ask IT if you need a Linux laptop.');
-			await page.getByTestId('sync-state-alert').waitFor({ timeout: 5000 }).catch(() => {});
+			await page
+				.getByTestId('sync-state-alert')
+				.waitFor({ timeout: 5000 })
+				.catch(() => {});
 			await waitSaved(page);
 			await scrollToTop(page.locator('.ProseMirror > *').first(), 10000);
 			await page.mouse.move(1000, 500);
@@ -81,15 +97,23 @@ export const shots = [
 		url: pageUrl('devices'),
 		async crop(page) {
 			await editing(page);
-			await scrollToTop(page.locator('.ProseMirror').getByRole('heading', { name: 'Personal devices' }), 150);
+			await scrollToTop(
+				page
+					.locator('.ProseMirror')
+					.getByRole('heading', { name: 'Personal devices' }),
+				150,
+			);
 			const block = await endOfSection(page, 'Personal devices');
 			await caretAtEnd(block);
 			await page.keyboard.press('Enter');
 			await page.keyboard.type('/');
 			const menu = page.locator('.slash-commands-list');
 			await menu.waitFor();
-			const slash = await block.evaluate((element) => element.nextElementSibling?.textContent);
-			if (slash !== '/') throw new Error(`The slash went to the wrong place: "${slash}"`);
+			const slash = await block.evaluate(
+				(element) => element.nextElementSibling?.textContent,
+			);
+			if (slash !== '/')
+				throw new Error(`The slash went to the wrong place: "${slash}"`);
 			return [menu, block];
 		},
 		padding: 40,
@@ -105,7 +129,10 @@ export const shots = [
 		url: pageUrl('devices'),
 		async crop(page) {
 			await editing(page);
-			const callout = page.locator('.callout-block-wrapper').filter({ hasText: 'lost or stolen' }).first();
+			const callout = page
+				.locator('.callout-block-wrapper')
+				.filter({ hasText: 'lost or stolen' })
+				.first();
 			await scrollToTop(callout, 200);
 			await callout.hover();
 			return callout;
@@ -125,7 +152,13 @@ export const shots = [
 			await menu.waitFor();
 			await menu.getByText('Replace image').hover();
 			await page.getByText('For dark mode').waitFor();
-			return [image, menu, page.getByText('For dark mode').locator('xpath=ancestor::*[@role="menu"][1]')];
+			return [
+				image,
+				menu,
+				page
+					.getByText('For dark mode')
+					.locator('xpath=ancestor::*[@role="menu"][1]'),
+			];
 		},
 		padding: 6,
 	},
@@ -174,14 +207,21 @@ export const shots = [
 			const paragraph = page.locator('.ProseMirror > p').first();
 			await caretAtEnd(paragraph);
 			await page.keyboard.type(' See [[dev', { delay: 40 });
-			const list = page.getByText('Link to “dev”').locator('xpath=ancestor::*[contains(@class,"w-[340px]")][1]');
+			const list = page
+				.getByText('Link to “dev”')
+				.locator('xpath=ancestor::*[contains(@class,"w-[340px]")][1]');
 			await list.waitFor();
 			await waitIdle(page);
-			return [list, paragraph, paragraph.locator('xpath=preceding-sibling::*[1]')];
+			return [
+				list,
+				paragraph,
+				paragraph.locator('xpath=preceding-sibling::*[1]'),
+			];
 		},
 		async teardown(run, page) {
 			await page.keyboard.press('Escape');
-			for (let i = 0; i < ' See [[dev'.length; i++) await page.keyboard.press('Backspace');
+			for (let i = 0; i < ' See [[dev'.length; i++)
+				await page.keyboard.press('Backspace');
 		},
 	},
 	{
@@ -190,7 +230,10 @@ export const shots = [
 		url: pageUrl('devices'),
 		async crop(page) {
 			await editing(page);
-			const row = page.getByRole('treeitem', { name: /IT and security/ }).locator('.frappe-tree-row').first();
+			const row = page
+				.getByRole('treeitem', { name: /IT and security/ })
+				.locator('.frappe-tree-row')
+				.first();
 			await row.hover();
 			await row.getByRole('button').last().click();
 			await page.getByRole('menuitem', { name: 'New Page' }).click();
@@ -199,7 +242,9 @@ export const shots = [
 			return create;
 		},
 		async teardown(run, page) {
-			await dialog(page, 'Create New Page').getByRole('button', { name: 'Cancel' }).click();
+			await dialog(page, 'Create New Page')
+				.getByRole('button', { name: 'Cancel' })
+				.click();
 		},
 	},
 	{
@@ -208,16 +253,35 @@ export const shots = [
 		user: 'grace',
 		url: pageUrl('devices'),
 		async crop(page) {
-			const column = await columnOf(page.getByRole('textbox', { name: 'Search pages...' }));
+			const column = await columnOf(
+				page.getByRole('textbox', { name: 'Search pages...' }),
+			);
 			const label = await page.locator('.frappe-tree-drag-label').boundingBox();
-			return { ...column, width: Math.ceil(Math.max(column.width, label.x + label.width + 8 - column.x)) };
+			return {
+				...column,
+				width: Math.ceil(
+					Math.max(column.width, label.x + label.width + 8 - column.x),
+				),
+			};
 		},
 		async steps(page) {
 			await editing(page);
-			const expanded = page.getByRole('treeitem', { name: 'Collapse Pay and expenses' });
-			if (await expanded.count()) await expanded.getByRole('button', { name: 'Collapse' }).first().click();
-			const source = page.getByRole('treeitem', { name: /^Devices/ }).locator('.frappe-tree-row').first();
-			const target = page.getByRole('treeitem', { name: /Performance and growth/ }).locator('.frappe-tree-row').first();
+			const expanded = page.getByRole('treeitem', {
+				name: 'Collapse Pay and expenses',
+			});
+			if (await expanded.count())
+				await expanded
+					.getByRole('button', { name: 'Collapse' })
+					.first()
+					.click();
+			const source = page
+				.getByRole('treeitem', { name: /^Devices/ })
+				.locator('.frappe-tree-row')
+				.first();
+			const target = page
+				.getByRole('treeitem', { name: /Performance and growth/ })
+				.locator('.frappe-tree-row')
+				.first();
 			await page.mouse.move(700, 880);
 			const transfer = await page.evaluateHandle(() => new DataTransfer());
 			await source.dispatchEvent('dragstart', { dataTransfer: transfer });
@@ -229,7 +293,10 @@ export const shots = [
 			});
 		},
 		async teardown(run, page) {
-			const source = page.getByRole('treeitem', { name: /^Devices/ }).locator('.frappe-tree-row').first();
+			const source = page
+				.getByRole('treeitem', { name: /^Devices/ })
+				.locator('.frappe-tree-row')
+				.first();
 			await source.dispatchEvent('dragend');
 		},
 	},

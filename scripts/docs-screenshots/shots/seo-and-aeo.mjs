@@ -5,16 +5,18 @@ export async function setup(run) {
 	run.state.channel = await run.api.pageId('raven/channels/create-a-channel');
 }
 
-const channelUrl = ({ state }) => `/wiki-app/spaces/${state.raven}/page/${state.channel}`;
+const channelUrl = ({ state }) =>
+	`/wiki-app/spaces/${state.raven}/page/${state.channel}`;
 
 async function openPageSettings(page) {
-	await page.getByRole('button', { name: 'Page settings', exact: true }).click();
+	await page
+		.getByRole('button', { name: 'Page settings', exact: true })
+		.click();
 	const panel = page.getByTestId('page-settings-panel');
 	await panel.waitFor();
 	await waitIdle(page);
 	return panel;
 }
-
 
 export const shots = [
 	{
@@ -26,7 +28,11 @@ export const shots = [
 		async crop(page) {
 			const panel = await openPageSettings(page);
 			await panel.getByLabel('Meta title').fill('Create a channel in Raven');
-			await panel.getByLabel('Meta description').fill('Create a public, private or open channel in a Raven workspace and add people to it.');
+			await panel
+				.getByLabel('Meta description')
+				.fill(
+					'Create a public, private or open channel in a Raven workspace and add people to it.',
+				);
 			await scrollToTop(panel.getByText('Social preview', { exact: true }), 60);
 			await waitIdle(page);
 			return panel;
@@ -42,7 +48,13 @@ export const shots = [
 			const note = panel.getByText(/Auto-generated from the page metadata/);
 			await note.scrollIntoViewIfNeeded();
 			await panel.locator('img').last().waitFor();
-			await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="page-settings-panel"] img')].every((image) => image.complete && image.naturalWidth));
+			await page.waitForFunction(() =>
+				[
+					...document.querySelectorAll(
+						'[data-testid="page-settings-panel"] img',
+					),
+				].every((image) => image.complete && image.naturalWidth),
+			);
 			await waitIdle(page);
 			return [panel.getByText('Preview', { exact: true }), note];
 		},
@@ -56,9 +68,15 @@ export const shots = [
 			const panel = await openPageSettings(page);
 			const indexing = panel.getByRole('switch', { name: 'Disable Indexing' });
 			await indexing.click();
-			if ((await indexing.getAttribute('aria-checked')) !== 'true') throw new Error('Disable Indexing did not turn on');
+			if ((await indexing.getAttribute('aria-checked')) !== 'true')
+				throw new Error('Disable Indexing did not turn on');
 			const header = panel.getByText('Page settings', { exact: true });
-			return [header, panel.getByRole('switch', { name: 'Published' }), indexing, panel.getByText('Prevent search engines from indexing this page')];
+			return [
+				header,
+				panel.getByRole('switch', { name: 'Published' }),
+				indexing,
+				panel.getByText('Prevent search engines from indexing this page'),
+			];
 		},
 		padding: 16,
 	},

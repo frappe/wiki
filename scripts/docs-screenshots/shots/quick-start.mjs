@@ -16,25 +16,37 @@ import {
 	waitSaved,
 } from '../lib.mjs';
 
-const diagramSvg = join(dirname(fileURLToPath(import.meta.url)), '../assets/deploy-pipeline.svg');
+const diagramSvg = join(
+	dirname(fileURLToPath(import.meta.url)),
+	'../assets/deploy-pipeline.svg',
+);
 const diagram = join(tmpdir(), 'deploy-pipeline.png');
 
 async function cleanUp({ api }) {
 	await deleteSpace(api, SPACES.engineering);
-	const files = await api.getList('File', { filters: { file_name: ['like', 'deploy-pipeline%'] } });
+	const files = await api.getList('File', {
+		filters: { file_name: ['like', 'deploy-pipeline%'] },
+	});
 	for (const { name } of files) await api.delete('File', name);
 }
 
 export async function setup(run) {
-	execFileSync('magick', ['-density', '144', diagramSvg, diagram], { stdio: 'ignore' });
+	execFileSync('magick', ['-density', '144', diagramSvg, diagram], {
+		stdio: 'ignore',
+	});
 	await cleanUp(run);
 }
 
 export const teardown = cleanUp;
 
 async function addRole(settings, role, level) {
-	await settings.getByRole('combobox', { name: 'Search role to add' }).fill(role);
-	await settings.page().getByRole('option', { name: role, exact: true }).click();
+	await settings
+		.getByRole('combobox', { name: 'Search role to add' })
+		.fill(role);
+	await settings
+		.page()
+		.getByRole('option', { name: role, exact: true })
+		.click();
 	await settings.getByRole('button', { name: 'Add', exact: true }).click();
 	if (level === 'Read') return;
 	await settings.getByRole('row', { name: role }).getByRole('combobox').click();
@@ -44,7 +56,9 @@ async function addRole(settings, role, level) {
 async function typeInEditor(page) {
 	const editor = page.locator('.ProseMirror[contenteditable="true"]');
 	await editor.click();
-	await page.keyboard.type('We deploy from the main branch every weekday at 10:00 UTC. Each deploy goes to staging first.');
+	await page.keyboard.type(
+		'We deploy from the main branch every weekday at 10:00 UTC. Each deploy goes to staging first.',
+	);
 	await page.keyboard.press('Enter');
 	await page.keyboard.press('Enter');
 	await page.keyboard.press('ArrowUp');
@@ -71,7 +85,9 @@ export const shots = [
 		url: '/wiki-app/spaces',
 		async steps(page) {
 			await page.getByRole('button', { name: 'New Space' }).click();
-			await page.getByRole('textbox', { name: 'Space Name' }).fill(SPACES.engineering);
+			await page
+				.getByRole('textbox', { name: 'Space Name' })
+				.fill(SPACES.engineering);
 			await page.getByRole('textbox', { name: /^Route/ }).fill('engineering');
 		},
 		crop: (page) => dialog(page),
@@ -146,7 +162,11 @@ export const shots = [
 			await page.getByRole('button', { name: 'Add initial content' }).click();
 			const details = dialog(page, 'Change request');
 			await details.getByLabel('Title').fill('Add the deploy guide');
-			await details.getByLabel('Description').fill('First version of our deploy steps. Please check the Friday rule.');
+			await details
+				.getByLabel('Description')
+				.fill(
+					'First version of our deploy steps. Please check the Friday rule.',
+				);
 		},
 		crop: (page) => dialog(page),
 	},
@@ -157,7 +177,10 @@ export const shots = [
 		async steps(page) {
 			await dialog(page).getByRole('button', { name: 'Save' }).click();
 			await dialog(page).waitFor({ state: 'hidden' });
-			await page.getByRole('main').getByRole('button', { name: 'Submit for review' }).click();
+			await page
+				.getByRole('main')
+				.getByRole('button', { name: 'Submit for review' })
+				.click();
 		},
 		crop: (page) => dialog(page),
 	},
@@ -176,11 +199,15 @@ export const shots = [
 			await assign.getByText('Search people...').click();
 			await page.keyboard.type('Priya', { delay: 30 });
 			await page.getByRole('option', { name: /Priya Raman/ }).click();
-			await dialog(page).getByRole('heading', { name: 'Assign Reviewer' }).click();
+			await dialog(page)
+				.getByRole('heading', { name: 'Assign Reviewer' })
+				.click();
 		},
 		crop: (page) => dialog(page),
 		async teardown(run, page) {
-			await dialog(page).getByRole('button', { name: 'Assign', exact: true }).click();
+			await dialog(page)
+				.getByRole('button', { name: 'Assign', exact: true })
+				.click();
 			await dialog(page).waitFor({ state: 'hidden' });
 		},
 	},
@@ -210,10 +237,14 @@ export const shots = [
 		url: '/engineering/how-we-deploy',
 		async setup({ api, state }) {
 			const approver = await Api.login('priya');
-			await approver.call(`${CHANGE_REQUEST_API}.approve_change_request`, { name: state.changeRequest });
+			await approver.call(`${CHANGE_REQUEST_API}.approve_change_request`, {
+				name: state.changeRequest,
+			});
 			await approver.dispose();
 			const merger = await Api.login('grace');
-			await merger.call(`${CHANGE_REQUEST_API}.merge_change_request`, { name: state.changeRequest });
+			await merger.call(`${CHANGE_REQUEST_API}.merge_change_request`, {
+				name: state.changeRequest,
+			});
 			await merger.dispose();
 			const reader = await Api.login('kenji');
 			await reindexSearch(api, reader, 'deploy', 'engineering/');

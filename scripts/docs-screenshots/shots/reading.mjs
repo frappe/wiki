@@ -1,4 +1,12 @@
-import { dialog, openReaderMenu, openReaderSearch, openSpaceSettings, scrollToTop, spaceIds, waitStable } from '../lib.mjs';
+import {
+	dialog,
+	openReaderMenu,
+	openReaderSearch,
+	openSpaceSettings,
+	scrollToTop,
+	spaceIds,
+	waitStable,
+} from '../lib.mjs';
 
 const channelPage = '/raven/channels/create-a-channel';
 const ravenIntro = '/raven/introduction/what-is-raven';
@@ -51,7 +59,11 @@ export const shots = [
 		async crop(page) {
 			await page.getByRole('button', { name: 'Search' }).click();
 			const palette = dialog(page);
-			await palette.getByRole('combobox').or(palette.getByRole('textbox')).first().fill('raven');
+			await palette
+				.getByRole('combobox')
+				.or(palette.getByRole('textbox'))
+				.first()
+				.fill('raven');
 			await palette.getByText('Spaces', { exact: true }).waitFor();
 			await palette.getByText('Pages', { exact: true }).waitFor();
 			return palette;
@@ -93,7 +105,11 @@ export const shots = [
 		url: ({ state }) => `/wiki-app/spaces/${state.raven}`,
 		async crop(page) {
 			const settings = await openSpaceSettings(page, 'Access');
-			return [settings.getByText('Accept Contributions', { exact: true }), settings.getByRole('switch', { name: 'Allow PDF Download' }), settings.getByText('Let readers download wiki pages as PDF')];
+			return [
+				settings.getByText('Accept Contributions', { exact: true }),
+				settings.getByRole('switch', { name: 'Allow PDF Download' }),
+				settings.getByText('Let readers download wiki pages as PDF'),
+			];
 		},
 	},
 	{
@@ -103,7 +119,11 @@ export const shots = [
 		async crop(page) {
 			const row = page.locator('#wiki-last-updated').locator('..');
 			await row.scrollIntoViewIfNeeded();
-			await page.getByRole('radio', { name: 'Good' }).or(page.getByRole('button', { name: 'Good' })).first().click();
+			await page
+				.getByRole('radio', { name: 'Good' })
+				.or(page.getByRole('button', { name: 'Good' }))
+				.first()
+				.click();
 			await row.locator('textarea').fill('Clear steps, thanks.');
 			await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 			await page.waitForTimeout(300);

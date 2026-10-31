@@ -12,12 +12,12 @@ import { fileURLToPath } from 'node:url';
 import {
 	Api,
 	Browser,
+	FRAMED_VIEWPORT,
 	cropBox,
 	dimOutside,
 	frame,
-	hasBackdrop,
 	halfCrop,
-	FRAMED_VIEWPORT,
+	hasBackdrop,
 	meanBrightness,
 	screenshot,
 	toWebp,
@@ -35,7 +35,9 @@ const problems = [];
 function selection(args) {
 	const groups = args.length
 		? args
-		: readdirSync(join(here, 'shots')).map((file) => file.replace(/\.mjs$/, ''));
+		: readdirSync(join(here, 'shots')).map((file) =>
+				file.replace(/\.mjs$/, ''),
+		  );
 	const wanted = new Map();
 	for (const arg of groups) {
 		const [group, shot] = arg.split('/');
@@ -49,10 +51,17 @@ async function pageFor(shot, run, previous) {
 	if (shot.continue && previous) return previous;
 	if (!shot.framed) await previous?.close();
 	const context = shot.framed
-		? await run.browser.context(shot.user, run.theme, shot.viewport ?? FRAMED_VIEWPORT, shot.scale ?? 3)
+		? await run.browser.context(
+				shot.user,
+				run.theme,
+				shot.viewport ?? FRAMED_VIEWPORT,
+				shot.scale ?? 3,
+		  )
 		: await run.browser.context(shot.user, run.theme, shot.viewport);
 	const page = await context.newPage();
-	page.on('pageerror', (error) => console.warn(`    page error: ${error.message}`));
+	page.on('pageerror', (error) =>
+		console.warn(`    page error: ${error.message}`),
+	);
 	return page;
 }
 
@@ -68,14 +77,18 @@ async function targetOf(page, shot, run) {
 async function screenshotFramed(page, shot, run, target, png) {
 	const viewport = page.viewportSize();
 	const crop = halfCrop(target, viewport, 24, shot.cropHeight);
-	const undim = (await hasBackdrop(page)) ? null : await dimOutside(page, target, run.theme);
+	const undim = (await hasBackdrop(page))
+		? null
+		: await dimOutside(page, target, run.theme);
 	await screenshot(page, { x: 0, y: 0, ...viewport }, png);
 	await undim?.();
 	return { crop, viewport };
 }
 
 async function check(page, shot, png, clip, run, label) {
-	const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+	const theme = await page.evaluate(
+		() => document.documentElement.dataset.theme,
+	);
 	if (theme !== run.theme) problems.push(`${label}: data-theme is "${theme}"`);
 
 	const busy = await visibleBusyCount(page, clip);
@@ -85,7 +98,11 @@ async function check(page, shot, png, clip, run, label) {
 	const brightness = meanBrightness(png);
 	const isDark = brightness < 0.5;
 	if (isDark !== (run.theme === 'dark')) {
-		problems.push(`${label}: mean brightness ${brightness.toFixed(2)} does not match the theme`);
+		problems.push(
+			`${label}: mean brightness ${brightness.toFixed(
+				2,
+			)} does not match the theme`,
+		);
 	}
 }
 
@@ -104,7 +121,13 @@ async function capture(page, shot, run, group) {
 	mkdirSync(dirname(output), { recursive: true });
 
 	if (shot.framed) {
-		const { crop, viewport } = await screenshotFramed(page, shot, run, target, png);
+		const { crop, viewport } = await screenshotFramed(
+			page,
+			shot,
+			run,
+			target,
+			png,
+		);
 		await check(page, shot, png, crop, run, label);
 		await frame(run.browser.browser, png, crop, viewport, run.theme, output);
 	} else {
@@ -119,7 +142,9 @@ async function capture(page, shot, run, group) {
 
 async function saveDebug(page, label) {
 	mkdirSync(debugDir, { recursive: true });
-	await page?.screenshot({ path: join(debugDir, `${label.replace('/', '--')}.png`) }).catch(() => {});
+	await page
+		?.screenshot({ path: join(debugDir, `${label.replace('/', '--')}.png`) })
+		.catch(() => {});
 }
 
 async function runShot(shot, run, group, previous) {
@@ -142,7 +167,9 @@ async function runShot(shot, run, group, previous) {
 
 async function runGroup(group, only, browser, api) {
 	const module = await import(join(here, 'shots', `${group}.mjs`));
-	const shots = module.shots.filter((shot) => !only.size || only.has(shot.name));
+	const shots = module.shots.filter(
+		(shot) => !only.size || only.has(shot.name),
+	);
 
 	for (const theme of THEMES) {
 		const run = { api, browser, theme, state: {} };
@@ -151,7 +178,9 @@ async function runGroup(group, only, browser, api) {
 			await module.setup?.(run);
 			for (const shot of shots) page = await runShot(shot, run, group, page);
 		} catch (error) {
-			problems.push(`${group} (${theme}): setup FAILED ${error.message.split('\n')[0]}`);
+			problems.push(
+				`${group} (${theme}): setup FAILED ${error.message.split('\n')[0]}`,
+			);
 			console.error(error.stack);
 		} finally {
 			await page?.close();
@@ -162,7 +191,9 @@ async function runGroup(group, only, browser, api) {
 
 async function main() {
 	const api = await Api.login('admin');
-	const browser = await Browser.launch(await api.getSingleValue('System Settings', 'time_zone'));
+	const browser = await Browser.launch(
+		await api.getSingleValue('System Settings', 'time_zone'),
+	);
 	try {
 		for (const [group, only] of selection(process.argv.slice(2))) {
 			console.log(group);

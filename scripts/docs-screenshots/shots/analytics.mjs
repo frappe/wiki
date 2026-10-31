@@ -9,7 +9,10 @@ import {
 
 export async function setup(run) {
 	run.state = await spaceIds(run.api);
-	run.state.feedback = await run.api.getValue('Wiki Feedback', { feedback: ['is', 'set'], type: 'Bad' });
+	run.state.feedback = await run.api.getValue('Wiki Feedback', {
+		feedback: ['is', 'set'],
+		type: 'Bad',
+	});
 }
 
 async function deskSteps(page, { theme }) {
@@ -24,7 +27,11 @@ export const shots = [
 		user: 'grace',
 		url: '/wiki-app/overview',
 		async steps(page) {
-			await page.getByRole('radio', { name: '30 days' }).or(page.getByRole('button', { name: '30 days' })).first().click();
+			await page
+				.getByRole('radio', { name: '30 days' })
+				.or(page.getByRole('button', { name: '30 days' }))
+				.first()
+				.click();
 			await waitCharts(page);
 		},
 	},
@@ -49,7 +56,10 @@ export const shots = [
 		user: 'admin',
 		url: ({ state }) => `/app/wiki-feedback/${state.feedback}`,
 		steps: deskSteps,
-		crop: (page) => [page.locator('.page-head:visible').first(), page.locator('.layout-main-section:visible').first()],
+		crop: (page) => [
+			page.locator('.page-head:visible').first(),
+			page.locator('.layout-main-section:visible').first(),
+		],
 		padding: 0,
 	},
 	{
@@ -65,9 +75,17 @@ export const shots = [
 		setup: ({ api }) => setViewTracking(api, false),
 		teardown: ({ api }) => setViewTracking(api, true),
 		async crop(page) {
-			const notice = page.locator('div').filter({ hasText: 'Page views are not being recorded' }).filter({ has: page.getByRole('button', { name: 'Turn on tracking' }) }).last();
+			const notice = page
+				.locator('div')
+				.filter({ hasText: 'Page views are not being recorded' })
+				.filter({ has: page.getByRole('button', { name: 'Turn on tracking' }) })
+				.last();
 			await notice.waitFor();
-			return [page.getByRole('heading', { name: 'Overview' }), page.getByRole('radio', { name: '90 days' }), notice];
+			return [
+				page.getByRole('heading', { name: 'Overview' }),
+				page.getByRole('radio', { name: '90 days' }),
+				notice,
+			];
 		},
 	},
 ];

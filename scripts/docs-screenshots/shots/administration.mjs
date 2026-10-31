@@ -13,7 +13,9 @@ export const shots = [
 		url: '/wiki-app/spaces',
 		async crop(page) {
 			const settings = await openWikiSettings(page, 'Header & Robots');
-			await settings.getByLabel('<head> HTML').fill('<meta name="google-site-verification" content="example">');
+			await settings
+				.getByLabel('<head> HTML')
+				.fill('<meta name="google-site-verification" content="example">');
 			await settings.getByText('Unsaved changes').waitFor();
 			return settings;
 		},

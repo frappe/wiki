@@ -1,4 +1,9 @@
-import { columnOf, expandTreeGroup, openReaderMenu, spaceIds } from '../lib.mjs';
+import {
+	columnOf,
+	expandTreeGroup,
+	openReaderMenu,
+	spaceIds,
+} from '../lib.mjs';
 
 export async function setup(run) {
 	run.state = await spaceIds(run.api);
@@ -20,7 +25,8 @@ export const shots = [
 		async steps(page) {
 			await expandTreeGroup(page, 'Time off and benefits');
 		},
-		crop: (page) => columnOf(page.getByRole('textbox', { name: 'Search pages...' })),
+		crop: (page) =>
+			columnOf(page.getByRole('textbox', { name: 'Search pages...' })),
 	},
 	{
 		name: 'reader',

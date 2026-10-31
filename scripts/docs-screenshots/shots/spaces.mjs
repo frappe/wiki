@@ -1,4 +1,10 @@
-import { SPACES, dialog, openMarkPicker, openSpaceSettings, spaceIds } from '../lib.mjs';
+import {
+	SPACES,
+	dialog,
+	openMarkPicker,
+	openSpaceSettings,
+	spaceIds,
+} from '../lib.mjs';
 
 export async function setup(run) {
 	run.state = await spaceIds(run.api);
@@ -11,7 +17,9 @@ export const shots = [
 		url: '/wiki-app/spaces',
 		async steps(page) {
 			await page.getByRole('button', { name: 'New Space' }).click();
-			await page.getByRole('textbox', { name: 'Space Name' }).fill(SPACES.engineering);
+			await page
+				.getByRole('textbox', { name: 'Space Name' })
+				.fill(SPACES.engineering);
 			await page.getByRole('textbox', { name: /^Route/ }).fill('engineering');
 		},
 		crop: (page) => dialog(page),
@@ -45,9 +53,13 @@ export const shots = [
 		user: 'kenji',
 		url: '/raven/introduction/what-is-raven',
 		async crop(page) {
-			const toggle = page.getByRole('banner').getByRole('button', { name: 'Raven' });
+			const toggle = page
+				.getByRole('banner')
+				.getByRole('button', { name: 'Raven' });
 			await toggle.click();
-			const list = page.getByRole('banner').locator('[x-show="spaceSwitcherOpen"]');
+			const list = page
+				.getByRole('banner')
+				.locator('[x-show="spaceSwitcherOpen"]');
 			await list.waitFor();
 			return [toggle, list];
 		},
