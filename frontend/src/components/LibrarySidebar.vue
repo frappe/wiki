@@ -10,7 +10,7 @@
 		<SidebarHeader
 			:title="__('Frappe Wiki')"
 			:subtitle="userStore.data?.full_name"
-			logo="/assets/wiki/images/wiki-logo.png"
+			logo="/assets/wiki/images/frappe-wiki-logo.svg"
 			:menu-items="headerMenuItems"
 		/>
 		<ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-1">
@@ -22,7 +22,6 @@
 					:icon="item.icon"
 					:route="item.to"
 					:active="item.routeNames.includes(route.name)"
-					:suffix="item.suffix?.value"
 				/>
 				<SidebarItem
 					:label="__('Search')"
@@ -117,7 +116,6 @@ import {
 	SidebarItem,
 	SidebarSection,
 	Tooltip,
-	createResource,
 	toast,
 } from 'frappe-ui';
 
@@ -158,18 +156,6 @@ const { spaces, orderedSpaces, restrictedSpaces, isPinned, togglePin } =
 		// in; for everyone else an unpublished space is not part of the wiki yet.
 		publishedOnly: computed(() => !userStore.isWikiManager),
 	});
-
-// Merged, rejected and archived requests are done, so they do not belong in
-// the sidebar count. `get_count` runs through the same permission query as the
-// list, so this is the user's own count, not the wiki's.
-const openChangeRequests = createResource({
-	url: 'frappe.client.get_count',
-	params: {
-		doctype: 'Wiki Change Request',
-		filters: { status: ['not in', ['Merged', 'Rejected', 'Archived']] },
-	},
-	auto: true,
-});
 
 const unpublishedCollapsed = useStorage(
 	'wiki:sidebar-unpublished-collapsed',
@@ -254,10 +240,6 @@ const headerMenuItems = computed(() => [
 	{ label: __('Log out'), icon: 'lucide-log-out', onClick: logout },
 ]);
 
-const openChangeRequestCount = computed(() =>
-	openChangeRequests.data ? String(openChangeRequests.data) : '',
-);
-
 const navItems = computed(() => [
 	...(userStore.isWikiManager
 		? [
@@ -279,8 +261,7 @@ const navItems = computed(() => [
 		label: __('Change Requests'),
 		icon: 'lucide-git-branch',
 		to: { name: 'ChangeRequests' },
-		routeNames: ['ChangeRequests', 'ChangeRequestReview'],
-		suffix: openChangeRequestCount,
+		routeNames: ['ChangeRequests'],
 	},
 ]);
 

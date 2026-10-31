@@ -12,6 +12,7 @@ import {
 	clickSidebarAddOption,
 	createSpaceViaDialog,
 	currentDraftDocKey,
+	editPage,
 	openNewPageDialog,
 	saveEditor,
 } from '../helpers/wiki';
@@ -179,7 +180,7 @@ test.describe('Change Request Flow', () => {
 		await page.goto(spaceUrl);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await expect(editor).toBeVisible({ timeout: 10000 });
+		await editPage(page, 'Update the page');
 
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
@@ -430,30 +431,13 @@ test.describe('Change Request Flow', () => {
 		});
 
 		// Start a new change request and reorder pages inside the group
-		const draftResponsePromise = page.waitForResponse((response) => {
-			if (
-				!response
-					.url()
-					.includes(
-						'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
-					)
-			) {
-				return false;
-			}
-			if (response.request().method() !== 'POST') {
-				return false;
-			}
-			const postData = response.request().postData() || '';
-			return postData.includes(spaceId);
-		});
+		const draftChangeRequest = await wiki.changeRequest(
+			{ name: spaceId },
+			'Reorder the group',
+		);
 
 		await page.goto(appUrl('spaces', spaceId));
 		await page.waitForLoadState('networkidle');
-
-		const draftResponse = await draftResponsePromise;
-		const draftPayload = await draftResponse.json();
-		const draftChangeRequest = draftPayload?.message as { name: string };
-		expect(draftChangeRequest?.name).toBeTruthy();
 
 		type CrTreeNode = {
 			title?: string;
@@ -551,22 +535,17 @@ test.describe('Change Request Flow', () => {
 		await page.waitForLoadState('networkidle');
 
 		const changeCard = page
-			.locator('div.border.border-outline-gray-2.rounded-6.overflow-hidden')
+			.getByTestId('page-diff')
 			.filter({ has: page.getByText(movedTitle, { exact: true }) })
 			.first();
 		await expect(
 			changeCard.getByText('Reordered', { exact: true }),
 		).toBeVisible();
 
-		// Expanding a reorder shows a structural before/after (its position changed)
-		// rather than the content Diff/Preview toggle, which is meaningless here.
-		await changeCard.getByText(movedTitle, { exact: true }).click();
-		await expect(changeCard.getByRole('button', { name: 'Diff' })).toHaveCount(
+		// A reorder shows where the page sat and where it sits now, not a content diff.
+		await expect(changeCard.getByText('Before', { exact: true })).toHaveCount(
 			0,
 		);
-		await expect(
-			changeCard.getByRole('button', { name: 'Preview' }),
-		).toHaveCount(0);
 		await expect(
 			changeCard.getByText(/Position \d+ \/ \d+/).first(),
 		).toBeVisible();
@@ -875,12 +854,10 @@ test.describe('Change Request Flow', () => {
 		expect(routerErrors).toEqual([]);
 	});
 
-	test('inline preview renders code blocks with syntax highlighting (TipTap viewer)', async ({
+	test('the review highlights the syntax of code blocks', async ({
 		page,
 		wiki,
 	}) => {
-		// A fenced Python block — the inline Preview must render it through the same
-		// read-only TipTap viewer the editor uses, which highlights via lowlight.
 		const code = '```python\nimport os\nprint(os.getcwd())\n```';
 		const { pageTitle } = await createSpaceWithDraftPage(
 			page,
@@ -890,26 +867,19 @@ test.describe('Change Request Flow', () => {
 		await setEditorContentAndSave(page, code);
 		await submitForReviewFromEditor(page);
 
-		// Expand the changed page row and switch its inline view to Preview.
-		await page.getByText(pageTitle, { exact: true }).first().click();
-		await page
-			.getByRole('button', { name: 'Preview', exact: true })
-			.first()
-			.click();
+		const diff = page.getByTestId('page-diff').filter({ hasText: pageTitle });
 
-		// lowlight wraps tokens in `hljs-*` spans; raw server HTML (the old
-		// v-html path) produces none. Their presence proves the TipTap viewer ran.
-		await expect(page.locator('pre code')).toContainText('import os');
+		// highlight.js wraps tokens in `hljs-*` spans; the server HTML has none.
+		await expect(diff.locator('pre code')).toContainText('import os');
 		await expect(
-			page.locator('pre code span[class*="hljs-"]').first(),
+			diff.locator('pre code span[class*="hljs-"]').first(),
 		).toBeVisible({ timeout: 10000 });
 
-		// The language picker is an editing affordance — it must not leak into the
-		// read-only preview.
+		// The language picker is an editing affordance; it must not leak into the review.
 		await expect(page.getByText('auto', { exact: true })).toHaveCount(0);
 	});
 
-	test('back from review returns to the originating tab', async ({
+	test('a change request opened from the list shows inside its space', async ({
 		page,
 		wiki,
 	}) => {
@@ -918,19 +888,15 @@ test.describe('Change Request Flow', () => {
 		await setEditorContentAndSave(page, content);
 		const crName = await submitForReviewFromEditor(page);
 
-		// Enter the CR from a specific tab (not the default 'my').
 		await page.goto(appUrl('change-requests?tab=all'));
 		await page.waitForLoadState('networkidle');
 		await page.locator(`a[href*="${crName}"]`).first().click();
 		await expect(page).toHaveURL(
-			new RegExp(`${APP_BASE}/change-requests/${crName}$`),
+			new RegExp(`/spaces/[^/]+/change-requests/${crName}$`),
 		);
 
-		// Back from review lands on the originating tab, query preserved.
-		await page.getByRole('button', { name: 'Back', exact: true }).click();
-		await expect(page).toHaveURL(
-			new RegExp(`${APP_BASE}/change-requests\\?tab=all`),
-		);
+		await page.getByRole('link', { name: 'Change requests' }).click();
+		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/change-requests$`));
 	});
 
 	test('merging from the editor keeps the tree up and the banner steady', async ({

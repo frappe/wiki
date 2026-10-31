@@ -29,10 +29,14 @@ WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
 # e2e/helpers/routes.ts.
 APP_ROUTE = "wiki-app"
 
+# Sidebar trees, keyed by the space's root group. The full tree keeps unpublished pages.
 WIKI_TREE_CACHE_KEY = "wiki_public_tree"
+WIKI_FULL_TREE_CACHE_KEY = "wiki_full_tree"
 
 # Per-document rendered HTML + TOC, keyed by document name.
 WIKI_CONTENT_CACHE_KEY = "wiki_rendered_content"
+
+EXTERNAL_LINK_SCHEMES = ("http", "https", "mailto")
 
 # An internal link, `[Label](wiki:<doc_key>)`, as render_markdown emits it.
 WIKI_LINK_PATTERN = re.compile(r'<a data-wiki-link="(\w+)"([^>]*)>(.*?)</a>', re.DOTALL)
@@ -109,6 +113,12 @@ def sanitize_route(route: str | None) -> str:
 	return "/".join(segment for segment in segments if segment)
 
 
+def validate_external_url(url: str | None) -> None:
+	# HTML escaping can't stop a `javascript:` href, so only known schemes are allowed.
+	if url and urlparse(url.strip()).scheme.lower() not in EXTERNAL_LINK_SCHEMES:
+		frappe.throw(_("External links must start with http://, https:// or mailto:"))
+
+
 def memoize_tree_lookups(method):
 	"""Reuse a page's ancestors and space for the length of one render.
 
@@ -161,13 +171,40 @@ class WikiDocument(NestedSet):
 	# end: auto-generated types
 
 	def validate(self):
+		self.lock_wiki_space()
 		self.set_doc_key()
 		self.set_slug()
 		self.set_sort_order_for_new_document()
 		self.set_route()
 		self.remove_leading_slash_from_route()
 		self.validate_unique_route_for_leaves()
+		if self.has_value_changed("external_url"):
+			validate_external_url(self.external_url)
 		self.set_boilerplate_content()
+
+	def lock_wiki_space(self):
+		# Merges lock the space before its pages, so take locks in the same order.
+		if frappe.flags.in_apply_merge_revision:
+			return
+
+		from wiki.api.wiki_space import _get_wiki_space_for_document, lock_wiki_space
+
+		space_name = _get_wiki_space_for_document(self.parent_wiki_document or self.name)
+		if space_name:
+			lock_wiki_space(space_name)
+
+	def on_update(self):
+		# Each update_nsm shifts lft/rgt across the whole table; bulk writers renumber once at the end.
+		if frappe.flags.defer_wiki_nested_set:
+			self.validate_ledger()
+			return
+		super().on_update()
+
+	def on_trash(self, allow_root_deletion=False):
+		if frappe.flags.defer_wiki_nested_set:
+			self.validate_if_child_exists()
+			return
+		super().on_trash(allow_root_deletion)
 
 	def after_insert(self):
 		# A space's root group is scaffolding, not something anyone authored.
@@ -356,7 +393,7 @@ class WikiDocument(NestedSet):
 		github_url = self._get_github_edit_url(wiki_space.name)
 		if github_url is not None:
 			return github_url
-		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}"
+		return f"/{APP_ROUTE}/spaces/{wiki_space.name}/page/{self.name}?edit=1"
 
 	def _get_github_edit_url(self, space_name: str) -> str | None:
 		"""Edit target for a git-synced space: the source file in GitHub's editor.
@@ -397,6 +434,33 @@ class WikiDocument(NestedSet):
 		if _space_accepts_contributions(wiki_space_doc):
 			return True
 		return can_write_space(wiki_space_doc.name, user)
+
+	def get_switcher_spaces(self, current_space: str) -> list[dict]:
+		"""Published spaces the user can read, so the switcher never links to a 404."""
+		from wiki.permissions import _accessible_space_names, _is_manager
+
+		filters = {"is_published": 1}
+		if not _is_manager():
+			filters["name"] = ("in", list(_accessible_space_names()))
+
+		return frappe.get_all(
+			"Wiki Space",
+			fields=[
+				"name",
+				"space_name",
+				"route",
+				"light_mode_logo",
+				# The identity fields the switcher's mark resolves
+				# through wiki.utils.space_mark -- see spec 03.
+				"app_switcher_logo",
+				"space_icon",
+				"space_color",
+				"avatar",
+			],
+			filters=filters,
+			or_filters={"show_in_switcher": 1, "name": current_space},
+			order_by="switcher_order asc, space_name asc",
+		)
 
 	def check_space_access(self, ptype="read", user=None):
 		"""Gate content access by the owning Wiki Space's role configuration.
@@ -556,6 +620,7 @@ class WikiDocument(NestedSet):
 			"last_updated_on": self.get_formatted("modified"),
 			"hide_chrome": not wiki_space,
 			"can_edit": False,
+			"show_ai_actions": False,
 			"breadcrumbs": None,
 			"disable_indexing": self.disable_indexing,
 		}
@@ -587,6 +652,8 @@ class WikiDocument(NestedSet):
 		if not wiki_space:
 			return context
 
+		from wiki.permissions import can_read_space
+
 		wiki_space_doc = frappe.get_cached_doc("Wiki Space", wiki_space.name)
 		nested_tree, adjacent_docs = self.get_tree_and_navigation()
 
@@ -594,23 +661,8 @@ class WikiDocument(NestedSet):
 			{
 				"wiki_space": wiki_space_doc,
 				"can_edit": self._can_show_edit(wiki_space_doc),
-				"wiki_spaces_for_switcher": frappe.get_all(
-					"Wiki Space",
-					fields=[
-						"name",
-						"space_name",
-						"route",
-						"light_mode_logo",
-						# The identity fields the switcher's mark resolves
-						# through wiki.utils.space_mark -- see spec 03.
-						"app_switcher_logo",
-						"space_icon",
-						"space_color",
-						"avatar",
-					],
-					or_filters={"show_in_switcher": 1, "name": wiki_space["name"]},
-					order_by="switcher_order asc, space_name asc",
-				),
+				"show_ai_actions": can_read_space(wiki_space_doc.name, "Guest"),
+				"wiki_spaces_for_switcher": self.get_switcher_spaces(wiki_space["name"]),
 				"navbar_items": process_navbar_items(wiki_space_doc.navbar_items)
 				if wiki_space_doc.navbar_items
 				else [],
@@ -621,10 +673,18 @@ class WikiDocument(NestedSet):
 				# Escape "<" so user-supplied titles can't close the
 				# <script> element the template embeds this JSON into.
 				"breadcrumbs": json.dumps(self.get_breadcrumb_list(wiki_space)).replace("<", "\\u003c"),
+				"live_reload": self.get_live_reload(wiki_space_doc),
 			}
 		)
 
 		return context
+
+	def get_live_reload(self, wiki_space_doc) -> dict | None:
+		"""In developer mode, a git-synced page reloads itself after each sync, such as a local docs preview."""
+		if not frappe.conf.developer_mode or not wiki_space_doc.git_synced:
+			return None
+		sha = frappe.db.get_value("Wiki Space", wiki_space_doc.name, "last_synced_commit_sha")
+		return {"space": wiki_space_doc.name, "sha": sha}
 
 	def get_og_image_url(self) -> str | None:
 		"""Path to this page's auto-generated OG card, or None when it has none.
@@ -931,7 +991,7 @@ def build_nested_wiki_tree(documents: list[str]):
 def get_public_wiki_tree(root_group: str) -> list:
 	"""Return the published sidebar tree for a root group, cached in Redis.
 
-	The cache is invalidated on any Wiki Document change (see
+	The cache is invalidated on any change to the space's documents (see
 	clear_wiki_tree_cache), so a hit always reflects the committed tree.
 	"""
 	tree = frappe.cache().hget(WIKI_TREE_CACHE_KEY, root_group)
@@ -1088,18 +1148,30 @@ def first_published_leaf(nodes: list) -> dict | None:
 	return None
 
 
-def clear_wiki_tree_cache():
-	"""Drop all cached sidebar trees.
+def clear_wiki_tree_cache(*spaces: str | None):
+	"""Drop the cached sidebar trees of `spaces`.
 
-	Cleared wholesale rather than per space: a move can pull a subtree from one
-	space into another, staling both trees while the document only knows its
-	new space. Cleared again after commit to close the race where another
-	worker re-caches from pre-commit DB state.
+	A move stales two trees, so callers pass both the old and the new space.
+	Cleared again after commit to close the race where another worker
+	re-caches from pre-commit DB state.
 	"""
 	from wiki.wiki.crawler_cache import clear_crawler_cache
 
-	frappe.cache().delete_value(WIKI_TREE_CACHE_KEY)
-	frappe.db.after_commit.add(lambda: frappe.cache().delete_value(WIKI_TREE_CACHE_KEY))
+	root_groups = [
+		root_group
+		for space in set(spaces)
+		if space and (root_group := frappe.get_cached_value("Wiki Space", space, "root_group"))
+	]
+	if root_groups:
+
+		def clear():
+			# v15's RedisWrapper.hdel takes a single field.
+			for key in (WIKI_TREE_CACHE_KEY, WIKI_FULL_TREE_CACHE_KEY):
+				for root_group in root_groups:
+					frappe.cache().hdel(key, root_group)
+
+		clear()
+		frappe.db.after_commit.add(clear)
 
 	# llms.txt and sitemap.xml are built from this same tree, so they go stale
 	# at exactly the same moments.
@@ -1110,7 +1182,26 @@ def clear_wiki_tree_cache():
 def get_breadcrumbs(name: str) -> dict:
 	"""Get the breadcrumb trail for a Wiki Document including space info."""
 	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
 	return doc.get_breadcrumbs()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_page_html(name: str) -> dict:
+	"""Rendered HTML and outline for the app's read mode.
+
+	Includes unpublished pages, since space readers see them in the app.
+	The outline ignores the reader's TOC setting, like the editor.
+	"""
+	doc = frappe.get_cached_doc("Wiki Document", name)
+	doc.check_permission("read")
+	html, toc = get_rendered_content(doc.name, doc.content or "")
+	return {
+		"html": resolve_wiki_links(html, doc.get_space_name()),
+		"toc": toc,
+		"modified": doc.modified,
+		"modified_by": doc.modified_by,
+	}
 
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
@@ -1137,6 +1228,9 @@ def download_pdf(route: str):
 	doc = frappe.get_cached_doc("Wiki Document", doc_name)
 	doc.check_space_access("read")
 	doc.check_published()
+	space = doc.get_space_name()
+	if space and not frappe.get_cached_value("Wiki Space", space, "allow_pdf_download"):
+		frappe.throw(_("PDF download is turned off for this space"), frappe.PermissionError)
 
 	# Guests can't print by default; we've already authorized them above via check_space_access.
 	frappe.local.flags.ignore_print_permissions = True
@@ -1163,12 +1257,16 @@ def on_wiki_document_update(doc, method):
 	from wiki.api.og_image import enqueue_og_warmup
 	from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import REVISION_FIELDS
 
-	touch_space_last_edited(stamp_wiki_space(doc))
+	previous = doc.get_doc_before_save()
+	moved = previous and previous.parent_wiki_document != doc.parent_wiki_document
+	space = stamp_wiki_space_subtree(doc.name) if moved else stamp_wiki_space(doc)
+	touch_space_last_edited(space)
 	# A save that changes no snapshotted field would only produce an identical revision.
 	if any(doc.has_value_changed(field) for field in REVISION_FIELDS):
 		_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc)
-	clear_wiki_tree_cache()
+	# A move also stales the tree of the space the page left.
+	clear_wiki_tree_cache(space, previous and previous.wiki_space)
 	if doc.has_value_changed("content"):
 		clear_wiki_content_cache(doc.name)
 	_drop_from_search_index_on_unpublish(doc)
@@ -1176,14 +1274,14 @@ def on_wiki_document_update(doc, method):
 
 
 def _drop_from_search_index_on_unpublish(doc):
-	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_doc_from_index
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import remove_docs_from_index
 
 	if doc.has_value_changed("is_published") and not doc.is_published:
 		# The index lives in a separate SQLite file, outside this transaction.
 		# Deferring until after commit keeps the row when the save rolls back;
 		# on rollback the callback queue is discarded.
 		docname = doc.name
-		frappe.db.after_commit.add(lambda: remove_doc_from_index(docname))
+		frappe.db.after_commit.add(lambda: remove_docs_from_index([docname]))
 
 
 def stamp_wiki_space(doc):
@@ -1226,12 +1324,80 @@ def stamp_wiki_space_subtree(root_doc_name):
 	return space_name
 
 
+def lock_wiki_tree() -> None:
+	frappe.db.get_value("DocType", "Wiki Document", "name", for_update=True)
+
+
+def rebuild_space_nested_set(space_name: str) -> None:
+	"""Renumber one space's lft/rgt from parent links, after writes under `defer_wiki_nested_set`.
+
+	Frappe's rebuild_tree renumbers every space in the table. Here only this
+	space is renumbered, and the spaces after it shift by its change in size.
+	"""
+	WikiDocument = frappe.qb.DocType("Wiki Document")
+	root_group = frappe.db.get_value("Wiki Space", space_name, "root_group")
+	# Locks the root row, so a concurrent insert in an earlier space cannot shift this space mid-rebuild.
+	root_lft, root_rgt = frappe.db.get_value("Wiki Document", root_group, ["lft", "rgt"], for_update=True)
+
+	# Pages added or moved in during the bulk write have no lft in range yet, but carry the space stamp.
+	rows = (
+		frappe.qb.from_(WikiDocument)
+		.select(
+			WikiDocument.name,
+			WikiDocument.parent_wiki_document,
+			WikiDocument.old_parent,
+			WikiDocument.sort_order,
+			WikiDocument.lft,
+			WikiDocument.rgt,
+		)
+		.where(WikiDocument.lft.between(root_lft, root_rgt) | (WikiDocument.wiki_space == space_name))
+		.for_update()
+		.run(as_dict=True)
+	)
+	children = {}
+	for row in sorted(rows, key=lambda row: (row.sort_order or 0, row.name)):
+		children.setdefault(row.parent_wiki_document, []).append(row)
+
+	numbers = {}
+	new_root_rgt = _number_subtree(root_group, root_lft, children, numbers)
+
+	updates = {}
+	for row in rows:
+		if row.name not in numbers:
+			continue
+		# update_nsm keeps old_parent equal to the parent; a stale one turns the next save into a move.
+		new = {**numbers[row.name], "old_parent": row.parent_wiki_document or ""}
+		current = {"lft": row.lft, "rgt": row.rgt, "old_parent": row.old_parent or ""}
+		# A page moved in from a later space is about to be shifted, so its current lft is no guide.
+		if row.lft > root_rgt or current != new:
+			updates[row.name] = new
+
+	if shift := new_root_rgt - root_rgt:
+		(
+			frappe.qb.update(WikiDocument)
+			.set(WikiDocument.lft, WikiDocument.lft + shift)
+			.set(WikiDocument.rgt, WikiDocument.rgt + shift)
+			.where(WikiDocument.lft > root_rgt)
+			.run()
+		)
+	frappe.db.bulk_update("Wiki Document", updates, update_modified=False)
+	frappe.clear_document_cache("Wiki Document")
+
+
+def _number_subtree(name: str, left: int, children: dict, numbers: dict) -> int:
+	right = left + 1
+	for child in children.get(name, []):
+		right = _number_subtree(child.name, right, children, numbers) + 1
+	numbers[name] = {"lft": left, "rgt": right}
+	return right
+
+
 def on_wiki_document_trash(doc, method):
 	"""Sync desk deletions to the revision system."""
 	touch_space_last_edited(doc.get("wiki_space"))
 	_sync_document_to_revision(doc)
 	_clear_stale_website_cache(doc, deleted=True)
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(doc.get("wiki_space"))
 	clear_wiki_content_cache(doc.name)
 	_drop_generated_og_cards(doc)
 

@@ -1,4 +1,4 @@
-"""Every event Wiki sends to Pulse, with the properties `docs/telemetry.md`
+"""Every event Wiki sends to Pulse, with the properties `specs/telemetry.md`
 puts on all of them."""
 
 from contextlib import suppress

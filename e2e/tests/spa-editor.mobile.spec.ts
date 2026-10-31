@@ -139,7 +139,7 @@ test.describe('Mobile SPA', () => {
 
 	// Regression: the bottom nav must mirror the desktop sidebar. Overview was
 	// missing for managers, and a single change request lit no tab at all.
-	test('bottom nav reaches Overview and keeps Change Requests lit on a review', async ({
+	test('bottom nav reaches Overview and Change Requests, and a review lights Spaces', async ({
 		page,
 		request,
 		wiki,
@@ -162,11 +162,15 @@ test.describe('Mobile SPA', () => {
 		await expect(page).toHaveURL(new RegExp(`${APP_BASE}/?$`));
 		await expect(tab('Overview')).toHaveAttribute('data-state', 'active');
 
-		await page.goto(appUrl('change-requests', draft.name));
+		await page.goto(appUrl('change-requests'));
 		await expect(tab('Change Requests')).toHaveAttribute(
 			'data-state',
 			'active',
 		);
+
+		await page.goto(appUrl('change-requests', draft.name));
+		await expect(page).toHaveURL(/\/spaces\/.+\/change-requests\//);
+		await expect(tab('Spaces')).toHaveAttribute('data-state', 'active');
 	});
 
 	// Regression: Settings opens from inside the tree drawer. The drawer must

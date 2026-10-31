@@ -27,6 +27,7 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 	clear_wiki_tree_cache,
 	download_pdf,
 	get_landing_redirect_for_route,
+	get_page_html,
 	get_public_wiki_tree,
 	get_rendered_content,
 	process_navbar_items,
@@ -83,6 +84,19 @@ def create_test_wiki_space(test_case, space_name, route, root_group, **kwargs):
 	if not root_group and doc.root_group:
 		test_case.wiki.track_document(doc.root_group)
 	return doc
+
+
+def make_wiki_user(role):
+	"""A Wiki User who also holds ``role``."""
+	if not frappe.db.exists("Role", role):
+		frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
+	email = f"{frappe.scrub(role).strip('_')}@example.com"
+	if not frappe.db.exists("User", email):
+		frappe.get_doc(
+			{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
+		).insert()
+	frappe.get_doc("User", email).add_roles("Wiki User", role)
+	return email
 
 
 class WikiDocumentTestBase(WikiFixtureMixin, IntegrationTestCase):
@@ -260,6 +274,36 @@ class TestGetWebContext(WikiDocumentTestBase):
 		# At least our 2 visible test spaces should be included
 		self.assertGreaterEqual(len(switcher_spaces), 2)
 
+	def test_wiki_spaces_for_switcher_hides_spaces_the_user_cannot_read(self):
+		reader = make_wiki_user("_Test Switcher Reader")
+		make_wiki_user("_Test Switcher Other")
+		readable = create_test_wiki_space(
+			self, "Readable Space", "readable-space", None, roles=[("_Test Switcher Reader", "Read")]
+		)
+		create_test_wiki_space(
+			self, "Forbidden Space", "forbidden-space", None, roles=[("_Test Switcher Other", "Read")]
+		)
+		create_test_wiki_space(self, "Open Space", "open-space", None)
+		page = create_test_wiki_document(self, "Readable Page", parent=readable.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(reader)
+		space_names = [s["space_name"] for s in page.get_web_context()["wiki_spaces_for_switcher"]]
+
+		self.assertIn("Readable Space", space_names)
+		self.assertIn("Open Space", space_names)
+		self.assertNotIn("Forbidden Space", space_names)
+
+	def test_wiki_spaces_for_switcher_hides_unpublished_spaces(self):
+		current = create_test_wiki_space(self, "Current Space", "current-space", None)
+		create_test_wiki_space(self, "Draft Space", "draft-space", None, is_published=False)
+		page = create_test_wiki_document(self, "Current Page", parent=current.root_group)
+
+		space_names = [s["space_name"] for s in page.get_web_context()["wiki_spaces_for_switcher"]]
+
+		self.assertIn("Current Space", space_names)
+		self.assertNotIn("Draft Space", space_names)
+
 	def test_orphan_document_without_wiki_space(self):
 		"""
 		Test that get_web_context handles a document that is not associated
@@ -359,6 +403,24 @@ class TestGetWebContext(WikiDocumentTestBase):
 		expected_order = ["Zebra Space", "Alpha Space", "Beta Space", "Gamma Space"]
 		self.assertEqual(filtered_spaces, expected_order)
 
+	def test_ai_actions_shown_in_public_space(self):
+		root_group = create_test_wiki_document(self, "AI Public Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Public Page", parent=root_group.name)
+		create_test_wiki_space(
+			self, "AI Public Space", "ai-public-space", root_group.name, roles=[("Guest", "Read")]
+		)
+
+		doc.reload()
+		self.assertTrue(doc.get_web_context()["show_ai_actions"])
+
+	def test_ai_actions_hidden_in_space_guests_cannot_read(self):
+		root_group = create_test_wiki_document(self, "AI Private Root", is_group=True)
+		doc = create_test_wiki_document(self, "AI Private Page", parent=root_group.name)
+		create_test_wiki_space(self, "AI Private Space", "ai-private-space", root_group.name)
+
+		doc.reload()
+		self.assertFalse(doc.get_web_context()["show_ai_actions"])
+
 
 class TestSpaceLastEdited(WikiDocumentTestBase):
 	"""Wiki Space.last_edited moves with the pages inside it, not with the space."""
@@ -413,7 +475,7 @@ class TestEditLink(WikiDocumentTestBase):
 		space = create_test_wiki_space(self, "Edit Link Space", "edit-link-space", root_group.name)
 
 		doc.reload()
-		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}")
+		self.assertEqual(doc.get_edit_link(), f"/{APP_ROUTE}/spaces/{space.name}/page/{doc.name}?edit=1")
 
 	def test_synced_space_links_to_github_editor(self):
 		root_group = create_test_wiki_document(self, "Synced Edit Root", is_group=True)
@@ -797,8 +859,8 @@ class TestUpdateMeta(WikiDocumentTestBase):
 
 	def setUp(self):
 		super().setUp()
-		self.reader = self._user_with(self.READER_ROLE)
-		self.writer = self._user_with(self.WRITER_ROLE)
+		self.reader = make_wiki_user(self.READER_ROLE)
+		self.writer = make_wiki_user(self.WRITER_ROLE)
 		self.space = create_test_wiki_space(
 			self,
 			"Synced Meta Space",
@@ -811,17 +873,6 @@ class TestUpdateMeta(WikiDocumentTestBase):
 		)
 		self.page = create_test_wiki_document(self, "Synced Meta Page", parent=self.space.root_group)
 		self.addCleanup(frappe.set_user, "Administrator")
-
-	def _user_with(self, role):
-		if not frappe.db.exists("Role", role):
-			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 0}).insert()
-		email = f"{frappe.scrub(role).strip('_')}@example.com"
-		if not frappe.db.exists("User", email):
-			frappe.get_doc(
-				{"doctype": "User", "email": email, "first_name": "Meta", "send_welcome_email": 0}
-			).insert()
-		frappe.get_doc("User", email).add_roles("Wiki User", role)
-		return email
 
 	def test_space_writer_updates_meta_on_a_git_synced_page(self):
 		frappe.set_user(self.writer)
@@ -864,6 +915,55 @@ class TestUpdateMeta(WikiDocumentTestBase):
 		frappe.set_user(self.reader)
 		with self.assertRaises(frappe.PermissionError):
 			frappe.get_doc("Wiki Document", self.page.name).update_meta(meta_title="Nope")
+
+
+class TestGetPageHtml(WikiDocumentTestBase):
+	def test_returns_rendered_html_and_outline(self):
+		space = create_test_wiki_space(
+			self, "Page Html Space", f"page-html-{frappe.generate_hash(length=6)}", None
+		)
+		target = create_test_wiki_document(self, "Html Target", parent=space.root_group, slug="html-target")
+		doc = create_test_wiki_document(
+			self,
+			"Html Page",
+			parent=space.root_group,
+			content=f"## Setup\n\nSee [the target](wiki:{target.doc_key}).",
+		)
+		target.reload()
+
+		page = get_page_html(doc.name)
+
+		self.assertIn('<h2 id="setup"', page["html"])
+		self.assertIn(f'href="/{target.route}"', page["html"])
+		self.assertEqual(page["toc"], [{"id": "setup", "text": "Setup", "level": 2}])
+		self.assertEqual(page["modified_by"], "Administrator")
+
+	def test_unpublished_page_is_readable(self):
+		space = create_test_wiki_space(
+			self, "Draft Html Space", f"draft-html-{frappe.generate_hash(length=6)}", None
+		)
+		doc = create_test_wiki_document(
+			self, "Hidden Page", parent=space.root_group, is_published=False, content="Not live yet"
+		)
+
+		self.assertIn("Not live yet", get_page_html(doc.name)["html"])
+
+	def test_outsider_is_refused(self):
+		make_wiki_user("_Test Page Html Other")
+		outsider = make_wiki_user("_Test Page Html Outsider")
+		space = create_test_wiki_space(
+			self,
+			"Closed Html Space",
+			f"closed-html-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[("_Test Page Html Other", "Read")],
+		)
+		doc = create_test_wiki_document(self, "Closed Page", parent=space.root_group)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(outsider)
+		with self.assertRaises(frappe.PermissionError):
+			get_page_html(doc.name)
 
 
 class TestGetWebContextBreadcrumbs(WikiDocumentTestBase):
@@ -2156,6 +2256,54 @@ class TestWikiDocumentPdfDownload(WikiDocumentTestBase):
 
 		self.assertIn("<h2", page.rendered_content_for_pdf)
 
+	def test_download_pdf_blocked_when_space_turns_it_off(self):
+		root_group = create_test_wiki_document(self, "Root PDF Off", is_group=True)
+		page = create_test_wiki_document(self, "No Download Page", parent=root_group.name)
+		space = create_test_wiki_space(
+			self, "PDF Off Space", "pdf-off-space", root_group.name, roles=[("Guest", "Read")]
+		)
+		space.db_set("allow_pdf_download", 0)
+
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.PermissionError):
+			download_pdf(route=page.route)
+
+
+class TestRenderedPageActions(WikiDocumentTestBase):
+	TEST_CLIENT = get_test_client()
+
+	def _render_public_page(self, prefix, **space_values):
+		space = create_test_wiki_space(
+			self,
+			"Page Actions Space",
+			f"{prefix}-{frappe.generate_hash(length=6)}",
+			None,
+			roles=[("Guest", "Read")],
+		)
+		space.db_set(space_values)
+		doc = create_test_wiki_document(self, "Page Actions Doc", parent=space.root_group)
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+		response = _make_request(self.TEST_CLIENT, "get", f"/{doc.route}", headers={"Accept": "text/html"})
+		self.assertEqual(response.status_code, 200)
+		return response.get_data(as_text=True)
+
+	def test_download_action_shown_by_default(self):
+		html = self._render_public_page("pdf-on")
+		self.assertIn("downloadPage().finally", html)
+
+	def test_download_action_hidden_when_space_turns_it_off(self):
+		html = self._render_public_page("pdf-off", allow_pdf_download=0)
+		self.assertNotIn("downloadPage().finally", html)
+
+	def test_menu_toggle_hidden_when_menu_has_no_items(self):
+		html = frappe.render_template(
+			'{% from "templates/wiki/macros/buttons.html" import page_actions_dropdown, dropdown_end %}'
+			"{{ page_actions_dropdown(show_edit=False, show_menu=False) }}{{ dropdown_end() }}",
+			{},
+		)
+		self.assertNotIn("More page actions", html)
+
 
 def _site_sitemap_module() -> str:
 	"""The www/sitemap module that would serve /sitemap.xml on this site without the wiki."""
@@ -2476,7 +2624,7 @@ class TestSpaceLlmsTxt(WikiDocumentTestBase):
 		)
 
 		frappe.db.set_value("Wiki Document", draft.name, "is_published", 0)
-		clear_wiki_tree_cache()
+		clear_wiki_tree_cache(space.name)
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
 		return frappe._dict(
@@ -2995,6 +3143,91 @@ class TestWikiTreeCache(WikiDocumentTestBase):
 		tree = get_public_wiki_tree(root.name)
 		self.assertEqual(tree[0]["route"], "tcrn-space-renamed/tcrn-page")
 
+	def _cached_space(self, label):
+		root = create_test_wiki_document(self, f"TreeCache {label} Root", is_group=True)
+		space = create_test_wiki_space(self, f"TreeCache {label}", f"tc-{label}", root.name)
+		page = create_test_wiki_document(self, f"{label} Page", parent=root.name, slug=f"tc-{label}-page")
+		get_public_wiki_tree(root.name)
+		return frappe._dict(root=root.name, space=space.name, page=page)
+
+	def _is_cached(self, space):
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WIKI_TREE_CACHE_KEY
+
+		return frappe.cache().hget(WIKI_TREE_CACHE_KEY, space.root) is not None
+
+	def test_page_save_keeps_other_spaces_trees(self):
+		edited, other = self._cached_space("scope-a"), self._cached_space("scope-b")
+
+		edited.page.title = "Scope A Renamed"
+		edited.page.save()
+
+		self.assertFalse(self._is_cached(edited))
+		self.assertTrue(self._is_cached(other))
+
+	def test_page_trash_keeps_other_spaces_trees(self):
+		edited, other = self._cached_space("trash-a"), self._cached_space("trash-b")
+
+		edited.page.delete()
+
+		self.assertFalse(self._is_cached(edited))
+		self.assertTrue(self._is_cached(other))
+
+	def test_desk_move_clears_old_and_new_space(self):
+		source, target, other = (self._cached_space(label) for label in ("dm-a", "dm-b", "dm-c"))
+
+		source.page.parent_wiki_document = target.root
+		source.page.save()
+
+		self.assertFalse(self._is_cached(source))
+		self.assertFalse(self._is_cached(target))
+		self.assertTrue(self._is_cached(other))
+
+	def test_deleting_a_child_after_a_desk_group_move_clears_the_new_space(self):
+		source, target = self._cached_space("gm-a"), self._cached_space("gm-b")
+		group = create_test_wiki_document(self, "Moved Group", parent=source.root, is_group=True)
+		child = create_test_wiki_document(self, "Moved Child", parent=group.name, slug="tc-gm-child")
+
+		group.reload()
+		group.parent_wiki_document = target.root
+		group.save()
+		self.assertEqual(frappe.db.get_value("Wiki Document", child.name, "wiki_space"), target.space)
+
+		get_public_wiki_tree(target.root)
+		child.reload()
+		child.delete()
+
+		self.assertFalse(self._is_cached(target))
+
+	def test_reorder_move_clears_old_and_new_space(self):
+		from wiki.api.wiki_space import reorder_wiki_documents
+
+		source, target, other = (self._cached_space(label) for label in ("rm-a", "rm-b", "rm-c"))
+
+		reorder_wiki_documents(
+			doc_name=source.page.name,
+			new_parent=target.root,
+			new_index=0,
+			siblings=json.dumps([source.page.name, target.page.name]),
+		)
+
+		self.assertFalse(self._is_cached(source))
+		self.assertFalse(self._is_cached(target))
+		self.assertTrue(self._is_cached(other))
+
+	def test_space_tree_api_is_cached_and_busted_on_save(self):
+		from wiki.api.wiki_space import get_wiki_tree
+		from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WIKI_FULL_TREE_CACHE_KEY
+
+		space = self._cached_space("api")
+		get_wiki_tree(space.space)
+		self.assertIsNotNone(frappe.cache().hget(WIKI_FULL_TREE_CACHE_KEY, space.root))
+
+		space.page.title = "API Page Renamed"
+		space.page.save()
+
+		self.assertIsNone(frappe.cache().hget(WIKI_FULL_TREE_CACHE_KEY, space.root))
+		self.assertEqual(get_wiki_tree(space.space)["children"][0]["title"], "API Page Renamed")
+
 
 class TestSearchPublishGating(WikiDocumentTestBase):
 	"""
@@ -3165,7 +3398,7 @@ class TestStaleTabFlags(WikiDocumentTestBase):
 		flagged = create_test_wiki_document(self, "Accounting", parent=root_group.name, is_group=True)
 		frappe.db.set_value("Wiki Document", flagged.name, "is_tab", 1)
 		create_test_wiki_document(self, "Invoice", parent=flagged.name)
-		clear_wiki_tree_cache()
+		clear_wiki_tree_cache(space.name)
 
 		node = next(n for n in get_public_wiki_tree(root_group.name) if n["name"] == flagged.name)
 
@@ -3297,20 +3530,7 @@ class TestReaderRouteXSS(unittest.TestCase):
 	double-quoted HTML attribute. Without both, a route like `x'),alert(1)//`
 	breaks out of the JS string and runs for every reader (stored XSS)."""
 
-	# A route crafted to break out of a single-quoted JS string literal.
-	PAYLOAD = "s/x'),alert(document.domain)//"
-
-	def _assert_route_is_safe(self, html):
-		# The vulnerable pattern is a single-quoted JS literal; after the fix
-		# every call passes a double-quoted, entity-encoded literal instead.
-		self.assertNotIn("navigateTo('", html)
-		# The route's own single quote is unicode-escaped by tojson, so it can
-		# never terminate the JS string — no `'),alert(...)//'` breakout survives.
-		self.assertNotIn("//')", html)
-		self.assertIn("\\u0027", html)
-
-	def test_sidebar_tree_macro_escapes_route_in_alpine_expressions(self):
-		"""render_wiki_tree feeds node.route into navigateTo/prefetch/:class."""
+	def test_sidebar_tree_macro_keeps_route_and_title_out_of_scripts(self):
 		template = (
 			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
 			"{{ render_wiki_tree(nodes) }}"
@@ -3319,13 +3539,49 @@ class TestReaderRouteXSS(unittest.TestCase):
 			"is_group": 0,
 			"is_external_link": 0,
 			"name": "n1",
-			"route": self.PAYLOAD,
-			"title": "Evil",
+			"route": 'x" onmouseover="alert(1)',
+			"title": "<img src=x onerror=alert(2)>",
 			"children": [],
 		}
 		html = frappe.render_template(template, {"nodes": [node]})
-		self.assertIn("navigateTo(&#34;", html)  # escaped double-quoted literal used
-		self._assert_route_is_safe(html)
+		self.assertIn('href="/x&#34; onmouseover=&#34;alert(1)"', html)
+		self.assertIn("&lt;img src=x onerror=alert(2)&gt;</a>", html)
+		self.assertNotIn("@click", html)
+		self.assertNotIn("<img", html)
+
+	def test_sidebar_tree_macro_opens_ancestors_and_marks_current_page(self):
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes, current_route='s/deep', expanded_nodes=expanded) }}"
+		)
+		page = {"is_group": 0, "is_external_link": 0, "name": "p1", "title": "Deep", "children": []}
+		nodes = [
+			{"is_group": 1, "name": "g1", "title": "Open", "children": [{**page, "route": "s/deep"}]},
+			{"is_group": 1, "name": "g2", "title": "Shut", "children": [{**page, "route": "s/other"}]},
+		]
+		html = frappe.render_template(template, {"nodes": nodes, "expanded": {"g1"}})
+		self.assertIn('<details data-node-id="g1" open>', html)
+		self.assertIn('<details data-node-id="g2">', html)
+		self.assertIn('href="/s/deep" title="Deep" aria-current="page"', html)
+		self.assertEqual(html.count("aria-current"), 1)
+
+	def test_sidebar_tree_macro_escapes_quotes_in_link_attributes(self):
+		template = (
+			'{% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}'
+			"{{ render_wiki_tree(nodes) }}"
+		)
+		node = {
+			"is_group": 0,
+			"is_external_link": 1,
+			"name": "n1",
+			"route": "n1",
+			"external_url": 'https://example.com/" onmouseover="alert(1)',
+			"title": 'x" onfocus="alert(2)" autofocus="',
+			"children": [],
+		}
+		html = frappe.render_template(template, {"nodes": [node]})
+		self.assertIn('href="https://example.com/&#34; onmouseover=&#34;alert(1)"', html)
+		self.assertIn('title="x&#34; onfocus=&#34;alert(2)&#34; autofocus=&#34;"', html)
 
 	def test_script_context_uses_bare_tojson_not_forceescape(self):
 		"""Inside a <script> block the browser does not HTML-decode, so a value

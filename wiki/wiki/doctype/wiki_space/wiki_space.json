@@ -21,6 +21,7 @@
   "avatar_seed",
   "favicon",
   "enable_feedback_collection",
+  "allow_pdf_download",
   "show_in_switcher",
   "is_published",
   "section_break_z5nn",
@@ -250,6 +251,13 @@
   },
   {
    "default": "1",
+   "description": "Show the Download action that saves a page as PDF",
+   "fieldname": "allow_pdf_download",
+   "fieldtype": "Check",
+   "label": "Allow PDF Download?"
+  },
+  {
+   "default": "1",
    "fieldname": "show_in_switcher",
    "fieldtype": "Check",
    "in_standard_filter": 1,
@@ -340,17 +348,17 @@
    "read_only": 1
   },
   {
-   "description": "The most recently loaded .wiki.json from the repo (empty when the structure is inferred).",
+   "description": "The most recently loaded sidebar config (.wiki.yml, .wiki.yaml or .wiki.json) from the repo, shown as JSON. Empty when the structure is inferred.",
    "fieldname": "wiki_config",
    "fieldtype": "Code",
-   "label": "Wiki Config (.wiki.json)",
+   "label": "Wiki Config",
    "options": "JSON",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-06 16:12:13.356514",
+ "modified": "2026-10-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",

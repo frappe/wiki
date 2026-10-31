@@ -41,14 +41,10 @@
 <script setup>
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
-import {
-	Table,
-	TableCell,
-	TableHeader,
-	TableRow,
-} from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { onKeyStroke, useElementSize } from '@vueuse/core';
+import { Selection } from '@tiptap/pm/state';
+import { onKeyStroke } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
 	computed,
@@ -59,15 +55,16 @@ import {
 	onMounted,
 	onUnmounted,
 	ref,
-	shallowRef,
 	watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useOutlineLayout } from '@/composables/useOutlineLayout';
 import {
 	createTrailingScheduler,
 	memoizeLast,
 	onEditorFlushRequest,
+	onEditorReloadRequest,
 } from '@/lib/editorContentSync';
 import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
@@ -97,8 +94,8 @@ import {
 	PageLinks,
 	docKeyFromHref,
 	findPageByTitle,
-	pickerItems,
 	linkablePages,
+	pickerItems,
 } from './tiptap-extensions/page-links.js';
 import {
 	dataUrlToFile,
@@ -112,8 +109,9 @@ import {
 	SlashCommands,
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
-import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
@@ -151,6 +149,12 @@ const props = defineProps({
 	// ProseMirror view is non-editable, and every save path short-circuits.
 	// Used for git-synced spaces whose content is owned by the repo.
 	readonly: {
+		type: Boolean,
+		default: false,
+	},
+	// Put the caret at the end of the page once mounted, for an editor opened
+	// by Edit.
+	autofocus: {
 		type: Boolean,
 		default: false,
 	},
@@ -207,11 +211,10 @@ function linkedPage(href) {
 		(candidate) => candidate.doc_key === docKey,
 	)?.at(-1);
 	const target = node && crumbRoute(node, route.params.spaceId);
-	return target ? { title: node.title, href: router.resolve(target).href } : null;
+	return target
+		? { title: node.title, href: router.resolve(target).href }
+		: null;
 }
-
-const AUTOSAVE_DELAY = 10 * 1000;
-let autosaveTimer = null;
 
 // Reading the page as markdown serializes and re-parses the whole document.
 // Doing it on every keystroke made typing lag by seconds on large pages, so
@@ -219,9 +222,22 @@ let autosaveTimer = null;
 const contentSync = createTrailingScheduler({
 	delay: 300,
 	maxWait: 2000,
-	run: reportContentChange,
+	run: emitContentChange,
 });
 const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
+const stopReloadRequests = onEditorReloadRequest(({ docKey, content }) => {
+	if (docKey !== props.documentKey || !editor.value) return;
+	contentSync.cancel();
+	autosave.cancel();
+	seedContent(content);
+});
+
+// The max wait saves a page that is typed into without a pause.
+const autosave = createTrailingScheduler({
+	delay: 2000,
+	maxWait: 10000,
+	run: autoSave,
+});
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -763,22 +779,17 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
 	stopFlushRequests();
+	stopReloadRequests();
 	contentSync.cancel();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 	emitContentChange({ persistImmediately: true });
 });
 
-// Seeds the editor and receives serialized markdown on every update; the
-// save flow reads normalized markdown from the editor directly instead.
-const editorContent = shallowRef(props.content || '');
-
 const editor = useEditor({
-	content: editorContent,
-	format: 'markdown',
 	editable: () => !props.readonly,
+	// Only when asked: an explicit `autofocus: false` changes how TipTap starts
+	// up and drops the trailing paragraph after a table.
+	...(props.autofocus && { autofocus: 'end' }),
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
 		WikiUnderline,
@@ -800,7 +811,7 @@ const editor = useEditor({
 			allowBase64: true,
 			uploadImage: uploadImageVariant,
 		}),
-		Table.configure({
+		WikiTable.configure({
 			resizable: true,
 			renderWrapper: true,
 		}),
@@ -862,6 +873,20 @@ const editor = useEditor({
 	onBlur: () => contentSync.flush(),
 });
 
+// Set content once: a `content` ref turns the whole page into markdown on every key press.
+seedContent(props.content);
+
+function seedContent(content) {
+	editor.value
+		.chain()
+		.setContent(content || '', { emitUpdate: false, contentType: 'markdown' })
+		.command(({ tr }) => {
+			tr.setSelection(Selection.atStart(tr.doc));
+			return true;
+		})
+		.run();
+}
+
 // useEditor doesn't take editorProps; set them on the created instance.
 editor.value.setOptions({
 	editorProps: {
@@ -878,22 +903,9 @@ const contentClass = [
 	props.readonly ? '' : 'is-editable',
 ];
 
-// The editor's width is the viewport minus the app nav, so a viewport media
-// query would measure the wrong box — watch the element instead. The rail is
-// given its gutter rather than floating over whatever the centred column
-// leaves behind, so the threshold is the 768px prose column plus that one
-// reserve — not a rail's width on each side, which needed a 1400px window.
-// Below it the strip takes over.
-const TOC_RAIL_RESERVE = 240;
-const TOC_RAIL_MIN_WIDTH = 768 + TOC_RAIL_RESERVE;
-const { width: containerWidth } = useElementSize(containerRef);
-const showTocRail = computed(
-	() => props.showOutline && containerWidth.value >= TOC_RAIL_MIN_WIDTH,
-);
-// Width reads 0 until the first ResizeObserver callback; rendering neither
-// variant until then avoids flashing the narrow strip on a wide screen.
-const showTocStrip = computed(
-	() => props.showOutline && containerWidth.value > 0 && !showTocRail.value,
+const { showTocRail, showTocStrip } = useOutlineLayout(
+	containerRef,
+	() => props.showOutline,
 );
 
 function normalizeMarkdown(content) {
@@ -915,44 +927,33 @@ function getMarkdown() {
 }
 
 function emitContentChange(options = {}) {
+	if (props.readonly) return;
 	const content = getMarkdown();
 	if (content === undefined) return;
 	emit('content-change', content, props.documentKey, options);
 }
 
+let reconciledSavedContent;
+
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
+	if (props.readonly) return;
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
+	reconciledSavedContent = normalizedSavedContent(props.savedContent);
 	emit(
 		'content-ready',
 		currentContent,
-		normalizedSavedContent(props.savedContent),
+		reconciledSavedContent,
 		props.documentKey,
 	);
 }
 
 function handleContentChange() {
 	forgetRemovedUploads();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
 	contentSync.schedule();
-}
-
-function reportContentChange() {
-	const currentContent = getMarkdown();
-	if (currentContent === undefined) return;
-	emitContentChange();
-
-	if (currentContent === normalizedSavedContent(props.savedContent)) return;
-
-	autosaveTimer = setTimeout(() => {
-		autosaveTimer = null;
-		autoSave();
-	}, AUTOSAVE_DELAY);
+	autosave.schedule();
 }
 
 async function autoSave() {
@@ -975,11 +976,7 @@ function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
 	contentSync.cancel();
-	// Clear any pending autosave
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 
 	if (!editor.value) {
 		toast.error('Editor is not ready');
@@ -1006,13 +1003,17 @@ function saveToDB() {
 
 watch(
 	() => props.savedContent,
-	() => emitContentReady(),
+	(savedContent) => {
+		if (savedContent === reconciledSavedContent) return;
+		emitContentReady();
+	},
 );
 
 // Expose methods for parent component
 defineExpose({
 	saveToDB,
 	getMarkdown,
+	focusEnd: () => editor.value?.commands.focus('end'),
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
@@ -1049,7 +1050,7 @@ onUnmounted(() => {
 	// Hide any open link popup
 	hideLinkPopup();
 	// Clean up window reference
-	delete window.wikiEditor;
+	window.wikiEditor = undefined;
 });
 </script>
 

@@ -1,21 +1,16 @@
-// Initialize syntax highlighting and code block enhancements
-function initCodeBlocks() {
+export function enhanceCodeBlocks(root, hljs) {
     // Record the authored language before highlight.js auto-detection adds its
     // own language-* class, so the label mirrors the editor ("auto" when unset).
-    document.querySelectorAll('pre > code').forEach(function(codeBlock) {
+    root.querySelectorAll('pre > code').forEach(function(codeBlock) {
         if (codeBlock.dataset.language !== undefined) return;
         const match = codeBlock.className.match(/language-(\S+)/);
         codeBlock.dataset.language = match ? match[1] : '';
+        hljs?.highlightElement(codeBlock);
     });
 
-    // First run syntax highlighting
-    if (typeof hljs !== 'undefined') {
-        hljs.highlightAll();
-    }
-
-    // Then enhance code blocks to match the editor's code block node view:
+    // Enhance code blocks to match the editor's code block node view:
     // line-number gutter + hover-revealed toolbar (language label, copy button)
-    document.querySelectorAll('pre code.hljs').forEach(function(codeBlock) {
+    root.querySelectorAll('pre code.hljs').forEach(function(codeBlock) {
         const pre = codeBlock.parentElement;
 
         // Skip if already processed
@@ -70,9 +65,3 @@ function initCodeBlocks() {
         pre.appendChild(toolbar);
     });
 }
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', initCodeBlocks);
-
-// Expose globally for SPA navigation
-window.initCodeBlocks = initCodeBlocks;

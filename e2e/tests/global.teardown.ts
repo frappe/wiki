@@ -1,6 +1,6 @@
 import { test as teardown } from '@playwright/test';
 import { E2E_ROUTE_PREFIX } from '../helpers/factory';
-import { deleteDoc, getList } from '../helpers/frappe';
+import { deleteDoc, getList, updateDoc } from '../helpers/frappe';
 
 /**
  * Sweep spaces a killed or crashed run left behind.
@@ -37,7 +37,7 @@ teardown('sweep leftover e2e spaces', async ({ request }) => {
 teardown('sweep e2e users', async ({ request }) => {
 	const users = await getList<{ name: string }>(request, 'User', {
 		fields: ['name'],
-		filters: { name: ['like', 'e2e-%@example.com'] },
+		filters: { name: ['like', 'e2e-%@example.com'], enabled: 1 },
 		limit: 0,
 	}).catch(() => []);
 
@@ -45,7 +45,12 @@ teardown('sweep e2e users', async ({ request }) => {
 		try {
 			await deleteDoc(request, 'User', user.name);
 		} catch (error) {
-			console.warn(`failed to sweep user ${user.name}:`, error);
+			// Content blobs are shared and never deleted, so their author can only be disabled.
+			if (String(error).includes('LinkExistsError')) {
+				await updateDoc(request, 'User', user.name, { enabled: 0 });
+			} else {
+				console.warn(`failed to sweep user ${user.name}:`, error);
+			}
 		}
 	}
 });

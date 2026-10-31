@@ -7,7 +7,7 @@ import { expect, test } from '../fixtures';
  * GitHub fetch) and set last_sync_time so SpaceDetails does not auto-kick a real
  * sync. The SPA should then show the "Synced from GitHub" banner, source the
  * sidebar from the live tree, hide every mutation affordance, and open the page
- * in a non-editable viewer.
+ * in read mode.
  */
 test.describe('Git-synced space (read-only)', () => {
 	const REPO = 'frappe/wiki';
@@ -53,16 +53,19 @@ test.describe('Git-synced space (read-only)', () => {
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\//);
 
-		const editor = page.locator('.ProseMirror');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		await expect(editor).toHaveAttribute('contenteditable', 'false');
+		await expect(
+			page
+				.getByTestId('page-reader')
+				.getByText('This content comes from the repo.'),
+		).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('[contenteditable="true"]')).toHaveCount(0);
 
 		// No Save button and no editor toolbar in read-only mode. The view
-		// count under the title is a link to analytics, not an edit control.
+		// count and edit time under the title open analytics and history, not edits.
 		await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
 		await expect(
 			page.locator(
-				'.wiki-editor-container button:not([data-testid="page-views-link"])',
+				'.wiki-editor-container button:not([data-testid="page-views-link"], [data-testid="page-history-link"])',
 			),
 		).toHaveCount(0);
 	});

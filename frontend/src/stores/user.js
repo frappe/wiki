@@ -5,7 +5,7 @@ import { computed } from 'vue';
 export const useUserStore = defineStore('user', () => {
 	const userResource = createResource({
 		url: 'wiki.api.get_user_info',
-		cache: 'User',
+		initialData: window.user_info,
 		onError(error) {
 			if (error && error.exc_type === 'AuthenticationError') {
 				window.location.href = '/login';

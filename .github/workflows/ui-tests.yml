@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
@@ -19,14 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        frappe-branch: [version-15, develop]
+        # version-15 runs on develop pushes only, to keep PR jobs off the shared runner queue
+        frappe-branch: ${{ fromJson(github.event_name == 'pull_request' && '["develop"]' || '["version-15", "develop"]') }}
         shardIndex: [1, 2, 3, 4]
         shardTotal: [4]
-        include:
-          - frappe-branch: version-15
-            python-version: "3.11"
-          - frappe-branch: develop
-            python-version: "3.14"
 
     services:
       redis-cache:
@@ -52,7 +54,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.frappe-branch == 'version-15' && '3.11' || '3.14' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -63,14 +65,11 @@ jobs:
       - name: Add to Hosts
         run: echo "127.0.0.1 wiki.test" | sudo tee -a /etc/hosts
 
-      - name: Cache pip
-        uses: actions/cache@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py', '**/setup.cfg') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
+          enable-cache: true
+          cache-dependency-glob: '**/pyproject.toml'
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -99,7 +98,7 @@ jobs:
 
       - name: Setup Bench
         run: |
-          pip install frappe-bench
+          uv tool install frappe-bench
           bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
@@ -107,11 +106,13 @@ jobs:
       - name: Install Wiki
         working-directory: /home/runner/frappe-bench
         run: |
-          bench get-app wiki $GITHUB_WORKSPACE
+          bench get-app --skip-assets wiki $GITHUB_WORKSPACE
           bench setup requirements --dev
+          bench build &> build.log &
+          build_pid=$!
           bench new-site --db-root-password root --admin-password admin wiki.test
           bench --site wiki.test install-app wiki
-          bench build
+          wait $build_pid || { cat build.log; exit 1; }
         env:
           CI: "Yes"
 
@@ -143,20 +144,13 @@ jobs:
           FRAPPE_USER: Administrator
           FRAPPE_PASSWORD: admin
 
-      - name: Upload Blob Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: blob-report-${{ matrix.frappe-branch }}-${{ matrix.shardIndex }}
-          path: blob-report/
-          retention-days: 3
-
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: test-results-${{ matrix.frappe-branch }}-${{ matrix.shardIndex }}
           path: test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Show Bench Logs on Failure
@@ -168,45 +162,3 @@ jobs:
           echo ""
           echo "=== Frappe Logs ==="
           cat logs/*.log || true
-
-  merge-reports:
-    # Merge the per-shard blob reports into a single HTML report.
-    if: ${{ !cancelled() }}
-    needs: ui-tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: Merge Playwright Reports (${{ matrix.frappe-branch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        frappe-branch: [version-15, develop]
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          check-latest: true
-
-      - name: Install Playwright
-        run: npm install
-
-      - name: Download Blob Reports
-        uses: actions/download-artifact@v4
-        with:
-          path: all-blob-reports
-          pattern: blob-report-${{ matrix.frappe-branch }}-*
-          merge-multiple: true
-
-      - name: Merge Reports
-        run: npx playwright merge-reports --reporter html ./all-blob-reports
-
-      - name: Upload Playwright Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ matrix.frappe-branch }}
-          path: playwright-report/
-          retention-days: 7
