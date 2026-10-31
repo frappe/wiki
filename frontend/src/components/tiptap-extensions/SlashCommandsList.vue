@@ -26,7 +26,7 @@
                     @click="selectItem(index)"
                     @mouseover="selectedIndex = index"
                 >
-                    <span :class="item.icon" class="mr-2 h-4 w-4" aria-hidden="true" />
+                    <span :class="item.icon" class="me-2 h-4 w-4" aria-hidden="true" />
                     <span>{{ item.title }}</span>
                 </button>
             </template>

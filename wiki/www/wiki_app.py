@@ -41,6 +41,7 @@ def get_boot():
 		{
 			"frappe_version": frappe.__version__,
 			"site_name": frappe.local.site,
+			"lang": frappe.local.lang,
 			"read_only_mode": frappe.flags.read_only,
 			"system_timezone": get_system_timezone(),
 			"asset_hashes": get_asset_hashes(),

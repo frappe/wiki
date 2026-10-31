@@ -60,6 +60,10 @@
 
 /* Code block enhancement — mirrors the editor's CodeBlockComponent layout:
    line-number gutter + hover-revealed toolbar (language label, ghost copy). */
+.wiki-rendered pre {
+  direction: ltr;
+}
+
 .wiki-rendered pre.code-block-enhanced {
   display: flex;
   align-items: flex-start;
@@ -166,7 +170,7 @@
 
 .wiki-rendered .heading-anchor {
   position: absolute;
-  left: -1.5rem;
+  inset-inline-start: -1.5rem;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
@@ -234,7 +238,7 @@
    header looking detached. 1rem icon + 0.375rem gap = the title's left edge. */
 .wiki-rendered .callout-content {
   margin-top: 0.25rem;
-  padding-left: calc(1rem + 0.375rem);
+  padding-inline-start: calc(1rem + 0.375rem);
   font-size: 0.875rem;
   line-height: 1.5;
   letter-spacing: 0.02em;
@@ -273,7 +277,7 @@
 .wiki-rendered .callout-content ul,
 .wiki-rendered .callout-content ol {
   margin: 0.5rem 0;
-  padding-left: 1.25rem;
+  padding-inline-start: 1.25rem;
 }
 
 .wiki-rendered .callout-content li {
@@ -399,7 +403,7 @@ body.image-viewer-open {
   -webkit-appearance: none;
   width: 0.875rem;
   height: 0.875rem;
-  margin-right: 0.5em;
+  margin-inline-end: 0.5em;
   vertical-align: -0.125em;
   border: 1px solid var(--outline-gray-4);
   border-radius: var(--radius-1, 4px);
@@ -521,7 +525,7 @@ body.image-viewer-open {
   display: flex;
   align-items: center;
   gap: 0.125rem;
-  margin-left: auto;
+  margin-inline-start: auto;
   flex-shrink: 0;
 }
 

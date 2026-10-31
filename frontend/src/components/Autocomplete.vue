@@ -27,7 +27,7 @@
         :placeholder="placeholder"
         :disabled="disabled"
         autocomplete="off"
-        class="form-input w-full rounded-4 bg-surface-gray-2 pr-8 text-base text-ink-gray-8 disabled:cursor-not-allowed disabled:opacity-60"
+        class="form-input w-full rounded-4 bg-surface-gray-2 pe-8 text-base text-ink-gray-8 disabled:cursor-not-allowed disabled:opacity-60"
         @focus="open"
         @input="onInput"
         @keydown.down.prevent="move(1)"
@@ -37,7 +37,7 @@
         @keydown.esc.prevent="close"
       />
       <span
-        class="lucide-chevron-down pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-gray-4" aria-hidden="true" />
+        class="lucide-chevron-down pointer-events-none absolute end-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-gray-4" aria-hidden="true" />
 
       <!-- Teleported to <body> so the list isn't clipped by the dialog's
            `overflow-hidden` / transformed panel. The dialog sets
@@ -58,7 +58,7 @@
             v-for="(opt, i) in displayedOptions"
             :key="opt.value"
             type="button"
-            class="flex w-full items-center px-3 py-1.5 text-left text-base leading-tighter text-ink-gray-8 hover:bg-surface-gray-2"
+            class="flex w-full items-center px-3 py-1.5 text-start text-base leading-tighter text-ink-gray-8 hover:bg-surface-gray-2"
             :class="{ 'bg-surface-gray-2': i === highlighted }"
             @mousedown.prevent="select(opt)"
             @mousemove="highlighted = i"
@@ -78,7 +78,7 @@
           <button
             v-else-if="hasMore"
             type="button"
-            class="w-full px-3 py-1.5 text-left text-p-sm text-ink-gray-6 hover:bg-surface-gray-2"
+            class="w-full px-3 py-1.5 text-start text-p-sm text-ink-gray-6 hover:bg-surface-gray-2"
             @mousedown.prevent="$emit('load-more')"
           >
             {{ __('Load more…') }}

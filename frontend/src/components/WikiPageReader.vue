@@ -3,7 +3,7 @@
 	<div ref="containerRef" class="wiki-editor-container">
 		<div>
 			<EditorTableOfContents v-if="showTocStrip" :headings="toc" variant="strip" />
-			<div class="relative" :class="showTocRail ? 'pr-60' : ''">
+			<div class="relative" :class="showTocRail ? 'pe-60' : ''">
 				<div class="mx-auto w-full max-w-3xl px-8">
 					<slot name="title" />
 					<div

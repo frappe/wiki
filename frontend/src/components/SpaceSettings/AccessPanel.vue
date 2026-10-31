@@ -28,8 +28,8 @@
 			<table class="w-full table-fixed text-sm">
 				<thead>
 					<tr class="bg-surface-gray-2 text-ink-gray-5">
-						<th class="px-3 py-2 text-left font-medium">{{ __('Role') }}</th>
-						<th class="w-32 px-3 py-2 text-left font-medium">{{ __('Access') }}</th>
+						<th class="px-3 py-2 text-start font-medium">{{ __('Role') }}</th>
+						<th class="w-32 px-3 py-2 text-start font-medium">{{ __('Access') }}</th>
 						<th class="w-12 px-3 py-2"></th>
 					</tr>
 				</thead>
@@ -56,7 +56,7 @@
 								{{ row.permission_level }}
 							</Badge>
 						</td>
-						<td class="px-3 py-2.5 text-right">
+						<td class="px-3 py-2.5 text-end">
 							<Button
 								v-if="canManageAccess"
 								class="invisible group-hover:visible"
