@@ -24,7 +24,7 @@ A new space has no pages. The sidebar says **No pages yet**, and the page area h
 
 The page opens in the editor.
 
-In an empty space, Frappe Wiki starts a change request called **Add initial content** for you. In a space that has pages, you click **Edit** first. Then you give your change a title in the **New change request** dialog and click **Start editing**.
+In an empty space, Frappe Wiki starts a [change request](../change-requests/what-is-a-change-request.md) called **Add initial content** for you. In a space that has pages, you click **Edit** first. Then you give your change a title in the **New change request** dialog and click **Start editing**.
 
 ## Write the text
 
