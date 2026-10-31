@@ -122,6 +122,19 @@ This app is compatible with the following versions of Frappe:
 
 On Frappe develop, Wiki also runs on SQLite (`bench new-site --db-type sqlite`). Frappe still marks SQLite support as experimental.
 
+<details>
+<summary><b>Older, unsupported versions</b></summary>
+<br>
+
+| Wiki branch | Frappe branch |
+| :---------- | :------------ |
+| version-14  | v14.x         |
+| version-13  | v13.x         |
+
+Frappe and Wiki do not support these versions. These branches do not get fixes, and we do not accept contributions to them.
+
+</details>
+
 ## Production setup
 
 ### Managed hosting
