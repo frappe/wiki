@@ -169,7 +169,7 @@ class TestSiteProfileShape(IntegrationTestCase):
 
 	def test_every_property_the_profile_sends_is_documented(self):
 		app_root = Path(frappe.get_app_path("wiki")).parent
-		catalogue = (app_root / "docs" / "telemetry.md").read_text()
+		catalogue = (app_root / "specs" / "telemetry.md").read_text()
 
 		undocumented = {key for key in telemetry_scan.collect() if f"`{key}`" not in catalogue}
-		self.assertEqual(undocumented, set(), "add these to docs/telemetry.md")
+		self.assertEqual(undocumented, set(), "add these to specs/telemetry.md")
