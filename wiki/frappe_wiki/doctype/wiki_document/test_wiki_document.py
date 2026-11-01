@@ -761,6 +761,35 @@ class TestRenderedPageTranslations(WikiDocumentTestBase):
 		self.assertNotIn("<b>Ici</b>", html)
 
 
+class TestRenderedPageDirection(WikiDocumentTestBase):
+	"""GH-848: the reader declares the request language and its direction."""
+
+	TEST_CLIENT = get_test_client()
+
+	def setUp(self):
+		super().setUp()
+		route = f"dir-{frappe.generate_hash(length=6)}"
+		space = create_test_wiki_space(self, "Direction Space", route, None, roles=[("Guest", "Read")])
+		self.page = create_test_wiki_document(self, "Page", parent=space.root_group, slug=f"page-{route}")
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+	def _html_tag(self, accept_language):
+		response = _make_request(
+			self.TEST_CLIENT,
+			"get",
+			f"/{self.page.route}",
+			headers={"Accept": "text/html", "Accept-Language": accept_language},
+		)
+		self.assertEqual(response.status_code, 200)
+		return re.search(r"<html[^>]*>", response.get_data(as_text=True)).group(0)
+
+	def test_rtl_language_renders_right_to_left(self):
+		self.assertIn('lang="ar" dir="rtl"', self._html_tag("ar"))
+
+	def test_ltr_language_renders_left_to_right(self):
+		self.assertIn('lang="en" dir="ltr"', self._html_tag("en"))
+
+
 class TestDisableIndexing(WikiDocumentTestBase):
 	"""GH-806: a page can opt out of search engines."""
 

@@ -9,7 +9,7 @@
 		<Dialog.Title class="sr-only">{{ __('Search') }}</Dialog.Title>
 		<div class="relative border-b border-outline-gray-2">
 			<span
-				class="lucide-search pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink-gray-5"
+				class="lucide-search pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-ink-gray-5"
 				aria-hidden="true"
 			/>
 			<input
@@ -23,7 +23,7 @@
 				aria-controls="command-palette-results"
 				:aria-activedescendant="activeItem ? itemId(activeItem) : undefined"
 				:placeholder="__('Search')"
-				class="w-full border-none bg-transparent py-3 pl-11 pr-4 text-base text-ink-gray-8 placeholder-ink-gray-4 focus:ring-0"
+				class="w-full border-none bg-transparent py-3 ps-11 pe-4 text-base text-ink-gray-8 placeholder-ink-gray-4 focus:ring-0"
 				@keydown="onKeydown"
 			/>
 		</div>
@@ -64,11 +64,11 @@
 						:space="item.space"
 						:label="item.label"
 						size="xs"
-						class="mr-3 shrink-0"
+						class="me-3 shrink-0"
 					/>
 					<span
 						v-else
-						:class="[item.icon, 'mr-3 size-4 shrink-0 text-ink-gray-6']"
+						:class="[item.icon, 'me-3 size-4 shrink-0 text-ink-gray-6']"
 						aria-hidden="true"
 					/>
 					<div class="min-w-0 flex-1">
@@ -82,7 +82,7 @@
 					</div>
 					<Tooltip v-if="item.unpublished" :text="__('Unpublished')">
 						<span
-							class="lucide-eye-off ml-2 size-3.5 shrink-0 text-ink-gray-4"
+							class="lucide-eye-off ms-2 size-3.5 shrink-0 text-ink-gray-4"
 							aria-hidden="true"
 						/>
 					</Tooltip>

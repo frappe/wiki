@@ -43,10 +43,10 @@
                       :disabled="submitted"
                       placeholder="{{ _("Anything you'd like to add?") }}"
                       rows="3"
-                      class="w-full px-4 py-3 pr-20 text-sm rounded-7 border border-[var(--outline-gray-2)] bg-[var(--surface-base)] text-[var(--ink-gray-9)] placeholder-[var(--ink-gray-4)] focus:outline-none focus:ring-2 focus:ring-[var(--outline-gray-3)] resize-none disabled:opacity-60"></textarea>
+                      class="w-full px-4 py-3 pe-20 text-sm rounded-7 border border-[var(--outline-gray-2)] bg-[var(--surface-base)] text-[var(--ink-gray-9)] placeholder-[var(--ink-gray-4)] focus:outline-none focus:ring-2 focus:ring-[var(--outline-gray-3)] resize-none disabled:opacity-60"></textarea>
 
             <!-- Submit button OR Thank you message -->
-            <div class="absolute bottom-3 right-3">
+            <div class="absolute bottom-3 end-3">
                 <button x-show="!submitted"
                         type="submit"
                         :disabled="submitting"

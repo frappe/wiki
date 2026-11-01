@@ -18,7 +18,7 @@
 				variant="subtle"
 				size="sm"
 			/>
-			<span v-if="summary" class="ml-auto shrink-0 text-xs text-ink-gray-5">{{ summary }}</span>
+			<span v-if="summary" class="ms-auto shrink-0 text-xs text-ink-gray-5">{{ summary }}</span>
 		</header>
 
 		<div v-if="page.change_type === 'reordered'" class="flex flex-wrap items-center gap-3 p-4 text-sm">
@@ -62,8 +62,8 @@
 
 		<div v-else ref="body" class="wiki-rendered prose prose-v3 max-w-none px-5 py-5">
 			<div v-if="layout === 'split'" class="grid grid-cols-2 gap-x-8 gap-y-0.5">
-				<p class="not-prose pb-2 pl-3 text-sm text-ink-gray-5">{{ __('Before') }}</p>
-				<p class="not-prose pb-2 pl-3 text-sm text-ink-gray-5">{{ __('After') }}</p>
+				<p class="not-prose pb-2 ps-3 text-sm text-ink-gray-5">{{ __('Before') }}</p>
+				<p class="not-prose pb-2 ps-3 text-sm text-ink-gray-5">{{ __('After') }}</p>
 				<template v-for="(row, index) in rows" :key="index">
 					<div v-if="row.kind === 'gap'" class="not-prose col-span-2 flex items-center gap-3 py-2 text-xs text-ink-gray-5">
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
@@ -91,12 +91,12 @@
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
 					</div>
 					<template v-else-if="row.kind === 'change' && !row.tokens">
-						<div class="page-diff-block border-l-2 border-outline-red-4 bg-surface-red-1 px-3 py-1.5" v-html="row.before.html" />
-						<div class="page-diff-block border-l-2 border-outline-green-4 bg-surface-green-1 px-3 py-1.5" v-html="row.after.html" />
+						<div class="page-diff-block border-s-2 border-outline-red-4 bg-surface-red-1 px-3 py-1.5" v-html="row.before.html" />
+						<div class="page-diff-block border-s-2 border-outline-green-4 bg-surface-green-1 px-3 py-1.5" v-html="row.after.html" />
 					</template>
 					<div
 						v-else
-						class="page-diff-block border-l-2 px-3 py-1.5"
+						class="page-diff-block border-s-2 px-3 py-1.5"
 						:class="INLINE_CLASSES[row.kind]"
 						v-html="inlineHtml(row)"
 					/>
@@ -200,11 +200,11 @@ function splitHtml(row, side) {
 }
 
 function splitClass(row, side) {
-	if (!row[side] || row.kind === 'same') return 'border-l-2 border-transparent';
+	if (!row[side] || row.kind === 'same') return 'border-s-2 border-transparent';
 	const border =
 		side === 'before' ? 'border-outline-red-4' : 'border-outline-green-4';
-	if (row.kind === 'change') return `border-l-2 ${border}`;
-	return `border-l-2 ${border} ${side === 'before' ? 'bg-surface-red-1' : 'bg-surface-green-1'}`;
+	if (row.kind === 'change') return `border-s-2 ${border}`;
+	return `border-s-2 ${border} ${side === 'before' ? 'bg-surface-red-1' : 'bg-surface-green-1'}`;
 }
 
 function inlineHtml(row) {

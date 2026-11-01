@@ -59,7 +59,7 @@
 										<span class="lucide-git-pull-request size-4" aria-hidden="true" />
 										<span
 											v-if="pageChangeRequests.length"
-											class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-surface-blue-5"
+											class="absolute -end-0.5 -top-0.5 size-1.5 rounded-full bg-surface-blue-5"
 											aria-hidden="true"
 										/>
 									</span>
@@ -95,7 +95,7 @@
 						</Tooltip>
 					</div>
 					<!-- Each button decides its own visibility; empty:hidden drops the divider when none show. -->
-					<div class="ml-1 flex items-center gap-2 border-l border-outline-gray-2 pl-3 empty:hidden">
+					<div class="ms-1 flex items-center gap-2 border-s border-outline-gray-2 ps-3 empty:hidden">
 						<!-- The phone header has no room for it; the strip above carries it. -->
 						<MergeChangeRequestButton v-if="!isMobile" />
 						<SubmitForReviewButton />
@@ -178,9 +178,9 @@
 				<Teleport defer to="#wiki-side-panel" :disabled="isMobile">
 					<Transition
 						enter-active-class="transition duration-200 ease-out motion-reduce:transition-none"
-						enter-from-class="translate-x-6 opacity-0"
+						enter-from-class="translate-x-6 opacity-0 rtl:-translate-x-6"
 						leave-active-class="transition duration-150 ease-in motion-reduce:transition-none"
-						leave-to-class="translate-x-6 opacity-0"
+						leave-to-class="translate-x-6 opacity-0 rtl:-translate-x-6"
 					>
 						<div
 							v-if="openPanel === 'change-requests' || openPanel === 'history'"
@@ -212,7 +212,7 @@
 		<div v-else class="h-full flex flex-col">
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
 				<Skeleton class="h-4 w-40 rounded-4" />
-				<div class="ml-auto flex shrink-0 items-center gap-2">
+				<div class="ms-auto flex shrink-0 items-center gap-2">
 					<Skeleton class="h-8 w-24 rounded-4" />
 					<Skeleton class="h-8 w-16 rounded-4" />
 					<Skeleton class="size-8 rounded-4" />

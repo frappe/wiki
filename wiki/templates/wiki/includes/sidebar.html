@@ -1,7 +1,7 @@
 {% from "templates/wiki/macros/sidebar_tree.html" import render_wiki_tree %}
 {% from "templates/wiki/macros/buttons.html" import render_icon %}
 
-<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-r border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
+<div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-e border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
      x-data="wikiSidebar()"
      :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
 
@@ -21,7 +21,7 @@
         <button @click="$store.sidebar.toggle()"
                 class="inline-flex items-center justify-center p-1 transition-all duration-200 cursor-pointer focus:outline-none"
                 :class="$store.sidebar.isCollapsed ? 'opacity-100' : (hovered ? 'opacity-100 scale-100' : 'opacity-0 scale-75')">
-            <svg class="w-4 h-4 text-[var(--ink-gray-4)] hover:text-[var(--ink-gray-6)] transition-colors duration-200"
+            <svg class="w-4 h-4 text-[var(--ink-gray-4)] hover:text-[var(--ink-gray-6)] transition-colors duration-200 rtl:-scale-x-100"
                  :class="$store.sidebar.isCollapsed ? '' : 'rotate-180'"
                  xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m6 17 5-5-5-5"/>
@@ -243,13 +243,13 @@
 
                 // Keep in sync with includes/toc.html.
                 let html = '<nav class="sticky top-[calc(var(--wiki-chrome-h)+24px)] max-h-[calc(100vh-var(--wiki-chrome-h)-4rem)] overflow-y-auto no-scrollbar flex flex-col leading-relaxed">';
-                html += '<span class="font-medium whitespace-nowrap pl-4 pb-1 border-l border-transparent">' + escapeHtml({{ _("On this page") | tojson }}) + '</span>';
+                html += '<span class="font-medium whitespace-nowrap ps-4 pb-1 border-s border-transparent">' + escapeHtml({{ _("On this page") | tojson }}) + '</span>';
                 const hasH2 = headings.some(heading => heading.level === 2);
                 headings.forEach(heading => {
                     const safeId = escapeHtml(heading.id);
                     const safeText = escapeHtml(heading.text);
-                    const indent = heading.level >= 3 && hasH2 ? 'pl-7' : 'pl-4';
-                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-l border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
+                    const indent = heading.level >= 3 && hasH2 ? 'ps-7' : 'ps-4';
+                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-s border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
                 });
                 html += '</nav>';
                 tocContainer.innerHTML = html;
