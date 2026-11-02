@@ -746,12 +746,9 @@ async function saveContent(content) {
 		return;
 	}
 
+	saveTitleIfChanged();
 	try {
-		await draftStore.saveContent(
-			wikiDoc.value.doc.doc_key,
-			content,
-			editableTitle.value,
-		);
+		await draftStore.saveContent(wikiDoc.value.doc.doc_key, content);
 	} catch (error) {
 		// The sync alert says so and stays up; a toast per blocked autosave would not.
 		if (error.code === 'version_conflict') return;

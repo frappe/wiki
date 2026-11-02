@@ -3433,13 +3433,13 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 		with self.assertRaises(frappe.TimestampMismatchError):
 			merge_change_request(cr.name)
 
-	def test_write_that_waited_on_the_change_request_lock_counts_from_the_current_version(self):
+	def test_write_that_waited_on_the_change_request_lock_asks_to_try_again(self):
 		space = self.wiki.space(pages=[{"title": "Page"}])
 		cr = create_change_request(space.name, "Add a page")
 		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
-		before = frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")
+		frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")
 		self.commit_from_another_connection(
 			(
 				"update `tabWiki Change Request` set operation_version = operation_version + 1 where name = %s",
@@ -3447,12 +3447,13 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 			),
 		)
 
-		result = apply_cr_operations(
-			cr.name,
-			operations=[{"type": "create_node", "temp_key": "tmp-1", "parent_key": root_key, "title": "New"}],
-		)
-
-		self.assertEqual(result["current_version"], before + 2)
+		with self.assertRaises(frappe.TimestampMismatchError):
+			apply_cr_operations(
+				cr.name,
+				operations=[
+					{"type": "create_node", "temp_key": "tmp-1", "parent_key": root_key, "title": "New"}
+				],
+			)
 
 	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
 		"""A merge that waits on the tree lock still holds the snapshot from before it waited,
