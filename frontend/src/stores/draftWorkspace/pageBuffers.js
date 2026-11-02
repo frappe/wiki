@@ -8,6 +8,7 @@ function emptyPage(docKey, opts = {}) {
 		content: opts.content ?? '',
 		localContent: opts.localContent ?? null,
 		serverContent: opts.serverContent ?? null,
+		serverHash: opts.serverHash ?? null,
 		sentContent: opts.sentContent ?? null,
 		isPublished: opts.isPublished ?? true,
 		saveStatus: opts.saveStatus ?? 'idle',
@@ -18,8 +19,9 @@ function emptyPage(docKey, opts = {}) {
 // Per-doc editor buffers. `content` is the server-confirmed baseline while
 // `localContent` retains a divergent local snapshot across navigation and
 // restore. Both values are canonicalized by WikiEditor before comparison.
-// `serverContent` is the raw server copy the local edits build on, and
-// `sentContent` a save whose reply never came, so it may be on the server.
+// `serverContent` is the raw server copy the local edits build on, `serverHash`
+// its hash, sent with each save, and `sentContent` a save whose reply never
+// came, so it may be on the server.
 // Persistence and transport remain store concerns.
 export function createPageBuffers() {
 	const pagesByKey = reactive({});

@@ -1,7 +1,7 @@
 # Durable Draft Sync: Per-Page Checks, Client Keys, Operation Log
 
 Date: 2026-11-02
-Status: **Draft spec**. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
+Status: **In progress**. Bullet 1 built, bullets 2 and 3 not started. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
 
 ## Goal
 
@@ -52,19 +52,21 @@ Wiki Content Blob already stores `hash`, the SHA-256 of the content. No new cont
 | Current hash on the server | Result |
 |---|---|
 | Same as `base_content_hash` | Apply |
-| Same as the hash of the incoming content | Success, no write. Covers a retry after a lost reply and two tabs saving the same text |
+| Same as the hash of the incoming content | Apply. It writes the same text, which covers a retry after a lost reply and two tabs saving the same text |
 | Anything else | `{"ok": false, "error": "page_conflict", "doc_key": ..., "message": ...}`. Nothing in the batch is written |
 | No `base_content_hash` sent | Apply, as today |
 
 The check runs before any write because a returned error still commits the request. Ops whose `doc_key` is a temp key in the same batch skip it.
+
+A batch that waited on the lock still reads from its old snapshot, so a plain read would miss the save ahead of it. `_assert_snapshot_is_current` compares the locked `operation_version` with a plain read and throws `TimestampMismatchError` if they differ. Nothing is written, and the next save retries.
 
 ### Structure
 
 A move or reorder depends on the sibling list the client sees, so a stale one can misplace pages. Per-page hashes cannot see that.
 
 - New hidden Int field `structure_version` on Wiki Change Request, default 0. No backfill.
-- `_create_cr_item`, `_move_cr_item`, `_reorder_cr_children` and `_set_cr_item_deleted` bump it.
-- `get_cr_tree` and the batch response return it.
+- A batch with a create, delete, restore, move or reorder bumps it once and returns it. The older endpoints that change the tree bump it too. `get_cr_tree` returns it.
+- The client adopts a returned version only if it is one above its own. A bigger jump means another tab changed the tree, so a later move must still conflict. This is why the bump is per batch, and why a batch that leaves the tree alone returns nothing.
 - A batch with `move_node` or `reorder_children` may send `base_structure_version`. If it is behind, the reply is `{"ok": false, "error": "structure_conflict", ...}`.
 
 Create, delete, restore and `update_node` send no guard. A create appends, a delete and a restore set a flag, and a rename is an explicit act, so the last one wins.
@@ -78,9 +80,9 @@ Create, delete, restore and `update_node` send no guard. A create appends, a del
 `serverContent` already means "the copy the local edits build on". Add `serverHash` next to it in the page buffer and in the IndexedDB draft. It moves only together with `serverContent`.
 
 - `doSaveContent` sends `base_content_hash: page.serverHash`, then reads the new hash from `items` in the reply.
-- A save with `sentContent` set first resends that text with the old hash. The server answers success with no write if it already has it, and the newer text follows with the new hash. This replaces the false conflict after a lost reply.
-- **Close the hole behind the silent overwrite.** `revalidateCrPage` updates the buffer, but the open editor keeps its text and then reports it as a local edit. After a revalidation that changed the content, call `requestEditorFlush()` to record any typing still in the 300 ms debounce. If the page is still clean, apply the fetched copy and call `requestEditorReload`. If it is dirty, keep `serverHash`, so the next save gets `page_conflict` and the user is told.
-- **Stop sending the title with content.** `update_content` from the SPA carries no `title`, and the title goes through `update_node` on blur. Otherwise a stale title undoes a rename now that no version check blocks it.
+- A save with `sentContent` set first resends that text with the old hash. The server accepts it if it already has it, and the newer text follows with the new hash. A server-reported error rolled the save back, so it does not set `sentContent`. This replaces the false conflict after a lost reply.
+- **Close the hole behind the silent overwrite.** `revalidateCrPage` updates the buffer, but the open editor keeps its text and then reports it as a local edit. When the reply arrives, call `requestEditorFlush()` to record any typing still in the 300 ms debounce. If the page is clean and its hash changed, apply the fetched copy and call `requestEditorReload`. If it is dirty, keep `serverHash`, so the next save gets `page_conflict` and the user is told. If `serverHash` moved during the fetch, our own save landed, so drop the reply: it would put the old text back in the editor.
+- **Stop sending the title with content.** `update_content` from the SPA carries no `title`. Otherwise a stale title undoes a rename now that no version check blocks it. A save calls `saveTitleIfChanged` first, so a title still being typed goes out with the autosave as `update_node`.
 - `crSyncState.conflict` becomes a set of conflicting pages plus a structure flag. A conflict on one page blocks saves for that page only. A structure conflict blocks moves and reorders only. Alert copy and Reload latest stay as they are.
 - A draft in IndexedDB saved before this change has no `serverHash`. `restorePersistedDrafts` already compares it with the server copy, so it takes the fetched hash when the draft is still based on that copy.
 
@@ -196,4 +198,4 @@ No BroadcastChannel or Web Locks. Two tabs can both send one entry, and `op_id` 
 - **Reseeding an open editor.** `requestEditorReload` moves the cursor. It fires only when the page changed elsewhere and the editor has no unsaved typing, and the Playwright test with unsaved typing covers the other branch.
 - **A hash stops matching.** Blob content is stored verbatim and the server computes every hash, so the client never hashes. A failure here shows as a false conflict, not as lost data.
 - **Older open tabs during a deploy.** A tab on the old build keeps sending `base_version`, and the server still honours it. It does not see `structure_version`, and it stays safe through `operation_version`.
-- **Title edits.** A typed title with no blur is lost on reload, where before an autosave could carry it. The title field saves on blur and Enter, so the window is small.
+- **Two tabs saving in the same instant.** One gets `TimestampMismatchError`, shown as a failed save. The next save retries it. A false failure here is safe, and an automatic retry can follow if it shows up in practice.

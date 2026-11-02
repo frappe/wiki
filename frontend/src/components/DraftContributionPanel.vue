@@ -347,13 +347,9 @@ watch(
 		if (realKey && realKey !== props.docKey) {
 			const currentContent = editorRef.value?.getMarkdown?.();
 			if (currentContent !== undefined) {
-				draftStore.updateLocalPageContent(
-					realKey,
-					currentContent,
-					editableTitle.value,
-				);
+				draftStore.updateLocalPageContent(realKey, currentContent);
 				draftStore
-					.saveContent(realKey, currentContent, editableTitle.value)
+					.saveContent(realKey, currentContent)
 					.catch((error) => {
 						console.error('Error saving draft after create:', error);
 						toast.error(
@@ -463,12 +459,9 @@ async function saveRoute(close) {
 
 async function saveContent(content) {
 	if (!crPage.value?.doc_key) return;
+	saveTitleIfChanged();
 	try {
-		await draftStore.saveContent(
-			crPage.value.doc_key,
-			content,
-			editableTitle.value,
-		);
+		await draftStore.saveContent(crPage.value.doc_key, content);
 	} catch (error) {
 		// The sync alert says so and stays up; a toast per blocked autosave would not.
 		if (error.code === 'version_conflict') return;
