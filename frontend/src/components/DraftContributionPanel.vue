@@ -219,12 +219,12 @@ const breadcrumbs = computed(() => {
 	}));
 });
 
-// Read the page through the workspace store. Tmp pages live entirely on the
-// client; the store returns them from pagesByKey without hitting the
-// backend (which would 404 on a tmp_* key).
+// Read the page through the workspace store. A page still being created lives
+// on the client; the store returns it from pagesByKey without hitting the
+// backend (which would 404).
 //
 // Stale-while-revalidate: if we already have this page cached in the store
-// (a tmp create, a prior visit, or unsaved local edits) we paint it
+// (a new page, a prior visit, or unsaved local edits) we paint it
 // synchronously so switching pages is instant. The skeleton is reserved for
 // the cold case where nothing is cached yet. The background fetch then
 // revalidates whatever we showed.
@@ -332,39 +332,6 @@ function onEditorContentReady(content, savedContent, docKey = props.docKey) {
 	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
 	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
 }
-
-// Once the create syncs, swap the URL from /draft/tmp_* to /draft/realKey.
-// Without this the panel would stay on a temp key after sync, and any
-// reload would 404 on get_cr_page.
-//
-// Immediate, because the create can resolve before this panel mounts — the
-// navigation to /draft/tmp_* and the create race each other, and on a fast
-// bench the create wins. A lazy watcher then never fires for a key that was
-// promoted moments earlier, stranding the page on "Draft not found".
-watch(
-	() => draftStore.tempKeyResolutions[props.docKey],
-	(realKey) => {
-		if (realKey && realKey !== props.docKey) {
-			const currentContent = editorRef.value?.getMarkdown?.();
-			if (currentContent !== undefined) {
-				draftStore.updateLocalPageContent(realKey, currentContent);
-				draftStore
-					.saveContent(realKey, currentContent)
-					.catch((error) => {
-						console.error('Error saving draft after create:', error);
-						toast.error(
-							error.messages?.[0] || error.message || __('Error saving draft'),
-						);
-					});
-			}
-			router.replace({
-				name: 'DraftChangeRequest',
-				params: { spaceId: props.spaceId, docKey: realKey },
-			});
-		}
-	},
-	{ immediate: true },
-);
 
 watch(
 	crPage,

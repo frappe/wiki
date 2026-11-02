@@ -7,11 +7,7 @@ function makeMutationId() {
 }
 
 // Pending-mutations queue. Each mutation has { id, type, status, payload }.
-// `resolveKey` is injected so the supersession key for a mutation can
-// normalize tmp_* payloads to their real key once resolved — without that,
-// a mutation enqueued before its create resolved wouldn't coalesce with
-// later same-target mutations.
-export function createOperationQueue({ resolveKey }) {
+export function createOperationQueue() {
 	const pending = ref([]);
 
 	const hasPendingMutations = computed(() =>
@@ -52,13 +48,12 @@ export function createOperationQueue({ resolveKey }) {
 	function supersessionKey(mutation) {
 		if (!mutation) return null;
 		const { type, payload } = mutation;
-		const r = (k) => resolveKey(k) || k;
-		if (type === 'create_node') return `create:${payload?.tempKey}`;
-		if (type === 'update_node') return `update:${r(payload?.docKey)}`;
+		if (type === 'create_node') return `create:${payload?.docKey}`;
+		if (type === 'update_node') return `update:${payload?.docKey}`;
 		if (type === 'delete_node' || type === 'restore_node')
-			return `delete:${r(payload?.docKey)}`;
-		if (type === 'move_node') return `move:${r(payload?.docKey)}`;
-		if (type === 'update_content') return `content:${r(payload?.docKey)}`;
+			return `delete:${payload?.docKey}`;
+		if (type === 'move_node') return `move:${payload?.docKey}`;
+		if (type === 'update_content') return `content:${payload?.docKey}`;
 		return null;
 	}
 
@@ -69,11 +64,11 @@ export function createOperationQueue({ resolveKey }) {
 		);
 	}
 
-	function findFailedCreate(tempKey) {
+	function findFailedCreate(docKey) {
 		return pending.value.find(
 			(m) =>
 				m.type === 'create_node' &&
-				m.payload?.tempKey === tempKey &&
+				m.payload?.docKey === docKey &&
 				m.status === 'failed',
 		);
 	}
@@ -83,22 +78,6 @@ export function createOperationQueue({ resolveKey }) {
 	// (coalesce queued/failed moves before enqueueing a fresh one).
 	function dropMatching(predicate) {
 		pending.value = pending.value.filter((m) => !predicate(m));
-	}
-
-	// Rewrite payload docKey/parentKey references from a tmp_* key to its
-	// real key once a create resolves. Without this, a stale tmp-keyed
-	// entry would never coalesce with future real-keyed activity, and
-	// stale failed mutations under the tmp key wouldn't be reachable for
-	// supersession by their target's natural key.
-	function rewriteKeys(oldKey, newKey) {
-		if (!oldKey || !newKey || oldKey === newKey) return;
-		for (const m of pending.value) {
-			const p = m.payload;
-			if (!p) continue;
-			if (p.docKey === oldKey) p.docKey = newKey;
-			if (p.targetParentKey === oldKey) p.targetParentKey = newKey;
-			if (p.parentKey === oldKey) p.parentKey = newKey;
-		}
 	}
 
 	// Drop every failed mutation. Used by `Reload latest` recovery after
@@ -122,7 +101,6 @@ export function createOperationQueue({ resolveKey }) {
 		supersedeFailedFor,
 		findFailedCreate,
 		dropMatching,
-		rewriteKeys,
 		clearFailed,
 		reset,
 	};
