@@ -7,6 +7,7 @@ import {
 	openNewPageDialog,
 	publishChangeRequestFromReview,
 	saveEditor,
+	waitForPageCreated,
 } from '../helpers/wiki';
 
 interface WikiDocumentRoute {
@@ -59,10 +60,7 @@ async function createAndPublishPage(
 		await page.locator('aside').getByText(title, { exact: true }).click();
 	}
 	await expect(pageTitleInput).toHaveValue(title, { timeout: 10000 });
-	await page.waitForFunction(() => {
-		const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-		return match && !decodeURIComponent(match[1]).startsWith('tmp_');
-	});
+	await waitForPageCreated(page);
 	const docKey = await currentDraftDocKey(page);
 
 	const editor = page.locator('.ProseMirror, [contenteditable="true"]');

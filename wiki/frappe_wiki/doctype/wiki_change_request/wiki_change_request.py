@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -221,6 +222,7 @@ def _bump_operation_version(cr: Document) -> int:
 	return new_version
 
 
+CLIENT_DOC_KEY_PATTERN = re.compile(r"\A[a-zA-Z0-9]{12,32}\Z")
 STRUCTURE_OPERATIONS = {"create_node", "delete_node", "restore_node", "move_node", "reorder_children"}
 
 
@@ -361,6 +363,7 @@ def _create_cr_item(
 	route: str | None = None,
 	is_tab: bool = False,
 	tab_icon: str | None = None,
+	doc_key: str | None = None,
 ) -> str:
 	head_revision = cr.head_revision
 	item_map = get_revision_item_map(head_revision)
@@ -375,7 +378,7 @@ def _create_cr_item(
 
 	item = frappe.new_doc("Wiki Revision Item")
 	item.revision = head_revision
-	item.doc_key = frappe.generate_hash(length=12)
+	item.doc_key = doc_key or frappe.generate_hash(length=12)
 	item.title = title
 	item.slug = slug or cleanup_page_name(title)
 	item.is_group = 1 if is_group else 0
@@ -1053,6 +1056,18 @@ def restore_cr_page(name: str, doc_key: str) -> None:
 # --- Batch operation endpoint -------------------------------------------------------
 
 
+def _is_retried_create(cr: Document, doc_key: Any) -> bool:
+	"""Check a key the client chose, and whether this change request already created it."""
+	if not isinstance(doc_key, str) or not CLIENT_DOC_KEY_PATTERN.match(doc_key):
+		frappe.throw(_("doc_key must be 12 to 32 letters and digits"))
+	# A merge finds a page by doc_key across all spaces, so reusing a key would overwrite that page.
+	if frappe.db.exists("Wiki Document", {"doc_key": doc_key}) or get_revision_item(
+		cr.base_revision, doc_key
+	):
+		frappe.throw(_("This doc_key is already in use"))
+	return bool(frappe.db.exists("Wiki Revision Item", {"revision": cr.head_revision, "doc_key": doc_key}))
+
+
 def _resolve_temp_key(key: str | None, temp_key_map: dict[str, str]) -> str | None:
 	if key is None:
 		return None
@@ -1072,13 +1087,19 @@ def _apply_operation(
 
 	if op_type == "create_node":
 		temp_key = op.get("temp_key")
-		if not temp_key:
-			frappe.throw(_("create_node operation requires temp_key"))
+		doc_key = op.get("doc_key")
+		if not (temp_key or doc_key):
+			frappe.throw(_("create_node operation requires doc_key or temp_key"))
 		title = op.get("title")
 		if title is None:
 			frappe.throw(_("create_node operation requires title"))
+		if doc_key and _is_retried_create(cr, doc_key):
+			affected_doc_keys.add(doc_key)
+			content_doc_keys.add(doc_key)
+			return
 		new_key = _create_cr_item(
 			cr,
+			doc_key=doc_key,
 			parent_key=_resolve_temp_key(op.get("parent_key"), temp_key_map),
 			title=title,
 			slug=op.get("slug"),
@@ -1092,7 +1113,8 @@ def _apply_operation(
 			is_tab=bool(op.get("is_tab")),
 			tab_icon=op.get("tab_icon"),
 		)
-		temp_key_map[temp_key] = new_key
+		if temp_key:
+			temp_key_map[temp_key] = new_key
 		affected_doc_keys.add(new_key)
 		if op.get("content") is not None:
 			content_doc_keys.add(new_key)
