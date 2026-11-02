@@ -19,7 +19,6 @@ import { createOperationQueue } from './draftWorkspace/operationQueue';
 import { createPageBuffers } from './draftWorkspace/pageBuffers';
 import { createSaveSerializer } from './draftWorkspace/saveSerializer';
 import { createSyncTransport } from './draftWorkspace/syncTransport';
-import { createTempKeyResolver } from './draftWorkspace/tempKeyResolver';
 import {
 	createTreeModel,
 	denormalizeNode,
@@ -27,6 +26,7 @@ import {
 } from './draftWorkspace/treeModel';
 import {
 	errorMessage,
+	makeDocKey,
 	restoredDraftBuffer,
 	slugify,
 	toPublished,
@@ -63,8 +63,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Sub-modules. Order matters: each may depend on those above it.
 	const treeModel = createTreeModel();
 	const pageBuffers = createPageBuffers();
-	const resolver = createTempKeyResolver();
-	const queue = createOperationQueue({ resolveKey: resolver.resolveKey });
+	const queue = createOperationQueue();
+	const createsInFlight = new Map();
 	const transport = createSyncTransport({
 		crStore,
 		crName: () => crName.value,
@@ -165,22 +165,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	});
 
 	const mover = createMoveScheduler({
-		resolver,
+		ensureCreated,
 		queue,
 		treeModel,
 		transport,
 		crName: () => crName.value,
 		errorMessage,
-	});
-
-	// Fan-out a tmp_* → real key resolution to every owner that holds
-	// state keyed by docKey. Replaces the original
-	// `rewriteTempKeyReferences` helper that reached into each map
-	// directly.
-	resolver.onResolve((tempKey, realKey) => {
-		queue.rewriteKeys(tempKey, realKey);
-		mover.rewriteKeys(tempKey, realKey);
-		saver.rewriteKeys(tempKey, realKey);
 	});
 
 	function applyServerTree(serverTree) {
@@ -219,7 +209,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			dropStaleTree();
 		}
 		pageBuffers.reset();
-		resolver.reset();
+		createsInFlight.clear();
 		queue.reset();
 		mover.reset();
 		saver.reset();
@@ -295,18 +285,18 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// it's saved (or reverted via undo).
 	//
 	// Entries whose `docKey` no longer corresponds to a real tree node
-	// are ignored — they're orphans from deleted pages or from tmp_*
-	// creates that never reached the server.
+	// are ignored — they're orphans from deleted pages or from creates that
+	// never reached the server.
 	async function restorePersistedDrafts(drafts) {
 		if (!crName.value || !drafts.length) return;
 		await Promise.all(
 			drafts.map(async (draft) => {
 				const { docKey, content } = draft;
 				if (!docKey || content == null) return;
-				// Only restore for keys that still exist server-side. tmp_*
-				// orphans (lost creates) are out of scope for this v1.
+				// Only restore for keys that still exist server-side. Lost
+				// creates are out of scope for this v1.
 				const node = treeModel.findNode(docKey);
-				if (resolver.isTempKey(docKey) || !node) return;
+				if (!node) return;
 
 				// Verify against the server copy before restoring. A persisted
 				// draft that matches the server has no real unsaved changes —
@@ -523,13 +513,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// with a tmp key (the backend would 404).
 	async function loadCrPage(docKey) {
 		if (!docKey) return null;
-		if (resolver.isTempKey(docKey)) {
-			// A create that landed before its opener read the buffer has already
-			// promoted it to the real key, leaving nothing under the temp one.
-			// Follow the promotion rather than reporting the page missing.
-			const promoted = resolver.resolveKey(docKey);
-			return pageBuffers.get(promoted || docKey);
-		}
+		if (isPendingCreate(docKey)) return pageBuffers.get(docKey);
 		const localPage = pageBuffers.get(docKey);
 		if (
 			localPage &&
@@ -566,19 +550,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return promise;
 	}
 
-	function updateLocalPageContent(docKey, content, title = null) {
-		const realKey = resolver.resolveKey(docKey) || docKey;
-		if (!realKey) return null;
-		return pageBuffers.updateLocalContent(docKey, realKey, content, title);
-	}
-
 	function ensureCr() {
 		return Boolean(isEnabled.value && spaceId.value && crName.value);
 	}
 
 	// Insert node locally with pending_create *before* awaiting anything,
-	// then sync in the background. On success swap the temp doc key for
-	// the real one. On failure leave the node visible with sync_failed
+	// then sync in the background. The client picks the key, so nothing changes
+	// when the create lands. On failure leave the node visible with sync_failed
 	// so the user can retry rather than losing their input.
 	//
 	// Note on single-batch create+content
@@ -589,7 +567,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// typing — firing immediately keeps the page durable server-side
 	// within hundreds of ms; deferring would lose the page on browser
 	// refresh during the deferral window. Type-after-create therefore
-	// syncs as a second batch (gated by `resolveDocKey` in
+	// syncs as a second batch (gated by `ensureCreated` in
 	// `doSaveContent`).
 	function createNode({
 		parentKey,
@@ -602,13 +580,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		route = null,
 	}) {
 		const effectiveParent = parentKey || treeModel.rootKey.value || null;
-		const tempKey = resolver.makeTempKey();
+		const docKey = makeDocKey();
 		// The dialog hands us the author's route; without one (paste-as-page and
 		// other programmatic creates) fall back to guessing, as before.
 		const localRoute = route || slugify(title);
 		const localNode = {
-			docKey: tempKey,
-			serverDocKey: null,
+			docKey,
 			documentName: null,
 			title,
 			route: localRoute,
@@ -626,10 +603,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		treeModel.insertNode(localNode, effectiveParent);
 
 		// Seed local page state so opening the row before sync works
-		// without a backend roundtrip. Promoted to the real key on success.
+		// without a backend roundtrip.
 		if (!isGroup) {
-			pageBuffers.setPage(tempKey, {
-				docKey: tempKey,
+			pageBuffers.setPage(docKey, {
+				docKey,
 				title,
 				route: localRoute,
 				content,
@@ -643,7 +620,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		}
 
 		const mutation = queue.enqueue('create_node', {
-			tempKey,
+			docKey,
 			parentKey: effectiveParent,
 			title,
 			isGroup,
@@ -653,30 +630,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			route,
 		});
 
-		const createPromise = syncCreateNode(tempKey, mutation);
-
-		// Swallow rejection on the stored promise so dependent awaiters
-		// (resolveDocKey) don't trigger unhandled-rejection warnings; we
-		// surface the error through mutation status instead.
-		resolver.registerCreate(
-			tempKey,
-			createPromise.catch(() => null),
-		);
-		return { tempKey, promise: createPromise };
+		return { docKey, promise: syncCreateNode(docKey, mutation) };
 	}
 
-	function syncCreateNode(tempKey, mutation) {
+	function syncCreateNode(docKey, mutation) {
 		const payload = mutation.payload;
 		const createPromise = (async () => {
 			try {
 				if (!(await ensureCr())) throw new Error('No change request');
-
-				// If parent is itself a pending temp create, wait for it.
-				let resolvedParent = payload.parentKey;
-				if (resolver.isTempKey(resolvedParent)) {
-					resolvedParent = await resolver.resolveDocKey(resolvedParent);
-					if (!resolvedParent) throw new Error('Parent create failed');
-				}
+				await ensureCreated(payload.parentKey);
 
 				queue.setStatus(mutation.id, 'syncing');
 
@@ -684,8 +646,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					{
 						id: mutation.id,
 						type: 'create_node',
-						temp_key: tempKey,
-						parent_key: resolvedParent,
+						doc_key: docKey,
+						parent_key: payload.parentKey,
 						title: payload.title,
 						content: payload.content || '',
 						is_group: !!payload.isGroup,
@@ -694,56 +656,49 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						route: payload.route ?? null,
 					},
 				]);
-				const realKey = result?.temp_key_map?.[tempKey] || null;
-
-				if (realKey) {
-					const item = (result.items || []).find(
-						(it) => it.doc_key === realKey,
-					);
-					const route = item?.route || null;
-					const documentName = item?.document_name || null;
-					const node = treeModel.findNode(tempKey);
-					if (node) {
-						node.docKey = realKey;
-						node.serverDocKey = realKey;
-						if (route) node.route = route;
-						if (documentName) node.documentName = documentName;
-						node.localStatus = null;
-					}
-					pageBuffers.promoteKey(tempKey, realKey, { route });
-					const page = pageBuffers.get(realKey);
-					if (page) page.serverHash = item?.content_hash ?? null;
-					// Resolve last so the onResolve listeners (queue / mover
-					// / saver rewrites) see the tree + buffers already
-					// promoted.
-					resolver.resolve(tempKey, realKey);
+				const item = result?.items?.find((it) => it.doc_key === docKey);
+				const node = treeModel.findNode(docKey);
+				if (node) {
+					if (item?.route) node.route = item.route;
+					if (item?.document_name) node.documentName = item.document_name;
+					node.localStatus = null;
+				}
+				const page = pageBuffers.get(docKey);
+				if (page) {
+					if (item?.route) page.route = item.route;
+					page.serverHash = item?.content_hash ?? null;
 				}
 				queue.clear(mutation.id);
-				return realKey || null;
+				return docKey;
 			} catch (err) {
-				const node = treeModel.findNode(tempKey);
+				const node = treeModel.findNode(docKey);
 				if (node) node.localStatus = 'sync_failed';
 				queue.setStatus(mutation.id, 'failed', errorMessage(err));
 				throw err;
 			} finally {
-				resolver.finishCreate(tempKey);
+				createsInFlight.delete(docKey);
 			}
 		})();
+		createsInFlight.set(docKey, createPromise);
 		return createPromise;
 	}
 
-	function retryFailedCreate(tempKey) {
-		const mutation = queue.findFailedCreate(tempKey);
-		if (!mutation) return null;
-		mutation.error = null;
-		const node = treeModel.findNode(tempKey);
-		if (node) node.localStatus = 'pending_create';
-		const promise = syncCreateNode(tempKey, mutation);
-		resolver.registerCreate(
-			tempKey,
-			promise.catch(() => null),
+	function isPendingCreate(docKey) {
+		return (
+			createsInFlight.has(docKey) || Boolean(queue.findFailedCreate(docKey))
 		);
-		return promise;
+	}
+
+	// Anything that touches a new page waits for its create. A failed create is
+	// sent again: the key is ours, so a retry cannot make a second page.
+	async function ensureCreated(docKey) {
+		if (createsInFlight.has(docKey)) return createsInFlight.get(docKey);
+		const failed = queue.findFailedCreate(docKey);
+		if (!failed) return;
+		failed.error = null;
+		const node = treeModel.findNode(docKey);
+		if (node) node.localStatus = 'pending_create';
+		return syncCreateNode(docKey, failed);
 	}
 
 	async function findNodeOnceLoaded(docKey) {
@@ -776,56 +731,46 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				page.isPublished = !!fields.is_published;
 		}
 
-		if (resolver.isTempKey(docKey)) {
-			const failedCreate = queue.findFailedCreate(docKey);
-			if (failedCreate) {
-				if (fields.title !== undefined)
-					failedCreate.payload.title = fields.title;
-				if (fields.content !== undefined)
-					failedCreate.payload.content = fields.content;
-				retryFailedCreate(docKey);
-			}
+		const failedCreate = queue.findFailedCreate(docKey);
+		if (failedCreate) {
+			if (fields.title !== undefined) failedCreate.payload.title = fields.title;
+			if (fields.content !== undefined)
+				failedCreate.payload.content = fields.content;
 		}
 
 		queue.supersedeFailedFor(`update:${docKey}`);
 		const mutation = queue.enqueue('update_node', { docKey, fields });
 		queue.setStatus(mutation.id, 'syncing');
 		try {
-			// If this targets a pending temp create, wait for the real key
-			// before issuing the backend call.
-			const realKey = await resolver.resolveDocKey(docKey);
-			if (!realKey) throw new Error('Pending create did not resolve');
+			await ensureCreated(docKey);
 			if (!(await ensureCr())) throw new Error('No change request');
 			const result = await transport.applyBatchOps([
 				{
 					id: mutation.id,
 					type: 'update_node',
-					doc_key: realKey,
+					doc_key: docKey,
 					fields,
 				},
 			]);
 			// Pick up the server's copy of the route and title: it
 			// sanitizes a route the caller pinned.
-			const item = (result?.items || []).find((it) => it.doc_key === realKey);
+			const item = (result?.items || []).find((it) => it.doc_key === docKey);
+			const fresh = treeModel.findNode(docKey);
 			if (item) {
-				const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
 				if (fresh) {
 					if (item.route) fresh.route = item.route;
 					if (item.title != null) fresh.title = item.title;
 				}
-				const buf = pageBuffers.get(realKey) || pageBuffers.get(docKey);
+				const buf = pageBuffers.get(docKey);
 				if (buf) {
 					if (item.route) buf.route = item.route;
 					if (item.title != null) buf.title = item.title;
 				}
 			}
-			const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = null;
 			queue.clear(mutation.id);
 		} catch (err) {
-			const fresh =
-				treeModel.findNode(docKey) ||
-				treeModel.findNode(resolver.resolveKey(docKey) || '');
+			const fresh = treeModel.findNode(docKey);
 			if (fresh) fresh.localStatus = 'sync_failed';
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
@@ -915,28 +860,21 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const page = pageBuffers.ensure(docKey, { saveStatus: 'saving' });
 		page.saveStatus = 'saving';
 
-		const realKey = await resolver.resolveDocKey(docKey);
-		if (!realKey) {
-			page.saveStatus = 'failed';
-			page.error = 'Pending create did not resolve';
-			transport.markFailed(page.error);
-			throw new Error(page.error);
-		}
-
-		queue.supersedeFailedFor(`content:${realKey}`);
-		const mutation = queue.enqueue('update_content', { docKey: realKey });
+		queue.supersedeFailedFor(`content:${docKey}`);
+		const mutation = queue.enqueue('update_content', { docKey });
 		queue.setStatus(mutation.id, 'syncing');
 		try {
+			await ensureCreated(docKey);
 			if (!(await ensureCr())) throw new Error('No change request');
 			// A save whose reply never came may be on the server, so its hash is
 			// the base newer text needs. Resending it gets that hash back.
-			const unconfirmed = pageBuffers.get(realKey)?.sentContent;
+			const unconfirmed = pageBuffers.get(docKey)?.sentContent;
 			if (unconfirmed != null && unconfirmed !== content) {
-				await sendContent(realKey, unconfirmed, mutation.id);
+				await sendContent(docKey, unconfirmed, mutation.id);
 			}
-			await sendContent(realKey, content, mutation.id);
+			await sendContent(docKey, content, mutation.id);
 
-			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
+			const targetPage = pageBuffers.get(docKey);
 			if (targetPage) {
 				targetPage.content = content;
 				if (targetPage.localContent === content) {
@@ -948,14 +886,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				targetPage.error = null;
 			}
 			// Content is durably on the server now — drop the local IDB
-			// backup for both the resolved key and (if different) the
-			// pre-promotion tmp key so a future hydrate doesn't restore
-			// stale typing on top of fresh server state.
+			// backup so a future hydrate doesn't restore stale typing on top of
+			// fresh server state.
 			if (crName.value) {
-				persistEditorDraft(realKey, targetPage?.title, { immediate: true });
-				if (docKey !== realKey) {
-					clearEditorDraft(crName.value, docKey);
-				}
+				persistEditorDraft(docKey, targetPage?.title, { immediate: true });
 			}
 			// Only flip global sync to idle if no follow-up save is
 			// queued for this doc — otherwise we'd briefly flash 'saved'
@@ -965,16 +899,21 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			}
 			queue.clear(mutation.id);
 		} catch (err) {
-			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
+			const targetPage = pageBuffers.get(docKey);
 			if (targetPage) {
 				if (targetPage.localContent == null) targetPage.localContent = content;
-				// A server-reported error rolled the save back. Anything else may have landed.
-				if (err.code !== 'version_conflict' && !err.exc_type) {
+				// A server-reported error rolled the save back, and a page not created
+				// yet was never sent. Anything else may have landed.
+				if (
+					err.code !== 'version_conflict' &&
+					!err.exc_type &&
+					!isPendingCreate(docKey)
+				) {
 					targetPage.sentContent ??= content;
 				}
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
-				persistEditorDraft(realKey, targetPage.title, { immediate: true });
+				persistEditorDraft(docKey, targetPage.title, { immediate: true });
 			}
 			transport.markFailed(errorMessage(err));
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
@@ -1005,10 +944,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	function recordEditorContent(docKey, content, title, options = {}) {
 		// An editor still mounted after a merge or discard reports its last content.
 		if (!docKey || !crName.value) return;
-		const realKey = resolver.resolveKey(docKey) || docKey;
-		pageBuffers.ensure(realKey, { title: title || '' });
-		pageBuffers.setLocalContent(realKey, content);
-		persistEditorDraft(realKey, title, {
+		pageBuffers.ensure(docKey, { title: title || '' });
+		pageBuffers.setLocalContent(docKey, content);
+		persistEditorDraft(docKey, title, {
 			immediate: options.persistImmediately,
 		});
 	}
@@ -1018,55 +956,49 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// markdown round-trip differences from manufacturing dirty state.
 	function reconcileEditorContent(docKey, content, savedContent, title) {
 		if (!docKey || !crName.value) return;
-		const realKey = resolver.resolveKey(docKey) || docKey;
 		const page = pageBuffers.reconcileEditorContent(
-			realKey,
+			docKey,
 			content,
 			savedContent,
 		);
 		if (title != null) page.title = title;
-		persistEditorDraft(realKey, title, { immediate: true });
+		persistEditorDraft(docKey, title, { immediate: true });
 	}
 
 	// Mark pending_delete locally, which strikes the row through. The page only
 	// leaves the live tree once the change request is merged, so it stays on
 	// screen until then (#762). On failure the flag is cleared so the row
-	// reads as normal again. For temp nodes whose create never reached the
-	// server, just drop the local node and the failed-create mutation rather
-	// than calling delete_cr_page with a tmp_* key.
+	// reads as normal again. For a node whose create cannot reach the server,
+	// just drop the local node and the failed-create mutation.
 	async function deleteNode(docKey) {
 		const node = await findNodeOnceLoaded(docKey);
 		if (!node) return;
 		node.localStatus = 'pending_delete';
 		treeModel.setSubtreeDeleted(docKey, true);
 
-		const isTempKey = resolver.isTempKey(docKey);
 		queue.supersedeFailedFor(`delete:${docKey}`);
 		const mutation = queue.enqueue('delete_node', { docKey });
 		queue.setStatus(mutation.id, 'syncing');
 		try {
-			let resolvedKey = docKey;
-			if (isTempKey) {
-				resolvedKey = await resolver.resolveDocKey(docKey);
-				if (!resolvedKey) {
-					// Create never reached the server. Drop everything for
-					// this temp key locally so the user doesn't see a
-					// stale failure.
-					treeModel.removeNodeByKey(docKey);
-					pageBuffers.deletePage(docKey);
-					queue.dropMatching(
-						(m) => m.type === 'create_node' && m.payload?.tempKey === docKey,
-					);
-					queue.clear(mutation.id);
-					return;
-				}
+			const created = await ensureCreated(docKey).then(
+				() => true,
+				() => false,
+			);
+			if (!created) {
+				treeModel.removeNodeByKey(docKey);
+				pageBuffers.deletePage(docKey);
+				queue.dropMatching(
+					(m) => m.type === 'create_node' && m.payload?.docKey === docKey,
+				);
+				queue.clear(mutation.id);
+				return;
 			}
 			if (!(await ensureCr())) throw new Error('No change request');
 			await transport.applyBatchOps([
 				{
 					id: mutation.id,
 					type: 'delete_node',
-					doc_key: resolvedKey,
+					doc_key: docKey,
 				},
 			]);
 			const synced = treeModel.findNode(docKey);
@@ -1092,10 +1024,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const mutation = queue.enqueue('restore_node', { docKey });
 		queue.setStatus(mutation.id, 'syncing');
 		try {
-			const resolvedKey = resolver.resolveKey(docKey) || docKey;
 			if (!(await ensureCr())) throw new Error('No change request');
 			await transport.applyBatchOps([
-				{ id: mutation.id, type: 'restore_node', doc_key: resolvedKey },
+				{ id: mutation.id, type: 'restore_node', doc_key: docKey },
 			]);
 			queue.clear(mutation.id);
 		} catch (err) {
@@ -1118,7 +1049,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasLoadedTree,
 		hasStaleTree,
 		staleTreeAsLegacy: staleTreeModel.treeAsLegacy,
-		tempKeyResolutions: resolver.tempKeyResolutions,
 		// getters
 		isEnabled,
 		crName,
@@ -1136,12 +1066,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		reloadChanges,
 		reloadFromServer,
 		loadCrPage,
-		updateLocalPageContent,
 		findNode: treeModel.findNode,
 		reset,
 		discardPersistedDraftsForCr,
 		ensureCr,
-		resolveDocKey: resolver.resolveDocKey,
 		createNode,
 		updateNode,
 		renameNode,
@@ -1159,6 +1087,5 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		// internal helpers exposed for tests
 		_normalizeNode: normalizeNode,
 		_denormalizeNode: denormalizeNode,
-		_makeTempKey: resolver.makeTempKey,
 	};
 });

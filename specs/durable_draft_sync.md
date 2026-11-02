@@ -1,7 +1,7 @@
 # Durable Draft Sync: Per-Page Checks, Client Keys, Operation Log
 
 Date: 2026-11-02
-Status: **In progress**. Bullet 1 built, bullets 2 and 3 not started. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
+Status: **In progress**. Bullets 1 and 2 built, bullet 3 not started. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
 
 ## Goal
 
@@ -136,7 +136,11 @@ A key in another user's unmerged change request is not checked: `doc_key` has no
 
 ### Client
 
-Delete `tempKeyResolver.js`, `promoteKey`, the three `rewriteKeys`, `serverDocKey`, the promotion watcher in `DraftContributionPanel.vue`, and the `findNode(realKey) || findNode(docKey)` lookups. `createNode` keeps its return shape with `docKey` in place of `tempKey`. A failed create stays on screen with `sync_failed`, and retrying it is safe.
+Delete `tempKeyResolver.js`, `promoteKey`, the three `rewriteKeys`, `serverDocKey`, the promotion watcher in `DraftContributionPanel.vue`, and the `findNode(realKey) || findNode(docKey)` lookups. `createNode` keeps its return shape with `docKey` in place of `tempKey`.
+
+`ensureCreated(docKey)` replaces the resolver. Anything that touches a new page awaits it. It waits for a create in flight, and sends a failed create again. A failed create stays on screen with `sync_failed` until then. So a save after a lost reply lands, and a delete drops the page locally only if the retry also fails. If that retry failed on a page the server already had, the page comes back on reload. Bullet 3 closes this.
+
+The draft in IndexedDB now uses the permanent key from the start, so a browser reload after a lost reply restores the text.
 
 `page-links.js` still waits for the create before it writes the link, so a failed create cannot leave a dead link in content.
 

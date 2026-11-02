@@ -88,7 +88,7 @@ Page content and tree edits in the SPA go through a change request. The one exce
 
 - The client sends edits in batches to `apply_cr_operations`. Operation types: `create_node`, `update_node`, `update_content`, `delete_node`, `restore_node`, `move_node`, `reorder_children`.
 - A batch runs in one transaction, so it applies fully or not at all.
-- A new page gets a `tmp_*` key on the client. The server assigns the real `doc_key` and returns the mapping in `temp_key_map`.
+- The SPA picks a new page's permanent `doc_key` when it creates the page, so the route and the editor never change when the create lands. A retried create changes nothing. The server rejects a badly formed key and any key already in Wiki Document or the base revision, because a merge finds a page by `doc_key` across all spaces. API callers can still send `temp_key` and read the real key from `temp_key_map`.
 - The response also carries the affected items and the change summary (`changes`), so a save is one request. The client does not refetch the page or the summary after it.
 - The SPA guards each save on its own page. `update_content` carries `base_content_hash`, the hash of the copy the edits build on. If the page has changed since, the server returns `page_conflict` and applies nothing. Resending text the server already has succeeds, which covers a lost reply.
 - Moves and reorders depend on the sibling list the client sees, so they carry `base_structure_version`. Each batch that changes the tree bumps `structure_version`, and a stale move gets `structure_conflict`.
@@ -162,6 +162,6 @@ Code: `wiki/permissions.py`, wired through `has_permission` and `permission_quer
 - Stores (`frontend/src/stores`):
   - `space.js`: the current space, its tree and its git sync state.
   - `changeRequest.js`: the current change request and its review actions.
-  - `draftWorkspace.js`: the optimistic draft state. It coordinates the modules in `draftWorkspace/`: `operationQueue` (pending edits), `syncTransport` (batches to `apply_cr_operations` and tracks page and tree conflicts), `tempKeyResolver` (`tmp_*` to real keys), `moveScheduler` (debounced drags), `saveSerializer` (one save in flight per page) and `pageBuffers` (editor buffers).
+  - `draftWorkspace.js`: the optimistic draft state. It coordinates the modules in `draftWorkspace/`: `operationQueue` (pending edits), `syncTransport` (batches to `apply_cr_operations` and tracks page and tree conflicts), `moveScheduler` (debounced drags), `saveSerializer` (one save in flight per page) and `pageBuffers` (editor buffers).
   - `draftPersistence.js`: unsaved page content in IndexedDB, so a reload keeps it.
 - Realtime: the SPA listens for `wiki_change_request_update` and `wiki_git_sync_update`.
