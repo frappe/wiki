@@ -47,8 +47,8 @@ directly as `parent_key`.
 | `$CR.get_change_request` | `name` | Full CR dict |
 | `$CR.list_change_requests` | `wiki_space`, `status?` | `[{name, title, status, base_revision, head_revision, merge_revision, outdated, modified, merged_at, merged_by, owner, ...}]`, newest first |
 | `$CR.list_open_change_requests` | `wiki_space` | Everyone's `In Review` / `Changes Requested` / `Approved` CRs plus your own open draft: `[{name, title, status, owner, owner_name, owner_image, modified, changed_doc_keys}]`, newest first. GET. |
-| `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int}` |
-| `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content}` |
+| `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int, structure_version: int}` |
+| `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content, content_hash}` |
 | `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides |
 | `$CR.get_change_request_review` | `name` | `{author: {full_name, image}, pages: [{doc_key, change_type, title, ..., base, head, location?}]}`; each side is `{title, content, html}` or null. Every changed page in one call. GET. |
 | `$CR.check_outdated` | `name` | `0` \| `1`; also persisted to `outdated` |
@@ -71,7 +71,8 @@ Params `wiki_space`, `title` (required), `description?` → CR doc. Always fresh
 Params `name`, `title?`, `description?`.
 
 ### `$CR.apply_cr_operations` — the main write endpoint
-Params `name`, `base_version` (int \| null), `operations` (list \| JSON string).
+Params `name`, `base_version` (int \| null), `operations` (list \| JSON string),
+`base_structure_version` (int \| null).
 
 Success:
 ```json
@@ -89,6 +90,19 @@ Stale — **HTTP 200, exit code 0**:
  "message": "This draft has changed elsewhere. Reload latest."}
 ```
 
+`base_version` guards the whole draft. Two narrower guards are optional:
+
+- `base_content_hash` on an `update_content` op, from `content_hash` in `get_cr_page` or in `items`.
+  If the page changed since and does not already hold this content, nothing in the batch is written:
+  `{"ok": false, "error": "page_conflict", "doc_key": "...", "message": "..."}`
+- `base_structure_version`, from `get_cr_tree`. If the tree changed since, nothing is written:
+  `{"ok": false, "error": "structure_conflict", "structure_version": 4, "message": "..."}`
+
+A batch that creates, deletes, restores, moves or reorders returns `structure_version`.
+
+A batch that had to wait for another write to the same CR throws `TimestampMismatchError`. Nothing is
+written, so send it again.
+
 Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 `parent_key` / `doc_key` / `target_parent_key` for ops later in the same batch.
 
@@ -97,7 +111,7 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 | `type` | Fields |
 |---|---|
 | `create_node` | `temp_key` (req), `title` (req), `parent_key` (req in practice), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
-| `update_content` | `doc_key` (req), `content` (req), `title?` |
+| `update_content` | `doc_key` (req), `content` (req), `title?`, `base_content_hash?` |
 | `update_node` | `doc_key` (req), `fields{}` |
 | `delete_node` | `doc_key` (req) — cascades to descendants |
 | `restore_node` | `doc_key` (req) — undoes a deletion staged in this CR, with its descendants |
