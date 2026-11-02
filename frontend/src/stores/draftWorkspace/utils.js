@@ -31,6 +31,7 @@ export function restoredDraftBuffer({
 	content,
 	localContent,
 	serverContent,
+	serverHash,
 	sentContent,
 	node,
 }) {
@@ -41,6 +42,7 @@ export function restoredDraftBuffer({
 		content,
 		localContent,
 		serverContent,
+		serverHash,
 		sentContent,
 		isPublished: toPublished(node?.isPublished),
 		saveStatus: 'idle',

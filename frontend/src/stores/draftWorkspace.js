@@ -1,4 +1,7 @@
-import { requestEditorReload } from '@/lib/editorContentSync';
+import {
+	requestEditorFlush,
+	requestEditorReload,
+} from '@/lib/editorContentSync';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import {
 	clearDraft as clearPersistedDraft,
@@ -120,6 +123,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					title: title ?? page.title,
 					savedContent: page.content,
 					serverContent: page.serverContent,
+					serverHash: page.serverHash,
 					sentContent: page.sentContent,
 				});
 			} else {
@@ -184,9 +188,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		hasLoadedTree.value = true;
 		dropStaleTree();
 		saveTreeSnapshot(userStore.data?.name, spaceId.value, toRaw(serverTree));
-		if (typeof serverTree?.operation_version === 'number') {
-			transport.recordServerVersion(crName.value, serverTree.operation_version);
-		}
+		transport.recordServerVersion(crName.value, serverTree?.structure_version);
 	}
 
 	function dropStaleTree() {
@@ -314,10 +316,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				// hydrate (and survive an IndexedDB clear once re-persisted), so
 				// drop it instead of reseeding dirty state.
 				let serverContent = null;
+				let serverHash = null;
 				let serverTitle = null;
 				try {
 					const result = await transport.fetchPage(crName.value, docKey);
 					serverContent = result?.content ?? '';
+					serverHash = result?.content_hash ?? null;
 					serverTitle = result?.title || null;
 				} catch (_err) {
 					// Couldn't reach the server — fall through and restore
@@ -336,10 +340,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					serverContent != null &&
 					draft.serverContent !== undefined &&
 					!pageBuffers.isBasedOn(draft, serverContent);
-				// Saves send the title, so a stale one would undo a rename made elsewhere.
+				// The title field reads this, so a stale one would hide a rename made elsewhere.
 				const title = serverTitle ?? draft.title;
+				const keepsDraftBase = changedElsewhere || serverContent == null;
 				const base = {
 					serverContent: changedElsewhere ? draft.serverContent : serverContent,
+					serverHash: keepsDraftBase ? draft.serverHash : serverHash,
 					sentContent: draft.sentContent ?? null,
 				};
 				const page = pageBuffers.get(docKey);
@@ -364,10 +370,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					page.error = null;
 				}
 				if (changedElsewhere) {
-					transport.flagConflict(
-						crName.value,
-						__('This draft has changed elsewhere. Reload latest.'),
-					);
+					transport.flagPageConflict(crName.value, docKey);
 				}
 			}),
 		);
@@ -398,7 +401,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// unblocked Submit while that content was unsaved, the user could
 	// submit a CR that doesn't contain what they see on screen. Leaving
 	// the divergent local snapshot keeps Submit gated until the user either saves (which
-	// will now succeed because `operation_version` is fresh) or reverts.
+	// will now succeed because the page's base is fresh) or reverts.
 	// We do downgrade `saveStatus` from 'failed' → 'idle' so the editor
 	// header / sync pill stops asserting a save failure that no longer
 	// applies; the underlying content state is what matters.
@@ -414,8 +417,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		transport.markIdle();
 	}
 
-	// Runs after the tree fetch, so the version it recorded is no newer than
-	// the page copies fetched here.
 	async function reloadPage(docKey) {
 		const node = treeModel.findNode(docKey);
 		if (!node || node.isDeleted) {
@@ -432,8 +433,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			pageBuffers.isBasedOn(page, serverContent)
 		) {
 			page.serverContent = serverContent;
+			page.serverHash = result?.content_hash ?? null;
 			page.sentContent = null;
-			// Saves send the title, so a stale one would undo a rename made elsewhere.
+			// The title field reads this, so a stale one would hide a rename made elsewhere.
 			page.title = result?.title || '';
 			page.route = result?.route || '';
 			page.isPublished = toPublished(result?.is_published);
@@ -464,6 +466,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			content: result?.content || '',
 			localContent: null,
 			serverContent: result?.content || '',
+			serverHash: result?.content_hash ?? null,
 			sentContent: null,
 			isPublished: toPublished(result?.is_published),
 			saveStatus: 'idle',
@@ -479,6 +482,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	function revalidateCrPage(docKey) {
 		if (pageRevalidations.has(docKey)) return pageRevalidations.get(docKey);
 		const requestCr = crName.value;
+		const hashWhenFetched = pageBuffers.get(docKey)?.serverHash;
 		const promise = (async () => {
 			try {
 				const result = await transport.fetchPage(requestCr, docKey);
@@ -486,11 +490,24 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				// local edits / an in-flight save while we fetched — drop the
 				// snapshot rather than resurrect or clobber state.
 				if (crName.value !== requestCr) return;
+				// Typing still in the editor's debounce counts as a local edit.
+				requestEditorFlush();
 				const page = pageBuffers.get(docKey);
-				if (!page || pageBuffers.isDirty(page) || page.saveStatus !== 'idle') {
+				if (
+					!page ||
+					pageBuffers.isDirty(page) ||
+					page.saveStatus !== 'idle' ||
+					page.serverHash !== hashWhenFetched
+				) {
 					return;
 				}
+				const changedElsewhere = result?.content_hash !== page.serverHash;
 				applyFetchedPage(docKey, result);
+				// The open editor reads its content only when it mounts, and would
+				// save its old text over this copy.
+				if (changedElsewhere) {
+					requestEditorReload(docKey, result?.content || '');
+				}
 			} catch (_err) {
 				// Best-effort refresh — the cached buffer stays usable.
 			} finally {
@@ -617,6 +634,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				route: localRoute,
 				content,
 				serverContent: content || '',
+				serverHash: null,
 				sentContent: null,
 				isPublished,
 				saveStatus: 'idle',
@@ -693,6 +711,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 						node.localStatus = null;
 					}
 					pageBuffers.promoteKey(tempKey, realKey, { route });
+					const page = pageBuffers.get(realKey);
+					if (page) page.serverHash = item?.content_hash ?? null;
 					// Resolve last so the onResolve listeners (queue / mover
 					// / saver rewrites) see the tree + buffers already
 					// promoted.
@@ -861,19 +881,19 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	// Editor content save with success-aware state. `content` advances only
 	// after backend success; any newer `localContent` remains divergent.
-	function saveContent(docKey, content, title = null) {
+	function saveContent(docKey, content) {
 		if (!docKey) return Promise.reject(new Error('Missing docKey'));
 
 		// Mark the page as saving immediately so the banner / editor
 		// reflect that a save is queued.
-		const page = pageBuffers.ensure(docKey, { title: title || '' });
+		const page = pageBuffers.ensure(docKey);
 		if (page.localContent == null) pageBuffers.setLocalContent(docKey, content);
 		page.saveStatus = 'saving';
 		page.error = null;
 		transport.markSaving();
 
-		return saver.enqueueSave(docKey, content, title, (c, t) =>
-			doSaveContent(docKey, c, t),
+		return saver.enqueueSave(docKey, content, (queued) =>
+			doSaveContent(docKey, queued),
 		);
 	}
 
@@ -886,18 +906,13 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			.dirtyPages()
 			.filter((page) => page.docKey !== exceptDocKey);
 		const results = await Promise.allSettled(
-			dirty.map((page) =>
-				saveContent(page.docKey, page.localContent, page.title || null),
-			),
+			dirty.map((page) => saveContent(page.docKey, page.localContent)),
 		);
 		return results.filter((r) => r.status === 'rejected').map((r) => r.reason);
 	}
 
-	async function doSaveContent(docKey, content, title) {
-		const page = pageBuffers.ensure(docKey, {
-			title: title || '',
-			saveStatus: 'saving',
-		});
+	async function doSaveContent(docKey, content) {
+		const page = pageBuffers.ensure(docKey, { saveStatus: 'saving' });
 		page.saveStatus = 'saving';
 
 		const realKey = await resolver.resolveDocKey(docKey);
@@ -913,21 +928,17 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		queue.setStatus(mutation.id, 'syncing');
 		try {
 			if (!(await ensureCr())) throw new Error('No change request');
-			const op = {
-				id: mutation.id,
-				type: 'update_content',
-				doc_key: realKey,
-				content,
-			};
-			if (title != null) op.title = title;
-			await transport.applyBatchOps([op]);
+			// A save whose reply never came may be on the server, so its hash is
+			// the base newer text needs. Resending it gets that hash back.
+			const unconfirmed = pageBuffers.get(realKey)?.sentContent;
+			if (unconfirmed != null && unconfirmed !== content) {
+				await sendContent(realKey, unconfirmed, mutation.id);
+			}
+			await sendContent(realKey, content, mutation.id);
 
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				targetPage.content = content;
-				targetPage.serverContent = content;
-				targetPage.sentContent = null;
-				if (title != null) targetPage.title = title;
 				if (targetPage.localContent === content) {
 					targetPage.localContent = null;
 				}
@@ -957,7 +968,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			const targetPage = pageBuffers.get(realKey) || pageBuffers.get(docKey);
 			if (targetPage) {
 				if (targetPage.localContent == null) targetPage.localContent = content;
-				if (err.code !== 'version_conflict') targetPage.sentContent = content;
+				// A server-reported error rolled the save back. Anything else may have landed.
+				if (err.code !== 'version_conflict' && !err.exc_type) {
+					targetPage.sentContent ??= content;
+				}
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
 				persistEditorDraft(realKey, targetPage.title, { immediate: true });
@@ -966,6 +980,24 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
 			throw err;
 		}
+	}
+
+	async function sendContent(docKey, content, id) {
+		const page = pageBuffers.get(docKey);
+		const result = await transport.applyBatchOps([
+			{
+				id,
+				type: 'update_content',
+				doc_key: docKey,
+				content,
+				base_content_hash: page?.serverHash ?? undefined,
+			},
+		]);
+		if (!page) return;
+		const item = result?.items?.find((it) => it.doc_key === docKey);
+		page.serverContent = content;
+		page.serverHash = item?.content_hash ?? null;
+		page.sentContent = null;
 	}
 
 	// Record the editor's canonical markdown immediately so submit/merge
@@ -1080,7 +1112,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		tree: treeModel.tree,
 		pagesByKey: pageBuffers.pagesByKey,
 		pending: queue.pending,
-		operationVersion: transport.operationVersion,
 		sync: transport.sync,
 		isHydrating,
 		hydrateForPage,
