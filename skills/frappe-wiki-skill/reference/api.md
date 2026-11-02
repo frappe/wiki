@@ -110,7 +110,7 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 
 | `type` | Fields |
 |---|---|
-| `create_node` | `temp_key` (req), `title` (req), `parent_key` (req in practice), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
+| `create_node` | `doc_key` or `temp_key` (one req), `title` (req), `parent_key` (req in practice), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
 | `update_content` | `doc_key` (req), `content` (req), `title?`, `base_content_hash?` |
 | `update_node` | `doc_key` (req), `fields{}` |
 | `delete_node` | `doc_key` (req) — cascades to descendants |
@@ -119,6 +119,10 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 | `reorder_children` | `parent_key` (req), `ordered_doc_keys[]` (req) |
 
 `id` is a client correlation string; the backend does not validate it.
+
+`doc_key` on `create_node` is a key the caller picks: 12 to 32 letters and digits, and new. A key
+already in Wiki Document or the CR's base revision throws, and the whole batch rolls back. Sending a
+key this CR already created changes nothing and returns the page, so a retry is safe.
 
 #### `fields` allowlist for `update_node` / `update_cr_page`
 - Scalars: `title`, `slug`, `route`, `external_url`, `tab_icon`

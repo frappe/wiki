@@ -35,22 +35,10 @@ export function createSaveSerializer() {
 		return queuedSaves.has(docKey);
 	}
 
-	function rewriteKeys(oldKey, newKey) {
-		if (!oldKey || !newKey || oldKey === newKey) return;
-		if (saveTails.has(oldKey)) {
-			saveTails.set(newKey, saveTails.get(oldKey));
-			saveTails.delete(oldKey);
-		}
-		if (queuedSaves.has(oldKey)) {
-			queuedSaves.set(newKey, queuedSaves.get(oldKey));
-			queuedSaves.delete(oldKey);
-		}
-	}
-
 	function reset() {
 		saveTails.clear();
 		queuedSaves.clear();
 	}
 
-	return { enqueueSave, hasQueuedFor, rewriteKeys, reset };
+	return { enqueueSave, hasQueuedFor, reset };
 }

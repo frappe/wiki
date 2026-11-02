@@ -164,20 +164,19 @@ export function useTreeDialogs(
 
 		isCreating.value = true;
 		try {
-			const { tempKey, promise } = draftStore.createNode({
+			const { docKey, promise } = draftStore.createNode({
 				parentKey,
 				title,
 				isGroup,
 				route,
 			});
 			// Open the new page for editing immediately. The DraftContributionPanel
-			// reads its content from pagesByKey (seeded by createNode), and the
-			// route remaps from tmp_* to the real key once the create syncs.
+			// reads its content from pagesByKey (seeded by createNode).
 			// Groups have no editable content, so skip navigation for those.
 			if (!isGroup && spaceId.value) {
 				router.push({
 					name: 'DraftChangeRequest',
-					params: { spaceId: spaceId.value, docKey: tempKey },
+					params: { spaceId: spaceId.value, docKey },
 				});
 			}
 			await promise;
