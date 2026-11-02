@@ -161,8 +161,8 @@ function insertPageLink(chain, doc, range, page) {
 
 /**
  * Create a draft page and link its title. The title goes in at once; the link
- * waits for the page's real doc_key, because a `tmp_*` key saved into content
- * would point nowhere once the create lands. The title's range follows every
+ * waits for the create, because a link saved into content would point nowhere
+ * if the create failed. The title's range follows every
  * edit made meanwhile; if the title itself was edited, the page still exists
  * and only the link is skipped.
  */

@@ -255,16 +255,22 @@ export function generateWikiTitle(prefix = 'Test Page'): string {
 	return `${prefix} ${timestamp}-${random}`;
 }
 
-/**
- * The doc key of the draft currently open in the editor.
- *
- * A page created through the sidebar first lands on a temp key
- * (`/draft/tmp_…`) and is promoted to its real doc key once the create
- * round-trips. Reading the segment straight after the create therefore yields a
- * key no Wiki Document will ever carry — this waits for the promotion instead.
- */
+/** Wait until the server has the pages created in the sidebar. */
+export async function waitForPageCreated(page: Page) {
+	await page.waitForFunction(() => {
+		const store = (
+			window as unknown as {
+				__draftStore?: { pending: { type: string }[] };
+			}
+		).__draftStore;
+		return store && !store.pending.some((m) => m.type === 'create_node');
+	});
+}
+
+/** The doc key of the draft open in the editor, once the server has the page. */
 export async function currentDraftDocKey(page: Page): Promise<string> {
-	await page.waitForURL(/\/draft\/(?!tmp_)[^/?#]+/, { timeout: 15000 });
+	await page.waitForURL(/\/draft\/[^/?#]+/, { timeout: 15000 });
+	await waitForPageCreated(page);
 	const match = page.url().match(/\/draft\/([^/?#]+)/);
 	return decodeURIComponent(match?.[1] ?? '');
 }

@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { normalizeNode } from './treeModel.js';
-import { restoredDraftBuffer, toPublished } from './utils.js';
+import { makeDocKey, restoredDraftBuffer, toPublished } from './utils.js';
+
+test('makeDocKey gives a key the server patterns accept', () => {
+	assert.match(makeDocKey(), /^[0-9a-f]{32}$/);
+	assert.notEqual(makeDocKey(), makeDocKey());
+});
 
 test('toPublished treats server checkbox ints correctly', () => {
 	// Frappe sends 0/1 over JSON — 0 must read as unpublished (the old
