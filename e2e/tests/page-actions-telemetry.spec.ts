@@ -82,24 +82,27 @@ async function openReader(page: Page, wiki: WikiFactory, telemetry: object) {
 
 async function pickPageAction(
 	page: Page,
-	{ text, closesMenu }: (typeof ACTIONS)[number],
+	{ text, inMenu, closesMenu }: (typeof ACTIONS)[number],
 ) {
-	// The desktop menu beside the title; the mobile copy above it is hidden by CSS.
-	const menu = page.locator('#wiki-page-title + div');
-	const toggle = menu.getByRole('button', { name: 'More page actions' });
+	const actions = page.getByTestId('page-actions');
+	if (!inMenu) {
+		await actions.getByRole('button', { name: text }).click();
+		return;
+	}
+	const toggle = actions.getByRole('button', { name: 'More page actions' });
 	if ((await toggle.getAttribute('aria-expanded')) !== 'true')
 		await toggle.click();
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-	await menu.locator('a, button').filter({ hasText: text }).click();
+	await actions.locator('a, button').filter({ hasText: text }).click();
 	// Download closes the menu only once the PDF arrives, so wait it out.
 	await expect(toggle).toHaveAttribute('aria-expanded', String(!closesMenu));
 }
 
 const ACTIONS = [
-	{ text: 'Download', action: 'download', closesMenu: true },
-	{ text: 'Copy page', action: 'copy', closesMenu: true },
-	{ text: 'Open in ChatGPT', action: 'chatgpt', closesMenu: false },
-	{ text: 'Open in Claude', action: 'claude', closesMenu: false },
+	{ text: 'Download', action: 'download', inMenu: true, closesMenu: true },
+	{ text: 'Copy page as Markdown', action: 'copy', inMenu: false, closesMenu: false },
+	{ text: 'Open in ChatGPT', action: 'chatgpt', inMenu: true, closesMenu: false },
+	{ text: 'Open in Claude', action: 'claude', inMenu: true, closesMenu: false },
 ];
 
 test.describe('Page actions telemetry', () => {
