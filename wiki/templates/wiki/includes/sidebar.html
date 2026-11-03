@@ -193,6 +193,7 @@
                 if (contentEl) contentEl.innerHTML = data.rendered_content;
 
                 this.updateNavButtons(data.prev_doc, data.next_doc);
+                this.updateFolderName(data.folder_name);
 
                 if (Alpine.store('pageContent')) {
                     Alpine.store('pageContent').markdown = data.raw_markdown;
@@ -253,6 +254,13 @@
                 });
                 html += '</nav>';
                 tocContainer.innerHTML = html;
+            },
+
+            updateFolderName(folderName) {
+                document.querySelectorAll('[data-wiki-folder-eyebrow]').forEach((el) => {
+                    el.textContent = folderName || '';
+                    el.hidden = !folderName;
+                });
             },
 
             updateNavButtons(prevDoc, nextDoc) {

@@ -517,6 +517,13 @@ class WikiDocument(NestedSet):
 
 		return nested_tree, adjacent_docs
 
+	def get_folder_name(self) -> str | None:
+		"""Title of the folder holding this page; None when it sits directly under the space root."""
+		ancestors = self.get_ancestors()
+		if len(ancestors) < 2:
+			return None
+		return frappe.get_cached_value("Wiki Document", ancestors[0], "title")
+
 	@frappe.whitelist()
 	def get_breadcrumbs(self) -> dict:
 		"""Get the breadcrumb trail for this Wiki Document including space info."""
@@ -581,6 +588,7 @@ class WikiDocument(NestedSet):
 			"prev_doc": adjacent_docs["prev"],
 			"next_doc": adjacent_docs["next"],
 			"edit_link": self.get_edit_link(),
+			"folder_name": self.get_folder_name(),
 			"last_updated": pretty_date(self.modified),
 			"last_updated_on": self.get_formatted("modified"),
 			"disable_indexing": self.disable_indexing,
@@ -668,6 +676,7 @@ class WikiDocument(NestedSet):
 				else [],
 				"favicon": wiki_space_doc.favicon,
 				"nested_tree": nested_tree,
+				"folder_name": self.get_folder_name(),
 				"prev_doc": adjacent_docs["prev"],
 				"next_doc": adjacent_docs["next"],
 				# Escape "<" so user-supplied titles can't close the

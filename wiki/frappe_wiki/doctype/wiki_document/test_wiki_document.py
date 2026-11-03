@@ -123,6 +123,21 @@ class TestGetWebContext(WikiDocumentTestBase):
 	Tests navigation (prev/next doc) edge cases and wiki spaces switcher.
 	"""
 
+	def test_folder_name_is_the_nearest_folder_below_the_space_root(self):
+		root_group = create_test_wiki_document(self, "Trail Root", is_group=True)
+		guides = create_test_wiki_document(self, "Guides", parent=root_group.name, is_group=True)
+		setup = create_test_wiki_document(self, "Setup", parent=guides.name, is_group=True)
+		nested_page = create_test_wiki_document(self, "Install", parent=setup.name)
+		top_page = create_test_wiki_document(self, "Overview", parent=root_group.name)
+		create_test_wiki_space(self, "Trail Space", "trail-space", root_group.name)
+
+		nested_page.reload()
+		top_page.reload()
+
+		self.assertEqual(nested_page.get_web_context()["folder_name"], "Setup")
+		self.assertEqual(nested_page.get_navigation_data()["folder_name"], "Setup")
+		self.assertIsNone(top_page.get_web_context()["folder_name"])
+
 	def test_first_document_has_no_prev_doc(self):
 		"""Test that the first document in the tree has no previous document."""
 		# Create a simple tree: Root Group -> Doc1 -> Doc2 -> Doc3
