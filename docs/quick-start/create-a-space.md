@@ -3,7 +3,7 @@ title: "Step 1: Create a space"
 ---
 This quick start follows one page from the first draft to the live site. Grace Park is a Wiki Manager at Northstar Labs. She makes a private space for the engineering team, writes a page about deployments, and Priya Raman reviews it.
 
-In this step, Grace creates the space. You need the Wiki Manager or System Manager role to create a space.
+In this step, Grace creates the space. Only users with the Wiki Manager or System Manager role can create a space.
 
 ## Create the space
 

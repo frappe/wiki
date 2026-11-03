@@ -11,7 +11,7 @@ Use one of these ways:
 - Type `/pdf`, press `Enter`, then pick a file.
 - Drag a PDF file onto the page.
 
-The file uploads to your site. You cannot link a PDF from another site.
+The file uploads to your site. A PDF from another site cannot be linked.
 
 <picture>
   <source srcset="../images/authoring-content/pdf-card-dark.webp" media="(prefers-color-scheme: dark)">

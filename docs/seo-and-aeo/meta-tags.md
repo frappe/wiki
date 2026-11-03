@@ -5,7 +5,7 @@ Each page has a meta title, a meta description and a meta image. Search engines 
 
 ## Set the meta fields
 
-You must be able to write to the space. A change request is not necessary. The fields save directly on the page.
+You must be able to write to the space. The fields save directly on the page, without a change request.
 
 1. Open the page in the wiki app.
 2. In the page header, click **Page settings** (the settings icon).
@@ -21,7 +21,7 @@ You must be able to write to the space. A change request is not necessary. The f
 
 The **Preview** card under the fields shows the image, the route, the title and the description as you type. The changes go live on the public page when you click **Save**.
 
-To change the image, point to it and click **Replace**. To remove it, click **Remove**.
+To replace or remove the image, point to it and click **Replace** or **Remove**.
 
 ## Defaults
 

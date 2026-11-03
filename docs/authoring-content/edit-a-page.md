@@ -46,9 +46,7 @@ The **Edit** button shows when the space accepts contributions, or when you can 
 
 You do not need to save. The editor saves the page to your change request 2 seconds after you stop typing, and at least every 10 seconds while you type. Press `Ctrl` + `S` (`Cmd` + `S` on a Mac) to save all your open edits at once.
 
-An amber dot next to the title means the page has changes that are not saved yet. The sidebar card also shows the state: **Unsaved changes**, **Saving…**, **Sync failed** or **Changed elsewhere**. When a save fails or the draft changed in another tab, click **Reload latest** to get the saved version from the server.
-
-Your browser keeps a copy of edits that are not saved yet. If you reload the page, they come back.
+An amber dot next to the title means the page has changes that are not saved yet. The sidebar card also shows the state: **Unsaved changes**, **Saving…**, **Sync failed** or **Changed elsewhere**. When a save fails or the draft changed in another tab, click **Reload latest** to get the saved version from the server. Your browser keeps a copy of edits that are not saved yet. If you reload the page, they come back.
 
 ## Keyboard shortcuts
 

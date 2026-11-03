@@ -13,7 +13,7 @@ The app and the reader always show the same mark.
 
 ## Change the mark
 
-You must have write access to the space.
+Only users with write access to the space can change the mark.
 
 1. Open the space in the app.
 2. Click the mark next to the space name, at the top of the sidebar. You can also go to **Space settings** > **General** and click the tile next to **Space Logo**.
@@ -32,8 +32,7 @@ You must have write access to the space.
 
 ### Upload tab
 
-- Click **Upload** and pick an image file. A PNG or SVG works best, because the mark is small.
-- Click **Replace** to upload a different image.
+- Click **Upload** and pick an image file. A PNG or SVG works best, because the mark is small. Click **Replace** to upload a different image.
 - Click **Use this image** to show the uploaded image again after you picked an icon or a pattern.
 - Click **Remove** to delete the uploaded image.
 
@@ -60,6 +59,6 @@ The space form in Desk, at `/app/wiki-space/<space ID>`, has more image fields. 
 | Field | Use |
 | :--- | :--- |
 | **Favicon** | The icon in the browser tab on the reader pages of the space. If it is empty, the reader uses the Frappe Wiki icon. |
-| **App Switcher Logo** | The same image as the **Upload** tab. |
-| **Light Mode Logo** | Used on social preview images only when the space has no pattern, icon or uploaded image. |
-| **Dark Mode Logo** | Not used by the reader. |
+| **App Switcher Logo** | This is the image that the **Upload** tab sets. |
+| **Light Mode Logo** | The wiki uses it on social preview images only when the space has no pattern, icon or uploaded image. |
+| **Dark Mode Logo** | The reader does not use it. |

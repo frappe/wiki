@@ -30,7 +30,7 @@ The button next to the page title has these actions:
 | Action | When it shows | What it does |
 | :--- | :--- | :--- |
 | **Edit** | The space accepts contributions, or you have write access. | Opens the page in the editor. On a GitHub-synced space, it opens the file on GitHub. |
-| **Copy** | Instead of **Edit**, when you cannot edit. | Copies the page as Markdown. |
+| **Copy** | It shows in place of **Edit** when you cannot edit. | Copies the page as Markdown. |
 | **Download** | The space allows PDF download. | Saves the page as a PDF. See [Download as PDF](download-as-pdf.md). |
 | **Copy page** | You can edit. | Copies the page as Markdown. |
 | **Open in ChatGPT**, **Open in Claude** | The space is public. | Opens a chat that asks about this page. |

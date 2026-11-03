@@ -36,6 +36,4 @@ For each view, the wiki adds a **Web Page View** record with:
 - The user agent of the browser and the time zone.
 - The `utm_source`, `utm_medium`, `utm_campaign` and `utm_content` values of the URL, if it has them.
 
-The wiki does not record a view when the browser sends a Do Not Track signal.
-
-Only pages in the reader are counted. Pages that you open in the app are not counted.
+The wiki does not record a view when the browser sends a Do Not Track signal. Only pages in the reader are counted. Pages that you open in the app are not counted.

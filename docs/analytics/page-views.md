@@ -1,9 +1,7 @@
 ---
 title: Page views
 ---
-The wiki counts visits to the published pages in the reader. You see the numbers for the whole wiki, for one space and for one page.
-
-The wiki counts views only when view tracking is on. See [Turn view tracking on or off](view-tracking.md).
+The wiki counts visits to the published pages in the reader. You see the numbers for the whole wiki, for one space and for one page. The wiki counts views only when view tracking is on. See [Turn view tracking on or off](view-tracking.md).
 
 ## The Overview page
 

@@ -1,9 +1,7 @@
 ---
 title: Page history
 ---
-Each merge, Git sync or direct edit in Desk adds a version to a space. The version history shows these versions for one page or for the whole space.
-
-Drafts and change requests that are not merged do not show in the history.
+Each merge, Git sync or direct edit in Desk adds a version to a space. The version history shows these versions for one page or for the whole space. Drafts and change requests that are not merged do not show in the history.
 
 ## Open the version history
 

@@ -46,7 +46,7 @@ stateDiagram-v2
     Archived --> [*]
 ```
 
-`Merged`, `Rejected` and `Archived` are final. You cannot edit or reopen a change request in these states. To try again after a rejection, start a new change request.
+`Merged`, `Rejected` and `Archived` are final. A change request in these states cannot be edited or reopened. To try again after a rejection, start a new change request.
 
 ## Who can do what
 

@@ -5,9 +5,7 @@ A reviewer reads the changes in a change request, then approves it, requests cha
 
 ## Who can review
 
-To review a change request, you need Write access to its space and the Wiki Approver role. A Wiki Manager can review in every space. In a space that has no roles set, every Wiki Approver can review. See [Who can read and write](../spaces/who-can-read-and-write.md).
-
-You can review your own change request.
+To review a change request, you need Write access to its space and the Wiki Approver role. A Wiki Manager can review in every space. In a space that has no roles set, every Wiki Approver can review. See [Who can read and write](../spaces/who-can-read-and-write.md). You can review your own change request.
 
 ## Find changes to review
 

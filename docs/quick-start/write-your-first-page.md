@@ -56,7 +56,7 @@ The image uploads and shows in the page. You can also click **Insert Image** in 
 
 You do not need a save button. When you stop typing for a moment, the editor saves your edits to the change request. **Saving…** shows at the bottom of the sidebar while it saves.
 
-The card under the space name shows the change request. It shows its title, its status **Draft**, and how many pages it changes.
+The card under the space name shows the title of the change request, its status **Draft**, and how many pages it changes.
 
 <picture>
   <source srcset="../images/quick-start/draft-strip-dark.webp" media="(prefers-color-scheme: dark)">

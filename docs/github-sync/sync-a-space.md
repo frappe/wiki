@@ -66,8 +66,8 @@ System Managers can also see each sync in Desk at `/app/wiki-git-sync-log`, and 
 
 The repository is the source of the content. In the wiki:
 
-- You cannot edit, add, rename, move or delete pages. The editor shows a **Read-only** badge.
+- Pages can't be edited, added, renamed, moved or deleted. The editor shows a **Read-only** badge.
 - Nobody can open a change request, and **Accept Contributions** stays off.
 - To change a page, change the file on GitHub. See [Edit on GitHub](edit-on-github.md).
 
-You cannot turn GitHub Sync on or off for a space after you create it.
+GitHub Sync can't be turned on or off for a space after the space is created.

@@ -26,7 +26,7 @@ Nothing changes until you click **Save**. If you open another page first, the pa
 | **Published** | When on, the page is visible on the public site. |
 | **Disable Indexing** | When on, search engines are asked not to index the page. Readers can still open it. |
 
-You cannot clear **Title** or **Route**. If you leave either one empty, the wiki keeps the old value. A `/` at the start of the route is removed.
+**Title** and **Route** cannot be cleared. If you leave either one empty, the wiki keeps the old value. A `/` at the start of the route is removed.
 
 ## Social preview
 
@@ -34,7 +34,7 @@ You cannot clear **Title** or **Route**. If you leave either one empty, the wiki
 | :--- | :--- |
 | **Meta title** | The title in search results and link previews. Leave it empty to use the page title. |
 | **Meta description** | A short summary for search results and link previews. The hint below the field counts the characters. 150 to 160 characters is recommended. |
-| **Meta image** | The image in link previews. Click **Upload image**. The recommended size is 1200 × 630 pixels. Hold the pointer on the image to see **Replace** and **Remove**. |
+| **Meta image** | The image in link previews. Click **Upload image** to add one. The recommended size is 1200 × 630 pixels. Hold the pointer on the image to replace or remove it. |
 
 The **Preview** box shows how a link to the page looks when people share it. If the page has no meta image, the preview can show an image that the wiki makes from the page details. See [Social cards](../seo-and-aeo/social-cards.md) and [Meta tags](../seo-and-aeo/meta-tags.md).
 
@@ -46,7 +46,7 @@ The **Preview** box shows how a link to the page looks when people share it. If 
 
 The fields save in two different ways:
 
-- **Title**, **Route** and **Published** go into your change request. Readers see the change after the change request is merged. You can change these fields only in edit mode. See [Edit a page](edit-a-page.md).
+- **Title**, **Route** and **Published** go into your change request. Readers see the change after the change request is merged. These fields can be changed only in edit mode. See [Edit a page](edit-a-page.md).
 - **Disable Indexing**, **Meta title**, **Meta description** and **Meta image** save to the page at once, with no review. Only people who can write to the space can change them. They are available in read mode too.
 
 :::caution
@@ -55,7 +55,7 @@ Changes to the meta fields and to **Disable Indexing** go live on the public sit
 
 ## Pages in a GitHub synced space
 
-The repository owns the title, route and publish state of the page. These fields show **From the repo** and you cannot change them. You can still change the meta fields and **Disable Indexing**. See [Sync a space](../github-sync/sync-a-space.md).
+The repository owns the title, route and publish state of the page. These fields show **From the repo** and cannot be changed. You can still change the meta fields and **Disable Indexing**. See [Sync a space](../github-sync/sync-a-space.md).
 
 ## New pages
 

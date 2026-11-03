@@ -31,9 +31,7 @@ If no page has the title you typed, the list shows **Create** and the title. Pic
 
 The editor saves a page link with the key of the page, not its route: `[Devices](wiki:2557e41ff475)`. Every page has a key that does not change. When a reader opens the page, the wiki puts in the current route of the linked page. So the link keeps working when you move the page, change its route or change its title.
 
-If the linked page is deleted, unpublished, or only exists in a change request that is not merged yet, readers see the link text without a link.
-
-Page links work only in the same space. To link to a page in another space, use its web address.
+If the linked page is deleted, unpublished, or only exists in a change request that is not merged yet, readers see the link text without a link. Page links work only in the same space. To link to a page in another space, use its web address.
 
 ## Link to a web address
 

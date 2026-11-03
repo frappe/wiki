@@ -38,7 +38,7 @@ Give the App read access to **Contents** and **Metadata**. Set its callback URL 
 
 ## Connect a repository to a new space
 
-You connect a repository when you create the space. You cannot connect or disconnect one later.
+You connect a repository when you create the space. A repository can't be connected or disconnected later.
 
 1. In the sidebar, click **New Space**.
 2. Enter a **Space Name** and a **Route**.
