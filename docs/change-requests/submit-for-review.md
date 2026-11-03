@@ -32,13 +32,11 @@ Your changes save while you type. The sidebar shows a card with the title of the
 
 The status changes to `In Review` and the review page opens. The space goes back to read mode for you. Your changes are still not live.
 
-**Submit for review** is not available until all changes are saved and all uploads are complete. Hover over the button to see the reason. You cannot submit a change request that has no changes.
+**Submit for review** is not available until all changes are saved and all uploads are complete. Hover over the button to see the reason. A change request that has no changes cannot be submitted.
 
 ## What happens next
 
-Anyone who can read the space can open your change request and see the changes. A user with Write access to the space reviews it. To ask a specific person, a reviewer or a Wiki Manager can assign it to them. See [Review a change](review-a-change.md).
-
-You get a notification when a reviewer approves, requests changes, rejects or merges your change request.
+Anyone who can read the space can open your change request and see the changes. A user with Write access to the space reviews it. To ask a specific person, a reviewer or a Wiki Manager can assign it to them. See [Review a change](review-a-change.md). You get a notification when a reviewer approves, requests changes, rejects or merges your change request.
 
 ## Withdraw
 

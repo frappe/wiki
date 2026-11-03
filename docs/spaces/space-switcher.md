@@ -27,7 +27,7 @@ If the list has only one space, the reader shows the space name without the swit
 
 ## Show or hide a space
 
-You must have write access to the space.
+Only users with write access to the space can change this.
 
 1. Open the space, click **...** next to its name, and click **Space settings**.
 2. Click **Navigation**.

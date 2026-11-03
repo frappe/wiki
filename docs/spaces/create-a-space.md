@@ -23,9 +23,9 @@ On a phone, the **New Space** button is at the top of the **All Spaces** page.
 
 | Field | What it does |
 | :--- | :--- |
-| Mark tile | The square to the left of the name. The wiki makes an abstract mark for every new space. Click the tile to pick an icon or upload a logo instead. See [Space appearance](space-appearance.md). |
-| **Space Name** | The name in the sidebar, the space switcher and the reader header. |
-| **Route** | The URL path of the space. Pages live under it, for example `/engineering/how-we-deploy`. This field is required. |
+| Mark tile | This is the square to the left of the name. The wiki makes an abstract mark for every new space. Click the tile to pick an icon or upload a logo instead. See [Space appearance](space-appearance.md). |
+| **Space Name** | The name shows in the sidebar, the space switcher and the reader header. |
+| **Route** | This is the URL path of the space. Pages live under it, for example `/engineering/how-we-deploy`. This field is required. |
 | **Synced from GitHub?** | Gets the pages from a GitHub repository. See [Connect a repository](../github-sync/connect-a-repository.md). |
 
 ## Routes

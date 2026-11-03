@@ -12,9 +12,7 @@ Use one of these ways:
 - Paste an image from the clipboard.
 - Drag an image file onto the page.
 
-The image shows at once with **Uploading…** on it. When the upload is done, the image is saved with the page. If the upload fails, the image shows **Upload failed** and the error. Remove the image and try again.
-
-Images in content that you paste from Google Docs, Notion or a web page are uploaded too.
+The image shows at once with **Uploading…** on it. When the upload is done, the image is saved with the page. If the upload fails, the image shows **Upload failed** and the error. Remove the image and try again. Images in content that you paste from Google Docs, Notion or a web page are uploaded too.
 
 :::note
 You cannot submit a change request while an upload is in progress, or while a failed upload is still on the page.
@@ -74,9 +72,7 @@ An image with a dark version, a width or an alignment is saved as a `<picture>` 
 
 ## Automatic WebP conversion
 
-The wiki can convert uploaded PNG and JPEG images to WebP to make pages smaller. The setting is on by default. A Wiki Manager can change it in **Settings** > **General** > **Auto Convert Image to WebP**. See [Wiki settings](../administration/wiki-settings.md).
-
-The conversion applies to new uploads only. If a file cannot be converted, the wiki keeps the original file.
+The wiki can convert uploaded PNG and JPEG images to WebP to make pages smaller. The setting is on by default. A Wiki Manager can change it in **Settings** > **General** > **Auto Convert Image to WebP**. See [Wiki settings](../administration/wiki-settings.md). The conversion applies to new uploads only. If a file cannot be converted, the wiki keeps the original file.
 
 ## On the published page
 

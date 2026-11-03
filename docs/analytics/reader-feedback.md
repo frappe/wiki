@@ -1,9 +1,7 @@
 ---
 title: Reader feedback
 ---
-Readers rate pages with **Was this helpful?** at the bottom of each page. The wiki keeps each rating as a **Wiki Feedback** record. You see the records in Desk, the Frappe admin UI at `/app`.
-
-See [Give feedback](../reading/give-feedback.md) for what readers do.
+Readers rate pages with **Was this helpful?** at the bottom of each page. The wiki keeps each rating as a **Wiki Feedback** record. You see the records in Desk, the Frappe admin UI at `/app`. See [Give feedback](../reading/give-feedback.md) for what readers do.
 
 ## See the feedback
 
@@ -28,8 +26,8 @@ System Managers and users with the **Wiki Approver** role can read feedback. The
 | **Wiki Document** | The page that the reader rated. |
 | **Type** | The rating: `Good`, `Ok` or `Bad`. |
 | **Feedback** | The comment of the reader, if there is one. |
-| **Status** | `Open` for new records. Set it to `Closed` when you have acted on the feedback. |
-| **Email Id** | Empty for feedback from the reader page. |
+| **Status** | New records are `Open`. Set it to `Closed` when you have acted on the feedback. |
+| **Email Id** | It is empty for feedback from the reader page. |
 
 The record also shows who sent it and when. Feedback from a visitor who is not logged in shows **Guest** as the sender.
 

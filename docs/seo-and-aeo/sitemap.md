@@ -1,9 +1,7 @@
 ---
 title: Sitemap
 ---
-The wiki adds its public pages to the site sitemap at `/sitemap.xml`. Search engines read the sitemap to find the pages of your site.
-
-The sitemap is automatic. You do not have to turn it on.
+The wiki adds its public pages to the site sitemap at `/sitemap.xml`. Search engines read the sitemap to find the pages of your site. You do not have to turn the sitemap on.
 
 ## What is in the sitemap
 

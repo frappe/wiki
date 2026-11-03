@@ -43,7 +43,7 @@ If the change needs work, Priya clicks **⋯** and then **Request changes**, and
 
 The status changes to **Merged**. The page **How we deploy** is now live, and its first version is in the page history.
 
-To merge, you need Write access to the space. See [Merge and resolve conflicts](../change-requests/merge-and-resolve-conflicts.md) for what happens when the page changed after the change request started.
+Only users with Write access to the space can merge. See [Merge and resolve conflicts](../change-requests/merge-and-resolve-conflicts.md) for what happens when the page changed after the change request started.
 
 :::tip[On a small team]
 Frappe Wiki lets you approve and merge your own change request when you have Write access to the space. A Wiki Manager can click **Merge** at the top of the editor. This submits, approves and merges the change request in one step. It still shows in the history like any other merge.

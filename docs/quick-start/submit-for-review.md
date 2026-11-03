@@ -31,7 +31,7 @@ The status changes to **In Review**, and the review page of the change request o
 
 ## Ask a reviewer
 
-Submitting does not send the change to a person. To ask a person to review it, assign it to them. You need Write access to the space to assign a reviewer.
+Submitting does not send the change to a person. To ask a person to review it, assign it to them. Only users with Write access to the space can assign a reviewer.
 
 1. On the review page, click **⋯** (**More actions**) next to **Approve**.
 2. Click **Assign reviewer**.

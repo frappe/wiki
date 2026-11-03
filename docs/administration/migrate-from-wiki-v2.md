@@ -58,7 +58,7 @@ A Wiki Manager can run the migration again for one space from Desk.
 The button shows only when the space still has v2 sidebar items.
 
 :::caution
-A second run copies the title and content from the v2 pages again. It replaces the changes that you made to those pages in v3. Run it only before people start to edit in v3.
+A second run copies the title and content from the v2 pages again. It replaces all v3 changes to those pages. Run it only before people start to edit in v3.
 :::
 
 :::note

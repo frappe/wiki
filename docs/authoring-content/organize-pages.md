@@ -30,7 +30,7 @@ Click **...** next to **New page** at the bottom of the sidebar, or **...** on a
 
 The route is the URL path of the page, for example `handbook/it-and-security/devices`. As you type the title, the dialog fills in the route from the route of the group and the title. You can change it. After you change it, the title no longer updates it.
 
-For a page, the dialog checks the route. If another page already uses it, the dialog shows **This route is already in use**, and you cannot save.
+For a page, the dialog checks the route. If another page already uses it, the dialog shows **This route is already in use**, and the page cannot be saved.
 
 A route stays the same when you change the title or move the page. To change the route of a page later, use [Page settings](page-settings.md).
 
@@ -41,7 +41,7 @@ In edit mode, drag a page or a group in the tree:
 - Drop it between two rows to change the order.
 - Drop it on a group to move it into that group.
 
-You cannot drag while the tree shows search results.
+Rows cannot be dragged while the tree shows search results.
 
 <picture>
   <source srcset="../images/authoring-content/tree-drag-dark.webp" media="(prefers-color-scheme: dark)">

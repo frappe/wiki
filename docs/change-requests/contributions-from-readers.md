@@ -17,7 +17,7 @@ Contributions are on for a new space.
   <img src="../images/change-requests/accept-contributions-light.webp" alt="The Access settings of a space with the Accept Contributions switch">
 </picture>
 
-You need Write access to the space to change this setting.
+Only users with Write access to the space can change this setting.
 
 When contributions are on:
 

@@ -23,7 +23,7 @@ Each row in the roles table gives one role an access level.
 
 ## Change the roles
 
-You must have write access to the space.
+Only users with write access to the space can change the roles.
 
 1. Open the space, click **...** next to its name, and click **Space settings**.
 2. Click **Access**.
@@ -47,7 +47,7 @@ People who cannot read a space get a **Page not found** error on its pages. Its 
 - When it is on, the reader shows the **Edit** button to every visitor. A visitor who is not logged in must log in first.
 - When it is off, only people with Write access see **Edit**. Other readers see **Copy** in its place.
 - People with Write access can always edit.
-- A space that is synced from GitHub does not accept contributions. The switch is off and you cannot change it.
+- A space that is synced from GitHub does not accept contributions. The switch is off and cannot be changed.
 
 See [Contributions from readers](../change-requests/contributions-from-readers.md).
 

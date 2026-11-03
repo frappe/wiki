@@ -12,7 +12,7 @@ To change your own language, open your user record in Desk at `/app/user` and se
 
 ## Where translations come from
 
-The wiki uses the Frappe translation system. Wiki does not ship its own translation files yet. Community translations through Crowdin are planned, but they are not available now.
+The wiki uses the Frappe translation system. Wiki does not ship its own translation files yet. Community translations through Crowdin are planned.
 
 Until then, an interface text shows in English unless a translation exists for it on your site. Frappe and the other apps on your site supply translations for many common words.
 
@@ -29,5 +29,5 @@ A System Manager can add a translation for one text in Desk.
 Reload the wiki to see the change.
 
 :::note
-Page content is not translated. To publish a page in more than one language, write each version as its own page or in its own space.
+To publish a page in more than one language, write each version as its own page or in its own space.
 :::

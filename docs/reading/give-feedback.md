@@ -21,7 +21,7 @@ Each submission stores the page, the rating and the comment. See [Reader feedbac
 
 ## Turn feedback on or off for a space
 
-**Collect Feedback** is on for new spaces. You must have write access to the space to change it.
+**Collect Feedback** is on for new spaces. Only users with write access to the space can change it.
 
 1. Open the space, click **...** next to its name, and click **Space settings**.
 2. Click **Access**.

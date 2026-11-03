@@ -29,7 +29,7 @@ The PDF does not have the sidebar, the header or the feedback widget.
 
 ## Turn PDF download on or off
 
-**Allow PDF Download** is on for new spaces. You must have write access to the space to change it.
+**Allow PDF Download** is on for new spaces. Only users with write access to the space can change it.
 
 1. Open the space, click **...** next to its name, and click **Space settings**.
 2. Click **Access**.

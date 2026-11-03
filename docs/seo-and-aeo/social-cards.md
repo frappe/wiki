@@ -17,7 +17,7 @@ The card is 1200 × 630 pixels, in JPEG format. It always has a light background
 - The page title. Long titles use a smaller font and stop after three lines.
 - The space name.
 
-The card uses the page title, not the meta title. You cannot change the layout or the colors.
+The card uses the page title, not the meta title. The layout and the colors can't be changed.
 
 ## Use your own image
 

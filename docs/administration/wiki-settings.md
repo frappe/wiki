@@ -10,7 +10,7 @@ Wiki settings apply to the whole site and to every space on it. Only a Wiki Mana
 
 You can also press `Ctrl+K` (`Cmd+K` on a Mac), type `settings` and pick **Settings**.
 
-The **Wiki Settings** dialog has four tabs: **General**, **Feedback**, **Header & Robots** and **GitHub Sync**. A switch saves its change when you click it. You do not need a save button.
+The **Wiki Settings** dialog has four tabs: **General**, **Feedback**, **Header & Robots** and **GitHub Sync**. A switch saves its change when you click it.
 
 <picture>
   <source srcset="../images/administration/wiki-settings-general-dark.webp" media="(prefers-color-scheme: dark)">
@@ -26,7 +26,7 @@ The **Wiki Settings** dialog has four tabs: **General**, **Feedback**, **Header 
 | **Auto Generate Meta Images** | Makes a social preview image for each page that has no meta image of its own. See [Social cards](../seo-and-aeo/social-cards.md). | On |
 | **Enable View Tracking** | Counts visits to published pages. The **Overview** page shows these counts. See [View tracking](../analytics/view-tracking.md). | Off |
 
-**Auto Generate Meta Images** shows only when the server can make the images. If the server has no image renderer, the setting is not in the list.
+**Auto Generate Meta Images** shows only when the server has an image renderer.
 
 Images that you uploaded before you turned on WebP conversion stay as they are.
 
