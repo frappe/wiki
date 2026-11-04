@@ -100,8 +100,18 @@ async function pickPageAction(
 
 const ACTIONS = [
 	{ text: 'Download', action: 'download', inMenu: true, closesMenu: true },
-	{ text: 'Copy page as Markdown', action: 'copy', inMenu: false, closesMenu: false },
-	{ text: 'Open in ChatGPT', action: 'chatgpt', inMenu: true, closesMenu: false },
+	{
+		text: 'Copy page as Markdown',
+		action: 'copy',
+		inMenu: false,
+		closesMenu: false,
+	},
+	{
+		text: 'Open in ChatGPT',
+		action: 'chatgpt',
+		inMenu: true,
+		closesMenu: false,
+	},
 	{ text: 'Open in Claude', action: 'claude', inMenu: true, closesMenu: false },
 ];
 
