@@ -55,7 +55,7 @@
 					<!-- Checking the connection + loading the account list right after the
 					     box is ticked: keep the user informed instead of flashing UI. -->
 					<div
-						v-if="githubConnected.loading || installationsResource.loading"
+						v-if="!awaitingPopup && (githubConnected.loading || installationsResource.loading)"
 						class="flex items-center gap-2 rounded-4 border border-outline-gray-2 p-3"
 					>
 						<span class="lucide-loader-2 h-4 w-4 animate-spin text-ink-gray-5" aria-hidden="true" />
@@ -71,7 +71,7 @@
 							<p class="text-p-sm text-ink-gray-6">
 								{{ __('Connect your GitHub account to pick a repository (private repos supported).') }}
 							</p>
-							<Button variant="subtle" :loading="githubConnected.loading" @click="connectGithub">
+							<Button variant="subtle" :loading="awaitingPopup" @click="connectGithub">
 								<template #prefix>
 									<!-- lucide-static dropped brand icons, so no `lucide-github`. -->
 									<span class="lucide-git-branch h-4 w-4" aria-hidden="true" />
@@ -89,14 +89,14 @@
 							<p class="text-p-sm text-ink-gray-6">
 								{{ __('The GitHub App is not installed on any account yet. Install it on the account and repositories you want to sync.') }}
 							</p>
-							<Button variant="subtle" :loading="installationsResource.loading" @click="installApp">
+							<Button variant="subtle" :loading="awaitingPopup" @click="installApp">
 								<template #prefix>
 									<!-- lucide-static dropped brand icons, so no `lucide-github`. -->
 									<span class="lucide-git-branch h-4 w-4" aria-hidden="true" />
 								</template>
 								{{ __('Install GitHub App') }}
 							</Button>
-							<ErrorMessage :message="appInstallUrl.error" />
+							<ErrorMessage :message="popupBlockedError || appInstallUrl.error" />
 						</div>
 
 						<template v-else>
@@ -392,8 +392,17 @@ function installApp() {
 		'popup,width=720,height=760',
 	);
 	stopConnectPoll();
+	// Installing has no way back to this dialog, so a blocked popup can only be reported.
+	if (!popup) {
+		popupBlockedError.value = __(
+			'Your browser blocked the GitHub window. Allow pop-ups for this site and try again.',
+		);
+		return;
+	}
+	popupBlockedError.value = '';
+	awaitingPopup.value = true;
 	connectPoll = setInterval(async () => {
-		const closed = popup?.closed;
+		const closed = popup.closed;
 		await installationsResource.reload();
 		const added = (installationsResource.data || []).find(
 			(i) => !known.has(String(i.id)),
@@ -401,15 +410,20 @@ function installApp() {
 		if (added) {
 			stopConnectPoll();
 			newSpace.github_installation_id = String(added.id);
-			popup?.close();
+			popup.close();
 			return;
 		}
 		if (closed) stopConnectPoll();
 	}, 1500);
 }
 
+// While a GitHub popup is open, the polls reload resources in the background;
+// this keeps their loading state from swapping the panel for the spinner.
+const awaitingPopup = ref(false);
+const popupBlockedError = ref('');
 let connectPoll = null;
 function stopConnectPoll() {
+	awaitingPopup.value = false;
 	if (connectPoll) {
 		clearInterval(connectPoll);
 		connectPoll = null;
@@ -426,18 +440,22 @@ function connectGithub() {
 		'github-connect',
 		'popup,width=720,height=760',
 	);
-	githubConnected.loading = true;
 	stopConnectPoll();
+	// The OAuth round trip returns to the app, so a blocked popup can run in this tab.
+	if (!popup) {
+		window.location.href = '/github/authorize';
+		return;
+	}
+	awaitingPopup.value = true;
 	connectPoll = setInterval(async () => {
-		if (popup?.closed && !githubConnected.data) {
+		if (popup.closed && !githubConnected.data) {
 			stopConnectPoll();
-			githubConnected.loading = false;
 			return;
 		}
 		await githubConnected.reload();
 		if (githubConnected.data) {
 			stopConnectPoll();
-			popup?.close();
+			popup.close();
 			installationsResource.fetch();
 		}
 	}, 1500);
