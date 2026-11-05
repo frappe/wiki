@@ -23,12 +23,21 @@ def cr_new(s: Session, args):
 
 
 def cr_draft(s: Session, args):
-	"""Reuses your newest Draft / Changes Requested CR, which may hold older work."""
+	"""Reuses your newest Draft / Changes Requested CR, which may hold older work.
+
+	For a space you can merge into, an unfinished merge (In Review / Approved, never
+	merged) is handed back too, so it can be finished instead of orphaned.
+	"""
 	sp = _writable_space(s, args.space)
 	cr = s.wiki.draft_cr(sp["name"], args.title)
 	pending = s.wiki.diff(cr["name"]) or []
 	print(f"{cr['name']}  {cr['status']}  {cr['title']}\nexport WIKI_CR={cr['name']}")
-	if pending:
+	if cr["status"] not in EDITABLE:
+		print(
+			f"warning: {cr['name']} is an unfinished merge ({cr['status']}) and is locked for edits. "
+			"`publish` finishes it; `cr new` starts clean."
+		)
+	elif pending:
 		print(
 			f"warning: already holds {len(pending)} change(s). `cr show` lists them; `cr new` starts clean."
 		)
