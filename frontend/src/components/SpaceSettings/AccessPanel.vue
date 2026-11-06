@@ -113,6 +113,17 @@
 					@update:modelValue="updateFeedbackSetting"
 				/>
 			</SettingsRow>
+
+			<SettingsRow
+				:title="__('Allow PDF Download')"
+				:description="__('Let readers download wiki pages as PDF')"
+			>
+				<Switch
+					v-model="allowPdfDownload"
+					:disabled="!canManageAccess || savingPdfDownload"
+					@update:modelValue="updatePdfDownloadSetting"
+				/>
+			</SettingsRow>
 		</div>
 
 		<!-- Primary Save, below the message, aligned right -->
@@ -166,6 +177,8 @@ const allowContributions = ref(true);
 const savingContributions = ref(false);
 const enableFeedbackCollection = ref(false);
 const savingFeedback = ref(false);
+const allowPdfDownload = ref(true);
+const savingPdfDownload = ref(false);
 // Git-synced spaces are read-only; the toggle is moot and the server rejects it.
 const isGitSynced = computed(() => Boolean(props.space.doc?.git_synced));
 
@@ -209,6 +222,7 @@ watch(
 					? true
 					: Boolean(doc.allow_contributions);
 			enableFeedbackCollection.value = Boolean(doc.enable_feedback_collection);
+			allowPdfDownload.value = Boolean(doc.allow_pdf_download);
 			spaceCapabilities.submit({ space: props.spaceId });
 		}
 	},
@@ -331,6 +345,22 @@ async function updateFeedbackSetting(value) {
 		);
 	} finally {
 		savingFeedback.value = false;
+	}
+}
+
+async function updatePdfDownloadSetting(value) {
+	savingPdfDownload.value = true;
+	try {
+		await props.space.setValue.submit({
+			allow_pdf_download: value ? 1 : 0,
+		});
+	} catch (error) {
+		allowPdfDownload.value = !value;
+		toast.error(
+			error.messages?.[0] || __('Failed to update the PDF download setting'),
+		);
+	} finally {
+		savingPdfDownload.value = false;
 	}
 }
 

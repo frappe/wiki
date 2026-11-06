@@ -46,7 +46,9 @@ test.describe('Page actions – AI link URL', () => {
 	}) => {
 		await page.setViewportSize({ width: 1100, height: 900 });
 
-		const space = await wiki.space();
+		const space = await wiki.space({
+			roles: [{ role: 'Guest', permission_level: 'Read' }],
+		});
 		await page.goto(space.url());
 		await page.waitForLoadState('networkidle');
 
@@ -179,10 +181,10 @@ test.describe('Page actions – AI link URL', () => {
 			);
 		});
 
-		// Open the page-actions dropdown (toggle button sits next to the edit link).
-		const editLink = publicPage.locator('a.wiki-edit-link:visible');
-		await expect(editLink).toBeVisible({ timeout: 5000 });
-		await editLink.locator('xpath=following-sibling::button').click();
+		await publicPage
+			.getByTestId('page-actions')
+			.getByRole('button', { name: 'More page actions' })
+			.click();
 
 		const aiLink = publicPage.locator('a:has-text("Open in ChatGPT"):visible');
 		await expect(aiLink).toBeVisible({ timeout: 5000 });

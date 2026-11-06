@@ -73,7 +73,7 @@
 		     kinds of thing, so it takes the three-dot mark every other overflow
 		     menu in the app uses. -->
 		<div
-			v-if="!readonly"
+			v-if="showFooter"
 			class="relative flex shrink-0 items-center gap-1.5 border-t border-outline-gray-2 p-2"
 		>
 			<!-- Anything the sidebar wants to show above the footer without
@@ -87,7 +87,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(() => openCreateDialog(rootNode, false))">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -246,9 +246,12 @@
 
 <script setup>
 import { useNewPageRequest } from '@/composables/useNewPageRequest';
+import { useStartEditing } from '@/composables/useStartEditing';
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
+import { firstPageIn } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
 import {
 	Dropdown,
@@ -303,6 +306,14 @@ const props = defineProps({
 const emit = defineEmits(['reorder-state-change']);
 
 const draftStore = useDraftWorkspaceStore();
+const spaceStore = useSpaceStore();
+const { requireEditing } = useStartEditing();
+
+// In read mode, creating anything asks for a change request first.
+async function whenEditing(action) {
+	if (await requireEditing()) action();
+}
+
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
 // parent group after a create is actually visible in the tree.
 const expandedNodes = useStorage(
@@ -311,6 +322,13 @@ const expandedNodes = useStorage(
 );
 
 const hasPages = computed(() => (props.treeData?.children?.length || 0) > 0);
+// Adding is for edit mode. Edit lives in a page's header, so a space with no
+// page to open keeps the footer for reading too.
+const showFooter = computed(
+	() =>
+		!props.readonly &&
+		(spaceStore.isEditing || !firstPageIn(props.treeData?.children)),
+);
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results
 // render as a flat ranked list, not a pruned tree.
@@ -424,7 +442,9 @@ watch(
 	newPageRequested,
 	(requested) => {
 		if (!requested || props.readonly) return;
-		if (consumeNewPageRequest()) openCreateDialog(props.rootNode, false);
+		if (consumeNewPageRequest()) {
+			whenEditing(() => openCreateDialog(props.rootNode, false));
+		}
 	},
 	{ immediate: true },
 );
@@ -434,12 +454,12 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () => openCreateDialog(props.rootNode, true),
+		onClick: () => whenEditing(() => openCreateDialog(props.rootNode, true)),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () => openExternalLinkDialog(props.rootNode),
+		onClick: () => whenEditing(() => openExternalLinkDialog(props.rootNode)),
 	},
 ];
 

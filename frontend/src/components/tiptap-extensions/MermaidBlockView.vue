@@ -1,22 +1,9 @@
-<script>
-// Module-scoped so every mounted block gets a distinct id. A counter inside
-// <script setup> resets on each instance, so multiple diagrams would all share
-// "mermaid-editor-1" and collide on the same mermaid.render() DOM id —
-// cross-contaminating their SVGs (one renders glitchy, another stays blank).
-let mermaidInstanceCounter = 0;
-function nextMermaidInstanceId() {
-	mermaidInstanceCounter += 1;
-	return `mermaid-editor-${mermaidInstanceCounter}`;
-}
-</script>
-
 <script setup>
 import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
 import { watchDebounced } from '@vueuse/core';
-import { useTheme } from '@/composables/useTheme';
-import { computed, onMounted, ref, watch } from 'vue';
-import { getMermaid, getMermaidThemeConfig } from './mermaid-loader.js';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { getMermaid } from './mermaid-loader.js';
 
 const props = defineProps({
 	node: { type: Object, required: true },
@@ -32,100 +19,44 @@ const props = defineProps({
 const isEditable = useNodeViewEditable(props.editor);
 const isReadOnly = computed(() => !isEditable.value);
 
-// Unique, collision-free render ids without Date.now()/Math.random() (which
-// can collide on rapid keystrokes). One stable instance id per mounted block
-// (from the module-scoped counter), plus a monotonically increasing render
-// counter within the instance.
-const instanceId = nextMermaidInstanceId();
-let renderVersion = 0;
-
 const code = computed(() => props.node.attrs.code || '');
+const hasCode = computed(() => code.value.trim() !== '');
 
-// Keep the LAST successfully-rendered SVG on screen even while the current
-// source is mid-edit / invalid, so the preview never flickers to blank.
-const lastGoodSvg = ref('');
-const errorMessage = ref('');
-const isRendering = ref(false);
-
-// Theme is the same signal the rest of the SPA uses (see Sidebar.vue /
-// DiffViewer.vue): the painted scheme behind <html data-theme>. We re-render on
-// flips so the diagram picks up the freshly-resolved Frappe UI tokens (the theme
-// itself comes from getMermaidThemeConfig(), not this value).
-const { resolvedTheme } = useTheme();
+// Pele's mount() keeps the last good drawing (dimmed, with the error) while the
+// source is mid-edit, and follows theme tokens through CSS without a redraw.
+const diagramElement = ref(null);
+let diagram = null;
+let diagramHost = null;
 
 function updateCode(event) {
 	props.updateAttributes({ code: event.target.value });
 }
 
-function cleanErrorMessage(error) {
-	const message = error?.message || String(error || '');
-	// Mermaid prefixes parse errors with a noisy multi-line banner; keep the
-	// first meaningful line so the inline hint stays compact.
-	return (
-		message.split('\n').find((line) => line.trim()) || 'Invalid Mermaid syntax.'
-	);
-}
-
-async function renderPreview() {
-	const source = code.value.trim();
-	const version = ++renderVersion;
-
-	if (!source) {
-		lastGoodSvg.value = '';
-		errorMessage.value = '';
-		isRendering.value = false;
+async function renderDiagram() {
+	if (!hasCode.value) return;
+	let mountMermaid;
+	try {
+		mountMermaid = await getMermaid();
+	} catch (error) {
+		console.error('Failed to load Mermaid renderer:', error);
 		return;
 	}
-
-	isRendering.value = true;
-	const renderId = `${instanceId}-${version}`;
-	try {
-		const mermaid = await getMermaid();
-		const themeConfig = await getMermaidThemeConfig();
-		// Mermaid sizes nodes from the label's measured width; measuring before the
-		// web font loads sizes against a narrower fallback and the real font then
-		// overflows (the last glyph clips). Wait for fonts so sizing is accurate.
-		if (document.fonts?.ready) {
-			try {
-				await document.fonts.ready;
-			} catch {
-				/* fonts API unavailable — render anyway */
-			}
-		}
-		if (version !== renderVersion) return;
-
-		mermaid.initialize({
-			startOnLoad: false,
-			securityLevel: 'strict',
-			...themeConfig,
-		});
-
-		const { svg } = await mermaid.render(renderId, source);
-		if (version !== renderVersion) return;
-
-		lastGoodSvg.value = svg;
-		errorMessage.value = '';
-	} catch (error) {
-		if (version !== renderVersion) return;
-		// Keep the last good render visible; just surface the error inline.
-		errorMessage.value = cleanErrorMessage(error);
-	} finally {
-		// On a syntax error mermaid.render() throws but leaves its temporary
-		// "d<id>" container (the error "bomb" diagram) attached to <body>. Remove
-		// it so a stray bomb never piles up at the bottom of the page while typing.
-		document.getElementById(`d${renderId}`)?.remove();
-		if (version === renderVersion) {
-			isRendering.value = false;
-		}
+	const host = diagramElement.value;
+	if (!host || !hasCode.value) return;
+	if (host === diagramHost) {
+		diagram.update(code.value.trim());
+		return;
 	}
+	// Toggling read-only swaps the wrapper, so the diagram moves to a new host.
+	diagram?.destroy();
+	diagram = mountMermaid(host, code.value.trim());
+	diagramHost = host;
 }
 
-// Debounce edits so we don't re-render on every keystroke, but re-render
-// immediately when the theme flips.
-watchDebounced(code, renderPreview, { debounce: 300, maxWait: 1000 });
-watch(resolvedTheme, renderPreview);
-
-onMounted(renderPreview);
+// Debounced: a large diagram takes long enough to draw that typing would lag.
+watchDebounced(code, renderDiagram, { debounce: 300, maxWait: 1000 });
+watch(diagramElement, renderDiagram, { flush: 'post' });
+onBeforeUnmount(() => diagram?.destroy());
 </script>
 
 <template>
@@ -134,13 +65,7 @@ onMounted(renderPreview);
 		class="mermaid-figure"
 		contenteditable="false"
 	>
-		<div v-if="lastGoodSvg" class="mermaid-figure-svg" v-html="lastGoodSvg" />
-		<div v-else-if="isRendering" class="mermaid-figure-placeholder">
-			Rendering…
-		</div>
-		<div v-else class="mermaid-figure-error">
-			{{ errorMessage || 'Unable to render this diagram.' }}
-		</div>
+		<div ref="diagramElement" class="mermaid-diagram" />
 	</NodeViewWrapper>
 
 	<NodeViewWrapper
@@ -188,20 +113,10 @@ onMounted(renderPreview);
 
 			<div class="mermaid-block-pane mermaid-block-preview-pane">
 				<div class="mermaid-block-preview" aria-live="polite">
-					<div
-						v-if="lastGoodSvg"
-						class="mermaid-block-svg"
-						v-html="lastGoodSvg"
-					/>
-					<div v-else-if="isRendering" class="mermaid-block-placeholder">
-						Rendering…
-					</div>
-					<div v-else class="mermaid-block-placeholder">
+					<div v-show="hasCode" ref="diagramElement" class="mermaid-diagram" />
+					<div v-if="!hasCode" class="mermaid-block-placeholder">
 						Start typing Mermaid to preview your diagram.
 					</div>
-				</div>
-				<div v-if="errorMessage" class="mermaid-block-error" role="alert">
-					{{ errorMessage }}
 				</div>
 			</div>
 		</div>
@@ -212,9 +127,6 @@ onMounted(renderPreview);
 /* Read-only render (CR preview / published viewer): a centered figure on a
    soft surface, mirroring the public page's .prose pre.mermaid styling. */
 .mermaid-figure {
-	display: flex;
-	justify-content: center;
-	align-items: center;
 	padding: 2rem 1.5rem;
 	margin: 1.5rem 0;
 	background: var(--surface-gray-1);
@@ -223,23 +135,27 @@ onMounted(renderPreview);
 	overflow-x: auto;
 }
 
-.mermaid-figure-svg {
-	max-width: 100%;
+/* Pele measures this box to fit the diagram, so it must not shrink to its
+   content. Colors come from wiki/public/css/diagrams.css. */
+.mermaid-diagram {
+	width: 100%;
 }
 
-.mermaid-figure-svg :deep(svg) {
-	max-width: 100%;
-	height: auto;
+.mermaid-diagram :deep(svg) {
+	margin-inline: auto;
 }
 
-.mermaid-figure-placeholder {
-	font-size: 0.8125rem;
-	color: var(--ink-gray-5);
+/* Pele pulls the error up over the drawing's bottom edge (inline style), where
+   it covers legends and labels while the author types. Show it below instead.
+   Only that variant has a title; the standalone one keeps its caret aligned. */
+.mermaid-diagram :deep(.pele-error[title]) {
+	margin-top: 0.5rem !important;
+	text-align: center;
 }
 
-.mermaid-figure-error {
-	font-size: 0.8125rem;
-	color: var(--ink-red-5, #b91c1c);
+/* Edge labels are backed with --pele-bg; match the editor's white preview pane. */
+.mermaid-block :deep(.pele) {
+	--pele-bg: var(--surface-base);
 }
 
 .mermaid-block {
@@ -372,32 +288,11 @@ onMounted(renderPreview);
 	overflow: auto;
 }
 
-.mermaid-block-svg {
-	max-width: 100%;
-}
-
-.mermaid-block-svg :deep(svg) {
-	max-width: 100%;
-	height: auto;
-}
-
 .mermaid-block-placeholder {
 	font-size: 0.8125rem;
 	color: var(--ink-gray-5);
 	text-align: center;
 	padding: 0 1rem;
-}
-
-.mermaid-block-error {
-	padding: 0.5rem 0.75rem;
-	border-top: 1px solid var(--outline-gray-2);
-	background: var(--surface-red-1, #fef2f2);
-	color: var(--ink-red-5, #b91c1c);
-	font-size: 0.75rem;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-		'Liberation Mono', monospace;
-	white-space: pre-wrap;
-	word-break: break-word;
 }
 
 @media (max-width: 768px) {

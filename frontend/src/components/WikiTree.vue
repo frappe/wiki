@@ -5,7 +5,7 @@
 		v-model:expanded="expandedKeys"
 		node-key="doc_key"
 		guides="none"
-		:draggable="!readonly && !searchActive"
+		:draggable="!readonly && spaceStore.isEditing && !searchActive"
 		:move="allowMove"
 		@drag-start="onDragStart"
 		@drag-end="onDragEnd"
@@ -85,9 +85,9 @@
 					role="status"
 				/>
 
-				<!-- Hover-reveal on desktop; always visible on touch (no hover)
-				     so row actions stay reachable on a phone. -->
-				<div v-if="!readonly" class="flex items-center opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity" @click.stop>
+				<!-- Edit mode only. Hover-reveal on desktop; always visible on touch
+				     (no hover) so row actions stay reachable on a phone. -->
+				<div v-if="canModify" class="flex items-center opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity" @click.stop>
 					<Dropdown :options="getDropdownOptions(node)">
 						<Button variant="ghost" size="sm">
 							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
@@ -103,6 +103,7 @@
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
+import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
 import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -126,7 +127,8 @@ const props = defineProps({
 		default: null,
 	},
 	// Read-only spaces (git-synced) render the tree for browsing only: no
-	// drag-reorder, no row actions, no add-page/group affordances.
+	// drag-reorder, no row actions, no add-page/group affordances. Read mode
+	// keeps the actions but not the drag: a drop cannot wait on a dialog.
 	readonly: {
 		type: Boolean,
 		default: false,
@@ -164,6 +166,8 @@ const emit = defineEmits([
 const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
+const spaceStore = useSpaceStore();
+const canModify = computed(() => !props.readonly && spaceStore.isEditing);
 const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
 const storageKey = computed(
@@ -246,9 +250,10 @@ function handleRowClick(node) {
 		return;
 	}
 
-	// External links open edit dialog instead of navigating
+	// Editing, an external link opens its settings; reading, it opens the link.
 	if (node.is_external_link) {
-		if (!props.readonly) emit('edit-external-link', node);
+		if (canModify.value) emit('edit-external-link', node);
+		else window.open(node.external_url, '_blank', 'noopener');
 		return;
 	}
 
@@ -414,6 +419,7 @@ function getDropdownOptions(node) {
 	if (!hasChildren) {
 		options.push({
 			group: __('Danger'),
+			hideLabel: true,
 			options: [
 				{
 					label: __('Delete'),

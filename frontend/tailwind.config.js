@@ -9,6 +9,8 @@ export default {
 	content: [
 		'./index.html',
 		'./src/**/*.{vue,js,ts,jsx,tsx}',
+		// pdf-viewer.js builds markup with Tailwind classes.
+		'../wiki/public/js/pdf-viewer.js',
 		...frappeUIContent,
 	],
 	theme: {

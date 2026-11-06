@@ -228,6 +228,27 @@ test.describe('Analytics dashboard', () => {
 		await expect(viewsLink).toHaveText('43 views in last 30 days');
 	});
 
+	test("the page's meta line leaves out a view count of zero", async ({
+		page,
+	}) => {
+		await page.route(
+			'**/api/method/wiki.api.analytics.get_page_views',
+			(route) =>
+				route.fulfill({
+					contentType: 'application/json',
+					body: JSON.stringify({ message: 0 }),
+				}),
+		);
+		const pageViews = page.waitForResponse(
+			'**/api/method/wiki.api.analytics.get_page_views',
+		);
+
+		await page.goto(space.url('page', space.page('Beta').name));
+		await pageViews;
+		await expect(page.getByTestId('page-history-link')).toBeVisible();
+		await expect(page.getByTestId('page-views-link')).toHaveCount(0);
+	});
+
 	test("the page's meta line opens its analytics", async ({ page }) => {
 		const requests = await stubAnalytics(page, space);
 		const beta = space.page('Beta');

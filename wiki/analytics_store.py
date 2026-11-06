@@ -3,7 +3,7 @@
 
 """DuckDB mirror of `Web Page View`, and the aggregate queries the dashboard runs against it.
 
-MariaDB stays the source of truth: this is a derived cache that a cron refills, and it can be
+`Web Page View` stays the source of truth: this is a derived cache that a cron refills, and it can be
 deleted at any time. The counting lives here because the numbers are columnar work -- grouped
 counts and a first-view window over the whole log -- that MariaDB did badly enough to need a
 rollup table, an extra index and a response cache to stay usable.
@@ -166,27 +166,45 @@ def _derive(db, since: datetime | None = None) -> None:
 	db.execute(DERIVE, {"since": since})
 
 
+def page_view_source():
+	"""Return the query builder, table and connection that hold `Web Page View` rows.
+
+	Frappe develop keeps them in a SQLite log database (frappe/frappe#43000), while older
+	versions keep them in the site database.
+	"""
+	try:
+		from frappe.utils.logging import get_log_db, is_log_doctype, log_table
+	except ImportError:
+		is_log_doctype = None
+
+	if is_log_doctype and is_log_doctype("Web Page View"):
+		qb, view = log_table("Web Page View")
+		return qb, view, get_log_db()
+	return frappe.qb, frappe.qb.DocType("Web Page View"), frappe.db
+
+
 def _copy_rows(db, since) -> int:
 	columns = ", ".join(FIELDS)
 	marks = "?, TRY_CAST(? AS TIMESTAMP), ?, ?, COALESCE(?, '')"
-	view = frappe.qb.DocType("Web Page View")
-	page = frappe.qb.from_(view).select(*FIELDS).orderby(view.creation).orderby(view.name).limit(PAGE_SIZE)
+	qb, view, source = page_view_source()
+	page = qb.from_(view).select(*FIELDS).orderby(view.creation).orderby(view.name).limit(PAGE_SIZE)
 	held_before = db.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0]
 	cursor = None
 
 	db.begin()
 	while True:
 		if cursor:
-			creation, name = cursor
+			# The log database stores `creation` as text, and pypika renders a datetime with a `T`.
+			creation, name = str(cursor[0]), cursor[1]
 			query = page.where(
 				(view.creation > creation) | ((view.creation == creation) & (view.name > name))
 			)
 		elif since:
-			query = page.where(view.creation >= since)
+			query = page.where(view.creation >= str(since))
 		else:
 			query = page
 
-		rows = query.run()
+		rows = source.sql(query)
 		if not rows:
 			break
 

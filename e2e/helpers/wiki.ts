@@ -28,16 +28,21 @@ export async function clickSidebarAddOption(
 	option: 'New Page' | 'New Group' | 'External Link',
 ) {
 	if (option === 'New Page') {
-		await newPageButton(page).click();
+		await openNewPageDialog(page);
 		return;
 	}
+	await showSidebarActions(page);
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
+	await answerEditDialogIfAsked(
+		page,
+		option === 'New Group' ? /Create New Group/ : /External Link/,
+	);
 }
 
 /**
- * The sidebar's own "New page" button, which renders whether or not the space
- * already has pages. Scoped to the sidebar: an empty space draws a second
+ * The sidebar's own "New page" button: shown in edit mode, and in read mode
+ * only while the space has no pages. Scoped to the sidebar: an empty space draws a second
  * "New page" in the content column (spec 02 phase 5), so the name alone is
  * ambiguous there. The mobile tree lives in a drawer that is an aside too.
  */
@@ -49,10 +54,82 @@ export function newPageButton(page: Page) {
 }
 
 /**
+ * The sidebar's add and row actions show only in edit mode, so a space with
+ * pages is put into edit mode through the page header first.
+ */
+export async function showSidebarActions(page: Page) {
+	const edit = page
+		.getByRole('main')
+		.getByRole('button', { name: 'Edit', exact: true });
+	await expect(newPageButton(page).or(edit)).toBeVisible({ timeout: 15000 });
+	if (await newPageButton(page).isVisible()) return;
+	await edit.click();
+	await startEditing(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
+}
+
+/**
  * Start creating a page from the sidebar. Leaves the create dialog open.
+ *
+ * In an empty space the button opens a change request on its own; any Edit
+ * dialog that still appears is answered so callers only see the create dialog.
  */
 export async function openNewPageDialog(page: Page) {
+	await showSidebarActions(page);
 	await newPageButton(page).click();
+	await answerEditDialogIfAsked(page, /Create New (Page|Group)/);
+}
+
+/** The "New change request" dialog Edit and every read-mode write open. */
+export function editDialog(page: Page) {
+	return page.getByRole('dialog').filter({ hasText: 'New change request' });
+}
+
+/** Name the change request in the open Edit dialog and start editing. */
+export async function startEditing(page: Page, title = 'E2E change') {
+	const dialog = editDialog(page);
+	await dialog.getByLabel('Title').fill(title);
+	await dialog.getByRole('button', { name: 'Start editing' }).click();
+	await expect(dialog).toBeHidden({ timeout: 15000 });
+}
+
+/** Click the page header's Edit and wait for the editor. */
+export async function editPage(page: Page, title = 'E2E change') {
+	await page
+		.getByRole('main')
+		.getByRole('button', { name: 'Edit', exact: true })
+		.click();
+	await startEditing(page, title);
+	await expect(
+		page.locator('.ProseMirror[contenteditable="true"]'),
+	).toBeVisible({ timeout: 15000 });
+}
+
+/** Pick an item from a page's row menu in the sidebar tree. */
+export async function openTreeRowMenuItem(
+	page: Page,
+	title: string,
+	item: string,
+) {
+	await showSidebarActions(page);
+	const row = page
+		.locator('aside [role="treeitem"]', { hasText: title })
+		.first();
+	await row.hover();
+	await row.locator('> div').first().locator('button').last().click();
+	await page.getByRole('menuitem', { name: item }).click();
+}
+
+/**
+ * After an action that may need a change request: answer the Edit dialog if it
+ * appeared, or carry on once `next` (the action's own dialog) shows instead.
+ */
+export async function answerEditDialogIfAsked(page: Page, next: RegExp) {
+	const nextDialog = page.getByRole('dialog').filter({ hasText: next });
+	await expect(editDialog(page).or(nextDialog)).toBeVisible({
+		timeout: 15000,
+	});
+	if (await editDialog(page).isVisible()) await startEditing(page);
 }
 
 /**
@@ -197,9 +274,9 @@ export async function currentDraftDocKey(page: Page): Promise<string> {
  *
  * The editor header has no Save button — autosave owns the save path and the
  * dirty dot on the title reports it — so a spec that needs the buffer on the
- * server presses the manual-flush shortcut instead of waiting out the ten
- * second autosave. Clicking the body first puts focus inside the editor, which
- * is where the shortcut is bound.
+ * server presses the manual-flush shortcut instead of waiting for autosave.
+ * Clicking the body first puts focus inside the editor, which is where the
+ * shortcut is bound.
  */
 export async function saveEditor(page: Page) {
 	await page.locator('.ProseMirror').first().click();

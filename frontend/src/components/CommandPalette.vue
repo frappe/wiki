@@ -132,6 +132,7 @@ import {
 	Dialog,
 	KeyboardShortcut,
 	Tooltip,
+	call,
 	createResource,
 	useKeyboardShortcut,
 	useList,
@@ -160,7 +161,7 @@ const { open: openSpaceSettings } = useSpaceSettings();
 const { themeIcon, toggleTheme, setTheme } = useTheme();
 const { requestNewPage } = useNewPageRequest();
 const { requestNewSpace } = useNewSpaceRequest();
-const { recentPages } = useRecentPages();
+const { recentPages, forget: forgetRecentPages } = useRecentPages();
 
 const query = ref('');
 // By key, not index, so rows that land late don't move the selection.
@@ -203,8 +204,23 @@ const spaces = useList({
 const pages = createResource({ url: 'wiki.api.search.search_pages' });
 
 watch(showCommandPalette, (open) => {
-	if (open && !spaces.data) spaces.fetch();
+	if (!open) return;
+	if (!spaces.data) spaces.fetch();
+	forgetDeletedRecentPages();
 });
+
+async function forgetDeletedRecentPages() {
+	const names = recentPages.value.map((page) => page.name);
+	if (!names.length) return;
+	const found = await call('frappe.client.get_list', {
+		doctype: 'Wiki Document',
+		fields: ['name'],
+		filters: { name: ['in', names] },
+		limit_page_length: names.length,
+	});
+	const foundNames = found.map((page) => page.name);
+	forgetRecentPages(names.filter((name) => !foundNames.includes(name)));
+}
 
 watchDebounced(
 	query,

@@ -1,0 +1,679 @@
+/* Styles for server-rendered pages, in the reader and the app's read mode.
+   Scoped to .wiki-rendered because the editor reuses some of these class
+   names. The overlays at the end sit on <body>, outside the scope. */
+
+/* Prose tweaks. Typography itself (sizes, headings, links,
+   inline code, blockquotes, hr) comes from frappe-ui-prose.css. */
+.wiki-rendered {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  font-family: var(--font-sans);
+}
+
+/* Blank lines the author left between blocks. prose-v3 zeroes paragraph margins,
+   so vertical rhythm is carried by empty paragraphs; markdown.py materialises
+   them as <p class="wiki-blank-line"><br></p>. 20px matches the SPA read-only
+   editor's empty-paragraph line-height (frappe-ui TextEditor/style.css). */
+.wiki-rendered .wiki-blank-line {
+  line-height: 20px;
+}
+
+/* Code block shell + hljs theme come from frappe-ui-code.css; the reader
+   only anchors its own toolbar overlay and scrolls long lines. */
+.wiki-rendered pre {
+  position: relative;
+  overflow-x: auto;
+}
+
+/* ---------- Mermaid diagram ----------
+   The diagram ships as <pre class="mermaid"> and inherits the code-block look
+   from `.wiki-rendered pre`. Once mermaid-renderer.js hydrates it (data-processed), it
+   isn't code any more — present it as a centered figure: the diagram floats on
+   a soft surface with breathing room, not crammed top-left in a code box. */
+.wiki-rendered pre.mermaid[data-processed] {
+  /* Block, not flex: Pele lays its error line out below the drawing. */
+  display: block;
+  padding: 2rem 1.5rem;
+  margin: 1.5rem 0;
+  background-color: var(--surface-gray-1) !important;
+  border: 1px solid var(--outline-gray-2);
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  white-space: normal;
+  /* Drop the inherited <pre> monospace/line-height so the SVG measures cleanly. */
+  font-family: inherit;
+  line-height: normal;
+}
+
+.wiki-rendered pre.mermaid[data-processed] > svg {
+  margin-inline: auto;
+}
+
+/* Pre-hydration / no-JS: the raw source is showing — keep it a readable,
+   left-aligned monospace block rather than a centered figure. */
+.wiki-rendered pre.mermaid:not([data-processed]) {
+  display: block;
+  white-space: pre;
+  color: var(--ink-gray-6);
+}
+
+
+/* Code block enhancement — mirrors the editor's CodeBlockComponent layout:
+   line-number gutter + hover-revealed toolbar (language label, ghost copy). */
+.wiki-rendered pre.code-block-enhanced {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding-left: 0.75rem;
+}
+
+.wiki-rendered .code-block-gutter {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  user-select: none;
+  color: var(--ink-gray-4);
+}
+
+.wiki-rendered .code-block-gutter span {
+  display: block;
+}
+
+.wiki-rendered pre.code-block-enhanced > code {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+}
+
+/* Toolbar - inside pre, top right, revealed on hover (always on touch) */
+.wiki-rendered .code-block-toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.375rem 0.5rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.wiki-rendered pre:hover .code-block-toolbar,
+.wiki-rendered .code-block-toolbar:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .wiki-rendered .code-block-toolbar {
+    opacity: 1;
+  }
+
+  /* Always shown on touch, so it gets its own row instead of covering the first line. */
+  .wiki-rendered pre.code-block-enhanced {
+    padding-top: 2.25rem;
+  }
+}
+
+/* Language label — plain text, like the editor's read-only badge */
+.wiki-rendered .code-block-lang {
+  user-select: none;
+  padding: 0 0.25rem;
+  font-size: 0.75rem;
+  color: var(--ink-gray-4);
+}
+
+/* Copy button — frappe-ui xs ghost button */
+.wiki-rendered .code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ink-gray-8);
+  background-color: transparent;
+  border: none;
+  border-radius: var(--radius-3, 6px);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.wiki-rendered .code-block-copy:hover {
+  background-color: var(--surface-gray-3);
+}
+
+.wiki-rendered .code-block-copy:active {
+  background-color: var(--surface-gray-4);
+}
+
+.wiki-rendered .code-block-copy svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Heading anchor links */
+.wiki-rendered h1,
+.wiki-rendered h2,
+.wiki-rendered h3,
+.wiki-rendered h4,
+.wiki-rendered h5,
+.wiki-rendered h6 {
+  position: relative;
+  scroll-margin-top: 5rem;
+}
+
+.wiki-rendered .heading-anchor {
+  position: absolute;
+  left: -1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  color: var(--ink-gray-4);
+  text-decoration: none;
+  font-weight: normal;
+  transition: opacity 0.15s ease;
+}
+
+.wiki-rendered h1:hover .heading-anchor,
+.wiki-rendered h2:hover .heading-anchor,
+.wiki-rendered h3:hover .heading-anchor,
+.wiki-rendered h4:hover .heading-anchor,
+.wiki-rendered h5:hover .heading-anchor,
+.wiki-rendered h6:hover .heading-anchor,
+.wiki-rendered .heading-anchor:focus {
+  opacity: 1;
+}
+
+.wiki-rendered .heading-anchor:hover {
+  color: var(--ink-gray-6);
+}
+
+/* Callout/Aside Styles — the frappe-ui Alert banner: one neutral surface, with
+   the type's colour carried only by the icon. */
+.wiki-rendered .callout {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-radius: var(--radius-6);
+  background-color: var(--surface-gray-1);
+}
+
+.wiki-rendered .callout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.wiki-rendered .callout-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+}
+
+.wiki-rendered .callout-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.wiki-rendered .callout-title {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-8);
+}
+
+/* Aligned to the title, not the container: Alert's description is full-bleed,
+   but Alert is a 384px status box with a one-line description. At document
+   width, with paragraphs and lists in the body, a full-bleed body leaves the
+   header looking detached. 1rem icon + 0.375rem gap = the title's left edge. */
+.wiki-rendered .callout-content {
+  margin-top: 0.25rem;
+  padding-left: calc(1rem + 0.375rem);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-6);
+}
+
+.wiki-rendered .callout-content > *:first-child {
+  margin-top: 0;
+}
+
+.wiki-rendered .callout-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Code in callouts */
+.wiki-rendered .callout-content code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+/* Code blocks in callouts */
+.wiki-rendered .callout-content pre {
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+}
+
+.wiki-rendered .callout-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Lists in callouts */
+.wiki-rendered .callout-content ul,
+.wiki-rendered .callout-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.wiki-rendered .callout-content li {
+  margin: 0.25rem 0;
+}
+
+.wiki-rendered .callout-note .callout-icon {
+  color: var(--ink-blue-5);
+}
+
+.wiki-rendered .callout-tip .callout-icon {
+  color: var(--ink-green-5);
+}
+
+.wiki-rendered .callout-caution .callout-icon {
+  color: var(--ink-amber-5);
+}
+
+.wiki-rendered .callout-danger .callout-icon {
+  color: var(--ink-red-5);
+}
+
+/* Image viewer, added to <body> by image-viewer.js */
+#image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease-in-out;
+  background: color-mix(in srgb, var(--surface-base) 90%, transparent);
+}
+
+#image-viewer.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+#image-viewer-img {
+  min-width: 45rem;
+  max-width: 60vw;
+  max-height: 80vh;
+  object-fit: contain;
+  cursor: zoom-out;
+}
+
+@media (max-width: 767.98px) {
+  #image-viewer-img {
+    min-width: 100vw;
+  }
+}
+
+body.image-viewer-open {
+  overflow: hidden;
+}
+
+/* Ensure images don't overflow container */
+.wiki-rendered img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-4);
+  cursor: zoom-in;
+}
+
+.wiki-rendered img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Keeps the caption under a left or right aligned image. */
+.wiki-rendered p[data-align="left"],
+.wiki-rendered p[data-align="right"] {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.wiki-rendered p[data-align="right"] {
+  margin-left: auto;
+}
+
+/* Image caption styling using img + em pattern
+   Usage in markdown:
+   ![alt text](image.jpg)
+   *caption text*
+   (no blank line between image and caption)
+   An image with a dark mode file renders as <picture>, which takes the
+   image's place before the caption.
+*/
+.wiki-rendered img:has(+ em),
+.wiki-rendered picture:has(+ em) {
+  margin-bottom: 0;
+}
+
+.wiki-rendered img + em,
+.wiki-rendered picture + em {
+  display: block;
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: var(--ink-gray-6);
+  text-align: center;
+}
+
+/* Task lists (server markdown emits ul.contains-task-list, a different DOM
+   shape than the editor's ul[data-type=taskList]) — match the editor's look:
+   no list markers, checkbox inline with the text. */
+.wiki-rendered ul.contains-task-list {
+  list-style: none;
+  padding-inline-start: 0.5em;
+}
+
+/* Checkboxes mirror the frappe-ui Checkbox component (sm). The public bundle
+   has no @tailwindcss/forms base, so restyle the native input from scratch:
+   appearance-none box + the forms-plugin check glyph, swapped to a dark glyph
+   on the near-white checked fill in dark mode (same as the frappe-ui preset). */
+.wiki-rendered li.task-list-item > input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: 0.5em;
+  vertical-align: -0.125em;
+  border: 1px solid var(--outline-gray-4);
+  border-radius: var(--radius-1, 4px);
+  background-color: var(--surface-base);
+  color: var(--ink-gray-9);
+}
+
+.wiki-rendered li.task-list-item > input[type="checkbox"]:checked {
+  background-color: currentColor;
+  border-color: transparent;
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+[data-theme='dark'] .wiki-rendered li.task-list-item > input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%230F0F0F' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+}
+
+/* Completed items strike through, same as the editor's data-checked rule */
+.wiki-rendered li.task-list-item:has(> input[type="checkbox"]:checked) {
+  color: var(--ink-gray-5);
+  text-decoration: line-through;
+}
+
+/* Table styling - matching Frappe UI prose tables */
+.wiki-rendered table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.wiki-rendered th,
+.wiki-rendered td {
+  padding: 0.5rem;
+  border: 1px solid var(--outline-gray-2);
+  position: relative;
+}
+
+.wiki-rendered th {
+  background-color: var(--surface-gray-2);
+  font-weight: 600;
+}
+
+/* ---------- Iframe embeds ----------
+   Stored markdown keeps whatever width/height the author pasted out of the
+   provider's share dialog, and Tailwind's preflight leaves `iframe` out of the
+   `max-width: 100%` rule it gives `img`/`video`, so those attributes win: the
+   embed overflows the article column and, when the box isn't the video's own
+   ratio, YouTube letterboxes it with black bars. Impose our own box instead. */
+.wiki-rendered iframe {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  margin: 1.5rem auto;
+  border: 0;
+  border-radius: 0.5rem;
+}
+
+/* Video providers get an exact 16:9 box — this is what kills the bars.
+   Everything else (figma, docs, gists, codepen…) keeps its authored height. */
+.wiki-rendered iframe[src*="youtube.com"],
+.wiki-rendered iframe[src*="youtube-nocookie.com"],
+.wiki-rendered iframe[src*="youtu.be"],
+.wiki-rendered iframe[src*="vimeo.com"],
+.wiki-rendered iframe[src*="loom.com"],
+.wiki-rendered iframe[src*="cloudflarestream.com"],
+.wiki-rendered iframe[src*="videodelivery.net"],
+.wiki-rendered iframe[src*="mediadelivery.net"],
+.wiki-rendered iframe[src*="aparat.com"] {
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+/* ---------- PDF embed card ---------- */
+.wiki-rendered .wiki-pdf-embed {
+  margin: 1.5rem 0;
+}
+
+.wiki-rendered .wiki-pdf-card {
+  border: 1px solid var(--outline-gray-2);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+.wiki-rendered .wiki-pdf-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--outline-gray-2);
+  background: var(--surface-gray-1);
+}
+
+.wiki-rendered .wiki-pdf-header .wiki-pdf-icon {
+  flex-shrink: 0;
+  color: var(--ink-red-4, #dc2626);
+}
+
+.wiki-rendered .wiki-pdf-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.wiki-rendered .wiki-pdf-pages {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--ink-gray-5);
+}
+
+.wiki-rendered .wiki-pdf-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.wiki-rendered .wiki-pdf-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--ink-gray-6);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.wiki-rendered .wiki-pdf-action:hover {
+  background: var(--surface-gray-3);
+  color: var(--ink-gray-9);
+}
+
+.wiki-rendered .wiki-pdf-scroll {
+  position: relative;
+  display: block;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--surface-gray-2);
+}
+
+.wiki-rendered .wiki-pdf-scroll .wiki-pdf-page {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 1rem;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+.wiki-rendered .wiki-pdf-scroll .wiki-pdf-page:last-child {
+  margin-bottom: 0;
+}
+
+.wiki-rendered .wiki-pdf-embed.is-unavailable .wiki-pdf-scroll {
+  min-height: 4rem;
+}
+
+.wiki-rendered .wiki-pdf-noscript a {
+  display: block;
+  padding: 1rem;
+  text-align: center;
+}
+
+/* ---------- PDF full-screen viewer ---------- */
+body.wiki-pdf-viewer-open {
+  overflow: hidden;
+}
+
+.wiki-pdf-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  flex-direction: column;
+  background: rgba(17, 17, 17, 0.75);
+}
+
+.wiki-pdf-viewer.active {
+  display: flex;
+}
+
+.wiki-pdf-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  background: var(--surface-base);
+  border-bottom: 1px solid var(--outline-gray-2);
+  flex-shrink: 0;
+}
+
+.wiki-pdf-viewer-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wiki-pdf-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.wiki-pdf-viewer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--ink-gray-7);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.wiki-pdf-viewer-btn:hover {
+  background: var(--surface-gray-2);
+}
+
+.wiki-pdf-viewer-zoom {
+  min-width: 3rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+}
+
+.wiki-pdf-viewer-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wiki-pdf-viewer-page {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  background: #fff;
+  max-width: 100%;
+}
+
+.wiki-pdf-viewer-error {
+  color: #fff;
+  text-align: center;
+  padding: 2rem;
+}
+
+.wiki-pdf-viewer-error a {
+  color: #fff;
+  text-decoration: underline;
+}

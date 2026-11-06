@@ -8,6 +8,8 @@ import { useRouter } from 'vue-router';
 const CHECK_ROUTE_AVAILABLE =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.check_route_available';
 
+const SAFE_LINK_PATTERN = /^(https?|mailto):/i;
+
 export function useTreeDialogs(
 	spaceId,
 	expandedNodes,
@@ -251,6 +253,12 @@ export function useTreeDialogs(
 			toast.warning(__('URL is required'));
 			return;
 		}
+		if (!SAFE_LINK_PATTERN.test(url)) {
+			toast.warning(
+				__('External links must start with http://, https:// or mailto:'),
+			);
+			return;
+		}
 
 		const parentKey = externalLinkParent.value;
 		if (parentKey) expandedNodes.value[parentKey] = true;
@@ -289,6 +297,12 @@ export function useTreeDialogs(
 		}
 		if (!url) {
 			toast.warning(__('URL is required'));
+			return;
+		}
+		if (!SAFE_LINK_PATTERN.test(url)) {
+			toast.warning(
+				__('External links must start with http://, https:// or mailto:'),
+			);
 			return;
 		}
 		const docKey = editExternalLinkNode.value?.doc_key;

@@ -28,6 +28,7 @@ export function useSyncState() {
 	);
 
 	const label = computed(() => {
+		if (draftStore.sync.conflict) return __('Changed elsewhere');
 		if (failed.value) return __('Sync failed');
 		if (saving.value) return __('Saving…');
 		if (draftStore.hasUnsavedEditorContent) return __('Unsaved changes');
@@ -43,6 +44,11 @@ export function useSyncState() {
 	// The store's own words for what went wrong, shown rather than parked in a
 	// `title` attribute nobody hovers.
 	const description = computed(() => {
+		if (draftStore.sync.conflict) {
+			return __(
+				'This draft was edited in another tab or window. Reload the latest version to get those edits. Any unsaved edits to the same pages here will be replaced.',
+			);
+		}
 		if (draftStore.sync.error) return draftStore.sync.error;
 		const failedMutation = draftStore.pending.find(
 			(m) => m.status === 'failed',

@@ -7,6 +7,8 @@ function emptyPage(docKey, opts = {}) {
 		route: opts.route ?? '',
 		content: opts.content ?? '',
 		localContent: opts.localContent ?? null,
+		serverContent: opts.serverContent ?? null,
+		sentContent: opts.sentContent ?? null,
 		isPublished: opts.isPublished ?? true,
 		saveStatus: opts.saveStatus ?? 'idle',
 		error: null,
@@ -16,12 +18,22 @@ function emptyPage(docKey, opts = {}) {
 // Per-doc editor buffers. `content` is the server-confirmed baseline while
 // `localContent` retains a divergent local snapshot across navigation and
 // restore. Both values are canonicalized by WikiEditor before comparison.
+// `serverContent` is the raw server copy the local edits build on, and
+// `sentContent` a save whose reply never came, so it may be on the server.
 // Persistence and transport remain store concerns.
 export function createPageBuffers() {
 	const pagesByKey = reactive({});
 
 	function isDirty(page) {
 		return page?.localContent != null && page.localContent !== page.content;
+	}
+
+	// False once the page changed elsewhere: saving the local edits then
+	// would overwrite that change.
+	function isBasedOn(page, serverContent) {
+		return (
+			serverContent === page.serverContent || serverContent === page.sentContent
+		);
 	}
 
 	// Submit/merge gate on derived divergence, so every caller sees the
@@ -128,6 +140,7 @@ export function createPageBuffers() {
 		dirtyPages,
 		emptyPage,
 		isDirty,
+		isBasedOn,
 		get,
 		setPage,
 		deletePage,

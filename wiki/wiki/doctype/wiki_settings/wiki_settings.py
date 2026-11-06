@@ -26,4 +26,4 @@ class WikiSettings(Document):
 
 @frappe.whitelist()
 def get_all_spaces():
-	return frappe.get_all("Wiki Space", pluck="route")
+	return frappe.get_list("Wiki Space", pluck="route")

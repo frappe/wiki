@@ -12,21 +12,34 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 from frappe.website.utils import cleanup_page_name
 
-from wiki.api.wiki_space import flush_pending_revision_syncs
-from wiki.frappe_wiki.doctype.wiki_document.wiki_document import sanitize_route
+from wiki.api.wiki_space import (
+	_get_wiki_space_for_document,
+	flush_pending_revision_syncs,
+	lock_wiki_space,
+)
+from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
+	lock_wiki_tree,
+	rebuild_space_nested_set,
+	resolve_wiki_links,
+	sanitize_route,
+	validate_external_url,
+)
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
+	changed_doc_keys,
 	create_overlay_revision,
+	create_revision,
 	create_revision_from_live_tree,
 	ensure_overlay_item,
 	ensure_revision_hashes,
-	get_effective_revision_item_map,
 	get_or_create_content_blob,
+	get_revision_item,
 	get_revision_item_map,
 	mark_hashes_stale,
 	recompute_revision_hashes,
 )
 from wiki.telemetry import capture
+from wiki.wiki.markdown import render_markdown
 
 
 class WikiChangeRequest(Document):
@@ -102,6 +115,7 @@ def _assert_space_accepts_contributions(wiki_space: str, user: str | None = None
 
 # Statuses in which the CR head revision may still be mutated by its author.
 _EDITABLE_STATUSES = {"Draft", "Changes Requested"}
+_REVIEW_STATUSES = {"In Review", "Approved"}
 
 
 def _assert_status(cr: Document, allowed: set[str]) -> None:
@@ -113,18 +127,34 @@ def _assert_status(cr: Document, allowed: set[str]) -> None:
 		)
 
 
+def can_edit_in_review(cr: Document, user: str | None = None) -> bool:
+	"""Whether the user may change an `In Review` or `Approved` CR without pulling it back.
+
+	The author can, and so can anyone who could merge it.
+	"""
+	user = user or frappe.session.user
+	return cr.status in _REVIEW_STATUSES and (cr.owner == user or _can_merge(cr.wiki_space, user))
+
+
 def _assert_editable(cr: Document) -> None:
 	"""Block any head-revision mutation once the CR has left an editable state.
 
-	A CR is only editable while it is a `Draft` or has `Changes Requested`.
-	Once it is `In Review` / `Approved` / `Merged` / `Rejected` the content is
-	frozen so a reviewer never sees a moving target.
+	Any contributor may edit a `Draft` or `Changes Requested` CR. An `In Review`
+	or `Approved` CR stays open to its author and to users who can merge it,
+	and an edit sends an `Approved` CR back to `In Review`, so an approval only
+	ever covers the content it saw. `Merged` / `Rejected` / `Archived` are frozen.
 	"""
-	if cr.status not in _EDITABLE_STATUSES:
+	if cr.status in _EDITABLE_STATUSES:
+		return
+	if not can_edit_in_review(cr):
 		frappe.throw(
 			_("This change request is {0} and is locked for editing.").format(cr.status),
 			frappe.ValidationError,
 		)
+	if cr.status == "Approved":
+		cr.db_set("status", "In Review", update_modified=False)
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
+		cr.add_comment("Comment", _("Edited after approval. Back in review."))
 
 
 def _notify_cr_owner(cr: Document, subject: str) -> None:
@@ -173,8 +203,8 @@ def _bump_operation_version(cr: Document) -> int:
 
 	Called by both the batch endpoint and every legacy mutating RPC so the
 	version is a true monotonic counter for any write to the CR head
-	revision. Without this, a legacy client (or `useBatchOperations = false`
-	on the frontend) could change state without bumping the version, and a
+	revision. Without this, a client on the per-page RPCs (such as an agent)
+	could change state without bumping the version, and a
 	subsequent batch with a stale `base_version` would still be accepted —
 	silently overwriting the legacy write.
 
@@ -247,39 +277,7 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 	Mirrors the shape of `get_cr_page` so the frontend can merge batch responses
 	into the same store slots it already populates from individual reads.
 	"""
-	_item_fields = [
-		"doc_key",
-		"title",
-		"slug",
-		"route",
-		"is_group",
-		"is_tab",
-		"tab_icon",
-		"is_published",
-		"is_external_link",
-		"external_url",
-		"parent_key",
-		"order_index",
-		"content_blob",
-		"is_deleted",
-	]
-	item = frappe.db.get_value(
-		"Wiki Revision Item",
-		{"revision": cr.head_revision, "doc_key": doc_key},
-		_item_fields,
-		as_dict=True,
-	)
-	if not item:
-		rev_info = frappe.db.get_value(
-			"Wiki Revision", cr.head_revision, ["is_overlay", "parent_revision"], as_dict=True
-		)
-		if rev_info and rev_info.is_overlay and rev_info.parent_revision:
-			item = frappe.db.get_value(
-				"Wiki Revision Item",
-				{"revision": rev_info.parent_revision, "doc_key": doc_key},
-				_item_fields,
-				as_dict=True,
-			)
+	item = get_revision_item(cr.head_revision, doc_key)
 	if not item or item.get("is_deleted"):
 		return None
 
@@ -353,11 +351,12 @@ def _create_cr_item(
 	tab_icon: str | None = None,
 ) -> str:
 	head_revision = cr.head_revision
-	item_map = get_effective_revision_item_map(head_revision)
+	item_map = get_revision_item_map(head_revision)
 	max_order = max(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
 
+	validate_external_url(external_url)
 	if is_tab:
 		_assert_can_manage_tabs(cr)
 		_assert_valid_tab(cr, parent_key=parent_key, is_group=is_group)
@@ -379,7 +378,7 @@ def _create_cr_item(
 	item.is_deleted = 0
 	# An author-supplied route always wins, but is never trusted verbatim.
 	item.route = sanitize_route(route) if route else _compute_cr_route(cr, parent_key, item.slug, item_map)
-	item.insert()
+	item.insert(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -403,6 +402,7 @@ def _update_cr_item(
 	}
 	if updates.get("route"):
 		updates["route"] = sanitize_route(updates["route"])
+	validate_external_url(updates.get("external_url"))
 	updates.update(
 		{
 			field: int(bool(fields[field]))
@@ -424,7 +424,7 @@ def _update_cr_item(
 	# when the page is created and owns it from then on. Moving it is an explicit
 	# `route` edit, never a side effect of renaming.
 
-	item.save()
+	item.save(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -442,10 +442,10 @@ def _set_cr_item_deleted(cr: Document, doc_key: str, is_deleted: bool) -> list[s
 	flag = 1 if is_deleted else 0
 	item = frappe.get_doc("Wiki Revision Item", item_name)
 	item.is_deleted = flag
-	item.save()
+	item.save(ignore_permissions=True)
 
 	affected = [doc_key]
-	effective_items = get_effective_revision_item_map(cr.head_revision)
+	effective_items = get_revision_item_map(cr.head_revision)
 	children: dict[str | None, list[str]] = {}
 	for key, item_data in effective_items.items():
 		children.setdefault(item_data.get("parent_key"), []).append(key)
@@ -483,7 +483,7 @@ def _move_cr_item(
 	item.parent_key = parent_key
 	if order_index is not None:
 		item.order_index = order_index
-	item.save()
+	item.save(ignore_permissions=True)
 	return item.doc_key
 
 
@@ -543,15 +543,35 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 	flush_pending_revision_syncs()
 
 	cr = _find_existing_draft(wiki_space)
-	if cr:
-		if _is_stale_empty_draft(cr, wiki_space):
+	if cr and _is_outdated(cr):
+		frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
+		if not has_revision_changes(cr.base_revision, cr.head_revision):
 			_archive_stale_draft(cr)
-		else:
-			return cr.as_dict()
+			cr = None
+	if cr:
+		return cr.as_dict()
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	default_title = title or f"Draft Changes - {space.space_name}"
 	return create_change_request(wiki_space, default_title).as_dict()
+
+
+def get_editable_change_request(wiki_space: str, change_request: str | None = None) -> dict[str, Any] | None:
+	"""The user's Draft or Changes Requested change request in the space, without writing anything.
+
+	`change_request` names an In Review or Approved one the user is editing; it wins when they
+	may still edit it. A stale empty draft is skipped rather than archived, so the user lands in
+	read mode.
+	"""
+	if change_request and frappe.db.exists("Wiki Change Request", change_request):
+		cr = frappe.get_doc("Wiki Change Request", change_request)
+		if cr.wiki_space == wiki_space and can_edit_in_review(cr) and cr.has_permission("write"):
+			return cr.as_dict()
+
+	cr = _find_existing_draft(wiki_space)
+	if not cr or _is_stale_empty_draft(cr):
+		return None
+	return cr.as_dict()
 
 
 def _find_existing_draft(wiki_space: str) -> Document | None:
@@ -582,13 +602,13 @@ def _find_existing_draft(wiki_space: str) -> Document | None:
 	return cr
 
 
-def _is_stale_empty_draft(cr: Document, wiki_space: str) -> bool:
-	"""True if the draft is outdated AND has no changes."""
-	main_revision = frappe.get_value("Wiki Space", wiki_space, "main_revision")
-	if not main_revision or not cr.base_revision or cr.base_revision == main_revision:
-		return False
-	frappe.db.set_value("Wiki Change Request", cr.name, "outdated", 1)
-	return not has_revision_changes(cr.base_revision, cr.head_revision)
+def _is_outdated(cr: Document) -> bool:
+	main_revision = frappe.get_value("Wiki Space", cr.wiki_space, "main_revision")
+	return bool(main_revision and cr.base_revision and cr.base_revision != main_revision)
+
+
+def _is_stale_empty_draft(cr: Document) -> bool:
+	return _is_outdated(cr) and not has_revision_changes(cr.base_revision, cr.head_revision)
 
 
 def _archive_stale_draft(cr: Document) -> None:
@@ -605,7 +625,7 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 	filters: dict[str, Any] = {"wiki_space": wiki_space}
 	if status:
 		filters["status"] = status
-	return frappe.get_all(
+	return frappe.get_list(
 		"Wiki Change Request",
 		filters=filters,
 		fields=[
@@ -626,6 +646,61 @@ def list_change_requests(wiki_space: str, status: str | None = None) -> list[dic
 		],
 		order_by="modified desc",
 	)
+
+
+_SUBMITTED_STATUSES = ("In Review", "Changes Requested", "Approved")
+
+
+@frappe.whitelist(methods=["GET"])
+def list_open_change_requests(wiki_space: str) -> list[dict[str, Any]]:
+	"""Everyone's submitted change requests in the space plus the user's own draft, with the pages each changes.
+
+	Other users' drafts stay out: a draft is unfinished work.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not can_read_space(wiki_space):
+		frappe.throw(_("You do not have access to this wiki space."), frappe.PermissionError)
+
+	fields = ["name", "title", "status", "owner", "modified", "base_revision", "head_revision"]
+	rows = frappe.get_list(
+		"Wiki Change Request",
+		filters={"wiki_space": wiki_space, "status": ("in", _SUBMITTED_STATUSES)},
+		fields=fields,
+	)
+	draft = get_editable_change_request(wiki_space)
+	if draft and draft.status == "Draft":
+		rows.append(frappe._dict({field: draft.get(field) for field in fields}))
+
+	users = user_cards({row.owner for row in rows})
+	for row in rows:
+		changes = _diff_revision_items(
+			get_revision_item_map(row.pop("base_revision")),
+			get_revision_item_map(row.pop("head_revision")),
+		)
+		row.changed_doc_keys = [change["doc_key"] for change in changes]
+		row.owner_name = users[row.owner]["full_name"]
+		row.owner_image = users[row.owner]["image"]
+	return sorted(rows, key=lambda row: row.modified, reverse=True)
+
+
+def user_cards(users: set[str]) -> dict[str, dict[str, str | None]]:
+	"""Name and image for each user, falling back to the user ID for one that is gone."""
+	found = {
+		user.name: user
+		for user in frappe.get_all(
+			"User",
+			filters={"name": ("in", list(users))},
+			fields=["name", "full_name", "user_image"],
+		)
+	}
+	return {
+		user: {
+			"full_name": (found.get(user) or {}).get("full_name") or user,
+			"image": (found.get(user) or {}).get("user_image"),
+		}
+		for user in users
+	}
 
 
 @frappe.whitelist()
@@ -659,7 +734,7 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 		return {"children": [], "root_group": None, "operation_version": operation_version}
 
 	root_key = frappe.get_value("Wiki Document", root_group, "doc_key")
-	effective_items = get_effective_revision_item_map(cr.head_revision)
+	effective_items = get_revision_item_map(cr.head_revision)
 
 	base_items = get_revision_item_map(cr.base_revision) if cr.base_revision else {}
 
@@ -755,40 +830,7 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
 
-	_item_fields = [
-		"doc_key",
-		"title",
-		"slug",
-		"route",
-		"is_group",
-		"is_tab",
-		"tab_icon",
-		"is_published",
-		"is_external_link",
-		"external_url",
-		"parent_key",
-		"order_index",
-		"content_blob",
-		"is_deleted",
-	]
-	item = frappe.db.get_value(
-		"Wiki Revision Item",
-		{"revision": cr.head_revision, "doc_key": doc_key},
-		_item_fields,
-		as_dict=True,
-	)
-	# For overlay revisions, fall back to base if item isn't in the overlay
-	if not item:
-		rev_info = frappe.db.get_value(
-			"Wiki Revision", cr.head_revision, ["is_overlay", "parent_revision"], as_dict=True
-		)
-		if rev_info and rev_info.is_overlay and rev_info.parent_revision:
-			item = frappe.db.get_value(
-				"Wiki Revision Item",
-				{"revision": rev_info.parent_revision, "doc_key": doc_key},
-				_item_fields,
-				as_dict=True,
-			)
+	item = get_revision_item(cr.head_revision, doc_key)
 	if not item or item.get("is_deleted"):
 		frappe.throw(_("Document not found in change request"))
 
@@ -829,9 +871,7 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	if not space.main_revision:
-		# Seed the first revision with elevated privileges so a Read-tier
-		# contributor (allowed to raise CRs) can bootstrap a fresh space.
-		main_revision = _bootstrap_main_revision(wiki_space)
+		main_revision = create_revision_from_live_tree(wiki_space, message="Initial main")
 		frappe.db.set_value("Wiki Space", wiki_space, "main_revision", main_revision.name)
 		space.main_revision = main_revision.name
 
@@ -850,18 +890,6 @@ def create_change_request(wiki_space: str, title: str, description: str | None =
 	frappe.db.set_value("Wiki Revision", head_revision.name, "change_request", cr.name)
 	capture("change_request_created")
 	return cr
-
-
-def _bootstrap_main_revision(wiki_space: str) -> Document:
-	"""Create a fresh space's initial main revision with elevated privileges.
-
-	The revision-creation path inserts Wiki Revision / Wiki Revision Item docs
-	that a plain Wiki User can't create. The caller has already verified the
-	user can *read* the space (Phase 4 read gate), so we seed the first revision
-	with `ignore_permissions` — keeping the real `created_by` and the current
-	session intact (no `set_user`).
-	"""
-	return create_revision_from_live_tree(wiki_space, message="Initial main", ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -895,7 +923,7 @@ def check_route_available(
 	if cr_name:
 		cr = frappe.get_doc("Wiki Change Request", cr_name)
 		cr.check_permission("read")
-		for doc_key, item in get_effective_revision_item_map(cr.head_revision).items():
+		for doc_key, item in get_revision_item_map(cr.head_revision).items():
 			if doc_key == exclude_doc_key or item.get("is_deleted") or item.get("is_group"):
 				continue
 			if (item.get("route") or "") == sanitized:
@@ -1192,6 +1220,10 @@ def apply_cr_operations(
 		"items": items,
 		"deleted_doc_keys": list(deleted_doc_keys),
 		"change_summary": {"count": len(operations), "by_type": by_type},
+		"changes": _diff_revision_items(
+			get_revision_item_map(cr.base_revision),
+			get_revision_item_map(cr.head_revision),
+		),
 	}
 
 
@@ -1260,9 +1292,68 @@ def _sibling_position_map(item_map: dict[str, dict[str, Any]]) -> dict[str, int]
 @frappe.whitelist()
 def diff_change_request(name: str, scope: str = "summary", doc_key: str | None = None):
 	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
 	base_items = get_revision_item_map(cr.base_revision)
-	head_items = get_effective_revision_item_map(cr.head_revision)
+	head_items = get_revision_item_map(cr.head_revision)
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_change_request_review(name: str) -> dict[str, Any]:
+	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
+	cr = frappe.get_doc("Wiki Change Request", name)
+	cr.check_permission("read")
+	pages = rendered_changes(
+		get_revision_item_map(cr.base_revision),
+		get_revision_item_map(cr.head_revision),
+		cr.wiki_space,
+	)
+	return {"author": user_cards({cr.owner})[cr.owner], "pages": pages}
+
+
+def rendered_changes(
+	base_items: dict[str, dict[str, Any]],
+	head_items: dict[str, dict[str, Any]],
+	wiki_space: str,
+	doc_key: str | None = None,
+) -> list[dict[str, Any]]:
+	"""Each changed page with both sides rendered, or only `doc_key` when given."""
+	changes = _diff_revision_items(base_items, head_items)
+	if doc_key:
+		changes = [change for change in changes if change["doc_key"] == doc_key]
+
+	keys = [change["doc_key"] for change in changes]
+	base_contents = get_contents_for_items({key: base_items[key] for key in keys if key in base_items})
+	head_contents = get_contents_for_items({key: head_items[key] for key in keys if key in head_items})
+
+	pages = []
+	for change in changes:
+		key = change["doc_key"]
+		page = {
+			**change,
+			"base": _rendered_side(base_items.get(key), base_contents.get(key), wiki_space),
+			"head": _rendered_side(head_items.get(key), head_contents.get(key), wiki_space),
+		}
+		if change["change_type"] == "reordered":
+			page["location"] = {
+				"base": _node_location(base_items, key),
+				"head": _node_location(head_items, key),
+			}
+		pages.append(page)
+	return pages
+
+
+def _rendered_side(
+	item: dict[str, Any] | None, content: str | None, wiki_space: str
+) -> dict[str, Any] | None:
+	if not item or item.get("is_deleted"):
+		return None
+	content = content or ""
+	return {
+		"title": item.get("title"),
+		"content": content,
+		"html": resolve_wiki_links(render_markdown(content), wiki_space),
+	}
 
 
 def _diff_revision_items(
@@ -1464,6 +1555,7 @@ def request_changes(name: str, comment: str) -> None:
 	_assert_status(cr, {"In Review", "Approved"})
 
 	cr.status = "Changes Requested"
+	frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 	cr.review_comment = comment
 	cr.reviewed_by = frappe.session.user
 	cr.reviewed_at = now_datetime()
@@ -1525,7 +1617,7 @@ def withdraw_change_request(name: str) -> None:
 
 @frappe.whitelist()
 def merge_change_request(name: str) -> str:
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge change requests in this space."),
@@ -1538,7 +1630,7 @@ def merge_change_request(name: str) -> str:
 
 	flush_pending_revision_syncs()
 
-	space = frappe.get_doc("Wiki Space", cr.wiki_space)
+	space = lock_wiki_space(cr.wiki_space)
 
 	if cr.base_revision == space.main_revision:
 		return _fast_forward_merge(cr, space)
@@ -1621,16 +1713,17 @@ def resolve_merge_conflict(conflict_name: str, resolution: str) -> None:
 @frappe.whitelist()
 def retry_merge_after_resolution(name: str) -> str:
 	"""Retry a merge after all conflicts have been resolved."""
-	cr = frappe.get_doc("Wiki Change Request", name)
+	cr = _lock_and_load_cr(name)
 	if not _can_merge(cr.wiki_space):
 		frappe.throw(
 			_("You do not have permission to merge in this space."),
 			frappe.PermissionError,
 		)
+	_assert_status(cr, {"Approved"})
 
 	flush_pending_revision_syncs()
 
-	space = frappe.get_doc("Wiki Space", cr.wiki_space)
+	space = lock_wiki_space(cr.wiki_space)
 
 	# Verify all conflicts are resolved
 	open_conflicts = frappe.db.count("Wiki Merge Conflict", {"change_request": name, "status": "Open"})
@@ -1657,10 +1750,10 @@ def retry_merge_after_resolution(name: str) -> str:
 	# Rebuild the merge: start from current main, apply non-conflicting + resolved
 	base_items = get_revision_item_map(cr.base_revision)
 	ours_items = get_revision_item_map(space.main_revision)
-	theirs_items = get_effective_revision_item_map(cr.head_revision)
+	theirs_items = get_revision_item_map(cr.head_revision)
 
-	main_changed = _find_changed_keys(base_items, ours_items)
-	head_changed = _find_changed_keys(base_items, theirs_items)
+	main_changed = changed_doc_keys(base_items, ours_items)
+	head_changed = changed_doc_keys(base_items, theirs_items)
 	changed_keys = main_changed | head_changed
 
 	base_subset = {k: base_items[k] for k in changed_keys if k in base_items}
@@ -1743,7 +1836,7 @@ def retry_merge_after_resolution(name: str) -> str:
 		)
 
 	_fix_orphaned_items(merged_items, ours_items)
-	merge_revision = create_merge_revision(cr, merged_items)
+	merge_revision = create_merge_revision(cr, merged_items, space.main_revision)
 
 	frappe.flags.in_apply_merge_revision = True
 	try:
@@ -1771,7 +1864,7 @@ def check_outdated(name: str) -> int:
 def _fast_forward_merge(cr: Document, space: Document) -> str:
 	"""Fast-forward merge: no concurrent changes since CR was created."""
 	base_items = get_revision_item_map(cr.base_revision)
-	effective_items = get_effective_revision_item_map(cr.head_revision)
+	effective_items = get_revision_item_map(cr.head_revision)
 
 	merged_items: dict[str, dict[str, Any]] = {}
 	for key, item in effective_items.items():
@@ -1780,7 +1873,7 @@ def _fast_forward_merge(cr: Document, space: Document) -> str:
 			merged_items[key] = normalized
 
 	_fix_orphaned_items(merged_items, effective_items)
-	merge_revision = create_merge_revision(cr, merged_items)
+	merge_revision = create_merge_revision(cr, merged_items, space.main_revision)
 
 	frappe.flags.in_apply_merge_revision = True
 	try:
@@ -1796,11 +1889,11 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 	"""Three-way merge: concurrent changes require conflict resolution."""
 	base_items = get_revision_item_map(cr.base_revision)
 	ours_items = get_revision_item_map(space.main_revision)
-	theirs_items = get_effective_revision_item_map(cr.head_revision)
+	theirs_items = get_revision_item_map(cr.head_revision)
 
 	# Only load content for keys that actually changed in either branch
-	main_changed = _find_changed_keys(base_items, ours_items)
-	head_changed = _find_changed_keys(base_items, theirs_items)
+	main_changed = changed_doc_keys(base_items, ours_items)
+	head_changed = changed_doc_keys(base_items, theirs_items)
 	changed_keys = main_changed | head_changed
 
 	base_subset = {k: base_items[k] for k in changed_keys if k in base_items}
@@ -1839,6 +1932,8 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 			merged_items.pop(key, None)
 
 	if conflicts:
+		# A fresh attempt recomputes every conflict against the current main.
+		frappe.db.delete("Wiki Merge Conflict", {"change_request": cr.name})
 		for conflict in conflicts:
 			conflict_doc = frappe.new_doc("Wiki Merge Conflict")
 			conflict_doc.change_request = cr.name
@@ -1856,7 +1951,7 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 		frappe.throw(_("Merge conflicts detected"), frappe.ValidationError)
 
 	_fix_orphaned_items(merged_items, ours_items)
-	merge_revision = create_merge_revision(cr, merged_items)
+	merge_revision = create_merge_revision(cr, merged_items, space.main_revision)
 
 	frappe.flags.in_apply_merge_revision = True
 	try:
@@ -1866,46 +1961,6 @@ def _three_way_merge(cr: Document, space: Document) -> str:
 
 	_finalize_merge(cr, merge_revision)
 	return merge_revision.name
-
-
-def _find_changed_keys(
-	base_items: dict[str, dict[str, Any]], other_items: dict[str, dict[str, Any]]
-) -> set[str]:
-	"""Find doc_keys that differ between two revision item maps.
-
-	Compares metadata and content_blob without loading actual content text.
-	"""
-	changed: set[str] = set()
-	all_keys = set(base_items) | set(other_items)
-	compare_fields = [
-		"title",
-		"slug",
-		"route",
-		"parent_key",
-		"order_index",
-		"is_group",
-		"is_published",
-		"is_external_link",
-		"external_url",
-		"is_tab",
-		"tab_icon",
-		"content_blob",
-		"is_deleted",
-	]
-
-	for key in all_keys:
-		base = base_items.get(key)
-		other = other_items.get(key)
-		if base is None or other is None:
-			changed.add(key)
-			continue
-
-		for field in compare_fields:
-			if base.get(field) != other.get(field):
-				changed.add(key)
-				break
-
-	return changed
 
 
 def _fix_orphaned_items(
@@ -2048,7 +2103,7 @@ def _apply_merge_changes_only(
 	- Does full doc.save() only for structural changes and additions
 	"""
 	new_items = get_revision_item_map(merge_revision.name)
-	changed_keys = _find_changed_keys(prev_items, new_items)
+	changed_keys = changed_doc_keys(prev_items, new_items)
 
 	if not changed_keys:
 		frappe.db.set_value("Wiki Space", space.name, "main_revision", merge_revision.name)
@@ -2071,6 +2126,9 @@ def _apply_merge_changes_only(
 	content_only_keys, structural_keys, added_keys, deleted_keys = _classify_changes(
 		prev_items, new_items, changed_keys
 	)
+	full_save_keys = structural_keys | added_keys
+	if full_save_keys or deleted_keys:
+		lock_wiki_tree()
 
 	# Batch-load content blobs for all non-deleted changed items (1 query)
 	need_content_keys = content_only_keys | structural_keys | added_keys
@@ -2118,67 +2176,93 @@ def _apply_merge_changes_only(
 		touch_space_last_edited(space.name)
 
 	# Structural changes and additions need full save (process in tree order)
-	full_save_keys = structural_keys | added_keys
-	if full_save_keys:
-		ordered_keys = build_tree_order(new_items)
-		for doc_key in ordered_keys:
-			if doc_key not in full_save_keys:
-				continue
-
-			item = new_items[doc_key]
-			if item.get("is_deleted"):
-				continue
-
-			parent_name = None
-			if doc_key == root_doc_key:
-				parent_name = None
-			elif item.get("parent_key"):
-				parent_name = key_to_name.get(item.get("parent_key"))
-			elif space.root_group:
-				parent_name = space.root_group
-
-			if doc_key in key_to_name:
-				doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
-			else:
-				existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
-				if existing_name:
-					doc = frappe.get_doc("Wiki Document", existing_name)
-				else:
-					doc = frappe.new_doc("Wiki Document")
-					doc.doc_key = doc_key
-
-			doc.title = item.get("title")
-			doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
-			if item.get("route"):
-				doc.route = item["route"]
-			doc.is_group = item.get("is_group")
-			doc.is_tab = item.get("is_tab")
-			doc.tab_icon = item.get("tab_icon")
-			doc.is_published = item.get("is_published")
-			doc.is_external_link = item.get("is_external_link")
-			doc.external_url = item.get("external_url")
-			if doc_key == root_doc_key:
-				doc.parent_wiki_document = None
-			else:
-				doc.parent_wiki_document = parent_name or space.root_group
-			doc.sort_order = item.get("order_index") or 0
-
-			content_blob = item.get("content_blob")
-			doc.content = blob_contents.get(content_blob, "") if content_blob else ""
-
-			if doc.is_new():
-				doc.insert()
-				key_to_name[doc_key] = doc.name
-			else:
-				doc.save()
-
-	# Delete AFTER saves — children must be reparented before parents are deleted
-	_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
+	frappe.flags.defer_wiki_nested_set = True
+	try:
+		left_spaces = _save_changed_documents(
+			space, new_items, full_save_keys, key_to_name, root_doc_key, blob_contents
+		)
+		# Delete AFTER saves — children must be reparented before parents are deleted
+		_delete_wiki_documents(deleted_keys, key_to_name, root_doc_key)
+	finally:
+		frappe.flags.defer_wiki_nested_set = False
+	if full_save_keys or deleted_keys:
+		for space_name in {space.name, *left_spaces}:
+			rebuild_space_nested_set(space_name)
 
 	# Reconcile sort_order for unchanged items whose live value drifted
 	_reconcile_sort_order(new_items, key_to_name, changed_keys)
 
 	frappe.db.set_value("Wiki Space", space.name, "main_revision", merge_revision.name)
+
+
+def _save_changed_documents(
+	space: Document,
+	new_items: dict[str, dict[str, Any]],
+	full_save_keys: set[str],
+	key_to_name: dict[str, str],
+	root_doc_key: str,
+	blob_contents: dict[str, str],
+) -> set[str]:
+	"""Save added and restructured pages, and return the other spaces any of them were pulled from."""
+	left_spaces: set[str] = set()
+	if not full_save_keys:
+		return left_spaces
+
+	ordered_keys = build_tree_order(new_items)
+	for doc_key in ordered_keys:
+		if doc_key not in full_save_keys:
+			continue
+
+		item = new_items[doc_key]
+		if item.get("is_deleted"):
+			continue
+
+		parent_name = None
+		if doc_key == root_doc_key:
+			parent_name = None
+		elif item.get("parent_key"):
+			parent_name = key_to_name.get(item.get("parent_key"))
+		elif space.root_group:
+			parent_name = space.root_group
+
+		if doc_key in key_to_name:
+			doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
+		else:
+			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
+			if existing_name:
+				doc = frappe.get_doc("Wiki Document", existing_name)
+				if left_space := _get_wiki_space_for_document(existing_name):
+					left_spaces.add(left_space)
+			else:
+				doc = frappe.new_doc("Wiki Document")
+				doc.doc_key = doc_key
+
+		doc.title = item.get("title")
+		doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
+		if item.get("route"):
+			doc.route = item["route"]
+		doc.is_group = item.get("is_group")
+		doc.is_tab = item.get("is_tab")
+		doc.tab_icon = item.get("tab_icon")
+		doc.is_published = item.get("is_published")
+		doc.is_external_link = item.get("is_external_link")
+		doc.external_url = item.get("external_url")
+		if doc_key == root_doc_key:
+			doc.parent_wiki_document = None
+		else:
+			doc.parent_wiki_document = parent_name or space.root_group
+		doc.sort_order = item.get("order_index") or 0
+
+		content_blob = item.get("content_blob")
+		doc.content = blob_contents.get(content_blob, "") if content_blob else ""
+
+		if doc.is_new():
+			doc.insert()
+			key_to_name[doc_key] = doc.name
+		else:
+			doc.save()
+
+	return left_spaces
 
 
 def _finalize_merge(cr: Document, merge_revision: Document) -> None:
@@ -2192,7 +2276,7 @@ def _finalize_merge(cr: Document, merge_revision: Document) -> None:
 	cr.save()
 
 	# Merge applies rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(cr.wiki_space)
 	capture(
 		"change_request_merged",
 		items=frappe.db.count("Wiki Revision Item", {"revision": cr.head_revision}),
@@ -2485,132 +2569,14 @@ def with_content_blob(item: dict[str, Any] | None, content: str) -> dict[str, An
 	return item
 
 
-def create_merge_revision(cr: Document, merged_items: dict[str, dict[str, Any]]) -> Document:
-	revision = frappe.new_doc("Wiki Revision")
-	revision.wiki_space = cr.wiki_space
-	revision.change_request = cr.name
-	revision.parent_revision = cr.base_revision
-	revision.message = f"Merge {cr.name}"
-	revision.is_merge = 1
-	revision.is_working = 0
-	revision.created_by = frappe.session.user
-	revision.created_at = now_datetime()
-	revision.insert()
-
-	for item in merged_items.values():
-		new_item = frappe.new_doc("Wiki Revision Item")
-		new_item.revision = revision.name
-		new_item.doc_key = item.get("doc_key")
-		new_item.title = item.get("title")
-		new_item.slug = item.get("slug")
-		new_item.route = item.get("route")
-		new_item.is_group = item.get("is_group")
-		new_item.is_tab = item.get("is_tab")
-		new_item.tab_icon = item.get("tab_icon")
-		new_item.is_published = item.get("is_published")
-		new_item.is_external_link = item.get("is_external_link")
-		new_item.external_url = item.get("external_url")
-		new_item.parent_key = item.get("parent_key")
-		new_item.order_index = item.get("order_index")
-		new_item.content_blob = item.get("content_blob")
-		new_item.is_deleted = 0
-		new_item.insert()
-
-	recompute_revision_hashes(revision.name)
-	return revision
-
-
-def apply_merge_revision(space: Document, revision: Document) -> None:
-	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
-
-	frappe.flags.in_apply_merge_revision = True
-	try:
-		_apply_merge_revision(space, revision)
-	finally:
-		frappe.flags.in_apply_merge_revision = False
-
-	# Merges rewrite structure/sort_order with raw db writes that skip on_update.
-	clear_wiki_tree_cache()
-
-
-def _apply_merge_revision(space: Document, revision: Document) -> None:
-	items = get_revision_item_map(revision.name)
-	ordered_keys = build_tree_order(items)
-	root_doc_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
-
-	# Get all docs in this wiki space using nested set model
-	root_lft, root_rgt = frappe.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
-	space_docs = frappe.get_all(
-		"Wiki Document",
-		fields=["name", "doc_key"],
-		filters=[
-			["lft", ">=", root_lft],
-			["rgt", "<=", root_rgt],
-			["doc_key", "is", "set"],
-		],
+def create_merge_revision(
+	cr: Document, merged_items: dict[str, dict[str, Any]], main_revision: str | None
+) -> Document:
+	return create_revision(
+		cr.wiki_space,
+		merged_items,
+		main_revision,
+		change_request=cr.name,
+		message=f"Merge {cr.name}",
+		is_merge=1,
 	)
-	key_to_name = {doc["doc_key"]: doc["name"] for doc in space_docs}
-
-	# Collect docs to delete (exist in space but not in merge revision)
-	delete_doc_keys: set[str] = set()
-	for doc_key in list(key_to_name):
-		if doc_key == root_doc_key:
-			continue
-		if doc_key not in items:
-			delete_doc_keys.add(doc_key)
-
-	for doc_key in ordered_keys:
-		item = items[doc_key]
-		if item.get("is_deleted"):
-			continue
-
-		parent_name = None
-		if doc_key == root_doc_key:
-			parent_name = None
-		elif item.get("parent_key"):
-			parent_name = key_to_name.get(item.get("parent_key"))
-		elif space.root_group:
-			parent_name = space.root_group
-
-		if doc_key in key_to_name:
-			doc = frappe.get_doc("Wiki Document", key_to_name[doc_key])
-		else:
-			# Check if a document with this doc_key exists outside the space's tree
-			existing_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
-			if existing_name:
-				doc = frappe.get_doc("Wiki Document", existing_name)
-			else:
-				doc = frappe.new_doc("Wiki Document")
-				doc.doc_key = doc_key
-
-		doc.title = item.get("title")
-		doc.slug = item.get("slug") or cleanup_page_name(item.get("title") or "")
-		if item.get("route"):
-			doc.route = item["route"]
-		doc.is_group = item.get("is_group")
-		doc.is_tab = item.get("is_tab")
-		doc.tab_icon = item.get("tab_icon")
-		doc.is_published = item.get("is_published")
-		doc.is_external_link = item.get("is_external_link")
-		doc.external_url = item.get("external_url")
-		if doc_key == root_doc_key:
-			doc.parent_wiki_document = None
-		else:
-			doc.parent_wiki_document = parent_name or space.root_group
-		doc.sort_order = item.get("order_index") or 0
-
-		content_blob = item.get("content_blob")
-		if content_blob:
-			content = frappe.get_value("Wiki Content Blob", content_blob, "content")
-			doc.content = content
-
-		if doc.is_new():
-			doc.insert()
-			key_to_name[doc_key] = doc.name
-		else:
-			doc.save()
-
-	# Delete AFTER saves — children must be reparented before parents are deleted
-	_delete_wiki_documents(delete_doc_keys, key_to_name, root_doc_key)
-
-	frappe.db.set_value("Wiki Space", space.name, "main_revision", revision.name)

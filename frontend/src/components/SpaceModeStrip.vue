@@ -1,9 +1,8 @@
 <template>
 	<!-- The mode strip sits directly under the space header in the sidebar. A
-	     git-synced space and a space with an open draft are read and edited in
+	     git-synced space and a space being edited are read and edited in
 	     different ways, and the strip says which one you are in before you click
-	     anything. The two states are mutually exclusive: a synced space never
-	     opens a change request. -->
+	     anything. Reading a space that is not synced needs no strip. -->
 	<div v-if="spaceStore.isGitSynced" class="shrink-0 px-2 pt-2">
 		<div
 			class="flex items-center gap-1.5 rounded-4 bg-surface-gray-2 px-2 py-1.5"
@@ -49,7 +48,7 @@
 	</div>
 
 	<div
-		v-else-if="crStore.isChangeRequestMode && spaceStore.canEdit"
+		v-else-if="spaceStore.isEditing"
 		class="contribution-strip shrink-0 px-2 pt-2"
 	>
 		<!-- 260px does not fit a label and two buttons on one line, so the meta
@@ -58,9 +57,14 @@
 			<div class="flex items-start gap-1.5">
 				<!-- The card's own tint carries the status, so a subtle badge on top
 				     of it would be one grey box inside another. -->
-				<span class="min-w-0 flex-1 truncate text-xs-medium">
-					{{ stripTitle }}
-				</span>
+				<button
+					type="button"
+					class="min-w-0 flex-1 truncate rounded-2 text-left text-xs-medium hover:underline focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+					:title="__('Edit title and description')"
+					@click="openDetailsDialog"
+				>
+					{{ changeRequestTitle }}
+				</button>
 				<Dropdown
 					v-if="menuOptions.length > 0"
 					:options="menuOptions"
@@ -75,8 +79,8 @@
 				</Dropdown>
 			</div>
 
-			<p v-if="changeCountLabel" class="mt-1 truncate text-xs text-ink-gray-6">
-				{{ changeCountLabel }}
+			<p class="mt-1 truncate text-xs text-ink-gray-6">
+				{{ metaLine }}
 			</p>
 
 			<p
@@ -105,174 +109,88 @@
 				{{ __('Reload latest') }}
 			</Button>
 
-			<!-- One stable button for the whole merge/withdraw round trip. The
-			     status branches below churn through In Review and Approved on the
-			     way, and the summary they read belongs to a change request that is
-			     being retired.
-
-			     Outline, not subtle: a subtle gray button is drawn on
+			<!-- Outline, not subtle: a subtle gray button is drawn on
 			     surface-gray-2, which is this card's own tint in the Draft state,
-			     so it vanished into it. Outline puts it on surface-base, which
-			     reads off the card without taking solid — the page header's
-			     Submit for review is the one primary action on this screen. -->
-			<template v-if="crStore.finalizing">
-				<Button class="mt-2 w-full" variant="outline" size="sm" loading disabled>
-					{{
-						crStore.finalizing === 'withdrawing' ? __('Discard') : __('Merge')
-					}}
-				</Button>
-			</template>
+			     so it vanished into it. -->
+			<MergeChangeRequestButton
+				v-if="isMobile"
+				class="mt-2 w-full"
+				size="sm"
+			/>
 
-			<template
-				v-else-if="
-					changeRequestStatus === 'Draft' ||
-					changeRequestStatus === 'Changes Requested'
-				"
+			<Button
+				v-if="crStore.finalizing === 'withdrawing'"
+				class="mt-2 w-full"
+				variant="outline"
+				size="sm"
+				loading
+				disabled
 			>
-				<Button
-					v-if="canShowMerge"
-					class="mt-2 w-full"
-					variant="outline"
-					size="sm"
-					:loading="crStore.isMerging"
-					:disabled="mergeDisabled"
-					:title="mergeButtonTitle"
-					@click="crActions.mergeChangeRequest"
-				>
-					{{ __('Merge') }}
-				</Button>
-			</template>
-
-			<template v-else-if="changeRequestStatus === 'Approved'">
-				<p class="mt-1 text-xs-medium text-ink-green-6">
-					{{ __('Approved! Ready to merge.') }}
-				</p>
-				<Button
-					v-if="canShowMerge"
-					class="mt-2 w-full"
-					variant="outline"
-					size="sm"
-					:loading="crStore.isMerging"
-					:disabled="mergeDisabled"
-					:title="mergeButtonTitle"
-					@click="crActions.mergeChangeRequest"
-				>
-					{{ __('Merge') }}
-				</Button>
-			</template>
+				{{ __('Discard') }}
+			</Button>
 		</div>
 	</div>
 
-	<Dialog v-model:open="showChangesDialog" size="lg">
+	<Dialog v-model:open="showDetailsDialog">
 		<template #title>
-			<div class="flex items-center gap-2">
-				<span
-					class="lucide-git-branch size-5 text-ink-gray-5"
-					aria-hidden="true"
-				/>
-				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Pending Changes') }}
-				</h3>
-			</div>
+			<h3 class="text-2xl-semibold text-ink-gray-9">
+				{{ __('Change request') }}
+			</h3>
 		</template>
 		<template #default>
-			<div class="space-y-3 max-h-[60vh] overflow-y-auto">
-				<div
-					v-for="change in crStore.changes"
-					:key="change.doc_key"
-					class="flex items-start gap-3 p-3 rounded-6 border border-outline-gray-2 hover:bg-surface-gray-1"
-				>
-					<div
-						class="flex items-center justify-center size-8 rounded-full shrink-0"
-						:class="getChangeIconClass(change.change_type)"
-					>
-						<span
-							:class="getChangeIcon(change.change_type)"
-							class="size-4"
-							aria-hidden="true"
-						/>
-					</div>
-
-					<div class="flex-1 min-w-0">
-						<div class="flex items-center gap-2">
-							<span class="font-medium text-ink-gray-9 truncate">
-								{{ change.title || __('Untitled') }}
-							</span>
-							<Badge
-								variant="subtle"
-								:theme="getChangeTheme(change.change_type)"
-								size="sm"
-							>
-								{{ getChangeLabel(change.change_type) }}
-							</Badge>
-						</div>
-						<p class="text-sm text-ink-gray-5 mt-0.5">
-							{{
-								getChangeDescription(
-									change.change_type,
-									change.is_group,
-									change.is_external_link,
-								)
-							}}
-						</p>
-						<p
-							v-if="change.is_external_link && change.external_url"
-							class="text-sm text-ink-gray-5 mt-0.5 truncate"
-						>
-							<a
-								:href="change.external_url"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="text-ink-blue-link hover:underline"
-							>
-								{{ change.external_url }}
-							</a>
-						</p>
-					</div>
-
-					<div class="flex items-center gap-1 text-ink-gray-4 shrink-0">
-						<span
-							v-if="change.is_group"
-							class="lucide-folder size-4"
-							aria-hidden="true"
-						/>
-						<span
-							v-else-if="change.is_external_link"
-							class="lucide-link size-4"
-							aria-hidden="true"
-						/>
-						<span v-else class="lucide-file-text size-4" aria-hidden="true" />
-					</div>
-				</div>
-
-				<div
-					v-if="crStore.changes.length === 0"
-					class="text-center py-8 text-ink-gray-5"
-				>
-					{{ __('No pending changes') }}
-				</div>
-			</div>
+			<form class="space-y-4" @submit.prevent="saveDetails">
+				<FormControl
+					v-model="detailsTitle"
+					:label="__('Title')"
+					type="text"
+					required
+					autofocus
+				/>
+				<FormControl
+					v-model="detailsDescription"
+					:label="__('Description')"
+					type="textarea"
+					:placeholder="__('Describe the change')"
+					:rows="3"
+				/>
+			</form>
 		</template>
-		<template #actions="{ close }">
-			<div class="flex justify-end">
-				<Button variant="outline" @click="close">{{ __('Close') }}</Button>
+		<template #actions>
+			<div class="flex justify-end gap-2">
+				<Button variant="outline" @click="showDetailsDialog = false">
+					{{ __('Cancel') }}
+				</Button>
+				<Button
+					variant="solid"
+					:loading="savingDetails"
+					:disabled="!detailsTitle.trim()"
+					@click="saveDetails"
+				>
+					{{ __('Save') }}
+				</Button>
 			</div>
 		</template>
 	</Dialog>
-
 </template>
 
 <script setup>
-import { Badge, Button, Dialog, Dropdown, dayjsLocal, toast } from 'frappe-ui';
+import {
+	Badge,
+	Button,
+	Dialog,
+	Dropdown,
+	FormControl,
+	dayjsLocal,
+	toast,
+} from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
-import { useChangeTypeDisplay } from '../composables/useChangeTypeDisplay';
-// TEMPORARY — remove with SyncAlertPlacementSwitcher.
+import { useMobile } from '../composables/useMobile';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
-import { useUserStore } from '../stores/user';
+import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
 import SyncStateAlert from './SyncStateAlert.vue';
 
 defineProps({
@@ -281,18 +199,11 @@ defineProps({
 	showSyncState: { type: Boolean, default: false },
 });
 
-const {
-	getChangeIcon,
-	getChangeIconClass,
-	getChangeTheme,
-	getChangeLabel,
-	getChangeDescription,
-} = useChangeTypeDisplay();
 const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
-const userStore = useUserStore();
 const crActions = useChangeRequestActions();
+const { isMobile } = useMobile();
 
 // `owner/repo` — only the repo half survives the sidebar's width.
 const repoShortName = computed(() => {
@@ -318,13 +229,6 @@ const syncedLine = computed(() => {
 	return __('Last synced {0}', [dayjsLocal(lastSync).fromNow()]);
 });
 
-// Submit / merge are blocked while local mutations are still syncing or
-// failed — submitting a stale backend CR would silently drop the user's
-// in-flight edits. Unsaved editor content (debounced autosave hasn't fired
-// yet) also counts: without this guard a user could type and submit
-// within the 10s autosave window, sending the previous content. Reorder
-// counts as pending too via isTreeReordering.
-const hasUnsyncedWork = computed(() => Boolean(draftStore.finalizationBlocker));
 // `Reload latest` is the first-line recovery for conflicts and sync
 // failures (specs/local_first_editor_migration_step_2.md). It appears
 // only when there is something to recover from — otherwise the action
@@ -371,47 +275,43 @@ watch(
 	},
 );
 
-const showChangesDialog = ref(false);
-
-const canShowMerge = computed(
-	() => userStore.isWikiManager && crStore.changeCount > 0,
+const changeRequestTitle = computed(
+	() => crStore.currentChangeRequest?.title || __('Untitled change request'),
 );
 
-const mergeButtonTitle = computed(() => {
-	if (draftStore.finalizationBlocker === 'conflict') {
-		return __('Reload latest before merging');
-	}
-	if (draftStore.finalizationBlocker === 'failed') {
-		return __('Resolve failed changes before merging');
-	}
-	if (draftStore.finalizationBlocker === 'uploading') {
-		return __('Wait for uploads to finish before merging');
-	}
-	if (draftStore.finalizationBlocker === 'upload-failed') {
-		return __('Remove failed uploads before merging');
-	}
-	if (draftStore.finalizationBlocker === 'pending') {
-		return __('Wait for pending changes to sync before merging');
-	}
-	if (draftStore.finalizationBlocker === 'unsaved') {
-		return __('Save your changes before merging');
-	}
-	if (spaceStore.isTreeReordering) {
-		return __('Please wait for reordering to finish before merging');
-	}
-	return '';
-});
+const showDetailsDialog = ref(false);
+const detailsTitle = ref('');
+const detailsDescription = ref('');
+const savingDetails = ref(false);
 
-const mergeDisabled = computed(
-	() => spaceStore.isTreeReordering || hasUnsyncedWork.value,
-);
+function openDetailsDialog() {
+	detailsTitle.value = crStore.currentChangeRequest?.title || '';
+	detailsDescription.value = crStore.currentChangeRequest?.description || '';
+	showDetailsDialog.value = true;
+}
 
+async function saveDetails() {
+	const title = detailsTitle.value.trim();
+	if (!title || savingDetails.value) return;
+	savingDetails.value = true;
+	try {
+		await crStore.updateChangeRequest({
+			title,
+			description: detailsDescription.value.trim(),
+		});
+		showDetailsDialog.value = false;
+	} catch (error) {
+		toast.error(error.messages?.[0] || __('Error updating change request'));
+	} finally {
+		savingDetails.value = false;
+	}
+}
+
+// Offered with no changes too: it is how you leave edit mode after an Edit you
+// did not need. A change request in review may be someone else's work, so it
+// is left with Save, never archived from here.
 const canShowDiscard = computed(
-	() =>
-		crStore.changeCount > 0 &&
-		['Draft', 'In Review', 'Changes Requested'].includes(
-			changeRequestStatus.value,
-		),
+	() => !crStore.finalizing && !spaceStore.isEditingInReview,
 );
 
 const menuOptions = computed(() => {
@@ -419,10 +319,8 @@ const menuOptions = computed(() => {
 	if (crStore.changeCount > 0) {
 		options.push({
 			label: __('View changes ({0})', [crStore.changeCount]),
-			icon: 'lucide-list',
-			onClick: () => {
-				showChangesDialog.value = true;
-			},
+			icon: 'lucide-git-compare',
+			onClick: crActions.viewChanges,
 		});
 	}
 	if (canShowDiscard.value) {
@@ -435,57 +333,44 @@ const menuOptions = computed(() => {
 	return options;
 });
 
+// Only change requests being edited reach the strip; the rest are read mode.
 const STRIP_CONFIG = {
 	Draft: {
 		class: 'bg-surface-gray-2 text-ink-gray-8',
-		title: __('Drafting Changes'),
-	},
-	'In Review': {
-		class: 'bg-surface-amber-2 text-ink-amber-7',
-		title: __('In Review'),
+		label: __('Draft'),
 	},
 	'Changes Requested': {
 		class: 'bg-surface-red-2 text-ink-red-7',
-		title: __('Changes Requested'),
+		label: __('Changes requested'),
+	},
+	'In Review': {
+		class: 'bg-surface-amber-2 text-ink-amber-7',
+		label: __('In review'),
 	},
 	Approved: {
 		class: 'bg-surface-green-2 text-ink-green-7',
-		title: __('Approved'),
+		label: __('Approved'),
 	},
-	Merged: {
-		class: 'bg-surface-green-2 text-ink-green-7',
-		title: __('Merged'),
-	},
-	Rejected: {
-		class: 'bg-surface-red-2 text-ink-red-7',
-		title: __('Rejected'),
-	},
-};
-
-const DEFAULT_STRIP = {
-	class: 'bg-surface-gray-2 text-ink-gray-8',
-	title: __('Change Request'),
 };
 
 const stripConfig = computed(
-	() => STRIP_CONFIG[changeRequestStatus.value] || DEFAULT_STRIP,
+	() => STRIP_CONFIG[changeRequestStatus.value] || STRIP_CONFIG.Draft,
 );
 const stripClass = computed(() => stripConfig.value.class);
-const stripTitle = computed(() => stripConfig.value.title);
 
-const changeCountLabel = computed(() => {
+const metaLine = computed(() => {
 	const count = crStore.changeCount;
-	if (!count) return '';
-	return __('{0} {1} changed', [count, count === 1 ? __('page') : __('pages')]);
+	const changed = count
+		? __('{0} {1} changed', [count, count === 1 ? __('page') : __('pages')])
+		: __('No changes yet');
+	return `${stripConfig.value.label} · ${changed}`;
 });
 
 // The only place the author sees why a CR bounced back; the status badge covers
 // the generic states, so those blurbs are dropped.
 const reviewFeedback = computed(() => {
 	const cr = crStore.currentChangeRequest;
-	const showsReviewComment = ['Changes Requested', 'Rejected'].includes(
-		changeRequestStatus.value,
-	);
+	const showsReviewComment = changeRequestStatus.value === 'Changes Requested';
 	if (showsReviewComment && cr?.review_comment) {
 		return cr.reviewed_by
 			? __('{0} — {1}', [cr.review_comment, cr.reviewed_by])

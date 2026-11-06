@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from typing import Any
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import now_datetime
+from frappe.model.naming import make_autoname
+from frappe.utils import cint, now_datetime
 from frappe.website.utils import cleanup_page_name
 
 # Wiki Document fields a revision snapshots. Changes to any other field leave revisions untouched.
@@ -27,9 +29,32 @@ REVISION_FIELDS = (
 	"content",
 )
 
+ITEM_FIELDS = (
+	"doc_key",
+	"title",
+	"slug",
+	"route",
+	"is_group",
+	"is_tab",
+	"tab_icon",
+	"is_published",
+	"is_external_link",
+	"external_url",
+	"parent_key",
+	"order_index",
+	"content_blob",
+	"is_deleted",
+)
+INT_ITEM_FIELDS = {"is_group", "is_tab", "is_published", "is_external_link", "order_index", "is_deleted"}
+
 
 class WikiRevision(Document):
 	pass
+
+
+def on_doctype_update():
+	# Version history reads a space's main chain in time order.
+	frappe.db.add_index("Wiki Revision", ["wiki_space", "created_at"])
 
 
 def create_revision_from_live_tree(
@@ -39,7 +64,6 @@ def create_revision_from_live_tree(
 	parent_revision: str | None = None,
 	is_working: int = 0,
 	is_merge: int = 0,
-	ignore_permissions: bool = False,
 ) -> Document:
 	space = frappe.get_doc("Wiki Space", wiki_space)
 	root = frappe.get_doc("Wiki Document", space.root_group)
@@ -63,41 +87,91 @@ def create_revision_from_live_tree(
 			)
 
 	name_to_key = {doc["name"]: doc["doc_key"] for doc in docs}
+	blobs = get_or_create_content_blobs(doc.get("content") or "" for doc in docs)
+	items = {
+		doc["doc_key"]: {
+			**doc,
+			"slug": doc.get("slug") or cleanup_page_name(doc.get("title") or ""),
+			"parent_key": name_to_key.get(doc.get("parent_wiki_document")),
+			"order_index": doc.get("sort_order"),
+			"content_blob": blobs[doc.get("content") or ""],
+			"is_deleted": 0,
+		}
+		for doc in docs
+	}
+	return create_revision(
+		wiki_space,
+		items,
+		parent_revision,
+		message=message or "",
+		change_request=change_request,
+		is_working=1 if is_working else 0,
+		is_merge=1 if is_merge else 0,
+	)
+
+
+def create_revision(
+	wiki_space: str,
+	items: dict[str, dict[str, Any]],
+	parent_revision: str | None = None,
+	**fields: Any,
+) -> Document:
+	"""Save `items` as a new revision: only what differs from `parent_revision`, or in full at a checkpoint."""
+	items = {key: _item_row(item) for key, item in items.items()}
+	rows = list(items.values())
+	is_overlay = 0
+	if parent_revision:
+		delta = revision_delta(get_revision_item_map(parent_revision), items)
+		if not _needs_checkpoint(parent_revision, len(items), len(delta)):
+			rows, is_overlay = delta, 1
 
 	revision = frappe.new_doc("Wiki Revision")
-	revision.wiki_space = wiki_space
-	revision.change_request = change_request
-	revision.parent_revision = parent_revision
-	revision.message = message or ""
-	revision.is_merge = 1 if is_merge else 0
-	revision.is_working = 1 if is_working else 0
-	revision.created_by = frappe.session.user
-	revision.created_at = now_datetime()
-	revision.insert(ignore_permissions=ignore_permissions)
-
-	for doc in docs:
-		content = doc.get("content") or ""
-		content_blob = get_or_create_content_blob(content)
-		item = frappe.new_doc("Wiki Revision Item")
-		item.revision = revision.name
-		item.doc_key = doc.get("doc_key")
-		item.title = doc.get("title")
-		item.slug = doc.get("slug") or cleanup_page_name(doc.get("title") or "")
-		item.route = doc.get("route")
-		item.is_group = doc.get("is_group")
-		item.is_tab = doc.get("is_tab")
-		item.tab_icon = doc.get("tab_icon")
-		item.is_published = doc.get("is_published")
-		item.is_external_link = doc.get("is_external_link")
-		item.external_url = doc.get("external_url")
-		item.parent_key = name_to_key.get(doc.get("parent_wiki_document"))
-		item.order_index = doc.get("sort_order") or 0
-		item.content_blob = content_blob
-		item.is_deleted = 0
-		item.insert(ignore_permissions=ignore_permissions)
-
+	revision.update(
+		{
+			"wiki_space": wiki_space,
+			"parent_revision": parent_revision,
+			"checkpoint_revision": _checkpoint_of(parent_revision) if is_overlay else None,
+			"is_overlay": is_overlay,
+			"created_by": frappe.session.user,
+			"created_at": now_datetime(),
+			**fields,
+		}
+	)
+	revision.insert(ignore_permissions=True)
+	insert_revision_items(revision.name, rows)
 	recompute_revision_hashes(revision.name)
 	return revision
+
+
+def revision_delta(
+	parent_items: dict[str, dict[str, Any]], items: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+	"""The rows that turn `parent_items` into `items`: changed and added pages, and a tombstone per removed page."""
+	return [
+		items[key] if key in items else {**parent_items[key], "is_deleted": 1}
+		for key in changed_doc_keys(parent_items, items)
+	]
+
+
+def changed_doc_keys(
+	base_items: dict[str, dict[str, Any]], other_items: dict[str, dict[str, Any]]
+) -> set[str]:
+	"""The doc_keys whose tree fields or content blob differ between two item maps."""
+	compare_fields = [field for field in ITEM_FIELDS if field != "doc_key"]
+	return {
+		key
+		for key in set(base_items) | set(other_items)
+		if key not in base_items
+		or key not in other_items
+		or any(base_items[key].get(field) != other_items[key].get(field) for field in compare_fields)
+	}
+
+
+def _needs_checkpoint(parent_revision: str, page_count: int, delta_rows: int) -> bool:
+	"""Write in full once the chain's overlay rows would reach the page count, so a read loads at most about two snapshots."""
+	overlays = [revision.name for revision in _revision_chain(parent_revision) if revision.is_overlay]
+	stored = frappe.db.count("Wiki Revision Item", {"revision": ("in", overlays)}) if overlays else 0
+	return stored + delta_rows >= page_count
 
 
 def create_overlay_revision(
@@ -111,6 +185,7 @@ def create_overlay_revision(
 	revision.wiki_space = base.wiki_space
 	revision.change_request = change_request
 	revision.parent_revision = base_revision
+	revision.checkpoint_revision = base.checkpoint_revision if base.is_overlay else base_revision
 	revision.message = base.message
 	revision.is_merge = 0
 	revision.is_working = 1 if is_working else 0
@@ -125,66 +200,73 @@ def create_overlay_revision(
 	return revision
 
 
-def clone_revision(
-	base_revision: str,
-	change_request: str | None = None,
-	parent_revision: str | None = None,
-	is_working: int = 0,
-) -> Document:
-	base = frappe.get_doc("Wiki Revision", base_revision)
-	new_revision = frappe.new_doc("Wiki Revision")
-	new_revision.wiki_space = base.wiki_space
-	new_revision.change_request = change_request
-	new_revision.parent_revision = parent_revision or base_revision
-	new_revision.message = base.message
-	new_revision.is_merge = 0
-	new_revision.is_working = 1 if is_working else 0
-	new_revision.created_by = frappe.session.user
-	new_revision.created_at = now_datetime()
-	new_revision.insert()
-
-	items = frappe.get_all(
+def insert_revision_items(revision: str, items: Iterable[dict[str, Any]]) -> None:
+	"""Write a revision's items in bulk. The values come from other revisions or live pages, so per-row link checks add nothing."""
+	now = now_datetime()
+	user = frappe.session.user
+	frappe.db.bulk_insert(
 		"Wiki Revision Item",
-		fields=[
-			"doc_key",
-			"title",
-			"slug",
-			"route",
-			"is_group",
-			"is_tab",
-			"tab_icon",
-			"is_published",
-			"is_external_link",
-			"external_url",
-			"parent_key",
-			"order_index",
-			"content_blob",
-			"is_deleted",
-		],
-		filters={"revision": base_revision},
+		["name", "creation", "modified", "owner", "modified_by", "revision", *ITEM_FIELDS],
+		(
+			(
+				make_autoname("hash", "Wiki Revision Item"),
+				now,
+				now,
+				user,
+				user,
+				revision,
+				*(
+					cint(item.get(field)) if field in INT_ITEM_FIELDS else item.get(field)
+					for field in ITEM_FIELDS
+				),
+			)
+			for item in items
+		),
 	)
 
-	for item in items:
-		new_item = frappe.new_doc("Wiki Revision Item")
-		new_item.revision = new_revision.name
-		new_item.doc_key = item["doc_key"]
-		new_item.title = item.get("title")
-		new_item.slug = item.get("slug")
-		new_item.route = item.get("route")
-		new_item.is_group = item.get("is_group")
-		new_item.is_tab = item.get("is_tab")
-		new_item.tab_icon = item.get("tab_icon")
-		new_item.is_published = item.get("is_published")
-		new_item.is_external_link = item.get("is_external_link")
-		new_item.external_url = item.get("external_url")
-		new_item.parent_key = item.get("parent_key")
-		new_item.order_index = item.get("order_index")
-		new_item.content_blob = item.get("content_blob")
-		new_item.is_deleted = item.get("is_deleted")
-		new_item.insert(ignore_permissions=True)
 
-	recompute_revision_hashes(new_revision.name)
-	return new_revision
+def get_or_create_content_blobs(contents: Iterable[str], content_type: str = "markdown") -> dict[str, str]:
+	"""Map each content to its blob name, with one query for the existing blobs and one insert for the rest."""
+	by_hash = {hashlib.sha256(content.encode("utf-8")).hexdigest(): content for content in contents}
+	if not by_hash:
+		return {}
+	existing = dict(
+		frappe.get_all(
+			"Wiki Content Blob",
+			filters={"hash": ("in", list(by_hash))},
+			fields=["hash", "name"],
+			as_list=True,
+		)
+	)
+	now = now_datetime()
+	user = frappe.session.user
+	rows = []
+	for hash_value, content in by_hash.items():
+		if hash_value in existing:
+			continue
+		existing[hash_value] = make_autoname("hash", "Wiki Content Blob")
+		size = len(content.encode("utf-8"))
+		rows.append(
+			(existing[hash_value], now, now, user, user, hash_value, content, content_type, size, user, now)
+		)
+	frappe.db.bulk_insert(
+		"Wiki Content Blob",
+		[
+			"name",
+			"creation",
+			"modified",
+			"owner",
+			"modified_by",
+			"hash",
+			"content",
+			"content_type",
+			"size",
+			"created_by",
+			"created_at",
+		],
+		rows,
+	)
+	return {content: existing[hash_value] for hash_value, content in by_hash.items()}
 
 
 def get_or_create_content_blob(content: str, content_type: str = "markdown") -> str:
@@ -206,48 +288,7 @@ def get_or_create_content_blob(content: str, content_type: str = "markdown") -> 
 
 
 def recompute_revision_hashes(revision: str) -> None:
-	is_overlay = frappe.db.get_value("Wiki Revision", revision, "is_overlay")
-
-	if is_overlay:
-		# For overlay revisions, compute from the effective (merged) item set
-		effective = get_effective_revision_item_map(revision)
-		items = list(effective.values())
-		# Reuse content_hash already loaded by get_effective_revision_item_map
-		blob_hashes = {
-			item["content_blob"]: item.get("content_hash") or "" for item in items if item.get("content_blob")
-		}
-	else:
-		items = frappe.get_all(
-			"Wiki Revision Item",
-			fields=[
-				"doc_key",
-				"parent_key",
-				"order_index",
-				"slug",
-				"title",
-				"route",
-				"is_group",
-				"is_tab",
-				"tab_icon",
-				"is_published",
-				"is_external_link",
-				"external_url",
-				"content_blob",
-				"is_deleted",
-			],
-			filters={"revision": revision},
-		)
-		blob_names = {item["content_blob"] for item in items if item.get("content_blob")}
-		blob_hashes = {}
-		if blob_names:
-			blob_hashes = {
-				blob["name"]: blob["hash"]
-				for blob in frappe.get_all(
-					"Wiki Content Blob",
-					fields=["name", "hash"],
-					filters={"name": ("in", list(blob_names))},
-				)
-			}
+	items = list(get_revision_item_map(revision).values())
 
 	tree_parts = []
 	content_parts = []
@@ -272,8 +313,7 @@ def recompute_revision_hashes(revision: str) -> None:
 				]
 			)
 		)
-		content_hash = blob_hashes.get(item.get("content_blob")) or ""
-		content_parts.append(f"{item.get('doc_key') or ''}:{content_hash}")
+		content_parts.append(f"{item.get('doc_key') or ''}:{item.get('content_hash') or ''}")
 
 	tree_hash = hashlib.sha256("\n".join(tree_parts).encode("utf-8")).hexdigest()
 	content_hash = hashlib.sha256("\n".join(content_parts).encode("utf-8")).hexdigest()
@@ -289,64 +329,44 @@ def recompute_revision_hashes(revision: str) -> None:
 
 
 def get_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
-	items = frappe.get_all(
+	"""The pages a revision stands for, by doc_key, with an overlay's items laid over its parent's."""
+	chain = _revision_chain(revision)
+	if not chain:
+		return {}
+	rows = frappe.get_all(
 		"Wiki Revision Item",
-		fields=[
-			"name",
-			"doc_key",
-			"title",
-			"slug",
-			"route",
-			"is_group",
-			"is_tab",
-			"tab_icon",
-			"is_published",
-			"is_external_link",
-			"external_url",
-			"parent_key",
-			"order_index",
-			"content_blob",
-			"is_deleted",
-			"modified",
-		],
-		filters={"revision": revision},
+		fields=["name", "revision", *ITEM_FIELDS, "modified"],
+		filters={"revision": ("in", [link.name for link in chain])},
 	)
+	item_map = _lay_over(chain, rows)
 
-	blob_names = {item["content_blob"] for item in items if item.get("content_blob")}
+	blob_names = {item["content_blob"] for item in item_map.values() if item.get("content_blob")}
 	blob_hashes = {}
 	if blob_names:
-		blob_hashes = {
-			blob["name"]: blob["hash"]
-			for blob in frappe.get_all(
+		blob_hashes = dict(
+			frappe.get_all(
 				"Wiki Content Blob",
 				fields=["name", "hash"],
 				filters={"name": ("in", list(blob_names))},
+				as_list=True,
 			)
-		}
-
-	item_map: dict[str, dict[str, Any]] = {}
-	for item in items:
+		)
+	for item in item_map.values():
 		item["content_hash"] = blob_hashes.get(item.get("content_blob"))
-		item_map[item["doc_key"]] = item
 	return item_map
 
 
-def get_effective_revision_item_map(revision: str) -> dict[str, dict[str, Any]]:
-	"""Get the effective item map, resolving overlay inheritance.
-
-	For overlay revisions: base items + overlay items (overlay wins).
-	For full revisions: same as get_revision_item_map().
-	"""
-	rev_info = frappe.db.get_value("Wiki Revision", revision, ["is_overlay", "parent_revision"], as_dict=True)
-	if not (rev_info and rev_info.is_overlay and rev_info.parent_revision):
-		return get_revision_item_map(revision)
-
-	base_items = get_revision_item_map(rev_info.parent_revision)
-	overlay_items = get_revision_item_map(revision)
-
-	effective = dict(base_items)
-	effective.update(overlay_items)
-	return effective
+def get_revision_item(revision: str, doc_key: str) -> dict[str, Any] | None:
+	"""One page of a revision, read through its overlays like `get_revision_item_map`."""
+	chain = _revision_chain(revision)
+	if not chain:
+		return None
+	rows = frappe.get_all(
+		"Wiki Revision Item",
+		fields=["name", "revision", *ITEM_FIELDS],
+		filters={"revision": ("in", [link.name for link in chain]), "doc_key": doc_key},
+	)
+	return _lay_over(chain, rows).get(doc_key)
 
 
 def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
@@ -364,46 +384,13 @@ def ensure_overlay_item(revision: str, doc_key: str) -> str | None:
 	if not (rev_info and rev_info.is_overlay and rev_info.parent_revision):
 		return None
 
-	base_item = frappe.db.get_value(
-		"Wiki Revision Item",
-		{"revision": rev_info.parent_revision, "doc_key": doc_key},
-		[
-			"doc_key",
-			"title",
-			"slug",
-			"route",
-			"is_group",
-			"is_tab",
-			"tab_icon",
-			"is_published",
-			"is_external_link",
-			"external_url",
-			"parent_key",
-			"order_index",
-			"content_blob",
-			"is_deleted",
-		],
-		as_dict=True,
-	)
+	base_item = get_revision_item(rev_info.parent_revision, doc_key)
 	if not base_item:
 		return None
 
 	new_item = frappe.new_doc("Wiki Revision Item")
+	new_item.update({field: base_item.get(field) for field in ITEM_FIELDS})
 	new_item.revision = revision
-	new_item.doc_key = base_item.doc_key
-	new_item.title = base_item.title
-	new_item.slug = base_item.slug
-	new_item.route = base_item.route
-	new_item.is_group = base_item.is_group
-	new_item.is_tab = base_item.is_tab
-	new_item.tab_icon = base_item.tab_icon
-	new_item.is_published = base_item.is_published
-	new_item.is_external_link = base_item.is_external_link
-	new_item.external_url = base_item.external_url
-	new_item.parent_key = base_item.parent_key
-	new_item.order_index = base_item.order_index
-	new_item.content_blob = base_item.content_blob
-	new_item.is_deleted = base_item.is_deleted
 	new_item.insert(ignore_permissions=True)
 	return new_item.name
 
@@ -440,3 +427,58 @@ def build_tree_order(items: dict[str, dict[str, Any]]) -> list[str]:
 
 	walk(None)
 	return ordered
+
+
+def _item_row(item: dict[str, Any]) -> dict[str, Any]:
+	return {
+		field: cint(item.get(field)) if field in INT_ITEM_FIELDS else item.get(field) for field in ITEM_FIELDS
+	}
+
+
+def _revision_chain(revision: str) -> list[dict[str, Any]]:
+	"""The revisions whose items make up `revision`, oldest first: a full revision, then each overlay on it."""
+	fields = ["name", "parent_revision", "is_overlay", "is_working", "checkpoint_revision"]
+	head = frappe.db.get_value("Wiki Revision", revision, fields, as_dict=True)
+	if not head:
+		return []
+	if not head.is_overlay:
+		return [head]
+
+	Revision = frappe.qb.DocType("Wiki Revision")
+	checkpoint = head.checkpoint_revision
+	links = (
+		frappe.qb.from_(Revision)
+		.select(*fields)
+		.where((Revision.checkpoint_revision == checkpoint) | (Revision.name == checkpoint))
+		.run(as_dict=True)
+	)
+	by_name = {link.name: link for link in links}
+	chain = [head]
+	while chain[-1].is_overlay and (parent := by_name.get(chain[-1].parent_revision)):
+		chain.append(parent)
+	return chain[::-1]
+
+
+def _checkpoint_of(revision: str) -> str:
+	parent = frappe.db.get_value(
+		"Wiki Revision", revision, ["is_overlay", "checkpoint_revision"], as_dict=True
+	)
+	return parent.checkpoint_revision if parent.is_overlay else revision
+
+
+def _lay_over(chain: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+	"""Apply each revision's rows over the ones before it.
+
+	A tombstone in a committed revision removes the page. One in a working revision
+	(a change request head) stays, so the change request still lists the page as deleted.
+	"""
+	position = {link.name: index for index, link in enumerate(chain)}
+	working = {link.name for link in chain if link.is_working}
+	items: dict[str, dict[str, Any]] = {}
+	for row in sorted(rows, key=lambda row: position[row.revision]):
+		revision = row.pop("revision")
+		if row.is_deleted and revision not in working:
+			items.pop(row.doc_key, None)
+		else:
+			items[row.doc_key] = row
+	return items

@@ -12,15 +12,13 @@
 			<span class="truncate text-base-medium text-ink-gray-8">
 				{{ __('Page settings') }}
 			</span>
-			<Tooltip :text="__('Close page settings')">
-				<Button
-					variant="ghost"
-					:aria-label="__('Close page settings')"
-					@click="emit('close')"
-				>
-					<span class="lucide-x size-4" aria-hidden="true" />
-				</Button>
-			</Tooltip>
+			<Button
+				variant="ghost"
+				:aria-label="__('Close page settings')"
+				@click="emit('close')"
+			>
+				<span class="lucide-x size-4" aria-hidden="true" />
+			</Button>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
@@ -32,7 +30,7 @@
 				<section class="flex flex-col gap-3">
 					<div class="flex items-baseline justify-between gap-2">
 						<h4 class="text-xs text-ink-gray-5">{{ __('General') }}</h4>
-						<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
+						<Badge v-if="spaceStore.isGitSynced" variant="subtle" theme="gray" size="sm">
 							{{ __('From the repo') }}
 						</Badge>
 					</div>
@@ -263,7 +261,6 @@ import {
 	FormControl,
 	ScrollArea,
 	Switch,
-	Tooltip,
 	dayjsLocal,
 	toast,
 	useFileUpload,
@@ -309,7 +306,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['close', 'node-updated']);
+const emit = defineEmits(['close']);
 
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
@@ -519,7 +516,6 @@ async function save() {
 		if (Object.keys(node).length) {
 			if (!props.docKey) throw new Error(__('No active change request'));
 			await draftStore.updateNode(props.docKey, node);
-			emit('node-updated');
 		}
 		if (Object.keys(meta).length) {
 			await props.docResource.updateMeta.submit(meta);

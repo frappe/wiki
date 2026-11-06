@@ -20,5 +20,11 @@ export function useRecentPages() {
 		recentPages.value = [visit, ...rest].slice(0, LIMIT);
 	}
 
-	return { recentPages, recordVisit };
+	function forget(names) {
+		recentPages.value = recentPages.value.filter(
+			(page) => !names.includes(page.name),
+		);
+	}
+
+	return { recentPages, recordVisit, forget };
 }

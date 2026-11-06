@@ -1,60 +1,24 @@
-{% macro dropdown_end() %}
-        </div>
+{# Ghost icon button: frappe-ui Button (ghost, sm, icon) — no border, no fill until hover. #}
+{% set ghost_icon_button = "inline-flex items-center justify-center shrink-0 h-7 w-7 rounded-4 text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)] active:bg-[var(--surface-gray-3)] transition-colors cursor-pointer" %}
+
+{# Borderless "⋯" trigger for the page-actions menu; items come from the call block. #}
+{% macro more_menu(label=_("More page actions")) %}
+<div class="relative inline-flex" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false">
+    <button @click="open = !open" aria-label="{{ label }}" title="{{ label }}" :aria-expanded="open" class="{{ ghost_icon_button }}">
+        {{ render_icon("ellipsis") }}
+    </button>
+    <div x-show="open"
+         x-cloak
+         x-transition:enter="transition ease-out duration-100"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-75"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="absolute right-0 top-full mt-1 origin-top-right w-72 bg-[var(--surface-elevation-2)] rounded-6 shadow-2xl ring-1 ring-black/5 z-50 p-1.5">
+        {{ caller() }}
     </div>
-{% endmacro %}
-
-{# Page Actions Dropdown - Split button with Edit action and dropdown for more options
-   Usage:
-   {{ page_actions_dropdown(edit_href="/edit/page") }}
-       {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown()") }}
-   {{ dropdown_end() }}
-#}
-{% macro page_actions_dropdown(edit_href="", edit_text=_("Edit"), show_edit=True, edit_external=False) %}
-    {#- Split button: two frappe-ui gray-outline Buttons (size md) sharing one
-        border box, so the pair matches Button's h-8 / rounded-4 / colour
-        recipe while still reading as a single control. -#}
-    {% set split_segment = "inline-flex items-center justify-center gap-2 shrink-0 h-8 text-base-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] active:bg-[var(--surface-gray-4)] transition-colors" %}
-    <div class="relative inline-flex" x-data="{ open: false }" @click.outside="open = false">
-        <div class="inline-flex rounded-4 border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] overflow-hidden transition-colors">
-            {% if show_edit %}
-            <!-- Edit button (navigates to edit page) -->
-            <a href="{{ edit_href }}"
-               {% if edit_external %}target="_blank" rel="noopener"{% endif %}
-               class="wiki-edit-link {{ split_segment }} px-2.5">
-                {{ render_icon("edit", "w-4 h-4") }}
-                <span>{{ edit_text }}</span>
-            </a>
-            {% else %}
-            <!-- Contributions off: Copy as Markdown is the primary action -->
-            <button @click="copyMarkdown()" class="{{ split_segment }} px-2.5 cursor-pointer">
-                <template x-if="!copied">
-                    {{ render_icon("clipboard", "w-4 h-4") }}
-                </template>
-                <template x-if="copied">
-                    {{ render_icon("check", "w-4 h-4 text-[var(--ink-green-7)]") }}
-                </template>
-                <span x-text='copied ? {{ _("Copied!") | tojson }} : {{ _("Copy") | tojson }}'></span>
-            </button>
-            {% endif %}
-            <!-- Dropdown toggle button -->
-            <button @click="open = !open"
-                    aria-label="{{ _("More page actions") }}"
-                    :aria-expanded="open"
-                    class="{{ split_segment }} w-8 border-l border-[var(--outline-gray-2)] cursor-pointer">
-                <span class="inline-flex" :class="{ 'rotate-180': open }">{{ render_icon("chevron-down", "transition-transform duration-200") }}</span>
-            </button>
-        </div>
-
-        {#- Menu surface: frappe-ui Menu content + its p-1.5 group padding. -#}
-        <div x-show="open"
-             x-cloak
-             x-transition:enter="transition ease-out duration-100"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-75"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95"
-             class="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 w-72 min-w-40 bg-[var(--surface-elevation-2)] rounded-6 shadow-2xl ring-1 ring-black/5 z-50 p-1.5">
+</div>
 {% endmacro %}
 
 {# Menu row geometry, straight from frappe-ui's ItemListRow (size sm) plus the
@@ -136,7 +100,7 @@
 {% set LUCIDE_CHROME_ICONS = [
     "arrow-down", "arrow-left", "arrow-right", "arrow-up", "check",
     "chevron-down", "chevron-left", "chevron-right", "chevrons-up-down",
-    "clipboard", "command", "corner-down-left", "download", "edit",
+    "clipboard", "command", "copy", "corner-down-left", "download", "edit", "ellipsis",
     "external-link", "file-text", "list", "loader", "menu", "moon",
     "moon-star", "panel-right-open", "pencil", "search", "sparkles", "sun", "x"
 ] %}

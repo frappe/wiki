@@ -1,12 +1,12 @@
 {% extends "templates/wiki/layout.html" %}
-{% from "templates/wiki/macros/buttons.html" import render_icon, page_actions_dropdown, page_action_item, download_action_item, dropdown_end %}
+{% from "templates/wiki/macros/buttons.html" import render_icon, more_menu, ghost_icon_button, page_action_item, download_action_item %}
 
 {% block title %}
     {{ metatags.title if metatags and metatags.title else doc.title }}
 {% endblock %}
 
 {% block head %}
-<link rel="icon" href="{{ favicon or '/assets/wiki/favicon.png' }}">
+<link rel="icon" href="{{ favicon or '/assets/wiki/images/frappe-wiki-favicon.png' }}">
 {% endblock %}
 
 {% block content %}
@@ -47,39 +47,43 @@
                 </div>
             </div>
             {% else %}
-            <!-- Mobile: Edit above title -->
-            <div class="flex justify-start mb-4 sm:hidden">
-                {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
-                    {{ download_action_item() }}
+            {#- Folder and page actions share one quiet row, so the title keeps its full width. -#}
+            <div class="flex items-center gap-3 min-h-7 pb-2">
+                <span data-wiki-folder-eyebrow class="text-base-medium text-[var(--ink-gray-6)] truncate" {% if not folder_name %}hidden{% endif %}>{{ folder_name or "" }}</span>
+                <div class="ml-auto flex items-center gap-0.5 -mr-1.5" data-testid="page-actions">
                     {% if can_edit %}
-                    {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
+                    <a href="{{ doc.get_edit_link() }}"
+                       {% if wiki_space.git_synced %}target="_blank" rel="noopener"{% endif %}
+                       title="{{ _('Edit page') }}" aria-label="{{ _('Edit page') }}"
+                       class="wiki-edit-link {{ ghost_icon_button }}">
+                        {{ render_icon("pencil") }}
+                    </a>
                     {% endif %}
-                    {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
-                    {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
-                {{ dropdown_end() }}
-            </div>
-            <div class="flex items-center justify-between gap-4">
-                <h1 id="wiki-page-title" class="text-4xl-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
-
-                <!-- Desktop: Edit beside title -->
-                <div class="hidden sm:block">
-                    {{ page_actions_dropdown(edit_href=doc.get_edit_link(), show_edit=can_edit, edit_external=wiki_space.git_synced) }}
+                    <button @click="copyMarkdown()" title="{{ _('Copy page as Markdown') }}" aria-label="{{ _('Copy page as Markdown') }}" class="{{ ghost_icon_button }}">
+                        <template x-if="!copied">{{ render_icon("copy") }}</template>
+                        <template x-if="copied">{{ render_icon("check", "text-[var(--ink-green-7)]") }}</template>
+                    </button>
+                    {% if wiki_space.allow_pdf_download or show_ai_actions %}
+                    {% call more_menu() %}
+                        {% if wiki_space.allow_pdf_download %}
                         {{ download_action_item() }}
-                        {% if can_edit %}
-                        {{ page_action_item(text=_("Copy page"), description=_("Copy page as Markdown for LLMs"), icon="clipboard", click="copyMarkdown(); open = false") }}
                         {% endif %}
+                        {% if show_ai_actions %}
                         {{ page_action_item(text=_("Open in ChatGPT"), description=_("Ask ChatGPT about this page"), icon="openai", href_expr="getAIUrl('openai')", click="capturePageAction('chatgpt')", target="_blank") }}
                         {{ page_action_item(text=_("Open in Claude"), description=_("Ask Claude about this page"), icon="claude", href_expr="getAIUrl('claude')", click="capturePageAction('claude')", target="_blank") }}
-                    {{ dropdown_end() }}
+                        {% endif %}
+                    {% endcall %}
+                    {% endif %}
                 </div>
             </div>
+            <h1 id="wiki-page-title" class="text-4xl-semibold text-[var(--ink-gray-9)]">{{ doc.title }}</h1>
             {% endif %}
         </header>
 
 
         <!-- Page Content -->
         <!-- prose prose-v3 mirrors the SPA editor's EditorContent defaults -->
-        <div class="prose prose-v3 !max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
+        <div class="wiki-rendered prose prose-v3 !max-w-none text-[15px] [&>*:first-child]:mt-0" id="wiki-content">
             {{ rendered_content | safe }}
         </div>
 

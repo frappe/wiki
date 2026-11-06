@@ -3,6 +3,19 @@ from frappe import _
 from frappe.utils.nestedset import get_descendants_of
 
 
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def get_sync_sha(space: str) -> str | None:
+	"""The commit a git-synced space last synced, for reader pages that reload after a sync.
+
+	Developer mode only, so a production site never answers it. Readers who cannot read the space get nothing.
+	"""
+	from wiki.permissions import can_read_space
+
+	if not frappe.conf.developer_mode or not can_read_space(space):
+		return None
+	return frappe.db.get_value("Wiki Space", {"name": space, "git_synced": 1}, "last_synced_commit_sha")
+
+
 @frappe.whitelist()
 def get_space_roles(space_id: str) -> list[dict]:
 	"""Return the configured access-control role rows for a Wiki Space."""
@@ -165,6 +178,29 @@ def get_space_stats(spaces: list[str]) -> dict:
 	return stats
 
 
+@frappe.whitelist(methods=["GET"])
+def get_space_bootstrap(space_id: str, change_request: str | None = None) -> dict:
+	"""The space, the user's capabilities in it and, if they are editing, their change request.
+
+	Opening a space never starts a change request: the user does that with Edit. The tree stays
+	a separate request: the editor opens without it, and a failed tree load can be retried on
+	its own. `change_request` resumes editing a change request that is in review.
+	"""
+	from frappe.client import get as get_doc_for_client
+
+	from wiki.api import get_space_capabilities
+	from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+		get_editable_change_request,
+	)
+
+	doc = get_doc_for_client("Wiki Space", space_id)
+	capabilities = get_space_capabilities(space_id)
+	bootstrap = {"doc": doc, "capabilities": capabilities, "change_request": None}
+	if capabilities["can_contribute"] and not doc.get("git_synced"):
+		bootstrap["change_request"] = get_editable_change_request(space_id, change_request)
+	return bootstrap
+
+
 @frappe.whitelist()
 def get_wiki_tree(space_id: str) -> dict:
 	"""Get the tree structure of Wiki Documents for a given Wiki Space."""
@@ -172,16 +208,19 @@ def get_wiki_tree(space_id: str) -> dict:
 	space.check_permission("read")
 
 	if not space.root_group:
-		return {"children": [], "root_group": None}
+		return {"children": [], "root_group": None, "root_key": None}
+
+	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import WIKI_FULL_TREE_CACHE_KEY
 
 	root_group = space.root_group
-	descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
-
-	if not descendants:
-		return {"children": [], "root_group": root_group}
-
-	tree = _build_wiki_tree_for_api(descendants)
-	return {"children": tree, "root_group": root_group}
+	tree = frappe.cache().hget(WIKI_FULL_TREE_CACHE_KEY, root_group)
+	if tree is None:
+		descendants = get_descendants_of("Wiki Document", root_group, ignore_permissions=True)
+		tree = _build_wiki_tree_for_api(descendants) if descendants else []
+		frappe.cache().hset(WIKI_FULL_TREE_CACHE_KEY, root_group, tree)
+	# The root's doc_key is what a change request's tree calls its root.
+	root_key = frappe.db.get_value("Wiki Document", root_group, "doc_key")
+	return {"children": tree, "root_group": root_group, "root_key": root_key}
 
 
 def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
@@ -190,8 +229,11 @@ def _build_wiki_tree_for_api(documents: list[str]) -> list[dict]:
 		"Wiki Document",
 		fields=[
 			"name",
+			"doc_key",
 			"title",
 			"is_group",
+			"is_external_link",
+			"external_url",
 			"parent_wiki_document",
 			"route",
 			"is_published",
@@ -250,11 +292,16 @@ def reorder_wiki_documents(
 
 	doc = frappe.get_doc("Wiki Document", doc_name)
 
-	assert_space_writable(_get_wiki_space_for_document(doc.name))
+	old_space = _get_wiki_space_for_document(doc.name)
+	assert_space_writable(old_space)
 
 	# Check if user has write permission
 	if not frappe.has_permission("Wiki Document", "write", doc=doc):
 		frappe.throw(_("You do not have permission to reorder this document"))
+
+	# Merges lock the space before its pages, so take locks in the same order.
+	if old_space:
+		lock_wiki_space(old_space)
 
 	# Direct reorder for users with write permission
 	parent_changed = doc.parent_wiki_document != new_parent
@@ -262,15 +309,12 @@ def reorder_wiki_documents(
 	frappe.flags.in_reorder_wiki_documents = True
 	try:
 		if parent_changed:
-			frappe.db.set_value("Wiki Document", doc_name, "parent_wiki_document", new_parent)
+			move_wiki_document(doc, new_parent)
 
 		# Batch update sort_order for all siblings
 		_batch_update_sort_order(siblings_list)
 
-		# Only rebuild the tree if parent changed (structural change)
-		# For simple reorders, sort_order is sufficient
 		if parent_changed:
-			rebuild_wiki_tree()
 			# A move can change the owning space; re-stamp the moved subtree.
 			from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 				stamp_wiki_space_subtree,
@@ -282,12 +326,25 @@ def reorder_wiki_documents(
 
 	from wiki.frappe_wiki.doctype.wiki_document.wiki_document import clear_wiki_tree_cache
 
+	new_space = _get_wiki_space_for_document(doc.name)
 	# Reorders bypass on_update (raw sort_order writes), so bust the tree cache here.
-	clear_wiki_tree_cache()
+	clear_wiki_tree_cache(old_space, new_space)
 
-	_sync_main_revision_for_space(_get_wiki_space_for_document(doc.name))
+	_sync_main_revision_for_space(new_space)
 
 	return {"is_contribution": False}
+
+
+def move_wiki_document(doc, new_parent: str | None) -> None:
+	from frappe.utils.nestedset import update_move_node
+
+	doc.parent_wiki_document = new_parent
+	update_move_node(doc, "parent_wiki_document")
+	frappe.db.set_value(
+		"Wiki Document",
+		doc.name,
+		{"parent_wiki_document": new_parent, "old_parent": new_parent},
+	)
 
 
 def _batch_update_sort_order(siblings: list[str]) -> None:
@@ -379,6 +436,21 @@ def flush_pending_revision_syncs() -> None:
 			_sync_main_revision_for_space(space_name)
 
 
+def lock_wiki_space(space_name: str):
+	"""Lock a Wiki Space before moving `main_revision`.
+
+	After a lock wait, plain reads still use the old snapshot, so refuse rather
+	than build on it.
+	"""
+	space = frappe.get_doc("Wiki Space", space_name, for_update=True)
+	if frappe.db.get_value("Wiki Space", space_name, "main_revision") != space.main_revision:
+		frappe.throw(
+			_("Another change was just published to this space. Please try again."),
+			frappe.TimestampMismatchError,
+		)
+	return space
+
+
 def _sync_main_revision_for_space(space_name: str | None) -> None:
 	"""Refresh main_revision after direct edits to keep CRs aligned with live tree."""
 	if not space_name:
@@ -388,64 +460,10 @@ def _sync_main_revision_for_space(space_name: str | None) -> None:
 		create_revision_from_live_tree,
 	)
 
-	space = frappe.get_doc("Wiki Space", space_name)
+	space = lock_wiki_space(space_name)
 	revision = create_revision_from_live_tree(
 		space.name,
 		message="Direct reorder",
 		parent_revision=space.main_revision,
 	)
 	frappe.db.set_value("Wiki Space", space.name, "main_revision", revision.name)
-
-
-def rebuild_wiki_tree():
-	"""Rebuild the Wiki Document tree ordering siblings by sort_order field."""
-	from frappe.query_builder import Order
-	from frappe.query_builder.functions import Coalesce
-
-	doctype = "Wiki Document"
-	parent_field = "parent_wiki_document"
-	table = frappe.qb.DocType(doctype)
-
-	# Get all root nodes (no parent), ordered by sort_order then name
-	roots = (
-		frappe.qb.from_(table)
-		.where((table.parent_wiki_document == "") | (table.parent_wiki_document.isnull()))
-		.orderby(Coalesce(table.sort_order, 0), order=Order.asc)
-		.orderby(table.name, order=Order.asc)
-		.select(table.name)
-	).run(pluck="name")
-
-	frappe.db.auto_commit_on_many_writes = 1
-
-	right = 1
-	for root in roots:
-		right = _rebuild_wiki_node(doctype, root, right, parent_field)
-
-	frappe.db.auto_commit_on_many_writes = 0
-
-
-def _rebuild_wiki_node(doctype: str, name: str, left: int, parent_field: str) -> int:
-	"""Rebuild a single node and its children, ordering by sort_order."""
-	from frappe.query_builder import Order
-	from frappe.query_builder.functions import Coalesce
-
-	right = left + 1
-	table = frappe.qb.DocType(doctype)
-	parent_col = getattr(table, parent_field)
-
-	# Get children ordered by sort_order then name
-	children = (
-		frappe.qb.from_(table)
-		.where(parent_col == name)
-		.orderby(Coalesce(table.sort_order, 0), order=Order.asc)
-		.orderby(table.name, order=Order.asc)
-		.select(table.name)
-	).run(pluck="name")
-
-	for child in children:
-		right = _rebuild_wiki_node(doctype, child, right, parent_field)
-
-	# Update lft and rgt
-	frappe.db.set_value(doctype, name, {"lft": left, "rgt": right}, update_modified=False)
-
-	return right + 1
