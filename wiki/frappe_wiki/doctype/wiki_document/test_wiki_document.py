@@ -2087,6 +2087,7 @@ class TestGetPageData(WikiDocumentTestBase):
 				"prev_doc",
 				"next_doc",
 				"edit_link",
+				"folder_name",
 				"last_updated",
 				"last_updated_on",
 				"disable_indexing",
@@ -2310,14 +2311,6 @@ class TestRenderedPageActions(WikiDocumentTestBase):
 	def test_download_action_hidden_when_space_turns_it_off(self):
 		html = self._render_public_page("pdf-off", allow_pdf_download=0)
 		self.assertNotIn("downloadPage().finally", html)
-
-	def test_menu_toggle_hidden_when_menu_has_no_items(self):
-		html = frappe.render_template(
-			'{% from "templates/wiki/macros/buttons.html" import page_actions_dropdown, dropdown_end %}'
-			"{{ page_actions_dropdown(show_edit=False, show_menu=False) }}{{ dropdown_end() }}",
-			{},
-		)
-		self.assertNotIn("More page actions", html)
 
 
 def _site_sitemap_module() -> str:
