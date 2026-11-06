@@ -15,6 +15,9 @@ Supported types: note, tip, caution, danger, warning (alias for caution)
 
 import re
 
+import nh3
+from bleach_allowlist import bleach_allowlist
+from frappe.utils.html_utils import acceptable_attributes, acceptable_elements, svg_attributes, svg_elements
 from markdown_it import MarkdownIt
 from markdown_it.common.utils import escapeHtml
 from markdown_it.token import Token
@@ -319,7 +322,6 @@ def _generate_pdf_html(url: str, filename: str = "") -> str:
 		f"</span>"
 		f"</div>"
 		f'<div class="wiki-pdf-scroll" data-role="scroll"></div>'
-		f'<noscript><a class="wiki-pdf-noscript" href="{url}">Open {safe_name}</a></noscript>'
 		f"</div>"
 		f"</div>"
 	)
@@ -677,6 +679,24 @@ def _apply_heading_slugs_and_toc(tokens) -> list[dict]:
 	return headings
 
 
+# Author markdown renders raw HTML, so the output is sanitized first. Allowlists are
+# coerced to sets because version-15 ships them as lists; SVG draw attributes are allowed
+# on every element so inline icon geometry survives; iframe is allowed for author embeds,
+# kept safe by leaving srcdoc out of the attributes and dropping non-http(s) schemes.
+_WIKI_HTML_SANITIZER = nh3.Cleaner(
+	tags=set(acceptable_elements) | set(svg_elements) | {"iframe", "picture"},
+	attributes={
+		"*": set(acceptable_attributes) | set(svg_attributes) | {"clip-rule", "download", "rel", "srcset"}
+	},
+	generic_attribute_prefixes={"data-", "aria-"},
+	clean_content_tags={"script", "style"},
+	filter_style_properties=set(bleach_allowlist.all_styles) | {"gap", "row-gap"},
+	url_schemes=nh3.ALLOWED_URL_SCHEMES | {"wiki"},
+	link_rel=None,
+	strip_comments=True,
+)
+
+
 def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	"""
 	Convert markdown content to HTML with callout support, and extract TOC headings.
@@ -709,6 +729,8 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 
 	if _TABLE_CODE_PIPE_SENTINEL in html:
 		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
+
+	html = _WIKI_HTML_SANITIZER.clean(html)
 
 	return html, headings
 
