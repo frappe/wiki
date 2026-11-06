@@ -169,19 +169,19 @@ class TestImageCaptionSupport(unittest.TestCase):
 	def test_caption_is_the_next_sibling_of_the_image(self):
 		"""The caption CSS is `img + em`, so no <br> may sit between them."""
 		result = render_markdown("![Alt](/files/test.jpg)\n*Caption*")
-		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt">\s*<em>Caption</em>')
 
 	def test_caption_after_image_on_its_own_line_inside_a_paragraph(self):
 		result = render_markdown("Some text\n![Alt](/files/test.jpg)\n*Caption*")
-		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt" />\s*<em>Caption</em>')
+		self.assertRegex(result, r'<img src="/files/test.jpg" alt="Alt">\s*<em>Caption</em>')
 
 	def test_inline_image_does_not_turn_the_next_line_into_a_caption(self):
 		result = render_markdown("Click ![icon](/files/icon.png)\n*then save*")
-		self.assertIn('<img src="/files/icon.png" alt="icon" /><br />', result)
+		self.assertIn('<img src="/files/icon.png" alt="icon"><br>', result)
 
 	def test_soft_break_after_image_still_breaks_before_plain_text(self):
 		result = render_markdown("![Alt](/files/test.jpg)\nnot a caption")
-		self.assertIn("<br />", result)
+		self.assertIn("<br>", result)
 
 	def test_image_without_caption(self):
 		"""Test that images without caption render as simple img tags."""
@@ -213,14 +213,15 @@ class TestImageCaptionSupport(unittest.TestCase):
 		# Script tags should not be present in rendered HTML
 		self.assertNotIn("<script>alert", result)
 
-	def test_image_alt_and_title_preserve_non_script_html(self):
-		"""Keep non-script HTML in alt/title, but strip script tags only."""
+	def test_image_alt_and_title_escape_html(self):
+		"""HTML in alt/title is attribute text, so it is escaped, never emitted as markup."""
 		result = render_markdown(
 			'![<b>Bold Alt</b><script>alert(1)</script>](/files/test.jpg "<i>Title</i><script>x</script>")'
 		)
 
-		self.assertIn('alt="<b>Bold Alt</b>"', result)
-		self.assertIn('title="<i>Title</i>"', result)
+		self.assertIn('alt="&lt;b&gt;Bold Alt&lt;/b&gt;"', result)
+		self.assertIn('title="&lt;i&gt;Title&lt;/i&gt;"', result)
+		self.assertNotIn("<b>Bold Alt</b>", result)
 		self.assertNotIn("<script>", result)
 
 	def test_video_markdown_renders_as_block_not_inline_caption_pattern(self):
@@ -230,7 +231,7 @@ class TestImageCaptionSupport(unittest.TestCase):
 		result = render_markdown(content)
 
 		self.assertIn('<div data-type="video-block" data-src="/files/demo-video.mp4"', result)
-		self.assertIn('<video src="/files/demo-video.mp4" controls preload="metadata">', result)
+		self.assertIn('<video src="/files/demo-video.mp4" controls="" preload="metadata">', result)
 		self.assertIn("<p><em>This should remain italic text</em></p>", result)
 		self.assertNotIn("<p><div data-type=", result)
 
@@ -363,7 +364,8 @@ This has **bold text** and *italic text* and [a link](https://example.com)
 				result = render_markdown(f":::{callout_type}\nBody\n:::\n")
 				self.assertIn('viewBox="0 0 16 16"', result)
 				self.assertIn('fill="currentColor"', result)
-				self.assertIn(CALLOUT_ICONS[callout_type], result)
+				# The sanitizer re-serializes the void <path/> as <path></path>; the glyph is otherwise identical.
+				self.assertIn(CALLOUT_ICONS[callout_type].replace("/></svg>", "></path></svg>"), result)
 
 	def test_indented_callout(self):
 		"""Test callout that is indented (e.g. inside a list item) still renders."""
@@ -551,7 +553,7 @@ class TestRawHTMLRendering(unittest.TestCase):
 		content = '<div style="margin: 0 0 0 0;"><img src="/files/test.png"></div>'
 		result = render_markdown(content)
 
-		self.assertIn('<div style="margin: 0 0 0 0;">', result)
+		self.assertIn('<div style="margin:0 0 0 0">', result)
 		self.assertNotIn("&lt;", result)
 
 	def test_inline_html_in_markdown(self):
@@ -578,8 +580,41 @@ More text after."""
 		content = 'Text with <span style="color: red;">colored</span> word.'
 		result = render_markdown(content)
 
-		self.assertIn('<span style="color: red;">colored</span>', result)
+		self.assertIn('<span style="color:red">colored</span>', result)
 		self.assertNotIn("&lt;span", result)
+
+
+class TestContentSanitization(unittest.TestCase):
+	"""Rendered content is sanitized: formatting HTML survives, scripts and event handlers do not."""
+
+	def test_event_handler_attributes_are_stripped(self):
+		result = render_markdown('<img src="/files/x.png" onerror="alert(1)">')
+		self.assertIn('<img src="/files/x.png">', result)
+		self.assertNotIn("onerror", result)
+
+	def test_script_tags_and_their_content_are_removed(self):
+		result = render_markdown("before<script>alert(1)</script>after")
+		self.assertNotIn("<script", result)
+		self.assertNotIn("alert(1)", result)
+
+	def test_callout_body_is_sanitized(self):
+		result = render_markdown(":::note[Title]\n<img src=x onerror=alert(1)>\n:::")
+		self.assertIn("callout-note", result)
+		self.assertNotIn("onerror", result)
+
+	def test_embed_iframe_survives(self):
+		result = render_markdown(
+			'<iframe src="https://www.youtube.com/embed/x" title="v" allowfullscreen></iframe>'
+		)
+		self.assertIn("<iframe", result)
+		self.assertIn('src="https://www.youtube.com/embed/x"', result)
+
+	def test_iframe_cannot_carry_script(self):
+		js_scheme = render_markdown('<iframe src="javascript:alert(1)"></iframe>')
+		self.assertNotIn("javascript:", js_scheme)
+		srcdoc = render_markdown('<iframe srcdoc="<script>alert(1)</script>"></iframe>')
+		self.assertNotIn("srcdoc", srcdoc)
+		self.assertNotIn("alert(1)", srcdoc)
 
 
 class TestTableRendering(unittest.TestCase):
@@ -974,7 +1009,7 @@ class TestThemeAwareImages(unittest.TestCase):
 
 		self.assertIn(
 			'<p><picture><source srcset="/files/shot-dark.png" media="(prefers-color-scheme: dark)">'
-			'<img src="/files/shot.png" alt="Settings page" /></picture></p>',
+			'<img src="/files/shot.png" alt="Settings page"></picture></p>',
 			result,
 		)
 
@@ -988,7 +1023,7 @@ class TestThemeAwareImages(unittest.TestCase):
 	def test_title_is_kept(self):
 		result = render_markdown(self.PICTURE.replace('alt="Settings page"', 'alt="" title="Settings"'))
 
-		self.assertIn('<img src="/files/shot.png" alt="" title="Settings" />', result)
+		self.assertIn('<img src="/files/shot.png" alt="" title="Settings">', result)
 
 	def test_alt_removes_script_tags(self):
 		result = render_markdown(
@@ -1018,7 +1053,7 @@ class TestThemeAwareImages(unittest.TestCase):
 		)
 
 		self.assertIn(
-			'<p data-align="left"><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left" /></picture>'
+			'<p data-align="left"><picture><img src="/files/shot.png" alt="Settings" width="480" data-align="left"></picture>'
 			"\n<em>Caption</em></p>",
 			result,
 		)
