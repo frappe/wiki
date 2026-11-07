@@ -9,7 +9,7 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime
+from frappe.utils import cint, now_datetime
 from frappe.website.utils import cleanup_page_name
 
 from wiki.api.wiki_space import (
@@ -27,11 +27,13 @@ from wiki.frappe_wiki.doctype.wiki_document.wiki_document import (
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	build_tree_order,
 	changed_doc_keys,
+	content_hash,
 	create_overlay_revision,
 	create_revision,
 	create_revision_from_live_tree,
 	ensure_overlay_item,
 	ensure_revision_hashes,
+	get_blob_content_and_hash,
 	get_or_create_content_blob,
 	get_revision_item,
 	get_revision_item_map,
@@ -67,6 +69,7 @@ class WikiChangeRequest(Document):
 		status: DF.Literal[
 			"Draft", "In Review", "Changes Requested", "Approved", "Rejected", "Merged", "Archived"
 		]
+		structure_version: DF.Int
 		title: DF.Data
 		wiki_space: DF.Link
 	# end: auto-generated types
@@ -218,6 +221,18 @@ def _bump_operation_version(cr: Document) -> int:
 	return new_version
 
 
+STRUCTURE_OPERATIONS = {"create_node", "delete_node", "restore_node", "move_node", "reorder_children"}
+
+
+def _bump_structure_version(cr: Document) -> int:
+	"""Count one change to the tree. The caller holds the row lock, and only a locked read is fresh after waiting on it."""
+	current = frappe.db.get_value("Wiki Change Request", cr.name, "structure_version", for_update=True)
+	new_version = int(current or 0) + 1
+	frappe.db.set_value("Wiki Change Request", cr.name, "structure_version", new_version)
+	cr.structure_version = new_version
+	return new_version
+
+
 def _lock_and_load_cr(name: str) -> Document:
 	"""Load a Change Request and acquire a row-level lock on `operation_version`.
 
@@ -297,10 +312,7 @@ def _serialize_cr_item(cr: Document, doc_key: str, include_content: bool = False
 		"document_name": frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name") or None,
 	}
 	if include_content:
-		content = ""
-		if item.get("content_blob"):
-			content = frappe.get_value("Wiki Content Blob", item.get("content_blob"), "content") or ""
-		payload["content"] = content
+		payload["content"], payload["content_hash"] = get_blob_content_and_hash(item.get("content_blob"))
 	return payload
 
 
@@ -731,7 +743,12 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 	root_group = frappe.db.get_value("Wiki Space", cr.wiki_space, "root_group")
 	operation_version = int(cr.operation_version or 0)
 	if not root_group:
-		return {"children": [], "root_group": None, "operation_version": operation_version}
+		return {
+			"children": [],
+			"root_group": None,
+			"operation_version": operation_version,
+			"structure_version": int(cr.structure_version or 0),
+		}
 
 	root_key = frappe.get_value("Wiki Document", root_group, "doc_key")
 	effective_items = get_revision_item_map(cr.head_revision)
@@ -822,6 +839,7 @@ def get_cr_tree(name: str) -> dict[str, Any]:
 		"children": children,
 		"root_group": root_key,
 		"operation_version": operation_version,
+		"structure_version": int(cr.structure_version or 0),
 	}
 
 
@@ -834,9 +852,7 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 	if not item or item.get("is_deleted"):
 		frappe.throw(_("Document not found in change request"))
 
-	content = ""
-	if item.get("content_blob"):
-		content = frappe.get_value("Wiki Content Blob", item.get("content_blob"), "content") or ""
+	content, hash_value = get_blob_content_and_hash(item.get("content_blob"))
 
 	doc_name = frappe.db.get_value("Wiki Document", {"doc_key": doc_key}, "name")
 	return {
@@ -854,6 +870,7 @@ def get_cr_page(name: str, doc_key: str) -> dict[str, Any]:
 		"order_index": item.get("order_index"),
 		"document_name": doc_name or None,
 		"content": content,
+		"content_hash": hash_value,
 	}
 
 
@@ -969,6 +986,7 @@ def create_cr_page(
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
 	_bump_operation_version(cr)
+	_bump_structure_version(cr)
 	return new_key
 
 
@@ -992,6 +1010,7 @@ def move_cr_page(name: str, doc_key: str, new_parent_key: str, new_order_index: 
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
 	_bump_operation_version(cr)
+	_bump_structure_version(cr)
 
 
 @frappe.whitelist()
@@ -1003,6 +1022,7 @@ def reorder_cr_children(name: str, parent_key: str, ordered_doc_keys: list[str])
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
 	_bump_operation_version(cr)
+	_bump_structure_version(cr)
 
 
 @frappe.whitelist()
@@ -1014,6 +1034,7 @@ def delete_cr_page(name: str, doc_key: str) -> None:
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
 	_bump_operation_version(cr)
+	_bump_structure_version(cr)
 
 
 @frappe.whitelist()
@@ -1026,6 +1047,7 @@ def restore_cr_page(name: str, doc_key: str) -> None:
 	mark_hashes_stale(cr.head_revision)
 	touch_change_request(cr.name)
 	_bump_operation_version(cr)
+	_bump_structure_version(cr)
 
 
 # --- Batch operation endpoint -------------------------------------------------------
@@ -1139,12 +1161,16 @@ def apply_cr_operations(
 	name: str,
 	base_version: int | str | None = None,
 	operations: list[dict[str, Any]] | str | None = None,
+	base_structure_version: int | str | None = None,
 ) -> dict[str, Any]:
 	"""Apply an ordered batch of operations to a Change Request head revision.
 
 	The whole batch lives inside Frappe's request transaction, so any failure rolls
 	back every preceding operation. Temp keys created in earlier operations are
 	resolved for later operations in the same batch via `temp_key_map`.
+
+	`base_version` guards the whole draft. `base_structure_version` guards the tree,
+	and `base_content_hash` on an `update_content` op guards that page.
 	"""
 	if isinstance(operations, str):
 		operations = frappe.parse_json(operations)
@@ -1175,6 +1201,11 @@ def apply_cr_operations(
 				"current_version": current_version,
 				"message": _("This draft has changed elsewhere. Reload latest."),
 			}
+
+	_assert_snapshot_is_current(cr)
+	conflict = _find_conflict(cr, operations, base_structure_version)
+	if conflict:
+		return conflict
 
 	temp_key_map: dict[str, str] = {}
 	affected_doc_keys: set[str] = set()
@@ -1213,7 +1244,7 @@ def apply_cr_operations(
 		if payload:
 			items.append(payload)
 
-	return {
+	result = {
 		"ok": True,
 		"current_version": new_version,
 		"temp_key_map": temp_key_map,
@@ -1225,6 +1256,50 @@ def apply_cr_operations(
 			get_revision_item_map(cr.head_revision),
 		),
 	}
+	# Only a batch that changed the tree reports it: a client adopts its own bump and nothing else.
+	if any(op["type"] in STRUCTURE_OPERATIONS for op in operations):
+		result["structure_version"] = _bump_structure_version(cr)
+	return result
+
+
+def _assert_snapshot_is_current(cr: Document) -> None:
+	"""After a lock wait, plain reads still use the old snapshot, so refuse rather than build on it."""
+	if cint(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")) != cr.operation_version:
+		frappe.throw(_("This draft just changed. Please try again."), frappe.TimestampMismatchError)
+
+
+def _find_conflict(
+	cr: Document, operations: list[dict[str, Any]], base_structure_version: int | str | None
+) -> dict[str, Any] | None:
+	"""Runs before any write, because a returned error still commits the request."""
+	if base_structure_version is not None and cint(base_structure_version) < int(cr.structure_version or 0):
+		return {
+			"ok": False,
+			"error": "structure_conflict",
+			"structure_version": int(cr.structure_version or 0),
+			"message": _("This draft has changed elsewhere. Reload latest."),
+		}
+	for op in operations:
+		if isinstance(op, dict) and op.get("type") == "update_content" and _page_changed_since(cr, op):
+			return {
+				"ok": False,
+				"error": "page_conflict",
+				"doc_key": op.get("doc_key"),
+				"message": _("This draft has changed elsewhere. Reload latest."),
+			}
+	return None
+
+
+def _page_changed_since(cr: Document, op: dict[str, Any]) -> bool:
+	base_hash = op.get("base_content_hash")
+	if not base_hash:
+		return False
+	# A page created in this batch has only a temp key here, and nothing to conflict with.
+	item = get_revision_item(cr.head_revision, op.get("doc_key"))
+	if not item:
+		return False
+	_content, current_hash = get_blob_content_and_hash(item.get("content_blob"))
+	return current_hash not in (base_hash, content_hash(op.get("content") or ""))
 
 
 def _node_location(item_map: dict[str, dict[str, Any]], doc_key: str) -> dict[str, Any] | None:
