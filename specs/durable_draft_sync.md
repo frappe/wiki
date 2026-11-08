@@ -1,7 +1,7 @@
 # Durable Draft Sync: Per-Page Checks, Client Keys, Operation Log
 
 Date: 2026-11-02
-Status: **In progress**. Bullets 1 and 2 built, bullet 3 not started. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
+Status: **Built**, all three bullets. Roadmap item 3.1 (R1, R2, R3) in `pr-859-roadmap.md`.
 
 ## Goal
 
@@ -37,7 +37,7 @@ Three tracer bullets, each its own PR, each useful alone. The per-page check goe
 |---|---|---|
 | 1. Per-page check | Silent overwrite, false conflicts, false conflict after a lost save reply | `structure_version` on Wiki Change Request |
 | 2. Client keys | Remount while typing, stranded creates, about 125 lines of `tmp_*` handling | None |
-| 3. Operation log | Lost renames, deletes, moves and creates on reload, double applies | `applied_op_ids` on Wiki Change Request |
+| 3. Operation log | Lost renames, deletes, moves and creates on reload, double applies, false conflict after a lost tree reply | `applied_op_ids` on Wiki Change Request |
 
 ## Bullet 1: Per-page check
 
@@ -138,7 +138,7 @@ A key in another user's unmerged change request is not checked: `doc_key` has no
 
 Delete `tempKeyResolver.js`, `promoteKey`, the three `rewriteKeys`, `serverDocKey`, the promotion watcher in `DraftContributionPanel.vue`, and the `findNode(realKey) || findNode(docKey)` lookups. `createNode` keeps its return shape with `docKey` in place of `tempKey`.
 
-`ensureCreated(docKey)` replaces the resolver. Anything that touches a new page awaits it. It waits for a create in flight, and sends a failed create again. A failed create stays on screen with `sync_failed` until then. So a save after a lost reply lands, and a delete drops the page locally only if the retry also fails. If that retry failed on a page the server already had, the page comes back on reload. Bullet 3 closes this.
+`ensureCreated(docKey)` replaces the resolver. Anything that touches a new page awaits it. It waits for a create in flight, and sends a failed create again. A failed create stays on screen with `sync_failed` until then. So a save after a lost reply lands. Bullet 3 replaced `ensureCreated` with `whenCreated`, because the log retries a create by itself.
 
 The draft in IndexedDB now uses the permanent key from the start, so a browser reload after a lost reply restores the text.
 
@@ -153,30 +153,36 @@ The draft in IndexedDB now uses the permanent key from the start, so a browser r
 
 ### Log
 
-Every structural and metadata change is written to IndexedDB before it is sent. Entries sit in the `wiki-drafts` store as `log:<change request>:<op id>`, with `{opId, seq, type, payload}`. The write starts in the same tick as the UI update, and the flusher waits for it before it sends.
+Every structural and metadata change is written to IndexedDB before it is sent. Entries sit in the `wiki-drafts` store as `log:<change request>:<op id>`. The write starts in the same tick as the UI update, and the flusher waits for it before it sends.
 
-**Content stays out of the log.** The draft store already holds it durably, it is coalesced to the latest text, and bullet 1 guards it. The log carries `create_node`, `update_node`, `delete_node`, `restore_node`, `move_node` and `reorder_children`.
+**Content stays out of the log.** The draft store already holds it durably, it is coalesced to the latest text, and bullet 1 guards it. The log carries `create_node`, `update_node`, `delete_node`, `restore_node` and `move_node`. A move entry sends its `reorder_children` from the tree at send time, as before.
 
-`operationQueue.js` and `moveScheduler.js` become one flusher per change request:
+`operationLog.js` replaces `moveScheduler.js`. `operationQueue.js` stays as the in-memory list the UI reads, and a log entry is a mutation in it. One batch goes out at a time:
 
-- Sends entries in order, and removes each when acknowledged
-- Coalesces queued moves of the same page, as today, but never changes an entry already sent
-- Retries network errors with backoff
-- Drops an entry the server rejects with a validation or permission error, then reloads the tree. Rollback is always "drop the op", which replaces today's four different behaviours
-- Holds structure entries on `structure_conflict` until Reload latest, which discards them
+- Sends entries in order, and removes each when acknowledged. Consecutive moves share a batch, once the drags have stopped for 750 ms
+- Coalesces queued moves of the same page, but never changes an entry already sent. A retried batch is identical, so its `op_id`s match
+- Retries network errors, and server errors that may pass (`TimestampMismatchError`, deadlocks, timeouts, an expired session), with backoff up to 15 s
+- Drops an entry on any other server error, then reloads the tree and that page. Rollback is always "drop the op", which replaces today's four different behaviours
+- Holds moves on `structure_conflict` until Reload latest, which discards them. The hold is saved, so a browser reload keeps the conflict
 
-Store methods keep returning promises that settle on acknowledgement, so callers do not change.
+Store methods keep returning promises that settle on acknowledgement, so callers do not change. Offline, that promise stays pending and the sync pill says "Saving…". A dialog that waits on one, such as Change route, stays open until the network is back.
+
+A move replays by its index. If queued moves of two pages were coalesced and the tab reloaded inside that window, siblings can land in a slightly different order. The server gets what the tree shows, so nothing diverges.
+
+A lost reply on a tree change leaves the client's `structure_version` behind, and bullet 1 would then report a false conflict on the next move. A retried batch therefore refetches the tree when it lands.
 
 ### Reload
 
-`hydrate` loads the tree, replays the log on top of it, restores drafts, then starts the flusher. A page created offline is back in the tree before its draft is restored, so it reopens with its text. Leftover `tmp_*` drafts are deleted once. `clearDraftsForCr` also clears the log.
+`hydrate` loads the tree, replays the log on top of it, restores drafts, then starts the flusher. A page created offline is back in the tree before its draft is restored, so it reopens with its text. Its page buffer is seeded after the restore, because an open editor mounts on a seeded page and would report its empty text over the draft. A draft with no tree node after the replay is deleted, which also cleans leftover `tmp_*` drafts. `clearDraftsForCr` also clears the log.
+
+Leaving a change request stops its flusher. Unsent entries wait in IndexedDB for the next visit, and the promises resolve so no caller is left waiting.
 
 ### Server dedupe
 
 Ops carry a new `op_id`. The existing `id` cannot serve: `wikitool` sends `op-1`, `op-2` in every batch, and moves send `<parent>-reorder`.
 
 - New hidden field `applied_op_ids` on Wiki Change Request: JSON list of the last 200 ids. It is read and written under the existing row lock, so it needs no new table and no cleanup job.
-- An op whose `op_id` is in the list is skipped, and skipped ops do not count for either check in bullet 1. Pages it touched still appear in `items`, so the client learns the current hash.
+- An op whose `op_id` is in the list is skipped, and skipped ops do not count for either check in bullet 1. Pages it touched still appear in `items`, so the client learns the current hash. A batch of only skipped ops writes nothing, not even a version bump.
 - No `op_id` means no dedupe, so API callers do not change.
 
 Ceiling: 200 ids. A retry arriving after 200 newer ops applies again. That is harmless for everything except a rename or move that someone changed since, and it needs an offline tab to come back after 200 ops. A table would remove the ceiling if this ever shows up.

@@ -55,6 +55,7 @@ class WikiChangeRequest(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		applied_op_ids: DF.JSON | None
 		archived_at: DF.Datetime | None
 		base_revision: DF.Link
 		description: DF.SmallText | None
@@ -225,6 +226,8 @@ def _bump_operation_version(cr: Document) -> int:
 
 CLIENT_DOC_KEY_PATTERN = re.compile(r"\A[a-zA-Z0-9]{12,32}\Z")
 STRUCTURE_OPERATIONS = {"create_node", "delete_node", "restore_node", "move_node", "reorder_children"}
+MAX_APPLIED_OP_IDS = 200
+MAX_OP_ID_LENGTH = 64
 
 
 def _bump_structure_version(cr: Document) -> int:
@@ -1227,14 +1230,16 @@ def apply_cr_operations(
 			}
 
 	_assert_snapshot_is_current(cr)
+	applied_op_ids = frappe.parse_json(cr.applied_op_ids) or []
+	replayed_ops, operations = _split_replayed_ops(operations, applied_op_ids)
 	conflict = _find_conflict(cr, operations, base_structure_version)
 	if conflict:
 		return conflict
 
 	temp_key_map: dict[str, str] = {}
-	affected_doc_keys: set[str] = set()
+	affected_doc_keys: set[str] = {op["doc_key"] for op in replayed_ops if op.get("doc_key")}
 	deleted_doc_keys: set[str] = set()
-	content_doc_keys: set[str] = set()
+	content_doc_keys: set[str] = set(affected_doc_keys)
 	by_type: dict[str, int] = {}
 
 	for op in operations:
@@ -1257,10 +1262,14 @@ def apply_cr_operations(
 	# belongs only in deleted_doc_keys, not in items[].
 	affected_doc_keys -= deleted_doc_keys
 
-	mark_hashes_stale(cr.head_revision)
-	touch_change_request(cr.name)
-
-	new_version = _bump_operation_version(cr)
+	# A batch that is all replays wrote nothing, so nothing moves.
+	if operations:
+		mark_hashes_stale(cr.head_revision)
+		touch_change_request(cr.name)
+		_record_applied_op_ids(cr, operations, applied_op_ids)
+		new_version = _bump_operation_version(cr)
+	else:
+		new_version = int(cr.operation_version or 0)
 
 	items: list[dict[str, Any]] = []
 	for dk in affected_doc_keys:
@@ -1286,6 +1295,29 @@ def apply_cr_operations(
 	return result
 
 
+def _split_replayed_ops(
+	operations: list[Any], applied_op_ids: list[str]
+) -> tuple[list[dict[str, Any]], list[Any]]:
+	replayed, remaining = [], []
+	for op in operations:
+		op_id = op.get("op_id") if isinstance(op, dict) else None
+		if op_id is not None and (not isinstance(op_id, str) or len(op_id) > MAX_OP_ID_LENGTH):
+			frappe.throw(_("op_id must be a string of at most {0} characters").format(MAX_OP_ID_LENGTH))
+		(replayed if op_id in applied_op_ids else remaining).append(op)
+	return replayed, remaining
+
+
+def _record_applied_op_ids(cr: Document, operations: list[dict[str, Any]], applied_op_ids: list[str]) -> None:
+	new_ids = [op["op_id"] for op in operations if op.get("op_id")]
+	if not new_ids:
+		return
+	# A retry older than this many ops applies again. A table would remove the ceiling.
+	cr.applied_op_ids = frappe.as_json((applied_op_ids + new_ids)[-MAX_APPLIED_OP_IDS:], indent=None)
+	frappe.db.set_value(
+		"Wiki Change Request", cr.name, "applied_op_ids", cr.applied_op_ids, update_modified=False
+	)
+
+
 def _assert_snapshot_is_current(cr: Document) -> None:
 	"""After a lock wait, plain reads still use the old snapshot, so refuse rather than build on it."""
 	if cint(frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")) != cr.operation_version:
@@ -1296,7 +1328,11 @@ def _find_conflict(
 	cr: Document, operations: list[dict[str, Any]], base_structure_version: int | str | None
 ) -> dict[str, Any] | None:
 	"""Runs before any write, because a returned error still commits the request."""
-	if base_structure_version is not None and cint(base_structure_version) < int(cr.structure_version or 0):
+	if (
+		operations
+		and base_structure_version is not None
+		and cint(base_structure_version) < int(cr.structure_version or 0)
+	):
 		return {
 			"ok": False,
 			"error": "structure_conflict",
