@@ -77,9 +77,8 @@ export function createSyncTransport({ crStore, crName }) {
 	// Error whose `code === 'version_conflict'` when the server reports
 	// the client is behind. Callers do their own local-store merging from
 	// `result.temp_key_map`, `result.items`, and `result.deleted_doc_keys`.
-	async function applyBatchOps(operations) {
+	async function applyBatchOps(operations, submitCr = crName()) {
 		if (!operations || operations.length === 0) return null;
-		const submitCr = crName();
 		if (!submitCr) throw new Error('No change request');
 
 		const state = getCrState(submitCr);
@@ -169,6 +168,11 @@ export function createSyncTransport({ crStore, crName }) {
 		showConflict(name, CHANGED_ELSEWHERE);
 	}
 
+	function flagStructureConflict(name) {
+		getCrState(name).structureConflict = true;
+		showConflict(name, CHANGED_ELSEWHERE);
+	}
+
 	function clearConflict(name) {
 		const state = getCrState(name);
 		state.conflictPages.clear();
@@ -220,6 +224,7 @@ export function createSyncTransport({ crStore, crName }) {
 		recordServerVersion,
 		getCrState,
 		flagPageConflict,
+		flagStructureConflict,
 		clearConflict,
 		markSaving,
 		markSaved,

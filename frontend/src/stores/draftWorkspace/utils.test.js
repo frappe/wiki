@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { normalizeNode } from './treeModel.js';
-import { makeDocKey, restoredDraftBuffer, toPublished } from './utils.js';
+import {
+	isRetryableError,
+	makeDocKey,
+	restoredDraftBuffer,
+	toPublished,
+} from './utils.js';
 
 test('makeDocKey gives a key the server patterns accept', () => {
 	assert.match(makeDocKey(), /^[0-9a-f]{32}$/);
@@ -59,4 +64,12 @@ test('restored draft buffer keeps published pages published', () => {
 	});
 
 	assert.equal(buffer.isPublished, true);
+});
+
+test('isRetryableError retries what may yet land and drops what the server refused', () => {
+	assert.equal(isRetryableError(new TypeError('Failed to fetch')), true);
+	assert.equal(isRetryableError({ exc_type: 'TimestampMismatchError' }), true);
+	assert.equal(isRetryableError({ exc_type: 'ValidationError' }), false);
+	assert.equal(isRetryableError({ exc_type: 'PermissionError' }), false);
+	assert.equal(isRetryableError({ exc_type: 'PermissionError' }, true), true);
 });
