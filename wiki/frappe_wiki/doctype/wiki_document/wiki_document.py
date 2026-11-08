@@ -17,7 +17,7 @@ from frappe.website.website_components.metatags import MetaTags
 from werkzeug.wrappers import Response
 
 from wiki.telemetry import capture, reader_config
-from wiki.utils import fingerprint_js_url
+from wiki.utils import fingerprint_js_url, see_latest_rows_after_lock_wait
 from wiki.wiki.markdown import render_markdown, render_markdown_with_toc
 
 WIKI_DOCUMENT_PRINT_FORMAT = "Standard Wiki Document"
@@ -1334,6 +1334,7 @@ def stamp_wiki_space_subtree(root_doc_name):
 
 
 def lock_wiki_tree() -> None:
+	see_latest_rows_after_lock_wait()
 	frappe.db.get_value("DocType", "Wiki Document", "name", for_update=True)
 
 
