@@ -45,11 +45,20 @@ jobs:
           node-version: 24
           check-latest: true
 
+      - name: Get OS version
+        id: os
+        run: echo "version=$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          # mysqlclient is built from source, so a cached build only works on the OS that built it
+          cache-suffix: ubuntu-${{ steps.os.outputs.version }}
           cache-dependency-glob: '**/pyproject.toml'
+
+      - name: Install MariaDB Client Library
+        run: sudo apt update && sudo apt-get install libmariadb-dev pkg-config
 
       - name: Setup
         run: |

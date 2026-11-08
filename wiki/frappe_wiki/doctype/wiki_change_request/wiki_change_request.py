@@ -39,6 +39,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	recompute_revision_hashes,
 )
 from wiki.telemetry import capture
+from wiki.utils import see_latest_rows_after_lock_wait
 from wiki.wiki.markdown import render_markdown
 
 
@@ -229,6 +230,7 @@ def _lock_and_load_cr(name: str) -> Document:
 	— leaving the counter advanced by 1 instead of 2 and merging two
 	clients' state against the same base.
 	"""
+	see_latest_rows_after_lock_wait()
 	locked = frappe.db.get_value("Wiki Change Request", name, "operation_version", for_update=True)
 	cr = frappe.get_doc("Wiki Change Request", name)
 	# Keep the in-memory view consistent with the locked DB value so

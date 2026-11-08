@@ -2,6 +2,8 @@ import frappe
 from frappe import _
 from frappe.utils.nestedset import get_descendants_of
 
+from wiki.utils import see_latest_rows_after_lock_wait
+
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_sync_sha(space: str) -> str | None:
@@ -442,6 +444,7 @@ def lock_wiki_space(space_name: str):
 	After a lock wait, plain reads still use the old snapshot, so refuse rather
 	than build on it.
 	"""
+	see_latest_rows_after_lock_wait()
 	space = frappe.get_doc("Wiki Space", space_name, for_update=True)
 	if frappe.db.get_value("Wiki Space", space_name, "main_revision") != space.main_revision:
 		frappe.throw(

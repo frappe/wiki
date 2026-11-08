@@ -3396,21 +3396,10 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 			self.skipTest("SQLite has no row locks to wait on")
 		super().setUp()
 
-	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
-		"""A merge that waits on the tree lock still holds the snapshot from before it waited,
-		so a plain read misses the shift the merge ahead of it committed."""
+	def commit_from_another_connection(self, *statements):
+		"""Commit writes the way a request that got the lock first would, after this test's snapshot."""
 		from frappe.database import get_db
 
-		earlier = self.wiki.space(pages=[{"title": "Earlier"}])
-		later = self.wiki.space(pages=[{"title": "Later"}])
-		cr = create_change_request(later.name, "Add pages")
-		root_key = frappe.db.get_value("Wiki Document", later.root_group, "doc_key")
-		for title in ("New A", "New B"):
-			create_cr_page(cr.name, root_key, title, content="new")
-		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
-		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
-
-		earlier_rgt = frappe.db.get_value("Wiki Document", earlier.root_group, "rgt")
 		conf = frappe.conf
 		other = get_db(
 			socket=conf.db_socket,
@@ -3422,12 +3411,67 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 		)
 		other.connect()
 		try:
-			# What a merge adding five pages to the earlier space does to every space after it.
-			other.sql("update `tabWiki Document` set lft = lft + 10 where lft > %s", earlier_rgt)
-			other.sql("update `tabWiki Document` set rgt = rgt + 10 where rgt >= %s", earlier_rgt)
+			for query, *values in statements:
+				other.sql(query, values)
 			other.commit()
 		finally:
 			other.close()
+
+	def test_merge_that_waited_on_the_space_lock_asks_to_try_again(self):
+		space = self.wiki.space(pages=[{"title": "Page"}])
+		cr = create_change_request(space.name, "Add a page")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		create_cr_page(cr.name, root_key, "New", content="new")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		head = frappe.db.get_value("Wiki Change Request", cr.name, "head_revision")
+		self.commit_from_another_connection(
+			("update `tabWiki Space` set main_revision = %s where name = %s", head, space.name),
+		)
+
+		with self.assertRaises(frappe.TimestampMismatchError):
+			merge_change_request(cr.name)
+
+	def test_write_that_waited_on_the_change_request_lock_counts_from_the_current_version(self):
+		space = self.wiki.space(pages=[{"title": "Page"}])
+		cr = create_change_request(space.name, "Add a page")
+		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		before = frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")
+		self.commit_from_another_connection(
+			(
+				"update `tabWiki Change Request` set operation_version = operation_version + 1 where name = %s",
+				cr.name,
+			),
+		)
+
+		result = apply_cr_operations(
+			cr.name,
+			operations=[{"type": "create_node", "temp_key": "tmp-1", "parent_key": root_key, "title": "New"}],
+		)
+
+		self.assertEqual(result["current_version"], before + 2)
+
+	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
+		"""A merge that waits on the tree lock still holds the snapshot from before it waited,
+		so a plain read misses the shift the merge ahead of it committed."""
+		earlier = self.wiki.space(pages=[{"title": "Earlier"}])
+		later = self.wiki.space(pages=[{"title": "Later"}])
+		cr = create_change_request(later.name, "Add pages")
+		root_key = frappe.db.get_value("Wiki Document", later.root_group, "doc_key")
+		for title in ("New A", "New B"):
+			create_cr_page(cr.name, root_key, title, content="new")
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		earlier_rgt = frappe.db.get_value("Wiki Document", earlier.root_group, "rgt")
+		# What a merge adding five pages to the earlier space does to every space after it.
+		self.commit_from_another_connection(
+			("update `tabWiki Document` set lft = lft + 10 where lft > %s", earlier_rgt),
+			("update `tabWiki Document` set rgt = rgt + 10 where rgt >= %s", earlier_rgt),
+		)
 
 		merge_change_request(cr.name)
 		# Ends the stale snapshot, so the check below reads what the merge left.

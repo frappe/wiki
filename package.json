@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.4.1",
-    "@playwright/test": "^1.49.0",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^22.0.0"
   },
   "scripts": {
