@@ -40,7 +40,7 @@ jobs:
         ports:
           - 11000:6379
       mariadb:
-        image: mariadb:10.6
+        image: mariadb:11.8
         env:
           MYSQL_ROOT_PASSWORD: root
         ports:
@@ -65,10 +65,16 @@ jobs:
       - name: Add to Hosts
         run: echo "127.0.0.1 wiki.test" | sudo tee -a /etc/hosts
 
+      - name: Get OS version
+        id: os
+        run: echo "version=$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          # mysqlclient is built from source, so a cached build only works on the OS that built it
+          cache-suffix: ubuntu-${{ steps.os.outputs.version }}
           cache-dependency-glob: '**/pyproject.toml'
 
       - name: Get yarn cache directory path
@@ -94,7 +100,7 @@ jobs:
       - name: Install MariaDB Client
         run: |
           sudo apt update
-          sudo apt-get install mariadb-client
+          sudo apt-get install mariadb-client libmariadb-dev pkg-config
 
       - name: Setup Bench
         run: |
