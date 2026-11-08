@@ -21,6 +21,7 @@
 		"archived_at",
 		"operation_version",
 		"structure_version",
+		"applied_op_ids",
 		"section_break_review",
 		"reviewed_by",
 		"reviewed_at",
@@ -137,6 +138,13 @@
 			"read_only": 1
 		},
 		{
+			"fieldname": "applied_op_ids",
+			"fieldtype": "JSON",
+			"hidden": 1,
+			"label": "Applied Operation IDs",
+			"read_only": 1
+		},
+		{
 			"fieldname": "section_break_review",
 			"fieldtype": "Section Break",
 			"label": "Review"
@@ -172,7 +180,7 @@
 		}
 	],
 	"links": [],
-	"modified": "2026-11-02 10:00:00.000000",
+	"modified": "2026-11-02 18:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Change Request",

@@ -46,13 +46,9 @@
 
 				<!-- The tree is a navigation column: a word per row makes it a
 				     list of labels rather than a list of pages. Every state here
-				     is a mark instead — except a failed sync, which asks for an
-				     action and so keeps its words. -->
-				<Badge v-if="node.local_status === 'sync_failed'" variant="subtle" theme="red" size="sm" :title="__('Sync failed — edit again or delete to recover')">
-					{{ __('Sync failed') }}
-				</Badge>
+				     is a mark instead. -->
 				<span
-					v-else-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'"
+					v-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'"
 					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
 					:title="__('Syncing…')"
 					:aria-label="__('Syncing…')"
@@ -105,7 +101,7 @@ import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
-import { Badge, Button, Dropdown, Tree, toast } from 'frappe-ui';
+import { Button, Dropdown, Tree, toast } from 'frappe-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
