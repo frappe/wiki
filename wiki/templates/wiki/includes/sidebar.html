@@ -3,7 +3,7 @@
 
 <div class="wiki-sidebar hidden lg:flex w-72 bg-[var(--surface-base)] border-e border-[var(--outline-gray-1)] flex-col flex-shrink-0 transition-[width,border-width] duration-300 ease-in-out overflow-hidden sticky top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))]"
      x-data="wikiSidebar()"
-     :style="isCollapsed ? 'width: 0; border-right-width: 0;' : 'width: 18rem;'">
+     :style="isCollapsed ? 'width: 0; border-inline-end-width: 0;' : 'width: 18rem;'">
 
     {% set current_route = doc.route if doc else '' %}
 
@@ -13,8 +13,8 @@
 </div>
 
 <div x-data="{ hovered: false }"
-     class="wiki-sidebar-toggle hidden lg:flex items-center fixed z-40 top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))] transition-[left] duration-300 ease-in-out"
-     :style="$store.sidebar.isCollapsed ? 'left: 0.5rem;' : 'left: calc(18rem - 0.25rem);'"
+     class="wiki-sidebar-toggle hidden lg:flex items-center fixed z-40 top-[var(--wiki-chrome-h)] h-[calc(100vh-var(--wiki-chrome-h))] transition-[left,right] duration-300 ease-in-out"
+     :style="$store.sidebar.isCollapsed ? 'inset-inline-start: 0.5rem;' : 'inset-inline-start: calc(18rem - 0.25rem);'"
      @mouseenter="hovered = true"
      @mouseleave="hovered = false">
     <div class="w-8 h-full flex items-center justify-center">

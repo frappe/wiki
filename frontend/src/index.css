@@ -35,6 +35,16 @@ html[data-theme="light"] {
 	scale: -1 1;
 }
 
+/* frappe-ui still uses physical sides here: Tree indents with padding-left
+   and menu, select and settings rows use text-left. */
+:dir(rtl) .frappe-tree-group {
+	padding-inline: var(--_tree-indent) 0;
+}
+
+:dir(rtl) .text-left {
+	text-align: start;
+}
+
 /* The `.no-transition` rule that used to sit here now comes from
    frappe-ui/style.css, and useColorScheme applies the class across a swap
    itself. */

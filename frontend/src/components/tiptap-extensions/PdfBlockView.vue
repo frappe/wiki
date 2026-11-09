@@ -218,7 +218,7 @@ function closeViewer() {
 	display: flex;
 	align-items: center;
 	gap: 0.125rem;
-	margin-left: auto;
+	margin-inline-start: auto;
 	flex-shrink: 0;
 }
 

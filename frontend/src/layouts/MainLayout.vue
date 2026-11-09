@@ -162,7 +162,7 @@ watch(
    outer corners, so a second radius inside it just reads as noise. */
 .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
 	background-color: var(--surface-base);
-	border-left: 1px solid var(--outline-gray-2);
+	border-inline-start: 1px solid var(--outline-gray-2);
 	overflow: hidden;
 }
 

@@ -188,7 +188,7 @@
 										</Tooltip>
 									</div>
 									<div class="mt-1.5 truncate text-sm text-ink-gray-5">
-										/{{ space.route }}
+										<bdi dir="ltr">/{{ space.route }}</bdi>
 									</div>
 								</div>
 							</ListCell>

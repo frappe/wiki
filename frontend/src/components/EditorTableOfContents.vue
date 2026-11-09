@@ -90,7 +90,7 @@
 					:class="index === activeIndex
 						? 'bg-surface-gray-2 font-medium text-ink-gray-9'
 						: 'text-ink-gray-6'"
-					:style="{ paddingLeft: `${1 + (entry.level - 2) * 0.75}rem` }"
+					:style="{ paddingInlineStart: `${1 + (entry.level - 2) * 0.75}rem` }"
 					@click="goTo(entry, { index, collapse: true })"
 				>
 					<span

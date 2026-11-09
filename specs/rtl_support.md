@@ -39,6 +39,8 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - Wrap the app in reka-ui's `ConfigProvider` with `dir` from `<html dir>`. frappe-ui's `ScrollArea` and other reka components default to `ltr` without it, which keeps editor content LTR inside an RTL page.
 - Replace physical Tailwind classes (`ml-`, `pl-`, `left-`, `border-l`, `text-left`, ...) with logical ones (`ms-`, `ps-`, `start-`, `border-s`, `text-start`).
 - One CSS rule in `index.css` mirrors the directional lucide icons (arrows, chevrons, `panel-left`) under `:dir(rtl)`. frappe-ui renders `icon="lucide-*"` as a class span, so this also covers icon Buttons.
+- `index.css` also overrides two frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`) and `text-left`, which frappe-ui menus, selects and settings nav rows use.
+- Paths and URLs render in `<bdi dir="ltr">`, or inside LRI / PDI marks where a prop takes plain text. History times sit in `<bdi>`. So `/route` does not read `route/`. The page route input is `dir="ltr"`.
 - tippy.js (slash menu, link popup) uses Popper, which has no RTL support, so the placement is `bottom-end` in RTL.
 - `MobileDrawer` sides become `start` / `end`.
 - Explicit image alignment (`data-align` left / right) and the image resize handle stay physical.
@@ -49,6 +51,7 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - Physical properties in `main.css` and `wiki-rendered.css` become logical (`padding-inline-start`, `inset-inline-end`, ...). Prose CSS from frappe-ui is already logical.
 - `pre` gets `direction: ltr` in the reader and read mode. The editable code block (frappe-ui's `.code-block-container`) gets it in `wiki-editor-content.css`.
 - Keyboard hints (`Ctrl K`) get `dir="ltr"` so they do not read `K Ctrl`.
+- The sidebar toggle is placed with `inset-inline-start`, so it follows the sidebar to the right.
 
 ## Phases
 
@@ -66,6 +69,9 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - [x] Phase 3
 - [x] Phase 4
   - Playwright Test's `browser.newContext()` inherits the signed-in `storageState`. A guest context needs `storageState: { cookies: [], origins: [] }`.
+- [x] Review fixes
+  - The reader's sidebar toggle stayed on the left. Its invisible full-height strip covered part of the Edit button, so clicks there did nothing.
+  - Nested tree pages, the mobile outline, settings nav labels, the callout body, the Mermaid code pane, the PDF actions and the app shell hairline still used physical sides.
 
 ## Known gaps
 

@@ -77,7 +77,7 @@
 							v-if="item.subtitle"
 							class="mt-0.5 truncate text-sm text-ink-gray-5"
 						>
-							{{ item.subtitle }}
+							<bdi>{{ item.subtitle }}</bdi>
 						</div>
 					</div>
 					<Tooltip v-if="item.unpublished" :text="__('Unpublished')">

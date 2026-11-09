@@ -69,6 +69,9 @@ test('an Arabic guest reads a right-to-left page', async ({
 	const content = await page.locator('.wiki-rendered').boundingBox();
 	// The sidebar sits on the right of the content.
 	expect(sidebar && content && sidebar.x > content.x).toBe(true);
+	// The toggle's hover strip spans the full height, so on the wrong side it covers page actions.
+	const toggle = await page.locator('.wiki-sidebar-toggle').boundingBox();
+	expect(toggle && sidebar && toggle.x + toggle.width > sidebar.x).toBe(true);
 	await context.close();
 });
 

@@ -95,7 +95,7 @@
 								{{ versionTitle(version) }}
 							</span>
 							<span class="block truncate pt-0.5 text-xs text-ink-gray-5">
-								{{ versionMeta(version) }}
+								<bdi>{{ versionTime(version) }}</bdi> · {{ versionSummary(version) }}
 							</span>
 						</span>
 					</button>
@@ -202,12 +202,15 @@ const CHANGE_LABELS = {
 	unpublished: () => __('unpublished'),
 };
 
-function versionMeta(version) {
+function versionTime(version) {
 	const date = dayjsLocal(version.created_at);
-	const when = date.isSame(dayjsLocal(), 'day')
+	return date.isSame(dayjsLocal(), 'day')
 		? date.format('h:mm A')
 		: date.format('D MMM, h:mm A');
-	return `${when} · ${scope.value === 'space' ? pageCount(version) : changeSummary(version)}`;
+}
+
+function versionSummary(version) {
+	return scope.value === 'space' ? pageCount(version) : changeSummary(version);
 }
 
 function pageCount(version) {

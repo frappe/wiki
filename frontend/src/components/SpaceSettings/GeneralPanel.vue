@@ -180,7 +180,8 @@ const pagesLabel = computed(() => {
 // Renaming the space never moves its pages — the route is changed on purpose,
 // through the flow next to it, because every published URL depends on it.
 const routeDescription = computed(() =>
-	__('Pages live under /{0}/…', [props.space.doc?.route || '']),
+	// LRI ... PDI keeps the path left to right inside right-to-left text.
+	__('Pages live under {0}', [`\u2066/${props.space.doc?.route || ''}/…\u2069`]),
 );
 
 watch(

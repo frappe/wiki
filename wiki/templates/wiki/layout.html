@@ -28,9 +28,9 @@
     <style>
         [x-cloak] { display: none !important; }
         /* Sidebar collapsed state before Alpine loads */
-        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; border-right-width: 0 !important; }
-        html[data-sidebar-collapsed] .wiki-sidebar-toggle { left: 0.5rem !important; }
-        html:not([data-sidebar-collapsed]) .wiki-sidebar-toggle { left: calc(18rem - 0.25rem); }
+        html[data-sidebar-collapsed] .wiki-sidebar { width: 0 !important; border-inline-end-width: 0 !important; }
+        html[data-sidebar-collapsed] .wiki-sidebar-toggle { inset-inline-start: 0.5rem !important; }
+        html:not([data-sidebar-collapsed]) .wiki-sidebar-toggle { inset-inline-start: calc(18rem - 0.25rem); }
     </style>
 
     <!-- Theme + sidebar initialization - must run before page renders to prevent flash -->

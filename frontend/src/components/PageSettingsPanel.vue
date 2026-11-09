@@ -47,6 +47,7 @@
 						:label="__('Route')"
 						:placeholder="__('space/section/page')"
 						:description="publicUrl"
+						dir="ltr"
 						:disabled="readonly"
 					/>
 					<div class="flex items-center justify-between gap-3">
@@ -175,7 +176,7 @@
 								/>
 							</div>
 							<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
-								<span class="truncate text-xs text-ink-gray-4">{{ route }}</span>
+								<span class="truncate text-xs text-ink-gray-4"><bdi dir="ltr">{{ route }}</bdi></span>
 								<span class="line-clamp-1 text-sm-medium text-ink-gray-9">
 									{{ form.metaTitle || title }}
 								</span>
@@ -372,7 +373,8 @@ const isDirty = computed(() =>
 );
 
 const publicUrl = computed(() =>
-	form.route ? `${window.location.origin}/${form.route}` : '',
+	// LRI ... PDI keeps the URL left to right inside right-to-left text.
+	form.route ? `\u2066${window.location.origin}/${form.route}\u2069` : '',
 );
 
 const descriptionHint = computed(() =>
