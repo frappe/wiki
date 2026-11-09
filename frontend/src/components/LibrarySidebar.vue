@@ -29,7 +29,7 @@
 					@click="openCommandPalette('click')"
 				>
 					<template #suffix>
-						<KeyboardShortcut combo="Mod+K" class="me-2 text-ink-gray-4" />
+						<KeyboardShortcut combo="Mod+K" class="me-2 text-ink-gray-4" dir="ltr" />
 					</template>
 				</SidebarItem>
 

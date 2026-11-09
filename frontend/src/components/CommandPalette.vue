@@ -116,7 +116,7 @@
 				</span>
 			</div>
 			<span class="flex items-center gap-1">
-				<KeyboardShortcut bg combo="Mod+K" />
+				<KeyboardShortcut bg combo="Mod+K" dir="ltr" />
 				{{ __('to open') }}
 			</span>
 		</div>

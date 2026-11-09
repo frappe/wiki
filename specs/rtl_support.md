@@ -39,7 +39,8 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - Wrap the app in reka-ui's `ConfigProvider` with `dir` from `<html dir>`. frappe-ui's `ScrollArea` and other reka components default to `ltr` without it, which keeps editor content LTR inside an RTL page.
 - Replace physical Tailwind classes (`ml-`, `pl-`, `left-`, `border-l`, `text-left`, ...) with logical ones (`ms-`, `ps-`, `start-`, `border-s`, `text-start`).
 - One CSS rule in `index.css` mirrors the directional lucide icons (arrows, chevrons, `panel-left`) under `:dir(rtl)`. frappe-ui renders `icon="lucide-*"` as a class span, so this also covers icon Buttons.
-- `index.css` also overrides two frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`) and `text-left`, which frappe-ui menus, selects and settings nav rows use.
+- `index.css` also overrides frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`), `text-left` (menus, selects, settings nav rows), and the Sidebar's `pl-2` / `ml-2` / `mr-2` row, icon and suffix spacing.
+- `Mod+K` shortcut hints get `dir="ltr"` so they read `Ctrl K`.
 - Paths and URLs render in `<bdi dir="ltr">`, or inside LRI / PDI marks where a prop takes plain text. History times sit in `<bdi>`. So `/route` does not read `route/`. The page route input is `dir="ltr"`.
 - tippy.js (slash menu, link popup) uses Popper, which has no RTL support, so the placement is `bottom-end` in RTL.
 - `MobileDrawer` sides become `start` / `end`.
@@ -75,4 +76,4 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 
 ## Known gaps
 
-frappe-ui components still use physical classes (about 110 in 42 files): `SidebarItem` icon gap, `PageHeaderMobile` prefix side, `KeyboardShortcut` key order, the editor toolbar's undo / redo icons. They need a frappe-ui fix.
+frappe-ui components still use physical classes (about 110 in 42 files): `PageHeaderMobile` prefix side, `KeyboardShortcut` key order where wiki does not set `dir`, the editor toolbar's undo / redo icons. They need a frappe-ui fix.
