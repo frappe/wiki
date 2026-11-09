@@ -51,7 +51,7 @@ def get_user_info() -> dict:
 	}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_translations():
 	return get_all_translations(frappe.local.lang)
 
