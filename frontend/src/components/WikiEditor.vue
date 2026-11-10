@@ -10,7 +10,7 @@
                  column re-centres in what remains. The column shifts when the
                  outline appears, which is what buys it back on a 1280px
                  screen — floating over both gutters needed 1400. -->
-            <div class="relative" :class="showTocRail ? 'pr-60' : ''">
+            <div class="relative" :class="showTocRail ? 'pe-60' : ''">
                 <div class="mx-auto w-full max-w-3xl px-8">
                     <slot name="title" />
                     <EditorContent :editor="editor" :class="contentClass" />
@@ -118,6 +118,10 @@ import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
+
+// Popper has no RTL support: `start` is always the left edge.
+const popupPlacement =
+	document.documentElement.dir === 'rtl' ? 'bottom-end' : 'bottom-start';
 
 // Serialize: empty paragraphs render as blank lines instead of &nbsp;.
 const WikiParagraph = Paragraph.extend({
@@ -615,7 +619,7 @@ function showLinkPopup({ editor: editorInstance, href, isNew, rect }) {
 		showOnCreate: true,
 		interactive: true,
 		trigger: 'manual',
-		placement: 'bottom-start',
+		placement: popupPlacement,
 		maxWidth: 'none',
 		theme: 'none',
 		arrow: false,
@@ -691,7 +695,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 						showOnCreate: true,
 						interactive: true,
 						trigger: 'manual',
-						placement: 'bottom-start',
+						placement: popupPlacement,
 						maxWidth: 'none',
 						theme: 'none',
 						arrow: false,

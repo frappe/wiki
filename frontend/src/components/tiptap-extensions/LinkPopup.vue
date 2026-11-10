@@ -12,7 +12,7 @@
         />
         <a
             v-else-if="page"
-            class="text-ink-gray-7 underline text-sm flex-1 truncate pl-1 flex items-center gap-1.5"
+            class="text-ink-gray-7 underline text-sm flex-1 truncate ps-1 flex items-center gap-1.5"
             :title="page.title"
             :href="page.href"
             target="_blank"
@@ -22,14 +22,14 @@
         </a>
         <a
             v-else
-            class="text-ink-gray-7 underline text-sm flex-1 truncate pl-1"
+            class="text-ink-gray-7 underline text-sm flex-1 truncate ps-1"
             :title="currentHref"
             :href="currentHref"
             target="_blank"
         >
             {{ currentHref }}
         </a>
-        <div class="shrink-0 flex items-center gap-1.5 ml-auto">
+        <div class="shrink-0 flex items-center gap-1.5 ms-auto">
             <template v-if="isEditing">
                 <Button
                     @click="saveLink"

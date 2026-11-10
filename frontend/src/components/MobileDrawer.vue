@@ -6,7 +6,7 @@
 				:aria-describedby="undefined"
 				:data-side="side"
 				class="drawer-content fixed inset-y-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-surface-gray-1 shadow-xl"
-				:class="side === 'right' ? 'right-0' : 'left-0'"
+				:class="side === 'end' ? 'end-0' : 'start-0'"
 			>
 				<!-- Required by reka-ui for an accessible name; not shown. -->
 				<DialogTitle class="sr-only">{{ title }}</DialogTitle>
@@ -29,7 +29,7 @@ import {
 
 defineProps({
 	open: { type: Boolean, default: false },
-	side: { type: String, default: 'left' }, // 'left' | 'right'
+	side: { type: String, default: 'start' }, // 'start' | 'end'
 	title: { type: String, default: '' },
 });
 
@@ -45,17 +45,21 @@ const emit = defineEmits(['update:open']);
 .drawer-overlay[data-state='closed'] {
 	animation: drawer-overlay-out 0.2s ease-in;
 }
-.drawer-content[data-side='left'][data-state='open'] {
-	animation: drawer-in-left 0.2s ease-out;
+.drawer-content {
+	--drawer-hidden-x: -100%;
 }
-.drawer-content[data-side='left'][data-state='closed'] {
-	animation: drawer-out-left 0.2s ease-in;
+.drawer-content[data-side='end'],
+.drawer-content[data-side='start']:dir(rtl) {
+	--drawer-hidden-x: 100%;
 }
-.drawer-content[data-side='right'][data-state='open'] {
-	animation: drawer-in-right 0.2s ease-out;
+.drawer-content[data-side='end']:dir(rtl) {
+	--drawer-hidden-x: -100%;
 }
-.drawer-content[data-side='right'][data-state='closed'] {
-	animation: drawer-out-right 0.2s ease-in;
+.drawer-content[data-state='open'] {
+	animation: drawer-in 0.2s ease-out;
+}
+.drawer-content[data-state='closed'] {
+	animation: drawer-out 0.2s ease-in;
 }
 
 @keyframes drawer-overlay-in {
@@ -66,20 +70,12 @@ const emit = defineEmits(['update:open']);
 	from { opacity: 1; }
 	to { opacity: 0; }
 }
-@keyframes drawer-in-left {
-	from { transform: translateX(-100%); }
+@keyframes drawer-in {
+	from { transform: translateX(var(--drawer-hidden-x)); }
 	to { transform: translateX(0); }
 }
-@keyframes drawer-out-left {
+@keyframes drawer-out {
 	from { transform: translateX(0); }
-	to { transform: translateX(-100%); }
-}
-@keyframes drawer-in-right {
-	from { transform: translateX(100%); }
-	to { transform: translateX(0); }
-}
-@keyframes drawer-out-right {
-	from { transform: translateX(0); }
-	to { transform: translateX(100%); }
+	to { transform: translateX(var(--drawer-hidden-x)); }
 }
 </style>

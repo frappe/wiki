@@ -51,14 +51,9 @@ def get_user_info() -> dict:
 	}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_translations():
-	if frappe.session.user != "Guest":
-		language = frappe.db.get_value("User", frappe.session.user, "language")
-	else:
-		language = frappe.db.get_single_value("System Settings", "language")
-
-	return get_all_translations(language)
+	return get_all_translations(frappe.local.lang)
 
 
 def _to_webp(path_or_url: str) -> str:

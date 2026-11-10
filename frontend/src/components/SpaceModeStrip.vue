@@ -59,7 +59,7 @@
 				     of it would be one grey box inside another. -->
 				<button
 					type="button"
-					class="min-w-0 flex-1 truncate rounded-2 text-left text-xs-medium hover:underline focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+					class="min-w-0 flex-1 truncate rounded-2 text-start text-xs-medium hover:underline focus-visible:ring-2 focus-visible:ring-outline-gray-3"
 					:title="__('Edit title and description')"
 					@click="openDetailsDialog"
 				>

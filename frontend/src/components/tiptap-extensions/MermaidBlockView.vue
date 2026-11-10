@@ -241,7 +241,7 @@ onBeforeUnmount(() => diagram?.destroy());
 }
 
 .mermaid-block-code-pane {
-	border-right: 1px solid var(--outline-gray-2);
+	border-inline-end: 1px solid var(--outline-gray-2);
 	background: var(--surface-gray-1);
 }
 
@@ -301,7 +301,7 @@ onBeforeUnmount(() => diagram?.destroy());
 	}
 
 	.mermaid-block-code-pane {
-		border-right: 0;
+		border-inline-end: 0;
 		border-bottom: 1px solid var(--outline-gray-2);
 	}
 }

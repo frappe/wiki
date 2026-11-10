@@ -85,9 +85,10 @@ body {
 }
 
 .wiki-children {
-  margin: 2px 0 0 18px;
-  padding-left: 8px;
-  border-left: 1px solid var(--outline-gray-2);
+  margin: 2px 0 0;
+  margin-inline-start: 18px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--outline-gray-2);
 }
 
 .wiki-item + .wiki-item {
@@ -117,7 +118,7 @@ body {
 }
 
 .wiki-tree > .wiki-item > a.wiki-row {
-  padding-left: 1.75rem;
+  padding-inline-start: 1.75rem;
 }
 
 summary.wiki-row {
@@ -144,6 +145,14 @@ details[open] > summary.wiki-row::before {
   rotate: 90deg;
 }
 
+summary.wiki-row:dir(rtl)::before {
+  scale: -1 1;
+}
+
+details[open] > summary.wiki-row:dir(rtl)::before {
+  rotate: -90deg;
+}
+
 .wiki-external-link {
   display: flex;
   align-items: center;
@@ -159,7 +168,7 @@ details[open] > summary.wiki-row::before {
   flex-shrink: 0;
   width: 0.75rem;
   height: 0.75rem;
-  margin-left: 0.5rem;
+  margin-inline-start: 0.5rem;
   background-color: var(--ink-gray-4);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3Cpolyline points='15 3 21 3 21 9'/%3E%3Cline x1='10' y1='14' x2='21' y2='3'/%3E%3C/svg%3E") center / contain no-repeat;
 }

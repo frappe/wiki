@@ -62,7 +62,7 @@
                            :class="activeTocId === heading.id
                                ? 'text-[var(--ink-gray-9)] font-medium bg-[var(--surface-gray-2)]'
                                : 'text-[var(--ink-gray-5)] hover:text-[var(--ink-gray-9)] hover:bg-[var(--surface-gray-2)]'"
-                           :style="`padding-left: ${1 + (heading.level - 2) * 0.75}rem`"
+                           :style="`padding-inline-start: ${1 + (heading.level - 2) * 0.75}rem`"
                            class="flex items-center gap-2 px-4 py-2 text-sm transition-colors duration-200">
                            <svg class="w-3 h-3 shrink-0" :class="activeTocId === heading.id ? 'text-[var(--ink-gray-7)]' : 'text-[var(--ink-gray-4)]'" fill="currentColor" viewBox="0 0 8 8">
                                <circle cx="4" cy="4" r="3"/>
@@ -80,7 +80,7 @@
             data-testid="mobile-menu-toggle"
             aria-label="{{ _("Open navigation menu") }}"
             :aria-expanded="sidebarOpen"
-            class="fixed bottom-4 right-4 z-30 shadow-2xl inline-flex items-center justify-center gap-2 shrink-0 h-10 px-3 rounded-5 text-lg-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
+            class="fixed bottom-4 end-4 z-30 shadow-2xl inline-flex items-center justify-center gap-2 shrink-0 h-10 px-3 rounded-5 text-lg-medium text-[var(--ink-gray-8)] bg-[var(--surface-base)] border border-[var(--outline-gray-2)] hover:border-[var(--outline-gray-3)] active:border-[var(--outline-gray-3)] active:bg-[var(--surface-gray-4)] transition-colors cursor-pointer">
         {{ render_icon("menu", "w-5 h-5") }}
         <span>{{ _("Menu") }}</span>
     </button>

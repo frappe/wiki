@@ -50,7 +50,7 @@
             {#- Folder and page actions share one quiet row, so the title keeps its full width. -#}
             <div class="flex items-center gap-3 min-h-7 pb-2">
                 <span data-wiki-folder-eyebrow class="text-base-medium text-[var(--ink-gray-6)] truncate" {% if not folder_name %}hidden{% endif %}>{{ folder_name or "" }}</span>
-                <div class="ml-auto flex items-center gap-0.5 -mr-1.5" data-testid="page-actions">
+                <div class="ms-auto flex items-center gap-0.5 -me-1.5" data-testid="page-actions">
                     {% if can_edit %}
                     <a href="{{ doc.get_edit_link() }}"
                        {% if wiki_space.git_synced %}target="_blank" rel="noopener"{% endif %}
@@ -103,7 +103,7 @@
                    @mouseenter="$store.navigation.prefetch({{ prev_doc.route | tojson | forceescape }})"
                    @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
-                    {{ render_icon("arrow-left", "h-4 w-4 shrink-0") }}
+                    {{ render_icon("arrow-left", "h-4 w-4 shrink-0 rtl:-scale-x-100") }}
                     <span class="truncate">{{ prev_doc.title }}</span>
                 </a>
                 {% endif %}
@@ -115,7 +115,7 @@
                    @mouseleave="$store.navigation.cancelPrefetch()"
                    class="{{ nav_link_classes }}">
                     <span class="truncate">{{ next_doc.title }}</span>
-                    {{ render_icon("arrow-right", "h-4 w-4 shrink-0") }}
+                    {{ render_icon("arrow-right", "h-4 w-4 shrink-0 rtl:-scale-x-100") }}
                 </a>
                 {% endif %}
             </div>
