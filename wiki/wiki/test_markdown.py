@@ -581,6 +581,27 @@ More text after."""
 		self.assertIn('<span style="color: red;">colored</span>', result)
 		self.assertNotIn("&lt;span", result)
 
+	def test_unclosed_html_tag_is_closed(self):
+		content = 'Beta.\n\n<div style="min-height: 220px;">\n<div>A boxed note.</div>\n\nMore beta text.'
+		result = render_markdown(content)
+
+		self.assertEqual(result.count("<div"), 2)
+		self.assertEqual(result.count("</div>"), 2)
+		self.assertTrue(result.rstrip().endswith("</div>"))
+		self.assertIn("<p>More beta text.</p>", result)
+
+	def test_stray_end_tag_is_dropped(self):
+		result = render_markdown("Before.\n\n</div></section>\n\nAfter.")
+
+		self.assertNotIn("</div>", result)
+		self.assertNotIn("</section>", result)
+		self.assertIn("<p>After.</p>", result)
+
+	def test_unclosed_html_inside_callout_is_closed(self):
+		result = render_markdown(":::note\n<div>open\n:::\n\nAfter.")
+
+		self.assertEqual(result.count("<div"), result.count("</div>"))
+
 
 class TestTableRendering(unittest.TestCase):
 	"""Tests for table rendering."""

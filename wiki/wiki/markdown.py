@@ -15,6 +15,7 @@ Supported types: note, tip, caution, danger, warning (alias for caution)
 
 import re
 
+import html5lib
 from markdown_it import MarkdownIt
 from markdown_it.common.utils import escapeHtml
 from markdown_it.token import Token
@@ -710,7 +711,23 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	if _TABLE_CODE_PIPE_SENTINEL in html:
 		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
 
-	return html, headings
+	return _balance_html(html), headings
+
+
+def _balance_html(html: str) -> str:
+	"""Close tags that raw HTML left open and drop end tags it never opened.
+
+	Otherwise page HTML escapes the reader's content container and swallows the
+	page chrome after it. html5lib parses the way a browser does. HTML that parses
+	without errors is returned unchanged.
+	"""
+	parser = html5lib.HTMLParser(namespaceHTMLElements=False)
+	fragment = parser.parseFragment(html)
+	if not parser.errors:
+		return html
+	return html5lib.serialize(
+		fragment, omit_optional_tags=False, quote_attr_values="always", use_trailing_solidus=True
+	)
 
 
 def render_markdown(content: str) -> str:
