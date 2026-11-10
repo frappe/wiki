@@ -39,7 +39,7 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - Wrap the app in reka-ui's `ConfigProvider` with `dir` from `<html dir>`. frappe-ui's `ScrollArea` and other reka components default to `ltr` without it, which keeps editor content LTR inside an RTL page.
 - Replace physical Tailwind classes (`ml-`, `pl-`, `left-`, `border-l`, `text-left`, ...) with logical ones (`ms-`, `ps-`, `start-`, `border-s`, `text-start`).
 - One CSS rule in `index.css` mirrors the directional lucide icons (arrows, chevrons, `panel-left`) under `:dir(rtl)`. frappe-ui renders `icon="lucide-*"` as a class span, so this also covers icon Buttons.
-- `index.css` also overrides frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`), `text-left` (menus, selects, settings nav rows), and the Sidebar's `pl-2` / `ml-2` / `mr-2` row, icon and suffix spacing.
+- `index.css` also overrides frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`), `text-left` (menus, selects, settings nav rows), the Sidebar's `pl-2` / `ml-2` / `mr-2` row, icon and suffix spacing, and the `ml-auto` that pushes the Select chevron and menu, option and tree row suffixes to the end. Image alignment also uses `ml-auto` / `mr-auto`, so the rule is scoped to those parents.
 - `Mod+K` shortcut hints get `dir="ltr"` so they read `Ctrl K`.
 - Paths and URLs render in `<bdi dir="ltr">`, or inside LRI / PDI marks where a prop takes plain text. History times sit in `<bdi>`. So `/route` does not read `route/`. The page route input is `dir="ltr"`.
 - tippy.js (slash menu, link popup) uses Popper, which has no RTL support, so the placement is `bottom-end` in RTL.

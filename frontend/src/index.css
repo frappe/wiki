@@ -36,8 +36,9 @@ html[data-theme="light"] {
 }
 
 /* frappe-ui still uses physical sides here: Tree indents with padding-left,
-   menu, select and settings rows use text-left, and Sidebar spaces its rows,
-   icons and suffixes with pl-2, ml-2 and mr-2. */
+   menu, select and settings rows use text-left, Sidebar spaces its rows,
+   icons and suffixes with pl-2, ml-2 and mr-2, and Select, menu and tree rows
+   push their trailing parts to the end with ml-auto. */
 :dir(rtl) .frappe-tree-group {
 	padding-inline: var(--_tree-indent) 0;
 }
@@ -60,6 +61,11 @@ html[data-theme="light"] {
 :dir(rtl) [data-slot='sidebar-item-suffix'] .mr-2 {
 	margin-right: 0;
 	margin-left: 0.5rem;
+}
+
+:dir(rtl) :is([data-slot='chevron'], [role^='menuitem'] *, [role='option'] *, .frappe-tree-row *).ml-auto {
+	margin-left: 0;
+	margin-right: auto;
 }
 
 /* The `.no-transition` rule that used to sit here now comes from
