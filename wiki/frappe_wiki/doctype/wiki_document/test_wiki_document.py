@@ -370,10 +370,10 @@ class TestGetWebContext(WikiDocumentTestBase):
 
 		self.assertIn('<div data-type="video-block"', context["rendered_content"])
 		self.assertIn(
-			'<video src="/files/demo-video.mp4" controls preload="metadata">',
+			'<video src="/files/demo-video.mp4" controls="" preload="metadata">',
 			context["rendered_content"],
 		)
-		self.assertIn('<source src="/files/demo-video.mp4" />', context["rendered_content"])
+		self.assertIn('<source src="/files/demo-video.mp4">', context["rendered_content"])
 		self.assertNotIn('<img src="/files/demo-video.mp4"', context["rendered_content"])
 
 	def test_wiki_spaces_for_switcher_ordered_by_switcher_order_then_name(self):
