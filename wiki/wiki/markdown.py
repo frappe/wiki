@@ -711,16 +711,11 @@ def render_markdown_with_toc(content: str) -> tuple[str, list]:
 	if _TABLE_CODE_PIPE_SENTINEL in html:
 		html = html.replace(_TABLE_CODE_PIPE_SENTINEL, "|")
 
-	return _balance_html(html), headings
+	return fix_unbalanced_tags(html), headings
 
 
-def _balance_html(html: str) -> str:
-	"""Close tags that raw HTML left open and drop end tags it never opened.
-
-	Otherwise page HTML escapes the reader's content container and swallows the
-	page chrome after it. html5lib parses the way a browser does. HTML that parses
-	without errors is returned unchanged.
-	"""
+def fix_unbalanced_tags(html: str) -> str:
+	"""Close open tags and drop stray end tags, so page HTML stays inside its container."""
 	parser = html5lib.HTMLParser(namespaceHTMLElements=False)
 	fragment = parser.parseFragment(html)
 	if not parser.errors:
