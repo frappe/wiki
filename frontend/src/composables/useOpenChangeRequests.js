@@ -17,7 +17,7 @@ export function useOpenChangeRequests(spaceId) {
 						params: { wiki_space: id },
 						cache: ['open-change-requests', id],
 						auto: true,
-				  })
+					})
 				: null;
 		},
 		{ immediate: true },

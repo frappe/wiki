@@ -129,13 +129,13 @@
 <script setup>
 import {
 	Button,
-	createResource,
 	Dialog,
 	FormControl,
 	SettingsRow,
 	Switch,
-	toast,
 	Tooltip,
+	createResource,
+	toast,
 } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -181,7 +181,9 @@ const pagesLabel = computed(() => {
 // through the flow next to it, because every published URL depends on it.
 const routeDescription = computed(() =>
 	// LRI ... PDI keeps the path left to right inside right-to-left text.
-	__('Pages live under {0}', [`\u2066/${props.space.doc?.route || ''}/…\u2069`]),
+	__('Pages live under {0}', [
+		`\u2066/${props.space.doc?.route || ''}/…\u2069`,
+	]),
 );
 
 watch(
