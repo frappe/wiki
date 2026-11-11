@@ -12,6 +12,7 @@ import { createStore, del, get, keys, set } from 'idb-keyval';
 // a single CR's drafts on hydrate without listing every CR's history.
 
 const PREFIX = 'cr:';
+const LOG_PREFIX = 'log:';
 const wikiDraftStore = createStore('wiki-drafts', 'drafts');
 
 function makeKey(crName, docKey) {
@@ -49,11 +50,12 @@ export async function clearDraft(crName, docKey) {
 // (`clearDraft` is per-doc and needs a docKey we don't always have here).
 export async function clearDraftsForCr(crName) {
 	if (!crName) return;
-	const wanted = `${PREFIX}${crName}:`;
+	const wanted = [`${PREFIX}${crName}:`, `${LOG_PREFIX}${crName}:`];
 	try {
 		const allKeys = await keys(wikiDraftStore);
 		const matches = allKeys.filter(
-			(k) => typeof k === 'string' && k.startsWith(wanted),
+			(k) =>
+				typeof k === 'string' && wanted.some((start) => k.startsWith(start)),
 		);
 		await Promise.all(matches.map((k) => del(k, wikiDraftStore)));
 	} catch (err) {
@@ -82,6 +84,48 @@ export async function loadDraftsForCr(crName) {
 		return entries.filter(Boolean);
 	} catch (err) {
 		console.warn('[draftPersistence] loadDraftsForCr failed', err);
+		return [];
+	}
+}
+
+function makeLogKey(crName, opId) {
+	return `${LOG_PREFIX}${crName}:${opId}`;
+}
+
+// Reactive proxies cannot be stored in IndexedDB, so entries go in as plain JSON.
+export async function saveLogEntry(crName, entry) {
+	try {
+		await set(
+			makeLogKey(crName, entry.id),
+			JSON.parse(JSON.stringify(entry)),
+			wikiDraftStore,
+		);
+	} catch (err) {
+		console.warn('[draftPersistence] saveLogEntry failed', err);
+	}
+}
+
+export async function clearLogEntry(crName, opId) {
+	try {
+		await del(makeLogKey(crName, opId), wikiDraftStore);
+	} catch (err) {
+		console.warn('[draftPersistence] clearLogEntry failed', err);
+	}
+}
+
+export async function loadLogForCr(crName) {
+	const wanted = `${LOG_PREFIX}${crName}:`;
+	try {
+		const allKeys = await keys(wikiDraftStore);
+		const matches = allKeys.filter(
+			(k) => typeof k === 'string' && k.startsWith(wanted),
+		);
+		const entries = await Promise.all(
+			matches.map((k) => get(k, wikiDraftStore)),
+		);
+		return entries.filter(Boolean);
+	} catch (err) {
+		console.warn('[draftPersistence] loadLogForCr failed', err);
 		return [];
 	}
 }

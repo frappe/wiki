@@ -21,6 +21,23 @@ export function toPublished(value) {
 	return value == null ? true : Boolean(value);
 }
 
+const RETRIED_SERVER_ERRORS = new Set([
+	'AuthenticationError',
+	'CSRFTokenError',
+	'QueryDeadlockError',
+	'QueryTimeoutError',
+	'SessionExpired',
+	'TimestampMismatchError',
+	'TooManyRequestsError',
+]);
+
+// No `exc_type` means the server never answered, so the op may yet land. A
+// signed-out user gets a PermissionError too, and must not lose work to it.
+export function isRetryableError(err, signedOut = false) {
+	if (!err?.exc_type || RETRIED_SERVER_ERRORS.has(err.exc_type)) return true;
+	return signedOut && err.exc_type === 'PermissionError';
+}
+
 // Buffer seed for an editor draft restored from IndexedDB. The tree node is
 // the authority for route and publish state — a restored buffer must not
 // invent them, or an unpublished page shows a "Published" badge after a

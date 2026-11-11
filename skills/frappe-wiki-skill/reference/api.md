@@ -100,6 +100,10 @@ Stale — **HTTP 200, exit code 0**:
 
 A batch that creates, deletes, restores, moves or reorders returns `structure_version`.
 
+`op_id` on any op makes it safe to send again (a string of at most 64 characters, unique within the CR).
+The server remembers the last 200 and skips an op it has seen. A skipped op writes nothing, is left out of
+both checks above, and its page still appears in `items`. Ops without `op_id` always apply.
+
 A batch that had to wait for another write to the same CR throws `TimestampMismatchError`. Nothing is
 written, so send it again.
 
