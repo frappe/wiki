@@ -6,6 +6,7 @@ import {
 	openTreeRowMenuItem,
 	saveEditor,
 } from '../helpers';
+import { localNode, topLevelKeys } from '../helpers/draftStore';
 import type { WikiFactory } from '../helpers/factory';
 
 const CR_METHOD =
@@ -29,8 +30,6 @@ type StoreWindow = Window & {
 		rootKey: string;
 		hasLoadedTree: boolean;
 		hasPendingMutations: boolean;
-		findNode(docKey: string): { title: string; isDeleted?: boolean } | null;
-		treeAsLegacy: { children: TreeNode[] };
 		renameNode(docKey: string, title: string): Promise<void>;
 		deleteNode(docKey: string): Promise<void>;
 		moveNode(move: {
@@ -102,13 +101,6 @@ function moveToTop(page: Page, docKey: string) {
 		const store = (window as unknown as StoreWindow).__draftStore;
 		store.moveNode({ docKey: key, newParentKey: store.rootKey, newIndex: 0 });
 	}, docKey);
-}
-
-function localNode(page: Page, docKey: string) {
-	return page.evaluate(
-		(key) => (window as unknown as StoreWindow).__draftStore.findNode(key),
-		docKey,
-	);
 }
 
 async function expectLogDrained(page: Page) {
@@ -385,13 +377,7 @@ test.describe('Durable operation log', () => {
 		await tabB.getByRole('button', { name: 'Reload latest' }).first().click();
 		await expect(tabB.getByText('Changed elsewhere')).toHaveCount(0);
 		await expect
-			.poll(() =>
-				tabB.evaluate(
-					() =>
-						(window as unknown as StoreWindow).__draftStore.treeAsLegacy
-							.children[0]?.doc_key,
-				),
-			)
+			.poll(async () => (await topLevelKeys(tabB))[0])
 			.toBe(beta.doc_key);
 
 		await tabB.reload();
