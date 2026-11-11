@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import { keyByTitle } from '../helpers/draftStore';
 import { type WikiFactory, uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
@@ -20,18 +21,11 @@ async function expectSyncSettled(page: Page, timeout = 5000) {
 	await expect(page.getByTestId('sync-state-alert')).toBeHidden({ timeout });
 }
 
-interface DraftNode {
-	docKey: string;
-	title: string;
-	children: DraftNode[];
-}
-
 // `wikiEditor` is already declared globally by other specs (e.g.
 // iframe-embed.spec.ts). Only extend with what's specific to this file.
 declare global {
 	interface Window {
 		__draftStore: {
-			tree: DraftNode[];
 			rootKey: string | null;
 			crName: string | null;
 			pagesByKey: Record<string, { content?: string | null }>;
@@ -1014,22 +1008,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Locate the doc_key of the page we want to move (first → third slot).
 		const movedTitle = pageTitles[0];
-		const movedDocKey = await page.evaluate((title) => {
-			type Node = {
-				title: string;
-				docKey: string;
-				children?: Node[];
-			};
-			const findInTree = (nodes: Node[] = []): string | null => {
-				for (const node of nodes) {
-					if (node.title === title) return node.docKey;
-					const child = findInTree(node.children);
-					if (child) return child;
-				}
-				return null;
-			};
-			return findInTree(window.__draftStore.tree as Node[]);
-		}, movedTitle);
+		const movedDocKey = await keyByTitle(page, movedTitle);
 		if (!movedDocKey)
 			throw new Error('Could not locate doc_key for moved page');
 
