@@ -50,7 +50,7 @@ export const useSpaceStore = defineStore('space', () => {
 							cloneWikiSpace: 'clone_wiki_space_in_background',
 							syncNow: 'sync_now',
 						},
-				  })
+					})
 				: null;
 		},
 		{ immediate: true },
