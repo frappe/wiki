@@ -2,7 +2,7 @@
 // batched backend call (one move op per dragged node + one reorder op per
 // touched parent) so per-drag noise doesn't translate to N round-trips.
 export function createMoveScheduler({
-	resolver,
+	ensureCreated,
 	queue,
 	treeModel,
 	transport,
@@ -21,6 +21,11 @@ export function createMoveScheduler({
 			reorderTimer = null;
 			flush();
 		}, delay);
+	}
+
+	async function ensureAllCreated(docKeys) {
+		const results = await Promise.allSettled(docKeys.map(ensureCreated));
+		return results.every((result) => result.status === 'fulfilled');
 	}
 
 	function recordMove(docKey, targetParentKey) {
@@ -51,42 +56,38 @@ export function createMoveScheduler({
 			const ops = [];
 			const reorderedParents = new Set();
 			for (const [docKey, { targetParentKey }] of snapshot) {
-				const realKey = await resolver.resolveDocKey(docKey);
-				const realParentKey = await resolver.resolveDocKey(targetParentKey);
-				if (!realKey || !realParentKey) {
+				if (
+					!targetParentKey ||
+					!(await ensureAllCreated([docKey, targetParentKey]))
+				) {
 					failedKeys.push(docKey);
 					continue;
 				}
-				const node = treeModel.findNode(realKey) || treeModel.findNode(docKey);
+				const node = treeModel.findNode(docKey);
 				const parentList = node ? treeModel.getChildList(node.parentKey) : null;
 				const newIndex = parentList
-					? parentList.findIndex(
-							(n) => n.docKey === realKey || n.docKey === docKey,
-					  )
+					? parentList.findIndex((n) => n.docKey === docKey)
 					: 0;
 				const muId =
 					moveMutations.find((m) => m.payload?.docKey === docKey)?.id || docKey;
 				ops.push({
 					id: `${muId}-move`,
 					type: 'move_node',
-					doc_key: realKey,
-					target_parent_key: realParentKey,
+					doc_key: docKey,
+					target_parent_key: targetParentKey,
 					order_index: Math.max(0, newIndex),
 				});
-				if (!reorderedParents.has(realParentKey)) {
-					reorderedParents.add(realParentKey);
-					const siblingKeys = parentList
-						? await Promise.all(
-								parentList.map((n) => resolver.resolveDocKey(n.docKey)),
-						  )
-						: [];
-					const filteredSiblings = siblingKeys.filter(Boolean);
-					if (filteredSiblings.length) {
+				if (!reorderedParents.has(targetParentKey)) {
+					reorderedParents.add(targetParentKey);
+					const siblingKeys = (parentList || []).map((n) => n.docKey);
+					// The server skips a sibling whose create failed.
+					await ensureAllCreated(siblingKeys);
+					if (siblingKeys.length) {
 						ops.push({
-							id: `${realParentKey}-reorder`,
+							id: `${targetParentKey}-reorder`,
 							type: 'reorder_children',
-							parent_key: realParentKey,
-							ordered_doc_keys: filteredSiblings,
+							parent_key: targetParentKey,
+							ordered_doc_keys: siblingKeys,
 						});
 					}
 				}
@@ -94,8 +95,7 @@ export function createMoveScheduler({
 			if (ops.length) await transport.applyBatchOps(ops);
 			for (const [docKey] of snapshot) {
 				if (failedKeys.includes(docKey)) continue;
-				const realKey = resolver.resolveKey(docKey) || docKey;
-				const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
+				const fresh = treeModel.findNode(docKey);
 				if (fresh) fresh.localStatus = null;
 			}
 			for (const m of moveMutations) {
@@ -120,17 +120,6 @@ export function createMoveScheduler({
 		}
 	}
 
-	function rewriteKeys(oldKey, newKey) {
-		if (!oldKey || !newKey || oldKey === newKey) return;
-		if (pendingMoves.has(oldKey)) {
-			pendingMoves.set(newKey, pendingMoves.get(oldKey));
-			pendingMoves.delete(oldKey);
-		}
-		for (const v of pendingMoves.values()) {
-			if (v.targetParentKey === oldKey) v.targetParentKey = newKey;
-		}
-	}
-
 	function reset() {
 		pendingMoves.clear();
 		if (reorderTimer) {
@@ -139,5 +128,5 @@ export function createMoveScheduler({
 		}
 	}
 
-	return { schedule, recordMove, flush, rewriteKeys, reset };
+	return { schedule, recordMove, flush, reset };
 }

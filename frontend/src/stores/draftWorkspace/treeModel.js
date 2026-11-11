@@ -10,7 +10,6 @@ export function normalizeNode(serverNode, parentKey = null) {
 	);
 	return {
 		docKey,
-		serverDocKey: docKey,
 		documentName: serverNode.document_name ?? null,
 		title: serverNode.title || '',
 		route: serverNode.route || '',
