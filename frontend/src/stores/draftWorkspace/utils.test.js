@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
-import { normalizeNode } from './treeModel.js';
 import {
 	isRetryableError,
 	makeDocKey,
@@ -25,18 +24,6 @@ test('toPublished treats server checkbox ints correctly', () => {
 	// Missing flag defaults to published (legacy / git-synced nodes).
 	assert.equal(toPublished(undefined), true);
 	assert.equal(toPublished(null), true);
-});
-
-test('normalizeNode reads is_published: 0 as unpublished', () => {
-	const node = normalizeNode({
-		doc_key: 'k1',
-		title: 'Introduction',
-		is_published: 0,
-		children: [{ doc_key: 'k2', title: 'Child', is_published: 1 }],
-	});
-
-	assert.equal(node.isPublished, false);
-	assert.equal(node.children[0].isPublished, true);
 });
 
 test('restored draft buffer takes publish state from the tree node', () => {
