@@ -81,6 +81,28 @@ test('insert before any tree loads files the page at the top level', () => {
 	);
 });
 
+test('setFields updates a known page in place', () => {
+	const model = loaded();
+	model.setFields('child', { title: 'Renamed', isPublished: true });
+
+	assert.equal(model.findNode('child').title, 'Renamed');
+	assert.equal(model.findNode('child').isPublished, true);
+	assert.equal(model.findNode('child').parentKey, 'group');
+	assert.equal(legacyNode(model, 'child').title, 'Renamed');
+});
+
+test('setFields before the tree loads makes a record outside the tree', () => {
+	const model = createTreeModel();
+	model.setFields('early', { title: 'Early', route: 'space/early' });
+
+	assert.equal(model.findNode('early').title, 'Early');
+	assert.equal(model.findNode('early').parentKey, null);
+	assert.deepEqual(model.childKeys(null), []);
+
+	model.applyServerTree(serverTree());
+	assert.equal(model.findNode('early'), null);
+});
+
 test('move reorders inside one parent', () => {
 	const model = loaded();
 	model.moveNode('child2', 'group', 0);

@@ -23,7 +23,6 @@ import { createTreeModel } from './draftWorkspace/treeModel';
 import {
 	errorMessage,
 	makeDocKey,
-	restoredDraftBuffer,
 	slugify,
 	toPublished,
 } from './draftWorkspace/utils';
@@ -115,7 +114,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	// Keep IndexedDB writes behind the store-owned snapshot. The editor reports
 	// content immediately for correct gating; persistence remains lightly
 	// debounced so ordinary typing doesn't write on every transaction.
-	function persistEditorDraft(docKey, title, { immediate = false } = {}) {
+	function persistEditorDraft(docKey, { immediate = false } = {}) {
 		const changeRequestName = crName.value;
 		if (!changeRequestName || !docKey) return;
 		const page = pageBuffers.get(docKey);
@@ -127,7 +126,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			if (pageBuffers.isDirty(page)) {
 				savePersistedDraft(changeRequestName, docKey, {
 					content: page.localContent,
-					title: title ?? page.title,
 					savedContent: page.content,
 					serverContent: page.serverContent,
 					serverHash: page.serverHash,
@@ -308,8 +306,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			drafts.map(async (draft) => {
 				const { docKey, content } = draft;
 				if (!docKey || content == null) return;
-				const node = treeModel.findNode(docKey);
-				if (!node) {
+				if (!treeModel.findNode(docKey)) {
 					clearEditorDraft(crName.value, docKey);
 					return;
 				}
@@ -323,12 +320,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				// drop it instead of reseeding dirty state.
 				let serverContent = null;
 				let serverHash = null;
-				let serverTitle = null;
 				try {
 					const result = await transport.fetchPage(crName.value, docKey);
 					serverContent = result?.content ?? '';
 					serverHash = result?.content_hash ?? null;
-					serverTitle = result?.title || null;
+					adoptPageFields(docKey, result);
 				} catch (_err) {
 					// Couldn't reach the server — fall through and restore
 					// conservatively so we never silently discard real work.
@@ -346,8 +342,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 					serverContent != null &&
 					draft.serverContent !== undefined &&
 					!pageBuffers.isBasedOn(draft, serverContent);
-				// The title field reads this, so a stale one would hide a rename made elsewhere.
-				const title = serverTitle ?? draft.title;
 				const keepsDraftBase = changedElsewhere || serverContent == null;
 				const base = {
 					serverContent: changedElsewhere ? draft.serverContent : serverContent,
@@ -356,20 +350,14 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				};
 				const page = pageBuffers.get(docKey);
 				if (!page) {
-					pageBuffers.setPage(
-						docKey,
-						restoredDraftBuffer({
-							docKey,
-							title,
-							content: serverContent,
-							localContent: content,
-							...base,
-							node,
-						}),
-					);
+					pageBuffers.setPage(docKey, {
+						...pageBuffers.emptyPage(docKey),
+						content: serverContent,
+						localContent: content,
+						...base,
+					});
 				} else {
 					page.localContent = content;
-					if (title) page.title = title;
 					if (serverContent != null) page.content = serverContent;
 					Object.assign(page, base);
 					page.saveStatus = 'idle';
@@ -444,10 +432,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			page.serverContent = serverContent;
 			page.serverHash = result?.content_hash ?? null;
 			page.sentContent = null;
-			// The title field reads this, so a stale one would hide a rename made elsewhere.
-			page.title = result?.title || '';
-			page.route = result?.route || '';
-			page.isPublished = toPublished(result?.is_published);
+			adoptPageFields(docKey, result);
 			return;
 		}
 		const shown = page.localContent ?? page.content;
@@ -457,41 +442,38 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (shown !== serverContent) requestEditorReload(docKey, serverContent);
 	}
 
-	// Apply a fetched CR page snapshot to its buffer. A dirty buffer keeps the
-	// user's local content and only refreshes the server-confirmed baseline.
+	// Apply a fetched CR page snapshot. A dirty buffer keeps the user's local
+	// content and only refreshes the server-confirmed baseline.
 	function applyFetchedPage(docKey, result) {
-		const page = adoptFetchedPage(docKey, result);
-		// A rename still in the log is newer than this copy.
+		adoptPageFields(docKey, result);
+		const localPage = pageBuffers.get(docKey);
+		if (pageBuffers.isDirty(localPage)) {
+			localPage.content = result?.content || '';
+			return localPage;
+		}
+		return pageBuffers.setPage(docKey, {
+			...pageBuffers.emptyPage(docKey),
+			content: result?.content || '',
+			serverContent: result?.content || '',
+			serverHash: result?.content_hash ?? null,
+		});
+	}
+
+	// A page fetch is the newest copy of the page's own fields, short of a
+	// rename still in the log. Before the tree loads it makes the record, so
+	// the panel has a title; loading the tree replaces it.
+	function adoptPageFields(docKey, result) {
+		if (!result || (hasLoadedTree.value && !treeModel.findNode(docKey))) return;
+		treeModel.setFields(docKey, {
+			title: result.title || '',
+			route: result.route || '',
+			isPublished: toPublished(result.is_published),
+		});
 		for (const { type, payload } of log.entries()) {
 			if (type === 'update_node' && payload.docKey === docKey) {
 				applyFields(docKey, payload.fields);
 			}
 		}
-		return page;
-	}
-
-	function adoptFetchedPage(docKey, result) {
-		const localPage = pageBuffers.get(docKey);
-		if (pageBuffers.isDirty(localPage)) {
-			if (!localPage.title) localPage.title = result?.title || '';
-			localPage.route = result?.route || '';
-			localPage.content = result?.content || '';
-			localPage.isPublished = toPublished(result?.is_published);
-			return localPage;
-		}
-		return pageBuffers.setPage(docKey, {
-			docKey,
-			title: result?.title || '',
-			route: result?.route || '',
-			content: result?.content || '',
-			localContent: null,
-			serverContent: result?.content || '',
-			serverHash: result?.content_hash ?? null,
-			sentContent: null,
-			isPublished: toPublished(result?.is_published),
-			saveStatus: 'idle',
-			error: null,
-		});
 	}
 
 	// Background revalidation for the stale-while-revalidate path in
@@ -669,11 +651,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			// A later entry for this page already shows newer values.
 			if (log.isPending(docKey)) continue;
 			// The server sanitizes a route the caller pinned.
-			for (const target of [node, page]) {
-				if (!target || !item) continue;
-				if (item.route) target.route = item.route;
-				if (item.title != null) target.title = item.title;
-			}
+			if (!node || !item) continue;
+			if (item.route) node.route = item.route;
+			if (item.title != null) node.title = item.title;
 		}
 	}
 
@@ -723,27 +703,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	// Seed local page state so opening the row before sync works
 	// without a backend roundtrip.
-	function seedCreatedPage({
-		docKey,
-		title,
-		route,
-		content,
-		isGroup,
-		...rest
-	}) {
+	function seedCreatedPage({ docKey, content, isGroup }) {
 		if (!isGroup && !pageBuffers.get(docKey)) {
-			const localRoute = route || slugify(title);
 			pageBuffers.setPage(docKey, {
-				docKey,
-				title,
-				route: localRoute,
+				...pageBuffers.emptyPage(docKey),
 				content: content || '',
 				serverContent: content || '',
-				serverHash: null,
-				sentContent: null,
-				isPublished: rest.isPublished ?? true,
-				saveStatus: 'idle',
-				error: null,
 			});
 		}
 	}
@@ -802,24 +767,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	function applyFields(docKey, fields) {
 		const node = treeModel.findNode(docKey);
-		if (node) {
-			if (fields.title !== undefined) node.title = fields.title;
-			if (fields.route !== undefined) node.route = fields.route;
-			if (fields.is_published !== undefined)
-				node.isPublished = !!fields.is_published;
-			if (fields.is_external_link !== undefined)
-				node.isExternalLink = !!fields.is_external_link;
-			if (fields.external_url !== undefined)
-				node.externalUrl = fields.external_url;
-		}
-
-		const page = pageBuffers.get(docKey);
-		if (page) {
-			if (fields.title !== undefined) page.title = fields.title;
-			if (fields.route !== undefined) page.route = fields.route;
-			if (fields.is_published !== undefined)
-				page.isPublished = !!fields.is_published;
-		}
+		if (!node) return;
+		if (fields.title !== undefined) node.title = fields.title;
+		if (fields.route !== undefined) node.route = fields.route;
+		if (fields.is_published !== undefined)
+			node.isPublished = !!fields.is_published;
+		if (fields.is_external_link !== undefined)
+			node.isExternalLink = !!fields.is_external_link;
+		if (fields.external_url !== undefined)
+			node.externalUrl = fields.external_url;
 	}
 
 	async function renameNode(docKey, title) {
@@ -904,7 +860,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			// backup so a future hydrate doesn't restore stale typing on top of
 			// fresh server state.
 			if (crName.value) {
-				persistEditorDraft(docKey, targetPage?.title, { immediate: true });
+				persistEditorDraft(docKey, { immediate: true });
 			}
 			// Only flip global sync to idle if no follow-up save is
 			// queued for this doc — otherwise we'd briefly flash 'saved'
@@ -928,7 +884,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				}
 				targetPage.saveStatus = 'failed';
 				targetPage.error = errorMessage(err);
-				persistEditorDraft(docKey, targetPage.title, { immediate: true });
+				persistEditorDraft(docKey, { immediate: true });
 			}
 			transport.markFailed(errorMessage(err));
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
@@ -956,28 +912,21 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	// Record the editor's canonical markdown immediately so submit/merge
 	// gating observes the same snapshot that will be persisted and saved.
-	function recordEditorContent(docKey, content, title, options = {}) {
+	function recordEditorContent(docKey, content, options = {}) {
 		// An editor still mounted after a merge or discard reports its last content.
 		if (!docKey || !crName.value) return;
-		pageBuffers.ensure(docKey, { title: title || '' });
+		pageBuffers.ensure(docKey);
 		pageBuffers.setLocalContent(docKey, content);
-		persistEditorDraft(docKey, title, {
-			immediate: options.persistImmediately,
-		});
+		persistEditorDraft(docKey, { immediate: options.persistImmediately });
 	}
 
 	// WikiEditor canonicalizes both the visible draft and the confirmed server
 	// markdown with its configured parser. Rebasing here prevents harmless
 	// markdown round-trip differences from manufacturing dirty state.
-	function reconcileEditorContent(docKey, content, savedContent, title) {
+	function reconcileEditorContent(docKey, content, savedContent) {
 		if (!docKey || !crName.value) return;
-		const page = pageBuffers.reconcileEditorContent(
-			docKey,
-			content,
-			savedContent,
-		);
-		if (title != null) page.title = title;
-		persistEditorDraft(docKey, title, { immediate: true });
+		pageBuffers.reconcileEditorContent(docKey, content, savedContent);
+		persistEditorDraft(docKey, { immediate: true });
 	}
 
 	// Flag the page deleted locally, which strikes the row through. The page only

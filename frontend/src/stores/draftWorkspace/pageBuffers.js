@@ -3,14 +3,11 @@ import { computed, reactive } from 'vue';
 function emptyPage(docKey, opts = {}) {
 	return {
 		docKey,
-		title: opts.title ?? '',
-		route: opts.route ?? '',
 		content: opts.content ?? '',
 		localContent: opts.localContent ?? null,
 		serverContent: opts.serverContent ?? null,
 		serverHash: opts.serverHash ?? null,
 		sentContent: opts.sentContent ?? null,
-		isPublished: opts.isPublished ?? true,
 		saveStatus: opts.saveStatus ?? 'idle',
 		error: null,
 	};
