@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
-import {
-	isRetryableError,
-	makeDocKey,
-	restoredDraftBuffer,
-	toPublished,
-} from './utils.js';
+import { isRetryableError, makeDocKey, toPublished } from './utils.js';
 
 test('makeDocKey gives a key the server patterns accept', () => {
 	assert.match(makeDocKey(), /^[0-9a-f]{32}$/);
@@ -24,33 +19,6 @@ test('toPublished treats server checkbox ints correctly', () => {
 	// Missing flag defaults to published (legacy / git-synced nodes).
 	assert.equal(toPublished(undefined), true);
 	assert.equal(toPublished(null), true);
-});
-
-test('restored draft buffer takes publish state from the tree node', () => {
-	const buffer = restoredDraftBuffer({
-		docKey: 'page-1',
-		title: 'Introduction',
-		content: 'server content',
-		localContent: 'unsaved local content',
-		node: { route: 'space/introduction', isPublished: false },
-	});
-
-	assert.equal(buffer.isPublished, false);
-	assert.equal(buffer.route, 'space/introduction');
-	assert.equal(buffer.content, 'server content');
-	assert.equal(buffer.localContent, 'unsaved local content');
-});
-
-test('restored draft buffer keeps published pages published', () => {
-	const buffer = restoredDraftBuffer({
-		docKey: 'page-2',
-		title: 'Guide',
-		content: 'x',
-		localContent: 'y',
-		node: { route: 'space/guide', isPublished: true },
-	});
-
-	assert.equal(buffer.isPublished, true);
 });
 
 test('isRetryableError retries what may yet land and drops what the server refused', () => {

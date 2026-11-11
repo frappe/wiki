@@ -89,6 +89,13 @@ export function createTreeModel({ isPending = () => false } = {}) {
 		placeKey(record.docKey, parentKey);
 	}
 
+	// Writes a page's own fields. A page the tree has not loaded yet gets a
+	// record with no parent, in no child list, so only `findNode` sees it.
+	function setFields(docKey, fields) {
+		nodesById.value[docKey] ??= toRecord({ doc_key: docKey }, null);
+		Object.assign(nodesById.value[docKey], fields);
+	}
+
 	function moveNode(docKey, parentKey, index) {
 		const record = findNode(docKey);
 		if (!record || !childKeys(parentKey)) return;
@@ -170,6 +177,7 @@ export function createTreeModel({ isPending = () => false } = {}) {
 		childKeys,
 		getChildList,
 		insertNode,
+		setFields,
 		moveNode,
 		removeNode,
 		setSubtreeDeleted,
