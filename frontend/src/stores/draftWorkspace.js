@@ -19,11 +19,7 @@ import { createOperationQueue } from './draftWorkspace/operationQueue';
 import { createPageBuffers } from './draftWorkspace/pageBuffers';
 import { createSaveSerializer } from './draftWorkspace/saveSerializer';
 import { createSyncTransport } from './draftWorkspace/syncTransport';
-import {
-	createTreeModel,
-	denormalizeNode,
-	normalizeNode,
-} from './draftWorkspace/treeModel';
+import { createTreeModel } from './draftWorkspace/treeModel';
 import {
 	errorMessage,
 	makeDocKey,
@@ -594,8 +590,10 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		if (type === 'create_node') insertCreatedNode(payload);
 		else if (type === 'update_node')
 			applyFields(payload.docKey, payload.fields);
-		else if (type === 'move_node') placeNode(payload);
-		else if (type === 'delete_node') {
+		else if (type === 'move_node') {
+			const { docKey, targetParentKey, newIndex } = payload;
+			treeModel.moveNode(docKey, targetParentKey, newIndex);
+		} else if (type === 'delete_node') {
 			treeModel.setSubtreeDeleted(payload.docKey, true);
 		} else if (type === 'restore_node') {
 			treeModel.setSubtreeDeleted(payload.docKey, false);
@@ -635,9 +633,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const reorderedParents = new Set();
 		for (const { id, payload } of batch) {
 			const { docKey, targetParentKey } = payload;
-			const siblingKeys = (treeModel.getChildList(targetParentKey) || []).map(
-				(n) => n.docKey,
-			);
+			const siblingKeys = treeModel.childKeys(targetParentKey) || [];
 			ops.push({
 				id: `${id}-move`,
 				op_id: id,
@@ -713,8 +709,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				documentName: null,
 				title,
 				route: localRoute,
-				parentKey,
-				orderIndex: null,
 				isGroup: !!isGroup,
 				isTab: false,
 				tabIcon: null,
@@ -722,7 +716,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				isExternalLink: !!payload.isExternalLink,
 				externalUrl: payload.externalUrl ?? null,
 				isDeleted: false,
-				children: [],
 			},
 			parentKey,
 		);
@@ -834,30 +827,16 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	}
 
 	// Apply a drag locally, then log it. The flusher waits for the drags to
-	// stop. The tree view rebuilds from `tree`, so mutating it here is what
+	// stop. The tree view rebuilds from the model, so changing it here is what
 	// makes the drag persist.
 	function moveNode({ docKey, newParentKey, newIndex }) {
 		if (!ensureCr() || !treeModel.findNode(docKey)) return;
 		const targetParentKey = newParentKey || treeModel.rootKey.value || null;
-		if (!treeModel.getChildList(targetParentKey)) return;
+		if (!treeModel.childKeys(targetParentKey)) return;
 		log.dropQueuedMoves(docKey);
 		record('move_node', { docKey, targetParentKey, newIndex }).catch(
 			reportSyncFailure,
 		);
-	}
-
-	function placeNode({ docKey, targetParentKey, newIndex }) {
-		const node = treeModel.findNode(docKey);
-		const targetList = treeModel.getChildList(targetParentKey);
-		if (!node || !targetList) return;
-		const sourceList = treeModel.getChildList(node.parentKey);
-		if (sourceList) {
-			const idx = sourceList.findIndex((n) => n.docKey === docKey);
-			if (idx >= 0) sourceList.splice(idx, 1);
-		}
-		const safeIndex = Math.max(0, Math.min(newIndex, targetList.length));
-		targetList.splice(safeIndex, 0, node);
-		node.parentKey = targetParentKey;
 	}
 
 	// Editor content save with success-aware state. `content` advances only
@@ -1022,7 +1001,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		// state
 		spaceId,
 		rootKey: treeModel.rootKey,
-		tree: treeModel.tree,
 		pagesByKey: pageBuffers.pagesByKey,
 		pending: queue.pending,
 		sync: transport.sync,
@@ -1062,12 +1040,5 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		flushDirtyPages,
 		recordEditorContent,
 		reconcileEditorContent,
-		// queue helpers (used by upcoming mutation actions)
-		enqueueMutation: queue.enqueue,
-		setMutationStatus: queue.setStatus,
-		clearMutation: queue.clear,
-		// internal helpers exposed for tests
-		_normalizeNode: normalizeNode,
-		_denormalizeNode: denormalizeNode,
 	};
 });
