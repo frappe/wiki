@@ -38,10 +38,6 @@ export function isRetryableError(err, signedOut = false) {
 	return signedOut && err.exc_type === 'PermissionError';
 }
 
-// Buffer seed for an editor draft restored from IndexedDB. The tree node is
-// the authority for route and publish state — a restored buffer must not
-// invent them, or an unpublished page shows a "Published" badge after a
-// reload with unsaved edits (buffer said true, tree said false).
 // No hyphens: the server's wiki link and OG image patterns reject them.
 // getRandomValues also works on plain HTTP, where randomUUID is missing.
 export function makeDocKey() {
@@ -49,29 +45,4 @@ export function makeDocKey() {
 	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
 		'',
 	);
-}
-
-export function restoredDraftBuffer({
-	docKey,
-	title,
-	content,
-	localContent,
-	serverContent,
-	serverHash,
-	sentContent,
-	node,
-}) {
-	return {
-		docKey,
-		title: title || '',
-		route: node?.route || '',
-		content,
-		localContent,
-		serverContent,
-		serverHash,
-		sentContent,
-		isPublished: toPublished(node?.isPublished),
-		saveStatus: 'idle',
-		error: null,
-	};
 }

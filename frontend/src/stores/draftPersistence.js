@@ -64,8 +64,8 @@ export async function clearDraftsForCr(crName) {
 }
 
 // Read every persisted draft for the given CR. Returns an array of
-// `{ docKey, content, title, savedAt }`. Used by `hydrate` to restore
-// dirty editor state after a refresh.
+// `{ docKey, content, savedContent, serverContent, serverHash, sentContent,
+// savedAt }`. Used by `hydrate` to restore dirty editor state after a refresh.
 export async function loadDraftsForCr(crName) {
 	if (!crName) return [];
 	const wanted = `${PREFIX}${crName}:`;
