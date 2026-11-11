@@ -23,13 +23,12 @@ export function normalizeNode(serverNode, parentKey = null) {
 		externalUrl: serverNode.external_url || null,
 		isDeleted: !!serverNode.is_deleted,
 		children,
-		localStatus: null,
 	};
 }
 
 // Convert a DraftNode back to the snake_case shape existing components consume
 // (WikiTree, WikiDocumentList, etc.). Lets us migrate incrementally.
-export function denormalizeNode(node) {
+export function denormalizeNode(node, isPending = () => false) {
 	return {
 		doc_key: node.docKey,
 		document_name: node.documentName,
@@ -42,16 +41,17 @@ export function denormalizeNode(node) {
 		is_external_link: node.isExternalLink,
 		external_url: node.externalUrl,
 		order_index: node.orderIndex,
-		is_deleted: node.isDeleted || node.localStatus === 'pending_delete',
-		children: node.children.map(denormalizeNode),
-		local_status: node.localStatus,
+		is_deleted: node.isDeleted,
+		is_pending: isPending(node.docKey),
+		children: node.children.map((child) => denormalizeNode(child, isPending)),
 	};
 }
 
 // Pure tree model: owns the `tree` ref + `rootKey` and the local-only mutations
 // against them. No network, no queue, no persistence — those modules sit
 // above this one.
-export function createTreeModel() {
+// `isPending` tells whether the log still holds an entry for a page.
+export function createTreeModel({ isPending = () => false } = {}) {
 	const rootKey = ref(null);
 	const tree = ref([]);
 
@@ -110,7 +110,7 @@ export function createTreeModel() {
 	const treeAsLegacy = computed(() => {
 		const toLegacy = (nodes) =>
 			nodes.map((n) => ({
-				...denormalizeNode(n),
+				...denormalizeNode(n, isPending),
 				children: toLegacy(n.children),
 			}));
 		return {

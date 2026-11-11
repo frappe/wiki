@@ -61,7 +61,9 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const crName = computed(() => crStore.currentChangeRequest?.name || null);
 
 	// Sub-modules. Order matters: each may depend on those above it.
-	const treeModel = createTreeModel();
+	const treeModel = createTreeModel({
+		isPending: (docKey) => log.isPending(docKey),
+	});
 	const pageBuffers = createPageBuffers();
 	const queue = createOperationQueue();
 	const transport = createSyncTransport({
@@ -594,8 +596,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			applyFields(payload.docKey, payload.fields);
 		else if (type === 'move_node') placeNode(payload);
 		else if (type === 'delete_node') {
-			const node = treeModel.findNode(payload.docKey);
-			if (node) node.localStatus = 'pending_delete';
 			treeModel.setSubtreeDeleted(payload.docKey, true);
 		} else if (type === 'restore_node') {
 			treeModel.setSubtreeDeleted(payload.docKey, false);
@@ -671,8 +671,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				page.serverHash = item?.content_hash ?? null;
 			}
 			// A later entry for this page already shows newer values.
-			if (log.entries().some((m) => m.payload?.docKey === docKey)) continue;
-			if (node) node.localStatus = null;
+			if (log.isPending(docKey)) continue;
 			// The server sanitizes a route the caller pinned.
 			for (const target of [node, page]) {
 				if (!target || !item) continue;
@@ -722,8 +721,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				isPublished: payload.isPublished ?? true,
 				isExternalLink: !!payload.isExternalLink,
 				externalUrl: payload.externalUrl ?? null,
+				isDeleted: false,
 				children: [],
-				localStatus: 'pending_create',
 			},
 			parentKey,
 		);
@@ -819,7 +818,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				node.isExternalLink = !!fields.is_external_link;
 			if (fields.external_url !== undefined)
 				node.externalUrl = fields.external_url;
-			node.localStatus = 'pending_update';
 		}
 
 		const page = pageBuffers.get(docKey);
@@ -860,7 +858,6 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		const safeIndex = Math.max(0, Math.min(newIndex, targetList.length));
 		targetList.splice(safeIndex, 0, node);
 		node.parentKey = targetParentKey;
-		node.localStatus = 'pending_update';
 	}
 
 	// Editor content save with success-aware state. `content` advances only
@@ -1004,7 +1001,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		persistEditorDraft(docKey, title, { immediate: true });
 	}
 
-	// Mark pending_delete locally, which strikes the row through. The page only
+	// Flag the page deleted locally, which strikes the row through. The page only
 	// leaves the live tree once the change request is merged, so it stays on
 	// screen until then (#762).
 	async function deleteNode(docKey) {
