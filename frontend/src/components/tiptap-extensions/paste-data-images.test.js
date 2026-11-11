@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test, vi } from 'vitest';
 
 import { Node, getSchema } from '@tiptap/core';
 import { MarkdownManager } from '@tiptap/markdown';
@@ -167,9 +167,9 @@ test('an image whose upload failed is not serialized', () => {
 
 // Two images pasted together were both uploaded as `pasted-image.png`, and
 // the page ended up showing the same image twice.
-test('each pasted image gets its own file name', async (t) => {
+test('each pasted image gets its own file name', async () => {
 	const draws = [0.25, 0.75];
-	t.mock.method(Math, 'random', () => draws.shift());
+	vi.spyOn(Math, 'random').mockImplementation(() => draws.shift());
 
 	const first = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');
 	const second = await dataUrlToFile('data:image/png;base64,iVBORw0KGgo=');

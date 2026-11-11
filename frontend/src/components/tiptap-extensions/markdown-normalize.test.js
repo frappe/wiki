@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { MarkdownManager } from '@tiptap/markdown';
