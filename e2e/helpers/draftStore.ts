@@ -6,16 +6,17 @@ import type { Page } from '@playwright/test';
  * made here once.
  */
 
-type LegacyNode = { doc_key: string; title: string; children: LegacyNode[] };
+type TreeRecord = {
+	docKey: string;
+	title: string;
+	parentKey: string | null;
+	isDeleted: boolean;
+};
 
 export type TreeStoreWindow = Window & {
 	__draftStore: {
-		findNode(docKey: string): {
-			title: string;
-			parentKey: string | null;
-			isDeleted: boolean;
-		} | null;
-		treeAsLegacy: { children: LegacyNode[] };
+		findNode(docKey: string): TreeRecord | null;
+		children(parentKey: string | null): TreeRecord[];
 	};
 };
 
@@ -35,24 +36,23 @@ export function localNode(page: Page, docKey: string) {
 
 export function topLevelKeys(page: Page) {
 	return page.evaluate(() =>
-		(
-			window as unknown as TreeStoreWindow
-		).__draftStore.treeAsLegacy.children.map((node) => node.doc_key),
+		(window as unknown as TreeStoreWindow).__draftStore
+			.children(null)
+			.map((node) => node.docKey),
 	);
 }
 
 export function keyByTitle(page: Page, title: string) {
 	return page.evaluate((wanted) => {
-		const find = (nodes: LegacyNode[]): string | null => {
-			for (const node of nodes) {
-				if (node.title === wanted) return node.doc_key;
-				const found = find(node.children);
+		const store = (window as unknown as TreeStoreWindow).__draftStore;
+		const find = (parentKey: string | null): string | null => {
+			for (const node of store.children(parentKey)) {
+				if (node.title === wanted) return node.docKey;
+				const found = find(node.docKey);
 				if (found) return found;
 			}
 			return null;
 		};
-		return find(
-			(window as unknown as TreeStoreWindow).__draftStore.treeAsLegacy.children,
-		);
+		return find(null);
 	}, title);
 }

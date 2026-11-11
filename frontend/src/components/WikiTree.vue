@@ -10,7 +10,7 @@
 		@drag-start="onDragStart"
 		@drag-end="onDragEnd"
 	>
-		<template #item="{ node }">
+		<template #item="{ node: { record: node } }">
 			<div
 				class="group flex min-h-10 min-w-0 flex-1 items-center gap-1.5 py-1.5"
 				:class="getRowClasses(node)"
@@ -18,20 +18,20 @@
 				@click.stop="handleRowClick(node)"
 			>
 				<button
-					v-if="node.is_group && !searchActive"
+					v-if="node.isGroup && !searchActive"
 					class="p-0.5 hover:bg-surface-gray-3 rounded-4 shrink-0"
-					:aria-label="isNodeExpanded(node.doc_key) ? __('Collapse') : __('Expand')"
-					@click.stop="toggleExpanded(node.doc_key)"
+					:aria-label="isNodeExpanded(node.docKey) ? __('Collapse') : __('Expand')"
+					@click.stop="toggleExpanded(node.docKey)"
 				>
 					<span
 						class="lucide-chevron-right size-4 text-ink-gray-5 transition-transform duration-200 block"
-						:class="{ 'rotate-90': isNodeExpanded(node.doc_key) }"
+						:class="{ 'rotate-90': isNodeExpanded(node.docKey) }"
 						aria-hidden="true"
 					/>
 				</button>
 
-				<span v-if="node.is_group" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
-				<span v-else-if="node.is_external_link" class="lucide-link size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
+				<span v-if="node.isGroup" class="lucide-folder size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
+				<span v-else-if="node.isExternalLink" class="lucide-link size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 				<span v-else class="lucide-file-text size-4 text-ink-gray-5 shrink-0" aria-hidden="true" />
 
 				<div class="flex min-w-0 flex-1 flex-col">
@@ -50,31 +50,31 @@
 				<!-- Deleted in this draft: struck through in the row, and a red
 				     dot for the same reason every other change type has one. -->
 				<span
-					v-if="node.is_deleted"
+					v-if="node.isDeleted"
 					class="size-1.5 shrink-0 rounded-full bg-surface-red-5"
 					:title="__('Deleted in this draft. Merge to remove it for everyone.')"
 					:aria-label="__('Deleted')"
 					role="status"
 				/>
 				<span
-					v-else-if="node.is_pending"
+					v-else-if="tree.isPending(node.docKey)"
 					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
 					:title="__('Syncing…')"
 					:aria-label="__('Syncing…')"
 					role="status"
 				/>
 				<span
-					v-else-if="changeTypeMap.get(node.doc_key)"
+					v-else-if="changeTypeMap.get(node.docKey)"
 					class="size-1.5 shrink-0 rounded-full"
-					:class="getChangeDotClass(changeTypeMap.get(node.doc_key))"
-					:title="getChangeLabel(changeTypeMap.get(node.doc_key))"
-					:aria-label="getChangeLabel(changeTypeMap.get(node.doc_key))"
+					:class="getChangeDotClass(changeTypeMap.get(node.docKey))"
+					:title="getChangeLabel(changeTypeMap.get(node.docKey))"
+					:aria-label="getChangeLabel(changeTypeMap.get(node.docKey))"
 					role="status"
 				/>
 				<!-- Unpublished is not a change, so it is not a dot: the same
 				     eye-off the space list uses for an unpublished space. -->
 				<span
-					v-else-if="!node.is_group && !node.is_published"
+					v-else-if="!node.isGroup && !node.isPublished"
 					class="lucide-eye-off size-3.5 shrink-0 text-ink-gray-4"
 					:title="__('Unpublished')"
 					:aria-label="__('Unpublished')"
@@ -102,13 +102,18 @@ import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
 import { Button, Dropdown, Tree, toast } from 'frappe-ui';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const props = defineProps({
-	items: {
-		type: Array,
+	tree: {
+		type: Object,
 		required: true,
+	},
+	// Records, ranked. Used only while a search is active.
+	matches: {
+		type: Array,
+		default: () => [],
 	},
 	changeTypeMap: {
 		type: Map,
@@ -129,14 +134,14 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
-	// While a tree search is active `items` is the flat result list, not the
-	// tree: rows carry no children, and drag is disabled.
+	// While a tree search is active the rows are `matches`, a flat list with no
+	// children, and drag is disabled.
 	searchActive: {
 		type: Boolean,
 		default: false,
 	},
 	scoreMap: {
-		type: Object, // Map<doc_key, fuzzysort result> | null
+		type: Object, // Map<docKey, fuzzysort result> | null
 		default: null,
 	},
 	selectedPageId: {
@@ -190,25 +195,30 @@ const expandedKeys = computed({
 	},
 });
 
-// Node order is left to us via @drag-end, so we hand Tree a derived copy of
-// the store tree: `label` feeds the drag ghost and keyboard typeahead. Held in
-// a ref so the copies stay reactive.
-const treeNodes = ref([]);
-
-function mapNodes(nodes) {
-	return (nodes || []).map((node) => ({
-		...node,
-		label: node.title,
-		children: node.children?.length ? mapNodes(node.children) : undefined,
-	}));
+// frappe-ui Tree needs nested nodes. Each view node holds only the key, the
+// record and its children, so a change to one record re-renders its row and
+// leaves the nesting alone. `label` feeds the drag ghost and keyboard typeahead.
+function viewNode(record, children) {
+	return {
+		doc_key: record.docKey,
+		record,
+		children,
+		get label() {
+			return record.title;
+		},
+	};
 }
 
-watch(
-	() => props.items,
-	() => {
-		treeNodes.value = mapNodes(props.items);
-	},
-	{ immediate: true, deep: true },
+function viewNodes(parentKey) {
+	return props.tree
+		.children(parentKey)
+		.map((record) => viewNode(record, viewNodes(record.docKey)));
+}
+
+const treeNodes = computed(() =>
+	props.searchActive
+		? props.matches.map((record) => viewNode(record, []))
+		: viewNodes(null),
 );
 
 // Selecting a page from the sidebar shouldn't pile up history, and the bare
@@ -225,64 +235,64 @@ function navigateToTreePage(to) {
 }
 
 function handleRowClick(node) {
-	if (node.is_deleted) {
+	if (node.isDeleted) {
 		return;
 	}
 
-	if (node.is_group) {
+	if (node.isGroup) {
 		if (props.searchActive) {
 			emit('reveal-group', node);
 		} else {
-			toggleExpanded(node.doc_key);
+			toggleExpanded(node.docKey);
 		}
 		return;
 	}
 
 	// Editing, an external link opens its settings; reading, it opens the link.
-	if (node.is_external_link) {
+	if (node.isExternalLink) {
 		if (canModify.value) emit('edit-external-link', node);
-		else window.open(node.external_url, '_blank', 'noopener');
+		else window.open(node.externalUrl, '_blank', 'noopener');
 		return;
 	}
 
-	if (node.document_name) {
+	if (node.documentName) {
 		navigateToTreePage({
 			name: 'SpacePage',
-			params: { spaceId: props.spaceId, pageId: node.document_name },
+			params: { spaceId: props.spaceId, pageId: node.documentName },
 		});
 		return;
 	}
 
 	navigateToTreePage({
 		name: 'DraftChangeRequest',
-		params: { spaceId: props.spaceId, docKey: node.doc_key },
+		params: { spaceId: props.spaceId, docKey: node.docKey },
 	});
 }
 
 function isSelected(node) {
 	const isSelectedPage =
-		!node.is_group &&
+		!node.isGroup &&
 		!!props.selectedPageId &&
-		node.document_name === props.selectedPageId;
+		node.documentName === props.selectedPageId;
 	const isSelectedDraft =
-		!node.document_name &&
+		!node.documentName &&
 		!!props.selectedDraftKey &&
-		node.doc_key === props.selectedDraftKey;
+		node.docKey === props.selectedDraftKey;
 	return isSelectedPage || isSelectedDraft;
 }
 
 function getRowClasses(node) {
-	if (node.is_deleted) {
+	if (node.isDeleted) {
 		return 'cursor-not-allowed opacity-60';
 	}
 	return 'cursor-pointer';
 }
 
 function getTitleClass(node) {
-	if (node.is_deleted) {
+	if (node.isDeleted) {
 		return 'text-ink-gray-4 line-through';
 	}
-	if (node.is_published || node.is_group) {
+	if (node.isPublished || node.isGroup) {
 		return 'text-ink-gray-8';
 	}
 	return 'text-ink-gray-5';
@@ -294,13 +304,13 @@ function getTitleClass(node) {
 // match); routeParts whenever the route matched, plus — while searching — as
 // plain text, since a flat row has no ancestors to place it.
 function titleParts(node) {
-	const result = props.scoreMap?.get(node.doc_key)?.[0];
+	const result = props.scoreMap?.get(node.docKey)?.[0];
 	return highlightSegments(result) || [{ text: node.title, matched: false }];
 }
 
 function routeParts(node) {
 	const routeSegments = highlightSegments(
-		props.scoreMap?.get(node.doc_key)?.[1],
+		props.scoreMap?.get(node.docKey)?.[1],
 	);
 	if (routeSegments) return routeSegments;
 	if (props.searchActive && node.route) {
@@ -312,7 +322,7 @@ function routeParts(node) {
 // Reparenting is only allowed into groups; sibling reorder is always fine.
 // Tree's built-in guards (drop-on-self, drop-into-own-descendant) run first.
 function allowMove({ target, position }) {
-	return position !== 'inside' || !!target.is_group;
+	return position !== 'inside' || target.record.isGroup;
 }
 
 function onDragStart() {
@@ -334,9 +344,9 @@ function onDragEnd(info) {
 }
 
 async function togglePublish(node) {
-	const newStatus = node.is_published ? 0 : 1;
+	const newStatus = node.isPublished ? 0 : 1;
 	try {
-		await draftStore.updateNode(node.doc_key, { is_published: newStatus });
+		await draftStore.updateNode(node.docKey, { is_published: newStatus });
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error updating publish status'));
 	}
@@ -344,7 +354,7 @@ async function togglePublish(node) {
 
 async function restore(node) {
 	try {
-		await draftStore.restoreNode(node.doc_key);
+		await draftStore.restoreNode(node.docKey);
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error restoring page'));
 	}
@@ -353,7 +363,7 @@ async function restore(node) {
 function getDropdownOptions(node) {
 	const options = [];
 
-	if (node.is_deleted) {
+	if (node.isDeleted) {
 		return [
 			{
 				label: __('Restore'),
@@ -363,23 +373,23 @@ function getDropdownOptions(node) {
 		];
 	}
 
-	if (node.is_group) {
+	if (node.isGroup) {
 		options.push(
 			...[
 				{
 					label: __('New Page'),
 					icon: 'lucide-file-plus',
-					onClick: () => emit('create', node.doc_key, false),
+					onClick: () => emit('create', node.docKey, false),
 				},
 				{
 					label: __('New Group'),
 					icon: 'lucide-folder-plus',
-					onClick: () => emit('create', node.doc_key, true),
+					onClick: () => emit('create', node.docKey, true),
 				},
 				{
 					label: __('External Link'),
 					icon: 'lucide-link',
-					onClick: () => emit('external-link', node.doc_key),
+					onClick: () => emit('external-link', node.docKey),
 				},
 				{
 					label: __('Rename'),
@@ -390,20 +400,20 @@ function getDropdownOptions(node) {
 		);
 	}
 
-	if (!node.is_group) {
+	if (!node.isGroup) {
 		options.push({
 			label: __('Change Title'),
 			icon: 'lucide-edit-2',
 			onClick: () => emit('rename', node),
 		});
 		options.push({
-			label: node.is_published ? __('Unpublish') : __('Publish'),
-			icon: node.is_published ? 'lucide-eye-off' : 'lucide-eye',
+			label: node.isPublished ? __('Unpublish') : __('Publish'),
+			icon: node.isPublished ? 'lucide-eye-off' : 'lucide-eye',
 			onClick: () => togglePublish(node),
 		});
 	}
 
-	const hasChildren = node.is_group && node.children?.length > 0;
+	const hasChildren = props.tree.children(node.docKey).length > 0;
 	if (!hasChildren) {
 		options.push({
 			group: __('Danger'),

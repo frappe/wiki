@@ -240,7 +240,7 @@ import { useOpenChangeRequests } from '@/composables/useOpenChangeRequests';
 import { useSidePanel } from '@/composables/useSidePanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -580,23 +580,20 @@ const spaceTree = inject(SPACE_TREE_KEY, null);
 // rather than the saved title, so it keeps up with the keystroke instead of
 // waiting for the blur that saves.
 const breadcrumbs = computed(() => {
-	const children = spaceTree?.value?.children;
-	if (!children?.length) return [];
+	const tree = spaceTree?.value;
+	if (!tree) return [];
 
 	const docKey = wikiDoc.value.doc?.doc_key;
-	const trail = trailToNode(
-		children,
-		(node) =>
-			(docKey && node.doc_key === docKey) ||
-			node.document_name === props.pageId,
-	);
+	const trail =
+		(docKey && tree.trail(docKey)) ||
+		tree.trail(tree.nodeByDocumentName(props.pageId)?.docKey);
 	if (!trail) return [];
 
 	return trail.map((node, i) => ({
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
-		route: crumbRoute(node, props.spaceId),
+		route: crumbRoute(tree, node, props.spaceId),
 	}));
 });
 

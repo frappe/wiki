@@ -17,28 +17,6 @@ export function docKeyFromHref(href) {
 		: null;
 }
 
-/**
- * Linkable pages in tree order, each with the trail of folders above it so
- * same-titled pages in different folders can be told apart.
- */
-export function linkablePages(nodes, trail = []) {
-	const pages = [];
-	for (const node of nodes || []) {
-		if (node.is_deleted || node.is_external_link) continue;
-		if (node.is_group) {
-			pages.push(...linkablePages(node.children, [...trail, node.title]));
-		} else if (node.doc_key) {
-			pages.push({
-				key: node.doc_key,
-				title: node.title,
-				trail,
-				isPublished: node.is_published !== false,
-			});
-		}
-	}
-	return pages;
-}
-
 const PAGE_LIMIT = 8;
 
 // Lower is better; null means no match at all.
