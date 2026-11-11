@@ -92,4 +92,32 @@ test.describe('Editor autosave', () => {
 		expect(savedWhileTyping[0].body).toContain('w0');
 		expect(await savedContent(page, seeded.doc_key)).toContain('Start. w0 w1');
 	});
+	test('a title typed while an autosave lands keeps every character', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha', content: 'Alpha.' }],
+		});
+		await wiki.changeRequest(space);
+		await openEditor(page, space.url('page', space.page('Alpha').name));
+		await page.route('**/*apply_cr_operations*', async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 800));
+			await route.continue();
+		});
+
+		await page.locator('.ProseMirror').first().click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' More.');
+		const title = page.getByPlaceholder('Page title');
+		await title.click();
+		await title.press('End');
+		// Slow enough that the autosave and its reply land mid-word.
+		await title.pressSequentially(' and a longer title typed slowly', {
+			delay: 200,
+		});
+
+		await page.waitForTimeout(1500);
+		await expect(title).toHaveValue('Alpha and a longer title typed slowly');
+	});
 });
