@@ -3,6 +3,7 @@ import {
 	loadLogForCr,
 	saveLogEntry,
 } from '@/stores/draftPersistence';
+import { computed } from 'vue';
 import { isRetryableError } from './utils';
 
 const LOGGED_TYPES = new Set([
@@ -45,6 +46,15 @@ export function createOperationLog({
 
 	function entries() {
 		return queue.pending.value.filter((m) => LOGGED_TYPES.has(m.type));
+	}
+
+	// A page is pending exactly while an entry for it is unacknowledged.
+	const pendingKeys = computed(
+		() => new Set(entries().map((entry) => entry.payload.docKey)),
+	);
+
+	function isPending(docKey) {
+		return pendingKeys.value.has(docKey);
 	}
 
 	function waiter(id) {
@@ -252,6 +262,7 @@ export function createOperationLog({
 
 	return {
 		entries,
+		isPending,
 		append,
 		pendingCreate,
 		whenCreated,

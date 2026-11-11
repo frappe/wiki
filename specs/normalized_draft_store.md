@@ -1,7 +1,7 @@
 # Normalized Draft Store: One Tree, One Title, One Deleted Flag
 
 Date: 2026-11-11
-Status: **In progress**. Vitest step built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
+Status: **In progress**. Vitest step and bullet 1 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
 
 ## Goal
 
@@ -133,13 +133,18 @@ Built, on branch `chore/vitest-unit-tests`. Notes:
 
 - `applyEntry` stops writing `localStatus`. Delete and restore set only `isDeleted`, over the subtree.
 - The log exposes a computed set of the `docKey`s in its entries. `isPending(docKey)` reads it. `applyAcknowledged` and `applyFields` no longer touch status.
-- `denormalizeNode` sets `is_deleted` from `isDeleted` alone and `local_status` from `isPending`. It stays until bullet 4.
+- `denormalizeNode` sets `is_deleted` from `isDeleted` alone, and a new `is_pending` from `isPending` in place of `local_status`. It stays until bullet 4.
 - `WikiTree.isDeleted` drops the change summary. Both read the head item's `is_deleted`, so `get_cr_tree` already flags every page the summary calls deleted. The summary still drives the added and modified dots.
 
 Tests:
 
 - Playwright, in `pending-delete-visible.spec.ts`, each fails today: delete offline, then restore: the row is not struck through, opens, survives a reload, and both ops reach the server. Delete, let it land, then restore offline: the row is not struck through
 - Vitest: replaying delete then restore leaves the subtree not deleted and the page pending
+
+Built, on branch `fix/one-deleted-flag`. Notes:
+
+- `WikiTree` checks the deleted dot before the pending dot. A pending delete shows red, as before, and a pending restore shows the grey syncing dot. The pending dot also comes before the change summary's dots, so a restore waiting offline never shows the summary's stale red dot.
+- The unit tests cover the cascade, `is_pending` in the adapter and `isPending` in the log. The bug itself lives in the store's replay, so the two Playwright tests are what fail on the old code.
 
 ## Bullet 2: Normalized model
 
