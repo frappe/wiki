@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownManager } from '@tiptap/markdown';

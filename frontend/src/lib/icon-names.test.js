@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
+import { test } from 'vitest';
 
 /**
  * frappe-ui 1.0.0 removed FeatherIcon and its bare-name back-compat (ADR-0008):
