@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import fuzzysort from 'fuzzysort';
 import { filterTree, highlightSegments } from './useTreeSearch.js';
