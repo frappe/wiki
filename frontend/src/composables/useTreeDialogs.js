@@ -122,17 +122,9 @@ export function useTreeDialogs(
 		showCreateDialog.value = true;
 	}
 
-	function countDescendants(node) {
-		if (!node?.children?.length) return 0;
-		return node.children.reduce(
-			(sum, child) => sum + 1 + countDescendants(child),
-			0,
-		);
-	}
-
 	function openDeleteDialog(node) {
 		deleteNode.value = node;
-		deleteChildCount.value = node?.is_group ? countDescendants(node) : 0;
+		deleteChildCount.value = draftStore.tree.pages(node.docKey).length;
 		showDeleteDialog.value = true;
 	}
 
@@ -181,7 +173,7 @@ export function useTreeDialogs(
 	}
 
 	async function deleteDocument(close) {
-		const docKey = deleteNode.value?.doc_key;
+		const docKey = deleteNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;
@@ -207,7 +199,7 @@ export function useTreeDialogs(
 			toast.warning(__('Name is required'));
 			return;
 		}
-		const docKey = renameNode.value?.doc_key;
+		const docKey = renameNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;
@@ -266,7 +258,7 @@ export function useTreeDialogs(
 	function openEditExternalLinkDialog(node) {
 		editExternalLinkNode.value = node;
 		editExternalLinkTitle.value = node.title || '';
-		editExternalLinkUrl.value = node.external_url || '';
+		editExternalLinkUrl.value = node.externalUrl || '';
 		showEditExternalLinkDialog.value = true;
 	}
 
@@ -287,7 +279,7 @@ export function useTreeDialogs(
 			);
 			return;
 		}
-		const docKey = editExternalLinkNode.value?.doc_key;
+		const docKey = editExternalLinkNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;

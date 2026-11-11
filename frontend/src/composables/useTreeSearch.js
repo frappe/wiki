@@ -7,11 +7,11 @@ import { computed, ref } from 'vue';
 // A filtered *hierarchy* hides matches behind collapsed parents and forces the
 // tree to fake its own expand state, so searching swaps the tree for a flat
 // result list instead: every hit is one row, ranked by score.
-export function useTreeSearch(treeData) {
+export function useTreeSearch(tree) {
 	const query = ref('');
 
 	const result = computed(() =>
-		filterTree(treeData.value?.children || [], query.value),
+		filterTree(tree.value?.pages() || [], query.value),
 	);
 
 	return {
@@ -36,7 +36,7 @@ const SLUG_THRESHOLD = 0.5;
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
 // blank (meaning "not searching, render the full tree"), otherwise the flat
 // matches in rank order plus the score map the renderer highlights from.
-export function filterTree(children, query) {
+export function filterTree(pages, query) {
 	const q = (query || '').trim();
 	if (!q) return null;
 
@@ -49,25 +49,19 @@ export function filterTree(children, query) {
 	// renderer highlights the query inside it, and a slug hit is a substring of
 	// the route, so the highlight lands in the right place.
 	const hits = fuzzysort
-		.go(q, flatten(children), {
-			keys: ['node.title', 'node.route', 'slug'],
-		})
+		.go(
+			q,
+			pages.map((node) => ({ node, slug: slugOf(node.route) })),
+			{ keys: ['node.title', 'node.route', 'slug'] },
+		)
 		.filter(
 			(hit) =>
 				hit[0].score >= TITLE_THRESHOLD || hit[2].score >= SLUG_THRESHOLD,
 		);
 
-	const score = new Map(); // doc_key -> result ([0]=title, [1]=route)
-	const matches = []; // rank-ordered rows
-	for (const hit of hits) {
-		const { node } = hit.obj;
-		score.set(node.doc_key, hit);
-		// One row per hit: a match's own children are not results, and keeping
-		// them would rebuild the hierarchy this list exists to flatten.
-		matches.push({ ...node, children: [] });
-	}
-
-	return { matches, score };
+	const score = new Map(); // docKey -> result ([0]=title, [1]=route)
+	for (const hit of hits) score.set(hit.obj.node.docKey, hit);
+	return { matches: hits.map((hit) => hit.obj.node), score };
 }
 
 // Split a fuzzysort result into { text, matched } segments for rendering.
@@ -98,20 +92,8 @@ export function highlightSegments(result) {
 	return segments;
 }
 
-// Flatten to every node in the tree, at every depth, so a nested page can be
-// its own result row.
 /** The page's own route segment: `guides/auth-tokens` -> `auth-tokens`. */
 function slugOf(route) {
 	const value = route || '';
 	return value.slice(value.lastIndexOf('/') + 1);
-}
-
-function flatten(children, out = []) {
-	for (const node of children) {
-		out.push({ node, slug: slugOf(node.route) });
-		if (node.children?.length) {
-			flatten(node.children, out);
-		}
-	}
-	return out;
 }

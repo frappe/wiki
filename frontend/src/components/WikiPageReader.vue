@@ -30,7 +30,7 @@
 
 <script setup>
 import { useOutlineLayout } from '@/composables/useOutlineLayout';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { Skeleton } from 'frappe-ui';
 import {
 	inject,
@@ -129,10 +129,10 @@ function followLink(event) {
 function pageRoute(url) {
 	if (url.origin !== window.location.origin) return null;
 	const path = decodeURIComponent(url.pathname).replace(/^\//, '');
-	const node = trailToNode(
-		spaceTree?.value?.children,
-		(candidate) => !candidate.is_group && candidate.route === path,
-	)?.at(-1);
-	return node ? crumbRoute(node, route.params.spaceId) : null;
+	const tree = spaceTree?.value;
+	const node = tree
+		?.pages()
+		.find((candidate) => !candidate.isGroup && candidate.route === path);
+	return node ? crumbRoute(tree, node, route.params.spaceId) : null;
 }
 </script>

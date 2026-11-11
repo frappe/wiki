@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import {
 	Badge,
@@ -206,17 +206,15 @@ const spaceTree = inject(SPACE_TREE_KEY, null);
 // its tmp key, so it reads its home before it is ever saved. The last crumb
 // follows the title input rather than the stored title.
 const breadcrumbs = computed(() => {
-	const children = spaceTree?.value?.children;
-	if (!children?.length) return [];
-
-	const trail = trailToNode(children, (node) => node.doc_key === props.docKey);
+	const tree = spaceTree?.value;
+	const trail = tree?.trail(props.docKey);
 	if (!trail) return [];
 
 	return trail.map((node, i) => ({
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
-		route: crumbRoute(node, props.spaceId),
+		route: crumbRoute(tree, node, props.spaceId),
 	}));
 });
 

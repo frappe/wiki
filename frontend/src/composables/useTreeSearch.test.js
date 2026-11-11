@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
+import { createTreeModel } from '@/stores/draftWorkspace/treeModel.js';
 import fuzzysort from 'fuzzysort';
 import { filterTree, highlightSegments } from './useTreeSearch.js';
 
-const has = (matches, key) => matches.some((node) => node.doc_key === key);
+const has = (matches, key) => matches.some((node) => node.docKey === key);
+
+function pagesOf(children) {
+	const model = createTreeModel();
+	model.applyServerTree({ root_group: 'root', children });
+	return model.pages();
+}
 
 // A small two-level tree: a group "Guides" with two pages, and a top-level page.
 function sampleTree() {
@@ -34,38 +41,30 @@ function sampleTree() {
 }
 
 test('blank query returns null (not searching)', () => {
-	assert.equal(filterTree(sampleTree(), ''), null);
-	assert.equal(filterTree(sampleTree(), '   '), null);
+	assert.equal(filterTree(pagesOf(sampleTree()), ''), null);
+	assert.equal(filterTree(pagesOf(sampleTree()), '   '), null);
 });
 
 // The result list is flat: a nested match is its own row, and the ancestors
 // that used to be dragged along with it are not results.
 test('a nested match is one flat row, without its ancestor group', () => {
-	const { matches } = filterTree(sampleTree(), 'getting');
+	const { matches } = filterTree(pagesOf(sampleTree()), 'getting');
 
 	assert.deepEqual(
-		matches.map((node) => node.doc_key),
+		matches.map((node) => node.docKey),
 		['p1'],
 	);
 });
 
-test('a matched group carries no children into the result list', () => {
-	const { matches } = filterTree(sampleTree(), 'Guides');
-
-	const group = matches.find((node) => node.doc_key === 'g1');
-	assert.ok(group, 'the group is a result in its own right');
-	assert.deepEqual(group.children, [], 'its pages are not results');
-});
-
 test('results are ranked, best match first', () => {
-	const { matches } = filterTree(sampleTree(), 'guides');
+	const { matches } = filterTree(pagesOf(sampleTree()), 'guides');
 
-	assert.equal(matches[0].doc_key, 'g1', 'the exact title beats route hits');
+	assert.equal(matches[0].docKey, 'g1', 'the exact title beats route hits');
 });
 
 test('matches the route even when the title does not', () => {
 	// "auth-tokens" lives only in p2's route, not its title ("Authentication").
-	const { matches, score } = filterTree(sampleTree(), 'auth-tokens');
+	const { matches, score } = filterTree(pagesOf(sampleTree()), 'auth-tokens');
 
 	assert.ok(has(matches, 'p2'), 'route-only hit surfaces the page');
 	const result = score.get('p2');
@@ -83,7 +82,7 @@ test('matches the route even when the title does not', () => {
 });
 
 test('a strong (prefix) fuzzy query still matches', () => {
-	const { matches } = filterTree(sampleTree(), 'authen');
+	const { matches } = filterTree(pagesOf(sampleTree()), 'authen');
 	assert.ok(has(matches, 'p2'));
 });
 
@@ -136,7 +135,7 @@ function prodTree() {
 }
 
 test('"cli" surfaces the CLI pages and drops route-scatter junk', () => {
-	const { matches } = filterTree(prodTree(), 'cli');
+	const { matches } = filterTree(pagesOf(prodTree()), 'cli');
 	assert.ok(has(matches, 'pCLICmd'), 'CLI Commands kept');
 	assert.ok(has(matches, 'gCLI'), 'CLI group kept');
 	// Both matched "cli" only as a scattered subsequence of their long routes
@@ -152,7 +151,7 @@ test('"cli" surfaces the CLI pages and drops route-scatter junk', () => {
 });
 
 test('"stat" still finds "Getting Started" (lenient title threshold)', () => {
-	const { matches } = filterTree(prodTree(), 'stat');
+	const { matches } = filterTree(pagesOf(prodTree()), 'stat');
 	assert.ok(
 		has(matches, 'gGS'),
 		'near-prefix "stat" matches "Getting Started"',
@@ -160,7 +159,7 @@ test('"stat" still finds "Getting Started" (lenient title threshold)', () => {
 });
 
 test('no matches yields an empty result list', () => {
-	const { matches } = filterTree(sampleTree(), 'zzzznomatch');
+	const { matches } = filterTree(pagesOf(sampleTree()), 'zzzznomatch');
 	assert.equal(matches.length, 0);
 });
 
@@ -195,7 +194,7 @@ test("a group's name does not drag its whole subtree into the results", () => {
 	// Every descendant's route starts with the group's slug, so matching the
 	// full path returned the group and both its pages — the hierarchy the flat
 	// list exists to replace.
-	const { matches } = filterTree(sampleTree(), 'guides');
+	const { matches } = filterTree(pagesOf(sampleTree()), 'guides');
 
 	assert.ok(has(matches, 'g1'), 'the group itself matches');
 	assert.equal(has(matches, 'p1'), false, 'a page under it does not');

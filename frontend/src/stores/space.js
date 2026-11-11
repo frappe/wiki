@@ -6,7 +6,7 @@ import router from '../router';
 import { useSocket } from '../socket';
 import { useChangeRequestStore } from './changeRequest';
 import { useDraftWorkspaceStore } from './draftWorkspace';
-import { toPublished } from './draftWorkspace/utils';
+import { createTreeModel } from './draftWorkspace/treeModel';
 
 const EDITABLE_STATUSES = ['Draft', 'Changes Requested'];
 const REVIEW_STATUSES = ['In Review', 'Approved'];
@@ -214,27 +214,13 @@ export const useSpaceStore = defineStore('space', () => {
 		readonlyTreeSpaceId.value = null;
 	}
 
-	function adaptReadonlyNode(node) {
-		return {
-			doc_key: node.doc_key,
-			document_name: node.name,
-			title: node.title,
-			route: node.route,
-			is_group: !!node.is_group,
-			is_published: toPublished(node.is_published),
-			is_external_link: Boolean(node.is_external_link),
-			external_url: node.external_url || null,
-			children: (node.children || []).map(adaptReadonlyNode),
-		};
-	}
-
-	const liveTreeData = computed(() => {
+	// A fresh model per fetch: the live tree is only ever replaced whole.
+	const liveTree = computed(() => {
 		const data = readonlyTreeResource.data;
 		if (!data || readonlyTreeSpaceId.value !== spaceId.value) return null;
-		return {
-			root_group: data.root_key || '',
-			children: (data.children || []).map(adaptReadonlyNode),
-		};
+		const model = createTreeModel();
+		model.applyServerTree(data);
+		return model;
 	});
 
 	async function loadReadonlyTree() {
@@ -247,22 +233,23 @@ export const useSpaceStore = defineStore('space', () => {
 		() => draftStore.spaceId === spaceId.value && draftStore.hasLoadedTree,
 	);
 
-	const treeData = computed(() => {
+	// The tree model on screen: null until one has loaded for this space.
+	const tree = computed(() => {
 		if (showsLiveTree.value) {
-			if (liveTreeData.value || !hasDraftTree.value) return liveTreeData.value;
-			return draftStore.treeAsLegacy;
+			if (liveTree.value || !hasDraftTree.value) return liveTree.value;
+			return draftStore.tree;
 		}
-		if (hasDraftTree.value) return draftStore.treeAsLegacy;
-		if (liveTreeData.value) return liveTreeData.value;
+		if (hasDraftTree.value) return draftStore.tree;
+		if (liveTree.value) return liveTree.value;
 		if (draftStore.spaceId !== spaceId.value) return null;
-		return draftStore.hasStaleTree ? draftStore.staleTreeAsLegacy : null;
+		return draftStore.hasStaleTree ? draftStore.staleTree : null;
 	});
 
 	const isTreeStale = computed(
 		() =>
 			!showsLiveTree.value &&
 			!hasDraftTree.value &&
-			!liveTreeData.value &&
+			!liveTree.value &&
 			draftStore.spaceId === spaceId.value &&
 			draftStore.hasStaleTree,
 	);
@@ -400,7 +387,7 @@ export const useSpaceStore = defineStore('space', () => {
 		stopEditingInReview,
 		selectedPageId,
 		selectedDraftKey,
-		treeData,
+		tree,
 		isTreeStale,
 		changeTypeMap,
 		isTreeReordering,

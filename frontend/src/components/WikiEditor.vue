@@ -66,7 +66,7 @@ import {
 	onEditorFlushRequest,
 	onEditorReloadRequest,
 } from '@/lib/editorContentSync';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import {
@@ -94,7 +94,6 @@ import {
 	PageLinks,
 	docKeyFromHref,
 	findPageByTitle,
-	linkablePages,
 	pickerItems,
 } from './tiptap-extensions/page-links.js';
 import {
@@ -183,16 +182,13 @@ const spaceStore = useSpaceStore();
 const draftStore = useDraftWorkspaceStore();
 
 function spacePages() {
-	return linkablePages(spaceTree?.value?.children);
+	return spaceTree?.value?.linkablePages() ?? [];
 }
 
 // A page created from the link picker goes in the open page's folder.
 async function createPageBesideThis(title) {
-	const trail = trailToNode(
-		spaceTree?.value?.children,
-		(node) => node.doc_key === props.documentKey,
-	);
-	const parentKey = trail?.at(-2)?.doc_key ?? null;
+	const parentKey =
+		spaceTree?.value?.trail(props.documentKey)?.at(-2)?.docKey ?? null;
 	try {
 		const docKey = await draftStore.createNode({ parentKey, title }).promise;
 		toast.success(`Added “${title}” as a draft page in this change request`);
@@ -210,11 +206,9 @@ const router = useRouter();
 function linkedPage(href) {
 	const docKey = docKeyFromHref(href);
 	if (!docKey) return null;
-	const node = trailToNode(
-		spaceTree?.value?.children,
-		(candidate) => candidate.doc_key === docKey,
-	)?.at(-1);
-	const target = node && crumbRoute(node, route.params.spaceId);
+	const tree = spaceTree?.value;
+	const node = tree?.trail(docKey)?.at(-1);
+	const target = node && crumbRoute(tree, node, route.params.spaceId);
 	return target
 		? { title: node.title, href: router.resolve(target).href }
 		: null;

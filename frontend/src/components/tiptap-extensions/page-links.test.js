@@ -7,46 +7,10 @@ import { WikiLink } from './link-extension.js';
 import {
 	docKeyFromHref,
 	findPageByTitle,
-	linkablePages,
 	pickerItems,
 	rankPages,
 } from './page-links.js';
 import { wikiStarterKit } from './wiki-starterkit.js';
-
-const TREE = [
-	{ doc_key: 'intro', title: 'Introduction', is_group: 0 },
-	{
-		doc_key: 'guides',
-		title: 'Guides',
-		is_group: 1,
-		children: [
-			{ doc_key: 'setup', title: 'Setup Guide', is_group: 0 },
-			{
-				doc_key: 'draft',
-				title: 'Draft Notes',
-				is_group: 0,
-				is_published: false,
-			},
-			{ doc_key: 'old', title: 'Old Setup', is_group: 0, is_deleted: true },
-			{ doc_key: 'gh', title: 'GitHub', is_group: 0, is_external_link: 1 },
-		],
-	},
-];
-
-test('linkablePages lists pages in tree order with their folder trail', () => {
-	assert.deepEqual(
-		linkablePages(TREE).map(({ key, trail, isPublished }) => [
-			key,
-			trail,
-			isPublished,
-		]),
-		[
-			['intro', [], true],
-			['setup', ['Guides'], true],
-			['draft', ['Guides'], false],
-		],
-	);
-});
 
 test('rankPages puts a title prefix before a word start before a substring', () => {
 	const pages = [
