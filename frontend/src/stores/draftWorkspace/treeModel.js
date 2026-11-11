@@ -1,13 +1,13 @@
-import { computed, ref } from 'vue';
+import { computed, markRaw, ref } from 'vue';
 
 import { toPublished } from './utils.js';
 
-// A server tree node (snake_case from get_cr_tree) as a flat record. Order and
-// children live in `childIds`, not on the record.
+// A server tree node (snake_case, from get_cr_tree or get_wiki_tree) as a flat
+// record. Order and children live in `childIds`, not on the record.
 function toRecord(serverNode, parentKey) {
 	return {
 		docKey: serverNode.doc_key,
-		documentName: serverNode.document_name ?? null,
+		documentName: serverNode.document_name ?? serverNode.name ?? null,
 		title: serverNode.title || '',
 		route: serverNode.route || '',
 		parentKey,
@@ -18,25 +18,6 @@ function toRecord(serverNode, parentKey) {
 		isExternalLink: !!serverNode.is_external_link,
 		externalUrl: serverNode.external_url || null,
 		isDeleted: !!serverNode.is_deleted,
-	};
-}
-
-// The snake_case shape the tree components still read, until they move to
-// the model's own lookups.
-function toLegacy(record, isPending) {
-	return {
-		doc_key: record.docKey,
-		document_name: record.documentName,
-		title: record.title,
-		route: record.route,
-		is_group: record.isGroup,
-		is_tab: record.isTab,
-		tab_icon: record.tabIcon,
-		is_published: record.isPublished,
-		is_external_link: record.isExternalLink,
-		external_url: record.externalUrl,
-		is_deleted: record.isDeleted,
-		is_pending: isPending(record.docKey),
 	};
 }
 
@@ -66,8 +47,71 @@ export function createTreeModel({ isPending = () => false } = {}) {
 		return childIds.value[key] ?? [];
 	}
 
-	function getChildList(parentKey) {
-		return childKeys(parentKey)?.map((key) => nodesById.value[key]) ?? null;
+	function children(parentKey) {
+		return (childKeys(parentKey) ?? []).map((key) => nodesById.value[key]);
+	}
+
+	// Every record under a parent, depth first, in tree order.
+	function pages(parentKey = null) {
+		return children(parentKey).flatMap((record) => [
+			record,
+			...pages(record.docKey),
+		]);
+	}
+
+	// From the top-level ancestor down to the page. Null for a page outside the
+	// tree.
+	function trail(docKey) {
+		const records = [];
+		for (let r = findNode(docKey); r; r = findNode(r.parentKey)) {
+			records.unshift(r);
+		}
+		const top = records[0]?.docKey;
+		return top && childKeys(null).includes(top) ? records : null;
+	}
+
+	const byDocumentName = computed(
+		() =>
+			new Map(
+				Object.values(nodesById.value)
+					.filter((record) => record.documentName)
+					.map((record) => [record.documentName, record]),
+			),
+	);
+
+	function nodeByDocumentName(name) {
+		return byDocumentName.value.get(name) ?? null;
+	}
+
+	// The first page that can be opened under a parent, depth first. Groups
+	// hold no content, and a deleted page keeps its row but must not open.
+	function firstPage(parentKey = null) {
+		for (const record of children(parentKey)) {
+			if (record.isDeleted) continue;
+			if (!record.isGroup && record.documentName) return record.documentName;
+			const found = record.isGroup && firstPage(record.docKey);
+			if (found) return found;
+		}
+		return null;
+	}
+
+	// Pages a link can point at, in tree order, each with the titles of the
+	// groups above it so same-titled pages can be told apart.
+	function linkablePages(parentKey = null, folders = []) {
+		return children(parentKey).flatMap((record) => {
+			if (record.isDeleted || record.isExternalLink) return [];
+			if (record.isGroup) {
+				return linkablePages(record.docKey, [...folders, record.title]);
+			}
+			return [
+				{
+					key: record.docKey,
+					title: record.title,
+					trail: folders,
+					isPublished: record.isPublished,
+				},
+			];
+		});
 	}
 
 	function placeKey(docKey, parentKey, index) {
@@ -123,7 +167,9 @@ export function createTreeModel({ isPending = () => false } = {}) {
 	}
 
 	function applyServerTree(serverTree) {
-		const root = serverTree?.root_group || null;
+		// get_wiki_tree's `root_group` is the root's document name, so its
+		// `root_key` wins.
+		const root = serverTree?.root_key || serverTree?.root_group || null;
 		const records = {};
 		const lists = {};
 		const visit = (nodes, parentKey) => {
@@ -139,38 +185,31 @@ export function createTreeModel({ isPending = () => false } = {}) {
 		childIds.value = lists;
 	}
 
-	// A deleted node stays in the view, flagged, until the merge.
-	const treeAsLegacy = computed(() => {
-		const build = (key) =>
-			(childIds.value[key] ?? []).map((childKey) => ({
-				...toLegacy(nodesById.value[childKey], isPending),
-				children: build(childKey),
-			}));
-		return {
-			root_group: rootKey.value,
-			children: build(rootKey.value ?? ''),
-		};
-	});
-
 	function reset() {
 		rootKey.value = null;
 		nodesById.value = {};
 		childIds.value = {};
 	}
 
-	return {
+	// Raw, so a store that exposes the model leaves its refs as refs.
+	return markRaw({
 		rootKey,
 		nodesById,
 		childIds,
-		treeAsLegacy,
+		isPending,
 		findNode,
 		childKeys,
-		getChildList,
+		children,
+		pages,
+		trail,
+		nodeByDocumentName,
+		firstPage,
+		linkablePages,
 		insertNode,
 		setFields,
 		moveNode,
 		setSubtreeDeleted,
 		applyServerTree,
 		reset,
-	};
+	});
 }

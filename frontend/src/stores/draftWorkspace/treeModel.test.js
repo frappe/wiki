@@ -27,16 +27,8 @@ function loaded(options) {
 	return model;
 }
 
-function legacyNode(model, docKey) {
-	const find = (nodes) => {
-		for (const node of nodes) {
-			if (node.doc_key === docKey) return node;
-			const found = find(node.children);
-			if (found) return found;
-		}
-		return null;
-	};
-	return find(model.treeAsLegacy.value.children);
+function keys(records) {
+	return records.map((record) => record.docKey);
 }
 
 test('a server tree becomes one record per page and ordered child lists', () => {
@@ -75,10 +67,8 @@ test('insert before any tree loads files the page at the top level', () => {
 	const model = createTreeModel();
 	model.insertNode({ docKey: 'new', title: 'New' }, null);
 	assert.deepEqual(model.childKeys(null), ['new']);
-	assert.deepEqual(
-		model.treeAsLegacy.value.children.map((n) => n.doc_key),
-		['new'],
-	);
+	assert.deepEqual(keys(model.children(null)), ['new']);
+	assert.deepEqual(model.trail('new'), [model.findNode('new')]);
 });
 
 test('setFields updates a known page in place', () => {
@@ -88,7 +78,7 @@ test('setFields updates a known page in place', () => {
 	assert.equal(model.findNode('child').title, 'Renamed');
 	assert.equal(model.findNode('child').isPublished, true);
 	assert.equal(model.findNode('child').parentKey, 'group');
-	assert.equal(legacyNode(model, 'child').title, 'Renamed');
+	assert.equal(model.children('group')[0].title, 'Renamed');
 });
 
 test('setFields before the tree loads makes a record outside the tree', () => {
@@ -98,6 +88,7 @@ test('setFields before the tree loads makes a record outside the tree', () => {
 	assert.equal(model.findNode('early').title, 'Early');
 	assert.equal(model.findNode('early').parentKey, null);
 	assert.deepEqual(model.childKeys(null), []);
+	assert.equal(model.trail('early'), null);
 
 	model.applyServerTree(serverTree());
 	assert.equal(model.findNode('early'), null);
@@ -133,37 +124,126 @@ test('restore after delete clears the flag over the whole subtree', () => {
 	model.setSubtreeDeleted('group', true);
 	assert.equal(model.findNode('group').isDeleted, true);
 	assert.equal(model.findNode('child').isDeleted, true);
-	assert.equal(legacyNode(model, 'child2').is_deleted, true);
+	assert.equal(model.findNode('child2').isDeleted, true);
 	assert.equal(model.findNode('page').isDeleted, false);
 
 	model.setSubtreeDeleted('group', false);
-	assert.equal(legacyNode(model, 'group').is_deleted, false);
-	assert.equal(legacyNode(model, 'child').is_deleted, false);
+	assert.equal(model.findNode('group').isDeleted, false);
+	assert.equal(model.findNode('child').isDeleted, false);
 });
 
-test('the legacy view nests records in child list order', () => {
+test('children are records in child list order', () => {
 	const model = loaded();
 	model.moveNode('child2', 'group', 0);
-	const view = model.treeAsLegacy.value;
 
-	assert.equal(view.root_group, 'root');
+	assert.deepEqual(keys(model.children(null)), ['group', 'page']);
 	assert.deepEqual(
-		view.children.map((n) => n.doc_key),
-		['group', 'page'],
-	);
-	assert.deepEqual(
-		view.children[0].children.map((n) => n.title),
+		model.children('group').map((record) => record.title),
 		['Child 2', 'Child'],
 	);
-	assert.equal(view.children[0].children[1].is_published, false);
+	assert.deepEqual(model.children('missing'), []);
 });
 
-test('a row is pending only while the log holds an entry for it', () => {
-	const pending = new Set(['page']);
-	const model = loaded({ isPending: (key) => pending.has(key) });
+test('pages lists every record depth first in tree order', () => {
+	const model = loaded();
+	assert.deepEqual(keys(model.pages()), ['group', 'child', 'child2', 'page']);
+	assert.deepEqual(keys(model.pages('group')), ['child', 'child2']);
+});
 
-	assert.equal(legacyNode(model, 'page').is_pending, true);
-	assert.equal(legacyNode(model, 'child').is_pending, false);
+test('trail runs from the top-level ancestor down to the page', () => {
+	const model = loaded();
+	assert.deepEqual(keys(model.trail('child2')), ['group', 'child2']);
+	assert.deepEqual(keys(model.trail('page')), ['page']);
+	assert.equal(model.trail('missing'), null);
+
+	model.moveNode('child2', 'root', 0);
+	assert.deepEqual(keys(model.trail('child2')), ['child2']);
+});
+
+test('nodeByDocumentName finds pages the server has saved', () => {
+	const model = createTreeModel();
+	model.applyServerTree({
+		root_group: 'root',
+		children: [
+			{ doc_key: 'a', document_name: 'doc-a', title: 'A' },
+			{ doc_key: 'b', document_name: null, title: 'B' },
+		],
+	});
+
+	assert.equal(model.nodeByDocumentName('doc-a').docKey, 'a');
+	assert.equal(model.nodeByDocumentName('missing'), null);
+	assert.equal(model.nodeByDocumentName(null), null);
+});
+
+test('firstPage skips deleted pages, unsaved pages and empty groups', () => {
+	const model = createTreeModel();
+	model.applyServerTree({
+		root_group: 'root',
+		children: [
+			{ doc_key: 'empty', document_name: 'd-empty', is_group: 1 },
+			{ doc_key: 'gone', document_name: 'd-gone', is_deleted: 1 },
+			{ doc_key: 'draft', document_name: null },
+			{
+				doc_key: 'group',
+				document_name: 'd-group',
+				is_group: 1,
+				children: [{ doc_key: 'inner', document_name: 'd-inner' }],
+			},
+			{ doc_key: 'last', document_name: 'd-last' },
+		],
+	});
+
+	assert.equal(model.firstPage(), 'd-inner');
+	model.setSubtreeDeleted('group', true);
+	assert.equal(model.firstPage(), 'd-last');
+	assert.equal(model.firstPage('empty'), null);
+});
+
+test('linkablePages skips deleted pages and external links', () => {
+	const model = createTreeModel();
+	model.applyServerTree({
+		root_group: 'root',
+		children: [
+			{
+				doc_key: 'guides',
+				title: 'Guides',
+				is_group: 1,
+				children: [
+					{ doc_key: 'setup', title: 'Setup', is_published: 0 },
+					{ doc_key: 'gone', title: 'Gone', is_deleted: 1 },
+				],
+			},
+			{ doc_key: 'site', title: 'Site', is_external_link: 1 },
+			{ doc_key: 'faq', title: 'FAQ' },
+		],
+	});
+
+	assert.deepEqual(model.linkablePages(), [
+		{ key: 'setup', title: 'Setup', trail: ['Guides'], isPublished: false },
+		{ key: 'faq', title: 'FAQ', trail: [], isPublished: true },
+	]);
+});
+
+test('the live tree shape loads with document names and its root key', () => {
+	const model = createTreeModel();
+	model.applyServerTree({
+		root_group: 'root-doc-name',
+		root_key: 'root',
+		children: [
+			{
+				name: 'doc-g',
+				doc_key: 'g',
+				title: 'G',
+				is_group: 1,
+				children: [{ name: 'doc-p', doc_key: 'p', title: 'P' }],
+			},
+		],
+	});
+
+	assert.equal(model.rootKey.value, 'root');
+	assert.equal(model.findNode('p').documentName, 'doc-p');
+	assert.equal(model.findNode('g').parentKey, 'root');
+	assert.deepEqual(keys(model.trail('p')), ['g', 'p']);
 });
 
 test('reset empties the model', () => {
@@ -171,5 +251,5 @@ test('reset empties the model', () => {
 	model.reset();
 	assert.equal(model.rootKey.value, null);
 	assert.equal(model.findNode('page'), null);
-	assert.deepEqual(model.treeAsLegacy.value.children, []);
+	assert.deepEqual(model.children(null), []);
 });
