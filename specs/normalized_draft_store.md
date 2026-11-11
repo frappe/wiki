@@ -1,7 +1,7 @@
 # Normalized Draft Store: One Tree, One Title, One Deleted Flag
 
 Date: 2026-11-11
-Status: **Draft**. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
+Status: **In progress**. Vitest step built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
 
 ## Goal
 
@@ -121,6 +121,13 @@ The unit tests run on `node --test` today. A small PR before bullet 1 moves them
 - The 29 test files switch `node:test` imports to `vitest`. `node:assert/strict` keeps working, so assertions do not change.
 - Two files use `node:test` mocks (`editorContentSync.test.js`, `paste-data-images.test.js`). `mock.fn` becomes `vi.fn`, `mock.method` becomes `vi.spyOn`, and `mock.timers` becomes `vi.useFakeTimers`.
 - Same test count before and after.
+
+Built, on branch `chore/vitest-unit-tests`. Notes:
+
+- Vitest 3 resolves its own Vite 7 by default. The lockfile pins it to the app's Vite 5.4.10, so there is one Vite, one esbuild and one rollup.
+- Node's fake `setTimeout` also fakes `clearTimeout`. Vitest fakes only what `toFake` lists, so `clearTimeout` must be listed too, or cleared timers still fire.
+- `restoreMocks: true` in the config stands in for `t.mock`, which node restored at the end of each test.
+- 186 tests, both runners.
 
 ## Bullet 1: One deleted flag
 
