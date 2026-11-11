@@ -319,6 +319,49 @@ test.describe('Durable operation log', () => {
 		expect((await serverNode(page, crName, beta.doc_key))?.title).toBe('Beta');
 	});
 
+	test('a rename made elsewhere reaches the open page when a retried batch reloads the tree', async ({
+		page,
+		wiki,
+	}) => {
+		const { crName, alpha, beta } = await openDraft(page, wiki);
+		await page.locator('aside').getByText('Beta', { exact: true }).click();
+		await expect(page.getByPlaceholder('Page title')).toHaveValue('Beta');
+
+		await callMethod(page.request, `${CR_METHOD}.apply_cr_operations`, {
+			name: crName,
+			operations: JSON.stringify([
+				{
+					type: 'update_node',
+					doc_key: beta.doc_key,
+					fields: { title: 'Beta from B' },
+				},
+			]),
+		});
+
+		// The delete lands but its reply is lost, so the retry reloads the tree.
+		let replyLost = false;
+		await page.route(BATCH, async (route) => {
+			if (replyLost) return route.continue();
+			replyLost = true;
+			await route.fetch();
+			await route.abort('connectionfailed');
+		});
+		await page.evaluate((key) => {
+			(window as unknown as StoreWindow).__draftStore
+				.deleteNode(key)
+				.catch(() => {});
+		}, alpha.doc_key);
+		await expectLogDrained(page);
+
+		await expect(
+			page.locator('aside').getByText('Beta from B', { exact: true }),
+		).toBeVisible();
+		await expect(page.getByPlaceholder('Page title')).toHaveValue(
+			'Beta from B',
+		);
+		await expect(page).toHaveTitle(/^Beta from B \|/);
+	});
+
 	test('a move held by a conflict stays held across a reload until reload latest', async ({
 		context,
 		wiki,

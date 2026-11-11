@@ -23,7 +23,7 @@
 			<!-- The one scroller on this page: the editor body scrolls under
 			     the sticky toolbar, and the bubble menu and the outline rail
 			     both measure against it. -->
-			<ScrollArea v-if="!crPage.is_group" class="min-h-0 flex-1" viewport-class="pb-10">
+			<ScrollArea v-if="!node?.isGroup" class="min-h-0 flex-1" viewport-class="pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-10">
@@ -181,6 +181,7 @@ const draftStore = useDraftWorkspaceStore();
 const { isMobile } = useMobile();
 
 const crPage = ref(null);
+const node = computed(() => draftStore.findNode(props.docKey));
 // Becomes true only once we've confirmed the page genuinely doesn't exist,
 // so the "Draft not found" state never flashes during a normal load/switch.
 const loadFailed = ref(false);
@@ -191,7 +192,7 @@ let loadToken = 0;
 // Browser tab title: "{draft page} | {space}". Returning undefined while the
 // draft is still loading keeps the previous title instead of flashing a blank one.
 usePageMeta(() => {
-	const title = crPage.value?.title;
+	const title = crPage.value && node.value?.title;
 	if (!title) return;
 	const space = props.spaceId
 		? getCachedDocumentResource('Wiki Space', props.spaceId)
@@ -270,14 +271,9 @@ function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
 		crPage.value = null;
 		return;
 	}
-	const node = draftStore.findNode(docKey);
 	crPage.value = {
 		doc_key: docKey,
-		title: page.title,
-		route: page.route,
 		content: page.localContent ?? page.content,
-		is_published: page.isPublished,
-		is_group: node?.isGroup || false,
 	};
 }
 
@@ -323,22 +319,20 @@ async function flushOtherDirtyPages() {
 
 function onEditorContentChange(content, docKey = props.docKey, options = {}) {
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title, options);
+	draftStore.recordEditorContent(docKey, content, options);
 }
 
 function onEditorContentReady(content, savedContent, docKey = props.docKey) {
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
+	draftStore.reconcileEditorContent(docKey, content, savedContent);
 }
 
+// Follows the stored title only when it or the page changes, so typing in
+// the title is never reset by a content save.
 watch(
-	crPage,
-	(page) => {
-		if (page) {
-			editableTitle.value = page.title || '';
-		}
+	[() => props.docKey, () => node.value?.title],
+	([, title]) => {
+		editableTitle.value = title || '';
 	},
 	{ immediate: true },
 );
@@ -392,7 +386,7 @@ const menuOptions = computed(() => {
 
 async function saveTitleIfChanged() {
 	const newTitle = editableTitle.value.trim();
-	if (!newTitle || newTitle === (crPage.value?.title || '')) return;
+	if (!newTitle || newTitle === (node.value?.title || '')) return;
 	if (!crPage.value?.doc_key) return;
 	try {
 		await draftStore.updateNode(crPage.value.doc_key, { title: newTitle });
@@ -402,13 +396,13 @@ async function saveTitleIfChanged() {
 }
 
 function openRouteDialog() {
-	editableRoute.value = crPage.value?.route || '';
+	editableRoute.value = node.value?.route || '';
 	showRouteDialog.value = true;
 }
 
 async function saveRoute(close) {
 	const newRoute = editableRoute.value.trim().replace(/^\/+/, '');
-	if (!newRoute || newRoute === (crPage.value?.route || '')) {
+	if (!newRoute || newRoute === (node.value?.route || '')) {
 		close();
 		return;
 	}

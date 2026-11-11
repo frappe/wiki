@@ -445,8 +445,7 @@ function onEditorContentChange(
 ) {
 	if (!isEditing.value) return;
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title, options);
+	draftStore.recordEditorContent(docKey, content, options);
 }
 
 function onEditorContentReady(
@@ -456,8 +455,7 @@ function onEditorContentReady(
 ) {
 	if (!isEditing.value) return;
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
+	draftStore.reconcileEditorContent(docKey, content, savedContent);
 }
 
 async function loadCrPage() {
@@ -507,33 +505,23 @@ const editorContent = computed(() => {
 	return wikiDoc.value.doc?.content || '';
 });
 
-const displayTitle = computed(() => {
-	return (
-		activePage.value?.title ||
-		currentCrPage.value?.title ||
-		wikiDoc.value.doc?.title ||
-		''
-	);
-});
+// The draft's copy of the page's own fields, once the draft page has loaded.
+// Read mode shows the published document instead.
+const draftNode = computed(() =>
+	currentCrPage.value ? draftStore.findNode(loadedDocKey.value) : null,
+);
 
-const displayPublished = computed(() => {
-	if (activePage.value?.isPublished != null) {
-		return Boolean(activePage.value.isPublished);
-	}
-	if (currentCrPage.value?.is_published != null) {
-		return Boolean(currentCrPage.value.is_published);
-	}
-	return Boolean(wikiDoc.value.doc?.is_published);
-});
+const displayTitle = computed(
+	() => draftNode.value?.title || wikiDoc.value.doc?.title || '',
+);
 
-const displayRoute = computed(() => {
-	return (
-		activePage.value?.route ||
-		currentCrPage.value?.route ||
-		wikiDoc.value.doc?.route ||
-		''
-	);
-});
+const displayPublished = computed(() =>
+	Boolean(draftNode.value?.isPublished ?? wikiDoc.value.doc?.is_published),
+);
+
+const displayRoute = computed(
+	() => draftNode.value?.route || wikiDoc.value.doc?.route || '',
+);
 
 watch(
 	[() => props.pageId, displayTitle, displayRoute],
