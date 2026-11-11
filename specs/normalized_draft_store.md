@@ -1,7 +1,7 @@
 # Normalized Draft Store: One Tree, One Title, One Deleted Flag
 
 Date: 2026-11-11
-Status: **In progress**. Vitest step, bullets 1 and 2 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
+Status: **In progress**. Vitest step, bullets 1 to 3 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
 
 ## Goal
 
@@ -183,6 +183,15 @@ Tests:
 - Playwright, in `operation-log.spec.ts`: rename in tab B, then a retried batch in tab A: the heading, the breadcrumb and the browser tab show B's title. Fails today
 - Playwright: typing a title while an autosave lands keeps every character. Passes today, and guards the new reset rule
 - Vitest: a page fetch writes the record and keeps a pending rename on top
+
+Built, on branch `fix/one-title-field`. Notes:
+
+- `DraftContributionPanel` keeps `crPage`, but only as the load marker and the content it shows. Title, route and the group flag come from the record. Removing `crPage` outright would rework the loading and "not found" states, which this bullet does not need.
+- `WikiDocumentPanel` reads the record only once the draft page has loaded in edit mode. Before that, and in read mode, it shows the published document, as it did.
+- A page fetch writes the record only before the tree loads or when the tree has the page, so a page missing from a loaded tree stays missing.
+- `restoredDraftBuffer` went: with no title, route or publish flag left, it was an empty buffer with content.
+- The store-level "fetch keeps a pending rename" case has no Vitest test, because the store needs Pinia, IndexedDB and the transport. The offline rename test in `operation-log.spec.ts` covers it: it reopens the page after a reload and checks the title. The model's `setFields` has unit tests.
+- Vitest: 198 tests. Playwright: 89 tests across draft, log, editor, sidebar, page settings, publish and change request specs.
 
 ## Bullet 4: Readers on selectors
 
