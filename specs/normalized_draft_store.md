@@ -1,7 +1,7 @@
 # Normalized Draft Store: One Tree, One Title, One Deleted Flag
 
 Date: 2026-11-11
-Status: **In progress**. Vitest step and bullet 1 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
+Status: **In progress**. Vitest step, bullets 1 and 2 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
 
 ## Goal
 
@@ -159,6 +159,14 @@ Tests:
 
 - Vitest, new `treeModel.test.js`: server tree to records and child lists in order. Insert, move inside one parent and across parents, remove. Delete and restore cascade. Replaying a log over a server tree gives the same model as applying it live
 - Playwright: the tree, draft and log specs pass unchanged, apart from the helper
+
+Built, on branch `refactor/normalized-tree-model`. Notes:
+
+- `placeNode` moved into the model as `moveNode`, and the model exposes `childKeys(parentKey)`, which is null for an unknown parent. `removeNodeByKey` had no callers, so it went instead of being ported.
+- Child lists are replaced, never spliced, so a reader holding an old list never sees it change.
+- No unit test for "replay equals live": the model applies both through the same functions, so the test would compare a call with itself. The replay is store code, and `operation-log.spec.ts` covers it.
+- Only `operation-log.spec.ts` and `local-first-store.spec.ts` read tree state, so only they use the helper. The other specs read `crName` or `rootKey` or call actions, and stay as they are.
+- Vitest: 198 tests. Playwright: 73 tree, draft, log, sidebar and reader tests pass. On the first full run, 5 draft tests failed and then passed alone and in a second full run. That was the first run after switching pulse off, which the e2e notes say can still hit the old setting.
 
 ## Bullet 3: One title field
 
