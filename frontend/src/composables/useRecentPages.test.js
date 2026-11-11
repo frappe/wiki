@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 // The composable reads the user cookie and localStorage on import. Vue is
 // loaded first because a bare document object breaks its own setup.

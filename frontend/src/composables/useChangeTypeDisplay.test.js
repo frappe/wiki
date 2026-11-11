@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 // The translation global is installed during app boot, so a module that calls
 // `__` at import time throws in any chunk that loads first — as this one now

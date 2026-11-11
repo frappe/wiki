@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mock, test } from 'node:test';
+import { test, vi } from 'vitest';
 
 import {
 	createTrailingScheduler,
@@ -17,17 +17,17 @@ import {
 
 function withTimers(fn) {
 	return () => {
-		mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
 		try {
 			fn();
 		} finally {
-			mock.timers.reset();
+			vi.useRealTimers();
 		}
 	};
 }
 
 function scheduler() {
-	const run = mock.fn();
+	const run = vi.fn();
 	return {
 		run,
 		sync: createTrailingScheduler({ delay: 300, maxWait: 2000, run }),
@@ -40,12 +40,12 @@ test(
 		const { run, sync } = scheduler();
 		for (let i = 0; i < 10; i++) {
 			sync.schedule();
-			mock.timers.tick(50);
+			vi.advanceTimersByTime(50);
 		}
-		assert.equal(run.mock.callCount(), 0);
+		assert.equal(run.mock.calls.length, 0);
 
-		mock.timers.tick(300);
-		assert.equal(run.mock.callCount(), 1);
+		vi.advanceTimersByTime(300);
+		assert.equal(run.mock.calls.length, 1);
 		assert.equal(sync.pending, false);
 	}),
 );
@@ -56,10 +56,10 @@ test(
 		const { run, sync } = scheduler();
 		for (let i = 0; i < 50; i++) {
 			sync.schedule();
-			mock.timers.tick(100);
+			vi.advanceTimersByTime(100);
 		}
 		// 5 s of typing with a 2 s max wait.
-		assert.equal(run.mock.callCount(), 2);
+		assert.equal(run.mock.calls.length, 2);
 	}),
 );
 
@@ -69,11 +69,11 @@ test(
 		const { run, sync } = scheduler();
 		sync.schedule();
 		sync.flush();
-		assert.equal(run.mock.callCount(), 1);
+		assert.equal(run.mock.calls.length, 1);
 
-		mock.timers.tick(1000);
+		vi.advanceTimersByTime(1000);
 		sync.flush();
-		assert.equal(run.mock.callCount(), 1);
+		assert.equal(run.mock.calls.length, 1);
 	}),
 );
 
@@ -83,30 +83,30 @@ test(
 		const { run, sync } = scheduler();
 		sync.schedule();
 		sync.cancel();
-		mock.timers.tick(1000);
-		assert.equal(run.mock.callCount(), 0);
+		vi.advanceTimersByTime(1000);
+		assert.equal(run.mock.calls.length, 0);
 	}),
 );
 
 test('memoizeLast recomputes only when the argument changes', () => {
-	const parse = mock.fn((value) => value.toUpperCase());
+	const parse = vi.fn((value) => value.toUpperCase());
 	const canonical = memoizeLast(parse);
 	const doc = 'page';
 
 	assert.equal(canonical(doc), 'PAGE');
 	assert.equal(canonical(doc), 'PAGE');
-	assert.equal(parse.mock.callCount(), 1);
+	assert.equal(parse.mock.calls.length, 1);
 
 	assert.equal(canonical('other'), 'OTHER');
-	assert.equal(parse.mock.callCount(), 2);
+	assert.equal(parse.mock.calls.length, 2);
 });
 
 test('memoizeLast caches an undefined argument too', () => {
-	const parse = mock.fn(() => '');
+	const parse = vi.fn(() => '');
 	const canonical = memoizeLast(parse);
 	canonical(undefined);
 	canonical(undefined);
-	assert.equal(parse.mock.callCount(), 1);
+	assert.equal(parse.mock.calls.length, 1);
 });
 
 // Submit and merge read the draft store right away. A click on their buttons
@@ -120,12 +120,12 @@ test(
 		sync.schedule();
 
 		requestEditorFlush();
-		assert.equal(run.mock.callCount(), 1);
+		assert.equal(run.mock.calls.length, 1);
 
 		stop();
 		sync.schedule();
 		requestEditorFlush();
-		assert.equal(run.mock.callCount(), 1);
+		assert.equal(run.mock.calls.length, 1);
 		sync.cancel();
 	}),
 );

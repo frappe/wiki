@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { getLoaderUrl, getMermaid } from './mermaid-loader.js';
 import { parseMermaidFence, renderMermaidFence } from './mermaid-markdown.js';
