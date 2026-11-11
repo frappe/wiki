@@ -43,14 +43,14 @@
 
 		<!-- The list owns the scroller: its search row and New page footer have
 		     to stay put while the tree between them scrolls. -->
-		<div v-if="spaceLoaded && treeData" class="flex min-h-0 flex-1 flex-col pt-2">
+		<div v-if="spaceLoaded && tree" class="flex min-h-0 flex-1 flex-col pt-2">
 			<WikiDocumentList
 				class="min-h-0 flex-1"
-				:tree-data="treeData"
+				:tree="tree"
 				:change-type-map="changeTypeMap"
 				:space-id="spaceId"
 				:readonly="readonly"
-				:root-node="treeData.root_group || ''"
+				:root-node="tree.rootKey.value || ''"
 				:selected-page-id="selectedPageId"
 				:selected-draft-key="selectedDraftKey"
 				:space-route="spaceRoute"
@@ -102,7 +102,7 @@ defineProps({
 	spaceName: { type: String, default: '' },
 	spaceRoute: { type: String, default: '' },
 	spaceLoaded: { type: Boolean, default: false },
-	treeData: { type: Object, default: null },
+	tree: { type: Object, default: null },
 	changeTypeMap: { type: Map, default: () => new Map() },
 	readonly: { type: Boolean, default: false },
 	selectedPageId: { type: String, default: null },

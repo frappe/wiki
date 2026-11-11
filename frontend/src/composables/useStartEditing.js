@@ -13,7 +13,7 @@ export function useStartEditing() {
 		if (!spaceStore.isReading) return Promise.resolve(false);
 		if (request.value) return request.value.promise;
 		// An empty space has nothing to describe yet, so naming the change request is just friction.
-		if (spaceStore.treeData?.children?.length === 0) return startFirstPages();
+		if (spaceStore.tree?.children().length === 0) return startFirstPages();
 		let resolve;
 		const promise = new Promise((done) => {
 			resolve = done;

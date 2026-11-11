@@ -1,7 +1,7 @@
 # Normalized Draft Store: One Tree, One Title, One Deleted Flag
 
 Date: 2026-11-11
-Status: **In progress**. Vitest step, bullets 1 to 3 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
+Status: **Built**. Vitest step and bullets 1 to 4 built. Roadmap item 3.5 (R5) in `pr-859-roadmap.md`. Stacked on #932 (`specs/durable_draft_sync.md`).
 
 ## Goal
 
@@ -208,6 +208,23 @@ Tests:
 - Vitest: `trail`, `firstPage` skips deleted pages and empty groups, `nodeByDocumentName`, `linkablePages` skips deleted pages and external links, `pages()` order, the live tree shape
 - Playwright: the sidebar, reader, tree search, drill-in, reveal and draft specs pass. They cover the live tree, the stale tree and the draft tree
 - Probe: change one field of one row on `perf-big-1000`, before and after. Report the numbers in the PR, no assertion
+
+Built, on branch `refactor/tree-selectors`. Notes:
+
+- Models are `markRaw`, so a store that returns one keeps its refs as refs. The draft store exposes `tree`, `staleTree`, `children` and `isPending`.
+- The live tree is a computed that builds a fresh model per `get_wiki_tree` reply. It is only ever replaced whole, so nothing patches it.
+- `WikiTree`'s view node is `{ doc_key, record, children }` with `label` as a getter on the record's title. It points at the record and copies nothing, so a rename, a publish toggle or a delete re-renders one row. The view rebuilds only when a child list changes.
+- `useTreeDialogs` counts a group's pages with `pages(docKey)`, and `WikiTree` reads a group's children from the model, so neither needs `node.children`.
+- `SpaceDetails` watches the page to auto-open and the deleted state of the open page, not the tree object. The model keeps its identity across edits, so watching it would never fire.
+- `linkablePages` moved from `page-links.js` into the model, and its test into `treeModel.test.js`.
+- Probe, `perf-big-1000` (1,020 records, 70 rows on screen), toggling `isPublished` on one top-level record, median of 41 runs, three runs each:
+
+| | Vue flush | To paint |
+|---|---|---|
+| Before (`fix/one-title-field`) | 42 to 45 ms | 50 ms |
+| After | 1.3 to 1.6 ms | 16.7 ms (one frame) |
+
+- Vitest: 201 tests. Playwright: 296 of 299 passed on the full suite, 1 skipped. `underline.spec.ts` failed once and passed 3 of 3 alone. `command-palette.spec.ts` "sets the theme named in the query" fails on this site's data: leftover spaces named "CCR Preview Highlight" match "light" and rank above "Theme: Light", so Enter opens a space. It does not touch the tree.
 
 ## `treeAsLegacy` and the test API
 
