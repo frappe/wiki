@@ -47,20 +47,20 @@
 				<!-- The tree is a navigation column: a word per row makes it a
 				     list of labels rather than a list of pages. Every state here
 				     is a mark instead. -->
-				<span
-					v-if="node.local_status === 'pending_create' || node.local_status === 'pending_update'"
-					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
-					:title="__('Syncing…')"
-					:aria-label="__('Syncing…')"
-					role="status"
-				/>
 				<!-- Deleted in this draft: struck through in the row, and a red
 				     dot for the same reason every other change type has one. -->
 				<span
-					v-else-if="isDeleted(node)"
+					v-if="node.is_deleted"
 					class="size-1.5 shrink-0 rounded-full bg-surface-red-5"
 					:title="__('Deleted in this draft. Merge to remove it for everyone.')"
 					:aria-label="__('Deleted')"
+					role="status"
+				/>
+				<span
+					v-else-if="node.is_pending"
+					class="size-1.5 shrink-0 rounded-full bg-surface-gray-5"
+					:title="__('Syncing…')"
+					:aria-label="__('Syncing…')"
 					role="status"
 				/>
 				<span
@@ -224,16 +224,8 @@ function navigateToTreePage(to) {
 	}
 }
 
-// A staged deletion (this change request's own, or one the diff reports) keeps
-// its row until the change request is merged, struck through and inert.
-function isDeleted(node) {
-	return (
-		!!node.is_deleted || props.changeTypeMap.get(node.doc_key) === 'deleted'
-	);
-}
-
 function handleRowClick(node) {
-	if (isDeleted(node)) {
+	if (node.is_deleted) {
 		return;
 	}
 
@@ -280,14 +272,14 @@ function isSelected(node) {
 }
 
 function getRowClasses(node) {
-	if (isDeleted(node)) {
+	if (node.is_deleted) {
 		return 'cursor-not-allowed opacity-60';
 	}
 	return 'cursor-pointer';
 }
 
 function getTitleClass(node) {
-	if (isDeleted(node)) {
+	if (node.is_deleted) {
 		return 'text-ink-gray-4 line-through';
 	}
 	if (node.is_published || node.is_group) {
@@ -361,7 +353,7 @@ async function restore(node) {
 function getDropdownOptions(node) {
 	const options = [];
 
-	if (isDeleted(node)) {
+	if (node.is_deleted) {
 		return [
 			{
 				label: __('Restore'),
