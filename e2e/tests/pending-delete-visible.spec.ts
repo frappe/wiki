@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { test as seeded } from '../fixtures';
 import { destroySpacesByRoute, uniqueRoute } from '../helpers/factory';
-import { getList } from '../helpers/frappe';
+import type { WikiFactory } from '../helpers/factory';
+import { callMethod, getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import { openNewPageDialog, showSidebarActions } from '../helpers/wiki';
 
@@ -89,6 +91,133 @@ test.describe('Pending deletion stays visible', () => {
 			page.locator('aside').getByText(pageTitle, { exact: true }),
 		).toHaveCount(0);
 	});
+});
+
+const BATCH = '**/*apply_cr_operations*';
+
+type StoreWindow = Window & {
+	__draftStore: {
+		crName: string;
+		hasLoadedTree: boolean;
+		hasPendingMutations: boolean;
+	};
+};
+
+async function openDraft(
+	page: import('@playwright/test').Page,
+	wiki: WikiFactory,
+) {
+	const space = await wiki.space({
+		pages: [
+			{ title: 'Alpha', content: 'Alpha.' },
+			{ title: 'Beta', content: 'Beta.' },
+		],
+	});
+	await wiki.changeRequest(space);
+	await page.goto(space.url('page', space.page('Alpha').name));
+	await expect(page.locator('.ProseMirror').first()).toBeVisible({
+		timeout: 15000,
+	});
+	await waitForDraft(page);
+	const crName = await page.evaluate(
+		() => (window as unknown as StoreWindow).__draftStore.crName,
+	);
+	return { crName, beta: space.page('Beta') };
+}
+
+function waitForDraft(page: import('@playwright/test').Page) {
+	return page.waitForFunction(
+		() => (window as unknown as StoreWindow).__draftStore?.hasLoadedTree,
+	);
+}
+
+function waitForLogDrained(page: import('@playwright/test').Page) {
+	return page.waitForFunction(
+		() => !(window as unknown as StoreWindow).__draftStore.hasPendingMutations,
+		undefined,
+		{ timeout: 20000 },
+	);
+}
+
+async function serverDeleted(
+	page: import('@playwright/test').Page,
+	crName: string,
+	docKey: string,
+) {
+	const tree = await callMethod<{
+		children: { doc_key: string; is_deleted?: boolean }[];
+	}>(
+		page.request,
+		'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_cr_tree',
+		{ name: crName },
+	);
+	return Boolean(tree.children.find((n) => n.doc_key === docKey)?.is_deleted);
+}
+
+async function deleteRow(page: import('@playwright/test').Page, title: string) {
+	await openRowMenu(page, title);
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: /Delete/ })
+		.click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+
+async function restoreRow(
+	page: import('@playwright/test').Page,
+	title: string,
+) {
+	await openRowMenu(page, title);
+	await page.getByRole('menuitem', { name: 'Restore' }).click();
+}
+
+seeded.describe('Restore while the server is out of reach', () => {
+	seeded(
+		'an offline delete then restore leaves an ordinary row that opens and reaches the server',
+		async ({ page, wiki }) => {
+			const { crName, beta } = await openDraft(page, wiki);
+			const row = () =>
+				page.locator('aside').getByText('Beta', { exact: true });
+			await page.route(BATCH, (route) => route.abort('connectionfailed'));
+
+			await deleteRow(page, 'Beta');
+			await expect(row()).toHaveClass(/line-through/);
+			await restoreRow(page, 'Beta');
+			await expect(row()).not.toHaveClass(/line-through/);
+
+			await page.reload();
+			await waitForDraft(page);
+			await expect(row()).not.toHaveClass(/line-through/);
+			await row().click();
+			await expect(page.getByPlaceholder('Page title')).toHaveValue('Beta');
+
+			await page.unroute(BATCH);
+			await waitForLogDrained(page);
+			expect(await serverDeleted(page, crName, beta.doc_key)).toBe(false);
+		},
+	);
+
+	seeded(
+		'a restore sent offline after the delete landed unstrikes the row at once',
+		async ({ page, wiki }) => {
+			const { crName, beta } = await openDraft(page, wiki);
+			const row = () =>
+				page.locator('aside').getByText('Beta', { exact: true });
+
+			await deleteRow(page, 'Beta');
+			await waitForLogDrained(page);
+			expect(await serverDeleted(page, crName, beta.doc_key)).toBe(true);
+
+			await page.route(BATCH, (route) => route.abort('connectionfailed'));
+			await restoreRow(page, 'Beta');
+			await expect(row()).not.toHaveClass(/line-through/);
+
+			await page.unroute(BATCH);
+			await waitForLogDrained(page);
+			expect(await serverDeleted(page, crName, beta.doc_key)).toBe(false);
+		},
+	);
 });
 
 /** Open the row's three-dots menu in the sidebar tree, which shows in edit mode. */
