@@ -90,8 +90,11 @@ Page content and tree edits in the SPA go through a change request. The one exce
 - A batch runs in one transaction, so it applies fully or not at all.
 - A new page gets a `tmp_*` key on the client. The server assigns the real `doc_key` and returns the mapping in `temp_key_map`.
 - The response also carries the affected items and the change summary (`changes`), so a save is one request. The client does not refetch the page or the summary after it.
-- Each change request has an `operation_version`. The client sends the version it last saw as `base_version`. If the server is ahead, it returns `version_conflict` and applies nothing.
-- After a conflict the client blocks every save until the user clicks Reload latest. Reload keeps local edits to a page only if its server copy has not changed since this tab loaded or saved it. Otherwise the server copy replaces them. A browser reload restores drafts with the same check.
+- The SPA guards each save on its own page. `update_content` carries `base_content_hash`, the hash of the copy the edits build on. If the page has changed since, the server returns `page_conflict` and applies nothing. Resending text the server already has succeeds, which covers a lost reply.
+- Moves and reorders depend on the sibling list the client sees, so they carry `base_structure_version`. Each batch that changes the tree bumps `structure_version`, and a stale move gets `structure_conflict`.
+- Each change request also has an `operation_version`, bumped by every write. API callers can send it as `base_version` to guard the whole draft and get `version_conflict`. The SPA does not.
+- A batch that waited on the change request lock still reads from its old snapshot, so it throws `TimestampMismatchError` instead of checking against stale rows.
+- After a conflict the client blocks saves to that page, or moves in the tree, until the user clicks Reload latest. Other pages keep saving. Reload keeps local edits to a page only if its server copy has not changed since this tab loaded or saved it. Otherwise the server copy replaces them. A browser reload restores drafts with the same check.
 - `_lock_and_load_cr` takes a row lock on the change request, so two writers to one draft run one after the other.
 - `get_cr_tree` and `get_cr_page` read the draft. `diff_change_request` returns the change summary and page diffs for review.
 
@@ -159,6 +162,6 @@ Code: `wiki/permissions.py`, wired through `has_permission` and `permission_quer
 - Stores (`frontend/src/stores`):
   - `space.js`: the current space, its tree and its git sync state.
   - `changeRequest.js`: the current change request and its review actions.
-  - `draftWorkspace.js`: the optimistic draft state. It coordinates the modules in `draftWorkspace/`: `operationQueue` (pending edits), `syncTransport` (batches to `apply_cr_operations` and handles `version_conflict`), `tempKeyResolver` (`tmp_*` to real keys), `moveScheduler` (debounced drags), `saveSerializer` (one save in flight per page) and `pageBuffers` (editor buffers).
+  - `draftWorkspace.js`: the optimistic draft state. It coordinates the modules in `draftWorkspace/`: `operationQueue` (pending edits), `syncTransport` (batches to `apply_cr_operations` and tracks page and tree conflicts), `tempKeyResolver` (`tmp_*` to real keys), `moveScheduler` (debounced drags), `saveSerializer` (one save in flight per page) and `pageBuffers` (editor buffers).
   - `draftPersistence.js`: unsaved page content in IndexedDB, so a reload keeps it.
 - Realtime: the SPA listens for `wiki_change_request_update` and `wiki_git_sync_update`.
