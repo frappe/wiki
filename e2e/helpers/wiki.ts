@@ -282,3 +282,12 @@ export async function saveEditor(page: Page) {
 	await page.locator('.ProseMirror').first().click();
 	await page.keyboard.press('ControlOrMeta+s');
 }
+
+/**
+ * The sidebar's sync alert only speaks when something is in flight or wrong;
+ * a settled draft shows nothing at all. "Saved" is therefore the absence of
+ * the alert, not a label to wait for.
+ */
+export async function expectSyncSettled(page: Page, timeout = 5000) {
+	await expect(page.getByTestId('sync-state-alert')).toBeHidden({ timeout });
+}

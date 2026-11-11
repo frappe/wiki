@@ -13,6 +13,7 @@ import {
 	createSpaceViaDialog,
 	currentDraftDocKey,
 	editPage,
+	expectSyncSettled,
 	openNewPageDialog,
 	saveEditor,
 } from '../helpers/wiki';
@@ -270,7 +271,10 @@ test.describe('Change Request Flow', () => {
 			await expect(pageEntry).toBeVisible({ timeout: 10000 });
 		};
 
+		// The sidebar shows a new page before its create reaches the server, so
+		// an API submit must wait for the queue to drain like the Submit button does.
 		const submitChangeRequestForSpace = async () => {
+			await expectSyncSettled(page, 15000);
 			const draftChangeRequest = await callMethod<{ name: string }>(
 				request,
 				`${CR_METHOD}.get_or_create_draft_change_request`,

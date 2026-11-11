@@ -4,16 +4,12 @@ import { type WikiFactory, uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { editPage, openNewPageDialog, saveEditor } from '../helpers/wiki';
-
-/**
- * The sidebar's sync alert only speaks when something is in flight or wrong;
- * a settled draft shows nothing at all. "Saved" is therefore the absence of
- * the alert, not a label to wait for.
- */
-async function expectSyncSettled(page: Page, timeout = 5000) {
-	await expect(page.getByTestId('sync-state-alert')).toBeHidden({ timeout });
-}
+import {
+	editPage,
+	expectSyncSettled,
+	openNewPageDialog,
+	saveEditor,
+} from '../helpers/wiki';
 
 interface DraftNode {
 	docKey: string;
