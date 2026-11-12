@@ -94,10 +94,22 @@ function renderTableToHtml(table, helpers) {
 				.filter((name) => cell.attrs?.[name] > 1)
 				.map((name) => ` ${name}="${cell.attrs[name]}"`)
 				.join('');
-			const markdown = helpers.renderChildren(cell.content ?? [], '\n\n');
-			return `<${tag}${span}>${cellMarked.parse(markdown).trim()}</${tag}>`;
+			const blocks = (cell.content ?? []).map((child) =>
+				renderBlockToHtml(child, helpers),
+			);
+			return `<${tag}${span}>${blocks.join('\n')}</${tag}>`;
 		});
 		return `<tr>\n${cells.join('\n')}\n</tr>`;
 	});
 	return `<table>\n${rows.join('\n')}\n</table>`;
+}
+
+// Paragraphs are parsed inline: a cell that only says `-` would otherwise
+// come back as an empty list.
+function renderBlockToHtml(block, helpers) {
+	const markdown = helpers.renderChildren([block]);
+	if (block.type === 'paragraph') {
+		return `<p>${cellMarked.parseInline(markdown).trim()}</p>`;
+	}
+	return cellMarked.parse(markdown).trim();
 }

@@ -185,3 +185,17 @@ test('a table of plain cells stays a pipe table', () => {
 	);
 	assert.ok(markdown.startsWith('| a'), markdown);
 });
+
+test('a cell that only says "-" stays text in an HTML table', () => {
+	const markdown = serializeTable(
+		[
+			cell('tableHeader', [paragraph('Item')]),
+			cell('tableHeader', [paragraph('Qty')]),
+		],
+		[
+			cell('tableCell', [bulletList('Rice')]),
+			cell('tableCell', [paragraph('-')]),
+		],
+	);
+	assert.ok(markdown.includes('<td><p>-</p></td>'), markdown);
+});
