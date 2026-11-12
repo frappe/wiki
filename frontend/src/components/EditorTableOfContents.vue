@@ -8,7 +8,7 @@
 	<div
 		v-if="variant === 'rail'"
 		ref="rootRef"
-		class="pointer-events-none absolute inset-y-0 right-0 w-[208px] py-6 pr-4"
+		class="pointer-events-none absolute inset-y-0 end-0 w-[208px] py-6 pe-4"
 		data-testid="editor-toc-rail"
 	>
 		<nav
@@ -30,12 +30,12 @@
 			</span>
 			<button
 				v-for="(entry, index) in outline"
-				:key="entry.pos"
+				:key="entry.pos ?? entry.id"
 				type="button"
 				data-testid="editor-toc-link"
-				class="shrink-0 truncate rounded-4 py-1 pr-2 text-left"
+				class="shrink-0 truncate rounded-4 py-1 pe-2 text-start"
 				:class="[
-					entry.level >= 3 && hasH2 ? 'pl-5' : 'pl-2',
+					entry.level >= 3 && hasH2 ? 'ps-5' : 'ps-2',
 					index === activeIndex
 						? 'bg-surface-gray-2 text-ink-gray-9'
 						: 'text-ink-gray-6 hover:bg-surface-gray-2 hover:text-ink-gray-8',
@@ -83,14 +83,14 @@
 			>
 				<button
 					v-for="(entry, index) in outline"
-					:key="entry.pos"
+					:key="entry.pos ?? entry.id"
 					type="button"
 					data-testid="editor-toc-link"
-					class="flex w-full items-center gap-2 py-2 pr-4 text-left text-sm"
+					class="flex w-full items-center gap-2 py-2 pe-4 text-start text-sm"
 					:class="index === activeIndex
 						? 'bg-surface-gray-2 font-medium text-ink-gray-9'
 						: 'text-ink-gray-6'"
-					:style="{ paddingLeft: `${1 + (entry.level - 2) * 0.75}rem` }"
+					:style="{ paddingInlineStart: `${1 + (entry.level - 2) * 0.75}rem` }"
 					@click="goTo(entry, { index, collapse: true })"
 				>
 					<span
@@ -122,6 +122,11 @@ const props = defineProps({
 		type: Object,
 		default: null,
 	},
+	// Server outline ({ id, text, level }) for pages shown without the editor.
+	headings: {
+		type: Array,
+		default: () => [],
+	},
 	// 'rail' — the reader's right-hand column, for widths that can spare it.
 	// 'strip' — a collapsible row under the toolbar, for everything narrower.
 	variant: {
@@ -136,7 +141,10 @@ const activeIndex = ref(0);
 const toolbarHeight = ref(0);
 const open = ref(false);
 
-const { outline } = useDocumentOutline(() => props.editor);
+const { outline: editorOutline } = useDocumentOutline(() => props.editor);
+const outline = computed(() =>
+	props.editor ? editorOutline.value : props.headings,
+);
 
 // The reader indents h3s only on pages that also have an h2 — on an all-h3 page
 // a blanket indent leaves the "On this page" label hanging off the rail.
@@ -173,9 +181,12 @@ function measureToolbar() {
 	containerHeight.value = scrollContainer?.clientHeight || 0;
 }
 
-function headingElement(pos) {
+function headingElement(entry) {
+	if (!props.editor) {
+		return scrollContainer?.querySelector(`#${CSS.escape(entry.id)}`) ?? null;
+	}
 	try {
-		const node = props.editor?.view?.nodeDOM(pos);
+		const node = props.editor.view?.nodeDOM(entry.pos);
 		return node?.nodeType === Node.ELEMENT_NODE ? node : null;
 	} catch {
 		// A stale position from an outline computed a transaction ago.
@@ -191,7 +202,7 @@ function updateActive() {
 
 	let next = 0;
 	for (const [index, entry] of outline.value.entries()) {
-		const element = headingElement(entry.pos);
+		const element = headingElement(entry);
 		if (!element) continue;
 		if (element.getBoundingClientRect().top > threshold) break;
 		next = index;
@@ -209,7 +220,7 @@ function updateActive() {
 		1;
 	if (atBottom) {
 		for (const [index, entry] of outline.value.entries()) {
-			const element = headingElement(entry.pos);
+			const element = headingElement(entry);
 			if (!element) continue;
 			if (element.getBoundingClientRect().top < box.bottom) next = index;
 		}
@@ -228,7 +239,7 @@ function scheduleUpdateActive() {
 }
 
 function goTo(entry, { index, collapse = false } = {}) {
-	const element = headingElement(entry.pos);
+	const element = headingElement(entry);
 	if (!element || !scrollContainer) return;
 	// Clicking an entry is a choice, so it goes active straight away rather
 	// than waiting for the smooth scroll to settle. The scroll lands the
@@ -280,7 +291,10 @@ watch(activeIndex, async (index) => {
 	if (!row) return;
 	if (row.offsetTop < rail.scrollTop) {
 		rail.scrollTop = row.offsetTop;
-	} else if (row.offsetTop + row.offsetHeight > rail.scrollTop + rail.clientHeight) {
+	} else if (
+		row.offsetTop + row.offsetHeight >
+		rail.scrollTop + rail.clientHeight
+	) {
 		rail.scrollTop = row.offsetTop + row.offsetHeight - rail.clientHeight;
 	}
 });

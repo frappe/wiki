@@ -163,14 +163,14 @@
 			</p>
 		</section>
 
-		<!-- Loaded .wiki.json preview (collapsed by default) -->
-		<CollapsibleSection :title="__('Configuration (.wiki.json)')">
+		<!-- Loaded sidebar config preview (collapsed by default) -->
+		<CollapsibleSection :title="__('Sidebar configuration')">
 			<pre
 				v-if="wikiConfig"
 				class="max-h-80 overflow-auto whitespace-pre rounded-4 bg-surface-gray-2 p-3 font-mono text-xs leading-relaxed text-ink-gray-8"
 			>{{ wikiConfig }}</pre>
 			<p v-else class="text-xs text-ink-gray-5">
-				{{ __('No .wiki.json in the repo — the page tree is inferred from the docs folder.') }}
+				{{ __('No .wiki.yml or .wiki.json in the docs folder — the page tree is inferred from the docs folder.') }}
 			</p>
 		</CollapsibleSection>
 	</div>

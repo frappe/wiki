@@ -46,3 +46,20 @@ test('a flushed save clears the page from dirtyPages', () => {
 	assert.deepEqual(buffers.dirtyPages(), []);
 	assert.equal(buffers.hasUnsavedEditorContent.value, false);
 });
+
+// "Reload latest" keeps local edits only on top of the copy they were made
+// on, or of our own save whose reply was lost. Anything else changed elsewhere.
+test('isBasedOn tells a page changed elsewhere from our own lost save', () => {
+	const buffers = createPageBuffers();
+	const page = buffers.ensure('page', {
+		content: 'Start.',
+		serverContent: 'Start.',
+	});
+	buffers.setLocalContent('page', 'Start. Mine.');
+
+	assert.equal(buffers.isBasedOn(page, 'Start.'), true);
+	assert.equal(buffers.isBasedOn(page, 'Start. Theirs.'), false);
+
+	page.sentContent = 'Start. Mi';
+	assert.equal(buffers.isBasedOn(page, 'Start. Mi'), true);
+});

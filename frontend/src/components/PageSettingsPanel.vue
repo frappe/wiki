@@ -3,7 +3,7 @@
 	     the fields here describe what is on screen, and the social preview is
 	     worth watching while the meta fields change. -->
 	<aside
-		class="flex h-full w-[352px] shrink-0 flex-col border-l border-outline-gray-2"
+		class="flex h-full w-[352px] shrink-0 flex-col border-s border-outline-gray-2"
 		data-testid="page-settings-panel"
 	>
 		<div
@@ -12,15 +12,13 @@
 			<span class="truncate text-base-medium text-ink-gray-8">
 				{{ __('Page settings') }}
 			</span>
-			<Tooltip :text="__('Close page settings')">
-				<Button
-					variant="ghost"
-					:aria-label="__('Close page settings')"
-					@click="emit('close')"
-				>
-					<span class="lucide-x size-4" aria-hidden="true" />
-				</Button>
-			</Tooltip>
+			<Button
+				variant="ghost"
+				:aria-label="__('Close page settings')"
+				@click="emit('close')"
+			>
+				<span class="lucide-x size-4" aria-hidden="true" />
+			</Button>
 		</div>
 
 		<ScrollArea class="min-h-0 flex-1" viewport-class="p-3">
@@ -32,7 +30,7 @@
 				<section class="flex flex-col gap-3">
 					<div class="flex items-baseline justify-between gap-2">
 						<h4 class="text-xs text-ink-gray-5">{{ __('General') }}</h4>
-						<Badge v-if="readonly" variant="subtle" theme="gray" size="sm">
+						<Badge v-if="spaceStore.isGitSynced" variant="subtle" theme="gray" size="sm">
 							{{ __('From the repo') }}
 						</Badge>
 					</div>
@@ -49,6 +47,7 @@
 						:label="__('Route')"
 						:placeholder="__('space/section/page')"
 						:description="publicUrl"
+						dir="ltr"
 						:disabled="readonly"
 					/>
 					<div class="flex items-center justify-between gap-3">
@@ -177,7 +176,7 @@
 								/>
 							</div>
 							<div class="flex flex-col gap-1 border-t border-outline-gray-2 p-3">
-								<span class="truncate text-xs text-ink-gray-4">{{ route }}</span>
+								<span class="truncate text-xs text-ink-gray-4"><bdi dir="ltr">{{ route }}</bdi></span>
 								<span class="line-clamp-1 text-sm-medium text-ink-gray-9">
 									{{ form.metaTitle || title }}
 								</span>
@@ -263,7 +262,6 @@ import {
 	FormControl,
 	ScrollArea,
 	Switch,
-	Tooltip,
 	dayjsLocal,
 	toast,
 	useFileUpload,
@@ -309,7 +307,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits(['close', 'node-updated']);
+const emit = defineEmits(['close']);
 
 const draftStore = useDraftWorkspaceStore();
 const userStore = useUserStore();
@@ -375,7 +373,8 @@ const isDirty = computed(() =>
 );
 
 const publicUrl = computed(() =>
-	form.route ? `${window.location.origin}/${form.route}` : '',
+	// LRI ... PDI keeps the URL left to right inside right-to-left text.
+	form.route ? `\u2066${window.location.origin}/${form.route}\u2069` : '',
 );
 
 const descriptionHint = computed(() =>
@@ -519,7 +518,6 @@ async function save() {
 		if (Object.keys(node).length) {
 			if (!props.docKey) throw new Error(__('No active change request'));
 			await draftStore.updateNode(props.docKey, node);
-			emit('node-updated');
 		}
 		if (Object.keys(meta).length) {
 			await props.docResource.updateMeta.submit(meta);

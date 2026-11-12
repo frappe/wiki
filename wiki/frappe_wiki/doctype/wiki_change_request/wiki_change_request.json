@@ -162,7 +162,7 @@
 		}
 	],
 	"links": [],
-	"modified": "2026-06-14 11:20:11.515569",
+	"modified": "2026-10-22 10:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Frappe Wiki",
 	"name": "Wiki Change Request",
@@ -217,6 +217,10 @@
 			"role": "Wiki User",
 			"share": 1,
 			"write": 1
+		},
+		{
+			"read": 1,
+			"role": "Wiki User"
 		}
 	],
 	"row_format": "Dynamic",

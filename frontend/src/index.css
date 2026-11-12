@@ -4,7 +4,14 @@
    subpath exports are gone — the `frappe-ui/editor` and `frappe-ui/list`
    barrels are marked side-effectful, so each family's CSS ships with the
    subpath import itself. */
-@import "./wiki-rendered.css";
+/* Read mode shows server HTML, so it uses the reader's content styles.
+   `yarn theme:generate` builds frappe-ui-code.css. */
+@import "../../wiki/public/css/frappe-ui-code.css";
+@import "../../wiki/public/css/wiki-rendered.css";
+/* frappe-ui ships its chart color ramps only with frappe-ui/charts, which would
+   pull echarts into the editor; the diagrams need just the tokens. */
+@import "../node_modules/frappe-ui/src/charts/style.css";
+@import "../../wiki/public/css/diagrams.css";
 
 /* Tell the browser which theme its native UI (scrollbars, form controls)
    should use — without this, dark mode gets glaring light scrollbars. */
@@ -14,6 +21,51 @@ html[data-theme="dark"] {
 
 html[data-theme="light"] {
 	color-scheme: light;
+}
+
+/* Directional icons point the way the page reads. */
+:dir(rtl)
+	:is(
+		.lucide-arrow-left,
+		.lucide-arrow-right,
+		.lucide-chevron-left,
+		.lucide-chevron-right,
+		.lucide-panel-left
+	) {
+	scale: -1 1;
+}
+
+/* frappe-ui still uses physical sides here: Tree indents with padding-left,
+   menu, select and settings rows use text-left, Sidebar spaces its rows,
+   icons and suffixes with pl-2, ml-2 and mr-2, and Select, menu and tree rows
+   push their trailing parts to the end with ml-auto. */
+:dir(rtl) .frappe-tree-group {
+	padding-inline: var(--_tree-indent) 0;
+}
+
+:dir(rtl) .text-left {
+	text-align: start;
+}
+
+:dir(rtl) [data-slot='sidebar-label'],
+:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .pl-2 {
+	padding-left: 0;
+	padding-right: 0.5rem;
+}
+
+:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .ml-2 {
+	margin-left: 0;
+	margin-right: 0.5rem;
+}
+
+:dir(rtl) [data-slot='sidebar-item-suffix'] .mr-2 {
+	margin-right: 0;
+	margin-left: 0.5rem;
+}
+
+:dir(rtl) :is([data-slot='chevron'], [role^='menuitem'] *, [role='option'] *, .frappe-tree-row *).ml-auto {
+	margin-left: 0;
+	margin-right: auto;
 }
 
 /* The `.no-transition` rule that used to sit here now comes from

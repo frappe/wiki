@@ -27,22 +27,42 @@ export function useSyncState() {
 		() => draftStore.hasPendingMutations || draftStore.sync.status === 'saving',
 	);
 
-	const label = computed(() => {
-		if (failed.value) return __('Sync failed');
-		if (saving.value) return __('Saving…');
-		if (draftStore.hasUnsavedEditorContent) return __('Unsaved changes');
-		return '';
+	const state = computed(() => {
+		if (draftStore.sync.conflict) return 'conflict';
+		if (failed.value) return 'failed';
+		if (saving.value) return 'saving';
+		if (draftStore.hasUnsavedEditorContent) return 'unsaved';
+		return null;
 	});
 
+	const label = computed(
+		() =>
+			({
+				conflict: __('Changed elsewhere'),
+				failed: __('Sync failed'),
+				saving: __('Saving…'),
+				unsaved: __('Unsaved changes'),
+			})[state.value] || '',
+	);
+
+	// Amber and red draw a warning glyph and interrupt screen readers, so they
+	// are kept for states that need the user. A save in flight is progress.
 	const theme = computed(() => {
 		if (failed.value) return 'red';
-		if (saving.value) return 'amber';
+		if (state.value === 'conflict') return 'amber';
 		return 'gray';
 	});
+
+	const isSaving = computed(() => state.value === 'saving');
 
 	// The store's own words for what went wrong, shown rather than parked in a
 	// `title` attribute nobody hovers.
 	const description = computed(() => {
+		if (draftStore.sync.conflict) {
+			return __(
+				'This draft was edited in another tab or window. Reload the latest version to get those edits. Any unsaved edits to the same pages here will be replaced.',
+			);
+		}
 		if (draftStore.sync.error) return draftStore.sync.error;
 		const failedMutation = draftStore.pending.find(
 			(m) => m.status === 'failed',
@@ -50,5 +70,5 @@ export function useSyncState() {
 		return failedMutation?.error || '';
 	});
 
-	return { label, theme, description };
+	return { label, theme, description, isSaving };
 }

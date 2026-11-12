@@ -1,6 +1,7 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { createDoc } from '../helpers/frappe';
+import { editPage } from '../helpers/wiki';
 
 /**
  * A space with contributions switched off cannot open a change request, so a
@@ -78,7 +79,7 @@ test('a reader who cannot contribute gets the read-only tree, not a dead New pag
 	await context.close();
 });
 
-test('a reader who may contribute still gets New page', async ({
+test('a reader who may contribute gets Edit, and New page from the palette', async ({
 	browser,
 	request,
 	wiki,
@@ -99,9 +100,9 @@ test('a reader who may contribute still gets New page', async ({
 	);
 	const page = await context.newPage();
 	await page.goto(space.url());
-	await expect(page.getByRole('button', { name: 'New page' })).toBeVisible({
-		timeout: 15000,
-	});
+	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
+	// The sidebar adds pages in edit mode only.
+	await expect(page.getByRole('button', { name: 'New page' })).toBeHidden();
 
 	const palette = page.getByRole('dialog');
 	await page.keyboard.press('ControlOrMeta+k');
@@ -110,14 +111,23 @@ test('a reader who may contribute still gets New page', async ({
 	await context.close();
 });
 
-async function delayCapabilities(page: Page) {
-	await page.route('**/wiki.api.get_space_capabilities', async (route) => {
-		await new Promise((resolve) => setTimeout(resolve, 3000));
-		await route.continue();
-	});
+function editButton(page: Page) {
+	return page
+		.getByRole('main')
+		.getByRole('button', { name: 'Edit', exact: true });
 }
 
-test('a reader opening a page never asks for a change request while capabilities load', async ({
+async function delayBootstrap(page: Page) {
+	await page.route(
+		'**/wiki.api.wiki_space.get_space_bootstrap?*',
+		async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 3000));
+			await route.continue();
+		},
+	);
+}
+
+test('a reader opening a page never asks for a change request while the space loads', async ({
 	browser,
 	request,
 	wiki,
@@ -140,30 +150,30 @@ test('a reader opening a page never asks for a change request while capabilities
 	const page = await context.newPage();
 	const changeRequestCalls: string[] = [];
 	page.on('request', (req) => {
-		if (req.url().includes('get_or_create_draft_change_request')) {
+		if (req.method() !== 'GET' && req.url().includes('wiki_change_request.')) {
 			changeRequestCalls.push(req.url());
 		}
 	});
-	await delayCapabilities(page);
-	const spaceLoaded = page.waitForResponse((res) =>
-		res.url().includes('doctype=Wiki+Space&'),
+	await delayBootstrap(page);
+	const pageLoaded = page.waitForResponse((res) =>
+		res.url().includes('doctype=Wiki+Document&'),
 	);
 	await page.goto(space.url('page', space.page('Alpha').name));
-	await spaceLoaded;
+	await pageLoaded;
 
-	// Still inside the capability delay: the space is up, the answer is not.
-	// A one-shot check, since a retrying one would wait out the delay.
+	// Still inside the bootstrap delay: the page is up, the capabilities are
+	// not. A one-shot check, since a retrying one would wait out the delay.
 	await page.waitForTimeout(1500);
-	expect(await page.getByText('Drafting Changes').isVisible()).toBe(false);
+	expect(await editButton(page).isVisible()).toBe(false);
 	await expect(page.getByText('Read-only')).toBeVisible({ timeout: 15000 });
 	await expect(page.getByText('Content for Alpha')).toBeVisible();
-	await expect(page.getByText('Drafting Changes')).toBeHidden();
+	await expect(editButton(page)).toBeHidden();
 	expect(changeRequestCalls).toEqual([]);
 
 	await context.close();
 });
 
-test('a contributor opening a page can still edit once capabilities load', async ({
+test('a contributor opening a page can Edit once the space loads', async ({
 	browser,
 	request,
 	wiki,
@@ -183,17 +193,13 @@ test('a contributor opening a page can still edit once capabilities load', async
 		password,
 	);
 	const page = await context.newPage();
-	await delayCapabilities(page);
+	await delayBootstrap(page);
 	await page.goto(space.url('page', space.page('Alpha').name));
 
-	await expect(page.getByText('Drafting Changes')).toBeVisible({
-		timeout: 15000,
-	});
+	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
 	await expect(page.getByText('Content for Alpha')).toBeVisible();
 	await expect(page.getByText('Read-only')).toBeHidden();
-	await expect(
-		page.locator('.ProseMirror[contenteditable="true"]'),
-	).toBeVisible();
+	await editPage(page);
 
 	await context.close();
 });

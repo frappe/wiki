@@ -119,7 +119,7 @@
 						<Badge
 							v-else-if="col.key === 'status'"
 							variant="subtle"
-							:theme="getStatusTheme(row.status)"
+							:theme="statusTheme(row.status)"
 							size="sm"
 						>
 							{{ row.status }}
@@ -169,6 +169,7 @@
 <script setup>
 import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import SpaceAvatar from '@/components/SpaceAvatar.vue';
+import { statusTheme } from '@/lib/changeRequestStatus';
 import { Badge, Button, Skeleton, dayjsLocal } from 'frappe-ui';
 import {
 	List,
@@ -287,27 +288,6 @@ const groups = computed(() => {
 	}
 	return [...byId.values()];
 });
-
-function getStatusTheme(status) {
-	switch (status) {
-		case 'Draft':
-			return 'blue';
-		case 'In Review':
-			return 'amber';
-		case 'Changes Requested':
-			return 'red';
-		case 'Approved':
-			return 'green';
-		case 'Merged':
-			return 'green';
-		case 'Rejected':
-			return 'red';
-		case 'Archived':
-			return 'gray';
-		default:
-			return 'gray';
-	}
-}
 
 function fromNow(dateStr) {
 	return dateStr ? dayjsLocal(dateStr).fromNow() : '';

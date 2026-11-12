@@ -18,6 +18,9 @@ from frappe import _
 MANAGER_ROLES = {"System Manager", "Wiki Manager"}
 WRITE_PTYPES = {"write", "create", "delete", "submit", "cancel", "amend"}
 
+# A change request is unfinished work until submitted, so only its author sees it.
+OWNER_ONLY_CR_STATUSES = ("Draft", "Archived")
+
 
 def is_git_synced_space(space) -> bool:
 	"""True if the space mirrors a GitHub repo (content is read-only in the wiki)."""
@@ -257,11 +260,18 @@ def wiki_cr_query_conditions(user=None, doctype=None):
 	user = user or frappe.session.user
 	if _is_manager(user):
 		return ""
-	return _space_in_clause("tabWiki Change Request", user, allow_null=True)
+	statuses = ", ".join(frappe.db.escape(status) for status in OWNER_ONLY_CR_STATUSES)
+	return (
+		_space_in_clause("tabWiki Change Request", user, allow_null=True)
+		+ f" and (`tabWiki Change Request`.`status` not in ({statuses})"
+		+ f" or `tabWiki Change Request`.`owner` = {frappe.db.escape(user)})"
+	)
 
 
 def wiki_cr_has_permission(doc, ptype, user=None):
 	user = user or frappe.session.user
+	if ptype not in WRITE_PTYPES and _is_others_draft(doc, user):
+		return False
 	space = doc.wiki_space
 	if not space:
 		if ptype in WRITE_PTYPES:
@@ -275,3 +285,7 @@ def wiki_cr_has_permission(doc, ptype, user=None):
 	if ptype in WRITE_PTYPES:
 		return can_contribute_to_space(space, user)
 	return can_read_space(space, user)
+
+
+def _is_others_draft(doc, user) -> bool:
+	return doc.status in OWNER_ONLY_CR_STATUSES and doc.owner != user and not _is_manager(user)

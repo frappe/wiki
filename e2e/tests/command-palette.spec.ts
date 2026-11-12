@@ -80,9 +80,13 @@ test.describe('Command Palette', () => {
 		});
 
 		await page.goto(space.url('page', space.page(`${token} Runbook`).name));
-		await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('page-reader')).toBeVisible({
+			timeout: 10000,
+		});
 		await page.goto(space.url('page', space.page(`${token} Changelog`).name));
-		await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('page-reader')).toBeVisible({
+			timeout: 10000,
+		});
 
 		const palette = page.getByRole('dialog');
 		await page.keyboard.press('ControlOrMeta+k');
@@ -153,6 +157,7 @@ test.describe('Command Palette', () => {
 				},
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Hello').name));
 		const editor = page.locator('.ProseMirror');
@@ -196,7 +201,7 @@ test.describe('Command Palette', () => {
 		).toBeVisible();
 		await page.keyboard.press('ControlOrMeta+k');
 		await expect(palette).toBeHidden();
-		await page.getByRole('button', { name: 'Edit' }).click();
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
 		await expect(page.getByPlaceholder('https://example.com')).toHaveValue(
 			'https://example.com',
 		);

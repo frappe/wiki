@@ -1,19 +1,12 @@
 // Debounced drag/reorder scheduler. Coalesces rapid drags into a single
 // batched backend call (one move op per dragged node + one reorder op per
 // touched parent) so per-drag noise doesn't translate to N round-trips.
-//
-// The legacy fall-back path (when `useBatchOperations` is false) issues
-// per-node move + per-parent reorder RPCs directly. Will go away once the
-// batch path is stable in production.
 export function createMoveScheduler({
 	resolver,
 	queue,
 	treeModel,
 	transport,
-	useBatchOperations,
-	crStore,
 	crName,
-	scheduleSummaryRefresh,
 	errorMessage,
 }) {
 	// Tracks the latest target per docKey so rapid drags collapse into
@@ -52,95 +45,36 @@ export function createMoveScheduler({
 
 		const failedKeys = [];
 		try {
-			if (useBatchOperations) {
-				// Pack every drag (and its parent's full sibling order)
-				// into a single atomic batch so the backend sees one
-				// user intent rather than a chain of move/reorder pairs.
-				const ops = [];
-				const reorderedParents = new Set();
-				for (const [docKey, { targetParentKey }] of snapshot) {
-					const realKey = await resolver.resolveDocKey(docKey);
-					const realParentKey = await resolver.resolveDocKey(targetParentKey);
-					if (!realKey || !realParentKey) {
-						failedKeys.push(docKey);
-						continue;
-					}
-					const node =
-						treeModel.findNode(realKey) || treeModel.findNode(docKey);
-					const parentList = node
-						? treeModel.getChildList(node.parentKey)
-						: null;
-					const newIndex = parentList
-						? parentList.findIndex(
-								(n) => n.docKey === realKey || n.docKey === docKey,
-						  )
-						: 0;
-					const muId =
-						moveMutations.find((m) => m.payload?.docKey === docKey)?.id ||
-						docKey;
-					ops.push({
-						id: `${muId}-move`,
-						type: 'move_node',
-						doc_key: realKey,
-						target_parent_key: realParentKey,
-						order_index: Math.max(0, newIndex),
-					});
-					if (!reorderedParents.has(realParentKey)) {
-						reorderedParents.add(realParentKey);
-						const siblingKeys = parentList
-							? await Promise.all(
-									parentList.map((n) => resolver.resolveDocKey(n.docKey)),
-							  )
-							: [];
-						const filteredSiblings = siblingKeys.filter(Boolean);
-						if (filteredSiblings.length) {
-							ops.push({
-								id: `${realParentKey}-reorder`,
-								type: 'reorder_children',
-								parent_key: realParentKey,
-								ordered_doc_keys: filteredSiblings,
-							});
-						}
-					}
+			// Pack every drag (and its parent's full sibling order)
+			// into a single atomic batch so the backend sees one
+			// user intent rather than a chain of move/reorder pairs.
+			const ops = [];
+			const reorderedParents = new Set();
+			for (const [docKey, { targetParentKey }] of snapshot) {
+				const realKey = await resolver.resolveDocKey(docKey);
+				const realParentKey = await resolver.resolveDocKey(targetParentKey);
+				if (!realKey || !realParentKey) {
+					failedKeys.push(docKey);
+					continue;
 				}
-				if (ops.length) await transport.applyBatchOps(ops);
-				for (const [docKey] of snapshot) {
-					if (failedKeys.includes(docKey)) continue;
-					const realKey = resolver.resolveKey(docKey) || docKey;
-					const fresh =
-						treeModel.findNode(realKey) || treeModel.findNode(docKey);
-					if (fresh) fresh.localStatus = null;
-				}
-			} else {
-				for (const [docKey, { targetParentKey }] of snapshot) {
-					const realKey = await resolver.resolveDocKey(docKey);
-					const realParentKey = await resolver.resolveDocKey(targetParentKey);
-					if (!realKey || !realParentKey) {
-						failedKeys.push(docKey);
-						continue;
-					}
-
-					const node =
-						treeModel.findNode(realKey) || treeModel.findNode(docKey);
-					const parentList = node
-						? treeModel.getChildList(node.parentKey)
-						: null;
-					const newIndex = parentList
-						? parentList.findIndex(
-								(n) => n.docKey === realKey || n.docKey === docKey,
-						  )
-						: 0;
-
-					await crStore.movePage(
-						crName(),
-						realKey,
-						realParentKey,
-						Math.max(0, newIndex),
-					);
-
-					// Send the parent's full sibling order so the backend
-					// matches what the user sees — resolving any temp
-					// siblings first.
+				const node = treeModel.findNode(realKey) || treeModel.findNode(docKey);
+				const parentList = node ? treeModel.getChildList(node.parentKey) : null;
+				const newIndex = parentList
+					? parentList.findIndex(
+							(n) => n.docKey === realKey || n.docKey === docKey,
+					  )
+					: 0;
+				const muId =
+					moveMutations.find((m) => m.payload?.docKey === docKey)?.id || docKey;
+				ops.push({
+					id: `${muId}-move`,
+					type: 'move_node',
+					doc_key: realKey,
+					target_parent_key: realParentKey,
+					order_index: Math.max(0, newIndex),
+				});
+				if (!reorderedParents.has(realParentKey)) {
+					reorderedParents.add(realParentKey);
 					const siblingKeys = parentList
 						? await Promise.all(
 								parentList.map((n) => resolver.resolveDocKey(n.docKey)),
@@ -148,17 +82,21 @@ export function createMoveScheduler({
 						: [];
 					const filteredSiblings = siblingKeys.filter(Boolean);
 					if (filteredSiblings.length) {
-						await crStore.reorderChildren(
-							crName(),
-							realParentKey,
-							filteredSiblings,
-						);
+						ops.push({
+							id: `${realParentKey}-reorder`,
+							type: 'reorder_children',
+							parent_key: realParentKey,
+							ordered_doc_keys: filteredSiblings,
+						});
 					}
-
-					const fresh =
-						treeModel.findNode(realKey) || treeModel.findNode(docKey);
-					if (fresh) fresh.localStatus = null;
 				}
+			}
+			if (ops.length) await transport.applyBatchOps(ops);
+			for (const [docKey] of snapshot) {
+				if (failedKeys.includes(docKey)) continue;
+				const realKey = resolver.resolveKey(docKey) || docKey;
+				const fresh = treeModel.findNode(realKey) || treeModel.findNode(docKey);
+				if (fresh) fresh.localStatus = null;
 			}
 			for (const m of moveMutations) {
 				if (failedKeys.includes(m.payload?.docKey)) {
@@ -167,7 +105,6 @@ export function createMoveScheduler({
 					queue.clear(m.id);
 				}
 			}
-			scheduleSummaryRefresh();
 		} catch (err) {
 			for (const m of moveMutations) {
 				queue.setStatus(m.id, 'failed', errorMessage(err));

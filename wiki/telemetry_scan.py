@@ -39,7 +39,7 @@ BLOCK_TESTS = {
 	"blocks_pdf": "%.pdf)%",
 	"blocks_image": "%![%",
 	# The delimiter row of a GFM table: `| --- |`, with or without alignment colons.
-	"blocks_table": r"\|[[:space:]]*:?-{3,}",
+	"blocks_table": r"\|\s*:?-{3,}",
 }
 
 

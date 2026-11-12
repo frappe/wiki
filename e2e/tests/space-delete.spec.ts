@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
-import { createDoc, docExists } from '../helpers/frappe';
+import { callMethod, createDoc, docExists } from '../helpers/frappe';
+
+const CR_METHOD =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 async function openGeneralSettings(page: Page) {
 	await page.getByRole('button', { name: 'Space actions' }).click();
@@ -15,7 +18,7 @@ async function openGeneralSettings(page: Page) {
  * and the button stays disabled until the space name is typed back exactly.
  */
 test.describe('Space Settings -> Delete Space', () => {
-	test('deletes the space and its pages once the name is typed', async ({
+	test('deletes the space, its pages and their history once the name is typed', async ({
 		page,
 		request,
 		wiki,
@@ -29,6 +32,36 @@ test.describe('Space Settings -> Delete Space', () => {
 				},
 			],
 		});
+		const install = space.page('Install');
+
+		const changeRequest = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD}.get_or_create_draft_change_request`,
+			{ wiki_space: space.name },
+		);
+		await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+			name: changeRequest.name,
+			doc_key: install.doc_key,
+			fields: { content: 'Install, revised.' },
+		});
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: changeRequest.name,
+		});
+		await callMethod(request, `${CR_METHOD}.approve_change_request`, {
+			name: changeRequest.name,
+		});
+		await callMethod(request, `${CR_METHOD}.merge_change_request`, {
+			name: changeRequest.name,
+		});
+		const feedback = await createDoc<{ name: string }>(
+			request,
+			'Wiki Feedback',
+			{
+				wiki_document: install.name,
+				rating: 1,
+			},
+		);
+		expect((await request.get(`/${install.route}`)).status()).toBe(200);
 
 		// CI serves the site over plain http, where the browser has no
 		// navigator.clipboard, so record what the page writes instead.
@@ -83,6 +116,13 @@ test.describe('Space Settings -> Delete Space', () => {
 		]) {
 			expect(await docExists(request, 'Wiki Document', name)).toBe(false);
 		}
+		expect(
+			await docExists(request, 'Wiki Change Request', changeRequest.name),
+		).toBe(false);
+		expect(await docExists(request, 'Wiki Feedback', feedback.name)).toBe(
+			false,
+		);
+		expect((await request.get(`/${install.route}`)).status()).toBe(404);
 	});
 
 	// Deleting needs the role's delete permission as well as write access to

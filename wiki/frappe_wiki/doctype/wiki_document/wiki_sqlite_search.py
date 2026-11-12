@@ -3,6 +3,7 @@ from typing import ClassVar
 
 import frappe
 from frappe.search.sqlite_search import SQLiteSearch
+from frappe.utils import create_batch
 
 # Frappe v15 inserts a new row on every index_doc and never drops the old one.
 INDEX_DOC_APPENDS = int(frappe.__version__.split(".", 1)[0]) < 16
@@ -122,22 +123,37 @@ def enqueue_reindex(docnames: list[str]):
 		)
 
 
-def remove_doc_from_index(docname: str):
-	"""Remove a Wiki Document from the search index immediately.
+def remove_docs_from_index(docnames: list[str]):
+	"""Remove Wiki Documents from the search index immediately.
 
 	The framework's index update path only *queues* a re-index (drained by a
 	5-minute scheduler job, 30 docs per run), so an unpublished page would keep
 	surfacing in search until the queue catches up. Unpublishing must take
-	effect right away, so we delete the row synchronously.
+	effect right away, so we delete the rows synchronously.
 	"""
 	search = WikiSQLiteSearch()
-	if not (search.is_search_enabled() and search.index_exists()):
+	if not (docnames and search.is_search_enabled() and search.index_exists()):
 		return
 
+	doc_ids = [f"Wiki Document:{name}" for name in docnames]
+	connection = search._get_connection()
 	try:
-		search.remove_doc("Wiki Document", docname)
+		# The queue table only exists on Frappe develop.
+		tables = ["search_fts"] + [
+			row[0]
+			for row in connection.execute(
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'search_index_queue'"
+			)
+		]
+		for batch in create_batch(doc_ids, 500):
+			placeholders = ", ".join("?" * len(batch))
+			for table in tables:
+				connection.execute(f"DELETE FROM {table} WHERE doc_id IN ({placeholders})", batch)
+		connection.commit()
 	except Exception:
 		frappe.log_error(
 			title="Wiki Search Index Removal Error",
-			message=f"Failed to remove Wiki Document {docname} from the search index",
+			message=f"Failed to remove {len(docnames)} Wiki Documents from the search index",
 		)
+	finally:
+		connection.close()

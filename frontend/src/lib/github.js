@@ -18,3 +18,8 @@ export function buildGithubEditUrl({ repoFullName, branch, sourcePath }) {
 	const path = sourcePath.replace(/^\/+/, '');
 	return `https://github.com/${repoFullName}/edit/${branch}/${path}`;
 }
+
+export function buildGithubCommitUrl(repoFullName, sha) {
+	if (!repoFullName || !sha) return null;
+	return `https://github.com/${repoFullName}/commit/${sha}`;
+}

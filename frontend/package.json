@@ -9,6 +9,7 @@
 		"build:highlight": "vite build --config vite.highlight.config.js",
 		"preview": "vite preview",
 		"lint": "biome check --write .",
+		"test": "node --test 'src/**/*.test.js'",
 		"copy-html-entry": "cp ../wiki/public/frontend/index.html ../wiki/www/wiki-app.html"
 	},
 	"dependencies": {

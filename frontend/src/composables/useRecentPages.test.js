@@ -73,6 +73,12 @@ test('ignores a page with no title yet', () => {
 	assert.equal(recentPages.value.length, 5);
 });
 
+test('forgets deleted pages and keeps the rest in order', () => {
+	const { forget } = useRecentPages();
+	forget(['e', 'missing']);
+	assert.deepEqual(titles(), ['Alpha Renamed', 'F', 'D', 'C']);
+});
+
 test('keeps each user to their own recent pages', async () => {
 	globalThis.document.cookie = 'user_id=bob@example.com';
 	const other = await import('./useRecentPages.js?user=bob');

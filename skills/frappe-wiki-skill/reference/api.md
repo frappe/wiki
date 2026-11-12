@@ -46,9 +46,11 @@ directly as `parent_key`.
 |---|---|---|
 | `$CR.get_change_request` | `name` | Full CR dict |
 | `$CR.list_change_requests` | `wiki_space`, `status?` | `[{name, title, status, base_revision, head_revision, merge_revision, outdated, modified, merged_at, merged_by, owner, ...}]`, newest first |
+| `$CR.list_open_change_requests` | `wiki_space` | Everyone's `In Review` / `Changes Requested` / `Approved` CRs plus your own open draft: `[{name, title, status, owner, owner_name, owner_image, modified, changed_doc_keys}]`, newest first. GET. |
 | `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int}` |
 | `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content}` |
 | `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides |
+| `$CR.get_change_request_review` | `name` | `{author: {full_name, image}, pages: [{doc_key, change_type, title, ..., base, head, location?}]}`; each side is `{title, content, html}` or null. Every changed page in one call. GET. |
 | `$CR.check_outdated` | `name` | `0` \| `1`; also persisted to `outdated` |
 | `$CR.check_route_available` | `wiki_space`, `route`, `cr_name?`, `exclude_doc_key?` | `{route: <sanitized>, available: bool}` — **advisory only** |
 | `wiki.api.get_space_capabilities` | `space` | `{can_read, can_write, can_contribute, can_delete}` |
@@ -77,7 +79,8 @@ Success:
  "temp_key_map": {"tmp-1": "487291614eed"},
  "items": [ /* serialized, with content for touched keys */ ],
  "deleted_doc_keys": ["..."],
- "change_summary": {"count": 1, "by_type": {"create_node": 1}}}
+ "change_summary": {"count": 1, "by_type": {"create_node": 1}},
+ "changes": [ /* same as diff_change_request summary, after this batch */ ]}
 ```
 
 Stale — **HTTP 200, exit code 0**:
@@ -148,8 +151,11 @@ Archived ◀── archive (from any status)
 | `$CR.merge_change_request` | `name` | `{Approved}` → `Merged` | `_can_merge`; returns merge revision name |
 | `$CR.archive_change_request` | `name` | any → `Archived` | `write`, no status guard |
 
-Content is editable only in `Draft` and `Changes Requested` (`_EDITABLE_STATUSES`, enforced by
-`_assert_editable` on every mutation).
+Content is editable in `Draft` and `Changes Requested` (`_EDITABLE_STATUSES`). In `In Review`
+and `Approved` only the owner and users who pass `_can_merge` may edit (`can_edit_in_review`).
+The status stays `In Review`, and an edit to an `Approved` CR moves it back to `In Review`, so
+it has to be approved again before it can merge. `_assert_editable` enforces this on every
+mutation.
 
 Merge picks its path: `base_revision == space.main_revision` → `_fast_forward_merge`;
 otherwise `_three_way_merge`.

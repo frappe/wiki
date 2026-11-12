@@ -5,6 +5,12 @@ import {
 	saveEditor,
 } from '../helpers/wiki';
 
+declare global {
+	interface Window {
+		__opened: string[];
+	}
+}
+
 /**
  * Tests for the external link feature in wiki.
  * These tests verify that external links can be created, displayed with the correct icon,
@@ -47,7 +53,7 @@ test.describe('External Links', () => {
 		await expect(newBadge).toBeVisible();
 	});
 
-	test('should show external link with link icon after merge and open edit dialog on click', async ({
+	test('a merged external link opens its URL when reading and its settings when editing', async ({
 		page,
 		wiki,
 	}) => {
@@ -72,9 +78,8 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit for review and merge
-		// Submit for Review lives in the editor header, and adding an external
-		// link opens no editor. The sidebar's Merge is the manager's one-click
-		// path -- it walks the CR through submit, approve and merge.
+		// Adding an external link opens no page, so Merge comes from the space's
+		// own header. It walks the CR through submit, approve and merge.
 		const mergeButton = page.getByRole('button', {
 			name: 'Merge',
 			exact: true,
@@ -98,7 +103,22 @@ test.describe('External Links', () => {
 		const newBadge = itemRow.getByText('New');
 		await expect(newBadge).not.toBeVisible();
 
-		// Click on the external link - should open edit dialog, not navigate
+		// Reading, the link opens its URL.
+		await page.evaluate(() => {
+			window.__opened = [];
+			window.open = (url) => {
+				window.__opened.push(String(url));
+				return null;
+			};
+		});
+		await sidebarItem.click();
+		expect(await page.evaluate(() => window.__opened)).toEqual([
+			externalLinkUrl,
+		]);
+
+		// Editing, it opens its settings instead.
+		await wiki.changeRequest(space, 'Edit the link');
+		await page.reload();
 		await sidebarItem.click();
 
 		// Verify the edit dialog appears
@@ -156,9 +176,8 @@ test.describe('External Links', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Submit and merge both items
-		// Submit for Review lives in the editor header, and adding an external
-		// link opens no editor. The sidebar's Merge is the manager's one-click
-		// path -- it walks the CR through submit, approve and merge.
+		// Adding an external link opens no page, so Merge comes from the space's
+		// own header. It walks the CR through submit, approve and merge.
 		const mergeButton = page.getByRole('button', {
 			name: 'Merge',
 			exact: true,

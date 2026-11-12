@@ -10,9 +10,10 @@
 
 import { useNodeViewEditable } from '@/composables/useNodeViewEditable';
 import { NodeViewWrapper } from '@tiptap/vue-3';
-import { computed, ref } from 'vue';
-import VuePdfEmbed from 'vue-pdf-embed';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import PdfViewerModal from './PdfViewerModal.vue';
+
+const VuePdfEmbed = defineAsyncComponent(() => import('vue-pdf-embed'));
 
 const props = defineProps({
 	node: {
@@ -217,7 +218,7 @@ function closeViewer() {
 	display: flex;
 	align-items: center;
 	gap: 0.125rem;
-	margin-left: auto;
+	margin-inline-start: auto;
 	flex-shrink: 0;
 }
 

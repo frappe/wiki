@@ -1,0 +1,15 @@
+<script>
+    // Developer mode only: reload when the git-synced space syncs, for example from `bench wiki preview-docs --watch`.
+    (() => {
+        const space = {{ live_reload.space | tojson }};
+        const sha = {{ live_reload.sha | tojson }};
+        const url = `/api/method/wiki.api.wiki_space.get_sync_sha?space=${encodeURIComponent(space)}`;
+        setInterval(async () => {
+            if (document.hidden) return;
+            const response = await fetch(url).catch(() => null);
+            if (!response?.ok) return;
+            const { message } = await response.json();
+            if (message && message !== sha) location.reload();
+        }, 1000);
+    })();
+</script>

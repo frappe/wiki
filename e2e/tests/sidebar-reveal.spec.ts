@@ -44,7 +44,7 @@ test.describe('Reader sidebar reveals current page', () => {
 	});
 
 	function sidebarLink(page: import('@playwright/test').Page, route: string) {
-		return page.locator(`.wiki-sidebar a[data-route="${route}"]`);
+		return page.locator(`.wiki-sidebar a[href="/${route}"]`);
 	}
 
 	test('direct load expands ancestor groups and highlights the page', async ({

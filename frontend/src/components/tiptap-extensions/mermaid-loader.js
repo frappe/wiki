@@ -35,16 +35,9 @@ function loadSharedMermaidLoader() {
 	return loaderPromise;
 }
 
+// Resolves to mountMermaid(element, source) from the shared loader, so the
+// editor preview and the published page render with the same options.
 export async function getMermaid() {
 	const wikiGetMermaid = await loadSharedMermaidLoader();
-	// No assetUrl override: the shared loader owns the Mermaid vendor URL, and
-	// versions it so a library bump isn't masked by the same immutable cache.
 	return wikiGetMermaid();
-}
-
-// Mermaid theme config derived from the live Frappe UI tokens (defined in the
-// shared loader asset). Ensures the editor preview matches the published page.
-export async function getMermaidThemeConfig() {
-	await loadSharedMermaidLoader();
-	return window.wikiMermaidThemeConfig();
 }

@@ -62,7 +62,7 @@ test.describe('Reader page view tracking', () => {
 	}
 
 	function sidebarLink(page: Page, route: string) {
-		return page.locator(`.wiki-sidebar a[data-route="${route}"]`);
+		return page.locator(`.wiki-sidebar a[href="/${route}"]`);
 	}
 
 	test('logs the first load, each navigation and back, but not a hover', async ({

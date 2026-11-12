@@ -4,6 +4,7 @@
 import frappe
 from frappe.utils import get_system_timezone
 
+from wiki.api import get_user_info
 from wiki.api.og_image import cards_supported
 from wiki.telemetry import capture, default_properties
 from wiki.utils import get_asset_hash
@@ -40,11 +41,13 @@ def get_boot():
 		{
 			"frappe_version": frappe.__version__,
 			"site_name": frappe.local.site,
+			"lang": frappe.local.lang,
 			"read_only_mode": frappe.flags.read_only,
 			"system_timezone": get_system_timezone(),
 			"asset_hashes": get_asset_hashes(),
 			"meta_images_supported": cards_supported(),
 			"telemetry": default_properties(),
+			"user_info": get_user_info(),
 		}
 	)
 

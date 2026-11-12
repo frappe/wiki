@@ -1,11 +1,19 @@
 # Copyright (c) 2026, Frappe and Contributors
 # See license.txt
 
+from unittest.mock import patch
+
 import frappe
 from frappe.utils.nestedset import get_descendants_of
 
+from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
+	create_change_request,
+	merge_change_request,
+	update_cr_page,
+)
+from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
 from wiki.tests import WikiTestCase as FrappeTestCase
-from wiki.tests.factory import WikiFixtureMixin
+from wiki.tests.factory import WikiFixtureMixin, make_space
 from wiki.wiki.doctype.wiki_space.patches.v3 import (
 	migrate_orphan_pages_to_wiki_document,
 	migrate_to_new_tree_document_structure,
@@ -312,3 +320,100 @@ class TestWikiSpaceMigration(WikiFixtureMixin, FrappeTestCase):
 
 	def tearDown(self):
 		frappe.db.rollback()
+
+
+class TestWikiSpaceDelete(WikiFixtureMixin, FrappeTestCase):
+	def test_delete_leaves_other_spaces_numbering_alone(self):
+		"""Shifting every later page per deleted page locked the whole tree, so deletes deadlocked with merges."""
+		deleted = make_space(pages=[{"title": "Page A"}, {"title": "Page B"}])
+		kept = self.wiki.space(pages=[{"title": "Page C"}])
+		before = frappe.db.get_value("Wiki Document", kept.root_group, ["lft", "rgt"])
+
+		frappe.delete_doc("Wiki Space", deleted.name, force=True)
+
+		self.assertFalse(frappe.db.exists("Wiki Document", {"wiki_space": deleted.name}))
+		self.assertEqual(frappe.db.get_value("Wiki Document", kept.root_group, ["lft", "rgt"]), before)
+
+	def make_space_with_history(self):
+		"""A space with every kind of row that links back to it."""
+		space = make_space(pages=[{"title": "Page A", "content": "spacedelete_searchterm"}])
+		page = frappe.get_doc("Wiki Document", {"wiki_space": space.name, "title": "Page A"})
+		cr = create_change_request(space.name, "Merged CR")
+		update_cr_page(cr.name, page.doc_key, {"content": "spacedelete_searchterm v2"})
+		frappe.db.set_value("Wiki Change Request", cr.name, "status", "Approved")
+		merge_change_request(cr.name)
+		cr.add_comment("Comment", "Looks good")
+		frappe.get_doc(
+			{"doctype": "Wiki Merge Conflict", "change_request": cr.name, "doc_key": page.doc_key}
+		).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Wiki Feedback", "wiki_document": page.name, "rating": 1}).insert(
+			ignore_permissions=True
+		)
+		frappe.get_doc({"doctype": "Wiki Git Sync Log", "wiki_space": space.name}).insert(
+			ignore_permissions=True
+		)
+		return space, page, cr
+
+	def test_delete_removes_every_row_linked_to_the_space(self):
+		space, page, cr = self.make_space_with_history()
+		revisions = frappe.get_all("Wiki Revision", {"wiki_space": space.name}, pluck="name")
+		items = frappe.get_all("Wiki Revision Item", {"revision": ("in", revisions)}, pluck="name")
+		kept = self.wiki.space(pages=[{"title": "Page C"}])
+		kept_counts = self.linked_row_counts(kept.name)
+
+		frappe.delete_doc("Wiki Space", space.name)
+
+		self.assertTrue(revisions and items)
+		self.assertEqual(
+			self.linked_row_counts(space.name),
+			dict.fromkeys(kept_counts, 0),
+		)
+		self.assertFalse(frappe.db.exists("Wiki Document", {"name": ("in", [space.root_group, page.name])}))
+		self.assertFalse(frappe.db.exists("Wiki Revision Item", {"name": ("in", items)}))
+		self.assertFalse(frappe.db.exists("Wiki Merge Conflict", {"change_request": cr.name}))
+		self.assertFalse(frappe.db.exists("Wiki Feedback", {"wiki_document": page.name}))
+		self.assertFalse(frappe.db.exists("Comment", {"reference_name": cr.name, "comment_type": "Comment"}))
+		self.assertFalse(
+			frappe.db.exists("Version", {"ref_doctype": "Wiki Revision Item", "docname": ("in", items)})
+		)
+		self.assertEqual(self.linked_row_counts(kept.name), kept_counts)
+
+	def test_delete_writes_no_backup_feed_or_job_per_row(self):
+		space, _page, _cr = self.make_space_with_history()
+		before = frappe.db.count("Deleted Document"), frappe.db.count("Comment", {"comment_type": "Deleted"})
+
+		with patch("frappe.enqueue") as enqueue:
+			frappe.delete_doc("Wiki Space", space.name)
+
+		after = frappe.db.count("Deleted Document"), frappe.db.count("Comment", {"comment_type": "Deleted"})
+		# Only the space itself is backed up, logged and unlinked.
+		self.assertEqual(after, (before[0] + 1, before[1] + 1))
+		self.assertEqual({call.kwargs.get("doctype") for call in enqueue.call_args_list}, {"Wiki Space"})
+
+	def test_delete_drops_pages_from_search_index_after_commit(self):
+		space, page, _cr = self.make_space_with_history()
+		search = WikiSQLiteSearch()
+		if not search.index_exists():
+			search.build_index()
+		search._index_documents([search.prepare_document(page.reload())])
+
+		frappe.delete_doc("Wiki Space", space.name)
+		self.assertGreater(self.index_row_count(search, page.name), 0)
+
+		frappe.db.after_commit.run()
+		self.assertEqual(self.index_row_count(search, page.name), 0)
+
+	@staticmethod
+	def index_row_count(search, page_name):
+		return search.sql(
+			"SELECT count(*) AS c FROM search_fts WHERE doc_id = ?",
+			(f"Wiki Document:{page_name}",),
+			read_only=True,
+		)[0]["c"]
+
+	@staticmethod
+	def linked_row_counts(space_name):
+		return {
+			doctype: frappe.db.count(doctype, {"wiki_space": space_name})
+			for doctype in ("Wiki Document", "Wiki Revision", "Wiki Change Request", "Wiki Git Sync Log")
+		}
