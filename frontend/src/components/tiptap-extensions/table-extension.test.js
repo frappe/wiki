@@ -85,3 +85,117 @@ for (const [label, markdown, expected, serializedCell] of [
 		}
 	});
 }
+
+const MIGRATED_HTML_TABLE = `<table style="width: 100%;">
+
+<tr>
+<th>Pre-Setup Phase</th>
+<th>Set up Phase</th>
+</tr>
+
+<tr>
+
+<td>
+<ul>
+<li>Recruitment Process</li>
+</ul>
+</td>
+
+<td>
+<ul>
+<li>Line Listing</li>
+</ul>
+</td>
+
+</tr>
+
+</table>`;
+
+test('an HTML table with blank lines reaches the editor as one block', () => {
+	const manager = buildManager();
+	const blocks = manager.parse(
+		`before\n\n${MIGRATED_HTML_TABLE}\n\nafter`,
+	).content;
+	assert.equal(blocks.length, 3);
+	const tableText = blocks[1].content.map((node) => node.text).join('');
+	assert.ok(tableText.startsWith('<table'), tableText);
+	assert.ok(tableText.endsWith('</table>'), tableText);
+});
+
+function cell(type, content, attrs = {}) {
+	return { type, attrs: { colspan: 1, rowspan: 1, ...attrs }, content };
+}
+
+function paragraph(text) {
+	return { type: 'paragraph', content: [{ type: 'text', text }] };
+}
+
+function bulletList(...items) {
+	return {
+		type: 'bulletList',
+		content: items.map((text) => ({
+			type: 'listItem',
+			content: [paragraph(text)],
+		})),
+	};
+}
+
+function serializeTable(...rows) {
+	const manager = buildManager();
+	return manager.serialize({
+		type: 'doc',
+		content: [
+			{
+				type: 'table',
+				content: rows.map((cells) => ({ type: 'tableRow', content: cells })),
+			},
+		],
+	});
+}
+
+test('a table with a list in a cell is written as HTML, not flattened', () => {
+	const markdown = serializeTable(
+		[cell('tableHeader', [paragraph('Pre-Setup Phase')])],
+		[
+			cell('tableCell', [
+				bulletList('Recruitment Process', 'Meeting Functionaries'),
+			]),
+		],
+	);
+	assert.equal(
+		markdown,
+		'<table>\n<tr>\n<th><p>Pre-Setup Phase</p></th>\n</tr>\n<tr>\n' +
+			'<td><ul>\n<li>Recruitment Process</li>\n<li>Meeting Functionaries</li>\n</ul></td>\n' +
+			'</tr>\n</table>',
+	);
+});
+
+test('a table with merged cells keeps its spans', () => {
+	const markdown = serializeTable(
+		[cell('tableHeader', [paragraph('Phase')], { colspan: 2 })],
+		[cell('tableCell', [paragraph('a')]), cell('tableCell', [paragraph('b')])],
+	);
+	assert.ok(markdown.includes('<th colspan="2"><p>Phase</p></th>'), markdown);
+});
+
+test('a table of plain cells stays a pipe table', () => {
+	const markdown = serializeTable(
+		[cell('tableHeader', [paragraph('a')])],
+		[cell('tableCell', [paragraph('1'), paragraph('2')])],
+	);
+	assert.ok(markdown.startsWith('| a'), markdown);
+});
+
+test('a cell that only says "-" stays text in an HTML table', () => {
+	const markdown = serializeTable(
+		[
+			cell('tableHeader', [paragraph('Item')]),
+			cell('tableHeader', [paragraph('Qty')]),
+		],
+		[
+			cell('tableCell', [bulletList('Rice')]),
+			cell('tableCell', [paragraph('-')]),
+		],
+	);
+	assert.ok(markdown.includes('<td><p>-</p></td>'), markdown);
+});
