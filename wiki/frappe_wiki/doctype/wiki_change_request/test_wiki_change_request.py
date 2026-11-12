@@ -1660,6 +1660,61 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertNotEqual(kept_cr.status, "Archived")
 		self.assertEqual(kept_cr.outdated, 1)
 
+	def test_approved_unmerged_cr_is_resumed_for_merger(self):
+		"""A merge chain that died after approve must hand the same CR back, not a new draft."""
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "Interrupted Merge")
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+
+		result = get_or_create_draft_change_request(space.name)
+
+		self.assertEqual(result.get("name"), cr.name)
+		self.assertEqual(result.get("status"), "Approved")
+
+	def test_in_review_unmerged_cr_is_resumed_for_merger(self):
+		"""Same for a merge chain that died between submit and approve."""
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "Interrupted Approve")
+		submit_change_request(cr.name)
+
+		result = get_or_create_draft_change_request(space.name)
+
+		self.assertEqual(result.get("name"), cr.name)
+		self.assertEqual(result.get("status"), "In Review")
+
+	def test_in_review_cr_is_not_resumed_for_non_merger(self):
+		"""An author waiting on a reviewer keeps getting a fresh draft alongside it."""
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		author = create_user("cr-resume-author@example.com", "Wiki User")
+		frappe.set_user(author.name)
+		try:
+			cr = self._cr_with_change(space, "Waiting On Review")
+			submit_change_request(cr.name)
+
+			result = get_or_create_draft_change_request(space.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertNotEqual(result.get("name"), cr.name)
+		self.assertEqual(result.get("status"), "Draft")
+
+	def test_merged_cr_is_not_resumed(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "Already Merged")
+		submit_change_request(cr.name)
+		approve_change_request(cr.name)
+		merge_change_request(cr.name)
+
+		result = get_or_create_draft_change_request(space.name)
+
+		self.assertNotEqual(result.get("name"), cr.name)
+		self.assertEqual(result.get("status"), "Draft")
+
 	def test_archive_change_request_sets_status(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")
