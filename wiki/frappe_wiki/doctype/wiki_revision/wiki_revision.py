@@ -225,9 +225,20 @@ def insert_revision_items(revision: str, items: Iterable[dict[str, Any]]) -> Non
 	)
 
 
+def content_hash(content: str) -> str:
+	return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def get_blob_content_and_hash(blob: str | None) -> tuple[str, str]:
+	row = frappe.db.get_value("Wiki Content Blob", blob, ["content", "hash"], as_dict=True) if blob else None
+	if not row:
+		return "", content_hash("")
+	return row.content or "", row.hash
+
+
 def get_or_create_content_blobs(contents: Iterable[str], content_type: str = "markdown") -> dict[str, str]:
 	"""Map each content to its blob name, with one query for the existing blobs and one insert for the rest."""
-	by_hash = {hashlib.sha256(content.encode("utf-8")).hexdigest(): content for content in contents}
+	by_hash = {content_hash(content): content for content in contents}
 	if not by_hash:
 		return {}
 	existing = dict(
@@ -271,7 +282,7 @@ def get_or_create_content_blobs(contents: Iterable[str], content_type: str = "ma
 
 def get_or_create_content_blob(content: str, content_type: str = "markdown") -> str:
 	content = content or ""
-	hash_value = hashlib.sha256(content.encode("utf-8")).hexdigest()
+	hash_value = content_hash(content)
 	existing = frappe.db.get_value("Wiki Content Blob", {"hash": hash_value}, "name")
 	if existing:
 		return existing

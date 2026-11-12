@@ -291,7 +291,7 @@ test.describe('Local-first draft workspace', () => {
 		});
 
 		// Resolving the typed content (Save now succeeds because the
-		// mock is gone and operation_version is fresh) settles the state.
+		// mock is gone and the page's base is fresh) settles the state.
 		await saveEditor(page);
 		await expectSyncSettled(page, 5000);
 		await expect(submitButton).toBeEnabled();
