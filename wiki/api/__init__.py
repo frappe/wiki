@@ -44,6 +44,7 @@ def get_user_info() -> dict:
 		"last_name": user.last_name,
 		"full_name": user.full_name,
 		"email": user.email,
+		"user_type": user.user_type,
 		"user_image": user.user_image,
 		"roles": [{"role": row.role} for row in user.roles],
 		"brand_image": frappe.get_single_value("Website Settings", "banner_image"),

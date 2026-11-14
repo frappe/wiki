@@ -1128,6 +1128,7 @@ class TestAppBoot(FrappeTestCase):
 
 		self.assertEqual(boot["user_info"]["name"], "Administrator")
 		self.assertIn({"role": "System Manager"}, boot["user_info"]["roles"])
+		self.assertEqual(boot["user_info"]["user_type"], "System User")
 		# wiki-app.html renders each boot key with Jinja's plain-json `tojson`.
 		json.dumps(boot)
 

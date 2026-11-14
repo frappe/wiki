@@ -126,6 +126,7 @@ import { useUserStore } from '@/stores/user';
 import { useStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useApps } from '../composables/useApps';
 import { useCommandPalette } from '../composables/useCommandPalette';
 import { useSpaceLibrary } from '../composables/useSpaceLibrary';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
@@ -141,6 +142,7 @@ const { open: openSpaceSettings } = useSpaceSettings();
 const { open: openCommandPalette } = useCommandPalette();
 
 const { themeIcon, toggleTheme } = useTheme();
+const { appsMenuItems } = useApps();
 
 const showCreateDialog = ref(false);
 
@@ -227,6 +229,7 @@ async function copySpaceLink(space) {
 }
 
 const headerMenuItems = computed(() => [
+	...appsMenuItems.value,
 	...(userStore.isWikiManager
 		? [
 				{
@@ -245,7 +248,7 @@ const navItems = computed(() => [
 		? [
 				{
 					label: __('Overview'),
-					icon: 'lucide-layout-grid',
+					icon: 'lucide-layout-dashboard',
 					to: { name: 'Overview' },
 					routeNames: ['Overview'],
 				},
