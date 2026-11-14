@@ -200,7 +200,13 @@ const menuOptions = computed(() => [
 				{
 					group: 'replace',
 					hideLabel: true,
-					options: [{ label: 'Replace image', icon: 'lucide-refresh-cw', submenu: replaceOptions.value }],
+					options: [
+						{
+							label: 'Replace image',
+							icon: 'lucide-refresh-cw',
+							submenu: replaceOptions.value,
+						},
+					],
 				},
 			]
 		: []),

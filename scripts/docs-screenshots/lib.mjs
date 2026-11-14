@@ -274,7 +274,9 @@ export async function waitStable(page) {
 				.getAnimations()
 				.filter((animation) => animation.playState === 'running')
 				.filter(
-					(animation) => animation.effect?.getTiming().iterations !== Infinity,
+					(animation) =>
+						animation.effect?.getTiming().iterations !==
+						Number.POSITIVE_INFINITY,
 				);
 			const loading = [...document.images].filter(
 				(image) =>

@@ -28,7 +28,9 @@ const tracking = createResource({
 	},
 });
 
-const setTracking = createResource({ url: 'wiki.api.analytics.set_view_tracking' });
+const setTracking = createResource({
+	url: 'wiki.api.analytics.set_view_tracking',
+});
 
 async function update(value) {
 	updating.value = true;

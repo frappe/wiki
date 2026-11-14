@@ -300,7 +300,7 @@ function openAssign(row) {
 
 function onAssigned() {
 	// Refresh only the inboxes that have actually been opened (and thus exist).
-	resources['assigned']?.reload();
-	resources['all']?.reload();
+	resources.assigned?.reload();
+	resources.all?.reload();
 }
 </script>

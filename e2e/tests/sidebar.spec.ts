@@ -220,9 +220,8 @@ test.describe('Public Sidebar', () => {
 
 			// Set a sentinel on window — a full page refresh will wipe it
 			await publicPage.evaluate(() => {
-				(
-					window as unknown as Record<string, unknown>
-				).__spa_nav_sentinel = true;
+				(window as unknown as Record<string, unknown>).__spa_nav_sentinel =
+					true;
 			});
 
 			// Click the second page in the sidebar

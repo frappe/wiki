@@ -47,23 +47,29 @@ html[data-theme="light"] {
 	text-align: start;
 }
 
-:dir(rtl) [data-slot='sidebar-label'],
-:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .pl-2 {
+:dir(rtl) [data-slot="sidebar-label"],
+:dir(rtl) :is([data-slot="sidebar-item"], [data-slot="sidebar-header"]) .pl-2 {
 	padding-left: 0;
 	padding-right: 0.5rem;
 }
 
-:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .ml-2 {
+:dir(rtl) :is([data-slot="sidebar-item"], [data-slot="sidebar-header"]) .ml-2 {
 	margin-left: 0;
 	margin-right: 0.5rem;
 }
 
-:dir(rtl) [data-slot='sidebar-item-suffix'] .mr-2 {
+:dir(rtl) [data-slot="sidebar-item-suffix"] .mr-2 {
 	margin-right: 0;
 	margin-left: 0.5rem;
 }
 
-:dir(rtl) :is([data-slot='chevron'], [role^='menuitem'] *, [role='option'] *, .frappe-tree-row *).ml-auto {
+:dir(rtl)
+	:is(
+		[data-slot="chevron"],
+		[role^="menuitem"] *,
+		[role="option"] *,
+		.frappe-tree-row *
+	).ml-auto {
 	margin-left: 0;
 	margin-right: auto;
 }
