@@ -21,7 +21,7 @@
 						>
 							<template #default="{ active }">
 								<span
-									class="lucide-layout-grid size-6"
+									class="lucide-layout-dashboard size-6"
 									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
 							</template>
 						</MobileNavItem>

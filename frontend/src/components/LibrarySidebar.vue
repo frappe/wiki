@@ -248,7 +248,7 @@ const navItems = computed(() => [
 		? [
 				{
 					label: __('Overview'),
-					icon: 'lucide-layout-grid',
+					icon: 'lucide-layout-dashboard',
 					to: { name: 'Overview' },
 					routeNames: ['Overview'],
 				},

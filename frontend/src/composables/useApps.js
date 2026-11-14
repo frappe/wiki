@@ -30,7 +30,7 @@ export function useApps() {
 		return [
 			{
 				label: __('Apps'),
-				icon: 'lucide-grip',
+				icon: 'lucide-layout-grid',
 				submenu: apps.value.map((app) => ({
 					label: app.title,
 					slots: {
