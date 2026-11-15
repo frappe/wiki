@@ -128,7 +128,7 @@ test.describe('Version history', () => {
 		);
 
 		await page.goto(space.url('page', install.name));
-		await editPage(page, 'Tidy install');
+		await editPage(page);
 		await page.keyboard.type(' Then restart.');
 		// Submit joins the header once there is a change, and shifts the buttons left.
 		await expect(

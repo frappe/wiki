@@ -34,7 +34,7 @@ export async function clickSidebarAddOption(
 	await showSidebarActions(page);
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
-	await answerEditDialogIfAsked(
+	await expectDialog(
 		page,
 		option === 'New Group' ? /Create New Group/ : /External Link/,
 	);
@@ -64,45 +64,26 @@ export async function showSidebarActions(page: Page) {
 	await expect(newPageButton(page).or(edit)).toBeVisible({ timeout: 15000 });
 	if (await newPageButton(page).isVisible()) return;
 	await edit.click();
-	await startEditing(page);
 	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
 }
 
-/**
- * Start creating a page from the sidebar. Leaves the create dialog open.
- *
- * In an empty space the button opens a change request on its own; any Edit
- * dialog that still appears is answered so callers only see the create dialog.
- */
+/** Start creating a page from the sidebar. Leaves the create dialog open. */
 export async function openNewPageDialog(page: Page) {
 	await showSidebarActions(page);
 	await newPageButton(page).click();
-	await answerEditDialogIfAsked(page, /Create New (Page|Group)/);
+	await expectDialog(page, /Create New (Page|Group)/);
 }
 
-/** The "New change request" dialog Edit and every read-mode write open. */
-export function editDialog(page: Page) {
-	return page.getByRole('dialog').filter({ hasText: 'New change request' });
-}
-
-/** Name the change request in the open Edit dialog and start editing. */
-export async function startEditing(page: Page, title = 'E2E change') {
-	const dialog = editDialog(page);
-	await dialog.getByLabel('Title').fill(title);
-	await dialog.getByRole('button', { name: 'Start editing' }).click();
-	await expect(dialog).toBeHidden({ timeout: 15000 });
-}
-
-/** Click the page header's Edit and wait for the editor. */
-export async function editPage(page: Page, title = 'E2E change') {
+/** Click the page header's Edit and wait for the editor to take focus. */
+export async function editPage(page: Page) {
 	await page
 		.getByRole('main')
 		.getByRole('button', { name: 'Edit', exact: true })
 		.click();
-	await startEditing(page, title);
+	// The editor shows before its deferred autofocus runs; keys typed in between are lost.
 	await expect(
 		page.locator('.ProseMirror[contenteditable="true"]'),
-	).toBeVisible({ timeout: 15000 });
+	).toBeFocused({ timeout: 15000 });
 }
 
 /** Pick an item from a page's row menu in the sidebar tree. */
@@ -120,16 +101,11 @@ export async function openTreeRowMenuItem(
 	await page.getByRole('menuitem', { name: item }).click();
 }
 
-/**
- * After an action that may need a change request: answer the Edit dialog if it
- * appeared, or carry on once `next` (the action's own dialog) shows instead.
- */
-export async function answerEditDialogIfAsked(page: Page, next: RegExp) {
-	const nextDialog = page.getByRole('dialog').filter({ hasText: next });
-	await expect(editDialog(page).or(nextDialog)).toBeVisible({
-		timeout: 15000,
-	});
-	if (await editDialog(page).isVisible()) await startEditing(page);
+/** Read-mode actions start a change request first, so their dialog can take a moment. */
+async function expectDialog(page: Page, title: RegExp) {
+	await expect(page.getByRole('dialog').filter({ hasText: title })).toBeVisible(
+		{ timeout: 15000 },
+	);
 }
 
 /**

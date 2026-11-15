@@ -181,7 +181,7 @@ test.describe('Change Request Flow', () => {
 		await page.goto(spaceUrl);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await editPage(page, 'Update the page');
+		await editPage(page);
 
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
