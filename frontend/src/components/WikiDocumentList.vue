@@ -249,7 +249,6 @@ import { useNewPageRequest } from '@/composables/useNewPageRequest';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
-import { firstPageIn } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
@@ -324,13 +323,8 @@ const expandedNodes = useStorage(
 );
 
 const hasPages = computed(() => (props.treeData?.children?.length || 0) > 0);
-// Adding is for edit mode. Edit lives in a page's header, so a space with no
-// page to open keeps the footer for reading too.
-const showFooter = computed(
-	() =>
-		!props.readonly &&
-		(spaceStore.isEditing || !firstPageIn(props.treeData?.children)),
-);
+// Shown in read mode too: adding a page starts the change request itself.
+const showFooter = computed(() => !props.readonly && spaceStore.canEdit);
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results
 // render as a flat ranked list, not a pruned tree.
