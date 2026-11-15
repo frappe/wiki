@@ -124,7 +124,10 @@ async function mergeChangeRequest(
 ) {
 	await page.goto(spaceUrl);
 	await page.waitForLoadState('networkidle');
-	await page.getByRole('button', { name: 'Merge' }).first().click();
+	await page
+		.getByRole('button', { name: 'Merge', exact: true })
+		.first()
+		.click();
 	const dialog = page.getByRole('dialog');
 	if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await dialog.getByRole('button', { name: /Merge/ }).first().click();

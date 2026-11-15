@@ -284,7 +284,9 @@ test.describe('Explicit edit', () => {
 
 		await editPage(page);
 		await page.keyboard.type(' Fixed.');
-		await header(page).getByRole('button', { name: 'Merge' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Merge', exact: true })
+			.click();
 		await expect(page.getByText('Change request merged')).toBeVisible({
 			timeout: 15000,
 		});
@@ -329,7 +331,7 @@ test.describe('Explicit edit', () => {
 			header(page).getByRole('button', { name: 'Submit for review' }),
 		).toBeVisible({ timeout: 15000 });
 		await expect(
-			header(page).getByRole('button', { name: 'Merge' }),
+			header(page).getByRole('button', { name: 'Merge', exact: true }),
 		).toHaveCount(0);
 
 		await context.close();
@@ -643,7 +645,7 @@ test.describe('Editing a change request in review', () => {
 			header(page).getByRole('button', { name: 'Save', exact: true }),
 		).toBeVisible();
 		await expect(
-			header(page).getByRole('button', { name: 'Merge' }),
+			header(page).getByRole('button', { name: 'Merge', exact: true }),
 		).toHaveCount(0);
 		await expect
 			.poll(() => crPageContent(request, authored, alpha.doc_key), {
