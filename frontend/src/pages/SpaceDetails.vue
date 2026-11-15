@@ -68,8 +68,6 @@
             </main>
         </div>
 
-        <StartEditingDialog />
-
         <SpaceSettings
             v-model="showSpaceSettings"
             :space="spaceStore.space"
@@ -160,7 +158,6 @@ import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
-import StartEditingDialog from '../components/StartEditingDialog.vue';
 import { useMobile } from '../composables/useMobile';
 import { useNewPageRequest } from '../composables/useNewPageRequest';
 import { useSpaceSettings } from '../composables/useSpaceSettings';

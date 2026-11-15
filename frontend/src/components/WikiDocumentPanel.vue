@@ -37,6 +37,7 @@
 					<Button
 						v-if="spaceStore.isReading"
 						variant="subtle"
+						:loading="startingEdit"
 						@click="editPage"
 						@mouseenter="loadEditor"
 						@focus="loadEditor"
@@ -306,7 +307,7 @@ const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { recordVisit } = useRecentPages();
-const { request: startEditingRequest, requireEditing } = useStartEditing();
+const { starting: startingEdit, requireEditing } = useStartEditing();
 const { isMobile } = useMobile();
 
 const isEditing = computed(() => spaceStore.isEditing);
@@ -325,32 +326,23 @@ function loadEditor() {
 const WikiEditor = defineAsyncComponent(loadEditor);
 
 watch(
-	[isEditing, startEditingRequest],
-	([editing, request]) => {
-		if (editing || request) loadEditor();
+	[isEditing, startingEdit],
+	([editing, starting]) => {
+		if (editing || starting) loadEditor();
 	},
 	{ immediate: true },
 );
 
 async function editPage() {
-	// Set before the dialog closes: the editor often mounts while it is still leaving.
+	// Set before starting: the editor mounts as soon as the draft hydrates, before requireEditing resolves.
 	focusEditor.value = true;
-	if (!(await requireEditing())) {
+	const title = __('Edit {0} in {1}', [displayTitle.value, spaceStore.doc?.space_name]);
+	if (!(await requireEditing(title))) {
 		focusEditor.value = false;
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
 }
-
-watch(
-	[() => route.query.edit, () => spaceStore.canContribute],
-	([edit, mayContribute]) => {
-		if (!edit || mayContribute === null) return;
-		router.replace({ query: { ...route.query, edit: undefined } });
-		editPage();
-	},
-	{ immediate: true },
-);
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -515,6 +507,16 @@ const displayTitle = computed(() => {
 		''
 	);
 });
+
+watch(
+	[() => route.query.edit, () => spaceStore.canContribute, displayTitle],
+	([edit, mayContribute, title]) => {
+		if (!edit || mayContribute === null || !title) return;
+		router.replace({ query: { ...route.query, edit: undefined } });
+		editPage();
+	},
+	{ immediate: true },
+);
 
 const displayPublished = computed(() => {
 	if (activePage.value?.isPublished != null) {

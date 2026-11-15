@@ -87,7 +87,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(() => openCreateDialog(rootNode, false))">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(__('New page in {0}', [spaceName]), () => openCreateDialog(rootNode, false))">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -309,10 +309,12 @@ const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { requireEditing } = useStartEditing();
 
-// In read mode, creating anything asks for a change request first.
-async function whenEditing(action) {
-	if (await requireEditing()) action();
+// In read mode, creating anything starts a change request first.
+async function whenEditing(title, action) {
+	if (await requireEditing(title)) action();
 }
+
+const spaceName = computed(() => spaceStore.doc?.space_name);
 
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
 // parent group after a create is actually visible in the tree.
@@ -443,7 +445,9 @@ watch(
 	(requested) => {
 		if (!requested || props.readonly) return;
 		if (consumeNewPageRequest()) {
-			whenEditing(() => openCreateDialog(props.rootNode, false));
+			whenEditing(__('New page in {0}', [spaceName.value]), () =>
+				openCreateDialog(props.rootNode, false),
+			);
 		}
 	},
 	{ immediate: true },
@@ -454,12 +458,18 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () => whenEditing(() => openCreateDialog(props.rootNode, true)),
+		onClick: () =>
+			whenEditing(__('New group in {0}', [spaceName.value]), () =>
+				openCreateDialog(props.rootNode, true),
+			),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () => whenEditing(() => openExternalLinkDialog(props.rootNode)),
+		onClick: () =>
+			whenEditing(__('New link in {0}', [spaceName.value]), () =>
+				openExternalLinkDialog(props.rootNode),
+			),
 	},
 ];
 
