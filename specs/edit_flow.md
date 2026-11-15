@@ -140,7 +140,7 @@ Cost: a page's history query reads at most one row per main revision of the spac
 
 ## Decisions
 
-1. **Title first, not on submit.** The prototype had both variants. Start-first wins: Edit is the moment of intent, the title tells reviewers and other authors (Part 3) what is in flight from the start, and it removes the untitled drafts.
+1. **Title first, not on submit.** The prototype had both variants. Start-first wins: Edit is the moment of intent, the title tells reviewers and other authors (Part 3) what is in flight from the start, and it removes the untitled drafts. Reversed in `edit_without_dialog.md`: users found naming a change before making it to be friction.
 2. **One editable change request per user per space.** Same as today. The draft store, IndexedDB drafts and the strip all assume one current change request. Several parallel drafts per space is a separate feature.
 3. **Read mode shows the live page, not the draft.** In Editing you see your draft in the editor. Reading never mixes in draft content, so it can use the cached HTML.
 4. **Others' drafts stay hidden.** Only submitted work is public in the change requests panel. Submitted work is readable by every space reader, the review page included. Draft and Archived change requests are readable only by their author and managers.
