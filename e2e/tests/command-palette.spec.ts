@@ -232,8 +232,8 @@ test.describe('Command Palette', () => {
 
 		await openPalette();
 		await palette.getByRole('combobox').fill('light');
-		await expect(option('Theme: Light')).toBeVisible();
-		await page.keyboard.press('Enter');
+		// Pages titled "...Highlight..." can rank above it, so Enter is only tested with "dark".
+		await option('Theme: Light').click();
 		await expect(html).toHaveAttribute('data-theme', 'light');
 	});
 });
