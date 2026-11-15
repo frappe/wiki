@@ -35,3 +35,14 @@ Empty drafts left by an Edit with no changes stay out of other users' sight. The
    - Playwright: Edit opens the editor with no dialog and the draft is titled `Edit <page> in <space>`. `?edit=1` does the same. New page in Reading creates `New page in <space>`. Submit shows the placeholder, takes a new title and description, and the submitted change request has both.
 
 ## Progress
+
+### Tracer bullet 1 (2026-11-16)
+
+- Edit, `?edit=1` and the tree's New page, New group and External link start the draft with `get_or_create_draft_change_request` and a placeholder. `StartEditingDialog` is gone.
+- `?edit=1` waits for the page title, so the placeholder never misses the page name.
+- Submit for review shows Title and Description, prefilled from the draft. The title is required. Both are saved only when changed.
+- No backend change. Other users never see drafts, so empty ones from an Edit with no changes stay private.
+
+Tests: `edit-flow` covers the placeholder after Edit and `?edit=1`, and Submit renaming the change request with a description. `space-empty-new-page` checks `New page in <space>`. The `editPage` helper now waits for the editor to take focus: the editor shows before TipTap's deferred autofocus, and keys typed in between were lost. Full suite: 281 passed, 3 failed. The 3 are fixed below and their specs pass on rerun.
+
+Fixed on the way: Merge locators match exactly, because a placeholder holding a space name such as `e2e-cr-merge-nav-…` also matched `Merge`. `command-palette` "sets the theme named in the query" failed on develop too: leftover local pages titled "…Highlight…" outrank "Theme: Light", so the test clicks that option.
