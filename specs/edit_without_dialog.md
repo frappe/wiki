@@ -20,6 +20,8 @@ Placeholders (space "Frappe HR Docs", page "Leave Policy"):
 
 Reorder is only possible in Editing, so it never starts a change request and needs no placeholder.
 
+The sidebar's New page button and its group and link menu show in Reading too, for anyone who can edit. Before, they showed in Editing only, or in an empty space.
+
 ## How
 
 - `useStartEditing().requireEditing(title)` calls `get_or_create_draft_change_request(wiki_space, title)`. That method already reuses the user's open draft in the space and archives a stale empty one, so Edit never piles up drafts. No backend change.
@@ -46,3 +48,10 @@ Empty drafts left by an Edit with no changes stay out of other users' sight. The
 Tests: `edit-flow` covers the placeholder after Edit and `?edit=1`, and Submit renaming the change request with a description. `space-empty-new-page` checks `New page in <space>`. The `editPage` helper now waits for the editor to take focus: the editor shows before TipTap's deferred autofocus, and keys typed in between were lost. Full suite: 281 passed, 3 failed. The 3 are fixed below and their specs pass on rerun.
 
 Fixed on the way: Merge locators match exactly, because a placeholder holding a space name such as `e2e-cr-merge-nav-…` also matched `Merge`. `command-palette` "sets the theme named in the query" failed on develop too: leftover local pages titled "…Highlight…" outrank "Theme: Light", so the test clicks that option.
+
+### New page in Reading (2026-11-16)
+
+- The sidebar footer (New page, New group, External link) shows whenever the user can edit, not only in Editing. Adding starts the draft as `New page in <space>` (or group or link).
+- e2e: `showSidebarActions` waits for Edit or an edit-mode row, since New page no longer tells the two modes apart. `openNewPageDialog` clicks New page straight from read mode. `edit-flow` "New page in read mode starts a change request named after the space" is new. `contributions-disabled` now expects New page in the sidebar.
+
+Full suite: 283 passed, 2 failed. One was `contributions-disabled`, which still expected no New page in Reading (fixed). The other, `telemetry`, timed out on a lock while deleting its space in teardown and passed on rerun.
