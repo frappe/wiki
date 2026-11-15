@@ -213,7 +213,6 @@ test.describe('Explicit edit', () => {
 		await expect(
 			aside.locator('[role="treeitem"] .lucide-more-horizontal'),
 		).toHaveCount(0);
-		await expect(newPageButton(page)).toHaveCount(0);
 
 		await editPage(page);
 		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
@@ -227,6 +226,35 @@ test.describe('Explicit edit', () => {
 		const [changeRequest] = await changeRequestsIn(request, space.name);
 		expect(changeRequest).toMatchObject({
 			title: `Edit Alpha in ${space.space_name}`,
+			status: 'Draft',
+		});
+	});
+
+	test('New page in read mode starts a change request named after the space', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await page.goto(space.url('page', space.page('Alpha').name));
+
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible({ timeout: 15000 });
+		await newPageButton(page).click();
+		const create = page
+			.getByRole('dialog')
+			.filter({ hasText: 'Create New Page' });
+		await create.getByLabel('Title').fill('Gamma');
+		await create.getByRole('button', { name: 'Save' }).click();
+
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
+		await expect(
+			page.locator('aside').getByText('Gamma', { exact: true }),
+		).toBeVisible();
+		const [changeRequest] = await changeRequestsIn(request, space.name);
+		expect(changeRequest).toMatchObject({
+			title: `New page in ${space.space_name}`,
 			status: 'Draft',
 		});
 	});

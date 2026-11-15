@@ -31,7 +31,7 @@ export async function clickSidebarAddOption(
 		await openNewPageDialog(page);
 		return;
 	}
-	await showSidebarActions(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
 	await expectDialog(
@@ -41,10 +41,10 @@ export async function clickSidebarAddOption(
 }
 
 /**
- * The sidebar's own "New page" button: shown in edit mode, and in read mode
- * only while the space has no pages. Scoped to the sidebar: an empty space draws a second
- * "New page" in the content column (spec 02 phase 5), so the name alone is
- * ambiguous there. The mobile tree lives in a drawer that is an aside too.
+ * The sidebar's own "New page" button, shown to anyone who can edit. Scoped to
+ * the sidebar: an empty space draws a second "New page" in the content column
+ * (spec 02 phase 5), so the name alone is ambiguous there. The mobile tree
+ * lives in a drawer that is an aside too.
  */
 export function newPageButton(page: Page) {
 	return page
@@ -53,23 +53,19 @@ export function newPageButton(page: Page) {
 		.first();
 }
 
-/**
- * The sidebar's add and row actions show only in edit mode, so a space with
- * pages is put into edit mode through the page header first.
- */
+/** Row actions show only in edit mode; a space in read mode gets there through Edit. */
 export async function showSidebarActions(page: Page) {
 	const edit = page
 		.getByRole('main')
 		.getByRole('button', { name: 'Edit', exact: true });
-	await expect(newPageButton(page).or(edit)).toBeVisible({ timeout: 15000 });
-	if (await newPageButton(page).isVisible()) return;
-	await edit.click();
-	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
+	const editModeRow = page.locator('aside [draggable="true"]').first();
+	await expect(edit.or(editModeRow)).toBeVisible({ timeout: 15000 });
+	if (await edit.isVisible()) await editPage(page);
 }
 
 /** Start creating a page from the sidebar. Leaves the create dialog open. */
 export async function openNewPageDialog(page: Page) {
-	await showSidebarActions(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
 	await newPageButton(page).click();
 	await expectDialog(page, /Create New (Page|Group)/);
 }
