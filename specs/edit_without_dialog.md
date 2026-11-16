@@ -62,3 +62,5 @@ Full suite: 283 passed, 2 failed. One was `contributions-disabled`, which still 
 - e2e: the `edit-flow` read mode test now cancels first and checks that no change request exists. `space-empty-new-page` looks for the draft card after Save. `pending-delete-visible` waits for the draft route to get its real key before it navigates away, because the create now runs after the change request starts.
 
 Tests: the 19 specs that create from the tree, 92 tests: 90 passed, 2 failed. Both are fixed above. Then `edit-flow`, `space-empty-new-page` and `pending-delete-visible` with `--repeat-each=2`: 43 passed.
+
+CI then failed in every spec that uses `createDraftAndOpenEditor`. The helper checked `editor.isVisible({ timeout: 5000 })`, but `isVisible` ignores the timeout and answers at once. The editor used to appear in time anyway. Now Save waits for the change request first, so the helper saw no editor, reloaded, and cancelled the save. The helper now waits for the draft route and uses `waitFor` for the editor. Full suite: 285 passed.
