@@ -155,7 +155,7 @@ The draft in IndexedDB now uses the permanent key from the start, so a browser r
 
 Every structural and metadata change is written to IndexedDB before it is sent. Entries sit in the `wiki-drafts` store as `log:<change request>:<op id>`. The write starts in the same tick as the UI update, and the flusher waits for it before it sends.
 
-**Content stays out of the log.** The draft store already holds it durably, it is coalesced to the latest text, and bullet 1 guards it. The log carries `create_node`, `update_node`, `delete_node`, `restore_node` and `move_node`. A move entry sends its `reorder_children` from the tree at send time, as before.
+**Content stays out of the log.** The draft store already holds it durably, it is coalesced to the latest text, and bullet 1 guards it. A content save that fails on the network, or on a server error the log would retry, is sent again with every other unsaved page, using the log's backoff. Without this, typing done offline stayed on Sync failed until the user typed on that page again. The log carries `create_node`, `update_node`, `delete_node`, `restore_node` and `move_node`. A move entry sends its `reorder_children` from the tree at send time, as before.
 
 `operationLog.js` replaces `moveScheduler.js`. `operationQueue.js` stays as the in-memory list the UI reads, and a log entry is a mutation in it. One batch goes out at a time:
 
