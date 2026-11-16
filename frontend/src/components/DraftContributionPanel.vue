@@ -327,11 +327,12 @@ function onEditorContentReady(content, savedContent, docKey = props.docKey) {
 	draftStore.reconcileEditorContent(docKey, content, savedContent);
 }
 
-// Follows the stored title only when it or the page changes, so typing in
-// the title is never reset by a content save.
+// Follows the stored title only when it or the page changes, and skips the
+// trimmed echo of a save from this input so a trailing space survives.
 watch(
 	[() => props.docKey, () => node.value?.title],
 	([, title]) => {
+		if (editableTitle.value.trim() === title) return;
 		editableTitle.value = title || '';
 	},
 	{ immediate: true },

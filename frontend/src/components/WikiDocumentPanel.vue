@@ -611,9 +611,11 @@ usePageMeta(() => {
 	return { title: [title, space?.doc?.space_name].filter(Boolean).join(' | ') };
 });
 
+// Skips the trimmed echo of a save from this input so a trailing space survives.
 watch(
 	displayTitle,
 	(newTitle) => {
+		if (editableTitle.value.trim() === newTitle) return;
 		editableTitle.value = newTitle;
 	},
 	{ immediate: true },
