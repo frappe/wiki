@@ -163,11 +163,16 @@ export async function createDraftAndOpenEditor(
 	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
+	// Save starts the change request first, so the draft route can take a moment.
+	await page.waitForURL(/\/draft\//, { timeout: 15000 });
 
 	const editor = page.locator('.ProseMirror').first();
 	for (let attempt = 0; attempt < 3; attempt++) {
-		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) break;
+		const shown = await editor
+			.waitFor({ state: 'visible', timeout: 5000 })
+			.then(() => true)
+			.catch(() => false);
+		if (shown) break;
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 		await page
