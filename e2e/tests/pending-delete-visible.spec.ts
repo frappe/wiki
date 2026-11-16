@@ -109,12 +109,12 @@ test.describe('Pending deletion stays visible', () => {
 			`${CR_METHOD}.get_cr_tree`,
 			{ name: cr.name },
 		);
-		await callMethod(request, `${CR_METHOD}.create_cr_page`, {
-			name: cr.name,
-			parent_key: tree.root_group,
-			title: 'Scratch',
-		});
-		await page.goto(space.url('page', space.page('Alpha').name));
+		const scratchKey = await callMethod<string>(
+			request,
+			`${CR_METHOD}.create_cr_page`,
+			{ name: cr.name, parent_key: tree.root_group, title: 'Scratch' },
+		);
+		await page.goto(space.url('draft', scratchKey));
 		const sidebar = page.locator('aside');
 		await expect(sidebar.getByText('Scratch', { exact: true })).toBeVisible({
 			timeout: 15000,
@@ -126,6 +126,9 @@ test.describe('Pending deletion stays visible', () => {
 			.getByRole('button', { name: /Delete/ })
 			.click();
 		await expect(sidebar.getByText('Scratch', { exact: true })).toHaveCount(0);
+		await expect(page).toHaveURL(
+			new RegExp(`/page/${space.page('Alpha').name}$`),
+		);
 
 		await page.reload();
 		await expect(sidebar.getByText('Alpha', { exact: true })).toBeVisible({
