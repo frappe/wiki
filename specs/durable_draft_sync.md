@@ -167,6 +167,8 @@ Every structural and metadata change is written to IndexedDB before it is sent. 
 
 Store methods keep returning promises that settle on acknowledgement, so callers do not change. Offline, that promise stays pending and the sync pill says "Saving…". A dialog that waits on one, such as Change route, stays open until the network is back.
 
+The tree's Create, Delete, Change Title and external link dialogs close before they send, so they no longer show a loading state at all. They used one shared flag per dialog kind that stayed on until the server answered, so offline the next dialog of that kind opened with a disabled, spinning button. The end to end tour found this.
+
 A move replays by its index. If queued moves of two pages were coalesced and the tab reloaded inside that window, siblings can land in a slightly different order. The server gets what the tree shows, so nothing diverges.
 
 A lost reply on a tree change leaves the client's `structure_version` behind, and bullet 1 would then report a false conflict on the next move. A retried batch therefore refetches the tree when it lands.
