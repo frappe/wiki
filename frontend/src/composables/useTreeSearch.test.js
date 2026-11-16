@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import fuzzysort from 'fuzzysort';
-import { filterTree, highlightSegments } from './useTreeSearch.js';
+import { MAX_RESULTS, filterTree, highlightSegments } from './useTreeSearch.js';
 
 const has = (matches, key) => matches.some((node) => node.doc_key === key);
 
@@ -200,4 +200,14 @@ test("a group's name does not drag its whole subtree into the results", () => {
 	assert.ok(has(matches, 'g1'), 'the group itself matches');
 	assert.equal(has(matches, 'p1'), false, 'a page under it does not');
 	assert.equal(has(matches, 'p2'), false, 'nor its sibling');
+});
+
+test('a broad query renders at most MAX_RESULTS rows', () => {
+	const pages = Array.from({ length: MAX_RESULTS + 30 }, (_, i) => ({
+		doc_key: `p${i}`,
+		title: `Page ${i}`,
+		route: `page-${i}`,
+		children: [],
+	}));
+	assert.equal(filterTree(pages, 'page').matches.length, MAX_RESULTS);
 });

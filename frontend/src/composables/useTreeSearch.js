@@ -33,8 +33,12 @@ export function useTreeSearch(treeData) {
 const TITLE_THRESHOLD = 0.3;
 const SLUG_THRESHOLD = 0.5;
 
+// Each result is a full tree row, and a short query in a large space matches
+// nearly every page: rendering a thousand rows blocked typing for a second.
+export const MAX_RESULTS = 50;
+
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
-// blank (meaning "not searching, render the full tree"), otherwise the flat
+// blank (meaning "not searching, render the full tree"), otherwise the top
 // matches in rank order plus the score map the renderer highlights from.
 export function filterTree(children, query) {
 	const q = (query || '').trim();
@@ -59,7 +63,7 @@ export function filterTree(children, query) {
 
 	const score = new Map(); // doc_key -> result ([0]=title, [1]=route)
 	const matches = []; // rank-ordered rows
-	for (const hit of hits) {
+	for (const hit of hits.slice(0, MAX_RESULTS)) {
 		const { node } = hit.obj;
 		score.set(node.doc_key, hit);
 		// One row per hit: a match's own children are not results, and keeping
