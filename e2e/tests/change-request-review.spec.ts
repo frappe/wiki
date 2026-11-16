@@ -176,9 +176,19 @@ test.describe('Change request review', () => {
 		await expect(page.getByText('0/1 resolved')).toBeVisible();
 		await expect(resolveAndMerge).toBeDisabled();
 
-		await page.getByRole('main').getByText('Shared').first().click();
-		await page.getByRole('checkbox', { name: 'Keep Main' }).check();
+		const card = page.getByRole('button', { name: /Shared/ });
+		await card.focus();
+		await page.keyboard.press('Enter');
+		await expect(card).toHaveAttribute('aria-expanded', 'true');
+		const keepMain = page.getByRole('radio', { name: 'Keep main' });
+		await expect(keepMain).not.toBeChecked();
+		await expect(
+			page.getByRole('radio', { name: 'Keep this change request' }),
+		).not.toBeChecked();
+		await keepMain.click();
+		await expect(keepMain).toBeChecked();
 		await expect(page.getByText('1/1 resolved')).toBeVisible();
+		await expect(page.getByText('Ready to merge')).toBeVisible();
 		await resolveAndMerge.click();
 		await expect(
 			page.locator('text=Change request merged').first(),
