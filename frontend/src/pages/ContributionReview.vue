@@ -519,6 +519,14 @@ const canReview = computed(() => {
 	);
 });
 
+// Open conflicts outlive the failed merge that found them.
+watch(
+	() => canReview.value && changeRequest.doc?.status === 'Approved',
+	(approved) => {
+		if (approved) fetchConflicts();
+	},
+);
+
 // Withdraw pulls an in-review CR back to Draft for the author to keep editing.
 // Once Changes Requested the CR is already editable, so there is nothing to
 // withdraw — the author just edits and resubmits.
