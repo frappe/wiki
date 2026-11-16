@@ -256,7 +256,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 			applyServerTree(serverTree);
 			if (log.hasHeld()) transport.flagStructureConflict(crName.value);
-			await restorePersistedDrafts(drafts);
+			const restored = await restorePersistedDrafts(drafts);
 			if (run !== latestHydrate) return;
 			// After the restore: an open editor mounts on a seeded page, and would
 			// report its empty text over the draft.
@@ -264,6 +264,11 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				if (type === 'create_node') seedCreatedPage(payload);
 			}
 			log.start();
+			// Typing a reload cut off before its autosave goes out now.
+			for (const docKey of restored) {
+				const content = pageBuffers.get(docKey)?.localContent;
+				if (content != null) saveContent(docKey, content).catch(() => {});
+			}
 		})();
 
 		try {
@@ -300,14 +305,15 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 
 	// Read any drafts persisted to IndexedDB for the current CR and
 	// reseed `pagesByKey` with them so the editor opens on the user's
-	// last in-progress text. Each restored entry is marked dirty so the
-	// banner shows "Unsaved changes" and Submit/merge stay gated until
-	// it's saved (or reverted via undo).
+	// last in-progress text. Each restored entry is marked dirty, which gates
+	// Submit/merge until it saves. Returns the keys that are safe to save:
+	// a page changed elsewhere waits for Reload latest instead.
 	//
 	// The log has already been replayed, so an entry with no tree node is an
 	// orphan from a deleted page or a rejected create, and is dropped.
 	async function restorePersistedDrafts(drafts) {
-		if (!crName.value || !drafts.length) return;
+		if (!crName.value || !drafts.length) return [];
+		const restored = [];
 		await Promise.all(
 			drafts.map(async (draft) => {
 				const { docKey, content } = draft;
@@ -371,9 +377,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				}
 				if (changedElsewhere) {
 					transport.flagPageConflict(crName.value, docKey);
+				} else {
+					restored.push(docKey);
 				}
 			}),
 		);
+		return restored;
 	}
 
 	async function reloadTree() {
