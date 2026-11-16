@@ -185,9 +185,10 @@ export const SLASH_COMMANDS = [
 		},
 	},
 	{
-		title: 'Warning',
+		title: 'Caution',
 		icon: 'lucide-triangle-alert',
 		group: 'Callouts',
+		keywords: ['warning'],
 		command: ({ editor, range }) => {
 			editor
 				.chain()
