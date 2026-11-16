@@ -15,6 +15,7 @@ export function useTreeDialogs(
 	expandedNodes,
 	spaceRoute,
 	spaceRootNode,
+	ensureEditing = async () => true,
 ) {
 	const draftStore = useDraftWorkspaceStore();
 	const router = useRouter();
@@ -159,11 +160,11 @@ export function useTreeDialogs(
 		const isGroup = createIsGroup.value;
 		const route = createRoute.value.trim() || derivedRoute();
 
-		if (parentKey) expandedNodes.value[parentKey] = true;
-		close();
-
 		isCreating.value = true;
 		try {
+			if (!(await ensureEditing(isGroup ? 'group' : 'page'))) return;
+			if (parentKey) expandedNodes.value[parentKey] = true;
+			close();
 			const { tempKey, promise } = draftStore.createNode({
 				parentKey,
 				title,
@@ -261,11 +262,12 @@ export function useTreeDialogs(
 		}
 
 		const parentKey = externalLinkParent.value;
-		if (parentKey) expandedNodes.value[parentKey] = true;
-		close();
 
 		isCreating.value = true;
 		try {
+			if (!(await ensureEditing('link'))) return;
+			if (parentKey) expandedNodes.value[parentKey] = true;
+			close();
 			const { promise } = draftStore.createNode({
 				parentKey,
 				title,

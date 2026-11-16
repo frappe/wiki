@@ -87,7 +87,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(__('New page in {0}', [spaceName]), () => openCreateDialog(rootNode, false))">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -308,12 +308,17 @@ const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { requireEditing } = useStartEditing();
 
-// In read mode, creating anything starts a change request first.
-async function whenEditing(title, action) {
-	if (await requireEditing(title)) action();
-}
-
 const spaceName = computed(() => spaceStore.doc?.space_name);
+
+// In read mode, saving a new page, group or link starts the change request.
+function ensureEditing(kind) {
+	const titles = {
+		page: () => __('New page in {0}', [spaceName.value]),
+		group: () => __('New group in {0}', [spaceName.value]),
+		link: () => __('New link in {0}', [spaceName.value]),
+	};
+	return requireEditing(titles[kind]());
+}
 
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
 // parent group after a create is actually visible in the tree.
@@ -323,7 +328,7 @@ const expandedNodes = useStorage(
 );
 
 const hasPages = computed(() => (props.treeData?.children?.length || 0) > 0);
-// Shown in read mode too: adding a page starts the change request itself.
+// Shown in read mode too: saving a new page starts the change request.
 const showFooter = computed(() => !props.readonly && spaceStore.canEdit);
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results
@@ -425,6 +430,7 @@ const {
 	expandedNodes,
 	toRef(props, 'spaceRoute'),
 	toRef(props, 'rootNode'),
+	ensureEditing,
 );
 
 // The empty content column offers "New page" too, but the dialog that makes one
@@ -439,9 +445,7 @@ watch(
 	(requested) => {
 		if (!requested || props.readonly) return;
 		if (consumeNewPageRequest()) {
-			whenEditing(__('New page in {0}', [spaceName.value]), () =>
-				openCreateDialog(props.rootNode, false),
-			);
+			openCreateDialog(props.rootNode, false);
 		}
 	},
 	{ immediate: true },
@@ -452,18 +456,12 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () =>
-			whenEditing(__('New group in {0}', [spaceName.value]), () =>
-				openCreateDialog(props.rootNode, true),
-			),
+		onClick: () => openCreateDialog(props.rootNode, true),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () =>
-			whenEditing(__('New link in {0}', [spaceName.value]), () =>
-				openExternalLinkDialog(props.rootNode),
-			),
+		onClick: () => openExternalLinkDialog(props.rootNode),
 	},
 ];
 
