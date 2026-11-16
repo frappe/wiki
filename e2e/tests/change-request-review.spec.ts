@@ -159,6 +159,38 @@ test.describe('Change request review', () => {
 		await expect(diff.locator('ins').last()).toContainText('Again');
 	});
 
+	test('reviewing the first pages of an empty space offers no New page', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+		const changeRequest = await wiki.changeRequest(space, 'First pages');
+		const tree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD}.get_cr_tree`,
+			{ name: changeRequest.name },
+		);
+		await callMethod(request, `${CR_METHOD}.create_cr_page`, {
+			name: changeRequest.name,
+			parent_key: tree.root_group,
+			title: 'Welcome',
+		});
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: changeRequest.name,
+		});
+
+		await page.goto(space.url('change-requests', changeRequest.name));
+		const sidebar = page.locator('aside');
+		await expect(sidebar.getByText('No pages are published yet')).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(sidebar.getByText('Create your first page')).toHaveCount(0);
+		await expect(sidebar.getByRole('button', { name: 'New page' })).toHaveCount(
+			0,
+		);
+	});
+
 	test('merge conflicts start with no choice made', async ({
 		page,
 		request,
