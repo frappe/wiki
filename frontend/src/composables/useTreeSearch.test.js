@@ -202,14 +202,12 @@ test("a group's name does not drag its whole subtree into the results", () => {
 	assert.equal(has(matches, 'p2'), false, 'nor its sibling');
 });
 
-test('a broad query renders at most MAX_RESULTS rows and reports the total', () => {
+test('a broad query renders at most MAX_RESULTS rows', () => {
 	const pages = Array.from({ length: MAX_RESULTS + 30 }, (_, i) => ({
 		doc_key: `p${i}`,
 		title: `Page ${i}`,
 		route: `page-${i}`,
 		children: [],
 	}));
-	const result = filterTree(pages, 'page');
-	assert.equal(result.matches.length, MAX_RESULTS);
-	assert.equal(result.total, MAX_RESULTS + 30);
+	assert.equal(filterTree(pages, 'page').matches.length, MAX_RESULTS);
 });

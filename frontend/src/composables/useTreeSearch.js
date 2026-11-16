@@ -21,7 +21,6 @@ export function useTreeSearch(treeData) {
 		hasResults: computed(
 			() => !result.value || result.value.matches.length > 0,
 		),
-		totalMatches: computed(() => result.value?.total || 0),
 		scoreMap: computed(() => result.value?.score || null),
 	};
 }
@@ -40,8 +39,7 @@ export const MAX_RESULTS = 50;
 
 // Pure core (no Vue) so it's unit-testable. Returns null when the query is
 // blank (meaning "not searching, render the full tree"), otherwise the top
-// matches in rank order, their total, and the score map the renderer
-// highlights from.
+// matches in rank order plus the score map the renderer highlights from.
 export function filterTree(children, query) {
 	const q = (query || '').trim();
 	if (!q) return null;
@@ -73,7 +71,7 @@ export function filterTree(children, query) {
 		matches.push({ ...node, children: [] });
 	}
 
-	return { matches, score, total: hits.length };
+	return { matches, score };
 }
 
 // Split a fuzzysort result into { text, matched } segments for rendering.

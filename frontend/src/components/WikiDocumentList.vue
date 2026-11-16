@@ -65,12 +65,6 @@
 				@reveal-group="revealGroup"
 				@drag-state-change="handleDragStateChange"
 			/>
-			<p
-				v-if="isSearching && totalMatches > matches.length"
-				class="px-1.5 py-3 text-sm text-ink-gray-5"
-			>
-				{{ __('Showing {0} of {1} pages. Keep typing to narrow it down.', [matches.length, totalMatches]) }}
-			</p>
 		</ScrollArea>
 
 		<!-- New page is the one thing this column is asked for constantly, so it
@@ -343,7 +337,6 @@ const {
 	isSearching,
 	matches,
 	hasResults,
-	totalMatches,
 	scoreMap,
 } = useTreeSearch(toRef(props, 'treeData'));
 
