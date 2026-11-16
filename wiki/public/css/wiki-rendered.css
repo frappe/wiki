@@ -10,6 +10,11 @@
   font-family: var(--font-sans);
 }
 
+/* prose-v3 resets the quote's italic and color but keeps prose's weight 500. */
+.wiki-rendered blockquote {
+  font-weight: inherit;
+}
+
 /* Blank lines the author left between blocks. prose-v3 zeroes paragraph margins,
    so vertical rhythm is carried by empty paragraphs; markdown.py materialises
    them as <p class="wiki-blank-line"><br></p>. 20px matches the SPA read-only
