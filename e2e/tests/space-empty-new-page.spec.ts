@@ -5,8 +5,8 @@ import { expect, test } from '../fixtures';
  * one lives in the tree, in the sidebar — a sibling column, not an ancestor —
  * so the button hands its request to a module-scoped flag the tree consumes.
  * This exercises that hand-off end to end: press the button in <main>, get the
- * tree's dialog under a "New page in <space>" change request opened without asking,
- * and land in the editor on the page it made.
+ * tree's dialog, save it under a "New page in <space>" change request opened
+ * without asking, and land in the editor on the page it made.
  */
 test.describe('Empty space — New page from the content column', () => {
 	test('creates the first page and opens it in the editor', async ({
@@ -30,17 +30,17 @@ test.describe('Empty space — New page from the content column', () => {
 		const title = `First Page ${Date.now()}`;
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toContainText('Create New Page');
-		await expect(
-			page
-				.locator('aside')
-				.getByText(`New page in ${space.space_name}`, { exact: true }),
-		).toBeVisible();
 		await dialog.getByLabel('Title').fill(title);
 		await dialog.getByRole('button', { name: 'Save' }).click();
 
 		// A created page is a change request entry until it merges, so it opens
 		// on the draft route rather than /page/.
 		await page.waitForURL(/\/draft\//, { timeout: 15000 });
+		await expect(
+			page
+				.locator('aside')
+				.getByText(`New page in ${space.space_name}`, { exact: true }),
+		).toBeVisible();
 		await expect(
 			page.locator('aside').getByText(title, { exact: false }),
 		).toBeVisible({ timeout: 15000 });

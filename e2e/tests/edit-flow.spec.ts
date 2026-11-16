@@ -230,21 +230,30 @@ test.describe('Explicit edit', () => {
 		});
 	});
 
-	test('New page in read mode starts a change request named after the space', async ({
+	test('New page in read mode starts a change request on Save, not on open', async ({
 		page,
 		request,
 		wiki,
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
-
-		await expect(
-			header(page).getByRole('button', { name: 'Edit', exact: true }),
-		).toBeVisible({ timeout: 15000 });
-		await newPageButton(page).click();
+		const edit = header(page).getByRole('button', {
+			name: 'Edit',
+			exact: true,
+		});
 		const create = page
 			.getByRole('dialog')
 			.filter({ hasText: 'Create New Page' });
+
+		await expect(edit).toBeVisible({ timeout: 15000 });
+		await newPageButton(page).click();
+		await expect(create).toBeVisible();
+		await create.getByRole('button', { name: 'Cancel' }).click();
+		await expect(create).toBeHidden();
+		await expect(edit).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
+
+		await newPageButton(page).click();
 		await create.getByLabel('Title').fill('Gamma');
 		await create.getByRole('button', { name: 'Save' }).click();
 
