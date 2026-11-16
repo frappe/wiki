@@ -1,6 +1,11 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
-import { callMethod, failMethod, saveEditor } from '../helpers';
+import {
+	callMethod,
+	failMethod,
+	openTreeRowMenuItem,
+	saveEditor,
+} from '../helpers';
 import type { WikiFactory } from '../helpers/factory';
 
 const CR_METHOD =
@@ -169,6 +174,28 @@ test.describe('Durable operation log', () => {
 			)
 			.toBe(true);
 		await expectLogDrained(page);
+	});
+
+	test('offline, a second rename from the tree is not held by the first', async ({
+		page,
+		wiki,
+	}) => {
+		await openDraft(page, wiki);
+		await goOffline(page);
+		const aside = page.locator('aside');
+
+		for (const title of ['Beta', 'Alpha']) {
+			await openTreeRowMenuItem(page, title, 'Change Title');
+			const dialog = page
+				.getByRole('dialog')
+				.filter({ hasText: 'Change Title' });
+			await dialog.getByLabel('Title').fill(`${title} offline`);
+			await dialog.getByRole('button', { name: 'Save' }).click();
+			await expect(dialog).toHaveCount(0);
+			await expect(
+				aside.getByText(`${title} offline`, { exact: true }),
+			).toBeVisible();
+		}
 	});
 
 	test('an offline create keeps its page and text through a reload', async ({
