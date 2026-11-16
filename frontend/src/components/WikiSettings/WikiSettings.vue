@@ -82,7 +82,7 @@ const open = computed({
 const settings = createDocumentResource({
 	doctype: 'Wiki Settings',
 	name: 'Wiki Settings',
-	auto: true,
+	auto: false,
 });
 
 watch(
@@ -90,6 +90,7 @@ watch(
 	(isOpen) => {
 		if (isOpen) settings.reload();
 	},
+	{ immediate: true },
 );
 
 const tabs = [
