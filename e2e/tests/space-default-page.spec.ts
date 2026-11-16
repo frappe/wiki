@@ -48,6 +48,28 @@ test.describe('Space default page', () => {
 		});
 	});
 
+	test('skips an external link to open the first page', async ({
+		page,
+		wiki,
+	}) => {
+		const linked = await wiki.space({
+			pages: [
+				{
+					title: 'Docs Site',
+					is_external_link: 1,
+					external_url: 'https://example.com',
+				},
+				{ title: 'Alpha Page' },
+			],
+		});
+
+		await page.goto(linked.url());
+		await page.waitForURL(
+			`**/spaces/${linked.name}/page/${linked.page('Alpha Page').name}`,
+			{ timeout: 15000 },
+		);
+	});
+
 	test('stays on the welcome screen when the space has no pages', async ({
 		page,
 	}) => {
