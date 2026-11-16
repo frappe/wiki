@@ -315,6 +315,31 @@ test.describe('Draft version conflict', () => {
 		expect(await savedContent(page, shared.doc_key)).toBe('Start. One. Two.');
 	});
 
+	test('typing saved while offline reaches the server once back online', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Shared', content: 'Start.' }],
+		});
+		await wiki.changeRequest(space);
+		const shared = space.page('Shared');
+		await openEditor(page, space.url('page', shared.name));
+
+		await page.route('**/*apply_cr_operations*', (route) =>
+			route.abort('internetdisconnected'),
+		);
+		await typeAtEnd(page, ' Offline.');
+		await saveEditor(page);
+		await expect(syncAlert(page)).toContainText('Sync failed');
+
+		await page.unroute('**/*apply_cr_operations*');
+		await expect
+			.poll(() => savedContent(page, shared.doc_key), { timeout: 20000 })
+			.toBe('Start. Offline.');
+		await expect(page.getByTestId('sync-state-alert')).toBeHidden();
+	});
+
 	test('a stale move conflicts and reload latest clears it', async ({
 		context,
 		wiki,
