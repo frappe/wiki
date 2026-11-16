@@ -25,9 +25,11 @@ export function createSaveSerializer() {
 				return runFn(params.content, params.title);
 			});
 		saveTails.set(docKey, next);
-		next.finally(() => {
+		// Not `finally`: its promise rejects with the save, and nothing catches it.
+		const forget = () => {
 			if (saveTails.get(docKey) === next) saveTails.delete(docKey);
-		});
+		};
+		next.then(forget, forget);
 		return next;
 	}
 
