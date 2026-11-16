@@ -1,4 +1,6 @@
+import type { APIRequestContext } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import type { WikiFactory } from '../helpers/factory';
 import { callMethod, getList } from '../helpers/frappe';
 import { editPage, publishChangeRequestFromReview } from '../helpers/wiki';
 
@@ -164,33 +166,7 @@ test.describe('Change request review', () => {
 		request,
 		wiki,
 	}) => {
-		const space = await wiki.space({
-			pages: [{ title: 'Shared', content: 'Start.' }],
-		});
-		const shared = space.page('Shared');
-		const editShared = async (title: string, content: string) => {
-			const changeRequest = await callMethod<{ name: string }>(
-				request,
-				`${CR_METHOD}.create_change_request`,
-				{ wiki_space: space.name, title },
-			);
-			await callMethod(request, `${CR_METHOD}.update_cr_page`, {
-				name: changeRequest.name,
-				doc_key: shared.doc_key,
-				fields: { content },
-			});
-			for (const step of ['submit', 'approve']) {
-				await callMethod(request, `${CR_METHOD}.${step}_change_request`, {
-					name: changeRequest.name,
-				});
-			}
-			return changeRequest.name;
-		};
-		const first = await editShared('First edit', 'From the first.');
-		const second = await editShared('Second edit', 'From the second.');
-		await callMethod(request, `${CR_METHOD}.merge_change_request`, {
-			name: first,
-		});
+		const { shared, second } = await conflictingChangeRequests(request, wiki);
 
 		await page.goto(`/wiki-app/change-requests/${second}`);
 		await page.getByRole('button', { name: 'Merge', exact: true }).click();
@@ -214,6 +190,25 @@ test.describe('Change request review', () => {
 		);
 		expect(merged.content).toBe('From the first.');
 	});
+	test('a reload keeps open merge conflicts', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const { second } = await conflictingChangeRequests(request, wiki);
+		await page.goto(`/wiki-app/change-requests/${second}`);
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+		await expect(page.getByText('0/1 resolved')).toBeVisible();
+
+		await page.reload();
+		await expect(page.getByText('0/1 resolved')).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Resolve & Merge' }),
+		).toBeDisabled();
+		await expect(
+			page.getByRole('button', { name: 'Merge', exact: true }),
+		).toHaveCount(0);
+	});
 });
 
 function viewButton(page: import('@playwright/test').Page, name: string) {
@@ -221,4 +216,39 @@ function viewButton(page: import('@playwright/test').Page, name: string) {
 		.getByRole('radio', { name })
 		.or(page.getByRole('button', { name }))
 		.first();
+}
+
+/** Two approved change requests edit one paragraph, and the first is merged. */
+async function conflictingChangeRequests(
+	request: APIRequestContext,
+	wiki: WikiFactory,
+) {
+	const space = await wiki.space({
+		pages: [{ title: 'Shared', content: 'Start.' }],
+	});
+	const shared = space.page('Shared');
+	const editShared = async (title: string, content: string) => {
+		const changeRequest = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD}.create_change_request`,
+			{ wiki_space: space.name, title },
+		);
+		await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+			name: changeRequest.name,
+			doc_key: shared.doc_key,
+			fields: { content },
+		});
+		for (const step of ['submit', 'approve']) {
+			await callMethod(request, `${CR_METHOD}.${step}_change_request`, {
+				name: changeRequest.name,
+			});
+		}
+		return changeRequest.name;
+	};
+	const first = await editShared('First edit', 'From the first.');
+	const second = await editShared('Second edit', 'From the second.');
+	await callMethod(request, `${CR_METHOD}.merge_change_request`, {
+		name: first,
+	});
+	return { shared, second };
 }
