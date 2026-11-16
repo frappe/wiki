@@ -31,6 +31,16 @@ const RETRIED_SERVER_ERRORS = new Set([
 	'TooManyRequestsError',
 ]);
 
+const MAX_BACKOFF_MS = 15000;
+
+export function retryDelay(attempt) {
+	return Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
+}
+
+export function isSignedOut() {
+	return document.cookie.includes('user_id=Guest');
+}
+
 // No `exc_type` means the server never answered, so the op may yet land. A
 // signed-out user gets a PermissionError too, and must not lose work to it.
 export function isRetryableError(err, signedOut = false) {
