@@ -44,7 +44,7 @@ import { Paragraph } from '@tiptap/extension-paragraph';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { Selection } from '@tiptap/pm/state';
-import { onKeyStroke } from '@vueuse/core';
+import { onKeyStroke, useEventListener } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
 	computed,
@@ -778,10 +778,18 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 onBeforeUnmount(() => {
 	stopFlushRequests();
 	stopReloadRequests();
-	contentSync.cancel();
 	autosave.cancel();
-	emitContentChange({ persistImmediately: true });
+	keepLocalContent();
 });
+
+// A reload never unmounts the editor. Not `pagehide`: by then the page is torn
+// down before the IndexedDB write commits.
+useEventListener(window, 'beforeunload', keepLocalContent);
+
+function keepLocalContent() {
+	contentSync.cancel();
+	emitContentChange({ persistImmediately: true });
+}
 
 const editor = useEditor({
 	editable: () => !props.readonly,
