@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures';
-import { callMethod } from '../helpers/frappe';
+import { callMethod, getList } from '../helpers/frappe';
 import { editPage, publishChangeRequestFromReview } from '../helpers/wiki';
 
 const CR_METHOD =
@@ -157,6 +157,62 @@ test.describe('Change request review', () => {
 		await expect(page).toHaveURL(/\/change-requests\//);
 		const diff = page.getByTestId('page-diff').filter({ hasText: 'Alpha' });
 		await expect(diff.locator('ins').last()).toContainText('Again');
+	});
+
+	test('merge conflicts start with no choice made', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Shared', content: 'Start.' }],
+		});
+		const shared = space.page('Shared');
+		const editShared = async (title: string, content: string) => {
+			const changeRequest = await callMethod<{ name: string }>(
+				request,
+				`${CR_METHOD}.create_change_request`,
+				{ wiki_space: space.name, title },
+			);
+			await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+				name: changeRequest.name,
+				doc_key: shared.doc_key,
+				fields: { content },
+			});
+			for (const step of ['submit', 'approve']) {
+				await callMethod(request, `${CR_METHOD}.${step}_change_request`, {
+					name: changeRequest.name,
+				});
+			}
+			return changeRequest.name;
+		};
+		const first = await editShared('First edit', 'From the first.');
+		const second = await editShared('Second edit', 'From the second.');
+		await callMethod(request, `${CR_METHOD}.merge_change_request`, {
+			name: first,
+		});
+
+		await page.goto(`/wiki-app/change-requests/${second}`);
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+		const resolveAndMerge = page.getByRole('button', {
+			name: 'Resolve & Merge',
+		});
+		await expect(page.getByText('0/1 resolved')).toBeVisible();
+		await expect(resolveAndMerge).toBeDisabled();
+
+		await page.getByRole('main').getByText('Shared').first().click();
+		await page.getByRole('checkbox', { name: 'Keep Main' }).check();
+		await expect(page.getByText('1/1 resolved')).toBeVisible();
+		await resolveAndMerge.click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+		const [merged] = await getList<{ content: string }>(
+			request,
+			'Wiki Document',
+			{ fields: ['content'], filters: { name: shared.name } },
+		);
+		expect(merged.content).toBe('From the first.');
 	});
 });
 
