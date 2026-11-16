@@ -996,8 +996,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		persistEditorDraft(realKey, title, { immediate: true });
 	}
 
-	// Mark pending_delete locally, which strikes the row through. The page only
-	// leaves the live tree once the change request is merged, so it stays on
+	// Mark pending_delete locally, which strikes the row through. A live page
+	// only leaves the tree once the change request is merged, so it stays on
 	// screen until then (#762). On failure the flag is cleared so the row
 	// reads as normal again. For temp nodes whose create never reached the
 	// server, just drop the local node and the failed-create mutation rather
@@ -1038,7 +1038,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				},
 			]);
 			const synced = treeModel.findNode(docKey);
-			if (synced) synced.localStatus = null;
+			// Only a live page has something left to remove on merge. The server
+			// drops a page this change request added, so the row goes too.
+			if (synced && !synced.documentName) {
+				treeModel.removeNodeByKey(docKey);
+				pageBuffers.deletePage(docKey);
+			} else if (synced) synced.localStatus = null;
 			queue.clear(mutation.id);
 		} catch (err) {
 			const fresh = treeModel.findNode(docKey);
