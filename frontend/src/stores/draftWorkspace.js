@@ -22,7 +22,10 @@ import { createSyncTransport } from './draftWorkspace/syncTransport';
 import { createTreeModel } from './draftWorkspace/treeModel';
 import {
 	errorMessage,
+	isRetryableError,
+	isSignedOut,
 	makeDocKey,
+	retryDelay,
 	slugify,
 	toPublished,
 } from './draftWorkspace/utils';
@@ -50,6 +53,8 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 	const hasStaleTree = ref(false);
 	let hydratePromise = null;
 	let latestHydrate = 0;
+	let contentRetryTimer = null;
+	let contentRetryAttempt = 0;
 	let changeRequestReady = null;
 
 	const isEnabled = computed(() => userStore.shouldUseChangeRequestMode);
@@ -210,6 +215,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		queue.reset();
 		saver.reset();
 		transport.reset();
+		stopContentRetry();
 	}
 
 	async function hydrate(targetSpaceId, changeRequest = null) {
@@ -834,6 +840,22 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 		return results.filter((r) => r.status === 'rejected').map((r) => r.reason);
 	}
 
+	// A failed save that may yet pass is sent again with every other unsaved
+	// page, so typing done offline goes out once the network is back.
+	function retryContentLater() {
+		if (contentRetryTimer) return;
+		contentRetryTimer = setTimeout(() => {
+			contentRetryTimer = null;
+			flushDirtyPages();
+		}, retryDelay(contentRetryAttempt++));
+	}
+
+	function stopContentRetry() {
+		clearTimeout(contentRetryTimer);
+		contentRetryTimer = null;
+		contentRetryAttempt = 0;
+	}
+
 	async function doSaveContent(docKey, content) {
 		const page = pageBuffers.ensure(docKey, { saveStatus: 'saving' });
 		page.saveStatus = 'saving';
@@ -876,6 +898,7 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 				transport.markSaved();
 			}
 			queue.clear(mutation.id);
+			contentRetryAttempt = 0;
 		} catch (err) {
 			const targetPage = pageBuffers.get(docKey);
 			if (targetPage) {
@@ -895,6 +918,12 @@ export const useDraftWorkspaceStore = defineStore('draftWorkspace', () => {
 			}
 			transport.markFailed(errorMessage(err));
 			queue.setStatus(mutation.id, 'failed', errorMessage(err));
+			if (
+				err.code !== 'version_conflict' &&
+				isRetryableError(err, isSignedOut())
+			) {
+				retryContentLater();
+			}
 			throw err;
 		}
 	}
