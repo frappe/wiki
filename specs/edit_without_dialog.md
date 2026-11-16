@@ -34,7 +34,7 @@ Empty drafts left by an Edit with no changes stay out of other users' sight. The
 ## Tracer bullet
 
 1. Edit starts a titled draft, Submit asks for title and description. Update the e2e helpers (`editPage`, `startEditing`, `openNewPageDialog`) and the `edit-flow` cases that drove the dialog.
-   - Playwright: Edit opens the editor with no dialog and the draft is titled `Edit <page> in <space>`. `?edit=1` does the same. New page in Reading creates `New page in <space>`. Submit shows the placeholder, takes a new title and description, and the submitted change request has both.
+   - Playwright: Edit opens the editor with no dialog and the draft is titled `Edit <page> in <space>`. `?edit=1` does the same. New page in Reading opens the dialog without a change request, and Save creates `New page in <space>`. Submit shows the placeholder, takes a new title and description, and the submitted change request has both.
 
 ## Progress
 
@@ -55,3 +55,10 @@ Fixed on the way: Merge locators match exactly, because a placeholder holding a 
 - e2e: `showSidebarActions` waits for Edit or an edit-mode row, since New page no longer tells the two modes apart. `openNewPageDialog` clicks New page straight from read mode. `edit-flow` "New page in read mode starts a change request named after the space" is new. `contributions-disabled` now expects New page in the sidebar.
 
 Full suite: 283 passed, 2 failed. One was `contributions-disabled`, which still expected no New page in Reading (fixed). The other, `telemetry`, timed out on a lock while deleting its space in teardown and passed on rerun.
+
+### Change request on Save (2026-11-16)
+
+- New page, New group and External link open their dialogs straight away. The draft starts only when the user presses Save, so a cancelled dialog leaves no change request. `useTreeDialogs` takes an `ensureEditing(kind)` hook and awaits it after validation, while Save shows its spinner.
+- e2e: the `edit-flow` read mode test now cancels first and checks that no change request exists. `space-empty-new-page` looks for the draft card after Save. `pending-delete-visible` waits for the draft route to get its real key before it navigates away, because the create now runs after the change request starts.
+
+Tests: the 19 specs that create from the tree, 92 tests: 90 passed, 2 failed. Both are fixed above. Then `edit-flow`, `space-empty-new-page` and `pending-delete-visible` with `--repeat-each=2`: 43 passed.
