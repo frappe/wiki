@@ -663,11 +663,7 @@ async function fetchConflicts() {
 			name: props.changeRequestId,
 		});
 		conflicts.value = result || [];
-		// Default all resolutions to 'theirs' (Keep Your Changes)
 		for (const key in resolutions) delete resolutions[key];
-		for (const conflict of conflicts.value) {
-			resolutions[conflict.name] = 'theirs';
-		}
 		hasConflicts.value = conflicts.value.length > 0;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error loading conflicts'));
