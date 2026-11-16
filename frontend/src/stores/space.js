@@ -267,6 +267,15 @@ export const useSpaceStore = defineStore('space', () => {
 			draftStore.hasStaleTree,
 	);
 
+	// The review page shows the live tree beside a change request; adding pages
+	// there would start another one.
+	const isTreeReadonly = computed(
+		() =>
+			isReadonly.value ||
+			isTreeStale.value ||
+			(route.value.name === 'SpaceChangeRequest' && !isEditing.value),
+	);
+
 	const changeTypeMap = computed(() => {
 		const map = new Map();
 		// A merge from the review page clears the change request but not its changes.
@@ -399,6 +408,7 @@ export const useSpaceStore = defineStore('space', () => {
 		editInReview,
 		stopEditingInReview,
 		selectedPageId,
+		isTreeReadonly,
 		selectedDraftKey,
 		treeData,
 		isTreeStale,
