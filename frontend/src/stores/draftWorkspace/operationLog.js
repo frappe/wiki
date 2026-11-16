@@ -4,7 +4,7 @@ import {
 	saveLogEntry,
 } from '@/stores/draftPersistence';
 import { computed } from 'vue';
-import { isRetryableError } from './utils';
+import { isRetryableError, isSignedOut, retryDelay } from './utils';
 
 const LOGGED_TYPES = new Set([
 	'create_node',
@@ -14,11 +14,6 @@ const LOGGED_TYPES = new Set([
 	'move_node',
 ]);
 const MOVE_DEBOUNCE_MS = 750;
-const MAX_BACKOFF_MS = 15000;
-
-function isSignedOut() {
-	return document.cookie.includes('user_id=Guest');
-}
 
 // Durable, ordered log of tree and metadata changes. An entry reaches IndexedDB
 // before it is sent and leaves once the server answers, so a reload resumes
@@ -203,7 +198,7 @@ export function createOperationLog({
 					for (const entry of batch) settle(entry.id, 'reject', err);
 					return;
 				}
-				await pause(Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS));
+				await pause(retryDelay(attempt));
 			}
 		}
 	}
