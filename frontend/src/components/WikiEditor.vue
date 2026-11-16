@@ -287,15 +287,15 @@ function fileToBase64(file) {
 }
 
 /**
- * Patch the attributes of the in-flight image node identified by uploadId.
+ * Patch the attributes of the in-flight upload node identified by uploadId.
  */
-function updateImageNode(uploadId, attrs) {
+function updateUploadNode(uploadId, attrs) {
 	const ed = editor.value;
 	if (!ed) return;
 	const { state, view } = ed;
 	let target = null;
 	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'image' && node.attrs.uploadId === uploadId) {
+		if (node.attrs.uploadId === uploadId) {
 			target = { node, pos };
 			return false;
 		}
@@ -331,7 +331,7 @@ async function insertAndUploadImage(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updateImageNode,
+		updateUploadNode,
 		'Failed to upload image',
 	);
 }
@@ -403,7 +403,7 @@ function uploadPastedDataImages(uploads) {
 		uploadIntoNode(
 			uploadId,
 			() => dataUrlToFile(src).then(uploadFile),
-			updateImageNode,
+			updateUploadNode,
 			'Failed to upload image',
 		);
 	}
@@ -414,33 +414,11 @@ function uploadPastedDataImages(uploads) {
 function transformPasted(slice) {
 	const tagged = tagDataImagesInSlice(slice);
 	// The tagged slice is inserted right after this returns; upload once the
-	// nodes are in the doc so updateImageNode can find them.
+	// nodes are in the doc so updateUploadNode can find them.
 	if (tagged.uploads.length) {
 		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
 	}
 	return tagged.slice;
-}
-
-/**
- * Patch the attributes of the in-flight PDF node identified by uploadId.
- */
-function updatePdfNode(uploadId, attrs) {
-	const ed = editor.value;
-	if (!ed) return;
-	const { state, view } = ed;
-	let target = null;
-	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'pdfBlock' && node.attrs.uploadId === uploadId) {
-			target = { node, pos };
-			return false;
-		}
-	});
-	if (!target) return;
-	const tr = state.tr.setNodeMarkup(target.pos, undefined, {
-		...target.node.attrs,
-		...attrs,
-	});
-	view.dispatch(tr);
 }
 
 /**
@@ -462,9 +440,34 @@ async function insertAndUploadPdf(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updatePdfNode,
+		updateUploadNode,
 		'Failed to upload PDF',
 	);
+}
+
+/**
+ * Insert a video block immediately with a loading state, upload it in the
+ * background, then swap in the final URL (or surface an error).
+ */
+async function insertAndUploadVideo(file) {
+	const ed = editor.value;
+	if (!ed) return;
+
+	const uploadId = newUploadId();
+	startUpload(uploadId);
+	ed.chain().focus().setVideo({ uploadId, loading: true }).run();
+
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updateUploadNode,
+		'Failed to upload video',
+	);
+}
+
+function handleVideoUploadEvent(event) {
+	const file = event.detail?.file;
+	if (file) insertAndUploadVideo(file);
 }
 
 /**
@@ -531,8 +534,8 @@ function handleDrop(_view, event) {
 
 		if (isImage) {
 			insertAndUploadImage(file);
-		} else if (isVideo && editor.value) {
-			editor.value.commands.uploadVideo(file);
+		} else if (isVideo) {
+			insertAndUploadVideo(file);
 		} else if (isPdf) {
 			insertAndUploadPdf(file);
 		}
@@ -840,9 +843,7 @@ const editor = useEditor({
 		IframeBlock,
 		MermaidBlock,
 		PdfBlock,
-		VideoBlock.configure({
-			uploadFunction: uploadFile,
-		}),
+		VideoBlock,
 		Emoji,
 		// Slash commands
 		SlashCommands.configure({
@@ -1040,6 +1041,7 @@ onMounted(() => {
 	);
 	// Listen for PDF upload events (toolbar + slash command)
 	document.addEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.addEventListener('wiki-editor-upload-video', handleVideoUploadEvent);
 });
 
 onUnmounted(() => {
@@ -1049,6 +1051,10 @@ onUnmounted(() => {
 		handleSlashImageUploadEvent,
 	);
 	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.removeEventListener(
+		'wiki-editor-upload-video',
+		handleVideoUploadEvent,
+	);
 	// Nodes leave with the editor, so its uploads can no longer reach the page.
 	draftStore.clearUploads(editorUploadIds);
 	// Hide any open link popup

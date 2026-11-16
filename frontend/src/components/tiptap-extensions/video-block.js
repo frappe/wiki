@@ -10,6 +10,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import VideoBlockView from './VideoBlockView.vue';
+import { insertBlock } from './insert-block.js';
 import { isVideoUrl } from './media-urls.js';
 
 export { VIDEO_EXTENSIONS, isVideoUrl } from './media-urls.js';
@@ -25,7 +26,6 @@ export const VideoBlock = Node.create({
 
 	addOptions() {
 		return {
-			uploadFunction: null,
 			HTMLAttributes: {},
 		};
 	},
@@ -37,6 +37,19 @@ export const VideoBlock = Node.create({
 			},
 			alt: {
 				default: '',
+			},
+			// Editor-only upload state, kept out of HTML and markdown (as in pdf-block.js).
+			loading: {
+				default: false,
+				rendered: false,
+			},
+			uploadId: {
+				default: null,
+				rendered: false,
+			},
+			error: {
+				default: null,
+				rendered: false,
 			},
 		};
 	},
@@ -94,39 +107,25 @@ export const VideoBlock = Node.create({
 		return {
 			setVideo:
 				(attributes) =>
-				({ commands }) => {
-					return commands.insertContent({
-						type: this.name,
-						attrs: attributes,
-					});
-				},
-			uploadVideo:
-				(file) =>
-				({ editor }) => {
-					const pos = editor.state.selection.from;
-					return uploadVideoInternal(file, editor.view, pos, this.options);
-				},
-			selectAndUploadVideo:
-				() =>
-				({ editor }) => {
-					if (!this.options.uploadFunction) {
-						console.error('uploadFunction option is not provided for videos.');
-						return false;
+				({ chain }) =>
+					insertBlock(chain(), { type: this.name, attrs: attributes }),
+			selectAndUploadVideo: () => () => {
+				const input = document.createElement('input');
+				input.type = 'file';
+				input.accept = 'video/*';
+				input.onchange = (event) => {
+					const target = event.target;
+					if (target?.files?.length) {
+						document.dispatchEvent(
+							new CustomEvent('wiki-editor-upload-video', {
+								detail: { file: target.files[0] },
+							}),
+						);
 					}
-
-					const input = document.createElement('input');
-					input.type = 'file';
-					input.accept = 'video/*';
-					input.onchange = (event) => {
-						const target = event.target;
-						if (target?.files?.length) {
-							const file = target.files[0];
-							editor.commands.uploadVideo(file);
-						}
-					};
-					input.click();
-					return true;
-				},
+				};
+				input.click();
+				return true;
+			},
 		};
 	},
 
@@ -181,6 +180,7 @@ export const VideoBlock = Node.create({
 	renderMarkdown(node) {
 		const alt = node.attrs.alt || '';
 		const src = node.attrs.src || '';
+		if (node.attrs.loading || !src) return '';
 		// No trailing "\n\n": the serializer already inserts a blank-line block
 		// separator, and doubling it makes the markdown round-trip grow blank
 		// lines without bound between consecutive embeds, which freezes the
@@ -190,38 +190,3 @@ export const VideoBlock = Node.create({
 });
 
 export default VideoBlock;
-
-function uploadVideoInternal(file, view, pos, options) {
-	if (!options?.uploadFunction) {
-		console.error('uploadFunction option is not provided for videos.');
-		return false;
-	}
-
-	options
-		.uploadFunction(file)
-		.then((uploadedVideo) => {
-			const url =
-				typeof uploadedVideo === 'string'
-					? uploadedVideo
-					: uploadedVideo?.file_url;
-			if (!url) {
-				console.error('Video upload returned no URL.');
-				return;
-			}
-			const { schema } = view.state;
-			const node = schema.nodes.videoBlock.create({ src: url });
-
-			const transaction = view.state.tr;
-			if (pos != null) {
-				transaction.insert(pos, node);
-			} else {
-				transaction.replaceSelectionWith(node);
-			}
-			view.dispatch(transaction);
-		})
-		.catch((error) => {
-			console.error('Video upload failed:', error);
-		});
-
-	return true;
-}
