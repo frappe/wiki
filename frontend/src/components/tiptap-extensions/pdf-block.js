@@ -12,6 +12,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import PdfBlockView from './PdfBlockView.vue';
+import { insertBlock } from './insert-block.js';
 import { isPdfUrl } from './media-urls.js';
 
 export { isPdfUrl } from './media-urls.js';
@@ -87,12 +88,8 @@ export const PdfBlock = Node.create({
 		return {
 			setPdf:
 				(attributes) =>
-				({ commands }) => {
-					return commands.insertContent({
-						type: this.name,
-						attrs: attributes,
-					});
-				},
+				({ chain }) =>
+					insertBlock(chain(), { type: this.name, attrs: attributes }),
 			// Open a file picker and hand the chosen file to WikiEditor (which owns
 			// the optimistic insert + upload flow), via a custom DOM event. Used by
 			// both the toolbar button and the slash command.
