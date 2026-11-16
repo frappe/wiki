@@ -1,8 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { destroySpacesByRoute, uniqueRoute } from '../helpers/factory';
-import { getList } from '../helpers/frappe';
+import { callMethod, getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog, showSidebarActions } from '../helpers/wiki';
+import {
+	openNewPageDialog,
+	openTreeRowMenuItem,
+	showSidebarActions,
+} from '../helpers/wiki';
+
+const CR_METHOD =
+	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
 
 /**
  * A page deleted in an unmerged change request keeps its row, struck through
@@ -88,6 +95,43 @@ test.describe('Pending deletion stays visible', () => {
 		await expect(
 			page.locator('aside').getByText(pageTitle, { exact: true }),
 		).toHaveCount(0);
+	});
+
+	test('a page added and deleted in one change request leaves no row', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		const cr = await wiki.changeRequest(space);
+		const tree = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD}.get_cr_tree`,
+			{ name: cr.name },
+		);
+		await callMethod(request, `${CR_METHOD}.create_cr_page`, {
+			name: cr.name,
+			parent_key: tree.root_group,
+			title: 'Scratch',
+		});
+		await page.goto(space.url('page', space.page('Alpha').name));
+		const sidebar = page.locator('aside');
+		await expect(sidebar.getByText('Scratch', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+
+		await openTreeRowMenuItem(page, 'Scratch', 'Delete');
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: /Delete/ })
+			.click();
+		await expect(sidebar.getByText('Scratch', { exact: true })).toHaveCount(0);
+
+		await page.reload();
+		await expect(sidebar.getByText('Alpha', { exact: true })).toBeVisible({
+			timeout: 15000,
+		});
+		await expect(sidebar.getByText('Scratch', { exact: true })).toHaveCount(0);
 	});
 });
 
