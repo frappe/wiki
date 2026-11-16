@@ -560,7 +560,7 @@ test.describe('Local-first draft workspace', () => {
 		await expectSyncSettled(page, 5000);
 	});
 
-	test('dirty content on an existing published page survives browser refresh', async ({
+	test('dirty content on an existing published page survives a browser refresh and saves', async ({
 		page,
 		request,
 		wiki,
@@ -624,19 +624,14 @@ test.describe('Local-first draft workspace', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 10000 });
-		await expect(page.getByText('Unsaved changes')).toBeVisible({
-			timeout: 5000,
-		});
-
-		await saveEditor(page);
-		await expectSyncSettled(page, 5000);
+		await expectSyncSettled(page, 10000);
 		const submitButton = page.getByRole('button', {
 			name: 'Submit for Review',
 		});
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('dirty editor content survives a browser refresh via IndexedDB', async ({
+	test('dirty editor content survives a browser refresh via IndexedDB and saves', async ({
 		page,
 		wiki,
 	}) => {
@@ -674,23 +669,15 @@ test.describe('Local-first draft workspace', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Navigate back to the draft page. The editor should reopen on the
-		// same content the user last typed, and the banner should report
-		// "Unsaved changes".
+		// The editor reopens on the text the user last typed, and the restored
+		// draft saves without the user saving.
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		const restoredEditor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
 			.first();
 		await expect(restoredEditor).toBeVisible({ timeout: 10000 });
 		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('Unsaved changes')).toBeVisible({
-			timeout: 5000,
-		});
-
-		// Saving the restored draft clears the IDB entry and settles the sync
-		// state, just like a normal first-save.
-		await saveEditor(page);
-		await expectSyncSettled(page, 5000);
+		await expectSyncSettled(page, 10000);
 		await expect(
 			page.getByRole('button', { name: 'Submit for Review' }),
 		).toBeEnabled();
