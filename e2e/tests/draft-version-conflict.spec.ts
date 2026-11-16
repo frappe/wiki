@@ -61,6 +61,22 @@ async function savedContent(page: Page, docKey: string) {
 	return (await savedPage(page, docKey)).content;
 }
 
+async function draftPage(page: Page, changeRequest: string) {
+	const tree = await callMethod<{ root_group: string }>(
+		page.request,
+		`${CR_METHOD}.get_cr_tree`,
+		{ name: changeRequest },
+	);
+	return callMethod<string>(page.request, `${CR_METHOD}.create_cr_page`, {
+		name: changeRequest,
+		parent_key: tree.root_group,
+		title: 'Fresh',
+		content: 'Start.',
+		is_group: 0,
+		is_published: 1,
+	});
+}
+
 function syncAlert(page: Page) {
 	return page.getByTestId('sync-state-alert').first();
 }
@@ -408,4 +424,33 @@ test.describe('Draft version conflict', () => {
 			})
 			.toBe('Typed title');
 	});
+
+	for (const panel of ['page', 'draft']) {
+		test(`a title ending in a space keeps it when an autosave lands (${panel})`, async ({
+			page,
+			wiki,
+		}) => {
+			const space = await wiki.space({
+				pages: [{ title: 'Shared', content: 'Start.' }],
+			});
+			const changeRequest = await wiki.changeRequest(space);
+			const shared = space.page('Shared');
+			const url =
+				panel === 'page'
+					? space.url('page', shared.name)
+					: space.url('draft', await draftPage(page, changeRequest.name));
+			await openEditor(page, url);
+
+			await typeAtEnd(page, ' Body.');
+			const titleInput = page.getByPlaceholder('Page title');
+			await titleInput.click();
+			await page.keyboard.press('End');
+			const saved = contentSaveSettled(page);
+			await page.keyboard.type(' Hello ');
+			await saved;
+			await page.keyboard.type('World');
+
+			await expect(titleInput).toHaveValue(/ Hello World$/);
+		});
+	}
 });
