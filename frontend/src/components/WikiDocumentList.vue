@@ -38,9 +38,11 @@
 				<span class="lucide-file-text size-8 text-ink-gray-4 mb-3" aria-hidden="true" />
 				<h3 class="text-base-medium text-ink-gray-7 mb-1">{{ __('No pages yet') }}</h3>
 				<p class="text-sm text-ink-gray-5">
-					{{ readonly
+					{{ spaceStore.isGitSynced
 						? __('No pages have synced from the repository yet')
-						: __('Create your first page to get started') }}
+						: readonly
+							? __('No pages are published yet')
+							: __('Create your first page to get started') }}
 				</p>
 			</div>
 
