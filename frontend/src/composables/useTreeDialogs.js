@@ -1,3 +1,4 @@
+import { trailToNode } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { slugify } from '@/stores/draftWorkspace/utils';
 import { useDebounceFn } from '@vueuse/core';
@@ -196,6 +197,18 @@ export function useTreeDialogs(
 			return;
 		}
 		close();
+		// A page this change request added leaves the tree, so its editor would
+		// show "Draft not found". The space opens the first page left instead.
+		const openDraft = router.currentRoute.value.params.docKey;
+		if (
+			openDraft &&
+			trailToNode([deleteNode.value], (node) => node.doc_key === openDraft)
+		) {
+			router.replace({
+				name: 'SpaceDetails',
+				params: { spaceId: spaceId.value },
+			});
+		}
 		isDeleting.value = true;
 		try {
 			await draftStore.deleteNode(docKey);
