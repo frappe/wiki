@@ -77,6 +77,8 @@ test.describe('Draft version conflict', () => {
 		const url = space.url('page', shared.name);
 		const tabA = await context.newPage();
 		const tabB = await context.newPage();
+		const uncaught: string[] = [];
+		tabB.on('pageerror', (error) => uncaught.push(error.message));
 		await openEditor(tabA, url);
 		await openEditor(tabB, url);
 
@@ -109,6 +111,7 @@ test.describe('Draft version conflict', () => {
 		expect(await savedContent(tabB, shared.doc_key)).toBe(
 			'Start. From A. After reload.',
 		);
+		expect(uncaught).toEqual([]);
 	});
 
 	test('reload latest keeps edits to pages nobody else changed', async ({
