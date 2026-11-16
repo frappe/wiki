@@ -1,4 +1,4 @@
-import { Mark, getMarkRange, mergeAttributes } from '@tiptap/core';
+import { InputRule, Mark, getMarkRange, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 
 /**
@@ -186,6 +186,24 @@ export const WikiLink = Mark.create({
 		return {
 			'Mod-k': () => this.editor.commands.openLinkEditor(),
 		};
+	},
+
+	// `[text](url)` typed by hand. Not after `!` (an image) or `[` (a page link).
+	addInputRules() {
+		return [
+			new InputRule({
+				find: /(?:^|[^![])\[([^[\]\n]+)\]\(([^()\s]+)\)$/,
+				handler: ({ state, range, match }) => {
+					const [whole, text, href] = match;
+					if (/^(javascript|data|vbscript):/i.test(href)) return null;
+					const from = range.from + whole.indexOf('[');
+					const link = this.type.create({ href });
+					state.tr
+						.replaceWith(from, range.to, state.schema.text(text, [link]))
+						.removeStoredMark(this.type);
+				},
+			}),
+		];
 	},
 
 	addProseMirrorPlugins() {
