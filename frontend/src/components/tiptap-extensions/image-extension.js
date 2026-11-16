@@ -5,6 +5,7 @@ import {
 	imageCaptionTokenizer,
 	renderImageMarkdown,
 } from './image-markdown.js';
+import { insertBlock } from './insert-block.js';
 
 // Markdown image regex: ![alt](src "title")
 // The src allows spaces and one level of balanced parens so Frappe filenames
@@ -136,12 +137,8 @@ export const WikiImage = Node.create({
 		return {
 			setImage:
 				(options) =>
-				({ commands }) => {
-					return commands.insertContent({
-						type: this.name,
-						attrs: options,
-					});
-				},
+				({ chain }) =>
+					insertBlock(chain(), { type: this.name, attrs: options }),
 		};
 	},
 
