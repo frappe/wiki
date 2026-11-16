@@ -192,6 +192,7 @@ Built, on branch `fix/one-title-field`. Notes:
 - `restoredDraftBuffer` went: with no title, route or publish flag left, it was an empty buffer with content.
 - The store-level "fetch keeps a pending rename" case has no Vitest test, because the store needs Pinia, IndexedDB and the transport. The offline rename test in `operation-log.spec.ts` covers it: it reopens the page after a reload and checks the title. The model's `setFields` has unit tests.
 - Vitest: 198 tests. Playwright: 89 tests across draft, log, editor, sidebar, page settings, publish and change request specs.
+- Found in the end to end tour: a content save writes the trimmed title to the record, and the input took it back, so a title ending in a space lost it ("Hello " then "World" read "HelloWorld"). Both title inputs now ignore a stored title equal to their own trimmed value. Playwright covers the page and the draft editor.
 
 ## Bullet 4: Readers on selectors
 
