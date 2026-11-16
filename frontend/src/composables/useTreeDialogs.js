@@ -46,11 +46,6 @@ export function useTreeDialogs(
 	const editExternalLinkUrl = ref('');
 	const editExternalLinkNode = ref(null);
 
-	const isCreating = ref(false);
-	const isRenaming = ref(false);
-	const isDeleting = ref(false);
-	const isUpdatingExternalLink = ref(false);
-
 	// A group's route already carries the space route plus every ancestor slug,
 	// so a child's prefix is simply the parent's URL. Only the space root is
 	// special: its own route is a bare slug, and the space route stands in.
@@ -162,7 +157,6 @@ export function useTreeDialogs(
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
 
-		isCreating.value = true;
 		try {
 			const { docKey, promise } = draftStore.createNode({
 				parentKey,
@@ -183,8 +177,6 @@ export function useTreeDialogs(
 		} catch (error) {
 			console.error('Error creating page:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isCreating.value = false;
 		}
 	}
 
@@ -195,14 +187,11 @@ export function useTreeDialogs(
 			return;
 		}
 		close();
-		isDeleting.value = true;
 		try {
 			await draftStore.deleteNode(docKey);
 		} catch (error) {
 			console.error('Error creating delete draft:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isDeleting.value = false;
 		}
 	}
 
@@ -224,13 +213,10 @@ export function useTreeDialogs(
 			return;
 		}
 		close();
-		isRenaming.value = true;
 		try {
 			await draftStore.renameNode(docKey, title);
 		} catch (error) {
 			toast.error(error.messages?.[0] || __('Error updating title'));
-		} finally {
-			isRenaming.value = false;
 		}
 	}
 
@@ -263,7 +249,6 @@ export function useTreeDialogs(
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
 
-		isCreating.value = true;
 		try {
 			const { promise } = draftStore.createNode({
 				parentKey,
@@ -275,8 +260,6 @@ export function useTreeDialogs(
 		} catch (error) {
 			console.error('Error creating external link:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isCreating.value = false;
 		}
 	}
 
@@ -310,7 +293,6 @@ export function useTreeDialogs(
 			return;
 		}
 		close();
-		isUpdatingExternalLink.value = true;
 		try {
 			await draftStore.updateNode(docKey, {
 				title,
@@ -319,8 +301,6 @@ export function useTreeDialogs(
 		} catch (error) {
 			console.error('Error updating external link:', error);
 			toast.error(error.messages?.[0] || __('Error updating external link'));
-		} finally {
-			isUpdatingExternalLink.value = false;
 		}
 	}
 
@@ -343,10 +323,6 @@ export function useTreeDialogs(
 		showEditExternalLinkDialog,
 		editExternalLinkTitle,
 		editExternalLinkUrl,
-		isCreating,
-		isRenaming,
-		isDeleting,
-		isUpdatingExternalLink,
 		openCreateDialog,
 		openDeleteDialog,
 		createDocument,

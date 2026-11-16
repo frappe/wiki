@@ -122,7 +122,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isCreating" @click="createDocument(close)">
+					<Button variant="solid" @click="createDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -163,8 +163,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" theme="gray" :loading="isDeleting"
-						@click="deleteDocument(close)">
+					<Button variant="solid" theme="gray" @click="deleteDocument(close)">
 						{{ __('Delete') }}
 					</Button>
 				</div>
@@ -186,8 +185,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isRenaming"
-						@click="renameDocument(close)">
+					<Button variant="solid" @click="renameDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -211,7 +209,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isCreating" @click="createExternalLink(close)">
+					<Button variant="solid" @click="createExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -235,7 +233,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isUpdatingExternalLink" @click="updateExternalLink(close)">
+					<Button variant="solid" @click="updateExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -410,10 +408,6 @@ const {
 	showEditExternalLinkDialog,
 	editExternalLinkTitle,
 	editExternalLinkUrl,
-	isCreating,
-	isRenaming,
-	isDeleting,
-	isUpdatingExternalLink,
 	openCreateDialog,
 	openDeleteDialog,
 	createDocument,
