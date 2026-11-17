@@ -73,6 +73,20 @@ test.describe('Wiki Editor', () => {
 		).toBeVisible();
 	});
 
+	test('a new space needs a name', async ({ page }) => {
+		await page.goto(APP_BASE);
+		await page.getByRole('button', { name: 'New Space' }).first().click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog.getByLabel('Space Name')).toHaveAttribute(
+			'required',
+			'',
+		);
+
+		await dialog.getByLabel('Route').fill(uniqueRoute('nameless'));
+		await dialog.getByRole('button', { name: 'Create' }).click();
+		await expect(dialog.getByText('Space Name is required.')).toBeVisible();
+	});
+
 	test('should navigate to space and create a wiki page', async ({
 		page,
 		request,
