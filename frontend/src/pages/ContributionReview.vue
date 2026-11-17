@@ -40,12 +40,6 @@
 					>
 						{{ __('Approve') }}
 					</Button>
-
-					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
-						<Button variant="subtle" :title="__('More actions')">
-							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
 				</template>
 
 				<Button
@@ -56,6 +50,12 @@
 				>
 					{{ __('Withdraw') }}
 				</Button>
+
+				<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
+					<Button variant="subtle" :title="__('More actions')">
+						<span class="lucide-more-horizontal size-4" aria-hidden="true" />
+					</Button>
+				</Dropdown>
 			</div>
 		</div>
 
@@ -540,6 +540,14 @@ const canReview = computed(() => {
 	);
 });
 
+// A reviewer can also close a CR whose author never comes back with changes.
+const canReject = computed(() => {
+	return (
+		capabilities.value.can_write &&
+		['In Review', 'Approved', 'Changes Requested'].includes(changeRequest.doc?.status)
+	);
+});
+
 // Open conflicts outlive the failed merge that found them.
 watch(
 	() => canReview.value && changeRequest.doc?.status === 'Approved',
@@ -600,7 +608,7 @@ const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const status = changeRequest.doc?.status;
 	const groups = [];
-	if (['In Review', 'Approved'].includes(status)) {
+	if (canReview.value) {
 		const decisions = [
 			{
 				label: __('Request changes'),
@@ -638,7 +646,7 @@ const reviewMenuOptions = computed(() => {
 		);
 	}
 	// Authors who can also review have no standalone Withdraw button.
-	if (canWithdraw.value) {
+	if (canWithdraw.value && canReview.value) {
 		groups.push({
 			group: __('Author'),
 			hideLabel: true,
@@ -651,7 +659,7 @@ const reviewMenuOptions = computed(() => {
 			],
 		});
 	}
-	if (['In Review', 'Approved'].includes(status)) {
+	if (canReject.value) {
 		groups.push({
 			group: __('Reject'),
 			hideLabel: true,
