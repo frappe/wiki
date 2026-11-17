@@ -1230,6 +1230,17 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertIsNotNone(cr_doc.reviewed_at)
 		self.assertIsNotNone(cr_doc.rejected_at)
 
+	def test_reject_after_changes_were_requested(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11h2")
+		submit_change_request(cr.name)
+		request_changes(cr.name, "Please fix")
+
+		reject_change_request(cr.name, "Author went quiet")
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Rejected")
+
 	def test_reject_requires_comment(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")

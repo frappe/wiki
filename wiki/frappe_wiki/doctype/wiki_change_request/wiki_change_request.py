@@ -1568,7 +1568,8 @@ def request_changes(name: str, comment: str) -> None:
 
 @frappe.whitelist()
 def reject_change_request(name: str, comment: str) -> None:
-	"""Reject an in-review (or approved) CR. Terminal — it will not be merged.
+	"""Reject a CR under review, including one waiting on the author for changes.
+	Terminal: it will not be merged.
 
 	Like `request_changes` a comment is required (it is the rejection reason the
 	author reads), but unlike it `Rejected` is a dead end: the author cannot
@@ -1584,7 +1585,7 @@ def reject_change_request(name: str, comment: str) -> None:
 			_("You do not have permission to review change requests in this space."),
 			frappe.PermissionError,
 		)
-	_assert_status(cr, {"In Review", "Approved"})
+	_assert_status(cr, {"In Review", "Approved", "Changes Requested"})
 
 	cr.status = "Rejected"
 	cr.review_comment = comment
