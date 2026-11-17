@@ -49,17 +49,17 @@ When you click **Merge** and Wiki finds conflicts, the change request stays `App
 
 ## Resolve conflicts
 
-1. Click a conflict to expand it. The diff shows the live page on the left and the change request on the right.
-2. Select **Keep Main** to keep the live page, or **Keep Your Changes** to use the page from the change request.
-3. Do this for each conflict. Wiki selects **Keep Your Changes** by default.
+1. Click a conflict to expand it. The diff shows the live page under **Main** and the change request under **This change request**.
+2. Select **Keep main** to keep the live page, or **Keep this change request** to use the page from the change request.
+3. Do this for each conflict. Wiki selects nothing for you. When every conflict has a choice, the banner shows **Ready to merge**.
 4. Click **Resolve & Merge**.
 
 <picture>
   <source srcset="../images/change-requests/merge-conflicts-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="../images/change-requests/merge-conflicts-light.webp" alt="The Merge Conflicts banner and an expanded conflict with the Keep Main and Keep Your Changes options">
+  <img src="../images/change-requests/merge-conflicts-light.webp" alt="The Merge Conflicts banner and an expanded conflict with the Keep main and Keep this change request options">
 </picture>
 
-Your choice applies to the whole page. **Keep Main** drops the change of this change request to that page. **Keep Your Changes** replaces the live page, so the other change to that page is lost.
+Your choice applies to the whole page. **Keep main** drops the change of this change request to that page. **Keep this change request** replaces the live page, so the other change to that page is lost.
 
 If the space changed again while you resolved the conflicts, Wiki can find new conflicts and shows an error. Reload the page, click **Merge** again, and resolve the conflicts that Wiki shows.
 

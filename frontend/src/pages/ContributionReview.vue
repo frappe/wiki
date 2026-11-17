@@ -91,7 +91,24 @@
 			</div>
 			<!-- Conflict resolution banner -->
 			<div
-				v-if="hasConflicts"
+				v-if="hasConflicts && allResolved"
+				class="mb-4 p-4 bg-surface-green-2 border border-outline-green-2 rounded-6"
+			>
+				<div class="flex items-start gap-3">
+					<span class="lucide-circle-check size-5 text-ink-green-5 shrink-0 mt-0.5" aria-hidden="true" />
+					<div>
+						<p class="font-medium text-ink-green-7">{{ __('Ready to merge') }}</p>
+						<p class="text-sm text-ink-green-6 mt-1">
+							{{ __('Every conflict has a choice. Resolve & Merge applies them.') }}
+						</p>
+						<p class="text-sm-medium text-ink-green-5 mt-2">
+							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
+						</p>
+					</div>
+				</div>
+			</div>
+			<div
+				v-else-if="hasConflicts"
 				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-6"
 			>
 				<div class="flex items-start gap-3">
@@ -122,12 +139,20 @@
 							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
-							<div
-								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
+							<button
+								type="button"
+								class="flex w-full items-center justify-between p-4 text-start bg-surface-gray-1 hover:bg-surface-gray-2 focus-visible:outline-none focus-visible:ring focus-visible:ring-outline-gray-3"
+								:aria-expanded="expandedConflicts.has(conflict.name)"
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
+									<div
+										v-if="resolutions[conflict.name]"
+										class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-green-2 text-ink-green-5"
+									>
+										<span class="lucide-check size-4" aria-hidden="true" />
+									</div>
+									<div v-else class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
 										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>
@@ -144,7 +169,7 @@
 												theme="green"
 												size="sm"
 											>
-												{{ resolutions[conflict.name] === 'ours' ? __('Keep Main') : __('Keep Your Changes') }}
+												{{ resolutions[conflict.name] === 'ours' ? __('Keep main') : __('Keep this change request') }}
 											</Badge>
 										</div>
 									</div>
@@ -152,24 +177,20 @@
 								<span
 									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
 									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }" aria-hidden="true" />
-							</div>
+							</button>
 
 							<div v-if="expandedConflicts.has(conflict.name)" class="border-t border-outline-gray-2">
-								<div class="grid grid-cols-2 gap-4 px-4 pt-4">
-									<FormControl
-										type="checkbox"
-										:label="__('Keep Main')"
-										:modelValue="resolutions[conflict.name] === 'ours'"
-										@update:modelValue="setResolution(conflict.name, 'ours')"
-									/>
-									<FormControl
-										type="checkbox"
-										:label="__('Keep Your Changes')"
-										:modelValue="resolutions[conflict.name] === 'theirs'"
-										@update:modelValue="setResolution(conflict.name, 'theirs')"
+								<div class="px-4 pt-4">
+									<TabButtons
+										v-model="resolutions[conflict.name]"
+										:options="resolutionOptions"
 									/>
 								</div>
 								<div class="p-4 relative z-0 isolate">
+									<div class="mb-2 grid grid-cols-2 gap-4 text-sm-medium text-ink-gray-6">
+										<span>{{ __('Main') }}</span>
+										<span>{{ __('This change request') }}</span>
+									</div>
 									<DiffViewer
 										:old-content="conflict.ours_content || ''"
 										:new-content="conflict.theirs_content || ''"
@@ -649,13 +670,10 @@ const reviewMenuOptions = computed(() => {
 	return groups;
 });
 
-function setResolution(conflictName, value) {
-	if (resolutions[conflictName] === value) {
-		delete resolutions[conflictName];
-	} else {
-		resolutions[conflictName] = value;
-	}
-}
+const resolutionOptions = [
+	{ label: __('Keep main'), value: 'ours' },
+	{ label: __('Keep this change request'), value: 'theirs' },
+];
 
 function toggleConflict(conflictName) {
 	if (expandedConflicts.has(conflictName)) {
