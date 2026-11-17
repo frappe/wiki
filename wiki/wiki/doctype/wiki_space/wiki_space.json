@@ -110,7 +110,8 @@
   {
    "fieldname": "space_name",
    "fieldtype": "Data",
-   "label": "Space Name"
+   "label": "Space Name",
+   "reqd": 1
   },
   {
    "fieldname": "app_switcher_logo",
@@ -358,7 +359,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-12 12:00:00.000000",
+ "modified": "2026-11-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Wiki",
  "name": "Wiki Space",
