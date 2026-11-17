@@ -23,6 +23,11 @@ html[data-theme="light"] {
 	color-scheme: light;
 }
 
+/* vue-sonner gives toasts the system font stack. */
+[data-sonner-toaster] {
+	font-family: inherit;
+}
+
 /* Directional icons point the way the page reads. */
 :dir(rtl)
 	:is(
