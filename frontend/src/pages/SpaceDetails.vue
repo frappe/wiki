@@ -31,7 +31,7 @@
             <MobileDrawer
                 v-if="isMobile"
                 :open="mobileTreeOpen"
-                side="left"
+                side="start"
                 :title="__('Pages')"
                 @update:open="mobileTreeOpen = $event"
             >
@@ -40,9 +40,9 @@
                     :space-name="spaceStore.doc?.space_name"
                     :space-route="spaceStore.doc?.route"
                     :space-loaded="spaceStore.isLoaded"
-                    :tree-data="spaceStore.treeData"
+                    :tree="spaceStore.tree"
                     :change-type-map="spaceStore.changeTypeMap"
-                    :readonly="spaceStore.isReadonly || spaceStore.isTreeStale"
+                    :readonly="spaceStore.isTreeReadonly"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="spaceStore.refreshTree"
@@ -55,13 +55,20 @@
                  scrolls under its sticky toolbar instead of the whole panel
                  sliding inside a second one. -->
             <main class="flex min-h-0 min-w-0 flex-1 flex-col bg-surface-base">
-                <router-view
-                    :space-id="spaceId"
-                    :readonly="spaceStore.isReadonly"
-                    @refresh="spaceStore.refreshTree"
-                />
+                <!-- The review loads one change request per mount. -->
+                <router-view v-slot="{ Component, route: child }">
+                    <component
+                        :is="Component"
+                        :key="child.params.changeRequestId"
+                        :space-id="spaceId"
+                        :readonly="spaceStore.isReadonly"
+                        @refresh="spaceStore.refreshTree"
+                    />
+                </router-view>
             </main>
         </div>
+
+        <StartEditingDialog />
 
         <SpaceSettings
             v-model="showSpaceSettings"
@@ -153,10 +160,12 @@ import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
+import StartEditingDialog from '../components/StartEditingDialog.vue';
 import { useMobile } from '../composables/useMobile';
 import { useNewPageRequest } from '../composables/useNewPageRequest';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
-import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
+import { SPACE_TREE_KEY } from '../lib/spaceTree.js';
+import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 
@@ -170,6 +179,7 @@ const props = defineProps({
 const route = useRoute();
 
 const router = useRouter();
+const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { showSpaceSettings, open: openSpaceSettings } = useSpaceSettings();
@@ -223,7 +233,7 @@ function openSettings() {
 // without every sibling route taking it too.
 provide(
 	SPACE_TREE_KEY,
-	computed(() => spaceStore.treeData),
+	computed(() => spaceStore.tree),
 );
 
 function openUpdateRoutesDialog() {
@@ -300,39 +310,31 @@ watch(
 	{ immediate: true },
 );
 
-function findNodeByDocumentName(nodes, name) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (node.document_name === name) return node;
-		const found = findNodeByDocumentName(node.children, name);
-		if (found) return found;
-	}
-	return null;
-}
-
 // On the bare space route (welcome screen) open a page automatically: the
 // remembered page if it still exists, otherwise the tree's first page. Replace
 // rather than push so the back button returns to the library, not here.
 // `autoOpening` guards the async gap before route.name flips to 'SpacePage':
-// without it, a treeData update mid-navigation (e.g. a git-synced background
+// without it, a tree update mid-navigation (e.g. a git-synced background
 // sync) could fire a second replace and override the in-flight one.
+// The saved tree from the last visit can be out of date, so only the fresh
+// tree may redirect.
 let autoOpening = false;
-function autoOpenPage() {
-	if (autoOpening || route.name !== 'SpaceDetails') return;
-	const tree = spaceStore.treeData;
-	if (!tree || spaceStore.isTreeStale) return;
+function pageToOpen() {
+	const tree = spaceStore.tree;
+	if (!tree || spaceStore.isTreeStale) return null;
 
 	const remembered = localStorage.getItem(lastPageKey());
 	// A page staged for deletion is still in the tree, so the remembered one has
 	// to be checked for that too, or the space reopens on a page nothing can load.
-	const rememberedNode = remembered
-		? findNodeByDocumentName(tree.children, remembered)
-		: null;
-	const target =
-		(rememberedNode && !rememberedNode.is_deleted ? remembered : null) ||
-		firstPageIn(tree.children);
+	const rememberedNode = remembered && tree.nodeByDocumentName(remembered);
+	if (rememberedNode && !rememberedNode.isDeleted) return remembered;
+	return tree.firstPage();
+}
 
-	if (target) {
+watch(
+	() => route.name === 'SpaceDetails' && pageToOpen(),
+	(target) => {
+		if (!target || autoOpening || route.name !== 'SpaceDetails') return;
 		autoOpening = true;
 		router
 			.replace({
@@ -342,32 +344,39 @@ function autoOpenPage() {
 			.finally(() => {
 				autoOpening = false;
 			});
-	}
-}
-
-// treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
-// as it — and the route — settle.
-// The saved tree from the last visit can be out of date, so only the fresh
-// tree may redirect.
-watch([() => spaceStore.treeData, () => route.name], autoOpenPage, {
-	immediate: true,
-});
+	},
+	{ immediate: true },
+);
 
 // The open page can be deleted from under the reader: by this tab (the row is
 // struck through but the panel stays put) or by a bookmark to a page already
 // deleted in the draft. Its overlay is gone, so the editor would sit on a
 // skeleton forever. Fall back to the space, which opens the first live page.
+function isOpenPageDeleted() {
+	if (route.name !== 'SpacePage' || spaceStore.isTreeStale) return false;
+	const pageId = route.params.pageId;
+	return !!spaceStore.tree?.nodeByDocumentName(pageId)?.isDeleted && pageId;
+}
+
+watch(
+	isOpenPageDeleted,
+	(deletedPageId) => {
+		if (!deletedPageId) return;
+		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+	},
+	{ immediate: true },
+);
+
 watch(
 	[
-		() => spaceStore.treeData,
 		() => route.name,
-		() => route.params.pageId,
+		() => spaceStore.isEditing,
+		() => spaceStore.canContribute,
+		() => crStore.finalizing,
 	],
-	([tree, name, pageId]) => {
-		if (name !== 'SpacePage' || !tree || !pageId || spaceStore.isTreeStale)
-			return;
-		const node = findNodeByDocumentName(tree.children, pageId);
-		if (!node?.is_deleted) return;
+	([name, editing, mayContribute, finalizing]) => {
+		if (name !== 'DraftChangeRequest' || editing || finalizing) return;
+		if (mayContribute === null) return;
 		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
 	},
 	{ immediate: true },

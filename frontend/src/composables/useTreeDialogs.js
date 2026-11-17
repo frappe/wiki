@@ -8,6 +8,8 @@ import { useRouter } from 'vue-router';
 const CHECK_ROUTE_AVAILABLE =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.check_route_available';
 
+const SAFE_LINK_PATTERN = /^(https?|mailto):/i;
+
 export function useTreeDialogs(
 	spaceId,
 	expandedNodes,
@@ -43,11 +45,6 @@ export function useTreeDialogs(
 	const editExternalLinkTitle = ref('');
 	const editExternalLinkUrl = ref('');
 	const editExternalLinkNode = ref(null);
-
-	const isCreating = ref(false);
-	const isRenaming = ref(false);
-	const isDeleting = ref(false);
-	const isUpdatingExternalLink = ref(false);
 
 	// A group's route already carries the space route plus every ancestor slug,
 	// so a child's prefix is simply the parent's URL. Only the space root is
@@ -125,17 +122,9 @@ export function useTreeDialogs(
 		showCreateDialog.value = true;
 	}
 
-	function countDescendants(node) {
-		if (!node?.children?.length) return 0;
-		return node.children.reduce(
-			(sum, child) => sum + 1 + countDescendants(child),
-			0,
-		);
-	}
-
 	function openDeleteDialog(node) {
 		deleteNode.value = node;
-		deleteChildCount.value = node?.is_group ? countDescendants(node) : 0;
+		deleteChildCount.value = draftStore.tree.pages(node.docKey).length;
 		showDeleteDialog.value = true;
 	}
 
@@ -160,48 +149,55 @@ export function useTreeDialogs(
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
 
-		isCreating.value = true;
 		try {
-			const { tempKey, promise } = draftStore.createNode({
+			const { docKey, promise } = draftStore.createNode({
 				parentKey,
 				title,
 				isGroup,
 				route,
 			});
 			// Open the new page for editing immediately. The DraftContributionPanel
-			// reads its content from pagesByKey (seeded by createNode), and the
-			// route remaps from tmp_* to the real key once the create syncs.
+			// reads its content from pagesByKey (seeded by createNode).
 			// Groups have no editable content, so skip navigation for those.
 			if (!isGroup && spaceId.value) {
 				router.push({
 					name: 'DraftChangeRequest',
-					params: { spaceId: spaceId.value, docKey: tempKey },
+					params: { spaceId: spaceId.value, docKey },
 				});
 			}
 			await promise;
 		} catch (error) {
 			console.error('Error creating page:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isCreating.value = false;
 		}
 	}
 
 	async function deleteDocument(close) {
-		const docKey = deleteNode.value?.doc_key;
+		const docKey = deleteNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;
 		}
 		close();
-		isDeleting.value = true;
+		// A page this change request added leaves the tree, so its editor would
+		// show "Draft not found". The space opens the first page left instead.
+		const openDraft = router.currentRoute.value.params.docKey;
+		if (
+			openDraft &&
+			draftStore.tree
+				.trail(openDraft)
+				?.some((record) => record.docKey === docKey)
+		) {
+			router.replace({
+				name: 'SpaceDetails',
+				params: { spaceId: spaceId.value },
+			});
+		}
 		try {
 			await draftStore.deleteNode(docKey);
 		} catch (error) {
 			console.error('Error creating delete draft:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isDeleting.value = false;
 		}
 	}
 
@@ -217,19 +213,16 @@ export function useTreeDialogs(
 			toast.warning(__('Name is required'));
 			return;
 		}
-		const docKey = renameNode.value?.doc_key;
+		const docKey = renameNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;
 		}
 		close();
-		isRenaming.value = true;
 		try {
 			await draftStore.renameNode(docKey, title);
 		} catch (error) {
 			toast.error(error.messages?.[0] || __('Error updating title'));
-		} finally {
-			isRenaming.value = false;
 		}
 	}
 
@@ -251,12 +244,17 @@ export function useTreeDialogs(
 			toast.warning(__('URL is required'));
 			return;
 		}
+		if (!SAFE_LINK_PATTERN.test(url)) {
+			toast.warning(
+				__('External links must start with http://, https:// or mailto:'),
+			);
+			return;
+		}
 
 		const parentKey = externalLinkParent.value;
 		if (parentKey) expandedNodes.value[parentKey] = true;
 		close();
 
-		isCreating.value = true;
 		try {
 			const { promise } = draftStore.createNode({
 				parentKey,
@@ -268,15 +266,13 @@ export function useTreeDialogs(
 		} catch (error) {
 			console.error('Error creating external link:', error);
 			toast.error(error.messages?.[0] || __('Error creating draft'));
-		} finally {
-			isCreating.value = false;
 		}
 	}
 
 	function openEditExternalLinkDialog(node) {
 		editExternalLinkNode.value = node;
 		editExternalLinkTitle.value = node.title || '';
-		editExternalLinkUrl.value = node.external_url || '';
+		editExternalLinkUrl.value = node.externalUrl || '';
 		showEditExternalLinkDialog.value = true;
 	}
 
@@ -291,13 +287,18 @@ export function useTreeDialogs(
 			toast.warning(__('URL is required'));
 			return;
 		}
-		const docKey = editExternalLinkNode.value?.doc_key;
+		if (!SAFE_LINK_PATTERN.test(url)) {
+			toast.warning(
+				__('External links must start with http://, https:// or mailto:'),
+			);
+			return;
+		}
+		const docKey = editExternalLinkNode.value?.docKey;
 		if (!docKey) {
 			close();
 			return;
 		}
 		close();
-		isUpdatingExternalLink.value = true;
 		try {
 			await draftStore.updateNode(docKey, {
 				title,
@@ -306,8 +307,6 @@ export function useTreeDialogs(
 		} catch (error) {
 			console.error('Error updating external link:', error);
 			toast.error(error.messages?.[0] || __('Error updating external link'));
-		} finally {
-			isUpdatingExternalLink.value = false;
 		}
 	}
 
@@ -330,10 +329,6 @@ export function useTreeDialogs(
 		showEditExternalLinkDialog,
 		editExternalLinkTitle,
 		editExternalLinkUrl,
-		isCreating,
-		isRenaming,
-		isDeleting,
-		isUpdatingExternalLink,
 		openCreateDialog,
 		openDeleteDialog,
 		createDocument,

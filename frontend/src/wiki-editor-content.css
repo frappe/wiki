@@ -41,6 +41,11 @@
 	outline: none;
 }
 
+/* prose-v3 resets the quote's italic and color but keeps prose's weight 500. */
+.wiki-editor-content blockquote {
+	font-weight: inherit;
+}
+
 /* Editing surface: no bounding box — the flush toolbar divider above and the
    centered column provide the structure. Horizontal padding comes from the
    column wrapper in WikiEditor.vue. */
@@ -56,11 +61,15 @@
 	padding-top: 1.5rem;
 }
 
+.wiki-editor-content .code-block-container {
+	direction: ltr;
+}
+
 /* Table column resize handle (frappe-ui styles cells/selection but not the
    prosemirror-tables drag handle) */
 .wiki-editor-content .column-resize-handle {
 	position: absolute;
-	right: -2px;
+	inset-inline-end: -2px;
 	top: 0;
 	bottom: 0;
 	width: 4px;
@@ -147,7 +156,7 @@
 	display: inline-block;
 	width: 0.85em;
 	height: 0.85em;
-	margin-right: 0.2em;
+	margin-inline-end: 0.2em;
 	vertical-align: -0.08em;
 	background-color: currentColor;
 	opacity: 0.7;

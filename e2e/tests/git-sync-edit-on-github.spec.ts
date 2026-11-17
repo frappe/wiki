@@ -43,7 +43,9 @@ test.describe('Git-synced space — Edit on GitHub (TB2)', () => {
 		// Open the synced page.
 		await page.locator('aside').getByText(leafTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\//);
-		await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('page-reader')).toBeVisible({
+			timeout: 10000,
+		});
 
 		// Stub window.open so we can read the URL without navigating away.
 		await page.evaluate(() => {

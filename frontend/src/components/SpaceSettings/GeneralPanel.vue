@@ -79,7 +79,7 @@
 						<p class="text-p-base text-ink-gray-7">
 							{{ __('This cannot be undone. Deleting the space also removes:') }}
 						</p>
-						<ul class="list-disc space-y-1 pl-5 text-p-sm text-ink-gray-5">
+						<ul class="list-disc space-y-1 ps-5 text-p-sm text-ink-gray-5">
 							<li>{{ pagesLabel }}</li>
 							<li>{{ __('Their revision history') }}</li>
 							<li>{{ __('Every change request') }}</li>
@@ -180,7 +180,8 @@ const pagesLabel = computed(() => {
 // Renaming the space never moves its pages — the route is changed on purpose,
 // through the flow next to it, because every published URL depends on it.
 const routeDescription = computed(() =>
-	__('Pages live under /{0}/…', [props.space.doc?.route || '']),
+	// LRI ... PDI keeps the path left to right inside right-to-left text.
+	__('Pages live under {0}', [`\u2066/${props.space.doc?.route || ''}/…\u2069`]),
 );
 
 watch(

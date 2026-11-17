@@ -1,27 +1,40 @@
-(function () {
-  const viewer = document.getElementById("image-viewer");
-  const viewerImg = document.getElementById("image-viewer-img");
-  if (!viewer || !viewerImg) return;
+// Watches `root` because client-side navigation swaps its HTML.
+export function bindImageViewer(root) {
+  const viewer = ensureViewer();
 
   function attachListeners() {
-    document.querySelectorAll("#wiki-content img").forEach((img) => {
+    root.querySelectorAll("img").forEach((img) => {
       if (img.dataset.viewerBound) return;
       img.dataset.viewerBound = "true";
       img.style.cursor = "zoom-in";
       img.addEventListener("click", () => {
+        const viewerImg = viewer.firstElementChild;
         // currentSrc is the dark file when a <picture> is showing it.
         viewerImg.src = img.currentSrc || img.src;
         viewerImg.alt = img.alt || "";
+        viewerImg.toggleAttribute("data-theme-aware", Boolean(img.closest("picture")));
         viewer.classList.add("active");
         document.body.classList.add("image-viewer-open");
       });
     });
   }
 
-  function close() {
-    viewer.classList.remove("active");
-    document.body.classList.remove("image-viewer-open");
-  }
+  attachListeners();
+  const observer = new MutationObserver(attachListeners);
+  observer.observe(root, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
+let viewer = null;
+
+function ensureViewer() {
+  if (viewer) return viewer;
+  viewer = document.createElement("div");
+  viewer.id = "image-viewer";
+  const viewerImg = document.createElement("img");
+  viewerImg.id = "image-viewer-img";
+  viewer.appendChild(viewerImg);
+  document.body.appendChild(viewer);
 
   viewer.addEventListener("click", close);
 
@@ -41,16 +54,10 @@
     e.preventDefault();
     close();
   });
+  return viewer;
+}
 
-  // Wire up images on initial load
-  attachListeners();
-
-  // Re-wire after SPA navigation replaces #wiki-content innerHTML
-  const content = document.getElementById("wiki-content");
-  if (content) {
-    new MutationObserver(attachListeners).observe(content, {
-      childList: true,
-      subtree: true,
-    });
-  }
-})();
+function close() {
+  viewer.classList.remove("active");
+  document.body.classList.remove("image-viewer-open");
+}

@@ -21,7 +21,7 @@
 						>
 							<template #default="{ active }">
 								<span
-									class="lucide-layout-grid size-6"
+									class="lucide-layout-dashboard size-6"
 									:class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'" aria-hidden="true" />
 							</template>
 						</MobileNavItem>
@@ -39,7 +39,7 @@
 						<MobileNavItem
 							:label="__('Change Requests')"
 							:route="{ name: 'ChangeRequests' }"
-							:active="['ChangeRequests', 'ChangeRequestReview'].includes(route.name)"
+							:active="route.name === 'ChangeRequests'"
 						>
 							<template #default="{ active }">
 								<span
@@ -50,15 +50,18 @@
 					</MobileNav>
 				</template>
 			</MobileShell>
-			<DesktopShell v-else class="wiki-desktop-shell h-full">
-				<template #sidebar>
-					<!-- One navigation column that drills: the library at the top
-					     level, the space itself once you are inside one. -->
-					<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
-					<LibrarySidebar v-else-if="isRouteReady" />
-				</template>
-				<slot></slot>
-			</DesktopShell>
+			<div v-else class="flex h-full">
+				<DesktopShell class="wiki-desktop-shell h-full min-w-0 flex-1">
+					<template #sidebar>
+						<!-- One navigation column that drills: the library at the top
+						     level, the space itself once you are inside one. -->
+						<SpaceSidebar v-if="spaceId" :key="spaceId" :space-id="spaceId" />
+						<LibrarySidebar v-else-if="isRouteReady" />
+					</template>
+					<slot></slot>
+				</DesktopShell>
+				<div id="wiki-side-panel" class="flex" />
+			</div>
 		</template>
 		<div
 			v-else
@@ -159,7 +162,7 @@ watch(
    outer corners, so a second radius inside it just reads as noise. */
 .wiki-desktop-shell :deep([data-slot='desktop-shell-content']) {
 	background-color: var(--surface-base);
-	border-left: 1px solid var(--outline-gray-2);
+	border-inline-start: 1px solid var(--outline-gray-2);
 	overflow: hidden;
 }
 

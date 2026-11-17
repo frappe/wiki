@@ -12,6 +12,7 @@ Make the **submit → review → approve / request changes / reject → merge** 
   - **Approve** → status `Approved`. Does **not** publish; **Merge is a separate explicit action**.
   - **Request Changes** (comment required) → `Changes Requested`. Goes back to the author to revise & resubmit.
   - **Reject** (comment required) → `Rejected`. **Terminal** — the CR will not be merged.
+    A reviewer can also reject while the CR is `Changes Requested`, so a CR whose author never resubmits can be closed.
 - **Reviewers act from a three-dots menu** in the review header.
 - **Preview**, not just diffs: a reviewer can preview how the proposed pages will actually render in the docs, not only read a markdown diff.
 - We are **not** hardening concurrency for now (no multi-reviewer races, no concurrent-merge guard beyond a simple status check). Single reviewer acting at a time is assumed.

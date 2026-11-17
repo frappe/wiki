@@ -10,7 +10,7 @@
                  column re-centres in what remains. The column shifts when the
                  outline appears, which is what buys it back on a 1280px
                  screen — floating over both gutters needed 1400. -->
-            <div class="relative" :class="showTocRail ? 'pr-60' : ''">
+            <div class="relative" :class="showTocRail ? 'pe-60' : ''">
                 <div class="mx-auto w-full max-w-3xl px-8">
                     <slot name="title" />
                     <EditorContent :editor="editor" :class="contentClass" />
@@ -41,14 +41,10 @@
 <script setup>
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
-import {
-	Table,
-	TableCell,
-	TableHeader,
-	TableRow,
-} from '@tiptap/extension-table';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
-import { onKeyStroke, useElementSize } from '@vueuse/core';
+import { Selection } from '@tiptap/pm/state';
+import { onKeyStroke, useEventListener } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
 	computed,
@@ -59,17 +55,18 @@ import {
 	onMounted,
 	onUnmounted,
 	ref,
-	shallowRef,
 	watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { useOutlineLayout } from '@/composables/useOutlineLayout';
 import {
 	createTrailingScheduler,
 	memoizeLast,
 	onEditorFlushRequest,
+	onEditorReloadRequest,
 } from '@/lib/editorContentSync';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import {
@@ -98,7 +95,6 @@ import {
 	docKeyFromHref,
 	findPageByTitle,
 	pickerItems,
-	linkablePages,
 } from './tiptap-extensions/page-links.js';
 import {
 	dataUrlToFile,
@@ -112,14 +108,19 @@ import {
 	SlashCommands,
 	filterCommands,
 } from './tiptap-extensions/slash-commands.js';
-import { VideoBlock } from './tiptap-extensions/video-block.js';
+import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
 
 // Import tippy for slash command popup
 import tippy from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
+
+// Popper has no RTL support: `start` is always the left edge.
+const popupPlacement =
+	document.documentElement.dir === 'rtl' ? 'bottom-end' : 'bottom-start';
 
 // Serialize: empty paragraphs render as blank lines instead of &nbsp;.
 const WikiParagraph = Paragraph.extend({
@@ -154,6 +155,12 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// Put the caret at the end of the page once mounted, for an editor opened
+	// by Edit.
+	autofocus: {
+		type: Boolean,
+		default: false,
+	},
 	// The outline stands down when something wider has claimed the right of
 	// the page — the page settings panel. Two lists of the page at once is one
 	// too many.
@@ -175,16 +182,13 @@ const spaceStore = useSpaceStore();
 const draftStore = useDraftWorkspaceStore();
 
 function spacePages() {
-	return linkablePages(spaceTree?.value?.children);
+	return spaceTree?.value?.linkablePages() ?? [];
 }
 
 // A page created from the link picker goes in the open page's folder.
 async function createPageBesideThis(title) {
-	const trail = trailToNode(
-		spaceTree?.value?.children,
-		(node) => node.doc_key === props.documentKey,
-	);
-	const parentKey = trail?.at(-2)?.doc_key ?? null;
+	const parentKey =
+		spaceTree?.value?.trail(props.documentKey)?.at(-2)?.docKey ?? null;
 	try {
 		const docKey = await draftStore.createNode({ parentKey, title }).promise;
 		toast.success(`Added “${title}” as a draft page in this change request`);
@@ -202,16 +206,13 @@ const router = useRouter();
 function linkedPage(href) {
 	const docKey = docKeyFromHref(href);
 	if (!docKey) return null;
-	const node = trailToNode(
-		spaceTree?.value?.children,
-		(candidate) => candidate.doc_key === docKey,
-	)?.at(-1);
-	const target = node && crumbRoute(node, route.params.spaceId);
-	return target ? { title: node.title, href: router.resolve(target).href } : null;
+	const tree = spaceTree?.value;
+	const node = tree?.trail(docKey)?.at(-1);
+	const target = node && crumbRoute(tree, node, route.params.spaceId);
+	return target
+		? { title: node.title, href: router.resolve(target).href }
+		: null;
 }
-
-const AUTOSAVE_DELAY = 10 * 1000;
-let autosaveTimer = null;
 
 // Reading the page as markdown serializes and re-parses the whole document.
 // Doing it on every keystroke made typing lag by seconds on large pages, so
@@ -219,9 +220,22 @@ let autosaveTimer = null;
 const contentSync = createTrailingScheduler({
 	delay: 300,
 	maxWait: 2000,
-	run: reportContentChange,
+	run: emitContentChange,
 });
 const stopFlushRequests = onEditorFlushRequest(() => contentSync.flush());
+const stopReloadRequests = onEditorReloadRequest(({ docKey, content }) => {
+	if (docKey !== props.documentKey || !editor.value) return;
+	contentSync.cancel();
+	autosave.cancel();
+	seedContent(content);
+});
+
+// The max wait saves a page that is typed into without a pause.
+const autosave = createTrailingScheduler({
+	delay: 2000,
+	maxWait: 10000,
+	run: autoSave,
+});
 
 // File upload composable from frappe-ui
 const fileUploader = useFileUpload();
@@ -267,15 +281,15 @@ function fileToBase64(file) {
 }
 
 /**
- * Patch the attributes of the in-flight image node identified by uploadId.
+ * Patch the attributes of the in-flight upload node identified by uploadId.
  */
-function updateImageNode(uploadId, attrs) {
+function updateUploadNode(uploadId, attrs) {
 	const ed = editor.value;
 	if (!ed) return;
 	const { state, view } = ed;
 	let target = null;
 	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'image' && node.attrs.uploadId === uploadId) {
+		if (node.attrs.uploadId === uploadId) {
 			target = { node, pos };
 			return false;
 		}
@@ -311,7 +325,7 @@ async function insertAndUploadImage(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updateImageNode,
+		updateUploadNode,
 		'Failed to upload image',
 	);
 }
@@ -383,7 +397,7 @@ function uploadPastedDataImages(uploads) {
 		uploadIntoNode(
 			uploadId,
 			() => dataUrlToFile(src).then(uploadFile),
-			updateImageNode,
+			updateUploadNode,
 			'Failed to upload image',
 		);
 	}
@@ -394,33 +408,11 @@ function uploadPastedDataImages(uploads) {
 function transformPasted(slice) {
 	const tagged = tagDataImagesInSlice(slice);
 	// The tagged slice is inserted right after this returns; upload once the
-	// nodes are in the doc so updateImageNode can find them.
+	// nodes are in the doc so updateUploadNode can find them.
 	if (tagged.uploads.length) {
 		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
 	}
 	return tagged.slice;
-}
-
-/**
- * Patch the attributes of the in-flight PDF node identified by uploadId.
- */
-function updatePdfNode(uploadId, attrs) {
-	const ed = editor.value;
-	if (!ed) return;
-	const { state, view } = ed;
-	let target = null;
-	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'pdfBlock' && node.attrs.uploadId === uploadId) {
-			target = { node, pos };
-			return false;
-		}
-	});
-	if (!target) return;
-	const tr = state.tr.setNodeMarkup(target.pos, undefined, {
-		...target.node.attrs,
-		...attrs,
-	});
-	view.dispatch(tr);
 }
 
 /**
@@ -442,9 +434,34 @@ async function insertAndUploadPdf(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updatePdfNode,
+		updateUploadNode,
 		'Failed to upload PDF',
 	);
+}
+
+/**
+ * Insert a video block immediately with a loading state, upload it in the
+ * background, then swap in the final URL (or surface an error).
+ */
+async function insertAndUploadVideo(file) {
+	const ed = editor.value;
+	if (!ed) return;
+
+	const uploadId = newUploadId();
+	startUpload(uploadId);
+	ed.chain().focus().setVideo({ uploadId, loading: true }).run();
+
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updateUploadNode,
+		'Failed to upload video',
+	);
+}
+
+function handleVideoUploadEvent(event) {
+	const file = event.detail?.file;
+	if (file) insertAndUploadVideo(file);
 }
 
 /**
@@ -511,8 +528,8 @@ function handleDrop(_view, event) {
 
 		if (isImage) {
 			insertAndUploadImage(file);
-		} else if (isVideo && editor.value) {
-			editor.value.commands.uploadVideo(file);
+		} else if (isVideo) {
+			insertAndUploadVideo(file);
 		} else if (isPdf) {
 			insertAndUploadPdf(file);
 		}
@@ -599,7 +616,7 @@ function showLinkPopup({ editor: editorInstance, href, isNew, rect }) {
 		showOnCreate: true,
 		interactive: true,
 		trigger: 'manual',
-		placement: 'bottom-start',
+		placement: popupPlacement,
 		maxWidth: 'none',
 		theme: 'none',
 		arrow: false,
@@ -675,7 +692,7 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 						showOnCreate: true,
 						interactive: true,
 						trigger: 'manual',
-						placement: 'bottom-start',
+						placement: popupPlacement,
 						maxWidth: 'none',
 						theme: 'none',
 						arrow: false,
@@ -763,22 +780,25 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 // hook destroys the editor — this one must read it while it's still alive.
 onBeforeUnmount(() => {
 	stopFlushRequests();
-	contentSync.cancel();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
-	emitContentChange({ persistImmediately: true });
+	stopReloadRequests();
+	autosave.cancel();
+	keepLocalContent();
 });
 
-// Seeds the editor and receives serialized markdown on every update; the
-// save flow reads normalized markdown from the editor directly instead.
-const editorContent = shallowRef(props.content || '');
+// A reload never unmounts the editor. Not `pagehide`: by then the page is torn
+// down before the IndexedDB write commits.
+useEventListener(window, 'beforeunload', keepLocalContent);
+
+function keepLocalContent() {
+	contentSync.cancel();
+	emitContentChange({ persistImmediately: true });
+}
 
 const editor = useEditor({
-	content: editorContent,
-	format: 'markdown',
 	editable: () => !props.readonly,
+	// Only when asked: an explicit `autofocus: false` changes how TipTap starts
+	// up and drops the trailing paragraph after a table.
+	...(props.autofocus && { autofocus: 'end' }),
 	extensions: [
 		wikiStarterKit({ paragraph: false }),
 		WikiUnderline,
@@ -800,7 +820,7 @@ const editor = useEditor({
 			allowBase64: true,
 			uploadImage: uploadImageVariant,
 		}),
-		Table.configure({
+		WikiTable.configure({
 			resizable: true,
 			renderWrapper: true,
 		}),
@@ -825,9 +845,7 @@ const editor = useEditor({
 		IframeBlock,
 		MermaidBlock,
 		PdfBlock,
-		VideoBlock.configure({
-			uploadFunction: uploadFile,
-		}),
+		VideoBlock,
 		Emoji,
 		// Slash commands
 		SlashCommands.configure({
@@ -862,6 +880,20 @@ const editor = useEditor({
 	onBlur: () => contentSync.flush(),
 });
 
+// Set content once: a `content` ref turns the whole page into markdown on every key press.
+seedContent(props.content);
+
+function seedContent(content) {
+	editor.value
+		.chain()
+		.setContent(content || '', { emitUpdate: false, contentType: 'markdown' })
+		.command(({ tr }) => {
+			tr.setSelection(Selection.atStart(tr.doc));
+			return true;
+		})
+		.run();
+}
+
 // useEditor doesn't take editorProps; set them on the created instance.
 editor.value.setOptions({
 	editorProps: {
@@ -878,22 +910,9 @@ const contentClass = [
 	props.readonly ? '' : 'is-editable',
 ];
 
-// The editor's width is the viewport minus the app nav, so a viewport media
-// query would measure the wrong box — watch the element instead. The rail is
-// given its gutter rather than floating over whatever the centred column
-// leaves behind, so the threshold is the 768px prose column plus that one
-// reserve — not a rail's width on each side, which needed a 1400px window.
-// Below it the strip takes over.
-const TOC_RAIL_RESERVE = 240;
-const TOC_RAIL_MIN_WIDTH = 768 + TOC_RAIL_RESERVE;
-const { width: containerWidth } = useElementSize(containerRef);
-const showTocRail = computed(
-	() => props.showOutline && containerWidth.value >= TOC_RAIL_MIN_WIDTH,
-);
-// Width reads 0 until the first ResizeObserver callback; rendering neither
-// variant until then avoids flashing the narrow strip on a wide screen.
-const showTocStrip = computed(
-	() => props.showOutline && containerWidth.value > 0 && !showTocRail.value,
+const { showTocRail, showTocStrip } = useOutlineLayout(
+	containerRef,
+	() => props.showOutline,
 );
 
 function normalizeMarkdown(content) {
@@ -915,44 +934,33 @@ function getMarkdown() {
 }
 
 function emitContentChange(options = {}) {
+	if (props.readonly) return;
 	const content = getMarkdown();
 	if (content === undefined) return;
 	emit('content-change', content, props.documentKey, options);
 }
 
+let reconciledSavedContent;
+
 // The store compares editor-normalized snapshots. This keeps parser
 // round-trip differences from becoming phantom unsaved changes.
 function emitContentReady() {
+	if (props.readonly) return;
 	const currentContent = getMarkdown();
 	if (currentContent === undefined) return;
+	reconciledSavedContent = normalizedSavedContent(props.savedContent);
 	emit(
 		'content-ready',
 		currentContent,
-		normalizedSavedContent(props.savedContent),
+		reconciledSavedContent,
 		props.documentKey,
 	);
 }
 
 function handleContentChange() {
 	forgetRemovedUploads();
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
 	contentSync.schedule();
-}
-
-function reportContentChange() {
-	const currentContent = getMarkdown();
-	if (currentContent === undefined) return;
-	emitContentChange();
-
-	if (currentContent === normalizedSavedContent(props.savedContent)) return;
-
-	autosaveTimer = setTimeout(() => {
-		autosaveTimer = null;
-		autoSave();
-	}, AUTOSAVE_DELAY);
+	autosave.schedule();
 }
 
 async function autoSave() {
@@ -975,11 +983,7 @@ function saveToDB() {
 	// Read-only documents (git-synced spaces) never write back.
 	if (props.readonly) return;
 	contentSync.cancel();
-	// Clear any pending autosave
-	if (autosaveTimer) {
-		clearTimeout(autosaveTimer);
-		autosaveTimer = null;
-	}
+	autosave.cancel();
 
 	if (!editor.value) {
 		toast.error('Editor is not ready');
@@ -1006,13 +1010,17 @@ function saveToDB() {
 
 watch(
 	() => props.savedContent,
-	() => emitContentReady(),
+	(savedContent) => {
+		if (savedContent === reconciledSavedContent) return;
+		emitContentReady();
+	},
 );
 
 // Expose methods for parent component
 defineExpose({
 	saveToDB,
 	getMarkdown,
+	focusEnd: () => editor.value?.commands.focus('end'),
 });
 
 // Keyboard shortcut: Cmd+S / Ctrl+S to save
@@ -1035,6 +1043,7 @@ onMounted(() => {
 	);
 	// Listen for PDF upload events (toolbar + slash command)
 	document.addEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.addEventListener('wiki-editor-upload-video', handleVideoUploadEvent);
 });
 
 onUnmounted(() => {
@@ -1044,12 +1053,16 @@ onUnmounted(() => {
 		handleSlashImageUploadEvent,
 	);
 	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.removeEventListener(
+		'wiki-editor-upload-video',
+		handleVideoUploadEvent,
+	);
 	// Nodes leave with the editor, so its uploads can no longer reach the page.
 	draftStore.clearUploads(editorUploadIds);
 	// Hide any open link popup
 	hideLinkPopup();
 	// Clean up window reference
-	delete window.wikiEditor;
+	window.wikiEditor = undefined;
 });
 </script>
 

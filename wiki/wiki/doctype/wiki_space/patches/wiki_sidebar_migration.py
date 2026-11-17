@@ -6,6 +6,8 @@ from collections import OrderedDict
 
 import frappe
 
+from wiki.wiki.doctype.wiki_space.wiki_space import space_name_from_route
+
 
 def execute():
 	wiki_settings = frappe.get_single("Wiki Settings")
@@ -20,6 +22,7 @@ def execute():
 		frappe.reload_doctype("Wiki Space")
 		space = frappe.new_doc("Wiki Space")
 		space.route = wiki_search_scope
+		space.space_name = space_name_from_route(wiki_search_scope)
 
 		for sidebar_item in frappe.get_all(
 			"Wiki Group Item", fields=["name", "wiki_page", "parent_label"], order_by="idx asc"
@@ -59,6 +62,7 @@ def execute():
 			frappe.reload_doctype("Wiki Space")
 			space = frappe.new_doc("Wiki Space")
 			space.route = topmost
+			space.space_name = space_name_from_route(topmost)
 
 			sidebar_items = get_children(frappe.get_doc("Wiki Sidebar", topmost))
 			sidebars = get_sidebar_for_patch(sidebar_items, topmost)

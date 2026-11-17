@@ -50,7 +50,7 @@ Wiki ships frappe-ui `1.0.0-beta.76`, which has no `frappe-ui/frappe` export, so
 
 Helpdesk and Gameplan install the plugin and sprinkle `capture(...)` calls. Insights (`develop`) treats telemetry as a product with a spec, and it is the model this spec follows.
 
-- **`docs/telemetry.md` is the only definition of an event.** Name, when it fires, every property, and which feature it covers. A new event or property lands in that file in the same PR as the code.
+- **`specs/telemetry.md` is the only definition of an event.** Name, when it fires, every property, and which feature it covers. A new event or property lands in that file in the same PR as the code.
 - **Events answer a numbered question.** The file opens with a question table ("where do new sites stop", "is the SQL editor worth investing in") and each one names the events that answer it. An event that answers no question is listed under Planned and does not ship.
 - **Naming rules are fixed.** `<object>_<verb>`, past tense, snake_case. Variation goes in properties, never in the name: `query_created {interface: sql}`, not `sql_query_created`. Property keys are flat.
 - **Low cardinality only.** Enums, booleans, counts, buckets. Never user text, titles, SQL, emails or record ids. Big numbers become buckets (`rows_bucket`, `duration_bucket`) through one helper.
@@ -84,7 +84,7 @@ Same rules as insights, restated so this repo has them.
 - Backend is the default for anything that changes data: it runs once per real action, ad blockers cannot stop it, and it is easy to unit test. The frontend sends only what the server never sees.
 - Reader pages (Jinja, mostly guests) send nothing from the browser. The plugin is installed only in the `/wiki-app` SPA, and only for a signed-in user.
 - Facts about the site come from the daily scan, never from a request path.
-- A new event or property lands in `docs/telemetry.md` in the same PR as the code.
+- A new event or property lands in `specs/telemetry.md` in the same PR as the code.
 
 ### Properties on every event
 
@@ -138,7 +138,7 @@ Events exist to answer these. An event that answers none stays in Planned.
 
 **Done, 2026-09-21.** One event per half, end to end, plus the catalogue file, before any more events.
 
-- `docs/telemetry.md`: the question table, the rules, and the two events below.
+- `specs/telemetry.md`: the question table, the rules, and the two events below.
 - `wiki/telemetry.py`: `capture(event, interval=None, **props)` wrapping frappe's, adding `app_version` and `entry`, swallowing every exception. About 20 lines, copied from insights.
 - Backend: `capture("active_site")` in `wiki/www/wiki_app.py:get_context` for non-guest users.
 - Frontend: `frontend/src/telemetry.js` wrapping `useTelemetry()` with the same two properties (served from `get_boot`), and `app.use(telemetryPlugin, { app_name: 'wiki', router })` in `main.js` once the user is signed in. `router` gives `pageview` on new sites for free.
@@ -158,7 +158,7 @@ Two things came out different from the plan.
 
 ### Phase 2: shipping events
 
-**Done, 2026-09-21.** Twelve events, ten backend and two frontend, each with a unit test and the catalogue row `docs/telemetry.md` now carries. One Playwright test covers `command_palette_opened`; the table below is the plan as written, and the notes after it say where the build differed.
+**Done, 2026-09-21.** Twelve events, ten backend and two frontend, each with a unit test and the catalogue row `specs/telemetry.md` now carries. One Playwright test covers `command_palette_opened`; the table below is the plan as written, and the notes after it say where the build differed.
 
 | Event | Half | Fires when | Properties | Question |
 |---|---|---|---|---|
@@ -239,7 +239,7 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 ### Automated
 
 - Unit tests in `wiki/tests`, split by group like insights (`test_telemetry.py`, `test_telemetry_scan.py`): patch `wiki.telemetry.capture` and assert each event fires once with the expected name and properties, that `active_site` does not fire for Guest, and that the scan sends nothing when telemetry is off. Temp revert each call to prove the test fails.
-- One test asserting every event name emitted by the code appears in `docs/telemetry.md`. That is what keeps the catalogue true.
+- One test asserting every event name emitted by the code appears in `specs/telemetry.md`. That is what keeps the catalogue true.
 - One Playwright test: `page.route` the Pulse CDN client url and serve a stub `PulseClient` that records captures on `window`, with `boot_config` stubbed to `enabled: true`. Assert `pageview` on load and `command_palette_opened` on Cmd K. No real network, so no flake.
 
 ## Open questions
@@ -255,8 +255,8 @@ and turn on `enable_telemetry` in System Settings. Remove both keys afterwards.
 - 2026-09-20: Reworked around the insights `develop` model: catalogue file, question table, naming and privacy rules, per-half wrapper, daily site scan.
 - 2026-09-20: Added questions 9 to 13 and their events: space publish and unpublish, document kind on create, the generated avatar picker, meta image generation, and wiki size per space in the scan.
 - 2026-09-21: Phase 0 pins the frappe-ui target at the latest tag, `1.0.0-beta.76`, and calls the upgrade a separate blocking spec.
-- 2026-09-21: Phase 1 done. `wiki/telemetry.py`, `active_site` from the app shell, the boot-served shared properties, `frontend/src/telemetry.js`, the plugin installed for signed-in SPA users, `docs/telemetry.md`, unit tests and one stubbed Playwright test.
+- 2026-09-21: Phase 1 done. `wiki/telemetry.py`, `active_site` from the app shell, the boot-served shared properties, `frontend/src/telemetry.js`, the plugin installed for signed-in SPA users, `specs/telemetry.md`, unit tests and one stubbed Playwright test.
 - 2026-09-21: Phase 0 done. Rebased onto `develop` for the frappe-ui beta.76 upgrade, linked `@framework/ui` and added the `frameworkUI()` vite plugin. Open question 2 resolved.
-- 2026-09-21: Phase 2 done. All thirteen events ship, with `error_kind` and `duration_bucket` helpers in `wiki/telemetry.py`, 21 unit tests (each verified by a temp revert), a Playwright test for the command palette, and a test that fails when an event the code sends is missing from `docs/telemetry.md`.
-- 2026-09-22: Phase 3 done. `wiki/telemetry_scan.py` sends `site_profile` from a daily scheduler job, with `analytics_store.site_activity` and `og_image.cached_card_count` behind it, 12 unit tests (verified by temp revert), and the property table in `docs/telemetry.md`. Open question 3 resolved.
+- 2026-09-21: Phase 2 done. All thirteen events ship, with `error_kind` and `duration_bucket` helpers in `wiki/telemetry.py`, 21 unit tests (each verified by a temp revert), a Playwright test for the command palette, and a test that fails when an event the code sends is missing from `specs/telemetry.md`.
+- 2026-09-22: Phase 3 done. `wiki/telemetry_scan.py` sends `site_profile` from a daily scheduler job, with `analytics_store.site_activity` and `og_image.cached_card_count` behind it, 12 unit tests (verified by temp revert), and the property table in `specs/telemetry.md`. Open question 3 resolved.
 - 2026-10-06: Dropped `entry` and `site_profile.frappe_cloud`. Both read `fc_team`, which press writes only since 2026-07-01, and every site that reports to Pulse is on Frappe Cloud anyway. No question reads either. Same root cause as frappe/insights#1456.

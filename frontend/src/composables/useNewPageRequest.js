@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 
-// Module-scoped for the same reason usePageSettingsPanel is: the button that
+// Module-scoped for the same reason useSidePanel is: the button that
 // asks for a new page (the content column's empty state) and the dialog that
 // makes one (the tree, in the sidebar) sit in different columns, and neither is
 // an ancestor of the other.

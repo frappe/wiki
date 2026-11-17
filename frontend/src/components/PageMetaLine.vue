@@ -16,17 +16,30 @@
 				<span class="lucide-chart-no-axes-column size-3.5" aria-hidden="true" />
 				{{ part.label }}
 			</button>
+			<button
+				v-else-if="part.key === 'edited'"
+				type="button"
+				class="-mx-1 inline-flex items-center gap-1 rounded-1 px-1 hover:bg-surface-gray-2 hover:text-ink-gray-7"
+				:title="__('Open version history')"
+				data-testid="page-history-link"
+				@click="openSidePanel('history')"
+			>
+				<span class="lucide-history size-3.5" aria-hidden="true" />
+				{{ part.label }}
+			</button>
 			<span v-else>{{ part.label }}</span>
 		</template>
 	</div>
 </template>
 
 <script setup>
+import { useSidePanel } from '@/composables/useSidePanel';
 import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import { countWords, readingMinutes } from '@/lib/readingStats';
+import { useSpaceStore } from '@/stores/space';
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core';
 import { createResource, dayjsLocal } from 'frappe-ui';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 const INGEST_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -46,18 +59,30 @@ const props = defineProps({
 });
 
 const { openAnalytics } = useSpaceSettings();
+const { open: openSidePanel } = useSidePanel();
 
 const docName = props.doc.name;
 const recentViews = createResource({
 	url: 'wiki.api.analytics.get_page_views',
 	params: { document: docName },
 	cache: ['page-views', docName],
-	auto: true,
 });
+
+// Page traffic is for people who can write the space; the server refuses others.
+const spaceStore = useSpaceStore();
+watch(
+	() => spaceStore.canWriteSpace,
+	(canWrite) => {
+		if (canWrite) recentViews.fetch();
+	},
+	{ immediate: true },
+);
 
 const visibility = useDocumentVisibility();
 useIntervalFn(() => {
-	if (visibility.value === 'visible') recentViews.reload();
+	if (visibility.value === 'visible' && spaceStore.canWriteSpace) {
+		recentViews.reload();
+	}
 }, INGEST_INTERVAL_MS);
 
 const parts = computed(() => {
@@ -67,7 +92,7 @@ const parts = computed(() => {
 		result.push({ key: 'reading', label: __('{0} min read', [minutes]) });
 	}
 	const views = recentViews.data;
-	if (typeof views === 'number') {
+	if (views > 0) {
 		const label =
 			views === 1
 				? __('1 view in last 30 days')

@@ -72,6 +72,8 @@ export default defineConfig(async ({ command, mode }) => {
 		},
 		server: {
 			allowedHosts: true,
+			// Read mode imports the reader's scripts from wiki/public/js.
+			fs: { allow: ['.', '../wiki/public/js'] },
 		},
 	};
 

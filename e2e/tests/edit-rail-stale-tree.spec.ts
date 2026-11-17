@@ -108,6 +108,7 @@ test.describe('Editor rail from the last visit', () => {
 	}) => {
 		const title = `Stale Rail ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const snapshotKey = `tree:Administrator:${space.name}`;
 		const rail = page.getByRole('complementary');
 
@@ -142,6 +143,7 @@ test.describe('Editor rail from the last visit', () => {
 		const space = await wiki.space({
 			pages: [{ title: `First ${Date.now()}` }, { title }],
 		});
+		await wiki.changeRequest(space);
 		const snapshotKey = `tree:Administrator:${space.name}`;
 		const pageName = space.page(title).name;
 		const pageUrl = space.url('page', pageName);
@@ -170,6 +172,7 @@ test.describe('Editor rail from the last visit', () => {
 	}) => {
 		const title = `Stale Link ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		const snapshotKey = `tree:Administrator:${space.name}`;
 		const rail = page.getByRole('complementary');
 
@@ -195,6 +198,7 @@ test.describe('Editor rail from the last visit', () => {
 	test('logging out clears the saved trees', async ({ page, wiki }) => {
 		const title = `Logout Rail ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
+		await wiki.changeRequest(space);
 		await loginViaAPI(page.request);
 
 		await page.goto(space.url('page', space.page(title).name));

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { MarkdownManager } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
@@ -53,9 +53,8 @@ test('default StarterKit corrupts a pasted underlined link with ++', () => {
 	assert.match(serialize(StarterKit.configure({ link: false })), /\+\+/);
 });
 
-// Regression: WikiEditor.vue and WikiContentViewer.vue both build their
-// StarterKit via wikiStarterKit(), which disables underline. The pasted link
-// must serialize cleanly through that exact config.
+// Regression: WikiEditor.vue builds its StarterKit via wikiStarterKit(), which
+// disables underline. The pasted link must serialize cleanly through that exact config.
 test('wikiStarterKit serializes a pasted underlined link without ++', () => {
 	assert.equal(serialize(wikiStarterKit()), '[Frappe](https://frappe.io)');
 });

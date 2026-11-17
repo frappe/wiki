@@ -20,7 +20,7 @@
                 />
                 <div
                     v-if="isEditable && hasFile && (selected || menuOpen)"
-                    class="absolute right-2.5 top-2.5 z-20"
+                    class="absolute end-2.5 top-2.5 z-20"
                 >
                     <Dropdown v-model:open="menuOpen" :options="menuOptions" align="end">
                         <template #trigger>

@@ -1,8 +1,8 @@
 import { StarterKit } from '@tiptap/starter-kit';
 
 /**
- * Shared StarterKit configuration for the wiki editor (WikiEditor.vue) and the
- * read-only renderer (WikiContentViewer.vue), so the two never drift apart.
+ * StarterKit configuration for the wiki editor (WikiEditor.vue), kept apart so
+ * the markdown tests build exactly what the editor builds.
  *
  * Disabled marks/nodes:
  * - codeBlock: replaced by frappe-ui's CodeBlock (lowlight highlighting,

@@ -137,15 +137,15 @@ const CHANGE_REQUEST_FIELDS = [
 ];
 
 const reviewRowRoute = (row) => ({
-	name: 'ChangeRequestReview',
-	params: { changeRequestId: row.name },
+	name: 'SpaceChangeRequest',
+	params: { spaceId: row.wiki_space, changeRequestId: row.name },
 });
 
 function getRowRoute(row) {
 	if (row.status === 'Draft' || row.status === 'Changes Requested') {
 		return { name: 'SpaceDetails', params: { spaceId: row.wiki_space } };
 	}
-	return { name: 'ChangeRequestReview', params: { changeRequestId: row.name } };
+	return reviewRowRoute(row);
 }
 
 function listOptions(emptyState, rowRoute) {

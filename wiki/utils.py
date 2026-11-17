@@ -184,3 +184,15 @@ def space_mark(space) -> dict:
 		return {**mark, "mode": "logo", "image": logo}
 
 	return mark
+
+
+def see_latest_rows_after_lock_wait() -> None:
+	"""Make a locking read return the latest committed row, as MariaDB did before 11.6.
+
+	From 11.6, innodb_snapshot_isolation rejects a locking read of a row changed since the
+	transaction's snapshot with error 1020, and the wiki's locks rely on that read.
+	"""
+	if frappe.db.db_type != "mariadb":
+		return
+	if frappe.db.sql("show variables like 'innodb_snapshot_isolation'"):
+		frappe.db.sql("set session innodb_snapshot_isolation = off")

@@ -56,7 +56,7 @@ test('hides a page from search engines from page settings', async ({
 	// Sidebar navigation swaps the page in place, so the tag must follow it.
 	await guestPage.setViewportSize({ width: 1280, height: 900 });
 	const sidebarLink = (route: string) =>
-		guestPage.locator(`.wiki-sidebar a[data-route="${route}"]`);
+		guestPage.locator(`.wiki-sidebar a[href="/${route}"]`);
 	await sidebarLink(hidden.route).click();
 	await expect(guestPage).toHaveURL(`/${hidden.route}`);
 	await expect(guestPage.locator('meta[name="robots"]')).toHaveAttribute(
@@ -174,7 +174,7 @@ test('sidebar navigation keeps a site-wide robots tag from head HTML', async ({
 		const page = await guest.newPage();
 		await page.setViewportSize({ width: 1280, height: 900 });
 		const sidebarLink = (route: string) =>
-			page.locator(`.wiki-sidebar a[data-route="${route}"]`);
+			page.locator(`.wiki-sidebar a[href="/${route}"]`);
 		const siteWide = page.locator('meta[name="robots"][content="noarchive"]');
 		const noindex = page.locator('meta[name="robots"][content="noindex"]');
 

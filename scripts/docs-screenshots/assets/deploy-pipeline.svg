@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" font-family="Inter, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="360" rx="24" fill="#f4f6fb"/>
+  <text x="60" y="78" font-size="34" font-weight="600" fill="#1f2937">Deploy pipeline</text>
+  <g font-size="26" font-weight="600" text-anchor="middle">
+    <rect x="60" y="140" width="220" height="120" rx="18" fill="#dbeafe"/>
+    <text x="170" y="210" fill="#1e3a8a">main branch</text>
+    <rect x="350" y="140" width="220" height="120" rx="18" fill="#e0e7ff"/>
+    <text x="460" y="210" fill="#312e81">CI tests</text>
+    <rect x="640" y="140" width="220" height="120" rx="18" fill="#fef3c7"/>
+    <text x="750" y="210" fill="#78350f">Staging</text>
+    <rect x="930" y="140" width="220" height="120" rx="18" fill="#dcfce7"/>
+    <text x="1040" y="210" fill="#14532d">Production</text>
+  </g>
+  <g stroke="#64748b" stroke-width="6" fill="#64748b">
+    <line x1="288" y1="200" x2="330" y2="200"/><path d="M342 200 l-16 -11 v22 z"/>
+    <line x1="578" y1="200" x2="620" y2="200"/><path d="M632 200 l-16 -11 v22 z"/>
+    <line x1="868" y1="200" x2="910" y2="200"/><path d="M922 200 l-16 -11 v22 z"/>
+  </g>
+  <text x="1040" y="300" font-size="20" text-anchor="middle" fill="#475569">10:00 UTC, Mon to Thu</text>
+</svg>

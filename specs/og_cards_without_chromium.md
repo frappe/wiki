@@ -67,7 +67,7 @@ Node never fetches anything. Every image goes in as a `data:` URI built in Pytho
 
 ### Telemetry
 
-`meta_image_generated` gains `renderer` (`chromium` or `satori`), added to the event catalogue in `docs/telemetry.md`.
+`meta_image_generated` gains `renderer` (`chromium` or `satori`), added to the event catalogue in `specs/telemetry.md`.
 
 ## Open questions
 

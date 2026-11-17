@@ -86,7 +86,7 @@ class TestTelemetry(IntegrationTestCase):
 
 class TestShippedEvents(IntegrationTestCase):
 	"""One test per Phase 2 event: it fires once, with the properties
-	`docs/telemetry.md` promises."""
+	`specs/telemetry.md` promises."""
 
 	def setUp(self):
 		self.wiki = WikiFixtures()
@@ -296,7 +296,7 @@ class TestShippedEvents(IntegrationTestCase):
 class TestEventCatalogue(IntegrationTestCase):
 	def test_every_event_the_code_sends_is_documented(self):
 		app_root = Path(frappe.get_app_path("wiki")).parent
-		catalogue = (app_root / "docs" / "telemetry.md").read_text()
+		catalogue = (app_root / "specs" / "telemetry.md").read_text()
 
 		sources = list((app_root / "wiki").rglob("*.py"))
 		for suffix in ("*.js", "*.vue"):
@@ -309,4 +309,4 @@ class TestEventCatalogue(IntegrationTestCase):
 			sent.update(re.findall(r"capture\(\s*[\"']([a-z_]+)[\"']", source.read_text()))
 
 		undocumented = {event for event in sent if f"`{event}`" not in catalogue}
-		self.assertEqual(undocumented, set(), "add these to docs/telemetry.md")
+		self.assertEqual(undocumented, set(), "add these to specs/telemetry.md")

@@ -44,8 +44,8 @@ const props = defineProps({
 const emit = defineEmits(['select']);
 
 const ROW =
-	'relative flex h-8 w-full items-center gap-3 overflow-hidden rounded-4 px-2 text-left text-sm';
-const BAR = 'absolute inset-y-1 left-0 rounded-4 bg-surface-blue-2';
+	'relative flex h-8 w-full items-center gap-3 overflow-hidden rounded-4 px-2 text-start text-sm';
+const BAR = 'absolute inset-y-1 start-0 rounded-4 bg-surface-blue-2';
 const LABEL = 'relative min-w-0 flex-1 truncate text-ink-gray-8';
 const VALUE = 'relative shrink-0 font-mono tabular-nums text-ink-gray-7';
 

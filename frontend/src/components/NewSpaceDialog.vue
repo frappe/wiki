@@ -31,6 +31,7 @@
 						class="flex-1"
 						type="text"
 						:label="__('Space Name')"
+						required
 						v-model="newSpace.space_name"
 						:placeholder="__('My Wiki Space')"
 					/>
@@ -568,6 +569,10 @@ const handleCreateSpace = async () => {
 	// promise (which only ends up in the console). The dialog stays open either
 	// way — it closes only on insert success.
 	formError.value = '';
+	if (!newSpace.space_name.trim()) {
+		formError.value = __('Space Name is required.');
+		return;
+	}
 	if (!newSpace.route) {
 		formError.value = __('Route is required.');
 		return;

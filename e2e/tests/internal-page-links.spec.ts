@@ -22,6 +22,7 @@ test.describe('Internal page links', () => {
 				},
 			],
 		});
+		await wiki.changeRequest(space);
 		const source = space.page('Link Source');
 		const target = space.page('Setup Guide');
 
@@ -71,6 +72,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Deploy Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -117,6 +119,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Setup Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -152,6 +155,7 @@ test.describe('Internal page links', () => {
 				{ title: 'Setup Guide' },
 			],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -173,6 +177,7 @@ test.describe('Internal page links', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Link Source', content: 'Read this' }],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();
@@ -184,10 +189,10 @@ test.describe('Internal page links', () => {
 		await expect(menu.getByText('No page matches.')).toBeVisible();
 		await page.keyboard.press('Enter');
 
-		// The title goes in at once; the link waits for the page's real key.
+		// The title goes in at once; the link waits for the page to exist.
 		const link = editor.locator('a[href^="wiki:"]');
 		await expect(link).toHaveText('Release Notes');
-		await expect(link).not.toHaveAttribute('href', /wiki:tmp_/);
+		await expect(link).toHaveAttribute('href', /wiki:[0-9a-f]{32}/);
 		await expect(
 			page.locator('aside').getByText('Release Notes', { exact: true }),
 		).toBeVisible();
@@ -200,6 +205,7 @@ test.describe('Internal page links', () => {
 		const space = await wiki.space({
 			pages: [{ title: 'Link Source', content: 'Read this' }],
 		});
+		await wiki.changeRequest(space);
 
 		await page.goto(space.url('page', space.page('Link Source').name));
 		const editor = page.locator('.ProseMirror').first();

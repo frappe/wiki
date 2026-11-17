@@ -11,21 +11,29 @@ MARCH = (getdate("2026-03-01"), getdate("2026-03-31"))
 MARCH_2031 = (getdate("2031-03-01"), getdate("2031-03-31"))
 
 
+def _page_views():
+	_, _, connection = store.page_view_source()
+	return connection
+
+
 def _log(path: str, creation: str, visitor_id: str | None = None, referrer: str | None = None) -> str:
 	view = frappe.get_doc(
 		{"doctype": "Web Page View", "path": path, "visitor_id": visitor_id, "referrer": referrer}
 	).insert(ignore_permissions=True)
-	frappe.db.set_value("Web Page View", view.name, "creation", creation, update_modified=False)
+	_page_views().sql(
+		"UPDATE `tabWeb Page View` SET creation = %(creation)s WHERE name = %(name)s",
+		{"creation": creation, "name": view.name},
+	)
 	return view.name
 
 
 class TestAnalyticsStore(IntegrationTestCase):
 	def setUp(self):
-		frappe.db.delete("Web Page View", {"path": ("like", "store%")})
+		_page_views().delete("Web Page View", {"path": ("like", "store%")})
 		store.rebuild()
 
 	def tearDown(self):
-		frappe.db.delete("Web Page View", {"path": ("like", "store%")})
+		_page_views().delete("Web Page View", {"path": ("like", "store%")})
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 		store.rebuild()
 

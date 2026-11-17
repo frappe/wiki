@@ -31,6 +31,10 @@ Use Tracer bullets comes from the Pragmatic Programmer. When building systems, y
 * When we fix a bug, add at the very least a Unit test, and verify before/after by temp revert of fix to make sure the test tests what is intended
 * For bigger features/workflows, e2e playwright tests are a must.
 
+## User guide
+
+* Before you write or edit a page in `docs/`, or take its screenshots, read and follow [`DOCS.md`](DOCS.md). It covers the page format, the writing style, the preview command and the screenshot script.
+
 ## Agent skill
 
 * `skills/frappe-wiki-skill/` documents the change-request API for agents. When you change a whitelisted method in `wiki_change_request.py` (name, params, return shape, an operation type), update `reference/api.md` and, if it wraps the method, `scripts/wikitool/` in the same PR. Run its tests: `python3 -m unittest discover -s skills/frappe-wiki-skill/scripts/tests`.

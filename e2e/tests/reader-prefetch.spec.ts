@@ -22,9 +22,7 @@ test.describe('Reader hover prefetch', () => {
 	}
 
 	function sidebarLink(page: Page, title: string) {
-		return page.locator(
-			`.wiki-sidebar a[data-route="${space.page(title).route}"]`,
-		);
+		return page.locator(`.wiki-sidebar a[href="/${space.page(title).route}"]`);
 	}
 
 	test.beforeEach(async ({ page }) => {

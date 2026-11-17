@@ -211,6 +211,21 @@ export class WikiFactory {
 	}
 
 	/**
+	 * Open a change request in `space` the way Edit does, so the next page load
+	 * lands in edit mode. Space teardown deletes it with the space.
+	 */
+	async changeRequest(
+		space: { name: string },
+		title = 'E2E change',
+	): Promise<{ name: string; title: string }> {
+		return callMethod(
+			this.request,
+			'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_change_request',
+			{ wiki_space: space.name, title },
+		);
+	}
+
+	/**
 	 * Take ownership of a space this factory did not create — one a test made
 	 * through the UI — so it is destroyed along with the rest. Give the space an
 	 * `uniqueRoute()` when creating it, and the global sweeper becomes a backstop

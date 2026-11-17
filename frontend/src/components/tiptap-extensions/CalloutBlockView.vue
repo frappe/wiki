@@ -185,7 +185,7 @@ const dropdownOptions = computed(() => [
    leaves the header looking detached from what it labels. 1rem icon + 0.375rem
    gap = the title's left edge. */
 .callout-content {
-    padding-left: calc(1rem + 0.375rem);
+    padding-inline-start: calc(1rem + 0.375rem);
 }
 
 .callout-content :deep(> *:first-child) {

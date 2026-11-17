@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 // The composable reads the user cookie and localStorage on import. Vue is
 // loaded first because a bare document object breaks its own setup.
@@ -71,6 +71,12 @@ test('ignores a page with no title yet', () => {
 	recordVisit({});
 	assert.equal(titles().includes(''), false);
 	assert.equal(recentPages.value.length, 5);
+});
+
+test('forgets deleted pages and keeps the rest in order', () => {
+	const { forget } = useRecentPages();
+	forget(['e', 'missing']);
+	assert.deepEqual(titles(), ['Alpha Renamed', 'F', 'D', 'C']);
 });
 
 test('keeps each user to their own recent pages', async () => {

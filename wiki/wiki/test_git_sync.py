@@ -3,16 +3,22 @@
 
 import hashlib
 import json
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
 import frappe
 
 from wiki.tests import WikiTestCase as FrappeTestCase
 from wiki.wiki import git_sync
 from wiki.wiki.git_sync import (
+	LocalFolder,
 	build_nodes,
 	build_nodes_from_config,
 	load_wiki_config,
+	preview_local_docs,
 	strip_front_matter,
+	strip_title_heading,
 	sync_space,
 )
 
@@ -72,11 +78,17 @@ class _FakeRepo:
 		val = self.files[self._path_for(sha)]
 		return val if isinstance(val, bytes) else val.encode()
 
-	def install(self, monkeypatch_target):
-		git_sync._fetch_head_sha = lambda repo, branch, token=None: self.head_sha
-		git_sync._fetch_tree = lambda repo, ref, token=None: self.tree()
-		git_sync._fetch_blob = lambda repo, sha, token=None: self.blob(sha)
-		git_sync._fetch_blob_bytes = lambda repo, sha, token=None: self.blob_bytes(sha)
+	def install(self, test):
+		fakes = {
+			"_fetch_head_sha": lambda repo, branch, token=None: self.head_sha,
+			"_fetch_tree": lambda repo, ref, token=None: self.tree(),
+			"_fetch_blob": lambda repo, sha, token=None: self.blob(sha),
+			"_fetch_blob_bytes": lambda repo, sha, token=None: self.blob_bytes(sha),
+		}
+		for name, fake in fakes.items():
+			patcher = patch.object(git_sync, name, fake)
+			patcher.start()
+			test.addCleanup(patcher.stop)
 
 
 class TestGitSyncInference(FrappeTestCase):
@@ -178,6 +190,37 @@ class TestGitSyncConfig(FrappeTestCase):
 
 	def test_load_wiki_config_raises_on_malformed_json(self):
 		repo = _FakeRepo({"docs/.wiki.json": "{not json"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
+	def test_load_wiki_config_parses_yaml(self):
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.yml": (
+					"# Sidebar order\n"
+					"sidebar:\n"
+					"  - intro.md\n"
+					"  - label: Guides\n"
+					"    slug: guides\n"
+					"    items:\n"
+					"      - guides/setup.md\n"
+				),
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		self.assertEqual(
+			load_wiki_config("acme/docs", repo.tree(), "docs"),
+			{"sidebar": ["intro.md", {"label": "Guides", "slug": "guides", "items": ["guides/setup.md"]}]},
+		)
+
+	def test_load_wiki_config_raises_on_malformed_yaml(self):
+		repo = _FakeRepo({"docs/.wiki.yaml": "sidebar: [unclosed"})
+		repo.install(self)
+		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
+
+	def test_load_wiki_config_raises_on_multiple_files(self):
+		repo = _FakeRepo({"docs/.wiki.yml": "sidebar: []", "docs/.wiki.json": '{"sidebar": []}'})
 		repo.install(self)
 		self.assertRaises(frappe.ValidationError, load_wiki_config, "acme/docs", repo.tree(), "docs")
 
@@ -557,6 +600,60 @@ class TestGitSyncApply(FrappeTestCase):
 		setup = next(d for d in docs if d.source_path == "docs/guides/setup.md")
 		self.assertEqual(setup.parent_wiki_document, guides.name)
 
+	def test_config_group_slug_sets_route_segment(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		config = {
+			"sidebar": [
+				{"label": "Tutorial (Build an App)", "slug": "tutorial", "items": ["tutorial/setup.md"]},
+				{"label": "API Reference", "slug": "api", "autogenerate": {"directory": "api"}},
+				{"label": "No Slug", "items": ["intro.md"]},
+			],
+		}
+		repo = _FakeRepo(
+			{
+				"docs/.wiki.json": json.dumps(config),
+				"docs/tutorial/setup.md": "# Setup",
+				"docs/api/auth.md": "# Auth",
+				"docs/intro.md": "# Intro",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		route_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={
+					"source_path": ["in", ["docs/tutorial/setup.md", "docs/api/auth.md", "docs/intro.md"]]
+				},
+				fields=["source_path", "route"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(route_of["docs/tutorial/setup.md"], f"{space.route}/tutorial/setup")
+		self.assertEqual(route_of["docs/api/auth.md"], f"{space.route}/api/auth")
+		self.assertEqual(route_of["docs/intro.md"], f"{space.route}/no-slug/intro")
+
+	def test_switching_config_to_yaml_keeps_groups(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		files = {"docs/guides/setup.md": "# Setup"}
+		repo = _FakeRepo(
+			{**files, "docs/.wiki.json": json.dumps({"sidebar": [{"Guides": ["guides/setup.md"]}]})}
+		)
+		repo.install(self)
+		sync_space(space.name)
+		before = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		repo.files = {**files, "docs/.wiki.yml": "sidebar:\n  - Guides:\n      - guides/setup.md\n"}
+		repo.head_sha = "sha2"
+		sync_space(space.name)
+		after = next(d for d in self._tree(space) if d.is_group and d.title == "Guides")
+
+		self.assertEqual(before.name, after.name)
+		self.assertEqual(before.doc_key, after.doc_key)
+
 	def test_sync_stores_loaded_config_on_space(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
@@ -619,6 +716,56 @@ class TestGitSyncApply(FrappeTestCase):
 		# The raw ".md" target must not survive as a real internal link.
 		self.assertNotIn("](getting-started/install.md)", content)
 
+	def test_docs_site_style_links_rewritten_to_routes(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/README.md": "# Home",
+				"docs/desk/reports.md": (
+					"# Reports\n"
+					"- [Root-relative](/desk/print-formats)\n"
+					"- [Anchor](/desk/print-formats#letterhead)\n"
+					"- [Html](/desk/print-formats.html)\n"
+					"- [Relative](./print-formats)\n"
+					"- [Folder](/api/)\n"
+					"- [File wins](/guide)\n"
+					"- [File over group](/topic)\n"
+					"- [Home](/)\n"
+					"- [Site path](/app/todo)\n"
+				),
+				"docs/desk/print-formats.md": "# Print Formats",
+				"docs/api/index.md": "# API",
+				"docs/guide.md": "# Guide",
+				"docs/guide/README.md": "# Guide Folder",
+				# A folder with no landing is a group keyed by the folder path itself.
+				"docs/topic.md": "# Topic",
+				"docs/topic/setup.md": "# Setup",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		root_lft, root_rgt = frappe.db.get_value("Wiki Document", space.root_group, ["lft", "rgt"])
+		docs = frappe.get_all(
+			"Wiki Document",
+			fields=["source_path", "route", "content"],
+			filters=[["lft", ">=", root_lft], ["rgt", "<=", root_rgt]],
+		)
+		by_path = {d.source_path: d for d in docs}
+		print_route = by_path["docs/desk/print-formats.md"].route
+		content = by_path["docs/desk/reports.md"].content
+
+		self.assertIn(f"[Root-relative](/{print_route})", content)
+		self.assertIn(f"[Anchor](/{print_route}#letterhead)", content)
+		self.assertIn(f"[Html](/{print_route})", content)
+		self.assertIn(f"[Relative](/{print_route})", content)
+		self.assertIn(f"[Folder](/{by_path['docs/api/index.md'].route})", content)
+		self.assertIn(f"[File wins](/{by_path['docs/guide.md'].route})", content)
+		self.assertIn(f"[File over group](/{by_path['docs/topic.md'].route})", content)
+		self.assertIn(f"[Home](/{space.route})", content)
+		self.assertIn("[Site path](/app/todo)", content)
+
 	def test_autogenerate_syncs_folder_into_group(self):
 		space = _make_synced_space()
 		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
@@ -640,6 +787,25 @@ class TestGitSyncApply(FrappeTestCase):
 		self.assertEqual(group.source_path, "docs/api/README.md")
 		children = {d.source_path for d in docs if d.parent_wiki_document == group.name}
 		self.assertEqual(children, {"docs/api/auth.md", "docs/api/users.md"})
+
+	def test_sync_revision_stores_source_commit(self):
+		from wiki.api.history import get_space_history
+
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo({"docs/intro.md": "# Intro"}, head_sha="sha1")
+		repo.install(self)
+		sync_space(space.name)
+		repo.files = {"docs/intro.md": "# Intro\nmore"}
+		repo.head_sha = "sha2"
+		sync_space(space.name)
+
+		main = frappe.db.get_value("Wiki Space", space.name, "main_revision")
+		self.assertEqual(frappe.db.get_value("Wiki Revision", main, "source_commit"), "sha2")
+		self.assertEqual(
+			[(v["source"], v["source_commit"]) for v in get_space_history(space.name)["versions"]],
+			[("sync", "sha2"), ("sync", "sha1")],
+		)
 
 	def test_noop_sync_when_head_sha_unchanged(self):
 		space = _make_synced_space()
@@ -967,6 +1133,62 @@ class TestGitSyncImages(FrappeTestCase):
 		self.assertIn("./gone.png", content)
 		self.assertEqual(self._files_for(space), [])
 
+	def test_picture_light_and_dark_images_imported(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		md = (
+			"# P\n<picture>\n"
+			'  <source srcset="img/shot-dark.png" media="(prefers-color-scheme: dark)">\n'
+			'  <img src="img/shot-light.png" alt="Editor">\n'
+			"</picture>"
+		)
+		repo = _FakeRepo(
+			{
+				"docs/p.md": md,
+				"docs/img/shot-dark.png": _PNG_1x1,
+				"docs/img/shot-light.png": _PNG_1x1 + b"\x00",
+			}
+		)
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(
+			content, r'<source srcset="/files/gitimg-[^"]+\.png" media="\(prefers-color-scheme: dark\)">'
+		)
+		self.assertRegex(content, r'<img src="/files/gitimg-[^"]+\.png" alt="Editor">')
+		self.assertEqual(len(self._files_for(space)), 2)
+
+	def test_srcset_candidates_keep_their_descriptors(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		repo = _FakeRepo(
+			{
+				"docs/p.md": "# P\n<img srcset='a.png 1x, https://x.test/a@2x.png 2x' src='a.png'>",
+				"docs/a.png": _PNG_1x1,
+			}
+		)
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertRegex(
+			content,
+			r"<img srcset='/files/gitimg-[^ ]+\.png 1x, https://x\.test/a@2x\.png 2x' src='/files/gitimg-[^']+\.png'>",
+		)
+
+	def test_html_images_outside_the_repo_untouched(self):
+		self._set_webp(False)
+		space = _make_synced_space()
+		md = '# P\n<img src="https://x.test/a.png"> <img src="/files/b.png"> <img src="gone.png"> <source srcset="a.png,b.png 2x">'
+		repo = _FakeRepo({"docs/p.md": md})
+		repo.install(self)
+
+		nodes, _, _ = build_nodes("acme/docs", repo.tree(), "docs", space=space)
+		content = next(n for n in nodes if n["source_path"] == "docs/p.md")["content"]
+		self.assertEqual(content, md)
+		self.assertEqual(self._files_for(space), [])
+
 	def test_reimport_is_sha_idempotent(self):
 		self._set_webp(False)
 		space = _make_synced_space()
@@ -1104,6 +1326,38 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 		self.assertEqual(doc.title, "Getting Started")
 		self.assertNotIn("---", doc.content)
 
+	def test_strip_title_heading_drops_only_a_matching_leading_h1(self):
+		self.assertEqual(strip_title_heading("# Reports\n\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("\n# Reports\r\nBody", "Reports"), "Body")
+		self.assertEqual(strip_title_heading("# Reports", "Reports"), "# Reports")
+		# A different H1, or an H1 after other content, is real content.
+		self.assertEqual(strip_title_heading("# Other\nBody", "Reports"), "# Other\nBody")
+		self.assertEqual(strip_title_heading("Intro\n# Reports", "Reports"), "Intro\n# Reports")
+		self.assertEqual(strip_title_heading("## Reports\nBody", "Reports"), "## Reports\nBody")
+
+	def test_title_heading_not_repeated_in_live_document(self):
+		space = _make_synced_space()
+		frappe.db.set_value("Wiki Space", space.name, "docs_subdir", "docs")
+		repo = _FakeRepo(
+			{
+				"docs/reports.md": "---\ntitle: Reports\n---\n\n# Reports\n\nA report is a view.",
+				"docs/guide/README.md": "# Guide\n\nLanding body",
+			}
+		)
+		repo.install(self)
+		sync_space(space.name)
+
+		content_of = dict(
+			frappe.get_all(
+				"Wiki Document",
+				filters={"source_path": ["in", ["docs/reports.md", "docs/guide/README.md"]]},
+				fields=["source_path", "content"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(content_of["docs/reports.md"], "A report is a view.")
+		self.assertEqual(content_of["docs/guide/README.md"], "Landing body")
+
 	def test_front_matter_is_published_flag(self):
 		# `published: false` (and `draft: true`) mark a node unpublished; a node
 		# with no publish key — or none at all — stays published.
@@ -1190,3 +1444,106 @@ class TestGitSyncFrontMatter(FrappeTestCase):
 			order_by="sort_order asc",
 		)
 		self.assertEqual([d.source_path for d in docs], ["docs/b.md", "docs/a.md", "docs/c.md"])
+
+
+class TestLocalDocsPreview(FrappeTestCase):
+	"""A docs folder on disk syncs through the same engine as a GitHub repo."""
+
+	def setUp(self):
+		self.folder = Path(tempfile.mkdtemp())
+		self.write(".wiki.yml", "sidebar:\n  - label: Guides\n    items:\n      - guides/setup.md\n")
+		self.write(
+			"guides/setup.md", "---\ntitle: Setup\n---\nRead [the FAQ](faq.md).\n\n![Logo](../img/logo.png)\n"
+		)
+		self.write("guides/faq.md", "# FAQ\nNot in the sidebar, so not synced.\n")
+		(self.folder / "img").mkdir()
+		(self.folder / "img/logo.png").write_bytes(_PNG_1x1)
+		(self.folder / ".git").mkdir()
+		self.write(".git/HEAD", "ref: refs/heads/main\n")
+		self.route = f"preview-{frappe.generate_hash(length=6)}"
+		developer_mode = patch.dict(frappe.conf, {"developer_mode": 1})
+		developer_mode.start()
+		self.addCleanup(developer_mode.stop)
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def write(self, path, content):
+		(self.folder / path).parent.mkdir(parents=True, exist_ok=True)
+		(self.folder / path).write_text(content)
+
+	def pages(self, space):
+		return frappe.get_all(
+			"Wiki Document",
+			filters={"route": ["like", f"{space.route}/%"], "is_group": 0},
+			fields=["title", "content"],
+		)
+
+	def test_folder_reads_like_a_repo_tree(self):
+		folder = LocalFolder(self.folder)
+		tree = folder.get_tree()
+		blobs = {entry["path"]: entry["sha"] for entry in tree if entry["type"] == "blob"}
+
+		self.assertIn(".wiki.yml", blobs)
+		self.assertNotIn(".git/HEAD", blobs)
+		self.assertIn({"path": "guides", "type": "tree", "sha": ""}, tree)
+		# git's own blob hash, so the SHA matches what GitHub reports for the same file.
+		self.assertEqual(
+			blobs["img/logo.png"], hashlib.sha1(b"blob %d\0" % len(_PNG_1x1) + _PNG_1x1).hexdigest()
+		)
+		self.assertEqual(folder.get_blob_bytes(blobs["img/logo.png"]), _PNG_1x1)
+
+	def test_preview_creates_a_synced_space_with_the_folder_pages(self):
+		space = preview_local_docs(self.folder, self.route)
+
+		self.assertTrue(space.git_synced)
+		self.assertEqual(space.last_sync_status, "Success")
+		pages = self.pages(space)
+		self.assertEqual([page.title for page in pages], ["Setup"])
+		self.assertRegex(pages[0].content, r"!\[Logo\]\(/files/gitimg-[^)]+\)")
+		log = frappe.get_last_doc("Wiki Git Sync Log", filters={"wiki_space": space.name})
+		self.assertEqual(log.trigger, "Local")
+
+	def test_preview_reuses_the_space_and_skips_an_unchanged_folder(self):
+		first = preview_local_docs(self.folder, self.route)
+		second = preview_local_docs(self.folder, self.route)
+
+		self.assertEqual(first.name, second.name)
+		log = frappe.get_last_doc("Wiki Git Sync Log", filters={"wiki_space": first.name})
+		self.assertEqual(log.status, "No Change")
+
+		self.write("guides/setup.md", "---\ntitle: Set up\n---\nChanged.\n")
+		third = preview_local_docs(self.folder, self.route)
+		self.assertEqual(third.name, first.name)
+		self.assertEqual([page.title for page in self.pages(third)], ["Set up"])
+
+	def test_preview_matches_a_space_that_syncs_a_docs_folder(self):
+		space = _make_synced_space(docs_subdir="docs")
+		frappe.db.set_value("Wiki Space", space.name, "route", self.route)
+
+		preview_local_docs(self.folder, self.route)
+
+		pages = frappe.get_all(
+			"Wiki Document",
+			filters={"route": ["like", f"{self.route}/%"], "is_group": 0},
+			fields=["title", "source_path"],
+		)
+		# The paths match the repository, so the pages and their Edit on GitHub links stay right.
+		self.assertEqual(
+			[(page.title, page.source_path) for page in pages], [("Setup", "docs/guides/setup.md")]
+		)
+
+	def test_preview_refuses_a_space_that_is_not_synced(self):
+		space = frappe.get_doc(
+			{"doctype": "Wiki Space", "space_name": "Handwritten", "route": self.route}
+		).insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			preview_local_docs(self.folder, self.route)
+		self.assertEqual(self.pages(space), [])
+
+	def test_preview_needs_developer_mode(self):
+		with patch.dict(frappe.conf, {"developer_mode": 0}):
+			with self.assertRaises(frappe.ValidationError):
+				preview_local_docs(self.folder, self.route)
+		self.assertFalse(frappe.db.exists("Wiki Space", {"route": self.route}))

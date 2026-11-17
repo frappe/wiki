@@ -1,6 +1,6 @@
 {
   "name": "wiki",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "private": "true",
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.4.1",
-    "@playwright/test": "^1.49.0",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^22.0.0"
   },
   "scripts": {
