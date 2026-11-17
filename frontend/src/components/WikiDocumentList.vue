@@ -325,9 +325,7 @@ const hasPages = computed(() => props.tree.children().length > 0);
 // Adding is for edit mode. Edit lives in a page's header, so a space with no
 // page to open keeps the footer for reading too.
 const showFooter = computed(
-	() =>
-		!props.readonly &&
-		(spaceStore.isEditing || !props.tree.firstPage()),
+	() => !props.readonly && (spaceStore.isEditing || !props.tree.firstPage()),
 );
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results

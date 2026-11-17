@@ -362,7 +362,10 @@ watch(
 	isOpenPageDeleted,
 	(deletedPageId) => {
 		if (!deletedPageId) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );
