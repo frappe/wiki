@@ -13,12 +13,13 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 )
 from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
 from wiki.tests import WikiTestCase as FrappeTestCase
-from wiki.tests.factory import WikiFixtureMixin, make_space
+from wiki.tests.factory import WikiFixtureMixin, make_space, unique_route
+from wiki.wiki.doctype.wiki_space.patches import backfill_space_name
 from wiki.wiki.doctype.wiki_space.patches.v3 import (
 	migrate_orphan_pages_to_wiki_document,
 	migrate_to_new_tree_document_structure,
 )
-from wiki.wiki.doctype.wiki_space.wiki_space import clone_wiki_space
+from wiki.wiki.doctype.wiki_space.wiki_space import clone_wiki_space, space_name_from_route
 
 
 class TestWikiSpaceClone(WikiFixtureMixin, FrappeTestCase):
@@ -417,3 +418,23 @@ class TestWikiSpaceDelete(WikiFixtureMixin, FrappeTestCase):
 			doctype: frappe.db.count(doctype, {"wiki_space": space_name})
 			for doctype in ("Wiki Document", "Wiki Revision", "Wiki Change Request", "Wiki Git Sync Log")
 		}
+
+
+class TestSpaceName(WikiFixtureMixin, FrappeTestCase):
+	TEST_SITE = "wiki.localhost"
+
+	def test_a_space_needs_a_name(self):
+		space = frappe.get_doc({"doctype": "Wiki Space", "route": unique_route("nameless")})
+		self.assertRaises(frappe.MandatoryError, space.insert)
+
+	def test_backfill_names_a_nameless_space_from_its_route(self):
+		space = self.wiki.track_space(make_space(route=unique_route("team/release-notes")))
+		frappe.db.set_value("Wiki Space", space.name, "space_name", "")
+
+		backfill_space_name.execute()
+
+		self.assertEqual(
+			frappe.db.get_value("Wiki Space", space.name, "space_name"),
+			space_name_from_route(space.route),
+		)
+		self.assertTrue(space_name_from_route(space.route).startswith("Team Release Notes "))

@@ -43,6 +43,7 @@ from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
 	get_revision_item_map,
 )
 from wiki.telemetry import capture, error_kind
+from wiki.wiki.doctype.wiki_space.wiki_space import space_name_from_route
 
 GITHUB_API = "https://api.github.com"
 MARKDOWN_EXTENSIONS = (".md", ".mdx")
@@ -1179,7 +1180,7 @@ def get_local_preview_space(route: str, space_name: str | None = None) -> frappe
 	return frappe.get_doc(
 		{
 			"doctype": "Wiki Space",
-			"space_name": space_name or route.replace("-", " ").replace("/", " ").title(),
+			"space_name": space_name or space_name_from_route(route),
 			"route": route,
 			"git_synced": 1,
 			"is_published": 1,
