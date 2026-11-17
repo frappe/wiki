@@ -60,6 +60,16 @@ test.describe('Wiki Editor', () => {
 		// Submit the form (click Create button inside the dialog)
 		await dialog.locator('button:has-text("Create")').click();
 
+		const toast = page.locator('[data-sonner-toast]', {
+			hasText: 'created successfully',
+		});
+		await expect(toast).toBeVisible();
+		const [toastFont, bodyFont] = await toast.evaluate((el) => [
+			getComputedStyle(el).fontFamily,
+			getComputedStyle(document.body).fontFamily,
+		]);
+		expect(toastFont).toBe(bodyFont);
+
 		// Wait for the dialog to close and page to update
 		await page.waitForLoadState('networkidle');
 
