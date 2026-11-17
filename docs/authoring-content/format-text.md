@@ -36,7 +36,7 @@ Type `/` to open the command menu. Type more letters to filter it, then press `E
 | Lists | Bullet List, Numbered List, Task List |
 | Media | Image, Video, PDF |
 | Insert | Table, Embed, Diagram, Link to Page, Horizontal Rule |
-| Callouts | Note, Tip, Warning, Danger |
+| Callouts | Note, Tip, Caution, Danger |
 
 ## Markdown shortcuts
 
@@ -47,6 +47,7 @@ Type `/` to open the command menu. Type more letters to filter it, then press `E
 | `*text*` or `_text_` | *Italic* |
 | `~~text~~` | Strikethrough |
 | `` `text` `` | Inline code |
+| `[text](url)` | Link |
 | `-`, `*` or `+` and a space | Bullet list |
 | `1.` and a space | Numbered list |
 | `[ ]` and a space | Task list |

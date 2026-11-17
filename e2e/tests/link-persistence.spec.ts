@@ -111,4 +111,33 @@ test.describe('Link Persistence Tests', () => {
 			'[Example Website](https://example.com)',
 		);
 	});
+
+	test('typing a markdown link makes it a link', async ({ page, wiki }) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Typed Links', content: 'Start.' }],
+		});
+		await wiki.changeRequest(space);
+		await page.goto(space.url('page', space.page('Typed Links').name));
+		const editor = page.locator('.ProseMirror');
+		await expect(editor).toHaveAttribute('contenteditable', 'true', {
+			timeout: 15000,
+		});
+		await editor.click();
+		await page.keyboard.press('ControlOrMeta+End');
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('See [the docs](https://example.com/docs) now.');
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('Not [this](javascript:void) one.');
+
+		const link = editor.getByRole('link', { name: 'the docs' });
+		await expect(link).toHaveAttribute('href', 'https://example.com/docs');
+		await expect(editor.getByRole('link')).toHaveCount(1);
+		await expect(editor).toContainText('Not [this](javascript:void) one.');
+		const markdown = await page.evaluate(() =>
+			(
+				window as unknown as { wikiEditor: { getMarkdown(): string } }
+			).wikiEditor.getMarkdown(),
+		);
+		expect(markdown).toContain('See [the docs](https://example.com/docs) now.');
+	});
 });

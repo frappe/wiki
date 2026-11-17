@@ -41,6 +41,11 @@
 	outline: none;
 }
 
+/* prose-v3 resets the quote's italic and color but keeps prose's weight 500. */
+.wiki-editor-content blockquote {
+	font-weight: inherit;
+}
+
 /* Editing surface: no bounding box — the flush toolbar divider above and the
    centered column provide the structure. Horizontal padding comes from the
    column wrapper in WikiEditor.vue. */
