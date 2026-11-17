@@ -146,7 +146,7 @@ Archived ◀── archive (from any status)
 | `$CR.submit_change_request` | `name` | `{Draft, Changes Requested}` → `In Review` | `write`; throws unless `has_revision_changes` |
 | `$CR.approve_change_request` | `name` | `{In Review}` → `Approved` | `_can_merge` |
 | `$CR.request_changes` | `name`, `comment` (non-empty) | `{In Review, Approved}` → `Changes Requested` | `_can_merge` |
-| `$CR.reject_change_request` | `name`, `comment` (non-empty) | `{In Review, Approved}` → `Rejected` | `_can_merge` |
+| `$CR.reject_change_request` | `name`, `comment` (non-empty) | `{In Review, Approved, Changes Requested}` → `Rejected` | `_can_merge` |
 | `$CR.withdraw_change_request` | `name` | `{In Review}` → `Draft` | owner or manager |
 | `$CR.merge_change_request` | `name` | `{Approved}` → `Merged` | `_can_merge`; returns merge revision name |
 | `$CR.archive_change_request` | `name` | any → `Archived` | `write`, no status guard |
