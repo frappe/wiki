@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { DEFAULT_TITLES } from './callout-markdown.js';
 import { SLASH_COMMANDS, filterCommands } from './slash-commands.js';

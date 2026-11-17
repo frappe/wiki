@@ -235,7 +235,7 @@ test.describe('Edit from the public page', () => {
 		expect(batchSent).toBe(false);
 	});
 
-	test('an unsaved draft of the page reopens after a reload', async ({
+	test('an unsaved draft of the page reopens after a reload and saves', async ({
 		page,
 		wiki,
 	}) => {
@@ -243,8 +243,9 @@ test.describe('Edit from the public page', () => {
 		const typed = `unsaved ${Date.now()}`;
 		const space = await wiki.space({ pages: [{ title }] });
 		await wiki.changeRequest(space);
+		const seeded = space.page(title);
 
-		await page.goto(space.url('page', space.page(title).name));
+		await page.goto(space.url('page', seeded.name));
 		const editor = page.locator('.ProseMirror[contenteditable="true"]');
 		await expect(editor).toBeVisible({ timeout: 15000 });
 		await editor.click();
@@ -254,7 +255,12 @@ test.describe('Edit from the public page', () => {
 
 		await page.reload();
 		await expect(editor).toContainText(typed, { timeout: 15000 });
-		await expect(page.getByText('Unsaved changes')).toBeVisible();
+		await expect
+			.poll(
+				async () => (await readCrPage(page, seeded.doc_key as string)).content,
+				{ timeout: 15000 },
+			)
+			.toContain(typed);
 	});
 });
 

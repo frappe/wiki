@@ -4,25 +4,25 @@
 // (the frontend can't observe HTTP write order, so we guarantee
 // ordering by not racing).
 //
-// Callers hand in a `runFn(content, title)` closure that performs the
+// Callers hand in a `runFn(content)` closure that performs the
 // actual transport — this module knows nothing about the network.
 export function createSaveSerializer() {
 	const saveTails = new Map(); // docKey -> Promise (current chain tail)
-	const queuedSaves = new Map(); // docKey -> { content, title }
+	const queuedSaves = new Map(); // docKey -> content
 
-	function enqueueSave(docKey, content, title, runFn) {
+	function enqueueSave(docKey, content, runFn) {
 		// Always overwrite any queued save so we only ever run with the
 		// latest content.
-		queuedSaves.set(docKey, { content, title });
+		queuedSaves.set(docKey, content);
 
 		const tail = saveTails.get(docKey) || Promise.resolve();
 		const next = tail
 			.catch(() => {})
 			.then(async () => {
-				const params = queuedSaves.get(docKey);
-				if (!params) return; // collapsed by a later call that already ran
+				if (!queuedSaves.has(docKey)) return; // collapsed by a later call that already ran
+				const queued = queuedSaves.get(docKey);
 				queuedSaves.delete(docKey);
-				return runFn(params.content, params.title);
+				return runFn(queued);
 			});
 		saveTails.set(docKey, next);
 		// Not `finally`: its promise rejects with the save, and nothing catches it.
@@ -37,22 +37,10 @@ export function createSaveSerializer() {
 		return queuedSaves.has(docKey);
 	}
 
-	function rewriteKeys(oldKey, newKey) {
-		if (!oldKey || !newKey || oldKey === newKey) return;
-		if (saveTails.has(oldKey)) {
-			saveTails.set(newKey, saveTails.get(oldKey));
-			saveTails.delete(oldKey);
-		}
-		if (queuedSaves.has(oldKey)) {
-			queuedSaves.set(newKey, queuedSaves.get(oldKey));
-			queuedSaves.delete(oldKey);
-		}
-	}
-
 	function reset() {
 		saveTails.clear();
 		queuedSaves.clear();
 	}
 
-	return { enqueueSave, hasQueuedFor, rewriteKeys, reset };
+	return { enqueueSave, hasQueuedFor, reset };
 }

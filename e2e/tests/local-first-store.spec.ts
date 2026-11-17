@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import { keyByTitle } from '../helpers/draftStore';
 import { type WikiFactory, uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { delayMethod, failMethod } from '../helpers/mock';
@@ -9,20 +10,14 @@ import {
 	expectSyncSettled,
 	openNewPageDialog,
 	saveEditor,
+	waitForPageCreated,
 } from '../helpers/wiki';
-
-interface DraftNode {
-	docKey: string;
-	title: string;
-	children: DraftNode[];
-}
 
 // `wikiEditor` is already declared globally by other specs (e.g.
 // iframe-embed.spec.ts). Only extend with what's specific to this file.
 declare global {
 	interface Window {
 		__draftStore: {
-			tree: DraftNode[];
 			rootKey: string | null;
 			crName: string | null;
 			pagesByKey: Record<string, { content?: string | null }>;
@@ -88,6 +83,18 @@ async function createSpaceViaUI(page: Page, wiki: WikiFactory) {
 	return { spaceId };
 }
 
+async function openEditorOn(page: Page, url: string) {
+	await page.goto(url);
+	await expect(page.locator('.ProseMirror').first()).toBeVisible({
+		timeout: 15000,
+	});
+	await page.waitForFunction(
+		() =>
+			(window as unknown as { __draftStore?: { hasLoadedTree: boolean } })
+				.__draftStore?.hasLoadedTree,
+	);
+}
+
 async function createPageViaUI(page: Page, title: string) {
 	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(title);
@@ -95,7 +102,103 @@ async function createPageViaUI(page: Page, title: string) {
 }
 
 test.describe('Local-first draft workspace', () => {
-	test('delayed apply_cr_operations create: page appears immediately and content survives promotion', async ({
+	test('typing through a slow create keeps the text, the route and the editor', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha', content: 'Alpha.' }],
+		});
+		await wiki.changeRequest(space);
+		await openEditorOn(page, space.url('page', space.page('Alpha').name));
+		const unroute = await delayMethod(
+			page,
+			`${CR_METHOD_PREFIX}.apply_cr_operations`,
+			2000,
+		);
+
+		await createPageViaUI(page, 'Slow page');
+		await page.waitForURL(/\/draft\/[0-9a-f]{32}$/);
+		const draftUrl = page.url();
+		const editor = page.locator('.ProseMirror').first();
+		await expect(editor).toBeVisible();
+		await editor.click();
+		await page.evaluate(() => {
+			const win = window as unknown as { wikiEditor: unknown; opened: unknown };
+			win.opened = win.wikiEditor;
+		});
+		const words = Array.from({ length: 30 }, (_, i) => `w${i}`).join(' ');
+		await page.keyboard.type(words, { delay: 40 });
+		await waitForPageCreated(page);
+
+		await expect(editor).toHaveText(words);
+		expect(page.url()).toBe(draftUrl);
+		expect(
+			await page.evaluate(() => {
+				const win = window as unknown as {
+					wikiEditor: { can(): { undo(): boolean } };
+					opened: unknown;
+				};
+				return win.wikiEditor === win.opened && win.wikiEditor.can().undo();
+			}),
+		).toBe(true);
+		await unroute();
+	});
+
+	test('a create whose reply was lost keeps its page and its text', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha', content: 'Alpha.' }],
+		});
+		await wiki.changeRequest(space);
+		await openEditorOn(page, space.url('page', space.page('Alpha').name));
+		const crName = await page.evaluate(
+			() =>
+				(window as unknown as { __draftStore: { crName: string } }).__draftStore
+					.crName,
+		);
+		let dropped = false;
+		await page.route('**/*apply_cr_operations*', async (route) => {
+			const creates = (route.request().postData() ?? '').includes(
+				'create_node',
+			);
+			if (dropped || !creates) return route.continue();
+			dropped = true;
+			await route.fetch();
+			await route.abort('connectionreset');
+		});
+
+		await createPageViaUI(page, 'Lost reply');
+		await page.waitForURL(/\/draft\/[0-9a-f]{32}$/);
+		const docKey = page.url().split('/').pop() as string;
+		const editor = page.locator('.ProseMirror').first();
+		await editor.click();
+		await page.keyboard.type('Saved anyway.');
+		await saveEditor(page);
+
+		const saved = () =>
+			callMethod<{ content: string }>(
+				page.request,
+				`${CR_METHOD_PREFIX}.get_cr_page`,
+				{ name: crName, doc_key: docKey },
+			).then((result) => result.content);
+		await expect.poll(saved, { timeout: 15000 }).toBe('Saved anyway.');
+		await expectSyncSettled(page);
+
+		await page.reload();
+		await expect(page.getByText('Draft not found')).toHaveCount(0);
+		await expect(page.locator('.ProseMirror').first()).toHaveText(
+			'Saved anyway.',
+			{ timeout: 15000 },
+		);
+		await expect(
+			page.locator('aside').getByText('Lost reply', { exact: true }),
+		).toHaveCount(1);
+	});
+
+	test('delayed apply_cr_operations create: page appears immediately and content survives', async ({
 		page,
 		wiki,
 	}) => {
@@ -106,7 +209,7 @@ test.describe('Local-first draft workspace', () => {
 		await createSpaceViaUI(page, wiki);
 
 		// Inject 2.5s of latency on apply_cr_operations so the optimistic UI
-		// is observable for the full duration before the temp key is promoted.
+		// is observable for the full duration before the create lands.
 		const unroute = await delayMethod(
 			page,
 			`${CR_METHOD_PREFIX}.apply_cr_operations`,
@@ -116,13 +219,13 @@ test.describe('Local-first draft workspace', () => {
 		await createPageViaUI(page, pageTitle);
 
 		// Sidebar entry must be visible well before the create RPC resolves.
-		// The dialog also auto-navigates to /draft/<tmpKey>, so we don't need
+		// The dialog also auto-navigates to /draft/<docKey>, so we don't need
 		// to click the sidebar entry — just verify both signals.
 		const sidebarEntry = page
 			.locator('aside')
 			.getByText(pageTitle, { exact: true });
 		await expect(sidebarEntry).toBeVisible({ timeout: 1500 });
-		await page.waitForURL(/\/draft\/tmp_[^/?#]+/, { timeout: 2000 });
+		await page.waitForURL(/\/draft\/[0-9a-f]{32}$/, { timeout: 2000 });
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -138,21 +241,13 @@ test.describe('Local-first draft workspace', () => {
 		}, typedContent);
 		await editor.click();
 
-		// Wait for the create RPC to actually resolve and the temp key to be
-		// swapped out for the real one.
-		await page.waitForFunction(
-			() => {
-				const draftKey = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!draftKey) return false;
-				return !decodeURIComponent(draftKey[1]).startsWith('tmp_');
-			},
-			{ timeout: 6000 },
-		);
+		// Wait for the create RPC to actually resolve.
+		await waitForPageCreated(page);
 
-		// Typed content must still be in the editor after the key swap.
+		// Typed content must still be in the editor after the create lands.
 		await expect(page.getByText(typedContent)).toBeVisible();
 
-		// Promotion triggers a save against the real key. Let that intercepted
+		// Autosave follows the create. Let that intercepted
 		// request finish before unregistering its delayed route handler.
 		await expectSyncSettled(page, 6000);
 		await unroute();
@@ -171,16 +266,8 @@ test.describe('Local-first draft workspace', () => {
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		// Wait for the URL to land on a real (non-temp) key so we don't
-		// accidentally fail the auto-save that fires when a temp key is
-		// promoted.
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		// accidentally fail the auto-save that follows the create.
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -234,14 +321,7 @@ test.describe('Local-first draft workspace', () => {
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -291,7 +371,7 @@ test.describe('Local-first draft workspace', () => {
 		});
 
 		// Resolving the typed content (Save now succeeds because the
-		// mock is gone and operation_version is fresh) settles the state.
+		// mock is gone and the page's base is fresh) settles the state.
 		await saveEditor(page);
 		await expectSyncSettled(page, 5000);
 		await expect(submitButton).toBeEnabled();
@@ -310,14 +390,7 @@ test.describe('Local-first draft workspace', () => {
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		// Wait until we're on a real key so any prior pending mutations are done.
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -445,14 +518,7 @@ test.describe('Local-first draft workspace', () => {
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -494,7 +560,7 @@ test.describe('Local-first draft workspace', () => {
 		await expectSyncSettled(page, 5000);
 	});
 
-	test('dirty content on an existing published page survives browser refresh', async ({
+	test('dirty content on an existing published page survives a browser refresh and saves', async ({
 		page,
 		request,
 		wiki,
@@ -558,19 +624,14 @@ test.describe('Local-first draft workspace', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 10000 });
-		await expect(page.getByText('Unsaved changes')).toBeVisible({
-			timeout: 5000,
-		});
-
-		await saveEditor(page);
-		await expectSyncSettled(page, 5000);
+		await expectSyncSettled(page, 10000);
 		const submitButton = page.getByRole('button', {
 			name: 'Submit for Review',
 		});
 		await expect(submitButton).toBeEnabled();
 	});
 
-	test('dirty editor content survives a browser refresh via IndexedDB', async ({
+	test('dirty editor content survives a browser refresh via IndexedDB and saves', async ({
 		page,
 		wiki,
 	}) => {
@@ -582,14 +643,7 @@ test.describe('Local-first draft workspace', () => {
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -615,23 +669,15 @@ test.describe('Local-first draft workspace', () => {
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 
-		// Navigate back to the draft page. The editor should reopen on the
-		// same content the user last typed, and the banner should report
-		// "Unsaved changes".
+		// The editor reopens on the text the user last typed, and the restored
+		// draft saves without the user saving.
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		const restoredEditor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
 			.first();
 		await expect(restoredEditor).toBeVisible({ timeout: 10000 });
 		await expect(page.getByText(typedContent)).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('Unsaved changes')).toBeVisible({
-			timeout: 5000,
-		});
-
-		// Saving the restored draft clears the IDB entry and settles the sync
-		// state, just like a normal first-save.
-		await saveEditor(page);
-		await expectSyncSettled(page, 5000);
+		await expectSyncSettled(page, 10000);
 		await expect(
 			page.getByRole('button', { name: 'Submit for Review' }),
 		).toBeEnabled();
@@ -649,14 +695,7 @@ test.describe('Local-first draft workspace', () => {
 		await createPageViaUI(page, pageTitle);
 
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')
@@ -766,14 +805,7 @@ test.describe('Local-first draft workspace', () => {
 		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
 		});
@@ -848,14 +880,7 @@ test.describe('Local-first draft workspace', () => {
 		await createSpaceViaUI(page, wiki);
 		await createPageViaUI(page, pageTitle);
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await page.waitForFunction(
-			() => {
-				const match = window.location.pathname.match(/\/draft\/([^/?#]+)/);
-				if (!match) return false;
-				return !decodeURIComponent(match[1]).startsWith('tmp_');
-			},
-			{ timeout: 10000 },
-		);
+		await waitForPageCreated(page);
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
 		});
@@ -962,22 +987,7 @@ test.describe('Local-first draft workspace', () => {
 
 		// Locate the doc_key of the page we want to move (first → third slot).
 		const movedTitle = pageTitles[0];
-		const movedDocKey = await page.evaluate((title) => {
-			type Node = {
-				title: string;
-				docKey: string;
-				children?: Node[];
-			};
-			const findInTree = (nodes: Node[] = []): string | null => {
-				for (const node of nodes) {
-					if (node.title === title) return node.docKey;
-					const child = findInTree(node.children);
-					if (child) return child;
-				}
-				return null;
-			};
-			return findInTree(window.__draftStore.tree as Node[]);
-		}, movedTitle);
+		const movedDocKey = await keyByTitle(page, movedTitle);
 		if (!movedDocKey)
 			throw new Error('Could not locate doc_key for moved page');
 
