@@ -86,7 +86,7 @@
 <script setup>
 import { Button, TextInput, toast } from 'frappe-ui';
 import { nextTick, onMounted, ref, watch } from 'vue';
-import { docKeyFromHref } from './page-links.js';
+import { parseLinkHref } from './link-href.js';
 
 const props = defineProps({
 	href: {
@@ -111,21 +111,6 @@ const isEditing = ref(props.isNew || props.href === '');
 const editUrl = ref(props.href || '');
 const currentHref = ref(props.href || '');
 
-function isValidUrl(url) {
-	if (!url) return false;
-	try {
-		// Allow relative URLs or absolute URLs
-		if (url.startsWith('/') || url.startsWith('#') || docKeyFromHref(url)) {
-			return true;
-		}
-		new URL(url);
-		return true;
-	} catch {
-		// Check if it looks like a URL without protocol
-		return /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/.test(url);
-	}
-}
-
 function startEditing() {
 	editUrl.value = currentHref.value;
 	isEditing.value = true;
@@ -138,7 +123,7 @@ function startEditing() {
 }
 
 function saveLink() {
-	let url = editUrl.value.trim();
+	const url = editUrl.value.trim();
 
 	// Saving '' would leave the text wrapped in a link with no href.
 	if (!url) {
@@ -146,20 +131,11 @@ function saveLink() {
 		return;
 	}
 
-	// Add https:// if no protocol and not a relative URL
-	if (
-		!url.startsWith('/') &&
-		!url.startsWith('#') &&
-		!docKeyFromHref(url) &&
-		!url.match(/^[a-zA-Z]+:\/\//)
-	) {
-		url = `https://${url}`;
-	}
-
-	if (isValidUrl(url)) {
-		currentHref.value = url;
+	const href = parseLinkHref(url);
+	if (href) {
+		currentHref.value = href;
 		isEditing.value = false;
-		emit('save', url);
+		emit('save', href);
 	}
 }
 
