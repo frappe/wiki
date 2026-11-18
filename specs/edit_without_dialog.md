@@ -69,3 +69,7 @@ CI then failed in every spec that uses `createDraftAndOpenEditor`. The helper ch
 ### Reorder in Reading (2026-11-18)
 
 - The tree's rows drag whenever the user can edit. `WikiTree` moves the row on the live tree, starts `Reorder pages in <space>`, then records the move on the draft. If the change request cannot start, the live tree reloads.
+- A drop that changes nothing starts no change request. Moves into and out of groups work the same way.
+- e2e: `edit-flow` covers a no-op drop, the reorder through Submit, and a failed start putting the row back. `showSidebarActions` looks for the draft card, since draggable rows no longer mean Editing.
+
+Merged `develop` first: its empty space title ("Add initial content") gives way to the placeholders here, and Save shows a spinner because `develop` removed `isCreating`. Full suite: 325 passed, 1 skipped. Unit tests: 210 passed.
