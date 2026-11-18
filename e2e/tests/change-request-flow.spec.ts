@@ -184,7 +184,7 @@ test.describe('Change Request Flow', () => {
 		await page.goto(spaceUrl);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await editPage(page, 'Update the page');
+		await editPage(page);
 
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
@@ -606,7 +606,10 @@ test.describe('Change Request Flow', () => {
 		// One-click self-serve publish from the editor: the Merge button walks
 		// the CR through submit -> approve -> merge under the hood (a manager
 		// merging their own draft needs no second person).
-		const mergeButton = page.getByRole('button', { name: 'Merge' });
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
+		});
 		await expect(mergeButton).toBeVisible({ timeout: 10000 });
 		await mergeButton.click();
 		await expect(

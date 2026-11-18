@@ -79,7 +79,7 @@ test('a reader who cannot contribute gets the read-only tree, not a dead New pag
 	await context.close();
 });
 
-test('a reader who may contribute gets Edit, and New page from the palette', async ({
+test('a reader who may contribute gets Edit, and New page in the sidebar and the palette', async ({
 	browser,
 	request,
 	wiki,
@@ -101,8 +101,9 @@ test('a reader who may contribute gets Edit, and New page from the palette', asy
 	const page = await context.newPage();
 	await page.goto(space.url());
 	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
-	// The sidebar adds pages in edit mode only.
-	await expect(page.getByRole('button', { name: 'New page' })).toBeHidden();
+	await expect(
+		page.getByRole('complementary').getByRole('button', { name: 'New page' }),
+	).toBeVisible();
 
 	const palette = page.getByRole('dialog');
 	await page.keyboard.press('ControlOrMeta+k');

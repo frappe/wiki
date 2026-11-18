@@ -1,13 +1,7 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { callMethod, createDoc, getList } from '../helpers/frappe';
-import {
-	editDialog,
-	editPage,
-	newPageButton,
-	openTreeRowMenuItem,
-	startEditing,
-} from '../helpers/wiki';
+import { editPage, newPageButton, openTreeRowMenuItem } from '../helpers/wiki';
 
 const CR_METHOD =
 	'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request';
@@ -119,7 +113,7 @@ test.describe('Explicit edit', () => {
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		// Text after the caret when the editor first takes focus. The editor
-		// often mounts before the Edit dialog has finished closing.
+		// mounts as soon as the draft hydrates, before Edit has finished.
 		await page.addInitScript(() => {
 			document.addEventListener(
 				'focusin',
@@ -136,7 +130,7 @@ test.describe('Explicit edit', () => {
 		});
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await editPage(page, 'Typed early');
+		await editPage(page);
 		await page.keyboard.type(' Early.');
 
 		await expect(editableEditor(page)).toContainText(
@@ -149,19 +143,20 @@ test.describe('Explicit edit', () => {
 		).toBe('');
 	});
 
-	test('Edit names the change, then type, submit and land back in read mode', async ({
+	test('Edit starts a placeholder change request, Submit names it', async ({
 		page,
 		request,
 		wiki,
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		const alpha = space.page('Alpha');
+		const placeholder = `Edit Alpha in ${space.space_name}`;
 		await page.goto(space.url('page', alpha.name));
 
-		await editPage(page, 'Clarify Alpha');
+		await editPage(page);
 		const editor = editableEditor(page);
 		await expect(editor).toBeFocused();
-		await expect(page.getByText('Clarify Alpha')).toBeVisible();
+		await expect(page.getByText(placeholder)).toBeVisible();
 
 		await page.keyboard.type(' Now clearer.');
 		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({
@@ -171,10 +166,15 @@ test.describe('Explicit edit', () => {
 		await header(page)
 			.getByRole('button', { name: 'Submit for review' })
 			.click();
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: 'Submit', exact: true })
-			.click();
+		const dialog = page.getByRole('dialog');
+		const title = dialog.getByLabel('Title');
+		const submit = dialog.getByRole('button', { name: 'Submit', exact: true });
+		await expect(title).toHaveValue(placeholder);
+		await title.fill('');
+		await expect(submit).toBeDisabled();
+		await title.fill('Clarify Alpha');
+		await dialog.getByLabel('Description').fill('The intro was vague.');
+		await submit.click();
 		await expect(page).toHaveURL(/\/change-requests\//);
 
 		const [submitted] = await changeRequestsIn(request, space.name);
@@ -182,6 +182,12 @@ test.describe('Explicit edit', () => {
 			title: 'Clarify Alpha',
 			status: 'In Review',
 		});
+		const { description } = await callMethod<{ description: string }>(
+			request,
+			'frappe.client.get',
+			{ doctype: 'Wiki Change Request', name: submitted.name },
+		);
+		expect(description).toBe('The intro was vague.');
 
 		await page.goto(space.url('page', alpha.name));
 		await expect(
@@ -190,24 +196,6 @@ test.describe('Explicit edit', () => {
 		await expect(page.getByText('Content for Alpha')).toBeVisible();
 		await expect(page.getByText('Now clearer.')).toHaveCount(0);
 		expect(await changeRequestsIn(request, space.name)).toHaveLength(1);
-	});
-
-	test('cancelling the Edit dialog stays in read mode', async ({
-		page,
-		request,
-		wiki,
-	}) => {
-		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
-		await page.goto(space.url('page', space.page('Alpha').name));
-
-		await header(page)
-			.getByRole('button', { name: 'Edit', exact: true })
-			.click();
-		await editDialog(page).getByRole('button', { name: 'Cancel' }).click();
-		await expect(editDialog(page)).toBeHidden();
-
-		await expect(editableEditor(page)).toHaveCount(0);
-		expect(await changeRequestsIn(request, space.name)).toEqual([]);
 	});
 
 	test('row actions show only in edit mode', async ({
@@ -225,9 +213,8 @@ test.describe('Explicit edit', () => {
 		await expect(
 			aside.locator('[role="treeitem"] .lucide-more-horizontal'),
 		).toHaveCount(0);
-		await expect(newPageButton(page)).toHaveCount(0);
 
-		await editPage(page, 'Rename Alpha');
+		await editPage(page);
 		await openTreeRowMenuItem(page, 'Alpha', 'Change Title');
 		const rename = page.getByRole('dialog').filter({ hasText: 'Change Title' });
 		await rename.getByLabel('Title').fill('Alpha Renamed');
@@ -238,38 +225,155 @@ test.describe('Explicit edit', () => {
 		).toBeVisible();
 		const [changeRequest] = await changeRequestsIn(request, space.name);
 		expect(changeRequest).toMatchObject({
-			title: 'Rename Alpha',
+			title: `Edit Alpha in ${space.space_name}`,
 			status: 'Draft',
 		});
 	});
 
-	test('the read mode tree offers no drag handles', async ({ page, wiki }) => {
+	test('New page in read mode starts a change request on Save, not on open', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await page.goto(space.url('page', space.page('Alpha').name));
+		const edit = header(page).getByRole('button', {
+			name: 'Edit',
+			exact: true,
+		});
+		const create = page
+			.getByRole('dialog')
+			.filter({ hasText: 'Create New Page' });
+
+		await expect(edit).toBeVisible({ timeout: 15000 });
+		await newPageButton(page).click();
+		await expect(create).toBeVisible();
+		await create.getByRole('button', { name: 'Cancel' }).click();
+		await expect(create).toBeHidden();
+		await expect(edit).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
+
+		await newPageButton(page).click();
+		await create.getByLabel('Title').fill('Gamma');
+		await create.getByRole('button', { name: 'Save' }).click();
+
+		await page.waitForURL(/\/draft\//, { timeout: 15000 });
+		await expect(
+			page.locator('aside').getByText('Gamma', { exact: true }),
+		).toBeVisible();
+		const [changeRequest] = await changeRequestsIn(request, space.name);
+		expect(changeRequest).toMatchObject({
+			title: `New page in ${space.space_name}`,
+			status: 'Draft',
+		});
+	});
+
+	test('dragging a page in read mode starts a change request that submit names', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha' }, { title: 'Beta' }, { title: 'Gamma' }],
+		});
+		const placeholder = `Reorder pages in ${space.space_name}`;
+		await page.goto(space.url('page', space.page('Alpha').name));
+		const rows = page.locator('aside [draggable="true"]');
+		const row = (title: string) => rows.filter({ hasText: title });
+		const dropBefore = (source: string, target: string) =>
+			row(source).dragTo(row(target), { targetPosition: { x: 40, y: 2 } });
+
+		await expect(rows).toHaveText(['Alpha', 'Beta', 'Gamma'], {
+			timeout: 15000,
+		});
+
+		await dropBefore('Alpha', 'Beta');
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
+
+		const moveSaved = page.waitForResponse(
+			(response) =>
+				response.url().includes('apply_cr_operations') && response.ok(),
+		);
+		await dropBefore('Gamma', 'Alpha');
+		await expect(rows).toHaveText(['Gamma', 'Alpha', 'Beta']);
+		await expect(page.getByText(placeholder)).toBeVisible({ timeout: 15000 });
+		await moveSaved;
+
+		await page.reload();
+		await expect(rows).toHaveText(['Gamma', 'Alpha', 'Beta'], {
+			timeout: 15000,
+		});
+
+		await header(page)
+			.getByRole('button', { name: 'Submit for review' })
+			.click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog.getByLabel('Title')).toHaveValue(placeholder);
+		await dialog.getByLabel('Title').fill('Put Gamma first');
+		await dialog.getByLabel('Description').fill('Gamma is read most.');
+		await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+		await expect(page).toHaveURL(/\/change-requests\//);
+
+		const [submitted] = await changeRequestsIn(request, space.name);
+		expect(submitted).toMatchObject({
+			title: 'Put Gamma first',
+			status: 'In Review',
+		});
+		const { description } = await callMethod<{ description: string }>(
+			request,
+			'frappe.client.get',
+			{ doctype: 'Wiki Change Request', name: submitted.name },
+		);
+		expect(description).toBe('Gamma is read most.');
+	});
+
+	test('a drop that cannot start a change request puts the page back', async ({
+		page,
+		request,
+		wiki,
+	}) => {
 		const space = await wiki.space({
 			pages: [{ title: 'Alpha' }, { title: 'Beta' }],
 		});
+		await page.route('**/*get_or_create_draft_change_request*', (route) =>
+			route.fulfill({ status: 500, json: {} }),
+		);
 		await page.goto(space.url('page', space.page('Alpha').name));
 		const rows = page.locator('aside [draggable="true"]');
+		await expect(rows).toHaveText(['Alpha', 'Beta'], { timeout: 15000 });
 
+		const failed = page.waitForResponse((response) =>
+			response.url().includes('get_or_create_draft_change_request'),
+		);
+		await rows
+			.filter({ hasText: 'Beta' })
+			.dragTo(rows.filter({ hasText: 'Alpha' }), {
+				targetPosition: { x: 40, y: 2 },
+			});
+		await failed;
+
+		await expect(rows).toHaveText(['Alpha', 'Beta']);
 		await expect(
-			page.locator('aside').getByText('Beta', { exact: true }),
-		).toBeVisible({ timeout: 15000 });
-		await expect(rows).toHaveCount(0);
-
-		await editPage(page, 'Reorder');
-		await expect(rows.first()).toBeVisible();
+			page.getByRole('region', { name: /Notifications/ }).getByRole('listitem'),
+		).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
 	});
 
-	test('?edit=1 asks for a change request in read mode', async ({
+	test('?edit=1 starts a change request in read mode', async ({
 		page,
+		request,
 		wiki,
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(`${space.url('page', space.page('Alpha').name)}?edit=1`);
 
-		await expect(editDialog(page)).toBeVisible({ timeout: 15000 });
+		await expect(editableEditor(page)).toBeFocused({ timeout: 15000 });
 		await expect(page).not.toHaveURL(/edit=1/);
-		await startEditing(page, 'From the reader');
-		await expect(editableEditor(page)).toBeFocused();
+		const [changeRequest] = await changeRequestsIn(request, space.name);
+		expect(changeRequest.title).toBe(`Edit Alpha in ${space.space_name}`);
 	});
 
 	test('?edit=1 goes straight to the editor when a draft is open', async ({
@@ -281,7 +385,6 @@ test.describe('Explicit edit', () => {
 		await page.goto(`${space.url('page', space.page('Alpha').name)}?edit=1`);
 
 		await expect(editableEditor(page)).toBeFocused({ timeout: 15000 });
-		await expect(editDialog(page)).toHaveCount(0);
 		await expect(page.getByText('Already editing')).toBeVisible();
 	});
 
@@ -294,9 +397,11 @@ test.describe('Explicit edit', () => {
 		const alpha = space.page('Alpha');
 		await page.goto(space.url('page', alpha.name));
 
-		await editPage(page, 'Quick fix');
+		await editPage(page);
 		await page.keyboard.type(' Fixed.');
-		await header(page).getByRole('button', { name: 'Merge' }).click();
+		await header(page)
+			.getByRole('button', { name: 'Merge', exact: true })
+			.click();
 		await expect(page.getByText('Change request merged')).toBeVisible({
 			timeout: 15000,
 		});
@@ -308,7 +413,10 @@ test.describe('Explicit edit', () => {
 		await expect(editableEditor(page)).toHaveCount(0);
 		const changeRequests = await changeRequestsIn(request, space.name);
 		expect(changeRequests).toEqual([
-			expect.objectContaining({ title: 'Quick fix', status: 'Merged' }),
+			expect.objectContaining({
+				title: `Edit Alpha in ${space.space_name}`,
+				status: 'Merged',
+			}),
 		]);
 	});
 
@@ -332,13 +440,13 @@ test.describe('Explicit edit', () => {
 		const page = await context.newPage();
 		await page.goto(space.url('page', space.page('Alpha').name));
 
-		await editPage(page, 'Contributor edit');
+		await editPage(page);
 		await page.keyboard.type(' Suggested.');
 		await expect(
 			header(page).getByRole('button', { name: 'Submit for review' }),
 		).toBeVisible({ timeout: 15000 });
 		await expect(
-			header(page).getByRole('button', { name: 'Merge' }),
+			header(page).getByRole('button', { name: 'Merge', exact: true }),
 		).toHaveCount(0);
 
 		await context.close();
@@ -351,7 +459,7 @@ test.describe('Explicit edit', () => {
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
-		await editPage(page, 'Changed my mind');
+		await editPage(page);
 
 		await page.getByRole('button', { name: 'More actions' }).click();
 		await page.getByRole('menuitem', { name: 'Discard Changes' }).click();
@@ -363,37 +471,6 @@ test.describe('Explicit edit', () => {
 		expect(changeRequests).toEqual([
 			expect.objectContaining({ status: 'Archived' }),
 		]);
-	});
-
-	test('submitting a draft with a generated title asks for a real one', async ({
-		page,
-		request,
-		wiki,
-	}) => {
-		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
-		await wiki.changeRequest(space, `Draft Changes - ${space.space_name}`);
-		await page.goto(space.url('page', space.page('Alpha').name));
-
-		await expect(editableEditor(page)).toBeVisible({ timeout: 15000 });
-		await editableEditor(page).click();
-		await page.keyboard.press('End');
-		await page.keyboard.type(' Edited.');
-		await header(page)
-			.getByRole('button', { name: 'Submit for review' })
-			.click();
-
-		const dialog = page.getByRole('dialog');
-		const submit = dialog.getByRole('button', { name: 'Submit', exact: true });
-		await expect(submit).toBeDisabled();
-		await dialog.getByLabel('Title').fill('Edit Alpha');
-		await submit.click();
-		await expect(page).toHaveURL(/\/change-requests\//);
-
-		const [submitted] = await changeRequestsIn(request, space.name);
-		expect(submitted).toMatchObject({
-			title: 'Edit Alpha',
-			status: 'In Review',
-		});
 	});
 });
 
@@ -551,7 +628,7 @@ test.describe('Editing a change request in review', () => {
 		);
 
 		await page.goto(space.url('page', alpha.name));
-		await editPage(page, 'My own draft');
+		await editPage(page);
 		await typeAtEnd(page, ' Mine.');
 		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({
 			timeout: 15000,
@@ -683,7 +760,7 @@ test.describe('Editing a change request in review', () => {
 			header(page).getByRole('button', { name: 'Save', exact: true }),
 		).toBeVisible();
 		await expect(
-			header(page).getByRole('button', { name: 'Merge' }),
+			header(page).getByRole('button', { name: 'Merge', exact: true }),
 		).toHaveCount(0);
 		await expect
 			.poll(() => crPageContent(request, authored, alpha.doc_key), {

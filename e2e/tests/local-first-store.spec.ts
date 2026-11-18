@@ -603,7 +603,7 @@ test.describe('Local-first draft workspace', () => {
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
 		await page.waitForURL(/\/page\/[^/?#]+/, { timeout: 10000 });
-		await editPage(page, 'Edit the merged page');
+		await editPage(page);
 
 		const editor = page
 			.locator('.ProseMirror, [contenteditable="true"]')

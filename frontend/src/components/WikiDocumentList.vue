@@ -90,7 +90,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(() => openCreateDialog(rootNode, false))">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -125,7 +125,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" @click="createDocument(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -212,7 +212,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" @click="createExternalLink(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -307,11 +307,18 @@ const emit = defineEmits(['reorder-state-change']);
 
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
-const { requireEditing } = useStartEditing();
+const { starting: startingEdit, requireEditing } = useStartEditing();
 
-// In read mode, creating anything asks for a change request first.
-async function whenEditing(action) {
-	if (await requireEditing()) action();
+const spaceName = computed(() => spaceStore.doc?.space_name);
+
+// In read mode, saving a new page, group or link starts the change request.
+function ensureEditing(kind) {
+	const titles = {
+		page: () => __('New page in {0}', [spaceName.value]),
+		group: () => __('New group in {0}', [spaceName.value]),
+		link: () => __('New link in {0}', [spaceName.value]),
+	};
+	return requireEditing(titles[kind]());
 }
 
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
@@ -322,11 +329,8 @@ const expandedNodes = useStorage(
 );
 
 const hasPages = computed(() => props.tree.children().length > 0);
-// Adding is for edit mode. Edit lives in a page's header, so a space with no
-// page to open keeps the footer for reading too.
-const showFooter = computed(
-	() => !props.readonly && (spaceStore.isEditing || !props.tree.firstPage()),
-);
+// Shown in read mode too: saving a new page starts the change request.
+const showFooter = computed(() => !props.readonly && spaceStore.canEdit);
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results
 // render as a flat ranked list, not a pruned tree.
@@ -418,6 +422,7 @@ const {
 	expandedNodes,
 	toRef(props, 'spaceRoute'),
 	toRef(props, 'rootNode'),
+	ensureEditing,
 );
 
 // The empty content column offers "New page" too, but the dialog that makes one
@@ -432,7 +437,7 @@ watch(
 	(requested) => {
 		if (!requested || props.readonly) return;
 		if (consumeNewPageRequest()) {
-			whenEditing(() => openCreateDialog(props.rootNode, false));
+			openCreateDialog(props.rootNode, false);
 		}
 	},
 	{ immediate: true },
@@ -443,12 +448,12 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () => whenEditing(() => openCreateDialog(props.rootNode, true)),
+		onClick: () => openCreateDialog(props.rootNode, true),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () => whenEditing(() => openExternalLinkDialog(props.rootNode)),
+		onClick: () => openExternalLinkDialog(props.rootNode),
 	},
 ];
 

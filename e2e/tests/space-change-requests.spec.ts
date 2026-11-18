@@ -82,13 +82,6 @@ test.describe('Change requests in the space', () => {
 			const page = await context.newPage();
 			await page.goto(space.url('page', alpha.name));
 
-			await page.getByRole('button', { name: 'Edit', exact: true }).click();
-			const dialog = page.getByRole('dialog');
-			await expect(dialog).not.toContainText('open change request');
-			await expect(dialog).not.toContainText('Fix Alpha');
-			await dialog.getByRole('button', { name: 'Cancel' }).click();
-			await expect(dialog).toHaveCount(0);
-
 			await page
 				.getByRole('button', { name: '1 open on this page, 2 in this space' })
 				.click();

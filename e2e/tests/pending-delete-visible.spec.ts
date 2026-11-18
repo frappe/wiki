@@ -4,6 +4,7 @@ import type { WikiFactory } from '../helpers/factory';
 import { callMethod, getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import {
+	currentDraftDocKey,
 	openNewPageDialog,
 	openTreeRowMenuItem,
 	showSidebarActions,
@@ -54,6 +55,7 @@ test.describe('Pending deletion stays visible', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
+		await currentDraftDocKey(page);
 
 		const liveDocs = async () =>
 			getList<{ name: string }>(request, 'Wiki Document', {
@@ -297,7 +299,10 @@ async function mergeChangeRequest(
 ) {
 	await page.goto(spaceUrl);
 	await page.waitForLoadState('networkidle');
-	await page.getByRole('button', { name: 'Merge' }).first().click();
+	await page
+		.getByRole('button', { name: 'Merge', exact: true })
+		.first()
+		.click();
 	const dialog = page.getByRole('dialog');
 	if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await dialog.getByRole('button', { name: /Merge/ }).first().click();

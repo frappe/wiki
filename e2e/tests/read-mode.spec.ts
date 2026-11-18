@@ -97,7 +97,7 @@ test.describe('Read mode', () => {
 		await expect(page.locator('.ProseMirror')).toHaveCount(0);
 		expect(scripts.filter(isEditorChunk)).toEqual([]);
 
-		await editPage(page, 'Read then edit');
+		await editPage(page);
 		expect(scripts.some(isEditorChunk)).toBe(true);
 		await page.keyboard.type(' Edited.');
 		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({

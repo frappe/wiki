@@ -143,7 +143,7 @@ test.describe('Change request review', () => {
 	}) => {
 		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
 		await page.goto(space.url('page', space.page('Alpha').name));
-		await editPage(page, 'Quick fix');
+		await editPage(page);
 		await page.keyboard.type(' Fixed.');
 		await expect(page.getByText('Draft · 1 page changed')).toBeVisible({
 			timeout: 15000,

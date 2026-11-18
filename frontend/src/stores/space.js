@@ -174,16 +174,15 @@ export const useSpaceStore = defineStore('space', () => {
 		if (showsLiveTree.value) await loadReadonlyTree();
 	}
 
-	const createChangeRequestResource = createResource({
-		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_change_request',
+	const draftChangeRequestResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
 	});
 
-	async function startEditing({ title, description }) {
+	async function startEditing(title) {
 		const id = spaceId.value;
-		const changeRequest = await createChangeRequestResource.submit({
+		const changeRequest = await draftChangeRequestResource.submit({
 			wiki_space: id,
 			title,
-			description,
 		});
 		await draftStore.hydrate(id, changeRequest);
 		return changeRequest;
