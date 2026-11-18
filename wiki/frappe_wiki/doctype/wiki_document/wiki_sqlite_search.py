@@ -3,7 +3,7 @@ from typing import ClassVar
 
 import frappe
 from bs4 import BeautifulSoup
-from frappe.search.sqlite_search import SQLiteSearch
+from frappe.search.sqlite_search import SQLiteSearch, build_index
 from frappe.utils import create_batch
 
 from wiki.wiki.markdown import DEFAULT_TITLES, render_markdown
@@ -70,6 +70,17 @@ class WikiSQLiteSearch(SQLiteSearch):
 		"""Get the root wiki space for a document"""
 		wiki_doc = frappe.get_doc("Wiki Document", docname)
 		return wiki_doc.get_root_group() or docname
+
+
+def rebuild_index():
+	"""Replace the whole index, for when the way pages are indexed changes."""
+	search = WikiSQLiteSearch()
+	if not (search.is_search_enabled() and search.index_exists()):
+		return
+
+	# Building over an existing index keeps deleted pages, and duplicates every page on v15.
+	search.drop_index()
+	build_index(WikiSQLiteSearch, force=True)
 
 
 def enqueue_reindex(docnames: list[str]):

@@ -4,7 +4,9 @@ import frappe
 from frappe.tests import UnitTestCase
 from frappe.utils import now_datetime
 
-from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch
+from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch, rebuild_index
+from wiki.tests import WikiTestCase
+from wiki.tests.factory import make_document, make_space
 
 
 def indexed_text(markdown: str) -> str:
@@ -94,3 +96,26 @@ class TestIndexedContent(UnitTestCase):
 		self.assertNotIn("<", text)
 		self.assertNotIn(">", text)
 		self.assertIn("onerror=alert(1)", text)
+
+
+class TestRebuildIndex(WikiTestCase):
+	def test_rebuild_makes_code_searchable_and_drops_deleted_pages(self):
+		space = make_space()
+		page = make_document(parent=space.root_group, title="Rebuild", content="Set `rebuild_probe_key` here")
+		search = WikiSQLiteSearch()
+		search.drop_index()
+		search.build_index()
+		search._index_documents(
+			[
+				{
+					**search.prepare_document(page.reload()),
+					"id": "Wiki Document:deleted-page",
+					"name": "deleted-page",
+				}
+			]
+		)
+
+		rebuild_index()
+
+		names = [result["name"] for result in WikiSQLiteSearch().search("rebuild_probe_key")["results"]]
+		self.assertEqual(names, [page.name])
