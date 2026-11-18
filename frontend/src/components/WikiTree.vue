@@ -5,7 +5,7 @@
 		v-model:expanded="expandedKeys"
 		node-key="doc_key"
 		guides="none"
-		:draggable="!readonly && spaceStore.isEditing && !searchActive"
+		:draggable="!readonly && spaceStore.canEdit && !searchActive"
 		:move="allowMove"
 		@drag-start="onDragStart"
 		@drag-end="onDragEnd"
@@ -97,6 +97,7 @@
 
 <script setup>
 import { useChangeTypeDisplay } from '@/composables/useChangeTypeDisplay';
+import { useStartEditing } from '@/composables/useStartEditing';
 import { highlightSegments } from '@/composables/useTreeSearch';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -128,8 +129,7 @@ const props = defineProps({
 		default: null,
 	},
 	// Read-only spaces (git-synced) render the tree for browsing only: no
-	// drag-reorder, no row actions, no add-page/group affordances. Read mode
-	// keeps the actions but not the drag: a drop cannot wait on a dialog.
+	// drag-reorder, no row actions, no add-page/group affordances.
 	readonly: {
 		type: Boolean,
 		default: false,
@@ -168,6 +168,7 @@ const router = useRouter();
 const route = useRoute();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
+const { requireEditing } = useStartEditing();
 const canModify = computed(() => !props.readonly && spaceStore.isEditing);
 const { getChangeDotClass, getChangeLabel } = useChangeTypeDisplay();
 
@@ -329,18 +330,31 @@ function onDragStart() {
 	emit('drag-state-change', true);
 }
 
-function onDragEnd(info) {
+async function onDragEnd(info) {
 	emit('drag-state-change', false);
 	if (!info) return;
+	if (info.from === info.to && info.oldIndex === info.newIndex) return;
 
-	// Push the move into the workspace store synchronously so the tree
-	// rebuilds with the new order. The store also debounces the backend
-	// sync, so rapid drags coalesce into one roundtrip.
-	draftStore.moveNode({
+	const move = {
 		docKey: info.node.doc_key,
 		newParentKey: info.to || props.parentName || null,
 		newIndex: info.newIndex,
-	});
+	};
+	// Push the move into the workspace store synchronously so the tree
+	// rebuilds with the new order. The store also debounces the backend
+	// sync, so rapid drags coalesce into one roundtrip.
+	if (spaceStore.isEditing) {
+		draftStore.moveNode(move);
+		return;
+	}
+
+	// The row would snap back while the change request starts.
+	props.tree.moveNode(move.docKey, move.newParentKey, move.newIndex);
+	const started = await requireEditing(
+		__('Reorder pages in {0}', [spaceStore.doc?.space_name]),
+	);
+	if (started) draftStore.moveNode(move);
+	else spaceStore.refreshTree();
 }
 
 async function togglePublish(node) {
