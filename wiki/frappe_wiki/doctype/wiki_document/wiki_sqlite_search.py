@@ -2,8 +2,11 @@ import re
 from typing import ClassVar
 
 import frappe
+from bs4 import BeautifulSoup
 from frappe.search.sqlite_search import SQLiteSearch
 from frappe.utils import create_batch
+
+from wiki.wiki.markdown import DEFAULT_TITLES, render_markdown
 
 # Frappe v15 inserts a new row on every index_doc and never drops the old one.
 INDEX_DOC_APPENDS = int(frappe.__version__.split(".", 1)[0]) < 16
@@ -37,12 +40,11 @@ class WikiSQLiteSearch(SQLiteSearch):
 		return {"published": 1}
 
 	def prepare_document(self, doc):
-		"""Override to compute space and strip markdown from content"""
+		"""Override to compute space and index the text a reader sees"""
 		prepared = super().prepare_document(doc)
 		if prepared and doc.get("doctype") == "Wiki Document":
 			prepared["space"] = self._get_root_space(doc.get("name"))
-			if prepared.get("content"):
-				prepared["content"] = self._strip_markdown(prepared["content"])
+			prepared["content"] = self._get_reader_text(doc.get("content"))
 		return prepared
 
 	def index_doc(self, doctype, docname):
@@ -50,47 +52,19 @@ class WikiSQLiteSearch(SQLiteSearch):
 			self.remove_doc(doctype, docname)
 		super().index_doc(doctype, docname)
 
-	def _strip_markdown(self, text):
-		"""Convert markdown to plain text for cleaner search indexing"""
-		if not text:
-			return text
+	def _get_reader_text(self, markdown):
+		soup = BeautifulSoup(render_markdown(markdown or ""), "html.parser")
+		for image in soup.find_all("img"):
+			image.replace_with(f" {image.get('alt', '')} ")
+		for element in soup.select("noscript, .footnote-backref"):
+			element.decompose()
+		for title in soup.select(".callout-title"):
+			if title.get_text() in DEFAULT_TITLES.values():
+				title.decompose()
 
-		# Remove code blocks (``` ... ```)
-		text = re.sub(r"```[\s\S]*?```", " ", text)
-
-		# Remove inline code (`code`)
-		text = re.sub(r"`[^`]+`", " ", text)
-
-		# Remove custom directives (:::note, :::danger, etc.)
-		text = re.sub(r":::[a-z]+\s*", " ", text)
-		text = re.sub(r":::\s*", " ", text)
-
-		# Remove images ![alt](url)
-		text = re.sub(r"!\[[^\]]*\]\([^)]+\)", " ", text)
-
-		# Convert links [text](url) to just text
-		text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-
-		# Remove headers (# ## ### etc.)
-		text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
-
-		# Remove bold/italic markers
-		text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
-		text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)
-
-		# Remove blockquotes
-		text = re.sub(r"^>\s+", "", text, flags=re.MULTILINE)
-
-		# Remove horizontal rules
-		text = re.sub(r"^[-*_]{3,}\s*$", "", text, flags=re.MULTILINE)
-
-		# Remove HTML tags
-		text = re.sub(r"<[^>]+>", " ", text)
-
-		# Collapse multiple whitespace/newlines
-		text = re.sub(r"\s+", " ", text)
-
-		return text.strip()
+		# The reader renders snippets as HTML, so code samples must not survive as tags.
+		text = re.sub(r"[<>]", " ", soup.get_text(separator=" "))
+		return " ".join(text.split()).encode("utf-8", "ignore").decode()
 
 	def _get_root_space(self, docname):
 		"""Get the root wiki space for a document"""
