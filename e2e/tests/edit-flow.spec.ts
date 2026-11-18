@@ -268,20 +268,98 @@ test.describe('Explicit edit', () => {
 		});
 	});
 
-	test('the read mode tree offers no drag handles', async ({ page, wiki }) => {
+	test('dragging a page in read mode starts a change request that submit names', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha' }, { title: 'Beta' }, { title: 'Gamma' }],
+		});
+		const placeholder = `Reorder pages in ${space.space_name}`;
+		await page.goto(space.url('page', space.page('Alpha').name));
+		const rows = page.locator('aside [draggable="true"]');
+		const row = (title: string) => rows.filter({ hasText: title });
+		const dropBefore = (source: string, target: string) =>
+			row(source).dragTo(row(target), { targetPosition: { x: 40, y: 2 } });
+
+		await expect(rows).toHaveText(['Alpha', 'Beta', 'Gamma'], {
+			timeout: 15000,
+		});
+
+		await dropBefore('Alpha', 'Beta');
+		await expect(
+			header(page).getByRole('button', { name: 'Edit', exact: true }),
+		).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
+
+		const moveSaved = page.waitForResponse(
+			(response) =>
+				response.url().includes('apply_cr_operations') && response.ok(),
+		);
+		await dropBefore('Gamma', 'Alpha');
+		await expect(rows).toHaveText(['Gamma', 'Alpha', 'Beta']);
+		await expect(page.getByText(placeholder)).toBeVisible({ timeout: 15000 });
+		await moveSaved;
+
+		await page.reload();
+		await expect(rows).toHaveText(['Gamma', 'Alpha', 'Beta'], {
+			timeout: 15000,
+		});
+
+		await header(page)
+			.getByRole('button', { name: 'Submit for review' })
+			.click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog.getByLabel('Title')).toHaveValue(placeholder);
+		await dialog.getByLabel('Title').fill('Put Gamma first');
+		await dialog.getByLabel('Description').fill('Gamma is read most.');
+		await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+		await expect(page).toHaveURL(/\/change-requests\//);
+
+		const [submitted] = await changeRequestsIn(request, space.name);
+		expect(submitted).toMatchObject({
+			title: 'Put Gamma first',
+			status: 'In Review',
+		});
+		const { description } = await callMethod<{ description: string }>(
+			request,
+			'frappe.client.get',
+			{ doctype: 'Wiki Change Request', name: submitted.name },
+		);
+		expect(description).toBe('Gamma is read most.');
+	});
+
+	test('a drop that cannot start a change request puts the page back', async ({
+		page,
+		request,
+		wiki,
+	}) => {
 		const space = await wiki.space({
 			pages: [{ title: 'Alpha' }, { title: 'Beta' }],
 		});
+		await page.route('**/*get_or_create_draft_change_request*', (route) =>
+			route.fulfill({ status: 500, json: {} }),
+		);
 		await page.goto(space.url('page', space.page('Alpha').name));
 		const rows = page.locator('aside [draggable="true"]');
+		await expect(rows).toHaveText(['Alpha', 'Beta'], { timeout: 15000 });
 
+		const failed = page.waitForResponse((response) =>
+			response.url().includes('get_or_create_draft_change_request'),
+		);
+		await rows
+			.filter({ hasText: 'Beta' })
+			.dragTo(rows.filter({ hasText: 'Alpha' }), {
+				targetPosition: { x: 40, y: 2 },
+			});
+		await failed;
+
+		await expect(rows).toHaveText(['Alpha', 'Beta']);
 		await expect(
-			page.locator('aside').getByText('Beta', { exact: true }),
-		).toBeVisible({ timeout: 15000 });
-		await expect(rows).toHaveCount(0);
-
-		await editPage(page);
-		await expect(rows.first()).toBeVisible();
+			page.getByRole('region', { name: /Notifications/ }).getByRole('listitem'),
+		).toBeVisible();
+		expect(await changeRequestsIn(request, space.name)).toHaveLength(0);
 	});
 
 	test('?edit=1 starts a change request in read mode', async ({
