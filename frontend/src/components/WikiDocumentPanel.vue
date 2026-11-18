@@ -336,7 +336,10 @@ watch(
 async function editPage() {
 	// Set before starting: the editor mounts as soon as the draft hydrates, before requireEditing resolves.
 	focusEditor.value = true;
-	const title = __('Edit {0} in {1}', [displayTitle.value, spaceStore.doc?.space_name]);
+	const title = __('Edit {0} in {1}', [
+		displayTitle.value,
+		spaceStore.doc?.space_name,
+	]);
 	if (!(await requireEditing(title))) {
 		focusEditor.value = false;
 		return;
