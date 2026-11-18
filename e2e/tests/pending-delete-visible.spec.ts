@@ -4,6 +4,7 @@ import type { WikiFactory } from '../helpers/factory';
 import { callMethod, getList } from '../helpers/frappe';
 import { SPACE_URL_RE, appUrl } from '../helpers/routes';
 import {
+	currentDraftDocKey,
 	openNewPageDialog,
 	openTreeRowMenuItem,
 	showSidebarActions,
@@ -54,8 +55,7 @@ test.describe('Pending deletion stays visible', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
-		// The draft route swaps its temp key for the real one once the create syncs.
-		await page.waitForURL(/\/draft\/(?!tmp_)/, { timeout: 15000 });
+		await currentDraftDocKey(page);
 
 		const liveDocs = async () =>
 			getList<{ name: string }>(request, 'Wiki Document', {

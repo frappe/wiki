@@ -58,8 +58,10 @@ export async function showSidebarActions(page: Page) {
 	const edit = page
 		.getByRole('main')
 		.getByRole('button', { name: 'Edit', exact: true });
-	const editModeRow = page.locator('aside [draggable="true"]').first();
-	await expect(edit.or(editModeRow)).toBeVisible({ timeout: 15000 });
+	const draftCard = page
+		.locator('aside')
+		.getByRole('button', { name: 'More actions' });
+	await expect(edit.or(draftCard)).toBeVisible({ timeout: 15000 });
 	if (await edit.isVisible()) await editPage(page);
 }
 
