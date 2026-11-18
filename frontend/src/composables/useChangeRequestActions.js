@@ -178,6 +178,7 @@ export function useChangeRequestActions() {
 	}
 
 	return {
+		flushUnsavedPages,
 		viewChanges,
 		submitForReview,
 		discardChangeRequest,

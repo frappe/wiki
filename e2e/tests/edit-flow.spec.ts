@@ -198,6 +198,40 @@ test.describe('Explicit edit', () => {
 		expect(await changeRequestsIn(request, space.name)).toHaveLength(1);
 	});
 
+	test('Submit saves fresh typing before it counts the changes', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({ pages: [{ title: 'Alpha' }] });
+		await page.goto(space.url('page', space.page('Alpha').name));
+		await editPage(page);
+
+		let releaseSave = () => {};
+		const saveHeld = new Promise<void>((resolve) => {
+			releaseSave = resolve;
+		});
+		await page.route(/apply_cr_operations/, async (route) => {
+			await saveHeld;
+			await route.continue();
+		});
+
+		await page.keyboard.type(' Quick words.');
+		await header(page)
+			.getByRole('button', { name: 'Submit for review' })
+			.click();
+
+		const dialog = page.getByRole('dialog');
+		const submit = dialog.getByRole('button', { name: 'Submit', exact: true });
+		await expect(dialog.getByText('Saving your changes...')).toBeVisible();
+		await expect(submit).toBeDisabled();
+
+		releaseSave();
+		await expect(
+			dialog.getByText('1 pending change will be sent for review.'),
+		).toBeVisible();
+		await expect(submit).toBeEnabled();
+	});
+
 	test('row actions show only in edit mode', async ({
 		page,
 		request,
