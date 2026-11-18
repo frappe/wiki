@@ -140,4 +140,49 @@ test.describe('Link Persistence Tests', () => {
 		);
 		expect(markdown).toContain('See [the docs](https://example.com/docs) now.');
 	});
+
+	test('link popup saves phone and email links', async ({ page, wiki }) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Contact', content: 'Call us\n\nRing us\n\nEmail us' }],
+		});
+		await wiki.changeRequest(space);
+		await page.goto(space.url('page', space.page('Contact').name));
+		const editor = page.locator('.ProseMirror');
+		await expect(editor).toHaveAttribute('contenteditable', 'true', {
+			timeout: 15000,
+		});
+
+		const links = [
+			{
+				text: 'Call us',
+				entered: 'tel:+41791112233',
+				href: 'tel:+41791112233',
+			},
+			{ text: 'Ring us', entered: '079 111 22 33', href: 'tel:0791112233' },
+			{
+				text: 'Email us',
+				entered: 'mailto:team@example.com',
+				href: 'mailto:team@example.com',
+			},
+		];
+		for (const { text, entered, href } of links) {
+			await editor.getByText(text).click({ clickCount: 3 });
+			await page.click('button[aria-label="Link"]');
+			await page.getByPlaceholder('https://example.com').fill(entered);
+			await page.click('button[title="Submit"]');
+			await expect(editor.getByRole('link', { name: text })).toHaveAttribute(
+				'href',
+				href,
+			);
+		}
+
+		const markdown = await page.evaluate(() =>
+			(
+				window as unknown as { wikiEditor: { getMarkdown(): string } }
+			).wikiEditor.getMarkdown(),
+		);
+		expect(markdown).toContain('[Call us](tel:+41791112233)');
+		expect(markdown).toContain('[Ring us](tel:0791112233)');
+		expect(markdown).toContain('[Email us](mailto:team@example.com)');
+	});
 });
