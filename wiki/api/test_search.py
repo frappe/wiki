@@ -7,6 +7,7 @@ from wiki.tests.factory import make_space, unique_route
 
 READER_ROLE = "_Test Page Search Reader"
 TOKEN = "Zephyrquill"
+TITLE_ONLY = "Vellumwick"
 
 
 def _titles(query: str) -> set[str]:
@@ -27,7 +28,7 @@ class TestSearchPages(IntegrationTestCase):
 			space_name=f"{TOKEN} Open",
 			route=open_route,
 			pages=[
-				{"title": "Onboarding", "route": f"{open_route}/{TOKEN.lower()}-howto"},
+				{"title": TITLE_ONLY, "route": f"{open_route}/{TOKEN.lower()}-howto"},
 				{"title": f"{TOKEN} Deploys"},
 				{"title": f"{TOKEN} Draft", "is_published": 0},
 				{"title": f"{TOKEN} Guides", "children": [{"title": f"{TOKEN} Nested"}]},
@@ -47,11 +48,11 @@ class TestSearchPages(IntegrationTestCase):
 
 	def test_matches_the_route_with_spaces_as_hyphens(self):
 		self.assertIn(f"{TOKEN} Deploys", _titles("zephyrquill dep"))
-		self.assertIn("Onboarding", _titles(f"{TOKEN}-HOWTO"))
+		self.assertIn(TITLE_ONLY, _titles(f"{TOKEN}-HOWTO"))
 		self.assertEqual(_titles("   "), set())
 
 	def test_ignores_the_title(self):
-		self.assertNotIn("Onboarding", _titles("Onboarding"))
+		self.assertNotIn(TITLE_ONLY, _titles(TITLE_ONLY))
 
 	def test_ignores_the_space_segment_of_the_route(self):
 		self.assertEqual(_titles(self.open_space.route), set())
