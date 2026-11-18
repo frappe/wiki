@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import UnitTestCase
 from frappe.utils import now_datetime
 
 from wiki.frappe_wiki.doctype.wiki_document.wiki_sqlite_search import WikiSQLiteSearch, rebuild_index
@@ -23,7 +22,7 @@ def indexed_text(markdown: str) -> str:
 		return WikiSQLiteSearch().prepare_document(page)["content"]
 
 
-class TestIndexedContent(UnitTestCase):
+class TestIndexedContent(WikiTestCase):
 	def assert_indexed(self, markdown: str, *expected: str):
 		text = indexed_text(markdown)
 		for term in expected:
