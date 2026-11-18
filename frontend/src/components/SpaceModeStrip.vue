@@ -143,6 +143,7 @@
 					v-model="detailsTitle"
 					:label="__('Title')"
 					type="text"
+					:maxlength="CHANGE_REQUEST_TITLE_MAX_LENGTH"
 					required
 					autofocus
 				/>
@@ -187,7 +188,10 @@ import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useMobile } from '../composables/useMobile';
-import { useChangeRequestStore } from '../stores/changeRequest';
+import {
+	CHANGE_REQUEST_TITLE_MAX_LENGTH,
+	useChangeRequestStore,
+} from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';

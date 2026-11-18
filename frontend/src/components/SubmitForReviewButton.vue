@@ -36,6 +36,7 @@
 					:label="__('Title')"
 					type="text"
 					:placeholder="__('What did you change?')"
+					:maxlength="CHANGE_REQUEST_TITLE_MAX_LENGTH"
 					required
 					autofocus
 				/>
@@ -55,7 +56,10 @@
 import { Button, Dialog, FormControl, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
-import { useChangeRequestStore } from '../stores/changeRequest';
+import {
+	CHANGE_REQUEST_TITLE_MAX_LENGTH,
+	useChangeRequestStore,
+} from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 

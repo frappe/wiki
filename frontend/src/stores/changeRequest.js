@@ -3,6 +3,9 @@ import { createResource } from 'frappe-ui';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
+// Frappe's default length for the doctype's Data field, which sets no length of its own.
+export const CHANGE_REQUEST_TITLE_MAX_LENGTH = 140;
+
 export const useChangeRequestStore = defineStore('changeRequest', () => {
 	const currentChangeRequest = ref(null);
 	// 'merging' | 'withdrawing' | 'submitting' | null, for the whole round
