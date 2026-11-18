@@ -185,4 +185,94 @@ test.describe('Link Persistence Tests', () => {
 		expect(markdown).toContain('[Ring us](tel:0791112233)');
 		expect(markdown).toContain('[Email us](mailto:team@example.com)');
 	});
+
+	test('link popup saves a bare email as a mailto link', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Contact', content: 'Email us' }],
+		});
+		await wiki.changeRequest(space);
+		await page.goto(space.url('page', space.page('Contact').name));
+		const editor = page.locator('.ProseMirror');
+		await expect(editor).toHaveAttribute('contenteditable', 'true', {
+			timeout: 15000,
+		});
+
+		await editor.getByText('Email us').click({ clickCount: 3 });
+		await page.click('button[aria-label="Link"]');
+		await page.getByPlaceholder('https://example.com').fill('team@example.com');
+		await page.click('button[title="Submit"]');
+
+		await expect(
+			editor.getByRole('link', { name: 'Email us' }),
+		).toHaveAttribute('href', 'mailto:team@example.com');
+	});
+
+	test('link popup explains why it refuses a value', async ({ page, wiki }) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Refused', content: 'Some words' }],
+		});
+		await wiki.changeRequest(space);
+		await page.goto(space.url('page', space.page('Refused').name));
+		const editor = page.locator('.ProseMirror');
+		await expect(editor).toHaveAttribute('contenteditable', 'true', {
+			timeout: 15000,
+		});
+
+		await editor.getByText('Some words').click({ clickCount: 3 });
+		await page.click('button[aria-label="Link"]');
+		const input = page.getByPlaceholder('https://example.com');
+		const message = page.getByRole('alert').filter({
+			hasText: 'Enter a valid web address',
+		});
+
+		for (const refused of [
+			'foo bar',
+			'javascript://%0aalert(1)',
+			'data://text/html,x',
+			'2024',
+		]) {
+			await input.fill(refused);
+			await expect(message).toBeHidden();
+			await page.click('button[title="Submit"]');
+			await expect(message).toBeVisible();
+			await expect(input).toBeFocused();
+			await expect(editor.getByRole('link')).toHaveCount(0);
+		}
+
+		await input.fill('example.com');
+		await expect(message).toBeHidden();
+		await page.click('button[title="Submit"]');
+		await expect(
+			editor.getByRole('link', { name: 'Some words' }),
+		).toHaveAttribute('href', 'https://example.com');
+	});
+
+	test('editor opens a stored unsafe link as plain text', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [
+				{
+					title: 'Stored',
+					content:
+						'[script link](javascript:alert(1))\n\n[data link](data:text/html,x)\n\n[safe link](https://example.com)',
+				},
+			],
+		});
+		await wiki.changeRequest(space);
+		await page.goto(space.url('page', space.page('Stored').name));
+		const editor = page.locator('.ProseMirror');
+		await expect(editor).toHaveAttribute('contenteditable', 'true', {
+			timeout: 15000,
+		});
+
+		await expect(editor.getByRole('link', { name: 'safe link' })).toBeVisible();
+		await expect(editor).toContainText('script link');
+		await expect(editor).toContainText('data link');
+		await expect(editor.getByRole('link')).toHaveCount(1);
+	});
 });
