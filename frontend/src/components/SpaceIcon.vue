@@ -14,6 +14,6 @@ const props = defineProps({
 // Anything missing or not a lucide class would render as an empty box, since
 // Tailwind only emits classes it found as literals at build time.
 const iconClass = computed(() =>
-	props.icon && props.icon.startsWith('lucide-') ? props.icon : 'lucide-hash',
+	props.icon?.startsWith('lucide-') ? props.icon : 'lucide-hash',
 );
 </script>

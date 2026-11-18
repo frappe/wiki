@@ -35,7 +35,7 @@ export function splitBlocks(html) {
 						html: element.outerHTML,
 						key: element.outerHTML,
 					},
-			  ],
+				],
 	);
 }
 

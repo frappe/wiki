@@ -191,7 +191,7 @@ onMounted(() => {
 	window.__draftStore = draftStore;
 });
 onBeforeUnmount(() => {
-	delete window.__draftStore;
+	window.__draftStore = undefined;
 });
 
 const showUpdateRoutesDialog = ref(false);
@@ -362,7 +362,10 @@ watch(
 	isOpenPageDeleted,
 	(deletedPageId) => {
 		if (!deletedPageId) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );
@@ -377,7 +380,10 @@ watch(
 	([name, editing, mayContribute, finalizing]) => {
 		if (name !== 'DraftChangeRequest' || editing || finalizing) return;
 		if (mayContribute === null) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );

@@ -544,7 +544,9 @@ const canReview = computed(() => {
 const canReject = computed(() => {
 	return (
 		capabilities.value.can_write &&
-		['In Review', 'Approved', 'Changes Requested'].includes(changeRequest.doc?.status)
+		['In Review', 'Approved', 'Changes Requested'].includes(
+			changeRequest.doc?.status,
+		)
 	);
 });
 
