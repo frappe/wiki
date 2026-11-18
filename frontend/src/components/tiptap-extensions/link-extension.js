@@ -1,5 +1,6 @@
 import { InputRule, Mark, getMarkRange, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { isUnsafeHref } from './link-href.js';
 
 /**
  * Custom Link extension with inline editor support
@@ -25,6 +26,7 @@ export const WikiLink = Mark.create({
 	parseMarkdown(token, helpers) {
 		// Parse the link's child tokens (the link text)
 		const content = helpers.parseInline(token.tokens || []);
+		if (isUnsafeHref(token.href)) return content;
 		// Return a mark result that wraps content with the link mark
 		return helpers.applyMark('link', content, {
 			href: token.href || null,
@@ -76,7 +78,9 @@ export const WikiLink = Mark.create({
 	parseHTML() {
 		return [
 			{
-				tag: 'a[href]:not([href *= "javascript:" i])',
+				tag: 'a[href]',
+				getAttrs: (element) =>
+					isUnsafeHref(element.getAttribute('href')) ? false : null,
 			},
 		];
 	},
@@ -195,7 +199,7 @@ export const WikiLink = Mark.create({
 				find: /(?:^|[^![])\[([^[\]\n]+)\]\(([^()\s]+)\)$/,
 				handler: ({ state, range, match }) => {
 					const [whole, text, href] = match;
-					if (/^(javascript|data|vbscript):/i.test(href)) return null;
+					if (isUnsafeHref(href)) return null;
 					const from = range.from + whole.indexOf('[');
 					const link = this.type.create({ href });
 					state.tr
