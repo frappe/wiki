@@ -56,10 +56,9 @@
 					:space-name="spaceStore.doc?.space_name"
 					:space-route="spaceStore.doc?.route"
 					:space-loaded="spaceStore.isLoaded"
-					:tree-data="spaceStore.treeData"
-					:space-root-node="spaceStore.treeData?.root_group || ''"
+					:tree="spaceStore.tree"
 					:change-type-map="spaceStore.changeTypeMap"
-					:readonly="spaceStore.isReadonly || spaceStore.isTreeStale"
+					:readonly="spaceStore.isTreeReadonly"
 					:selected-page-id="spaceStore.selectedPageId"
 					:selected-draft-key="spaceStore.selectedDraftKey"
 					compact-header

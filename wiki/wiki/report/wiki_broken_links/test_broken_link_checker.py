@@ -71,6 +71,7 @@ class TestWikiBrokenLinkChecker(FrappeTestCase):
 		self.test_wiki_space = frappe.get_doc(
 			{
 				"doctype": "Wiki Space",
+				"space_name": "Broken Links",
 				"route": f"test-ws-route-{frappe.generate_hash(length=6)}",
 				"root_group": self.root_group.name,
 			}
@@ -100,6 +101,7 @@ class TestWikiBrokenLinkChecker(FrappeTestCase):
 		empty_space = frappe.get_doc(
 			{
 				"doctype": "Wiki Space",
+				"space_name": "Empty",
 				"route": f"empty-space-{frappe.generate_hash(length=6)}",
 				"root_group": empty_root.name,
 			}

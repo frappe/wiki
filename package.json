@@ -1,31 +1,31 @@
 {
-  "name": "wiki",
-  "version": "3.5.0",
-  "private": "true",
-  "dependencies": {
-    "@resvg/resvg-js": "^2.6.2",
-    "@tailwindcss/cli": "^4.0.14",
-    "satori": "^0.35.0",
-    "tailwindcss": "^4.0.14"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.4.1",
-    "@playwright/test": "^1.65.0",
-    "@types/node": "^22.0.0"
-  },
-  "scripts": {
-    "postinstall": "cd frontend && yarn install",
-    "dev": "cd frontend && yarn dev",
-    "build": "yarn tailwind:build && cd frontend && yarn build",
-    "theme:generate": "node scripts/generate-public-theme.mjs && node scripts/generate-public-prose.mjs && node scripts/generate-public-lucide.mjs",
-    "tailwind:watch": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css --watch",
-    "tailwind:build": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+	"name": "wiki",
+	"version": "3.5.0",
+	"private": "true",
+	"dependencies": {
+		"@resvg/resvg-js": "^2.6.2",
+		"@tailwindcss/cli": "^4.0.14",
+		"satori": "^0.35.0",
+		"tailwindcss": "^4.0.14"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@playwright/test": "^1.65.0",
+		"@types/node": "^22.0.0"
+	},
+	"scripts": {
+		"postinstall": "cd frontend && yarn install",
+		"dev": "cd frontend && yarn dev",
+		"build": "yarn tailwind:build && cd frontend && yarn build",
+		"theme:generate": "node scripts/generate-public-theme.mjs && node scripts/generate-public-prose.mjs && node scripts/generate-public-lucide.mjs",
+		"tailwind:watch": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css --watch",
+		"tailwind:build": "yarn theme:generate && npx @tailwindcss/cli -i ./wiki/public/css/main.css -o ./wiki/public/css/tailwind.css",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
+		"test:e2e:headed": "playwright test --headed",
+		"test:e2e:debug": "playwright test --debug"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
 }

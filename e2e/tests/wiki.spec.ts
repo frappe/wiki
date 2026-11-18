@@ -60,6 +60,16 @@ test.describe('Wiki Editor', () => {
 		// Submit the form (click Create button inside the dialog)
 		await dialog.locator('button:has-text("Create")').click();
 
+		const toast = page.locator('[data-sonner-toast]', {
+			hasText: 'created successfully',
+		});
+		await expect(toast).toBeVisible();
+		const [toastFont, bodyFont] = await toast.evaluate((el) => [
+			getComputedStyle(el).fontFamily,
+			getComputedStyle(document.body).fontFamily,
+		]);
+		expect(toastFont).toBe(bodyFont);
+
 		// Wait for the dialog to close and page to update
 		await page.waitForLoadState('networkidle');
 
@@ -71,6 +81,20 @@ test.describe('Wiki Editor', () => {
 		await expect(
 			page.getByText(spaceName, { exact: true }).first(),
 		).toBeVisible();
+	});
+
+	test('a new space needs a name', async ({ page }) => {
+		await page.goto(APP_BASE);
+		await page.getByRole('button', { name: 'New Space' }).first().click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog.getByLabel('Space Name')).toHaveAttribute(
+			'required',
+			'',
+		);
+
+		await dialog.getByLabel('Route').fill(uniqueRoute('nameless'));
+		await dialog.getByRole('button', { name: 'Create' }).click();
+		await expect(dialog.getByText('Space Name is required.')).toBeVisible();
 	});
 
 	test('should navigate to space and create a wiki page', async ({

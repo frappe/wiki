@@ -25,6 +25,11 @@ const props = defineProps({
 });
 
 const src = computed(() => props.node.attrs.src || '');
+const placeholderText = computed(() => {
+	if (props.node.attrs.loading) return 'Uploading…';
+	if (props.node.attrs.error) return `Upload failed: ${props.node.attrs.error}`;
+	return 'Video';
+});
 
 // Get video MIME type from extension
 const videoType = computed(() => {
@@ -61,7 +66,7 @@ const videoType = computed(() => {
                     <polygon points="23 7 16 12 23 17 23 7" />
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                 </svg>
-                <span>Video</span>
+                <span>{{ placeholderText }}</span>
             </div>
         </div>
         <div v-else class="video-container">

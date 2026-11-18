@@ -189,10 +189,10 @@ test.describe('Internal page links', () => {
 		await expect(menu.getByText('No page matches.')).toBeVisible();
 		await page.keyboard.press('Enter');
 
-		// The title goes in at once; the link waits for the page's real key.
+		// The title goes in at once; the link waits for the page to exist.
 		const link = editor.locator('a[href^="wiki:"]');
 		await expect(link).toHaveText('Release Notes');
-		await expect(link).not.toHaveAttribute('href', /wiki:tmp_/);
+		await expect(link).toHaveAttribute('href', /wiki:[0-9a-f]{32}/);
 		await expect(
 			page.locator('aside').getByText('Release Notes', { exact: true }),
 		).toBeVisible();

@@ -3,13 +3,11 @@ import { computed, reactive } from 'vue';
 function emptyPage(docKey, opts = {}) {
 	return {
 		docKey,
-		title: opts.title ?? '',
-		route: opts.route ?? '',
 		content: opts.content ?? '',
 		localContent: opts.localContent ?? null,
 		serverContent: opts.serverContent ?? null,
+		serverHash: opts.serverHash ?? null,
 		sentContent: opts.sentContent ?? null,
-		isPublished: opts.isPublished ?? true,
 		saveStatus: opts.saveStatus ?? 'idle',
 		error: null,
 	};
@@ -18,8 +16,9 @@ function emptyPage(docKey, opts = {}) {
 // Per-doc editor buffers. `content` is the server-confirmed baseline while
 // `localContent` retains a divergent local snapshot across navigation and
 // restore. Both values are canonicalized by WikiEditor before comparison.
-// `serverContent` is the raw server copy the local edits build on, and
-// `sentContent` a save whose reply never came, so it may be on the server.
+// `serverContent` is the raw server copy the local edits build on, `serverHash`
+// its hash, sent with each save, and `sentContent` a save whose reply never
+// came, so it may be on the server.
 // Persistence and transport remain store concerns.
 export function createPageBuffers() {
 	const pagesByKey = reactive({});
@@ -70,25 +69,6 @@ export function createPageBuffers() {
 		return page;
 	}
 
-	function updateLocalContent(docKey, realKey, content, title) {
-		const finalKey = realKey || docKey;
-		if (!finalKey) return null;
-		let page = pagesByKey[finalKey] || pagesByKey[docKey];
-		if (!page) {
-			page = pagesByKey[finalKey] = emptyPage(finalKey, {
-				title: title || '',
-			});
-		}
-		page.docKey = finalKey;
-		page.localContent = content === page.content ? null : content;
-		if (title != null) page.title = title;
-		if (finalKey !== docKey) {
-			pagesByKey[finalKey] = page;
-			delete pagesByKey[docKey];
-		}
-		return page;
-	}
-
 	function setLocalContent(docKey, content) {
 		const page = pagesByKey[docKey];
 		if (!page) return null;
@@ -106,19 +86,6 @@ export function createPageBuffers() {
 		page.content = savedContent;
 		page.localContent = content === savedContent ? null : content;
 		return page;
-	}
-
-	// Swap a tmp_* keyed buffer over to its real key once the create syncs.
-	function promoteKey(tempKey, realKey, extras = {}) {
-		if (!tempKey || !realKey || tempKey === realKey) return;
-		const page = pagesByKey[tempKey];
-		if (!page) return;
-		pagesByKey[realKey] = {
-			...page,
-			docKey: realKey,
-			route: extras.route ?? page.route,
-		};
-		delete pagesByKey[tempKey];
 	}
 
 	function clearFailedFlag(docKey) {
@@ -145,11 +112,9 @@ export function createPageBuffers() {
 		setPage,
 		deletePage,
 		ensure,
-		updateLocalContent,
 		setLocalContent,
 		clearLocalContent,
 		reconcileEditorContent,
-		promoteKey,
 		clearFailedFlag,
 		reset,
 	};

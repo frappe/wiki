@@ -44,7 +44,7 @@ import { Paragraph } from '@tiptap/extension-paragraph';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Placeholder } from '@tiptap/extensions';
 import { Selection } from '@tiptap/pm/state';
-import { onKeyStroke } from '@vueuse/core';
+import { onKeyStroke, useEventListener } from '@vueuse/core';
 import { toast, useFileUpload } from 'frappe-ui';
 import {
 	computed,
@@ -66,7 +66,7 @@ import {
 	onEditorFlushRequest,
 	onEditorReloadRequest,
 } from '@/lib/editorContentSync';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import {
@@ -94,7 +94,6 @@ import {
 	PageLinks,
 	docKeyFromHref,
 	findPageByTitle,
-	linkablePages,
 	pickerItems,
 } from './tiptap-extensions/page-links.js';
 import {
@@ -183,16 +182,13 @@ const spaceStore = useSpaceStore();
 const draftStore = useDraftWorkspaceStore();
 
 function spacePages() {
-	return linkablePages(spaceTree?.value?.children);
+	return spaceTree?.value?.linkablePages() ?? [];
 }
 
 // A page created from the link picker goes in the open page's folder.
 async function createPageBesideThis(title) {
-	const trail = trailToNode(
-		spaceTree?.value?.children,
-		(node) => node.doc_key === props.documentKey,
-	);
-	const parentKey = trail?.at(-2)?.doc_key ?? null;
+	const parentKey =
+		spaceTree?.value?.trail(props.documentKey)?.at(-2)?.docKey ?? null;
 	try {
 		const docKey = await draftStore.createNode({ parentKey, title }).promise;
 		toast.success(`Added “${title}” as a draft page in this change request`);
@@ -210,11 +206,9 @@ const router = useRouter();
 function linkedPage(href) {
 	const docKey = docKeyFromHref(href);
 	if (!docKey) return null;
-	const node = trailToNode(
-		spaceTree?.value?.children,
-		(candidate) => candidate.doc_key === docKey,
-	)?.at(-1);
-	const target = node && crumbRoute(node, route.params.spaceId);
+	const tree = spaceTree?.value;
+	const node = tree?.trail(docKey)?.at(-1);
+	const target = node && crumbRoute(tree, node, route.params.spaceId);
 	return target
 		? { title: node.title, href: router.resolve(target).href }
 		: null;
@@ -287,15 +281,15 @@ function fileToBase64(file) {
 }
 
 /**
- * Patch the attributes of the in-flight image node identified by uploadId.
+ * Patch the attributes of the in-flight upload node identified by uploadId.
  */
-function updateImageNode(uploadId, attrs) {
+function updateUploadNode(uploadId, attrs) {
 	const ed = editor.value;
 	if (!ed) return;
 	const { state, view } = ed;
 	let target = null;
 	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'image' && node.attrs.uploadId === uploadId) {
+		if (node.attrs.uploadId === uploadId) {
 			target = { node, pos };
 			return false;
 		}
@@ -331,7 +325,7 @@ async function insertAndUploadImage(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updateImageNode,
+		updateUploadNode,
 		'Failed to upload image',
 	);
 }
@@ -403,7 +397,7 @@ function uploadPastedDataImages(uploads) {
 		uploadIntoNode(
 			uploadId,
 			() => dataUrlToFile(src).then(uploadFile),
-			updateImageNode,
+			updateUploadNode,
 			'Failed to upload image',
 		);
 	}
@@ -414,33 +408,11 @@ function uploadPastedDataImages(uploads) {
 function transformPasted(slice) {
 	const tagged = tagDataImagesInSlice(slice);
 	// The tagged slice is inserted right after this returns; upload once the
-	// nodes are in the doc so updateImageNode can find them.
+	// nodes are in the doc so updateUploadNode can find them.
 	if (tagged.uploads.length) {
 		queueMicrotask(() => uploadPastedDataImages(tagged.uploads));
 	}
 	return tagged.slice;
-}
-
-/**
- * Patch the attributes of the in-flight PDF node identified by uploadId.
- */
-function updatePdfNode(uploadId, attrs) {
-	const ed = editor.value;
-	if (!ed) return;
-	const { state, view } = ed;
-	let target = null;
-	state.doc.descendants((node, pos) => {
-		if (node.type.name === 'pdfBlock' && node.attrs.uploadId === uploadId) {
-			target = { node, pos };
-			return false;
-		}
-	});
-	if (!target) return;
-	const tr = state.tr.setNodeMarkup(target.pos, undefined, {
-		...target.node.attrs,
-		...attrs,
-	});
-	view.dispatch(tr);
 }
 
 /**
@@ -462,9 +434,34 @@ async function insertAndUploadPdf(file) {
 	await uploadIntoNode(
 		uploadId,
 		() => uploadFile(file),
-		updatePdfNode,
+		updateUploadNode,
 		'Failed to upload PDF',
 	);
+}
+
+/**
+ * Insert a video block immediately with a loading state, upload it in the
+ * background, then swap in the final URL (or surface an error).
+ */
+async function insertAndUploadVideo(file) {
+	const ed = editor.value;
+	if (!ed) return;
+
+	const uploadId = newUploadId();
+	startUpload(uploadId);
+	ed.chain().focus().setVideo({ uploadId, loading: true }).run();
+
+	await uploadIntoNode(
+		uploadId,
+		() => uploadFile(file),
+		updateUploadNode,
+		'Failed to upload video',
+	);
+}
+
+function handleVideoUploadEvent(event) {
+	const file = event.detail?.file;
+	if (file) insertAndUploadVideo(file);
 }
 
 /**
@@ -531,8 +528,8 @@ function handleDrop(_view, event) {
 
 		if (isImage) {
 			insertAndUploadImage(file);
-		} else if (isVideo && editor.value) {
-			editor.value.commands.uploadVideo(file);
+		} else if (isVideo) {
+			insertAndUploadVideo(file);
 		} else if (isPdf) {
 			insertAndUploadPdf(file);
 		}
@@ -784,10 +781,18 @@ function createSuggestionMenu(suggestion, menu, menuProps = () => ({})) {
 onBeforeUnmount(() => {
 	stopFlushRequests();
 	stopReloadRequests();
-	contentSync.cancel();
 	autosave.cancel();
-	emitContentChange({ persistImmediately: true });
+	keepLocalContent();
 });
+
+// A reload never unmounts the editor. Not `pagehide`: by then the page is torn
+// down before the IndexedDB write commits.
+useEventListener(window, 'beforeunload', keepLocalContent);
+
+function keepLocalContent() {
+	contentSync.cancel();
+	emitContentChange({ persistImmediately: true });
+}
 
 const editor = useEditor({
 	editable: () => !props.readonly,
@@ -840,9 +845,7 @@ const editor = useEditor({
 		IframeBlock,
 		MermaidBlock,
 		PdfBlock,
-		VideoBlock.configure({
-			uploadFunction: uploadFile,
-		}),
+		VideoBlock,
 		Emoji,
 		// Slash commands
 		SlashCommands.configure({
@@ -1040,6 +1043,7 @@ onMounted(() => {
 	);
 	// Listen for PDF upload events (toolbar + slash command)
 	document.addEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.addEventListener('wiki-editor-upload-video', handleVideoUploadEvent);
 });
 
 onUnmounted(() => {
@@ -1049,6 +1053,10 @@ onUnmounted(() => {
 		handleSlashImageUploadEvent,
 	);
 	document.removeEventListener('wiki-editor-upload-pdf', handlePdfUploadEvent);
+	document.removeEventListener(
+		'wiki-editor-upload-video',
+		handleVideoUploadEvent,
+	);
 	// Nodes leave with the editor, so its uploads can no longer reach the page.
 	draftStore.clearUploads(editorUploadIds);
 	// Hide any open link popup

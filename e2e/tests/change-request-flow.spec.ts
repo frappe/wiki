@@ -52,7 +52,10 @@ async function approveAndMergeFromReview(page: Page) {
 
 /** Open the three-dots review menu and click one of its items. */
 async function clickReviewMenuItem(page: Page, name: string) {
-	await page.getByRole('button', { name: 'More actions' }).click();
+	await page
+		.getByRole('main')
+		.getByRole('button', { name: 'More actions' })
+		.click();
 	await page.getByRole('menuitem', { name }).click();
 }
 
@@ -758,6 +761,37 @@ test.describe('Change Request Flow', () => {
 			mergeThrew = true;
 		}
 		expect(mergeThrew).toBe(true);
+	});
+
+	test('a reviewer can reject while changes are requested', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		await createSpaceWithDraftPage(page, wiki, 'CR Reject Waiting');
+		await setEditorContentAndSave(page, `Waiting content ${Date.now()}`);
+		const crName = await submitForReviewFromEditor(page);
+		await callMethod(request, `${CR_METHOD}.request_changes`, {
+			name: crName,
+			comment: 'Please expand the intro',
+		});
+		await page.reload();
+		await expect(
+			page.getByText('Changes Requested', { exact: true }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Approve', exact: true }),
+		).toHaveCount(0);
+
+		await clickReviewMenuItem(page, 'Reject');
+		const rejectDialog = page.getByRole('dialog');
+		await rejectDialog.getByRole('textbox').fill('The author went quiet');
+		await rejectDialog
+			.getByRole('button', { name: 'Reject', exact: true })
+			.click();
+		await expect(page.getByText('Rejected', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 	});
 
 	test('assigning from the list opens the dialog without navigating', async ({

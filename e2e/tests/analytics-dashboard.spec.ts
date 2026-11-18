@@ -76,7 +76,7 @@ async function stubAnalytics(page: Page, space: SeededSpace) {
 										views: 334,
 									},
 								],
-						  }),
+							}),
 				},
 			}),
 		});

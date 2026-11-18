@@ -226,13 +226,13 @@ test.describe('Command Palette', () => {
 		await palette.getByRole('combobox').fill('dark');
 		await expect(option('Theme: Dark')).toBeVisible();
 		await expect(option('Theme: Light')).toBeHidden();
-		await page.keyboard.press('Enter');
+		// A space or page named like the theme ranks above it, so pick the option.
+		await option('Theme: Dark').click();
 		await expect(palette).toBeHidden();
 		await expect(html).toHaveAttribute('data-theme', 'dark');
 
 		await openPalette();
 		await palette.getByRole('combobox').fill('light');
-		// Pages titled "...Highlight..." can rank above it, so Enter is only tested with "dark".
 		await option('Theme: Light').click();
 		await expect(html).toHaveAttribute('data-theme', 'light');
 	});
