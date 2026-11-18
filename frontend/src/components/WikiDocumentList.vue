@@ -125,7 +125,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" @click="createDocument(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -212,7 +212,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" @click="createExternalLink(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -307,7 +307,7 @@ const emit = defineEmits(['reorder-state-change']);
 
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
-const { requireEditing } = useStartEditing();
+const { starting: startingEdit, requireEditing } = useStartEditing();
 
 const spaceName = computed(() => spaceStore.doc?.space_name);
 
