@@ -17,8 +17,9 @@ Placeholders (space "Frappe HR Docs", page "Leave Policy"):
 | New page from the tree, the welcome screen or the command palette | `New page in Frappe HR Docs` |
 | New group | `New group in Frappe HR Docs` |
 | New external link | `New link in Frappe HR Docs` |
+| Dragging a page in the tree | `Reorder pages in Frappe HR Docs` |
 
-Reorder is only possible in Editing, so it never starts a change request and needs no placeholder.
+Anyone who can edit can drag pages in Reading too. The drop shows at once and starts the change request. A drop that changes nothing starts none. Submit for review then asks for the title and description, as it does for every other entry point.
 
 The sidebar's New page button and its group and link menu show in Reading too, for anyone who can edit. Before, they showed in Editing only, or in an empty space.
 
@@ -64,3 +65,7 @@ Full suite: 283 passed, 2 failed. One was `contributions-disabled`, which still 
 Tests: the 19 specs that create from the tree, 92 tests: 90 passed, 2 failed. Both are fixed above. Then `edit-flow`, `space-empty-new-page` and `pending-delete-visible` with `--repeat-each=2`: 43 passed.
 
 CI then failed in every spec that uses `createDraftAndOpenEditor`. The helper checked `editor.isVisible({ timeout: 5000 })`, but `isVisible` ignores the timeout and answers at once. The editor used to appear in time anyway. Now Save waits for the change request first, so the helper saw no editor, reloaded, and cancelled the save. The helper now waits for the draft route and uses `waitFor` for the editor. Full suite: 285 passed.
+
+### Reorder in Reading (2026-11-18)
+
+- The tree's rows drag whenever the user can edit. `WikiTree` moves the row on the live tree, starts `Reorder pages in <space>`, then records the move on the draft. If the change request cannot start, the live tree reloads.
