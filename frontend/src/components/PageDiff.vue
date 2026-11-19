@@ -50,6 +50,10 @@
 			</a>
 		</div>
 
+		<p v-else-if="isEmpty" class="px-4 py-3 text-sm text-ink-gray-5">
+			{{ page.head ? __('This page is empty') : __('This page was empty') }}
+		</p>
+
 		<div v-else-if="view === 'markdown'" class="relative isolate z-0 p-4">
 			<DiffViewer
 				:old-content="page.base?.content || ''"
@@ -173,6 +177,12 @@ const allRows = computed(() =>
 );
 const rows = computed(() =>
 	props.changesOnly ? foldUnchanged(allRows.value) : allRows.value,
+);
+
+const isEmpty = computed(() =>
+	props.view === 'markdown'
+		? !props.page.base?.content?.trim() && !props.page.head?.content?.trim()
+		: !allRows.value.length,
 );
 
 // A page added or deleted has nothing to line up against.
