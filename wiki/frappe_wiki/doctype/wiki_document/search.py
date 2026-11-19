@@ -25,7 +25,7 @@ def search(query: str, space: str | None = None) -> dict:
 
 	result = search_engine.search(query, filters=filters)
 
-	hits = _filter_hits_by_space_visibility(result["results"])
+	hits = _filter_readable_hits(result["results"])
 
 	capture("search_performed", interval="1d", surface="reader", hits=bool(hits))
 
@@ -44,14 +44,15 @@ def search(query: str, space: str | None = None) -> dict:
 	}
 
 
-def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
+def _filter_readable_hits(hits: list[dict]) -> list[dict]:
 	"""Drop search hits the current user couldn't open as a page.
 
-	The SQLite index is built without user context, so titles/snippets from
-	restricted spaces can surface here. Resolve each hit's denormalized
-	wiki_space and gate it through the same checks as page rendering: the
-	space must be published (`check_published`) and readable by the current
-	user (`check_space_access`). Orphan documents (no wiki_space) stay
+	The SQLite index lives outside the database transaction and can keep rows
+	for pages that were later deleted or unpublished, and it is built without
+	user context. So check each hit against the database with the same rules
+	as page rendering: the page must be a published local page
+	(`check_published`), and its space must be published and readable by the
+	current user (`check_space_access`). Orphan pages (no wiki_space) stay
 	readable by all.
 	"""
 	from wiki.permissions import can_read_space
@@ -64,7 +65,7 @@ def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
 		row.name: row.wiki_space
 		for row in frappe.get_all(
 			"Wiki Document",
-			filters={"name": ("in", names)},
+			filters={"name": ("in", names), "is_published": 1, "is_group": 0, "is_external_link": 0},
 			fields=["name", "wiki_space"],
 		)
 	}
@@ -79,7 +80,9 @@ def _filter_hits_by_space_visibility(hits: list[dict]) -> list[dict]:
 
 	allowed = []
 	for hit in hits:
-		hit_space = space_by_name.get(hit["name"])
+		if hit["name"] not in space_by_name:
+			continue
+		hit_space = space_by_name[hit["name"]]
 		if not hit_space or _is_visible(hit_space):
 			allowed.append(hit)
 	return allowed

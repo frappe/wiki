@@ -3361,6 +3361,29 @@ class TestSearchPublishGating(WikiDocumentTestBase):
 		result = wiki_search("unpubdoc_searchterm")
 		self.assertNotIn(page.name, [r["name"] for r in result["results"]])
 
+	def test_search_hides_stale_index_rows(self):
+		from wiki.frappe_wiki.doctype.wiki_document.search import search as wiki_search
+
+		root = create_test_wiki_document(self, "Root StaleRows", is_group=True)
+		create_test_wiki_space(self, "StaleRows Space", "stale-rows-gate", root.name)
+		live = create_test_wiki_document(self, "Live Page", parent=root.name, content="staleterm_search")
+		unpublished = create_test_wiki_document(
+			self, "Unpublished Page", parent=root.name, content="staleterm_search"
+		)
+		deleted = create_test_wiki_document(
+			self, "Deleted Page", parent=root.name, content="staleterm_search"
+		)
+
+		self._build_index()
+
+		# Raw writes skip the hooks that keep the index in sync.
+		frappe.db.set_value("Wiki Document", unpublished.name, "is_published", 0)
+		frappe.db.delete("Wiki Document", deleted.name)
+
+		result_names = [r["name"] for r in wiki_search("staleterm_search")["results"]]
+
+		self.assertEqual(result_names, [live.name])
+
 	def test_unpublish_index_removal_discarded_on_rollback(self):
 		root = create_test_wiki_document(self, "Root RollbackDoc", is_group=True)
 		page = create_test_wiki_document(
