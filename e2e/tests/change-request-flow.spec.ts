@@ -723,6 +723,36 @@ test.describe('Change Request Flow', () => {
 		});
 	});
 
+	test('a change request title stops at 140 characters', async ({
+		page,
+		wiki,
+	}) => {
+		await createSpaceWithDraftPage(page, wiki, 'CR Title Limit');
+		await setEditorContentAndSave(page, `Title limit ${Date.now()}`);
+
+		await page.getByTitle('Edit title and description').click();
+		const detailsDialog = page.getByRole('dialog');
+		const detailsTitle = detailsDialog.getByLabel('Title');
+		await detailsTitle.fill('D'.repeat(150));
+		await expect(detailsTitle).toHaveValue('D'.repeat(140));
+		await detailsDialog.getByRole('button', { name: 'Save' }).click();
+		await expect(detailsDialog).toBeHidden({ timeout: 10000 });
+
+		await page.getByRole('button', { name: 'Submit for Review' }).click();
+		const submitDialog = page.getByRole('dialog');
+		const submitTitle = submitDialog.getByLabel('Title');
+		await submitTitle.fill('S'.repeat(150));
+		await expect(submitTitle).toHaveValue('S'.repeat(140));
+		await submitDialog
+			.getByRole('button', { name: 'Submit', exact: true })
+			.click();
+
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, { timeout: 10000 });
+		await expect(
+			page.getByRole('heading', { name: 'S'.repeat(140), exact: true }),
+		).toBeVisible({ timeout: 10000 });
+	});
+
 	test('reject is terminal', async ({ page, request, wiki }) => {
 		const content = `Reject content ${Date.now()}`;
 		const reason = `Out of scope ${Date.now()}`;
