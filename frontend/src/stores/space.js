@@ -196,12 +196,16 @@ export const useSpaceStore = defineStore('space', () => {
 		if (id === spaceId.value) await draftStore.hydrate(id, changeRequest);
 	}
 
+	function clearReviewEdit(id) {
+		sessionStorage.removeItem(reviewEditKey(id));
+		reviewEditName.value = null;
+	}
+
 	// Back to the user's own draft, if they have one.
 	async function stopEditingInReview() {
 		const id = crStore.currentChangeRequest?.wiki_space;
 		if (!id) return;
-		sessionStorage.removeItem(reviewEditKey(id));
-		reviewEditName.value = null;
+		clearReviewEdit(id);
 		stopEditing();
 		if (id === spaceId.value) await loadSpace(id);
 	}
@@ -392,6 +396,7 @@ export const useSpaceStore = defineStore('space', () => {
 		startEditing,
 		stopEditing,
 		editInReview,
+		clearReviewEdit,
 		stopEditingInReview,
 		selectedPageId,
 		isTreeReadonly,
