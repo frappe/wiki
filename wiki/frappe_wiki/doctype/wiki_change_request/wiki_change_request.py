@@ -1428,8 +1428,7 @@ def _sibling_position_map(item_map: dict[str, dict[str, Any]]) -> dict[str, int]
 def diff_change_request(name: str, scope: str = "summary", doc_key: str | None = None):
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
-	base_items = get_revision_item_map(cr.base_revision)
-	head_items = get_revision_item_map(cr.head_revision)
+	base_items, head_items = _diff_sides(cr)
 	return _diff_revision_items(base_items, head_items, scope, doc_key)
 
 
@@ -1438,12 +1437,47 @@ def get_change_request_review(name: str) -> dict[str, Any]:
 	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
-	pages = rendered_changes(
-		get_revision_item_map(cr.base_revision),
-		get_revision_item_map(cr.head_revision),
-		cr.wiki_space,
-	)
+	pages = rendered_changes(*_diff_sides(cr), cr.wiki_space)
 	return {"author": user_cards({cr.owner})[cr.owner], "pages": pages}
+
+
+def _diff_sides(cr: Document) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+	"""The two sides of a change request's diff. Once merged, main before the merge and what its pages became."""
+	base_items = get_revision_item_map(cr.base_revision)
+	head_items = get_revision_item_map(cr.head_revision)
+	main_before = _main_before_merge(cr)
+	if not main_before:
+		return base_items, head_items
+
+	before = get_revision_item_map(main_before)
+	merged = get_revision_item_map(cr.merge_revision)
+	after = dict(before)
+	for key in changed_doc_keys(base_items, head_items):
+		if key in merged:
+			after[key] = merged[key]
+		else:
+			after.pop(key, None)
+	return before, after
+
+
+def _main_before_merge(cr: Document) -> str | None:
+	merged_at = cr.merge_revision and frappe.db.get_value("Wiki Revision", cr.merge_revision, "created_at")
+	if not merged_at:
+		return None
+	# Older merges stored the change request's base as their parent, so only the time order is reliable.
+	previous = frappe.get_all(
+		"Wiki Revision",
+		filters={
+			"wiki_space": cr.wiki_space,
+			"is_working": 0,
+			"created_at": ("<=", merged_at),
+			"name": ("!=", cr.merge_revision),
+		},
+		pluck="name",
+		order_by="created_at desc, creation desc",
+		limit=1,
+	)
+	return previous[0] if previous else None
 
 
 def rendered_changes(
