@@ -27,7 +27,7 @@ const props = defineProps({
 const src = computed(() => props.node.attrs.src || '');
 const placeholderText = computed(() => {
 	if (props.node.attrs.loading) return 'Uploading…';
-	if (props.node.attrs.error) return `Upload failed: ${props.node.attrs.error}`;
+	if (props.node.attrs.error) return props.node.attrs.error;
 	return 'Video';
 });
 
