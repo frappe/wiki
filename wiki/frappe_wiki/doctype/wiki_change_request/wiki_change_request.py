@@ -342,6 +342,23 @@ def _assert_valid_tab(cr: Document, *, parent_key: str | None, is_group: bool) -
 		frappe.throw(_("Only a top-level group can be marked as a tab. Nested tabs are not supported."))
 
 
+def _assert_valid_parent(
+	cr: Document, item_map: dict[str, dict[str, Any]], parent_key: str | None, doc_key: str | None = None
+) -> None:
+	"""Keep every node reachable from the space root, or the editing tree loses it."""
+	if not parent_key:
+		frappe.throw(_("A parent is required. Use root_group from get_cr_tree for a top-level page."))
+	if parent_key not in item_map and parent_key != _cr_root_doc_key(cr):
+		frappe.throw(_("Parent {0} does not exist in this change request.").format(frappe.bold(parent_key)))
+
+	ancestor, seen = parent_key, set()
+	while ancestor and ancestor not in seen:
+		if ancestor == doc_key:
+			frappe.throw(_("A page cannot be moved under itself or one of its children."))
+		seen.add(ancestor)
+		ancestor = (item_map.get(ancestor) or {}).get("parent_key")
+
+
 def _assert_can_manage_tabs(cr: Document) -> None:
 	"""Gate tab flag changes at the two CR mutation chokepoints.
 
@@ -372,6 +389,7 @@ def _create_cr_item(
 ) -> str:
 	head_revision = cr.head_revision
 	item_map = get_revision_item_map(head_revision)
+	_assert_valid_parent(cr, item_map, parent_key)
 	max_order = max(
 		[it.get("order_index") or 0 for it in item_map.values() if it.get("parent_key") == parent_key] or [0]
 	)
@@ -497,6 +515,7 @@ def _move_cr_item(
 		frappe.throw(_("Document not found in change request"))
 
 	item = frappe.get_doc("Wiki Revision Item", item_name)
+	_assert_valid_parent(cr, get_revision_item_map(cr.head_revision), parent_key, doc_key)
 	if item.is_tab and parent_key != _cr_root_doc_key(cr):
 		frappe.throw(_("A tab must stay at the top level. Remove the tab flag first to move it."))
 

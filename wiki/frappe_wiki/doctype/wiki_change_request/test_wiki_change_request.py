@@ -2411,6 +2411,65 @@ class TestWikiChangeRequest(FrappeTestCase):
 		child_page = get_cr_page(cr.name, child_key)
 		self.assertEqual(child_page["parent_key"], parent_key)
 
+	def test_apply_cr_operations_rejects_create_without_a_real_parent(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR parentless")
+
+		for parent_key in (None, "", "no-such-key"):
+			with self.subTest(parent_key=parent_key), self.assertRaises(frappe.ValidationError):
+				apply_cr_operations(
+					cr.name,
+					operations=[
+						{"type": "create_node", "temp_key": "t", "parent_key": parent_key, "title": "Orphan"}
+					],
+				)
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(cr.name, parent_key="", title="Orphan")
+
+		titles = {it.get("title") for it in get_revision_item_map(cr.reload().head_revision).values()}
+		self.assertNotIn("Orphan", titles)
+
+	def test_apply_cr_operations_rejects_move_that_detaches_a_node(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Child")
+		cr = create_change_request(space.name, "Batch CR move parentless")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+
+		for target in (None, "no-such-key", group_key, child_key):
+			with self.subTest(target=target), self.assertRaises(frappe.ValidationError):
+				apply_cr_operations(
+					cr.name,
+					operations=[{"type": "move_node", "doc_key": group_key, "target_parent_key": target}],
+				)
+		with self.assertRaises(frappe.ValidationError):
+			move_cr_page(cr.name, group_key, new_parent_key="")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		self.assertEqual(get_cr_page(cr.name, group_key)["parent_key"], root_key)
+
+	def test_apply_cr_operations_accepts_tree_root_after_root_key_drift(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "Batch CR root drift")
+		frappe.db.set_value(
+			"Wiki Document", space.root_group, "doc_key", "drifted000000", update_modified=False
+		)
+
+		result = apply_cr_operations(
+			cr.name,
+			operations=[
+				{
+					"type": "create_node",
+					"temp_key": "t",
+					"parent_key": get_cr_tree(cr.name)["root_group"],
+					"title": "Top",
+				}
+			],
+		)
+		self.assertTrue(result["ok"])
+
 	def test_apply_cr_operations_update_node_keeps_route(self):
 		"""The author owns the URL once the page exists — a rename must not move it."""
 		space = create_test_wiki_space()
