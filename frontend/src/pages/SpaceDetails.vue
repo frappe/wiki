@@ -72,86 +72,12 @@
             v-model="showSpaceSettings"
             :space="spaceStore.space"
             :space-id="spaceId"
-            @open-update-routes="openUpdateRoutesDialog"
-            @open-clone="openCloneSpaceDialog"
         />
-
-        <Dialog v-model:open="showUpdateRoutesDialog">
-            <template #title>
-                <h3 class="text-2xl-semibold text-ink-gray-9">
-                    {{ __('Update Wiki Space Routes') }}
-                </h3>
-            </template>
-            <template #default>
-                <div class="space-y-4 py-2">
-                    <FormControl
-                        type="text"
-                        :label="__('Current Base Route')"
-                        :modelValue="spaceStore.doc?.route"
-                        :disabled="true"
-                    />
-                    <FormControl
-                        type="text"
-                        :label="__('New Base Route')"
-                        v-model="newRoute"
-                        :placeholder="__('Enter new route (without leading slash)')"
-                    />
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-                    <Button
-                        variant="solid"
-                        :loading="updatingRoutes"
-                        @click="updateRoutes(close)"
-                    >
-                        {{ __('Update Routes') }}
-                    </Button>
-                </div>
-            </template>
-        </Dialog>
-
-        <Dialog v-model:open="showCloneSpaceDialog">
-            <template #title>
-                <h3 class="text-2xl-semibold text-ink-gray-9">
-                    {{ __('Clone Wiki Space') }}
-                </h3>
-            </template>
-            <template #default>
-                <div class="space-y-4 py-2">
-                    <FormControl
-                        type="text"
-                        :label="__('New Space Route')"
-                        v-model="cloneRoute"
-                        :placeholder="__('Enter new route (without leading slash)')"
-                    />
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-                    <Button
-                        variant="solid"
-                        :loading="cloningSpace"
-                        @click="cloneSpace(close)"
-                    >
-                        {{ __('Start Cloning') }}
-                    </Button>
-                </div>
-            </template>
-        </Dialog>
     </div>
 </template>
 
 <script setup>
-import {
-	Button,
-	Dialog,
-	FormControl,
-	PageHeaderMobile,
-	toast,
-} from 'frappe-ui';
+import { Button, PageHeaderMobile } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MobileDrawer from '../components/MobileDrawer.vue';
@@ -191,13 +117,6 @@ onBeforeUnmount(() => {
 	window.__draftStore = undefined;
 });
 
-const showUpdateRoutesDialog = ref(false);
-const showCloneSpaceDialog = ref(false);
-const newRoute = ref('');
-const updatingRoutes = ref(false);
-const cloneRoute = ref('');
-const cloningSpace = ref(false);
-
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
 
@@ -232,60 +151,6 @@ provide(
 	SPACE_TREE_KEY,
 	computed(() => spaceStore.tree),
 );
-
-function openUpdateRoutesDialog() {
-	newRoute.value = spaceStore.doc?.route || '';
-	showUpdateRoutesDialog.value = true;
-}
-
-function openCloneSpaceDialog() {
-	if (spaceStore.doc?.route) {
-		cloneRoute.value = `${spaceStore.doc.route}-copy`;
-	} else {
-		cloneRoute.value = '';
-	}
-	showCloneSpaceDialog.value = true;
-}
-
-async function updateRoutes(close) {
-	if (!newRoute.value?.trim()) {
-		return;
-	}
-
-	updatingRoutes.value = true;
-	try {
-		await spaceStore.space.updateRoutes.submit({
-			new_route: newRoute.value.trim(),
-		});
-		close();
-		await spaceStore.space.reload();
-		await spaceStore.refreshTree();
-	} catch (error) {
-		console.error('Failed to update routes:', error);
-	} finally {
-		updatingRoutes.value = false;
-	}
-}
-
-async function cloneSpace(close) {
-	if (!cloneRoute.value?.trim()) {
-		return;
-	}
-
-	cloningSpace.value = true;
-	try {
-		await spaceStore.space.cloneWikiSpace.submit({
-			new_space_route: cloneRoute.value.trim(),
-		});
-		toast.success(__('Cloning started in background'));
-		close();
-	} catch (error) {
-		console.error('Failed to start clone:', error);
-		toast.error(error.messages?.[0] || __('Error starting clone'));
-	} finally {
-		cloningSpace.value = false;
-	}
-}
 
 // Remember the last page opened in this space (per-space, like the tree's
 // expanded-nodes state) so re-entering the space reopens it instead of the

@@ -28,8 +28,6 @@
 					<GeneralPanel
 						class="pt-6"
 						:space="space"
-						@open-update-routes="$emit('open-update-routes')"
-						@open-clone="$emit('open-clone')"
 					/>
 				</SettingsBody>
 			</SettingsPanel>
@@ -143,11 +141,7 @@ const props = defineProps({
 	},
 });
 
-const emit = defineEmits([
-	'update:modelValue',
-	'open-update-routes',
-	'open-clone',
-]);
+const emit = defineEmits(['update:modelValue']);
 
 const { selectedTab, analyticsPage } = useSpaceSettings();
 
