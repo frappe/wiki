@@ -30,7 +30,7 @@
 	>
 		<template #default>
 			<div class="space-y-4">
-				<p class="text-p-base text-ink-gray-7">{{ confirmMessage }}</p>
+				<p class="bidi-text text-p-base text-ink-gray-7">{{ confirmMessage }}</p>
 				<FormControl
 					v-model="title"
 					:label="__('Title')"

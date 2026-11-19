@@ -80,12 +80,12 @@
 			</div>
 
 			<p class="mt-1 truncate text-xs text-ink-gray-6">
-				{{ metaLine }}
+				{{ stripConfig.label }} · <bdi>{{ changedLabel }}</bdi>
 			</p>
 
 			<p
 				v-if="reviewFeedback"
-				class="mt-1 text-xs text-ink-red-7"
+				class="bidi-text mt-1 text-xs text-ink-red-7"
 				:title="reviewFeedback"
 			>
 				{{ reviewFeedback }}
@@ -358,12 +358,11 @@ const stripConfig = computed(
 );
 const stripClass = computed(() => stripConfig.value.class);
 
-const metaLine = computed(() => {
+const changedLabel = computed(() => {
 	const count = crStore.changeCount;
-	const changed = count
+	return count
 		? __('{0} {1} changed', [count, count === 1 ? __('page') : __('pages')])
 		: __('No changes yet');
-	return `${stripConfig.value.label} · ${changed}`;
 });
 
 // The only place the author sees why a CR bounced back; the status badge covers

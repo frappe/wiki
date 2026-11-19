@@ -88,7 +88,7 @@
 						/>
 						<span class="min-w-0 flex-1">
 							<span class="block truncate text-xs text-ink-gray-5">
-								<span class="text-ink-gray-7">{{ version.author.full_name }}</span>
+								<bdi class="text-ink-gray-7">{{ version.author.full_name }}</bdi>
 								{{ versionAction(version) }}
 							</span>
 							<span class="block truncate text-sm-medium text-ink-gray-8">

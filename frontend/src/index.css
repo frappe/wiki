@@ -40,6 +40,15 @@ html[data-theme="light"] {
 	scale: -1 1;
 }
 
+/* Plaintext also makes `start` follow the text, so the mirrored side is set by hand. */
+:dir(rtl) :is(.truncate, .bidi-text, .bidi-crumbs :is(a, button) > span) {
+	unicode-bidi: plaintext;
+}
+
+:dir(rtl) :is(.truncate, .bidi-text):not(.text-center) {
+	text-align: right;
+}
+
 /* frappe-ui still uses physical sides here: Tree indents with padding-left,
    menu, select and settings rows use text-left, Sidebar spaces its rows,
    icons and suffixes with pl-2, ml-2 and mr-2, and Select, menu and tree rows

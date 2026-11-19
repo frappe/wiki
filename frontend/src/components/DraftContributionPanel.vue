@@ -2,7 +2,7 @@
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
-				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+				<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0 flex-1" />
 
 				<div class="flex shrink-0 items-center gap-2">
 					<MergeChangeRequestButton v-if="!isMobile" />
@@ -31,7 +31,7 @@
 								<input
 									type="text"
 									v-model="editableTitle"
-									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 									:placeholder="__('Page title')"
 									@blur="saveTitleIfChanged"
 									@keydown.enter="$event.target.blur()"
@@ -60,7 +60,7 @@
 						<input
 							type="text"
 							v-model="editableTitle"
-							class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+							class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 							:placeholder="__('Group name')"
 							@blur="saveTitleIfChanged"
 							@keydown.enter="$event.target.blur()"
