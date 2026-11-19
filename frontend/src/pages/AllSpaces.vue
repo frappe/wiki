@@ -208,10 +208,12 @@
 										class="lucide-file-text size-3.5 shrink-0 text-ink-gray-4"
 										aria-hidden="true"
 									/>
-									<span class="font-mono tabular-nums">
-										{{ statsFor(space.name).pages }}
+									<span dir="auto" class="flex items-center gap-1.5">
+										<span class="font-mono tabular-nums">
+											{{ statsFor(space.name).pages }}
+										</span>
+										{{ pageUnit(statsFor(space.name).pages) }}
 									</span>
-									{{ pageUnit(statsFor(space.name).pages) }}
 								</span>
 							</ListCell>
 

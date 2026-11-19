@@ -49,7 +49,7 @@
 					     says there is more behind Load more. -->
 					<span
 						v-if="activeCountLabel"
-						class="shrink-0 text-sm text-ink-gray-5"
+						class="bidi-text shrink-0 text-sm text-ink-gray-5"
 					>
 						{{ activeCountLabel }}
 					</span>

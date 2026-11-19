@@ -14,7 +14,7 @@
 				@click="openAnalytics({ document: docName, title })"
 			>
 				<span class="lucide-chart-no-axes-column size-3.5" aria-hidden="true" />
-				{{ part.label }}
+				<bdi>{{ part.label }}</bdi>
 			</button>
 			<button
 				v-else-if="part.key === 'edited'"
@@ -25,9 +25,9 @@
 				@click="openSidePanel('history')"
 			>
 				<span class="lucide-history size-3.5" aria-hidden="true" />
-				{{ part.label }}
+				<bdi>{{ part.label }}</bdi>
 			</button>
-			<span v-else>{{ part.label }}</span>
+			<bdi v-else>{{ part.label }}</bdi>
 		</template>
 	</div>
 </template>

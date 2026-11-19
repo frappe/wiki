@@ -7,7 +7,7 @@
 			     instead of an edit flow. -->
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
 				<div class="flex min-w-0 flex-1 items-center gap-1">
-					<Breadcrumbs :items="breadcrumbs" class="min-w-0" />
+					<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0" />
 					<Tooltip v-if="displayPublished" :text="__('Open live page')">
 						<Button
 							variant="ghost"
@@ -121,7 +121,7 @@
 										type="text"
 										v-model="editableTitle"
 										:readonly="!isEditing"
-										class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+										class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 										:placeholder="__('Page title')"
 										@blur="saveTitleIfChanged"
 										@keydown.enter="$event.target.blur()"

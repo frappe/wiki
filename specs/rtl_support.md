@@ -42,6 +42,7 @@ Prior art: Helpdesk and LMS set `<html dir>` from Frappe's `is_rtl()`. We do the
 - `index.css` also overrides frappe-ui gaps under `:dir(rtl)`: the `Tree` group indent (`padding-left`), `text-left` (menus, selects, settings nav rows), the Sidebar's `pl-2` / `ml-2` / `mr-2` row, icon and suffix spacing, and the `ml-auto` that pushes the Select chevron and menu, option and tree row suffixes to the end. Image alignment also uses `ml-auto` / `mr-auto`, so the rule is scoped to those parents.
 - `Mod+K` shortcut hints get `dir="ltr"` so they read `Ctrl K`.
 - Paths and URLs render in `<bdi dir="ltr">`, or inside LRI / PDI marks where a prop takes plain text. History times sit in `<bdi>`. So `/route` does not read `route/`. The page route input is `dir="ltr"`.
+- Names, titles and untranslated strings take their direction from their own text, so `2 pages` does not read `pages 2`. `index.css` sets `unicode-bidi: plaintext` on `.truncate`, `.bidi-text` and `.bidi-crumbs` labels and keeps them on the right edge. Fragments inside a sentence use `<bdi>`.
 - tippy.js (slash menu, link popup) uses Popper, which has no RTL support, so the placement is `bottom-end` in RTL.
 - `MobileDrawer` sides become `start` / `end`.
 - Explicit image alignment (`data-align` left / right) and the image resize handle stay physical.

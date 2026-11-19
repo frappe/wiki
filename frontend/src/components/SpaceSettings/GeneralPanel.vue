@@ -80,7 +80,7 @@
 							{{ __('This cannot be undone. Deleting the space also removes:') }}
 						</p>
 						<ul class="list-disc space-y-1 ps-5 text-p-sm text-ink-gray-5">
-							<li>{{ pagesLabel }}</li>
+							<li><bdi>{{ pagesLabel }}</bdi></li>
 							<li>{{ __('Their revision history') }}</li>
 							<li>{{ __('Every change request') }}</li>
 						</ul>
