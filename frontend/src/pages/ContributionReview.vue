@@ -65,7 +65,7 @@
 				<Badge variant="subtle" :theme="statusTheme(changeRequest.doc.status)">
 					{{ changeRequest.doc.status }}
 				</Badge>
-				<h1 class="mt-2 text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+				<h1 class="mt-2 break-words text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 				<div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-gray-5">
 					<Avatar
 						:image="review.data?.author.image"
@@ -362,6 +362,7 @@ import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import PageDiff from '@/components/PageDiff.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useDiffView } from '@/composables/useDiffView';
+import { useMobile } from '@/composables/useMobile';
 import { statusTheme } from '@/lib/changeRequestStatus';
 import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
@@ -481,14 +482,23 @@ const withdrawResource = createResource({
 });
 
 const spaceStore = useSpaceStore();
-const breadcrumbs = computed(() => [
-	{
-		label: spaceStore.doc?.space_name || props.spaceId,
-		route: { name: 'SpaceDetails', params: { spaceId: props.spaceId } },
-	},
-	{ label: __('Change requests'), route: { name: 'ChangeRequests' } },
-	{ label: changeRequest.doc?.title || props.changeRequestId },
-]);
+const { isMobile } = useMobile();
+const breadcrumbs = computed(() => {
+	const changeRequests = {
+		label: __('Change requests'),
+		route: { name: 'ChangeRequests' },
+	};
+	// On a phone the app bar names the space and the heading names the change request.
+	if (isMobile.value) return [changeRequests];
+	return [
+		{
+			label: spaceStore.doc?.space_name || props.spaceId,
+			route: { name: 'SpaceDetails', params: { spaceId: props.spaceId } },
+		},
+		changeRequests,
+		{ label: changeRequest.doc?.title || props.changeRequestId },
+	];
+});
 
 watch(
 	() => changeRequest.doc?.status,
