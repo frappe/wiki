@@ -579,13 +579,18 @@ def get_or_create_draft_change_request(wiki_space: str, title: str | None = None
 def get_editable_change_request(wiki_space: str, change_request: str | None = None) -> dict[str, Any] | None:
 	"""The user's Draft or Changes Requested change request in the space, without writing anything.
 
-	`change_request` names an In Review or Approved one the user is editing; it wins when they
-	may still edit it. A stale empty draft is skipped rather than archived, so the user lands in
-	read mode.
+	`change_request` names one the user is editing: In Review, Approved, or their own sent back
+	with Changes Requested. It wins when they may still edit it. A stale empty draft is skipped
+	rather than archived, so the user lands in read mode.
 	"""
 	if change_request and frappe.db.exists("Wiki Change Request", change_request):
 		cr = frappe.get_doc("Wiki Change Request", change_request)
-		if cr.wiki_space == wiki_space and can_edit_in_review(cr) and cr.has_permission("write"):
+		is_own_returned = cr.status == "Changes Requested" and cr.owner == frappe.session.user
+		if (
+			cr.wiki_space == wiki_space
+			and (is_own_returned or can_edit_in_review(cr))
+			and cr.has_permission("write")
+		):
 			return cr.as_dict()
 
 	cr = _find_existing_draft(wiki_space)
@@ -1435,7 +1440,7 @@ def diff_change_request(name: str, scope: str = "summary", doc_key: str | None =
 
 @frappe.whitelist(methods=["GET"])
 def get_change_request_review(name: str) -> dict[str, Any]:
-	"""The author, and every changed page with both sides as markdown and as the HTML readers get."""
+	"""The author, the last reviewer, and every changed page with both sides as markdown and reader HTML."""
 	cr = frappe.get_doc("Wiki Change Request", name)
 	cr.check_permission("read")
 	pages = rendered_changes(
@@ -1443,7 +1448,8 @@ def get_change_request_review(name: str) -> dict[str, Any]:
 		get_revision_item_map(cr.head_revision),
 		cr.wiki_space,
 	)
-	return {"author": user_cards({cr.owner})[cr.owner], "pages": pages}
+	users = user_cards({user for user in (cr.owner, cr.reviewed_by) if user})
+	return {"author": users[cr.owner], "reviewer": users.get(cr.reviewed_by), "pages": pages}
 
 
 def rendered_changes(

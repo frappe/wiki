@@ -89,6 +89,32 @@
 					{{ changeRequest.doc.description }}
 				</p>
 			</div>
+			<section
+				v-if="changeRequest.doc?.status === 'Changes Requested'"
+				class="mb-8 flex flex-wrap items-start gap-3 rounded-6 border border-outline-red-2 bg-surface-red-2 p-4"
+			>
+				<span class="lucide-message-circle mt-0.5 size-5 shrink-0 text-ink-red-5" aria-hidden="true" />
+				<div class="min-w-0 flex-1 basis-64">
+					<h2 class="font-medium text-ink-red-7">{{ feedbackHeading }}</h2>
+					<p
+						v-if="changeRequest.doc.review_comment"
+						dir="auto"
+						class="mt-1 whitespace-pre-line break-words text-p-base text-ink-gray-8"
+					>{{ changeRequest.doc.review_comment }}</p>
+					<p v-if="canRevise" class="mt-2 text-sm text-ink-gray-6">
+						{{ __('Make the requested changes, then submit for review again.') }}
+					</p>
+				</div>
+				<Button
+					v-if="canRevise"
+					variant="solid"
+					icon-left="lucide-pencil"
+					:loading="startingEdit"
+					@click="handleEdit"
+				>
+					{{ __('Edit change request') }}
+				</Button>
+			</section>
 			<!-- Conflict resolution banner -->
 			<div
 				v-if="hasConflicts && allResolved"
@@ -574,6 +600,22 @@ const canEditInReview = computed(() => {
 	);
 });
 
+// Only the author picks a returned change request back up; reviewers read the feedback.
+const canRevise = computed(() => {
+	return (
+		isOwner.value &&
+		capabilities.value.can_contribute &&
+		changeRequest.doc?.status === 'Changes Requested'
+	);
+});
+
+const feedbackHeading = computed(() => {
+	const reviewer = review.data?.reviewer?.full_name;
+	return reviewer
+		? __('{0} requested changes', [reviewer])
+		: __('Changes requested');
+});
+
 const startingEdit = ref(false);
 
 // Opens the space on the first page the change request touches, in the editor.
@@ -776,6 +818,7 @@ async function handleRequestChanges(close) {
 		requestChangesComment.value = '';
 		close?.();
 		changeRequest.reload();
+		review.reload();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error requesting changes'));
 	}
