@@ -100,7 +100,7 @@ function closeViewer() {
 					<span class="lucide-trash-2 size-4" aria-hidden="true" />
 				</button>
 			</div>
-			<div class="wiki-pdf-error-body">Upload failed: {{ error }}</div>
+			<div class="wiki-pdf-error-body">{{ error }}</div>
 		</div>
 
 		<!-- Loaded state -->
