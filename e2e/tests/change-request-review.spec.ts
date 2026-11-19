@@ -193,6 +193,57 @@ test.describe('Change request review', () => {
 		);
 	});
 
+	test('reviewing another change request keeps your draft out of the sidebar', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [{ title: 'Alpha' }, { title: 'Beta' }],
+		});
+		const reviewed = await callMethod<{ name: string }>(
+			request,
+			`${CR_METHOD}.create_change_request`,
+			{ wiki_space: space.name, title: 'Someone else' },
+		);
+		await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+			name: reviewed.name,
+			doc_key: space.page('Beta').doc_key,
+			fields: { title: 'Beta reviewed' },
+		});
+		await callMethod(request, `${CR_METHOD}.submit_change_request`, {
+			name: reviewed.name,
+		});
+
+		await page.goto(space.url('page', space.page('Alpha').name));
+		await editPage(page);
+		await page.keyboard.type(' Mine.');
+		const draftStrip = page.getByText('Draft · 1 page changed');
+		await expect(draftStrip).toBeVisible({ timeout: 15000 });
+		const activeDraft = () =>
+			(window as unknown as { __draftStore?: { crName?: string } }).__draftStore
+				?.crName;
+		const draft = await page.evaluate(activeDraft);
+
+		await page.goto(`/wiki-app/change-requests/${reviewed.name}`);
+		await expect.poll(() => page.evaluate(activeDraft)).toBe(draft);
+		const sidebar = page.locator('aside');
+		const newPage = sidebar.getByRole('button', { name: 'New page' });
+		const alpha = sidebar.getByText('Alpha', { exact: true });
+		await expect(alpha).toBeVisible({ timeout: 15000 });
+		await expect(
+			page.getByRole('heading', { name: 'Someone else' }),
+		).toBeVisible();
+		await expect(newPage).toHaveCount(0);
+		await expect(draftStrip).toHaveCount(0);
+		await alpha.hover();
+		await expect(sidebar.locator('.wiki-tree button')).toHaveCount(0);
+
+		await page.goto(space.url('change-requests', draft as string));
+		await expect(draftStrip).toBeVisible({ timeout: 15000 });
+		await expect(newPage).toBeVisible();
+	});
+
 	test('merge conflicts start with no choice made', async ({
 		page,
 		request,

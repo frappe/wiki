@@ -48,7 +48,7 @@
 	</div>
 
 	<div
-		v-else-if="spaceStore.isEditing"
+		v-else-if="spaceStore.isEditing && !spaceStore.isReviewingAnother"
 		class="contribution-strip shrink-0 px-2 pt-2"
 	>
 		<!-- 260px does not fit a label and two buttons on one line, so the meta
