@@ -197,4 +197,39 @@ test.describe('Mobile SPA', () => {
 		await expect(drawer).toBeHidden();
 		await expect(page.getByText('Access', { exact: true })).toBeVisible();
 	});
+
+	// Regression: focus landed on the Back button, whose tooltip opens on focus
+	// and covered the search box.
+	test('tree drawer opens without a tooltip and keeps keyboard focus correct', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+
+		await page.setViewportSize(PHONE);
+		await page.goto(space.url());
+		await page.waitForLoadState('networkidle');
+
+		const pagesButton = page.getByRole('button', { name: 'Pages' });
+		const drawer = page.getByRole('dialog', { name: 'Pages' });
+		const tooltip = page.locator('[role="tooltip"]');
+
+		await pagesButton.tap();
+		await expect(drawer).toBeFocused();
+		await expect(tooltip).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(drawer).toBeHidden();
+		await expect(pagesButton).toBeFocused();
+
+		await page.keyboard.press('Enter');
+		await expect(drawer).toBeFocused();
+		await expect(tooltip).toHaveCount(0);
+
+		await page.keyboard.press('Tab');
+		await expect(
+			drawer.getByRole('link', { name: 'Back to All Spaces' }),
+		).toBeFocused();
+		await expect(tooltip).toHaveText('Back to All Spaces');
+	});
 });
