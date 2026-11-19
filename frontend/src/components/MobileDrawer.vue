@@ -2,11 +2,13 @@
 	<DialogRoot :open="open" @update:open="(v) => emit('update:open', v)">
 		<DialogPortal>
 			<DialogOverlay class="drawer-overlay fixed inset-0 z-40 bg-black-overlay-200 dark:bg-black-overlay-700" />
+			<!-- Focus starts on the panel: a focused control would open its tooltip. -->
 			<DialogContent
 				:aria-describedby="undefined"
 				:data-side="side"
-				class="drawer-content fixed inset-y-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-surface-gray-1 shadow-xl"
+				class="drawer-content fixed inset-y-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-surface-gray-1 shadow-xl outline-none"
 				:class="side === 'end' ? 'end-0' : 'start-0'"
+				@open-auto-focus.prevent="$event.target.focus()"
 			>
 				<!-- Required by reka-ui for an accessible name; not shown. -->
 				<DialogTitle class="sr-only">{{ title }}</DialogTitle>
