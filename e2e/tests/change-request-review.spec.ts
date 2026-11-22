@@ -282,7 +282,36 @@ test.describe('Change request review', () => {
 			{ fields: ['content'], filters: { name: shared.name } },
 		);
 		expect(merged.content).toBe('From the first.');
+
+		await page.reload();
+		await expect(page.getByText('No changes went live')).toBeVisible();
+		await expect(page.getByText('From the second.')).toHaveCount(0);
 	});
+
+	test('a merged change request that won a conflict diffs against main', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const { second } = await conflictingChangeRequests(request, wiki);
+
+		await page.goto(`/wiki-app/change-requests/${second}`);
+		await page.getByRole('button', { name: 'Merge', exact: true }).click();
+		await page.getByRole('button', { name: /Shared/ }).click();
+		await page.getByRole('radio', { name: 'Keep this change request' }).click();
+		await page.getByRole('button', { name: 'Resolve & Merge' }).click();
+		await expect(
+			page.locator('text=Change request merged').first(),
+		).toBeVisible({ timeout: 15000 });
+
+		await page.reload();
+		await expect(page.getByText('From the second.').first()).toBeVisible();
+		await expect(page.getByText('From the first.').first()).toBeVisible();
+		await expect(
+			page.getByRole('main').getByText('Start.', { exact: true }),
+		).toHaveCount(0);
+	});
+
 	test('a reload keeps open merge conflicts', async ({
 		page,
 		request,
