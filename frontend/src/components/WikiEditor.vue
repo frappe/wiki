@@ -110,6 +110,7 @@ import {
 } from './tiptap-extensions/slash-commands.js';
 import { WikiTable } from './tiptap-extensions/table-extension.js';
 import { WikiUnderline } from './tiptap-extensions/underline-extension.js';
+import { uploadErrorMessage } from './tiptap-extensions/upload-error.js';
 import { VideoBlock } from './tiptap-extensions/video-block.js';
 import { wikiMarkdown } from './tiptap-extensions/wiki-markdown.js';
 import { wikiStarterKit } from './tiptap-extensions/wiki-starterkit.js';
@@ -263,7 +264,7 @@ async function uploadFile(file) {
 		toast.success(`${isImage ? 'Image' : 'File'} uploaded successfully`);
 		return result.file_url;
 	} catch (error) {
-		toast.error('Failed to upload file');
+		toast.error(uploadErrorMessage(error));
 		throw error;
 	}
 }
@@ -322,12 +323,7 @@ async function insertAndUploadImage(file) {
 
 	ed.chain().focus().setImage({ src: preview, uploadId, loading: true }).run();
 
-	await uploadIntoNode(
-		uploadId,
-		() => uploadFile(file),
-		updateUploadNode,
-		'Failed to upload image',
-	);
+	await uploadIntoNode(uploadId, () => uploadFile(file), updateUploadNode);
 }
 
 // The saved content holds an upload only once its node has the file URL.
@@ -354,7 +350,7 @@ function startUpload(uploadId) {
 	draftStore.setUploadState(uploadId, 'uploading');
 }
 
-async function uploadIntoNode(uploadId, upload, updateNode, errorMessage) {
+async function uploadIntoNode(uploadId, upload, updateNode) {
 	try {
 		const url = await upload();
 		if (!editor.value) return;
@@ -363,10 +359,7 @@ async function uploadIntoNode(uploadId, upload, updateNode, errorMessage) {
 		draftStore.clearUploads([uploadId]);
 	} catch (error) {
 		if (!editor.value) return;
-		updateNode(uploadId, {
-			loading: false,
-			error: error?.message || errorMessage,
-		});
+		updateNode(uploadId, { loading: false, error: uploadErrorMessage(error) });
 		draftStore.setUploadState(uploadId, 'failed');
 		forgetRemovedUploads();
 	}
@@ -398,7 +391,6 @@ function uploadPastedDataImages(uploads) {
 			uploadId,
 			() => dataUrlToFile(src).then(uploadFile),
 			updateUploadNode,
-			'Failed to upload image',
 		);
 	}
 }
@@ -431,12 +423,7 @@ async function insertAndUploadPdf(file) {
 		.setPdf({ filename: file.name, uploadId, loading: true })
 		.run();
 
-	await uploadIntoNode(
-		uploadId,
-		() => uploadFile(file),
-		updateUploadNode,
-		'Failed to upload PDF',
-	);
+	await uploadIntoNode(uploadId, () => uploadFile(file), updateUploadNode);
 }
 
 /**
@@ -451,12 +438,7 @@ async function insertAndUploadVideo(file) {
 	startUpload(uploadId);
 	ed.chain().focus().setVideo({ uploadId, loading: true }).run();
 
-	await uploadIntoNode(
-		uploadId,
-		() => uploadFile(file),
-		updateUploadNode,
-		'Failed to upload video',
-	);
+	await uploadIntoNode(uploadId, () => uploadFile(file), updateUploadNode);
 }
 
 function handleVideoUploadEvent(event) {

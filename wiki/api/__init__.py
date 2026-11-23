@@ -137,9 +137,15 @@ def upload_wiki_asset():
 	Wiki Setting is enabled, uploaded PNG/JPEG images are converted to WebP
 	before the File doc is returned, so the editor receives the optimized URL.
 	"""
+	from frappe import _
 	from frappe.handler import upload_file
+	from pypdf.errors import PyPdfError
 
-	file_doc = upload_file()
+	try:
+		file_doc = upload_file()
+	except PyPdfError:
+		frappe.throw(_("This PDF could not be read. The file may be damaged."))
+
 	if (
 		file_doc
 		and (file_doc.file_url or "").lower().endswith(CONVERTIBLE_IMAGE_EXTENSIONS)

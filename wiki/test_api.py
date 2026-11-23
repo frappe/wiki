@@ -1535,3 +1535,32 @@ class TestWikiWebpConversion(FrappeTestCase):
 		self.assertTrue(url.endswith(".webp"))
 		with open(taken_path, "rb") as f:
 			self.assertEqual(f.read(), b"the other request's image")
+
+
+class TestUploadWikiAsset(FrappeTestCase):
+	"""Tests for upload_wiki_asset."""
+
+	def tearDown(self):
+		frappe.clear_messages()
+		frappe.db.rollback()
+
+	def test_broken_pdf_is_rejected_with_a_readable_reason(self):
+		from unittest.mock import patch
+
+		from wiki.api import upload_wiki_asset
+
+		def save_broken_pdf():
+			return frappe.get_doc(
+				{
+					"doctype": "File",
+					"file_name": "broken.pdf",
+					"is_private": 0,
+					"content": b"%PDF-1.4 broken",
+				}
+			).insert()
+
+		with patch("frappe.handler.upload_file", side_effect=save_broken_pdf):
+			with self.assertRaises(frappe.ValidationError) as caught:
+				upload_wiki_asset()
+
+		self.assertEqual(str(caught.exception), "This PDF could not be read. The file may be damaged.")
