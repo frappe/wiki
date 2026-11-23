@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures';
 import { uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { APP_BASE, SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { currentDraftDocKey, openNewPageDialog } from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -57,7 +57,8 @@ test.describe('Mobile SPA', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
-		await page.waitForLoadState('networkidle');
+		// The goto below would cancel a create still in flight.
+		await currentDraftDocKey(page);
 
 		// --- Switch to a phone viewport at the space root ---
 		await page.setViewportSize(PHONE);
