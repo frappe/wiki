@@ -206,13 +206,13 @@
 						</div>
 						<div class="flex justify-between gap-3">
 							<dt class="text-ink-gray-6">{{ __('Reading time') }}</dt>
-							<dd class="text-ink-gray-8">
+							<dd class="bidi-text text-ink-gray-8">
 								{{ __('{0} min', [readingTime]) }}
 							</dd>
 						</div>
 						<div v-if="lastEdited" class="flex justify-between gap-3">
 							<dt class="text-ink-gray-6">{{ __('Last edited') }}</dt>
-							<dd class="text-ink-gray-8">{{ lastEdited }}</dd>
+							<dd class="bidi-text text-ink-gray-8">{{ lastEdited }}</dd>
 						</div>
 						<div v-if="lastEditedBy" class="flex min-w-0 justify-between gap-3">
 							<dt class="shrink-0 text-ink-gray-6">{{ __('Edited by') }}</dt>

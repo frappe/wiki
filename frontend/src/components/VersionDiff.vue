@@ -15,7 +15,7 @@
 			<div class="min-w-0 flex-1">
 				<p class="truncate text-base-medium text-ink-gray-8">{{ versionTitle(version) }}</p>
 				<p class="truncate text-xs text-ink-gray-5">
-					{{ version.author.full_name }} {{ versionAction(version) }} ·
+					<bdi>{{ version.author.full_name }}</bdi> {{ versionAction(version) }} ·
 					{{ dayjsLocal(version.created_at).fromNow() }}
 				</p>
 			</div>

@@ -135,7 +135,7 @@
 		<Dialog v-model:open="showDeleteDialog">
 			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Delete') }} "{{ deleteNode?.title }}"
+					{{ __('Delete') }} <bdi>"{{ deleteNode?.title }}"</bdi>
 				</h3>
 			</template>
 			<template #default>

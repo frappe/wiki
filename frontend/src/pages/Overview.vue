@@ -308,7 +308,7 @@ function DeltaText({ delta }) {
 		return h('span', { class: `${base} text-ink-gray-5` }, __('No change'));
 	const sign = delta > 0 ? '+' : '';
 	const tone = delta > 0 ? 'text-ink-green-7' : 'text-ink-red-7';
-	return h('span', { class: `${base} ${tone}` }, `${sign}${delta}%`);
+	return h('span', { class: `${base} ${tone}` }, h('bdi', `${sign}${delta}%`));
 }
 DeltaText.props = ['delta'];
 

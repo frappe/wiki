@@ -1,7 +1,7 @@
 <template>
 	<div class="flex flex-col h-full">
 		<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
-			<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+			<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0 flex-1" />
 
 			<div class="flex shrink-0 items-center gap-2">
 				<Button
@@ -65,15 +65,15 @@
 				<Badge variant="subtle" :theme="statusTheme(changeRequest.doc.status)">
 					{{ changeRequest.doc.status }}
 				</Badge>
-				<h1 class="mt-2 text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+				<h1 class="bidi-text mt-2 text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 				<div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-gray-5">
 					<Avatar
 						:image="review.data?.author.image"
 						:label="authorName"
 						size="sm"
 					/>
-					<span class="text-ink-gray-7">{{ authorName }}</span>
-					<span>
+					<bdi class="text-ink-gray-7">{{ authorName }}</bdi>
+					<span class="bidi-text">
 						{{ __('opened {0}', [dayjsLocal(changeRequest.doc.creation).fromNow()]) }}
 						<template v-if="pages.length">· {{ pageCount }}</template>
 					</span>
@@ -84,7 +84,7 @@
 				</div>
 				<p
 					v-if="changeRequest.doc.description"
-					class="mt-4 max-w-3xl whitespace-pre-line text-p-base text-ink-gray-7"
+					class="bidi-text mt-4 max-w-3xl whitespace-pre-line text-p-base text-ink-gray-7"
 				>
 					{{ changeRequest.doc.description }}
 				</p>
@@ -183,7 +183,7 @@
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
-											<span class="font-medium text-ink-gray-9">
+											<span class="bidi-text font-medium text-ink-gray-9">
 												{{ conflict.ours_title || conflict.theirs_title || conflict.doc_key }}
 											</span>
 											<Badge variant="subtle" :theme="getConflictTheme(conflict.conflict_type)" size="sm">
