@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
+from frappe.utils import add_days, now_datetime
 
 from wiki.api.wiki_space import _pending_revision_spaces
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
@@ -25,6 +26,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_change_request_review,
 	get_cr_page,
 	get_cr_tree,
+	get_editable_change_request,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
 	has_revision_changes,
@@ -1201,6 +1203,49 @@ class TestWikiChangeRequest(FrappeTestCase):
 			create_cr_page(cr.name, root_key, "Revised Page", content="ok")
 		finally:
 			frappe.set_user("Administrator")
+
+	def test_review_names_who_requested_changes(self):
+		space = create_test_wiki_space()
+		cr = self._cr_with_change(space, "Named reviewer")
+		self.assertIsNone(get_change_request_review(cr.name)["reviewer"])
+
+		submit_change_request(cr.name)
+		request_changes(cr.name, "needs work")
+
+		self.assertEqual(get_change_request_review(cr.name)["reviewer"]["full_name"], "Administrator")
+
+	def _returned_cr(self, space, author):
+		frappe.set_user(author)
+		try:
+			cr = self._cr_with_change(space, "Returned")
+			submit_change_request(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+		request_changes(cr.name, "needs work")
+		frappe.db.set_value(
+			"Wiki Change Request", cr.name, "modified", add_days(now_datetime(), -1), update_modified=False
+		)
+		return cr
+
+	def test_author_reopens_a_returned_cr_over_a_newer_draft(self):
+		space = create_test_wiki_space()
+		author = create_user("cr-returned-author@example.com", "Wiki User").name
+		returned = self._returned_cr(space, author)
+
+		frappe.set_user(author)
+		try:
+			newer = self._cr_with_change(space, "Newer draft")
+			self.assertEqual(get_editable_change_request(space.name).name, newer.name)
+			self.assertEqual(get_editable_change_request(space.name, returned.name).name, returned.name)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_reviewer_does_not_reopen_a_returned_cr_by_name(self):
+		space = create_test_wiki_space()
+		author = create_user("cr-returned-owner@example.com", "Wiki User").name
+		returned = self._returned_cr(space, author)
+
+		self.assertIsNone(get_editable_change_request(space.name, returned.name))
 
 	def test_request_changes_requires_write_access(self):
 		space = create_test_wiki_space()
