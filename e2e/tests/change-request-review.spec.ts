@@ -108,6 +108,88 @@ test.describe('Change request review', () => {
 		await expect(installation).toContainText('## Upgrade from v15');
 	});
 
+	test('an empty page says so instead of showing a blank diff', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		const space = await wiki.space({
+			pages: [
+				{ title: 'Blank rename' },
+				{ title: 'Blank gone' },
+				{ title: 'Titled', content: 'Titled body.' },
+				{ title: 'Gone filled', content: 'Gone body.' },
+			],
+		});
+		const clearing = await wiki.changeRequest(space, 'Clear pages');
+		for (const title of ['Blank rename', 'Blank gone']) {
+			await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+				name: clearing.name,
+				doc_key: space.page(title).doc_key,
+				fields: { content: '' },
+			});
+		}
+		for (const step of ['submit', 'approve', 'merge']) {
+			await callMethod(request, `${CR_METHOD}.${step}_change_request`, {
+				name: clearing.name,
+			});
+		}
+
+		const changeRequest = await wiki.changeRequest(space, 'Empty pages');
+		const { root_group } = await callMethod<{ root_group: string }>(
+			request,
+			`${CR_METHOD}.get_cr_tree`,
+			{ name: changeRequest.name },
+		);
+		for (const [title, content] of [
+			['Blank new', ''],
+			['Real new', 'Fresh words.'],
+		]) {
+			await callMethod(request, `${CR_METHOD}.create_cr_page`, {
+				name: changeRequest.name,
+				parent_key: root_group,
+				title,
+				content,
+			});
+		}
+		for (const [from, title] of [
+			['Blank rename', 'Blank renamed'],
+			['Titled', 'Titled two'],
+		]) {
+			await callMethod(request, `${CR_METHOD}.update_cr_page`, {
+				name: changeRequest.name,
+				doc_key: space.page(from).doc_key,
+				fields: { title },
+			});
+		}
+		for (const title of ['Blank gone', 'Gone filled']) {
+			await callMethod(request, `${CR_METHOD}.delete_cr_page`, {
+				name: changeRequest.name,
+				doc_key: space.page(title).doc_key,
+			});
+		}
+
+		await page.goto(space.url('change-requests', changeRequest.name));
+		const card = (title: string) =>
+			page.getByTestId('page-diff').filter({ hasText: title });
+		await expect(card('Blank new')).toBeVisible({ timeout: 15000 });
+
+		for (const view of ['Side by side', 'Inline', 'Markdown']) {
+			await viewButton(page, view).click();
+			await expect(card('Blank new')).toContainText('This page is empty');
+			await expect(card('Blank renamed')).toContainText('This page is empty');
+			await expect(card('Blank gone')).toContainText('This page was empty');
+			for (const title of ['Real new', 'Titled two', 'Gone filled']) {
+				await expect(card(title)).not.toContainText(/This page (is|was) empty/);
+			}
+		}
+
+		await viewButton(page, 'Inline').click();
+		await expect(card('Real new')).toContainText('Fresh words.');
+		await expect(card('Titled two')).toContainText('Titled body.');
+		await expect(card('Gone filled')).toContainText('Gone body.');
+	});
+
 	test('merging on the review updates the space sidebar', async ({
 		page,
 		request,
