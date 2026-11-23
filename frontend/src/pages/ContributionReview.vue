@@ -255,8 +255,11 @@
 					</div>
 
 					<div v-else class="flex flex-col items-center gap-2 rounded-5 border border-dashed border-outline-gray-2 py-12 text-center">
-						<p class="text-base text-ink-gray-7">{{ __('No changes yet') }}</p>
-						<p class="text-p-sm text-ink-gray-5">{{ __('Edit a page and it shows up here.') }}</p>
+						<p v-if="changeRequest.doc?.status === 'Merged'" class="text-base text-ink-gray-7">{{ __('No changes went live') }}</p>
+						<template v-else>
+							<p class="text-base text-ink-gray-7">{{ __('No changes yet') }}</p>
+							<p class="text-p-sm text-ink-gray-5">{{ __('Edit a page and it shows up here.') }}</p>
+						</template>
 					</div>
 				</template>
 			</div>

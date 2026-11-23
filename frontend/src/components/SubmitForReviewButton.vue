@@ -36,6 +36,7 @@
 					:label="__('Title')"
 					type="text"
 					:placeholder="__('What did you change?')"
+					:maxlength="CHANGE_REQUEST_TITLE_MAX_LENGTH"
 					required
 					autofocus
 				/>
@@ -55,7 +56,10 @@
 import { Button, Dialog, FormControl, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
-import { useChangeRequestStore } from '../stores/changeRequest';
+import {
+	CHANGE_REQUEST_TITLE_MAX_LENGTH,
+	useChangeRequestStore,
+} from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 
@@ -90,6 +94,7 @@ watch(showConfirmDialog, (open) => {
 	if (!open) return;
 	title.value = crStore.currentChangeRequest?.title || '';
 	description.value = crStore.currentChangeRequest?.description || '';
+	crActions.flushUnsavedPages();
 });
 
 // A submitted or merging change request has nothing left to submit.
@@ -136,12 +141,17 @@ const submitButtonTitle = computed(() => {
 // The count is the whole point of the confirmation: what is about to leave
 // your hands. Phrased as the consequence rather than "are you sure", which
 // asks the user to re-derive it.
-const confirmMessage = computed(() =>
-	__('{0} pending {1} will be sent for review.', [
+const confirmMessage = computed(() => {
+	const blocker = draftStore.finalizationBlocker;
+	if (blocker === 'unsaved' || blocker === 'pending') {
+		return __('Saving your changes...');
+	}
+	if (blocker) return submitButtonTitle.value;
+	return __('{0} pending {1} will be sent for review.', [
 		crStore.changeCount,
 		crStore.changeCount === 1 ? __('change') : __('changes'),
-	]),
-);
+	]);
+});
 
 const confirmActions = computed(() => [
 	{
@@ -153,7 +163,7 @@ const confirmActions = computed(() => [
 		label: __('Submit'),
 		variant: 'solid',
 		loading: crStore.isSubmitting,
-		disabled: !title.value.trim(),
+		disabled: !title.value.trim() || Boolean(draftStore.finalizationBlocker),
 		onClick: ({ close }) => confirmSubmit(close),
 	},
 ]);

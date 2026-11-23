@@ -116,8 +116,17 @@ export const useSpaceStore = defineStore('space', () => {
 			isEditingInReview.value
 		);
 	});
+	// Kept out of isEditing, which the open editor needs to save on its way here.
+	const isReviewingAnother = computed(
+		() =>
+			isEditing.value &&
+			route.value.name === 'SpaceChangeRequest' &&
+			route.value.params.changeRequestId !== crStore.currentChangeRequest.name,
+	);
 	const isReading = computed(() => canEdit.value && !isEditing.value);
-	const showsLiveTree = computed(() => isReadonly.value || isReading.value);
+	const showsLiveTree = computed(
+		() => isReadonly.value || isReading.value || isReviewingAnother.value,
+	);
 
 	const readonlyTreeResource = createResource({
 		url: 'wiki.api.wiki_space.get_wiki_tree',
@@ -263,6 +272,7 @@ export const useSpaceStore = defineStore('space', () => {
 		() =>
 			isReadonly.value ||
 			isTreeStale.value ||
+			isReviewingAnother.value ||
 			(route.value.name === 'SpaceChangeRequest' && !isEditing.value),
 	);
 
@@ -392,6 +402,7 @@ export const useSpaceStore = defineStore('space', () => {
 		canEdit,
 		isEditing,
 		isEditingInReview,
+		isReviewingAnother,
 		isReading,
 		startEditing,
 		stopEditing,

@@ -47,6 +47,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	withdraw_change_request,
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
+	create_revision,
 	create_revision_from_live_tree,
 	get_revision_item_map,
 )
@@ -2279,6 +2280,74 @@ class TestWikiChangeRequest(FrappeTestCase):
 
 		page.reload()
 		self.assertEqual(page.content, "cr-change")
+
+	def _resolved_conflict_merge(self, resolution):
+		"""A change request edits `page` and `clean`, and main edits `page` before the merge."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Contested", content="v1")
+		clean = create_test_wiki_document(space.root_group, title="Clean", content="clean-v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		clean_key = frappe.get_value("Wiki Document", clean.name, "doc_key")
+
+		cr = create_change_request(space.name, "Conflicting edit")
+		update_cr_page(cr.name, page_key, {"title": "Contested by CR", "content": "cr-change"})
+		update_cr_page(cr.name, clean_key, {"content": "clean-v2"})
+
+		page.content = "main-change"
+		page.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+		resolve_merge_conflict(get_merge_conflicts(cr.name)[0]["name"], resolution)
+		retry_merge_after_resolution(cr.name)
+		return cr, page_key, clean_key
+
+	def test_merged_diff_leaves_out_changes_dropped_by_keep_main(self):
+		cr, page_key, clean_key = self._resolved_conflict_merge("ours")
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [clean_key])
+		review = get_change_request_review(cr.name)
+		self.assertEqual([p["doc_key"] for p in review["pages"]], [clean_key])
+		self.assertEqual(review["pages"][0]["head"]["content"], "clean-v2")
+
+		dropped = diff_change_request(cr.name, scope="page", doc_key=page_key)
+		self.assertEqual(dropped["base"]["content"], "main-change")
+		self.assertEqual(dropped["head"]["content"], "main-change")
+
+	def test_merged_diff_runs_from_main_when_the_change_request_wins(self):
+		cr, page_key, clean_key = self._resolved_conflict_merge("theirs")
+
+		pages = {p["doc_key"]: p for p in get_change_request_review(cr.name)["pages"]}
+		self.assertEqual(set(pages), {page_key, clean_key})
+		self.assertEqual(pages[page_key]["base"]["content"], "main-change")
+		self.assertEqual(pages[page_key]["head"]["content"], "cr-change")
+		self.assertEqual(pages[page_key]["head"]["title"], "Contested by CR")
+
+	def test_merged_diff_of_a_merge_parented_on_the_change_request_base(self):
+		"""Merges used to record the change request's base as parent, even when main had moved on."""
+		cr, _page_key, clean_key = self._resolved_conflict_merge("ours")
+
+		merged = frappe.get_doc("Wiki Change Request", cr.name)
+		merged_items = get_revision_item_map(merged.merge_revision)
+		frappe.db.delete("Wiki Revision", merged.merge_revision)
+		old_shape = create_revision(merged.wiki_space, merged_items, change_request=cr.name, is_merge=1)
+		frappe.db.set_value("Wiki Revision", old_shape.name, "parent_revision", merged.base_revision)
+		frappe.db.set_value("Wiki Change Request", cr.name, "merge_revision", old_shape.name)
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [clean_key])
+
+	def test_merged_diff_without_a_merge_revision_shows_the_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Mine", content="v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		cr = create_change_request(space.name, "Very old merge")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		_approve_and_merge(cr.name)
+		frappe.db.set_value("Wiki Change Request", cr.name, "merge_revision", None)
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [page_key])
 
 	def test_route_tracked_through_cr_and_applied_on_merge(self):
 		"""Route changes through a CR should be applied to the Wiki Document on merge."""
