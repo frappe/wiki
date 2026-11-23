@@ -37,8 +37,9 @@ common paths; this file is for everything it does not cover.
 `get_cr_tree(...)["root_group"]` is the *doc_key*, already resolved. Use the tree's value
 directly as `parent_key`.
 
-`parent_key: null` is not "root" — the node is stored but excluded from
-`doc_map[root_key]["children"]` and becomes permanently invisible.
+`parent_key` (and `target_parent_key` on a move) must be the tree's `root_group` or the
+`doc_key` of a node in the CR. A null, empty or unknown parent throws `ValidationError`, and so
+does moving a node under itself or one of its descendants. Nothing in the batch is written.
 
 ## Read
 
@@ -114,7 +115,7 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 
 | `type` | Fields |
 |---|---|
-| `create_node` | `doc_key` or `temp_key` (one req), `title` (req), `parent_key` (req in practice), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
+| `create_node` | `doc_key` or `temp_key` (one req), `title` (req), `parent_key` (req), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
 | `update_content` | `doc_key` (req), `content` (req), `title?`, `base_content_hash?` |
 | `update_node` | `doc_key` (req), `fields{}` |
 | `delete_node` | `doc_key` (req) — cascades to descendants |
