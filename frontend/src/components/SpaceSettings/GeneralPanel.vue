@@ -19,7 +19,7 @@
 			:title="__('Route Prefix')"
 			:description="routeDescription"
 		>
-			<Button variant="outline" @click="$emit('open-update-routes')">
+			<Button variant="outline" @click="openUpdateRoutesDialog">
 				{{ __('Update') }}
 			</Button>
 		</SettingsRow>
@@ -52,7 +52,7 @@
 			:title="__('Clone Space')"
 			:description="__('Create a new space with the same structure')"
 		>
-			<Button variant="outline" @click="$emit('open-clone')">
+			<Button variant="outline" @click="openCloneDialog">
 				{{ __('Clone') }}
 			</Button>
 		</SettingsRow>
@@ -66,6 +66,73 @@
 				{{ __('Delete') }}
 			</Button>
 		</SettingsRow>
+
+		<!-- Keep these inside Settings: a dialog mounted before Settings opens stays aria-hidden. -->
+		<Dialog v-model:open="showUpdateRoutesDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
+					{{ __('Update Wiki Space Routes') }}
+				</h3>
+			</template>
+			<template #default>
+				<div class="space-y-4 py-2">
+					<FormControl
+						type="text"
+						:label="__('Current Base Route')"
+						:modelValue="space.doc?.route"
+						:disabled="true"
+					/>
+					<FormControl
+						type="text"
+						:label="__('New Base Route')"
+						v-model="newRoute"
+						:placeholder="__('Enter new route (without leading slash)')"
+					/>
+				</div>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						:loading="updatingRoutes"
+						@click="updateRoutes(close)"
+					>
+						{{ __('Update Routes') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
+
+		<Dialog v-model:open="showCloneDialog">
+			<template #title>
+				<h3 class="text-2xl-semibold text-ink-gray-9">
+					{{ __('Clone Wiki Space') }}
+				</h3>
+			</template>
+			<template #default>
+				<div class="space-y-4 py-2">
+					<FormControl
+						type="text"
+						:label="__('New Space Route')"
+						v-model="cloneRoute"
+						:placeholder="__('Enter new route (without leading slash)')"
+					/>
+				</div>
+			</template>
+			<template #actions="{ close }">
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
+					<Button
+						variant="solid"
+						:loading="cloningSpace"
+						@click="cloneSpace(close)"
+					>
+						{{ __('Start Cloning') }}
+					</Button>
+				</div>
+			</template>
+		</Dialog>
 
 		<Dialog v-model:open="showDeleteDialog">
 			<template #title>
@@ -152,14 +219,18 @@ const props = defineProps({
 	},
 });
 
-defineEmits(['open-update-routes', 'open-clone']);
-
 const spaceName = ref('');
 const savingName = ref(false);
 const isPublished = ref(true);
 const updatingPublishSetting = ref(false);
 const showDeleteDialog = ref(false);
 const confirmName = ref('');
+const showUpdateRoutesDialog = ref(false);
+const newRoute = ref('');
+const updatingRoutes = ref(false);
+const showCloneDialog = ref(false);
+const cloneRoute = ref('');
+const cloningSpace = ref(false);
 
 const router = useRouter();
 const spaceStore = useSpaceStore();
@@ -230,6 +301,57 @@ async function saveSpaceName() {
 		toast.error(error.messages?.[0] || __('Failed to rename the space'));
 	} finally {
 		savingName.value = false;
+	}
+}
+
+function openUpdateRoutesDialog() {
+	newRoute.value = props.space.doc?.route || '';
+	showUpdateRoutesDialog.value = true;
+}
+
+async function updateRoutes(close) {
+	if (!newRoute.value?.trim()) {
+		return;
+	}
+
+	updatingRoutes.value = true;
+	try {
+		await props.space.updateRoutes.submit({
+			new_route: newRoute.value.trim(),
+		});
+		close();
+		await props.space.reload();
+		await spaceStore.refreshTree();
+	} catch (error) {
+		console.error('Failed to update routes:', error);
+	} finally {
+		updatingRoutes.value = false;
+	}
+}
+
+function openCloneDialog() {
+	const route = props.space.doc?.route;
+	cloneRoute.value = route ? `${route}-copy` : '';
+	showCloneDialog.value = true;
+}
+
+async function cloneSpace(close) {
+	if (!cloneRoute.value?.trim()) {
+		return;
+	}
+
+	cloningSpace.value = true;
+	try {
+		await props.space.cloneWikiSpace.submit({
+			new_space_route: cloneRoute.value.trim(),
+		});
+		toast.success(__('Cloning started in background'));
+		close();
+	} catch (error) {
+		console.error('Failed to start clone:', error);
+		toast.error(error.messages?.[0] || __('Error starting clone'));
+	} finally {
+		cloningSpace.value = false;
 	}
 }
 
