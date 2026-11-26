@@ -64,7 +64,7 @@ jobs:
           printf '%s\n' "$HOME/pilot/bin" "$HOME/.local/bin" >> "$GITHUB_PATH"
           pilot new frappe-bench --frappe-branch develop --database sqlite
           pilot -b frappe-bench set-bench-config admin_allow_site_to_pilot_communication false
-          pilot -b frappe-bench init --skip-frontend
+          pilot -b frappe-bench init
 
       - name: Install Wiki
         working-directory: /home/runner/pilot/benches/frappe-bench

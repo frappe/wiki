@@ -104,7 +104,7 @@ jobs:
           pilot -b frappe-bench set-bench-config mariadb_port 3306
           pilot -b frappe-bench set-bench-config mariadb_admin_user root
           pilot -b frappe-bench set-bench-config mariadb_password root
-          pilot -b frappe-bench init --skip-frontend
+          pilot -b frappe-bench init
           printf '[client]\nskip-ssl\n' > ~/.my.cnf
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
