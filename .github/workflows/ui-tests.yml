@@ -95,6 +95,9 @@ jobs:
           pilot new frappe-bench --frappe-branch "${{ matrix.frappe-branch }}"
           pilot -b frappe-bench set-bench-config python "${{ matrix.frappe-branch == 'version-15' && '3.11' || '3.14' }}"
           pilot -b frappe-bench set-bench-config admin_allow_site_to_pilot_communication false
+          pilot -b frappe-bench set-bench-config watch_apps_js false
+          pilot -b frappe-bench set-bench-config reload_python false
+          pilot -b frappe-bench set-bench-config lite_mode_enabled false
           pilot -b frappe-bench set-bench-config mariadb_existing true
           pilot -b frappe-bench set-bench-config mariadb_host 127.0.0.1
           pilot -b frappe-bench set-bench-config mariadb_port 3306
