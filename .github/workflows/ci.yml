@@ -1,4 +1,3 @@
-
 name: CI
 
 on:
@@ -7,6 +6,7 @@ on:
       - develop
       - main
       - version-3
+      - ci/pilot
     paths-ignore:
       - '**.js'
       - '**.vue'
@@ -22,6 +22,7 @@ on:
       - '**.ts'
       - '**.md'
       - 'docs/**'
+  workflow_dispatch:
 
 concurrency:
   group: ci-wiki-${{ github.event.number || github.ref }}
@@ -42,15 +43,9 @@ jobs:
             test-args: '--test-category all'
     name: Server (${{ matrix.frappe-branch }})
 
+    # Pilot runs with --ci, so it provisions no database server of its own;
+    # the bench points at this container instead.
     services:
-      redis-cache:
-        image: redis:alpine
-        ports:
-          - 13000:6379
-      redis-queue:
-        image: redis:alpine
-        ports:
-          - 11000:6379
       mariadb:
         image: mariadb:11.8
         env:
@@ -63,11 +58,6 @@ jobs:
       - name: Clone
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -78,53 +68,64 @@ jobs:
         id: os
         run: echo "version=$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v6
+      - name: Cache pip and uv
+        uses: actions/cache@v4
         with:
-          enable-cache: true
-          # mysqlclient is built from source, so a cached build only works on the OS that built it
-          cache-suffix: ubuntu-${{ steps.os.outputs.version }}
-          cache-dependency-glob: '**/pyproject.toml'
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: 'echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT'
-
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-${{ matrix.frappe-branch }}-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-${{ matrix.frappe-branch }}-
+            ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-
 
-      - name: Install MariaDB Client
-        run: sudo apt update && sudo apt-get install mariadb-client libmariadb-dev pkg-config
-
-      - name: Setup
+      - name: Setup Pilot
         run: |
-          uv tool install frappe-bench
-          bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
+          curl -fsSL https://raw.githubusercontent.com/frappe/pilot/develop/install.sh | sh -s -- --ci
+          export PATH="$HOME/pilot/bin:$HOME/.local/bin:$PATH"
+          printf '%s\n' "$HOME/pilot/bin" "$HOME/.local/bin" >> "$GITHUB_PATH"
+          pilot new frappe-bench --frappe-branch "${{ matrix.frappe-branch }}"
+          pilot -b frappe-bench set-bench-config python "${{ matrix.python-version }}"
+          pilot -b frappe-bench set-bench-config admin_allow_site_to_pilot_communication false
+          pilot -b frappe-bench set-bench-config mariadb_existing true
+          pilot -b frappe-bench set-bench-config mariadb_host 127.0.0.1
+          pilot -b frappe-bench set-bench-config mariadb_port 3306
+          pilot -b frappe-bench set-bench-config mariadb_admin_user root
+          pilot -b frappe-bench set-bench-config mariadb_password root
+          pilot -b frappe-bench init --skip-frontend
+          printf '[client]\nskip-ssl\n' > ~/.my.cnf
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
-      - name: Install
-        working-directory: /home/runner/frappe-bench
+      - name: Install Wiki
+        working-directory: /home/runner/pilot/benches/frappe-bench
         run: |
-          bench get-app --skip-assets wiki $GITHUB_WORKSPACE
-          bench setup requirements --dev
-          bench build &> build.log &
-          build_pid=$!
-          bench new-site --db-root-password root --admin-password admin test_site
-          bench --site test_site install-app wiki
-          wait $build_pid || { cat build.log; exit 1; }
+          uv pip install --python env/bin/python -e "apps/frappe[test]"
+          pilot get-app "$GITHUB_WORKSPACE" --branch "$GITHUB_SHA" --skip-assets
         env:
           CI: 'Yes'
 
-      - name: Run Tests
-        working-directory: /home/runner/frappe-bench
+      - name: Start Pilot
         run: |
-          bench --site test_site set-config allow_tests true
-          bench --site test_site run-tests --app wiki ${{ matrix.test-args }}
+          pilot -b frappe-bench start > "$RUNNER_TEMP/pilot.log" 2>&1 &
+          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:7000/api/v1/health
+
+      - name: Create Test Site
+        working-directory: /home/runner/pilot/benches/frappe-bench
+        run: |
+          pilot new-site test_site --admin-password admin --apps frappe wiki --skip-assets
+          mkdir -p sites/assets
+          [ -f sites/assets/assets.json ] || echo '{}' > sites/assets/assets.json
+
+      - name: Run Tests
+        working-directory: /home/runner/pilot/benches/frappe-bench
+        run: |
+          pilot frappe --site test_site set-config allow_tests true
+          pilot frappe --site test_site run-tests --app wiki ${{ matrix.test-args }}
         env:
           TYPE: server
+
+      - name: Show Pilot logs on failure
+        if: failure()
+        run: cat "$RUNNER_TEMP/pilot.log" || true
