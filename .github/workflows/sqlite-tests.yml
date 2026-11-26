@@ -45,6 +45,18 @@ jobs:
             ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-develop-
             ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-
 
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: 'echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT'
+
+      - uses: actions/cache@v4
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
       - name: Setup Pilot
         run: |
           curl -fsSL https://raw.githubusercontent.com/frappe/pilot/develop/install.sh | sh -s -- --ci
@@ -72,8 +84,7 @@ jobs:
         working-directory: /home/runner/pilot/benches/frappe-bench
         run: |
           pilot new-site test_site --admin-password admin --apps frappe wiki --skip-assets
-          mkdir -p sites/assets
-          [ -f sites/assets/assets.json ] || echo '{}' > sites/assets/assets.json
+          pilot build --apps wiki
 
       - name: Run Tests
         working-directory: /home/runner/pilot/benches/frappe-bench
