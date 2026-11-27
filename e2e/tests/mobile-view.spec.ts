@@ -187,33 +187,63 @@ test.describe('Mobile View', () => {
 	});
 
 	test.describe('Mobile TOC Dropdown', () => {
-		// mobileNav() reads headings from its own $root, so the dropdown never shows.
-		test.fixme(
-			'should jump to a heading picked from the TOC dropdown',
-			async ({ page, wiki }) => {
-				const publicUrl = await createPublishedTestPage(
-					wiki,
-					`mobile-toc-test-${Date.now()}`,
-					`## First Section
+		test('should jump to a heading picked from the TOC dropdown', async ({
+			page,
+			wiki,
+		}) => {
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`mobile-toc-test-${Date.now()}`,
+				`## First Section
 
 Content for first section.
 
 ## Second Section
 
 Content for second section.`,
-				);
-				await openOnMobile(page, publicUrl);
+			);
+			await openOnMobile(page, publicUrl);
 
-				await tid(page, 'mobile-toc-toggle').click();
-				const tocLink = tid(page, 'mobile-header').getByRole('link', {
-					name: 'Second Section',
-				});
-				await tocLink.click();
+			await tid(page, 'mobile-toc-toggle').click();
+			const tocLink = tid(page, 'mobile-header').getByRole('link', {
+				name: 'Second Section',
+			});
+			await tocLink.click();
 
-				await expect(page).toHaveURL(/#second-section$/);
-				await expect(tocLink).not.toBeVisible();
-			},
-		);
+			await expect(page).toHaveURL(/#second-section$/);
+			await expect(tocLink).not.toBeVisible();
+		});
+
+		test('should list the new page headings after sidebar navigation', async ({
+			page,
+			wiki,
+		}) => {
+			const space = await wiki.space({
+				pages: [
+					{ title: 'Toc Nav Start', content: '## Start Heading\n\nStart.' },
+					{ title: 'Toc Nav Target', content: '## Target Heading\n\nTarget.' },
+				],
+			});
+			await openOnMobile(page, `/${space.page('Toc Nav Start').route}`);
+
+			const bottomSheet = await openBottomSheet(page);
+			await bottomSheet
+				.locator('nav')
+				.getByText('Toc Nav Target', { exact: true })
+				.click();
+			await expect(page).toHaveURL(
+				new RegExp(`${space.page('Toc Nav Target').route}$`),
+			);
+
+			await tid(page, 'mobile-toc-toggle').click();
+			const toc = tid(page, 'mobile-header');
+			await expect(
+				toc.getByRole('link', { name: 'Target Heading' }),
+			).toBeVisible();
+			await expect(
+				toc.getByRole('link', { name: 'Start Heading' }),
+			).not.toBeVisible();
+		});
 
 		test('should render headings with anchor links on mobile', async ({
 			page,

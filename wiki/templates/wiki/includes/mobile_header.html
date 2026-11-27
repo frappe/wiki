@@ -215,10 +215,22 @@
             spaceSwitcherOpen: false,
             navQuery: '',
             navHasResults: true,
-            tocHeadings: [],
-            activeTocId: '',
-            activeTocText: '',
-            hasToc: false,
+
+            get tocHeadings() {
+                return this.$store.toc?.headings ?? [];
+            },
+
+            get hasToc() {
+                return this.tocHeadings.length > 0;
+            },
+
+            get activeTocId() {
+                return this.$store.toc?.activeId ?? '';
+            },
+
+            get activeTocText() {
+                return this.tocHeadings.find((heading) => heading.id === this.activeTocId)?.text ?? '';
+            },
 
             isDragging: false,
             dragOffset: 0,
@@ -234,29 +246,6 @@
                 document.addEventListener('mouseup', this.endDrag.bind(this));
                 document.addEventListener('touchmove', this.onDrag.bind(this), { passive: false });
                 document.addEventListener('touchend', this.endDrag.bind(this));
-
-                this.$watch('$root.headings', (headings) => {
-                    if (headings && headings.length > 0) {
-                        this.tocHeadings = headings;
-                        this.hasToc = true;
-                    }
-                });
-
-                this.$watch('$root.activeId', (activeId) => {
-                    this.activeTocId = activeId;
-                    const heading = this.tocHeadings.find(h => h.id === activeId);
-                    this.activeTocText = heading ? heading.text : '';
-                });
-
-                this.$nextTick(() => {
-                    if (this.$root.headings && this.$root.headings.length > 0) {
-                        this.tocHeadings = this.$root.headings;
-                        this.hasToc = true;
-                        this.activeTocId = this.$root.activeId || '';
-                        const heading = this.tocHeadings.find(h => h.id === this.activeTocId);
-                        this.activeTocText = heading ? heading.text : '';
-                    }
-                });
             },
 
             toggleSidebar() {
