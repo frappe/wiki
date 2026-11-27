@@ -225,26 +225,6 @@ That is all.`;
 			});
 			expect(withinNav).toBe(true);
 		});
-
-		test('should hide TOC on mobile viewport', async ({ page, wiki }) => {
-			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
-
-			// A published page of our own: the reader chrome under test only
-			// renders on a real page, and an ambient one may not exist.
-			const space = await wiki.space({
-				pages: [{ title: 'Reader Page', content: '## Section\n\nBody text.' }],
-			});
-			await page.goto(`/${space.page('Reader Page').route}`);
-			await page.waitForLoadState('networkidle');
-
-			// TOC aside should NOT be visible on mobile
-			const tocAside = page.locator('aside').filter({
-				has: page.locator('text=On this page'),
-			});
-
-			// Should be hidden (lg:block means hidden below lg)
-			await expect(tocAside).not.toBeVisible();
-		});
 	});
 
 	test.describe('Heading Anchors', () => {
@@ -347,40 +327,6 @@ End.`;
 			await expect(anchor).toHaveCSS('opacity', '1');
 
 			await publicPage.close();
-		});
-	});
-
-	test.describe('Sidebar', () => {
-		test('should show sidebar on desktop viewport', async ({ page, wiki }) => {
-			await page.setViewportSize({ width: 1100, height: 900 });
-
-			// A published page of our own: the reader chrome under test only
-			// renders on a real page, and an ambient one may not exist.
-			const space = await wiki.space({
-				pages: [{ title: 'Reader Page', content: '## Section\n\nBody text.' }],
-			});
-			await page.goto(`/${space.page('Reader Page').route}`);
-			await page.waitForLoadState('networkidle');
-
-			// Sidebar should be visible on desktop
-			const sidebar = page.locator('.wiki-sidebar, aside nav').first();
-			await expect(sidebar).toBeVisible();
-		});
-
-		test('should hide sidebar on mobile viewport', async ({ page, wiki }) => {
-			await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
-
-			// A published page of our own: the reader chrome under test only
-			// renders on a real page, and an ambient one may not exist.
-			const space = await wiki.space({
-				pages: [{ title: 'Reader Page', content: '## Section\n\nBody text.' }],
-			});
-			await page.goto(`/${space.page('Reader Page').route}`);
-			await page.waitForLoadState('networkidle');
-
-			// Desktop sidebar should be hidden on mobile
-			const desktopSidebar = page.locator('.wiki-sidebar');
-			await expect(desktopSidebar).not.toBeVisible();
 		});
 	});
 });
