@@ -31,14 +31,6 @@ jobs:
         shardTotal: [4]
 
     services:
-      redis-cache:
-        image: redis:alpine
-        ports:
-          - 13000:6379
-      redis-queue:
-        image: redis:alpine
-        ports:
-          - 11000:6379
       mariadb:
         image: mariadb:11.8
         env:
@@ -50,11 +42,6 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.frappe-branch == 'version-15' && '3.11' || '3.14' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -69,13 +56,16 @@ jobs:
         id: os
         run: echo "version=$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v6
+      - name: Cache pip and uv
+        uses: actions/cache@v4
         with:
-          enable-cache: true
-          # mysqlclient is built from source, so a cached build only works on the OS that built it
-          cache-suffix: ubuntu-${{ steps.os.outputs.version }}
-          cache-dependency-glob: '**/pyproject.toml'
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-${{ matrix.frappe-branch }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-${{ matrix.frappe-branch }}-
+            ${{ runner.os }}-uv-ubuntu-${{ steps.os.outputs.version }}-
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -97,46 +87,57 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Install MariaDB Client
+      - name: Setup Pilot
         run: |
-          sudo apt update
-          sudo apt-get install mariadb-client libmariadb-dev pkg-config
-
-      - name: Setup Bench
-        run: |
-          uv tool install frappe-bench
-          bench init --skip-redis-config-generation --skip-assets --frappe-branch ${{ matrix.frappe-branch }} --python "$(which python)" ~/frappe-bench
+          curl -fsSL https://raw.githubusercontent.com/frappe/pilot/develop/install.sh | sh -s -- --ci
+          export PATH="$HOME/pilot/bin:$HOME/.local/bin:$PATH"
+          printf '%s\n' "$HOME/pilot/bin" "$HOME/.local/bin" >> "$GITHUB_PATH"
+          pilot new frappe-bench --frappe-branch "${{ matrix.frappe-branch }}"
+          pilot -b frappe-bench set-bench-config python "${{ matrix.frappe-branch == 'version-15' && '3.11' || '3.14' }}"
+          pilot -b frappe-bench set-bench-config admin_allow_site_to_pilot_communication false
+          pilot -b frappe-bench set-bench-config watch_apps_js false
+          pilot -b frappe-bench set-bench-config reload_python false
+          pilot -b frappe-bench set-bench-config lite_mode_enabled false
+          pilot -b frappe-bench set-bench-config mariadb_existing true
+          pilot -b frappe-bench set-bench-config mariadb_host 127.0.0.1
+          pilot -b frappe-bench set-bench-config mariadb_port 3306
+          pilot -b frappe-bench set-bench-config mariadb_admin_user root
+          pilot -b frappe-bench set-bench-config mariadb_password root
+          pilot -b frappe-bench init
+          printf '[client]\nskip-ssl\n' > ~/.my.cnf
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
       - name: Install Wiki
-        working-directory: /home/runner/frappe-bench
+        working-directory: /home/runner/pilot/benches/frappe-bench
         run: |
-          bench get-app --skip-assets wiki $GITHUB_WORKSPACE
-          bench setup requirements --dev
-          bench build &> build.log &
-          build_pid=$!
-          bench new-site --db-root-password root --admin-password admin wiki.test
-          bench --site wiki.test install-app wiki
-          wait $build_pid || { cat build.log; exit 1; }
+          uv pip install --python env/bin/python -e "apps/frappe[test]"
+          pilot get-app "$GITHUB_WORKSPACE" --branch "$GITHUB_SHA" --skip-assets
+        env:
+          CI: "Yes"
+
+      - name: Start Pilot
+        run: |
+          pilot -b frappe-bench start > "$RUNNER_TEMP/pilot.log" 2>&1 &
+          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
+            http://127.0.0.1:7000/api/v1/health
+
+      - name: Create and Build Site
+        working-directory: /home/runner/pilot/benches/frappe-bench
+        run: |
+          pilot new-site wiki.test --admin-password admin --apps frappe wiki --skip-assets
+          # Never prebuilt: e2e must exercise this checkout's frontend, not a download.
+          pilot build --apps wiki --force
         env:
           CI: "Yes"
 
       - name: Configure Site for UI Tests
-        working-directory: /home/runner/frappe-bench
+        working-directory: /home/runner/pilot/benches/frappe-bench
         run: |
-          bench --site wiki.test set-config allow_tests true
-          bench --site wiki.test set-config host_name "http://wiki.test:8000"
-
-      - name: Start Frappe Server
-        working-directory: /home/runner/frappe-bench
-        run: |
-          sed -i 's/^watch:/# watch:/g' Procfile
-          sed -i 's/^schedule:/# schedule:/g' Procfile
-          bench start &> bench_start.log &
-          echo "Waiting for Frappe server to start..."
-          timeout 60 bash -c 'until curl -s http://wiki.test:8000 > /dev/null; do sleep 2; done'
-          echo "Frappe server is ready!"
+          pilot frappe --site wiki.test set-config allow_tests true
+          pilot frappe --site wiki.test set-config host_name "http://wiki.test:8000"
+          curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-all-errors \
+            --output /dev/null "http://wiki.test:8000/api/method/ping"
 
       - name: Install Playwright
         run: |
@@ -159,12 +160,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Show Bench Logs on Failure
+      - name: Show Pilot Logs on Failure
         if: failure()
-        working-directory: /home/runner/frappe-bench
+        working-directory: /home/runner/pilot/benches/frappe-bench
         run: |
-          echo "=== Bench Start Log ==="
-          cat bench_start.log || true
+          echo "=== Pilot Start Log ==="
+          cat "$RUNNER_TEMP/pilot.log" || true
           echo ""
           echo "=== Frappe Logs ==="
           cat logs/*.log || true
