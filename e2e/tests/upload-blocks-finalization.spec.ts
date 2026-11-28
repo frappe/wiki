@@ -213,3 +213,69 @@ test('an upload that fails after leaving the page does not block submit', async 
 	await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
 	await expect(submit).toBeEnabled();
 });
+
+/**
+ * A video uploads like an image: its block shows at once, holds its place while
+ * the page changes above it, and submit waits for it.
+ */
+test('a video upload holds its place and blocks submit until done', async ({
+	page,
+	wiki,
+}) => {
+	const space = await wiki.space({
+		pages: [{ title: 'Video Page', content: 'Start.' }],
+	});
+	await wiki.changeRequest(space);
+	const target = space.page('Video Page');
+
+	let releaseUpload = () => {};
+	const uploadHeld = new Promise<void>((resolve) => {
+		releaseUpload = resolve;
+	});
+	await page.route(
+		'**/api/method/wiki.api.upload_wiki_asset',
+		async (route) => {
+			await uploadHeld;
+			await route.continue();
+		},
+	);
+
+	await page.goto(space.url('page', target.name));
+	const editor = page.locator('.ProseMirror');
+	await expect(editor).toHaveAttribute('contenteditable', 'true', {
+		timeout: 15000,
+	});
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.type(' Edited.');
+	await page.keyboard.press('Enter');
+	const chooser = page.waitForEvent('filechooser');
+	await page.keyboard.type('/video');
+	await expect(
+		page.locator('.slash-commands-list').getByText('Video', { exact: true }),
+	).toBeVisible();
+	await page.keyboard.press('Enter');
+	await (await chooser).setFiles({
+		name: `e2e-upload-${Date.now()}.mp4`,
+		mimeType: 'video/mp4',
+		buffer: Buffer.from('not really a video'),
+	});
+
+	const submit = page.getByRole('button', { name: 'Submit for Review' });
+	await expect(submit).toBeDisabled();
+
+	await page.keyboard.press('ControlOrMeta+Home');
+	await page.keyboard.type('Above. ');
+	releaseUpload();
+
+	const markdown = () =>
+		page.evaluate(() =>
+			(
+				window as unknown as { wikiEditor: { getMarkdown(): string } }
+			).wikiEditor.getMarkdown(),
+		);
+	await expect
+		.poll(markdown, { timeout: 20000 })
+		.toMatch(/^Above\. Start\. Edited\.\s+!\[.*\]\(\/files\/.*\.mp4\)\s*$/);
+	await expect(submit).toBeEnabled();
+});

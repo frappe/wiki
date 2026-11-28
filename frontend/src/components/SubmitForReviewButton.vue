@@ -24,21 +24,28 @@
 	<Dialog
 		v-model:open="showConfirmDialog"
 		:title="__('Submit for review')"
-		:message="confirmMessage"
 		icon="lucide-git-branch"
 		theme="blue"
 		:actions="confirmActions"
 	>
-		
-		<template v-if="needsTitle" #default>
+		<template #default>
 			<div class="space-y-4">
-				<p class="text-p-base text-ink-gray-7">{{ confirmMessage }}</p>
+				<p class="bidi-text text-p-base text-ink-gray-7">{{ confirmMessage }}</p>
 				<FormControl
-					v-model="newTitle"
+					v-model="title"
 					:label="__('Title')"
 					type="text"
 					:placeholder="__('What did you change?')"
+					:maxlength="CHANGE_REQUEST_TITLE_MAX_LENGTH"
+					required
 					autofocus
+				/>
+				<FormControl
+					v-model="description"
+					:label="__('Description')"
+					type="textarea"
+					:placeholder="__('Describe the change')"
+					:rows="3"
 				/>
 			</div>
 		</template>
@@ -49,7 +56,10 @@
 import { Button, Dialog, FormControl, toast } from 'frappe-ui';
 import { computed, ref, watch } from 'vue';
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
-import { useChangeRequestStore } from '../stores/changeRequest';
+import {
+	CHANGE_REQUEST_TITLE_MAX_LENGTH,
+	useChangeRequestStore,
+} from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 
@@ -76,15 +86,15 @@ const spaceStore = useSpaceStore();
 const crActions = useChangeRequestActions();
 
 const showConfirmDialog = ref(false);
-const newTitle = ref('');
+const title = ref('');
+const description = ref('');
 
-const GENERATED_TITLE_PREFIX = 'Draft Changes - ';
-const needsTitle = computed(() =>
-	crStore.currentChangeRequest?.title?.startsWith(GENERATED_TITLE_PREFIX),
-);
-
+// Edit starts the change request under a placeholder title, so submitting is where it gets named.
 watch(showConfirmDialog, (open) => {
-	if (open) newTitle.value = '';
+	if (!open) return;
+	title.value = crStore.currentChangeRequest?.title || '';
+	description.value = crStore.currentChangeRequest?.description || '';
+	crActions.flushUnsavedPages();
 });
 
 // A submitted or merging change request has nothing left to submit.
@@ -131,12 +141,17 @@ const submitButtonTitle = computed(() => {
 // The count is the whole point of the confirmation: what is about to leave
 // your hands. Phrased as the consequence rather than "are you sure", which
 // asks the user to re-derive it.
-const confirmMessage = computed(() =>
-	__('{0} pending {1} will be sent for review.', [
+const confirmMessage = computed(() => {
+	const blocker = draftStore.finalizationBlocker;
+	if (blocker === 'unsaved' || blocker === 'pending') {
+		return __('Saving your changes...');
+	}
+	if (blocker) return submitButtonTitle.value;
+	return __('{0} pending {1} will be sent for review.', [
 		crStore.changeCount,
 		crStore.changeCount === 1 ? __('change') : __('changes'),
-	]),
-);
+	]);
+});
 
 const confirmActions = computed(() => [
 	{
@@ -148,15 +163,23 @@ const confirmActions = computed(() => [
 		label: __('Submit'),
 		variant: 'solid',
 		loading: crStore.isSubmitting,
-		disabled: needsTitle.value && !newTitle.value.trim(),
+		disabled: !title.value.trim() || Boolean(draftStore.finalizationBlocker),
 		onClick: ({ close }) => confirmSubmit(close),
 	},
 ]);
 
 async function confirmSubmit(closeDialog) {
-	if (needsTitle.value) {
+	const current = crStore.currentChangeRequest;
+	const changes = {
+		title: title.value.trim(),
+		description: description.value.trim(),
+	};
+	if (
+		changes.title !== current?.title ||
+		changes.description !== (current?.description || '')
+	) {
 		try {
-			await crStore.updateChangeRequest({ title: newTitle.value.trim() });
+			await crStore.updateChangeRequest(changes);
 		} catch (error) {
 			toast.error(error.messages?.[0] || __('Error updating title'));
 			return;

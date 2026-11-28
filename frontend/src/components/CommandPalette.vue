@@ -304,7 +304,10 @@ const recentItems = computed(() =>
 );
 
 const canCreatePage = computed(
-	() => Boolean(currentSpace.value) && spaceStore.canEdit,
+	() =>
+		Boolean(currentSpace.value) &&
+		spaceStore.canEdit &&
+		!spaceStore.isTreeReadonly,
 );
 
 const actionItems = computed(() => [

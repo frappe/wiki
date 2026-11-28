@@ -76,6 +76,8 @@ export function useChangeRequestActions() {
 		crStore.finalizing = 'submitting';
 		try {
 			const result = await crStore.submitForReview();
+			// A resubmitted change request would otherwise reopen in the editor.
+			spaceStore.clearReviewEdit(spaceStore.spaceId);
 			toast.success(__('Change request submitted for review'));
 			if (result?.name) {
 				await router.push({
@@ -178,6 +180,7 @@ export function useChangeRequestActions() {
 	}
 
 	return {
+		flushUnsavedPages,
 		viewChanges,
 		submitForReview,
 		discardChangeRequest,

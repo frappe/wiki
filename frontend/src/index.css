@@ -23,6 +23,11 @@ html[data-theme="light"] {
 	color-scheme: light;
 }
 
+/* vue-sonner gives toasts the system font stack. */
+[data-sonner-toaster] {
+	font-family: inherit;
+}
+
 /* Directional icons point the way the page reads. */
 :dir(rtl)
 	:is(
@@ -33,6 +38,15 @@ html[data-theme="light"] {
 		.lucide-panel-left
 	) {
 	scale: -1 1;
+}
+
+/* Plaintext also makes `start` follow the text, so the mirrored side is set by hand. */
+:dir(rtl) :is(.truncate, .bidi-text, .bidi-crumbs :is(a, button) > span) {
+	unicode-bidi: plaintext;
+}
+
+:dir(rtl) :is(.truncate, .bidi-text):not(.text-center) {
+	text-align: right;
 }
 
 /* frappe-ui still uses physical sides here: Tree indents with padding-left,
@@ -47,23 +61,29 @@ html[data-theme="light"] {
 	text-align: start;
 }
 
-:dir(rtl) [data-slot='sidebar-label'],
-:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .pl-2 {
+:dir(rtl) [data-slot="sidebar-label"],
+:dir(rtl) :is([data-slot="sidebar-item"], [data-slot="sidebar-header"]) .pl-2 {
 	padding-left: 0;
 	padding-right: 0.5rem;
 }
 
-:dir(rtl) :is([data-slot='sidebar-item'], [data-slot='sidebar-header']) .ml-2 {
+:dir(rtl) :is([data-slot="sidebar-item"], [data-slot="sidebar-header"]) .ml-2 {
 	margin-left: 0;
 	margin-right: 0.5rem;
 }
 
-:dir(rtl) [data-slot='sidebar-item-suffix'] .mr-2 {
+:dir(rtl) [data-slot="sidebar-item-suffix"] .mr-2 {
 	margin-right: 0;
 	margin-left: 0.5rem;
 }
 
-:dir(rtl) :is([data-slot='chevron'], [role^='menuitem'] *, [role='option'] *, .frappe-tree-row *).ml-auto {
+:dir(rtl)
+	:is(
+		[data-slot="chevron"],
+		[role^="menuitem"] *,
+		[role="option"] *,
+		.frappe-tree-row *
+	).ml-auto {
 	margin-left: 0;
 	margin-right: auto;
 }

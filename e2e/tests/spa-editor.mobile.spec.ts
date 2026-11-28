@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures';
 import { uniqueRoute } from '../helpers/factory';
 import { callMethod } from '../helpers/frappe';
 import { APP_BASE, SPACE_URL_RE, appUrl } from '../helpers/routes';
-import { openNewPageDialog } from '../helpers/wiki';
+import { currentDraftDocKey, openNewPageDialog } from '../helpers/wiki';
 
 /**
  * Mobile-friendly SPA (Phases 1-2) tracer + regression guards, on a phone
@@ -57,7 +57,8 @@ test.describe('Mobile SPA', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
-		await page.waitForLoadState('networkidle');
+		// The goto below would cancel a create still in flight.
+		await currentDraftDocKey(page);
 
 		// --- Switch to a phone viewport at the space root ---
 		await page.setViewportSize(PHONE);
@@ -196,5 +197,40 @@ test.describe('Mobile SPA', () => {
 		// Drawer closes; the settings dialog is the only modal left.
 		await expect(drawer).toBeHidden();
 		await expect(page.getByText('Access', { exact: true })).toBeVisible();
+	});
+
+	// Regression: focus landed on the Back button, whose tooltip opens on focus
+	// and covered the search box.
+	test('tree drawer opens without a tooltip and keeps keyboard focus correct', async ({
+		page,
+		wiki,
+	}) => {
+		const space = await wiki.space();
+
+		await page.setViewportSize(PHONE);
+		await page.goto(space.url());
+		await page.waitForLoadState('networkidle');
+
+		const pagesButton = page.getByRole('button', { name: 'Pages' });
+		const drawer = page.getByRole('dialog', { name: 'Pages' });
+		const tooltip = page.locator('[role="tooltip"]');
+
+		await pagesButton.tap();
+		await expect(drawer).toBeFocused();
+		await expect(tooltip).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(drawer).toBeHidden();
+		await expect(pagesButton).toBeFocused();
+
+		await page.keyboard.press('Enter');
+		await expect(drawer).toBeFocused();
+		await expect(tooltip).toHaveCount(0);
+
+		await page.keyboard.press('Tab');
+		await expect(
+			drawer.getByRole('link', { name: 'Back to All Spaces' }),
+		).toBeFocused();
+		await expect(tooltip).toHaveText('Back to All Spaces');
 	});
 });

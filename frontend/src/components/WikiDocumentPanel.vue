@@ -7,7 +7,7 @@
 			     instead of an edit flow. -->
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
 				<div class="flex min-w-0 flex-1 items-center gap-1">
-					<Breadcrumbs :items="breadcrumbs" class="min-w-0" />
+					<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0" />
 					<Tooltip v-if="displayPublished" :text="__('Open live page')">
 						<Button
 							variant="ghost"
@@ -37,6 +37,7 @@
 					<Button
 						v-if="spaceStore.isReading"
 						variant="subtle"
+						:loading="startingEdit"
 						@click="editPage"
 						@mouseenter="loadEditor"
 						@focus="loadEditor"
@@ -120,7 +121,7 @@
 										type="text"
 										v-model="editableTitle"
 										:readonly="!isEditing"
-										class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+										class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 										:placeholder="__('Page title')"
 										@blur="saveTitleIfChanged"
 										@keydown.enter="$event.target.blur()"
@@ -240,7 +241,7 @@ import { useOpenChangeRequests } from '@/composables/useOpenChangeRequests';
 import { useSidePanel } from '@/composables/useSidePanel';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { buildGithubEditUrl } from '@/lib/github';
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useChangeRequestStore } from '@/stores/changeRequest';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
@@ -306,7 +307,7 @@ const crStore = useChangeRequestStore();
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
 const { recordVisit } = useRecentPages();
-const { request: startEditingRequest, requireEditing } = useStartEditing();
+const { starting: startingEdit, requireEditing } = useStartEditing();
 const { isMobile } = useMobile();
 
 const isEditing = computed(() => spaceStore.isEditing);
@@ -325,32 +326,26 @@ function loadEditor() {
 const WikiEditor = defineAsyncComponent(loadEditor);
 
 watch(
-	[isEditing, startEditingRequest],
-	([editing, request]) => {
-		if (editing || request) loadEditor();
+	[isEditing, startingEdit],
+	([editing, starting]) => {
+		if (editing || starting) loadEditor();
 	},
 	{ immediate: true },
 );
 
 async function editPage() {
-	// Set before the dialog closes: the editor often mounts while it is still leaving.
+	// Set before starting: the editor mounts as soon as the draft hydrates, before requireEditing resolves.
 	focusEditor.value = true;
-	if (!(await requireEditing())) {
+	const title = __('Edit {0} in {1}', [
+		displayTitle.value,
+		spaceStore.doc?.space_name,
+	]);
+	if (!(await requireEditing(title))) {
 		focusEditor.value = false;
 		return;
 	}
 	if (editorKey.value?.startsWith('edit:')) editor.value?.focusEnd();
 }
-
-watch(
-	[() => route.query.edit, () => spaceStore.canContribute],
-	([edit, mayContribute]) => {
-		if (!edit || mayContribute === null) return;
-		router.replace({ query: { ...route.query, edit: undefined } });
-		editPage();
-	},
-	{ immediate: true },
-);
 
 // frappe-ui caches document resources by (doctype, name), so revisiting an
 // already-opened page renders instantly from the cached doc while `auto`
@@ -445,8 +440,7 @@ function onEditorContentChange(
 ) {
 	if (!isEditing.value) return;
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title, options);
+	draftStore.recordEditorContent(docKey, content, options);
 }
 
 function onEditorContentReady(
@@ -456,8 +450,7 @@ function onEditorContentReady(
 ) {
 	if (!isEditing.value) return;
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
+	draftStore.reconcileEditorContent(docKey, content, savedContent);
 }
 
 async function loadCrPage() {
@@ -507,33 +500,33 @@ const editorContent = computed(() => {
 	return wikiDoc.value.doc?.content || '';
 });
 
-const displayTitle = computed(() => {
-	return (
-		activePage.value?.title ||
-		currentCrPage.value?.title ||
-		wikiDoc.value.doc?.title ||
-		''
-	);
-});
+// The draft's copy of the page's own fields, once the draft page has loaded.
+// Read mode shows the published document instead.
+const draftNode = computed(() =>
+	currentCrPage.value ? draftStore.findNode(loadedDocKey.value) : null,
+);
 
-const displayPublished = computed(() => {
-	if (activePage.value?.isPublished != null) {
-		return Boolean(activePage.value.isPublished);
-	}
-	if (currentCrPage.value?.is_published != null) {
-		return Boolean(currentCrPage.value.is_published);
-	}
-	return Boolean(wikiDoc.value.doc?.is_published);
-});
+const displayTitle = computed(
+	() => draftNode.value?.title || wikiDoc.value.doc?.title || '',
+);
 
-const displayRoute = computed(() => {
-	return (
-		activePage.value?.route ||
-		currentCrPage.value?.route ||
-		wikiDoc.value.doc?.route ||
-		''
-	);
-});
+watch(
+	[() => route.query.edit, () => spaceStore.canContribute, displayTitle],
+	([edit, mayContribute, title]) => {
+		if (!edit || mayContribute === null || !title) return;
+		router.replace({ query: { ...route.query, edit: undefined } });
+		editPage();
+	},
+	{ immediate: true },
+);
+
+const displayPublished = computed(() =>
+	Boolean(draftNode.value?.isPublished ?? wikiDoc.value.doc?.is_published),
+);
+
+const displayRoute = computed(
+	() => draftNode.value?.route || wikiDoc.value.doc?.route || '',
+);
 
 watch(
 	[() => props.pageId, displayTitle, displayRoute],
@@ -592,23 +585,20 @@ const spaceTree = inject(SPACE_TREE_KEY, null);
 // rather than the saved title, so it keeps up with the keystroke instead of
 // waiting for the blur that saves.
 const breadcrumbs = computed(() => {
-	const children = spaceTree?.value?.children;
-	if (!children?.length) return [];
+	const tree = spaceTree?.value;
+	if (!tree) return [];
 
 	const docKey = wikiDoc.value.doc?.doc_key;
-	const trail = trailToNode(
-		children,
-		(node) =>
-			(docKey && node.doc_key === docKey) ||
-			node.document_name === props.pageId,
-	);
+	const trail =
+		(docKey && tree.trail(docKey)) ||
+		tree.trail(tree.nodeByDocumentName(props.pageId)?.docKey);
 	if (!trail) return [];
 
 	return trail.map((node, i) => ({
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
-		route: crumbRoute(node, props.spaceId),
+		route: crumbRoute(tree, node, props.spaceId),
 	}));
 });
 
@@ -623,9 +613,11 @@ usePageMeta(() => {
 	return { title: [title, space?.doc?.space_name].filter(Boolean).join(' | ') };
 });
 
+// Skips the trimmed echo of a save from this input so a trailing space survives.
 watch(
 	displayTitle,
 	(newTitle) => {
+		if (editableTitle.value.trim() === newTitle) return;
 		editableTitle.value = newTitle;
 	},
 	{ immediate: true },
@@ -746,12 +738,9 @@ async function saveContent(content) {
 		return;
 	}
 
+	saveTitleIfChanged();
 	try {
-		await draftStore.saveContent(
-			wikiDoc.value.doc.doc_key,
-			content,
-			editableTitle.value,
-		);
+		await draftStore.saveContent(wikiDoc.value.doc.doc_key, content);
 	} catch (error) {
 		// The sync alert says so and stays up; a toast per blocked autosave would not.
 		if (error.code === 'version_conflict') return;

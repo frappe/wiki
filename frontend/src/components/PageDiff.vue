@@ -18,19 +18,21 @@
 				variant="subtle"
 				size="sm"
 			/>
-			<span v-if="summary" class="ms-auto shrink-0 text-xs text-ink-gray-5">{{ summary }}</span>
+			<span v-if="summary.length" class="ms-auto shrink-0 text-xs text-ink-gray-5">
+				<template v-for="(part, index) in summary" :key="part"><template v-if="index">, </template><bdi>{{ part }}</bdi></template>
+			</span>
 		</header>
 
 		<div v-if="page.change_type === 'reordered'" class="flex flex-wrap items-center gap-3 p-4 text-sm">
 			<div class="flex items-center gap-2 rounded-5 bg-surface-gray-2 px-3 py-2 text-ink-gray-6">
-				<span>{{ locationPath(page.location?.base) }}</span>
+				<bdi>{{ locationPath(page.location?.base) }}</bdi>
 				<Badge v-if="positionLabel(page.location?.base)" variant="subtle" theme="gray" size="sm">
 					{{ positionLabel(page.location?.base) }}
 				</Badge>
 			</div>
 			<span class="lucide-arrow-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
 			<div class="flex items-center gap-2 rounded-5 bg-surface-gray-2 px-3 py-2 font-medium text-ink-gray-8">
-				<span>{{ locationPath(page.location?.head) }}</span>
+				<bdi>{{ locationPath(page.location?.head) }}</bdi>
 				<Badge v-if="positionLabel(page.location?.head)" variant="subtle" theme="amber" size="sm">
 					{{ positionLabel(page.location?.head) }}
 				</Badge>
@@ -50,6 +52,10 @@
 			</a>
 		</div>
 
+		<p v-else-if="isEmpty" class="px-4 py-3 text-sm text-ink-gray-5">
+			{{ page.head ? __('This page is empty') : __('This page was empty') }}
+		</p>
+
 		<div v-else-if="view === 'markdown'" class="relative isolate z-0 p-4">
 			<DiffViewer
 				:old-content="page.base?.content || ''"
@@ -67,7 +73,7 @@
 				<template v-for="(row, index) in rows" :key="index">
 					<div v-if="row.kind === 'gap'" class="not-prose col-span-2 flex items-center gap-3 py-2 text-xs text-ink-gray-5">
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
-						{{ gapLabel(row.count) }}
+						<bdi>{{ gapLabel(row.count) }}</bdi>
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
 					</div>
 					<template v-else>
@@ -87,7 +93,7 @@
 				<template v-for="(row, index) in rows" :key="index">
 					<div v-if="row.kind === 'gap'" class="not-prose flex items-center gap-3 py-2 text-xs text-ink-gray-5">
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
-						{{ gapLabel(row.count) }}
+						<bdi>{{ gapLabel(row.count) }}</bdi>
 						<span class="flex-1 border-t border-dashed border-outline-gray-2" />
 					</div>
 					<template v-else-if="row.kind === 'change' && !row.tokens">
@@ -175,21 +181,27 @@ const rows = computed(() =>
 	props.changesOnly ? foldUnchanged(allRows.value) : allRows.value,
 );
 
+const isEmpty = computed(() =>
+	props.view === 'markdown'
+		? !props.page.base?.content?.trim() && !props.page.head?.content?.trim()
+		: !allRows.value.length,
+);
+
 // A page added or deleted has nothing to line up against.
 const layout = computed(() =>
 	props.page.base && props.page.head ? props.view : 'inline',
 );
 
 const summary = computed(() => {
-	if (props.page.is_group || props.page.is_external_link) return '';
-	if (props.page.change_type === 'reordered') return '';
+	if (props.page.is_group || props.page.is_external_link) return [];
+	if (props.page.change_type === 'reordered') return [];
 	const { added, edited, removed } = summarize(allRows.value);
 	const parts = [
 		added && __('{0} added', [added]),
 		edited && __('{0} edited', [edited]),
 		removed && __('{0} removed', [removed]),
 	].filter(Boolean);
-	return parts.length ? parts.join(', ') : __('No content changes');
+	return parts.length ? parts : [__('No content changes')];
 });
 
 function splitHtml(row, side) {

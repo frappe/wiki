@@ -3,6 +3,7 @@ import {
 	clickSidebarAddOption,
 	createDraftAndOpenEditor,
 	saveEditor,
+	waitForPageCreated,
 } from '../helpers/wiki';
 
 declare global {
@@ -160,7 +161,11 @@ test.describe('External Links', () => {
 			.getByRole('dialog')
 			.getByRole('button', { name: 'Save' })
 			.click();
-		await page.waitForLoadState('networkidle');
+		// The goto below would cancel a create still in flight.
+		await expect(
+			page.locator('aside').getByText(externalLinkTitle, { exact: true }),
+		).toBeVisible();
+		await waitForPageCreated(page);
 
 		// Also create a regular page so the space has a public page to open.
 		// The shared helper is what settles the draft route: creating a second

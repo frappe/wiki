@@ -52,7 +52,10 @@ async function approveAndMergeFromReview(page: Page) {
 
 /** Open the three-dots review menu and click one of its items. */
 async function clickReviewMenuItem(page: Page, name: string) {
-	await page.getByRole('button', { name: 'More actions' }).click();
+	await page
+		.getByRole('main')
+		.getByRole('button', { name: 'More actions' })
+		.click();
 	await page.getByRole('menuitem', { name }).click();
 }
 
@@ -181,7 +184,7 @@ test.describe('Change Request Flow', () => {
 		await page.goto(spaceUrl);
 		await page.waitForLoadState('networkidle');
 		await page.locator('aside').getByText(pageTitle, { exact: true }).click();
-		await editPage(page, 'Update the page');
+		await editPage(page);
 
 		await page.waitForFunction(() => window.wikiEditor !== undefined, {
 			timeout: 10000,
@@ -603,7 +606,10 @@ test.describe('Change Request Flow', () => {
 		// One-click self-serve publish from the editor: the Merge button walks
 		// the CR through submit -> approve -> merge under the hood (a manager
 		// merging their own draft needs no second person).
-		const mergeButton = page.getByRole('button', { name: 'Merge' });
+		const mergeButton = page.getByRole('button', {
+			name: 'Merge',
+			exact: true,
+		});
 		await expect(mergeButton).toBeVisible({ timeout: 10000 });
 		await mergeButton.click();
 		await expect(
@@ -717,6 +723,36 @@ test.describe('Change Request Flow', () => {
 		});
 	});
 
+	test('a change request title stops at 140 characters', async ({
+		page,
+		wiki,
+	}) => {
+		await createSpaceWithDraftPage(page, wiki, 'CR Title Limit');
+		await setEditorContentAndSave(page, `Title limit ${Date.now()}`);
+
+		await page.getByTitle('Edit title and description').click();
+		const detailsDialog = page.getByRole('dialog');
+		const detailsTitle = detailsDialog.getByLabel('Title');
+		await detailsTitle.fill('D'.repeat(150));
+		await expect(detailsTitle).toHaveValue('D'.repeat(140));
+		await detailsDialog.getByRole('button', { name: 'Save' }).click();
+		await expect(detailsDialog).toBeHidden({ timeout: 10000 });
+
+		await page.getByRole('button', { name: 'Submit for Review' }).click();
+		const submitDialog = page.getByRole('dialog');
+		const submitTitle = submitDialog.getByLabel('Title');
+		await submitTitle.fill('S'.repeat(150));
+		await expect(submitTitle).toHaveValue('S'.repeat(140));
+		await submitDialog
+			.getByRole('button', { name: 'Submit', exact: true })
+			.click();
+
+		await expect(page).toHaveURL(CHANGE_REQUEST_URL_RE, { timeout: 10000 });
+		await expect(
+			page.getByRole('heading', { name: 'S'.repeat(140), exact: true }),
+		).toBeVisible({ timeout: 10000 });
+	});
+
 	test('reject is terminal', async ({ page, request, wiki }) => {
 		const content = `Reject content ${Date.now()}`;
 		const reason = `Out of scope ${Date.now()}`;
@@ -755,6 +791,37 @@ test.describe('Change Request Flow', () => {
 			mergeThrew = true;
 		}
 		expect(mergeThrew).toBe(true);
+	});
+
+	test('a reviewer can reject while changes are requested', async ({
+		page,
+		request,
+		wiki,
+	}) => {
+		await createSpaceWithDraftPage(page, wiki, 'CR Reject Waiting');
+		await setEditorContentAndSave(page, `Waiting content ${Date.now()}`);
+		const crName = await submitForReviewFromEditor(page);
+		await callMethod(request, `${CR_METHOD}.request_changes`, {
+			name: crName,
+			comment: 'Please expand the intro',
+		});
+		await page.reload();
+		await expect(
+			page.getByText('Changes Requested', { exact: true }),
+		).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Approve', exact: true }),
+		).toHaveCount(0);
+
+		await clickReviewMenuItem(page, 'Reject');
+		const rejectDialog = page.getByRole('dialog');
+		await rejectDialog.getByRole('textbox').fill('The author went quiet');
+		await rejectDialog
+			.getByRole('button', { name: 'Reject', exact: true })
+			.click();
+		await expect(page.getByText('Rejected', { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 	});
 
 	test('assigning from the list opens the dialog without navigating', async ({

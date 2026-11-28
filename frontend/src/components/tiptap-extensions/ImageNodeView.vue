@@ -63,7 +63,7 @@
                 </div>
             </div>
             <div v-if="node.attrs.error" class="wiki-image-error py-2 text-center text-sm text-ink-red-4">
-                Upload failed: {{ node.attrs.error }}
+                {{ node.attrs.error }}
             </div>
             <input
                 v-else-if="isEditable && showCaption"
@@ -200,7 +200,13 @@ const menuOptions = computed(() => [
 				{
 					group: 'replace',
 					hideLabel: true,
-					options: [{ label: 'Replace image', icon: 'lucide-refresh-cw', submenu: replaceOptions.value }],
+					options: [
+						{
+							label: 'Replace image',
+							icon: 'lucide-refresh-cw',
+							submenu: replaceOptions.value,
+						},
+					],
 				},
 			]
 		: []),

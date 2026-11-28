@@ -40,9 +40,9 @@
                     :space-name="spaceStore.doc?.space_name"
                     :space-route="spaceStore.doc?.route"
                     :space-loaded="spaceStore.isLoaded"
-                    :tree-data="spaceStore.treeData"
+                    :tree="spaceStore.tree"
                     :change-type-map="spaceStore.changeTypeMap"
-                    :readonly="spaceStore.isReadonly || spaceStore.isTreeStale"
+                    :readonly="spaceStore.isTreeReadonly"
                     :selected-page-id="currentPageId"
                     :selected-draft-key="currentDraftKey"
                     @refresh="spaceStore.refreshTree"
@@ -68,103 +68,26 @@
             </main>
         </div>
 
-        <StartEditingDialog />
-
         <SpaceSettings
             v-model="showSpaceSettings"
             :space="spaceStore.space"
             :space-id="spaceId"
-            @open-update-routes="openUpdateRoutesDialog"
-            @open-clone="openCloneSpaceDialog"
         />
-
-        <Dialog v-model:open="showUpdateRoutesDialog">
-            <template #title>
-                <h3 class="text-2xl-semibold text-ink-gray-9">
-                    {{ __('Update Wiki Space Routes') }}
-                </h3>
-            </template>
-            <template #default>
-                <div class="space-y-4 py-2">
-                    <FormControl
-                        type="text"
-                        :label="__('Current Base Route')"
-                        :modelValue="spaceStore.doc?.route"
-                        :disabled="true"
-                    />
-                    <FormControl
-                        type="text"
-                        :label="__('New Base Route')"
-                        v-model="newRoute"
-                        :placeholder="__('Enter new route (without leading slash)')"
-                    />
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-                    <Button
-                        variant="solid"
-                        :loading="updatingRoutes"
-                        @click="updateRoutes(close)"
-                    >
-                        {{ __('Update Routes') }}
-                    </Button>
-                </div>
-            </template>
-        </Dialog>
-
-        <Dialog v-model:open="showCloneSpaceDialog">
-            <template #title>
-                <h3 class="text-2xl-semibold text-ink-gray-9">
-                    {{ __('Clone Wiki Space') }}
-                </h3>
-            </template>
-            <template #default>
-                <div class="space-y-4 py-2">
-                    <FormControl
-                        type="text"
-                        :label="__('New Space Route')"
-                        v-model="cloneRoute"
-                        :placeholder="__('Enter new route (without leading slash)')"
-                    />
-                </div>
-            </template>
-            <template #actions="{ close }">
-                <div class="flex justify-end gap-2">
-                    <Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-                    <Button
-                        variant="solid"
-                        :loading="cloningSpace"
-                        @click="cloneSpace(close)"
-                    >
-                        {{ __('Start Cloning') }}
-                    </Button>
-                </div>
-            </template>
-        </Dialog>
     </div>
 </template>
 
 <script setup>
-import {
-	Button,
-	Dialog,
-	FormControl,
-	PageHeaderMobile,
-	toast,
-} from 'frappe-ui';
+import { Button, PageHeaderMobile } from 'frappe-ui';
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MobileDrawer from '../components/MobileDrawer.vue';
 import SpaceModeStrip from '../components/SpaceModeStrip.vue';
 import SpaceSettings from '../components/SpaceSettings/SpaceSettings.vue';
 import SpaceTreePanel from '../components/SpaceTreePanel.vue';
-import StartEditingDialog from '../components/StartEditingDialog.vue';
 import { useMobile } from '../composables/useMobile';
 import { useNewPageRequest } from '../composables/useNewPageRequest';
 import { useSpaceSettings } from '../composables/useSpaceSettings';
-import { SPACE_TREE_KEY, firstPageIn } from '../lib/spaceTree.js';
+import { SPACE_TREE_KEY } from '../lib/spaceTree.js';
 import { useChangeRequestStore } from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
@@ -191,15 +114,8 @@ onMounted(() => {
 	window.__draftStore = draftStore;
 });
 onBeforeUnmount(() => {
-	delete window.__draftStore;
+	window.__draftStore = undefined;
 });
-
-const showUpdateRoutesDialog = ref(false);
-const showCloneSpaceDialog = ref(false);
-const newRoute = ref('');
-const updatingRoutes = ref(false);
-const cloneRoute = ref('');
-const cloningSpace = ref(false);
 
 const currentPageId = computed(() => route.params.pageId || null);
 const currentDraftKey = computed(() => route.params.docKey || null);
@@ -233,62 +149,8 @@ function openSettings() {
 // without every sibling route taking it too.
 provide(
 	SPACE_TREE_KEY,
-	computed(() => spaceStore.treeData),
+	computed(() => spaceStore.tree),
 );
-
-function openUpdateRoutesDialog() {
-	newRoute.value = spaceStore.doc?.route || '';
-	showUpdateRoutesDialog.value = true;
-}
-
-function openCloneSpaceDialog() {
-	if (spaceStore.doc?.route) {
-		cloneRoute.value = `${spaceStore.doc.route}-copy`;
-	} else {
-		cloneRoute.value = '';
-	}
-	showCloneSpaceDialog.value = true;
-}
-
-async function updateRoutes(close) {
-	if (!newRoute.value?.trim()) {
-		return;
-	}
-
-	updatingRoutes.value = true;
-	try {
-		await spaceStore.space.updateRoutes.submit({
-			new_route: newRoute.value.trim(),
-		});
-		close();
-		await spaceStore.space.reload();
-		await spaceStore.refreshTree();
-	} catch (error) {
-		console.error('Failed to update routes:', error);
-	} finally {
-		updatingRoutes.value = false;
-	}
-}
-
-async function cloneSpace(close) {
-	if (!cloneRoute.value?.trim()) {
-		return;
-	}
-
-	cloningSpace.value = true;
-	try {
-		await spaceStore.space.cloneWikiSpace.submit({
-			new_space_route: cloneRoute.value.trim(),
-		});
-		toast.success(__('Cloning started in background'));
-		close();
-	} catch (error) {
-		console.error('Failed to start clone:', error);
-		toast.error(error.messages?.[0] || __('Error starting clone'));
-	} finally {
-		cloningSpace.value = false;
-	}
-}
 
 // Remember the last page opened in this space (per-space, like the tree's
 // expanded-nodes state) so re-entering the space reopens it instead of the
@@ -310,39 +172,31 @@ watch(
 	{ immediate: true },
 );
 
-function findNodeByDocumentName(nodes, name) {
-	if (!nodes) return null;
-	for (const node of nodes) {
-		if (node.document_name === name) return node;
-		const found = findNodeByDocumentName(node.children, name);
-		if (found) return found;
-	}
-	return null;
-}
-
 // On the bare space route (welcome screen) open a page automatically: the
 // remembered page if it still exists, otherwise the tree's first page. Replace
 // rather than push so the back button returns to the library, not here.
 // `autoOpening` guards the async gap before route.name flips to 'SpacePage':
-// without it, a treeData update mid-navigation (e.g. a git-synced background
+// without it, a tree update mid-navigation (e.g. a git-synced background
 // sync) could fire a second replace and override the in-flight one.
+// The saved tree from the last visit can be out of date, so only the fresh
+// tree may redirect.
 let autoOpening = false;
-function autoOpenPage() {
-	if (autoOpening || route.name !== 'SpaceDetails') return;
-	const tree = spaceStore.treeData;
-	if (!tree || spaceStore.isTreeStale) return;
+function pageToOpen() {
+	const tree = spaceStore.tree;
+	if (!tree || spaceStore.isTreeStale) return null;
 
 	const remembered = localStorage.getItem(lastPageKey());
 	// A page staged for deletion is still in the tree, so the remembered one has
 	// to be checked for that too, or the space reopens on a page nothing can load.
-	const rememberedNode = remembered
-		? findNodeByDocumentName(tree.children, remembered)
-		: null;
-	const target =
-		(rememberedNode && !rememberedNode.is_deleted ? remembered : null) ||
-		firstPageIn(tree.children);
+	const rememberedNode = remembered && tree.nodeByDocumentName(remembered);
+	if (rememberedNode && !rememberedNode.isDeleted) return remembered;
+	return tree.firstPage();
+}
 
-	if (target) {
+watch(
+	() => route.name === 'SpaceDetails' && pageToOpen(),
+	(target) => {
+		if (!target || autoOpening || route.name !== 'SpaceDetails') return;
 		autoOpening = true;
 		router
 			.replace({
@@ -352,33 +206,28 @@ function autoOpenPage() {
 			.finally(() => {
 				autoOpening = false;
 			});
-	}
-}
-
-// treeData hydrates asynchronously (CR hydrate or readonly fetch), so refire
-// as it — and the route — settle.
-// The saved tree from the last visit can be out of date, so only the fresh
-// tree may redirect.
-watch([() => spaceStore.treeData, () => route.name], autoOpenPage, {
-	immediate: true,
-});
+	},
+	{ immediate: true },
+);
 
 // The open page can be deleted from under the reader: by this tab (the row is
 // struck through but the panel stays put) or by a bookmark to a page already
 // deleted in the draft. Its overlay is gone, so the editor would sit on a
 // skeleton forever. Fall back to the space, which opens the first live page.
+function isOpenPageDeleted() {
+	if (route.name !== 'SpacePage' || spaceStore.isTreeStale) return false;
+	const pageId = route.params.pageId;
+	return !!spaceStore.tree?.nodeByDocumentName(pageId)?.isDeleted && pageId;
+}
+
 watch(
-	[
-		() => spaceStore.treeData,
-		() => route.name,
-		() => route.params.pageId,
-	],
-	([tree, name, pageId]) => {
-		if (name !== 'SpacePage' || !tree || !pageId || spaceStore.isTreeStale)
-			return;
-		const node = findNodeByDocumentName(tree.children, pageId);
-		if (!node?.is_deleted) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+	isOpenPageDeleted,
+	(deletedPageId) => {
+		if (!deletedPageId) return;
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );
@@ -393,7 +242,10 @@ watch(
 	([name, editing, mayContribute, finalizing]) => {
 		if (name !== 'DraftChangeRequest' || editing || finalizing) return;
 		if (mayContribute === null) return;
-		router.replace({ name: 'SpaceDetails', params: { spaceId: props.spaceId } });
+		router.replace({
+			name: 'SpaceDetails',
+			params: { spaceId: props.spaceId },
+		});
 	},
 	{ immediate: true },
 );

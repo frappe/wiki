@@ -3,6 +3,9 @@ import { createResource } from 'frappe-ui';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
+// Frappe's default length for the doctype's Data field, which sets no length of its own.
+export const CHANGE_REQUEST_TITLE_MAX_LENGTH = 140;
+
 export const useChangeRequestStore = defineStore('changeRequest', () => {
 	const currentChangeRequest = ref(null);
 	// 'merging' | 'withdrawing' | 'submitting' | null, for the whole round
@@ -176,15 +179,18 @@ export const useChangeRequestStore = defineStore('changeRequest', () => {
 
 	// Batched mutation entrypoint. The backend applies the whole list atomically
 	// inside its request transaction, returns a temp_key_map for any newly
-	// created nodes, the canonical affected items, deleted doc_keys, the
-	// change summary and the new operation_version. Callers should pass the last `operation_version`
-	// they observed as `baseVersion` so the server can detect concurrent edits
-	// and respond with a structured `version_conflict` instead of clobbering.
-	async function applyOperations(changeRequestName, baseVersion, operations) {
+	// created nodes, the canonical affected items, deleted doc_keys and the
+	// change summary. A stale `baseStructureVersion`, or a stale
+	// `base_content_hash` on an op, gets a structured conflict instead of clobbering.
+	async function applyOperations(
+		changeRequestName,
+		operations,
+		baseStructureVersion = null,
+	) {
 		const result = await applyOperationsResource.submit({
 			name: changeRequestName,
-			base_version: baseVersion,
 			operations,
+			base_structure_version: baseStructureVersion,
 		});
 		if (
 			result?.changes &&

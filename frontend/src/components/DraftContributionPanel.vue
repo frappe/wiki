@@ -2,7 +2,7 @@
 	<div class="h-full flex flex-col">
 		<div v-if="crPage && crPage.doc_key === props.docKey" class="h-full flex flex-col">
 			<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 bg-surface-base px-3 sm:px-5">
-				<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+				<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0 flex-1" />
 
 				<div class="flex shrink-0 items-center gap-2">
 					<MergeChangeRequestButton v-if="!isMobile" />
@@ -23,7 +23,7 @@
 			<!-- The one scroller on this page: the editor body scrolls under
 			     the sticky toolbar, and the bubble menu and the outline rail
 			     both measure against it. -->
-			<ScrollArea v-if="!crPage.is_group" class="min-h-0 flex-1" viewport-class="pb-10">
+			<ScrollArea v-if="!node?.isGroup" class="min-h-0 flex-1" viewport-class="pb-10">
 				<WikiEditor v-if="editorKey" :key="editorKey" ref="editorRef" :content="editorContent" :document-key="props.docKey" :saved-content="savedContent" @save="saveContent" @save-all="flushOtherDirtyPages" @content-change="onEditorContentChange" @content-ready="onEditorContentReady">
 					<template #title>
 						<div class="pt-10">
@@ -31,7 +31,7 @@
 								<input
 									type="text"
 									v-model="editableTitle"
-									class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+									class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 									:placeholder="__('Page title')"
 									@blur="saveTitleIfChanged"
 									@keydown.enter="$event.target.blur()"
@@ -60,7 +60,7 @@
 						<input
 							type="text"
 							v-model="editableTitle"
-							class="text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
+							class="bidi-text text-3xl-semibold text-ink-gray-9 bg-transparent border-none outline-none w-full min-w-0 flex-1 focus:ring-0 p-0 placeholder:text-ink-gray-4"
 							:placeholder="__('Group name')"
 							@blur="saveTitleIfChanged"
 							@keydown.enter="$event.target.blur()"
@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { SPACE_TREE_KEY, crumbRoute, trailToNode } from '@/lib/spaceTree';
+import { SPACE_TREE_KEY, crumbRoute } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import {
 	Badge,
@@ -181,6 +181,7 @@ const draftStore = useDraftWorkspaceStore();
 const { isMobile } = useMobile();
 
 const crPage = ref(null);
+const node = computed(() => draftStore.findNode(props.docKey));
 // Becomes true only once we've confirmed the page genuinely doesn't exist,
 // so the "Draft not found" state never flashes during a normal load/switch.
 const loadFailed = ref(false);
@@ -191,7 +192,7 @@ let loadToken = 0;
 // Browser tab title: "{draft page} | {space}". Returning undefined while the
 // draft is still loading keeps the previous title instead of flashing a blank one.
 usePageMeta(() => {
-	const title = crPage.value?.title;
+	const title = crPage.value && node.value?.title;
 	if (!title) return;
 	const space = props.spaceId
 		? getCachedDocumentResource('Wiki Space', props.spaceId)
@@ -205,26 +206,24 @@ const spaceTree = inject(SPACE_TREE_KEY, null);
 // its tmp key, so it reads its home before it is ever saved. The last crumb
 // follows the title input rather than the stored title.
 const breadcrumbs = computed(() => {
-	const children = spaceTree?.value?.children;
-	if (!children?.length) return [];
-
-	const trail = trailToNode(children, (node) => node.doc_key === props.docKey);
+	const tree = spaceTree?.value;
+	const trail = tree?.trail(props.docKey);
 	if (!trail) return [];
 
 	return trail.map((node, i) => ({
 		label:
 			(i === trail.length - 1 ? editableTitle.value : node.title) ||
 			__('Untitled'),
-		route: crumbRoute(node, props.spaceId),
+		route: crumbRoute(tree, node, props.spaceId),
 	}));
 });
 
-// Read the page through the workspace store. Tmp pages live entirely on the
-// client; the store returns them from pagesByKey without hitting the
-// backend (which would 404 on a tmp_* key).
+// Read the page through the workspace store. A page still being created lives
+// on the client; the store returns it from pagesByKey without hitting the
+// backend (which would 404).
 //
 // Stale-while-revalidate: if we already have this page cached in the store
-// (a tmp create, a prior visit, or unsaved local edits) we paint it
+// (a new page, a prior visit, or unsaved local edits) we paint it
 // synchronously so switching pages is instant. The skeleton is reserved for
 // the cold case where nothing is cached yet. The background fetch then
 // revalidates whatever we showed.
@@ -270,14 +269,9 @@ function setCrPageFromStore(docKey, page = draftStore.pagesByKey[docKey]) {
 		crPage.value = null;
 		return;
 	}
-	const node = draftStore.findNode(docKey);
 	crPage.value = {
 		doc_key: docKey,
-		title: page.title,
-		route: page.route,
 		content: page.localContent ?? page.content,
-		is_published: page.isPublished,
-		is_group: node?.isGroup || false,
 	};
 }
 
@@ -323,59 +317,21 @@ async function flushOtherDirtyPages() {
 
 function onEditorContentChange(content, docKey = props.docKey, options = {}) {
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.recordEditorContent(docKey, content, title, options);
+	draftStore.recordEditorContent(docKey, content, options);
 }
 
 function onEditorContentReady(content, savedContent, docKey = props.docKey) {
 	if (!docKey) return;
-	const title = draftStore.pagesByKey[docKey]?.title ?? editableTitle.value;
-	draftStore.reconcileEditorContent(docKey, content, savedContent, title);
+	draftStore.reconcileEditorContent(docKey, content, savedContent);
 }
 
-// Once the create syncs, swap the URL from /draft/tmp_* to /draft/realKey.
-// Without this the panel would stay on a temp key after sync, and any
-// reload would 404 on get_cr_page.
-//
-// Immediate, because the create can resolve before this panel mounts — the
-// navigation to /draft/tmp_* and the create race each other, and on a fast
-// bench the create wins. A lazy watcher then never fires for a key that was
-// promoted moments earlier, stranding the page on "Draft not found".
+// Follows the stored title only when it or the page changes, and skips the
+// trimmed echo of a save from this input so a trailing space survives.
 watch(
-	() => draftStore.tempKeyResolutions[props.docKey],
-	(realKey) => {
-		if (realKey && realKey !== props.docKey) {
-			const currentContent = editorRef.value?.getMarkdown?.();
-			if (currentContent !== undefined) {
-				draftStore.updateLocalPageContent(
-					realKey,
-					currentContent,
-					editableTitle.value,
-				);
-				draftStore
-					.saveContent(realKey, currentContent, editableTitle.value)
-					.catch((error) => {
-						console.error('Error saving draft after create:', error);
-						toast.error(
-							error.messages?.[0] || error.message || __('Error saving draft'),
-						);
-					});
-			}
-			router.replace({
-				name: 'DraftChangeRequest',
-				params: { spaceId: props.spaceId, docKey: realKey },
-			});
-		}
-	},
-	{ immediate: true },
-);
-
-watch(
-	crPage,
-	(page) => {
-		if (page) {
-			editableTitle.value = page.title || '';
-		}
+	[() => props.docKey, () => node.value?.title],
+	([, title]) => {
+		if (editableTitle.value.trim() === title) return;
+		editableTitle.value = title || '';
 	},
 	{ immediate: true },
 );
@@ -429,7 +385,7 @@ const menuOptions = computed(() => {
 
 async function saveTitleIfChanged() {
 	const newTitle = editableTitle.value.trim();
-	if (!newTitle || newTitle === (crPage.value?.title || '')) return;
+	if (!newTitle || newTitle === (node.value?.title || '')) return;
 	if (!crPage.value?.doc_key) return;
 	try {
 		await draftStore.updateNode(crPage.value.doc_key, { title: newTitle });
@@ -439,13 +395,13 @@ async function saveTitleIfChanged() {
 }
 
 function openRouteDialog() {
-	editableRoute.value = crPage.value?.route || '';
+	editableRoute.value = node.value?.route || '';
 	showRouteDialog.value = true;
 }
 
 async function saveRoute(close) {
 	const newRoute = editableRoute.value.trim().replace(/^\/+/, '');
-	if (!newRoute || newRoute === (crPage.value?.route || '')) {
+	if (!newRoute || newRoute === (node.value?.route || '')) {
 		close();
 		return;
 	}
@@ -463,12 +419,9 @@ async function saveRoute(close) {
 
 async function saveContent(content) {
 	if (!crPage.value?.doc_key) return;
+	saveTitleIfChanged();
 	try {
-		await draftStore.saveContent(
-			crPage.value.doc_key,
-			content,
-			editableTitle.value,
-		);
+		await draftStore.saveContent(crPage.value.doc_key, content);
 	} catch (error) {
 		// The sync alert says so and stays up; a toast per blocked autosave would not.
 		if (error.code === 'version_conflict') return;

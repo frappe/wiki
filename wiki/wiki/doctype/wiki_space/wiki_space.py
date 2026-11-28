@@ -50,7 +50,7 @@ class WikiSpace(Document):
 		show_in_switcher: DF.Check
 		space_color: DF.Data | None
 		space_icon: DF.Data | None
-		space_name: DF.Data | None
+		space_name: DF.Data
 		switcher_order: DF.Int
 		wiki_sidebars: DF.Table[WikiGroupItem]
 	# end: auto-generated types
@@ -549,3 +549,7 @@ def delete_rows(doctype: str, field: str, values) -> None:
 			.run()
 		)
 	frappe.qb.from_(table).delete().where(condition).run()
+
+
+def space_name_from_route(route: str) -> str:
+	return route.replace("-", " ").replace("/", " ").title()

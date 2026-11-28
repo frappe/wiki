@@ -13,6 +13,7 @@ import { useSessionStore } from '@/stores/session';
 import { useUserStore } from '@/stores/user';
 import { Button, Dropdown } from 'frappe-ui';
 import { computed } from 'vue';
+import { useApps } from '../composables/useApps';
 import { useTheme } from '../composables/useTheme';
 import { useWikiSettings } from '../composables/useWikiSettings';
 
@@ -20,8 +21,10 @@ const sessionStore = useSessionStore();
 const userStore = useUserStore();
 const { open: openWikiSettings } = useWikiSettings();
 const { themeIcon, toggleTheme } = useTheme();
+const { appsMenuItems } = useApps();
 
 const menuOptions = computed(() => [
+	...appsMenuItems.value,
 	...(userStore.isWikiManager
 		? [
 				{

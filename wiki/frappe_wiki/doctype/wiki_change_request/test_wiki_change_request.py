@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
+from frappe.utils import add_days, now_datetime
 
 from wiki.api.wiki_space import _pending_revision_spaces
 from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
@@ -25,6 +26,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	get_change_request_review,
 	get_cr_page,
 	get_cr_tree,
+	get_editable_change_request,
 	get_merge_conflicts,
 	get_or_create_draft_change_request,
 	has_revision_changes,
@@ -45,6 +47,7 @@ from wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request import (
 	withdraw_change_request,
 )
 from wiki.frappe_wiki.doctype.wiki_revision.wiki_revision import (
+	create_revision,
 	create_revision_from_live_tree,
 	get_revision_item_map,
 )
@@ -1201,6 +1204,49 @@ class TestWikiChangeRequest(FrappeTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	def test_review_names_who_requested_changes(self):
+		space = create_test_wiki_space()
+		cr = self._cr_with_change(space, "Named reviewer")
+		self.assertIsNone(get_change_request_review(cr.name)["reviewer"])
+
+		submit_change_request(cr.name)
+		request_changes(cr.name, "needs work")
+
+		self.assertEqual(get_change_request_review(cr.name)["reviewer"]["full_name"], "Administrator")
+
+	def _returned_cr(self, space, author):
+		frappe.set_user(author)
+		try:
+			cr = self._cr_with_change(space, "Returned")
+			submit_change_request(cr.name)
+		finally:
+			frappe.set_user("Administrator")
+		request_changes(cr.name, "needs work")
+		frappe.db.set_value(
+			"Wiki Change Request", cr.name, "modified", add_days(now_datetime(), -1), update_modified=False
+		)
+		return cr
+
+	def test_author_reopens_a_returned_cr_over_a_newer_draft(self):
+		space = create_test_wiki_space()
+		author = create_user("cr-returned-author@example.com", "Wiki User").name
+		returned = self._returned_cr(space, author)
+
+		frappe.set_user(author)
+		try:
+			newer = self._cr_with_change(space, "Newer draft")
+			self.assertEqual(get_editable_change_request(space.name).name, newer.name)
+			self.assertEqual(get_editable_change_request(space.name, returned.name).name, returned.name)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_reviewer_does_not_reopen_a_returned_cr_by_name(self):
+		space = create_test_wiki_space()
+		author = create_user("cr-returned-owner@example.com", "Wiki User").name
+		returned = self._returned_cr(space, author)
+
+		self.assertIsNone(get_editable_change_request(space.name, returned.name))
+
 	def test_request_changes_requires_write_access(self):
 		space = create_test_wiki_space()
 		create_test_wiki_document(space.root_group, title="Page A")
@@ -1229,6 +1275,17 @@ class TestWikiChangeRequest(FrappeTestCase):
 		self.assertEqual(cr_doc.reviewed_by, frappe.session.user)
 		self.assertIsNotNone(cr_doc.reviewed_at)
 		self.assertIsNotNone(cr_doc.rejected_at)
+
+	def test_reject_after_changes_were_requested(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = self._cr_with_change(space, "CR 11h2")
+		submit_change_request(cr.name)
+		request_changes(cr.name, "Please fix")
+
+		reject_change_request(cr.name, "Author went quiet")
+
+		self.assertEqual(frappe.db.get_value("Wiki Change Request", cr.name, "status"), "Rejected")
 
 	def test_reject_requires_comment(self):
 		space = create_test_wiki_space()
@@ -2224,6 +2281,74 @@ class TestWikiChangeRequest(FrappeTestCase):
 		page.reload()
 		self.assertEqual(page.content, "cr-change")
 
+	def _resolved_conflict_merge(self, resolution):
+		"""A change request edits `page` and `clean`, and main edits `page` before the merge."""
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Contested", content="v1")
+		clean = create_test_wiki_document(space.root_group, title="Clean", content="clean-v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		clean_key = frappe.get_value("Wiki Document", clean.name, "doc_key")
+
+		cr = create_change_request(space.name, "Conflicting edit")
+		update_cr_page(cr.name, page_key, {"title": "Contested by CR", "content": "cr-change"})
+		update_cr_page(cr.name, clean_key, {"content": "clean-v2"})
+
+		page.content = "main-change"
+		page.save()
+		new_main = create_revision_from_live_tree(space.name, message="main update")
+		frappe.db.set_value("Wiki Space", space.name, "main_revision", new_main.name)
+
+		with self.assertRaises(frappe.ValidationError):
+			_approve_and_merge(cr.name)
+		resolve_merge_conflict(get_merge_conflicts(cr.name)[0]["name"], resolution)
+		retry_merge_after_resolution(cr.name)
+		return cr, page_key, clean_key
+
+	def test_merged_diff_leaves_out_changes_dropped_by_keep_main(self):
+		cr, page_key, clean_key = self._resolved_conflict_merge("ours")
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [clean_key])
+		review = get_change_request_review(cr.name)
+		self.assertEqual([p["doc_key"] for p in review["pages"]], [clean_key])
+		self.assertEqual(review["pages"][0]["head"]["content"], "clean-v2")
+
+		dropped = diff_change_request(cr.name, scope="page", doc_key=page_key)
+		self.assertEqual(dropped["base"]["content"], "main-change")
+		self.assertEqual(dropped["head"]["content"], "main-change")
+
+	def test_merged_diff_runs_from_main_when_the_change_request_wins(self):
+		cr, page_key, clean_key = self._resolved_conflict_merge("theirs")
+
+		pages = {p["doc_key"]: p for p in get_change_request_review(cr.name)["pages"]}
+		self.assertEqual(set(pages), {page_key, clean_key})
+		self.assertEqual(pages[page_key]["base"]["content"], "main-change")
+		self.assertEqual(pages[page_key]["head"]["content"], "cr-change")
+		self.assertEqual(pages[page_key]["head"]["title"], "Contested by CR")
+
+	def test_merged_diff_of_a_merge_parented_on_the_change_request_base(self):
+		"""Merges used to record the change request's base as parent, even when main had moved on."""
+		cr, _page_key, clean_key = self._resolved_conflict_merge("ours")
+
+		merged = frappe.get_doc("Wiki Change Request", cr.name)
+		merged_items = get_revision_item_map(merged.merge_revision)
+		frappe.db.delete("Wiki Revision", merged.merge_revision)
+		old_shape = create_revision(merged.wiki_space, merged_items, change_request=cr.name, is_merge=1)
+		frappe.db.set_value("Wiki Revision", old_shape.name, "parent_revision", merged.base_revision)
+		frappe.db.set_value("Wiki Change Request", cr.name, "merge_revision", old_shape.name)
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [clean_key])
+
+	def test_merged_diff_without_a_merge_revision_shows_the_change_request(self):
+		space = create_test_wiki_space()
+		page = create_test_wiki_document(space.root_group, title="Mine", content="v1")
+		page_key = frappe.get_value("Wiki Document", page.name, "doc_key")
+		cr = create_change_request(space.name, "Very old merge")
+		update_cr_page(cr.name, page_key, {"content": "v2"})
+		_approve_and_merge(cr.name)
+		frappe.db.set_value("Wiki Change Request", cr.name, "merge_revision", None)
+
+		self.assertEqual([c["doc_key"] for c in diff_change_request(cr.name)], [page_key])
+
 	def test_route_tracked_through_cr_and_applied_on_merge(self):
 		"""Route changes through a CR should be applied to the Wiki Document on merge."""
 		space = create_test_wiki_space()
@@ -2399,6 +2524,65 @@ class TestWikiChangeRequest(FrappeTestCase):
 		child_key = result["temp_key_map"]["tmp-child"]
 		child_page = get_cr_page(cr.name, child_key)
 		self.assertEqual(child_page["parent_key"], parent_key)
+
+	def test_apply_cr_operations_rejects_create_without_a_real_parent(self):
+		space = create_test_wiki_space()
+		cr = create_change_request(space.name, "Batch CR parentless")
+
+		for parent_key in (None, "", "no-such-key"):
+			with self.subTest(parent_key=parent_key), self.assertRaises(frappe.ValidationError):
+				apply_cr_operations(
+					cr.name,
+					operations=[
+						{"type": "create_node", "temp_key": "t", "parent_key": parent_key, "title": "Orphan"}
+					],
+				)
+		with self.assertRaises(frappe.ValidationError):
+			create_cr_page(cr.name, parent_key="", title="Orphan")
+
+		titles = {it.get("title") for it in get_revision_item_map(cr.reload().head_revision).values()}
+		self.assertNotIn("Orphan", titles)
+
+	def test_apply_cr_operations_rejects_move_that_detaches_a_node(self):
+		space = create_test_wiki_space()
+		group = create_test_wiki_document(space.root_group, title="Group", is_group=1)
+		child = create_test_wiki_document(group.name, title="Child")
+		cr = create_change_request(space.name, "Batch CR move parentless")
+		group_key = frappe.get_value("Wiki Document", group.name, "doc_key")
+		child_key = frappe.get_value("Wiki Document", child.name, "doc_key")
+
+		for target in (None, "no-such-key", group_key, child_key):
+			with self.subTest(target=target), self.assertRaises(frappe.ValidationError):
+				apply_cr_operations(
+					cr.name,
+					operations=[{"type": "move_node", "doc_key": group_key, "target_parent_key": target}],
+				)
+		with self.assertRaises(frappe.ValidationError):
+			move_cr_page(cr.name, group_key, new_parent_key="")
+
+		root_key = frappe.get_value("Wiki Document", space.root_group, "doc_key")
+		self.assertEqual(get_cr_page(cr.name, group_key)["parent_key"], root_key)
+
+	def test_apply_cr_operations_accepts_tree_root_after_root_key_drift(self):
+		space = create_test_wiki_space()
+		create_test_wiki_document(space.root_group, title="Page A")
+		cr = create_change_request(space.name, "Batch CR root drift")
+		frappe.db.set_value(
+			"Wiki Document", space.root_group, "doc_key", "drifted000000", update_modified=False
+		)
+
+		result = apply_cr_operations(
+			cr.name,
+			operations=[
+				{
+					"type": "create_node",
+					"temp_key": "t",
+					"parent_key": get_cr_tree(cr.name)["root_group"],
+					"title": "Top",
+				}
+			],
+		)
+		self.assertTrue(result["ok"])
 
 	def test_apply_cr_operations_update_node_keeps_route(self):
 		"""The author owns the URL once the page exists — a rename must not move it."""
@@ -3433,13 +3617,13 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 		with self.assertRaises(frappe.TimestampMismatchError):
 			merge_change_request(cr.name)
 
-	def test_write_that_waited_on_the_change_request_lock_counts_from_the_current_version(self):
+	def test_write_that_waited_on_the_change_request_lock_asks_to_try_again(self):
 		space = self.wiki.space(pages=[{"title": "Page"}])
 		cr = create_change_request(space.name, "Add a page")
 		root_key = frappe.db.get_value("Wiki Document", space.root_group, "doc_key")
 		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 
-		before = frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")
+		frappe.db.get_value("Wiki Change Request", cr.name, "operation_version")
 		self.commit_from_another_connection(
 			(
 				"update `tabWiki Change Request` set operation_version = operation_version + 1 where name = %s",
@@ -3447,12 +3631,13 @@ class TestConcurrentStructuralMerge(WikiFixtureMixin, FrappeTestCase):
 			),
 		)
 
-		result = apply_cr_operations(
-			cr.name,
-			operations=[{"type": "create_node", "temp_key": "tmp-1", "parent_key": root_key, "title": "New"}],
-		)
-
-		self.assertEqual(result["current_version"], before + 2)
+		with self.assertRaises(frappe.TimestampMismatchError):
+			apply_cr_operations(
+				cr.name,
+				operations=[
+					{"type": "create_node", "temp_key": "tmp-1", "parent_key": root_key, "title": "New"}
+				],
+			)
 
 	def test_merge_that_waited_on_the_tree_lock_renumbers_from_current_rows(self):
 		"""A merge that waits on the tree lock still holds the snapshot from before it waited,

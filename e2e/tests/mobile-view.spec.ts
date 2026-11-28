@@ -1,14 +1,7 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import type { WikiFactory } from '../helpers/factory';
 
-/**
- * Tests for mobile-specific UI elements and interactions.
- * These tests verify the mobile navigation experience including
- * the mobile header, bottom sheet sidebar, TOC dropdown, and theme toggle.
- */
-
-// Standard mobile viewport (iPhone SE)
 const mobileViewport = { width: 375, height: 667 };
 
 /**
@@ -28,7 +21,42 @@ async function createPublishedTestPage(
 	return `/${space.page(title).route}`;
 }
 
-/** Locator helpers using data-testid attributes */
+async function openOnMobile(page: Page, url: string) {
+	await page.setViewportSize(mobileViewport);
+	await page.goto(url);
+	await page.waitForLoadState('networkidle');
+}
+
+async function expectSheetOpen(bottomSheet: Locator) {
+	await expect(bottomSheet).toBeVisible({ timeout: 5000 });
+	// The sheet slides in and out, and a drag handle read mid-slide is gone by mousedown.
+	await expect
+		.poll(() =>
+			bottomSheet.evaluate(
+				(el) => window.innerHeight - el.getBoundingClientRect().bottom,
+			),
+		)
+		.toBe(0);
+}
+
+async function openBottomSheet(page: Page) {
+	await tid(page, 'mobile-menu-toggle').click();
+	const bottomSheet = tid(page, 'mobile-bottom-sheet');
+	await expectSheetOpen(bottomSheet);
+	return bottomSheet;
+}
+
+async function dragHandleDown(page: Page, distance: number) {
+	const box = await tid(page, 'mobile-drag-handle').boundingBox();
+	if (!box) throw new Error('drag handle has no box');
+	const x = box.x + box.width / 2;
+	const y = box.y + box.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x, y + distance, { steps: 5 });
+	await page.mouse.up();
+}
+
 const tid = (page: Page, id: string) => page.getByTestId(id);
 
 test.describe('Mobile View', () => {
@@ -37,55 +65,37 @@ test.describe('Mobile View', () => {
 			page,
 			wiki,
 		}) => {
-			// Create a test page first (at desktop size for admin)
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `mobile-header-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`mobile-header-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			// Now switch to mobile and visit the public page
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Mobile nav container should be visible
 			const mobileNav = tid(page, 'mobile-nav');
 			await expect(mobileNav).toBeVisible();
+			await expect(tid(page, 'mobile-header')).toBeVisible();
 
-			// Mobile header should be visible
-			const mobileHeader = tid(page, 'mobile-header');
-			await expect(mobileHeader).toBeVisible();
-
-			// Nav container should be sticky (check computed style, not class name)
 			const position = await mobileNav.evaluate(
 				(el) => getComputedStyle(el).position,
 			);
 			expect(position).toBe('sticky');
 
-			// Desktop sidebar should be hidden on mobile
-			const desktopSidebar = page.locator('.wiki-sidebar');
-			await expect(desktopSidebar).not.toBeVisible();
+			await expect(page.locator('.wiki-sidebar')).not.toBeVisible();
 		});
 
 		test('should display wiki space name in mobile header', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `mobile-space-name-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`mobile-space-name-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			// Switch to mobile and visit public page
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Space name element should be visible and non-empty
 			const spaceName = tid(page, 'mobile-space-name');
 			await expect(spaceName).toBeVisible();
-
-			const spaceNameText = await spaceName.textContent();
-			expect(spaceNameText?.trim().length).toBeGreaterThan(0);
+			expect((await spaceName.textContent())?.trim().length).toBeGreaterThan(0);
 		});
 	});
 
@@ -94,52 +104,30 @@ test.describe('Mobile View', () => {
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `bottom-sheet-open-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-open-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			// Switch to mobile and visit the public page
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Click the menu toggle button
-			await tid(page, 'mobile-menu-toggle').click();
-
-			// Bottom sheet should be visible
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
-
-			// Overlay backdrop should be visible
-			const overlay = tid(page, 'mobile-overlay');
-			await expect(overlay).toBeVisible();
+			await openBottomSheet(page);
+			await expect(tid(page, 'mobile-overlay')).toBeVisible();
 		});
 
 		test('should close bottom sheet when overlay is clicked', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `bottom-sheet-overlay-close-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-overlay-close-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Open the bottom sheet
-			await tid(page, 'mobile-menu-toggle').click();
-
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
-
-			// Click the overlay to close (click at top of viewport, away from bottom sheet)
+			// The overlay sits above the sheet, so click near the top of the viewport.
 			await page.mouse.click(187, 100);
 
-			// Bottom sheet should be hidden
 			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
 		});
 
@@ -147,29 +135,15 @@ test.describe('Mobile View', () => {
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `bottom-sheet-close-button-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-close-button-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
+			await bottomSheet.getByRole('button', { name: 'Close sidebar' }).click();
 
-			// Open the bottom sheet
-			await tid(page, 'mobile-menu-toggle').click();
-
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
-
-			// Click the close button inside bottom sheet
-			const closeButton = bottomSheet.getByRole('button', {
-				name: 'Close sidebar',
-			});
-			await closeButton.click();
-
-			// Bottom sheet should be hidden
 			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
 		});
 
@@ -177,188 +151,173 @@ test.describe('Mobile View', () => {
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-nav-test-${Date.now()}`;
 			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Open the bottom sheet
-			await tid(page, 'mobile-menu-toggle').click();
-
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
-
-			// Bottom sheet should contain a nav element with wiki links
 			const nav = bottomSheet.locator('nav');
 			await expect(nav).toBeVisible();
-
-			// Should have at least one wiki link (the page we just created)
-			const targetLink = nav.getByText(pageTitle, { exact: true });
-			await expect(targetLink).toBeVisible();
+			await expect(nav.getByText(pageTitle, { exact: true })).toBeVisible();
 		});
 
 		test('should close bottom sheet when navigation link is clicked', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
 			const pageTitle = `bottom-sheet-nav-click-test-${Date.now()}`;
 			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
+			await bottomSheet
+				.locator('nav')
+				.getByText(pageTitle, { exact: true })
+				.click();
 			await page.waitForLoadState('networkidle');
 
-			// Open the bottom sheet
-			await tid(page, 'mobile-menu-toggle').click();
-
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
-
-			// Click a navigation link
-			const nav = bottomSheet.locator('nav');
-			const targetLink = nav.getByText(pageTitle, { exact: true });
-			await expect(targetLink).toBeVisible();
-			await targetLink.click();
-
-			await page.waitForLoadState('networkidle');
-
-			// Bottom sheet should close after navigation
 			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
 		});
 
-		test('should have drag handle for swipe-to-dismiss', async ({
+		test('should close bottom sheet when dragged down past the threshold', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `bottom-sheet-drag-handle-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-drag-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
+			await dragHandleDown(page, 40);
+			await expectSheetOpen(bottomSheet);
 
-			// Open the bottom sheet
-			await tid(page, 'mobile-menu-toggle').click();
+			await dragHandleDown(page, 200);
+			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
+		});
 
-			const bottomSheet = tid(page, 'mobile-bottom-sheet');
-			await expect(bottomSheet).toBeVisible({ timeout: 5000 });
+		test('should close bottom sheet when the drag handle is tapped', async ({
+			page,
+			wiki,
+		}) => {
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-handle-tap-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
 
-			// Drag handle should be visible
-			const dragHandle = tid(page, 'mobile-drag-handle');
-			await expect(dragHandle).toBeVisible();
+			await tid(page, 'mobile-drag-handle').click();
+			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
 		});
 	});
 
 	test.describe('Mobile TOC Dropdown', () => {
-		test('should have TOC container in mobile header structure', async ({
+		test('should jump to a heading picked from the TOC dropdown', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page with headings at desktop viewport
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `mobile-toc-test-${Date.now()}`;
-			const tocContent = `## First Section
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`mobile-toc-test-${Date.now()}`,
+				`## First Section
 
 Content for first section.
 
 ## Second Section
 
-Content for second section.`;
+Content for second section.`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			const publicUrl = await createPublishedTestPage(
-				wiki,
-				pageTitle,
-				tocContent,
+			await tid(page, 'mobile-toc-toggle').click();
+			const tocLink = tid(page, 'mobile-header').getByRole('link', {
+				name: 'Second Section',
+			});
+			await tocLink.click();
+
+			await expect(page).toHaveURL(/#second-section$/);
+			await expect(tocLink).not.toBeVisible();
+		});
+
+		test('should list the new page headings after sidebar navigation', async ({
+			page,
+			wiki,
+		}) => {
+			const space = await wiki.space({
+				pages: [
+					{ title: 'Toc Nav Start', content: '## Start Heading\n\nStart.' },
+					{ title: 'Toc Nav Target', content: '## Target Heading\n\nTarget.' },
+				],
+			});
+			await openOnMobile(page, `/${space.page('Toc Nav Start').route}`);
+
+			const bottomSheet = await openBottomSheet(page);
+			await bottomSheet
+				.locator('nav')
+				.getByText('Toc Nav Target', { exact: true })
+				.click();
+			await expect(page).toHaveURL(
+				new RegExp(`${space.page('Toc Nav Target').route}$`),
 			);
 
-			// Switch to mobile and visit the public page
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Verify the page has headings rendered in content
-			const contentHeadings = page.locator('#wiki-content h2');
-			await expect(contentHeadings.first()).toBeVisible({ timeout: 10000 });
-
-			// Verify the mobile header exists
-			await expect(tid(page, 'mobile-header')).toBeVisible();
-
-			// The TOC dropdown toggle exists in DOM (may be hidden via x-show)
-			const tocToggle = tid(page, 'mobile-toc-toggle');
-			await expect(tocToggle).toHaveCount(1);
+			await tid(page, 'mobile-toc-toggle').click();
+			const toc = tid(page, 'mobile-header');
+			await expect(
+				toc.getByRole('link', { name: 'Target Heading' }),
+			).toBeVisible();
+			await expect(
+				toc.getByRole('link', { name: 'Start Heading' }),
+			).not.toBeVisible();
 		});
 
 		test('should render headings with anchor links on mobile', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page with headings
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `mobile-headings-test-${Date.now()}`;
-			const tocContent = `## Introduction
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`mobile-headings-test-${Date.now()}`,
+				`## Introduction
 
 Intro content.
 
 ## Getting Started
 
-Getting started content.`;
-
-			const publicUrl = await createPublishedTestPage(
-				wiki,
-				pageTitle,
-				tocContent,
+Getting started content.`,
 			);
+			await openOnMobile(page, publicUrl);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Verify headings are rendered with proper IDs for anchor links
 			const introHeading = page.locator('#wiki-content h2#introduction');
-			const gettingStartedHeading = page.locator(
-				'#wiki-content h2#getting-started',
-			);
-
 			await expect(introHeading).toBeVisible({ timeout: 10000 });
-			await expect(gettingStartedHeading).toBeVisible();
-
-			// Headings should have anchor links added by JS
-			await page.waitForTimeout(500); // Wait for anchor link JS
-			const anchorLink = introHeading.locator('a.heading-anchor');
-			await expect(anchorLink).toBeVisible();
+			await expect(
+				page.locator('#wiki-content h2#getting-started'),
+			).toBeVisible();
+			await expect(introHeading.locator('a.heading-anchor')).toBeVisible();
 		});
 	});
 
 	test.describe('Theme Toggle', () => {
-		test('should have theme toggle button in mobile header', async ({
+		test('should switch theme from the mobile header', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `theme-toggle-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`theme-toggle-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
+			const html = page.locator('html');
+			const before = await html.getAttribute('data-theme');
+			const after = before === 'dark' ? 'light' : 'dark';
 
-			// Theme toggle button should be visible
-			const themeToggle = tid(page, 'mobile-theme-toggle');
-			await expect(themeToggle).toBeVisible();
+			await tid(page, 'mobile-theme-toggle').click();
+			await expect(html).toHaveAttribute('data-theme', after);
+
+			await page.reload();
+			await expect(html).toHaveAttribute('data-theme', after);
 		});
 	});
 
@@ -367,20 +326,14 @@ Getting started content.`;
 			page,
 			wiki,
 		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `search-button-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`search-button-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
 
-			// Switch to mobile
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Click the search button
 			await tid(page, 'mobile-search-button').click();
 
-			// Search modal/dialog should open
 			const searchInput = page.locator(
 				'[role="dialog"] input, [role="combobox"], input[type="search"], input[placeholder*="Search"]',
 			);
@@ -389,55 +342,31 @@ Getting started content.`;
 	});
 
 	test.describe('Responsive Breakpoints', () => {
-		test('should hide mobile header on desktop viewport', async ({
+		test('should swap mobile header for the sidebar at the lg breakpoint', async ({
 			page,
 			wiki,
 		}) => {
-			// Create a test page first (at desktop)
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `responsive-breakpoints-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
-
-			// Start at mobile viewport
-			await page.setViewportSize(mobileViewport);
-			await page.goto(publicUrl);
-			await page.waitForLoadState('networkidle');
-
-			// Verify mobile nav is visible on mobile
-			const mobileNav = tid(page, 'mobile-nav');
-			await expect(mobileNav).toBeVisible();
-
-			// Switch to desktop viewport
-			await page.setViewportSize({ width: 1100, height: 900 });
-			await page.waitForTimeout(300);
-
-			// Mobile nav should now be hidden
-			await expect(mobileNav).not.toBeVisible();
-
-			// Desktop sidebar should be visible
-			const desktopSidebar = page.locator('.wiki-sidebar');
-			await expect(desktopSidebar).toBeVisible();
-		});
-
-		test('should show mobile header on tablet viewport', async ({
-			page,
-			wiki,
-		}) => {
-			// Create a test page first
-			await page.setViewportSize({ width: 1100, height: 900 });
-			const pageTitle = `tablet-viewport-test-${Date.now()}`;
-			const publicUrl = await createPublishedTestPage(wiki, pageTitle);
-
-			// Tablet viewport (below lg breakpoint of 1024px)
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`responsive-breakpoints-test-${Date.now()}`,
+				'## Section\n\nBody text.',
+			);
 			await page.setViewportSize({ width: 768, height: 1024 });
 			await page.goto(publicUrl);
 			await page.waitForLoadState('networkidle');
 
-			// Mobile nav should be visible on tablet (768px < 1024px lg breakpoint)
 			const mobileNav = tid(page, 'mobile-nav');
+			const sidebar = page.locator('.wiki-sidebar');
+			const toc = page.locator('#wiki-toc');
 			await expect(mobileNav).toBeVisible();
+			await expect(sidebar).not.toBeVisible();
+			await expect(toc).not.toBeVisible();
+
+			await page.setViewportSize({ width: 1100, height: 900 });
+
+			await expect(mobileNav).not.toBeVisible();
+			await expect(sidebar).toBeVisible();
+			await expect(toc).toBeVisible();
 		});
 	});
 });
-
-// Extend Window interface for Tiptap editor access in tests

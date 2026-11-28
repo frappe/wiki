@@ -38,9 +38,11 @@
 				<span class="lucide-file-text size-8 text-ink-gray-4 mb-3" aria-hidden="true" />
 				<h3 class="text-base-medium text-ink-gray-7 mb-1">{{ __('No pages yet') }}</h3>
 				<p class="text-sm text-ink-gray-5">
-					{{ readonly
+					{{ spaceStore.isGitSynced
 						? __('No pages have synced from the repository yet')
-						: __('Create your first page to get started') }}
+						: readonly
+							? __('No pages are published yet')
+							: __('Create your first page to get started') }}
 				</p>
 			</div>
 
@@ -48,7 +50,8 @@
 			     the same component, so selection, badges and row actions hold. -->
 			<WikiTree
 				v-else
-				:items="isSearching ? matches : treeData.children"
+				:tree="tree"
+				:matches="matches"
 				:change-type-map="changeTypeMap"
 				:parent-name="rootNode"
 				:space-id="spaceId"
@@ -87,7 +90,7 @@
 					<slot name="above-footer" />
 				</div>
 			</div>
-			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="whenEditing(() => openCreateDialog(rootNode, false))">
+			<Button class="flex-1" variant="subtle" :label="__('New page')" @click="openCreateDialog(rootNode, false)">
 				<template #prefix>
 					<span class="lucide-plus size-4" aria-hidden="true" />
 				</template>
@@ -122,7 +125,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isCreating" @click="createDocument(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -132,19 +135,19 @@
 		<Dialog v-model:open="showDeleteDialog">
 			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ __('Delete') }} "{{ deleteNode?.title }}"
+					{{ __('Delete') }} <bdi>"{{ deleteNode?.title }}"</bdi>
 				</h3>
 			</template>
 			<template #default>
 				<div class="space-y-4">
 					<p class="text-ink-gray-7">
 						{{ __('Are you sure you want to delete this') }}
-						{{ deleteNode?.is_group ? __('group') : __('page') }}?
+						{{ deleteNode?.isGroup ? __('group') : __('page') }}?
 					</p>
 					<p class="text-sm text-ink-gray-5">
 						{{ __('It stays in your draft, marked as deleted, until the change request is merged.') }}
 					</p>
-					<div v-if="deleteNode?.is_group && deleteChildCount > 0"
+					<div v-if="deleteNode?.isGroup && deleteChildCount > 0"
 						class="bg-surface-orange-1 border border-outline-orange-2 rounded-6 p-4">
 						<div class="flex items-start gap-3">
 							<span class="lucide-alert-triangle size-5 text-ink-orange-3 flex-shrink-0 mt-0.5" aria-hidden="true" />
@@ -163,8 +166,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" theme="gray" :loading="isDeleting"
-						@click="deleteDocument(close)">
+					<Button variant="solid" theme="gray" @click="deleteDocument(close)">
 						{{ __('Delete') }}
 					</Button>
 				</div>
@@ -174,20 +176,19 @@
 		<Dialog v-model:open="showRenameDialog">
 			<template #title>
 				<h3 class="text-2xl-semibold text-ink-gray-9">
-					{{ renameNode?.is_group ? __('Rename Group') : __('Change Title') }}
+					{{ renameNode?.isGroup ? __('Rename Group') : __('Change Title') }}
 				</h3>
 			</template>
 			<template #default>
 				<div class="space-y-4">
-					<FormControl v-model="renameTitle" :label="renameNode?.is_group ? __('Name') : __('Title')" type="text"
-						:placeholder="renameNode?.is_group ? __('Enter group name') : __('Enter page title')" autofocus />
+					<FormControl v-model="renameTitle" :label="renameNode?.isGroup ? __('Name') : __('Title')" type="text"
+						:placeholder="renameNode?.isGroup ? __('Enter group name') : __('Enter page title')" autofocus />
 				</div>
 			</template>
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isRenaming"
-						@click="renameDocument(close)">
+					<Button variant="solid" @click="renameDocument(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -211,7 +212,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isCreating" @click="createExternalLink(close)">
+					<Button variant="solid" :loading="startingEdit" @click="createExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -235,7 +236,7 @@
 			<template #actions="{ close }">
 				<div class="flex justify-end gap-2">
 					<Button variant="outline" @click="close">{{ __('Cancel') }}</Button>
-					<Button variant="solid" :loading="isUpdatingExternalLink" @click="updateExternalLink(close)">
+					<Button variant="solid" @click="updateExternalLink(close)">
 						{{ __('Save') }}
 					</Button>
 				</div>
@@ -249,7 +250,6 @@ import { useNewPageRequest } from '@/composables/useNewPageRequest';
 import { useStartEditing } from '@/composables/useStartEditing';
 import { useTreeDialogs } from '@/composables/useTreeDialogs';
 import { useTreeSearch } from '@/composables/useTreeSearch';
-import { firstPageIn } from '@/lib/spaceTree';
 import { useDraftWorkspaceStore } from '@/stores/draftWorkspace';
 import { useSpaceStore } from '@/stores/space';
 import { useStorage } from '@vueuse/core';
@@ -266,7 +266,7 @@ import SpaceIcon from './SpaceIcon.vue';
 import WikiTree from './WikiTree.vue';
 
 const props = defineProps({
-	treeData: {
+	tree: {
 		type: Object,
 		required: true,
 	},
@@ -307,11 +307,18 @@ const emit = defineEmits(['reorder-state-change']);
 
 const draftStore = useDraftWorkspaceStore();
 const spaceStore = useSpaceStore();
-const { requireEditing } = useStartEditing();
+const { starting: startingEdit, requireEditing } = useStartEditing();
 
-// In read mode, creating anything asks for a change request first.
-async function whenEditing(action) {
-	if (await requireEditing()) action();
+const spaceName = computed(() => spaceStore.doc?.space_name);
+
+// In read mode, saving a new page, group or link starts the change request.
+function ensureEditing(kind) {
+	const titles = {
+		page: () => __('New page in {0}', [spaceName.value]),
+		group: () => __('New group in {0}', [spaceName.value]),
+		link: () => __('New link in {0}', [spaceName.value]),
+	};
+	return requireEditing(titles[kind]());
 }
 
 // Same space-scoped key WikiTree reads, so useTreeDialogs' auto-expand of the
@@ -321,14 +328,9 @@ const expandedNodes = useStorage(
 	{},
 );
 
-const hasPages = computed(() => (props.treeData?.children?.length || 0) > 0);
-// Adding is for edit mode. Edit lives in a page's header, so a space with no
-// page to open keeps the footer for reading too.
-const showFooter = computed(
-	() =>
-		!props.readonly &&
-		(spaceStore.isEditing || !firstPageIn(props.treeData?.children)),
-);
+const hasPages = computed(() => props.tree.children().length > 0);
+// Shown in read mode too: saving a new page starts the change request.
+const showFooter = computed(() => !props.readonly && spaceStore.canEdit);
 
 // Client-side fuzzy filter over the in-memory tree (title + route). Results
 // render as a flat ranked list, not a pruned tree.
@@ -338,34 +340,29 @@ const {
 	matches,
 	hasResults,
 	scoreMap,
-} = useTreeSearch(toRef(props, 'treeData'));
+} = useTreeSearch(toRef(props, 'tree'));
 
 // A group in the result list has no children to open in place, so picking one
 // drops the search and opens it where it actually lives.
 function revealGroup(node) {
-	expandedNodes.value[node.doc_key] = true;
+	expandedNodes.value[node.docKey] = true;
 	searchQuery.value = '';
 }
 
 // Reveal a page opened from outside the tree (Edit link, reload, deep link).
 const rootEl = ref(null);
 
-function findAncestorKeys(nodes, isTarget) {
-	for (const node of nodes || []) {
-		if (isTarget(node)) return [];
-		const path = findAncestorKeys(node.children, isTarget);
-		if (path) return [node.doc_key, ...path];
-	}
-	return null;
-}
-
 const selectedAncestorKeys = computed(() => {
-	const { selectedPageId, selectedDraftKey } = props;
-	if (!selectedPageId && !selectedDraftKey) return null;
-	return findAncestorKeys(props.treeData?.children, (node) =>
-		selectedPageId
-			? !node.is_group && node.document_name === selectedPageId
-			: !node.document_name && node.doc_key === selectedDraftKey,
+	const { tree, selectedPageId, selectedDraftKey } = props;
+	const node = selectedPageId
+		? tree.nodeByDocumentName(selectedPageId)
+		: selectedDraftKey && tree.findNode(selectedDraftKey);
+	if (!node || (selectedPageId ? node.isGroup : node.documentName)) return null;
+	return (
+		tree
+			.trail(node.docKey)
+			?.slice(0, -1)
+			.map((ancestor) => ancestor.docKey) ?? null
 	);
 });
 
@@ -410,10 +407,6 @@ const {
 	showEditExternalLinkDialog,
 	editExternalLinkTitle,
 	editExternalLinkUrl,
-	isCreating,
-	isRenaming,
-	isDeleting,
-	isUpdatingExternalLink,
 	openCreateDialog,
 	openDeleteDialog,
 	createDocument,
@@ -429,6 +422,7 @@ const {
 	expandedNodes,
 	toRef(props, 'spaceRoute'),
 	toRef(props, 'rootNode'),
+	ensureEditing,
 );
 
 // The empty content column offers "New page" too, but the dialog that makes one
@@ -443,7 +437,7 @@ watch(
 	(requested) => {
 		if (!requested || props.readonly) return;
 		if (consumeNewPageRequest()) {
-			whenEditing(() => openCreateDialog(props.rootNode, false));
+			openCreateDialog(props.rootNode, false);
 		}
 	},
 	{ immediate: true },
@@ -454,12 +448,12 @@ const addOptions = [
 	{
 		label: __('New Group'),
 		icon: 'lucide-folder-plus',
-		onClick: () => whenEditing(() => openCreateDialog(props.rootNode, true)),
+		onClick: () => openCreateDialog(props.rootNode, true),
 	},
 	{
 		label: __('External Link'),
 		icon: 'lucide-link',
-		onClick: () => whenEditing(() => openExternalLinkDialog(props.rootNode)),
+		onClick: () => openExternalLinkDialog(props.rootNode),
 	},
 ];
 

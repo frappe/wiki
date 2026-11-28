@@ -14,7 +14,7 @@
 				@click="openAnalytics({ document: docName, title })"
 			>
 				<span class="lucide-chart-no-axes-column size-3.5" aria-hidden="true" />
-				{{ part.label }}
+				<bdi>{{ part.label }}</bdi>
 			</button>
 			<button
 				v-else-if="part.key === 'edited'"
@@ -25,9 +25,9 @@
 				@click="openSidePanel('history')"
 			>
 				<span class="lucide-history size-3.5" aria-hidden="true" />
-				{{ part.label }}
+				<bdi>{{ part.label }}</bdi>
 			</button>
-			<span v-else>{{ part.label }}</span>
+			<bdi v-else>{{ part.label }}</bdi>
 		</template>
 	</div>
 </template>
@@ -36,9 +36,10 @@
 import { useSidePanel } from '@/composables/useSidePanel';
 import { useSpaceSettings } from '@/composables/useSpaceSettings';
 import { countWords, readingMinutes } from '@/lib/readingStats';
+import { useSpaceStore } from '@/stores/space';
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core';
 import { createResource, dayjsLocal } from 'frappe-ui';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 const INGEST_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -65,12 +66,23 @@ const recentViews = createResource({
 	url: 'wiki.api.analytics.get_page_views',
 	params: { document: docName },
 	cache: ['page-views', docName],
-	auto: true,
 });
+
+// Page traffic is for people who can write the space; the server refuses others.
+const spaceStore = useSpaceStore();
+watch(
+	() => spaceStore.canWriteSpace,
+	(canWrite) => {
+		if (canWrite) recentViews.fetch();
+	},
+	{ immediate: true },
+);
 
 const visibility = useDocumentVisibility();
 useIntervalFn(() => {
-	if (visibility.value === 'visible') recentViews.reload();
+	if (visibility.value === 'visible' && spaceStore.canWriteSpace) {
+		recentViews.reload();
+	}
 }, INGEST_INTERVAL_MS);
 
 const parts = computed(() => {

@@ -31,20 +31,20 @@ export async function clickSidebarAddOption(
 		await openNewPageDialog(page);
 		return;
 	}
-	await showSidebarActions(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
 	await page.locator('button[title="Add a group or link"]').click();
 	await page.getByRole('menuitem', { name: option }).click();
-	await answerEditDialogIfAsked(
+	await expectDialog(
 		page,
 		option === 'New Group' ? /Create New Group/ : /External Link/,
 	);
 }
 
 /**
- * The sidebar's own "New page" button: shown in edit mode, and in read mode
- * only while the space has no pages. Scoped to the sidebar: an empty space draws a second
- * "New page" in the content column (spec 02 phase 5), so the name alone is
- * ambiguous there. The mobile tree lives in a drawer that is an aside too.
+ * The sidebar's own "New page" button, shown to anyone who can edit. Scoped to
+ * the sidebar: an empty space draws a second "New page" in the content column
+ * (spec 02 phase 5), so the name alone is ambiguous there. The mobile tree
+ * lives in a drawer that is an aside too.
  */
 export function newPageButton(page: Page) {
 	return page
@@ -53,56 +53,35 @@ export function newPageButton(page: Page) {
 		.first();
 }
 
-/**
- * The sidebar's add and row actions show only in edit mode, so a space with
- * pages is put into edit mode through the page header first.
- */
+/** Row actions show only in edit mode; a space in read mode gets there through Edit. */
 export async function showSidebarActions(page: Page) {
 	const edit = page
 		.getByRole('main')
 		.getByRole('button', { name: 'Edit', exact: true });
-	await expect(newPageButton(page).or(edit)).toBeVisible({ timeout: 15000 });
-	if (await newPageButton(page).isVisible()) return;
-	await edit.click();
-	await startEditing(page);
-	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
+	const draftCard = page
+		.locator('aside')
+		.getByRole('button', { name: 'More actions' });
+	await expect(edit.or(draftCard)).toBeVisible({ timeout: 15000 });
+	if (await edit.isVisible()) await editPage(page);
 }
 
-/**
- * Start creating a page from the sidebar. Leaves the create dialog open.
- *
- * In an empty space the button opens a change request on its own; any Edit
- * dialog that still appears is answered so callers only see the create dialog.
- */
+/** Start creating a page from the sidebar. Leaves the create dialog open. */
 export async function openNewPageDialog(page: Page) {
-	await showSidebarActions(page);
+	await expect(newPageButton(page)).toBeVisible({ timeout: 15000 });
 	await newPageButton(page).click();
-	await answerEditDialogIfAsked(page, /Create New (Page|Group)/);
+	await expectDialog(page, /Create New (Page|Group)/);
 }
 
-/** The "New change request" dialog Edit and every read-mode write open. */
-export function editDialog(page: Page) {
-	return page.getByRole('dialog').filter({ hasText: 'New change request' });
-}
-
-/** Name the change request in the open Edit dialog and start editing. */
-export async function startEditing(page: Page, title = 'E2E change') {
-	const dialog = editDialog(page);
-	await dialog.getByLabel('Title').fill(title);
-	await dialog.getByRole('button', { name: 'Start editing' }).click();
-	await expect(dialog).toBeHidden({ timeout: 15000 });
-}
-
-/** Click the page header's Edit and wait for the editor. */
-export async function editPage(page: Page, title = 'E2E change') {
+/** Click the page header's Edit and wait for the editor to take focus. */
+export async function editPage(page: Page) {
 	await page
 		.getByRole('main')
 		.getByRole('button', { name: 'Edit', exact: true })
 		.click();
-	await startEditing(page, title);
+	// The editor shows before its deferred autofocus runs; keys typed in between are lost.
 	await expect(
 		page.locator('.ProseMirror[contenteditable="true"]'),
-	).toBeVisible({ timeout: 15000 });
+	).toBeFocused({ timeout: 15000 });
 }
 
 /** Pick an item from a page's row menu in the sidebar tree. */
@@ -120,16 +99,11 @@ export async function openTreeRowMenuItem(
 	await page.getByRole('menuitem', { name: item }).click();
 }
 
-/**
- * After an action that may need a change request: answer the Edit dialog if it
- * appeared, or carry on once `next` (the action's own dialog) shows instead.
- */
-export async function answerEditDialogIfAsked(page: Page, next: RegExp) {
-	const nextDialog = page.getByRole('dialog').filter({ hasText: next });
-	await expect(editDialog(page).or(nextDialog)).toBeVisible({
-		timeout: 15000,
-	});
-	if (await editDialog(page).isVisible()) await startEditing(page);
+/** Read-mode actions start a change request first, so their dialog can take a moment. */
+async function expectDialog(page: Page, title: RegExp) {
+	await expect(page.getByRole('dialog').filter({ hasText: title })).toBeVisible(
+		{ timeout: 15000 },
+	);
 }
 
 /**
@@ -191,11 +165,16 @@ export async function createDraftAndOpenEditor(
 	await openNewPageDialog(page);
 	await page.getByLabel('Title').fill(title);
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-	await page.waitForLoadState('networkidle');
+	// Save starts the change request first, so the draft route can take a moment.
+	await page.waitForURL(/\/draft\//, { timeout: 15000 });
 
 	const editor = page.locator('.ProseMirror').first();
 	for (let attempt = 0; attempt < 3; attempt++) {
-		if (await editor.isVisible({ timeout: 5000 }).catch(() => false)) break;
+		const shown = await editor
+			.waitFor({ state: 'visible', timeout: 5000 })
+			.then(() => true)
+			.catch(() => false);
+		if (shown) break;
 		await page.reload();
 		await page.waitForLoadState('networkidle');
 		await page
@@ -255,16 +234,22 @@ export function generateWikiTitle(prefix = 'Test Page'): string {
 	return `${prefix} ${timestamp}-${random}`;
 }
 
-/**
- * The doc key of the draft currently open in the editor.
- *
- * A page created through the sidebar first lands on a temp key
- * (`/draft/tmp_…`) and is promoted to its real doc key once the create
- * round-trips. Reading the segment straight after the create therefore yields a
- * key no Wiki Document will ever carry — this waits for the promotion instead.
- */
+/** Wait until the server has the pages created in the sidebar. */
+export async function waitForPageCreated(page: Page) {
+	await page.waitForFunction(() => {
+		const store = (
+			window as unknown as {
+				__draftStore?: { pending: { type: string }[] };
+			}
+		).__draftStore;
+		return store && !store.pending.some((m) => m.type === 'create_node');
+	});
+}
+
+/** The doc key of the draft open in the editor, once the server has the page. */
 export async function currentDraftDocKey(page: Page): Promise<string> {
-	await page.waitForURL(/\/draft\/(?!tmp_)[^/?#]+/, { timeout: 15000 });
+	await page.waitForURL(/\/draft\/[^/?#]+/, { timeout: 15000 });
+	await waitForPageCreated(page);
 	const match = page.url().match(/\/draft\/([^/?#]+)/);
 	return decodeURIComponent(match?.[1] ?? '');
 }

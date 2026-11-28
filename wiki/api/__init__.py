@@ -44,6 +44,7 @@ def get_user_info() -> dict:
 		"last_name": user.last_name,
 		"full_name": user.full_name,
 		"email": user.email,
+		"user_type": user.user_type,
 		"user_image": user.user_image,
 		"roles": [{"role": row.role} for row in user.roles],
 		"brand_image": frappe.get_single_value("Website Settings", "banner_image"),
@@ -136,9 +137,15 @@ def upload_wiki_asset():
 	Wiki Setting is enabled, uploaded PNG/JPEG images are converted to WebP
 	before the File doc is returned, so the editor receives the optimized URL.
 	"""
+	from frappe import _
 	from frappe.handler import upload_file
+	from pypdf.errors import PyPdfError
 
-	file_doc = upload_file()
+	try:
+		file_doc = upload_file()
+	except PyPdfError:
+		frappe.throw(_("This PDF could not be read. The file may be damaged."))
+
 	if (
 		file_doc
 		and (file_doc.file_url or "").lower().endswith(CONVERTIBLE_IMAGE_EXTENSIONS)

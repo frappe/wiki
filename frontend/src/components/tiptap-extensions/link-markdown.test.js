@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
 import { MarkdownManager } from '@tiptap/markdown';
 import { StarterKit } from '@tiptap/starter-kit';
@@ -57,4 +57,57 @@ test('default StarterKit corrupts a pasted underlined link with ++', () => {
 // disables underline. The pasted link must serialize cleanly through that exact config.
 test('wikiStarterKit serializes a pasted underlined link without ++', () => {
 	assert.equal(serialize(wikiStarterKit()), '[Frappe](https://frappe.io)');
+});
+
+function parsedLinks(markdown) {
+	const starterKit = wikiStarterKit();
+	const manager = new MarkdownManager({
+		extensions: [
+			...starterKit.config.addExtensions.call({
+				options: starterKit.options,
+				name: 'starterKit',
+			}),
+			WikiLink,
+		],
+	});
+	const links = [];
+	const walk = (node) => {
+		for (const mark of node.marks ?? []) {
+			if (mark.type === 'link') links.push(mark.attrs.href);
+		}
+		for (const child of node.content ?? []) walk(child);
+	};
+	walk(manager.parse(markdown));
+	return links;
+}
+
+test.each([
+	'javascript:alert(1)',
+	'JaVaScRiPt:alert(1)',
+	'javascript://%0aalert(1)',
+	'data:text/html,x',
+	'vbscript:x',
+])('opens a stored %s link as plain text', (href) => {
+	assert.deepEqual(parsedLinks(`[text](${href})`), []);
+});
+
+test.each([
+	'https://example.com',
+	'mailto:team@example.com',
+	'tel:+41791112233',
+	'/docs/setup',
+	'wiki:abc123',
+	'slack://channel',
+])('keeps the stored %s link', (href) => {
+	assert.deepEqual(parsedLinks(`[text](${href})`), [href]);
+});
+
+test.each([
+	['javascript:alert(1)', false],
+	['java\tscript:alert(1)', false],
+	['data:text/html,x', false],
+	['https://example.com', null],
+])('pasted html with the href %j parses to %j', (href, attrs) => {
+	const [rule] = WikiLink.config.parseHTML.call({});
+	assert.equal(rule.getAttrs({ getAttribute: () => href }), attrs);
 });

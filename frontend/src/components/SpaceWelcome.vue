@@ -87,14 +87,12 @@ const isSyncing = computed(() => {
 	return status === 'Pending' || status === 'Running' || !status;
 });
 
-// treeData stays null until the tree lands, on both the CR and read-only paths.
-const isTreeLoaded = computed(() => spaceStore.treeData != null);
+// The tree stays null until it lands, on both the CR and read-only paths.
+const isTreeLoaded = computed(() => spaceStore.tree != null);
 
 // Same test the sidebar's own empty state uses, so the two columns never
 // disagree about whether the space has anything in it.
-const hasPages = computed(
-	() => (spaceStore.treeData?.children?.length || 0) > 0,
-);
+const hasPages = computed(() => spaceStore.tree?.children().length > 0);
 
 const emptyHeading = computed(() =>
 	spaceStore.isGitSynced

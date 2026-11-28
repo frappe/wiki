@@ -1,7 +1,7 @@
 <template>
 	<div class="flex flex-col h-full">
 		<div class="flex h-12 shrink-0 items-center gap-2 border-b border-outline-gray-2 px-3 sm:px-5">
-			<Breadcrumbs :items="breadcrumbs" class="min-w-0 flex-1" />
+			<Breadcrumbs :items="breadcrumbs" class="bidi-crumbs min-w-0 flex-1" />
 
 			<div class="flex shrink-0 items-center gap-2">
 				<Button
@@ -40,12 +40,6 @@
 					>
 						{{ __('Approve') }}
 					</Button>
-
-					<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
-						<Button variant="subtle" :title="__('More actions')">
-							<span class="lucide-more-horizontal size-4" aria-hidden="true" />
-						</Button>
-					</Dropdown>
 				</template>
 
 				<Button
@@ -56,6 +50,12 @@
 				>
 					{{ __('Withdraw') }}
 				</Button>
+
+				<Dropdown v-if="reviewMenuOptions.length" :options="reviewMenuOptions" align="end">
+					<Button variant="subtle" :title="__('More actions')">
+						<span class="lucide-more-horizontal size-4" aria-hidden="true" />
+					</Button>
+				</Dropdown>
 			</div>
 		</div>
 
@@ -65,15 +65,15 @@
 				<Badge variant="subtle" :theme="statusTheme(changeRequest.doc.status)">
 					{{ changeRequest.doc.status }}
 				</Badge>
-				<h1 class="mt-2 text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
+				<h1 class="bidi-text mt-2 break-words text-2xl-semibold text-ink-gray-9">{{ changeRequest.doc.title }}</h1>
 				<div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-gray-5">
 					<Avatar
 						:image="review.data?.author.image"
 						:label="authorName"
 						size="sm"
 					/>
-					<span class="text-ink-gray-7">{{ authorName }}</span>
-					<span>
+					<bdi class="text-ink-gray-7">{{ authorName }}</bdi>
+					<span class="bidi-text">
 						{{ __('opened {0}', [dayjsLocal(changeRequest.doc.creation).fromNow()]) }}
 						<template v-if="pages.length">· {{ pageCount }}</template>
 					</span>
@@ -84,14 +84,57 @@
 				</div>
 				<p
 					v-if="changeRequest.doc.description"
-					class="mt-4 max-w-3xl whitespace-pre-line text-p-base text-ink-gray-7"
+					class="bidi-text mt-4 max-w-3xl whitespace-pre-line text-p-base text-ink-gray-7"
 				>
 					{{ changeRequest.doc.description }}
 				</p>
 			</div>
+			<section
+				v-if="changeRequest.doc?.status === 'Changes Requested'"
+				class="mb-8 flex flex-wrap items-start gap-3 rounded-6 border border-outline-red-2 bg-surface-red-2 p-4"
+			>
+				<span class="lucide-message-circle mt-0.5 size-5 shrink-0 text-ink-red-5" aria-hidden="true" />
+				<div class="min-w-0 flex-1 basis-64">
+					<h2 class="font-medium text-ink-red-7">{{ feedbackHeading }}</h2>
+					<p
+						v-if="changeRequest.doc.review_comment"
+						dir="auto"
+						class="mt-1 whitespace-pre-line break-words text-p-base text-ink-gray-8"
+					>{{ changeRequest.doc.review_comment }}</p>
+					<p v-if="canRevise" class="mt-2 text-sm text-ink-gray-6">
+						{{ __('Make the requested changes, then submit for review again.') }}
+					</p>
+				</div>
+				<Button
+					v-if="canRevise"
+					variant="solid"
+					icon-left="lucide-pencil"
+					:loading="startingEdit"
+					@click="handleEdit"
+				>
+					{{ __('Edit change request') }}
+				</Button>
+			</section>
 			<!-- Conflict resolution banner -->
 			<div
-				v-if="hasConflicts"
+				v-if="hasConflicts && allResolved"
+				class="mb-4 p-4 bg-surface-green-2 border border-outline-green-2 rounded-6"
+			>
+				<div class="flex items-start gap-3">
+					<span class="lucide-circle-check size-5 text-ink-green-5 shrink-0 mt-0.5" aria-hidden="true" />
+					<div>
+						<p class="font-medium text-ink-green-7">{{ __('Ready to merge') }}</p>
+						<p class="text-sm text-ink-green-6 mt-1">
+							{{ __('Every conflict has a choice. Resolve & Merge applies them.') }}
+						</p>
+						<p class="text-sm-medium text-ink-green-5 mt-2">
+							{{ resolvedCount }}/{{ conflicts.length }} {{ __('resolved') }}
+						</p>
+					</div>
+				</div>
+			</div>
+			<div
+				v-else-if="hasConflicts"
 				class="mb-4 p-4 bg-surface-amber-2 border border-outline-amber-2 rounded-6"
 			>
 				<div class="flex items-start gap-3">
@@ -122,17 +165,25 @@
 							class="border border-outline-gray-2 rounded-6 overflow-hidden"
 							:class="{ 'border-outline-amber-3': !resolutions[conflict.name] }"
 						>
-							<div
-								class="flex items-center justify-between p-4 bg-surface-gray-1 cursor-pointer"
+							<button
+								type="button"
+								class="flex w-full items-center justify-between p-4 text-start bg-surface-gray-1 hover:bg-surface-gray-2 focus-visible:outline-none focus-visible:ring focus-visible:ring-outline-gray-3"
+								:aria-expanded="expandedConflicts.has(conflict.name)"
 								@click="toggleConflict(conflict.name)"
 							>
 								<div class="flex items-center gap-3">
-									<div class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
+									<div
+										v-if="resolutions[conflict.name]"
+										class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-green-2 text-ink-green-5"
+									>
+										<span class="lucide-check size-4" aria-hidden="true" />
+									</div>
+									<div v-else class="flex items-center justify-center size-8 rounded-full shrink-0 bg-surface-amber-2 text-ink-amber-5">
 										<span class="lucide-alert-triangle size-4" aria-hidden="true" />
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
-											<span class="font-medium text-ink-gray-9">
+											<span class="bidi-text font-medium text-ink-gray-9">
 												{{ conflict.ours_title || conflict.theirs_title || conflict.doc_key }}
 											</span>
 											<Badge variant="subtle" :theme="getConflictTheme(conflict.conflict_type)" size="sm">
@@ -144,7 +195,7 @@
 												theme="green"
 												size="sm"
 											>
-												{{ resolutions[conflict.name] === 'ours' ? __('Keep Main') : __('Keep Your Changes') }}
+												{{ resolutions[conflict.name] === 'ours' ? __('Keep main') : __('Keep this change request') }}
 											</Badge>
 										</div>
 									</div>
@@ -152,24 +203,20 @@
 								<span
 									class="lucide-chevron-down size-5 text-ink-gray-4 transition-transform"
 									:class="{ 'rotate-180': expandedConflicts.has(conflict.name) }" aria-hidden="true" />
-							</div>
+							</button>
 
 							<div v-if="expandedConflicts.has(conflict.name)" class="border-t border-outline-gray-2">
-								<div class="grid grid-cols-2 gap-4 px-4 pt-4">
-									<FormControl
-										type="checkbox"
-										:label="__('Keep Main')"
-										:modelValue="resolutions[conflict.name] === 'ours'"
-										@update:modelValue="setResolution(conflict.name, 'ours')"
-									/>
-									<FormControl
-										type="checkbox"
-										:label="__('Keep Your Changes')"
-										:modelValue="resolutions[conflict.name] === 'theirs'"
-										@update:modelValue="setResolution(conflict.name, 'theirs')"
+								<div class="px-4 pt-4">
+									<TabButtons
+										v-model="resolutions[conflict.name]"
+										:options="resolutionOptions"
 									/>
 								</div>
 								<div class="p-4 relative z-0 isolate">
+									<div class="mb-2 grid grid-cols-2 gap-4 text-sm-medium text-ink-gray-6">
+										<span>{{ __('Main') }}</span>
+										<span>{{ __('This change request') }}</span>
+									</div>
 									<DiffViewer
 										:old-content="conflict.ours_content || ''"
 										:new-content="conflict.theirs_content || ''"
@@ -208,8 +255,11 @@
 					</div>
 
 					<div v-else class="flex flex-col items-center gap-2 rounded-5 border border-dashed border-outline-gray-2 py-12 text-center">
-						<p class="text-base text-ink-gray-7">{{ __('No changes yet') }}</p>
-						<p class="text-p-sm text-ink-gray-5">{{ __('Edit a page and it shows up here.') }}</p>
+						<p v-if="changeRequest.doc?.status === 'Merged'" class="text-base text-ink-gray-7">{{ __('No changes went live') }}</p>
+						<template v-else>
+							<p class="text-base text-ink-gray-7">{{ __('No changes yet') }}</p>
+							<p class="text-p-sm text-ink-gray-5">{{ __('Edit a page and it shows up here.') }}</p>
+						</template>
 					</div>
 				</template>
 			</div>
@@ -341,6 +391,7 @@ import AssigneeAvatars from '@/components/AssigneeAvatars.vue';
 import PageDiff from '@/components/PageDiff.vue';
 import { documentNameFor } from '@/composables/useChangeRequestActions';
 import { useDiffView } from '@/composables/useDiffView';
+import { useMobile } from '@/composables/useMobile';
 import { statusTheme } from '@/lib/changeRequestStatus';
 import { destructiveMenuOption } from '@/lib/menu';
 import { useChangeRequestStore } from '@/stores/changeRequest';
@@ -460,14 +511,23 @@ const withdrawResource = createResource({
 });
 
 const spaceStore = useSpaceStore();
-const breadcrumbs = computed(() => [
-	{
-		label: spaceStore.doc?.space_name || props.spaceId,
-		route: { name: 'SpaceDetails', params: { spaceId: props.spaceId } },
-	},
-	{ label: __('Change requests'), route: { name: 'ChangeRequests' } },
-	{ label: changeRequest.doc?.title || props.changeRequestId },
-]);
+const { isMobile } = useMobile();
+const breadcrumbs = computed(() => {
+	const changeRequests = {
+		label: __('Change requests'),
+		route: { name: 'ChangeRequests' },
+	};
+	// On a phone the app bar names the space and the heading names the change request.
+	if (isMobile.value) return [changeRequests];
+	return [
+		{
+			label: spaceStore.doc?.space_name || props.spaceId,
+			route: { name: 'SpaceDetails', params: { spaceId: props.spaceId } },
+		},
+		changeRequests,
+		{ label: changeRequest.doc?.title || props.changeRequestId },
+	];
+});
 
 watch(
 	() => changeRequest.doc?.status,
@@ -519,6 +579,24 @@ const canReview = computed(() => {
 	);
 });
 
+// A reviewer can also close a CR whose author never comes back with changes.
+const canReject = computed(() => {
+	return (
+		capabilities.value.can_write &&
+		['In Review', 'Approved', 'Changes Requested'].includes(
+			changeRequest.doc?.status,
+		)
+	);
+});
+
+// Open conflicts outlive the failed merge that found them.
+watch(
+	() => canReview.value && changeRequest.doc?.status === 'Approved',
+	(approved) => {
+		if (approved) fetchConflicts();
+	},
+);
+
 // Withdraw pulls an in-review CR back to Draft for the author to keep editing.
 // Once Changes Requested the CR is already editable, so there is nothing to
 // withdraw — the author just edits and resubmits.
@@ -533,6 +611,22 @@ const canEditInReview = computed(() => {
 		(isOwner.value || capabilities.value.can_write) &&
 		['In Review', 'Approved'].includes(changeRequest.doc?.status)
 	);
+});
+
+// Only the author picks a returned change request back up; reviewers read the feedback.
+const canRevise = computed(() => {
+	return (
+		isOwner.value &&
+		capabilities.value.can_contribute &&
+		changeRequest.doc?.status === 'Changes Requested'
+	);
+});
+
+const feedbackHeading = computed(() => {
+	const reviewer = review.data?.reviewer?.full_name;
+	return reviewer
+		? __('{0} requested changes', [reviewer])
+		: __('Changes requested');
 });
 
 const startingEdit = ref(false);
@@ -571,7 +665,7 @@ const reviewMenuOptions = computed(() => {
 	if (hasConflicts.value) return [];
 	const status = changeRequest.doc?.status;
 	const groups = [];
-	if (['In Review', 'Approved'].includes(status)) {
+	if (canReview.value) {
 		const decisions = [
 			{
 				label: __('Request changes'),
@@ -609,7 +703,7 @@ const reviewMenuOptions = computed(() => {
 		);
 	}
 	// Authors who can also review have no standalone Withdraw button.
-	if (canWithdraw.value) {
+	if (canWithdraw.value && canReview.value) {
 		groups.push({
 			group: __('Author'),
 			hideLabel: true,
@@ -622,7 +716,7 @@ const reviewMenuOptions = computed(() => {
 			],
 		});
 	}
-	if (['In Review', 'Approved'].includes(status)) {
+	if (canReject.value) {
 		groups.push({
 			group: __('Reject'),
 			hideLabel: true,
@@ -641,13 +735,10 @@ const reviewMenuOptions = computed(() => {
 	return groups;
 });
 
-function setResolution(conflictName, value) {
-	if (resolutions[conflictName] === value) {
-		delete resolutions[conflictName];
-	} else {
-		resolutions[conflictName] = value;
-	}
-}
+const resolutionOptions = [
+	{ label: __('Keep main'), value: 'ours' },
+	{ label: __('Keep this change request'), value: 'theirs' },
+];
 
 function toggleConflict(conflictName) {
 	if (expandedConflicts.has(conflictName)) {
@@ -663,11 +754,7 @@ async function fetchConflicts() {
 			name: props.changeRequestId,
 		});
 		conflicts.value = result || [];
-		// Default all resolutions to 'theirs' (Keep Your Changes)
 		for (const key in resolutions) delete resolutions[key];
-		for (const conflict of conflicts.value) {
-			resolutions[conflict.name] = 'theirs';
-		}
 		hasConflicts.value = conflicts.value.length > 0;
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error loading conflicts'));
@@ -744,6 +831,7 @@ async function handleRequestChanges(close) {
 		requestChangesComment.value = '';
 		close?.();
 		changeRequest.reload();
+		review.reload();
 	} catch (error) {
 		toast.error(error.messages?.[0] || __('Error requesting changes'));
 	}

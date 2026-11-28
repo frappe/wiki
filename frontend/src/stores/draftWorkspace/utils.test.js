@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 
-import { normalizeNode } from './treeModel.js';
-import { restoredDraftBuffer, toPublished } from './utils.js';
+import { isRetryableError, makeDocKey, toPublished } from './utils.js';
+
+test('makeDocKey gives a key the server patterns accept', () => {
+	assert.match(makeDocKey(), /^[0-9a-f]{32}$/);
+	assert.notEqual(makeDocKey(), makeDocKey());
+});
 
 test('toPublished treats server checkbox ints correctly', () => {
 	// Frappe sends 0/1 over JSON — 0 must read as unpublished (the old
@@ -17,41 +21,10 @@ test('toPublished treats server checkbox ints correctly', () => {
 	assert.equal(toPublished(null), true);
 });
 
-test('normalizeNode reads is_published: 0 as unpublished', () => {
-	const node = normalizeNode({
-		doc_key: 'k1',
-		title: 'Introduction',
-		is_published: 0,
-		children: [{ doc_key: 'k2', title: 'Child', is_published: 1 }],
-	});
-
-	assert.equal(node.isPublished, false);
-	assert.equal(node.children[0].isPublished, true);
-});
-
-test('restored draft buffer takes publish state from the tree node', () => {
-	const buffer = restoredDraftBuffer({
-		docKey: 'page-1',
-		title: 'Introduction',
-		content: 'server content',
-		localContent: 'unsaved local content',
-		node: { route: 'space/introduction', isPublished: false },
-	});
-
-	assert.equal(buffer.isPublished, false);
-	assert.equal(buffer.route, 'space/introduction');
-	assert.equal(buffer.content, 'server content');
-	assert.equal(buffer.localContent, 'unsaved local content');
-});
-
-test('restored draft buffer keeps published pages published', () => {
-	const buffer = restoredDraftBuffer({
-		docKey: 'page-2',
-		title: 'Guide',
-		content: 'x',
-		localContent: 'y',
-		node: { route: 'space/guide', isPublished: true },
-	});
-
-	assert.equal(buffer.isPublished, true);
+test('isRetryableError retries what may yet land and drops what the server refused', () => {
+	assert.equal(isRetryableError(new TypeError('Failed to fetch')), true);
+	assert.equal(isRetryableError({ exc_type: 'TimestampMismatchError' }), true);
+	assert.equal(isRetryableError({ exc_type: 'ValidationError' }), false);
+	assert.equal(isRetryableError({ exc_type: 'PermissionError' }), false);
+	assert.equal(isRetryableError({ exc_type: 'PermissionError' }, true), true);
 });

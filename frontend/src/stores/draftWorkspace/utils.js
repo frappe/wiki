@@ -21,29 +21,38 @@ export function toPublished(value) {
 	return value == null ? true : Boolean(value);
 }
 
-// Buffer seed for an editor draft restored from IndexedDB. The tree node is
-// the authority for route and publish state — a restored buffer must not
-// invent them, or an unpublished page shows a "Published" badge after a
-// reload with unsaved edits (buffer said true, tree said false).
-export function restoredDraftBuffer({
-	docKey,
-	title,
-	content,
-	localContent,
-	serverContent,
-	sentContent,
-	node,
-}) {
-	return {
-		docKey,
-		title: title || '',
-		route: node?.route || '',
-		content,
-		localContent,
-		serverContent,
-		sentContent,
-		isPublished: toPublished(node?.isPublished),
-		saveStatus: 'idle',
-		error: null,
-	};
+const RETRIED_SERVER_ERRORS = new Set([
+	'AuthenticationError',
+	'CSRFTokenError',
+	'QueryDeadlockError',
+	'QueryTimeoutError',
+	'SessionExpired',
+	'TimestampMismatchError',
+	'TooManyRequestsError',
+]);
+
+const MAX_BACKOFF_MS = 15000;
+
+export function retryDelay(attempt) {
+	return Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
+}
+
+export function isSignedOut() {
+	return document.cookie.includes('user_id=Guest');
+}
+
+// No `exc_type` means the server never answered, so the op may yet land. A
+// signed-out user gets a PermissionError too, and must not lose work to it.
+export function isRetryableError(err, signedOut = false) {
+	if (!err?.exc_type || RETRIED_SERVER_ERRORS.has(err.exc_type)) return true;
+	return signedOut && err.exc_type === 'PermissionError';
+}
+
+// No hyphens: the server's wiki link and OG image patterns reject them.
+// getRandomValues also works on plain HTTP, where randomUUID is missing.
+export function makeDocKey() {
+	const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+		'',
+	);
 }

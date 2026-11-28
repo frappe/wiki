@@ -6,7 +6,7 @@ import router from '../router';
 import { useSocket } from '../socket';
 import { useChangeRequestStore } from './changeRequest';
 import { useDraftWorkspaceStore } from './draftWorkspace';
-import { toPublished } from './draftWorkspace/utils';
+import { createTreeModel } from './draftWorkspace/treeModel';
 
 const EDITABLE_STATUSES = ['Draft', 'Changes Requested'];
 const REVIEW_STATUSES = ['In Review', 'Approved'];
@@ -50,7 +50,7 @@ export const useSpaceStore = defineStore('space', () => {
 							cloneWikiSpace: 'clone_wiki_space_in_background',
 							syncNow: 'sync_now',
 						},
-				  })
+					})
 				: null;
 		},
 		{ immediate: true },
@@ -116,8 +116,17 @@ export const useSpaceStore = defineStore('space', () => {
 			isEditingInReview.value
 		);
 	});
+	// Kept out of isEditing, which the open editor needs to save on its way here.
+	const isReviewingAnother = computed(
+		() =>
+			isEditing.value &&
+			route.value.name === 'SpaceChangeRequest' &&
+			route.value.params.changeRequestId !== crStore.currentChangeRequest.name,
+	);
 	const isReading = computed(() => canEdit.value && !isEditing.value);
-	const showsLiveTree = computed(() => isReadonly.value || isReading.value);
+	const showsLiveTree = computed(
+		() => isReadonly.value || isReading.value || isReviewingAnother.value,
+	);
 
 	const readonlyTreeResource = createResource({
 		url: 'wiki.api.wiki_space.get_wiki_tree',
@@ -174,16 +183,15 @@ export const useSpaceStore = defineStore('space', () => {
 		if (showsLiveTree.value) await loadReadonlyTree();
 	}
 
-	const createChangeRequestResource = createResource({
-		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.create_change_request',
+	const draftChangeRequestResource = createResource({
+		url: 'wiki.frappe_wiki.doctype.wiki_change_request.wiki_change_request.get_or_create_draft_change_request',
 	});
 
-	async function startEditing({ title, description }) {
+	async function startEditing(title) {
 		const id = spaceId.value;
-		const changeRequest = await createChangeRequestResource.submit({
+		const changeRequest = await draftChangeRequestResource.submit({
 			wiki_space: id,
 			title,
-			description,
 		});
 		await draftStore.hydrate(id, changeRequest);
 		return changeRequest;
@@ -197,12 +205,16 @@ export const useSpaceStore = defineStore('space', () => {
 		if (id === spaceId.value) await draftStore.hydrate(id, changeRequest);
 	}
 
+	function clearReviewEdit(id) {
+		sessionStorage.removeItem(reviewEditKey(id));
+		reviewEditName.value = null;
+	}
+
 	// Back to the user's own draft, if they have one.
 	async function stopEditingInReview() {
 		const id = crStore.currentChangeRequest?.wiki_space;
 		if (!id) return;
-		sessionStorage.removeItem(reviewEditKey(id));
-		reviewEditName.value = null;
+		clearReviewEdit(id);
 		stopEditing();
 		if (id === spaceId.value) await loadSpace(id);
 	}
@@ -214,27 +226,13 @@ export const useSpaceStore = defineStore('space', () => {
 		readonlyTreeSpaceId.value = null;
 	}
 
-	function adaptReadonlyNode(node) {
-		return {
-			doc_key: node.doc_key,
-			document_name: node.name,
-			title: node.title,
-			route: node.route,
-			is_group: !!node.is_group,
-			is_published: toPublished(node.is_published),
-			is_external_link: Boolean(node.is_external_link),
-			external_url: node.external_url || null,
-			children: (node.children || []).map(adaptReadonlyNode),
-		};
-	}
-
-	const liveTreeData = computed(() => {
+	// A fresh model per fetch: the live tree is only ever replaced whole.
+	const liveTree = computed(() => {
 		const data = readonlyTreeResource.data;
 		if (!data || readonlyTreeSpaceId.value !== spaceId.value) return null;
-		return {
-			root_group: data.root_key || '',
-			children: (data.children || []).map(adaptReadonlyNode),
-		};
+		const model = createTreeModel();
+		model.applyServerTree(data);
+		return model;
 	});
 
 	async function loadReadonlyTree() {
@@ -247,24 +245,35 @@ export const useSpaceStore = defineStore('space', () => {
 		() => draftStore.spaceId === spaceId.value && draftStore.hasLoadedTree,
 	);
 
-	const treeData = computed(() => {
+	// The tree model on screen: null until one has loaded for this space.
+	const tree = computed(() => {
 		if (showsLiveTree.value) {
-			if (liveTreeData.value || !hasDraftTree.value) return liveTreeData.value;
-			return draftStore.treeAsLegacy;
+			if (liveTree.value || !hasDraftTree.value) return liveTree.value;
+			return draftStore.tree;
 		}
-		if (hasDraftTree.value) return draftStore.treeAsLegacy;
-		if (liveTreeData.value) return liveTreeData.value;
+		if (hasDraftTree.value) return draftStore.tree;
+		if (liveTree.value) return liveTree.value;
 		if (draftStore.spaceId !== spaceId.value) return null;
-		return draftStore.hasStaleTree ? draftStore.staleTreeAsLegacy : null;
+		return draftStore.hasStaleTree ? draftStore.staleTree : null;
 	});
 
 	const isTreeStale = computed(
 		() =>
 			!showsLiveTree.value &&
 			!hasDraftTree.value &&
-			!liveTreeData.value &&
+			!liveTree.value &&
 			draftStore.spaceId === spaceId.value &&
 			draftStore.hasStaleTree,
+	);
+
+	// The review page shows the live tree beside a change request; adding pages
+	// there would start another one.
+	const isTreeReadonly = computed(
+		() =>
+			isReadonly.value ||
+			isTreeStale.value ||
+			isReviewingAnother.value ||
+			(route.value.name === 'SpaceChangeRequest' && !isEditing.value),
 	);
 
 	const changeTypeMap = computed(() => {
@@ -393,14 +402,17 @@ export const useSpaceStore = defineStore('space', () => {
 		canEdit,
 		isEditing,
 		isEditingInReview,
+		isReviewingAnother,
 		isReading,
 		startEditing,
 		stopEditing,
 		editInReview,
+		clearReviewEdit,
 		stopEditingInReview,
 		selectedPageId,
+		isTreeReadonly,
 		selectedDraftKey,
-		treeData,
+		tree,
 		isTreeStale,
 		changeTypeMap,
 		isTreeReordering,

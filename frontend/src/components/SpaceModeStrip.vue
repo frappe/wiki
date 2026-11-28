@@ -48,7 +48,7 @@
 	</div>
 
 	<div
-		v-else-if="spaceStore.isEditing"
+		v-else-if="spaceStore.isEditing && !spaceStore.isReviewingAnother"
 		class="contribution-strip shrink-0 px-2 pt-2"
 	>
 		<!-- 260px does not fit a label and two buttons on one line, so the meta
@@ -80,12 +80,12 @@
 			</div>
 
 			<p class="mt-1 truncate text-xs text-ink-gray-6">
-				{{ metaLine }}
+				{{ stripConfig.label }} · <bdi>{{ changedLabel }}</bdi>
 			</p>
 
 			<p
 				v-if="reviewFeedback"
-				class="mt-1 text-xs text-ink-red-7"
+				class="bidi-text mt-1 text-xs text-ink-red-7"
 				:title="reviewFeedback"
 			>
 				{{ reviewFeedback }}
@@ -143,6 +143,7 @@
 					v-model="detailsTitle"
 					:label="__('Title')"
 					type="text"
+					:maxlength="CHANGE_REQUEST_TITLE_MAX_LENGTH"
 					required
 					autofocus
 				/>
@@ -187,7 +188,10 @@ import { computed, ref, watch } from 'vue';
 
 import { useChangeRequestActions } from '../composables/useChangeRequestActions';
 import { useMobile } from '../composables/useMobile';
-import { useChangeRequestStore } from '../stores/changeRequest';
+import {
+	CHANGE_REQUEST_TITLE_MAX_LENGTH,
+	useChangeRequestStore,
+} from '../stores/changeRequest';
 import { useDraftWorkspaceStore } from '../stores/draftWorkspace';
 import { useSpaceStore } from '../stores/space';
 import MergeChangeRequestButton from './MergeChangeRequestButton.vue';
@@ -358,12 +362,11 @@ const stripConfig = computed(
 );
 const stripClass = computed(() => stripConfig.value.class);
 
-const metaLine = computed(() => {
+const changedLabel = computed(() => {
 	const count = crStore.changeCount;
-	const changed = count
+	return count
 		? __('{0} {1} changed', [count, count === 1 ? __('page') : __('pages')])
 		: __('No changes yet');
-	return `${stripConfig.value.label} · ${changed}`;
 });
 
 // The only place the author sees why a CR bounced back; the status badge covers

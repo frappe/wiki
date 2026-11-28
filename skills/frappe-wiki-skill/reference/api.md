@@ -37,8 +37,9 @@ common paths; this file is for everything it does not cover.
 `get_cr_tree(...)["root_group"]` is the *doc_key*, already resolved. Use the tree's value
 directly as `parent_key`.
 
-`parent_key: null` is not "root" — the node is stored but excluded from
-`doc_map[root_key]["children"]` and becomes permanently invisible.
+`parent_key` (and `target_parent_key` on a move) must be the tree's `root_group` or the
+`doc_key` of a node in the CR. A null, empty or unknown parent throws `ValidationError`, and so
+does moving a node under itself or one of its descendants. Nothing in the batch is written.
 
 ## Read
 
@@ -47,10 +48,10 @@ directly as `parent_key`.
 | `$CR.get_change_request` | `name` | Full CR dict |
 | `$CR.list_change_requests` | `wiki_space`, `status?` | `[{name, title, status, base_revision, head_revision, merge_revision, outdated, modified, merged_at, merged_by, owner, ...}]`, newest first |
 | `$CR.list_open_change_requests` | `wiki_space` | Everyone's `In Review` / `Changes Requested` / `Approved` CRs plus your own open draft: `[{name, title, status, owner, owner_name, owner_image, modified, changed_doc_keys}]`, newest first. GET. |
-| `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int}` |
-| `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content}` |
-| `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides |
-| `$CR.get_change_request_review` | `name` | `{author: {full_name, image}, pages: [{doc_key, change_type, title, ..., base, head, location?}]}`; each side is `{title, content, html}` or null. Every changed page in one call. GET. |
+| `$CR.get_cr_tree` | `name` | `{children: [nested nodes with _changeType], root_group: <doc_key>, operation_version: int, structure_version: int}` |
+| `$CR.get_cr_page` | `name`, `doc_key` | `{doc_key, title, slug, route, is_group, is_tab, tab_icon, is_published, is_external_link, external_url, parent_key, order_index, document_name, content, content_hash}` |
+| `$CR.diff_change_request` | `name`, `scope="summary"`, `doc_key?` | `summary` → `[{doc_key, change_type, title, is_group, is_tab, is_external_link, external_url}]`; `scope="page"` → `{doc_key, base, head, location}` with full content on both sides. Once merged, compares main before the merge with what landed, so changes dropped by a conflict choice are left out |
+| `$CR.get_change_request_review` | `name` | `{author: {full_name, image}, reviewer: {full_name, image} or null, pages: [{doc_key, change_type, title, ..., base, head, location?}]}`; each side is `{title, content, html}` or null. Every changed page in one call. Once merged, shows what landed, like `diff_change_request`. GET. |
 | `$CR.check_outdated` | `name` | `0` \| `1`; also persisted to `outdated` |
 | `$CR.check_route_available` | `wiki_space`, `route`, `cr_name?`, `exclude_doc_key?` | `{route: <sanitized>, available: bool}` — **advisory only** |
 | `wiki.api.get_space_capabilities` | `space` | `{can_read, can_write, can_contribute, can_delete}` |
@@ -71,7 +72,8 @@ Params `wiki_space`, `title` (required), `description?` → CR doc. Always fresh
 Params `name`, `title?`, `description?`.
 
 ### `$CR.apply_cr_operations` — the main write endpoint
-Params `name`, `base_version` (int \| null), `operations` (list \| JSON string).
+Params `name`, `base_version` (int \| null), `operations` (list \| JSON string),
+`base_structure_version` (int \| null).
 
 Success:
 ```json
@@ -89,6 +91,23 @@ Stale — **HTTP 200, exit code 0**:
  "message": "This draft has changed elsewhere. Reload latest."}
 ```
 
+`base_version` guards the whole draft. Two narrower guards are optional:
+
+- `base_content_hash` on an `update_content` op, from `content_hash` in `get_cr_page` or in `items`.
+  If the page changed since and does not already hold this content, nothing in the batch is written:
+  `{"ok": false, "error": "page_conflict", "doc_key": "...", "message": "..."}`
+- `base_structure_version`, from `get_cr_tree`. If the tree changed since, nothing is written:
+  `{"ok": false, "error": "structure_conflict", "structure_version": 4, "message": "..."}`
+
+A batch that creates, deletes, restores, moves or reorders returns `structure_version`.
+
+`op_id` on any op makes it safe to send again (a string of at most 64 characters, unique within the CR).
+The server remembers the last 200 and skips an op it has seen. A skipped op writes nothing, is left out of
+both checks above, and its page still appears in `items`. Ops without `op_id` always apply.
+
+A batch that had to wait for another write to the same CR throws `TimestampMismatchError`. Nothing is
+written, so send it again.
+
 Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 `parent_key` / `doc_key` / `target_parent_key` for ops later in the same batch.
 
@@ -96,8 +115,8 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 
 | `type` | Fields |
 |---|---|
-| `create_node` | `temp_key` (req), `title` (req), `parent_key` (req in practice), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
-| `update_content` | `doc_key` (req), `content` (req), `title?` |
+| `create_node` | `doc_key` or `temp_key` (one req), `title` (req), `parent_key` (req), `slug`, `route`, `content`, `is_group`, `is_published` (default true), `is_external_link`, `external_url`, `order_index`, `is_tab`, `tab_icon` |
+| `update_content` | `doc_key` (req), `content` (req), `title?`, `base_content_hash?` |
 | `update_node` | `doc_key` (req), `fields{}` |
 | `delete_node` | `doc_key` (req) — cascades to descendants |
 | `restore_node` | `doc_key` (req) — undoes a deletion staged in this CR, with its descendants |
@@ -105,6 +124,10 @@ Whole batch is one transaction. `_resolve_temp_key` substitutes temp keys in
 | `reorder_children` | `parent_key` (req), `ordered_doc_keys[]` (req) |
 
 `id` is a client correlation string; the backend does not validate it.
+
+`doc_key` on `create_node` is a key the caller picks: 12 to 32 letters and digits, and new. A key
+already in Wiki Document or the CR's base revision throws, and the whole batch rolls back. Sending a
+key this CR already created changes nothing and returns the page, so a retry is safe.
 
 #### `fields` allowlist for `update_node` / `update_cr_page`
 - Scalars: `title`, `slug`, `route`, `external_url`, `tab_icon`
@@ -146,7 +169,7 @@ Archived ◀── archive (from any status)
 | `$CR.submit_change_request` | `name` | `{Draft, Changes Requested}` → `In Review` | `write`; throws unless `has_revision_changes` |
 | `$CR.approve_change_request` | `name` | `{In Review}` → `Approved` | `_can_merge` |
 | `$CR.request_changes` | `name`, `comment` (non-empty) | `{In Review, Approved}` → `Changes Requested` | `_can_merge` |
-| `$CR.reject_change_request` | `name`, `comment` (non-empty) | `{In Review, Approved}` → `Rejected` | `_can_merge` |
+| `$CR.reject_change_request` | `name`, `comment` (non-empty) | `{In Review, Approved, Changes Requested}` → `Rejected` | `_can_merge` |
 | `$CR.withdraw_change_request` | `name` | `{In Review}` → `Draft` | owner or manager |
 | `$CR.merge_change_request` | `name` | `{Approved}` → `Merged` | `_can_merge`; returns merge revision name |
 | `$CR.archive_change_request` | `name` | any → `Archived` | `write`, no status guard |

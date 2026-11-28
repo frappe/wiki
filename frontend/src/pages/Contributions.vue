@@ -49,7 +49,7 @@
 					     says there is more behind Load more. -->
 					<span
 						v-if="activeCountLabel"
-						class="shrink-0 text-sm text-ink-gray-5"
+						class="bidi-text shrink-0 text-sm text-ink-gray-5"
 					>
 						{{ activeCountLabel }}
 					</span>
@@ -300,7 +300,7 @@ function openAssign(row) {
 
 function onAssigned() {
 	// Refresh only the inboxes that have actually been opened (and thus exist).
-	resources['assigned']?.reload();
-	resources['all']?.reload();
+	resources.assigned?.reload();
+	resources.all?.reload();
 }
 </script>

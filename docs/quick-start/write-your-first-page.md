@@ -37,7 +37,7 @@ You can use Markdown shortcuts as you type. For example, `## ` starts a heading 
 ## Add a callout
 
 1. On a new line, type `/`.
-2. Under **Callouts**, click **Warning**.
+2. Under **Callouts**, click **Caution**.
 3. Type `Do not deploy on Fridays.`
 
 ## Add an image
@@ -49,7 +49,7 @@ The image uploads and shows in the page. You can also click **Insert Image** in 
 
 <picture>
   <source srcset="../images/quick-start/page-in-editor-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="../images/quick-start/page-in-editor-light.webp" alt="The page How we deploy in the editor with text, a warning callout and an image">
+  <img src="../images/quick-start/page-in-editor-light.webp" alt="The page How we deploy in the editor with text, a caution callout and an image">
 </picture>
 
 ## Your edits save as you type

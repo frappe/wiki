@@ -79,7 +79,7 @@ test('a reader who cannot contribute gets the read-only tree, not a dead New pag
 	await context.close();
 });
 
-test('a reader who may contribute gets Edit, and New page from the palette', async ({
+test('a reader who may contribute gets Edit, and New page in the sidebar and the palette', async ({
 	browser,
 	request,
 	wiki,
@@ -101,8 +101,9 @@ test('a reader who may contribute gets Edit, and New page from the palette', asy
 	const page = await context.newPage();
 	await page.goto(space.url());
 	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
-	// The sidebar adds pages in edit mode only.
-	await expect(page.getByRole('button', { name: 'New page' })).toBeHidden();
+	await expect(
+		page.getByRole('complementary').getByRole('button', { name: 'New page' }),
+	).toBeVisible();
 
 	const palette = page.getByRole('dialog');
 	await page.keyboard.press('ControlOrMeta+k');
@@ -200,6 +201,40 @@ test('a contributor opening a page can Edit once the space loads', async ({
 	await expect(page.getByText('Content for Alpha')).toBeVisible();
 	await expect(page.getByText('Read-only')).toBeHidden();
 	await editPage(page);
+
+	await context.close();
+});
+
+test('a reader opening a page gets no forbidden requests', async ({
+	browser,
+	request,
+	wiki,
+}, info) => {
+	const stamp = Date.now().toString(36);
+	const { email, password } = await seedReader(request, stamp);
+	const space = await wiki.space({
+		space_name: `ReaderNo403${stamp}`,
+		roles: [{ role: 'Wiki User', permission_level: 'Read' }],
+		pages: [{ title: 'Alpha' }],
+	});
+
+	const context = await signIn(
+		browser,
+		info.project.use.baseURL,
+		email,
+		password,
+	);
+	const page = await context.newPage();
+	const forbidden: string[] = [];
+	page.on('response', (res) => {
+		if (res.status() === 403) forbidden.push(res.url());
+	});
+	await page.goto(space.url('page', space.page('Alpha').name));
+
+	await expect(editButton(page)).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText('Content for Alpha')).toBeVisible();
+	await page.waitForLoadState('networkidle');
+	expect(forbidden).toEqual([]);
 
 	await context.close();
 });

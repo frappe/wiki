@@ -18,6 +18,7 @@
         {% for heading in toc_headings %}
         <a href="#{{ heading.id }}"
            data-toc-link="{{ heading.id }}"
+           data-toc-level="{{ heading.level }}"
            class="toc-link {{ 'ps-7' if heading.level >= 3 and has_h2 else 'ps-4' }} py-1 border-s border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">
             {{ heading.text }}
         </a>
@@ -39,6 +40,8 @@
     document.addEventListener('alpine:init', () => {
         Alpine.store('toc', {
             refreshCallback: null,
+            headings: [],
+            activeId: '',
 
             setRefreshCallback(callback) {
                 this.refreshCallback = callback;

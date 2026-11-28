@@ -953,12 +953,12 @@ class TestGitSyncSpaceControls(FrappeTestCase):
 		"""Deleting a space tears down its documents, revisions and root group —
 		without the on_trash cascade these links raise LinkExistsError."""
 		space = _make_synced_space()
-		leaf = frappe.get_doc(
+		group = frappe.get_doc(
 			{
 				"doctype": "Wiki Document",
-				"title": "Leaf",
-				"route": f"{space.route}/leaf",
-				"content": "# Leaf",
+				"title": "Group",
+				"route": f"{space.route}/group",
+				"is_group": 1,
 				"parent_wiki_document": space.root_group,
 				"wiki_space": space.name,
 			}
@@ -967,9 +967,9 @@ class TestGitSyncSpaceControls(FrappeTestCase):
 			{
 				"doctype": "Wiki Document",
 				"title": "Nested",
-				"route": f"{space.route}/leaf/nested",
+				"route": f"{space.route}/group/nested",
 				"content": "# Nested",
-				"parent_wiki_document": leaf.name,
+				"parent_wiki_document": group.name,
 				"wiki_space": space.name,
 			}
 		).insert(ignore_permissions=True)

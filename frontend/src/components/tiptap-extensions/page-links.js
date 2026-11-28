@@ -17,28 +17,6 @@ export function docKeyFromHref(href) {
 		: null;
 }
 
-/**
- * Linkable pages in tree order, each with the trail of folders above it so
- * same-titled pages in different folders can be told apart.
- */
-export function linkablePages(nodes, trail = []) {
-	const pages = [];
-	for (const node of nodes || []) {
-		if (node.is_deleted || node.is_external_link) continue;
-		if (node.is_group) {
-			pages.push(...linkablePages(node.children, [...trail, node.title]));
-		} else if (node.doc_key) {
-			pages.push({
-				key: node.doc_key,
-				title: node.title,
-				trail,
-				isPublished: node.is_published !== false,
-			});
-		}
-	}
-	return pages;
-}
-
 const PAGE_LIMIT = 8;
 
 // Lower is better; null means no match at all.
@@ -161,8 +139,8 @@ function insertPageLink(chain, doc, range, page) {
 
 /**
  * Create a draft page and link its title. The title goes in at once; the link
- * waits for the page's real doc_key, because a `tmp_*` key saved into content
- * would point nowhere once the create lands. The title's range follows every
+ * waits for the create, because a link saved into content would point nowhere
+ * if the create failed. The title's range follows every
  * edit made meanwhile; if the title itself was edited, the page still exists
  * and only the link is skipped.
  */

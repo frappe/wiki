@@ -37,7 +37,7 @@ function selection(args) {
 		? args
 		: readdirSync(join(here, 'shots')).map((file) =>
 				file.replace(/\.mjs$/, ''),
-		  );
+			);
 	const wanted = new Map();
 	for (const arg of groups) {
 		const [group, shot] = arg.split('/');
@@ -56,7 +56,7 @@ async function pageFor(shot, run, previous) {
 				run.theme,
 				shot.viewport ?? FRAMED_VIEWPORT,
 				shot.scale ?? 3,
-		  )
+			)
 		: await run.browser.context(shot.user, run.theme, shot.viewport);
 	const page = await context.newPage();
 	page.on('pageerror', (error) =>

@@ -162,11 +162,11 @@
 </template>
 
 <script setup>
-import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import TrackingNotice from '@/components/Analytics/TrackingNotice.vue';
-import { hasDelta } from '@/lib/analyticsRange';
+import SpaceAvatar from '@/components/SpaceAvatar.vue';
 import { useAnalytics } from '@/composables/useAnalytics';
 import { useWikiSettings } from '@/composables/useWikiSettings';
+import { hasDelta } from '@/lib/analyticsRange';
 import {
 	PageHeader,
 	Progress,
@@ -182,8 +182,7 @@ import { computed, h, ref, watch } from 'vue';
 
 const STATIC_ROW = '-mx-2 flex h-12 items-center gap-3 rounded-5 px-2';
 const ROW = `${STATIC_ROW} hover:bg-surface-gray-2`;
-const COUNT =
-	'w-16 shrink-0 text-end text-base tabular-nums text-ink-gray-8';
+const COUNT = 'w-16 shrink-0 text-end text-base tabular-nums text-ink-gray-8';
 const EMPTY = 'py-8 text-center text-sm text-ink-gray-5';
 
 const RANGE_LABELS = {
@@ -268,7 +267,10 @@ function formatCount(value) {
 
 function pageLink(row) {
 	return row.document
-		? { name: 'SpacePage', params: { spaceId: row.space, pageId: row.document } }
+		? {
+				name: 'SpacePage',
+				params: { spaceId: row.space, pageId: row.document },
+			}
 		: { name: 'SpaceDetails', params: { spaceId: row.space } };
 }
 
@@ -306,7 +308,7 @@ function DeltaText({ delta }) {
 		return h('span', { class: `${base} text-ink-gray-5` }, __('No change'));
 	const sign = delta > 0 ? '+' : '';
 	const tone = delta > 0 ? 'text-ink-green-7' : 'text-ink-red-7';
-	return h('span', { class: `${base} ${tone}` }, `${sign}${delta}%`);
+	return h('span', { class: `${base} ${tone}` }, h('bdi', `${sign}${delta}%`));
 }
 DeltaText.props = ['delta'];
 
