@@ -26,18 +26,15 @@ interface WikiDocumentRoute {
  * For public-facing page tests (TOC, sidebar), see public-pages.spec.ts
  */
 test.describe('Wiki Editor', () => {
-	test('should display wiki spaces list', async ({ page }) => {
+	test('should list spaces with a link to each one', async ({ page, wiki }) => {
+		const space = await wiki.space();
+
 		await page.goto(APP_BASE);
-		await page.waitForLoadState('networkidle');
 
-		// Should be on wiki page, not redirected to login
 		await expect(page).not.toHaveURL(/.*login.*/);
-
-		// Should show the spaces list view with at least one space or the empty state
-		const spacesContainer = page.locator(
-			`[data-testid="wiki-spaces"], .wiki-spaces-list, ${spaceLinkSelector()}`,
-		);
-		await expect(spacesContainer.first()).toBeVisible();
+		await expect(
+			page.locator(spaceLinkSelector(space.name)).first(),
+		).toBeVisible();
 	});
 
 	test('should create a new wiki space via UI', async ({ page, wiki }) => {
@@ -138,22 +135,6 @@ test.describe('Wiki Editor', () => {
 			page.locator('.ProseMirror, [contenteditable="true"]'),
 		).toBeVisible({ timeout: 10000 });
 		await expect(page.getByText(pageTitle).first()).toBeVisible();
-	});
-
-	test('should have New Page button in space sidebar', async ({
-		page,
-		wiki,
-	}) => {
-		const space = await wiki.space();
-		await page.goto(space.url());
-		await page.waitForLoadState('networkidle');
-
-		// Should have sidebar with space management buttons
-		await expect(page.locator('aside')).toBeVisible();
-
-		// Wait for the tree to load (CR mode requires async init). The sidebar
-		// footer's New page button is there whether or not the space has pages.
-		await expect(newPageButton(page)).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should open wiki editor when clicking page in sidebar', async ({

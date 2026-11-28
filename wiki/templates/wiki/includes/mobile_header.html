@@ -115,7 +115,7 @@
         <div class="pt-2 pb-1 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none" data-testid="mobile-drag-handle"
              @mousedown="startDrag($event)"
              @touchstart.passive="startDrag($event)"
-             @click="closeSidebar()">
+             @click="wasDragged || closeSidebar()">
             <div class="h-1.5 w-10 rounded-full bg-[var(--surface-gray-3)]"></div>
         </div>
 
@@ -215,12 +215,25 @@
             spaceSwitcherOpen: false,
             navQuery: '',
             navHasResults: true,
-            tocHeadings: [],
-            activeTocId: '',
-            activeTocText: '',
-            hasToc: false,
+
+            get tocHeadings() {
+                return this.$store.toc?.headings ?? [];
+            },
+
+            get hasToc() {
+                return this.tocHeadings.length > 0;
+            },
+
+            get activeTocId() {
+                return this.$store.toc?.activeId ?? '';
+            },
+
+            get activeTocText() {
+                return this.tocHeadings.find((heading) => heading.id === this.activeTocId)?.text ?? '';
+            },
 
             isDragging: false,
+            wasDragged: false,
             dragOffset: 0,
             dragStartY: 0,
 
@@ -234,29 +247,6 @@
                 document.addEventListener('mouseup', this.endDrag.bind(this));
                 document.addEventListener('touchmove', this.onDrag.bind(this), { passive: false });
                 document.addEventListener('touchend', this.endDrag.bind(this));
-
-                this.$watch('$root.headings', (headings) => {
-                    if (headings && headings.length > 0) {
-                        this.tocHeadings = headings;
-                        this.hasToc = true;
-                    }
-                });
-
-                this.$watch('$root.activeId', (activeId) => {
-                    this.activeTocId = activeId;
-                    const heading = this.tocHeadings.find(h => h.id === activeId);
-                    this.activeTocText = heading ? heading.text : '';
-                });
-
-                this.$nextTick(() => {
-                    if (this.$root.headings && this.$root.headings.length > 0) {
-                        this.tocHeadings = this.$root.headings;
-                        this.hasToc = true;
-                        this.activeTocId = this.$root.activeId || '';
-                        const heading = this.tocHeadings.find(h => h.id === this.activeTocId);
-                        this.activeTocText = heading ? heading.text : '';
-                    }
-                });
             },
 
             toggleSidebar() {
@@ -360,6 +350,8 @@
                 if (!this.isDragging) return;
 
                 this.isDragging = false;
+                // A press that ends on the handle also clicks it, so tell a drag from a tap.
+                this.wasDragged = Math.abs(this.dragOffset) > 5;
 
                 if (this.dragOffset > 100) {
                     this.closeSidebar();

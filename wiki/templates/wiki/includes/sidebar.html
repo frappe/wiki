@@ -250,7 +250,7 @@
                     const safeId = escapeHtml(heading.id);
                     const safeText = escapeHtml(heading.text);
                     const indent = heading.level >= 3 && hasH2 ? 'ps-7' : 'ps-4';
-                    html += `<a href="#${safeId}" data-toc-link="${safeId}" class="toc-link ${indent} py-1 border-s border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
+                    html += `<a href="#${safeId}" data-toc-link="${safeId}" data-toc-level="${Number(heading.level)}" class="toc-link ${indent} py-1 border-s border-[var(--outline-gray-1)] text-[var(--ink-gray-6)] hover:text-[var(--ink-gray-9)]">${safeText}</a>`;
                 });
                 html += '</nav>';
                 tocContainer.innerHTML = html;

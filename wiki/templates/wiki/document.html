@@ -249,6 +249,9 @@
             visibleHeadings: new Set(),
 
             init() {
+                this.$watch('activeId', (id) => {
+                    this.$store.toc.activeId = id;
+                });
                 this.initScrollSpy();
 
                 // Register refresh callback with store for SPA navigation
@@ -278,6 +281,11 @@
                 // Get heading IDs from server-rendered TOC links
                 const tocLinks = document.querySelectorAll('[data-toc-link]');
                 this.headingIds = Array.from(tocLinks).map(link => link.dataset.tocLink);
+                this.$store.toc.headings = Array.from(tocLinks).map(link => ({
+                    id: link.dataset.tocLink,
+                    text: link.textContent.trim(),
+                    level: Number(link.dataset.tocLevel),
+                }));
 
                 // Add anchor links to headings in content (even if TOC is empty)
                 document
