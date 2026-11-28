@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import type { WikiFactory } from '../helpers/factory';
 
@@ -27,10 +27,22 @@ async function openOnMobile(page: Page, url: string) {
 	await page.waitForLoadState('networkidle');
 }
 
+async function expectSheetOpen(bottomSheet: Locator) {
+	await expect(bottomSheet).toBeVisible({ timeout: 5000 });
+	// The sheet slides in and out, and a drag handle read mid-slide is gone by mousedown.
+	await expect
+		.poll(() =>
+			bottomSheet.evaluate(
+				(el) => window.innerHeight - el.getBoundingClientRect().bottom,
+			),
+		)
+		.toBe(0);
+}
+
 async function openBottomSheet(page: Page) {
 	await tid(page, 'mobile-menu-toggle').click();
 	const bottomSheet = tid(page, 'mobile-bottom-sheet');
-	await expect(bottomSheet).toBeVisible({ timeout: 5000 });
+	await expectSheetOpen(bottomSheet);
 	return bottomSheet;
 }
 
@@ -179,9 +191,24 @@ test.describe('Mobile View', () => {
 			const bottomSheet = await openBottomSheet(page);
 
 			await dragHandleDown(page, 40);
-			await expect(bottomSheet).toBeVisible();
+			await expectSheetOpen(bottomSheet);
 
 			await dragHandleDown(page, 200);
+			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
+		});
+
+		test('should close bottom sheet when the drag handle is tapped', async ({
+			page,
+			wiki,
+		}) => {
+			const publicUrl = await createPublishedTestPage(
+				wiki,
+				`bottom-sheet-handle-tap-test-${Date.now()}`,
+			);
+			await openOnMobile(page, publicUrl);
+			const bottomSheet = await openBottomSheet(page);
+
+			await tid(page, 'mobile-drag-handle').click();
 			await expect(bottomSheet).not.toBeVisible({ timeout: 5000 });
 		});
 	});
